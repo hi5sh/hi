@@ -578,6 +578,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.38.1 — No stray terminal replies; previews outlive restarts
+
+- [x] hi no longer asks the terminal for its background colour at start,
+  in every command. Terminals that answered late left the reply, such as
+  `^[[34;1R`, in the shell. Bubble Tea v1 asks in its `init`, so hi builds
+  with a copy without it (`third_party/bubbletea`, until v2) and assumes a
+  dark background unless `COLORFGBG` says otherwise.
+- [x] A team's previews and member boxes run in systemd scopes of their
+  own, so restarting the team (`hi team up`) no longer stops them, and the
+  service signals only `hi team __serve`, which stops the lead cleanly.
+
 ### v0.38.0 — Previews of a team's work
 
 - [x] The lead's `hi team preview [<task>]` runs the project in an app box

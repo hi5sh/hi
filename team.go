@@ -859,6 +859,8 @@ Wants=network-online.target
 Restart=always
 RestartSec=10
 TimeoutStopSec=60
+# Only hi team __serve gets the stop signal; it stops the lead itself.
+KillMode=mixed
 
 [Install]
 WantedBy=default.target

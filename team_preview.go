@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -175,8 +176,24 @@ func (b *teamBroker) startApp(src, command string, port, hostPort int) error {
 	run = append(run, "-v", src+":/app", "-w", "/app",
 		"-e", "HOME=/tmp", "-e", "PORT="+strconv.Itoa(port), "-e", "HOST=0.0.0.0",
 		image, "sh", "-c", command)
-	_, err = engine.output(run...)
-	return err
+	name, args := teamOutsideService(engine.bin, run)
+	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s: %s", engine.name, qFirstLine(strings.TrimSpace(string(out)), err.Error()))
+	}
+	return nil
+}
+
+// teamOutsideService runs a command in a systemd scope of its own when hi
+// team runs under systemd, so the containers and processes it leaves
+// behind aren't stopped with the team's service.
+func teamOutsideService(name string, args []string) (string, []string) {
+	if os.Getenv("INVOCATION_ID") == "" {
+		return name, args
+	}
+	if _, err := exec.LookPath("systemd-run"); err != nil {
+		return name, args
+	}
+	return "systemd-run", append([]string{"--user", "--scope", "--quiet", "--collect", "--", name}, args...)
 }
 
 func (b *teamBroker) engineOutput(args ...string) (string, error) {

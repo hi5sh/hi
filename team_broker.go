@@ -145,7 +145,13 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi}
 	b.app = b.startApp
 	b.run = func(args ...string) ([]byte, error) {
-		command := exec.Command(b.hi, args...)
+		// What a member or a preview starts must outlive a restart of the
+		// team; only the waiters belong to it, and resume starts them again.
+		name, all := b.hi, args
+		if !(len(args) > 1 && args[0] == "agent" && args[1] == "wait") {
+			name, all = teamOutsideService(b.hi, args)
+		}
+		command := exec.Command(name, all...)
 		command.Dir = b.repo
 		var stderr strings.Builder
 		command.Stderr = &stderr

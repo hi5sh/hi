@@ -4,13 +4,30 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 var version = "dev"
 
 func main() {
+	setTerminalBackground()
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
+}
+
+// setTerminalBackground tells Lip Gloss whether the terminal is dark, so it
+// never asks the terminal: a terminal that answers late leaves its reply,
+// such as ^[[34;1R, in the shell after hi exits. hi's colours read on both;
+// COLORFGBG says when the background is light (third_party/bubbletea/HI.md).
+func setTerminalBackground() {
+	dark := true
+	if colors := os.Getenv("COLORFGBG"); strings.Contains(colors, ";") {
+		background, err := strconv.Atoi(colors[strings.LastIndex(colors, ";")+1:])
+		dark = err != nil || (background != 7 && background < 9)
+	}
+	lipgloss.SetHasDarkBackground(dark)
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
