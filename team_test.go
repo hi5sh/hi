@@ -119,7 +119,7 @@ func TestTeamWizard(t *testing.T) {
 	answers := strings.Join([]string{
 		"Track supplier payments for the finance admins",
 		"xoxb-bot", "xapp-app",
-		"C07PAYMENTS",
+		"\x1b[201~C07PAYMENTS", // the end of a pasted token's marker, left over
 		"U07OWNER1, U07OWNER2",
 		"",                      // everyone in the channel may ask
 		"", "", "codex:gpt-5.5", // lead and coder as offered, a reviewer model
@@ -493,5 +493,21 @@ func TestTeamMovedFolder(t *testing.T) {
 	}
 	if _, err := loadTeam("payments"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestTeamWizardRefusesAWrongAnswer(t *testing.T) {
+	setupTeamTest(t)
+	answers := "x\nxoxb-bot\nxapp-app\n#payments\n"
+	var out bytes.Buffer
+	err := teamNew([]string{"payments"}, strings.NewReader(answers), &out)
+	if err == nil || !strings.Contains(err.Error(), `a channel ID looks like C07ABC123, not "#payments"`) {
+		t.Fatal(err)
+	}
+	if fileExists("team-payments") {
+		t.Fatal("nothing is written before every answer is in")
+	}
+	if got := stripTerminalCodes("\x1b[200~xapp-1\x1b[201~"); got != "xapp-1" {
+		t.Fatal(got)
 	}
 }

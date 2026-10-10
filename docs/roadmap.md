@@ -578,6 +578,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.37.1 — `hi team new` checks each answer as it's given
+
+- [x] Tokens, the channel, the owners, and the members are checked as they
+  are given, and asked again in a terminal, so one wrong answer no longer
+  ends the setup.
+- [x] The marker a terminal sends after a paste no longer lands in the next
+  answer (a pasted token with a line break left `\x1b[201~` in front of
+  the channel ID).
+- [x] A repository given as a folder on this machine is cloned, and the
+  team doesn't push merges back into it; its owner pulls from the team.
+
 ### v0.37.0 — `hi team`: a virtual team in a Slack channel
 
 - [x] `hi team new`: a step-by-step setup that prints the team's Slack app

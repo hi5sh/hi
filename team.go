@@ -318,6 +318,8 @@ func (liveTeamSlack) channel(botToken, channel string) (string, bool, error) {
 type teamAnswers struct {
 	teamConfig
 	Clone string `json:"clone,omitempty"`
+	// checked: the wizard checked Slack as it went.
+	checked bool
 }
 
 func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
@@ -377,8 +379,10 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := validateTeam(config); err != nil {
 		return err
 	}
-	if err := teamCheckSlack(config, secrets, stdout); err != nil {
-		return err
+	if !answers.checked {
+		if err := teamCheckSlack(config, secrets, stdout); err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -427,7 +431,7 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	config.Name = name
 	var err error
 
-	fmt.Fprintf(stdout, "Setting up team %s. Each step can be changed later in %s.\n\n", name, filepath.Join(dir, "team.json"))
+	fmt.Fprintf(stdout, "Setting up team %s in %s. Each answer is checked as you give it.\n\n", name, dir)
 
 	fmt.Fprintln(stdout, "1/6 Purpose")
 	fmt.Fprintln(stdout, "In one sentence, what is this team for? The lead starts from it.")
@@ -444,61 +448,192 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "The bot token is under OAuth & Permissions (xoxb-…). The app token is under")
 	fmt.Fprintln(stdout, "Basic Information → App-Level Tokens: generate one with the connections:write scope (xapp-…).")
-	if secrets.SlackBotToken, err = teamAskSecret(stdin, stdout, "Bot token"); err != nil {
+	workspace := ""
+	if secrets.SlackBotToken, err = teamAskUntil(stdin, stdout, "Bot token", true, func(token string) error {
+		workspace, err = teamCheckBotToken(token)
+		return err
+	}); err != nil {
 		return answers, secrets, err
 	}
-	if secrets.SlackAppToken, err = teamAskSecret(stdin, stdout, "App token"); err != nil {
+	if secrets.SlackAppToken, err = teamAskUntil(stdin, stdout, "App token", true, teamCheckAppToken); err != nil {
 		return answers, secrets, err
 	}
+	fmt.Fprintf(stdout, "Slack: both tokens work, in workspace %s.\n", workspace)
 
 	fmt.Fprintln(stdout, "\n3/6 Channel")
-	fmt.Fprintln(stdout, "The team's channel ID: open the channel, click its name, and copy the ID at the bottom (C…).")
-	fmt.Fprintln(stdout, "Invite the app to it first: /invite @"+teamBotName(name))
-	if config.Channel, err = teamAsk(stdin, stdout, "Channel ID", ""); err != nil {
+	fmt.Fprintln(stdout, "Invite the app to the team's channel first: /invite @"+teamBotName(name))
+	fmt.Fprintln(stdout, "Then copy the channel's ID: click the channel's name; the ID is at the bottom (C…).")
+	channel := ""
+	if config.Channel, err = teamAskUntil(stdin, stdout, "Channel ID", false, func(id string) error {
+		channel, err = teamCheckChannel(name, secrets.SlackBotToken, id)
+		return err
+	}); err != nil {
 		return answers, secrets, err
 	}
+	fmt.Fprintf(stdout, "Slack: the app is in #%s.\n", channel)
 
 	fmt.Fprintln(stdout, "\n4/6 People")
 	fmt.Fprintln(stdout, "Owners approve what matters, such as merging and stopping the team. Give Slack member IDs,")
 	fmt.Fprintln(stdout, "separated by commas: a person's profile → ⋯ → Copy member ID (U…).")
-	owners, err := teamAsk(stdin, stdout, "Owners", "")
+	owners, err := teamAskUntil(stdin, stdout, "Owners", false, teamCheckPeople)
 	if err != nil {
 		return answers, secrets, err
 	}
 	config.Owners = splitList(owners)
 	fmt.Fprintln(stdout, "Who else may ask the team for work? Enter lets everyone in the channel.")
-	askers, err := teamAsk(stdin, stdout, "Others", "everyone in the channel")
+	askers, err := teamAskUntil(stdin, stdout, "Others", false, func(answer string) error {
+		if answer == "" {
+			return nil
+		}
+		return teamCheckPeople(answer)
+	})
 	if err != nil {
 		return answers, secrets, err
 	}
-	if askers != "everyone in the channel" {
-		config.Askers = splitList(askers)
-	}
+	config.Askers = splitList(askers)
 
 	fmt.Fprintln(stdout, "\n5/6 Members")
+	fmt.Fprintln(stdout, "Each role's agent (claude, codex, or hermes) and model. Enter keeps what's offered.")
 	config.Members = defaultTeamMembers()
 	for _, role := range teamRoles(*config) {
 		member := config.Members[role]
-		answer, err := teamAsk(stdin, stdout, fmt.Sprintf("%-8s (agent:model)", role), member.Agent+teamModelSuffix(member.Model))
+		offered := member.Agent + teamModelSuffix(member.Model)
+		answer, err := teamAskUntil(stdin, stdout, fmt.Sprintf("%-8s [%s]", role, offered), false, func(answer string) error {
+			agent, model, _ := strings.Cut(firstNonEmpty(answer, offered), ":")
+			trial := *config
+			trial.Members = map[string]teamMember{}
+			for other, existing := range config.Members {
+				trial.Members[other] = existing
+			}
+			trial.Members[role] = teamMember{Agent: strings.TrimSpace(agent), Model: strings.TrimSpace(model)}
+			if role == "lead" && trial.Members[role].Agent != "hermes" {
+				return errors.New("the lead is Hermes")
+			}
+			for other, m := range trial.Members {
+				if other == role {
+					if !agentKinds[m.Agent] {
+						return fmt.Errorf("the agent is claude, codex, or hermes, not %q", m.Agent)
+					}
+					if m.Model != "" && !agentModelName.MatchString(m.Model) {
+						return fmt.Errorf("%q isn't a model name", m.Model)
+					}
+				}
+			}
+			if coder, reviewer := trial.Members["coder"], trial.Members["reviewer"]; role == "reviewer" && coder.Agent == reviewer.Agent && coder.Model == reviewer.Model {
+				return errors.New("the reviewer must be a different agent or model from the coder")
+			}
+			return nil
+		})
 		if err != nil {
 			return answers, secrets, err
 		}
-		agent, model, _ := strings.Cut(answer, ":")
+		agent, model, _ := strings.Cut(firstNonEmpty(answer, offered), ":")
 		member.Agent, member.Model = strings.TrimSpace(agent), strings.TrimSpace(model)
 		config.Members[role] = member
 	}
 
 	fmt.Fprintln(stdout, "\n6/6 Code")
-	fmt.Fprintln(stdout, "Enter starts a new git repository. Or give a repository to clone with this machine's git credentials.")
-	clone, err := teamAsk(stdin, stdout, "Repository", "new")
+	fmt.Fprintln(stdout, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
+	fmt.Fprintln(stdout, "Enter starts a new git repository there. Or give a repository to clone: a URL, cloned with this")
+	fmt.Fprintln(stdout, "machine's git credentials, or a folder on this machine.")
+	clone, err := teamAskUntil(stdin, stdout, "Repository [new]", false, func(string) error { return nil })
 	if err != nil {
 		return answers, secrets, err
 	}
 	if clone != "new" {
 		answers.Clone = clone
 	}
+	answers.checked = true
 	return answers, secrets, nil
 }
+
+// teamAskUntil asks until check accepts the answer; Enter gives "". In a
+// terminal a wrong answer is asked again; otherwise it ends the setup.
+func teamAskUntil(stdin io.Reader, stdout io.Writer, question string, secret bool, check func(string) error) (string, error) {
+	for attempt := 1; ; attempt++ {
+		var answer string
+		var err error
+		if secret {
+			answer, err = teamAskSecret(stdin, stdout, question)
+		} else {
+			fmt.Fprintf(stdout, "%s: ", question)
+			var line string
+			line, err = readLine(stdin)
+			if !isTerminal(stdin) {
+				fmt.Fprintln(stdout)
+			}
+			if errors.Is(err, io.EOF) && line != "" {
+				err = nil
+			}
+			answer = strings.TrimSpace(stripTerminalCodes(line))
+		}
+		if err == nil {
+			if err = check(answer); err == nil {
+				return answer, nil
+			}
+		}
+		if !isTerminal(stdin) || attempt == 5 || errors.Is(err, io.EOF) {
+			return "", err
+		}
+		fmt.Fprintf(stdout, "  %v. Try again.\n", err)
+	}
+}
+
+func teamCheckBotToken(token string) (string, error) {
+	if !strings.HasPrefix(token, "xoxb-") {
+		return "", errors.New("the bot token starts with xoxb-; it is under OAuth & Permissions")
+	}
+	workspace, _, err := teamSlack.botIdentity(token)
+	if err != nil {
+		return "", fmt.Errorf("Slack refused the bot token: %w", err)
+	}
+	return workspace, nil
+}
+
+func teamCheckAppToken(token string) error {
+	if !strings.HasPrefix(token, "xapp-") {
+		return errors.New("the app token starts with xapp-; generate one under Basic Information → App-Level Tokens")
+	}
+	if err := teamSlack.checkAppToken(token); err != nil {
+		return fmt.Errorf("Slack refused the app token (it needs connections:write, and Socket Mode on): %w", err)
+	}
+	return nil
+}
+
+func teamCheckChannel(team, botToken, id string) (string, error) {
+	if !slackIDPattern.MatchString(id) {
+		return "", fmt.Errorf("a channel ID looks like C07ABC123, not %q", id)
+	}
+	channel, member, err := teamSlack.channel(botToken, id)
+	if err != nil {
+		return "", fmt.Errorf("the app can't see channel %s (invite it with /invite @%s): %w", id, teamBotName(team), err)
+	}
+	if !member {
+		return "", fmt.Errorf("the app isn't in #%s yet; invite it there with /invite @%s", channel, teamBotName(team))
+	}
+	return channel, nil
+}
+
+func teamCheckPeople(answer string) error {
+	ids := splitList(answer)
+	if len(ids) == 0 {
+		return errors.New("give at least one member ID")
+	}
+	for _, id := range ids {
+		if !slackIDPattern.MatchString(id) || (!strings.HasPrefix(id, "U") && !strings.HasPrefix(id, "W")) {
+			return fmt.Errorf("a member ID looks like U07ABC123, not %q", id)
+		}
+	}
+	return nil
+}
+
+// stripTerminalCodes removes escape sequences a terminal may send, such as
+// the markers around a paste.
+func stripTerminalCodes(text string) string {
+	return terminalCodes.ReplaceAllString(text, "")
+}
+
+var terminalCodes = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b`)
 
 func teamModelSuffix(model string) string {
 	if model == "" {
@@ -555,7 +690,7 @@ func teamAsk(stdin io.Reader, stdout io.Writer, question, fallback string) (stri
 	if !isTerminal(stdin) {
 		fmt.Fprintln(stdout)
 	}
-	if line = strings.TrimSpace(line); line != "" {
+	if line = strings.TrimSpace(stripTerminalCodes(line)); line != "" {
 		return line, nil
 	}
 	if fallback != "" {
@@ -586,7 +721,7 @@ func teamAskSecret(stdin io.Reader, stdout io.Writer, label string) (string, err
 		}
 		value = line
 	}
-	if value = strings.TrimSpace(value); value == "" {
+	if value = strings.TrimSpace(stripTerminalCodes(value)); value == "" {
 		return "", fmt.Errorf("no %s was entered", strings.ToLower(label))
 	}
 	return value, nil
@@ -594,25 +729,16 @@ func teamAskSecret(stdin io.Reader, stdout io.Writer, label string) (string, err
 
 // teamCheckSlack checks both tokens and that the bot is in the channel.
 func teamCheckSlack(config teamConfig, secrets teamSecrets, stdout io.Writer) error {
-	if !strings.HasPrefix(secrets.SlackBotToken, "xoxb-") {
-		return errors.New("the bot token starts with xoxb-; it is under OAuth & Permissions")
-	}
-	if !strings.HasPrefix(secrets.SlackAppToken, "xapp-") {
-		return errors.New("the app token starts with xapp-; generate one under Basic Information → App-Level Tokens")
-	}
-	workspace, _, err := teamSlack.botIdentity(secrets.SlackBotToken)
+	workspace, err := teamCheckBotToken(secrets.SlackBotToken)
 	if err != nil {
-		return fmt.Errorf("Slack refused the bot token: %w", err)
+		return err
 	}
-	if err := teamSlack.checkAppToken(secrets.SlackAppToken); err != nil {
-		return fmt.Errorf("Slack refused the app token (it needs connections:write, and Socket Mode on): %w", err)
+	if err := teamCheckAppToken(secrets.SlackAppToken); err != nil {
+		return err
 	}
-	channel, member, err := teamSlack.channel(secrets.SlackBotToken, config.Channel)
+	channel, err := teamCheckChannel(config.Name, secrets.SlackBotToken, config.Channel)
 	if err != nil {
-		return fmt.Errorf("the bot can't see channel %s (invite it with /invite @%s): %w", config.Channel, teamBotName(config.Name), err)
-	}
-	if !member {
-		return fmt.Errorf("the bot isn't in #%s yet; invite it there with /invite @%s", channel, teamBotName(config.Name))
+		return err
 	}
 	fmt.Fprintf(stdout, "Slack: workspace %s, channel #%s.\n", workspace, channel)
 	return nil
@@ -640,7 +766,14 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, std
 		if out, err := exec.Command("git", "clone", "-q", clone, repo).CombinedOutput(); err != nil {
 			return fmt.Errorf("git clone: %s", qFirstLine(string(out), err.Error()))
 		}
-		config.Remote = clone
+		// The team pushes merges back to a URL. A folder on this machine is
+		// usually someone's working copy, which git won't push into, so its
+		// owner pulls from the team instead.
+		if info, err := os.Stat(clone); err == nil && info.IsDir() {
+			fmt.Fprintf(stdout, "The team works on its own copy; get its work with: git pull %s %s\n", repo, firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main"))
+		} else {
+			config.Remote = clone
+		}
 		if boxGit(repo, "rev-parse", "--verify", "-q", "HEAD") == "" {
 			return errors.New("the repository has no commits yet; push a first commit, or let the team start a new one")
 		}
