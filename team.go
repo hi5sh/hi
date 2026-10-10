@@ -826,6 +826,9 @@ code, so the code, its tests, and its docs must explain themselves.
   so in your report's follow-ups.
 - Every change comes with tests for what the brief says must work. Run them
   before you finish, and say in your report whether they pass.
+- The project starts with ` + "`make run`" + `: a Makefile run target that starts the
+  app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
+  the lead can show the people a preview.
 - Commit your work on your branch with a message that says what changed and
   why. Never push, and never change the main branch yourself: the lead
   merges after a review.

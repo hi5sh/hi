@@ -100,6 +100,26 @@ machine: it checks each request against `team.json`, starts the member as
 The lead never holds the agents' keys or the repository's credentials, and
 nothing it asks for widens a member's box.
 
+## Try what the team built
+
+After a merge, the lead runs a preview and posts its address and a password
+in the channel, so the people can try the work, on their phones too:
+
+1. hi starts the project in an app box of its own, from the merged code (or
+   a task's branch, before it is merged), with `make run` or `npm start`.
+   The app listens on `$PORT`; its port reaches this machine only.
+2. `hi net expose` puts it on a temporary HTTPS address behind a password,
+   through this machine's NetBird (see [hi net](/guide/workstation/)). The
+   machine must be enrolled with `hi net`, and Peer Expose must be on in
+   NetBird.
+3. A preview lasts four hours by default. A new one replaces it.
+
+The lead itself never joins your NetBird network: the machine runs the
+app and the address, and the lead only asks for them.
+
+New team repositories tell the coder to give the project a `make run` that
+listens on `0.0.0.0` at `$PORT`, so every project starts the same way.
+
 ## The team's folder
 
 Everything a team knows and has made is in one folder: `team-<name>` in

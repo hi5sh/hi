@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -224,11 +225,36 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error
 			return err
 		}
 	}
-	skill := filepath.Join(lead, "skills", "hi-team")
-	if err := os.MkdirAll(skill, 0o700); err != nil {
+	return writeTeamSkill(filepath.Join(lead, "skills", "hi-team"), teamSkill(config))
+}
+
+// writeTeamSkill writes hi's hi-team skill, but keeps the lead's own edits:
+// Hermes improves its skills as it works. hi replaces the skill only when
+// its own text changed, in a new hi, and keeps the lead's last version
+// beside it.
+func writeTeamSkill(dir, text string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(skill, "SKILL.md"), []byte(teamSkill(config)), 0o600)
+	path, stamp := filepath.Join(dir, "SKILL.md"), filepath.Join(dir, ".hi-sha256")
+	sum := func(data []byte) string { return fmt.Sprintf("%x", sha256.Sum256(data)) }
+	written, _ := os.ReadFile(stamp)
+	current, err := os.ReadFile(path)
+	switch {
+	case err != nil:
+		// Not there yet.
+	case strings.TrimSpace(string(written)) == sum([]byte(text)):
+		return nil // hi's text is the same: whatever the lead made of it stays
+	case strings.TrimSpace(string(written)) != sum(current):
+		// The lead changed it, and hi has new instructions.
+		if err := os.WriteFile(path+".lead", current, 0o600); err != nil {
+			return err
+		}
+	}
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		return err
+	}
+	return os.WriteFile(stamp, []byte(sum([]byte(text))+"\n"), 0o600)
 }
 
 // teamManifest is the team's Slack app: Socket Mode, one channel, no
@@ -315,8 +341,8 @@ The hi-team skill says how: hi team task, review, wait, and merge.
    new task on the same branch (--on) with the reviewer's notes, then have
    it reviewed again.
 5. Merge only after the reviewer approves.
-6. Tell the people what changed and how to try it, and ask them to
-   confirm it works. A feature is done when they agree it does. A bug
+6. Run hi team preview, post its address and password, tell the people
+   what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
@@ -360,6 +386,9 @@ of its own on a branch of the project; you get their reports.
 | hi team tasks | List the tasks |
 | hi team merge t-4 | Merge t-4 into the project once a review approved its latest commit |
 | hi team stop t-5 | Stop a task that went wrong |
+| hi team preview | Run the project's main branch and get a temporary address and password for the people |
+| hi team preview t-4 | The same for a task's branch, before it is merged |
+| hi team preview stop | End the preview |
 
 Members: %[2]s.
 
@@ -381,6 +410,19 @@ A task takes minutes to an hour. Start hi team wait <id> with
 background=true and notify=true, tell the channel what's happening, and
 carry on; you are told when it finishes. If it prints "Still working", wait
 again.
+
+## Previews
+
+After a merge, run hi team preview and post the address and password in
+the channel, so the people can try the acceptance list, on their phones
+too. Never tell the people to run commands or start the app themselves.
+
+The project starts with make run, or npm start, and must listen on
+0.0.0.0 at the port in $PORT. If the preview says the app didn't answer,
+give the coder a task to fix that, with the lines it printed. If the app
+only listens on a fixed port, pass it: hi team preview --port 5173.
+
+Don't start the app in your own box: nobody can reach it there.
 
 ## Reviews and merging
 

@@ -186,7 +186,18 @@ hi team show <task>                              its state and report, without w
 hi team tasks                                    list the tasks
 hi team merge <task>                             merge it, once a review approved its latest commit
 hi team stop <task>                              stop a task's box
+hi team preview [<task>] [--port <n>] [--max <d>]  run the project and give a temporary address
+hi team preview stop                             end the preview
 ```
+
+- A preview copies the commit (main, or a task's branch) to `run/app`,
+  runs `make run` or `npm start` in an app box with `$PORT` (8080) published
+  to 127.0.0.1 only, waits for it to answer, and runs `hi net expose` on the
+  host with a password. The lead never joins NetBird. One preview per team;
+  a new one replaces it.
+- hi rewrites the lead's hi-team skill only when its own text changes; the
+  lead's edits stay until then, and are kept as `SKILL.md.lead` when hi
+  replaces them.
 
 - A brief gets a heading before it is saved, so front matter in it can't
   widen the member's box.

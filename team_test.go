@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -509,5 +511,98 @@ func TestTeamWizardRefusesAWrongAnswer(t *testing.T) {
 	}
 	if got := stripTerminalCodes("\x1b[200~xapp-1\x1b[201~"); got != "xapp-1" {
 		t.Fatal(got)
+	}
+}
+
+func TestTeamRunCommand(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := teamRunCommand(dir); err == nil || !strings.Contains(err.Error(), "run target") {
+		t.Fatal(err)
+	}
+	writeSkillTestFile(t, filepath.Join(dir, "package.json"), `{"scripts": {"start": "node server.js"}}`, 0o644)
+	if command, _ := teamRunCommand(dir); command != "npm install --no-audit --no-fund && npm start" {
+		t.Fatal(command)
+	}
+	writeSkillTestFile(t, filepath.Join(dir, "package-lock.json"), `{}`, 0o644)
+	if command, _ := teamRunCommand(dir); !strings.HasPrefix(command, "npm ci") {
+		t.Fatal(command)
+	}
+	writeSkillTestFile(t, filepath.Join(dir, "Makefile"), "test:\n\tgo test\nrun: build\n\t./app\n", 0o644)
+	if command, _ := teamRunCommand(dir); command != "make run" {
+		t.Fatal(command)
+	}
+}
+
+func TestWriteTeamSkillKeepsTheLeadsEdits(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "SKILL.md")
+	read := func() string { data, _ := os.ReadFile(path); return string(data) }
+	writeTeamSkill(dir, "hi v1")
+	if read() != "hi v1" {
+		t.Fatal(read())
+	}
+	os.WriteFile(path, []byte("hi v1, improved by the lead"), 0o600)
+	writeTeamSkill(dir, "hi v1")
+	if read() != "hi v1, improved by the lead" {
+		t.Fatal("the lead's edit was lost on a restart")
+	}
+	writeTeamSkill(dir, "hi v2")
+	if lead, _ := os.ReadFile(path + ".lead"); read() != "hi v2" || string(lead) != "hi v1, improved by the lead" {
+		t.Fatal(read(), string(lead))
+	}
+	// Unedited, a new text replaces it without a copy.
+	os.Remove(path + ".lead")
+	writeTeamSkill(dir, "hi v3")
+	if read() != "hi v3" || fileExists(path+".lead") {
+		t.Fatal(read())
+	}
+}
+
+func TestTeamPreview(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	if _, err := b.preview(teamPreviewRequest{}); err == nil || !strings.Contains(err.Error(), "no way to start") {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
+
+	var started []string
+	b.app = func(src, command string, port, hostPort int) error {
+		if !fileExists(filepath.Join(src, "Makefile")) {
+			t.Error("the app's copy has no Makefile")
+		}
+		started = append(started, fmt.Sprintf("%s %d", command, port))
+		server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", hostPort), Handler: http.NotFoundHandler()}
+		go server.ListenAndServe()
+		t.Cleanup(func() { server.Close() })
+		return nil
+	}
+	saved := b.run
+	b.run = func(args ...string) ([]byte, error) {
+		if args[0] == "net" && args[2] != "stop" {
+			if !strings.Contains(strings.Join(args, " "), "--detach --json --max 4h0m0s --name team-payments") {
+				t.Errorf("expose: %q", args)
+			}
+			return json.Marshal(netExposeState{Name: "team-payments-x1", URL: "https://team-payments-x1.example.net", Password: "pw-123", Expires: time.Now().Add(4 * time.Hour)})
+		}
+		return saved(args...)
+	}
+	preview, err := b.preview(teamPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.URL != "https://team-payments-x1.example.net" || preview.Password != "pw-123" || preview.Source != "main" || started[0] != "make run 8080" {
+		t.Fatalf("%+v %q", preview, started)
+	}
+	if !fileExists(teamPreviewPath("payments")) {
+		t.Fatal("no preview.json")
+	}
+	if _, err := b.preview(teamPreviewRequest{Stop: true}); err != nil || fileExists(teamPreviewPath("payments")) {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(b.calls, "\n"), "net expose stop team-payments-x1") {
+		t.Fatal(b.calls)
 	}
 }

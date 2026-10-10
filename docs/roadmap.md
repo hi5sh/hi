@@ -578,6 +578,20 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.38.0 — Previews of a team's work
+
+- [x] The lead's `hi team preview [<task>]` runs the project in an app box
+  on the host (`make run` or `npm start`, on `$PORT`, published to
+  localhost only) and puts it on a temporary password-protected address
+  with `hi net expose`; the lead posts it. `hi team preview stop` ends it.
+  Verified on 2026-10-10 on aiw9 with team test's world clock.
+- [x] New team repositories ask for a `make run` on `$PORT`, and the lead's
+  instructions say to share a preview instead of telling people to run
+  commands.
+- [x] The lead's own edits to its hi-team skill survive restarts; a new hi
+  replaces them only when its own text changed, and keeps them as
+  `SKILL.md.lead`.
+
 ### v0.37.3 — Team leads in `hi box ls`
 
 - [x] `hi box ls` lists the team leads' running boxes after your own, with

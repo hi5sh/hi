@@ -255,8 +255,10 @@ See [Run a team in Slack](/guide/team/).
 | `hi team manifest <name>`                 | The Slack app manifest again |
 
 In its box, the lead runs `hi team task <role> <brief.md> [--on <task>]`,
-`review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`, and
-`stop <task>`.
+`review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
+`stop <task>`, and `preview [<task>] [--port <n>] [--max <duration>]` or
+`preview stop`, which runs the project in an app box and puts it on a
+temporary address with `hi net expose`.
 
 ## hi box
 

@@ -132,6 +132,10 @@ type teamBroker struct {
 	repo string
 	hi   string // this hi binary
 	mu   sync.Mutex
+	// previewMu keeps one preview start or stop at a time.
+	previewMu sync.Mutex
+	// app starts the project's box; tests replace it.
+	app func(src, command string, port, hostPort int) error
 	// run starts hi with arguments in repo/ and returns its stdout; tests
 	// replace it.
 	run func(args ...string) ([]byte, error)
@@ -139,6 +143,7 @@ type teamBroker struct {
 
 func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi}
+	b.app = b.startApp
 	b.run = func(args ...string) ([]byte, error) {
 		command := exec.Command(b.hi, args...)
 		command.Dir = b.repo
@@ -250,6 +255,15 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		task, err := b.stop(request.Task)
 		reply(w, task, err)
+	})
+	mux.HandleFunc("POST /preview", func(w http.ResponseWriter, r *http.Request) {
+		var request teamPreviewRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		preview, err := b.preview(request)
+		reply(w, preview, err)
 	})
 	mux.HandleFunc("GET /tasks", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, loadTeamTasks(b.team), nil)
@@ -605,7 +619,7 @@ func teamTitle(brief string) string {
 // ---------------------------------------------------------------------------
 // the lead's commands, in its box
 
-var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true}
+var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	socket := os.Getenv(teamSocketEnv)
@@ -709,6 +723,46 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if task.Error != "" {
 			fmt.Fprintln(stdout, task.Error)
 		}
+	case "preview":
+		var request teamPreviewRequest
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "stop" && len(args) == 1:
+				request.Stop = true
+			case args[i] == "--port" && i+1 < len(args):
+				port, err := strconv.Atoi(args[i+1])
+				if err != nil {
+					return usageError{"--port is a number"}
+				}
+				request.Port = port
+				i++
+			case args[i] == "--max" && i+1 < len(args):
+				max, err := time.ParseDuration(args[i+1])
+				if err != nil {
+					return usageError{"--max is a duration, such as 4h"}
+				}
+				request.Max = max
+				i++
+			case request.Task == "" && teamTaskID.MatchString(args[i]):
+				request.Task = args[i]
+			default:
+				return usageError{"usage: hi team preview [<task>] [--port <n>] [--max <duration>] | hi team preview stop"}
+			}
+		}
+		var preview teamPreview
+		if err := call("POST", "/preview", request, &preview); err != nil {
+			return err
+		}
+		if request.Stop {
+			fmt.Fprintln(stdout, "The preview is stopped.")
+			return nil
+		}
+		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC:\n  %s\n", preview.Source, preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
+		if preview.Password != "" {
+			fmt.Fprintf(stdout, "  password: %s\n", preview.Password)
+		}
+		fmt.Fprintln(stdout, "It works on phones too. hi team preview stop ends it; a new preview replaces it.")
+		return nil
 	case "stop":
 		if len(args) != 1 {
 			return usageError{"usage: hi team stop <task>"}
