@@ -578,6 +578,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.37.3 — Team leads in `hi box ls`
+
+- [x] `hi box ls` lists the team leads' running boxes after your own, with
+  their team, channel, and folder, and points to `hi team` for them.
+
 ### v0.37.2 — A team's log once, and followed
 
 - [x] `hi team logs` shows each line once and only what the team prints,

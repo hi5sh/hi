@@ -836,11 +836,23 @@ func listBoxes(stdout io.Writer) error {
 		}
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", meta.Name, meta.Agent, state, firstNonEmpty(meta.Branch, "-"), changes, formatDuration(time.Since(meta.Created)))
 	}
-	if count == 0 {
+	leads := teamLeadBoxes()
+	if count == 0 && len(leads) == 0 {
 		fmt.Fprintln(stdout, "No boxes. Start one with hi box shell, hi box run, or hi agent.")
 		return nil
 	}
-	return table.Flush()
+	if count == 0 {
+		fmt.Fprintln(stdout, "No boxes of your own.")
+	} else if err := table.Flush(); err != nil {
+		return err
+	}
+	if len(leads) > 0 {
+		fmt.Fprintln(stdout, "\nTeam leads, run by hi team (hi team status <team>; hi team down <team> stops one):")
+		for _, line := range leads {
+			fmt.Fprintln(stdout, "  "+line)
+		}
+	}
+	return nil
 }
 
 // boxShortStat is "3 files +40 -2, 1 new" for a worktree box, counting

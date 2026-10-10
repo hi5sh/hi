@@ -971,6 +971,32 @@ func teamState(name string) string {
 	return out
 }
 
+// teamLeadBoxes describes the leads' boxes that are running, for hi box
+// ls: hi team starts them, not hi box.
+func teamLeadBoxes() []string {
+	entries, err := os.ReadDir(teamsDir())
+	if err != nil || len(entries) == 0 {
+		return nil
+	}
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return nil
+	}
+	var lines []string
+	for _, entry := range entries {
+		config, err := loadTeam(entry.Name())
+		if err != nil {
+			continue
+		}
+		container := "hi-box-team-" + config.Name
+		if engine.state(container) != "running" {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%-22s team %s's lead (Hermes), channel %s, folder %s", container, config.Name, config.Channel, teamDir(config.Name)))
+	}
+	return lines
+}
+
 func teamList(stdout io.Writer) error {
 	entries, err := os.ReadDir(teamsDir())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
