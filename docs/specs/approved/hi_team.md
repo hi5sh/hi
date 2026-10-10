@@ -164,7 +164,7 @@ hi team up <name>               start the team and keep it up (also after a rebo
 hi team down <name>             stop it; the folder stays
 hi team ls                      teams on this host, up or down, spend this month
 hi team status <name>           members, running tasks, preview and live versions
-hi team logs <name> [<role>]    the lead's log, or a member's
+hi team logs <name> [<task>] [-f]  the lead's log, or a task's
 hi team add <name> <role>       hire a member
 hi team rm <name> <role>        drop a member
 hi team snapshot <name>         take a snapshot now

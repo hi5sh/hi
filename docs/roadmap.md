@@ -578,6 +578,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.37.2 — A team's log once, and followed
+
+- [x] `hi team logs` shows each line once and only what the team prints,
+  without Podman's events or its log driver's copy; `-f` follows it.
+  Verified live on 2026-10-10 on aiw9: the lead answered in its Slack
+  channel.
+
 ### v0.37.1 — `hi team new` checks each answer as it's given
 
 - [x] Tokens, the channel, the owners, and the members are checked as they
@@ -978,7 +985,6 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### Later — `hi team`
 
-- [ ] Verify with a live Slack workspace and channel.
 - [ ] A security advisor that reviews the proxy's log, the members'
   commands, and merged changes, and tells the owners about anything risky
   rather than blocking the team; Hermes' `approvals.mode: smart` is one

@@ -89,7 +89,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go func() { brokerErr <- serveBroker() }()
 	broker.resume()
 
-	run := []string{"run", "--rm", "--init", "--name", container, "--hostname", name + "-lead", "--network", "hi-box-" + meta.Name, "--dns", "127.0.0.1"}
+	// The lead's output reaches the journal through this process, so the
+	// engine keeps no second copy.
+	run := []string{"run", "--rm", "--init", "--log-driver", "none", "--name", container, "--hostname", name + "-lead", "--network", "hi-box-" + meta.Name, "--dns", "127.0.0.1"}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
 	run = append(run,

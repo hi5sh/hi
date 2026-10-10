@@ -269,7 +269,7 @@ usage:
   hi team down <name>              stop it; its folder stays
   hi team ls                       teams on this machine
   hi team status <name>            whether it is up, its members, and its tasks
-  hi team logs <name> [<task>]     the lead's log, or a task's
+  hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
   hi team manifest <name>          the Slack app manifest again
 
 A team is its folder. hi finds it by name through `+teamsDir()+`.`)
@@ -1017,14 +1017,23 @@ func teamStatus(name string, stdout io.Writer) error {
 }
 
 func teamLogs(args []string, stdout, stderr io.Writer) error {
-	if len(args) < 1 || len(args) > 2 {
-		return usageError{"usage: hi team logs <name> [<task>]"}
+	follow := false
+	var words []string
+	for _, arg := range args {
+		if arg == "-f" || arg == "--follow" {
+			follow = true
+		} else {
+			words = append(words, arg)
+		}
 	}
-	if _, err := loadTeam(args[0]); err != nil {
+	if len(words) < 1 || len(words) > 2 {
+		return usageError{"usage: hi team logs <name> [<task>] [-f]"}
+	}
+	if _, err := loadTeam(words[0]); err != nil {
 		return err
 	}
-	if len(args) == 2 {
-		task, err := loadTeamTask(args[0], args[1])
+	if len(words) == 2 {
+		task, err := loadTeamTask(words[0], words[1])
 		if err != nil {
 			return err
 		}
@@ -1032,9 +1041,19 @@ func teamLogs(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return engine.interactive(nil, stdout, stderr, "logs", "hi-box-"+task.Box)
+		logs := []string{"logs"}
+		if follow {
+			logs = append(logs, "-f")
+		}
+		return engine.interactive(nil, stdout, stderr, append(logs, "hi-box-"+task.Box)...)
 	}
-	command := exec.Command("journalctl", "--user", "-u", teamUnitName(args[0]), "-n", "200", "--no-pager", "-o", "cat")
+	// Only what hi team __serve and the lead print: not Podman's events, nor
+	// the copy Podman's log driver keeps.
+	journal := []string{"--user", "-u", teamUnitName(words[0]), "-t", "hi", "-n", "200", "--no-pager", "-o", "cat"}
+	if follow {
+		journal = append(journal, "-f")
+	}
+	command := exec.Command("journalctl", journal...)
 	command.Stdout, command.Stderr = stdout, stderr
 	return command.Run()
 }

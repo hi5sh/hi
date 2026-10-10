@@ -251,7 +251,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team down <name>`                     | Stop it; its folder stays |
 | `hi team ls`                              | Teams on this machine |
 | `hi team status <name>`                   | Up or down, its members, and its latest tasks |
-| `hi team logs <name> [<task>]`            | The lead's log, or a task's |
+| `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 
 In its box, the lead runs `hi team task <role> <brief.md> [--on <task>]`,
