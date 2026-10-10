@@ -54,7 +54,11 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	dir := teamDir(name)
 	proxyDir, brokerDir, home := filepath.Join(dir, "run", "proxy"), teamBrokerDir(name), filepath.Join(dir, "run", "home")
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), filepath.Join(dir, "specs"), teamTaskDir(name)} {
+	specs, err := teamPrepareSpecs(config)
+	if err != nil {
+		return err
+	}
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name)} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -89,6 +93,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	brokerErr := make(chan error, 1)
 	go func() { brokerErr <- serveBroker() }()
 	broker.resume()
+	if err := broker.commitSpecs(); err != nil {
+		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
+	}
 
 	// The lead's output reaches the journal through this process, so the
 	// engine keeps no second copy.
@@ -98,7 +105,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	run = append(run,
 		"-v", home+":/box/home",
 		"-v", filepath.Join(dir, "lead")+":/box/home/.hermes",
-		"-v", filepath.Join(dir, "specs")+":/team/specs",
+		"-v", specs+":/team/specs",
 		"-v", filepath.Join(dir, "repo")+":/team/repo:ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
@@ -351,7 +358,9 @@ to agree first: fix, review, merge, and tell them what changed.
 ## What you keep
 
 You hold the project's memory. Keep /team/specs current: one file per
-feature, with its status. /team/repo is the project as merged, read-only
+feature, with its status. It is the project's docs/specs folder: hi commits
+your changes when a task starts and when work is merged, so the members see
+them and they go wherever the code goes. /team/repo is the project as merged, read-only
 for you: read it to answer questions about how things work.
 `, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"))
 }
@@ -394,8 +403,9 @@ Members: %[2]s.
 
 ## Briefs
 
-Write each brief to a file first, for example /team/specs/briefs/t-next.md,
-then pass its path. A brief starts with a one-line title, then says:
+Write each brief to a file in your home folder first, for example
+~/briefs/t-next.md, then pass its path. Not in /team/specs: that is the
+project's documentation, committed with the code. A brief starts with a one-line title, then says:
 
 - the goal, in one or two sentences;
 - the acceptance list, and the tests that must cover it;
@@ -431,6 +441,42 @@ refuses work that no review approved, and work changed since its review.
 After a merge, tell the people what changed. If a merge doesn't apply
 cleanly, give the coder a new task to redo the work on the latest project.
 `, config.Name, strings.Join(roles, ", "))
+}
+
+// teamSpecsPath is where the lead's specs live in the project: versioned
+// with the code, pushed with it, and read by the members.
+const teamSpecsPath = "docs/specs"
+
+// teamPrepareSpecs makes the project's specs folder, the lead's
+// /team/specs, and moves in the specs of a team made before it lived there.
+func teamPrepareSpecs(config teamConfig) (string, error) {
+	specs := filepath.Join(teamDir(config.Name), "repo", filepath.FromSlash(teamSpecsPath))
+	if err := os.MkdirAll(specs, 0o755); err != nil {
+		return "", err
+	}
+	old := filepath.Join(teamDir(config.Name), "specs")
+	if entries, err := os.ReadDir(old); err == nil {
+		for _, entry := range entries {
+			target := filepath.Join(specs, entry.Name())
+			if entry.Name() == "briefs" {
+				// The lead's scratch work, not the project's: its home folder.
+				target = filepath.Join(teamDir(config.Name), "run", "home", "briefs")
+				os.MkdirAll(filepath.Dir(target), 0o700)
+			}
+			if !fileExists(target) {
+				if err := os.Rename(filepath.Join(old, entry.Name()), target); err != nil {
+					return "", err
+				}
+			}
+		}
+		os.Remove(old) // only once it's empty
+	}
+	if readme := filepath.Join(specs, "README.md"); !fileExists(readme) {
+		if err := os.WriteFile(readme, []byte(teamSpecsReadme(config)), 0o644); err != nil {
+			return "", err
+		}
+	}
+	return specs, nil
 }
 
 func teamSpecsReadme(config teamConfig) string {

@@ -60,8 +60,10 @@ The setup asks six things, one at a time:
 4. **People.** The owners' Slack member IDs (`U…`), and who else may ask
    for work; Enter lets everyone in the channel.
 5. **Members.** Each role's agent and model; Enter keeps what's offered.
-6. **Code.** Enter starts a new git repository; or give one to clone with
-   this machine's git credentials.
+6. **Code.** Enter starts a new git repository; or give one to clone: a
+   URL, with this machine's git credentials, or a folder on this machine.
+   A new repository can go on GitHub too: give `owner/name`, and hi
+   creates a private repository with this machine's `gh` sign-in.
 
 hi checks both tokens and that the app is in the channel before it writes
 anything. Without a terminal, give the answers in a file and the tokens in
@@ -131,8 +133,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `team.json` | Purpose, channel, owners, members |
 | `secrets.json` | The Slack tokens, readable only by you |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions |
-| `specs/` | What the lead and the people agreed, one file per feature |
-| `repo/` | The project's git repository |
+| `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature |
 | `tasks/` | Each task's brief and report |
 
 The containers are rebuilt from the folder on every start, so a copy of the
@@ -143,6 +144,23 @@ listed in the folder's `.gitignore`, in case the folder sits inside a
 repository. `lead/SOUL.md`
 is the lead's identity: edit it to change how the lead works, then
 `hi team up payments` to restart it.
+
+## Put the project on GitHub
+
+```sh
+hi team github payments imanhabib/payments
+```
+
+hi creates a private repository with this machine's GitHub sign-in (`gh`),
+or connects an existing empty one, and pushes the project. From then on the
+team pushes every merge there. No GitHub credential enters a box: the
+pushes run on the machine, so nobody can talk the lead into revealing a
+token. A team whose project was cloned from a URL pushes there already.
+
+The specs go with the code: the lead writes them in the project's
+`docs/specs/`, and hi commits its changes whenever a task starts and
+before a merge, so each member's branch starts with the latest specs. They
+are the only commits that skip review: documentation, not code.
 
 ## Change a member
 

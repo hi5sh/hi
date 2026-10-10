@@ -350,6 +350,10 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 		}
 		task.On, from = on.ID, on.Branch
 	}
+	// The member's branch starts from main: with the latest specs.
+	if err := b.commitSpecs(); err != nil {
+		return teamTask{}, fmt.Errorf("committing the specs: %w", err)
+	}
 	if task, err = b.newTask(task); err != nil {
 		return task, err
 	}
@@ -554,6 +558,9 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	if approval == nil {
 		return task, fmt.Errorf("no review approved %s's latest commit; run hi team review %s", id, id)
 	}
+	if err := b.commitSpecsLocked(config); err != nil {
+		return task, fmt.Errorf("committing the specs: %w", err)
+	}
 	if dirty := boxGit(b.repo, "status", "--porcelain", "--untracked-files=no"); dirty != "" {
 		return task, errors.New("repo/ has changes that aren't committed; the lead's branch must be clean to merge")
 	}
@@ -599,6 +606,40 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 		}
 	}
 	return task, nil
+}
+
+// commitSpecs commits the lead's changes to the project's specs folder to
+// the team's branch, and pushes them when the team has a remote. They are
+// the only commits that skip review: documentation, not code.
+func (b *teamBroker) commitSpecs() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return err
+	}
+	return b.commitSpecsLocked(config)
+}
+
+func (b *teamBroker) commitSpecsLocked(config teamConfig) error {
+	if boxGit(b.repo, "status", "--porcelain", "--", teamSpecsPath) == "" {
+		return nil
+	}
+	if current := boxGit(b.repo, "branch", "--show-current"); current != config.Branch {
+		return fmt.Errorf("repo/ is on %s, not %s", current, config.Branch)
+	}
+	if out, err := teamGit(b.repo, "add", "-A", "--", teamSpecsPath); err != nil {
+		return fmt.Errorf("git add: %s", out)
+	}
+	if out, err := teamGit(b.repo, "commit", "-q", "-m", "Update the specs", "--", teamSpecsPath); err != nil {
+		return fmt.Errorf("git commit: %s", out)
+	}
+	if config.Remote != "" {
+		if out, err := teamGit(b.repo, "push", "-q", "origin", config.Branch); err != nil {
+			return fmt.Errorf("committed, but git push failed: %s", qFirstLine(out, err.Error()))
+		}
+	}
+	return nil
 }
 
 func teamIsAncestor(repo, branch, of string) bool {

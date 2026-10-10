@@ -227,6 +227,17 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = withTeamName(rest, func(name string) error { return teamStatus(name, stdout) })
 	case "logs":
 		err = teamLogs(rest, stdout, stderr)
+	case "github":
+		if len(rest) != 2 {
+			err = usageError{"usage: hi team github <name> <owner/repository>"}
+			break
+		}
+		config, loadErr := loadTeam(rest[0])
+		if err = loadErr; err == nil {
+			if err = teamCheckGitHub(rest[1]); err == nil {
+				err = teamConnectGitHub(&config, rest[1], stdout)
+			}
+		}
 	case "manifest":
 		err = withTeamName(rest, func(name string) error {
 			config, err := loadTeam(name)
@@ -271,6 +282,8 @@ usage:
   hi team status <name>            whether it is up, its members, and its tasks
   hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
   hi team manifest <name>          the Slack app manifest again
+  hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
+                                   empty one); the team pushes every merge there
 
 A team is its folder. hi finds it by name through `+teamsDir()+`.`)
 }
@@ -317,7 +330,8 @@ func (liveTeamSlack) channel(botToken, channel string) (string, bool, error) {
 // to clone instead of a new one.
 type teamAnswers struct {
 	teamConfig
-	Clone string `json:"clone,omitempty"`
+	Clone  string `json:"clone,omitempty"`
+	GitHub string `json:"github,omitempty"` // owner/name of a new private repository
 	// checked: the wizard checked Slack as it went.
 	checked bool
 }
@@ -395,6 +409,11 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		os.RemoveAll(dir)
 		os.Remove(filepath.Join(teamsDir(), name))
 		return err
+	}
+	if answers.GitHub != "" {
+		if err := teamConnectGitHub(&config, answers.GitHub, stdout); err != nil {
+			fmt.Fprintf(stdout, "The team is set up, but not on GitHub: %v\nTry again with: hi team github %s %s\n", err, name, answers.GitHub)
+		}
 	}
 	fmt.Fprintf(stdout, "\nTeam %s is ready in %s.\n", name, dir)
 	for _, role := range teamRoles(config) {
@@ -542,6 +561,18 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	}
 	if clone != "new" {
 		answers.Clone = clone
+	}
+	if answers.Clone == "" {
+		fmt.Fprintln(stdout, "Put it on GitHub too? Give owner/name, such as imanhabib/world-clock, and hi creates a private")
+		fmt.Fprintln(stdout, "repository with this machine's GitHub sign-in (gh); the team pushes every merge there.")
+		if answers.GitHub, err = teamAskUntil(stdin, stdout, "GitHub [Enter keeps it on this machine]", false, func(name string) error {
+			if name == "" {
+				return nil
+			}
+			return teamCheckGitHub(name)
+		}); err != nil {
+			return answers, secrets, err
+		}
 	}
 	answers.checked = true
 	return answers, secrets, nil
@@ -748,7 +779,7 @@ func teamCheckSlack(config teamConfig, secrets teamSecrets, stdout io.Writer) er
 // files.
 func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, stdout io.Writer) error {
 	dir := teamDir(config.Name)
-	for _, sub := range []string{"lead", "specs", "tasks", "run", "logs"} {
+	for _, sub := range []string{"lead", "tasks", "run", "logs"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o700); err != nil {
 			return err
 		}
@@ -787,10 +818,7 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, std
 	if err := os.WriteFile(filepath.Join(dir, "slack-manifest.json"), []byte(teamManifest(*config)+"\n"), 0o600); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte(teamSoul(*config)), 0o600); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dir, "specs", "README.md"), []byte(teamSpecsReadme(*config)), 0o600)
+	return os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte(teamSoul(*config)), 0o600)
 }
 
 func newTeamRepo(config teamConfig, repo string) error {
@@ -798,10 +826,12 @@ func newTeamRepo(config teamConfig, repo string) error {
 		return err
 	}
 	files := map[string]string{
-		"README.md": "# " + config.Name + "\n\n" + config.Purpose + "\n",
-		"AGENTS.md": teamAgentsFile,
+		"README.md":                  "# " + config.Name + "\n\n" + config.Purpose + "\n",
+		"AGENTS.md":                  teamAgentsFile,
+		teamSpecsPath + "/README.md": teamSpecsReadme(config),
 	}
 	for name, content := range files {
+		os.MkdirAll(filepath.Dir(filepath.Join(repo, name)), 0o755)
 		if err := os.WriteFile(filepath.Join(repo, name), []byte(content), 0o644); err != nil {
 			return err
 		}
@@ -822,6 +852,8 @@ This project is built by a hi team: a lead that talks with the people who
 use it, and agents that each do one task at a time. The people may not read
 code, so the code, its tests, and its docs must explain themselves.
 
+- docs/specs/ is the lead's: what was agreed with the people, feature by
+  feature. Read it; don't change it.
 - Work only on the task in your brief. If something else needs doing, say
   so in your report's follow-ups.
 - Every change comes with tests for what the brief says must work. Run them

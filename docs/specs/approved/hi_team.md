@@ -137,8 +137,8 @@ back or change the budget (the team's owners).
   secrets.json       Slack tokens, keys (0600, never exported in the clear)
   slack-manifest.json
   lead/              Hermes' home: memory, state.db, SOUL.md, skills, cron
-  specs/             what the lead and the people agreed, feature by feature
-  repo/              the project's git repository (main, branches, tags)
+  repo/              the project's git repository (main, branches, tags);
+                     repo/docs/specs is what the lead and the people agreed
   tasks/             each task's brief (t-3.md) and record (t-3.json)
   app/               the running app's data: databases, uploads
   run/               the lead box's home and its proxy's allowlist and log
@@ -173,6 +173,7 @@ hi team rollback <name> <release|snapshot|date>
 hi team export <name> <file>    the folder as one encrypted file
 hi team import <file>           a team from an export, on this or another host
 hi team manifest <name>         print the Slack app manifest again
+hi team github <name> <owner/repo>  a new private GitHub repository (or an empty one) for the project
 hi team remove <name>           delete the team (asks; offers a last export)
 ```
 
@@ -195,6 +196,13 @@ hi team preview stop                             end the preview
   to 127.0.0.1 only, waits for it to answer, and runs `hi net expose` on the
   host with a password. The lead never joins NetBird. One preview per team;
   a new one replaces it.
+- The specs live in the project, `docs/specs`, mounted writable at the
+  lead's /team/specs; the rest of the project stays read-only for it. The
+  broker commits the lead's changes there when a task starts and before a
+  merge, and pushes them: the only commits without a review.
+- The project reaches GitHub with the host's `gh` sign-in: the setup can
+  create a private repository, and `hi team github` connects an existing
+  team. The broker pushes from the host; no GitHub credential enters a box.
 - hi rewrites the lead's hi-team skill only when its own text changes; the
   lead's edits stay until then, and are kept as `SKILL.md.lead` when hi
   replaces them.

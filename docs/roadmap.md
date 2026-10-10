@@ -578,6 +578,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.39.0 — A team's project on GitHub, with its specs
+
+- [x] `hi team new` can put a new project on GitHub: give `owner/name`, and
+  hi creates a private repository with the machine's `gh` sign-in.
+  `hi team github <team> <owner/repo>` does the same for an existing team,
+  or connects an empty repository. The broker pushes every merge from the
+  host; no GitHub credential enters a box.
+- [x] The lead's specs live in the project, `docs/specs`, writable at its
+  /team/specs; the broker commits them when a task starts and before a
+  merge, so members' branches start with them and they go to GitHub with
+  the code. A team's earlier `specs/` moves in on its next start, its
+  briefs to the lead's home folder.
+
 ### v0.38.1 — No stray terminal replies; previews outlive restarts
 
 - [x] hi no longer asks the terminal for its background colour at start,

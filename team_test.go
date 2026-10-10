@@ -126,6 +126,7 @@ func TestTeamWizard(t *testing.T) {
 		"",                      // everyone in the channel may ask
 		"", "", "codex:gpt-5.5", // lead and coder as offered, a reviewer model
 		"", // a new repository
+		"", // not on GitHub
 	}, "\n") + "\n"
 	var out bytes.Buffer
 	if err := teamNew([]string{"payments"}, strings.NewReader(answers), &out); err != nil {
@@ -604,5 +605,94 @@ func TestTeamPreview(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(b.calls, "\n"), "net expose stop team-payments-x1") {
 		t.Fatal(b.calls)
+	}
+}
+
+func TestTeamSpecsInTheProject(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	config, _ := loadTeam("payments")
+	// A team made before: its specs move into the project.
+	writeSkillTestFile(t, filepath.Join(teamDir("payments"), "specs", "clocks.md"), "# Clocks\n", 0o600)
+	writeSkillTestFile(t, filepath.Join(teamDir("payments"), "specs", "briefs", "t-1.md"), "# A brief\n", 0o600)
+	specs, err := teamPrepareSpecs(config)
+	if err != nil || specs != filepath.Join(b.repo, "docs", "specs") || !fileExists(filepath.Join(specs, "clocks.md")) || fileExists(filepath.Join(teamDir("payments"), "specs")) ||
+		fileExists(filepath.Join(specs, "briefs")) || !fileExists(filepath.Join(teamDir("payments"), "run", "home", "briefs", "t-1.md")) {
+		t.Fatal(specs, err)
+	}
+	// A task commits them first, so the member's branch has them.
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Build the clocks"}); err != nil {
+		t.Fatal(err)
+	}
+	waitTeamTask(t, "t-1")
+	if boxGit(b.repo, "log", "-1", "--format=%s", "--", "docs/specs/clocks.md") != "Update the specs" {
+		t.Fatal(boxGit(b.repo, "log", "--oneline"))
+	}
+	if boxGit(b.repo, "status", "--porcelain") != "" {
+		t.Fatal("repo/ isn't clean")
+	}
+	// A deleted spec is deleted in git too.
+	os.Remove(filepath.Join(specs, "clocks.md"))
+	if err := b.commitSpecs(); err != nil {
+		t.Fatal(err)
+	}
+	if boxGit(b.repo, "ls-files", "docs/specs/clocks.md") != "" {
+		t.Fatal("the deleted spec is still tracked")
+	}
+	// Nothing changed: no commit.
+	head := boxGit(b.repo, "rev-parse", "HEAD")
+	b.commitSpecs()
+	if boxGit(b.repo, "rev-parse", "HEAD") != head {
+		t.Fatal("an empty commit")
+	}
+}
+
+func TestTeamConnectGitHub(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	config, _ := loadTeam("payments")
+	bare := filepath.Join(t.TempDir(), "github.git")
+	exec.Command("git", "init", "-q", "--bare", bare).Run()
+	var calls []string
+	savedGH, savedLook := teamGH, teamGHLookPath
+	t.Cleanup(func() { teamGH, teamGHLookPath = savedGH, savedLook })
+	teamGHLookPath = func() (string, error) { return "/usr/bin/gh", nil }
+	teamGH = func(dir string, args ...string) (string, error) {
+		calls = append(calls, strings.Join(args, " "))
+		switch args[0] + " " + args[1] {
+		case "auth status":
+			return "Logged in", nil
+		case "repo view":
+			return "Could not resolve to a Repository", errors.New("exit status 1")
+		case "repo create":
+			// As gh does: the remote, then the push.
+			exec.Command("git", "-C", dir, "remote", "add", "origin", bare).Run()
+			out, err := exec.Command("git", "-C", dir, "push", "-q", "origin", "main").CombinedOutput()
+			return string(out), err
+		}
+		return "", nil
+	}
+	if err := teamCheckGitHub("not a name"); err == nil {
+		t.Fatal("a bad name")
+	}
+	if err := teamCheckGitHub("imanhabib/world-clock"); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := teamConnectGitHub(&config, "imanhabib/world-clock", &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(calls[len(calls)-1], "repo create imanhabib/world-clock --private --source . --remote origin --push") {
+		t.Fatal(calls)
+	}
+	if saved, _ := loadTeam("payments"); saved.Remote != "https://github.com/imanhabib/world-clock.git" {
+		t.Fatal(saved.Remote)
+	}
+	if boxGit(bare, "rev-parse", "main") != boxGit(b.repo, "rev-parse", "main") {
+		t.Fatal("not pushed")
+	}
+	// Connected once is enough.
+	if err := teamConnectGitHub(&config, "imanhabib/other", &out); err == nil || !strings.Contains(err.Error(), "already pushes to") {
+		t.Fatal(err)
 	}
 }

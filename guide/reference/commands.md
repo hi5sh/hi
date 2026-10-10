@@ -253,6 +253,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team status <name>`                   | Up or down, its members, and its latest tasks |
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
 | `hi team manifest <name>`                 | The Slack app manifest again |
+| `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
 In its box, the lead runs `hi team task <role> <brief.md> [--on <task>]`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
