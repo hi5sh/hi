@@ -246,6 +246,9 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// No "Hermes is shutting down" or "back online" posts in the channel on
 	// every restart of the team.
 	settings += "gateway:\n  platforms:\n    slack:\n      gateway_restart_notification: false\n"
+	// A scheduled job's message is just its text, without Hermes' "Cronjob
+	// Response" heading and "To stop or manage this job" line.
+	settings += "cron:\n  wrap_response: false\n"
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}

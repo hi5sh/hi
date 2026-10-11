@@ -214,7 +214,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the channel-watch script is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}
