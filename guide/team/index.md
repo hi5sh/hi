@@ -81,11 +81,19 @@ hi team up                # pick the team to start or restart from a list
 hi team status payments   # up or down, its members, its tasks
 hi team logs payments     # the lead's log
 hi team down payments     # stop it; the folder stays
+hi team rm payments       # stop it and remove it, folder and all
 ```
 
 `hi team up` installs a systemd user service, `hi-team-payments`, which
 restarts the team if it stops. For it to run while you're logged out and
 start at boot, run `sudo loginctl enable-linger $USER` once.
+
+`hi team rm` asks first, then removes everything hi made for the team: the
+service, its name in `~/.local/share/hi/teams`, the members' boxes, and the
+folder. With `--keep-folder` the folder stays, and `hi team up <folder>`
+brings the team back. Deleting just the folder leaves the service and the
+name behind. The Slack app and channel, and a GitHub repository, are yours
+to remove in Slack and GitHub.
 
 ## How the team works
 

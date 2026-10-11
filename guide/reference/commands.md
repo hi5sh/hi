@@ -249,6 +249,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team new <name> [--from <file.json>]` | Set up a team: its Slack app, channel, people, members, and code |
 | `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi team down <name>`                     | Stop it; its folder stays |
+| `hi team rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its members' boxes, and its folder; `--keep-folder` keeps the folder |
 | `hi team ls`                              | Teams on this machine |
 | `hi team status <name>`                   | Up or down, its members, production's version and what dev has on top of it, the open ideas, and its latest tasks |
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |

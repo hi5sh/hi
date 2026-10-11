@@ -235,6 +235,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		})
 	case "down":
 		err = withTeamName(rest, func(name string) error { return teamDown(name, stdout) })
+	case "rm", "remove":
+		err = teamRemove(rest, stdin, stdout)
 	case "ls", "list":
 		err = teamList(stdout)
 	case "status":
@@ -293,6 +295,10 @@ usage:
                                    without a name, pick it from a list
   hi team up <folder>              the same for a team whose folder moved or was copied here
   hi team down <name>              stop it; its folder stays
+  hi team rm [<name>]              stop it and remove it from this machine: its service, boxes,
+                                   and folder; without a name, pick it from a list
+      [--keep-folder]              keep the folder; hi team up <folder> brings the team back
+      [--yes]                      don't ask first
   hi team ls                       teams on this machine
   hi team status <name>            whether it is up, its members, and its tasks
   hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
@@ -1007,6 +1013,112 @@ func teamDown(name string, stdout io.Writer) error {
 		return fmt.Errorf("systemctl --user disable --now %s: %s", teamUnitName(name), qFirstLine(out, err.Error()))
 	}
 	fmt.Fprintf(stdout, "Team %s is stopped. Its folder stays; hi team up %s starts it again.\n", name, name)
+	return nil
+}
+
+// teamRemoveContainers removes a team's containers and its members'
+// boxes; tests replace it.
+var teamRemoveContainers = func(name string, boxes []string) {
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return
+	}
+	engine.output("rm", "-f", teamPreviewContainer(name))
+	engine.output("rm", "-f", teamMemoryContainer(name))
+	teardownBox(engine, boxMeta{Name: "team-" + name})
+	for _, box := range boxes {
+		if meta, err := loadBoxMeta(box); err == nil {
+			removeBox(engine, meta, true, io.Discard)
+		}
+	}
+}
+
+// teamRemove takes a team off this machine: what hi made for it outside
+// its folder (the service, the link by name, the boxes) and, unless
+// --keep-folder, the folder. The Slack app, the channel, and a GitHub
+// repository are not hi's to remove.
+func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
+	var name string
+	var keep, yes bool
+	for _, arg := range args {
+		switch {
+		case arg == "--keep-folder":
+			keep = true
+		case arg == "--yes" || arg == "-y":
+			yes = true
+		case strings.HasPrefix(arg, "-"):
+			return usageError{"unknown option " + arg}
+		case name == "":
+			name = arg
+		default:
+			return usageError{"usage: hi team rm [<name>] [--keep-folder] [--yes]"}
+		}
+	}
+	if name == "" {
+		if !interactive(stdin, stdout) {
+			return usageError{"usage: hi team rm <name> [--keep-folder] [--yes]"}
+		}
+		picked, err := teamPick(stdin, stdout, "Remove a team")
+		if errors.Is(err, errMenuBack) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		name = picked
+	}
+	if !teamNamePattern.MatchString(name) {
+		return fmt.Errorf("no team named %q", name)
+	}
+	link := filepath.Join(teamsDir(), name)
+	_, linkErr := os.Lstat(link)
+	folder := ""
+	if config, err := loadTeam(name); err == nil {
+		folder = teamDir(config.Name)
+	} else if linkErr != nil && !fileExists(teamUnitPath(name)) {
+		return err
+	}
+	var boxes []string
+	for _, task := range loadTeamTasks(name) {
+		if task.Box != "" && fileExists(boxStateFile(task.Box)) {
+			boxes = append(boxes, task.Box)
+		}
+	}
+
+	fmt.Fprintf(stdout, "Removing team %s stops it and deletes:\n", name)
+	fmt.Fprintf(stdout, "  its service       %s\n", teamUnitPath(name))
+	fmt.Fprintf(stdout, "  its name          %s\n", link)
+	if len(boxes) > 0 {
+		fmt.Fprintf(stdout, "  its members' boxes  %s\n", strings.Join(boxes, ", "))
+	}
+	if folder != "" && !keep {
+		fmt.Fprintf(stdout, "  its folder        %s  (the project, its tasks, the channel's log, the lead's memory)\n", folder)
+	}
+	if err := confirm(stdin, stdout, yes, "Remove team "+name+"?"); err != nil {
+		return err
+	}
+
+	if out, err := teamSystemctl("disable", "--now", teamUnitName(name)); err != nil && fileExists(teamUnitPath(name)) {
+		return fmt.Errorf("systemctl --user disable --now %s: %s", teamUnitName(name), qFirstLine(out, err.Error()))
+	}
+	if err := os.Remove(teamUnitPath(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	teamSystemctl("daemon-reload")
+	teamRemoveContainers(name, boxes)
+	if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if folder != "" && !keep {
+		if err := os.RemoveAll(folder); err != nil {
+			return fmt.Errorf("the team is off this machine, but not all of its folder is deleted: %w", err)
+		}
+	}
+	fmt.Fprintf(stdout, "Team %s is removed.", name)
+	if folder != "" && keep {
+		fmt.Fprintf(stdout, " Its folder stays in %s; hi team up %s brings the team back.", folder, folder)
+	}
+	fmt.Fprintln(stdout, "\nIts Slack app and channel, and a GitHub repository if it had one, are still there; remove them in Slack and GitHub if you no longer want them.")
 	return nil
 }
 

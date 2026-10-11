@@ -239,6 +239,8 @@ a copy of the team.
 hi team new <name>              the wizard
 hi team up <name>               start the team and keep it up (also after a reboot)
 hi team down <name>             stop it; the folder stays
+hi team rm <name> [--keep-folder]  stop it and remove it from this host: its service,
+                                its boxes, and (unless --keep-folder) its folder
 hi team ls                      teams on this host, up or down, spend this month
 hi team status <name>           members, running tasks, preview and live versions
 hi team logs <name> [<task>] [-f]  the lead's log, or a task's

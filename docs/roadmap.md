@@ -578,6 +578,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.47.0 — Remove a team
+
+- [x] `hi team rm [<name>]` stops a team and removes it from the machine:
+  its systemd service, its name in the teams folder, its containers and
+  members' boxes, and its folder. It asks first (`--yes` without a
+  terminal); `--keep-folder` keeps the folder for `hi team up <folder>`.
+
 ### v0.46.0 — Members get what the people gave
 
 - [x] A team member's box gets the task's files at `/box/files`

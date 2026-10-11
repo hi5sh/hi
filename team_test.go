@@ -261,6 +261,58 @@ func TestTeamUpWritesUnit(t *testing.T) {
 	}
 }
 
+func TestTeamRemove(t *testing.T) {
+	dir := setupTeamTest(t)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var calls []string
+	var removed []string
+	savedSystemctl, savedContainers := teamSystemctl, teamRemoveContainers
+	teamSystemctl = func(args ...string) (string, error) { calls = append(calls, strings.Join(args, " ")); return "", nil }
+	teamRemoveContainers = func(name string, boxes []string) { removed = append(removed, name) }
+	t.Cleanup(func() { teamSystemctl, teamRemoveContainers = savedSystemctl, savedContainers })
+	setup := func() string {
+		folder := filepath.Join(dir, "team-payments")
+		os.MkdirAll(folder, 0o700)
+		if err := teamRegister("payments", folder); err != nil {
+			t.Fatal(err)
+		}
+		saveTeam(testTeamConfig())
+		os.MkdirAll(filepath.Dir(teamUnitPath("payments")), 0o755)
+		os.WriteFile(teamUnitPath("payments"), []byte("[Unit]\n"), 0o644)
+		return folder
+	}
+
+	folder := setup()
+	var out bytes.Buffer
+	if err := teamRemove([]string{"payments"}, strings.NewReader("y\n"), &out); err == nil || !strings.Contains(err.Error(), "--yes") {
+		t.Fatal("removed without asking:", err)
+	}
+	if err := teamRemove([]string{"payments", "--keep-folder", "--yes"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !fileExists(filepath.Join(folder, "team.json")) || fileExists(teamUnitPath("payments")) || fileExists(filepath.Join(teamsDir(), "payments")) {
+		t.Fatal("--keep-folder should remove only what is outside the folder")
+	}
+	if strings.Join(calls, "; ") != "disable --now hi-team-payments.service; daemon-reload" || len(removed) != 1 {
+		t.Fatal(calls, removed)
+	}
+	if !strings.Contains(out.String(), "hi team up "+folder) {
+		t.Fatal(out.String())
+	}
+
+	os.RemoveAll(folder)
+	folder = setup()
+	if err := teamRemove([]string{"payments", "--yes"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if fileExists(folder) {
+		t.Fatal("the folder is still there")
+	}
+	if err := teamRemove([]string{"payments", "--yes"}, strings.NewReader(""), &out); err == nil {
+		t.Fatal("removed a team that isn't there")
+	}
+}
+
 func TestTeamLeadCommandsNeedTheBox(t *testing.T) {
 	t.Setenv(teamSocketEnv, "")
 	var out, errs bytes.Buffer
