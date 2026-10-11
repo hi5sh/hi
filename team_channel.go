@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -43,6 +44,7 @@ type teamChannelMessage struct {
 	Thread string            `json:"thread,omitempty"` // the thread's first message, for a reply
 	User   string            `json:"user,omitempty"`
 	Name   string            `json:"name"`
+	Bot    bool              `json:"bot,omitempty"` // a bot's, such as the lead's
 	Text   string            `json:"text"`
 	Files  []teamChannelFile `json:"files,omitempty"`
 }
@@ -67,6 +69,7 @@ type teamChannelSource interface {
 	replies(channel, thread, oldest string) ([]slack.Message, error)
 	userName(id string) string
 	download(url string, w io.Writer) error
+	post(channel, text string) error
 }
 
 type liveTeamChannel struct {
@@ -126,6 +129,15 @@ func (l *liveTeamChannel) userName(id string) string {
 
 func (l *liveTeamChannel) download(url string, w io.Writer) error { return l.api.GetFile(url, w) }
 
+func (l *liveTeamChannel) post(channel, text string) error {
+	_, _, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false))
+	return err
+}
+
+// teamChannelMu keeps one poll at a time: the watch's and the broker's,
+// when it checks an approval that may not be logged yet.
+var teamChannelMu sync.Mutex
+
 func teamChannelDir(team string) string { return filepath.Join(teamDir(team), "channel") }
 
 // teamWatchChannel logs the channel until done is closed.
@@ -151,6 +163,8 @@ func teamWatchChannel(done <-chan struct{}, team, channel string, source teamCha
 // teamPollChannel adds what's new in the channel to its log: messages, the
 // replies in threads up to two weeks old, and the files shared in them.
 func teamPollChannel(team, channel string, source teamChannelSource, now time.Time) error {
+	teamChannelMu.Lock()
+	defer teamChannelMu.Unlock()
 	dir := teamChannelDir(team)
 	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o700); err != nil {
 		return err
@@ -238,7 +252,8 @@ func teamChannelEntry(dir string, message slack.Message, thread string, source t
 	if teamChannelSkip[message.SubType] {
 		return teamChannelMessage{}, false
 	}
-	entry := teamChannelMessage{TS: message.Timestamp, Thread: thread, User: message.User}
+	entry := teamChannelMessage{TS: message.Timestamp, Thread: thread, User: message.User,
+		Bot: message.BotID != "" || message.SubType == "bot_message"}
 	switch {
 	case message.User != "":
 		entry.Name = source.userName(message.User)
@@ -377,11 +392,13 @@ func teamTSBefore(a, b string) bool {
 func runTeamChannel(args []string, stdout io.Writer) error {
 	dir, seenPath := "", ""
 	var since time.Duration = 24 * time.Hour
-	newOnly := false
+	newOnly, ids := false, false
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--new":
 			newOnly = true
+		case args[i] == "--ids":
+			ids = true
 		case args[i] == "--since" && i+1 < len(args):
 			duration, err := parseTeamSince(args[i+1])
 			if err != nil {
@@ -395,7 +412,7 @@ func runTeamChannel(args []string, stdout io.Writer) error {
 			}
 			dir = teamChannelDir(args[i])
 		default:
-			return usageError{"usage: hi team channel [<name>] [--since 2h | --new]"}
+			return usageError{"usage: hi team channel [<name>] [--since 2h | --new] [--ids]"}
 		}
 	}
 	if dir == "" {
@@ -419,7 +436,7 @@ func runTeamChannel(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	printTeamChannel(messages, dir, stdout)
+	printTeamChannel(messages, dir, ids, stdout)
 	if newOnly && len(messages) > 0 {
 		latest := after
 		for _, message := range messages {
@@ -476,7 +493,7 @@ func readTeamChannel(dir, after string) ([]teamChannelMessage, error) {
 	return messages, nil
 }
 
-func printTeamChannel(messages []teamChannelMessage, dir string, w io.Writer) {
+func printTeamChannel(messages []teamChannelMessage, dir string, ids bool, w io.Writer) {
 	names := map[string]string{}
 	for _, message := range messages {
 		names[message.TS] = message.Name
@@ -496,6 +513,9 @@ func printTeamChannel(messages []teamChannelMessage, dir string, w io.Writer) {
 			} else {
 				who += ", in a thread from " + started
 			}
+		}
+		if ids {
+			who += " [" + message.TS + "]"
 		}
 		fmt.Fprintf(w, "%s  %s: %s\n", at.Format("15:04"), who, strings.ReplaceAll(message.Text, "\n", "\n       "))
 		for _, file := range message.Files {

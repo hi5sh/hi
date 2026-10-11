@@ -161,6 +161,10 @@ func writeTeamHindsightConfig(lead, team, memoryIP string) error {
 	settings["mode"] = "local_external"
 	settings["api_url"] = fmt.Sprintf("http://%s:%d", memoryIP, teamHindsightPort)
 	settings["bank_id"] = "team-" + team
+	// Its "recalled N memories" and "saving to memory" lines are for
+	// developers, not the people in the channel.
+	settings["recall_indicator"] = false
+	settings["retain_indicator"] = false
 	delete(settings, "bank_id_template")
 	if _, ok := settings["retain_context"]; !ok {
 		settings["retain_context"] = "the " + team + " team's Slack channel: the people, and the team's lead"

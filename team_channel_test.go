@@ -39,6 +39,11 @@ func (f *fakeTeamChannel) userName(id string) string {
 	return map[string]string{"U1": "Anna", "U2": "Bo"}[id]
 }
 
+func (f *fakeTeamChannel) post(channel, text string) error {
+	f.calls = append(f.calls, "post "+channel+" "+text)
+	return nil
+}
+
 func (f *fakeTeamChannel) download(url string, w io.Writer) error {
 	_, err := io.WriteString(w, "video bytes from "+url)
 	return err

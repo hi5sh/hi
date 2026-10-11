@@ -56,9 +56,13 @@ type teamTask struct {
 	Merged  string       `json:"merged,omitempty"` // the merge commit
 	// SpecsKept are the lead's spec files the task changed; the merge left
 	// those changes out.
-	SpecsKept []string  `json:"specs_kept,omitempty"`
-	Created   time.Time `json:"created"`
-	Finished  time.Time `json:"finished,omitempty"`
+	SpecsKept []string `json:"specs_kept,omitempty"`
+	// Approval is the message the work started on; Small, a fix started
+	// without one.
+	Approval *teamApproval `json:"approval,omitempty"`
+	Small    bool          `json:"small,omitempty"`
+	Created  time.Time     `json:"created"`
+	Finished time.Time     `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -143,6 +147,9 @@ type teamBroker struct {
 	previewMu sync.Mutex
 	// app starts the project's box; tests replace it.
 	app func(src, command string, port, hostPort int) error
+	// channel is the team's Slack channel, to check approvals that aren't
+	// logged yet and to say when a small fix starts; nil in tests.
+	channel teamChannelSource
 	// run starts hi with arguments in repo/ and returns its stdout; tests
 	// replace it.
 	run func(args ...string) ([]byte, error)
@@ -215,6 +222,10 @@ type teamRequest struct {
 	Task  string `json:"task,omitempty"`
 	On    string `json:"on,omitempty"`
 	Notes string `json:"notes,omitempty"`
+	// Approval is the people's message that approved new work; Small
+	// starts a small fix without one.
+	Approval string `json:"approval,omitempty"`
+	Small    bool   `json:"small,omitempty"`
 }
 
 func (b *teamBroker) handler() http.Handler {
@@ -356,6 +367,18 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 			return teamTask{}, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
 		}
 		task.On, from = on.ID, on.Branch
+	} else if request.Small {
+		task.Small = true
+	} else {
+		config, err := loadTeam(b.team)
+		if err != nil {
+			return teamTask{}, err
+		}
+		approval, err := b.teamFindApproval(config, request.Approval)
+		if err != nil {
+			return teamTask{}, err
+		}
+		task.Approval = &approval
 	}
 	// The member's branch starts from main: with the latest specs.
 	if err := b.commitSpecs(); err != nil {
@@ -370,6 +393,11 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	text += "\n" + teamSpecsRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
+	}
+	if task.Small && b.channel != nil {
+		if config, err := loadTeam(b.team); err == nil {
+			b.channel.post(config.Channel, fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title))
+		}
 	}
 	go b.launch(task, member, text, from)
 	return task, nil
@@ -725,12 +753,17 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			if args[i] == "--on" && i+1 < len(args) {
 				request.On = args[i+1]
 				i++
+			} else if args[i] == "--approval" && i+1 < len(args) {
+				request.Approval = args[i+1]
+				i++
+			} else if args[i] == "--small" {
+				request.Small = true
 			} else {
 				words = append(words, args[i])
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--on <task>]"}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> | --small | --on <task>]"}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {

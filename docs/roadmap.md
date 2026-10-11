@@ -578,6 +578,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.43.0 — A team that waits for your yes
+
+- [x] New work starts only after one of the people says yes: the broker
+  refuses a new task unless the lead names the approving message, a reply
+  from an owner or asker after the lead's question in the same thread,
+  checked against the channel's log. Continuing a task needs none; a
+  small fix may start with `--small`, and the broker tells the channel.
+  `hi team channel --ids` shows each message's id.
+- [x] Hindsight's "recalled N memories" and "saving to memory" lines no
+  longer appear in the channel.
+
 ### v0.42.0 — Preview links that open without a password
 
 - [x] `hi net expose --link` puts the key in the link: hi's relay lets in a

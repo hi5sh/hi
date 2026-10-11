@@ -363,11 +363,36 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	}
 	os.MkdirAll(filepath.Join(b.repo, "docs", "specs"), 0o755)
 	os.WriteFile(filepath.Join(b.repo, "docs", "specs", "suppliers.md"), []byte("Status: In progress\n"), 0o644)
-	task, err := b.startTask(teamRequest{Role: "coder", Brief: "---\nnetwork: open\n---\nAdd a supplier list"})
+	// New work needs the people's yes: a reply to the lead, in its thread.
+	now := time.Now()
+	ts := func(ago time.Duration) string { return teamSlackTS(now.Add(-ago)) }
+	request, question, yes := ts(10*time.Minute), ts(9*time.Minute), ts(time.Minute)
+	os.MkdirAll(teamChannelDir("payments"), 0o700)
+	teamAppendChannel(teamChannelDir("payments"), []teamChannelMessage{
+		{TS: request, User: "U07OWNER1", Name: "Owner", Text: "Add a supplier list"},
+		{TS: question, Thread: request, Name: "team-payments", Bot: true, Text: "Shall I start?"},
+		{TS: ts(5 * time.Minute), Thread: request, User: "U07OTHER", Name: "Bot pretender", Text: "yes"},
+		{TS: yes, Thread: request, User: "U07OWNER1", Name: "Owner", Text: "Yes, go"},
+	})
+	for ref, want := range map[string]string{"": "name the message", request: "doesn't answer you", question: "is a bot's", "1.5": "no message"} {
+		if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Add a supplier list", Approval: ref}); err == nil || !strings.Contains(err.Error(), want) {
+			t.Fatalf("approval %q: %v", ref, err)
+		}
+	}
+	saved, _ := loadTeam("payments")
+	saved.Askers = []string{"U07ASKER"}
+	saveTeam(saved)
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "x", Approval: ts(5 * time.Minute)}); err == nil || !strings.Contains(err.Error(), "isn't one of the team's people") {
+		t.Fatal(err)
+	}
+	task, err := b.startTask(teamRequest{Role: "coder", Brief: "---\nnetwork: open\n---\nAdd a supplier list", Approval: "[" + yes + "]"})
 	if err != nil || task.ID != "t-1" {
 		t.Fatal(task, err)
 	}
 	task = waitTeamTask(t, "t-1")
+	if task.Approval == nil || task.Approval.Name != "Owner" || task.Approval.TS != yes {
+		t.Fatalf("%+v", task.Approval)
+	}
 	if task.Status != "done" || task.Branch != "hi-box/payments-t-1" || task.Report == nil {
 		t.Fatalf("%+v", task)
 	}
@@ -453,6 +478,8 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 func TestTeamBrokerSocket(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
+	slackChannel := &fakeTeamChannel{}
+	b.channel = slackChannel
 	dir, err := os.MkdirTemp("", "hiteam")
 	if err != nil {
 		t.Fatal(err)
@@ -470,8 +497,12 @@ func TestTeamBrokerSocket(t *testing.T) {
 	brief := filepath.Join(dir, "brief.md")
 	os.WriteFile(brief, []byte("# Add a supplier list\n\nDetails."), 0o600)
 	var out bytes.Buffer
-	if err := runTeamLeadCommand("task", []string{"coder", brief}, strings.NewReader(""), &out); err != nil {
+	if err := runTeamLeadCommand("task", []string{"coder", brief, "--small"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
+	}
+	// A small fix starts without a go-ahead, and the channel hears of it.
+	if len(slackChannel.calls) != 1 || slackChannel.calls[0] != "post C07PAYMENTS Small fix started without waiting for a go-ahead (t-1): Add a supplier list" {
+		t.Fatal(slackChannel.calls)
 	}
 	if !strings.Contains(out.String(), `t-1 started: the coder (Claude Code) works on "Add a supplier list"`) {
 		t.Fatal(out.String())
@@ -640,7 +671,7 @@ func TestTeamSpecsInTheProject(t *testing.T) {
 		t.Fatal(specs, err)
 	}
 	// A task commits them first, so the member's branch has them.
-	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Build the clocks"}); err != nil {
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Build the clocks", Small: true}); err != nil {
 		t.Fatal(err)
 	}
 	waitTeamTask(t, "t-1")

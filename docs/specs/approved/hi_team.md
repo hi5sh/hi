@@ -67,6 +67,16 @@ bundle, and standing instructions.
   `hi agent` does today. Continuity comes from the lead's memory and from
   resuming the member's last session for the same piece of work
   (`claude --resume`), not from a process that stays up.
+- **Work waits for a yes.** A new task (not `--on`, which continues one)
+  names the message that approved it: `--approval <id>`, the id from
+  `hi team channel --ids`. The broker accepts it only if that message is
+  in the channel's log (from Slack, through the host, so the lead can't
+  write one), from an owner or asker (anyone when the team has no askers),
+  within a week, and after a message of the lead's in the same thread: a
+  reply to the lead's question, never the request itself. It polls Slack
+  first if the message isn't logged yet. `--small` starts a small fix
+  without one, and the broker posts in the channel that it did. The task
+  records its approval.
 - **The lead answers only when @-mentioned**, even in its own threads
   (Hermes' `require_mention` and `strict_mention`), so people can talk
   among themselves. It still takes in everything: Hermes drops messages

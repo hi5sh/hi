@@ -105,6 +105,8 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	broker := newTeamBroker(name, hi)
+	slackChannel := newLiveTeamChannel(secrets.SlackBotToken)
+	broker.channel = slackChannel
 	serveBroker, err := broker.listen(ctx, filepath.Join(brokerDir, teamSocketName))
 	if err != nil {
 		return fmt.Errorf("the broker's socket: %w", err)
@@ -115,7 +117,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := broker.commitSpecs(); err != nil {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
 	}
-	go teamWatchChannel(ctx.Done(), name, config.Channel, newLiveTeamChannel(secrets.SlackBotToken), stderr)
+	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
 	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
@@ -446,7 +448,9 @@ The hi-team skill says how: hi team task, review, wait, and merge.
 ## How work is done
 
 1. Agree with the people what will change and how they will know it works:
-   a short list of things they can try. That is the acceptance list.
+   a short list of things they can try. That is the acceptance list. Ask
+   whether it's right, end your reply, and wait for their yes before you
+   start anything (the hi-team skill says how to pass it on).
 2. Write the feature's spec in /team/specs/<feature>.md: the acceptance
    list in their words, then the technical breakdown for the team.
 3. Give the coder a brief with everything it needs: the goal, the
@@ -460,7 +464,8 @@ The hi-team skill says how: hi team task, review, wait, and merge.
    they report becomes a new task for that feature.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
-to agree first: fix, review, merge, and tell them what changed.
+to agree first (hi team task --small): fix, review, merge, and tell them
+what changed.
 
 ## What you keep
 
@@ -494,7 +499,8 @@ of its own on a branch of the project; you get their reports.
 
 | Command | What it does |
 |---|---|
-| hi team task <role> <brief.md> | Start a task for a member; prints its ID, such as t-4 |
+| hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
+| hi team task coder <brief.md> --small | Start a small fix, such as a typo, without asking first; hi tells the channel |
 | hi team task coder <brief.md> --on t-4 | Continue t-4 on its branch, for example with the reviewer's notes |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4's work; prints the review's ID |
 | hi team wait t-5 | Wait for a task or review to finish and print its report |
@@ -507,6 +513,17 @@ of its own on a branch of the project; you get their reports.
 | hi team preview stop | End the preview |
 
 Members: %[2]s.
+
+## Getting a go-ahead
+
+New work starts only after one of the people says yes. Propose the plan
+and the acceptance list, ask whether it's right, and end your reply there:
+don't write the brief or start a task in the same reply. When they answer
+yes, find their message's id with hi team channel --since 1h --ids (the
+id in brackets after the name) and pass it: --approval <id>. hi checks that
+the message is theirs and answers your question, and refuses the task
+otherwise. Continuing a task (--on) needs no new go-ahead, and a small fix
+(--small) needs none, but hi tells the channel it started.
 
 ## The channel
 

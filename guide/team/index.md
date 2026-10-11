@@ -95,6 +95,13 @@ needs changes, the coder gets a new task on the same branch. Once the
 reviewer approves, the lead merges and tells the people what changed and
 how to try it. A feature is done when they agree it works.
 
+Work starts only after someone says yes. The lead proposes the plan and
+the list of things to try, and waits; the broker refuses a new task unless
+the lead names the message that approved it, a reply from one of the
+team's people after the lead asked, in the same thread. Small fixes, such
+as a typo, may start without asking, and the channel is told when one
+does.
+
 The lead answers only when someone @-mentions it (`@team-payments`), even
 in a thread it's part of, so people can talk among themselves in the
 channel. It still follows everything: hi keeps a log of the channel,
