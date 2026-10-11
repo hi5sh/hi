@@ -40,6 +40,7 @@ type teamConfig struct {
 	Members map[string]teamMember `json:"members"`
 	Remote  string                `json:"remote,omitempty"` // where repo/ was cloned from
 	Branch  string                `json:"branch"`           // the branch the lead merges into
+	Memory  string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
 	Created time.Time             `json:"created"`
 }
 

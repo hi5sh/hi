@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -148,5 +149,49 @@ func TestTeamTSBefore(t *testing.T) {
 		if got := teamTSBefore(c.a, c.b); got != c.want {
 			t.Errorf("teamTSBefore(%q, %q) = %v", c.a, c.b, got)
 		}
+	}
+}
+
+func TestTeamMemorySettings(t *testing.T) {
+	setupTeamTest(t)
+	if ip := teamMemoryIP("10.234.76.2"); ip != "10.234.76.200" {
+		t.Fatal(ip)
+	}
+	config := testTeamConfig()
+	lead := filepath.Join(teamDir("payments"), "lead")
+	os.MkdirAll(filepath.Join(lead, "hindsight"), 0o700)
+	// The lead's own tuning stays; the server and the bank are hi's.
+	writeSkillTestFile(t, filepath.Join(lead, "hindsight", "config.json"), `{"recall_budget": "high", "api_url": "http://old", "bank_id_template": "x-{user}"}`, 0o600)
+	if err := writeTeamLead(config, teamSecrets{}, "10.234.76.2", "10.234.76.200"); err != nil {
+		t.Fatal(err)
+	}
+	var settings map[string]any
+	data, _ := os.ReadFile(filepath.Join(lead, "hindsight", "config.json"))
+	json.Unmarshal(data, &settings)
+	if settings["mode"] != "local_external" || settings["api_url"] != "http://10.234.76.200:8888" || settings["bank_id"] != "team-payments" ||
+		settings["recall_budget"] != "high" || settings["bank_id_template"] != nil {
+		t.Fatalf("%v", settings)
+	}
+	yaml, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
+	for _, want := range []string{"memory:\n  provider: hindsight", "  enabled:\n    - hindsight", "gateway_restart_notification: false"} {
+		if !strings.Contains(string(yaml), want) {
+			t.Fatalf("config.yaml lacks %q:\n%s", want, yaml)
+		}
+	}
+	// Without the server, the lead keeps Hermes' built-in memory.
+	writeTeamLead(config, teamSecrets{}, "10.234.76.2", "")
+	if yaml, _ = os.ReadFile(filepath.Join(lead, "config.yaml")); strings.Contains(string(yaml), "hindsight") {
+		t.Fatal(string(yaml))
+	}
+	config.Memory = "off"
+	if _, ok := teamPrepareMemory(boxEngine{}, config, io.Discard); ok {
+		t.Fatal("memory off still prepares Hindsight")
+	}
+
+	writeSkillTestFile(t, filepath.Join(hermesInstallDir(), "plugin-catalog", "hindsight.yaml"),
+		"name: hindsight\nrepo: https://github.com/vectorize-io/hindsight\nsha: d56c4acdf59c41957613d399094cdf8c489b060c\nsubdir: hindsight-integrations/hermes\n", 0o644)
+	catalog, err := readTeamHindsightCatalog()
+	if err != nil || catalog.Subdir != "hindsight-integrations/hermes" || catalog.SHA != "d56c4acdf59c41957613d399094cdf8c489b060c" {
+		t.Fatal(catalog, err)
 	}
 }

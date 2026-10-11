@@ -80,11 +80,21 @@ bundle, and standing instructions.
   matters in its memory and posts nothing.
 - **Memory.** Hermes' built-in memory is a small notepad (a few thousand
   characters), enough for the essentials but not for everything said in a
-  channel. Hindsight, a memory provider Hermes supports, is the candidate
-  for long-term memory: it extracts facts and entities from every turn and
-  recalls them by meaning. It would run as one more container per team on
-  the team's network, its data in the team folder and its model calls
-  through the team's proxy.
+  channel. The lead's long-term memory is Hindsight, a memory provider
+  Hermes supports: it extracts facts and entities from every turn and
+  recalls them by meaning before each one. It runs as one more container
+  per team (`ghcr.io/vectorize-io/hindsight`, pinned), at .200 on the
+  team's internal network, its database in `memory/`, its web console off.
+  Its model calls go to the team's proxy, which adds the OpenRouter key,
+  with the lead's model; embeddings and reranking run in the container.
+  The lead uses Hermes' hindsight plugin in `local_external` mode, with a
+  memory bank named `team-<name>`: hi copies the plugin at the commit
+  Hermes' catalog pins, and installs its one client library
+  (`hindsight-client`, plus `aiohttp-retry`) once per machine in
+  `~/.local/share/hi`, mounted read-only and on `PYTHONPATH`, so the box
+  installs nothing. If any of it fails, the team starts with the built-in
+  memory and says why in its log. `"memory": "off"` in `team.json` leaves
+  it out.
 - In the channel the lead speaks of members by role ("I've asked the
   researcher to compare the two payment providers"), so the channel reads
   like a team at work.
@@ -160,6 +170,7 @@ back or change the budget (the team's owners).
   tasks/             each task's brief (t-3.md) and record (t-3.json)
   channel/           the channel's log (a JSON line per message, a file per
                      day) and the files shared in it
+  memory/            the lead's long-term memory: Hindsight's database
   app/               the running app's data: databases, uploads
   run/               the lead box's home and its proxy's allowlist and log
 ```
@@ -295,7 +306,7 @@ A team has three kinds of state, each kept differently:
 | State | Where | How it is kept |
 |---|---|---|
 | Code and specs | `repo/` (specs in `repo/docs/specs`) | git: every merge is a commit, every release a tag, pushed to the remote |
-| The lead's memory | `lead/` (Hermes' SQLite databases, memories, skills) | snapshots |
+| The lead's memory | `lead/` (Hermes' SQLite databases, memories, skills), `memory/` (Hindsight's PostgreSQL) | snapshots |
 | The team's record | `team.json`, `tasks/`, `channel/`, `run/proxy/network.log` | snapshots |
 | The app's data | `app/` | snapshots; this is the people's real work and matters most |
 
@@ -320,8 +331,9 @@ Slack and cut off a lead mid-conversation. Instead the team's own service
 takes the snapshot, since it holds the moving parts:
 
 1. it takes the broker's lock, so no merge or task start is half done;
-2. it pauses the lead's box (`podman pause`), freezing Hermes where it is;
-   the Slack connection outlasts a pause of a few seconds;
+2. it pauses the lead's box and the memory server (`podman pause`),
+   freezing Hermes and Hindsight's PostgreSQL where they are; the Slack
+   connection outlasts a pause of a few seconds;
 3. it packs the folder, minus what is left out above, into one archive
    (about a second for a team of 50 MB);
 4. it unpauses the box and releases the lock, then copies the archive

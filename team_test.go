@@ -197,7 +197,7 @@ func TestWriteTeamLead(t *testing.T) {
 	config := testTeamConfig()
 	os.MkdirAll(filepath.Join(teamDir("payments"), "lead"), 0o700)
 	writeSkillTestFile(t, filepath.Join(teamDir("payments"), "lead", "SOUL.md"), "edited by an owner", 0o600)
-	if err := writeTeamLead(config, teamSecrets{SlackBotToken: "xoxb-1", SlackAppToken: "xapp-1"}, "10.234.7.2"); err != nil {
+	if err := writeTeamLead(config, teamSecrets{SlackBotToken: "xoxb-1", SlackAppToken: "xapp-1"}, "10.234.7.2", ""); err != nil {
 		t.Fatal(err)
 	}
 	lead := filepath.Join(teamDir("payments"), "lead")
@@ -227,7 +227,7 @@ func TestWriteTeamLead(t *testing.T) {
 	}
 	// Named askers: only they and the owners are heard.
 	config.Askers = []string{"U07ASKER1"}
-	writeTeamLead(config, teamSecrets{}, "10.234.7.2")
+	writeTeamLead(config, teamSecrets{}, "10.234.7.2", "")
 	env, _ = os.ReadFile(filepath.Join(lead, ".env"))
 	if !strings.Contains(string(env), "SLACK_ALLOWED_USERS=U07OWNER1,U07ASKER1") || strings.Contains(string(env), "ALLOW_ALL") {
 		t.Fatal(string(env))

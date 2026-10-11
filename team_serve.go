@@ -66,8 +66,11 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 
 	meta := boxMeta{Name: "team-" + name, Agent: "hermes", Engine: engine.name, Network: "team", Created: time.Now().UTC()}
 	container := "hi-box-" + meta.Name
-	// Whatever a crash left behind goes first.
+	// Whatever a crash left behind goes first, the memory server before the
+	// network it is on.
+	engine.output("rm", "-f", teamMemoryContainer(name))
 	teardownBox(engine, meta)
+	memorySite := ""
 	if err := os.WriteFile(filepath.Join(proxyDir, "allow"), []byte(strings.Join(teamLeadHosts, "\n")+"\n"), 0o600); err != nil {
 		return err
 	}
@@ -79,7 +82,23 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		return err
 	}
 	defer teardownBox(engine, meta)
-	if err := writeTeamLead(config, secrets, meta.ProxyIP); err != nil {
+
+	// The lead's long-term memory: Hindsight on the team's network.
+	memoryIP := ""
+	if site, ok := teamPrepareMemory(engine, config, stderr); ok {
+		if err := startTeamMemory(engine, config, meta.ProxyIP); err != nil {
+			fmt.Fprintf(stderr, "hi: the lead's long-term memory (Hindsight) is off this time: %v\n", err)
+		} else {
+			defer engine.output("stop", "-t", "20", teamMemoryContainer(name))
+			if err := teamWaitMemory(engine, name); err != nil {
+				fmt.Fprintf(stderr, "hi: the lead's long-term memory (Hindsight) is off this time: %v\n", err)
+				engine.output("rm", "-f", teamMemoryContainer(name))
+			} else {
+				memoryIP, memorySite = teamMemoryIP(meta.ProxyIP), site
+			}
+		}
+	}
+	if err := writeTeamLead(config, secrets, meta.ProxyIP, memoryIP); err != nil {
 		return err
 	}
 
@@ -114,10 +133,15 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
 	hermesMounts(&run)
+	noProxy := "localhost,127.0.0.1," + meta.ProxyIP
+	if memorySite != "" {
+		run = append(run, "-v", memorySite+":"+memorySite+":ro")
+		noProxy += "," + memoryIP
+	}
 	proxy := fmt.Sprintf("http://%s:%d", meta.ProxyIP, boxProxyPort)
 	env := map[string]string{
 		"HTTPS_PROXY": proxy, "HTTP_PROXY": proxy, "https_proxy": proxy, "http_proxy": proxy,
-		"NO_PROXY": "localhost,127.0.0.1," + meta.ProxyIP, "no_proxy": "localhost,127.0.0.1," + meta.ProxyIP,
+		"NO_PROXY": noProxy, "no_proxy": noProxy,
 		"HOME": "/box/home", "HERMES_HOME": "/box/home/.hermes", "HI_BOX": meta.Name, "HI_TEAM": name,
 		teamSocketEnv: "/team/run/" + teamSocketName,
 		// The box is the boundary, so Hermes doesn't ask before commands,
@@ -125,6 +149,10 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"HERMES_YOLO_MODE": "1", "HERMES_DISABLE_LAZY_INSTALLS": "1", "PYTHONDONTWRITEBYTECODE": "1",
 		"HERMES_GATEWAY_LOCK_DIR": "/box/home/.locks",
 		"PATH":                    "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	}
+	if memorySite != "" {
+		// Hindsight's client, beside Hermes' own packages.
+		env["PYTHONPATH"] = memorySite
 	}
 	keys := make([]string, 0, len(env))
 	for key := range env {
@@ -196,7 +224,7 @@ func hermesMounts(run *[]string) {
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
 // start: its settings, its .env, and the hi-team skill. SOUL.md and the
 // memories are the lead's own and are left alone.
-func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error {
+func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP string) error {
 	lead := filepath.Join(teamDir(config.Name), "lead")
 	host := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml"))
 	model := firstNonEmpty(config.Members["lead"].Model, host.Default)
@@ -209,6 +237,13 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error
 	settings += "approvals:\n  mode: \"off\"\n"
 	settings += "updates:\n  check: false\n"
 	settings += "plugins:\n  auto_update_check_hours: 0\n"
+	if memoryIP != "" {
+		settings += "  enabled:\n    - " + teamHindsightPlugin + "\n"
+		settings += "memory:\n  provider: " + teamHindsightPlugin + "\n"
+	}
+	// No "Hermes is shutting down" or "back online" posts in the channel on
+	// every restart of the team.
+	settings += "gateway:\n  platforms:\n    slack:\n      gateway_restart_notification: false\n"
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}
@@ -235,6 +270,11 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error
 	}
 	if !fileExists(filepath.Join(lead, "SOUL.md")) {
 		if err := os.WriteFile(filepath.Join(lead, "SOUL.md"), []byte(teamSoul(config)), 0o600); err != nil {
+			return err
+		}
+	}
+	if memoryIP != "" {
+		if err := writeTeamHindsightConfig(lead, config.Name, memoryIP); err != nil {
 			return err
 		}
 	}

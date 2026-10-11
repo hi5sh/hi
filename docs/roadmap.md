@@ -578,6 +578,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.41.0 — A team lead with long-term memory, and no restart notices
+
+- [x] The lead's long-term memory is Hindsight: a server in a container of
+  its own on the team's network, its database in the team's `memory/`
+  folder, its model calls through the team's proxy, and Hermes' hindsight
+  plugin in the lead with a memory bank per team. The plugin is the one
+  Hermes' catalog pins; its client library is installed once per machine
+  and mounted read-only. `"memory": "off"` in `team.json` leaves it out.
+  Verified on 2026-10-11 on aiw9 with team test: a turn of the lead was
+  retained as facts and recalled by meaning.
+- [x] The lead no longer posts "Hermes is shutting down" or "back online"
+  in the channel when the team restarts.
+
 ### v0.40.0 — A team lead that answers when asked, and hears everything
 
 - [x] The lead answers only when someone @-mentions it, even in its own
@@ -1054,15 +1067,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Snapshots: `hi team snapshot`, `snapshots`, and `restore`, and a
   daily systemd timer (7 daily, 4 weekly, 6 monthly). The team's service
   takes each one without stopping: the broker's lock, a pause of the
-  lead's box of a second or so, one archive of the folder without `run/`
+  lead's box and memory server of a second or so, one archive of the folder without `run/`
   (but with its network log) or `secrets.json`, then an encrypted upload
   to the team's S3-compatible bucket in the background. Failures reach the
   owners in the channel and `hi team status`.
 - [ ] Rollback to a release or a snapshot, by command or an owner's button.
-- [ ] Long-term memory with Hindsight: a memory container per team on the
-  team's network, its data in the team folder and its model calls through
-  the team's proxy, so the lead remembers more than Hermes' small built-in
-  notepad holds.
+- [ ] Nice to have: the lead could tell for itself when a message is meant
+  for it, without an @-mention, using a small classifier trained on this
+  one question (for example a JEPA-style model on the channel's own
+  history). Until then it answers @-mentions only, which works well.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — More for the autoresearch templates

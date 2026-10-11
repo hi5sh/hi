@@ -103,6 +103,16 @@ every 15 minutes the lead reads what's new and keeps what matters in its
 memory: a decision made in passing, a link or a video someone shared, who
 cares about what. `hi team channel payments --since 2h` shows you the log.
 
+The lead's long-term memory is [Hindsight](https://github.com/vectorize-io/hindsight):
+a memory server that runs beside the lead, keeps the facts, people, and
+decisions from every conversation, and recalls the ones that matter before
+the lead answers. It runs in a container of its own on the team's private
+network, with its database in the team's `memory/` folder. Its model calls
+go through the team's proxy like the lead's, so it holds no keys. The
+first `hi team up` downloads its image, about 2.6 GB. To do without it, set
+`"memory": "off"` in `team.json`; the lead then keeps Hermes' small
+built-in notepad only.
+
 The lead puts members to work with `hi team task`, `review`, `wait`, and
 `merge` in its box. These go to a broker that `hi team` runs on the
 machine: it checks each request against `team.json`, starts the member as
@@ -144,6 +154,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature |
 | `tasks/` | Each task's brief and report |
 | `channel/` | The channel's log, a file per day, and the files people shared |
+| `memory/` | The lead's long-term memory: Hindsight's database |
 
 The containers are rebuilt from the folder on every start, so a copy of the
 folder is a copy of the team. To move it, stop the team, move the folder,
