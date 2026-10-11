@@ -31,10 +31,18 @@ prints. Choose another lock, or none:
 ```sh
 hi net expose 3000                      # a generated password
 hi net expose 3000 --password <text>    # your own password
+hi net expose 3000 --link               # the key is in the link: no login page
 hi net expose 3000 --pin 482913         # a 6-digit PIN
 hi net expose 3000 --groups devops      # NetBird users in these groups, through SSO
 hi net expose 8080 --public             # anyone with the address
 ```
+
+With `--link`, hi prints one link with a key in it. Whoever opens the whole
+link gets in, with no password to type: hi's relay keeps the key in a
+browser cookie until the address ends, and moves the browser on to the
+address without it. Anyone with the bare address gets a page asking for the
+link. Scripts can send the key as an `Authorization: Bearer <key>` header.
+Treat the link like a password: anyone you forward it to gets in.
 
 Password, PIN, and SSO are login pages for people in a browser. Webhook
 senders, API clients, and scripts can't pass them, so they need `--public`;

@@ -578,6 +578,18 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.42.0 — Preview links that open without a password
+
+- [x] `hi net expose --link` puts the key in the link: hi's relay lets in a
+  request with the key (from the link, its cookie, or a Bearer header) and
+  answers anything else with a page asking for the link. The link's key
+  becomes a cookie until the address ends, and the browser moves on to
+  the address without it.
+- [x] A team's previews use it: the lead posts one link, and the people
+  open it, with no password to copy.
+  Verified on 2026-10-11 on aiw9 through NetBird: 401 without the key, 303
+  and the cookie with the link, then the app.
+
 ### v0.41.0 — A team lead with long-term memory, and no restart notices
 
 - [x] The lead's long-term memory is Hindsight: a server in a container of
@@ -1074,8 +1086,9 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Rollback to a release or a snapshot, by command or an owner's button.
 - [ ] Nice to have: the lead could tell for itself when a message is meant
   for it, without an @-mention, using a small classifier trained on this
-  one question (for example a JEPA-style model on the channel's own
-  history). Until then it answers @-mentions only, which works well.
+  one question, such as [Jev](https://docs.pipecat.ai/api-reference/server/classifiers/jev),
+  TypeSafe's classification model, asked "is this message for the
+  lead?". Until then it answers @-mentions only, which works well.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — More for the autoresearch templates

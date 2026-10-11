@@ -827,7 +827,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			fmt.Fprintln(stdout, "The preview is stopped.")
 			return nil
 		}
-		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC:\n  %s\n", preview.Source, preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
+		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC. Post this link whole; its key lets the people in:\n  %s\n", preview.Source, preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
 		if preview.Password != "" {
 			fmt.Fprintf(stdout, "  password: %s\n", preview.Password)
 		}

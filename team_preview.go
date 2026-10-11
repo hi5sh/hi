@@ -17,8 +17,9 @@ import (
 
 // A preview runs the team's project for the people to try: the broker
 // starts it in an app box from main (or a task's branch), publishes its
-// port to this machine only, and puts that on a temporary password-
-// protected address with hi net expose, which uses this machine's NetBird.
+// port to this machine only, and puts that on a temporary address with hi
+// net expose --link, which uses this machine's NetBird: the link carries
+// its key, so the people open it without a password.
 // The lead gets the address; it never joins the network itself.
 
 const (
@@ -140,7 +141,7 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		b.stopPreview()
 		return preview, fmt.Errorf("the app didn't answer on port %d within %s; it must listen on 0.0.0.0:$PORT. Its last lines:\n%s", port, teamPreviewReady, strings.TrimSpace(logs))
 	}
-	out, err := b.run("net", "expose", strconv.Itoa(hostPort), "--detach", "--json", "--max", max.String(), "--name", "team-"+b.team)
+	out, err := b.run("net", "expose", strconv.Itoa(hostPort), "--link", "--detach", "--json", "--max", max.String(), "--name", "team-"+b.team)
 	if err != nil {
 		b.stopPreview()
 		return preview, fmt.Errorf("hi net expose: %w (the app runs, but only on this machine)", err)
@@ -150,7 +151,8 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		b.stopPreview()
 		return preview, fmt.Errorf("hi net expose gave no address: %s", qFirstLine(string(out), "no output"))
 	}
-	preview.URL, preview.Password, preview.Expose, preview.Expires = exposed.URL, exposed.Password, exposed.Name, exposed.Expires
+	// The link carries its key, so the people just open it.
+	preview.URL, preview.Password, preview.Expose, preview.Expires = firstNonEmpty(exposed.Link, exposed.URL), exposed.Password, exposed.Name, exposed.Expires
 	data, _ := json.MarshalIndent(preview, "", "  ")
 	if err := os.WriteFile(teamPreviewPath(b.team), append(data, '\n'), 0o600); err != nil {
 		return preview, err

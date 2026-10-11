@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,7 +51,7 @@ type netExposeOptions struct {
 	Port       int           `json:"port"`
 	Host       string        `json:"host"`
 	Max        time.Duration `json:"max"`
-	Protection string        `json:"protection"` // password, pin, groups, public
+	Protection string        `json:"protection"` // link, password, pin, groups, public
 	Secret     string        `json:"secret,omitempty"`
 	Groups     string        `json:"groups,omitempty"`
 	Name       string        `json:"name"`
@@ -58,17 +60,19 @@ type netExposeOptions struct {
 
 // netExposeState is a running exposure, in the state folder.
 type netExposeState struct {
-	Name       string    `json:"name"`
-	URL        string    `json:"url"`
-	Port       int       `json:"port"`
-	Host       string    `json:"host"`
-	Protection string    `json:"protection"`
-	Password   string    `json:"password,omitempty"`
-	PIN        string    `json:"pin,omitempty"`
-	Groups     string    `json:"groups,omitempty"`
-	PID        int       `json:"pid"`
-	Started    time.Time `json:"started"`
-	Expires    time.Time `json:"expires"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	Port       int    `json:"port"`
+	Host       string `json:"host"`
+	Protection string `json:"protection"`
+	Password   string `json:"password,omitempty"`
+	PIN        string `json:"pin,omitempty"`
+	Groups     string `json:"groups,omitempty"`
+	// Link is the address with its key, for --link: the one thing to share.
+	Link    string    `json:"link,omitempty"`
+	PID     int       `json:"pid"`
+	Started time.Time `json:"started"`
+	Expires time.Time `json:"expires"`
 }
 
 func netExposeDir() string {
@@ -91,6 +95,8 @@ usage:
 
 options:
   --max <duration>     how long (default 1h, at most 24h)
+  --link               the key is in the link: whoever has the whole link gets in,
+                       without a login page
   --password <text>    a password page in front (default: one is generated)
   --pin <6 digits>     a PIN page instead
   --groups <g1,g2>     NetBird SSO for users in these groups instead
@@ -101,7 +107,8 @@ options:
   --json               print the result as JSON
 
 Password, PIN, and SSO are login pages for browsers; scripts and webhook
-senders need --public. Needs Peer Expose on in NetBird (Settings > Clients).`)
+senders need --public, or --link with the key in an Authorization: Bearer
+header. Needs Peer Expose on in NetBird (Settings > Clients).`)
 }
 
 func runNetExpose(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -147,6 +154,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	pin := flags.String("pin", "", "PIN")
 	groups := flags.String("groups", "", "SSO groups")
 	public := flags.Bool("public", false, "no protection")
+	link := flags.Bool("link", false, "the key in the link")
 	name := flags.String("name", "", "address prefix")
 	host := flags.String("host", "localhost", "where the service listens")
 	detach := flags.Bool("detach", false, "run in the background")
@@ -170,17 +178,19 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 		options.Max = netExposeDefaultMax
 	}
 	chosen := 0
-	for _, set := range []bool{*password != "", *pin != "", *groups != "", *public} {
+	for _, set := range []bool{*password != "", *pin != "", *groups != "", *public, *link} {
 		if set {
 			chosen++
 		}
 	}
 	if chosen > 1 {
-		return options, false, errors.New("choose one of --password, --pin, --groups, and --public")
+		return options, false, errors.New("choose one of --link, --password, --pin, --groups, and --public")
 	}
 	switch {
 	case *public:
 		options.Protection = "public"
+	case *link:
+		options.Protection, options.Secret = "link", netExposeKey()
 	case *pin != "":
 		if !regexp.MustCompile(`^[0-9]{6}$`).MatchString(*pin) {
 			return options, false, errors.New("--pin is 6 digits")
@@ -224,6 +234,13 @@ func netExposePassword() string {
 		words[i] = netExposeWords[pick(len(netExposeWords))]
 	}
 	return fmt.Sprintf("%s-%02d", strings.Join(words, "-"), pick(100))
+}
+
+// netExposeKey is a link's key: 128 random bits, URL-safe.
+func netExposeKey() string {
+	key := make([]byte, 16)
+	rand.Read(key)
+	return base64.RawURLEncoding.EncodeToString(key)
 }
 
 // netExposeArgs is the netbird expose command line for the relay's port.
@@ -335,11 +352,61 @@ func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter 
 // newNetExposeRelay passes requests to the local service, keeping the
 // Host header the browser sent, and logs one line per request.
 func newNetExposeRelay(target string, log io.Writer) http.Handler {
+	return newNetExposeRelayWithKey(target, "", time.Time{}, log)
+}
+
+const (
+	netExposeKeyParam  = "hi_key"
+	netExposeKeyCookie = "hi_expose_key"
+)
+
+// newNetExposeRelayWithKey is the relay of a --link exposure: a request
+// gets through with the key, from the link, a cookie, or a Bearer header.
+// The link's key becomes a cookie that lasts until the exposure ends, and
+// the browser is sent on to the address without it.
+func newNetExposeRelayWithKey(target, key string, expires time.Time, log io.Writer) http.Handler {
 	upstream, _ := url.Parse(target)
 	var mu sync.Mutex
+	matches := func(given string) bool {
+		return given != "" && subtle.ConstantTimeCompare([]byte(given), []byte(key)) == 1
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		if key != "" {
+			query := r.URL.Query()
+			fromLink := query.Get(netExposeKeyParam)
+			cookie, _ := r.Cookie(netExposeKeyCookie)
+			bearer, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+			switch {
+			case matches(fromLink):
+				http.SetCookie(w, &http.Cookie{Name: netExposeKeyCookie, Value: key, Path: "/", Expires: expires,
+					Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+				query.Del(netExposeKeyParam)
+				clean := *r.URL
+				clean.RawQuery = query.Encode()
+				if r.Method == http.MethodGet || r.Method == http.MethodHead {
+					w.Header().Set("Referrer-Policy", "no-referrer")
+					http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
+					return
+				}
+				r.URL = &clean
+			case cookie != nil && matches(cookie.Value), matches(bearer):
+			default:
+				if r.Header.Get(netExposeProbeHeader) == "" {
+					mu.Lock()
+					fmt.Fprintf(log, "%-6s %-40s %d  no key\n", r.Method, clipPath(r.URL.Path), http.StatusUnauthorized)
+					mu.Unlock()
+				}
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusUnauthorized)
+				io.WriteString(w, netExposeNoKeyPage)
+				return
+			}
+			// The service sees neither the key nor its cookie.
+			r.Header.Del("Authorization")
+			netExposeDropCookie(r, netExposeKeyCookie)
+		}
 		proxy := &httputil.ReverseProxy{
 			Rewrite: func(out *httputil.ProxyRequest) {
 				out.SetURL(upstream)
@@ -359,6 +426,24 @@ func newNetExposeRelay(target string, log io.Writer) http.Handler {
 		fmt.Fprintf(log, "%-6s %-40s %d  %d ms\n", r.Method, clipPath(r.URL.Path), recorder.status, time.Since(started).Milliseconds())
 		mu.Unlock()
 	})
+}
+
+const netExposeNoKeyPage = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<title>Link needed</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">
+<h1>This page needs its link</h1><p>Open it with the whole link you were sent; the key is part of it.</p></body>`
+
+// netExposeDropCookie removes one cookie from a request's Cookie header.
+func netExposeDropCookie(r *http.Request, name string) {
+	var kept []string
+	for _, cookie := range r.Cookies() {
+		if cookie.Name != name {
+			kept = append(kept, cookie.String())
+		}
+	}
+	r.Header.Del("Cookie")
+	if len(kept) > 0 {
+		r.Header.Set("Cookie", strings.Join(kept, "; "))
+	}
 }
 
 func clipPath(path string) string {
@@ -386,7 +471,11 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if err != nil {
 		return fmt.Errorf("can't open the relay on the NetBird address: %w", err)
 	}
-	relay := &http.Server{Handler: newNetExposeRelay(target, stdout), ReadHeaderTimeout: 30 * time.Second}
+	key := ""
+	if options.Protection == "link" {
+		key = options.Secret
+	}
+	relay := &http.Server{Handler: newNetExposeRelayWithKey(target, key, time.Now().Add(options.Max), stdout), ReadHeaderTimeout: 30 * time.Second}
 	go relay.Serve(listener)
 	defer relay.Close()
 	relayPort := listener.Addr().(*net.TCPAddr).Port
@@ -420,6 +509,8 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 		state.Password = options.Secret
 	case "pin":
 		state.PIN = options.Secret
+	case "link":
+		state.Link = netExposeLink(publicURL, options.Secret)
 	}
 	if err := os.MkdirAll(netExposeDir(), 0o700); err != nil {
 		return err
@@ -458,6 +549,11 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	return nil
 }
 
+// netExposeLink is the address with its key.
+func netExposeLink(address, key string) string {
+	return strings.TrimRight(address, "/") + "/?" + netExposeKeyParam + "=" + key
+}
+
 // waitForNetExpose waits until the address reaches the relay: anything but
 // NetBird's own "can't reach the service" page.
 func waitForNetExpose(address string, timeout time.Duration) error {
@@ -489,6 +585,8 @@ func printNetExposeState(state netExposeState, asJSON bool, stdout io.Writer) {
 	}
 	fmt.Fprintf(stdout, "Exposing %s:%d at %s\n", state.Host, state.Port, state.URL)
 	switch state.Protection {
+	case "link":
+		fmt.Fprintf(stdout, "  share this link; its key lets you in: %s\n", state.Link)
 	case "password":
 		fmt.Fprintf(stdout, "  password: %s (a login page asks for it)\n", state.Password)
 	case "pin":
@@ -630,7 +728,7 @@ func netExposeList(args []string, stdout io.Writer) error {
 		case state.Groups != "":
 			protection += " " + state.Groups
 		}
-		fmt.Fprintf(table, "%s\t%s\t%d\t%s\t%s\n", name, state.URL, state.Port, protection, state.Expires.Local().Format("15:04"))
+		fmt.Fprintf(table, "%s\t%s\t%d\t%s\t%s\n", name, firstNonEmpty(state.Link, state.URL), state.Port, protection, state.Expires.Local().Format("15:04"))
 	}
 	return table.Flush()
 }

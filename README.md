@@ -124,8 +124,8 @@ required.
 
 `hi net expose <port>` puts a service on this machine, even one on
 `localhost`, on a temporary public HTTPS address through NetBird's reverse
-proxy: protected by a generated password unless you pass `--pin`,
-`--groups`, or `--public`, ending after `--max` (default 1h), with a request
+proxy: protected by a generated password unless you pass `--link` (a key in
+the link, no login page), `--pin`, `--groups`, or `--public`, ending after `--max` (default 1h), with a request
 log; `--detach`, `ls`, and `stop` for background use. See
 [Share a local service](https://hifin.sh/guide/workstation/expose/).
 

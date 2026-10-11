@@ -120,7 +120,7 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | A webhook or script gets 401                                | Password, PIN, and SSO are login pages for browsers. Use `--public`, and have the service check its own token or signature. |
 | `doesn't answer yet; NetBird may be slow`                   | NetBird's proxy took too long to publish the name. Try again. |
 | `--max is at most 24h`                                      | Exposures always end; start a new one when it does.          |
-| `choose one of --password, --pin, --groups, and --public`   | Pass at most one lock.                                       |
+| `choose one of --link, --password, --pin, --groups, and --public` | Pass at most one lock.                                       |
 | `nothing named "…" is exposed`                              | `hi net expose ls` shows the names.                          |
 
 ## Installing and signing in

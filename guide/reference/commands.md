@@ -338,7 +338,7 @@ hi net status | down | reconnect
 |-----------------------------------------------------|------------------------------------------------------|
 | `hi net expose <port>`                              | Expose `localhost:<port>` until `--max` or Ctrl+C    |
 | `  --max <duration>`                                | How long; default `1h`, at most `24h`                |
-| `  --password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default |
+| `  --link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
 | `  --name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
 | `  --detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |

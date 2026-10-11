@@ -455,7 +455,7 @@ The hi-team skill says how: hi team task, review, wait, and merge.
    new task on the same branch (--on) with the reviewer's notes, then have
    it reviewed again.
 5. Merge only after the reviewer approves.
-6. Run hi team preview, post its address and password, tell the people
+6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
 
@@ -502,7 +502,7 @@ of its own on a branch of the project; you get their reports.
 | hi team tasks | List the tasks |
 | hi team merge t-4 | Merge t-4 into the project once a review approved its latest commit |
 | hi team stop t-5 | Stop a task that went wrong |
-| hi team preview | Run the project's main branch and get a temporary address and password for the people |
+| hi team preview | Run the project's main branch and get a temporary link for the people |
 | hi team preview t-4 | The same for a task's branch, before it is merged |
 | hi team preview stop | End the preview |
 
@@ -552,9 +552,9 @@ again.
 
 ## Previews
 
-After a merge, run hi team preview and post the address and password in
-the channel, so the people can try the acceptance list, on their phones
-too. Never tell the people to run commands or start the app themselves.
+After a merge, run hi team preview and post the link it prints in the
+channel, whole: its key is part of it, so the people just open it, on
+their phones too, and try the acceptance list. There is no password. Never tell the people to run commands or start the app themselves.
 
 The project starts with make run, or npm start, and must listen on
 0.0.0.0 at the port in $PORT. If the preview says the app didn't answer,

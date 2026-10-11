@@ -122,16 +122,17 @@ nothing it asks for widens a member's box.
 
 ## Try what the team built
 
-After a merge, the lead runs a preview and posts its address and a password
-in the channel, so the people can try the work, on their phones too:
+After a merge, the lead runs a preview and posts a link in the channel, so
+the people can try the work, on their phones too. The link carries its own
+key, so there is no password to copy:
 
 1. hi starts the project in an app box of its own, from the merged code (or
    a task's branch, before it is merged), with `make run` or `npm start`.
    The app listens on `$PORT`; its port reaches this machine only.
-2. `hi net expose` puts it on a temporary HTTPS address behind a password,
-   through this machine's NetBird (see [hi net](/guide/workstation/)). The
-   machine must be enrolled with `hi net`, and Peer Expose must be on in
-   NetBird.
+2. `hi net expose --link` puts it on a temporary HTTPS address through this
+   machine's NetBird (see [hi net](/guide/workstation/expose/)), which only
+   the link with its key opens. The machine must be enrolled with `hi net`,
+   and Peer Expose must be on in NetBird.
 3. A preview lasts four hours by default. A new one replaces it.
 
 The lead itself never joins your NetBird network: the machine runs the
