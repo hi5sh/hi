@@ -274,22 +274,50 @@ A team has three kinds of state, each kept differently:
 
 | State | Where | How it is kept |
 |---|---|---|
-| Code | `repo/` | git: every merge is a commit, every release a tag, pushed to the remote |
-| The lead's memory, specs, docs | `lead/`, `specs/` | snapshots |
+| Code and specs | `repo/` (specs in `repo/docs/specs`) | git: every merge is a commit, every release a tag, pushed to the remote |
+| The lead's memory | `lead/` (Hermes' SQLite databases, memories, skills) | snapshots |
+| The team's record | `team.json`, `tasks/`, `run/proxy/network.log` | snapshots |
 | The app's data | `app/` | snapshots; this is the people's real work and matters most |
 
-**Snapshots** cover the whole folder except secrets, and are taken:
+The rest of `run/` (the lead's home, the preview's copy of the code, the
+preview's record) is rebuilt by `hi team up` and is left out. So is
+`secrets.json`: a snapshot in a bucket must not hold the team's Slack
+tokens. A restore asks for them again, as `hi team new` does.
+
+**Snapshots** are taken:
 
 - **before every live deploy**, so each release pairs its code with the
   data and memory as they were (the snapshot is named after the release);
-- **every day**, kept rolling: 7 daily, 4 weekly, 6 monthly by default;
+- **every day**, by a systemd user timer next to the team's service, kept
+  rolling: 7 daily, 4 weekly, 6 monthly by default;
 - **by hand** with `hi team snapshot`.
 
-A snapshot is consistent: SQLite files are copied with SQLite's backup API
-and app databases with their own dump, not as raw files while running.
+**Consistency without stopping the team.** Copying the folder while the
+team runs can catch a SQLite database mid-write (Hermes' `state.db` keeps a
+write-ahead log beside it) or git halfway through a merge, and such a copy
+may not open. Stopping the team for each snapshot would take the bot off
+Slack and cut off a lead mid-conversation. Instead the team's own service
+takes the snapshot, since it holds the moving parts:
+
+1. it takes the broker's lock, so no merge or task start is half done;
+2. it pauses the lead's box (`podman pause`), freezing Hermes where it is;
+   the Slack connection outlasts a pause of a few seconds;
+3. it packs the folder, minus what is left out above, into one archive
+   (about a second for a team of 50 MB);
+4. it unpauses the box and releases the lock, then copies the archive
+   offsite in the background, so nobody waits on the upload.
+
+A frozen copy restores like a power cut, which SQLite and git are built to
+recover from. The app's box is paused in the same way, or its database
+dumped with its own tool when it has one. Member boxes still working are
+left alone: their work is on task branches, and the next snapshot has it.
+Copying each database with SQLite's backup API would avoid even the pause,
+but would miss any database a later Hermes adds.
+
 Snapshots are encrypted and deduplicated (restic, or an equivalent hi
 ships), kept on the host and copied offsite to the S3-compatible bucket chosen
-in the wizard.
+in the wizard. A snapshot that fails, or an upload that fails, is posted in
+the channel for the owners and shown in `hi team status`.
 
 Not per commit: commits to `main` are already kept by git, and the app's
 data changes on its own schedule, so the snapshots that matter are before

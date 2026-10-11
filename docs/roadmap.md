@@ -1032,6 +1032,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   commands, and merged changes, and tells the owners about anything risky
   rather than blocking the team; Hermes' `approvals.mode: smart` is one
   starting point.
+- [ ] Snapshots: `hi team snapshot`, `snapshots`, and `restore`, and a
+  daily systemd timer (7 daily, 4 weekly, 6 monthly). The team's service
+  takes each one without stopping: the broker's lock, a pause of the
+  lead's box of a second or so, one archive of the folder without `run/`
+  (but with its network log) or `secrets.json`, then an encrypted upload
+  to the team's S3-compatible bucket in the background. Failures reach the
+  owners in the channel and `hi team status`.
+- [ ] Rollback to a release or a snapshot, by command or an owner's button.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — More for the autoresearch templates
