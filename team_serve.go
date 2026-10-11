@@ -462,6 +462,10 @@ The hi-team skill says how: hi team task, review, wait, and merge.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
+7. Merged work is in dev, not production. When the people are happy with
+   dev, ask an owner whether to release it; only their yes puts it in
+   production, as the next version (the hi-team skill says how). Always
+   say which version people are looking at: production v3, or dev.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
 to agree first (hi team task --small): fix, review, merge, and tell them
@@ -486,7 +490,7 @@ func teamSkill(config teamConfig) string {
 	}
 	return fmt.Sprintf(`---
 name: hi-team
-description: Hand tasks to the %[1]s team's members (%[2]s), get their work reviewed, and merge it, with the hi team command.
+description: Hand tasks to the %[1]s team's members (%[2]s), get their work reviewed, merge it into dev, and release dev to production, with the hi team command.
 metadata:
   hermes:
     requires_toolsets: [terminal]
@@ -511,6 +515,12 @@ of its own on a branch of the project; you get their reports.
 | hi team preview | Run the project's main branch and get a temporary link for the people |
 | hi team preview t-4 | The same for a task's branch, before it is merged |
 | hi team preview stop | End the preview |
+| hi team preview production | The same for production, the version the people use |
+| hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
+| hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
+| hi team release v2 --approval <id> | Put production back on v2, once an owner says yes |
+| hi team discard t-4 | Drop an idea that isn't merged: its tasks, reviews, and branches |
+| hi team discard dev --approval <id> | Set dev's code back to production's, once one of the people says yes |
 
 Members: %[2]s.
 
@@ -579,6 +589,41 @@ give the coder a task to fix that, with the lines it printed. If the app
 only listens on a fixed port, pass it: hi team preview --port 5173.
 
 Don't start the app in your own box: nobody can reach it there.
+
+## Dev and production
+
+There are two versions of the project, and the people must always know
+which one they are looking at:
+
+- **Dev** is what you merge into. The people try it in previews and say
+  what works; it may have things that are thrown away later.
+- **Production** is the version the people rely on. It changes only by a
+  release, which needs an owner's yes. Each release has a number: v1, v2,
+  and so on.
+
+Name the version every time you post a preview link or say what changed,
+in the words hi team versions and hi team preview print: "production v3",
+or "dev, v3 + 2 changes", or "an idea, not in dev yet". Never call dev
+"live" or "released".
+
+When the people are happy with dev, ask an owner whether to release it:
+say what production gets that it hasn't now, in their words, end your
+reply, and wait. Once an owner says yes, write the release notes to a file
+(a few lines for the people, not code) and run hi team release --approval
+<their message id> --notes <file>. hi posts the release in the channel
+itself, not in the thread, so everyone sees it. If a release turns out
+badly, an owner may ask to go back: hi team release v2 --approval <id>.
+
+## Ideas
+
+Each new task starts an idea; continuing it (--on) doesn't. At most
+5 ideas may be unmerged at once, and hi refuses a sixth. Don't let them
+linger: when an idea didn't work out, or the people moved on, hi team
+discard it and say so. When something merged into dev turns out wrong and
+the people want all of dev's changes since production gone, ask them, then
+hi team discard dev --approval <id>: dev's code goes back to production's,
+and hi posts it in the channel. To drop just one merged change, give the
+coder a task to take it out instead.
 
 ## Reviews and merging
 

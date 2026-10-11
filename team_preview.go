@@ -30,7 +30,8 @@ const (
 
 // teamPreview is run/preview.json.
 type teamPreview struct {
-	Source   string    `json:"source"` // the branch, or a task's ID
+	Source   string    `json:"source"`          // the branch, or a task's ID
+	Label    string    `json:"label,omitempty"` // which version it is, as the lead says it
 	Commit   string    `json:"commit"`
 	Command  string    `json:"command"`
 	HostPort int       `json:"host_port"`
@@ -66,10 +67,11 @@ func teamRunCommand(dir string) (string, error) {
 }
 
 type teamPreviewRequest struct {
-	Task string        `json:"task,omitempty"`
-	Port int           `json:"port,omitempty"`
-	Max  time.Duration `json:"max,omitempty"`
-	Stop bool          `json:"stop,omitempty"`
+	Task       string        `json:"task,omitempty"`
+	Production bool          `json:"production,omitempty"`
+	Port       int           `json:"port,omitempty"`
+	Max        time.Duration `json:"max,omitempty"`
+	Stop       bool          `json:"stop,omitempty"`
 }
 
 // preview starts (or replaces) the team's preview, or stops it.
@@ -85,7 +87,20 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		return teamPreview{}, err
 	}
 	source, ref := config.Branch, config.Branch
-	if request.Task != "" {
+	label := "dev"
+	if view, err := teamVersionsReport(b.team); err == nil {
+		label = view.Dev
+	}
+	if request.Production {
+		versions, err := loadTeamVersions(b.team)
+		if err != nil {
+			return teamPreview{}, err
+		}
+		if versions.Production == 0 {
+			return teamPreview{}, errors.New("nothing is released to production yet")
+		}
+		source, ref, label = teamProductionBranch, teamProductionBranch, fmt.Sprintf("production v%d", versions.Production)
+	} else if request.Task != "" {
 		task, err := loadTeamTask(b.team, request.Task)
 		if err != nil {
 			return teamPreview{}, err
@@ -93,7 +108,7 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		if task.Branch == "" || task.Status == "merged" {
 			return teamPreview{}, fmt.Errorf("%s has no branch of its own (%s); preview %s instead", task.ID, task.Status, config.Branch)
 		}
-		source, ref = task.ID, task.Branch
+		source, ref, label = task.ID, task.Branch, fmt.Sprintf("idea %s, not in dev yet", task.ID)
 	}
 	port := request.Port
 	if port == 0 {
@@ -132,7 +147,7 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 	if err != nil {
 		return teamPreview{}, err
 	}
-	preview := teamPreview{Source: source, Commit: commit, Command: command, HostPort: hostPort, Started: time.Now().UTC()}
+	preview := teamPreview{Source: source, Label: label, Commit: commit, Command: command, HostPort: hostPort, Started: time.Now().UTC()}
 	if err := b.app(src, command, port, hostPort); err != nil {
 		return preview, err
 	}

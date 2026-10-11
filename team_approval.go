@@ -27,24 +27,50 @@ type teamApproval struct {
 
 // teamFindApproval checks ref (a message's ID from hi team channel --ids)
 // against the channel's log, polling Slack first when it isn't logged yet.
-func (b *teamBroker) teamFindApproval(config teamConfig, ref string) (teamApproval, error) {
+// For a release (approving "release"), only an owner's yes counts:
+// production is theirs. A release or setting dev back ("dev") needs a yes
+// of its own, never one that approved something else; one yes may start
+// more than one task.
+func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) (teamApproval, error) {
+	owners := approving == "release"
 	ref = strings.Trim(strings.TrimSpace(ref), "[]")
 	if ref == "" {
 		return teamApproval{}, errors.New("name the message that approved this work: hi team task <role> <brief.md> --approval <id>, " +
 			"with the id from hi team channel --ids. Ask the people first, end your reply, and start the task once one of them says yes. " +
 			"A small fix may start without asking: --small")
 	}
-	approval, err := teamCheckApproval(config, ref, time.Now())
+	approval, err := teamCheckApproval(config, ref, owners, time.Now())
 	if err != nil && b.channel != nil {
 		// Said a moment ago: the log may be up to two minutes behind.
 		if pollErr := teamPollChannel(b.team, config.Channel, b.channel, time.Now()); pollErr == nil {
-			approval, err = teamCheckApproval(config, ref, time.Now())
+			approval, err = teamCheckApproval(config, ref, owners, time.Now())
 		}
 	}
-	return approval, err
+	if err != nil {
+		return approval, err
+	}
+	used := map[string]bool{}
+	if approving != "task" {
+		for _, task := range loadTeamTasks(b.team) {
+			if task.Approval != nil {
+				used[task.Approval.TS] = true
+			}
+		}
+	}
+	if versions, err := loadTeamVersions(b.team); err == nil {
+		for _, event := range versions.History {
+			if event.Approval != nil {
+				used[event.Approval.TS] = true
+			}
+		}
+	}
+	if used[approval.TS] {
+		return teamApproval{}, fmt.Errorf("message %s already approved something else; ask again for this", approval.TS)
+	}
+	return approval, nil
 }
 
-func teamCheckApproval(config teamConfig, ref string, now time.Time) (teamApproval, error) {
+func teamCheckApproval(config teamConfig, ref string, owners bool, now time.Time) (teamApproval, error) {
 	messages, err := readTeamChannel(teamChannelDir(config.Name), teamSlackTS(now.Add(-teamApprovalMaxAge)))
 	if err != nil {
 		return teamApproval{}, err
@@ -62,6 +88,9 @@ func teamCheckApproval(config teamConfig, ref string, now time.Time) (teamApprov
 		return teamApproval{}, fmt.Errorf("message %s is a bot's (yours?); the approval must come from one of the people", ref)
 	}
 	allowed := append(append([]string{}, config.Owners...), config.Askers...)
+	if owners && !containsString(config.Owners, found.User) {
+		return teamApproval{}, fmt.Errorf("%s isn't one of the team's owners (%s); only an owner may approve this", found.Name, strings.Join(config.Owners, ", "))
+	}
 	if len(config.Askers) > 0 && !containsString(allowed, found.User) {
 		return teamApproval{}, fmt.Errorf("%s isn't one of the team's people who may ask for work", found.Name)
 	}

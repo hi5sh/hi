@@ -149,11 +149,12 @@ works. Getting there:
    passes. No person reviews code. `main` is always deployable.
 5. **Preview.** Devops deploys `main` to the team's preview app, and the
    lead asks the people to try the acceptance list there, with a link.
+   `main` is **dev**: what the people try, and may throw away.
 6. **Live.** When the people say it works, devops deploys to the live
-   app. Small fixes (a typo, a broken button, a wrong label) go live without
-   waiting: the lead decides what is small, deploys, and tells the channel
-   what changed. Every live deploy
-   is a release with a number, and a snapshot is taken first (below).
+   app. Small fixes (a typo, a broken button, a wrong label) start without
+   waiting for a go-ahead, but reach production only with the next
+   release, like everything else. Every live deploy is a release with a
+   number (see Dev and production), and a snapshot is taken first (below).
 7. **Done, or a bug.** The lead marks the feature done in its notes. A bug
    found later by a person, the lead, or the reviewer becomes a new task
    linked to the feature, and goes through the same steps.
@@ -167,11 +168,46 @@ Who decides what is set in the wizard: who may ask for work (members of
 the channel by default), who may approve a live deploy, and who may roll
 back or change the budget (the team's owners).
 
+## Dev and production
+
+Two versions of the project, named the same way everywhere:
+
+- **Dev** is the team's branch (`main`). Every merge goes there; previews
+  run it. What the people try there may be thrown away.
+- **Production** is the `production` branch. Only the broker moves it, and
+  only on an owner's yes (`hi team release --approval <id> --notes <file>`):
+  dev's latest commit becomes the next version, v1, v2, ..., tagged
+  `release-<n>` and pushed with the branch. `hi team release v2 --approval
+  <id>` puts production back on an earlier release (the remote branch is
+  force-pushed: it is the broker's alone). The numbers never repeat.
+- An approval counts once: a yes to a task doesn't also release it.
+- **Announced.** Every move of production, and every time dev is set back
+  to it, is posted in the channel itself, outside any thread: the version,
+  the one before, who approved it, and the lead's notes for the people.
+- **Discarding.** `hi team discard <task>` drops an idea that isn't merged:
+  the task, the tasks continuing it or that it continues, their reviews,
+  boxes, and branches. `hi team discard dev --approval <id>` (anyone who
+  may ask for work) sets dev's code back to production's, as a new commit
+  that keeps the lead's specs; the merged tasks since production are marked
+  discarded and listed in the commit and the channel.
+- **At most five ideas.** An idea is a line of tasks not merged or
+  discarded, counted once by its latest task. A new task past five is
+  refused, with the list, until one is merged or discarded; continuing the
+  latest task of an idea (`--on`) adds none.
+- **Always named.** `hi team versions` and `hi team status` say
+  "production v3" and "dev, v3 + 2 changes"; a preview says which it runs
+  (`hi team preview production` runs production), and the lead uses those
+  words in the channel.
+
+The record is `versions.json` in the team's folder: the releases, the
+version production is on, and every move with its approval.
+
 ## The team folder
 
 ```text
 ./team-payments/   (where hi team new ran, or --dir)
   team.json          members, channel, owners, budget (no secrets)
+  versions.json      the releases, the version production is on, and every move
   secrets.json       Slack tokens, keys (0600, never exported in the clear)
   slack-manifest.json
   lead/              Hermes' home: memory, state.db, SOUL.md, skills, cron
@@ -230,6 +266,12 @@ hi team merge <task>                             merge it, once a review approve
 hi team stop <task>                              stop a task's box
 hi team preview [<task>] [--port <n>] [--max <d>]  run the project and give a temporary address
 hi team preview stop                             end the preview
+hi team preview production                       the same for production
+hi team versions                                 production's version, what dev has on top, open ideas
+hi team release --approval <id> --notes <file>   dev to production as the next version (an owner's yes)
+hi team release v2 --approval <id>               production back on v2 (an owner's yes)
+hi team discard <task>                           drop an idea that isn't merged
+hi team discard dev --approval <id>              dev's code back to production's
 ```
 
 - A preview copies the commit (main, or a task's branch) to `run/app`,

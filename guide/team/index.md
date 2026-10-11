@@ -121,10 +121,10 @@ first `hi team up` downloads its image, about 2.6 GB. To do without it, set
 `"memory": "off"` in `team.json`; the lead then keeps Hermes' small
 built-in notepad only.
 
-The lead puts members to work with `hi team task`, `review`, `wait`, and
-`merge` in its box. These go to a broker that `hi team` runs on the
+The lead puts members to work with `hi team task`, `review`, `wait`,
+`merge`, `release`, and `discard` in its box. These go to a broker that `hi team` runs on the
 machine: it checks each request against `team.json`, starts the member as
-[`hi agent`](/guide/agent/), and refuses a merge that no review approved.
+[`hi agent`](/guide/agent/), and refuses a merge that no review approved, and a release that no owner approved.
 The lead never holds the agents' keys or the repository's credentials, and
 nothing it asks for widens a member's box.
 
@@ -148,6 +148,35 @@ app and the address, and the lead only asks for them.
 
 New team repositories tell the coder to give the project a `make run` that
 listens on `0.0.0.0` at `$PORT`, so every project starts the same way.
+
+## Dev and production
+
+The project has two versions, and the lead always says which one people
+are looking at:
+
+- **Dev** is where every merge goes. The people try it in previews, and
+  what doesn't work out can be thrown away.
+- **Production** is the version people rely on, on a `production` branch
+  of its own. It changes only when an owner says yes. Each release gets the
+  next number: v1, v2, and so on, tagged `release-1`, `release-2`.
+
+When the people are happy with dev, the lead asks an owner whether to
+release it, and only that owner's reply lets the broker move production
+(`hi team release`). If a release goes badly, an owner may ask to put
+production back on an earlier version.
+
+Every change to production is posted in the channel itself, not in a
+thread: "Production v4 is out (it was v3), approved by Anna", with the
+lead's notes on what changed, or "Production is back on v3". When the
+people want everything in dev since the last release gone, the lead sets
+dev's code back to production's (after someone says yes). That is posted
+too, with what was set aside, and it stays in the project's history.
+
+Unmerged ideas are capped at five. Each new task starts one, and its
+follow-ups continue it. The broker refuses a sixth until one is merged or
+discarded, so ideas can't pile up beyond what anyone can follow in Slack.
+`hi team status payments` shows production's version, what dev has on top
+of it, and the ideas still open.
 
 ## The team's folder
 

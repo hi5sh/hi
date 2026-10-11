@@ -578,6 +578,22 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.45.0 — Dev and production for a team
+
+- [x] Merges go to dev (`main`); production is a `production` branch that
+  moves only on an owner's yes: `hi team release --approval <id> --notes
+  <file>` makes dev's latest the next version (v1, v2, ..., tagged
+  `release-<n>`), and `hi team release v2` puts production back on an
+  earlier one. Each move is posted in the channel itself, with the notes.
+- [x] `hi team discard <task>` drops an idea that isn't merged, with its
+  follow-ups, reviews, boxes, and branches; `hi team discard dev` sets dev's
+  code back to production's, as a commit that keeps the specs, and is
+  posted in the channel.
+- [x] At most five ideas wait unmerged; a sixth task is refused until one
+  is merged or discarded.
+- [x] `hi team versions`, `hi team status`, merges, and previews name the
+  version: "production v3", "dev, v3 + 2 changes".
+
 ### v0.44.0 — Pick the team to start from a list
 
 - [x] `hi team up` without a name shows the teams on this machine, whether

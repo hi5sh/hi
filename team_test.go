@@ -521,6 +521,23 @@ func TestTeamBrokerSocket(t *testing.T) {
 	if err := runTeamLeadCommand("tasks", nil, strings.NewReader(""), &out); err != nil || !strings.Contains(out.String(), "t-1") {
 		t.Fatal(out.String(), err)
 	}
+	out.Reset()
+	if err := runTeamLeadCommand("versions", nil, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Production: nothing released yet.\nDev: 0 changes, nothing released yet.\nIdeas not merged: 1 of 5 at most.\n"; !strings.HasPrefix(out.String(), want) {
+		t.Fatal(out.String())
+	}
+	if err := runTeamLeadCommand("release", []string{"--notes", "-", "--approval", "1.5"}, strings.NewReader("New"), &out); err == nil || !strings.Contains(err.Error(), "no message 1.5") {
+		t.Fatal(err)
+	}
+	if err := runTeamLeadCommand("discard", []string{"t-1", "--approval", "1.5"}, strings.NewReader(""), &out); err == nil {
+		t.Fatal("discarded an idea with an approval it doesn't take")
+	}
+	out.Reset()
+	if err := runTeamLeadCommand("discard", []string{"t-1"}, strings.NewReader(""), &out); err != nil || out.String() != "Discarded t-1, with its boxes and branches.\n" {
+		t.Fatal(out.String(), err)
+	}
 }
 
 func TestTeamMovedFolder(t *testing.T) {

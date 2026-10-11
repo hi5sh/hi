@@ -49,7 +49,7 @@ type teamTask struct {
 	Title   string       `json:"title"`
 	Box     string       `json:"box"`
 	Branch  string       `json:"branch,omitempty"`
-	Status  string       `json:"status"`            // starting, running, done, failed, stopped, merged
+	Status  string       `json:"status"`            // starting, running, done, failed, stopped, merged, discarded
 	Verdict string       `json:"verdict,omitempty"` // for a review: approve or changes
 	Error   string       `json:"error,omitempty"`
 	Report  *agentReport `json:"report,omitempty"`
@@ -69,7 +69,10 @@ type teamTask struct {
 // leaves out a member's changes to them.
 const teamSpecsRule = "docs/specs/ is the lead's: read it, but don't change it, not even a feature's status; the lead updates it."
 
-var teamTaskID = regexp.MustCompile(`^t-[0-9]{1,6}$`)
+var (
+	teamTaskID     = regexp.MustCompile(`^t-[0-9]{1,6}$`)
+	teamVersionArg = regexp.MustCompile(`^v[1-9][0-9]{0,5}$`)
+)
 
 func teamTaskDir(team string) string { return filepath.Join(teamDir(team), "tasks") }
 
@@ -289,6 +292,33 @@ func (b *teamBroker) handler() http.Handler {
 		preview, err := b.preview(request)
 		reply(w, preview, err)
 	})
+	mux.HandleFunc("POST /release", func(w http.ResponseWriter, r *http.Request) {
+		var request teamReleaseRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 16<<10)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		result, err := b.release(request)
+		reply(w, result, err)
+	})
+	mux.HandleFunc("POST /discard", func(w http.ResponseWriter, r *http.Request) {
+		request, err := read(r)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		var tasks []teamTask
+		if request.Task == "dev" {
+			tasks, err = b.resetDev(request.Approval)
+		} else {
+			tasks, err = b.discard(request.Task)
+		}
+		reply(w, tasks, err)
+	})
+	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
+		view, err := teamVersionsReport(b.team)
+		reply(w, view, err)
+	})
 	mux.HandleFunc("GET /tasks", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, loadTeamTasks(b.team), nil)
 	})
@@ -363,7 +393,7 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 		if err != nil {
 			return teamTask{}, err
 		}
-		if on.Kind != "task" || on.Branch == "" || teamTaskActive(on) {
+		if on.Kind != "task" || on.Branch == "" || teamTaskActive(on) || on.Status == "discarded" || on.Status == "merged" {
 			return teamTask{}, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
 		}
 		task.On, from = on.ID, on.Branch
@@ -374,11 +404,14 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 		if err != nil {
 			return teamTask{}, err
 		}
-		approval, err := b.teamFindApproval(config, request.Approval)
+		approval, err := b.teamFindApproval(config, request.Approval, "task")
 		if err != nil {
 			return teamTask{}, err
 		}
 		task.Approval = &approval
+	}
+	if err := b.roomForIdea(task.On); err != nil {
+		return teamTask{}, err
 	}
 	// The member's branch starts from main: with the latest specs.
 	if err := b.commitSpecs(); err != nil {
@@ -401,6 +434,24 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	}
 	go b.launch(task, member, text, from)
 	return task, nil
+}
+
+// roomForIdea refuses a task that would start one idea too many. Continuing
+// the latest task of an idea (--on) adds none.
+func (b *teamBroker) roomForIdea(on string) error {
+	ideas := teamOpenIdeas(loadTeamTasks(b.team))
+	var names []string
+	for _, idea := range ideas {
+		if idea.ID == on {
+			return nil
+		}
+		names = append(names, idea.ID+" ("+idea.Status+") "+idea.Title)
+	}
+	if len(ideas) < teamMaxIdeas {
+		return nil
+	}
+	return fmt.Errorf("%d ideas aren't merged yet, the most there may be:\n  %s\nMerge one, or ask the people which to drop and hi team discard it, before starting another",
+		len(ideas), strings.Join(names, "\n  "))
 }
 
 func (b *teamBroker) startReview(request teamRequest) (teamTask, error) {
@@ -597,13 +648,8 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	if err := b.commitSpecsLocked(config); err != nil {
 		return task, fmt.Errorf("committing the specs: %w", err)
 	}
-	if dirty := boxGit(b.repo, "status", "--porcelain", "--untracked-files=no"); dirty != "" {
-		return task, errors.New("repo/ has changes that aren't committed; the lead's branch must be clean to merge")
-	}
-	if current := boxGit(b.repo, "branch", "--show-current"); current != config.Branch {
-		if out, err := teamGit(b.repo, "checkout", "-q", config.Branch); err != nil {
-			return task, fmt.Errorf("git checkout %s: %s", config.Branch, out)
-		}
+	if err := b.onTeamBranch(config); err != nil {
+		return task, err
 	}
 	message := fmt.Sprintf("%s\n\nTask %s by the %s, approved in review %s by the reviewer.", task.Title, task.ID, task.Role, approval.ID)
 	if out, err := teamGit(b.repo, "merge", "--no-ff", "-m", message, task.Branch); err != nil {
@@ -714,7 +760,8 @@ func teamTitle(brief string) string {
 // ---------------------------------------------------------------------------
 // the lead's commands, in its box
 
-var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true}
+var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
+	"versions": true, "release": true, "discard": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	socket := os.Getenv(teamSocketEnv)
@@ -826,6 +873,80 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if task.Error != "" {
 			fmt.Fprintln(stdout, task.Error)
 		}
+		var view teamVersionsView
+		if call("GET", "/versions", nil, &view) == nil {
+			fmt.Fprintf(stdout, "It is in dev now: %s. Production didn't change.\n", strings.TrimPrefix(view.Dev, "dev, "))
+		}
+	case "versions":
+		if len(args) != 0 {
+			return usageError{"usage: hi team versions"}
+		}
+		var view teamVersionsView
+		if err := call("GET", "/versions", nil, &view); err != nil {
+			return err
+		}
+		printTeamVersions(view, stdout)
+	case "release":
+		var request teamReleaseRequest
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "--approval" && i+1 < len(args):
+				request.Approval = args[i+1]
+				i++
+			case args[i] == "--notes" && i+1 < len(args):
+				notes, err := teamReadBrief(args[i+1], stdin)
+				if err != nil {
+					return err
+				}
+				request.Notes = notes
+				i++
+			case request.Version == 0 && teamVersionArg.MatchString(args[i]):
+				request.Version, _ = strconv.Atoi(strings.TrimPrefix(args[i], "v"))
+			default:
+				return usageError{"usage: hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
+			}
+		}
+		var result teamReleaseResult
+		if err := call("POST", "/release", request, &result); err != nil {
+			return err
+		}
+		if request.Version != 0 {
+			fmt.Fprintf(stdout, "Production is on v%d now (it was on v%d). hi posted it in the channel.\n", result.Release.Version, result.Previous)
+		} else {
+			fmt.Fprintf(stdout, "Released v%d: production is dev's latest now. hi posted it in the channel with your notes.\n", result.Release.Version)
+		}
+		if result.Warning != "" {
+			fmt.Fprintln(stdout, result.Warning)
+		}
+	case "discard":
+		request := teamRequest{}
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--approval" && i+1 < len(args) {
+				request.Approval = args[i+1]
+				i++
+			} else if request.Task == "" {
+				request.Task = args[i]
+			} else {
+				request.Task = ""
+				break
+			}
+		}
+		if request.Task == "" || (request.Task != "dev" && request.Approval != "") {
+			return usageError{"usage: hi team discard <task>  (an idea that isn't merged)\n       hi team discard dev --approval <id>  (dev's code back to production's)"}
+		}
+		var tasks []teamTask
+		if err := call("POST", "/discard", request, &tasks); err != nil {
+			return err
+		}
+		var ids []string
+		for _, task := range tasks {
+			ids = append(ids, task.ID)
+		}
+		if request.Task == "dev" {
+			fmt.Fprintf(stdout, "Dev's code is production's again; hi posted it in the channel. Set aside: %s.\n", firstNonEmpty(strings.Join(ids, ", "), "nothing merged as a task"))
+		} else {
+			fmt.Fprintf(stdout, "Discarded %s, with its boxes and branches.\n", strings.Join(ids, ", "))
+		}
 	case "preview":
 		var request teamPreviewRequest
 		for i := 0; i < len(args); i++ {
@@ -849,7 +970,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			case request.Task == "" && teamTaskID.MatchString(args[i]):
 				request.Task = args[i]
 			default:
-				return usageError{"usage: hi team preview [<task>] [--port <n>] [--max <duration>] | hi team preview stop"}
+				return usageError{"usage: hi team preview [<task> | production] [--port <n>] [--max <duration>] | hi team preview stop"}
 			}
 		}
 		var preview teamPreview
@@ -860,7 +981,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			fmt.Fprintln(stdout, "The preview is stopped.")
 			return nil
 		}
-		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC. Post this link whole; its key lets the people in:\n  %s\n", preview.Source, preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
+		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC. Say which version it is, and post this link whole; its key lets the people in:\n  %s\n", firstNonEmpty(preview.Label, preview.Source), preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
 		if preview.Password != "" {
 			fmt.Fprintf(stdout, "  password: %s\n", preview.Password)
 		}

@@ -1111,6 +1111,10 @@ func teamStatus(name string, stdout io.Writer) error {
 	for _, role := range teamRoles(config) {
 		fmt.Fprintf(stdout, "  %-10s %s\n", role, teamMemberLabel(config.Members[role]))
 	}
+	if view, err := teamVersionsReport(name); err == nil {
+		fmt.Fprintln(stdout)
+		printTeamVersions(view, stdout)
+	}
 	tasks := loadTeamTasks(name)
 	if len(tasks) == 0 {
 		fmt.Fprintln(stdout, "\nNo tasks yet.")

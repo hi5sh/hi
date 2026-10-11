@@ -250,7 +250,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi team down <name>`                     | Stop it; its folder stays |
 | `hi team ls`                              | Teams on this machine |
-| `hi team status <name>`                   | Up or down, its members, and its latest tasks |
+| `hi team status <name>`                   | Up or down, its members, production's version and what dev has on top of it, the open ideas, and its latest tasks |
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
 | `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
 | `hi team manifest <name>`                 | The Slack app manifest again |
@@ -258,9 +258,14 @@ See [Run a team in Slack](/guide/team/).
 
 In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>]`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
-`stop <task>`, `channel [--since 2h | --new]`, and `preview [<task>] [--port <n>] [--max <duration>]` or
+`stop <task>`, `channel [--since 2h | --new]`, and `preview [<task> | production] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a
-temporary address with `hi net expose`.
+temporary address with `hi net expose`. `versions` shows production's
+version and what dev has on top of it; `release --approval <id> --notes <file>`
+puts dev into production as the next version once an owner says yes, and
+`release v2 --approval <id>` puts production back on v2; `discard <task>`
+drops an idea that isn't merged, and `discard dev --approval <id>` sets
+dev's code back to production's.
 
 ## hi box
 
