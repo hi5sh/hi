@@ -185,9 +185,11 @@ func TestTeamVersions(t *testing.T) {
 	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "x", On: ideas[0].ID}); err == nil {
 		t.Fatal("continued a discarded idea")
 	}
-	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "One more", Small: true}); err != nil {
+	last, err := b.startTask(teamRequest{Role: "coder", Brief: "One more", Small: true})
+	if err != nil {
 		t.Fatal(err)
 	}
+	waitTeamTask(t, last.ID)
 	if _, err := b.discard(first.ID); err == nil || !strings.Contains(err.Error(), "in dev already") {
 		t.Fatal(err)
 	}
