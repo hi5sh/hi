@@ -252,12 +252,13 @@ See [Run a team in Slack](/guide/team/).
 | `hi team ls`                              | Teams on this machine |
 | `hi team status <name>`                   | Up or down, its members, and its latest tasks |
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
+| `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
 In its box, the lead runs `hi team task <role> <brief.md> [--on <task>]`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
-`stop <task>`, and `preview [<task>] [--port <n>] [--max <duration>]` or
+`stop <task>`, `channel [--since 2h | --new]`, and `preview [<task>] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a
 temporary address with `hi net expose`.
 

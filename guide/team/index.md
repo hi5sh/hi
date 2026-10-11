@@ -90,10 +90,18 @@ start at boot, run `sudo loginctl enable-linger $USER` once.
 
 Someone in the channel asks for something. The lead agrees with them what
 will change and a short list of things they can try, writes it down in
-`specs/`, and briefs the coder. The reviewer checks the coder's work; if it
+`docs/specs/`, and briefs the coder. The reviewer checks the coder's work; if it
 needs changes, the coder gets a new task on the same branch. Once the
 reviewer approves, the lead merges and tells the people what changed and
 how to try it. A feature is done when they agree it works.
+
+The lead answers only when someone @-mentions it (`@team-payments`), even
+in a thread it's part of, so people can talk among themselves in the
+channel. It still follows everything: hi keeps a log of the channel,
+threads and shared files included, in the team's `channel/` folder, and
+every 15 minutes the lead reads what's new and keeps what matters in its
+memory: a decision made in passing, a link or a video someone shared, who
+cares about what. `hi team channel payments --since 2h` shows you the log.
 
 The lead puts members to work with `hi team task`, `review`, `wait`, and
 `merge` in its box. These go to a broker that `hi team` runs on the
@@ -135,6 +143,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions |
 | `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature |
 | `tasks/` | Each task's brief and report |
+| `channel/` | The channel's log, a file per day, and the files people shared |
 
 The containers are rebuilt from the folder on every start, so a copy of the
 folder is a copy of the team. To move it, stop the team, move the folder,

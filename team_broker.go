@@ -38,25 +38,32 @@ const (
 
 // teamTask is tasks/<id>.json.
 type teamTask struct {
-	ID       string       `json:"id"`
-	Role     string       `json:"role"`
-	Agent    string       `json:"agent"`
-	Model    string       `json:"model,omitempty"`
-	Kind     string       `json:"kind"`             // task or review
-	On       string       `json:"on,omitempty"`     // a task this one continues, on its branch
-	Review   string       `json:"review,omitempty"` // for a review: the task it reviews
-	Commit   string       `json:"commit,omitempty"` // for a review: the commit it reviewed
-	Title    string       `json:"title"`
-	Box      string       `json:"box"`
-	Branch   string       `json:"branch,omitempty"`
-	Status   string       `json:"status"`            // starting, running, done, failed, stopped, merged
-	Verdict  string       `json:"verdict,omitempty"` // for a review: approve or changes
-	Error    string       `json:"error,omitempty"`
-	Report   *agentReport `json:"report,omitempty"`
-	Merged   string       `json:"merged,omitempty"` // the merge commit
-	Created  time.Time    `json:"created"`
-	Finished time.Time    `json:"finished,omitempty"`
+	ID      string       `json:"id"`
+	Role    string       `json:"role"`
+	Agent   string       `json:"agent"`
+	Model   string       `json:"model,omitempty"`
+	Kind    string       `json:"kind"`             // task or review
+	On      string       `json:"on,omitempty"`     // a task this one continues, on its branch
+	Review  string       `json:"review,omitempty"` // for a review: the task it reviews
+	Commit  string       `json:"commit,omitempty"` // for a review: the commit it reviewed
+	Title   string       `json:"title"`
+	Box     string       `json:"box"`
+	Branch  string       `json:"branch,omitempty"`
+	Status  string       `json:"status"`            // starting, running, done, failed, stopped, merged
+	Verdict string       `json:"verdict,omitempty"` // for a review: approve or changes
+	Error   string       `json:"error,omitempty"`
+	Report  *agentReport `json:"report,omitempty"`
+	Merged  string       `json:"merged,omitempty"` // the merge commit
+	// SpecsKept are the lead's spec files the task changed; the merge left
+	// those changes out.
+	SpecsKept []string  `json:"specs_kept,omitempty"`
+	Created   time.Time `json:"created"`
+	Finished  time.Time `json:"finished,omitempty"`
 }
+
+// teamSpecsRule ends every brief: the specs are the lead's, and a merge
+// leaves out a member's changes to them.
+const teamSpecsRule = "docs/specs/ is the lead's: read it, but don't change it, not even a feature's status; the lead updates it."
 
 var teamTaskID = regexp.MustCompile(`^t-[0-9]{1,6}$`)
 
@@ -360,6 +367,7 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
 	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s\n", task.ID, task.Role, b.team, brief)
+	text += "\n" + teamSpecsRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 	}
@@ -574,6 +582,18 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 		teamGit(b.repo, "merge", "--abort")
 		return task, fmt.Errorf("%s doesn't merge cleanly into %s (%s); give the coder a new task to redo it on the latest %s", id, config.Branch, qFirstLine(out, err.Error()), config.Branch)
 	}
+	// The specs are the lead's: a member's changes to them, such as marking a
+	// feature done before the people agree it is, are left out, so the
+	// files never change under the lead.
+	if kept := boxGit(b.repo, "diff", "--name-only", "HEAD^1", "HEAD", "--", teamSpecsPath); kept != "" {
+		if out, err := teamGit(b.repo, "restore", "--source=HEAD^1", "--staged", "--worktree", "--", teamSpecsPath); err != nil {
+			return task, fmt.Errorf("keeping the specs: %s", qFirstLine(out, err.Error()))
+		}
+		if out, err := teamGit(b.repo, "commit", "-q", "--amend", "--no-edit"); err != nil {
+			return task, fmt.Errorf("keeping the specs: %s", qFirstLine(out, err.Error()))
+		}
+		task.SpecsKept = strings.Fields(kept)
+	}
 	task.Status, task.Merged = "merged", boxGit(b.repo, "rev-parse", "HEAD")
 	if err := saveTeamTask(b.team, task); err != nil {
 		return task, err
@@ -767,6 +787,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return err
 		}
 		fmt.Fprintf(stdout, "Merged %s (%s) as %s.\n", task.ID, task.Title, task.Merged[:min(len(task.Merged), 12)])
+		if len(task.SpecsKept) > 0 {
+			fmt.Fprintf(stdout, "The task changed your specs (%s); the merge kept yours. Update them yourself if they need it.\n", strings.Join(task.SpecsKept, ", "))
+		}
 		if task.Error != "" {
 			fmt.Fprintln(stdout, task.Error)
 		}

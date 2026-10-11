@@ -67,6 +67,24 @@ bundle, and standing instructions.
   `hi agent` does today. Continuity comes from the lead's memory and from
   resuming the member's last session for the same piece of work
   (`claude --resume`), not from a process that stays up.
+- **The lead answers only when @-mentioned**, even in its own threads
+  (Hermes' `require_mention` and `strict_mention`), so people can talk
+  among themselves. It still takes in everything: Hermes drops messages
+  that don't mention it, so the broker logs the channel from the host with
+  the bot's token (`conversations.history` and `conversations.replies`
+  every two minutes, threads up to two weeks old, shared files up to 50 MB)
+  into `channel/`, mounted read-only in the lead's box. The lead reads it
+  with `hi team channel [--since 2h]`, and a Hermes cron job,
+  `channel-watch`, runs every 15 minutes: its script prints what's new
+  (`hi team channel --new`) or wakes nothing, and the lead keeps what
+  matters in its memory and posts nothing.
+- **Memory.** Hermes' built-in memory is a small notepad (a few thousand
+  characters), enough for the essentials but not for everything said in a
+  channel. Hindsight, a memory provider Hermes supports, is the candidate
+  for long-term memory: it extracts facts and entities from every turn and
+  recalls them by meaning. It would run as one more container per team on
+  the team's network, its data in the team folder and its model calls
+  through the team's proxy.
 - In the channel the lead speaks of members by role ("I've asked the
   researcher to compare the two payment providers"), so the channel reads
   like a team at work.
@@ -140,6 +158,8 @@ back or change the budget (the team's owners).
   repo/              the project's git repository (main, branches, tags);
                      repo/docs/specs is what the lead and the people agreed
   tasks/             each task's brief (t-3.md) and record (t-3.json)
+  channel/           the channel's log (a JSON line per message, a file per
+                     day) and the files shared in it
   app/               the running app's data: databases, uploads
   run/               the lead box's home and its proxy's allowlist and log
 ```
@@ -276,7 +296,7 @@ A team has three kinds of state, each kept differently:
 |---|---|---|
 | Code and specs | `repo/` (specs in `repo/docs/specs`) | git: every merge is a commit, every release a tag, pushed to the remote |
 | The lead's memory | `lead/` (Hermes' SQLite databases, memories, skills) | snapshots |
-| The team's record | `team.json`, `tasks/`, `run/proxy/network.log` | snapshots |
+| The team's record | `team.json`, `tasks/`, `channel/`, `run/proxy/network.log` | snapshots |
 | The app's data | `app/` | snapshots; this is the people's real work and matters most |
 
 The rest of `run/` (the lead's home, the preview's copy of the code, the

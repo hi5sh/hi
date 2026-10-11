@@ -58,7 +58,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name)} {
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files")} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -96,6 +96,8 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := broker.commitSpecs(); err != nil {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
 	}
+	go teamWatchChannel(ctx.Done(), name, config.Channel, newLiveTeamChannel(secrets.SlackBotToken), stderr)
+	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
 	// engine keeps no second copy.
@@ -107,6 +109,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", filepath.Join(dir, "lead")+":/box/home/.hermes",
 		"-v", specs+":/team/specs",
 		"-v", filepath.Join(dir, "repo")+":/team/repo:ro",
+		"-v", teamChannelDir(name)+":"+teamChannelInBox+":ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
@@ -213,11 +216,14 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error
 		"OPENROUTER_API_KEY=" + boxClaudePlacehold,
 		"SLACK_BOT_TOKEN=" + secrets.SlackBotToken,
 		"SLACK_APP_TOKEN=" + secrets.SlackAppToken,
-		// One channel, every message in it, and no direct messages.
+		// One channel, and no direct messages.
 		"SLACK_ALLOWED_CHANNELS=" + config.Channel,
 		"SLACK_HOME_CHANNEL=" + config.Channel,
 		"SLACK_DISABLE_DMS=true",
-		"SLACK_REQUIRE_MENTION=false",
+		// It answers only when @-mentioned, even in its own threads; the
+		// broker logs the rest of the channel for it (team_channel.go).
+		"SLACK_REQUIRE_MENTION=true",
+		"SLACK_STRICT_MENTION=true",
 	}
 	if len(config.Askers) == 0 {
 		env = append(env, "SLACK_ALLOW_ALL_USERS=true")
@@ -232,7 +238,68 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP string) error
 			return err
 		}
 	}
+	if err := os.MkdirAll(filepath.Join(lead, "scripts"), 0o700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(lead, "scripts", teamChannelScript), []byte(teamChannelWatchScript), 0o700); err != nil {
+		return err
+	}
 	return writeTeamSkill(filepath.Join(lead, "skills", "hi-team"), teamSkill(config))
+}
+
+// teamChannelWatchScript runs before each channel-watch job: it prints what
+// was said since the lead last looked, or wakes nobody when nothing was.
+const teamChannelWatchScript = `#!/bin/bash
+# Written by hi on every start of the team: the channel's new messages for
+# the channel-watch job.
+out=$(/usr/local/bin/hi team channel --new 2>&1)
+if [ -z "$out" ]; then
+  echo '{"wakeAgent": false}'
+else
+  printf '%s\n' "$out"
+fi
+`
+
+// teamChannelPrompt is the channel-watch job's: the lead reads what was
+// said without being asked and keeps what matters.
+const teamChannelPrompt = `Above is what was said in the team's Slack channel since you last looked (your own messages are there too, for context). Nobody asked you anything, and this run posts nothing in the channel.
+
+Keep what is worth remembering in your memory: decisions and wishes for the project, ideas, who knows or cares about what, people's preferences, problems they mention, and links, videos, or files someone found worth sharing. Open a link, or look at a file under /team/channel/files, when it may matter for the project, and remember what it holds, not just that it was shared. If something needs the team's attention, remember it so you can raise it the next time someone asks you something. Skip small talk.`
+
+// teamEnsureChannelJob adds the channel-watch job to the lead's Hermes
+// once it runs, unless the job is there already (the lead may have tuned
+// it).
+func teamEnsureChannelJob(engine boxEngine, container, lead string, done <-chan struct{}, stderr io.Writer) {
+	jobs := filepath.Join(lead, "cron", "jobs.json")
+	install := hermesInstallDir()
+	for attempt := 0; attempt < 30; attempt++ {
+		select {
+		case <-done:
+			return
+		case <-time.After(5 * time.Second):
+		}
+		var store struct {
+			Jobs []struct {
+				Name string `json:"name"`
+			} `json:"jobs"`
+		}
+		if data, err := os.ReadFile(jobs); err == nil && json.Unmarshal(data, &store) == nil {
+			for _, job := range store.Jobs {
+				if job.Name == teamChannelJob {
+					return
+				}
+			}
+		}
+		out, err := engine.output("exec", container, filepath.Join(install, "venv", "bin", "python"), filepath.Join(install, "hermes"),
+			"cron", "create", "every 15m", teamChannelPrompt, "--name", teamChannelJob, "--script", teamChannelScript,
+			"--skill", "hi-team", "--deliver", "local", "--failure-deliver", "local")
+		if err == nil {
+			return
+		}
+		if attempt == 29 {
+			fmt.Fprintf(stderr, "hi: adding the lead's channel-watch job: %s\n", qFirstLine(strings.TrimSpace(out), err.Error()))
+		}
+	}
 }
 
 // writeTeamSkill writes hi's hi-team skill, but keeps the lead's own edits:
@@ -400,6 +467,28 @@ of its own on a branch of the project; you get their reports.
 | hi team preview stop | End the preview |
 
 Members: %[2]s.
+
+## The channel
+
+You answer only when someone @-mentions you, but hi keeps a log of
+everything said in the channel, threads and shared files included:
+
+| Command | What it does |
+|---|---|
+| hi team channel | What was said in the last day |
+| hi team channel --since 2h | ... in the last two hours (or 30m, 3d) |
+
+Shared files are in /team/channel/files. When someone @-mentions you,
+look at what was said before it if the question builds on it. Every 15
+minutes your channel-watch job reads what's new and keeps what matters in
+your memory; don't remove that job.
+
+## Specs
+
+Edit a spec with patch, or read the whole file first before rewriting it:
+a merge may have changed it since you last read it. hi keeps your specs as
+you left them when a member's work changes them, and says so after the
+merge.
 
 ## Briefs
 

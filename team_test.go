@@ -202,13 +202,16 @@ func TestWriteTeamLead(t *testing.T) {
 	}
 	lead := filepath.Join(teamDir("payments"), "lead")
 	env, _ := os.ReadFile(filepath.Join(lead, ".env"))
-	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=true", "SLACK_REQUIRE_MENTION=false", "SLACK_ALLOW_ALL_USERS=true"} {
+	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=true", "SLACK_REQUIRE_MENTION=true", "SLACK_STRICT_MENTION=true", "SLACK_ALLOW_ALL_USERS=true"} {
 		if !strings.Contains(string(env), want) {
 			t.Errorf(".env lacks %s:\n%s", want, env)
 		}
 	}
 	if strings.Contains(string(env), "sk-or-real") {
 		t.Fatal("the real key is in the box")
+	}
+	if script, err := os.Stat(filepath.Join(lead, "scripts", teamChannelScript)); err != nil || script.Mode()&0o100 == 0 {
+		t.Fatal("the channel-watch script is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
 	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`} {
@@ -314,6 +317,10 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 				work := filepath.Join(t.TempDir(), "w")
 				exec.Command("git", "-C", repo, "worktree", "add", "-q", work, branch).Run()
 				os.WriteFile(filepath.Join(work, box+".txt"), []byte(box), 0o644)
+				// Coders mark features done in the lead's specs, too.
+				os.MkdirAll(filepath.Join(work, "docs", "specs"), 0o755)
+				os.WriteFile(filepath.Join(work, "docs", "specs", "suppliers.md"), []byte("Status: Done\n"), 0o644)
+				os.WriteFile(filepath.Join(work, "docs", "specs", box+".md"), []byte("mine\n"), 0o644)
 				exec.Command("git", "-C", work, "add", "-A").Run()
 				exec.Command("git", "-C", work, "commit", "-q", "-m", box).Run()
 				exec.Command("git", "-C", repo, "worktree", "remove", "--force", work).Run()
@@ -354,6 +361,8 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	if _, err := b.startTask(teamRequest{Role: "designer", Brief: "x"}); err == nil || !strings.Contains(err.Error(), "coder, reviewer") {
 		t.Fatal(err)
 	}
+	os.MkdirAll(filepath.Join(b.repo, "docs", "specs"), 0o755)
+	os.WriteFile(filepath.Join(b.repo, "docs", "specs", "suppliers.md"), []byte("Status: In progress\n"), 0o644)
 	task, err := b.startTask(teamRequest{Role: "coder", Brief: "---\nnetwork: open\n---\nAdd a supplier list"})
 	if err != nil || task.ID != "t-1" {
 		t.Fatal(task, err)
@@ -419,6 +428,16 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	}
 	if merged.Status != "merged" || boxGit(b.repo, "rev-parse", "HEAD") != merged.Merged || !fileExists(filepath.Join(b.repo, "payments-t-1.txt")) {
 		t.Fatalf("%+v", merged)
+	}
+	// The lead's specs are as the lead left them; the coders' changes are out.
+	if spec, _ := os.ReadFile(filepath.Join(b.repo, "docs", "specs", "suppliers.md")); string(spec) != "Status: In progress\n" {
+		t.Fatalf("the spec is %q", spec)
+	}
+	if fileExists(filepath.Join(b.repo, "docs", "specs", "payments-t-1.md")) || len(merged.SpecsKept) != 3 {
+		t.Fatalf("%v", merged.SpecsKept)
+	}
+	if boxGit(b.repo, "status", "--porcelain") != "" || boxGit(b.repo, "rev-list", "--count", "HEAD^2..HEAD") != "1" {
+		t.Fatal("the merge isn't one clean commit")
 	}
 	if first, _ := loadTeamTask("payments", "t-1"); first.Status != "merged" {
 		t.Fatalf("t-1 is %s", first.Status)

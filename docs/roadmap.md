@@ -578,6 +578,25 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.40.0 — A team lead that answers when asked, and hears everything
+
+- [x] The lead answers only when someone @-mentions it, even in its own
+  threads, so people can talk among themselves in the channel.
+- [x] hi keeps the channel's log in the team's `channel/` folder: every
+  message, thread replies up to two weeks old, and shared files up to
+  50 MB, read with the bot's token from the host every two minutes.
+  `hi team channel <name> [--since 2h]` shows it; in its box the lead runs
+  `hi team channel`.
+- [x] The lead's `channel-watch` job reads what's new every 15 minutes and
+  keeps what matters in its memory, without posting; with nothing new it
+  makes no model call.
+- [x] A merge keeps the lead's `docs/specs` as the lead left them: a
+  member's changes to them are left out, and the lead is told. Briefs say
+  the specs are the lead's. This ends Hermes' "File-mutation verifier"
+  warnings in the channel after a merge changed a spec under the lead.
+  Verified on 2026-10-11 on aiw9 with team test: 43 messages and an image
+  logged, and the job saved a note to the lead's memory.
+
 ### v0.39.0 — A team's project on GitHub, with its specs
 
 - [x] `hi team new` can put a new project on GitHub: give `owner/name`, and
@@ -1040,6 +1059,10 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   to the team's S3-compatible bucket in the background. Failures reach the
   owners in the channel and `hi team status`.
 - [ ] Rollback to a release or a snapshot, by command or an owner's button.
+- [ ] Long-term memory with Hindsight: a memory container per team on the
+  team's network, its data in the team folder and its model calls through
+  the team's proxy, so the lead remembers more than Hermes' small built-in
+  notepad holds.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — More for the autoresearch templates

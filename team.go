@@ -200,6 +200,9 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	command, rest := args[0], args[1:]
 	// The lead's own commands, inside its box.
+	if command == "channel" {
+		return exitCode(runTeamChannel(rest, stdout), stderr)
+	}
 	if teamLeadCommands[command] {
 		return exitCode(runTeamLeadCommand(command, rest, stdin, stdout), stderr)
 	}
@@ -281,6 +284,7 @@ usage:
   hi team ls                       teams on this machine
   hi team status <name>            whether it is up, its members, and its tasks
   hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
+  hi team channel <name> [--since 2h]  what was said in the channel (the last day by default)
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
