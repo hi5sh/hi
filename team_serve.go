@@ -509,6 +509,7 @@ of its own on a branch of the project; you get their reports.
 | hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
 | hi team task coder <brief.md> --small | Start a small fix, such as a typo, without asking first; hi tells the channel |
 | hi team task coder <brief.md> --on t-4 | Continue t-4 on its branch, for example with the reviewer's notes |
+| hi team task ... --attach <file> | Send a file with the task, such as an image shared in the channel; repeat for more |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4's work; prints the review's ID |
 | hi team wait t-5 | Wait for a task or review to finish and print its report |
 | hi team show t-5 | Print a task's state and report without waiting |
@@ -571,7 +572,20 @@ project's documentation, committed with the code. A brief starts with a one-line
 - where in the project the work goes, if you know;
 - what not to change.
 
-The member sees only the brief and the project, not this conversation.
+The member sees only the brief, the project, and the files that come with
+the task, not this conversation. Everything the people gave you must reach
+it:
+
+- hi adds the thread you were approved in to the brief, in the people's
+  words with their links, and gives the member the files shared in it.
+- Attach everything else yourself with --attach <file>: images, documents,
+  or recordings shared in another thread or earlier in the channel (they
+  are in /team/channel/files; hi team channel shows which is which), and
+  pages or files you fetched. Say in the brief what each one is for.
+- Put every link the people gave in the brief, whole, and say what it
+  shows. Members can open web pages; they can't open Slack.
+- A follow-up (--on) gets the files of the task it continues, and the
+  brief that work started with.
 
 ## Waiting
 

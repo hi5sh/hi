@@ -57,6 +57,8 @@ type teamTask struct {
 	// SpecsKept are the lead's spec files the task changed; the merge left
 	// those changes out.
 	SpecsKept []string `json:"specs_kept,omitempty"`
+	// Files is the folder of files the member gets at /box/files.
+	Files string `json:"files,omitempty"`
 	// Approval is the message the work started on; Small, a fix started
 	// without one.
 	Approval *teamApproval `json:"approval,omitempty"`
@@ -229,6 +231,8 @@ type teamRequest struct {
 	// starts a small fix without one.
 	Approval string `json:"approval,omitempty"`
 	Small    bool   `json:"small,omitempty"`
+	// Attachments are files the lead sends with a task, from its box.
+	Attachments []teamAttachment `json:"attachments,omitempty"`
 }
 
 func (b *teamBroker) handler() http.Handler {
@@ -244,7 +248,8 @@ func (b *teamBroker) handler() http.Handler {
 	}
 	read := func(r *http.Request) (teamRequest, error) {
 		var request teamRequest
-		err := json.NewDecoder(io.LimitReader(r.Body, teamMaxBrief+4096)).Decode(&request)
+		// Attached files come base64-encoded, a third larger.
+		err := json.NewDecoder(io.LimitReader(r.Body, teamMaxBrief+teamMaxAttachments*4/3+64<<10)).Decode(&request)
 		return request, err
 	}
 	mux.HandleFunc("POST /task", func(w http.ResponseWriter, r *http.Request) {
@@ -427,12 +432,22 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 	}
+	files, extra, err := b.teamTaskFiles(task, request.Attachments)
+	if err != nil {
+		b.fail(task, err)
+		return task, fmt.Errorf("the task's files: %w", err)
+	}
+	text += extra
+	if files != "" {
+		task.Files = files
+		saveTeamTask(b.team, task)
+	}
 	if task.Small && b.channel != nil {
 		if config, err := loadTeam(b.team); err == nil {
 			b.channel.post(config.Channel, fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title))
 		}
 	}
-	go b.launch(task, member, text, from)
+	go b.launch(task, member, text, from, files)
 	return task, nil
 }
 
@@ -483,7 +498,11 @@ func (b *teamBroker) startReview(request teamRequest) (teamTask, error) {
 	if task, err = b.newTask(task); err != nil {
 		return task, err
 	}
-	go b.launch(task, member, teamReviewBrief(b.team, task, reviewed, base, b.brief(reviewed), request.Notes), reviewed.Branch)
+	if reviewed.Files != "" && fileExists(reviewed.Files) {
+		task.Files = reviewed.Files
+		saveTeamTask(b.team, task)
+	}
+	go b.launch(task, member, teamReviewBrief(b.team, task, reviewed, base, b.brief(reviewed), request.Notes), reviewed.Branch, task.Files)
 	return task, nil
 }
 
@@ -516,7 +535,7 @@ func teamReviewBrief(team string, task, reviewed teamTask, base, brief, notes st
 }
 
 // launch starts the member's box with hi agent, then waits for it.
-func (b *teamBroker) launch(task teamTask, member teamMember, brief, from string) {
+func (b *teamBroker) launch(task teamTask, member teamMember, brief, from, files string) {
 	path := filepath.Join(teamTaskDir(b.team), task.ID+".md")
 	if err := os.WriteFile(path, []byte(brief), 0o600); err != nil {
 		b.fail(task, err)
@@ -537,6 +556,9 @@ func (b *teamBroker) launch(task teamTask, member teamMember, brief, from string
 	}
 	if from != "" {
 		args = append(args, "--from", from)
+	}
+	if files != "" {
+		args = append(args, "--files", files)
 	}
 	out, err := b.run(args...)
 	if err != nil {
@@ -694,6 +716,9 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	for _, other := range tasks {
 		if (merged[other.ID] || merged[other.Review]) && !teamTaskActive(other) {
 			b.run("box", "rm", "--force", other.Box)
+			if other.Kind == "task" {
+				os.RemoveAll(teamTaskFilesDir(b.team, other.ID))
+			}
 			if other.Branch != "" {
 				teamGit(b.repo, "branch", "-D", other.Branch)
 			}
@@ -805,12 +830,19 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--small" {
 				request.Small = true
+			} else if args[i] == "--attach" && i+1 < len(args) {
+				attachment, err := teamReadAttachment(args[i+1])
+				if err != nil {
+					return err
+				}
+				request.Attachments = append(request.Attachments, attachment)
+				i++
 			} else {
 				words = append(words, args[i])
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> | --small | --on <task>]"}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> | --small | --on <task>] [--attach <file>]..."}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -820,7 +852,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if err := call("POST", "/task", request, &task); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s started: the %s (%s) works on %q.\nhi team wait %s waits for its report.\n", task.ID, task.Role, agentDisplayName(task.Agent), task.Title, task.ID)
+		fmt.Fprintf(stdout, "%s started: the %s (%s) works on %q.\n", task.ID, task.Role, agentDisplayName(task.Agent), task.Title)
+		if task.Files != "" {
+			fmt.Fprintln(stdout, "It has the files from the conversation, and yours, at /box/files; its brief says what each is.")
+		}
+		fmt.Fprintf(stdout, "hi team wait %s waits for its report.\n", task.ID)
 	case "review":
 		if len(args) < 1 || len(args) > 2 {
 			return usageError{"usage: hi team review <task> [<notes.md>]"}
@@ -997,6 +1033,22 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		fmt.Fprintf(stdout, "Stopped %s.\n", task.ID)
 	}
 	return nil
+}
+
+// teamReadAttachment reads a file the lead attaches to a task.
+func teamReadAttachment(path string) (teamAttachment, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return teamAttachment{}, err
+	}
+	if !info.Mode().IsRegular() {
+		return teamAttachment{}, fmt.Errorf("%s isn't a file; attach files one by one", path)
+	}
+	if info.Size() > teamMaxAttachment {
+		return teamAttachment{}, fmt.Errorf("%s is larger than %d MB", path, teamMaxAttachment>>20)
+	}
+	data, err := os.ReadFile(path)
+	return teamAttachment{Name: filepath.Base(path), Data: data}, err
 }
 
 func teamReadBrief(path string, stdin io.Reader) (string, error) {

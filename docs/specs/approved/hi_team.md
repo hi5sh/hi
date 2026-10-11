@@ -257,7 +257,8 @@ hi team remove <name>           delete the team (asks; offers a last export)
 The lead runs these in its box, through the broker:
 
 ```text
-hi team task <role> <brief.md|-> [--on <task>]   start a task; --on continues a task on its branch
+hi team task <role> <brief.md|-> [--on <task>] [--attach <file>]...
+                                                 start a task; --on continues a task on its branch
 hi team review <task> [<notes.md>]               the reviewer checks a task's latest commit
 hi team wait <task>                              wait for a task and print its report
 hi team show <task>                              its state and report, without waiting
@@ -292,6 +293,17 @@ hi team discard dev --approval <id>              dev's code back to production's
 
 - A brief gets a heading before it is saved, so front matter in it can't
   widen the member's box.
+- **Everything the people gave reaches the member.** A task gets a folder,
+  `tasks/<id>-files`, mounted read-only in its box at `/box/files`
+  (`hi agent --files`): the files shared in the thread the task was
+  approved in, the files the lead attaches (`--attach <file>`, read in the
+  lead's box and sent through the socket, 50 MB each, 150 MB together),
+  and for a follow-up (`--on`) the files of the task it continues. The
+  brief gets the approving thread in the people's words, with their links
+  (up to 24 KB, the latest kept), a list of the files and where each came
+  from, and for a follow-up the brief the work started with. A review gets
+  the files of the task it reviews. The folder goes when the work is
+  merged or discarded.
 - A review starts on the task's branch (`hi agent --from`). Its verdict is
   approve only when the reviewer finished and its summary starts with
   "Approve".

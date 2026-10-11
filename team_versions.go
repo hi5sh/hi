@@ -410,6 +410,9 @@ func (b *teamBroker) discard(id string) ([]teamTask, error) {
 	for _, other := range tasks {
 		if (inChain[other.ID] || inChain[other.Review]) && !teamTaskActive(other) {
 			b.run("box", "rm", "--force", other.Box)
+			if other.Kind == "task" {
+				os.RemoveAll(teamTaskFilesDir(b.team, other.ID))
+			}
 			if other.Branch != "" {
 				teamGit(b.repo, "branch", "-D", other.Branch)
 			}

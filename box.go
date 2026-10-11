@@ -241,6 +241,20 @@ func parseBoxOptions(command string, args []string) (boxOptions, error) {
 			options.model, err = value()
 		case command == "agent" && (arg == "--from" || strings.HasPrefix(arg, "--from=")):
 			options.from, err = value()
+		case command == "agent" && (arg == "--files" || strings.HasPrefix(arg, "--files=")):
+			text, err = value()
+			if err == nil {
+				var dir string
+				if dir, err = filepath.Abs(text); err == nil {
+					if info, statErr := os.Stat(dir); statErr != nil || !info.IsDir() {
+						err = fmt.Errorf("--files is a folder: %s", text)
+					} else if strings.Contains(dir, ":") {
+						err = fmt.Errorf("--files can't have a colon in its path: %s", dir)
+					} else {
+						options.mounts = append(options.mounts, dir+":"+agentFilesInBox+":ro")
+					}
+				}
+			}
 		case arg == "--bundle" || strings.HasPrefix(arg, "--bundle="):
 			text, err = value()
 			for _, name := range strings.Split(text, ",") {

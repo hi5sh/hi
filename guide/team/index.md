@@ -96,6 +96,13 @@ needs changes, the coder gets a new task on the same branch. Once the
 reviewer approves, the lead merges and tells the people what changed and
 how to try it. A feature is done when they agree it works.
 
+A member sees only its brief and the project, so the broker sends what
+the people gave along with it: the thread the work was agreed in, in their
+words with their links, and the files shared there (screenshots,
+mockups, documents), in a read-only folder in the member's box. The lead
+attaches anything else, such as a file shared earlier in the channel. A
+follow-up and its review get the same files.
+
 Work starts only after someone says yes. The lead proposes the plan and
 the list of things to try, and waits; the broker refuses a new task unless
 the lead names the message that approved it, a reply from one of the

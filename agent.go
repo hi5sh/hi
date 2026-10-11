@@ -111,6 +111,9 @@ func runAgent(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exitCode(startAgent(kind, options, stdin, stdout, stderr), stderr)
 }
 
+// agentFilesInBox is where --files puts a folder in the box.
+const agentFilesInBox = "/box/files"
+
 func printAgentUsage(w io.Writer) {
 	fmt.Fprintln(w, `hi agent hands a task to a coding agent in a box (see hi box help) and
 waits for its report: what it said, whether it worked, and what changed.
@@ -133,6 +136,7 @@ options:
   --model <model>        the agent's model, such as opus or gpt-6.1-sol; without it, the model in your
                          own Claude Code or Codex settings, else opus for Claude Code
   --from <commit>        start the worktree from this commit or branch instead of HEAD
+  --files <folder>       files the agent may read, such as images or documents, at /box/files (read-only)
   --bundle a,b           attach bundles: their skills, and an image with what they need (hi bundle ls)
   --name, --network, --allow, --gpu, --data, --here, --image, --memory
                          the box's options, as for hi box

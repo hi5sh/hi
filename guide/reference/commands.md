@@ -256,7 +256,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
-In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>]`,
+In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>] [--attach <file>]...`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
 `stop <task>`, `channel [--since 2h | --new]`, and `preview [<task> | production] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a

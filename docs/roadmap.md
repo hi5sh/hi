@@ -578,6 +578,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.46.0 — Members get what the people gave
+
+- [x] A team member's box gets the task's files at `/box/files`
+  (read-only, `hi agent --files <folder>`): the files shared in the thread
+  the work was approved in, and what the lead attaches with `hi team task
+  --attach <file>`. The brief quotes that thread with its links and says
+  what each file is. Follow-ups and reviews get the same files.
+- [x] A lead's scheduled messages are posted as they are, without Hermes'
+  "Cronjob Response" heading and job footer.
+
 ### v0.45.0 — Dev and production for a team
 
 - [x] Merges go to dev (`main`); production is a `production` branch that
