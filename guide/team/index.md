@@ -51,11 +51,11 @@ The setup asks six things, one at a time:
 
 1. **Purpose.** One sentence; the lead starts from it.
 2. **Slack app.** hi prints a manifest named after the team
-   (`team-payments`). In Slack, create a new app from it, install it to the
+   (`payments`). In Slack, create a new app from it, install it to the
    workspace, and paste its bot token (`xoxb-…`, under OAuth & Permissions)
    and an app-level token with `connections:write` (`xapp-…`, under Basic
    Information). Neither shows as you paste it.
-3. **Channel.** Invite the app to the channel (`/invite @team-payments`) and
+3. **Channel.** Invite the app to the channel (`/invite @payments`) and
    paste the channel's ID (`C…`).
 4. **People.** The owners' Slack member IDs (`U…`), and who else may ask
    for work; Enter lets everyone in the channel.
@@ -118,7 +118,7 @@ team's people after the lead asked, in the same thread. Small fixes, such
 as a typo, may start without asking, and the channel is told when one
 does.
 
-The lead answers only when someone @-mentions it (`@team-payments`), even
+The lead answers only when someone @-mentions it (`@payments`), even
 in a thread it's part of, so people can talk among themselves in the
 channel. It still follows everything: hi keeps a log of the channel,
 threads and shared files included, in the team's `channel/` folder, and

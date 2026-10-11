@@ -106,7 +106,7 @@ func TestTeamManifest(t *testing.T) {
 	if err := json.Unmarshal([]byte(teamManifest(testTeamConfig())), &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Display.Name != "team-payments" || !manifest.Settings.Socket {
+	if manifest.Display.Name != "payments" || !manifest.Settings.Socket {
 		t.Fatalf("%+v", manifest)
 	}
 	all := strings.Join(append(manifest.OAuth.Scopes.Bot, manifest.Settings.Events.Bot...), " ")
@@ -132,7 +132,7 @@ func TestTeamWizard(t *testing.T) {
 	if err := teamNew([]string{"payments"}, strings.NewReader(answers), &out); err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
-	if !strings.Contains(out.String(), `"name": "team-payments"`) || !strings.Contains(out.String(), "hi team up payments") {
+	if !strings.Contains(out.String(), `"name": "payments"`) || !strings.Contains(out.String(), "hi team up payments") {
 		t.Fatal(out.String())
 	}
 	config, err := loadTeam("payments")
@@ -180,7 +180,7 @@ func TestTeamNewChecksSlack(t *testing.T) {
 	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
 	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
 	teamSlack = fakeTeamSlack{notMember: true}
-	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "/invite @team-payments") {
+	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "/invite @payments") {
 		t.Fatal(err)
 	}
 	if fileExists(teamDir("payments")) {

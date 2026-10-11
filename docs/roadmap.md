@@ -578,6 +578,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.48.0 — The lead is @<name>
+
+- [x] A new team's Slack app is named after the team, so people write
+  `@payments` instead of `@team-payments`.
+
 ### v0.47.0 — Remove a team
 
 - [x] `hi team rm [<name>]` stops a team and removes it from the machine:

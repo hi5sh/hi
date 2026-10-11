@@ -890,8 +890,9 @@ code, so the code, its tests, and its docs must explain themselves.
   test it.
 `
 
-// teamBotName is the bot's handle in Slack.
-func teamBotName(name string) string { return "team-" + name }
+// teamBotName is the bot's handle in Slack: the team's name, so people
+// write @payments. Apps made before v0.48.0 are named team-<name>.
+func teamBotName(name string) string { return name }
 
 // ---------------------------------------------------------------------------
 // up, down, ls, status, logs

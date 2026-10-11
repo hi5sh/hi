@@ -113,7 +113,7 @@ func teamCheckApproval(config teamConfig, ref string, owners bool, now time.Time
 }
 
 // teamChannelFromBot says whether a logged message is a bot's; lines
-// logged before hi marked bots are known by the lead's name.
+// logged before hi marked bots are known by the name the lead had then.
 func teamChannelFromBot(config teamConfig, message teamChannelMessage) bool {
-	return message.Bot || (message.User == "" && message.Name != "") || message.Name == teamBotName(config.Name)
+	return message.Bot || (message.User == "" && message.Name != "") || message.Name == "team-"+config.Name
 }
