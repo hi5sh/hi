@@ -578,6 +578,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
+### v0.44.0 — Pick the team to start from a list
+
+- [x] `hi team up` without a name shows the teams on this machine, whether
+  each is up, and its channel; the one you choose starts, or restarts.
+
 ### v0.43.0 — A team that waits for your yes
 
 - [x] New work starts only after one of the people says yes: the broker
