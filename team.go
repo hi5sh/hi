@@ -212,6 +212,16 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "new":
 		err = teamNew(rest, stdin, stdout)
 	case "up":
+		if len(rest) == 0 && interactive(stdin, stdout) {
+			name, pickErr := teamPick(stdin, stdout, "Start or restart a team")
+			if errors.Is(pickErr, errMenuBack) {
+				return 0
+			}
+			if pickErr != nil {
+				return exitCode(pickErr, stderr)
+			}
+			rest = []string{name}
+		}
 		err = withTeamName(rest, func(name string) error {
 			// A folder instead of a name: a team that was moved, or copied
 			// from another machine.
@@ -279,7 +289,8 @@ usage:
       [--dir <folder>]             the team's folder somewhere else
       [--from <file.json>]         the answers from a file; the Slack tokens from
                                    HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN
-  hi team up <name>                start the team and keep it up, also after a reboot
+  hi team up [<name>]              start or restart the team and keep it up, also after a reboot;
+                                   without a name, pick it from a list
   hi team up <folder>              the same for a team whose folder moved or was copied here
   hi team down <name>              stop it; its folder stays
   hi team ls                       teams on this machine
@@ -1037,6 +1048,32 @@ func teamLeadBoxes() []string {
 		lines = append(lines, fmt.Sprintf("%-22s team %s's lead (Hermes), channel %s, folder %s", container, config.Name, config.Channel, teamDir(config.Name)))
 	}
 	return lines
+}
+
+// teamPick lets you choose one of the teams on this machine from a list
+// that shows whether each is up.
+func teamPick(stdin io.Reader, stdout io.Writer, title string) (string, error) {
+	entries, err := os.ReadDir(teamsDir())
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	var names, options []string
+	for _, entry := range entries {
+		config, err := loadTeam(entry.Name())
+		if err != nil {
+			continue
+		}
+		names = append(names, config.Name)
+		options = append(options, fmt.Sprintf("%-20s %-6s %s", config.Name, teamState(config.Name), config.Channel))
+	}
+	if len(names) == 0 {
+		return "", errors.New("no teams yet. hi team new <name> sets one up")
+	}
+	choice, err := runListSelect(stdin, stdout, title, "", options, false)
+	if err != nil {
+		return "", err
+	}
+	return names[choice], nil
 }
 
 func teamList(stdout io.Writer) error {

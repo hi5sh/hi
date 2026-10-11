@@ -247,7 +247,7 @@ See [Run a team in Slack](/guide/team/).
 | Command | What it does |
 |---|---|
 | `hi team new <name> [--from <file.json>]` | Set up a team: its Slack app, channel, people, members, and code |
-| `hi team up <name>`                       | Start it as a systemd user service, also at boot |
+| `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi team down <name>`                     | Stop it; its folder stays |
 | `hi team ls`                              | Teams on this machine |
 | `hi team status <name>`                   | Up or down, its members, and its latest tasks |

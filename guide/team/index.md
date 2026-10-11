@@ -77,6 +77,7 @@ hi team new payments --from payments.json
 
 ```sh
 hi team up payments       # start it now, and at boot
+hi team up                # pick the team to start or restart from a list
 hi team status payments   # up or down, its members, its tasks
 hi team logs payments     # the lead's log
 hi team down payments     # stop it; the folder stays
