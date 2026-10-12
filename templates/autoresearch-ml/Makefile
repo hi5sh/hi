@@ -54,7 +54,7 @@ test: ## Tests only
 
 HOLDOUT ?= ../$(notdir $(CURDIR))-holdout/test.txt
 VALIDATION_DIR ?= ../$(notdir $(CURDIR))-validation
-# How much worse than the best's a round's validation_bpc may be and still be
+# How much worse than the best so far a round's validation_bpc may be and still be
 # kept; about the noise of a score, which you can see by running make
 # validate twice.
 VALIDATE_SLACK ?= 0

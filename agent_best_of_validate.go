@@ -94,7 +94,7 @@ func validateBestOfBaseline(run *bestOfRun, info io.Writer) error {
 		return fmt.Errorf("the validation doesn't work on your last commit (exit status %d), so nothing was started; its output ends:\n%s",
 			result.Exit, qIndent(firstNonEmpty(result.Output, "(nothing)"), "  "))
 	}
-	loop.BaselineValidation, loop.BestValidation = result.Value, result.Value
+	loop.BaselineValidation, loop.BestValidation, loop.PeakValidation = result.Value, result.Value, result.Value
 	// A validation that runs much longer than the baseline's is stopped.
 	loop.ValidateMax = max(120, 2*result.Seconds+60)
 	fmt.Fprintf(info, "Baseline validation: %s, in %s.\n", formatScore(*result.Value), formatDuration(time.Duration(result.Seconds)*time.Second))
@@ -136,21 +136,33 @@ func validateBestOfRound(run *bestOfRun, phase func(string)) {
 }
 
 // bestOfHolds reports whether a winner's validation passes the gate: no
-// worse than the best's validation by more than --validate-slack.
+// worse than the highest validation of any kept version, the baseline's
+// included, by more than --validate-slack. Comparing with the highest, not
+// the latest, stops validation sliding down by the slack at every kept round.
 func bestOfHolds(run bestOfRun, box bestOfBox) bool {
 	loop := run.Loop
 	if box.Validation == nil || box.Validation.Value == nil {
 		return false
 	}
-	if loop.BestValidation == nil {
+	peak := loop.peakValidation()
+	if peak == nil {
 		return true
 	}
-	value, best := *box.Validation.Value, *loop.BestValidation
+	value, best := *box.Validation.Value, *peak
 	worse := best - value
 	if loop.Lower {
 		worse = value - best
 	}
 	return worse <= loop.ValidateSlack
+}
+
+// peakValidation is the highest validation of any kept version; runs
+// started before v0.52.1 recorded only the latest.
+func (l *bestOfLoop) peakValidation() *float64 {
+	if l.PeakValidation != nil {
+		return l.PeakValidation
+	}
+	return l.BestValidation
 }
 
 // validateBestOf builds a box's validation folder and runs --validate on it

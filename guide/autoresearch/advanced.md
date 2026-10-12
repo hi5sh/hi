@@ -45,7 +45,7 @@ hi agent best-of 3 --agents claude,codex --for 9h --budget 60 --patience 15 \
   another on the GPU, five minutes each, so the clock is fair.
 - After scoring, hi trains each good box's `train.py` once more and scores
   it on `../charlm-validation`, in a container with no network. The round's
-  best is kept only if that number is no worse than the best so far's,
+  best is kept only if that number is no worse than the highest so far,
   within the slack ([how it works](/guide/autoresearch/validation/)).
 - A round takes the agents' time plus about 18 minutes of scoring and up to
   as much again for validation; nine hours is about 10 to 15 rounds.

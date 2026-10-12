@@ -305,7 +305,7 @@ command on this machine when the rounds end, for any reason.
 `--validate "<command>" --validate-data <dir outside the project>` (needs
 `--edit`) keeps a gain only if it also holds on data agents never see: hi
 runs the command after each round in a container without network or
-`.git`, and a winner whose number is worse than the best's by more than
+`.git`, and a winner whose number is lower than the highest so far by more than
 `--validate-slack` (default 0) is `rejected`. The templates' `make loop`
 passes these. Inside a run's box, never look for that data or its numbers.
 

@@ -41,8 +41,8 @@ func TestBestOfValidateFlags(t *testing.T) {
 func TestBestOfHolds(t *testing.T) {
 	value := func(v float64) *bestOfValidation { return &bestOfValidation{Value: &v} }
 	best := 0.81
-	higher := bestOfRun{Loop: &bestOfLoop{BestValidation: &best, ValidateSlack: 0.05}}
-	lower := bestOfRun{Loop: &bestOfLoop{Lower: true, BestValidation: &best, ValidateSlack: 0.05}}
+	higher := bestOfRun{Loop: &bestOfLoop{PeakValidation: &best, ValidateSlack: 0.05}}
+	lower := bestOfRun{Loop: &bestOfLoop{Lower: true, PeakValidation: &best, ValidateSlack: 0.05}}
 	for _, c := range []struct {
 		run  bestOfRun
 		box  bestOfBox
@@ -59,6 +59,26 @@ func TestBestOfHolds(t *testing.T) {
 		if got := bestOfHolds(c.run, c.box); got != c.want {
 			t.Errorf("lower %v, %+v: %v, want %v", c.run.Loop.Lower, c.box.Validation, got, c.want)
 		}
+	}
+}
+
+// Run b-5: the baseline validated at 1.215, round 2 was kept at 1.095
+// (within the 0.16 slack). The gate then compares with 1.215, the highest so
+// far, not 1.095, so validation can't slide down by the slack every round.
+func TestBestOfHoldsAgainstTheHighestSoFar(t *testing.T) {
+	value := func(v float64) bestOfBox { return bestOfBox{Validation: &bestOfValidation{Value: &v}} }
+	peak, latest := 1.215, 1.095
+	run := bestOfRun{Loop: &bestOfLoop{PeakValidation: &peak, BestValidation: &latest, ValidateSlack: 0.16}}
+	if !bestOfHolds(run, value(1.165)) || !bestOfHolds(run, value(1.06)) {
+		t.Fatal("a winner within the slack of the highest so far was rejected")
+	}
+	if bestOfHolds(run, value(1.0)) {
+		t.Fatal("1.0 passed: it is within the slack of the latest (1.095) but not of the highest (1.215)")
+	}
+	// A run started before v0.52.1 has only the latest.
+	old := bestOfRun{Loop: &bestOfLoop{BestValidation: &latest, ValidateSlack: 0.16}}
+	if !bestOfHolds(old, value(1.0)) {
+		t.Fatal("an older run without a peak lost its gate")
 	}
 }
 
@@ -185,7 +205,7 @@ func TestBestOfRoundsWithValidation(t *testing.T) {
 	if loop.History[0].Result != "rejected" || *loop.History[0].Validation != 0.6 || loop.History[1].Result != "kept" {
 		t.Fatalf("history %+v", loop.History)
 	}
-	if *loop.Best != 1.1 || *loop.BestValidation != 0.82 || loop.BestRound != 2 {
+	if *loop.Best != 1.1 || *loop.BestValidation != 0.82 || *loop.PeakValidation != 0.82 || loop.BestRound != 2 {
 		t.Fatalf("best %v (%v) from round %d", *loop.Best, *loop.BestValidation, loop.BestRound)
 	}
 	// Commits and attempt refs carry no validation number.
@@ -220,6 +240,33 @@ func TestBestOfRoundsWithValidation(t *testing.T) {
 	for _, want := range []string{"validated by: make validate", "Best: 1.1 (validation 0.82) from round 2, baseline 1 (validation 0.8)", "VALID.", "rejected"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("show lacks %q:\n%s", want, stdout.String())
+		}
+	}
+}
+
+// A kept version that validates lower than the peak leaves the peak where it
+// was, also for a run that recorded only the latest before v0.52.1.
+func TestBestOfPeakStaysWhenAKeptVersionIsLower(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	project, _, _ := agentTestSetup(t)
+	tip := boxGit(project, "rev-parse", "HEAD")
+	tree := boxGit(project, "rev-parse", "HEAD^{tree}")
+	for _, recorded := range []string{"peak", "latest only"} {
+		best, peak, score, valid := 1.0, 1.215, 1.2, 1.095
+		loop := &bestOfLoop{Round: 1, Tip: tip, Branch: "best-of/b-7/best", Best: &best, BestValidation: &peak, Validate: "v", ValidateSlack: 0.16}
+		if recorded == "peak" {
+			loop.PeakValidation = &peak
+		}
+		boxGit(project, "branch", "-f", loop.Branch, tip)
+		run := bestOfRun{ID: "b-7", Root: project, Score: "x", Loop: loop, Boxes: []bestOfBox{
+			{Name: "w", State: "finished", Score: &score, Snapshot: tree, Files: 1, ChangedFiles: []string{"a"}, Validation: &bestOfValidation{Value: &valid}},
+		}}
+		os.MkdirAll(bestOfStateFile("b-7"), 0o700)
+		if err := settleBestOfRound(&run, io.Discard); err != nil {
+			t.Fatal(err)
+		}
+		if loop.History[0].Result != "kept" || *loop.BestValidation != 1.095 || *loop.PeakValidation != 1.215 {
+			t.Fatalf("%s: %s, best %v, peak %v", recorded, loop.History[0].Result, *loop.BestValidation, *loop.PeakValidation)
 		}
 	}
 }

@@ -36,7 +36,7 @@ hi agent best-of 3 --rounds 20 --score "make score" --higher --edit strategy.py 
 |---|---|
 | `--validate "<cmd>"` | hi runs it in a validation container of its own after the round, and takes the last number it prints; same direction as the score |
 | `--validate-data <dir>` | a folder on the host, outside the project, mounted read-only at `/box/data` in validation containers only |
-| `--validate-slack 0.05` | how far the validation number may fall below the best's and still pass (default 0) |
+| `--validate-slack 0.05` | how far the validation number may fall below the highest so far (the baseline's or any kept version's) and still pass (default 0) |
 
 `--validate` needs `--score` and `--edit`: hi must know which files are the
 agent's.
@@ -74,14 +74,17 @@ proxy still reaches the agent's model. So:
    stops the run before it costs tokens.
 4. **The gate.** The round's winner is chosen on the score alone, as
    today. It is kept only if its score beats the best by more than
-   `--min-gain` *and* its validation number is no worse than the best's
-   validation number by more than `--validate-slack`. If the winner fails
+   `--min-gain` *and* its validation number is no worse than the highest
+   validation number so far, the baseline's or any kept version's, by more
+   than `--validate-slack`. If the winner fails
    the gate, the round is `rejected`; hi doesn't fall back to the
    second-best box, since picking among boxes by validation would fit the
-   validation window too. A kept result's validation number becomes the
-   one later rounds must not lose. Comparing with the best's number, not
-   the baseline's, stops validation sliding back to where it started one
-   small loss at a time.
+   validation window too. Comparing with the highest so far bounds the
+   total loss: validation never ends more than the slack below its best
+   point. v0.52.0 compared with the latest kept version's number instead,
+   which let every kept round lose up to the slack, so the losses added up;
+   run b-5 showed it (validation 1.215, then 1.095 kept within a 0.16
+   slack, and 1.095 became the bar). Fixed in v0.52.1.
 
 With `--gpu`, validation containers take turns like the scores, and get
 the same GPU devices as boxes; without it they run at once.

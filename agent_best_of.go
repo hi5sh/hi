@@ -329,8 +329,9 @@ validation (with --score and --edit): keep a gain only if it holds on data agent
                          the score. The round's winner is kept only if it also passes here
   --validate-data <dir>  a folder outside the project, read-only at /box/data in the
                          validation container only; agents' boxes never get it
-  --validate-slack <n>   how much worse than the best's the validation number may be
-                         and still pass (default 0: no worse at all)
+  --validate-slack <n>   how much lower than the highest so far (of the baseline and every
+                         kept version) the validation number may be and still pass
+                         (default 0: no lower at all)
   hi agent best-of watch <run>      follow a run; q leaves the view, the run goes on
   hi agent best-of stop <run> [--now]
                                     stop after this round; --now stops the boxes too
@@ -603,7 +604,7 @@ func confirmBestOf(run bestOfRun, options boxOptions, stdin io.Reader, w io.Writ
 				data = loop.ValidateData + " at /box/data"
 			}
 			fmt.Fprintf(w, "  gate    %s, run by hi after each round in a container without network (%s)\n", loop.Validate, data)
-			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far and its validation is no worse than the best's")
+			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far and its validation is no worse than the highest so far")
 			if loop.ValidateSlack > 0 {
 				fmt.Fprintf(w, " by more than %s", formatScore(loop.ValidateSlack))
 			}

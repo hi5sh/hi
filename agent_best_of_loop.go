@@ -50,9 +50,11 @@ type bestOfLoop struct {
 	Baseline  *float64 `json:"baseline,omitempty"`
 	Best      *float64 `json:"best,omitempty"`
 	BestRound int      `json:"best_round"`
-	// The validation numbers of the baseline and of the best so far.
+	// The validation numbers of the baseline and of the best so far, and
+	// the highest of any kept version, which the gate compares with.
 	BaselineValidation *float64 `json:"baseline_validation,omitempty"`
 	BestValidation     *float64 `json:"best_validation,omitempty"`
+	PeakValidation     *float64 `json:"peak_validation,omitempty"`
 	BestCommit         string   `json:"best_commit,omitempty"`
 	// Tip is the commit the next round starts from: the best so far.
 	Tip string `json:"tip"`
@@ -724,7 +726,12 @@ func settleBestOfRound(run *bestOfRun, log io.Writer) error {
 			score := *winner.Score
 			loop.Tip, loop.BestCommit, loop.Best, loop.BestRound = commit, commit, &score, loop.Round
 			if round.Validation != nil {
-				loop.BestValidation = round.Validation
+				// The peak first: a run from before v0.52.1 has only the latest.
+				peak := loop.peakValidation()
+				if peak == nil || run.better(*round.Validation, *peak) {
+					peak = round.Validation
+				}
+				loop.BestValidation, loop.PeakValidation = round.Validation, peak
 			}
 		}
 	}

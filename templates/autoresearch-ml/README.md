@@ -54,7 +54,7 @@ because it scored well there. `make loop` therefore passes
   and no `.git`, with the validation text read-only at `/box/data`. Agents'
   boxes never get that folder, and `make validate` in a box refuses.
 - The round's best `train.py` (chosen on `val_bpc` alone) is kept only if
-  its `validation_bpc` is no worse than the best so far's, by more than
+  its `validation_bpc` is no worse than the best (lowest) so far, by more than
   `VALIDATE_SLACK` (0 by default). Otherwise the round is `rejected`.
 - Agents see only `rejected` in the next round's history, never the
   numbers. `hi agent best-of watch` and `show` have them (`VALID.`).

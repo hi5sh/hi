@@ -243,7 +243,7 @@ gain only if it also holds on data agents never see: `--validate
 `.git`, with only the `--edit` files from the box; needs `--edit`),
 `--validate-data <dir>` (a folder outside the project, read-only at
 `/box/data` there), and `--validate-slack <number>` (how much worse than the
-best's the validation number may be; default 0); a winner that fails is
+highest validation so far the number may be; default 0); a winner that fails is
 `rejected`. See [Keep only gains that hold](/guide/autoresearch/validation/).
 See [Autoresearch](/guide/autoresearch/).
 

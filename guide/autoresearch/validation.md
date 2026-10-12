@@ -21,7 +21,7 @@ during the run could tell.
 | Holdout, outside the repository | only you, once, at the end | the final word |
 
 A round's winner is kept only if it beats the best score **and** its
-validation number is no worse than the best so far's.
+validation number is no worse than the highest one so far.
 
 ```sh
 hi agent best-of 3 --rounds 20 --score "make score" --higher --edit strategy.py \
@@ -64,17 +64,19 @@ The folder of hidden data, such as `--validate-data ../quant-validation`.
 
 ### `--validate-slack <number>`
 
-How much worse than the best's the validation number may be and still pass.
-The default is 0: no worse at all.
+How much lower than the highest so far the validation number may be and
+still pass. "The highest so far" is the best validation number of the
+baseline and every kept version. The default is 0: no lower at all.
 
 - With 0, a change that is truly neutral on the hidden data fails about
   half the time, from noise alone. Set the slack to about the validation
   number's noise (see [Choosing the slack](#choosing-the-slack)).
 - It is in the score's own units, like `--min-gain`.
-- Example, higher is better: the best so far validates at 0.81 and the
-  slack is 0.05. A winner at 0.78 passes (0.03 worse); at 0.74 it is
-  rejected (0.07 worse); at 0.90 it passes and 0.90 becomes the number later
-  rounds must not lose.
+- Example, higher is better: the highest validation so far is 0.81 and the
+  slack is 0.05. A winner at 0.78 passes (0.03 lower) and is kept, but 0.81
+  stays the mark: a later winner at 0.77 still passes (0.04 lower), one at
+  0.75 doesn't (0.06 lower), however close it is to 0.78. A winner at 0.90
+  passes and 0.90 becomes the new mark.
 
 ### Why `--validate` needs `--edit`
 
@@ -121,15 +123,22 @@ score has run, and the box's proxy reaches the agent's model. So:
    container and its folder are removed when it exits.
 4. **The gate.** The round's winner is chosen on the score alone, as
    without `--validate`. It is kept only if its score beats the best by
-   more than `--min-gain` *and* its validation number is no worse than the
-   best's by more than `--validate-slack`. Otherwise the round is
-   **`rejected`**. A kept result's validation number becomes the one later
-   rounds must not lose.
+   more than `--min-gain` *and* its validation number is no lower than the
+   highest so far (the baseline's or any kept version's) by more than
+   `--validate-slack`. Otherwise the round is **`rejected`**.
 
 hi doesn't fall back to the second-best box when the winner is rejected:
 choosing among boxes by their validation numbers would fit the validation
-data too. It compares with the best's number, not the baseline's, so
-validation can't slide back to where it started one small loss at a time.
+data too.
+
+The gate compares with the highest validation number so far, not the latest
+kept version's. Against the latest, each kept round could lose up to the
+slack, and the losses would add up: ten rounds at a slack of 0.05 could
+lose 0.5. Against the highest, validation can never end more than the slack
+below its best point, and it doesn't have to rise every round either. (In
+v0.52.0 the gate compared with the latest. A run started then, and resumed
+after an update, starts its mark at its latest kept number, since the
+earlier ones weren't recorded, and keeps the highest from there.)
 
 Each good box is validated, not just the winner, so the report shows every
 attempt's number. Without the GPU the containers run at once; with

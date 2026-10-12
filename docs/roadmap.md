@@ -1179,6 +1179,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md)
   (release 1; folds are release 2).
 
+### v0.52.1 — The validation gate can't slide
+
+- [x] `--validate` compares each winner with the highest validation number
+  so far (the baseline's or any kept version's), not the latest kept one's,
+  so validation never ends more than `--validate-slack` below its best
+  point. In v0.52.0 every kept round could lose up to the slack, and the
+  losses added up; run b-5 showed it. `run.json` keeps the mark as
+  `peak_validation`; a run started on v0.52.0 and resumed starts the mark
+  at its latest kept number.
+
 ## Planned
 
 ### Later — `hi team`
