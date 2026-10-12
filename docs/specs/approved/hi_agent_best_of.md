@@ -1,6 +1,6 @@
 # `hi agent best-of` specification
 
-Status: Draft. Releases 1 and 2 built on 2026-10-08 (see
+Status: Approved (2026-10-12). Releases 1 and 2 built on 2026-10-08 (see
 [As built](#as-built-release-1) and [rounds, as built](#as-built-release-2)).
 
 Dependencies: `hi agent` (agent runs and their reports), `hi box` (boxes,
@@ -28,7 +28,7 @@ attempts, each round starting from the best result so far, and a result
 kept only when its score beats that ([Rounds](#rounds)).
 
 Many different tasks at once, all kept, are a fan-out instead
-([hi_agent_fanout.md](hi_agent_fanout.md)); the two share the queue, the
+([hi_agent_fanout.md](../ideas/hi_agent_fanout.md)); the two share the queue, the
 boxes, and the table.
 
 ## Commands

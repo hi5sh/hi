@@ -22,7 +22,7 @@ import (
 // check itself, in the box, after the agent ends, so an agent that says
 // its tests pass is checked, not believed. With --score it runs rounds
 // and keeps a result only when it beats the best so far
-// (agent_best_of_loop.go). See docs/specs/ideas/hi_agent_best_of.md.
+// (agent_best_of_loop.go). See docs/specs/approved/hi_agent_best_of.md.
 
 const (
 	bestOfMaxBoxes = 8

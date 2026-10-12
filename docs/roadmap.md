@@ -125,7 +125,6 @@ token-read exception in [hi_login.md](specs/approved/hi_login.md).
   fails.
 - [x] Verify against a live RunPod account: SSH, tunnel, and a pod that
   terminated itself at `--max` with no local watcher.
-- [ ] Runs to completion on RunPod.
   Approved spec: [hi_compute.md](specs/approved/hi_compute.md).
 
 Dependency: extends the v0.6.0 and v0.7.0 driver interface.
@@ -305,8 +304,6 @@ Dependency: extends the v0.6.0 and v0.7.0 driver interface.
   `hi compute live` for users' own machines.
 - [x] Report client activity (`ssh`, `tunnel`, `logs`, `serve`) to the
   dashboard, with command and instance names only.
-- [ ] Provider GPU metrics, such as an idle GPU flag. Deferred with the
-  providers work.
 - [x] Verify the wall live on aiw12 (2026-09-29): a screen attached over
   SSH saw the dashboard; a shell command and a port forward were refused.
   Approved spec: [hi_server.md](specs/approved/hi_server.md).
@@ -377,7 +374,8 @@ private or quant-related goes in the built-in templates.
   `research` template with its backtest guards, and the private skills
   `time-series-validity` and `backtest-evaluation`. Layers can `remove`
   files they inherit.
-- [ ] The `data-access` skill, once data access is decided.
+- [x] The `data-access` skill (2026-10-12), once `hi data` settled data
+  access: the team's data is its Hugging Face organizations, through `hi data`.
 - [x] Verify live on vmhiserver (2026-10-01): the server signed and served
   `hifinab/templates` at 7362a3e, a laptop stored its key, and
   `hi init research` passed `make check`. The server reads GitHub with a
@@ -674,7 +672,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   a connected hi server's audit log and live feed; the agent skill asks the
   user first and never goes `--public` without a yes.
   Tested on aiw9 with NetBird 0.74.4.
-  Spec: [hi_net_expose.md](specs/ideas/hi_net_expose.md). Later: TCP
+  Spec: [hi_net_expose.md](specs/approved/hi_net_expose.md). Later: TCP
   services and a `net_expose` group policy (release 2 of the spec).
 
 ### v0.27.1 — The agent skill knows `hi data` and `hi net expose`
@@ -879,7 +877,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   ranks the boxes by the check, flagged files, and diff size; `keep`
   keeps one and removes the others with their branches; `ls`, `show`,
   `rm`. No judge yet. Spec:
-  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md) (release 1).
+  [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md) (release 1).
   Tested on 2026-10-08 with two Claude Code boxes.
 - [x] Rounds, in the style of autoresearch: `--score "<cmd>" --lower|--higher`
   measures your last commit, then runs `--rounds n|forever` rounds, each
@@ -889,7 +887,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   results that touch other files; `--for`, `--budget`, `--patience`,
   `--min-gain`. The rounds run in their own process: `watch` (q leaves,
   the run goes on), `stop [--now]`, `resume`. With `--gpu`, boxes are scored
-  one at a time. Spec: [hi_agent_best_of.md, Rounds](specs/ideas/hi_agent_best_of.md#rounds) (release 2).
+  one at a time. Spec: [hi_agent_best_of.md, Rounds](specs/approved/hi_agent_best_of.md#rounds) (release 2).
 
 ### v0.34.0 — Autoresearch templates
 
@@ -898,7 +896,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   one file agents change, frozen data, a holdout outside the repository,
   and a box image built from `uv.lock` so boxes run offline. Tested from
   `hi init` to a score in a locked box, and through a real round. Spec: [hi_init.md](specs/approved/hi_init.md#built-in-template-types),
-  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md#templates-and-the-guide-2026-10-08).
+  [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md#templates-and-the-guide-2026-10-08).
 - [x] Project images rebuild when a file the Dockerfile copies, or a
   `build.args` value, changes.
 - [x] The guide's Autoresearch section, with simple and advanced examples.
@@ -1197,15 +1195,24 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Fitted regime models (HMM) and models with trained parameters, which
   need libraries the boxes don't allow today.
 
+### Later — `hi compute`
+
+- [ ] Runs to completion on RunPod, Shadeform, and managed providers:
+  `hi compute run` there refuses today. Spec:
+  [hi_compute_ssh_run.md](specs/ideas/hi_compute_ssh_run.md) (draft).
+- [ ] An idle GPU flag from the providers' GPU metrics, on the dashboard
+  and in `hi compute ls`. Spec:
+  [hi_compute_idle.md](specs/ideas/hi_compute_idle.md) (draft).
+
 ### Later — Learn from agent-machine services
 
-- [ ] Study [boxd](https://docs.boxd.sh/) and similar services (Fly's
+- [x] Study [boxd](https://docs.boxd.sh/) and similar services (Fly's
   Sprites, E2B, Daytona, Modal Sandboxes) and write down which ideas fit
   `hi compute` and `hi server`. Candidates from boxd:
   - Checkpoints before risky changes, and forking a running machine into an
     identical copy.
   - Suspending idle machines and resuming them quickly, which pairs with the
-    idle GPU flag deferred from v0.13.0.
+    idle GPU flag (Later — `hi compute`).
   - An HTTPS URL for every machine or `serve`, instead of an SSH tunnel.
   - Environment variables and secrets set once and injected into every
     machine the user owns, never on Community Cloud (v0.12.2).

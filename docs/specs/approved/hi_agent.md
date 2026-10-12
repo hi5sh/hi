@@ -92,7 +92,7 @@ hi agent resume <name> "<follow-up>"   continue the same agent session (release 
 
 `hi agent best-of <n> "<task>"` runs the same task in n boxes, checks and
 ranks them; it is built (v0.33.0) and specified in
-[hi_agent_best_of.md](../ideas/hi_agent_best_of.md).
+[hi_agent_best_of.md](hi_agent_best_of.md).
 
 - **Choosing the agent.** Without a name, hi takes the first agent that is
   installed and signed in, Claude Code before Codex. Release 2 makes the

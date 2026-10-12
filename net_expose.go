@@ -30,7 +30,7 @@ import (
 // address with `netbird expose`, adding what that lacks: a relay so
 // services on localhost work, a time limit, protection by default, a
 // request log, and background use for agents
-// (docs/specs/ideas/hi_net_expose.md).
+// (docs/specs/approved/hi_net_expose.md).
 
 const (
 	netExposeDefaultMax = time.Hour

@@ -4,7 +4,7 @@ Status: Draft (2026-10-08).
 
 Dependencies: `hi agent` (runs, reports, `--detach` and `wait`, the live
 line, the stats), `hi box` (boxes, worktrees, mounts, the proxy),
-[hi_agent_best_of.md](hi_agent_best_of.md) (the table, `ls`, `show`, the Slack
+[hi_agent_best_of.md](../approved/hi_agent_best_of.md) (the table, `ls`, `show`, the Slack
 message), and [hi_agent_bundles.md](hi_agent_bundles.md) (front matter in
 briefs).
 
