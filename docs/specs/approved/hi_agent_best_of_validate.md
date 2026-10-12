@@ -262,4 +262,7 @@ v0.52.0, 2026-10-12. Code: `agent_best_of_validate.go`; tests:
   `HI_VALIDATE` set and refuses in an agent's box; `make loop` passes the
   flags with `VALIDATE_SLACK` (default 0); it needs hi 0.52.0.
   `autoresearch-base`'s agent notes describe the validation folder. The
-  private quant template follows in its own repository.
+  private quant template got the same on 2026-10-12, in its own
+  repository: 2019 to 2022 as its validation window, and `make robust`
+  suggesting a slack from the in-sample tranche spread scaled to the
+  window's length.
