@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -317,6 +318,8 @@ A team is its folder. hi finds it by name through `+teamsDir()+`.`)
 // it.
 type teamSlackChecker interface {
 	botIdentity(botToken string) (workspace, botUser string, err error)
+	// scopes are what the bot token was granted.
+	scopes(botToken string) ([]string, error)
 	checkAppToken(appToken string) error
 	channel(botToken, channel string) (name string, member bool, err error)
 }
@@ -331,6 +334,49 @@ func (liveTeamSlack) botIdentity(botToken string) (string, string, error) {
 		return "", "", err
 	}
 	return response.Team, response.UserID, nil
+}
+
+func (liveTeamSlack) scopes(botToken string) ([]string, error) {
+	request, _ := http.NewRequest(http.MethodPost, "https://slack.com/api/auth.test", nil)
+	request.Header.Set("Authorization", "Bearer "+botToken)
+	response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request)
+	if err != nil {
+		return nil, err
+	}
+	response.Body.Close()
+	return strings.Split(response.Header.Get("X-OAuth-Scopes"), ","), nil
+}
+
+// teamSlackScopes are what a team's Slack app asks for in its manifest.
+var teamSlackScopes = []string{
+	"app_mentions:read", "channels:history", "channels:read", "chat:write", "files:read", "files:write",
+	"groups:history", "groups:read", "reactions:read", "reactions:write", "users:read",
+}
+
+// teamMissingScopes are the scopes the team's app needs that the bot token
+// lacks: an app made from another manifest, or one not reinstalled after
+// its scopes changed. None when Slack can't be asked.
+func teamMissingScopes(botToken string) []string {
+	granted, err := teamSlack.scopes(botToken)
+	if err != nil {
+		return nil
+	}
+	has := map[string]bool{}
+	for _, scope := range granted {
+		has[strings.TrimSpace(scope)] = true
+	}
+	var missing []string
+	for _, scope := range teamSlackScopes {
+		if !has[scope] {
+			missing = append(missing, scope)
+		}
+	}
+	return missing
+}
+
+// teamScopesAdvice says how to give the app the scopes it lacks.
+func teamScopesAdvice(missing []string) string {
+	return fmt.Sprintf("the Slack app lacks %s, so the lead can't read what people share or post everything it should. In Slack's app settings (api.slack.com/apps), add them under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace", strings.Join(missing, ", "))
 }
 
 func (liveTeamSlack) checkAppToken(appToken string) error {
@@ -639,6 +685,9 @@ func teamCheckBotToken(token string) (string, error) {
 	workspace, _, err := teamSlack.botIdentity(token)
 	if err != nil {
 		return "", fmt.Errorf("Slack refused the bot token: %w", err)
+	}
+	if missing := teamMissingScopes(token); len(missing) > 0 {
+		return "", fmt.Errorf("%s, and paste the bot token again", teamScopesAdvice(missing))
 	}
 	return workspace, nil
 }
@@ -965,6 +1014,11 @@ func teamUp(name string, stdout io.Writer) error {
 		}
 	}
 	fmt.Fprintf(stdout, "Team %s is starting. It answers in its Slack channel in a minute or so.\n", name)
+	if secrets, err := loadTeamSecrets(name); err == nil {
+		if missing := teamMissingScopes(secrets.SlackBotToken); len(missing) > 0 {
+			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", teamScopesAdvice(missing))
+		}
+	}
 	fmt.Fprintf(stdout, "  hi team status %s   whether it is up\n  hi team logs %s     the lead's log\n", name, name)
 	if !teamLingers() {
 		fmt.Fprintf(stdout, "\nIt stops when you log out, and doesn't start at boot, until you run:\n  sudo loginctl enable-linger %s\n", currentUserName())

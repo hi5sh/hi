@@ -20,7 +20,7 @@ import (
 
 // fakeTeamSlack answers the wizard's checks.
 type fakeTeamSlack struct {
-	badBot, notMember bool
+	badBot, notMember, fewScopes bool
 }
 
 func (f fakeTeamSlack) botIdentity(string) (string, string, error) {
@@ -30,6 +30,12 @@ func (f fakeTeamSlack) botIdentity(string) (string, string, error) {
 	return "Plejd", "UBOT", nil
 }
 func (fakeTeamSlack) checkAppToken(string) error { return nil }
+func (f fakeTeamSlack) scopes(string) ([]string, error) {
+	if f.fewScopes {
+		return []string{"chat:write", "channels:history"}, nil
+	}
+	return teamSlackScopes, nil
+}
 func (f fakeTeamSlack) channel(_, channel string) (string, bool, error) {
 	return "payments", !f.notMember, nil
 }
@@ -187,6 +193,11 @@ func TestTeamNewChecksSlack(t *testing.T) {
 	}
 	if fileExists(teamDir("payments")) {
 		t.Fatal("a failed setup leaves no folder")
+	}
+	// An app made from another manifest lacks scopes the lead needs.
+	teamSlack = fakeTeamSlack{fewScopes: true}
+	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "lacks app_mentions:read, channels:read, files:read") {
+		t.Fatal(err)
 	}
 	teamSlack = fakeTeamSlack{}
 	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err != nil {

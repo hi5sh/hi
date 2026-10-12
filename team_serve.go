@@ -460,10 +460,7 @@ func teamManifest(config teamConfig) string {
 		"features": map[string]any{
 			"bot_user": map[string]any{"display_name": teamBotName(config.Name), "always_online": true},
 		},
-		"oauth_config": map[string]any{"scopes": map[string]any{"bot": []string{
-			"app_mentions:read", "channels:history", "channels:read", "chat:write", "files:read", "files:write",
-			"groups:history", "groups:read", "reactions:read", "reactions:write", "users:read",
-		}}},
+		"oauth_config": map[string]any{"scopes": map[string]any{"bot": teamSlackScopes}},
 		"settings": map[string]any{
 			"event_subscriptions":    map[string]any{"bot_events": []string{"app_mention", "message.channels", "message.groups", "reaction_added", "reaction_removed"}},
 			"interactivity":          map[string]any{"is_enabled": true},
