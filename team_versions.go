@@ -389,8 +389,13 @@ func (b *teamBroker) discard(id string) ([]teamTask, error) {
 	}
 	tasks := loadTeamTasks(b.team)
 	chain := teamChain(tasks, id)
+	inIdea := map[string]bool{}
 	for _, other := range chain {
-		if teamTaskActive(other) {
+		inIdea[other.ID] = true
+	}
+	// A review of the idea's work may be running, too.
+	for _, other := range tasks {
+		if (inIdea[other.ID] || inIdea[other.Review]) && teamTaskActive(other) {
 			return nil, fmt.Errorf("%s is still working; hi team stop %s first", other.ID, other.ID)
 		}
 	}

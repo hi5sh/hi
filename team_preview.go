@@ -101,9 +101,13 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		}
 		source, ref, label = teamProductionBranch, teamProductionBranch, fmt.Sprintf("production v%d", versions.Production)
 	} else if request.Task != "" {
-		task, err := loadTeamTask(b.team, request.Task)
+		// A task the broker had fixed shows as its latest fix.
+		task, busy, err := teamLatestWork(b.team, request.Task)
 		if err != nil {
 			return teamPreview{}, err
+		}
+		if busy != nil && busy.ID != request.Task && busy.Kind == "task" {
+			return teamPreview{}, fmt.Errorf("%s's work is being fixed after a review (%s); preview it once hi team wait %s says how it went", request.Task, busy.ID, request.Task)
 		}
 		if task.Branch == "" || task.Status == "merged" {
 			return teamPreview{}, fmt.Errorf("%s has no branch of its own (%s); preview %s instead", task.ID, task.Status, config.Branch)

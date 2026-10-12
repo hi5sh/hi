@@ -446,7 +446,7 @@ You don't write code yourself. You hand tasks to the members:
 
 %[4]s
 
-The hi-team skill says how: hi team task, review, wait, and merge.
+The hi-team skill says how: hi team task, wait, and merge.
 
 ## How work is done
 
@@ -458,10 +458,13 @@ The hi-team skill says how: hi team task, review, wait, and merge.
    list in their words, then the technical breakdown for the team.
 3. Give the coder a brief with everything it needs: the goal, the
    acceptance list, the files or areas, and the tests that must pass.
-4. Have the reviewer check the work. If it needs changes, give the coder a
-   new task on the same branch (--on) with the reviewer's notes, then have
-   it reviewed again.
-5. Merge only after the reviewer approves.
+4. Wait for the task. The team has the reviewer check the work, and the
+   coder fix what the reviewer finds, on its own, up to three rounds; you
+   hear once, when it is approved or still needs changes. Don't relay the
+   reviewer's notes yourself.
+5. Merge only after the reviewer approves. If changes are still needed
+   after the rounds, read the review and decide: brief the coder again
+   (--on), or ask the people.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
@@ -471,8 +474,8 @@ The hi-team skill says how: hi team task, review, wait, and merge.
    say which version people are looking at: production v3, or dev.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
-to agree first (hi team task --small): fix, review, merge, and tell them
-what changed.
+to agree first (hi team task --small): fix, wait for the review, merge, and tell
+them what changed.
 
 ## What you keep
 
@@ -493,7 +496,7 @@ func teamSkill(config teamConfig) string {
 	}
 	return fmt.Sprintf(`---
 name: hi-team
-description: Hand tasks to the %[1]s team's members (%[2]s), get their work reviewed, merge it into dev, and release dev to production, with the hi team command.
+description: Hand tasks to the %[1]s team's members (%[2]s), merge their reviewed work into dev, and release dev to production, with the hi team command.
 metadata:
   hermes:
     requires_toolsets: [terminal]
@@ -508,14 +511,14 @@ of its own on a branch of the project; you get their reports.
 |---|---|
 | hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
 | hi team task coder <brief.md> --small | Start a small fix, such as a typo, without asking first; hi tells the channel |
-| hi team task coder <brief.md> --on t-4 | Continue t-4 on its branch, for example with the reviewer's notes |
+| hi team task coder <brief.md> --on t-4 | Continue t-4's latest work on its branch, for example with more from the people |
 | hi team task ... --attach <file> | Send a file with the task, such as an image shared in the channel; repeat for more |
-| hi team review t-4 [<notes.md>] | Have the reviewer check t-4's work; prints the review's ID |
-| hi team wait t-5 | Wait for a task or review to finish and print its report |
-| hi team show t-5 | Print a task's state and report without waiting |
+| hi team wait t-4 | Wait for t-4, its review, and the fixes the review asked for; print how it ended |
+| hi team show t-4 | Print the same without waiting |
 | hi team tasks | List the tasks |
-| hi team merge t-4 | Merge t-4 into the project once a review approved its latest commit |
-| hi team stop t-5 | Stop a task that went wrong |
+| hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it |
+| hi team review t-4 [<notes.md>] | Have the reviewer check t-4 again, with your notes; rarely needed |
+| hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
 | hi team preview | Run the project's main branch and get a temporary link for the people |
 | hi team preview t-4 | The same for a task's branch, before it is merged |
 | hi team preview stop | End the preview |
@@ -589,10 +592,11 @@ it:
 
 ## Waiting
 
-A task takes minutes to an hour. Start hi team wait <id> with
-background=true and notify=true, tell the channel what's happening, and
-carry on; you are told when it finishes. If it prints "Still working", wait
-again.
+A task takes minutes to an hour, longer when the reviewer asks for
+changes. Start hi team wait <id> with background=true and notify=true, tell
+the channel once what's happening, and carry on; you are told when it
+finishes. If it prints "Still working", wait again, without telling the
+channel about each review round: the people hear when it's ready to try.
 
 ## Previews
 

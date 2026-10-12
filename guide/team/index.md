@@ -99,10 +99,12 @@ to remove in Slack and GitHub.
 
 Someone in the channel asks for something. The lead agrees with them what
 will change and a short list of things they can try, writes it down in
-`docs/specs/`, and briefs the coder. The reviewer checks the coder's work; if it
-needs changes, the coder gets a new task on the same branch. Once the
-reviewer approves, the lead merges and tells the people what changed and
-how to try it. A feature is done when they agree it works.
+`docs/specs/`, and briefs the coder. When the coder finishes, the broker has
+the reviewer check the work; if it needs changes, the broker gives the coder
+the reviewer's notes on the same branch, up to three reviews, without the
+lead in between. The lead hears once: approved, or changes still needed.
+Once the reviewer approves, the lead merges and tells the people what
+changed and how to try it. A feature is done when they agree it works.
 
 A member sees only its brief and the project, so the broker sends what
 the people gave along with it: the thread the work was agreed in, in their
@@ -139,7 +141,7 @@ built-in notepad only.
 The lead puts members to work with `hi team task`, `review`, `wait`,
 `merge`, `release`, and `discard` in its box. These go to a broker that `hi team` runs on the
 machine: it checks each request against `team.json`, starts the member as
-[`hi agent`](/guide/agent/), and refuses a merge that no review approved, and a release that no owner approved.
+[`hi agent`](/guide/agent/), runs the review rounds, and refuses a merge that no review approved, and a release that no owner approved.
 The lead never holds the agents' keys or the repository's credentials, and
 nothing it asks for widens a member's box.
 

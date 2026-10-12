@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -349,6 +350,8 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 	}
 	saveTeam(config)
 	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}}
+	// Tests review by hand, except where they turn the rounds on.
+	b.reviewRounds = 0
 	b.run = func(args ...string) ([]byte, error) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
@@ -525,6 +528,91 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	if boxGit(b.repo, "branch", "--list", "hi-box/*") != "" {
 		t.Fatal("merged branches are kept")
 	}
+}
+
+// waitTeamSteps waits for a task's review loop to end.
+func waitTeamSteps(t *testing.T, id string) []teamTask {
+	t.Helper()
+	for range 1000 {
+		steps, err := teamSteps("payments", id)
+		if err == nil && !teamTaskActive(steps[len(steps)-1]) {
+			return steps
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("%s's review loop didn't end", id)
+	return nil
+}
+
+func TestTeamBrokerReviewLoop(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	b.reviewRounds = teamReviewRounds
+
+	// The reviewer asks for a change, the coder makes it, the reviewer
+	// approves: one task for the lead.
+	b.reports["payments-t-2"] = `{"status": "complete", "summary": "Changes needed: no tests.", "follow_ups": ["Test the empty list."]}`
+	b.reports["payments-t-4"] = `{"status": "complete", "summary": "Approve: tested."}`
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Add a supplier list", Small: true}); err != nil {
+		t.Fatal(err)
+	}
+	steps := waitTeamSteps(t, "t-1")
+	var ids []string
+	for _, step := range steps {
+		ids = append(ids, step.ID+" "+step.Kind+" "+strconv.Itoa(step.Round))
+	}
+	if strings.Join(ids, ", ") != "t-1 task 0, t-2 review 1, t-3 task 1, t-4 review 2" {
+		t.Fatal(ids)
+	}
+	if steps[2].On != "t-1" || steps[3].Review != "t-3" || steps[3].Verdict != "approve" || steps[3].Next != "" {
+		t.Fatalf("%+v", steps)
+	}
+	fixBrief := b.brief(steps[2])
+	for _, want := range []string{"Fix what review t-2 found in t-1", "review 1 of 3", "Changes needed: no tests.", "- Test the empty list.", "You continue task t-1", "Add a supplier list"} {
+		if !strings.Contains(fixBrief, want) {
+			t.Fatalf("the fix's brief has no %q:\n%s", want, fixBrief)
+		}
+	}
+	var out bytes.Buffer
+	printTeamTaskView(teamTaskView{teamTask: steps[0], Steps: steps}, &out)
+	for _, want := range []string{"t-2  reviewer  review 1 of t-1  done (changes)", "t-3  coder     fix on t-1", "Approved", "hi team merge t-1 merges it", "Approve: tested."} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("no %q in:\n%s", want, out.String())
+		}
+	}
+	// Merging the task merges its latest fix.
+	merged, err := b.merge("t-1")
+	if err != nil || merged.ID != "t-3" || merged.Status != "merged" {
+		t.Fatal(merged.ID, merged.Status, err)
+	}
+
+	// After three reviews that ask for changes, the loop hands the work
+	// back to the lead.
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Add a payment form", Small: true}); err != nil {
+		t.Fatal(err)
+	}
+	steps = waitTeamSteps(t, "t-5")
+	if len(steps) != 6 || steps[5].Kind != "review" || steps[5].Round != 3 || steps[5].Verdict != "changes" || steps[5].Next != "" {
+		t.Fatalf("%+v", steps)
+	}
+	// Without follow_ups, the fix gets the reviewer's text.
+	if !strings.Contains(b.brief(steps[2]), "All done.") {
+		t.Fatal(b.brief(steps[2]))
+	}
+	if _, err := b.merge("t-5"); err == nil || !strings.Contains(err.Error(), "no review approved t-9") {
+		t.Fatal(err)
+	}
+	out.Reset()
+	printTeamTaskView(teamTaskView{teamTask: steps[0], Steps: steps}, &out)
+	if !strings.Contains(out.String(), "Changes still needed after 3 reviews") || !strings.Contains(out.String(), "--on t-5") {
+		t.Fatal(out.String())
+	}
+	// The lead continues the task: on its latest fix, with new rounds.
+	more, err := b.startTask(teamRequest{Role: "coder", Brief: "Try another way", On: "t-5"})
+	if err != nil || more.On != "t-9" || more.Round != 0 {
+		t.Fatal(more, err)
+	}
+	waitTeamSteps(t, more.ID)
 }
 
 func TestTeamBrokerSocket(t *testing.T) {

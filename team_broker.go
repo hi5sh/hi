@@ -28,24 +28,36 @@ import (
 // runs the member as hi agent on the host, in a box of its own on a branch
 // of repo/. The lead never holds the agents' or the repository's
 // credentials, and nothing it asks for widens a member's box.
+//
+// A task's work is reviewed without the lead: when a member finishes, the
+// broker has the reviewer check it, and gives the coder the reviewer's
+// notes on the same branch, up to teamReviewRounds reviews. The lead waits
+// on the task it started and hears the outcome once.
 
 const (
 	teamSocketName = "broker.sock"
 	teamSocketEnv  = "HI_TEAM_SOCKET"
 	// teamMaxBrief is the largest brief the broker takes.
 	teamMaxBrief = 256 << 10
+	// teamReviewRounds is how many reviews a task's work gets before the
+	// broker hands it back to the lead with changes still needed.
+	teamReviewRounds = 3
 )
 
 // teamTask is tasks/<id>.json.
 type teamTask struct {
-	ID      string       `json:"id"`
-	Role    string       `json:"role"`
-	Agent   string       `json:"agent"`
-	Model   string       `json:"model,omitempty"`
-	Kind    string       `json:"kind"`             // task or review
-	On      string       `json:"on,omitempty"`     // a task this one continues, on its branch
-	Review  string       `json:"review,omitempty"` // for a review: the task it reviews
-	Commit  string       `json:"commit,omitempty"` // for a review: the commit it reviewed
+	ID     string `json:"id"`
+	Role   string `json:"role"`
+	Agent  string `json:"agent"`
+	Model  string `json:"model,omitempty"`
+	Kind   string `json:"kind"`             // task or review
+	On     string `json:"on,omitempty"`     // a task this one continues, on its branch
+	Review string `json:"review,omitempty"` // for a review: the task it reviews
+	Commit string `json:"commit,omitempty"` // for a review: the commit it reviewed
+	// Next is the review or fix the broker started when this one finished;
+	// Round, the review round the two belong to.
+	Next    string       `json:"next,omitempty"`
+	Round   int          `json:"round,omitempty"`
 	Title   string       `json:"title"`
 	Box     string       `json:"box"`
 	Branch  string       `json:"branch,omitempty"`
@@ -158,10 +170,13 @@ type teamBroker struct {
 	// run starts hi with arguments in repo/ and returns its stdout; tests
 	// replace it.
 	run func(args ...string) ([]byte, error)
+	// reviewRounds is how many reviews the broker starts on its own for a
+	// task's work; 0 leaves reviews to the lead, as most tests do.
+	reviewRounds int
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
-	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi}
+	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds}
 	b.app = b.startApp
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the
@@ -332,9 +347,16 @@ func (b *teamBroker) handler() http.Handler {
 		wait, _ := time.ParseDuration(r.URL.Query().Get("wait"))
 		deadline := time.Now().Add(min(wait, 30*time.Minute))
 		for {
-			task, err := loadTeamTask(b.team, id)
-			if err != nil || !teamTaskActive(task) || time.Now().After(deadline) {
-				reply(w, task, err)
+			steps, err := teamSteps(b.team, id)
+			if err != nil || !teamTaskActive(steps[len(steps)-1]) || time.Now().After(deadline) {
+				var view teamTaskView
+				if err == nil {
+					view.teamTask = steps[0]
+					if len(steps) > 1 {
+						view.Steps = steps
+					}
+				}
+				reply(w, view, err)
 				return
 			}
 			select {
@@ -348,6 +370,51 @@ func (b *teamBroker) handler() http.Handler {
 }
 
 func teamTaskActive(task teamTask) bool { return task.Status == "starting" || task.Status == "running" }
+
+// teamTaskView is what the lead gets about a task: the task, and when the
+// broker had its work reviewed, every step since, the task first.
+type teamTaskView struct {
+	teamTask
+	Steps []teamTask `json:"steps,omitempty"`
+}
+
+// teamSteps is a task and the reviews and fixes the broker started after
+// it, in order.
+func teamSteps(team, id string) ([]teamTask, error) {
+	task, err := loadTeamTask(team, id)
+	if err != nil {
+		return nil, err
+	}
+	steps := []teamTask{task}
+	for task.Next != "" && len(steps) <= 2*teamReviewRounds+1 {
+		if task, err = loadTeamTask(team, task.Next); err != nil {
+			break
+		}
+		steps = append(steps, task)
+	}
+	return steps, nil
+}
+
+// teamLatestWork is the latest work of a task's review loop: the last fix
+// the broker started for it, or the task itself. busy is the step still
+// working, if one is.
+func teamLatestWork(team, id string) (teamTask, *teamTask, error) {
+	steps, err := teamSteps(team, id)
+	if err != nil {
+		return teamTask{}, nil, err
+	}
+	work := steps[0]
+	var busy *teamTask
+	for i, step := range steps {
+		if step.Kind == "task" {
+			work = step
+		}
+		if teamTaskActive(step) && busy == nil {
+			busy = &steps[i]
+		}
+	}
+	return work, busy, nil
+}
 
 // newTask numbers a task and saves it before its box starts.
 func (b *teamBroker) newTask(task teamTask) (teamTask, error) {
@@ -380,26 +447,47 @@ func (b *teamBroker) member(role string) (teamMember, error) {
 }
 
 func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
+	// Continuing a task the broker had reviewed continues its latest fix.
+	if request.On != "" {
+		work, busy, err := teamLatestWork(b.team, request.On)
+		if err != nil {
+			return teamTask{}, err
+		}
+		if busy != nil && busy.ID != request.On {
+			return teamTask{}, fmt.Errorf("%s's work is still in review (%s is working on it); hi team wait %s waits for the outcome", request.On, busy.ID, request.On)
+		}
+		request.On = work.ID
+	}
+	task, start, err := b.newWork(request, 0)
+	if err != nil {
+		return task, err
+	}
+	go start()
+	return task, nil
+}
+
+// newWork saves a member's task, and returns it with what starts its box.
+func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), error) {
 	member, err := b.member(request.Role)
 	if err != nil {
-		return teamTask{}, err
+		return teamTask{}, nil, err
 	}
 	brief := strings.TrimSpace(request.Brief)
 	if brief == "" {
-		return teamTask{}, errors.New("the brief is empty")
+		return teamTask{}, nil, errors.New("the brief is empty")
 	}
 	if len(brief) > teamMaxBrief {
-		return teamTask{}, fmt.Errorf("the brief is longer than %d KB", teamMaxBrief>>10)
+		return teamTask{}, nil, fmt.Errorf("the brief is longer than %d KB", teamMaxBrief>>10)
 	}
-	task := teamTask{Role: request.Role, Agent: member.Agent, Model: member.Model, Kind: "task", Title: teamTitle(brief)}
+	task := teamTask{Role: request.Role, Agent: member.Agent, Model: member.Model, Kind: "task", Title: teamTitle(brief), Round: round}
 	from := ""
 	if request.On != "" {
 		on, err := loadTeamTask(b.team, request.On)
 		if err != nil {
-			return teamTask{}, err
+			return teamTask{}, nil, err
 		}
 		if on.Kind != "task" || on.Branch == "" || teamTaskActive(on) || on.Status == "discarded" || on.Status == "merged" {
-			return teamTask{}, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
+			return teamTask{}, nil, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
 		}
 		task.On, from = on.ID, on.Branch
 	} else if request.Small {
@@ -407,23 +495,23 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	} else {
 		config, err := loadTeam(b.team)
 		if err != nil {
-			return teamTask{}, err
+			return teamTask{}, nil, err
 		}
 		approval, err := b.teamFindApproval(config, request.Approval, "task")
 		if err != nil {
-			return teamTask{}, err
+			return teamTask{}, nil, err
 		}
 		task.Approval = &approval
 	}
 	if err := b.roomForIdea(task.On); err != nil {
-		return teamTask{}, err
+		return teamTask{}, nil, err
 	}
 	// The member's branch starts from main: with the latest specs.
 	if err := b.commitSpecs(); err != nil {
-		return teamTask{}, fmt.Errorf("committing the specs: %w", err)
+		return teamTask{}, nil, fmt.Errorf("committing the specs: %w", err)
 	}
 	if task, err = b.newTask(task); err != nil {
-		return task, err
+		return task, nil, err
 	}
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
@@ -435,7 +523,7 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 	files, extra, err := b.teamTaskFiles(task, request.Attachments)
 	if err != nil {
 		b.fail(task, err)
-		return task, fmt.Errorf("the task's files: %w", err)
+		return task, nil, fmt.Errorf("the task's files: %w", err)
 	}
 	text += extra
 	if files != "" {
@@ -447,8 +535,7 @@ func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
 			b.channel.post(config.Channel, fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title))
 		}
 	}
-	go b.launch(task, member, text, from, files)
-	return task, nil
+	return task, func() { b.launch(task, member, text, from, files) }, nil
 }
 
 // roomForIdea refuses a task that would start one idea too many. Continuing
@@ -470,10 +557,6 @@ func (b *teamBroker) roomForIdea(on string) error {
 }
 
 func (b *teamBroker) startReview(request teamRequest) (teamTask, error) {
-	member, err := b.member("reviewer")
-	if err != nil {
-		return teamTask{}, err
-	}
 	reviewed, err := loadTeamTask(b.team, request.Task)
 	if err != nil {
 		return teamTask{}, err
@@ -481,29 +564,44 @@ func (b *teamBroker) startReview(request teamRequest) (teamTask, error) {
 	if reviewed.Kind != "task" || reviewed.Status != "done" || reviewed.Branch == "" {
 		return teamTask{}, fmt.Errorf("%s isn't a finished task with work to review (%s)", reviewed.ID, reviewed.Status)
 	}
+	task, start, err := b.newReview(reviewed, request.Notes, 0)
+	if err != nil {
+		return task, err
+	}
+	go start()
+	return task, nil
+}
+
+// newReview saves a review of a finished task's latest commit, and returns
+// it with what starts the reviewer's box.
+func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (teamTask, func(), error) {
+	member, err := b.member("reviewer")
+	if err != nil {
+		return teamTask{}, nil, err
+	}
 	config, err := loadTeam(b.team)
 	if err != nil {
-		return teamTask{}, err
+		return teamTask{}, nil, err
 	}
 	commit := boxGit(b.repo, "rev-parse", reviewed.Branch)
 	base := boxGit(b.repo, "merge-base", config.Branch, reviewed.Branch)
 	if commit == "" || base == "" {
-		return teamTask{}, fmt.Errorf("%s's branch %s is gone", reviewed.ID, reviewed.Branch)
+		return teamTask{}, nil, fmt.Errorf("%s's branch %s is gone", reviewed.ID, reviewed.Branch)
 	}
 	if commit == base {
-		return teamTask{}, fmt.Errorf("%s committed nothing to review", reviewed.ID)
+		return teamTask{}, nil, fmt.Errorf("%s committed nothing to review", reviewed.ID)
 	}
 	task := teamTask{Role: "reviewer", Agent: member.Agent, Model: member.Model, Kind: "review", Review: reviewed.ID, Commit: commit,
-		Title: "Review " + reviewed.ID + ": " + reviewed.Title}
+		Title: "Review " + reviewed.ID + ": " + reviewed.Title, Round: round}
 	if task, err = b.newTask(task); err != nil {
-		return task, err
+		return task, nil, err
 	}
 	if reviewed.Files != "" && fileExists(reviewed.Files) {
 		task.Files = reviewed.Files
 		saveTeamTask(b.team, task)
 	}
-	go b.launch(task, member, teamReviewBrief(b.team, task, reviewed, base, b.brief(reviewed), request.Notes), reviewed.Branch, task.Files)
-	return task, nil
+	brief := teamReviewBrief(b.team, task, reviewed, base, b.brief(reviewed), notes)
+	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
 
 // brief is the text a task was given.
@@ -598,7 +696,71 @@ func (b *teamBroker) wait(task teamTask) {
 	if task.Kind == "review" {
 		task.Verdict = teamVerdict(report)
 	}
+	// The next step is saved before this one shows as finished, so the lead
+	// waiting on the loop never sees it end early.
+	next, start := b.nextStep(task)
+	task.Next = next
 	saveTeamTask(b.team, task)
+	if start != nil {
+		start()
+	}
+}
+
+// nextStep starts the review loop's next step after a finished one: a
+// review of a member's work, or the coder's fix of what a review asked
+// for. It returns the step and what starts its box, or nothing when the
+// loop ends there and the lead takes over.
+func (b *teamBroker) nextStep(task teamTask) (string, func()) {
+	if task.Status != "done" || b.reviewRounds == 0 {
+		return "", nil
+	}
+	if task.Kind == "task" {
+		if task.Role == "reviewer" || task.Branch == "" {
+			return "", nil
+		}
+		// A member that committed nothing, or a team without a reviewer,
+		// has nothing to review.
+		review, start, err := b.newReview(task, "", task.Round+1)
+		if err != nil {
+			return "", nil
+		}
+		return review.ID, start
+	}
+	reviewed, err := loadTeamTask(b.team, task.Review)
+	if err != nil || reviewed.Next != task.ID || reviewed.Status != "done" || task.Verdict == "approve" || task.Round >= b.reviewRounds {
+		return "", nil
+	}
+	fix, start, err := b.newWork(teamRequest{Role: reviewed.Role, Brief: teamFixBrief(task, reviewed, b.reviewRounds), On: reviewed.ID}, task.Round)
+	if err != nil {
+		return "", nil
+	}
+	return fix.ID, start
+}
+
+// teamFixBrief gives the coder a review's notes on its work.
+func teamFixBrief(review, reviewed teamTask, rounds int) string {
+	var block struct {
+		Summary   string   `json:"summary"`
+		FollowUps []string `json:"follow_ups"`
+	}
+	if review.Report != nil {
+		json.Unmarshal(review.Report.Report, &block)
+	}
+	var text strings.Builder
+	fmt.Fprintf(&text, "Fix what review %s found in %s\n\n", review.ID, reviewed.ID)
+	fmt.Fprintf(&text, "The reviewer checked your work on this branch (review %d of %d) and asks for changes before it is merged. Make them, with tests where they apply, and commit. Change nothing else; if you disagree with a note, say why in your report.\n\n", review.Round, rounds)
+	fmt.Fprintf(&text, "## The reviewer's summary\n\n%s\n", firstNonEmpty(strings.TrimSpace(block.Summary), "(none)"))
+	if len(block.FollowUps) > 0 {
+		text.WriteString("\n## What must change\n\n")
+		for _, change := range block.FollowUps {
+			fmt.Fprintf(&text, "- %s\n", strings.TrimSpace(change))
+		}
+	} else if review.Report != nil {
+		if note := strings.TrimSpace(agentReportBlock.ReplaceAllString(review.Report.Text, "")); note != "" {
+			fmt.Fprintf(&text, "\n## The reviewer's notes\n\n%s\n", teamClipText(note, teamMaxConversation))
+		}
+	}
+	return text.String()
 }
 
 func (b *teamBroker) fail(task teamTask, err error) {
@@ -621,13 +783,15 @@ func teamVerdict(report agentReport) string {
 }
 
 func (b *teamBroker) stop(id string) (teamTask, error) {
-	task, err := loadTeamTask(b.team, id)
+	// Stopping a task stops whichever step of its review loop is working.
+	task, busy, err := teamLatestWork(b.team, id)
 	if err != nil {
 		return task, err
 	}
-	if !teamTaskActive(task) {
+	if busy == nil {
 		return task, fmt.Errorf("%s isn't running (%s)", id, task.Status)
 	}
+	task = *busy
 	task.Status = "stopped"
 	if err := saveTeamTask(b.team, task); err != nil {
 		return task, err
@@ -639,16 +803,20 @@ func (b *teamBroker) stop(id string) (teamTask, error) {
 }
 
 // merge merges a task's branch into the team's branch, once a review of
-// its latest commit approved it.
+// its latest commit approved it. A task the broker had fixed merges as its
+// latest fix.
 func (b *teamBroker) merge(id string) (teamTask, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	task, err := loadTeamTask(b.team, id)
+	task, busy, err := teamLatestWork(b.team, id)
 	if err != nil {
 		return task, err
 	}
+	if busy != nil {
+		return task, fmt.Errorf("%s's work is still in review (%s is working on it); hi team wait %s waits for the outcome", id, busy.ID, id)
+	}
 	if task.Kind != "task" || task.Status != "done" || task.Branch == "" {
-		return task, fmt.Errorf("%s isn't a finished task with a branch (%s)", id, task.Status)
+		return task, fmt.Errorf("%s isn't a finished task with a branch (%s)", task.ID, task.Status)
 	}
 	config, err := loadTeam(b.team)
 	if err != nil {
@@ -656,16 +824,16 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	}
 	head := boxGit(b.repo, "rev-parse", task.Branch)
 	if head == "" {
-		return task, fmt.Errorf("%s's branch %s is gone", id, task.Branch)
+		return task, fmt.Errorf("%s's branch %s is gone", task.ID, task.Branch)
 	}
 	var approval *teamTask
 	for _, review := range loadTeamTasks(b.team) {
-		if review.Kind == "review" && review.Review == id && review.Commit == head && review.Status == "done" && review.Verdict == "approve" {
+		if review.Kind == "review" && review.Review == task.ID && review.Commit == head && review.Status == "done" && review.Verdict == "approve" {
 			approval = &review
 		}
 	}
 	if approval == nil {
-		return task, fmt.Errorf("no review approved %s's latest commit; run hi team review %s", id, id)
+		return task, fmt.Errorf("no review approved %s's latest commit; run hi team review %s", task.ID, task.ID)
 	}
 	if err := b.commitSpecsLocked(config); err != nil {
 		return task, fmt.Errorf("committing the specs: %w", err)
@@ -676,7 +844,7 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	message := fmt.Sprintf("%s\n\nTask %s by the %s, approved in review %s by the reviewer.", task.Title, task.ID, task.Role, approval.ID)
 	if out, err := teamGit(b.repo, "merge", "--no-ff", "-m", message, task.Branch); err != nil {
 		teamGit(b.repo, "merge", "--abort")
-		return task, fmt.Errorf("%s doesn't merge cleanly into %s (%s); give the coder a new task to redo it on the latest %s", id, config.Branch, qFirstLine(out, err.Error()), config.Branch)
+		return task, fmt.Errorf("%s doesn't merge cleanly into %s (%s); give the coder a new task to redo it on the latest %s", task.ID, config.Branch, qFirstLine(out, err.Error()), config.Branch)
 	}
 	// The specs are the lead's: a member's changes to them, such as marking a
 	// feature done before the people agree it is, are left out, so the
@@ -881,10 +1049,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if command == "wait" {
 			wait = "25m"
 		}
-		if err := call("GET", "/task?id="+url.QueryEscape(args[0])+"&wait="+wait, nil, &task); err != nil {
+		var view teamTaskView
+		if err := call("GET", "/task?id="+url.QueryEscape(args[0])+"&wait="+wait, nil, &view); err != nil {
 			return err
 		}
-		printTeamTask(task, stdout)
+		printTeamTaskView(view, stdout)
 	case "tasks":
 		var tasks []teamTask
 		if err := call("GET", "/tasks", nil, &tasks); err != nil {
@@ -1063,6 +1232,56 @@ func teamReadBrief(path string, stdin io.Reader) (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// printTeamTaskView is what the lead reads about a task: with its review
+// loop, the steps, how it ended, the latest work and the last review.
+func printTeamTaskView(view teamTaskView, w io.Writer) {
+	if len(view.Steps) < 2 {
+		printTeamTask(view.teamTask, w)
+		return
+	}
+	first, last := view.Steps[0], view.Steps[len(view.Steps)-1]
+	work := first
+	for _, step := range view.Steps {
+		if step.Kind == "task" {
+			work = step
+		}
+	}
+	fmt.Fprintf(w, "%s · %s (%s) · reviewed by the team\nTitle: %s\n\nSteps:\n", first.ID, first.Role, agentDisplayName(first.Agent), first.Title)
+	table := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	for _, step := range view.Steps {
+		what := "work"
+		if step.Kind == "review" {
+			what = fmt.Sprintf("review %d of %s", step.Round, step.Review)
+		} else if step.On != "" {
+			what = "fix on " + step.On
+		}
+		status := step.Status
+		if step.Verdict != "" {
+			status += " (" + step.Verdict + ")"
+		}
+		fmt.Fprintf(table, "  %s\t%s\t%s\t%s\n", step.ID, step.Role, what, status)
+	}
+	table.Flush()
+	fmt.Fprintln(w)
+	switch {
+	case teamTaskActive(last):
+		fmt.Fprintf(w, "Still working: %s, the %s. The team fixes what the reviewer finds on its own; hi team wait %s waits again.\n", last.ID, last.Role, first.ID)
+		return
+	case last.Kind == "review" && last.Verdict == "approve":
+		fmt.Fprintf(w, "Approved: the reviewer approved %s's latest commit. hi team merge %s merges it.\n", work.ID, first.ID)
+	case last.Kind == "review" && last.Status == "done":
+		fmt.Fprintf(w, "Changes still needed after %d reviews. Read the review below, then decide: continue with hi team task coder <brief.md> --on %s, or ask the people.\n", last.Round, first.ID)
+	default:
+		fmt.Fprintf(w, "%s %s; its report is below.\n", last.ID, last.Status)
+	}
+	fmt.Fprintln(w)
+	printTeamTask(work, w)
+	if last.ID != work.ID {
+		fmt.Fprintln(w)
+		printTeamTask(last, w)
+	}
 }
 
 // printTeamTask is what the lead reads about one task.
