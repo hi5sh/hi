@@ -241,8 +241,18 @@ func TestWriteTeamLead(t *testing.T) {
 	if again, _ := os.ReadFile(filepath.Join(lead, "SOUL.md")); string(again) != string(soul) {
 		t.Fatal("a second start changed SOUL.md again")
 	}
-	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi team merge t-4") {
+	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi team merge t-4") || !strings.Contains(string(skill), "in the\nhi-team-notes skill") {
 		t.Fatal(string(skill))
+	}
+	// The lead's notes skill is made once, then left to the lead.
+	notes := filepath.Join(lead, "skills", teamNotesSkill, "SKILL.md")
+	if got, _ := os.ReadFile(notes); !strings.HasPrefix(string(got), "---\nname: hi-team-notes\n") {
+		t.Fatal(string(got))
+	}
+	os.WriteFile(notes, []byte("mine"), 0o600)
+	writeTeamLead(config, teamSecrets{}, "10.234.7.2", "")
+	if got, _ := os.ReadFile(notes); string(got) != "mine" {
+		t.Fatal("hi rewrote the lead's notes")
 	}
 	// Named askers: only they and the owners are heard.
 	config.Askers = []string{"U07ASKER1"}
@@ -585,8 +595,12 @@ func TestTeamBrokerReviewLoop(t *testing.T) {
 	if steps[2].On != "t-1" || steps[3].Review != "t-3" || steps[3].Verdict != "approve" || steps[3].Next != "" {
 		t.Fatalf("%+v", steps)
 	}
+	// The reviewer judges against the lead's current specs, on main.
+	if review := b.brief(steps[1]); !strings.Contains(review, "git show main:docs/specs/<file>") {
+		t.Fatal(review)
+	}
 	fixBrief := b.brief(steps[2])
-	for _, want := range []string{"Fix what review t-2 found in t-1", "review 1 of 3", "Changes needed: no tests.", "- Test the empty list.", "You continue task t-1", "Add a supplier list"} {
+	for _, want := range []string{"Fix what review t-2 found in t-1", "review 1 of 3", "Changes needed: no tests.", "- Test the empty list.", "You continue task t-1", "Add a supplier list", "run git merge main first"} {
 		if !strings.Contains(fixBrief, want) {
 			t.Fatalf("the fix's brief has no %q:\n%s", want, fixBrief)
 		}
@@ -761,26 +775,40 @@ func TestTeamRunCommand(t *testing.T) {
 
 func TestWriteTeamSkillKeepsTheLeadsEdits(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "SKILL.md")
-	read := func() string { data, _ := os.ReadFile(path); return string(data) }
-	writeTeamSkill(dir, "hi v1")
-	if read() != "hi v1" {
-		t.Fatal(read())
+	path, notes := filepath.Join(dir, "SKILL.md"), filepath.Join(dir, "notes.md")
+	read := func(path string) string { data, _ := os.ReadFile(path); return string(data) }
+	writeTeamSkill(dir, "# hi\n\nUse hi team task.", notes)
+	if read(path) != "# hi\n\nUse hi team task." {
+		t.Fatal(read(path))
 	}
-	os.WriteFile(path, []byte("hi v1, improved by the lead"), 0o600)
-	writeTeamSkill(dir, "hi v1")
-	if read() != "hi v1, improved by the lead" {
+	edited := "# hi\n\nUse hi team task.\n\nPreviews can't reach the model proxy."
+	os.WriteFile(path, []byte(edited), 0o600)
+	writeTeamSkill(dir, "# hi\n\nUse hi team task.", notes)
+	if read(path) != edited {
 		t.Fatal("the lead's edit was lost on a restart")
 	}
-	writeTeamSkill(dir, "hi v2")
-	if lead, _ := os.ReadFile(path + ".lead"); read() != "hi v2" || string(lead) != "hi v1, improved by the lead" {
-		t.Fatal(read(), string(lead))
+	// A new text replaces it; what the lead added moves to its notes.
+	writeTeamSkill(dir, "# hi v2\n\nUse hi team task and wait.", notes)
+	if read(path) != "# hi v2\n\nUse hi team task and wait." || read(path+".lead") != edited {
+		t.Fatal(read(path), read(path+".lead"))
+	}
+	if got := read(notes); !strings.Contains(got, "## From hi-team, before hi updated it") || !strings.Contains(got, "\n\nPreviews can't reach the model proxy.\n") || strings.Contains(got, "Use hi team task") {
+		t.Fatal(got)
 	}
 	// Unedited, a new text replaces it without a copy.
 	os.Remove(path + ".lead")
-	writeTeamSkill(dir, "hi v3")
-	if read() != "hi v3" || fileExists(path+".lead") {
-		t.Fatal(read())
+	before := read(notes)
+	writeTeamSkill(dir, "hi v3", notes)
+	if read(path) != "hi v3" || fileExists(path+".lead") || read(notes) != before {
+		t.Fatal(read(path))
+	}
+	// Without hi's earlier text, as for a team from an older hi, the
+	// lead's version is only kept aside.
+	os.Remove(filepath.Join(dir, ".hi-text"))
+	os.WriteFile(path, []byte("hi v3\n\nA note."), 0o600)
+	writeTeamSkill(dir, "hi v4", notes)
+	if read(path) != "hi v4" || read(path+".lead") != "hi v3\n\nA note." || read(notes) != before {
+		t.Fatal(read(notes))
 	}
 }
 

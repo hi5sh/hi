@@ -519,6 +519,9 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	text += "\n" + teamSpecsRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
+		if config, err := loadTeam(b.team); err == nil {
+			text += teamSpecsMoved(config.Branch)
+		}
 	}
 	files, extra, err := b.teamTaskFiles(task, request.Attachments)
 	if err != nil {
@@ -600,7 +603,7 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		task.Files = reviewed.Files
 		saveTeamTask(b.team, task)
 	}
-	brief := teamReviewBrief(b.team, task, reviewed, base, b.brief(reviewed), notes)
+	brief := teamReviewBrief(b.team, config.Branch, task, reviewed, base, b.brief(reviewed), notes)
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
 
@@ -610,11 +613,18 @@ func (b *teamBroker) brief(task teamTask) string {
 	return strings.TrimSpace(string(data))
 }
 
-func teamReviewBrief(team string, task, reviewed teamTask, base, brief, notes string) string {
+// teamSpecsMoved tells a member continuing a branch that the lead's specs
+// may have changed on the team's branch since it started.
+func teamSpecsMoved(branch string) string {
+	return fmt.Sprintf("Your branch started from %[1]s, and the lead may have changed docs/specs/ there since. If git diff HEAD %[1]s -- docs/specs/ shows changes, run git merge %[1]s first, so you work to the current specs.\n", branch)
+}
+
+func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, notes string) string {
 	var text strings.Builder
 	fmt.Fprintf(&text, "# Review %s for the %s team\n\n", task.ID, team)
 	fmt.Fprintf(&text, "You are the team's reviewer. The %s did task %s on this branch. Review its work before the lead merges it.\n\n", reviewed.Role, reviewed.ID)
 	fmt.Fprintf(&text, "The work is the commits since %s:\n\n    git log --oneline %s..HEAD\n    git diff %s...HEAD\n\n", base[:min(len(base), 12)], base, base)
+	fmt.Fprintf(&text, "The current specs are the ones on %[1]s: this branch's docs/specs/ may be older, from when the work started. Read them with git show %[1]s:docs/specs/<file>, and see what changed with git diff HEAD %[1]s -- docs/specs/. Judge the work against those, not against an older copy on the branch.\n\n", branch)
 	text.WriteString("Check that:\n\n")
 	text.WriteString("- it does what the brief asks, and nothing it doesn't;\n")
 	text.WriteString("- it has tests for what the brief says must work, and the tests pass when you run them;\n")

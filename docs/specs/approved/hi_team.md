@@ -291,7 +291,15 @@ hi team discard dev --approval <id>              dev's code back to production's
   team. The broker pushes from the host; no GitHub credential enters a box.
 - hi rewrites the lead's hi-team skill only when its own text changes; the
   lead's edits stay until then, and are kept as `SKILL.md.lead` when hi
-  replaces them.
+  replaces them. The paragraphs the lead added move to its own
+  `hi-team-notes` skill, which hi makes once and never rewrites, and where
+  the hi-team skill tells the lead to keep what it learns.
+- hi writes the lead's SOUL.md once; on each start it replaces the
+  paragraphs an earlier hi wrote that this hi words differently, where they
+  are still word for word hi's.
+- A review reads the specs on the team's branch, the lead's current ones,
+  not the copy on the task's branch, which may be older; a follow-up task
+  merges the team's branch first when its specs moved.
 
 - A brief gets a heading before it is saved, so front matter in it can't
   widen the member's box.

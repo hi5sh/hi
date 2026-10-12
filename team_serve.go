@@ -291,7 +291,36 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	if err := os.WriteFile(filepath.Join(lead, "scripts", teamChannelScript), []byte(teamChannelWatchScript), 0o700); err != nil {
 		return err
 	}
-	return writeTeamSkill(filepath.Join(lead, "skills", "hi-team"), teamSkill(config))
+	notes := filepath.Join(lead, "skills", teamNotesSkill, "SKILL.md")
+	if !fileExists(notes) {
+		if err := os.MkdirAll(filepath.Dir(notes), 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(notes, []byte(teamNotes(config)), 0o600); err != nil {
+			return err
+		}
+	}
+	return writeTeamSkill(filepath.Join(lead, "skills", "hi-team"), teamSkill(config), notes)
+}
+
+// teamNotesSkill is the lead's own skill, for what it learns: hi creates it
+// and never rewrites it, so the lead's notes outlive hi's updates to the
+// hi-team skill.
+const teamNotesSkill = "hi-team-notes"
+
+func teamNotes(config teamConfig) string {
+	return fmt.Sprintf(`---
+name: %[2]s
+description: What you learned running the %[1]s team, such as pitfalls with briefs, specs, reviews, previews, and the channel. Read it with hi-team, and add to it.
+---
+
+# What the lead learned
+
+This skill is yours: hi never rewrites it. Keep here what you learn about
+running the team, one short note each. hi-team is hi's, and hi replaces it
+when hi updates; where a note here disagrees with hi-team, hi-team is
+current.
+`, config.Name, teamNotesSkill)
 }
 
 // teamChannelWatchScript runs before each channel-watch job: it prints what
@@ -353,11 +382,13 @@ func teamEnsureChannelJob(engine boxEngine, container, lead string, done <-chan 
 // Hermes improves its skills as it works. hi replaces the skill only when
 // its own text changed, in a new hi, and keeps the lead's last version
 // beside it.
-func writeTeamSkill(dir, text string) error {
+// The lead's edits to hi's text move to its notes skill (notes) when hi
+// replaces the text: each paragraph hi didn't write.
+func writeTeamSkill(dir, text, notes string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	path, stamp := filepath.Join(dir, "SKILL.md"), filepath.Join(dir, ".hi-sha256")
+	path, stamp, previous := filepath.Join(dir, "SKILL.md"), filepath.Join(dir, ".hi-sha256"), filepath.Join(dir, ".hi-text")
 	sum := func(data []byte) string { return fmt.Sprintf("%x", sha256.Sum256(data)) }
 	written, _ := os.ReadFile(stamp)
 	current, err := os.ReadFile(path)
@@ -371,11 +402,49 @@ func writeTeamSkill(dir, text string) error {
 		if err := os.WriteFile(path+".lead", current, 0o600); err != nil {
 			return err
 		}
+		if old, err := os.ReadFile(previous); err == nil && sum(old) == strings.TrimSpace(string(written)) {
+			if err := appendTeamNotes(notes, teamLeadParagraphs(string(old), string(current))); err != nil {
+				return err
+			}
+		}
 	}
 	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
 		return err
 	}
+	if err := os.WriteFile(previous, []byte(text), 0o600); err != nil {
+		return err
+	}
 	return os.WriteFile(stamp, []byte(sum([]byte(text))+"\n"), 0o600)
+}
+
+// teamLeadParagraphs are the paragraphs of edited that aren't in hi's text
+// as hi wrote it.
+func teamLeadParagraphs(hi, edited string) []string {
+	ours := map[string]bool{}
+	for _, paragraph := range strings.Split(hi, "\n\n") {
+		ours[strings.TrimSpace(paragraph)] = true
+	}
+	var theirs []string
+	for _, paragraph := range strings.Split(edited, "\n\n") {
+		if paragraph = strings.TrimSpace(paragraph); paragraph != "" && !ours[paragraph] {
+			theirs = append(theirs, paragraph)
+		}
+	}
+	return theirs
+}
+
+func appendTeamNotes(path string, paragraphs []string) error {
+	if len(paragraphs) == 0 {
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = fmt.Fprintf(file, "\n## From hi-team, before hi updated it on %s\n\nYou had added these to hi-team. They may mention commands or steps hi has changed since.\n\n%s\n",
+		time.Now().UTC().Format("Jan 2, 2006"), strings.Join(paragraphs, "\n\n"))
+	return err
 }
 
 // teamManifest is the team's Slack app: Socket Mode, one channel, no
@@ -439,8 +508,9 @@ own field who want something that works. You bridge the gap:
   they ask for it.
 - When you need a decision, ask it as a choice about what the project
   should do, never as a question about code.
-- Keep them posted in short messages: what you're doing, what's next, and
-  when to try something.
+- Keep them posted in short messages at the moments that matter to them:
+  when work starts, when something is ready to try, and when you need a
+  decision; not each step in between.
 
 ## Your team
 
@@ -493,6 +563,11 @@ for you: read it to answer questions about how things work.
 // with what this hi says instead. SOUL.md is the lead's to edit, so hi
 // replaces a paragraph only where it is still word for word its own.
 var teamSoulUpdates = []struct{ old, new string }{
+	// Posts at milestones, not at each step.
+	{`- Keep them posted in short messages: what you're doing, what's next, and
+  when to try something.`, `- Keep them posted in short messages at the moments that matter to them:
+  when work starts, when something is ready to try, and when you need a
+  decision; not each step in between.`},
 	// The broker runs the review rounds.
 	{"The hi-team skill says how: hi team task, review, wait, and merge.",
 		"The hi-team skill says how: hi team task, wait, and merge."},
@@ -598,6 +673,11 @@ look at what was said before it if the question builds on it. Every 15
 minutes your channel-watch job reads what's new and keeps what matters in
 your memory; don't remove that job.
 
+## What you learn
+
+hi replaces this skill when it updates. Keep what you learn in the
+%[3]s skill instead: hi never rewrites it.
+
 ## Specs
 
 Edit a spec with patch, or read the whole file first before rewriting it:
@@ -693,7 +773,7 @@ A review's report starts with Approve or Changes needed. hi team merge
 refuses work that no review approved, and work changed since its review.
 After a merge, tell the people what changed. If a merge doesn't apply
 cleanly, give the coder a new task to redo the work on the latest project.
-`, config.Name, strings.Join(roles, ", "))
+`, config.Name, strings.Join(roles, ", "), teamNotesSkill)
 }
 
 // teamSpecsPath is where the lead's specs live in the project: versioned
