@@ -223,6 +223,24 @@ func TestWriteTeamLead(t *testing.T) {
 	if soul, _ := os.ReadFile(filepath.Join(lead, "SOUL.md")); string(soul) != "edited by an owner" {
 		t.Fatal("SOUL.md was overwritten")
 	}
+	// An earlier hi's words about how the team works are brought up to
+	// date; the rest stays as the owner left it.
+	for _, update := range teamSoulUpdates {
+		if !strings.Contains(teamSoul(config), update.new) {
+			t.Fatalf("SOUL.md updates to words the template doesn't have:\n%s", update.new)
+		}
+	}
+	old := "edited by an owner\n\n" + teamSoulUpdates[1].old + "\n\n" + teamSoulUpdates[2].old + "\n"
+	writeSkillTestFile(t, filepath.Join(lead, "SOUL.md"), old, 0o600)
+	writeTeamLead(config, teamSecrets{}, "10.234.7.2", "")
+	soul, _ := os.ReadFile(filepath.Join(lead, "SOUL.md"))
+	if want := "edited by an owner\n\n" + teamSoulUpdates[1].new + "\n\n" + teamSoulUpdates[2].new + "\n"; string(soul) != want {
+		t.Fatalf("SOUL.md is:\n%s", soul)
+	}
+	writeTeamLead(config, teamSecrets{}, "10.234.7.2", "")
+	if again, _ := os.ReadFile(filepath.Join(lead, "SOUL.md")); string(again) != string(soul) {
+		t.Fatal("a second start changed SOUL.md again")
+	}
 	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi team merge t-4") {
 		t.Fatal(string(skill))
 	}

@@ -277,6 +277,8 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		if err := os.WriteFile(filepath.Join(lead, "SOUL.md"), []byte(teamSoul(config)), 0o600); err != nil {
 			return err
 		}
+	} else if err := updateTeamSoul(filepath.Join(lead, "SOUL.md")); err != nil {
+		return err
 	}
 	if memoryIP != "" {
 		if err := writeTeamHindsightConfig(lead, config.Name, memoryIP); err != nil {
@@ -485,6 +487,45 @@ your changes when a task starts and when work is merged, so the members see
 them and they go wherever the code goes. /team/repo is the project as merged, read-only
 for you: read it to answer questions about how things work.
 `, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"))
+}
+
+// teamSoulUpdates are paragraphs an earlier hi wrote in a lead's SOUL.md,
+// with what this hi says instead. SOUL.md is the lead's to edit, so hi
+// replaces a paragraph only where it is still word for word its own.
+var teamSoulUpdates = []struct{ old, new string }{
+	// The broker runs the review rounds.
+	{"The hi-team skill says how: hi team task, review, wait, and merge.",
+		"The hi-team skill says how: hi team task, wait, and merge."},
+	{`4. Have the reviewer check the work. If it needs changes, give the coder a
+   new task on the same branch (--on) with the reviewer's notes, then have
+   it reviewed again.
+5. Merge only after the reviewer approves.`, `4. Wait for the task. The team has the reviewer check the work, and the
+   coder fix what the reviewer finds, on its own, up to three rounds; you
+   hear once, when it is approved or still needs changes. Don't relay the
+   reviewer's notes yourself.
+5. Merge only after the reviewer approves. If changes are still needed
+   after the rounds, read the review and decide: brief the coder again
+   (--on), or ask the people.`},
+	{`(hi team task --small): fix, review, merge, and tell them
+what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
+them what changed.`},
+}
+
+// updateTeamSoul brings an existing SOUL.md's words about how the team
+// works up to date with this hi.
+func updateTeamSoul(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(data)
+	for _, update := range teamSoulUpdates {
+		text = strings.Replace(text, update.old, update.new, 1)
+	}
+	if text == string(data) {
+		return nil
+	}
+	return os.WriteFile(path, []byte(text), 0o600)
 }
 
 // teamSkill teaches the lead the broker's commands. hi rewrites it on
