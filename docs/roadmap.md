@@ -409,6 +409,10 @@ Dependency: the v0.16.0 layers and metadata; the open decisions
   offers, so a renamed source isn't listed twice when the server is
   unreachable.
 
+### v0.17.3 — Forget withdrawn template sources
+
+- [x] A device forgets cached template sources the server no longer offers.
+
 ### v0.18.0 — Templates that keep up
 
 - [x] Update a repository to the current templates with `hi init --update`:
@@ -578,164 +582,371 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   uncommitted work are kept unless `--force`, branches with commits are
   kept, and without a terminal it needs `--yes`.
 
-### v0.48.0 — The lead is @<name>
+### v0.24.0 — `hi data`: the team's Hugging Face datasets and models
 
-- [x] A new team's Slack app is named after the team, so people write
-  `@payments` instead of `@team-payments`.
+- [x] `hi server data add <org>...` stores a read token per organization
+  after checking it with the Hub; `list`, `test`, `remove`, and a menu.
+- [x] A proxy under `/hf` passes only a repository's read calls on with the
+  organization's token, so devices run the official `hf` with
+  `HF_ENDPOINT` pointing to the server and a hi data token that lasts an
+  hour. The Hugging Face token never reaches a device; file bytes come from
+  the CDN and Xet storage directly.
+- [x] `hi data` (a picker), `ls`, `info`, and `get`; `data` patterns per
+  group in policy, everything when unset; token grants in the audit log,
+  downloads in `data_usage.jsonl`.
+  Tested on 2026-10-03 with `hf` 1.32.0 against the real Hub.
+  Spec: [hi_data.md](specs/approved/hi_data.md).
 
-### v0.47.0 — Remove a team
+### v0.24.1 — Search in `hi data`
 
-- [x] `hi team rm [<name>]` stops a team and removes it from the machine:
-  its systemd service, its name in the teams folder, its containers and
-  members' boxes, and its folder. It asks first (`--yes` without a
-  terminal); `--keep-folder` keeps the folder for `hi team up <folder>`.
+- [x] `hi data`'s list has a search field: typing filters at once, every
+  word must match (`gemma 27b`), and at most 15 rows show, with a count.
+  Without a terminal it asks for words first and numbers only the matches.
 
-### v0.46.0 — Members get what the people gave
+### v0.24.2 — Buckets in `hi data`
 
-- [x] A team member's box gets the task's files at `/box/files`
-  (read-only, `hi agent --files <folder>`): the files shared in the thread
-  the work was approved in, and what the lead attaches with `hi team task
-  --attach <file>`. The brief quotes that thread with its links and says
-  what each file is. Follow-ups and reviews get the same files.
-- [x] A lead's scheduled messages are posted as they are, without Hermes'
-  "Cronjob Response" heading and job footer.
+- [x] `hi data` lists the organizations' buckets with their size and file
+  count; `hi data get` syncs one with `hf buckets sync`, and `info` lists
+  its largest files. The proxy passes a bucket's reads and refuses uploads,
+  deletes, and settings. Tested with a public bucket through the proxy,
+  and with a private 36 GB bucket from the team's server on 2026-10-03.
 
-### v0.45.0 — Dev and production for a team
+### v0.24.3 — Day-long data tokens, and `hi data` in the docs
 
-- [x] Merges go to dev (`main`); production is a `production` branch that
-  moves only on an owner's yes: `hi team release --approval <id> --notes
-  <file>` makes dev's latest the next version (v1, v2, ..., tagged
-  `release-<n>`), and `hi team release v2` puts production back on an
-  earlier one. Each move is posted in the channel itself, with the notes.
-- [x] `hi team discard <task>` drops an idea that isn't merged, with its
-  follow-ups, reviews, boxes, and branches; `hi team discard dev` sets dev's
-  code back to production's, as a commit that keeps the specs, and is
-  posted in the channel.
-- [x] At most five ideas wait unmerged; a sixth task is refused until one
-  is merged or discarded.
-- [x] `hi team versions`, `hi team status`, merges, and previews name the
-  version: "production v3", "dev, v3 + 2 changes".
+- [x] A hi data token lasts a day instead of an hour, so long downloads
+  don't stop when `hf` asks for its next Xet token; it still works only
+  from its device, while the device and user are enrolled.
+- [x] Laptops older than v0.24.2 don't see buckets, which they would try
+  to download as models; counts say "1 bucket".
+- [x] The guide (Download the team's data), README, website, llms.txt, and
+  the agent skill cover `hi data`.
 
-### v0.44.0 — Pick the team to start from a list
+### v0.25.0 — `hi data` in code, projects, and boxes
 
-- [x] `hi team up` without a name shows the teams on this machine, whether
-  each is up, and its channel; the one you choose starts, or restarts.
+- [x] `hi data run -- <command>` and `eval "$(hi data env)"`: `load_dataset`,
+  `from_pretrained`, `hf_hub_download`, and `hf://` paths in pandas read
+  the team's repositories directly. Tested with datasets 5.0.1 and pandas.
+- [x] `hi data get` pins a branch or tag to its commit and records the
+  download in the project's `.hifin/data.json`; `hi data get` with no name
+  fetches everything recorded, and warns when a bucket changed since.
+- [x] `hi box --data`: the box gets a placeholder token and hi's proxy adds
+  a hi data token on the way to the server, and allows Hugging Face's
+  download hosts. Tested with rootless Podman and a 548 MB Xet file.
+- [x] The spec is approved: [hi_data.md](specs/approved/hi_data.md).
 
-### v0.43.0 — A team that waits for your yes
+### v0.25.1 — The team's data on rented GPUs
 
-- [x] New work starts only after one of the people says yes: the broker
-  refuses a new task unless the lead names the approving message, a reply
-  from an owner or asker after the lead's question in the same thread,
-  checked against the channel's log. Continuing a task needs none; a
-  small fix may start with `--small`, and the broker tells the channel.
-  `hi team channel --ids` shows each message's id.
-- [x] Hindsight's "recalled N memories" and "saving to memory" lines no
-  longer appear in the channel.
+- [x] `hi compute run --data <org>/<name>[/<pattern>]` downloads the team's
+  data into `data/<name>` on the instance before the script starts. The
+  instance can't reach the hi server, so the server hands out a signed
+  link per file (about an hour, no token) and `hi` ships them in a wrapper
+  that then runs the script. Tested with real links and a 548 MB file,
+  and on a real Hugging Face job with 150 private files from the team.
 
-### v0.42.0 — Preview links that open without a password
+### v0.25.2 — A clear message from an older server
 
-- [x] `hi net expose --link` puts the key in the link: hi's relay lets in a
-  request with the key (from the link, its cookie, or a Bearer header) and
-  answers anything else with a page asking for the link. The link's key
-  becomes a cookie until the address ends, and the browser moves on to
-  the address without it.
-- [x] A team's previews use it: the lead posts one link, and the people
-  open it, with no password to copy.
-  Verified on 2026-10-11 on aiw9 through NetBird: 401 without the key, 303
-  and the cookie with the link, then the app.
+- [x] `hi compute run --data` against a server older than v0.25.1 says to
+  update the server, instead of "404 page not found".
 
-### v0.41.0 — A team lead with long-term memory, and no restart notices
+### v0.26.0 — The team's data in cloud jobs, through `netbird expose`
 
-- [x] The lead's long-term memory is Hindsight: a server in a container of
-  its own on the team's network, its database in the team's `memory/`
-  folder, its model calls through the team's proxy, and Hermes' hindsight
-  plugin in the lead with a memory bank per team. The plugin is the one
-  Hermes' catalog pins; its client library is installed once per machine
-  and mounted read-only. `"memory": "off"` in `team.json` leaves it out.
-  Verified on 2026-10-11 on aiw9 with team test: a turn of the lead was
-  retained as facts and recalled by meaning.
-- [x] The lead no longer posts "Hermes is shutting down" or "back online"
-  in the channel when the team restarts.
+- [x] The server opens a second listener with only the `hi data` proxy and
+  publishes it with `netbird expose` while cloud runs need it, closing it
+  when no run token is valid and nothing has called for 10 minutes.
+- [x] Run tokens: for the repositories named with `--data`, until the
+  run's time limit, accepted only through the public address.
+- [x] `hi compute run --data` on Hugging Face Jobs uses it: the token goes
+  as an encrypted job secret, there is no size limit or one-hour expiry,
+  and the script can call `load_dataset` itself. Signed links remain for
+  Colab and when the server can't expose. `hi server expose [stop]`.
+  Tested on a real Hugging Face job through a server on vmhiserver.
+  Spec: [hi_server_expose.md](specs/approved/hi_server_expose.md).
 
-### v0.40.0 — A team lead that answers when asked, and hears everything
+### v0.27.0 — `hi net expose`: a local service on a temporary public address
 
-- [x] The lead answers only when someone @-mentions it, even in its own
-  threads, so people can talk among themselves in the channel.
-- [x] hi keeps the channel's log in the team's `channel/` folder: every
-  message, thread replies up to two weeks old, and shared files up to
-  50 MB, read with the bot's token from the host every two minutes.
-  `hi team channel <name> [--since 2h]` shows it; in its box the lead runs
-  `hi team channel`.
-- [x] The lead's `channel-watch` job reads what's new every 15 minutes and
-  keeps what matters in its memory, without posting; with nothing new it
-  makes no model call.
-- [x] A merge keeps the lead's `docs/specs` as the lead left them: a
-  member's changes to them are left out, and the lead is told. Briefs say
-  the specs are the lead's. This ends Hermes' "File-mutation verifier"
-  warnings in the channel after a merge changed a spec under the lead.
-  Verified on 2026-10-11 on aiw9 with team test: 43 messages and an image
-  logged, and the job saved a note to the lead's memory.
+- [x] `hi net expose <port>` publishes a service on this machine with
+  NetBird's reverse proxy, through a relay on the NetBird address so
+  services on `localhost` work, with a request log.
+- [x] Protected by a generated password by default; `--pin`, `--groups`
+  (NetBird SSO), or `--public` instead. Ends after `--max` (default 1h, at
+  most 24h) or on Ctrl+C.
+- [x] `--detach` and `--json` for agents; `ls` and `stop`; each exposure in
+  a connected hi server's audit log and live feed; the agent skill asks the
+  user first and never goes `--public` without a yes.
+  Tested on aiw9 with NetBird 0.74.4.
+  Spec: [hi_net_expose.md](specs/ideas/hi_net_expose.md). Later: TCP
+  services and a `net_expose` group policy (release 2 of the spec).
 
-### v0.39.0 — A team's project on GitHub, with its specs
+### v0.27.1 — The agent skill knows `hi data` and `hi net expose`
 
-- [x] `hi team new` can put a new project on GitHub: give `owner/name`, and
-  hi creates a private repository with the machine's `gh` sign-in.
-  `hi team github <team> <owner/repo>` does the same for an existing team,
-  or connects an empty repository. The broker pushes every merge from the
-  host; no GitHub credential enters a box.
-- [x] The lead's specs live in the project, `docs/specs`, writable at its
-  /team/specs; the broker commits them when a task starts and before a
-  merge, so members' branches start with them and they go to GitHub with
-  the code. A team's earlier `specs/` moves in on its next start, its
-  briefs to the lead's home folder.
+- [x] The skill's description, which decides when agents load it, now names
+  the team's data (`hi data`, `--data`) and `hi net expose`, and its
+  introduction points to `hi data help` and `hi net expose help`. Refresh
+  installed skills with `hi skill --global`, and `hi skill` in projects.
 
-### v0.38.1 — No stray terminal replies; previews outlive restarts
+### v0.27.2 — Quieter `hi install`
 
-- [x] hi no longer asks the terminal for its background colour at start,
-  in every command. Terminals that answered late left the reply, such as
-  `^[[34;1R`, in the shell. Bubble Tea v1 asks in its `init`, so hi builds
-  with a copy without it (`third_party/bubbletea`, until v2) and assumes a
-  dark background unless `COLORFGBG` says otherwise.
-- [x] A team's previews and member boxes run in systemd scopes of their
-  own, so restarting the team (`hi team up`) no longer stops them, and the
-  service signals only `hi team __serve`, which stops the lead cleanly.
+- [x] Quiet pipx and the PATH hint when `~/.local/bin` is already on PATH.
+- [x] `hi install node` skips npm's recommended packages.
 
-### v0.38.0 — Previews of a team's work
+### v0.28.0 — `hi agent`: agents get their own command
 
-- [x] The lead's `hi team preview [<task>]` runs the project in an app box
-  on the host (`make run` or `npm start`, on `$PORT`, published to
-  localhost only) and puts it on a temporary password-protected address
-  with `hi net expose`; the lead posts it. `hi team preview stop` ends it.
-  Verified on 2026-10-10 on aiw9 with team test's world clock.
-- [x] New team repositories ask for a `make run` on `$PORT`, and the lead's
-  instructions say to share a preview instead of telling people to run
-  commands.
-- [x] The lead's own edits to its hi-team skill survive restarts; a new hi
-  replaces them only when its own text changed, and keeps them as
-  `SKILL.md.lead`.
+- [x] `hi agent [claude|codex] "<task>"` runs the agent in a box on a new
+  worktree and waits for one report, the same for every agent: status,
+  exit status, final message, its own summary block, session ID, tokens
+  where the agent gives them, and the changed files from git. Without a
+  name, the first agent installed and signed in.
+- [x] `--json`, `--detach`, and `hi agent wait <name>`; exit 1 when the
+  agent failed. `hi agent claude|codex` without a task is an interactive
+  session in a box.
+- [x] `hi box` is now for any code: `hi box claude|codex` and `hi box token`
+  moved to `hi agent`, and print a pointer. The `locked` preset allows
+  nothing; an agent's own hosts come with the agent.
+- [x] The guide's new page, the agent skill, the website, and `llms.txt`.
+  Tested on 2026-10-07 on aiw9 with rootless Podman, Claude Code, and Codex.
+  Spec: [hi_agent.md](specs/approved/hi_agent.md), release 1.
 
-### v0.37.3 — Team leads in `hi box ls`
+### v0.29.0 — The team's data on every cloud machine
 
-- [x] `hi box ls` lists the team leads' running boxes after your own, with
-  their team, channel, and folder, and points to `hi team` for them.
+- [x] `hi compute up --data <org>/<name>` for RunPod and Shadeform: the
+  device gets a run token for the machine's lifetime before it is created,
+  and once it is up writes `HF_ENDPOINT` and the token into
+  `~/.hi/data.env` over SSH, which the machine's shells load; so
+  `hf download` and `load_dataset` work there, and the token never shows
+  in the provider's console. The same through a managed provider, after
+  approval; `--no-wait` and Community Cloud refuse `--data`.
+  Spec: [hi_server_expose.md, Cloud machines](specs/approved/hi_server_expose.md#cloud-machines) and
+  [Releases](specs/approved/hi_server_expose.md#releases) (2).
+  Tested on 2026-10-07 on RunPod (RTX 2000 Ada) through vmhiserver:
+  `hf download` and `load_dataset` of hifinab/bars-1d, and a refusal for a
+  repository not named.
 
-### v0.37.2 — A team's log once, and followed
+### v0.29.1 — Tasks from markdown files
 
-- [x] `hi team logs` shows each line once and only what the team prints,
-  without Podman's events or its log driver's copy; `-f` follows it.
-  Verified live on 2026-10-10 on aiw9: the lead answered in its Slack
-  channel.
+- [x] Task files: `hi agent brief.md`, `-` for stdin, and `--task-file`;
+  the task goes to the agent on stdin, and the report has `task_file`.
+  Tested on 2026-10-07 in rootless Podman: Claude Code from an uncommitted
+  brief; Codex got its task on stdin, but its sign-in had been spent (below).
+  Spec: [hi_agent_bundles.md, Task files](specs/ideas/hi_agent_bundles.md#task-files-release-1).
+- [x] A Codex sign-in refreshed in a box is copied back to
+  `~/.codex/auth.json` when the run ends or the box is removed; before, the
+  box spent the one-time refresh token and Codex on the machine stopped
+  working.
 
-### v0.37.1 — `hi team new` checks each answer as it's given
+### v0.29.2 — `hi agent` in folders without git
 
-- [x] Tokens, the channel, the owners, and the members are checked as they
-  are given, and asked again in a terminal, so one wrong answer no longer
-  ends the setup.
-- [x] The marker a terminal sends after a paste no longer lands in the next
-  answer (a pasted token with a line break left `\x1b[201~` in front of
-  the channel ID).
-- [x] A repository given as a folder on this machine is cloned, and the
-  team doesn't push merges back into it; its owner pulls from the team.
+- [x] Folders without git: the agent works in place, and the report's
+  changed files come from the folder's files before and after; not in the
+  home folder or above it. Tested on 2026-10-07 with Claude Code and Codex.
+  Spec: [hi_agent_bundles.md, Folders](specs/ideas/hi_agent_bundles.md#folders-that-arent-git-repositories-release-1).
+
+### v0.30.0 — `hi skill` with skills.sh
+
+- [x] `hi skills` in a terminal: search skills.sh as you type, browse
+  suggestions, see a skill's description, license, and audits, and pick
+  several to install; `u` updates and `x` removes. Without a terminal,
+  `hi skill` still writes the hi skill.
+- [x] `hi skill find`, `add`, `ls`, `show`, `update` (`--check`), and `rm`:
+  skills from GitHub, any git repository, or a folder, at a recorded commit,
+  in `.agents/skills` linked from `.claude/skills`, and in the
+  `skills-lock.json` that `npx skills` uses, with the commit added.
+- [x] skills.sh's audits on find, add, show, and update; a `high` or
+  `critical` rating needs a yes or `--accept-risk`; no install telemetry,
+  and `DO_NOT_TRACK` turns off searches and audits.
+  Tested on 2026-10-07 against skills.sh and GitHub, and the selector in a
+  real terminal.
+  Spec: [hi_skills_sh.md](specs/approved/hi_skills_sh.md), release 1.
+
+### v0.30.1 — Bundles from skills.sh
+
+- [x] `bundles/web.json`, `office.json`, and `data.json` list skills from
+  skills.sh by source and commit, with the packages each needs:
+  `agent-browser`; Anthropic's `docx`, `xlsx`, `pptx`, and `pdf`; DuckDB's
+  `query`, `read-file`, and `convert-file`, and `data-visualization`.
+- [x] `hi skill update --bundles` (`--check`, a bundle or skill name)
+  shows each change, new mentions, and audits, asks, and rewrites the
+  bundle files; bundle files with unknown keys or unpinned packages are
+  refused.
+- [x] The ten hand-written skills are removed, and what `hi-data` added is
+  in the `hi` skill's "Team data".
+- [x] `hi skills` highlights like the other menus.
+  Pinned on 2026-10-08 against the real repositories and skills.sh.
+  Spec: [hi_skills_sh.md](specs/approved/hi_skills_sh.md), release 2.
+
+### v0.30.2 — Finish the team's data on every cloud machine
+
+- [x] `hi server expose revoke <run>` ends one run's token now; the server
+  keeps the run until its tokens would have expired and refuses it new
+  ones. `hi server expose` lists the runs with run tokens.
+  Spec: [hi_server_expose.md, Run tokens](specs/approved/hi_server_expose.md#run-tokens).
+- [x] "1 file", not "1 files", in `hi compute run --data`'s output, on
+  the instance, and in `hi data info`.
+- [x] The `hi server data` menu, tried in a real terminal against a running
+  server: add, test, and remove an organization. It now shows whose token
+  each organization uses in `list`, names a `hf auth login` sign-in and
+  warns about it, and doesn't print each result twice.
+- [x] [hi_server_expose.md](specs/approved/hi_server_expose.md) approved.
+  Tested on 2026-10-08.
+
+### v0.31.0 — Bundles in `hi agent`
+
+- [x] `hi agent --bundle web,office` (and `hi box --bundle`): the bundles'
+  skills, pinned to their commits, go in the box's home with the `hi`
+  skill, and the box runs on `hi-agent:<hash>`, built once from the
+  skills' needs on the box's base image and reused.
+- [x] The network the skills need is shown with each reason and asked
+  about; without a terminal it needs `--network` or `--allow`. `--data`
+  with an open network is refused.
+- [x] Bundles from hi, the team's template sources (which may name their
+  own `skills/`), and `~/.local/share/hi/bundles`; `hi bundle ls`, `show`,
+  and `prune`.
+- [x] Front matter in briefs: `agent`, `bundles`, `network`, `allow`,
+  `data`, `gpu`; what widens the box is asked about, or left out without a
+  terminal.
+- [x] The report's `bundles`, `skills`, and `image`.
+  Tested on 2026-10-08 with rootless Podman: the `web` image (2.8 GB)
+  built once, then started from the cache in a second; Claude Code browsed
+  with `agent-browser` in an empty folder from a brief with front matter;
+  Codex found the `data` bundle's skills in `~/.agents/skills` and used
+  DuckDB; every tool in the `office` image checked.
+  Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md), release 2.
+
+### v0.31.1 — Bundles in devcontainer.json
+
+- [x] `customizations.hi.bundles` in a project's `devcontainer.json` gives
+  every box and agent there those bundles; `--bundle` adds more.
+- [x] `hi skill update` asks "Use it anyway?" about a risky skill, not
+  "Add it anyway?".
+
+### v0.31.2 — Screenshots with every image
+
+- [x] The `web` bundle's Chrome doesn't say it's headless: it gives a
+  normal Chrome's user agent, not `HeadlessChrome`, and
+  `navigator.webdriver` is false. Some CDNs refuse headless Chrome;
+  plejd.com's images were broken in screenshots and now load.
+- [x] The `hi` skill tells agents to scroll before a full-page screenshot,
+  so lazy images load, and to open the PNG to check it.
+
+### v0.31.3 — timg in the terminal tools
+
+- [x] `hi install terminal` also installs
+  [timg](https://github.com/hzeller/timg) from Ubuntu, which shows images
+  and videos in the terminal; `hi uninstall terminal` removes it too.
+
+### v0.31.4 — See that an agent is working
+
+- [x] While `hi agent` and `hi agent wait` wait, one line shows a red
+  scanner, the time so far, tokens in and out, the steps taken, and the
+  latest step, read from the agent's session log in the box's home
+  folder, for Claude Code and Codex alike. Ctrl+C clears it and says how
+  to wait again.
+
+### v0.31.5 — Stats for each agent run
+
+- [x] The report ends with how long the run took, its steps, tokens in
+  (and how many were cached) and out, the model, and for Claude Code its
+  cost at API prices; `--json` gives `seconds`, `steps`, `model`,
+  `tokens.cached`, and `cost_usd`. Codex's tokens come from its session
+  log, so its runs have them too.
+
+### v0.31.6 — The agent's model
+
+- [x] `hi agent --model <model>` and `model:` in a brief's front matter.
+  Without them, the box uses the model in your own Claude Code or Codex
+  settings, else `opus` for Claude Code: with only a placeholder token in
+  the box, Claude Code can't see the plan and chose Sonnet. The box's first
+  line names the model.
+
+### v0.32.0 — Hermes Agent
+
+- [x] `hi install hermes` runs Nous Research's installer without its setup
+  wizard; `hi uninstall hermes` removes the program and keeps `~/.hermes`.
+- [x] `hi agent hermes`: Hermes in a box, from your install mounted
+  read-only, on OpenRouter with your model. The key stays outside the box:
+  Hermes gets a placeholder and the proxy as a custom endpoint, and the
+  proxy reads only `OPENROUTER_API_KEY` from `~/.hermes/.env`. The live
+  line, the report, and its stats come from Hermes' `state.db`.
+  Tested on 2026-10-08 with Hermes Agent v0.21.2 and
+  `google/gemini-3.8-flash`: tasks of one and four steps finished, and the
+  key was in no file or variable of the box.
+
+### v0.33.0 — `hi agent best-of`
+
+- [x] `hi agent best-of <n> "<task>"` runs the same task in 2 to 8 boxes
+  at once, with `--agents claude,codex` taken in turn. hi runs the check
+  (`make check`, or `--check`) in each box after its agent ends, kills
+  what the agent left running first, and keeps `--max` per agent. A table
+  ranks the boxes by the check, flagged files, and diff size; `keep`
+  keeps one and removes the others with their branches; `ls`, `show`,
+  `rm`. No judge yet. Spec:
+  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md) (release 1).
+  Tested on 2026-10-08 with two Claude Code boxes.
+- [x] Rounds, in the style of autoresearch: `--score "<cmd>" --lower|--higher`
+  measures your last commit, then runs `--rounds n|forever` rounds, each
+  from the best so far. hi scores each box itself and alone commits a result
+  that beats the best, one commit per gain on `best-of/<run>/best`; agents
+  see earlier attempts in the next round's task. `--edit` disqualifies
+  results that touch other files; `--for`, `--budget`, `--patience`,
+  `--min-gain`. The rounds run in their own process: `watch` (q leaves,
+  the run goes on), `stop [--now]`, `resume`. With `--gpu`, boxes are scored
+  one at a time. Spec: [hi_agent_best_of.md, Rounds](specs/ideas/hi_agent_best_of.md#rounds) (release 2).
+
+### v0.34.0 — Autoresearch templates
+
+- [x] `hi init autoresearch-ml`, and a quant template now in the private
+  repo: projects shaped for `hi agent best-of` rounds, with a fixed and tested evaluation,
+  one file agents change, frozen data, a holdout outside the repository,
+  and a box image built from `uv.lock` so boxes run offline. Tested from
+  `hi init` to a score in a locked box, and through a real round. Spec: [hi_init.md](specs/approved/hi_init.md#built-in-template-types),
+  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md#templates-and-the-guide-2026-10-08).
+- [x] Project images rebuild when a file the Dockerfile copies, or a
+  `build.args` value, changes.
+- [x] The guide's Autoresearch section, with simple and advanced examples.
+
+### v0.35.0 — Results of a run
+
+- [x] `hi agent best-of --then "<command>"` runs a command on this machine,
+  in the project, when the rounds end for any reason, with `HI_BEST_OF_RUN`
+  set. hi keeps every attempt's files under `refs/best-of/<run>/`, and
+  `ls --json` lists the runs.
+- [x] The quant template's results: every attempt re-run into Parquet and
+  an offline report (private repo since v0.36.3).
+
+### v0.36.0 — A research suite for the quant template
+
+- [x] Robustness checks, scores that must hold, regimes, capacity, a fuller
+  backtester, and a report that records decisions, for the quant
+  template. Tracked in the private repo with the template since v0.36.3.
+
+### v0.36.1 — Report layout, excess returns, and Makefile notes
+
+- [x] The quant template's report layout (private repo).
+- [x] `hi init --update` notes template changes outside a managed file's hi
+  block, such as a new Makefile target, in `docs/upgrades`.
+
+### v0.36.2 — Live tokens, how agents are paid for, a model per agent
+
+- [x] `hi agent best-of watch` and `show` read the running boxes' session
+  logs: tokens in and out, steps and the latest step for each box, and the
+  round's tokens so far.
+- [x] The dollars are labelled as what they are: Claude Code's own cost at
+  API prices, which on a subscription is usage, not a bill. hi reads each
+  agent's sign-in (a Claude plan and tier, a ChatGPT plan or an OpenAI API
+  key, OpenRouter for Hermes), shows it per box, and splits billed dollars
+  from subscription usage.
+- [x] `--agents` takes a model per agent, such as
+  `hermes:qwen/qwen3.8-max-0902`, and refuses more agents than boxes.
+- [x] The quant template's results print their progress (private repo).
+
+### v0.36.3 — The quant template moves to the private repo
+
+- [x] `autoresearch-quant` is no longer built into hi; it is in
+  `hifinab/templates` and reaches connected devices through `hi server`,
+  with its tutorial, run b-3 and its specification. The public guide and
+  docs no longer describe it, and its tutorial's address redirects.
+- [x] `hi init --update` follows a layer that left the built-ins to the
+  one server source that has it, so projects made from the built-in
+  template keep updating.
 
 ### v0.37.0 — `hi team`: a virtual team in a Slack channel
 
@@ -761,366 +972,198 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   team.json narrows one.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
-### v0.36.3 — The quant template moves to the private repo
+### v0.37.1 — `hi team new` checks each answer as it's given
 
-- [x] `autoresearch-quant` is no longer built into hi; it is in
-  `hifinab/templates` and reaches connected devices through `hi server`,
-  with its tutorial, run b-3 and its specification. The public guide and
-  docs no longer describe it, and its tutorial's address redirects.
-- [x] `hi init --update` follows a layer that left the built-ins to the
-  one server source that has it, so projects made from the built-in
-  template keep updating.
+- [x] Tokens, the channel, the owners, and the members are checked as they
+  are given, and asked again in a terminal, so one wrong answer no longer
+  ends the setup.
+- [x] The marker a terminal sends after a paste no longer lands in the next
+  answer (a pasted token with a line break left `\x1b[201~` in front of
+  the channel ID).
+- [x] A repository given as a folder on this machine is cloned, and the
+  team doesn't push merges back into it; its owner pulls from the team.
 
-### v0.36.2 — Live tokens, how agents are paid for, a model per agent
+### v0.37.2 — A team's log once, and followed
 
-- [x] `hi agent best-of watch` and `show` read the running boxes' session
-  logs: tokens in and out, steps and the latest step for each box, and the
-  round's tokens so far.
-- [x] The dollars are labelled as what they are: Claude Code's own cost at
-  API prices, which on a subscription is usage, not a bill. hi reads each
-  agent's sign-in (a Claude plan and tier, a ChatGPT plan or an OpenAI API
-  key, OpenRouter for Hermes), shows it per box, and splits billed dollars
-  from subscription usage.
-- [x] `--agents` takes a model per agent, such as
-  `hermes:qwen/qwen3.8-max-0902`, and refuses more agents than boxes.
-- [x] The quant template's results print their progress (private repo).
+- [x] `hi team logs` shows each line once and only what the team prints,
+  without Podman's events or its log driver's copy; `-f` follows it.
+  Verified live on 2026-10-10 on aiw9: the lead answered in its Slack
+  channel.
 
-### v0.36.1 — Report layout, excess returns, and Makefile notes
+### v0.37.3 — Team leads in `hi box ls`
 
-- [x] The quant template's report layout (private repo).
-- [x] `hi init --update` notes template changes outside a managed file's hi
-  block, such as a new Makefile target, in `docs/upgrades`.
+- [x] `hi box ls` lists the team leads' running boxes after your own, with
+  their team, channel, and folder, and points to `hi team` for them.
 
-### v0.36.0 — A research suite for the quant template
+### v0.38.0 — Previews of a team's work
 
-- [x] Robustness checks, scores that must hold, regimes, capacity, a fuller
-  backtester, and a report that records decisions, for the quant
-  template. Tracked in the private repo with the template since v0.36.3.
+- [x] The lead's `hi team preview [<task>]` runs the project in an app box
+  on the host (`make run` or `npm start`, on `$PORT`, published to
+  localhost only) and puts it on a temporary password-protected address
+  with `hi net expose`; the lead posts it. `hi team preview stop` ends it.
+  Verified on 2026-10-10 on aiw9 with team test's world clock.
+- [x] New team repositories ask for a `make run` on `$PORT`, and the lead's
+  instructions say to share a preview instead of telling people to run
+  commands.
+- [x] The lead's own edits to its hi-team skill survive restarts; a new hi
+  replaces them only when its own text changed, and keeps them as
+  `SKILL.md.lead`.
 
-### v0.35.0 — Results of a run
+### v0.38.1 — No stray terminal replies; previews outlive restarts
 
-- [x] `hi agent best-of --then "<command>"` runs a command on this machine,
-  in the project, when the rounds end for any reason, with `HI_BEST_OF_RUN`
-  set. hi keeps every attempt's files under `refs/best-of/<run>/`, and
-  `ls --json` lists the runs.
-- [x] The quant template's results: every attempt re-run into Parquet and
-  an offline report (private repo since v0.36.3).
+- [x] hi no longer asks the terminal for its background colour at start,
+  in every command. Terminals that answered late left the reply, such as
+  `^[[34;1R`, in the shell. Bubble Tea v1 asks in its `init`, so hi builds
+  with a copy without it (`third_party/bubbletea`, until v2) and assumes a
+  dark background unless `COLORFGBG` says otherwise.
+- [x] A team's previews and member boxes run in systemd scopes of their
+  own, so restarting the team (`hi team up`) no longer stops them, and the
+  service signals only `hi team __serve`, which stops the lead cleanly.
 
-### v0.34.0 — Autoresearch templates
+### v0.39.0 — A team's project on GitHub, with its specs
 
-- [x] `hi init autoresearch-ml`, and a quant template now in the private
-  repo: projects shaped for `hi agent best-of` rounds, with a fixed and tested evaluation,
-  one file agents change, frozen data, a holdout outside the repository,
-  and a box image built from `uv.lock` so boxes run offline. Tested from
-  `hi init` to a score in a locked box, and through a real round. Spec: [hi_init.md](specs/approved/hi_init.md#built-in-template-types),
-  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md#templates-and-the-guide-2026-10-08).
-- [x] Project images rebuild when a file the Dockerfile copies, or a
-  `build.args` value, changes.
-- [x] The guide's Autoresearch section, with simple and advanced examples.
+- [x] `hi team new` can put a new project on GitHub: give `owner/name`, and
+  hi creates a private repository with the machine's `gh` sign-in.
+  `hi team github <team> <owner/repo>` does the same for an existing team,
+  or connects an empty repository. The broker pushes every merge from the
+  host; no GitHub credential enters a box.
+- [x] The lead's specs live in the project, `docs/specs`, writable at its
+  /team/specs; the broker commits them when a task starts and before a
+  merge, so members' branches start with them and they go to GitHub with
+  the code. A team's earlier `specs/` moves in on its next start, its
+  briefs to the lead's home folder.
 
-### v0.33.0 — `hi agent best-of`
+### v0.40.0 — A team lead that answers when asked, and hears everything
 
-- [x] `hi agent best-of <n> "<task>"` runs the same task in 2 to 8 boxes
-  at once, with `--agents claude,codex` taken in turn. hi runs the check
-  (`make check`, or `--check`) in each box after its agent ends, kills
-  what the agent left running first, and keeps `--max` per agent. A table
-  ranks the boxes by the check, flagged files, and diff size; `keep`
-  keeps one and removes the others with their branches; `ls`, `show`,
-  `rm`. No judge yet. Spec:
-  [hi_agent_best_of.md](specs/ideas/hi_agent_best_of.md) (release 1).
-  Tested on 2026-10-08 with two Claude Code boxes.
-- [x] Rounds, in the style of autoresearch: `--score "<cmd>" --lower|--higher`
-  measures your last commit, then runs `--rounds n|forever` rounds, each
-  from the best so far. hi scores each box itself and alone commits a result
-  that beats the best, one commit per gain on `best-of/<run>/best`; agents
-  see earlier attempts in the next round's task. `--edit` disqualifies
-  results that touch other files; `--for`, `--budget`, `--patience`,
-  `--min-gain`. The rounds run in their own process: `watch` (q leaves,
-  the run goes on), `stop [--now]`, `resume`. With `--gpu`, boxes are scored
-  one at a time. Spec: [hi_agent_best_of.md, Rounds](specs/ideas/hi_agent_best_of.md#rounds) (release 2).
+- [x] The lead answers only when someone @-mentions it, even in its own
+  threads, so people can talk among themselves in the channel.
+- [x] hi keeps the channel's log in the team's `channel/` folder: every
+  message, thread replies up to two weeks old, and shared files up to
+  50 MB, read with the bot's token from the host every two minutes.
+  `hi team channel <name> [--since 2h]` shows it; in its box the lead runs
+  `hi team channel`.
+- [x] The lead's `channel-watch` job reads what's new every 15 minutes and
+  keeps what matters in its memory, without posting; with nothing new it
+  makes no model call.
+- [x] A merge keeps the lead's `docs/specs` as the lead left them: a
+  member's changes to them are left out, and the lead is told. Briefs say
+  the specs are the lead's. This ends Hermes' "File-mutation verifier"
+  warnings in the channel after a merge changed a spec under the lead.
+  Verified on 2026-10-11 on aiw9 with team test: 43 messages and an image
+  logged, and the job saved a note to the lead's memory.
 
-### v0.32.0 — Hermes Agent
+### v0.41.0 — A team lead with long-term memory, and no restart notices
 
-- [x] `hi install hermes` runs Nous Research's installer without its setup
-  wizard; `hi uninstall hermes` removes the program and keeps `~/.hermes`.
-- [x] `hi agent hermes`: Hermes in a box, from your install mounted
-  read-only, on OpenRouter with your model. The key stays outside the box:
-  Hermes gets a placeholder and the proxy as a custom endpoint, and the
-  proxy reads only `OPENROUTER_API_KEY` from `~/.hermes/.env`. The live
-  line, the report, and its stats come from Hermes' `state.db`.
-  Tested on 2026-10-08 with Hermes Agent v0.21.2 and
-  `google/gemini-3.8-flash`: tasks of one and four steps finished, and the
-  key was in no file or variable of the box.
+- [x] The lead's long-term memory is Hindsight: a server in a container of
+  its own on the team's network, its database in the team's `memory/`
+  folder, its model calls through the team's proxy, and Hermes' hindsight
+  plugin in the lead with a memory bank per team. The plugin is the one
+  Hermes' catalog pins; its client library is installed once per machine
+  and mounted read-only. `"memory": "off"` in `team.json` leaves it out.
+  Verified on 2026-10-11 on aiw9 with team test: a turn of the lead was
+  retained as facts and recalled by meaning.
+- [x] The lead no longer posts "Hermes is shutting down" or "back online"
+  in the channel when the team restarts.
 
-### v0.31.6 — The agent's model
+### v0.42.0 — Preview links that open without a password
 
-- [x] `hi agent --model <model>` and `model:` in a brief's front matter.
-  Without them, the box uses the model in your own Claude Code or Codex
-  settings, else `opus` for Claude Code: with only a placeholder token in
-  the box, Claude Code can't see the plan and chose Sonnet. The box's first
-  line names the model.
+- [x] `hi net expose --link` puts the key in the link: hi's relay lets in a
+  request with the key (from the link, its cookie, or a Bearer header) and
+  answers anything else with a page asking for the link. The link's key
+  becomes a cookie until the address ends, and the browser moves on to
+  the address without it.
+- [x] A team's previews use it: the lead posts one link, and the people
+  open it, with no password to copy.
+  Verified on 2026-10-11 on aiw9 through NetBird: 401 without the key, 303
+  and the cookie with the link, then the app.
 
-### v0.31.5 — Stats for each agent run
+### v0.43.0 — A team that waits for your yes
 
-- [x] The report ends with how long the run took, its steps, tokens in
-  (and how many were cached) and out, the model, and for Claude Code its
-  cost at API prices; `--json` gives `seconds`, `steps`, `model`,
-  `tokens.cached`, and `cost_usd`. Codex's tokens come from its session
-  log, so its runs have them too.
+- [x] New work starts only after one of the people says yes: the broker
+  refuses a new task unless the lead names the approving message, a reply
+  from an owner or asker after the lead's question in the same thread,
+  checked against the channel's log. Continuing a task needs none; a
+  small fix may start with `--small`, and the broker tells the channel.
+  `hi team channel --ids` shows each message's id.
+- [x] Hindsight's "recalled N memories" and "saving to memory" lines no
+  longer appear in the channel.
 
-### v0.31.4 — See that an agent is working
+### v0.44.0 — Pick the team to start from a list
 
-- [x] While `hi agent` and `hi agent wait` wait, one line shows a red
-  scanner, the time so far, tokens in and out, the steps taken, and the
-  latest step, read from the agent's session log in the box's home
-  folder, for Claude Code and Codex alike. Ctrl+C clears it and says how
-  to wait again.
+- [x] `hi team up` without a name shows the teams on this machine, whether
+  each is up, and its channel; the one you choose starts, or restarts.
 
-### v0.31.3 — timg in the terminal tools
+### v0.45.0 — Dev and production for a team
 
-- [x] `hi install terminal` also installs
-  [timg](https://github.com/hzeller/timg) from Ubuntu, which shows images
-  and videos in the terminal; `hi uninstall terminal` removes it too.
+- [x] Merges go to dev (`main`); production is a `production` branch that
+  moves only on an owner's yes: `hi team release --approval <id> --notes
+  <file>` makes dev's latest the next version (v1, v2, ..., tagged
+  `release-<n>`), and `hi team release v2` puts production back on an
+  earlier one. Each move is posted in the channel itself, with the notes.
+- [x] `hi team discard <task>` drops an idea that isn't merged, with its
+  follow-ups, reviews, boxes, and branches; `hi team discard dev` sets dev's
+  code back to production's, as a commit that keeps the specs, and is
+  posted in the channel.
+- [x] At most five ideas wait unmerged; a sixth task is refused until one
+  is merged or discarded.
+- [x] `hi team versions`, `hi team status`, merges, and previews name the
+  version: "production v3", "dev, v3 + 2 changes".
 
-### v0.31.2 — Screenshots with every image
+### v0.46.0 — Members get what the people gave
 
-- [x] The `web` bundle's Chrome doesn't say it's headless: it gives a
-  normal Chrome's user agent, not `HeadlessChrome`, and
-  `navigator.webdriver` is false. Some CDNs refuse headless Chrome;
-  plejd.com's images were broken in screenshots and now load.
-- [x] The `hi` skill tells agents to scroll before a full-page screenshot,
-  so lazy images load, and to open the PNG to check it.
+- [x] A team member's box gets the task's files at `/box/files`
+  (read-only, `hi agent --files <folder>`): the files shared in the thread
+  the work was approved in, and what the lead attaches with `hi team task
+  --attach <file>`. The brief quotes that thread with its links and says
+  what each file is. Follow-ups and reviews get the same files.
+- [x] A lead's scheduled messages are posted as they are, without Hermes'
+  "Cronjob Response" heading and job footer.
 
-### v0.31.1 — Bundles in devcontainer.json
+### v0.47.0 — Remove a team
 
-- [x] `customizations.hi.bundles` in a project's `devcontainer.json` gives
-  every box and agent there those bundles; `--bundle` adds more.
-- [x] `hi skill update` asks "Use it anyway?" about a risky skill, not
-  "Add it anyway?".
+- [x] `hi team rm [<name>]` stops a team and removes it from the machine:
+  its systemd service, its name in the teams folder, its containers and
+  members' boxes, and its folder. It asks first (`--yes` without a
+  terminal); `--keep-folder` keeps the folder for `hi team up <folder>`.
 
-### v0.31.0 — Bundles in `hi agent`
+### v0.48.0 — The lead is @<name>
 
-- [x] `hi agent --bundle web,office` (and `hi box --bundle`): the bundles'
-  skills, pinned to their commits, go in the box's home with the `hi`
-  skill, and the box runs on `hi-agent:<hash>`, built once from the
-  skills' needs on the box's base image and reused.
-- [x] The network the skills need is shown with each reason and asked
-  about; without a terminal it needs `--network` or `--allow`. `--data`
-  with an open network is refused.
-- [x] Bundles from hi, the team's template sources (which may name their
-  own `skills/`), and `~/.local/share/hi/bundles`; `hi bundle ls`, `show`,
-  and `prune`.
-- [x] Front matter in briefs: `agent`, `bundles`, `network`, `allow`,
-  `data`, `gpu`; what widens the box is asked about, or left out without a
-  terminal.
-- [x] The report's `bundles`, `skills`, and `image`.
-  Tested on 2026-10-08 with rootless Podman: the `web` image (2.8 GB)
-  built once, then started from the cache in a second; Claude Code browsed
-  with `agent-browser` in an empty folder from a brief with front matter;
-  Codex found the `data` bundle's skills in `~/.agents/skills` and used
-  DuckDB; every tool in the `office` image checked.
-  Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md), release 2.
+- [x] A new team's Slack app is named after the team, so people write
+  `@payments` instead of `@team-payments`.
 
-### v0.30.2 — Finish the team's data on every cloud machine
+### v0.49.0 — Reviews in the broker, and a lead's notes that last
 
-- [x] `hi server expose revoke <run>` ends one run's token now; the server
-  keeps the run until its tokens would have expired and refuses it new
-  ones. `hi server expose` lists the runs with run tokens.
-  Spec: [hi_server_expose.md, Run tokens](specs/approved/hi_server_expose.md#run-tokens).
-- [x] "1 file", not "1 files", in `hi compute run --data`'s output, on
-  the instance, and in `hi data info`.
-- [x] The `hi server data` menu, tried in a real terminal against a running
-  server: add, test, and remove an organization. It now shows whose token
-  each organization uses in `list`, names a `hf auth login` sign-in and
-  warns about it, and doesn't print each result twice.
-- [x] [hi_server_expose.md](specs/approved/hi_server_expose.md) approved.
-  Tested on 2026-10-08.
+- [x] The broker runs a task's review rounds: when a review asks for
+  changes, the coder gets the notes on the same branch and is reviewed
+  again, up to three reviews. The lead hears once: approved, or changes
+  still needed.
+- [x] A review reads the lead's current specs, and a follow-up merges the
+  team's branch first when its specs moved.
+- [x] The lead keeps what it learns in a `hi-team-notes` skill that hi never
+  rewrites; paragraphs a lead added to a replaced `hi-team` skill move there.
+- [x] `hi team up` brings an existing lead's SOUL.md up to date, keeping the
+  lead's and the owners' edits.
 
-### v0.30.1 — Bundles from skills.sh
+### v0.50.0 — Links that keep working
 
-- [x] `bundles/web.json`, `office.json`, and `data.json` list skills from
-  skills.sh by source and commit, with the packages each needs:
-  `agent-browser`; Anthropic's `docx`, `xlsx`, `pptx`, and `pdf`; DuckDB's
-  `query`, `read-file`, and `convert-file`, and `data-visualization`.
-- [x] `hi skill update --bundles` (`--check`, a bundle or skill name)
-  shows each change, new mentions, and audits, asks, and rewrites the
-  bundle files; bundle files with unknown keys or unpinned packages are
-  refused.
-- [x] The ten hand-written skills are removed, and what `hi-data` added is
-  in the `hi` skill's "Team data".
-- [x] `hi skills` highlights like the other menus.
-  Pinned on 2026-10-08 against the real repositories and skills.sh.
-  Spec: [hi_skills_sh.md](specs/approved/hi_skills_sh.md), release 2.
+- [x] A team has two addresses, each a `hi net expose --follow` on a port
+  file: a preview keeps its link across merges, and production follows the
+  production branch, renewed before its day ends.
+- [x] One channel message keeps production's current link, and release
+  announcements link to it.
 
-### v0.30.0 — `hi skill` with skills.sh
+### v0.51.0 — Check the Slack app's scopes
 
-- [x] `hi skills` in a terminal: search skills.sh as you type, browse
-  suggestions, see a skill's description, license, and audits, and pick
-  several to install; `u` updates and `x` removes. Without a terminal,
-  `hi skill` still writes the hi skill.
-- [x] `hi skill find`, `add`, `ls`, `show`, `update` (`--check`), and `rm`:
-  skills from GitHub, any git repository, or a folder, at a recorded commit,
-  in `.agents/skills` linked from `.claude/skills`, and in the
-  `skills-lock.json` that `npx skills` uses, with the commit added.
-- [x] skills.sh's audits on find, add, show, and update; a `high` or
-  `critical` rating needs a yes or `--accept-risk`; no install telemetry,
-  and `DO_NOT_TRACK` turns off searches and audits.
-  Tested on 2026-10-07 against skills.sh and GitHub, and the selector in a
-  real terminal.
-  Spec: [hi_skills_sh.md](specs/approved/hi_skills_sh.md), release 1.
+- [x] `hi team new` refuses a Slack token that lacks the scopes the lead
+  needs, such as `files:read`, and `hi team up` warns, naming the scopes to
+  add.
 
-### v0.29.2 — `hi agent` in folders without git
+### v0.51.1 — Templates in `project_templates/`
 
-- [x] Folders without git: the agent works in place, and the report's
-  changed files come from the folder's files before and after; not in the
-  home folder or above it. Tested on 2026-10-07 with Claude Code and Codex.
-  Spec: [hi_agent_bundles.md, Folders](specs/ideas/hi_agent_bundles.md#folders-that-arent-git-repositories-release-1).
-
-### v0.29.1 — Tasks from markdown files
-
-- [x] Task files: `hi agent brief.md`, `-` for stdin, and `--task-file`;
-  the task goes to the agent on stdin, and the report has `task_file`.
-  Tested on 2026-10-07 in rootless Podman: Claude Code from an uncommitted
-  brief; Codex got its task on stdin, but its sign-in had been spent (below).
-  Spec: [hi_agent_bundles.md, Task files](specs/ideas/hi_agent_bundles.md#task-files-release-1).
-- [x] A Codex sign-in refreshed in a box is copied back to
-  `~/.codex/auth.json` when the run ends or the box is removed; before, the
-  box spent the one-time refresh token and Codex on the machine stopped
-  working.
-
-### v0.29.0 — The team's data on every cloud machine
-
-- [x] `hi compute up --data <org>/<name>` for RunPod and Shadeform: the
-  device gets a run token for the machine's lifetime before it is created,
-  and once it is up writes `HF_ENDPOINT` and the token into
-  `~/.hi/data.env` over SSH, which the machine's shells load; so
-  `hf download` and `load_dataset` work there, and the token never shows
-  in the provider's console. The same through a managed provider, after
-  approval; `--no-wait` and Community Cloud refuse `--data`.
-  Spec: [hi_server_expose.md, Cloud machines](specs/approved/hi_server_expose.md#cloud-machines) and
-  [Releases](specs/approved/hi_server_expose.md#releases) (2).
-  Tested on 2026-10-07 on RunPod (RTX 2000 Ada) through vmhiserver:
-  `hf download` and `load_dataset` of hifinab/bars-1d, and a refusal for a
-  repository not named.
-
-### v0.28.0 — `hi agent`: agents get their own command
-
-- [x] `hi agent [claude|codex] "<task>"` runs the agent in a box on a new
-  worktree and waits for one report, the same for every agent: status,
-  exit status, final message, its own summary block, session ID, tokens
-  where the agent gives them, and the changed files from git. Without a
-  name, the first agent installed and signed in.
-- [x] `--json`, `--detach`, and `hi agent wait <name>`; exit 1 when the
-  agent failed. `hi agent claude|codex` without a task is an interactive
-  session in a box.
-- [x] `hi box` is now for any code: `hi box claude|codex` and `hi box token`
-  moved to `hi agent`, and print a pointer. The `locked` preset allows
-  nothing; an agent's own hosts come with the agent.
-- [x] The guide's new page, the agent skill, the website, and `llms.txt`.
-  Tested on 2026-10-07 on aiw9 with rootless Podman, Claude Code, and Codex.
-  Spec: [hi_agent.md](specs/approved/hi_agent.md), release 1.
-
-### v0.27.1 — The agent skill knows `hi data` and `hi net expose`
-
-- [x] The skill's description, which decides when agents load it, now names
-  the team's data (`hi data`, `--data`) and `hi net expose`, and its
-  introduction points to `hi data help` and `hi net expose help`. Refresh
-  installed skills with `hi skill --global`, and `hi skill` in projects.
-
-### v0.27.0 — `hi net expose`: a local service on a temporary public address
-
-- [x] `hi net expose <port>` publishes a service on this machine with
-  NetBird's reverse proxy, through a relay on the NetBird address so
-  services on `localhost` work, with a request log.
-- [x] Protected by a generated password by default; `--pin`, `--groups`
-  (NetBird SSO), or `--public` instead. Ends after `--max` (default 1h, at
-  most 24h) or on Ctrl+C.
-- [x] `--detach` and `--json` for agents; `ls` and `stop`; each exposure in
-  a connected hi server's audit log and live feed; the agent skill asks the
-  user first and never goes `--public` without a yes.
-  Tested on aiw9 with NetBird 0.74.4.
-  Spec: [hi_net_expose.md](specs/ideas/hi_net_expose.md). Later: TCP
-  services and a `net_expose` group policy (release 2 of the spec).
-
-### v0.26.0 — The team's data in cloud jobs, through `netbird expose`
-
-- [x] The server opens a second listener with only the `hi data` proxy and
-  publishes it with `netbird expose` while cloud runs need it, closing it
-  when no run token is valid and nothing has called for 10 minutes.
-- [x] Run tokens: for the repositories named with `--data`, until the
-  run's time limit, accepted only through the public address.
-- [x] `hi compute run --data` on Hugging Face Jobs uses it: the token goes
-  as an encrypted job secret, there is no size limit or one-hour expiry,
-  and the script can call `load_dataset` itself. Signed links remain for
-  Colab and when the server can't expose. `hi server expose [stop]`.
-  Tested on a real Hugging Face job through a server on vmhiserver.
-  Spec: [hi_server_expose.md](specs/approved/hi_server_expose.md).
-
-### v0.25.2 — A clear message from an older server
-
-- [x] `hi compute run --data` against a server older than v0.25.1 says to
-  update the server, instead of "404 page not found".
-
-### v0.25.1 — The team's data on rented GPUs
-
-- [x] `hi compute run --data <org>/<name>[/<pattern>]` downloads the team's
-  data into `data/<name>` on the instance before the script starts. The
-  instance can't reach the hi server, so the server hands out a signed
-  link per file (about an hour, no token) and `hi` ships them in a wrapper
-  that then runs the script. Tested with real links and a 548 MB file,
-  and on a real Hugging Face job with 150 private files from the team.
-
-### v0.25.0 — `hi data` in code, projects, and boxes
-
-- [x] `hi data run -- <command>` and `eval "$(hi data env)"`: `load_dataset`,
-  `from_pretrained`, `hf_hub_download`, and `hf://` paths in pandas read
-  the team's repositories directly. Tested with datasets 5.0.1 and pandas.
-- [x] `hi data get` pins a branch or tag to its commit and records the
-  download in the project's `.hifin/data.json`; `hi data get` with no name
-  fetches everything recorded, and warns when a bucket changed since.
-- [x] `hi box --data`: the box gets a placeholder token and hi's proxy adds
-  a hi data token on the way to the server, and allows Hugging Face's
-  download hosts. Tested with rootless Podman and a 548 MB Xet file.
-- [x] The spec is approved: [hi_data.md](specs/approved/hi_data.md).
-
-### v0.24.3 — Day-long data tokens, and `hi data` in the docs
-
-- [x] A hi data token lasts a day instead of an hour, so long downloads
-  don't stop when `hf` asks for its next Xet token; it still works only
-  from its device, while the device and user are enrolled.
-- [x] Laptops older than v0.24.2 don't see buckets, which they would try
-  to download as models; counts say "1 bucket".
-- [x] The guide (Download the team's data), README, website, llms.txt, and
-  the agent skill cover `hi data`.
-
-### v0.24.2 — Buckets in `hi data`
-
-- [x] `hi data` lists the organizations' buckets with their size and file
-  count; `hi data get` syncs one with `hf buckets sync`, and `info` lists
-  its largest files. The proxy passes a bucket's reads and refuses uploads,
-  deletes, and settings. Tested with a public bucket through the proxy,
-  and with a private 36 GB bucket from the team's server on 2026-10-03.
-
-### v0.24.1 — Search in `hi data`
-
-- [x] `hi data`'s list has a search field: typing filters at once, every
-  word must match (`gemma 27b`), and at most 15 rows show, with a count.
-  Without a terminal it asks for words first and numbers only the matches.
-
-### v0.24.0 — `hi data`: the team's Hugging Face datasets and models
-
-- [x] `hi server data add <org>...` stores a read token per organization
-  after checking it with the Hub; `list`, `test`, `remove`, and a menu.
-- [x] A proxy under `/hf` passes only a repository's read calls on with the
-  organization's token, so devices run the official `hf` with
-  `HF_ENDPOINT` pointing to the server and a hi data token that lasts an
-  hour. The Hugging Face token never reaches a device; file bytes come from
-  the CDN and Xet storage directly.
-- [x] `hi data` (a picker), `ls`, `info`, and `get`; `data` patterns per
-  group in policy, everything when unset; token grants in the audit log,
-  downloads in `data_usage.jsonl`.
-  Tested on 2026-10-03 with `hf` 1.32.0 against the real Hub.
-  Spec: [hi_data.md](specs/approved/hi_data.md).
+- [x] A template source keeps its layers in `project_templates/<layer>/`,
+  beside `skills/` and `docs/`; layers at the top still load. The private
+  repo's `research` and `autoresearch-quant` moved there.
+  Approved spec: [hi_init.md](specs/approved/hi_init.md#layout-of-a-source).
 
 ## Planned
 
@@ -1154,7 +1197,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Fitted regime models (HMM) and models with trained parameters, which
   need libraries the boxes don't allow today.
 
-### v0.33.0 — Learn from agent-machine services
+### Later — Learn from agent-machine services
 
 - [ ] Study [boxd](https://docs.boxd.sh/) and similar services (Fly's
   Sprites, E2B, Daytona, Modal Sandboxes) and write down which ideas fit
