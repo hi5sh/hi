@@ -105,10 +105,15 @@ and no way to update a repository later.
 Built-in and server sources have the same layout:
 
 ```text
-<layer>/layer.json       the layer's manifest
-<layer>/...              the layer's files
-skills/<name>/SKILL.md   skills in the Agent Skills format
+project_templates/<layer>/layer.json   the layer's manifest
+project_templates/<layer>/...          the layer's files
+skills/<name>/SKILL.md                 skills in the Agent Skills format
 ```
+
+A layer may also sit at the top of the source (`<layer>/layer.json`), which
+is how hi's built-in layers are laid out; a name may not be in both places.
+`project_templates/` keeps a source's templates together, apart from
+`skills/` and `docs/`, and needs hi 0.51.1 or newer.
 
 Built-in layers today are `base` (hidden: never chosen on its own), `python`,
 and `web`.

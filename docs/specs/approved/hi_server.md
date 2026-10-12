@@ -399,7 +399,8 @@ hi server templates add private https://github.com/hifinab/templates [--ref main
 - `--ref` is a branch or tag; the default is the repository's default branch.
 - Before saving, the server clones the repository into
   `templates/<name>.git` in its state folder and checks it: each
-  `<layer>/layer.json` must be valid, layer names must not reuse built-in
+  `project_templates/<layer>/layer.json` (or `<layer>/layer.json`) must be
+  valid, layer names must not reuse built-in
   names, and every skill must have a `SKILL.md`. A source that fails is not
   added, and the errors are printed.
 

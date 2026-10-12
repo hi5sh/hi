@@ -234,7 +234,7 @@ func checkTemplateSource(name string, files fs.FS) ([]apiTemplateLayer, []string
 		return nil, nil, err
 	}
 	if len(layers) == 0 && len(skills) == 0 && len(bundles) == 0 {
-		return nil, nil, errors.New("no layers (<layer>/layer.json), skills (skills/<name>/SKILL.md), or bundles (bundles/<name>.json) found")
+		return nil, nil, errors.New("no layers (project_templates/<layer>/layer.json), skills (skills/<name>/SKILL.md), or bundles (bundles/<name>.json) found")
 	}
 	combined := map[string]*templateLayer{}
 	for layerName, layer := range builtin {

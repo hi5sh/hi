@@ -22,6 +22,9 @@ var builtinTemplateFiles embed.FS
 const (
 	layerManifestName = "layer.json"
 	fragmentSuffix    = ".fragment"
+	// projectTemplatesDir holds a source's layers, one folder each, beside
+	// skills/ and docs/. Layers at the top of a source still load.
+	projectTemplatesDir = "project_templates"
 )
 
 // templateLayer is one layer's layer.json plus where its files live.
@@ -81,11 +84,25 @@ func loadTemplateSource(source string, files fs.FS) (map[string]*templateLayer, 
 		return nil, err
 	}
 	layers := map[string]*templateLayer{}
+	if err := loadTemplateLayers(source, files, ".", entries, layers); err != nil {
+		return nil, err
+	}
+	if entries, err := fs.ReadDir(files, projectTemplatesDir); err == nil {
+		if err := loadTemplateLayers(source, files, projectTemplatesDir, entries, layers); err != nil {
+			return nil, err
+		}
+	}
+	return layers, nil
+}
+
+// loadTemplateLayers adds each folder in dir that has a layer.json.
+func loadTemplateLayers(source string, files fs.FS, dir string, entries []fs.DirEntry, layers map[string]*templateLayer) error {
 	for _, entry := range entries {
-		if !entry.IsDir() || entry.Name() == "skills" {
+		if !entry.IsDir() || entry.Name() == "skills" || entry.Name() == projectTemplatesDir {
 			continue
 		}
-		data, err := fs.ReadFile(files, path.Join(entry.Name(), layerManifestName))
+		folder := path.Join(dir, entry.Name())
+		data, err := fs.ReadFile(files, path.Join(folder, layerManifestName))
 		if err != nil {
 			continue
 		}
@@ -93,19 +110,22 @@ func loadTemplateSource(source string, files fs.FS) (map[string]*templateLayer, 
 		decoder := json.NewDecoder(bytes.NewReader(data))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(layer); err != nil {
-			return nil, fmt.Errorf("%s: %s/%s: %w", source, entry.Name(), layerManifestName, err)
+			return fmt.Errorf("%s: %s/%s: %w", source, folder, layerManifestName, err)
 		}
 		if layer.Name != entry.Name() {
-			return nil, fmt.Errorf("%s: %s/%s names the layer %q", source, entry.Name(), layerManifestName, layer.Name)
+			return fmt.Errorf("%s: %s/%s names the layer %q", source, folder, layerManifestName, layer.Name)
+		}
+		if _, taken := layers[layer.Name]; taken {
+			return fmt.Errorf("%s: the layer %q is both at the top and in %s/", source, layer.Name, projectTemplatesDir)
 		}
 		layer.source, layer.key = source, layer.Name
-		layer.files, err = fs.Sub(files, entry.Name())
+		layer.files, err = fs.Sub(files, folder)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		layers[layer.Name] = layer
 	}
-	return layers, nil
+	return nil
 }
 
 func builtinTemplateLayers() (map[string]*templateLayer, error) {

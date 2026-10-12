@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 )
 
 func composeBuiltin(t *testing.T, name, project string) *composedTemplate {
@@ -146,5 +147,33 @@ func TestLockfileGroupMarkersFollowTheName(t *testing.T) {
 	lock := string(composeBuiltin(t, "ml", "m").Files["uv.lock"])
 	if !strings.Contains(lock, "group-1-m-cpu") || strings.Contains(lock, "group-19-") {
 		t.Fatal("uv.lock group markers do not match the project name")
+	}
+}
+
+func TestLoadTemplateSourceReadsProjectTemplates(t *testing.T) {
+	manifest := func(name string) *fstest.MapFile {
+		return &fstest.MapFile{Data: []byte(`{"name": "` + name + `", "summary": "s", "extends": "python", "schema": 1}`)}
+	}
+	files := fstest.MapFS{
+		"old/layer.json":                      manifest("old"),
+		"project_templates/quant/layer.json":  manifest("quant"),
+		"project_templates/quant/strategy.py": {Data: []byte("x = 1\n")},
+		"skills/backtest-evaluation/SKILL.md": {Data: []byte("---\nname: backtest-evaluation\n---\n")},
+		"project_templates/notes/README.md":   {Data: []byte("not a layer\n")},
+	}
+	layers, err := loadTemplateSource("private", files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(layers) != 2 || layers["old"] == nil || layers["quant"] == nil {
+		t.Fatalf("layers = %v, want old and quant", layers)
+	}
+	if data, err := fs.ReadFile(layers["quant"].files, "strategy.py"); err != nil || string(data) != "x = 1\n" {
+		t.Fatalf("quant's files are not rooted at its folder: %q, %v", data, err)
+	}
+
+	files["quant/layer.json"] = manifest("quant")
+	if _, err := loadTemplateSource("private", files); err == nil || !strings.Contains(err.Error(), "both at the top and in project_templates/") {
+		t.Fatalf("err = %v, want a duplicate-layer error", err)
 	}
 }
