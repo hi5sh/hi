@@ -65,6 +65,8 @@
       url: /guide/autoresearch/best-of/
     - title: Rounds that keep only gains
       url: /guide/autoresearch/rounds/
+    - title: Keep only gains that hold
+      url: /guide/autoresearch/validation/
     - title: Start from a template
       url: /guide/autoresearch/templates/
     - title: Simple examples

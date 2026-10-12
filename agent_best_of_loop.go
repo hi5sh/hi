@@ -38,11 +38,22 @@ type bestOfLoop struct {
 	ScoreMax int       `json:"score_max_seconds,omitempty"`
 	// Then runs on the host, in the project, when the rounds end.
 	Then string `json:"then,omitempty"`
+	// Validate gates every gain on data agents never see
+	// (agent_best_of_validate.go).
+	Validate      string  `json:"validate,omitempty"`
+	ValidateData  string  `json:"validate_data,omitempty"`
+	ValidateSlack float64 `json:"validate_slack,omitempty"`
+	ValidateMax   int     `json:"validate_max_seconds,omitempty"`
+	// Image is the baseline box's image, which validation containers run.
+	Image string `json:"image,omitempty"`
 
-	Baseline   *float64 `json:"baseline,omitempty"`
-	Best       *float64 `json:"best,omitempty"`
-	BestRound  int      `json:"best_round"`
-	BestCommit string   `json:"best_commit,omitempty"`
+	Baseline  *float64 `json:"baseline,omitempty"`
+	Best      *float64 `json:"best,omitempty"`
+	BestRound int      `json:"best_round"`
+	// The validation numbers of the baseline and of the best so far.
+	BaselineValidation *float64 `json:"baseline_validation,omitempty"`
+	BestValidation     *float64 `json:"best_validation,omitempty"`
+	BestCommit         string   `json:"best_commit,omitempty"`
 	// Tip is the commit the next round starts from: the best so far.
 	Tip string `json:"tip"`
 	// Since is the round patience counts from, when no gain came after it.
@@ -61,19 +72,21 @@ type bestOfLoop struct {
 
 // bestOfRound is one finished round.
 type bestOfRound struct {
-	Round   int         `json:"round"`
-	Started time.Time   `json:"started"`
-	Ended   time.Time   `json:"ended"`
-	Result  string      `json:"result"` // kept, discarded, unchanged, crash, or stopped
-	Winner  string      `json:"winner,omitempty"`
-	Agent   string      `json:"agent,omitempty"`
-	Score   *float64    `json:"score,omitempty"`
-	Before  *float64    `json:"before,omitempty"`
-	Idea    string      `json:"idea,omitempty"`
-	Commit  string      `json:"commit,omitempty"`
-	Spend   float64     `json:"spend_usd"`
-	Billed  float64     `json:"billed_usd,omitempty"`
-	Boxes   []bestOfBox `json:"boxes"`
+	Round   int       `json:"round"`
+	Started time.Time `json:"started"`
+	Ended   time.Time `json:"ended"`
+	Result  string    `json:"result"` // kept, discarded, rejected, unchanged, crash, or stopped
+	Winner  string    `json:"winner,omitempty"`
+	Agent   string    `json:"agent,omitempty"`
+	Score   *float64  `json:"score,omitempty"`
+	Before  *float64  `json:"before,omitempty"`
+	// Validation is the winner's validation number, with --validate.
+	Validation *float64    `json:"validation,omitempty"`
+	Idea       string      `json:"idea,omitempty"`
+	Commit     string      `json:"commit,omitempty"`
+	Spend      float64     `json:"spend_usd"`
+	Billed     float64     `json:"billed_usd,omitempty"`
+	Boxes      []bestOfBox `json:"boxes"`
 }
 
 // These are replaced in tests.
@@ -104,8 +117,9 @@ var (
 func parseBestOfLoop(flags bestOfFlags) (*bestOfLoop, error) {
 	if flags.score == "" {
 		if flags.roundsGiven || flags.within != "" || flags.budget != "" || flags.patience != "" || flags.minGain != "" ||
-			len(flags.edit) > 0 || flags.lower || flags.higher || flags.then != "" {
-			return nil, usageError{`--rounds, --for, --budget, --patience, --min-gain, --edit, --then, --lower, and --higher go with --score "<command>"`}
+			len(flags.edit) > 0 || flags.lower || flags.higher || flags.then != "" ||
+			flags.validate != "" || flags.validateData != "" || flags.validateSlack != "" {
+			return nil, usageError{`--rounds, --for, --budget, --patience, --min-gain, --edit, --then, --validate, --lower, and --higher go with --score "<command>"`}
 		}
 		return nil, nil
 	}
@@ -122,6 +136,9 @@ func parseBestOfLoop(flags bestOfFlags) (*bestOfLoop, error) {
 			return nil, usageError{fmt.Sprintf("--min-gain is a number of 0 or more, not %q", flags.minGain)}
 		}
 		loop.MinGain = value
+	}
+	if err := parseBestOfValidate(flags, loop); err != nil {
+		return nil, err
 	}
 	return loop, nil
 }
@@ -264,6 +281,11 @@ func startBestOfLoop(run *bestOfRun, options boxOptions, stdin io.Reader, stdout
 	loop.ScoreMax = max(120, 2*seconds+60)
 	run.Options.Network, run.Options.Allow = options.network, options.allow
 	fmt.Fprintf(info, "Baseline: %s, in %s.\n", formatScore(value), formatDuration(time.Duration(seconds)*time.Second))
+	if loop.Validate != "" {
+		if err := validateBestOfBaseline(run, info); err != nil {
+			return fail(err)
+		}
+	}
 	loop.State, loop.Started = "running", time.Now().UTC()
 	if err := saveBestOf(run); err != nil {
 		return fail(err)
@@ -326,6 +348,7 @@ func bestOfBaseline(run *bestOfRun, options boxOptions, stdin io.Reader, info, s
 	}
 	options.network = meta.Network
 	options.allow = bestOfExtraHosts(meta, "run", options.allow)
+	run.Loop.Image = meta.Image
 	return value, seconds, options, nil
 }
 
@@ -488,6 +511,10 @@ func bestOfRoundTask(run bestOfRun) string {
 		fmt.Fprintf(&b, "The best score so far is %s. ", formatScore(*loop.Best))
 	}
 	fmt.Fprintf(&b, "hi keeps your result only if it beats that%s: hi commits it, and the next round starts from it. Otherwise it is discarded.\n", gain)
+	if loop.Validate != "" {
+		b.WriteString("hi also tries the round's best result on data that is not in your box. If it beats the best score but does worse there, it is rejected and not kept: " +
+			"a gain has to hold on data you never saw, so prefer ideas that would work on any period over ones fitted to this data.\n")
+	}
 	if len(loop.Edit) > 0 {
 		fmt.Fprintf(&b, "Change only %s. A result that changes any other file is discarded.\n", strings.Join(loop.Edit, ", "))
 	}
@@ -507,6 +534,8 @@ func bestOfRoundTask(run bestOfRun) string {
 			switch {
 			case round.Result == "kept" && box.Name == round.Winner:
 				result = "kept"
+			case round.Result == "rejected" && box.Name == round.Winner:
+				result = "rejected"
 			case len(box.Outside) > 0:
 				result = "outside the files allowed"
 			case !run.good(box):
@@ -610,6 +639,9 @@ func playBestOfRound(run *bestOfRun, log io.Writer) (bool, error) {
 	for i := range run.Boxes {
 		measureBestOfBox(run, &run.Boxes[i])
 	}
+	if loop.Validate != "" {
+		validateBestOfRound(run, phase)
+	}
 	return false, settleBestOfRound(run, log)
 }
 
@@ -662,7 +694,15 @@ func settleBestOfRound(run *bestOfRun, log io.Writer) error {
 	if winner != nil {
 		round.Winner, round.Agent, round.Score, round.Idea = winner.Name, winner.Agent, winner.Score, winner.Idea
 		round.Result = "discarded"
-		if loop.Best == nil || bestOfGain(*run, *winner.Score, *loop.Best) {
+		if winner.Validation != nil {
+			round.Validation = winner.Validation.Value
+		}
+		gain := loop.Best == nil || bestOfGain(*run, *winner.Score, *loop.Best)
+		if gain && loop.Validate != "" && !bestOfHolds(*run, *winner) {
+			// No fallback to the next box: choosing among boxes by
+			// validation would fit the validation data too.
+			round.Result = "rejected"
+		} else if gain {
 			before := "none"
 			if loop.Best != nil {
 				before = formatScore(*loop.Best)
@@ -683,6 +723,9 @@ func settleBestOfRound(run *bestOfRun, log io.Writer) error {
 			round.Result, round.Commit = "kept", commit
 			score := *winner.Score
 			loop.Tip, loop.BestCommit, loop.Best, loop.BestRound = commit, commit, &score, loop.Round
+			if round.Validation != nil {
+				loop.BestValidation = round.Validation
+			}
 		}
 	}
 	for i := range run.Boxes {
@@ -699,6 +742,9 @@ func settleBestOfRound(run *bestOfRun, log io.Writer) error {
 	score := "-"
 	if round.Score != nil {
 		score = formatScore(*round.Score)
+	}
+	if round.Validation != nil {
+		score += ", validation " + formatScore(*round.Validation)
 	}
 	fmt.Fprintf(log, "%s: round %d %s, score %s, %s\n", time.Now().Format(time.DateTime), loop.Round, round.Result, score, round.Idea)
 	for i := range run.Boxes {
@@ -931,14 +977,24 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 	if !loop.Lower {
 		direction = "higher is better"
 	}
-	fmt.Fprintf(&b, "Score: %s (%s)\n", run.Score, direction)
+	if loop.Validate != "" {
+		fmt.Fprintf(&b, "Score: %s (%s) · validated by: %s\n", run.Score, direction, loop.Validate)
+	} else {
+		fmt.Fprintf(&b, "Score: %s (%s)\n", run.Score, direction)
+	}
 	if loop.Then != "" {
 		fmt.Fprintf(&b, "Then: %s, when the rounds end\n", loop.Then)
 	}
 	if loop.Best != nil {
-		line := "Best: " + formatScore(*loop.Best)
+		validation := func(value *float64) string {
+			if loop.Validate == "" || value == nil {
+				return ""
+			}
+			return " (validation " + formatScore(*value) + ")"
+		}
+		line := "Best: " + formatScore(*loop.Best) + validation(loop.BestValidation)
 		if loop.BestRound > 0 {
-			line += fmt.Sprintf(" from round %d, baseline %s", loop.BestRound, formatScore(*loop.Baseline))
+			line += fmt.Sprintf(" from round %d, baseline %s%s", loop.BestRound, formatScore(*loop.Baseline), validation(loop.BaselineValidation))
 		} else {
 			line += ", the baseline"
 		}
@@ -956,11 +1012,22 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 			ideaWidth = max(20, width-50)
 		}
 		table := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(table, "  ROUND\tRESULT\tSCORE\tBOX\tIDEA")
+		if loop.Validate != "" {
+			fmt.Fprintln(table, "  ROUND\tRESULT\tSCORE\tVALID.\tBOX\tIDEA")
+		} else {
+			fmt.Fprintln(table, "  ROUND\tRESULT\tSCORE\tBOX\tIDEA")
+		}
 		for _, round := range history {
 			score := "–"
 			if round.Score != nil {
 				score = formatScore(*round.Score)
+			}
+			if loop.Validate != "" {
+				valid := "–"
+				if round.Validation != nil {
+					valid = formatScore(*round.Validation)
+				}
+				score += "\t" + valid
 			}
 			idea := firstNonEmpty(round.Idea, bestOfRoundNote(round))
 			if len([]rune(idea)) > ideaWidth {
@@ -1007,6 +1074,8 @@ func bestOfRoundNote(round bestOfRound) string {
 		return "no box changed anything"
 	case "stopped":
 		return "stopped before it ended"
+	case "rejected":
+		return "beat the score but lost on validation"
 	}
 	return ""
 }

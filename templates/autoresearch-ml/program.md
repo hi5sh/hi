@@ -4,7 +4,7 @@ You are improving how a model trains. The model and its training are in
 `train.py`.
 
 **The goal is the lowest val_bpc** that `make score` prints on its last
-line: bits per character on validation text the model never trains on.
+line: bits per character on text the model never trains on.
 Every score trains for exactly the same time (`prepare.TIME_BUDGET`, 5
 minutes), so a better score means a better model or better training, not a
 longer run. A `train()` that runs much past the budget fails.
@@ -23,6 +23,12 @@ how batches are drawn, mixed precision, `torch.compile`.
   pretrained weights. `evaluate.py` allows only torch, math, time,
   dataclasses, functools, itertools, collections, and typing.
 - Install packages.
+
+After each round, hi also trains the round's best `train.py` again and
+scores it on text that is in no box (`make validate` there fails on
+purpose). A change that lowers val_bpc but does worse on that text is
+rejected, not kept. Tuning to the quirks of `eval/val.txt` doesn't pay;
+ideas that make any text easier to predict do.
 
 ## Judgement
 

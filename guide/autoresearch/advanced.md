@@ -24,25 +24,31 @@ build and sets the box image to it, with the GPU.
 from in `train.py`. Then:
 
 ```sh
-make data          # eval/train.txt and eval/val.txt; the last 10% goes to ../charlm-holdout
+make data          # eval/ (70% train, 10% val); 10% to ../charlm-validation, 10% to ../charlm-holdout
 make score         # the baseline: five minutes of training, then val_bpc
 git add -A && git commit -m "Data and baseline"
 ```
 
-Run `make score` twice. The difference is the noise; use it as the gain hi
-should ignore.
+Run `make score` twice, and `make validate` twice. The differences are the
+noise: use the first as the gain hi should ignore (`--min-gain`) and the
+second as the slack the validation gate allows (`--validate-slack`).
 
 **Run it.** Edit the `loop` target, or pass the flags yourself:
 
 ```sh
 hi agent best-of 3 --agents claude,codex --for 9h --budget 60 --patience 15 \
-  --min-gain 0.005 --max 30m --score "make score" --lower --edit train.py program.md
+  --min-gain 0.005 --max 30m --score "make score" --lower --edit train.py \
+  --validate "make validate" --validate-data ../charlm-validation --validate-slack 0.005 program.md
 ```
 
 - Three agents work at once; then hi scores the three boxes one after
   another on the GPU, five minutes each, so the clock is fair.
-- A round takes the agents' time plus about 18 minutes of scoring; nine
-  hours is about 15 to 20 rounds.
+- After scoring, hi trains each good box's `train.py` once more and scores
+  it on `../charlm-validation`, in a container with no network. The round's
+  best is kept only if that number is no worse than the best so far's,
+  within the slack ([how it works](/guide/autoresearch/validation/)).
+- A round takes the agents' time plus about 18 minutes of scoring and up to
+  as much again for validation; nine hours is about 10 to 15 rounds.
 - `--patience 15` ends a run that has stopped improving; `--budget 60`
   caps the spend.
 
@@ -58,9 +64,11 @@ git log --oneline main..best-of/b-1/best    # one commit per gain, with its idea
 git checkout best-of/b-1/best && make holdout && git checkout -
 ```
 
-If the holdout score improved about as much as the validation score, merge.
-If validation improved and the holdout didn't, the gains fit the validation
-text; keep only the early commits, or none.
+`show` has each round's `val_bpc` and its validation number (`VALID.`),
+and which rounds were `rejected`. If the holdout score improved about as
+much as the validation numbers, merge. If they improved and the holdout
+didn't, the gains fit both windows; keep only the early commits, or none,
+and lengthen the validation window next time.
 
 ## A speed-up with a noisy benchmark
 

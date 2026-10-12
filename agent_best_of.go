@@ -92,15 +92,17 @@ type bestOfBox struct {
 	ScoreOutput  string       `json:"score_output,omitempty"` // the last 50 lines
 	// Snapshot is the git tree of the files as the agent left them, taken
 	// in the box before the check and score could write anything.
-	Snapshot     string       `json:"snapshot,omitempty"`
-	Files        int          `json:"files"`
-	Added        int          `json:"added"`
-	Removed      int          `json:"removed"`
-	ChangedFiles []string     `json:"changed_files"`
-	Flags        []string     `json:"flags"`
-	Outside      []string     `json:"outside,omitempty"` // changed files outside --edit
-	Tokens       *agentTokens `json:"tokens,omitempty"`
-	CostUSD      float64      `json:"cost_usd,omitempty"`
+	Snapshot     string   `json:"snapshot,omitempty"`
+	Files        int      `json:"files"`
+	Added        int      `json:"added"`
+	Removed      int      `json:"removed"`
+	ChangedFiles []string `json:"changed_files"`
+	Flags        []string `json:"flags"`
+	Outside      []string `json:"outside,omitempty"` // changed files outside --edit
+	// Validation is --validate's result, from a container of its own.
+	Validation *bestOfValidation `json:"validation,omitempty"`
+	Tokens     *agentTokens      `json:"tokens,omitempty"`
+	CostUSD    float64           `json:"cost_usd,omitempty"`
 	// Billing is how the agent is paid for here, such as a Claude Max
 	// subscription or OpenRouter; Metered means its dollars are billed,
 	// not a value at API prices.
@@ -152,6 +154,8 @@ type bestOfFlags struct {
 	agents, check, limit, score      string
 	rounds, within, budget, patience string
 	minGain, then                    string
+	validate, validateData           string
+	validateSlack                    string
 	edit                             []string
 	lower, higher, now, roundsGiven  bool
 }
@@ -206,6 +210,15 @@ func runBestOf(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.patience = value()
 		case is("--min-gain"):
 			flags.minGain = value()
+		case is("--validate"):
+			if flags.validate = value(); strings.TrimSpace(flags.validate) == "" {
+				fmt.Fprintln(stderr, `hi: --validate needs a command, such as --validate "make validate"`)
+				return 2
+			}
+		case is("--validate-data"):
+			flags.validateData = value()
+		case is("--validate-slack"):
+			flags.validateSlack = value()
 		case is("--then"):
 			if flags.then = value(); strings.TrimSpace(flags.then) == "" {
 				fmt.Fprintln(stderr, `hi: --then needs a command, such as --then "make results"`)
@@ -308,6 +321,16 @@ rounds (n can be 1):
   --then "<command>"     run it on this machine, in the project, when the rounds end
                          for any reason; HI_BEST_OF_RUN holds the run, the output
                          goes to the run's log
+
+validation (with --score and --edit): keep a gain only if it holds on data agents never see
+  --validate "<command>" after each round, hi runs it on each box's result in a container
+                         of its own (no network, no .git, only the --edit files from the
+                         box) and takes the last number it prints; same direction as
+                         the score. The round's winner is kept only if it also passes here
+  --validate-data <dir>  a folder outside the project, read-only at /box/data in the
+                         validation container only; agents' boxes never get it
+  --validate-slack <n>   how much worse than the best's the validation number may be
+                         and still pass (default 0: no worse at all)
   hi agent best-of watch <run>      follow a run; q leaves the view, the run goes on
   hi agent best-of stop <run> [--now]
                                     stop after this round; --now stops the boxes too
@@ -358,6 +381,9 @@ func startBestOf(options boxOptions, flags bestOfFlags, stdin io.Reader, stdout,
 	root, inGit := boxProjectRoot()
 	if !inGit {
 		return errors.New("best-of needs a git repository: each box works on its own branch")
+	}
+	if err := checkBestOfValidateData(loop, root); err != nil {
+		return err
 	}
 	var maxTime time.Duration
 	if flags.limit != "" {
@@ -571,7 +597,20 @@ func confirmBestOf(run bestOfRun, options boxOptions, stdin io.Reader, w io.Writ
 		if len(run.Loop.Edit) > 0 {
 			fmt.Fprintf(w, "  edit    only %s\n", strings.Join(run.Loop.Edit, ", "))
 		}
-		fmt.Fprintf(w, "  keeps   a result only if it beats the best so far; hi commits it to %s\n", run.Loop.Branch)
+		if loop := run.Loop; loop.Validate != "" {
+			data := "no data folder"
+			if loop.ValidateData != "" {
+				data = loop.ValidateData + " at /box/data"
+			}
+			fmt.Fprintf(w, "  gate    %s, run by hi after each round in a container without network (%s)\n", loop.Validate, data)
+			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far and its validation is no worse than the best's")
+			if loop.ValidateSlack > 0 {
+				fmt.Fprintf(w, " by more than %s", formatScore(loop.ValidateSlack))
+			}
+			fmt.Fprintf(w, "; hi commits it to %s\n", loop.Branch)
+		} else {
+			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far; hi commits it to %s\n", run.Loop.Branch)
+		}
 	} else {
 		fmt.Fprintf(w, "  check   %s, run by hi in each box when its agent ends\n", run.Check)
 	}

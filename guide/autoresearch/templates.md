@@ -1,6 +1,6 @@
 ---
 title: Start from a template
-description: hi init autoresearch-ml creates a project already shaped for autoresearch rounds, with a fixed, tested evaluation, frozen data, a holdout outside the repository, and a box image that runs offline.
+description: hi init autoresearch-ml creates a project already shaped for autoresearch rounds, with a fixed, tested evaluation, frozen data, a validation window and a holdout outside the repository, and a box image that runs offline.
 ---
 
 A loop is only as good as its evaluation. The autoresearch template starts
@@ -27,10 +27,11 @@ They are built on the same base layer, `autoresearch-base`.
 | `evaluate.py` | the fixed evaluation; prints the score last | never changes |
 | `prepare.py` | the data, its split, and constants such as the time budget | never changes |
 | `eval/` | the frozen data the score is measured on, committed | never changes |
+| `../<folder>-validation/` | the validation window, outside the repository | only hi, after each round ([the gate](/guide/autoresearch/validation/)) |
 | `../<folder>-holdout/` | the data after the split, outside the repository | never seen by boxes |
 | `program.md` | the task agents read each round | yours to write before |
 | `.devcontainer/` | the box image: the locked dependencies, built once | rebuilt when `uv.lock` changes |
-| `Makefile` | `data`, `score`, `holdout`, `loop`, and `check` | |
+| `Makefile` | `data`, `score`, `validate`, `holdout`, `loop`, and `check` | |
 
 Three things make the evaluation trustworthy:
 
@@ -40,6 +41,12 @@ Three things make the evaluation trustworthy:
   `train()` that runs past its time budget.
 - **The data is frozen and committed.** `eval/` is in git (unlike `data/`),
   so every box scores the same thing, offline.
+- **Every gain is checked on data agents never see.** `make data` writes a
+  validation window next to the project, and `make loop` passes
+  `--validate "make validate" --validate-data ../<folder>-validation`: hi
+  scores each round's best on it in a container of its own and keeps it
+  only if it holds there too. See
+  [Keep only gains that hold](/guide/autoresearch/validation/).
 - **The holdout is out of reach.** `make data` writes the data after the
   split to a folder next to the project. Boxes only see the repository.
 
@@ -52,7 +59,7 @@ and runs its checks on every change.
 
 ```sh
 hi init autoresearch-ml charlm && cd charlm
-make data                      # downloads the text; the holdout goes to ../charlm-holdout
+make data                      # downloads the text; validation and holdout go to ../charlm-validation and ../charlm-holdout
 make score                     # the baseline
 git add -A && git commit -m "Data and baseline"
 make loop                      # rounds in the background

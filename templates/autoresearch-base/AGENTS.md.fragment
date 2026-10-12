@@ -12,6 +12,10 @@
 - The holdout lives outside the repository, in `../<folder>-holdout/`. Never
   copy it in or read it from code; it is checked once, at the end, with
   `make holdout`.
+- The validation data lives outside the repository too, in
+  `../<folder>-validation/`. hi alone reads it, after each round, in a
+  container no agent can reach (`hi agent best-of --validate`); a gain that
+  doesn't hold there is rejected. Never copy it in or read it from code.
 - Boxes run offline from an image built from `uv.lock`. Don't add
   dependencies during a run; after a change to `uv.lock`, hi rebuilds the
   image on the next box.

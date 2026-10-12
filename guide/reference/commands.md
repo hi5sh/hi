@@ -237,7 +237,14 @@ options below. A brief's front matter can set `agent`, `model`, `bundles`,
 `--yes` to start without asking; it exits with 1 when no box passed. With
 rounds: `--for <duration>`, `--budget <dollars>`, `--patience <n>`,
 `--min-gain <number>`, `--edit a,b` for the files an agent may change, and
-`--then "<command>"`, run on this machine when the rounds end.
+`--then "<command>"`, run on this machine when the rounds end. To keep a
+gain only if it also holds on data agents never see: `--validate
+"<command>"` (run by hi after each round in a container without network or
+`.git`, with only the `--edit` files from the box; needs `--edit`),
+`--validate-data <dir>` (a folder outside the project, read-only at
+`/box/data` there), and `--validate-slack <number>` (how much worse than the
+best's the validation number may be; default 0); a winner that fails is
+`rejected`. See [Keep only gains that hold](/guide/autoresearch/validation/).
 See [Autoresearch](/guide/autoresearch/).
 
 ## hi team

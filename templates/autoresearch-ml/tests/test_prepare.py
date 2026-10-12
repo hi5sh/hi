@@ -40,12 +40,19 @@ def test_a_model_of_the_wrong_shape_is_refused() -> None:
         prepare.bits_per_char(Uniform(10), data, 12, torch.device("cpu"))
 
 
-def test_the_holdout_is_kept_out_of_eval(tmp_path: Path) -> None:
+def test_validation_and_holdout_are_kept_out_of_eval(tmp_path: Path) -> None:
     text = "".join(chr(ord("a") + i % 26) for i in range(1000))
-    holdout = tmp_path / "outside" / "test.txt"
-    prepare.save(text, tmp_path / "eval", holdout)
+    holdout = tmp_path / "holdout" / "test.txt"
+    validation = tmp_path / "validation" / "validation.txt"
+    prepare.save(text, tmp_path / "eval", holdout, validation)
     train = (tmp_path / "eval" / "train.txt").read_text()
     val = (tmp_path / "eval" / "val.txt").read_text()
-    assert (len(train), len(val), len(holdout.read_text())) == (800, 100, 100)
-    assert train + val + holdout.read_text() == text
+    sizes = (len(train), len(val), len(validation.read_text()), len(holdout.read_text()))
+    assert sizes == (700, 100, 100, 100)
+    assert train + val + validation.read_text() + holdout.read_text() == text
+    assert sorted(path.name for path in (tmp_path / "eval").iterdir()) == [
+        "train.txt",
+        "val.txt",
+        "vocab.json",
+    ]
     assert len(Vocabulary.load(tmp_path / "eval")) == 26

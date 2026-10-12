@@ -50,15 +50,25 @@ test: ## Tests only
 # hi:end
 
 # Project targets below.
-.PHONY: score holdout data loop
+.PHONY: score validate holdout data loop
 
 HOLDOUT ?= ../$(notdir $(CURDIR))-holdout/test.txt
+VALIDATION_DIR ?= ../$(notdir $(CURDIR))-validation
+# How much worse than the best's a round's validation_bpc may be and still be
+# kept; about the noise of a score, which you can see by running make
+# validate twice.
+VALIDATE_SLACK ?= 0
 BOXES ?= 2
 ROUNDS ?= 20
 BUDGET ?= 20
 
 score: ## Train for prepare.TIME_BUDGET and score; the last line is the number the loop lowers
 	@$(RUN) python evaluate.py
+
+validate: ## Train, then score on the validation text; hi runs it after each round, in a container agents can't reach
+	@if [ -n "$(HI_VALIDATE)" ]; then $(RUN) python evaluate.py --validation /box/data/validation.txt; \
+	elif [ -n "$(HI_BOX)" ]; then echo "the validation text stays outside agents' boxes"; exit 1; \
+	else $(RUN) python evaluate.py --validation $(VALIDATION_DIR)/validation.txt; fi
 
 holdout: ## Train, then score on the text outside the repository; once, at the end
 	@test -z "$(HI_BOX)" || { echo "the holdout stays outside boxes"; exit 1; }
@@ -69,4 +79,5 @@ data: ## Download the text: eval/ in the repository, the holdout outside it
 
 loop: ## Rounds in the background: BOXES a round, up to ROUNDS, BUDGET dollars
 	hi agent best-of $(BOXES) --rounds $(ROUNDS) --budget $(BUDGET) --patience 10 --max 30m \
-	  --score "make score" --lower --edit train.py program.md
+	  --score "make score" --lower --edit train.py \
+	  --validate "make validate" --validate-data $(VALIDATION_DIR) --validate-slack $(VALIDATE_SLACK) program.md

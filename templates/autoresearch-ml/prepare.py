@@ -6,12 +6,18 @@ network):
 
     make data
 
-eval/train.txt, eval/val.txt    the first 90% of the text, committed: models
-                                train on the first and are scored on the second.
+eval/train.txt, eval/val.txt    the first 80% of the text, committed: models
+                                train on the first and are scored on the second
+                                (make score, the number agents see).
 eval/vocab.json                 the characters, in the order of their ids.
+../<folder>-validation/validation.txt
+                                the next 10%, outside the repository: hi scores
+                                each round's best result on it (make validate)
+                                in a container no agent can reach, and keeps a
+                                gain only if it holds there too.
 ../<folder>-holdout/test.txt    the last 10%, outside the repository, so no
-                                agent sees it; make holdout scores on it, once,
-                                at the end.
+                                agent and no round sees it; make holdout scores
+                                on it, once, at the end.
 
 The example is Tiny Shakespeare (1.1 MB, public domain), modelled character
 by character, as in Karpathy's char-rnn and nanoGPT. Change URL and SHA256,
@@ -30,13 +36,16 @@ from torch.nn import functional
 
 URL = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
 SHA256 = "86c4e6aa9db7c042ec79f339dcb96d42b0075e16b8fc2e86bf0ca57e2dc565ed"
-SPLITS = (0.8, 0.1)  # train and val; the rest is the holdout
+SPLITS = (0.7, 0.1, 0.1)  # train, val, and validation; the rest is the holdout
 TIME_BUDGET = 300.0  # seconds of training for every score
 BLOCK = 256  # the context length models are scored at
 
 HERE = Path(__file__).resolve().parent
 EVAL = HERE / "eval"
 HOLDOUT = Path(os.environ.get("HOLDOUT") or HERE.parent / f"{HERE.name}-holdout" / "test.txt")
+VALIDATION = Path(
+    os.environ.get("VALIDATION") or HERE.parent / f"{HERE.name}-validation" / "validation.txt"
+)
 
 
 class Vocabulary:
@@ -71,17 +80,25 @@ def download() -> str:
     return data.decode("utf-8")
 
 
-def save(text: str, folder: Path = EVAL, holdout: Path = HOLDOUT) -> None:
-    train_end = int(len(text) * SPLITS[0])
-    val_end = int(len(text) * (SPLITS[0] + SPLITS[1]))
+def save(
+    text: str, folder: Path = EVAL, holdout: Path = HOLDOUT, validation: Path = VALIDATION
+) -> None:
+    train_end, val_end, validation_end = (
+        round(len(text) * sum(SPLITS[: i + 1])) for i in range(len(SPLITS))
+    )
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "vocab.json").write_text(json.dumps(sorted(set(text))) + "\n")
     (folder / "train.txt").write_text(text[:train_end])
     (folder / "val.txt").write_text(text[train_end:val_end])
-    holdout.parent.mkdir(parents=True, exist_ok=True)
-    holdout.write_text(text[val_end:])
+    for path, part in (
+        (validation, text[val_end:validation_end]),
+        (holdout, text[validation_end:]),
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(part)
     print(f"{folder}: {train_end} characters to train on, {val_end - train_end} to score on")
-    print(f"{holdout}: {len(text) - val_end} characters for the end")
+    print(f"{validation}: {validation_end - val_end} characters that gate each round's gain")
+    print(f"{holdout}: {len(text) - validation_end} characters for the end")
 
 
 def load(path: Path, vocabulary: Vocabulary) -> torch.Tensor:

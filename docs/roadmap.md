@@ -1163,6 +1163,22 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   repo's `research` and `autoresearch-quant` moved there.
   Approved spec: [hi_init.md](specs/approved/hi_init.md#layout-of-a-source).
 
+### v0.52.0 — Keep only gains that hold: `best-of --validate`
+
+- [x] `hi agent best-of --validate "<command>" --validate-data <dir>
+  --validate-slack <n>`: after each round, hi scores every good box's
+  result on data agents never see, in a container of its own (the gains'
+  tip plus only the box's `--edit` files, no network, no `.git`, the data
+  read-only at `/box/data`), and keeps the winner only if its validation
+  is no worse than the best's by more than the slack; otherwise the round
+  is `rejected`. The baseline is validated first. Numbers stay out of
+  tasks, commits, and attempt refs; `watch` and `show` have them.
+- [x] `autoresearch-ml` splits its text four ways and gates every gain on
+  `../<folder>-validation` with `make validate`.
+- [x] The guide: [Keep only gains that hold](https://hifin.sh/guide/autoresearch/validation/).
+  Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md)
+  (release 1; folds are release 2).
+
 ## Planned
 
 ### Later — `hi team`
@@ -1193,6 +1209,10 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Data for `autoresearch-ml` beyond one text file.
 - [ ] A record of every holdout look in `autoresearch-base`, so a holdout
   spent is visible.
+- [ ] Folds for `best-of --validate`: `--folds`, `--fold`, `--fold-every`,
+  a new baseline on each fold, and `make fold` in the templates, so the
+  validation window stays fresh over long runs. Spec:
+  [hi_agent_best_of_validate.md, Expanding window](specs/approved/hi_agent_best_of_validate.md#expanding-window-release-2) (release 2).
 
 Finance work (`autoresearch-quant`'s data sources, fitted regime models)
 moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in

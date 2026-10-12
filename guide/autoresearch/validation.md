@@ -1,0 +1,247 @@
+---
+title: Keep only gains that hold
+description: hi agent best-of --validate checks every round's winner on data the agents never see, in a container of its own, and keeps a gain only if it holds there too. The flags, how it works, what agents see, choosing the slack, and troubleshooting.
+---
+
+Rounds keep whatever scores best. Over tens of rounds and several boxes a
+round, that search fits the data the score reads: changes that suit its
+quirks win, whether or not they would work anywhere else. The holdout
+catches this, but only once, at the end, when the run is over.
+
+In the first long run of the quant template, the in-sample Sharpe rose from
+0.86 to 1.53 while the holdout Sharpe *fell*, from 0.94 to 0.87. Nothing
+during the run could tell.
+
+`--validate` gives the run a second test. The data is split three ways:
+
+| Part | Who sees it | What it is for |
+|---|---|---|
+| Score data, in the repository | agents, all the time | the score they improve |
+| Validation data, outside the repository | only hi, after each round | the gate: a gain must not lose here |
+| Holdout, outside the repository | only you, once, at the end | the final word |
+
+A round's winner is kept only if it beats the best score **and** its
+validation number is no worse than the best so far's.
+
+```sh
+hi agent best-of 3 --rounds 20 --score "make score" --higher --edit strategy.py \
+  --validate "make validate" --validate-data ../quant-validation --validate-slack 0.05 program.md
+```
+
+In the [templates](/guide/autoresearch/templates/), `make loop` passes
+these flags for you.
+
+## The flags
+
+They go with `--score`, and `--validate` needs `--edit`.
+
+### `--validate "<command>"`
+
+The command that measures a result on the hidden data, such as
+`--validate "make validate"`.
+
+- It works like `--score`: hi takes **the last number it prints**, and
+  better is the same direction as the score (`--lower` or `--higher`).
+- The difference is where it runs. `--score` runs inside the agent's box.
+  `--validate` runs after the round, in a container hi builds itself (see
+  [How it works](#how-it-works)).
+- A validation that fails, times out, or prints no number counts as not
+  holding: that box can't be kept.
+
+### `--validate-data <dir>`
+
+The folder of hidden data, such as `--validate-data ../quant-validation`.
+
+- It is on your machine, outside the project, so it is in no commit and in
+  no agent's worktree. hi refuses a folder inside the project.
+- hi mounts it **read-only at `/box/data`**, in validation containers only.
+  Agents' boxes never get it.
+- Your validation command reads it from there; the templates' `make
+  validate` does.
+- Without it, the command runs on what the project has, which helps only
+  when the validation is hidden some other way. The templates always pass
+  a folder.
+
+### `--validate-slack <number>`
+
+How much worse than the best's the validation number may be and still pass.
+The default is 0: no worse at all.
+
+- With 0, a change that is truly neutral on the hidden data fails about
+  half the time, from noise alone. Set the slack to about the validation
+  number's noise (see [Choosing the slack](#choosing-the-slack)).
+- It is in the score's own units, like `--min-gain`.
+- Example, higher is better: the best so far validates at 0.81 and the
+  slack is 0.05. A winner at 0.78 passes (0.03 worse); at 0.74 it is
+  rejected (0.07 worse); at 0.90 it passes and 0.90 becomes the number later
+  rounds must not lose.
+
+### Why `--validate` needs `--edit`
+
+To build the validation container, hi takes the harness, the `Makefile`,
+and the data from the gains' branch, and only the agent's own files from
+its box. `--edit` (such as `--edit strategy.py`) is what tells hi which
+files are the agent's. Without it, hi would have to copy everything,
+including an evaluation the agent might have changed.
+
+## How it works
+
+Validation never runs in an agent's box. The code being validated is the
+agent's own, and in its box the agent could have prepared a way out: the
+project's `.git` is writable there, `--edit` is checked only after the
+score has run, and the box's proxy reaches the agent's model. So:
+
+1. **Agents' boxes are unchanged.** They work, check, and score as without
+   `--validate`. The validation data is never mounted in them.
+2. **The baseline is validated first.** After the baseline score, hi
+   validates your last commit. A validation that fails or prints no number
+   stops the run there, before it costs tokens.
+
+   ```text
+   Measuring the baseline on 3f2a91c0e4b1.
+   Baseline: 0.86, in 41s.
+   Validating the baseline: make validate, in a container without network.
+   Baseline validation: 0.79, in 38s.
+   ```
+
+3. **After each round, a fresh container per good box.** When the round's
+   boxes are scored, hi validates every box whose result could be kept
+   (check passed, a score, inside `--edit`, something changed). For each
+   it builds a folder outside the project:
+   - the gains' branch as it is (`git archive`), so the harness, the
+     `Makefile`, and the data are hi's copies, whatever the agent did to its
+     own;
+   - with only the files the agent changed, all inside `--edit`, taken
+     from the box's snapshot.
+
+   It runs the project's box image on that folder with **no network**, **no
+   proxy**, **no `.git`**, nothing from the agent's box, the data read-only
+   at `/box/data`, and the folder at `/box/project`. The command runs under
+   a time limit of twice the baseline validation's time plus a minute. The
+   container and its folder are removed when it exits.
+4. **The gate.** The round's winner is chosen on the score alone, as
+   without `--validate`. It is kept only if its score beats the best by
+   more than `--min-gain` *and* its validation number is no worse than the
+   best's by more than `--validate-slack`. Otherwise the round is
+   **`rejected`**. A kept result's validation number becomes the one later
+   rounds must not lose.
+
+hi doesn't fall back to the second-best box when the winner is rejected:
+choosing among boxes by their validation numbers would fit the validation
+data too. It compares with the best's number, not the baseline's, so
+validation can't slide back to where it started one small loss at a time.
+
+Each good box is validated, not just the winner, so the report shows every
+attempt's number. Without the GPU the containers run at once; with
+`--gpu`, one at a time, like the scores.
+
+### In the container
+
+| | |
+|---|---|
+| Working folder | `/box/project`: the gains' branch plus the box's `--edit` files |
+| Data | `/box/data`, read-only: `--validate-data` |
+| Network | none |
+| `.git` | none |
+| Environment | `HI_VALIDATE=1`, `HI_BOX` (so a `Makefile` picks the image's tools), `HOME=/box/home`, and the project's `containerEnv` |
+| Image | the one the run's boxes use (`.devcontainer/`, `--image`, or hi's) |
+| Time limit | twice the baseline validation's time plus a minute |
+
+The image must hold everything the command needs, since there is no
+network: the templates' images have their dependencies in `/opt/venv`. A
+project whose packages are fetched when a box starts fails at the
+baseline validation, before any agent runs. The devcontainer's
+`postCreateCommand` doesn't run in validation containers.
+
+## What agents see
+
+Validation numbers and data are in nothing a box can read:
+
+- **The next round's task** shows each attempt's score and result
+  (`kept`, `discarded`, `rejected`, `crash`), never a validation number. It
+  says that hi also checks the round's best on data that isn't in the box.
+- **Commits** on the gains' branch and the attempt refs under
+  `refs/best-of/<run>/`, which boxes can read through the project's `.git`,
+  carry no validation number.
+- **The data** reaches only validation containers.
+
+`rejected` tells agents one bit: a change that raised the score didn't hold
+up. That is the point of the gate; they learn which kinds of ideas fail, not
+the numbers.
+
+The numbers are in the run's state, outside every box: `hi agent best-of
+watch`, `show`, `show --json`, `ls --json`, and the run's `loop.log`, so a
+`--then` command can report them. Don't commit a report with validation
+numbers to the gains' branch and then `resume`: the next boxes could read
+it through `.git`.
+
+## The view
+
+```text
+Best-of b-9 · "program.md" · 3 boxes a round · round 7 of 20 · 1h12m · $9.40 at API prices
+Score: make score (higher is better) · validated by: make validate
+Best: 1.12 (validation 0.81) from round 4, baseline 0.86 (validation 0.79) · on best-of/b-9/best
+
+  ROUND  RESULT     SCORE  VALID.  BOX            IDEA
+  4      kept       1.12   0.81    quant-b9-r4-1  inverse-volatility weights
+  5      rejected   1.31   0.62    quant-b9-r5-3  six lookbacks fitted per asset
+  6      discarded  1.09   –       quant-b9-r6-2  add a crash filter
+
+Now: round 7: validating 2 boxes
+```
+
+`VALID.` is the round winner's validation number. `show --json` has every
+box's under `validation` (its value, exit status, seconds, and the last
+lines of its output) and the run's `baseline_validation` and
+`best_validation`.
+
+A rejected round counts as a round without a gain for `--patience`.
+
+## Choosing the slack
+
+1. Run the validation twice on the same code, on your machine:
+   `make validate`, twice. For a deterministic backtest the two numbers are
+   equal and the noise is in the data instead: the quant template's `make
+   robust` suggests a slack from the spread of the validation window's
+   tranches, as it does for `--min-gain`.
+2. Set `--validate-slack` to about that difference. Too small rejects real
+   gains; too large lets fitted changes through.
+3. In the templates, it is `VALIDATE_SLACK` in the `Makefile` or on the
+   command line: `make loop VALIDATE_SLACK=0.01`.
+
+## Costs
+
+- **Time.** Each round adds one validation per good box. For a backtest
+  that is seconds. For the ML template it is another training run per box,
+  since `make validate` trains `train.py` again before it scores; with the
+  GPU, one box at a time.
+- **Data.** The validation window comes out of what agents used to see:
+  less to fit, and noisier numbers if the window is short.
+- **The gate wears out slowly.** Each gate is a question asked of the
+  validation data: a run of 20 rounds asks about 20, against the hundreds of
+  scores agents see. The holdout stays the final word.
+
+## After a run
+
+```sh
+hi agent best-of show b-9                          # every round's score and validation
+git checkout best-of/b-9/best && make holdout && git checkout -
+```
+
+If the holdout moved with the validation numbers, merge. If validation held
+and the holdout still fell, the window was too short or too much like the
+score's data; lengthen it before the next run.
+
+## Troubleshooting
+
+| You see | It means |
+|---|---|
+| `--validate needs --edit` | Name the agents' files: `--edit strategy.py`. |
+| `--validate-data … is inside the project` | Move the folder next to the project, such as `../<folder>-validation`, and pass that. |
+| `the validation doesn't work on your last commit` | The command failed or printed no number in the container. Its output follows; the usual causes are a package the image lacks (no network there) or a path other than `/box/data`. |
+| Every round `rejected` | The slack is too tight for the noise, or the agents are fitting the score's data. Try a slack of about the noise; tell agents in the task that fitted ideas are rejected. |
+| `make validate` in a box says the text stays outside | As it should: agents can't run it. hi runs it in its own container. |
+| `the validation ran out of time` | It took more than twice the baseline validation's time plus a minute. |
+
+The design and its reasons are in the
+[specification](https://github.com/hifinab/cli/blob/main/docs/specs/approved/hi_agent_best_of_validate.md).

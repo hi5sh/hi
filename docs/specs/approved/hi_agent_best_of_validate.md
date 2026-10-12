@@ -1,8 +1,8 @@
 # `hi agent best-of --validate` specification
 
-Status: Draft (2026-10-12).
+Status: Approved (2026-10-12). Release 1 built in v0.52.0 (see [As built](#as-built-release-1)).
 
-Dependencies: [hi_agent_best_of.md](../approved/hi_agent_best_of.md)
+Dependencies: [hi_agent_best_of.md](hi_agent_best_of.md)
 (rounds, snapshots, `--edit`, the gains' branch), `hi box` (the engine and
 the project's box image), and
 the autoresearch templates (`autoresearch-base` and the templates built on
@@ -62,10 +62,12 @@ proxy still reaches the agent's model. So:
    its own. hi runs the project's box image on it directly through the
    engine, not as a hi box: `--network none`, no proxy, no `.git`, no home
    folder from the agent's box, `--validate-data` read-only at
-   `/box/data`, the folder at `/box`, and the command under the score's
-   `timeout`. One container start per good box per round; validating
-   every good box, not just the winner, costs seconds and lets the report
-   show every attempt's number. The container and its folder are removed
+   `/box/data`, the folder at `/box/project`, and the command under a
+   time limit of twice the baseline validation's time plus a minute. One
+   container start per good box per round; validating every good box, not
+   just the winner, lets the report show every attempt's number. For a
+   backtest that costs seconds; for a template whose validation trains
+   again (`autoresearch-ml`), one more training run per good box. The container and its folder are removed
    when it exits.
 3. **The baseline is validated the same way**, on your last commit as it
    is, before the first round. A validation that fails or prints no number
@@ -81,7 +83,14 @@ proxy still reaches the agent's model. So:
    the baseline's, stops validation sliding back to where it started one
    small loss at a time.
 
-With `--gpu`, validation containers take turns like the scores.
+With `--gpu`, validation containers take turns like the scores, and get
+the same GPU devices as boxes; without it they run at once.
+
+The container has no network, so the image must hold everything the
+command needs. Both autoresearch templates bake their dependencies into
+`/opt/venv`; a project whose packages are fetched when a box starts fails
+at the baseline validation, before any tokens are spent. The
+devcontainer's `postCreateCommand` doesn't run there.
 
 ### What agents see
 
@@ -97,7 +106,10 @@ Validation numbers and data are never in anything a box can read:
 
 They are in the run's state (`run.json`, outside every box), `watch`,
 `show`, `ls --json`, and `loop.log`, so a `--then` results command can
-report them.
+report them. `--then` runs in your checkout and the templates write
+reports to `results/`, which git ignores. A report with validation numbers
+committed to the gains' branch before a `resume` would reach the next
+boxes through `.git`; don't commit one there.
 
 `rejected` tells agents one bit: a change that raised the score didn't
 hold up. That is the point of the gate, and agents can work it out anyway
@@ -214,3 +226,40 @@ plan is in its own repository.
    reports how often validation was asked and how often the holdout was.
    That is the "record of every holdout look" item for `autoresearch-base`
    on the [roadmap](../../roadmap.md); the two should be built together.
+
+## As built (release 1)
+
+v0.52.0, 2026-10-12. Code: `agent_best_of_validate.go`; tests:
+`agent_best_of_validate_test.go`.
+
+- **Flags.** `--validate` needs `--score` and `--edit`;
+  `--validate-data` must be a folder outside the project (checked after
+  symlinks); `--validate-slack` is 0 or more. `--validate-data` and
+  `--validate-slack` need `--validate`.
+- **The folder.** `git archive` of the gains' tip, then `git archive` of the
+  box's snapshot for its changed files (all inside `--edit`, since only good
+  boxes are validated); a changed file missing from the snapshot is
+  removed. Written to `best-of/<run>/validate/<box>/project` in hi's state
+  and removed after the run of the container.
+- **The container.** `run --rm --network none`, the user's uid as in boxes,
+  the boxes' hardening (no capabilities, no new privileges, pids and memory
+  limits), the GPU devices with `--gpu`, the folder at `/box/project`, an
+  empty home at `/box/home`, `--validate-data` at `/box/data:ro`, the
+  project's `containerEnv`, `HI_BOX` (so a `Makefile` picks the image's
+  tools) and `HI_VALIDATE=1`. The image is the round box's, or the
+  baseline box's. Checked live with Podman 5.7: no network, the data
+  read-only, no `.git`, the folder removed afterwards.
+- **State.** `run.json` has `validate`, `validate_data`, `validate_slack`,
+  `validate_max_seconds`, `image`, `baseline_validation`, and
+  `best_validation` on the loop; `validation` (value, exit, seconds, the
+  last five lines of output) on each box; and the winner's `validation` on
+  each round.
+- **The task** says that hi also tries the round's best on data that isn't
+  in the box and rejects a gain that does worse there, and shows `rejected`
+  in the history, never a number.
+- **Templates.** `autoresearch-ml` splits 70/10/10/10 (train, val,
+  validation, holdout); `make validate` scores on `/box/data` with
+  `HI_VALIDATE` set and refuses in an agent's box; `make loop` passes the
+  flags with `VALIDATE_SLACK` (default 0); it needs hi 0.52.0.
+  `autoresearch-base`'s agent notes describe the validation folder. The
+  private quant template follows in its own repository.

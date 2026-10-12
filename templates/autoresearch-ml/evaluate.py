@@ -4,9 +4,12 @@ then measure it on text it never trained on. Don't change it during a run.
 hi agent best-of scores every attempt with this file, and agents may change
 only train.py, so the data, the time, and the measurement stay the same.
 
-    python evaluate.py                  the score, on eval/val.txt
-    python evaluate.py --holdout PATH   on text kept outside the repository
-                                        (make holdout)
+    python evaluate.py                     the score, on eval/val.txt
+    python evaluate.py --validation PATH   on the validation text, outside the
+                                           repository (make validate; hi runs
+                                           it after each round, agents can't)
+    python evaluate.py --holdout PATH      on the holdout, outside the
+                                           repository (make holdout)
 
 A train() that runs much past the budget fails: a longer run would win by
 training longer, not better. The last line is the score: val_bpc, bits per
@@ -115,14 +118,20 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train train.py's model and score it.")
-    parser.add_argument("--holdout", metavar="PATH", type=Path, help="score on this text")
+    where = parser.add_mutually_exclusive_group()
+    where.add_argument("--holdout", metavar="PATH", type=Path, help="score on the holdout")
+    where.add_argument("--validation", metavar="PATH", type=Path, help="score on validation text")
     arguments = parser.parse_args()
+    label = (
+        "test_bpc" if arguments.holdout else "validation_bpc" if arguments.validation else "val_bpc"
+    )
     try:
         check_source(Path("train.py").read_text())
         train = importlib.import_module("train")
         vocabulary = prepare.Vocabulary.load()
         train_data = prepare.load(prepare.EVAL / "train.txt", vocabulary)
-        score_data = prepare.load(arguments.holdout or prepare.EVAL / "val.txt", vocabulary)
+        score_path = arguments.holdout or arguments.validation or prepare.EVAL / "val.txt"
+        score_data = prepare.load(score_path, vocabulary)
         device = pick_device()
         result = run(
             train.train, train_data, score_data, len(vocabulary), prepare.TIME_BUDGET, device
@@ -134,7 +143,7 @@ def main() -> None:
     print(f"device:            {name}")
     print(f"training_seconds:  {result['training_seconds']:.1f}")
     print(f"params_m:          {result['params_m']:.2f}")
-    print(f"{'test_bpc' if arguments.holdout else 'val_bpc'}:           {result['bpc']:.6f}")
+    print(f"{label + ':':<19}{result['bpc']:.6f}")
 
 
 if __name__ == "__main__":

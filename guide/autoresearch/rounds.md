@@ -38,8 +38,10 @@ each box after the agent ends and takes **the last number it prints**.
 
 - A score that fails, times out, or prints no number makes that box a
   crash: it can't be kept. A round is `kept`, `discarded` (its best didn't
-  beat the best so far), `unchanged` (no box changed anything), or `crash`
-  (no box had a usable result).
+  beat the best so far), `rejected` (its best beat the score but lost on
+  validation, with [`--validate`](/guide/autoresearch/validation/)),
+  `unchanged` (no box changed anything), or `crash` (no box had a usable
+  result).
 - `--check "<command>"` still works as a gate: a box that fails it isn't
   scored. With `--score` there is no check unless you give one.
 - The score runs under a time limit of twice the baseline's time plus a
@@ -167,6 +169,11 @@ else (a model's quality, a strategy's future returns).
 
 - **Score on a validation set, not the training data.** Agents train or fit
   on one part and are scored on another.
+- **Gate every gain on data agents never see.** `--validate "make
+  validate" --validate-data ../<folder>-validation` scores each round's
+  winner on a validation window, in a container of its own, and keeps it
+  only if it holds there too. See
+  [Keep only gains that hold](/guide/autoresearch/validation/).
 - **Keep a holdout outside the repository.** Boxes only see the repository,
   so data kept in `../<folder>-holdout/` can't leak into an attempt. Check
   the result on it once, at the end. The templates set this up.
