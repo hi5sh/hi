@@ -1190,10 +1190,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 - [ ] Cross-validation and several seeds for `autoresearch-ml`, and its
   loss curves in a report.
-- [ ] Data sources beyond Yahoo Finance and one text file.
-- [ ] A record of every holdout look, so a holdout spent is visible.
-- [ ] Fitted regime models (HMM) and models with trained parameters, which
-  need libraries the boxes don't allow today.
+- [ ] Data for `autoresearch-ml` beyond one text file.
+- [ ] A record of every holdout look in `autoresearch-base`, so a holdout
+  spent is visible.
+
+Finance work (`autoresearch-quant`'s data sources, fitted regime models)
+moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in
+`hifinab/templates`. Fitted models there need the boxes to allow more
+libraries.
 
 ### Later — `hi compute`
 
