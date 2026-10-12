@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -39,9 +40,18 @@ func (f *fakeTeamChannel) userName(id string) string {
 	return map[string]string{"U1": "Anna", "U2": "Bo"}[id]
 }
 
-func (f *fakeTeamChannel) post(channel, text string) error {
+func (f *fakeTeamChannel) post(channel, text string) (string, error) {
 	f.calls = append(f.calls, "post "+channel+" "+text)
+	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+}
+
+func (f *fakeTeamChannel) update(channel, ts, text string) error {
+	f.calls = append(f.calls, "update "+channel+" "+ts+" "+text)
 	return nil
+}
+
+func (f *fakeTeamChannel) permalink(channel, ts string) (string, error) {
+	return "https://slack.example.com/archives/" + channel + "/p" + strings.ReplaceAll(ts, ".", ""), nil
 }
 
 func (f *fakeTeamChannel) download(url string, w io.Writer) error {

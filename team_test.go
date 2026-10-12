@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -241,6 +242,14 @@ func TestWriteTeamLead(t *testing.T) {
 	if again, _ := os.ReadFile(filepath.Join(lead, "SOUL.md")); string(again) != string(soul) {
 		t.Fatal("a second start changed SOUL.md again")
 	}
+	// An update that adds to a paragraph adds once, after those before it.
+	writeSkillTestFile(t, filepath.Join(lead, "SOUL.md"), teamSoulUpdates[0].old+"\n\n## Your team\n", 0o600)
+	for range 2 {
+		writeTeamLead(config, teamSecrets{}, "10.234.7.2", "")
+	}
+	if soul, _ := os.ReadFile(filepath.Join(lead, "SOUL.md")); string(soul) != teamSoulUpdates[0].new+"\n"+teamSlackFormatting+"\n## Your team\n" {
+		t.Fatalf("SOUL.md is:\n%s", soul)
+	}
 	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi team merge t-4") || !strings.Contains(string(skill), "in the\nhi-team-notes skill") {
 		t.Fatal(string(skill))
 	}
@@ -364,6 +373,12 @@ type teamTestBroker struct {
 	mu      sync.Mutex
 	calls   []string
 	reports map[string]string // box → the report block's JSON
+	// exposures are the addresses hi net expose gave, by name; lasts is
+	// how long the next one lasts.
+	exposures map[string]netExposeState
+	lasts     time.Duration
+	// apps are the app boxes started, as "name command port".
+	apps []string
 }
 
 func newTeamTestBroker(t *testing.T) *teamTestBroker {
@@ -377,14 +392,50 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 		t.Fatal(err)
 	}
 	saveTeam(config)
-	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}}
+	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}, exposures: map[string]netExposeState{}, lasts: 24 * time.Hour}
 	// Tests review by hand, except where they turn the rounds on.
 	b.reviewRounds = 0
+	b.app = func(name, src, command string, port, hostPort int) error {
+		if !fileExists(filepath.Join(src, "Makefile")) {
+			t.Error("the app's copy has no Makefile")
+		}
+		b.mu.Lock()
+		b.apps = append(b.apps, fmt.Sprintf("%s %s %d", name, command, port))
+		b.mu.Unlock()
+		server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", hostPort), Handler: http.NotFoundHandler()}
+		go server.ListenAndServe()
+		t.Cleanup(func() { server.Close() })
+		return nil
+	}
+	b.running = func(container string) bool {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		for _, app := range b.apps {
+			if strings.HasPrefix(app, container+" ") {
+				return true
+			}
+		}
+		return false
+	}
+	b.exposed = func(name string) (netExposeState, bool) {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		state, ok := b.exposures[name]
+		return state, ok
+	}
 	b.run = func(args ...string) ([]byte, error) {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		b.calls = append(b.calls, strings.Join(args, " "))
 		switch {
+		case args[0] == "net" && args[2] == "stop":
+			delete(b.exposures, args[3])
+			return nil, nil
+		case args[0] == "net":
+			name := fmt.Sprintf("%s-x%d", args[len(args)-1], len(b.calls))
+			state := netExposeState{Name: name, URL: "https://" + name + ".example.net", Link: "https://" + name + ".example.net/?hi_key=k", Expires: time.Now().Add(b.lasts)}
+			b.exposures[name] = state
+			return json.Marshal(state)
 		case args[0] == "agent" && args[1] != "wait":
 			box := args[5]
 			branch := "hi-box/" + box
@@ -818,46 +869,155 @@ func TestTeamPreview(t *testing.T) {
 	if _, err := b.preview(teamPreviewRequest{}); err == nil || !strings.Contains(err.Error(), "no way to start") {
 		t.Fatal(err)
 	}
-	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
-	exec.Command("git", "-C", b.repo, "add", "-A").Run()
-	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
-
-	var started []string
-	b.app = func(src, command string, port, hostPort int) error {
-		if !fileExists(filepath.Join(src, "Makefile")) {
-			t.Error("the app's copy has no Makefile")
-		}
-		started = append(started, fmt.Sprintf("%s %d", command, port))
-		server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", hostPort), Handler: http.NotFoundHandler()}
-		go server.ListenAndServe()
-		t.Cleanup(func() { server.Close() })
-		return nil
+	commit := func(file string) {
+		os.WriteFile(filepath.Join(b.repo, file), []byte("run:\n\t./serve\n"), 0o644)
+		exec.Command("git", "-C", b.repo, "add", "-A").Run()
+		exec.Command("git", "-C", b.repo, "commit", "-q", "-m", file).Run()
 	}
-	saved := b.run
-	b.run = func(args ...string) ([]byte, error) {
-		if args[0] == "net" && args[2] != "stop" {
-			if !strings.Contains(strings.Join(args, " "), "--detach --json --max 4h0m0s --name team-payments") {
-				t.Errorf("expose: %q", args)
+	commit("Makefile")
+	portFile := teamSlotPortFile("payments", teamSlotPreview)
+	exposed := func() []string {
+		var out []string
+		for _, call := range b.calls {
+			if strings.HasPrefix(call, "net expose") {
+				out = append(out, call)
 			}
-			return json.Marshal(netExposeState{Name: "team-payments-x1", URL: "https://team-payments-x1.example.net", Password: "pw-123", Expires: time.Now().Add(4 * time.Hour)})
 		}
-		return saved(args...)
+		return out
 	}
-	preview, err := b.preview(teamPreviewRequest{})
+
+	// The first preview gets an address, for a day, that follows the
+	// port file.
+	first, err := b.preview(teamPreviewRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.URL != "https://team-payments-x1.example.net" || preview.Password != "pw-123" || preview.Source != "main" || started[0] != "make run 8080" {
-		t.Fatalf("%+v %q", preview, started)
+	if !first.NewLink || !strings.HasSuffix(first.URL, "?hi_key=k") || first.Source != "main" || !strings.HasSuffix(b.apps[0], " make run 8080") {
+		t.Fatalf("%+v %q", first, b.apps)
 	}
-	if !fileExists(teamPreviewPath("payments")) {
-		t.Fatal("no preview.json")
+	if calls := exposed(); len(calls) != 1 || !strings.Contains(calls[0], fmt.Sprintf("net expose %d --follow %s --link --detach --json --max 24h0m0s --name team-payments", first.HostPort, portFile)) {
+		t.Fatal(calls)
+	}
+	if data, _ := os.ReadFile(portFile); strings.TrimSpace(string(data)) != fmt.Sprint(first.HostPort) {
+		t.Fatalf("port file %q", data)
+	}
+
+	// The next one is on the same link: the address moves to the new box.
+	commit("more")
+	second, err := b.preview(teamPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.NewLink || second.URL != first.URL || second.HostPort == first.HostPort || second.Commit == first.Commit || len(exposed()) != 1 {
+		t.Fatalf("%+v %q", second, exposed())
+	}
+	if data, _ := os.ReadFile(portFile); strings.TrimSpace(string(data)) != fmt.Sprint(second.HostPort) {
+		t.Fatalf("port file %q", data)
+	}
+	var out bytes.Buffer
+	printTeamPreview(&out, second)
+	if !strings.Contains(out.String(), "same link as before") {
+		t.Fatal(out.String())
+	}
+
+	// With less than half a day left, a preview gets a new address, and
+	// the old one ends.
+	b.mu.Lock()
+	state := b.exposures[second.Expose]
+	state.Expires = time.Now().Add(2 * time.Hour)
+	b.exposures[second.Expose] = state
+	b.mu.Unlock()
+	saved, _ := loadTeamSlot("payments", teamSlotPreview)
+	saved.Expires = state.Expires
+	saveTeamSlot("payments", saved)
+	commit("again")
+	third, err := b.preview(teamPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !third.NewLink || third.URL == first.URL || !strings.Contains(strings.Join(exposed(), "\n"), "net expose stop "+first.Expose) {
+		t.Fatalf("%+v %q", third, exposed())
+	}
+
+	// A preview whose address is gone is stopped.
+	b.mu.Lock()
+	delete(b.exposures, third.Expose)
+	b.mu.Unlock()
+	done := make(chan struct{})
+	close(done)
+	b.keepLinks(done, io.Discard)
+	if fileExists(teamPreviewPath("payments")) || fileExists(portFile) {
+		t.Fatal("the ended preview is still there")
+	}
+	if _, err := b.preview(teamPreviewRequest{}); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := b.preview(teamPreviewRequest{Stop: true}); err != nil || fileExists(teamPreviewPath("payments")) {
 		t.Fatal(err)
 	}
-	if !strings.Contains(strings.Join(b.calls, "\n"), "net expose stop team-payments-x1") {
-		t.Fatal(b.calls)
+}
+
+func TestTeamProductionLink(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	if _, err := b.preview(teamPreviewRequest{Production: true}); err == nil || !strings.Contains(err.Error(), "nothing is released") {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
+	teamTestMerge(t, b, "Suppliers")
+
+	// The release puts production on its own address, and hi posts its
+	// link in the channel, then links to that message.
+	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 20), Notes: "Suppliers"}); err != nil {
+		t.Fatal(err)
+	}
+	first, ok := loadTeamSlot("payments", teamSlotProduction)
+	if !ok || first.Label != "production v1" || first.Message == "" || !strings.Contains(first.Expose, "team-payments-live") {
+		t.Fatalf("%+v", first)
+	}
+	calls := strings.Join(channel.calls, "\n")
+	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "hi's message with production's link") {
+		t.Fatal(calls)
+	}
+
+	// The next release shows on the same link; hi edits its message.
+	teamTestMerge(t, b, "Search")
+	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 19), Notes: "Search"}); err != nil {
+		t.Fatal(err)
+	}
+	second, _ := loadTeamSlot("payments", teamSlotProduction)
+	if second.URL != first.URL || second.Message != first.Message || second.Label != "production v2" {
+		t.Fatalf("%+v", second)
+	}
+	if !strings.Contains(strings.Join(channel.calls, "\n"), "update "+testTeamConfig().Channel+" "+first.Message+" :globe_with_meridians: *Production v2*") {
+		t.Fatal(channel.calls)
+	}
+	if b.productionNeedsWork() {
+		t.Fatal("production needs work right after a release")
+	}
+
+	// Before the address ends, hi gives production a new one and edits
+	// its message.
+	b.mu.Lock()
+	state := b.exposures[second.Expose]
+	state.Expires = time.Now().Add(10 * time.Minute)
+	b.exposures[second.Expose] = state
+	b.mu.Unlock()
+	second.Expires = state.Expires
+	saveTeamSlot("payments", second)
+	if !b.productionNeedsWork() {
+		t.Fatal("production's address is about to end")
+	}
+	done := make(chan struct{})
+	close(done)
+	b.keepLinks(done, io.Discard)
+	third, _ := loadTeamSlot("payments", teamSlotProduction)
+	if third.URL == second.URL || third.Message != first.Message || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+third.URL+"|this link>") {
+		t.Fatalf("%+v %q", third, channel.calls)
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -189,5 +190,40 @@ func TestNetExposeLinkKey(t *testing.T) {
 	}
 	if args := netExposeArgs(netExposeOptions{Name: "x", Protection: "link"}, 4000); strings.Join(args, " ") != "expose 4000 --with-name-prefix x" {
 		t.Fatal(args)
+	}
+}
+
+func TestNetExposeFollow(t *testing.T) {
+	serve := func(name string) (*httptest.Server, int) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, name) }))
+		t.Cleanup(server.Close)
+		port, _ := parsePort(server.URL[strings.LastIndex(server.URL, ":")+1:])
+		return server, port
+	}
+	_, oldPort := serve("old")
+	_, newPort := serve("new")
+	file := filepath.Join(t.TempDir(), "port")
+	relay := httptest.NewServer(newNetExposeRelayTo(netExposeFollow(file, "127.0.0.1", oldPort), "", time.Time{}, io.Discard))
+	defer relay.Close()
+	get := func() string {
+		response, err := http.Get(relay.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		body, _ := io.ReadAll(response.Body)
+		return string(body)
+	}
+	// Until the file has a port, the one it started with.
+	if got := get(); got != "old" {
+		t.Fatal(got)
+	}
+	writeFileAtomic(file, []byte(strconv.Itoa(newPort)+"\n"), 0o600)
+	if got := get(); got != "new" {
+		t.Fatal(got)
+	}
+	writeFileAtomic(file, []byte(strconv.Itoa(oldPort)+"\n"), 0o600)
+	if got := get(); got != "old" {
+		t.Fatal(got)
 	}
 }

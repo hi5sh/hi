@@ -267,9 +267,9 @@ hi team show <task>                              its state and report, without w
 hi team tasks                                    list the tasks
 hi team merge <task>                             merge it, once a review approved its latest commit
 hi team stop <task>                              stop a task's box
-hi team preview [<task>] [--port <n>] [--max <d>]  run the project and give a temporary address
+hi team preview [<task>] [--port <n>]            show dev or a task's branch on the preview link
 hi team preview stop                             end the preview
-hi team preview production                       the same for production
+hi team preview production                       production's link, and hi's message that keeps it current
 hi team versions                                 production's version, what dev has on top, open ideas
 hi team release --approval <id> --notes <file>   dev to production as the next version (an owner's yes)
 hi team release v2 --approval <id>               production back on v2 (an owner's yes)
@@ -277,11 +277,25 @@ hi team discard <task>                           drop an idea that isn't merged
 hi team discard dev --approval <id>              dev's code back to production's
 ```
 
-- A preview copies the commit (main, or a task's branch) to `run/app`,
-  runs `make run` or `npm start` in an app box with `$PORT` (8080) published
-  to 127.0.0.1 only, waits for it to answer, and runs `hi net expose` on the
-  host with a password. The lead never joins NetBird. One preview per team;
-  a new one replaces it.
+- A team has two addresses, each with a record in `run/`: the preview
+  (dev or a task's branch) and production. Showing a commit copies it to
+  `run/app-<slot>-<port>`, runs `make run` or `npm start` in a new app box
+  with `$PORT` (8080) published to 127.0.0.1 only, and waits for it to
+  answer. The address is a `hi net expose --link --follow run/<slot>.port`
+  on the host, for a day: the broker writes the new box's port to that
+  file, so the address moves to the new version without changing, and
+  then removes the old box. A failed start leaves the old version showing.
+  The lead never joins NetBird.
+- A preview keeps its address while it has 12 hours left; otherwise it
+  gets a new one and the old ends. A preview whose address ended is
+  stopped.
+- Production's address follows the production branch: a release, and the
+  broker's check each minute, show its latest commit, and the broker gives
+  it a new address 30 minutes before the old one ends. hi keeps one
+  message in the channel with production's current link, editing it when
+  the link or the version changes, and a release's announcement links to
+  that message. Links in the lead's own messages die with their address,
+  and the lead can't edit those, so it points people to hi's message.
 - The specs live in the project, `docs/specs`, mounted writable at the
   lead's /team/specs; the rest of the project stays read-only for it. The
   broker commits the lead's changes there when a task starts and before a

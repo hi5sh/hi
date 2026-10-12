@@ -1024,7 +1024,18 @@ var teamRemoveContainers = func(name string, boxes []string) {
 	if err != nil {
 		return
 	}
-	engine.output("rm", "-f", teamPreviewContainer(name))
+	for _, slot := range []string{teamSlotPreview, teamSlotProduction} {
+		if state, ok := loadTeamSlot(name, slot); ok && state.Expose != "" {
+			netExposeStop([]string{state.Expose}, io.Discard)
+		}
+	}
+	if out, err := engine.output("ps", "-a", "--format", "{{.Names}}"); err == nil {
+		for _, container := range strings.Fields(out) {
+			if strings.HasPrefix(container, teamPreviewContainer(name)) {
+				engine.output("rm", "-f", container)
+			}
+		}
+	}
 	engine.output("rm", "-f", teamMemoryContainer(name))
 	teardownBox(engine, boxMeta{Name: "team-" + name})
 	for _, box := range boxes {

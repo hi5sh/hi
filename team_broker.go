@@ -163,7 +163,11 @@ type teamBroker struct {
 	// previewMu keeps one preview start or stop at a time.
 	previewMu sync.Mutex
 	// app starts the project's box; tests replace it.
-	app func(src, command string, port, hostPort int) error
+	app func(name, src, command string, port, hostPort int) error
+	// exposed finds a running hi net expose by name, and running says an
+	// app's box runs; tests replace them.
+	exposed func(name string) (netExposeState, bool)
+	running func(container string) bool
 	// channel is the team's Slack channel, to check approvals that aren't
 	// logged yet and to say when a small fix starts; nil in tests.
 	channel teamChannelSource
@@ -178,6 +182,8 @@ type teamBroker struct {
 func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds}
 	b.app = b.startApp
+	b.exposed = teamExposed
+	b.running = b.appRunning
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the
 		// team; only the waiters belong to it, and resume starts them again.
@@ -1175,17 +1181,12 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				}
 				request.Port = port
 				i++
-			case args[i] == "--max" && i+1 < len(args):
-				max, err := time.ParseDuration(args[i+1])
-				if err != nil {
-					return usageError{"--max is a duration, such as 4h"}
-				}
-				request.Max = max
-				i++
-			case request.Task == "" && teamTaskID.MatchString(args[i]):
+			case request.Task == "" && !request.Production && args[i] == "production":
+				request.Production = true
+			case request.Task == "" && !request.Production && teamTaskID.MatchString(args[i]):
 				request.Task = args[i]
 			default:
-				return usageError{"usage: hi team preview [<task> | production] [--port <n>] [--max <duration>] | hi team preview stop"}
+				return usageError{"usage: hi team preview [<task> | production] [--port <n>] | hi team preview stop"}
 			}
 		}
 		var preview teamPreview
@@ -1196,11 +1197,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			fmt.Fprintln(stdout, "The preview is stopped.")
 			return nil
 		}
-		fmt.Fprintf(stdout, "Preview of %s (%s) is up until %s UTC. Say which version it is, and post this link whole; its key lets the people in:\n  %s\n", firstNonEmpty(preview.Label, preview.Source), preview.Commit[:min(len(preview.Commit), 12)], preview.Expires.UTC().Format("15:04"), preview.URL)
-		if preview.Password != "" {
-			fmt.Fprintf(stdout, "  password: %s\n", preview.Password)
-		}
-		fmt.Fprintln(stdout, "It works on phones too. hi team preview stop ends it; a new preview replaces it.")
+		printTeamPreview(stdout, preview)
 		return nil
 	case "stop":
 		if len(args) != 1 {

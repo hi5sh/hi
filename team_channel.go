@@ -69,7 +69,10 @@ type teamChannelSource interface {
 	replies(channel, thread, oldest string) ([]slack.Message, error)
 	userName(id string) string
 	download(url string, w io.Writer) error
-	post(channel, text string) error
+	// post returns the message's timestamp, which update and permalink take.
+	post(channel, text string) (string, error)
+	update(channel, ts, text string) error
+	permalink(channel, ts string) (string, error)
 }
 
 type liveTeamChannel struct {
@@ -129,9 +132,18 @@ func (l *liveTeamChannel) userName(id string) string {
 
 func (l *liveTeamChannel) download(url string, w io.Writer) error { return l.api.GetFile(url, w) }
 
-func (l *liveTeamChannel) post(channel, text string) error {
-	_, _, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false))
+func (l *liveTeamChannel) post(channel, text string) (string, error) {
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
+	return ts, err
+}
+
+func (l *liveTeamChannel) update(channel, ts, text string) error {
+	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false))
 	return err
+}
+
+func (l *liveTeamChannel) permalink(channel, ts string) (string, error) {
+	return l.api.GetPermalink(&slack.PermalinkParameters{Channel: channel, Ts: ts})
 }
 
 // teamChannelMu keeps one poll at a time: the watch's and the broker's,

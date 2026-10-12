@@ -147,9 +147,9 @@ nothing it asks for widens a member's box.
 
 ## Try what the team built
 
-After a merge, the lead runs a preview and posts a link in the channel, so
-the people can try the work, on their phones too. The link carries its own
-key, so there is no password to copy:
+After a merge, the lead shows the new version on the team's preview link,
+so the people can try the work, on their phones too. The link carries its
+own key, so there is no password to copy:
 
 1. hi starts the project in an app box of its own, from the merged code (or
    a task's branch, before it is merged), with `make run` or `npm start`.
@@ -158,7 +158,17 @@ key, so there is no password to copy:
    machine's NetBird (see [hi net](/guide/workstation/expose/)), which only
    the link with its key opens. The machine must be enrolled with `hi net`,
    and Peer Expose must be on in NetBird.
-3. A preview lasts four hours by default. A new one replaces it.
+3. The link stays the same from one preview to the next: the new version
+   starts beside the old one, and the address moves to it once it
+   answers, so the people just reload. A link lasts a day; a preview gets
+   a new link only when the old one has less than 12 hours left. If the
+   new version doesn't start, the link keeps showing the old one.
+
+Production has a link of its own, which shows the latest release. hi
+renews it before it runs out each day, and keeps one message in the
+channel with production's current link, edited whenever the link or the
+version changes. Each release's announcement links to that message, so
+nobody has to hunt for the latest link.
 
 The lead itself never joins your NetBird network: the machine runs the
 app and the address, and the lead only asks for them.
@@ -174,8 +184,9 @@ are looking at:
 - **Dev** is where every merge goes. The people try it in previews, and
   what doesn't work out can be thrown away.
 - **Production** is the version people rely on, on a `production` branch
-  of its own. It changes only when an owner says yes. Each release gets the
-  next number: v1, v2, and so on, tagged `release-1`, `release-2`.
+  of its own, with a link of its own. It changes only when an owner says
+  yes. Each release gets the next number: v1, v2, and so on, tagged
+  `release-1`, `release-2`.
 
 When the people are happy with dev, the lead asks an owner whether to
 release it, and only that owner's reply lets the broker move production

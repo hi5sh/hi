@@ -118,6 +118,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
 	}
 	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
+	go broker.keepLinks(ctx.Done(), stderr)
 	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
@@ -511,7 +512,7 @@ own field who want something that works. You bridge the gap:
 - Keep them posted in short messages at the moments that matter to them:
   when work starts, when something is ready to try, and when you need a
   decision; not each step in between.
-
+%[5]s
 ## Your team
 
 You don't write code yourself. You hand tasks to the members:
@@ -556,8 +557,18 @@ feature, with its status. It is the project's docs/specs folder: hi commits
 your changes when a task starts and when work is merged, so the members see
 them and they go wherever the code goes. /team/repo is the project as merged, read-only
 for you: read it to answer questions about how things work.
-`, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"))
+`, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting)
 }
+
+// teamSlackFormatting is how the lead writes for Slack. Hermes turns
+// Markdown into Slack's own formatting, which a link inside bold or code
+// breaks: Slack takes the stars as part of the address.
+const teamSlackFormatting = `- Slack shows only part of Markdown. Write plain Markdown: **bold**,
+  lists, and quotes work. Write a link as [what it opens](address), or
+  the address alone on its own line. Never put an address in bold,
+  italics, or code: Slack then takes the stars or backticks as part of the
+  address, and the link breaks. Leave out headings and tables.
+`
 
 // teamSoulUpdates are paragraphs an earlier hi wrote in a lead's SOUL.md,
 // with what this hi says instead. SOUL.md is the lead's to edit, so hi
@@ -584,6 +595,10 @@ var teamSoulUpdates = []struct{ old, new string }{
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
+	// Links that Slack can open.
+	{`  decision; not each step in between.
+`, `  decision; not each step in between.
+` + teamSlackFormatting},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -595,7 +610,10 @@ func updateTeamSoul(path string) error {
 	}
 	text := string(data)
 	for _, update := range teamSoulUpdates {
-		text = strings.Replace(text, update.old, update.new, 1)
+		// An update may add to a paragraph, so the old text stays in it.
+		if !strings.Contains(text, update.new) {
+			text = strings.Replace(text, update.old, update.new, 1)
+		}
 	}
 	if text == string(data) {
 		return nil
@@ -635,10 +653,10 @@ of its own on a branch of the project; you get their reports.
 | hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4 again, with your notes; rarely needed |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
-| hi team preview | Run the project's main branch and get a temporary link for the people |
+| hi team preview | Show the project's main branch on the preview link, for the people to try |
 | hi team preview t-4 | The same for a task's branch, before it is merged |
 | hi team preview stop | End the preview |
-| hi team preview production | The same for production, the version the people use |
+| hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
 | hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
 | hi team release v2 --approval <id> | Put production back on v2, once an owner says yes |
@@ -721,14 +739,33 @@ channel about each review round: the people hear when it's ready to try.
 
 ## Previews
 
-After a merge, run hi team preview and post the link it prints in the
-channel, whole: its key is part of it, so the people just open it, on
-their phones too, and try the acceptance list. There is no password. Never tell the people to run commands or start the app themselves.
+After a merge, run hi team preview. It shows the new version on the
+team's preview link, and says whether that link is new:
+
+- **The same link as before:** the people's link shows the new version
+  now. Tell them to reload it, and which version it is; don't post the
+  link again.
+- **A new link:** post it whole, its key is part of it, so the people just
+  open it, on their phones too, and try the acceptance list. There is no
+  password.
+
+A preview link stays the same for up to a day: a new preview gets a new
+link only when the old one has less than 12 hours left. Never tell the
+people to run commands or start the app themselves.
+
+Production has a link of its own, which hi keeps working: a release moves
+it to the new version, and hi renews it each day. hi keeps one message in
+the channel with production's current link, and links to it when it posts
+a release. When people ask where production is, point them to that
+message (hi team preview production prints its link) rather than posting
+the link itself: a link you post stops working when it is renewed, and
+hi can't edit your messages.
 
 The project starts with make run, or npm start, and must listen on
 0.0.0.0 at the port in $PORT. If the preview says the app didn't answer,
-give the coder a task to fix that, with the lines it printed. If the app
-only listens on a fixed port, pass it: hi team preview --port 5173.
+give the coder a task to fix that, with the lines it printed; the link
+still shows the version before. If the app only listens on a fixed port,
+pass it: hi team preview --port 5173.
 
 Don't start the app in your own box: nobody can reach it there.
 

@@ -77,6 +77,9 @@ can't reach: it comes in over the VPN, at the machine's NetBird address.
 `hi net expose` runs a small relay on that address that passes requests to
 `localhost:<port>`, keeping the original `Host` header and WebSockets.
 `--host` points the relay elsewhere, such as a container's address.
+`--follow <file>` relays to the port written in a file instead, read again
+whenever the file changes, so a service can move to a new port, such as a
+new container, without the address changing.
 
 ## What to keep in mind
 

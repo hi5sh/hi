@@ -253,11 +253,42 @@ type teamReleaseResult struct {
 	Back     bool        `json:"back,omitempty"`  // production moved to an earlier release
 	Again    bool        `json:"again,omitempty"` // ... or to a later one it had left
 	Warning  string      `json:"warning,omitempty"`
+	// Approval is the yes that moved production this time.
+	Approval *teamApproval `json:"approval,omitempty"`
 }
 
 // release moves production: to dev's latest commit as the next version, or
 // to an earlier release. An owner's yes is required either way.
 func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, error) {
+	result, announcement, err := b.moveProduction(request)
+	if err != nil {
+		return result, err
+	}
+	// Production's address shows the new version before the channel hears.
+	if b.channel != nil {
+		if shown, err := b.production(0); err != nil {
+			result.Warning = strings.TrimSpace(result.Warning + "\nProduction's address still shows the version before: " + err.Error())
+		} else if shown.Permalink != "" {
+			announcement += fmt.Sprintf("\n\nOpen it from <%s|hi's message with production's link>, which hi keeps working.", shown.Permalink)
+		}
+	}
+	if config, err := loadTeam(b.team); err == nil {
+		b.announce(config, announcement)
+	}
+	return result, nil
+}
+
+// moveProduction moves the production branch and records the release; it
+// returns what to post in the channel.
+func (b *teamBroker) moveProduction(request teamReleaseRequest) (teamReleaseResult, string, error) {
+	result, err := b.moveProductionLocked(request)
+	if err != nil {
+		return result, "", err
+	}
+	return result, teamReleaseAnnouncement(result, *result.Approval, strings.TrimSpace(request.Notes)), nil
+}
+
+func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamReleaseResult, error) {
 	config, err := loadTeam(b.team)
 	if err != nil {
 		return teamReleaseResult{}, err
@@ -279,7 +310,7 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 	if err != nil {
 		return teamReleaseResult{}, err
 	}
-	result := teamReleaseResult{Previous: versions.Production}
+	result := teamReleaseResult{Previous: versions.Production, Approval: &approval}
 	event := teamVersionEvent{Approval: &approval, At: time.Now().UTC()}
 	var push []string
 	if request.Version != 0 {
@@ -340,7 +371,6 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 			result.Warning = "released, but git push failed: " + qFirstLine(out, err.Error())
 		}
 	}
-	b.announce(config, teamReleaseAnnouncement(result, approval, notes))
 	return result, nil
 }
 

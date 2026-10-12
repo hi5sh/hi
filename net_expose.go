@@ -56,6 +56,9 @@ type netExposeOptions struct {
 	Groups     string        `json:"groups,omitempty"`
 	Name       string        `json:"name"`
 	JSON       bool          `json:"json,omitempty"`
+	// Follow is a file with the port to relay to, read again when it
+	// changes, so the service can move without the address changing.
+	Follow string `json:"follow,omitempty"`
 }
 
 // netExposeState is a running exposure, in the state folder.
@@ -103,6 +106,8 @@ options:
   --public             no protection: anyone with the address (webhooks, API clients)
   --name <prefix>      the start of the address (default hi-<host>-<port>)
   --host <addr>        where the service listens (default localhost)
+  --follow <file>      relay to the port written in this file, read again when it
+                       changes, so the service can move without a new address
   --detach             run in the background; print the address and return
   --json               print the result as JSON
 
@@ -157,6 +162,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	link := flags.Bool("link", false, "the key in the link")
 	name := flags.String("name", "", "address prefix")
 	host := flags.String("host", "localhost", "where the service listens")
+	follow := flags.String("follow", "", "a file with the port to relay to")
 	detach := flags.Bool("detach", false, "run in the background")
 	asJSON := flags.Bool("json", false, "JSON output")
 	positional, err := flags.parse(args)
@@ -170,7 +176,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	if err != nil {
 		return netExposeOptions{}, false, err
 	}
-	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON}
+	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow}
 	switch {
 	case options.Max == noLimit || options.Max > netExposeMaxMax:
 		return options, false, fmt.Errorf("--max is at most %s; an exposure always ends", netExposeMaxMax)
@@ -365,7 +371,11 @@ const (
 // The link's key becomes a cookie that lasts until the exposure ends, and
 // the browser is sent on to the address without it.
 func newNetExposeRelayWithKey(target, key string, expires time.Time, log io.Writer) http.Handler {
-	upstream, _ := url.Parse(target)
+	return newNetExposeRelayTo(func() string { return target }, key, expires, log)
+}
+
+// newNetExposeRelayTo is the relay for a target that may move.
+func newNetExposeRelayTo(target func() string, key string, expires time.Time, log io.Writer) http.Handler {
 	var mu sync.Mutex
 	matches := func(given string) bool {
 		return given != "" && subtle.ConstantTimeCompare([]byte(given), []byte(key)) == 1
@@ -407,6 +417,7 @@ func newNetExposeRelayWithKey(target, key string, expires time.Time, log io.Writ
 			r.Header.Del("Authorization")
 			netExposeDropCookie(r, netExposeKeyCookie)
 		}
+		upstream, _ := url.Parse(target())
 		proxy := &httputil.ReverseProxy{
 			Rewrite: func(out *httputil.ProxyRequest) {
 				out.SetURL(upstream)
@@ -431,6 +442,25 @@ func newNetExposeRelayWithKey(target, key string, expires time.Time, log io.Writ
 const netExposeNoKeyPage = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Link needed</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem">
 <h1>This page needs its link</h1><p>Open it with the whole link you were sent; the key is part of it.</p></body>`
+
+// netExposeFollow is the target in a --follow file: the port written in
+// it, read again whenever the file changes, or port until it has one.
+func netExposeFollow(file, host string, port int) func() string {
+	var mu sync.Mutex
+	var seen os.FileInfo
+	return func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		if info, err := os.Stat(file); err == nil && (seen == nil || !info.ModTime().Equal(seen.ModTime()) || !os.SameFile(info, seen)) {
+			if data, err := os.ReadFile(file); err == nil {
+				if read, err := parsePort(strings.TrimSpace(string(data))); err == nil {
+					port, seen = read, info
+				}
+			}
+		}
+		return "http://" + net.JoinHostPort(host, fmt.Sprint(port))
+	}
+}
 
 // netExposeDropCookie removes one cookie from a request's Cookie header.
 func netExposeDropCookie(r *http.Request, name string) {
@@ -475,7 +505,11 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if options.Protection == "link" {
 		key = options.Secret
 	}
-	relay := &http.Server{Handler: newNetExposeRelayWithKey(target, key, time.Now().Add(options.Max), stdout), ReadHeaderTimeout: 30 * time.Second}
+	current := func() string { return target }
+	if options.Follow != "" {
+		current = netExposeFollow(options.Follow, options.Host, options.Port)
+	}
+	relay := &http.Server{Handler: newNetExposeRelayTo(current, key, time.Now().Add(options.Max), stdout), ReadHeaderTimeout: 30 * time.Second}
 	go relay.Serve(listener)
 	defer relay.Close()
 	relayPort := listener.Addr().(*net.TCPAddr).Port
