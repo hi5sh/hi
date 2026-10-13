@@ -598,19 +598,23 @@ func confirmBestOf(run bestOfRun, options boxOptions, stdin io.Reader, w io.Writ
 		if len(run.Loop.Edit) > 0 {
 			fmt.Fprintf(w, "  edit    only %s\n", strings.Join(run.Loop.Edit, ", "))
 		}
+		beats := "beats the best so far"
+		if run.Loop.MinGain > 0 {
+			beats += " by more than " + formatScore(run.Loop.MinGain)
+		}
 		if loop := run.Loop; loop.Validate != "" {
 			data := "no data folder"
 			if loop.ValidateData != "" {
 				data = loop.ValidateData + " at /box/data"
 			}
 			fmt.Fprintf(w, "  gate    %s, run by hi after each round in a container without network (%s)\n", loop.Validate, data)
-			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far and its validation is no worse than the highest so far")
+			fmt.Fprintf(w, "  keeps   a result only if it %s and its validation is no worse than the highest so far", beats)
 			if loop.ValidateSlack > 0 {
 				fmt.Fprintf(w, " by more than %s", formatScore(loop.ValidateSlack))
 			}
 			fmt.Fprintf(w, "; hi commits it to %s\n", loop.Branch)
 		} else {
-			fmt.Fprintf(w, "  keeps   a result only if it beats the best so far; hi commits it to %s\n", run.Loop.Branch)
+			fmt.Fprintf(w, "  keeps   a result only if it %s; hi commits it to %s\n", beats, run.Loop.Branch)
 		}
 	} else {
 		fmt.Fprintf(w, "  check   %s, run by hi in each box when its agent ends\n", run.Check)
