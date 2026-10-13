@@ -58,6 +58,11 @@ type teamMember struct {
 type teamSecrets struct {
 	SlackBotToken string `json:"slack_bot_token"`
 	SlackAppToken string `json:"slack_app_token"`
+	// OpenRouterAPIKey is the team's own; without it the team uses this
+	// machine's, from Hermes' .env (team_keys.go).
+	OpenRouterAPIKey string `json:"openrouter_api_key,omitempty"`
+	// Env is the settings the team's app boxes get (hi team env).
+	Env map[string]string `json:"env,omitempty"`
 }
 
 func teamsDir() string {
@@ -205,7 +210,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if command == "channel" {
 		return exitCode(runTeamChannel(rest, stdout), stderr)
 	}
-	if teamLeadCommands[command] {
+	if teamLeadCommands[command] || command == "env" && os.Getenv(teamSocketEnv) != "" {
 		return exitCode(runTeamLeadCommand(command, rest, stdin, stdout), stderr)
 	}
 	var err error
@@ -255,6 +260,12 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				err = teamConnectGitHub(&config, rest[1], stdout)
 			}
 		}
+	case "key":
+		err = teamKey(rest, stdin, stdout)
+	case "env":
+		err = teamEnv(rest, stdin, stdout)
+	case "__app":
+		return runTeamApp(rest, stderr)
 	case "manifest":
 		err = withTeamName(rest, func(name string) error {
 			config, err := loadTeam(name)
@@ -291,7 +302,8 @@ usage:
                                    in a new folder ./team-<name>
       [--dir <folder>]             the team's folder somewhere else
       [--from <file.json>]         the answers from a file; the Slack tokens from
-                                   HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN
+                                   HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, and the
+                                   team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY
   hi team up [<name>]              start or restart the team and keep it up, also after a reboot;
                                    without a name, pick it from a list
   hi team up <folder>              the same for a team whose folder moved or was copied here
@@ -304,6 +316,13 @@ usage:
   hi team status <name>            whether it is up, its members, and its tasks
   hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
   hi team channel <name> [--since 2h]  what was said in the channel (the last day by default)
+  hi team key <name> openrouter    give the team an OpenRouter key of its own (asked, never an
+                                   argument); --unset goes back to this machine's. No box holds it:
+                                   the app reaches models at $OPENROUTER_BASE_URL through hi
+  hi team env <name>               the settings the team's app gets, by name
+  hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
+                                   boxes only (preview and production); KEY alone asks for the value
+      [--unset KEY]                remove one
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
@@ -504,7 +523,8 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	if answers.Members == nil {
 		answers.Members = defaultTeamMembers()
 	}
-	secrets := teamSecrets{SlackBotToken: os.Getenv("HI_TEAM_SLACK_BOT_TOKEN"), SlackAppToken: os.Getenv("HI_TEAM_SLACK_APP_TOKEN")}
+	secrets := teamSecrets{SlackBotToken: os.Getenv("HI_TEAM_SLACK_BOT_TOKEN"), SlackAppToken: os.Getenv("HI_TEAM_SLACK_APP_TOKEN"),
+		OpenRouterAPIKey: os.Getenv("HI_TEAM_OPENROUTER_API_KEY")}
 	if secrets.SlackBotToken == "" || secrets.SlackAppToken == "" {
 		return answers, secrets, errors.New("set HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN to the Slack app's tokens")
 	}
@@ -520,13 +540,13 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 
 	fmt.Fprintf(stdout, "Setting up team %s in %s. Each answer is checked as you give it.\n\n", name, dir)
 
-	fmt.Fprintln(stdout, "1/6 Purpose")
+	fmt.Fprintln(stdout, "1/7 Purpose")
 	fmt.Fprintln(stdout, "In one sentence, what is this team for? The lead starts from it.")
 	if config.Purpose, err = teamAsk(stdin, stdout, "Purpose", ""); err != nil {
 		return answers, secrets, err
 	}
 
-	fmt.Fprintln(stdout, "\n2/6 Slack app")
+	fmt.Fprintln(stdout, "\n2/7 Slack app")
 	fmt.Fprintln(stdout, "Each team has a Slack app of its own. Create it from this manifest:")
 	fmt.Fprintln(stdout, "  api.slack.com/apps → Create New App → From a manifest → paste it → Create,")
 	fmt.Fprintln(stdout, "  then Install to Workspace.")
@@ -547,7 +567,7 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	}
 	fmt.Fprintf(stdout, "Slack: both tokens work, in workspace %s.\n", workspace)
 
-	fmt.Fprintln(stdout, "\n3/6 Channel")
+	fmt.Fprintln(stdout, "\n3/7 Channel")
 	fmt.Fprintln(stdout, "Invite the app to the team's channel first: /invite @"+teamBotName(name))
 	fmt.Fprintln(stdout, "Then copy the channel's ID: click the channel's name; the ID is at the bottom (C…).")
 	channel := ""
@@ -559,7 +579,7 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	}
 	fmt.Fprintf(stdout, "Slack: the app is in #%s.\n", channel)
 
-	fmt.Fprintln(stdout, "\n4/6 People")
+	fmt.Fprintln(stdout, "\n4/7 People")
 	fmt.Fprintln(stdout, "Owners approve what matters, such as merging and stopping the team. Give Slack member IDs,")
 	fmt.Fprintln(stdout, "separated by commas: a person's profile → ⋯ → Copy member ID (U…).")
 	owners, err := teamAskUntil(stdin, stdout, "Owners", false, teamCheckPeople)
@@ -579,7 +599,7 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	}
 	config.Askers = splitList(askers)
 
-	fmt.Fprintln(stdout, "\n5/6 Members")
+	fmt.Fprintln(stdout, "\n5/7 Members")
 	fmt.Fprintln(stdout, "Each role's agent (claude, codex, or hermes) and model. Enter keeps what's offered.")
 	config.Members = defaultTeamMembers()
 	for _, role := range teamRoles(*config) {
@@ -619,7 +639,15 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 		config.Members[role] = member
 	}
 
-	fmt.Fprintln(stdout, "\n6/6 Code")
+	fmt.Fprintln(stdout, "\n6/7 Models")
+	fmt.Fprintln(stdout, "The lead, and the app the team builds, use models through OpenRouter. Give the team a key of its")
+	fmt.Fprintln(stdout, "own (openrouter.ai/settings/keys), so its use is billed and limited apart, or press Enter for this")
+	fmt.Fprintln(stdout, "machine's (Hermes'). No box ever holds the key; nobody needs to paste one into Slack.")
+	if secrets.OpenRouterAPIKey, err = teamAskOpenRouterKey(stdin, stdout, "OpenRouter key [Enter: this machine's]"); err != nil {
+		return answers, secrets, err
+	}
+
+	fmt.Fprintln(stdout, "\n7/7 Code")
 	fmt.Fprintln(stdout, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
 	fmt.Fprintln(stdout, "Enter starts a new git repository there. Or give a repository to clone: a URL, cloned with this")
 	fmt.Fprintln(stdout, "machine's git credentials, or a folder on this machine.")
@@ -806,6 +834,15 @@ func teamAsk(stdin io.Reader, stdout io.Writer, question, fallback string) (stri
 
 // teamAskSecret reads a token without showing it.
 func teamAskSecret(stdin io.Reader, stdout io.Writer, label string) (string, error) {
+	value, err := teamReadSecret(stdin, stdout, label)
+	if err == nil && value == "" {
+		err = fmt.Errorf("no %s was entered", strings.ToLower(label))
+	}
+	return value, err
+}
+
+// teamReadSecret reads a secret without showing it; Enter gives "".
+func teamReadSecret(stdin io.Reader, stdout io.Writer, label string) (string, error) {
 	fmt.Fprintf(stdout, "%s (paste it; it shows as *): ", label)
 	var value string
 	if file, ok := stdin.(*os.File); ok && isTerminal(stdin) {
@@ -823,10 +860,7 @@ func teamAskSecret(stdin io.Reader, stdout io.Writer, label string) (string, err
 		}
 		value = line
 	}
-	if value = strings.TrimSpace(stripTerminalCodes(value)); value == "" {
-		return "", fmt.Errorf("no %s was entered", strings.ToLower(label))
-	}
-	return value, nil
+	return strings.TrimSpace(stripTerminalCodes(value)), nil
 }
 
 // teamCheckSlack checks both tokens and that the bot is in the channel.

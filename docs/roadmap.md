@@ -1201,6 +1201,22 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   production's code. Team aiman's app scheduled its own 06:00 Slack post,
   which could never be sent from a box without a token.
 
+### v0.53.0 — A team's keys and settings
+
+- [x] `hi team new` asks for an OpenRouter key of the team's own (Enter
+  keeps this machine's); `hi team key <name> openrouter [--unset]` sets it
+  later. The lead's proxy takes it first, and no box holds it.
+- [x] An app box (preview, production) calls models at
+  `$OPENROUTER_BASE_URL` with a placeholder key: hi relays the calls to
+  the broker's models socket, which puts the team's key on them.
+- [x] `hi team env <name> KEY=VALUE`: settings that app boxes get as
+  environment variables, and nobody else; the lead lists their names.
+  Production starts again on the same link when they change.
+- [x] The `hi-team` skill: the app's models and settings, and a key offered
+  in the channel is sent to `hi team env` instead of a brief. Team aiman's
+  OpenRouter key went from Slack into four briefs and the code.
+  Approved spec: [hi_team_keys.md](specs/approved/hi_team_keys.md).
+
 ## Planned
 
 ### Later — `hi team`

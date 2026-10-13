@@ -62,6 +62,9 @@ type teamPreview struct {
 	Expose    string    `json:"expose"` // hi net expose's name, to stop it
 	Started   time.Time `json:"started"`
 	Expires   time.Time `json:"expires"` // when the address ends
+	// Settings is teamSettingsStamp when the box started; a change starts
+	// the app again.
+	Settings string `json:"settings,omitempty"`
 	// Message is hi's message in the channel with production's link.
 	Message string `json:"message,omitempty"`
 	// NewLink says the address isn't the one the people had; only in replies.
@@ -229,7 +232,8 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	_, exposed := b.exposed(current.Expose)
 	exposed = had && exposed
 	lasts := exposed && time.Until(current.Expires) > keep
-	if lasts && current.Commit == next.Commit && current.Port == next.Port && b.running(current.Container) {
+	next.Settings = teamSettingsStamp(b.team)
+	if lasts && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings && b.running(current.Container) {
 		current.Label = next.Label
 		saveTeamSlot(b.team, current)
 		return current, nil // it shows this already
@@ -444,13 +448,14 @@ func (b *teamBroker) productionNeedsWork() bool {
 		return true
 	}
 	_, exposed := b.exposed(state.Expose)
-	return !exposed || time.Until(state.Expires) <= teamLinkRenew ||
+	return !exposed || time.Until(state.Expires) <= teamLinkRenew || state.Settings != teamSettingsStamp(b.team) ||
 		state.Commit != boxGit(b.repo, "rev-parse", teamProductionBranch) || !b.running(state.Container)
 }
 
 // startApp runs the project in its box: the hardening every box has, no
-// credentials, its port published to this machine only, and its address
-// folder read-only at /hi.
+// credentials, its port published to this machine only, its address
+// folder read-only at /hi, the team's settings, and the models socket,
+// which hi team __app relays to an ordinary address in the box.
 func (b *teamBroker) startApp(name, src, address, command string, port, hostPort int) error {
 	engine, _, err := detectBoxEngine()
 	if err != nil {
@@ -460,14 +465,25 @@ func (b *teamBroker) startApp(name, src, address, command string, port, hostPort
 	if err != nil {
 		return err
 	}
+	models := teamModelsDir(b.team)
+	if err := os.MkdirAll(models, 0o700); err != nil {
+		return err
+	}
+	envFile, err := writeTeamAppEnvFile(b.team, teamAppEnv(b.team, port))
+	if err != nil {
+		return err
+	}
+	defer os.Remove(envFile)
 	run := []string{"run", "-d", "--init", "--name", name, "--hostname", b.team + "-app",
 		"-p", fmt.Sprintf("127.0.0.1:%d:%d", hostPort, port)}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
 	run = append(run, "-v", src+":/app", "-w", "/app",
-		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro", "-e", "HI_PUBLIC_URL_FILE="+teamAppAddressFile,
-		"-e", "HOME=/tmp", "-e", "PORT="+strconv.Itoa(port), "-e", "HOST=0.0.0.0",
-		image, "sh", "-c", command)
+		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
+		"-v", models+":"+teamAppModelsDir,
+		"-v", b.hi+":/usr/local/bin/hi:ro",
+		"--env-file", envFile,
+		image, "/usr/local/bin/hi", "team", "__app", teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
 	name, args := teamOutsideService(engine.bin, run)
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
 		return fmt.Errorf("%s: %s", engine.name, qFirstLine(strings.TrimSpace(string(out)), err.Error()))

@@ -77,7 +77,10 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if meta.Image, err = engine.ensureBaseImage(stdout, stderr); err != nil {
 		return err
 	}
-	if err := startBoxNetwork(engine, &meta, proxyDir, "hermes", nil); err != nil {
+	if err := writeTeamKeys(name, secrets); err != nil {
+		return err
+	}
+	if err := startBoxNetwork(engine, &meta, proxyDir, "team:"+teamKeysDir(name), nil); err != nil {
 		teardownBox(engine, meta)
 		return err
 	}
@@ -119,6 +122,11 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
 	go broker.keepLinks(ctx.Done(), stderr)
+	go func() {
+		if err := broker.serveModels(ctx); err != nil {
+			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
+		}
+	}()
 	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
@@ -761,9 +769,16 @@ hi can't edit your messages.
 The app's box has no credentials: no Slack token, no API keys. Its own
 link is in the file named by $HI_PUBLIC_URL_FILE, and it changes each
 day, so the app reads that file whenever it needs its link, never once
-at start or from a setting in the code. Keys and tokens never go in a
+at start or from a setting in the code. For models, the app calls
+OpenRouter's API at $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY; hi
+puts the team's real key on each call, in previews and production. Other
+keys the app needs are settings the people add on the machine with hi
+team env <team> KEY=VALUE, which reach the app as environment variables;
+hi team env in your box lists their names. Keys and tokens never go in a
 brief or the code, where every member and every copy of the project can
-read them; when someone shares one, say so instead of using it.
+read them. When someone offers one in the channel, don't use it: ask
+them to run hi team env (or hi team key <team> openrouter, for models)
+on the machine, and tell the coder the variable's name.
 
 Anything the people want posted in the channel on a schedule, such as a
 morning digest, is a scheduled job of yours, not the app's: a script in

@@ -273,6 +273,10 @@ func (b *teamBroker) handler() http.Handler {
 		err := json.NewDecoder(io.LimitReader(r.Body, teamMaxBrief+teamMaxAttachments*4/3+64<<10)).Decode(&request)
 		return request, err
 	}
+	mux.HandleFunc("GET /env", func(w http.ResponseWriter, r *http.Request) {
+		secrets, err := loadTeamSecrets(b.team)
+		reply(w, teamEnvNames(secrets), err)
+	})
 	mux.HandleFunc("POST /task", func(w http.ResponseWriter, r *http.Request) {
 		request, err := read(r)
 		if err != nil {
@@ -1098,6 +1102,20 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if call("GET", "/versions", nil, &view) == nil {
 			fmt.Fprintf(stdout, "It is in dev now: %s. Production didn't change.\n", strings.TrimPrefix(view.Dev, "dev, "))
 		}
+	case "env":
+		if len(args) != 0 {
+			return usageError{"usage: hi team env (the names of the settings the app gets; the people add them on the machine)"}
+		}
+		var names []string
+		if err := call("GET", "/env", nil, &names); err != nil {
+			return err
+		}
+		if len(names) == 0 {
+			fmt.Fprintln(stdout, "The app gets no settings. The people add them on the machine: hi team env <team> KEY=VALUE")
+		} else {
+			fmt.Fprintf(stdout, "The app gets these settings as environment variables: %s\n", strings.Join(names, ", "))
+		}
+		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production.\n")
 	case "versions":
 		if len(args) != 0 {
 			return usageError{"usage: hi team versions"}

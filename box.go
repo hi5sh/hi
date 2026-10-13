@@ -708,6 +708,11 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro")
 		secret = "openrouter:/secrets/hermes.env"
 	}
+	if keys, ok := strings.CutPrefix(kind, "team:"); ok {
+		// A team's own OpenRouter key comes first, then this machine's.
+		args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro", "-v", keys+":/secrets/team:ro")
+		secret = "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env"
+	}
 	if data != nil && data.address != "" {
 		// The server's name may resolve only on the host, through NetBird.
 		args = append(args, "--add-host", data.host+":"+data.address)

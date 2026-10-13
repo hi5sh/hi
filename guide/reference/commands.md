@@ -261,12 +261,14 @@ See [Run a team in Slack](/guide/team/).
 | `hi team status <name>`                   | Up or down, its members, production's version and what dev has on top of it, the open ideas, and its latest tasks |
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
 | `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
+| `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
+| `hi team env <name> [KEY=VALUE \| KEY \| --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
 In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>] [--attach <file>]...`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
-`stop <task>`, `channel [--since 2h | --new]`, and `preview [<task> | production] [--port <n>] [--max <duration>]` or
+`stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`, and `preview [<task> | production] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a
 temporary address with `hi net expose`. `versions` shows production's
 version and what dev has on top of it; `release --approval <id> --notes <file>`

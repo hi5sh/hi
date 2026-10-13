@@ -247,8 +247,9 @@ func newBoxClaudeInjector(secret, upstream string, log *boxNetworkLog) http.Hand
 
 // newBoxOpenRouterInjector passes Hermes' requests on to OpenRouter with
 // the real API key in place of the placeholder. env is Hermes' .env file,
-// mounted read-only into the proxy and read again for each request; only
-// OPENROUTER_API_KEY is taken from it.
+// or several, comma-separated, the first with a key winning (a team's own,
+// then Hermes'), mounted read-only into the proxy and read again for each
+// request; only OPENROUTER_API_KEY is taken from them.
 func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Handler {
 	target, _ := url.Parse(upstream)
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -257,7 +258,13 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 	proxy.Director = func(r *http.Request) {
 		director(r)
 		r.Host = target.Host
-		key, err := readDotEnvValue(env, "OPENROUTER_API_KEY")
+		var key string
+		var err error
+		for _, file := range strings.Split(env, ",") {
+			if key, err = readDotEnvValue(file, "OPENROUTER_API_KEY"); err == nil {
+				break
+			}
+		}
 		if err != nil {
 			log.record("openrouter-key-problem", err.Error())
 		}

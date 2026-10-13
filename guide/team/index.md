@@ -47,7 +47,7 @@ keys in.
 hi team new payments
 ```
 
-The setup asks six things, one at a time:
+The setup asks seven things, one at a time:
 
 1. **Purpose.** One sentence; the lead starts from it.
 2. **Slack app.** hi prints a manifest named after the team
@@ -60,14 +60,18 @@ The setup asks six things, one at a time:
 4. **People.** The owners' Slack member IDs (`U…`), and who else may ask
    for work; Enter lets everyone in the channel.
 5. **Members.** Each role's agent and model; Enter keeps what's offered.
-6. **Code.** Enter starts a new git repository; or give one to clone: a
+6. **Models.** An OpenRouter key of the team's own, so its use is billed
+   and limited apart; Enter uses this machine's, from Hermes. No box ever
+   holds it (see [Keys and settings](#keys-and-settings)).
+7. **Code.** Enter starts a new git repository; or give one to clone: a
    URL, with this machine's git credentials, or a folder on this machine.
    A new repository can go on GitHub too: give `owner/name`, and hi
    creates a private repository with this machine's `gh` sign-in.
 
 hi checks both tokens and that the app is in the channel before it writes
 anything. Without a terminal, give the answers in a file and the tokens in
-`HI_TEAM_SLACK_BOT_TOKEN` and `HI_TEAM_SLACK_APP_TOKEN`:
+`HI_TEAM_SLACK_BOT_TOKEN` and `HI_TEAM_SLACK_APP_TOKEN` (and the team's
+OpenRouter key, if it has one, in `HI_TEAM_OPENROUTER_API_KEY`):
 
 ```sh
 hi team new payments --from payments.json
@@ -176,6 +180,39 @@ rewrites whenever the link changes. Anything the people want posted on a
 schedule, such as a morning digest, is the lead's scheduled job: a script
 that makes the message from production's code, and the lead posts what it
 prints.
+
+### Keys and settings
+
+Nobody pastes a key into Slack: the lead puts what it is given into
+briefs, and the coder into the code, where every member and every copy of
+the project can read it. Keys go to the team on the machine instead.
+
+**Models.** The app calls OpenRouter's API at `$OPENROUTER_BASE_URL` with
+`$OPENROUTER_API_KEY`, in previews and production. That key is a
+placeholder: the call goes through a socket to hi's team service on the
+machine, which puts the team's real key on it. The lead's own model calls
+take the same key, through its proxy. Give the team a key of its own, or
+change it, at any time; it applies to the next call:
+
+```sh
+hi team key payments openrouter            # asked for; it shows as *
+hi team key payments openrouter --unset    # this machine's key again
+```
+
+**Settings.** Other keys and settings the app needs reach its boxes as
+environment variables, and nothing else: not the lead, not the members,
+not briefs. The lead sees their names, so it can tell the coder which
+variable to read.
+
+```sh
+hi team env payments WEATHER_API_KEY=…     # or WEATHER_API_KEY alone, to be asked
+hi team env payments                       # their names
+hi team env payments --unset WEATHER_API_KEY
+```
+
+The next preview has a change, and hi starts production again on the same
+link within a minute. A setting is readable by the app's code, which the
+agents write; only the OpenRouter key never is.
 
 The lead itself never joins your NetBird network: the machine runs the
 app and the address, and the lead only asks for them.

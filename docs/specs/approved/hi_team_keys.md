@@ -1,6 +1,6 @@
 # `hi team` keys and settings specification
 
-Status: Idea (2026-10-13).
+Status: Approved (2026-10-13). Built in v0.53.0 (see [As built](#as-built)).
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the broker, the lead's
 proxy, the app boxes), [hi_box.md](../approved/hi_box.md) (the proxy's
@@ -45,27 +45,31 @@ box's files.
 ## How a key reaches the work, without anyone seeing it
 
 **OpenRouter.** The team's proxy takes the team's key when it has one, else
-the machine's, as now. The proxy also listens on this machine's loopback, on
-a port of its own, for the app boxes. An app box gets:
+the machine's, as now, reading both again for each call. An app box can't
+reach the proxy, or this machine's loopback, from its own network, so the
+broker serves OpenRouter's API on a Unix socket in a folder the app's box
+mounts, and puts the team's key on each call. hi starts the app's box with
+hi itself as the first process (`hi team __app`), which relays
+`127.0.0.1:3129` in the box to that socket and then runs the app. The box
+gets:
 
 ```
-OPENROUTER_BASE_URL=http://host.containers.internal:<port>/api/v1
-OPENROUTER_API_KEY=<the team's app token>
+OPENROUTER_BASE_URL=http://127.0.0.1:3129/api/v1
+OPENROUTER_API_KEY=hi-box-placeholder
 ```
 
-The app token is random, made per team, and only the proxy accepts it,
-swapping it for the real key. It works only from this machine, and
-`hi team key <name> --new-app-token` replaces it. So a coder writes
-ordinary OpenRouter code (base URL and key from the environment), it works
-in previews and production, and the real key is in no box. Members' boxes
-keep their own model access, as now.
+So a coder writes ordinary OpenRouter code (base URL and key from the
+environment), it works in previews and production, and the real key is in
+no box. The socket is the only way in: nothing listens on the network.
+Members' boxes keep their own model access, as now.
 
 **Settings (`hi team env`).** Each setting reaches the app boxes, preview and
 production, as an environment variable, and nothing else: not the lead, not
 the members, not the briefs. The lead sees the names (`hi team env` in its
 box lists them), so it can tell the coder "the app gets WEATHER_API_KEY".
-A new setting applies when the app box next starts: the next preview, or
-`hi team env` restarts production.
+A new setting applies when the app box next starts: the next preview, and
+production, which hi starts again on the same link within a minute when
+the settings change.
 
 A setting is plainly visible to the app's code, which the agents write: a
 coder could read it out in a test. It keeps keys out of Slack, briefs, and
@@ -84,10 +88,12 @@ uses it.
 
 - `hi team new` stores the OpenRouter key in `secrets.json`, and Enter keeps
   the machine's.
-- The proxy uses the team's key when there is one, and swaps the app token
-  only.
-- An app box gets `OPENROUTER_BASE_URL`, the app token, and the settings, and
-  no other secret; a member's box and the lead's get none of the settings.
+- The proxy and the models socket use the team's key when there is one,
+  else the machine's, without a restart.
+- An app box gets `OPENROUTER_BASE_URL`, the placeholder, and the settings,
+  and no key; the relay in the box reaches the socket and the app's exit
+  status is the box's.
+- A changed setting starts production again on the same link.
 - `hi team env` lists names only; `--unset` removes one.
 
 ## Not in this
@@ -95,3 +101,19 @@ uses it.
 - Keys for members' boxes beyond models (a member running the app's tests
   against a live service).
 - Other providers than OpenRouter behind the proxy.
+
+## As built
+
+v0.53.0, as above, except where the idea differed:
+
+- No app token and no loopback port: an app box reaches neither the team's
+  proxy nor this machine's loopback, and a port on the machine's own
+  address would be on the network. The models socket, mounted only into
+  app boxes, is the capability instead.
+- The settings reach the box through `--env-file` (a 0600 file removed once
+  the box starts), so they are not on the engine's command line, which
+  anyone on the machine can see.
+- A slot remembers a stamp of the settings; production starts again when it
+  differs. The stamp also changed for every box started by an older hi, so
+  production restarts once after the update and gets the models and its
+  address file.

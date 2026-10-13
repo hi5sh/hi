@@ -126,6 +126,9 @@ func TestTeamManifest(t *testing.T) {
 
 func TestTeamWizard(t *testing.T) {
 	dir := setupTeamTest(t)
+	saved := teamCheckOpenRouterKey
+	teamCheckOpenRouterKey = func(string) error { return nil }
+	t.Cleanup(func() { teamCheckOpenRouterKey = saved })
 	answers := strings.Join([]string{
 		"Track supplier payments for the finance admins",
 		"xoxb-bot", "xapp-app",
@@ -133,8 +136,9 @@ func TestTeamWizard(t *testing.T) {
 		"U07OWNER1, U07OWNER2",
 		"",                      // everyone in the channel may ask
 		"", "", "codex:gpt-5.5", // lead and coder as offered, a reviewer model
-		"", // a new repository
-		"", // not on GitHub
+		"sk-or-wizard", // the team's own OpenRouter key
+		"",             // a new repository
+		"",             // not on GitHub
 	}, "\n") + "\n"
 	var out bytes.Buffer
 	if err := teamNew([]string{"payments"}, strings.NewReader(answers), &out); err != nil {
@@ -156,7 +160,7 @@ func TestTeamWizard(t *testing.T) {
 		t.Fatalf("secrets: %v %v", info, err)
 	}
 	secrets, _ := loadTeamSecrets("payments")
-	if secrets.SlackBotToken != "xoxb-bot" || secrets.SlackAppToken != "xapp-app" {
+	if secrets.SlackBotToken != "xoxb-bot" || secrets.SlackAppToken != "xapp-app" || secrets.OpenRouterAPIKey != "sk-or-wizard" {
 		t.Fatalf("%+v", secrets)
 	}
 	repo := filepath.Join(teamDir("payments"), "repo")
@@ -1043,6 +1047,17 @@ func TestTeamProductionLink(t *testing.T) {
 	}
 	if address() != third.URL+"\n" {
 		t.Fatalf("the app's address file has %q after the new address", address())
+	}
+
+	// A new setting starts production again, on the same link.
+	saveTeamSecrets("payments", teamSecrets{Env: map[string]string{"WEATHER_API_KEY": "w-1"}})
+	if !b.productionNeedsWork() {
+		t.Fatal("production doesn't have the new setting")
+	}
+	b.keepLinks(done, io.Discard)
+	fourth, _ := loadTeamSlot("payments", teamSlotProduction)
+	if fourth.URL != third.URL || fourth.Container == third.Container || fourth.Settings != teamSettingsStamp("payments") || b.productionNeedsWork() {
+		t.Fatalf("%+v", fourth)
 	}
 }
 
