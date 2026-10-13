@@ -35,6 +35,7 @@ Hugging Face.
 | Let agents improve a number overnight, keeping only gains | [Rounds that keep only gains]({{ '/guide/autoresearch/rounds/' | relative_url }}) |
 | Start an autoresearch project for a model | [Start from a template]({{ '/guide/autoresearch/templates/' | relative_url }}) |
 | Let Claude Code or Codex use a GPU safely          | [Let your coding agent use a GPU]({{ '/guide/tutorials/agent/' | relative_url }}) |
+| Run a team of agents in a Slack channel            | [Run a team in Slack]({{ '/guide/team/' | relative_url }}) |
 | Turn "move the md files to notes" into a command   | [Ask for a command]({{ '/guide/q/' | relative_url }})              |
 | Start a new repository that agents work well in   | [Start a project]({{ '/guide/projects/' | relative_url }})          |
 | Set up a new Hifin machine                         | [Set up a workstation]({{ '/guide/workstation/' | relative_url }}) |
