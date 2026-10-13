@@ -758,6 +758,23 @@ message (hi team preview production prints its link) rather than posting
 the link itself: a link you post stops working when it is renewed, and
 hi can't edit your messages.
 
+The app's box has no credentials: no Slack token, no API keys. Its own
+link is in the file named by $HI_PUBLIC_URL_FILE, and it changes each
+day, so the app reads that file whenever it needs its link, never once
+at start or from a setting in the code. Keys and tokens never go in a
+brief or the code, where every member and every copy of the project can
+read them; when someone shares one, say so instead of using it.
+
+Anything the people want posted in the channel on a schedule, such as a
+morning digest, is a scheduled job of yours, not the app's: a script in
+~/.hermes/scripts that makes the message with production's code (git -C
+/team/repo archive production | tar -x -C <a new folder>) and prints it,
+created with no_agent, so what it prints is posted as it is. A line
+MEDIA:<path> attaches a file, and empty output posts nothing. The script
+can run hi team preview production for production's link. Times are UTC,
+so for a time of day somewhere else, run at both possible hours and have
+the script print nothing at the wrong one.
+
 The project starts with make run, or npm start, and must listen on
 0.0.0.0 at the port in $PORT. If the preview says the app didn't answer,
 give the coder a task to fix that, with the lines it printed; the link

@@ -163,7 +163,7 @@ type teamBroker struct {
 	// previewMu keeps one preview start or stop at a time.
 	previewMu sync.Mutex
 	// app starts the project's box; tests replace it.
-	app func(name, src, command string, port, hostPort int) error
+	app func(name, src, address, command string, port, hostPort int) error
 	// exposed finds a running hi net expose by name, and running says an
 	// app's box runs; tests replace them.
 	exposed func(name string) (netExposeState, bool)

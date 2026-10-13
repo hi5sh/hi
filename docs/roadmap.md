@@ -1189,6 +1189,18 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `peak_validation`; a run started on v0.52.0 and resumed starts the mark
   at its latest kept number.
 
+### v0.52.2 — An app knows its own link; scheduled posts are the lead's
+
+- [x] An app box gets its slot's current link in a read-only file,
+  `$HI_PUBLIC_URL_FILE` (`/hi/address`), which hi rewrites when the link
+  changes each day. A link written into the project went stale the next
+  day.
+- [x] The `hi-team` skill says the app box holds no credentials, keys and
+  tokens never go in a brief or the code, and a scheduled channel post is
+  a lead's `no_agent` cron script that builds the message from
+  production's code. Team aiman's app scheduled its own 06:00 Slack post,
+  which could never be sent from a box without a token.
+
 ## Planned
 
 ### Later — `hi team`

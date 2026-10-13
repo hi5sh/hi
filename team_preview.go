@@ -81,6 +81,23 @@ func teamSlotPortFile(team, slot string) string {
 	return filepath.Join(teamDir(team), "run", slot+".port")
 }
 
+// teamSlotAddressDir holds the slot's address in a file the app's box sees
+// read-only at teamAppAddressFile. hi rewrites it when the address
+// changes, which it does each day, so the app reads it when it needs it.
+func teamSlotAddressDir(team, slot string) string {
+	return filepath.Join(teamDir(team), "run", slot+"-address")
+}
+
+const teamAppAddressFile = "/hi/address"
+
+func writeTeamSlotAddress(team, slot, url string) error {
+	dir := teamSlotAddressDir(team, slot)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return writeFileAtomic(filepath.Join(dir, filepath.Base(teamAppAddressFile)), []byte(url+"\n"), 0o600)
+}
+
 // teamPreviewContainer is the start of the name of every app box of a team.
 func teamPreviewContainer(team string) string { return "hi-box-team-" + team + "-app" }
 
@@ -248,7 +265,15 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		discard()
 		return teamPreview{}, err
 	}
-	if err := b.app(next.Container, next.App, next.Command, next.Port, hostPort); err != nil {
+	address := ""
+	if exposed {
+		address = current.URL
+	}
+	if err := writeTeamSlotAddress(b.team, next.Slot, address); err != nil {
+		discard()
+		return teamPreview{}, err
+	}
+	if err := b.app(next.Container, next.App, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
 	}
@@ -282,6 +307,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 				b.run("net", "expose", "stop", current.Expose)
 			}
 			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = firstNonEmpty(exposure.Link, exposure.URL), exposure.Password, exposure.Name, exposure.Expires, true
+			writeTeamSlotAddress(b.team, next.Slot, next.URL)
 		}
 		// Without a new address, the old one shows the new version for
 		// the time it has left.
@@ -338,6 +364,7 @@ func (b *teamBroker) stopSlot(slot string) {
 	}
 	os.Remove(teamSlotPath(b.team, slot))
 	os.Remove(teamSlotPortFile(b.team, slot))
+	os.RemoveAll(teamSlotAddressDir(b.team, slot))
 }
 
 // teamProductionLinkText is hi's message in the channel with production's
@@ -422,8 +449,9 @@ func (b *teamBroker) productionNeedsWork() bool {
 }
 
 // startApp runs the project in its box: the hardening every box has, no
-// credentials, and its port published to this machine only.
-func (b *teamBroker) startApp(name, src, command string, port, hostPort int) error {
+// credentials, its port published to this machine only, and its address
+// folder read-only at /hi.
+func (b *teamBroker) startApp(name, src, address, command string, port, hostPort int) error {
 	engine, _, err := detectBoxEngine()
 	if err != nil {
 		return err
@@ -437,6 +465,7 @@ func (b *teamBroker) startApp(name, src, command string, port, hostPort int) err
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
 	run = append(run, "-v", src+":/app", "-w", "/app",
+		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro", "-e", "HI_PUBLIC_URL_FILE="+teamAppAddressFile,
 		"-e", "HOME=/tmp", "-e", "PORT="+strconv.Itoa(port), "-e", "HOST=0.0.0.0",
 		image, "sh", "-c", command)
 	name, args := teamOutsideService(engine.bin, run)

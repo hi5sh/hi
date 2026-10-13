@@ -170,6 +170,13 @@ channel with production's current link, edited whenever the link or the
 version changes. Each release's announcement links to that message, so
 nobody has to hunt for the latest link.
 
+The app box holds no credentials: no Slack token and no API keys. The app
+finds its own link in the file named by `$HI_PUBLIC_URL_FILE`, which hi
+rewrites whenever the link changes. Anything the people want posted on a
+schedule, such as a morning digest, is the lead's scheduled job: a script
+that makes the message from production's code, and the lead posts what it
+prints.
+
 The lead itself never joins your NetBird network: the machine runs the
 app and the address, and the lead only asks for them.
 

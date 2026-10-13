@@ -406,9 +406,12 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}, exposures: map[string]netExposeState{}, lasts: 24 * time.Hour}
 	// Tests review by hand, except where they turn the rounds on.
 	b.reviewRounds = 0
-	b.app = func(name, src, command string, port, hostPort int) error {
+	b.app = func(name, src, address, command string, port, hostPort int) error {
 		if !fileExists(filepath.Join(src, "Makefile")) {
 			t.Error("the app's copy has no Makefile")
+		}
+		if !fileExists(filepath.Join(address, "address")) {
+			t.Error("the app's box gets no address file")
 		}
 		b.mu.Lock()
 		b.apps = append(b.apps, fmt.Sprintf("%s %s %d", name, command, port))
@@ -990,6 +993,14 @@ func TestTeamProductionLink(t *testing.T) {
 	if !ok || first.Label != "production v1" || first.Message == "" || !strings.Contains(first.Expose, "team-payments-live") {
 		t.Fatalf("%+v", first)
 	}
+	// The app reads its address from a file hi keeps current.
+	address := func() string {
+		data, _ := os.ReadFile(filepath.Join(teamSlotAddressDir("payments", teamSlotProduction), "address"))
+		return string(data)
+	}
+	if address() != first.URL+"\n" {
+		t.Fatalf("the app's address file has %q", address())
+	}
 	calls := strings.Join(channel.calls, "\n")
 	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "hi's message with production's link") {
 		t.Fatal(calls)
@@ -1029,6 +1040,9 @@ func TestTeamProductionLink(t *testing.T) {
 	third, _ := loadTeamSlot("payments", teamSlotProduction)
 	if third.URL == second.URL || third.Message != first.Message || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+third.URL+"|this link>") {
 		t.Fatalf("%+v %q", third, channel.calls)
+	}
+	if address() != third.URL+"\n" {
+		t.Fatalf("the app's address file has %q after the new address", address())
 	}
 }
 
