@@ -51,6 +51,7 @@ hi agent [task]    Hand a task to Claude Code, Codex, or Hermes in a box and get
 hi box shell       Run a shell or a command in a rootless box (hi box help)
 hi team new <name> Set up a virtual team of agents in a Slack channel; hi team up starts it (hi team help)
 hi team key <name> openrouter  The team's own OpenRouter key; hi team env <name> KEY=VALUE gives its app settings
+hi team snapshots <name>  The team's daily and pre-release snapshots; hi team restore <name> <snapshot> puts it back
 hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
@@ -398,6 +399,7 @@ under the name in brackets for `hi install <tool>` and `hi uninstall <tool>`:
 - [GitHub CLI](https://cli.github.com) [`gh`]
 - [Docker Engine](https://docs.docker.com/engine/) and Docker Compose [`docker`]
 - [Podman](https://podman.io), rootless, with `crun` [`podman`]
+- [restic](https://restic.net), for `hi team`'s snapshots [`restic`]
 - [NetBird](https://netbird.io) [`netbird`]
 - [btop](https://github.com/aristocratos/btop),
   [tmux](https://github.com/tmux/tmux), and
