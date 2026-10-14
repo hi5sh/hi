@@ -1263,6 +1263,20 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `hi install restic`.
   Approved spec: [hi_team_snapshots.md](specs/approved/hi_team_snapshots.md).
 
+### v0.56.0 — Roll production back with its data
+
+- [x] `hi team rollback v2 --approval <id>` (the lead, with an owner's
+  yes) and `hi team rollback <name> v2` (on the machine): production back
+  on v2's code with its data as v2 left it, from the snapshot taken when
+  production moved off v2. What was entered since is set aside in a
+  snapshot, and rolling forward puts it back; `--code-only` keeps the data.
+  The lead's memory, the tasks, and the channel's log stay.
+- [x] Each move of production records the versions it went between and the
+  snapshot taken just before.
+- [x] The broker has a second socket for the machine, which no box mounts;
+  `hi team snapshot` and `hi team rollback` use it.
+  Approved spec: [hi_team_snapshots.md, Rollback](specs/approved/hi_team_snapshots.md#rollback-release-2).
+
 ## Planned
 
 ### Later — `hi team`
@@ -1271,9 +1285,6 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   commands, and merged changes, and tells the owners about anything risky
   rather than blocking the team; Hermes' `approvals.mode: smart` is one
   starting point.
-- [ ] Rollback to a release with its snapshot, code and data together, by
-  command or an owner's button in Slack; the lead may propose it. Snapshots
-  and restore are built (v0.55.0).
 - [ ] Restore a team whose folder is gone, or on another machine, from its
   bucket: with export and import.
 - [ ] Nice to have: the lead could tell for itself when a message is meant
