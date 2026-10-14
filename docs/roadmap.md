@@ -1237,6 +1237,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md#expanding-window-release-2)
   (release 2).
 
+### v0.54.1 — "fold 2's baseline" in the view
+
+- [x] `hi agent best-of watch` says the best is "fold 2's baseline", not
+  "the fold 2's baseline".
+
 ## Planned
 
 ### Later — `hi team`
