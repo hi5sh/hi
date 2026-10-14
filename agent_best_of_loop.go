@@ -1052,8 +1052,10 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 		switch {
 		case loop.BestRound > loop.FoldStart && baseline != nil:
 			line += fmt.Sprintf(" from round %d, %s %s%s", loop.BestRound, name, formatScore(*baseline), validation(baselineValidation))
+		case loop.Fold > 1:
+			line += ", " + name
 		default:
-			line += ", the " + name
+			line += ", the baseline"
 		}
 		fmt.Fprintf(&b, "%s · on %s\n", line, loop.Branch)
 	}
