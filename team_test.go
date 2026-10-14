@@ -306,8 +306,14 @@ func TestTeamUpWritesUnit(t *testing.T) {
 	if !strings.Contains(string(unit), " team __serve payments\n") || !strings.Contains(string(unit), "Restart=always") || !strings.Contains(string(unit), "HI_TEAMS_DIR=") {
 		t.Fatal(string(unit))
 	}
-	if strings.Join(calls, "; ") != "daemon-reload; enable hi-team-payments.service; restart hi-team-payments.service" {
+	if strings.Join(calls, "; ") != "daemon-reload; enable hi-team-payments.service; restart hi-team-payments.service; enable --now hi-team-payments-snapshot.timer" {
 		t.Fatal(calls)
+	}
+	// The daily snapshot: a timer, caught up after a reboot, and its service.
+	timer, _ := os.ReadFile(filepath.Join(filepath.Dir(teamUnitPath("payments")), "hi-team-payments-snapshot.timer"))
+	service, _ := os.ReadFile(filepath.Join(filepath.Dir(teamUnitPath("payments")), "hi-team-payments-snapshot.service"))
+	if !strings.Contains(string(timer), "Persistent=true") || !strings.Contains(string(service), " team snapshot payments --daily\n") {
+		t.Fatal(string(timer), string(service))
 	}
 	if !strings.Contains(out.String(), "enable-linger") {
 		t.Fatal(out.String())
@@ -346,7 +352,7 @@ func TestTeamRemove(t *testing.T) {
 	if !fileExists(filepath.Join(folder, "team.json")) || fileExists(teamUnitPath("payments")) || fileExists(filepath.Join(teamsDir(), "payments")) {
 		t.Fatal("--keep-folder should remove only what is outside the folder")
 	}
-	if strings.Join(calls, "; ") != "disable --now hi-team-payments.service; daemon-reload" || len(removed) != 1 {
+	if strings.Join(calls, "; ") != "disable --now hi-team-payments.service; disable --now hi-team-payments-snapshot.timer; daemon-reload" || len(removed) != 1 {
 		t.Fatal(calls, removed)
 	}
 	if !strings.Contains(out.String(), "hi team up "+folder) {
@@ -410,7 +416,10 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}, exposures: map[string]netExposeState{}, lasts: 24 * time.Hour}
 	// Tests review by hand, except where they turn the rounds on.
 	b.reviewRounds = 0
-	b.app = func(name, src, address, command string, port, hostPort int) error {
+	b.app = func(name, src, data, address, command string, port, hostPort int) error {
+		if !fileExists(data) {
+			t.Error("the app's box gets no data folder")
+		}
 		if !fileExists(filepath.Join(src, "Makefile")) {
 			t.Error("the app's copy has no Makefile")
 		}

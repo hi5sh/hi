@@ -45,7 +45,7 @@ var teamEnvName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // teamAppEnvReserved are the variables hi sets in an app's box itself.
 var teamAppEnvReserved = map[string]bool{"HOME": true, "PORT": true, "HOST": true, "PATH": true,
-	"HI_PUBLIC_URL_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
+	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
 
 // teamModelsDir holds the broker's models socket; app boxes mount it.
 func teamModelsDir(name string) string { return teamBrokerDir(name) + "-models" }
@@ -145,6 +145,7 @@ func teamAppEnv(name string, port int) map[string]string {
 	}
 	env["HOME"], env["PORT"], env["HOST"] = "/tmp", strconv.Itoa(port), "0.0.0.0"
 	env["HI_PUBLIC_URL_FILE"] = teamAppAddressFile
+	env["HI_DATA_DIR"] = teamAppDataDir
 	env["OPENROUTER_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/api/v1", teamAppModelsPort)
 	env["OPENROUTER_API_KEY"] = boxClaudePlacehold
 	return env

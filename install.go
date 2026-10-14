@@ -62,6 +62,8 @@ var installItems = []installItem{
 		commands: []string{"hermes"}, keeps: "Hermes keeps its settings, keys, and sessions in ~/.hermes."},
 	{id: "herdr", title: "herdr", description: "runs and watches several coding agents at once",
 		commands: []string{"herdr"}, keeps: "herdr keeps its settings in ~/.config/herdr."},
+	{id: "restic", title: "restic", description: "encrypted backups, for hi team's snapshots",
+		packages: []string{"restic"}},
 	{id: "netbird", title: "NetBird", description: "private network between your team's machines (hi net)",
 		packages: []string{"netbird"},
 		keeps:    "Removing NetBird disconnects this machine from your team's network, including SSH sessions that use it."},

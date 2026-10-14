@@ -186,6 +186,7 @@ remove_tool() {
       sudo rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.asc
       ;;
     podman) apt_remove podman ;;
+    restic) apt_remove restic ;;
     claude)
       rm -f "$HOME/.local/bin/claude"
       rm -rf "$HOME/.local/share/claude"
@@ -285,6 +286,7 @@ fi
 # user's render and video groups into a container (--group-add keep-groups),
 # which the GPU needs.
 installing podman && packages+=(podman crun uidmap passt)
+installing restic && packages+=(restic)
 if installing strix; then
   log "Configuring the AMD ROCm repository"
   sudo usermod -a -G render,video "$target_user"

@@ -248,6 +248,8 @@ hi team add <name> <role>       hire a member
 hi team rm <name> <role>        drop a member
 hi team snapshot <name>         take a snapshot now
 hi team snapshots <name>        list them
+hi team restore <name> <snapshot>  put data, memory, and the record back (hi_team_snapshots.md)
+hi team backups <name>          where snapshots are kept, and offsite
 hi team rollback <name> <release|snapshot|date>
 hi team export <name> <file>    the folder as one encrypted file
 hi team import <file>           a team from an export, on this or another host
@@ -398,6 +400,13 @@ At the end hi prints what it set up and the one line to start it.
   so it starts at boot and restarts after a crash, as `hi server` does.
 
 ## Backups and rollback
+
+Snapshots and restore are built (v0.55.0): see
+[hi_team_snapshots.md](hi_team_snapshots.md), which differs from this
+section in a few places: the app's data is `app/` at `$HI_DATA_DIR`, a
+restore keeps `team.json` as well as `secrets.json`, restic runs while the
+boxes are paused rather than packing an archive first, and rollback is
+still to come.
 
 A team has three kinds of state, each kept differently:
 

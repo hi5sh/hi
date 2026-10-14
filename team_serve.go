@@ -780,6 +780,19 @@ read them. When someone offers one in the channel, don't use it: ask
 them to run hi team env (or hi team key <team> openrouter, for models)
 on the machine, and tell the coder the variable's name.
 
+What the app must keep, such as the people's entries, uploads, or a
+database, goes in the folder named by $HI_DATA_DIR (/data). It outlives
+every release, and hi snapshots production's daily and before every
+release; the app's own folder is a fresh copy of the code each time, so
+anything written there is lost at the next release. Previews have a data
+folder of their own, apart from production's. Say this in briefs for
+anything that stores data.
+
+If the people lose data or want things as they were, an owner can put
+the team back as it was at a snapshot on the machine (hi team snapshots
+<team> lists them, hi team restore <team> <snapshot>). You can't do it
+from your box: tell them which day or version to ask for.
+
 Anything the people want posted in the channel on a schedule, such as a
 morning digest, is a scheduled job of yours, not the app's: a script in
 ~/.hermes/scripts that makes the message with production's code (git -C

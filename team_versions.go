@@ -253,6 +253,8 @@ type teamReleaseResult struct {
 	Back     bool        `json:"back,omitempty"`  // production moved to an earlier release
 	Again    bool        `json:"again,omitempty"` // ... or to a later one it had left
 	Warning  string      `json:"warning,omitempty"`
+	// Snapshot is the one taken just before, of the data and memory.
+	Snapshot string `json:"snapshot,omitempty"`
 	// Approval is the yes that moved production this time.
 	Approval *teamApproval `json:"approval,omitempty"`
 }
@@ -321,6 +323,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 		if release.Version == versions.Production {
 			return result, fmt.Errorf("production is on v%d already", release.Version)
 		}
+		b.snapshotBefore(release.Version, &result)
 		if out, err := teamGit(b.repo, "branch", "-f", teamProductionBranch, release.Commit); err != nil {
 			return result, fmt.Errorf("git branch: %s", qFirstLine(out, err.Error()))
 		}
@@ -350,6 +353,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 			version = max(version, release.Version+1)
 		}
 		release := teamRelease{Version: version, Commit: head, Notes: notes, Changes: changes, Approval: &approval, Released: event.At}
+		b.snapshotBefore(version, &result)
 		if out, err := teamGit(b.repo, "branch", "-f", teamProductionBranch, head); err != nil {
 			return result, fmt.Errorf("git branch: %s", qFirstLine(out, err.Error()))
 		}

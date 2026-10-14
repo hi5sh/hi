@@ -163,7 +163,7 @@ type teamBroker struct {
 	// previewMu keeps one preview start or stop at a time.
 	previewMu sync.Mutex
 	// app starts the project's box; tests replace it.
-	app func(name, src, address, command string, port, hostPort int) error
+	app func(name, src, data, address, command string, port, hostPort int) error
 	// exposed finds a running hi net expose by name, and running says an
 	// app's box runs; tests replace them.
 	exposed func(name string) (netExposeState, bool)
@@ -177,11 +177,17 @@ type teamBroker struct {
 	// reviewRounds is how many reviews the broker starts on its own for a
 	// task's work; 0 leaves reviews to the lead, as most tests do.
 	reviewRounds int
+	// takeSnapshot backs up the team's folder, with the boxes paused; tests
+	// replace it.
+	takeSnapshot func(kind, label string) (teamSnapshot, error)
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds}
 	b.app = b.startApp
+	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
+		return teamTakeSnapshot(team, kind, label, teamPause)
+	}
 	b.exposed = teamExposed
 	b.running = b.appRunning
 	b.run = func(args ...string) ([]byte, error) {
@@ -344,6 +350,18 @@ func (b *teamBroker) handler() http.Handler {
 			tasks, err = b.discard(request.Task)
 		}
 		reply(w, tasks, err)
+	})
+	mux.HandleFunc("POST /snapshot", func(w http.ResponseWriter, r *http.Request) {
+		var request teamSnapshotRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		if request.Kind != teamSnapshotDaily {
+			request.Kind = teamSnapshotManual
+		}
+		snapshot, err := b.snapshot(request.Kind, "")
+		reply(w, snapshot, err)
 	})
 	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		view, err := teamVersionsReport(b.team)

@@ -93,6 +93,18 @@ func teamSlotAddressDir(team, slot string) string {
 
 const teamAppAddressFile = "/hi/address"
 
+// teamAppDataDir is where an app box keeps what must outlive a deploy
+// ($HI_DATA_DIR): production's is app/ in the team's folder, which
+// snapshots hold; a preview's is its own, in run/.
+const teamAppDataDir = "/data"
+
+func teamSlotDataDir(team, slot string) string {
+	if slot == teamSlotProduction {
+		return filepath.Join(teamDir(team), "app")
+	}
+	return filepath.Join(teamDir(team), "run", slot+"-data")
+}
+
 func writeTeamSlotAddress(team, slot, url string) error {
 	dir := teamSlotAddressDir(team, slot)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -277,7 +289,12 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		discard()
 		return teamPreview{}, err
 	}
-	if err := b.app(next.Container, next.App, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
+	data := teamSlotDataDir(b.team, next.Slot)
+	if err := os.MkdirAll(data, 0o700); err != nil {
+		discard()
+		return teamPreview{}, err
+	}
+	if err := b.app(next.Container, next.App, data, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
 	}
@@ -453,10 +470,11 @@ func (b *teamBroker) productionNeedsWork() bool {
 }
 
 // startApp runs the project in its box: the hardening every box has, no
-// credentials, its port published to this machine only, its address
+// credentials, its port published to this machine only, its data folder
+// at /data, its address
 // folder read-only at /hi, the team's settings, and the models socket,
 // which hi team __app relays to an ordinary address in the box.
-func (b *teamBroker) startApp(name, src, address, command string, port, hostPort int) error {
+func (b *teamBroker) startApp(name, src, data, address, command string, port, hostPort int) error {
 	engine, _, err := detectBoxEngine()
 	if err != nil {
 		return err
@@ -478,7 +496,7 @@ func (b *teamBroker) startApp(name, src, address, command string, port, hostPort
 		"-p", fmt.Sprintf("127.0.0.1:%d:%d", hostPort, port)}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
-	run = append(run, "-v", src+":/app", "-w", "/app",
+	run = append(run, "-v", src+":/app", "-w", "/app", "-v", data+":"+teamAppDataDir,
 		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
 		"-v", models+":"+teamAppModelsDir,
 		"-v", b.hi+":/usr/local/bin/hi:ro",

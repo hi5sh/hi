@@ -42,6 +42,7 @@ type teamConfig struct {
 	Remote  string                `json:"remote,omitempty"` // where repo/ was cloned from
 	Branch  string                `json:"branch"`           // the branch the lead merges into
 	Memory  string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
+	Backups *teamBackups          `json:"backups,omitempty"`
 	Created time.Time             `json:"created"`
 }
 
@@ -63,6 +64,9 @@ type teamSecrets struct {
 	OpenRouterAPIKey string `json:"openrouter_api_key,omitempty"`
 	// Env is the settings the team's app boxes get (hi team env).
 	Env map[string]string `json:"env,omitempty"`
+	// The bucket snapshots are copied to (hi team backups).
+	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
+	BackupSecret string `json:"backup_secret_access_key,omitempty"`
 }
 
 func teamsDir() string {
@@ -260,6 +264,14 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				err = teamConnectGitHub(&config, rest[1], stdout)
 			}
 		}
+	case "snapshot":
+		err = teamSnapshotCommand(rest, stdout)
+	case "snapshots":
+		err = withTeamName(rest, func(name string) error { return teamSnapshotsCommand(name, stdout) })
+	case "restore":
+		err = teamRestoreCommand(rest, stdin, stdout)
+	case "backups":
+		err = teamBackupsCommand(rest, stdin, stdout)
 	case "key":
 		err = teamKey(rest, stdin, stdout)
 	case "env":
@@ -323,6 +335,19 @@ usage:
   hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
                                    boxes only (preview and production); KEY alone asks for the value
       [--unset KEY]                remove one
+  hi team snapshot <name>          take a snapshot now: the lead's memory, the team's record, and
+                                   the app's data; the team keeps running. It takes one daily too
+  hi team snapshots <name>         list them
+  hi team restore <name> <snapshot>  put the team back as it was: a snapshot's ID, latest, v3 (the
+                                   one taken before v3 went out), or a day (2026-10-12)
+      [--code]                     put the code (repo/) back too
+      [--yes]                      don't ask first
+  hi team backups <name>           where snapshots are kept, and for how long
+      [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
+                                   its keys); --offsite off stops
+      [--region <region>]          the bucket's region, if it isn't us-east-1
+      [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
+      [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
@@ -963,6 +988,9 @@ code, so the code, its tests, and its docs must explain themselves.
   so in your report's follow-ups.
 - Every change comes with tests for what the brief says must work. Run them
   before you finish, and say in your report whether they pass.
+- Data the app must keep (the people's entries, uploads, a database) goes
+  in the folder named by $HI_DATA_DIR, never in the project's own folder,
+  which is a fresh copy of the code at every release.
 - The project starts with ` + "`make run`" + `: a Makefile run target that starts the
   app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
   the lead can show the people a preview.
@@ -1042,7 +1070,10 @@ func teamUp(name string, stdout io.Writer) error {
 	if err := os.WriteFile(unit, []byte(teamUnit(config, executable)), 0o644); err != nil {
 		return err
 	}
-	for _, args := range [][]string{{"daemon-reload"}, {"enable", teamUnitName(name)}, {"restart", teamUnitName(name)}} {
+	if err := teamInstallSnapshotTimer(config, executable); err != nil {
+		return err
+	}
+	for _, args := range [][]string{{"daemon-reload"}, {"enable", teamUnitName(name)}, {"restart", teamUnitName(name)}, {"enable", "--now", teamSnapshotUnitName(name) + ".timer"}} {
 		if out, err := teamSystemctl(args...); err != nil {
 			return fmt.Errorf("systemctl --user %s: %s", strings.Join(args, " "), qFirstLine(out, err.Error()))
 		}
@@ -1052,6 +1083,9 @@ func teamUp(name string, stdout io.Writer) error {
 		if missing := teamMissingScopes(secrets.SlackBotToken); len(missing) > 0 {
 			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", teamScopesAdvice(missing))
 		}
+	}
+	if !teamResticInstalled() {
+		fmt.Fprintf(stdout, "\nWarning: restic isn't installed, so the team can't take its daily snapshots. hi install restic adds it.\n\n")
 	}
 	fmt.Fprintf(stdout, "  hi team status %s   whether it is up\n  hi team logs %s     the lead's log\n", name, name)
 	if !teamLingers() {
@@ -1101,6 +1135,7 @@ func teamDown(name string, stdout io.Writer) error {
 	if out, err := teamSystemctl("disable", "--now", teamUnitName(name)); err != nil && fileExists(teamUnitPath(name)) {
 		return fmt.Errorf("systemctl --user disable --now %s: %s", teamUnitName(name), qFirstLine(out, err.Error()))
 	}
+	teamSystemctl("disable", "--now", teamSnapshotUnitName(name)+".timer")
 	fmt.Fprintf(stdout, "Team %s is stopped. Its folder stays; hi team up %s starts it again.\n", name, name)
 	return nil
 }
@@ -1204,6 +1239,7 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := os.Remove(teamUnitPath(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
+	teamRemoveSnapshotTimer(name)
 	teamSystemctl("daemon-reload")
 	teamRemoveContainers(name, boxes)
 	if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -1217,6 +1253,9 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "Team %s is removed.", name)
 	if folder != "" && keep {
 		fmt.Fprintf(stdout, " Its folder stays in %s; hi team up %s brings the team back.", folder, folder)
+	}
+	if snapshots := teamSnapshotsDir(name); fileExists(snapshots) {
+		fmt.Fprintf(stdout, "\nIts snapshots stay in %s, with the key to them; delete that folder if you no longer want them.", snapshots)
 	}
 	fmt.Fprintln(stdout, "\nIts Slack app and channel, and a GitHub repository if it had one, are still there; remove them in Slack and GitHub if you no longer want them.")
 	return nil
@@ -1326,6 +1365,9 @@ func teamStatus(name string, stdout io.Writer) error {
 	if view, err := teamVersionsReport(name); err == nil {
 		fmt.Fprintln(stdout)
 		printTeamVersions(view, stdout)
+	}
+	if line := teamSnapshotLine(name); line != "" {
+		fmt.Fprintln(stdout, "\n"+line)
 	}
 	tasks := loadTeamTasks(name)
 	if len(tasks) == 0 {
