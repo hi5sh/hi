@@ -307,7 +307,11 @@ command on this machine when the rounds end, for any reason.
 runs the command after each round in a container without network or
 `.git`, and a winner whose number is lower than the highest so far by more than
 `--validate-slack` (default 0) is `rejected`. The templates' `make loop`
-passes these. Inside a run's box, never look for that data or its numbers.
+passes these. `--folds <n> --fold "<command>"` (with `--fold-every <k>` or
+`--patience`) walks that window forward: between folds hi runs the command on
+this machine, commits the new data to the gains' branch, and measures the
+best again on it; a fold's shorter window needs a larger `--validate-slack`.
+Inside a run's box, never look for that data or its numbers.
 
 hi runs the check in each box after its agent ends; `best` is the first
 box that passed, changed something, and whose agent finished. Read its

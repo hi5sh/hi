@@ -65,6 +65,13 @@ from your team's private repo, such as `research`. The menu marks them
 from. `hi` checks that they are signed by the server and keeps a copy, so
 they still work when the server can't be reached.
 
+In the private repository, each template is a folder with its `layer.json`
+in `project_templates/` (hi 0.51.1 or later), beside `skills/`, `bundles/`,
+and `docs/`, so templates and the rest don't mix. Folders with a
+`layer.json` at the top of the repository still load, for repositories laid
+out before; a template in both places is refused, since hi couldn't tell
+which one you meant.
+
 ## Options
 
 | Option                  | Meaning                                                     |

@@ -201,8 +201,11 @@ Now: round 7: validating 2 boxes
 
 `VALID.` is the round winner's validation number. `show --json` has every
 box's under `validation` (its value, exit status, seconds, and the last
-lines of its output) and the run's `baseline_validation` and
-`best_validation`.
+lines of its output) and the run's `baseline_validation`,
+`best_validation` (the latest kept version's), and `peak_validation` (the
+highest so far, which the gate compares with). With folds it also has
+`fold`, `folds`, and `fold_history`: each change's fold, the round after
+which it came, its commit, and the new baseline's score and validation.
 
 A rejected round counts as a round without a gain for `--patience`.
 
@@ -261,6 +264,34 @@ make loop FOLDS=3 FOLD_EVERY=10
 Fold 1 gives agents 60% of the text and validates on the next 10%; each
 fold moves 10% into `eval/`. Fold 3 is the usual 70/10/10/10 split.
 
+### Noise, slack, and results with folds
+
+Folds change how much data each number rests on, so set the noise
+thresholds for them before the run:
+
+- **Measure the noise once, on fold 1, right after `make data FOLDS=n`.**
+  Fold 1 is what your checkout holds, and its numbers are the noisiest of
+  the run: it has the least data agents see. A `--min-gain` measured there
+  is a little larger than later folds need. That errs on the safe side:
+  a few small real gains are ignored, but no noise is kept.
+- **Make the windows the same length.** Then one `--validate-slack` fits
+  every fold: the slack is about the noise of the validation number, and
+  that depends on the window's length, not on where it sits. Both
+  templates do this.
+- **A shorter window needs a larger slack.** Splitting the same years into
+  more windows makes each one shorter, and a number measured on a shorter
+  window moves more by chance. A Sharpe ratio's noise grows as one over the
+  square root of the years: a two-year window is about 1.4 times noisier
+  than a four-year one. Keep the slack you used without folds and the gate
+  rejects real gains, often. In the quant template, `make robust` suggested
+  0.20 for its two-year folds, against the 0.05 default for four years.
+- **Results are measured on one set of windows.** A results command that
+  re-scores every attempt, such as the quant template's `make results`, uses
+  the windows of the fold the run ended in. Attempts from earlier folds were
+  scored on other windows, so their recorded numbers won't match the new
+  ones. That is expected, not a bug: comparing every attempt on the same
+  windows is the point of the report.
+
 ## Choosing the slack
 
 1. Run the validation twice on the same code, on your machine:
@@ -272,6 +303,8 @@ fold moves 10% into `eval/`. Fold 3 is the usual 70/10/10/10 split.
    gains; too large lets fitted changes through.
 3. In the templates, it is `VALIDATE_SLACK` in the `Makefile` or on the
    command line: `make loop VALIDATE_SLACK=0.01`.
+4. With [folds](#noise-slack-and-results-with-folds), measure again after
+   `make data FOLDS=n`: each window is shorter, so its slack is larger.
 
 ## Costs
 

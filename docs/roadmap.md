@@ -1217,6 +1217,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   OpenRouter key went from Slack into four briefs and the code.
   Approved spec: [hi_team_keys.md](specs/approved/hi_team_keys.md).
 
+### v0.53.1 — The start-up summary shows `--min-gain`
+
+- [x] `hi agent best-of`'s summary before it starts says that a result is
+  kept only if it beats the best by more than `--min-gain`, when one is set.
+
 ### v0.54.0 — Folds: a validation window that stays fresh
 
 - [x] `hi agent best-of --folds <n> --fold "<command>" [--fold-every <k>]`:

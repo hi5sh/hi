@@ -68,8 +68,13 @@ The setup asks seven things, one at a time:
    A new repository can go on GitHub too: give `owner/name`, and hi
    creates a private repository with this machine's `gh` sign-in.
 
-hi checks both tokens and that the app is in the channel before it writes
-anything. Without a terminal, give the answers in a file and the tokens in
+hi checks both tokens, that the app is in the channel, and that the bot
+token has every scope the lead needs, before it writes anything. An app
+made from an older or another manifest can lack one, such as `files:read`,
+and then the lead gets an error on every file people share; hi names the
+missing scopes, and adding them under OAuth & Permissions and reinstalling
+the app fixes it. `hi team up` checks again and warns, for teams made
+before. Without a terminal, give the answers in a file and the tokens in
 `HI_TEAM_SLACK_BOT_TOKEN` and `HI_TEAM_SLACK_APP_TOKEN` (and the team's
 OpenRouter key, if it has one, in `HI_TEAM_OPENROUTER_API_KEY`):
 
