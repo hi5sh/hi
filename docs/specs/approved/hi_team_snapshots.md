@@ -163,9 +163,44 @@ or the bucket can't be read if the machine is lost.
 - Production and preview boxes get their data folders.
 - With restic on the machine, a real snapshot and restore round-trip.
 
+## Rollback (release 2)
+
+Status: Approved (2026-10-14). Built in v0.56.0.
+
+A release that damaged production's data needs its code and its data
+put back together. `hi team release v2` already puts back the code, and
+keeps the data, which is what a release that is merely wrong needs.
+
+```text
+hi team rollback <name> v2 [--code-only] [--yes]   on the machine
+hi team rollback v2 --approval <id>                the lead, with an owner's yes
+```
+
+- **Which data.** Production's data as v2 left it: the snapshot taken the
+  last time production moved off v2. Each move of production records in
+  `versions.json` the versions it went between and the snapshot taken just
+  before it. A version left before v0.56.0, or whose snapshot failed, has
+  none, and rolls back its code only (`release v2`, `--code-only`).
+- **What goes back.** Production's code and `app/`. Not the lead's memory,
+  the tasks, or the channel's log: a lead that forgot why it rolled back
+  would be worse off. That is `hi team restore`.
+- **Undo.** The snapshot taken before the rollback is production's data as
+  the newer version left it, so rolling forward to it the same way puts
+  that data back. A rollback whose snapshot of now fails moves nothing.
+- **Who.** An owner's yes in the channel, checked by the broker as for a
+  release; this replaces the spec's owner's button, because the yes is
+  already how owners approve releases. On the machine, whoever runs
+  `hi team rollback` is trusted: it goes through a second broker socket,
+  `$XDG_RUNTIME_DIR/hi-team-<name>-host/broker.sock`, which no box
+  mounts. `hi team snapshot` moved there from the lead's socket.
+- **Steps.** With the broker's lock held: the snapshot of now, production's
+  box stopped, `app/` restored beside the folder and swapped in, the
+  production branch moved, the move recorded. Then production starts on
+  its link and the channel hears it, with the data's date and the
+  snapshot that undoes it.
+
 ## Not in this
 
-- Rollback of code and data together by an owner's button in Slack.
 - Export and import, and restoring on another machine.
 - The app's database dumped with its own tool rather than paused.
 

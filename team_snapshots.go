@@ -547,36 +547,123 @@ func (b *teamBroker) snapshotBefore(version int, result *teamReleaseResult) {
 	result.Snapshot = snapshot.ID
 }
 
-// ---------------------------------------------------------------------------
-// the commands, on the host
+// putBackData puts production's data (app/) back as it was in a snapshot,
+// with production's box stopped; the caller holds b.mu and starts
+// production again. Nothing changes if it fails.
+func (b *teamBroker) putBackData(id string) error {
+	if state, ok := loadTeamSlot(b.team, teamSlotProduction); ok && state.Container != "" {
+		b.engineOutput("rm", "-f", state.Container)
+	}
+	return b.restoreData(id)
+}
 
-// teamBrokerSnapshot asks the team's service for a snapshot. ok is false
-// when the service isn't there to ask.
-func teamBrokerSnapshot(team, kind string) (snapshot teamSnapshot, ok bool, err error) {
-	socket := filepath.Join(teamBrokerDir(team), teamSocketName)
+// teamRestoreData restores app/ from a snapshot beside it, then swaps it
+// in; a snapshot without app/ leaves it empty.
+func teamRestoreData(team, id string) error {
+	dir := teamDir(team)
+	restored := filepath.Join(dir, ".restore-"+id)
+	os.RemoveAll(restored)
+	defer os.RemoveAll(restored)
+	if _, err := teamRestic(teamResticEnv(team), dir, "restore", id, "--quiet", "--target", restored, "--include", "/app"); err != nil {
+		return fmt.Errorf("putting back production's data: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(restored, "app"), 0o700); err != nil {
+		return err
+	}
+	app, old := filepath.Join(dir, "app"), restored+"-old"
+	os.RemoveAll(old)
+	if err := os.Rename(app, old); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.Rename(filepath.Join(restored, "app"), app); err != nil {
+		os.Rename(old, app)
+		return err
+	}
+	return os.RemoveAll(old)
+}
+
+// ---------------------------------------------------------------------------
+// the host's socket
+
+// The host's socket is the broker's door for the people on the machine:
+// a snapshot, a rollback. It is never mounted in a box, so what comes
+// through it needs no yes in the channel.
+
+func teamHostSocket(team string) string {
+	return filepath.Join(teamBrokerDir(team)+"-host", teamSocketName)
+}
+
+func (b *teamBroker) hostHandler() http.Handler {
+	mux := http.NewServeMux()
+	reply := func(w http.ResponseWriter, value any, err error) {
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(value)
+	}
+	mux.HandleFunc("POST /snapshot", func(w http.ResponseWriter, r *http.Request) {
+		var request teamSnapshotRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		if request.Kind != teamSnapshotDaily {
+			request.Kind = teamSnapshotManual
+		}
+		snapshot, err := b.snapshot(request.Kind, "")
+		reply(w, snapshot, err)
+	})
+	mux.HandleFunc("POST /rollback", func(w http.ResponseWriter, r *http.Request) {
+		var request teamHostRollback
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		result, err := b.release(teamReleaseRequest{Version: request.Version, Data: !request.CodeOnly, host: firstNonEmpty(request.Who, "someone") + " on the machine"})
+		reply(w, result, err)
+	})
+	return mux
+}
+
+type teamHostRollback struct {
+	Version  int    `json:"version"`
+	CodeOnly bool   `json:"code_only,omitempty"`
+	Who      string `json:"who,omitempty"`
+}
+
+// teamHostCall calls the team's service on the host's socket. ok is false
+// when the service isn't there to ask, or runs a hi from before it had one.
+func teamHostCall(team, path string, body, out any) (ok bool, err error) {
+	socket := teamHostSocket(team)
 	if !fileExists(socket) {
-		return snapshot, false, nil
+		return false, nil
 	}
 	client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}}
-	body, _ := json.Marshal(teamSnapshotRequest{Kind: kind})
-	response, err := client.Post("http://team/snapshot", "application/json", strings.NewReader(string(body)))
+	data, _ := json.Marshal(body)
+	response, err := client.Post("http://team"+path, "application/json", strings.NewReader(string(data)))
 	if err != nil {
-		return snapshot, false, nil // a socket left by a team that stopped
+		return false, nil // a socket left by a team that stopped
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusNotFound {
-		return snapshot, false, nil // a team still running a hi from before snapshots
+		return false, nil
 	}
-	data, _ := io.ReadAll(response.Body)
+	answer, _ := io.ReadAll(response.Body)
 	if response.StatusCode != http.StatusOK {
 		var failure struct{ Error string }
-		json.Unmarshal(data, &failure)
-		return snapshot, true, errors.New(firstNonEmpty(failure.Error, response.Status))
+		json.Unmarshal(answer, &failure)
+		return true, errors.New(firstNonEmpty(failure.Error, response.Status))
 	}
-	return snapshot, true, json.Unmarshal(data, &snapshot)
+	return true, json.Unmarshal(answer, out)
 }
+
+// ---------------------------------------------------------------------------
+// the commands, on the host
 
 // teamSnapshotCommand is hi team snapshot <name> [--daily].
 func teamSnapshotCommand(args []string, stdout io.Writer) error {
@@ -599,7 +686,8 @@ func teamSnapshotCommand(args []string, stdout io.Writer) error {
 	if _, err := loadTeam(team); err != nil {
 		return err
 	}
-	snapshot, asked, err := teamBrokerSnapshot(team, kind)
+	var snapshot teamSnapshot
+	asked, err := teamHostCall(team, "/snapshot", teamSnapshotRequest{Kind: kind}, &snapshot)
 	if !asked {
 		// The team is down: nothing holds the locks, but production's box
 		// may still run.
@@ -1068,4 +1156,78 @@ func teamRemoveSnapshotTimer(name string) {
 var teamResticInstalled = func() bool {
 	_, err := exec.LookPath("restic")
 	return err == nil
+}
+
+// ---------------------------------------------------------------------------
+// rollback, on the host
+
+// teamRollbackCommand is hi team rollback <name> v2 [--code-only] [--yes]:
+// production back on an earlier release, with its data as that release
+// left it. An owner on the machine needs no yes in the channel; the team's
+// service does it, so the team must be up.
+func teamRollbackCommand(args []string, stdin io.Reader, stdout io.Writer) error {
+	var codeOnly, yes bool
+	var words []string
+	for _, arg := range args {
+		switch {
+		case arg == "--code-only":
+			codeOnly = true
+		case arg == "--yes" || arg == "-y":
+			yes = true
+		case strings.HasPrefix(arg, "-"):
+			return usageError{"unknown option " + arg}
+		default:
+			words = append(words, arg)
+		}
+	}
+	if len(words) != 2 || !teamVersionArg.MatchString(words[1]) {
+		return usageError{"usage: hi team rollback <name> v2 [--code-only] [--yes]"}
+	}
+	team := words[0]
+	if _, err := loadTeam(team); err != nil {
+		return err
+	}
+	version, _ := strconv.Atoi(strings.TrimPrefix(words[1], "v"))
+	versions, err := loadTeamVersions(team)
+	if err != nil {
+		return err
+	}
+	if _, ok := versions.release(version); !ok {
+		return fmt.Errorf("team %s has no v%d; hi team status %s shows its versions", team, version, team)
+	}
+	if version == versions.Production {
+		return fmt.Errorf("production is on v%d already", version)
+	}
+	if codeOnly {
+		fmt.Fprintf(stdout, "This puts team %s's production back on v%d's code (it is on v%d). Production's data stays as it is.\n", team, version, versions.Production)
+	} else {
+		left, ok := versions.leftSnapshot(version)
+		if !ok {
+			return fmt.Errorf("hi has no snapshot of production's data as v%d left it (hi snapshots it when production moves, since v0.55.0); --code-only puts back its code alone", version)
+		}
+		fmt.Fprintf(stdout, "This puts team %s's production back on v%d (it is on v%d), with production's data as v%d left it, %s (snapshot %s).\n",
+			team, version, versions.Production, version, left.At.Local().Format("Mon Jan 2 at 15:04"), left.Snapshot)
+		fmt.Fprintf(stdout, "What was entered in production since is set aside in a snapshot hi takes first; hi team rollback %s v%d puts it back.\n", team, versions.Production)
+	}
+	fmt.Fprintln(stdout, "The lead's memory, the tasks, and the channel's log stay as they are. hi posts it in the channel.")
+	if err := confirm(stdin, stdout, yes, fmt.Sprintf("Roll production back to v%d?", version)); err != nil {
+		return err
+	}
+	var result teamReleaseResult
+	asked, err := teamHostCall(team, "/rollback", teamHostRollback{Version: version, CodeOnly: codeOnly, Who: currentUserName()}, &result)
+	if !asked {
+		return fmt.Errorf("team %s isn't up, or runs a hi from before rollback; hi team up %s, then try again", team, team)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Production is on v%d now (it was on v%d).", result.Release.Version, result.Previous)
+	if result.DataFrom != "" {
+		fmt.Fprintf(stdout, " Its data is from snapshot %s; what was entered since is in snapshot %s.", result.DataFrom, result.Snapshot)
+	}
+	fmt.Fprintln(stdout)
+	if result.Warning != "" {
+		fmt.Fprintln(stdout, result.Warning)
+	}
+	return nil
 }

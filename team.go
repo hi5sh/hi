@@ -214,7 +214,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if command == "channel" {
 		return exitCode(runTeamChannel(rest, stdout), stderr)
 	}
-	if teamLeadCommands[command] || command == "env" && os.Getenv(teamSocketEnv) != "" {
+	if teamLeadCommands[command] || teamLeadOrHost[command] && os.Getenv(teamSocketEnv) != "" {
 		return exitCode(runTeamLeadCommand(command, rest, stdin, stdout), stderr)
 	}
 	var err error
@@ -270,6 +270,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = withTeamName(rest, func(name string) error { return teamSnapshotsCommand(name, stdout) })
 	case "restore":
 		err = teamRestoreCommand(rest, stdin, stdout)
+	case "rollback":
+		err = teamRollbackCommand(rest, stdin, stdout)
 	case "backups":
 		err = teamBackupsCommand(rest, stdin, stdout)
 	case "key":
@@ -341,6 +343,11 @@ usage:
   hi team restore <name> <snapshot>  put the team back as it was: a snapshot's ID, latest, v3 (the
                                    one taken before v3 went out), or a day (2026-10-12)
       [--code]                     put the code (repo/) back too
+      [--yes]                      don't ask first
+  hi team rollback <name> v2       put production back on v2, with its data as v2 left it; what was
+                                   entered since is kept in a snapshot, and going forward the same
+                                   way puts it back
+      [--code-only]                the code alone; production's data stays as it is
       [--yes]                      don't ask first
   hi team backups <name>           where snapshots are kept, and for how long
       [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for

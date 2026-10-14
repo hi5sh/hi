@@ -114,8 +114,13 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("the broker's socket: %w", err)
 	}
-	brokerErr := make(chan error, 1)
+	serveHost, err := broker.listenHost(ctx, teamHostSocket(name))
+	if err != nil {
+		return fmt.Errorf("the broker's socket for this machine: %w", err)
+	}
+	brokerErr := make(chan error, 2)
 	go func() { brokerErr <- serveBroker() }()
+	go func() { brokerErr <- serveHost() }()
 	broker.resume()
 	if err := broker.commitSpecs(); err != nil {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
@@ -664,7 +669,8 @@ of its own on a branch of the project; you get their reports.
 | hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
 | hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
-| hi team release v2 --approval <id> | Put production back on v2, once an owner says yes |
+| hi team release v2 --approval <id> | Put production's code back on v2, once an owner says yes; its data stays |
+| hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
 | hi team discard t-4 | Drop an idea that isn't merged: its tasks, reviews, and branches |
 | hi team discard dev --approval <id> | Set dev's code back to production's, once one of the people says yes |
 
@@ -833,7 +839,15 @@ reply, and wait. Once an owner says yes, write the release notes to a file
 (a few lines for the people, not code) and run hi team release --approval
 <their message id> --notes <file>. hi posts the release in the channel
 itself, not in the thread, so everyone sees it. If a release turns out
-badly, an owner may ask to go back: hi team release v2 --approval <id>.
+badly, an owner may ask to go back: hi team release v2 --approval <id>
+puts back v2's code and keeps production's data as it is, which is
+usually what they want. When the new version damaged the data itself
+(entries lost or garbled), propose a rollback instead: hi team rollback
+v2 --approval <id> puts back v2's code and production's data as it was
+when v2 was replaced. Say in your question that what people entered in
+production since then is set aside (hi keeps it in a snapshot, and going
+forward the same way puts it back), and let an owner choose. Your memory,
+the tasks, and this channel's log don't go back either way.
 
 ## Ideas
 

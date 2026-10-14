@@ -250,7 +250,7 @@ hi team snapshot <name>         take a snapshot now
 hi team snapshots <name>        list them
 hi team restore <name> <snapshot>  put data, memory, and the record back (hi_team_snapshots.md)
 hi team backups <name>          where snapshots are kept, and offsite
-hi team rollback <name> <release|snapshot|date>
+hi team rollback <name> <release>  production's code and data back (hi_team_snapshots.md)
 hi team export <name> <file>    the folder as one encrypted file
 hi team import <file>           a team from an export, on this or another host
 hi team manifest <name>         print the Slack app manifest again
@@ -404,9 +404,10 @@ At the end hi prints what it set up and the one line to start it.
 Snapshots and restore are built (v0.55.0): see
 [hi_team_snapshots.md](hi_team_snapshots.md), which differs from this
 section in a few places: the app's data is `app/` at `$HI_DATA_DIR`, a
-restore keeps `team.json` as well as `secrets.json`, restic runs while the
-boxes are paused rather than packing an archive first, and rollback is
-still to come.
+restore keeps `team.json` as well as `secrets.json`, and restic runs while
+the boxes are paused rather than packing an archive first. Rollback is built
+(v0.56.0): to a release only, production's code and data without the
+lead's memory, approved by an owner's yes rather than a button.
 
 A team has three kinds of state, each kept differently:
 

@@ -27,12 +27,12 @@ type teamApproval struct {
 
 // teamFindApproval checks ref (a message's ID from hi team channel --ids)
 // against the channel's log, polling Slack first when it isn't logged yet.
-// For a release (approving "release"), only an owner's yes counts:
-// production is theirs. A release or setting dev back ("dev") needs a yes
+// For a release or a rollback, only an owner's yes counts: production is
+// theirs. A release or setting dev back ("dev") needs a yes
 // of its own, never one that approved something else; one yes may start
 // more than one task.
 func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) (teamApproval, error) {
-	owners := approving == "release"
+	owners := approving == "release" || approving == "rollback"
 	ref = strings.Trim(strings.TrimSpace(ref), "[]")
 	if ref == "" {
 		return teamApproval{}, errors.New("name the message that approved this work: hi team task <role> <brief.md> --approval <id>, " +

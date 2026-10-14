@@ -256,12 +256,10 @@ func TestTeamBrokerSnapshot(t *testing.T) {
 		t.Fatal(taken)
 	}
 
-	// The host asks for one on the broker's socket.
-	socket := filepath.Join(teamBrokerDir("payments"), teamSocketName)
-	os.MkdirAll(filepath.Dir(socket), 0o700)
+	// The host asks for one on its own socket.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	serve, err := b.listen(ctx, socket)
+	serve, err := b.listenHost(ctx, teamHostSocket("payments"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -508,5 +506,147 @@ func TestTeamSnapshotRestic(t *testing.T) {
 	out.Reset()
 	if err := teamSnapshotsCommand("payments", &out); err != nil || !strings.Contains(out.String(), "before restoring "+first.ID) {
 		t.Fatal(err, out.String())
+	}
+
+	// A rollback puts back app/ alone.
+	os.WriteFile(filepath.Join(dir, "app", "entries.json"), []byte("[9]"), 0o600)
+	os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte("today"), 0o600)
+	snapshots, _ = teamListSnapshots("payments")
+	if err := teamRestoreData("payments", snapshots[1].ID); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "app", "entries.json")); string(data) != "[1,2]" || !fileExists(filepath.Join(dir, "app", "new.json")) {
+		t.Fatal(string(data))
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "lead", "SOUL.md")); string(data) != "today" {
+		t.Fatal(string(data))
+	}
+	if matches, _ := filepath.Glob(filepath.Join(dir, ".restore-"+snapshots[1].ID+"*")); len(matches) != 0 {
+		t.Fatal(matches)
+	}
+}
+
+func TestTeamRollback(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	taken, failSnapshot := 0, false
+	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
+		if failSnapshot {
+			return teamSnapshot{}, errors.New("the disk is full")
+		}
+		taken++
+		return teamSnapshot{ID: fmt.Sprintf("snap%04d", taken), Kind: kind, Label: label}, nil
+	}
+	var putBack []string
+	b.restoreData = func(id string) error { putBack = append(putBack, id); return nil }
+	posted := func() string { return channel.calls[len(channel.calls)-1] }
+
+	teamTestMerge(t, b, "Add a supplier list")
+	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 30), Notes: "Suppliers."}); err != nil {
+		t.Fatal(err)
+	}
+	teamTestMerge(t, b, "Add a search box")
+	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 29), Notes: "Search."}); err != nil {
+		t.Fatal(err)
+	}
+	// Each move records the snapshot taken as production left a version.
+	versions, _ := loadTeamVersions("payments")
+	if left, ok := versions.leftSnapshot(1); !ok || left.Snapshot != "snap0002" || left.To != 2 {
+		t.Fatal(versions.History)
+	}
+
+	// Only an owner's yes rolls back.
+	if _, err := b.release(teamReleaseRequest{Version: 1, Data: true, Approval: teamTestYes(t, "U07ASKER1", 28)}); err == nil || !strings.Contains(err.Error(), "owners") {
+		t.Fatal(err)
+	}
+	// Without a snapshot of now, nothing moves.
+	failSnapshot = true
+	if _, err := b.release(teamReleaseRequest{Version: 1, Data: true, Approval: teamTestYes(t, "U07OWNER1", 27)}); err == nil || !strings.Contains(err.Error(), "nothing was rolled back") {
+		t.Fatal(err)
+	}
+	if versions, _ = loadTeamVersions("payments"); versions.Production != 2 || len(putBack) != 0 {
+		t.Fatal(versions.Production, putBack)
+	}
+	failSnapshot = false
+
+	// Back to v1, with production's data as v1 left it.
+	result, err := b.release(teamReleaseRequest{Version: 1, Data: true, Approval: teamTestYes(t, "U07OWNER1", 26)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.DataFrom != "snap0002" || result.Snapshot != "snap0003" || strings.Join(putBack, " ") != "snap0002" || boxGit(b.repo, "rev-parse", teamProductionBranch) != result.Release.Commit {
+		t.Fatal(result, putBack)
+	}
+	if !strings.Contains(posted(), "Production is back on v1, with its data as of") || !strings.Contains(posted(), "kept in snapshot snap0003") {
+		t.Fatal(posted())
+	}
+	// Forward to v2 again puts back what was entered under v2.
+	if _, err := b.release(teamReleaseRequest{Version: 2, Data: true, Approval: teamTestYes(t, "U07OWNER1", 25)}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(putBack, " ") != "snap0002 snap0003" || !strings.Contains(posted(), "Production is on v2 again, with its data") {
+		t.Fatal(putBack, posted())
+	}
+	// A plain move back keeps the data, and is still snapshotted.
+	if _, err := b.release(teamReleaseRequest{Version: 1, Approval: teamTestYes(t, "U07OWNER1", 24)}); err != nil {
+		t.Fatal(err)
+	}
+	if len(putBack) != 2 || taken != 5 {
+		t.Fatal(putBack, taken)
+	}
+
+	// The lead's socket can't skip the yes; the host's needs none.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	leadSocket := filepath.Join(t.TempDir(), "lead.sock")
+	serveLead, _ := b.listen(ctx, leadSocket)
+	go serveLead()
+	t.Setenv(teamSocketEnv, leadSocket)
+	var out bytes.Buffer
+	if code := runTeam([]string{"rollback", "v2"}, strings.NewReader(""), &out, &out); code == 0 || !strings.Contains(out.String(), "approved this work") {
+		t.Fatal(code, out.String())
+	}
+	t.Setenv(teamSocketEnv, "")
+	serveHost, err := b.listenHost(ctx, teamHostSocket("payments"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	go serveHost()
+	out.Reset()
+	if err := teamRollbackCommand([]string{"payments", "v2"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "--yes") {
+		t.Fatal("rolled back without asking:", err)
+	}
+	if err := teamRollbackCommand([]string{"payments", "v2", "--yes"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err, out.String())
+	}
+	// v2 was last left by the plain move back, snapshot snap0005.
+	if putBack[len(putBack)-1] != "snap0005" || !strings.Contains(out.String(), "Production is on v2 now (it was on v1). Its data is from snapshot snap0005") ||
+		!strings.Contains(posted(), "on the machine") {
+		t.Fatal(putBack, out.String(), posted())
+	}
+	if err := teamRollbackCommand([]string{"payments", "v1", "--code-only", "--yes"}, strings.NewReader(""), &out); err != nil || len(putBack) != 3 {
+		t.Fatal(err, putBack)
+	}
+	if err := teamRollbackCommand([]string{"payments", "v9", "--yes"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "no v9") {
+		t.Fatal(err)
+	}
+}
+
+func TestTeamRollbackNeedsTheDataSnapshot(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
+		return teamSnapshot{}, errors.New("restic isn't installed")
+	}
+	teamTestMerge(t, b, "Add a supplier list")
+	b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 30), Notes: "Suppliers."})
+	teamTestMerge(t, b, "Add a search box")
+	b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 29), Notes: "Search."})
+	// Releases from before v0.55.0, or whose snapshot failed, roll back
+	// their code only.
+	if _, err := b.release(teamReleaseRequest{Version: 1, Data: true, Approval: teamTestYes(t, "U07OWNER1", 28)}); err == nil || !strings.Contains(err.Error(), "hi team release v1 puts back its code alone") {
+		t.Fatal(err)
 	}
 }

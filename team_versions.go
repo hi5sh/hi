@@ -45,6 +45,23 @@ type teamVersionEvent struct {
 	What     string        `json:"what"`
 	Approval *teamApproval `json:"approval,omitempty"`
 	At       time.Time     `json:"at"`
+	// From and To are the versions production moved between, and Snapshot
+	// the one taken just before: production's data as From left it, which
+	// a rollback to From puts back. Events before v0.56.0 have none.
+	From     int    `json:"from,omitempty"`
+	To       int    `json:"to,omitempty"`
+	Snapshot string `json:"snapshot,omitempty"`
+}
+
+// leftSnapshot is the snapshot taken the last time production left
+// version: its data as that version left it.
+func (v teamVersions) leftSnapshot(version int) (teamVersionEvent, bool) {
+	for i := len(v.History) - 1; i >= 0; i-- {
+		if event := v.History[i]; event.From == version && event.Snapshot != "" {
+			return event, true
+		}
+	}
+	return teamVersionEvent{}, false
 }
 
 // teamVersions is versions.json in the team's folder.
@@ -244,6 +261,11 @@ type teamReleaseRequest struct {
 	Version  int    `json:"version,omitempty"` // an earlier release to put production back on; 0 releases dev
 	Notes    string `json:"notes,omitempty"`
 	Approval string `json:"approval,omitempty"`
+	// Data puts production's data back as Version left it too: a rollback.
+	Data bool `json:"data,omitempty"`
+	// host is an owner on the machine, through the host's socket, who
+	// needs no yes in the channel. The lead's socket never sets it.
+	host string
 }
 
 // teamReleaseResult is what a release did.
@@ -255,6 +277,10 @@ type teamReleaseResult struct {
 	Warning  string      `json:"warning,omitempty"`
 	// Snapshot is the one taken just before, of the data and memory.
 	Snapshot string `json:"snapshot,omitempty"`
+	// DataFrom is the snapshot a rollback put production's data back from,
+	// taken when DataAt.
+	DataFrom string    `json:"data_from,omitempty"`
+	DataAt   time.Time `json:"data_at,omitzero"`
 	// Approval is the yes that moved production this time.
 	Approval *teamApproval `json:"approval,omitempty"`
 }
@@ -297,13 +323,18 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	}
 	notes := strings.TrimSpace(request.Notes)
 	if request.Version == 0 && notes == "" {
+		if request.Data {
+			return teamReleaseResult{}, errors.New("name the version to roll back to: hi team rollback v2 --approval <id>")
+		}
 		return teamReleaseResult{}, errors.New("say what changes for the people: --notes <file|->, a few lines in their words; hi posts them in the channel")
 	}
 	if len(notes) > 3000 {
 		return teamReleaseResult{}, errors.New("keep the notes short: a few lines, under 3000 characters")
 	}
-	approval, err := b.teamFindApproval(config, request.Approval, "release")
-	if err != nil {
+	var approval teamApproval
+	if request.host != "" {
+		approval = teamApproval{Name: request.host}
+	} else if approval, err = b.teamFindApproval(config, request.Approval, map[bool]string{true: "rollback", false: "release"}[request.Data]); err != nil {
 		return teamReleaseResult{}, err
 	}
 	b.mu.Lock()
@@ -323,13 +354,33 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 		if release.Version == versions.Production {
 			return result, fmt.Errorf("production is on v%d already", release.Version)
 		}
+		var left teamVersionEvent
+		if request.Data {
+			var ok bool
+			if left, ok = versions.leftSnapshot(release.Version); !ok {
+				return result, fmt.Errorf("hi has no snapshot of production's data as v%d left it (hi snapshots it when production moves, since v0.55.0); hi team release v%d puts back its code alone", release.Version, release.Version)
+			}
+		}
 		b.snapshotBefore(release.Version, &result)
+		if request.Data {
+			if result.Snapshot == "" {
+				return result, fmt.Errorf("nothing was rolled back: production's data now couldn't be snapshotted, so what was entered since v%d would be lost. %s", release.Version, strings.TrimSpace(result.Warning))
+			}
+			if err := b.putBackData(left.Snapshot); err != nil {
+				return result, fmt.Errorf("nothing was rolled back: %w", err)
+			}
+			result.DataFrom, result.DataAt = left.Snapshot, left.At
+		}
 		if out, err := teamGit(b.repo, "branch", "-f", teamProductionBranch, release.Commit); err != nil {
 			return result, fmt.Errorf("git branch: %s", qFirstLine(out, err.Error()))
 		}
 		result.Release = release
 		result.Back, result.Again = release.Version < versions.Production, release.Version > versions.Production
 		event.What = fmt.Sprintf("production from v%d to v%d", versions.Production, release.Version)
+		if request.Data {
+			event.What += fmt.Sprintf(", with its data from snapshot %s", left.Snapshot)
+		}
+		event.From, event.To = versions.Production, release.Version
 		versions.Production = release.Version
 		push = []string{teamProductionBranch}
 	} else {
@@ -362,9 +413,11 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 		}
 		versions.Releases = append(versions.Releases, release)
 		event.What = fmt.Sprintf("release v%d", version)
+		event.From, event.To = versions.Production, version
 		versions.Production, result.Release = version, release
 		push = []string{teamProductionBranch, "refs/tags/" + teamReleaseTag(version)}
 	}
+	event.Snapshot = result.Snapshot
 	versions.History = append(versions.History, event)
 	if err := saveTeamVersions(b.team, versions); err != nil {
 		return result, err
@@ -381,7 +434,17 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, notes string) string {
 	var text strings.Builder
 	version := result.Release.Version
+	data := ""
+	if result.DataFrom != "" {
+		data = fmt.Sprintf(", with its data as of %s", result.DataAt.Local().Format("Mon Jan 2 at 15:04"))
+	}
 	switch {
+	case result.DataFrom != "" && result.Back:
+		fmt.Fprintf(&text, ":leftwards_arrow_with_hook: *Production is back on v%d%s* (it was on v%d), approved by %s. What was entered in production since is kept in snapshot %s: going forward to v%d the same way puts it back.",
+			version, data, result.Previous, approval.Name, result.Snapshot, result.Previous)
+	case result.DataFrom != "":
+		fmt.Fprintf(&text, ":rocket: *Production is on v%d again%s* (it was on v%d), approved by %s. Production's data from v%d is kept in snapshot %s.",
+			version, data, result.Previous, approval.Name, result.Previous, result.Snapshot)
 	case result.Back:
 		fmt.Fprintf(&text, ":leftwards_arrow_with_hook: *Production is back on v%d* (it was on v%d), approved by %s.", version, result.Previous, approval.Name)
 	case result.Again:

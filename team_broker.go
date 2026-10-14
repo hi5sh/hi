@@ -180,6 +180,8 @@ type teamBroker struct {
 	// takeSnapshot backs up the team's folder, with the boxes paused; tests
 	// replace it.
 	takeSnapshot func(kind, label string) (teamSnapshot, error)
+	// restoreData puts app/ back from a snapshot; tests replace it.
+	restoreData func(id string) error
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
@@ -188,6 +190,7 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
 		return teamTakeSnapshot(team, kind, label, teamPause)
 	}
+	b.restoreData = func(id string) error { return teamRestoreData(team, id) }
 	b.exposed = teamExposed
 	b.running = b.appRunning
 	b.run = func(args ...string) ([]byte, error) {
@@ -210,19 +213,31 @@ func newTeamBroker(team, hi string) *teamBroker {
 	return b
 }
 
-// listen opens the socket, then serves it until ctx ends.
+// listen opens the lead's socket, then serves it until ctx ends.
 func (b *teamBroker) listen(ctx context.Context, socket string) (func() error, error) {
+	return b.listenWith(ctx, socket, b.handler())
+}
+
+// listenHost opens the host's socket, which no box sees.
+func (b *teamBroker) listenHost(ctx context.Context, socket string) (func() error, error) {
+	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+		return nil, err
+	}
+	return b.listenWith(ctx, socket, b.hostHandler())
+}
+
+func (b *teamBroker) listenWith(ctx context.Context, socket string, handler http.Handler) (func() error, error) {
 	os.Remove(socket)
 	listener, err := net.Listen("unix", socket)
 	if err != nil {
 		return nil, err
 	}
 	os.Chmod(socket, 0o600)
-	return func() error { return b.serve(ctx, listener) }, nil
+	return func() error { return b.serve(ctx, listener, handler) }, nil
 }
 
-func (b *teamBroker) serve(ctx context.Context, listener net.Listener) error {
-	server := &http.Server{Handler: b.handler()}
+func (b *teamBroker) serve(ctx context.Context, listener net.Listener, handler http.Handler) error {
+	server := &http.Server{Handler: handler}
 	go func() {
 		<-ctx.Done()
 		server.Close()
@@ -334,6 +349,7 @@ func (b *teamBroker) handler() http.Handler {
 			reply(w, nil, err)
 			return
 		}
+		request.Data = r.URL.Query().Get("data") == "1"
 		result, err := b.release(request)
 		reply(w, result, err)
 	})
@@ -350,18 +366,6 @@ func (b *teamBroker) handler() http.Handler {
 			tasks, err = b.discard(request.Task)
 		}
 		reply(w, tasks, err)
-	})
-	mux.HandleFunc("POST /snapshot", func(w http.ResponseWriter, r *http.Request) {
-		var request teamSnapshotRequest
-		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
-			reply(w, nil, err)
-			return
-		}
-		if request.Kind != teamSnapshotDaily {
-			request.Kind = teamSnapshotManual
-		}
-		snapshot, err := b.snapshot(request.Kind, "")
-		reply(w, snapshot, err)
 	})
 	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		view, err := teamVersionsReport(b.team)
@@ -994,6 +998,10 @@ func teamTitle(brief string) string {
 var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
 	"versions": true, "release": true, "discard": true}
 
+// teamLeadOrHost are commands both the lead and the people on the machine
+// have; in the lead's box they go to its socket.
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true}
+
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	socket := os.Getenv(teamSocketEnv)
 	if socket == "" {
@@ -1172,6 +1180,31 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		} else {
 			fmt.Fprintf(stdout, "Released v%d: production is dev's latest now. hi posted it in the channel with your notes.\n", result.Release.Version)
 		}
+		if result.Warning != "" {
+			fmt.Fprintln(stdout, result.Warning)
+		}
+	case "rollback":
+		var request teamReleaseRequest
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "--approval" && i+1 < len(args):
+				request.Approval = args[i+1]
+				i++
+			case request.Version == 0 && teamVersionArg.MatchString(args[i]):
+				request.Version, _ = strconv.Atoi(strings.TrimPrefix(args[i], "v"))
+			default:
+				return usageError{"usage: hi team rollback v2 --approval <id>  (production back on v2, with its data as v2 left it)"}
+			}
+		}
+		if request.Version == 0 {
+			return usageError{"usage: hi team rollback v2 --approval <id>"}
+		}
+		var result teamReleaseResult
+		if err := call("POST", "/release?data=1", request, &result); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Production is on v%d now (it was on v%d), with its data as of %s. What was entered since is in snapshot %s. hi posted it in the channel.\n",
+			result.Release.Version, result.Previous, result.DataAt.Local().Format("Mon Jan 2 at 15:04"), result.Snapshot)
 		if result.Warning != "" {
 			fmt.Fprintln(stdout, result.Warning)
 		}
