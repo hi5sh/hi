@@ -1242,6 +1242,27 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `hi agent best-of watch` says the best is "fold 2's baseline", not
   "the fold 2's baseline".
 
+### v0.55.0 — Snapshots and restore for a team
+
+- [x] `hi team snapshot`, `snapshots`, and `restore`: restic snapshots of
+  a team's folder (the lead's memory, the tasks, the channel's log,
+  `versions.json`, production's data, and the code), without
+  `secrets.json` or `run/`. The team keeps running: the broker holds its
+  locks and pauses the lead, Hindsight, and production for about a second.
+  Taken daily by a systemd timer (7 daily, 4 weekly, 6 monthly kept, and
+  every pre-release one), before every release, and by hand. A restore
+  asks, stops the team, snapshots how things are first, and keeps the
+  settings and, without `--code`, the code.
+- [x] `hi team backups`: copy every snapshot to an S3-compatible bucket
+  (`--offsite`, `--region`), change how many are kept (`--keep`), and print
+  the key (`--show-key`). Failures reach the owners in the channel and
+  `hi team status`.
+- [x] An app box keeps its data in `$HI_DATA_DIR` (`/data`): production's
+  is the team's `app/`, which outlives releases; a preview's is its own.
+  Team aiman's app lost what it wrote at every release.
+- [x] `hi install restic`.
+  Approved spec: [hi_team_snapshots.md](specs/approved/hi_team_snapshots.md).
+
 ## Planned
 
 ### Later — `hi team`
@@ -1250,14 +1271,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   commands, and merged changes, and tells the owners about anything risky
   rather than blocking the team; Hermes' `approvals.mode: smart` is one
   starting point.
-- [ ] Snapshots: `hi team snapshot`, `snapshots`, and `restore`, and a
-  daily systemd timer (7 daily, 4 weekly, 6 monthly). The team's service
-  takes each one without stopping: the broker's lock, a pause of the
-  lead's box and memory server of a second or so, one archive of the folder without `run/`
-  (but with its network log) or `secrets.json`, then an encrypted upload
-  to the team's S3-compatible bucket in the background. Failures reach the
-  owners in the channel and `hi team status`.
-- [ ] Rollback to a release or a snapshot, by command or an owner's button.
+- [ ] Rollback to a release with its snapshot, code and data together, by
+  command or an owner's button in Slack; the lead may propose it. Snapshots
+  and restore are built (v0.55.0).
+- [ ] Restore a team whose folder is gone, or on another machine, from its
+  bucket: with export and import.
 - [ ] Nice to have: the lead could tell for itself when a message is meant
   for it, without an @-mention, using a small classifier trained on this
   one question, such as [Jev](https://docs.pipecat.ai/api-reference/server/classifiers/jev),
