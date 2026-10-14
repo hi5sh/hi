@@ -1217,6 +1217,21 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   OpenRouter key went from Slack into four briefs and the code.
   Approved spec: [hi_team_keys.md](specs/approved/hi_team_keys.md).
 
+### v0.54.0 — Folds: a validation window that stays fresh
+
+- [x] `hi agent best-of --folds <n> --fold "<command>" [--fold-every <k>]`:
+  the validation window walks forward through n folds. When a fold ends
+  (after k rounds, or when `--patience` runs out), hi runs `--fold` in a
+  worktree of the gains' tip with `HI_FOLD` set, commits what it changed
+  as `best-of <run> fold <n>`, and scores and validates the tip again as
+  the new baseline. A fold that touches `--edit` files stops the run.
+  Agents see a `fold` row with the new score, never its validation.
+- [x] `autoresearch-ml`: `make data FOLDS=3`, `make fold`, and
+  `make loop FOLDS=3 FOLD_EVERY=10`; the last fold is the usual split.
+- [x] The guide: [Folds](https://hifin.sh/guide/autoresearch/validation/#folds-a-window-that-stays-fresh).
+  Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md#expanding-window-release-2)
+  (release 2).
+
 ## Planned
 
 ### Later — `hi team`
@@ -1247,10 +1262,6 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [ ] Data for `autoresearch-ml` beyond one text file.
 - [ ] A record of every holdout look in `autoresearch-base`, so a holdout
   spent is visible.
-- [ ] Folds for `best-of --validate`: `--folds`, `--fold`, `--fold-every`,
-  a new baseline on each fold, and `make fold` in the templates, so the
-  validation window stays fresh over long runs. Spec:
-  [hi_agent_best_of_validate.md, Expanding window](specs/approved/hi_agent_best_of_validate.md#expanding-window-release-2) (release 2).
 
 Finance work (`autoresearch-quant`'s data sources, fitted regime models)
 moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in

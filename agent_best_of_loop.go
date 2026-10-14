@@ -46,6 +46,15 @@ type bestOfLoop struct {
 	ValidateMax   int     `json:"validate_max_seconds,omitempty"`
 	// Image is the baseline box's image, which validation containers run.
 	Image string `json:"image,omitempty"`
+	// Folds walk the validation window forward (agent_best_of_fold.go):
+	// Fold is the current one, from 1, and FoldStart the last round before
+	// it.
+	Folds       int          `json:"folds,omitempty"`
+	FoldCommand string       `json:"fold_command,omitempty"`
+	FoldEvery   int          `json:"fold_every,omitempty"`
+	Fold        int          `json:"fold,omitempty"`
+	FoldStart   int          `json:"fold_start,omitempty"`
+	FoldHistory []bestOfFold `json:"fold_history,omitempty"`
 
 	Baseline  *float64 `json:"baseline,omitempty"`
 	Best      *float64 `json:"best,omitempty"`
@@ -120,8 +129,9 @@ func parseBestOfLoop(flags bestOfFlags) (*bestOfLoop, error) {
 	if flags.score == "" {
 		if flags.roundsGiven || flags.within != "" || flags.budget != "" || flags.patience != "" || flags.minGain != "" ||
 			len(flags.edit) > 0 || flags.lower || flags.higher || flags.then != "" ||
-			flags.validate != "" || flags.validateData != "" || flags.validateSlack != "" {
-			return nil, usageError{`--rounds, --for, --budget, --patience, --min-gain, --edit, --then, --validate, --lower, and --higher go with --score "<command>"`}
+			flags.validate != "" || flags.validateData != "" || flags.validateSlack != "" ||
+			flags.folds != "" || flags.fold != "" || flags.foldEvery != "" {
+			return nil, usageError{`--rounds, --for, --budget, --patience, --min-gain, --edit, --then, --validate, --folds, --lower, and --higher go with --score "<command>"`}
 		}
 		return nil, nil
 	}
@@ -140,6 +150,9 @@ func parseBestOfLoop(flags bestOfFlags) (*bestOfLoop, error) {
 		loop.MinGain = value
 	}
 	if err := parseBestOfValidate(flags, loop); err != nil {
+		return nil, err
+	}
+	if err := parseBestOfFolds(flags, loop); err != nil {
 		return nil, err
 	}
 	return loop, nil
@@ -205,7 +218,9 @@ func (l *bestOfLoop) stopsText() string {
 	if l.Budget > 0 {
 		parts = append(parts, fmt.Sprintf("once agents have used $%.2f at API prices", l.Budget))
 	}
-	if l.Patience > 0 {
+	if l.Patience > 0 && l.Folds > 0 {
+		parts = append(parts, fmt.Sprintf("after %d rounds without a gain in the last fold", l.Patience))
+	} else if l.Patience > 0 {
 		parts = append(parts, fmt.Sprintf("after %d rounds without a gain", l.Patience))
 	}
 	parts = append(parts, "or with hi agent best-of stop")
@@ -316,9 +331,12 @@ func followBestOf(run bestOfRun, options boxOptions, stdin io.Reader, stdout, in
 // and the options as the box resolved them (network, allowed hosts).
 func bestOfBaseline(run *bestOfRun, options boxOptions, stdin io.Reader, info, stderr io.Writer) (float64, int, boxOptions, error) {
 	box := options
-	box.name = fmt.Sprintf("%s-b%s-base", bestOfNameBase(filepath.Base(run.Root)), strings.TrimPrefix(run.ID, "b-"))
-	box.branch = "best-of/" + run.ID + "/baseline"
-	box.from, box.worktree, box.model, box.detach = run.Base, true, "", false
+	if box.name == "" {
+		// A fold's baseline names its own box and starts from the gains' tip.
+		box.name = fmt.Sprintf("%s-b%s-base", bestOfNameBase(filepath.Base(run.Root)), strings.TrimPrefix(run.ID, "b-"))
+		box.branch, box.from = "best-of/"+run.ID+"/baseline", run.Base
+	}
+	box.worktree, box.model, box.detach = true, "", false
 	script := `start=$(date +%s); c=0; if [ -n "$1" ]; then sh -c "$1" < /dev/null > /box/home/check.log 2>&1; c=$?; fi; ` +
 		`s=255; if [ "$c" = 0 ]; then sh -c "$2" < /dev/null > /box/home/score.log 2>&1; s=$?; fi; ` +
 		`echo "$c $s $(( $(date +%s) - start ))" > /box/home/baseline.txt`
@@ -384,6 +402,12 @@ func driveBestOf(id string, log io.Writer) error {
 			if state, reason := bestOfShouldStop(run); reason != "" {
 				return finish(state, reason)
 			}
+			if loop.foldDue() {
+				if err := moveBestOfFold(&run, log); err != nil {
+					finish("failed", err.Error())
+					return err
+				}
+			}
 			if err := startBestOfRound(&run, log); err != nil {
 				finish("failed", err.Error())
 				return err
@@ -430,7 +454,7 @@ func bestOfShouldStop(run bestOfRun) (state, reason string) {
 		return "done", "its time is up (--for)"
 	case loop.Budget > 0 && loop.Spend >= loop.Budget:
 		return "done", fmt.Sprintf("agents used $%.2f of the $%.2f budget, at API prices", loop.Spend, loop.Budget)
-	case loop.Patience > 0 && loop.Round-max(loop.BestRound, loop.Since) >= loop.Patience:
+	case loop.Patience > 0 && loop.Round-max(loop.BestRound, loop.Since) >= loop.Patience && !loop.foldsLeft():
 		return "done", fmt.Sprintf("no gain in %d rounds (--patience)", loop.Patience)
 	}
 	return "", ""
@@ -517,6 +541,9 @@ func bestOfRoundTask(run bestOfRun) string {
 		b.WriteString("hi also tries the round's best result on data that is not in your box. If it beats the best score but does worse there, it is rejected and not kept: " +
 			"a gain has to hold on data you never saw, so prefer ideas that would work on any period over ones fitted to this data.\n")
 	}
+	if loop.Folds > 0 {
+		fmt.Fprintf(&b, "During the run the data moves forward %d times (folds). hi then scores the best result again on the new data, and that is the score to beat.\n", loop.Folds-1)
+	}
 	if len(loop.Edit) > 0 {
 		fmt.Fprintf(&b, "Change only %s. A result that changes any other file is discarded.\n", strings.Join(loop.Edit, ", "))
 	}
@@ -527,7 +554,18 @@ func bestOfRoundTask(run bestOfRun) string {
 	if loop.Baseline != nil {
 		rows = append(rows, fmt.Sprintf("0\t-\t%s\tbaseline\tyour last commit", formatScore(*loop.Baseline)))
 	}
+	folds := loop.FoldHistory
+	foldRow := func(fold bestOfFold) string {
+		score := "-"
+		if fold.Baseline != nil {
+			score = formatScore(*fold.Baseline)
+		}
+		return fmt.Sprintf("%d\t-\t%s\tfold %d\tthe data moved forward and this is the new baseline; scores above were on other data", fold.After, score, fold.Fold)
+	}
 	for _, round := range loop.History {
+		for len(folds) > 0 && folds[0].After < round.Round {
+			rows, folds = append(rows, foldRow(folds[0])), folds[1:]
+		}
 		for _, box := range round.Boxes {
 			score, result := "-", "discarded"
 			if box.Score != nil {
@@ -545,6 +583,9 @@ func bestOfRoundTask(run bestOfRun) string {
 			}
 			rows = append(rows, fmt.Sprintf("%d\t%s\t%s\t%s\t%s", round.Round, box.Agent, score, result, firstNonEmpty(box.Idea, "-")))
 		}
+	}
+	for _, fold := range folds {
+		rows = append(rows, foldRow(fold))
 	}
 	if len(rows) > 1 || len(loop.History) > 0 {
 		if len(rows) > 60 {
@@ -969,6 +1010,9 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 	} else {
 		header = append(header, fmt.Sprintf("round %d", loop.Round))
 	}
+	if loop.Folds > 0 {
+		header = append(header, fmt.Sprintf("fold %d of %d", loop.Fold, loop.Folds))
+	}
 	if !loop.Started.IsZero() {
 		header = append(header, formatDuration(end.Sub(loop.Started)))
 	}
@@ -1000,10 +1044,16 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 			return " (validation " + formatScore(*value) + ")"
 		}
 		line := "Best: " + formatScore(*loop.Best) + validation(loop.BestValidation)
-		if loop.BestRound > 0 {
-			line += fmt.Sprintf(" from round %d, baseline %s%s", loop.BestRound, formatScore(*loop.Baseline), validation(loop.BaselineValidation))
-		} else {
-			line += ", the baseline"
+		baseline, baselineValidation := loop.foldBaseline()
+		name := "baseline"
+		if loop.Fold > 1 {
+			name = fmt.Sprintf("fold %d's baseline", loop.Fold)
+		}
+		switch {
+		case loop.BestRound > loop.FoldStart && baseline != nil:
+			line += fmt.Sprintf(" from round %d, %s %s%s", loop.BestRound, name, formatScore(*baseline), validation(baselineValidation))
+		default:
+			line += ", the " + name
 		}
 		fmt.Fprintf(&b, "%s · on %s\n", line, loop.Branch)
 	}
@@ -1024,7 +1074,28 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 		} else {
 			fmt.Fprintln(table, "  ROUND\tRESULT\tSCORE\tBOX\tIDEA")
 		}
+		folds := loop.FoldHistory
+		foldRow := func(fold bestOfFold) {
+			score := "–"
+			if fold.Baseline != nil {
+				score = formatScore(*fold.Baseline)
+			}
+			if loop.Validate != "" {
+				valid := "–"
+				if fold.Validation != nil {
+					valid = formatScore(*fold.Validation)
+				}
+				score += "\t" + valid
+			}
+			fmt.Fprintf(table, "  –\tfold %d\t%s\t–\tthe data moved forward; a new baseline\n", fold.Fold, score)
+		}
 		for _, round := range history {
+			for len(folds) > 0 && folds[0].After < round.Round {
+				if folds[0].After >= history[0].Round {
+					foldRow(folds[0])
+				}
+				folds = folds[1:]
+			}
 			score := "–"
 			if round.Score != nil {
 				score = formatScore(*round.Score)
@@ -1041,6 +1112,9 @@ func bestOfLoopView(run bestOfRun, width, rows int, live map[string]agentProgres
 				idea = string([]rune(idea)[:ideaWidth-1]) + "…"
 			}
 			fmt.Fprintf(table, "  %d\t%s\t%s\t%s\t%s\n", round.Round, round.Result, score, firstNonEmpty(round.Winner, "–"), idea)
+		}
+		for _, fold := range folds {
+			foldRow(fold)
 		}
 		table.Flush()
 	}

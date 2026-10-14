@@ -244,7 +244,9 @@ gain only if it also holds on data agents never see: `--validate
 `--validate-data <dir>` (a folder outside the project, read-only at
 `/box/data` there), and `--validate-slack <number>` (how much worse than the
 highest validation so far the number may be; default 0); a winner that fails is
-`rejected`. See [Keep only gains that hold](/guide/autoresearch/validation/).
+`rejected`. `--folds <n> --fold "<command>"` walks the validation window
+forward through n folds, after `--fold-every <k>` rounds or when
+`--patience` runs out; each fold starts from a new baseline. See [Keep only gains that hold](/guide/autoresearch/validation/).
 See [Autoresearch](/guide/autoresearch/).
 
 ## hi team

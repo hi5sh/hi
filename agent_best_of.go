@@ -156,6 +156,7 @@ type bestOfFlags struct {
 	minGain, then                    string
 	validate, validateData           string
 	validateSlack                    string
+	folds, fold, foldEvery           string
 	edit                             []string
 	lower, higher, now, roundsGiven  bool
 }
@@ -219,6 +220,15 @@ func runBestOf(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.validateData = value()
 		case is("--validate-slack"):
 			flags.validateSlack = value()
+		case is("--folds"):
+			flags.folds = value()
+		case is("--fold"):
+			if flags.fold = value(); strings.TrimSpace(flags.fold) == "" {
+				fmt.Fprintln(stderr, `hi: --fold needs a command, such as --fold "make fold"`)
+				return 2
+			}
+		case is("--fold-every"):
+			flags.foldEvery = value()
 		case is("--then"):
 			if flags.then = value(); strings.TrimSpace(flags.then) == "" {
 				fmt.Fprintln(stderr, `hi: --then needs a command, such as --then "make results"`)
@@ -332,6 +342,12 @@ validation (with --score and --edit): keep a gain only if it holds on data agent
   --validate-slack <n>   how much lower than the highest so far (of the baseline and every
                          kept version) the validation number may be and still pass
                          (default 0: no lower at all)
+  --folds <n>            walk the validation window forward through n folds, so it
+                         doesn't wear out; each fold starts from a new baseline
+  --fold "<command>"     moves to the next fold: hi runs it on this machine in a worktree
+                         of the gains' tip, with HI_FOLD (the fold's number), HI_PROJECT,
+                         and HI_VALIDATE_DATA set, and commits what it changed
+  --fold-every <k>       move on after k rounds (default: when --patience runs out)
   hi agent best-of watch <run>      follow a run; q leaves the view, the run goes on
   hi agent best-of stop <run> [--now]
                                     stop after this round; --now stops the boxes too
@@ -613,6 +629,9 @@ func confirmBestOf(run bestOfRun, options boxOptions, stdin io.Reader, w io.Writ
 				fmt.Fprintf(w, " by more than %s", formatScore(loop.ValidateSlack))
 			}
 			fmt.Fprintf(w, "; hi commits it to %s\n", loop.Branch)
+			if loop.Folds > 0 {
+				fmt.Fprintf(w, "  folds   %s\n", loop.foldsText())
+			}
 		} else {
 			fmt.Fprintf(w, "  keeps   a result only if it %s; hi commits it to %s\n", beats, run.Loop.Branch)
 		}

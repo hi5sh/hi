@@ -17,13 +17,21 @@ eval/vocab.json                 the characters, in the order of their ids.
                                 gain only if it holds there too.
 ../<folder>-holdout/test.txt    the last 10%, outside the repository, so no
                                 agent and no round sees it; make holdout scores
-                                on it, once, at the end.
+                                on it, once, at the end. text.txt beside it is
+                                the whole text, which make fold splits again.
+
+With FOLDS above 1, the validation window walks forward during a run, so it
+doesn't wear out: fold 1 leaves agents less text, and each fold (make fold,
+which hi runs between folds) moves the validation block into eval/ and the
+next block out of it. The last fold is the split above, and its validation
+block ends where the holdout starts.
 
 The example is Tiny Shakespeare (1.1 MB, public domain), modelled character
 by character, as in Karpathy's char-rnn and nanoGPT. Change URL and SHA256,
 or replace download(), before a run, never during one.
 """
 
+import argparse
 import hashlib
 import json
 import math
@@ -80,25 +88,58 @@ def download() -> str:
     return data.decode("utf-8")
 
 
-def save(
-    text: str, folder: Path = EVAL, holdout: Path = HOLDOUT, validation: Path = VALIDATION
-) -> None:
+def source(holdout: Path = HOLDOUT) -> str:
+    """The whole text: kept beside the holdout after the first download, so
+    each fold splits the same text without the network."""
+    kept = holdout.parent / "text.txt"
+    if kept.exists() and hashlib.sha256(kept.read_bytes()).hexdigest() == SHA256:
+        return kept.read_text()
+    text = download()
+    kept.parent.mkdir(parents=True, exist_ok=True)
+    kept.write_text(text)
+    return text
+
+
+def bounds(length: int, folds: int = 1, fold: int = 1) -> tuple[int, int, int, int]:
+    """Where train, val, and validation end, and where the holdout starts, for
+    a fold: each fold before the last ends one validation block earlier."""
+    train, val, validation = SPLITS
+    if not 1 <= fold <= folds:
+        raise SystemExit(f"fold {fold} isn't between 1 and {folds}")
+    if train - (folds - 1) * validation <= 0:
+        raise SystemExit(f"{folds} folds leave nothing to train on in the first")
+    shift = (folds - fold) * validation
     train_end, val_end, validation_end = (
-        round(len(text) * sum(SPLITS[: i + 1])) for i in range(len(SPLITS))
+        round(length * end) for end in (train - shift, train + val - shift, sum(SPLITS) - shift)
     )
+    return train_end, val_end, validation_end, round(length * sum(SPLITS))
+
+
+def save(
+    text: str,
+    folder: Path = EVAL,
+    holdout: Path = HOLDOUT,
+    validation: Path = VALIDATION,
+    folds: int = 1,
+    fold: int = 1,
+) -> None:
+    train_end, val_end, validation_end, holdout_start = bounds(len(text), folds, fold)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "vocab.json").write_text(json.dumps(sorted(set(text))) + "\n")
+    (folder / "split.json").write_text(json.dumps({"folds": folds, "fold": fold}) + "\n")
     (folder / "train.txt").write_text(text[:train_end])
     (folder / "val.txt").write_text(text[train_end:val_end])
     for path, part in (
         (validation, text[val_end:validation_end]),
-        (holdout, text[validation_end:]),
+        (holdout, text[holdout_start:]),
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(part)
+    if folds > 1:
+        print(f"fold {fold} of {folds}")
     print(f"{folder}: {train_end} characters to train on, {val_end - train_end} to score on")
     print(f"{validation}: {validation_end - val_end} characters that gate each round's gain")
-    print(f"{holdout}: {len(text) - validation_end} characters for the end")
+    print(f"{holdout}: {len(text) - holdout_start} characters for the end")
 
 
 def load(path: Path, vocabulary: Vocabulary) -> torch.Tensor:
@@ -138,5 +179,22 @@ def bits_per_char(
     return total / (blocks * BLOCK) / math.log(2)
 
 
+def folds_of(folder: Path = EVAL) -> int:
+    """How many folds eval/ was written for; 1 before folds existed."""
+    try:
+        return int(json.loads((folder / "split.json").read_text())["folds"])
+    except FileNotFoundError:
+        return 1
+
+
 if __name__ == "__main__":
-    save(download())
+    parser = argparse.ArgumentParser(description="Write the data: make data, or make fold")
+    parser.add_argument("--folds", type=int, default=1, help="how many folds the run walks through")
+    parser.add_argument("--fold", type=int, default=1, help="the fold to write (hi's HI_FOLD)")
+    options = parser.parse_args()
+    if options.fold > 1 and folds_of() != options.folds:
+        raise SystemExit(
+            f"eval/ was written for {folds_of()} folds, not {options.folds}; "
+            f"make data FOLDS={options.folds} before the run"
+        )
+    save(source(), folds=options.folds, fold=options.fold)

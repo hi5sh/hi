@@ -1,6 +1,7 @@
 # `hi agent best-of --validate` specification
 
-Status: Approved (2026-10-12). Release 1 built in v0.52.0 (see [As built](#as-built-release-1)).
+Status: Approved (2026-10-12). Release 1 built in v0.52.0 (see [As built](#as-built-release-1)),
+release 2 in v0.54.0 (see [As built](#as-built-release-2)).
 
 Dependencies: [hi_agent_best_of.md](hi_agent_best_of.md)
 (rounds, snapshots, `--edit`, the gains' branch), `hi box` (the engine and
@@ -269,3 +270,53 @@ v0.52.0, 2026-10-12. Code: `agent_best_of_validate.go`; tests:
   repository: 2019 to 2022 as its validation window, and `make robust`
   suggesting a slack from the in-sample tranche spread scaled to the
   window's length.
+
+## As built (release 2)
+
+v0.54.0, 2026-10-14. Code: `agent_best_of_fold.go`; tests:
+`agent_best_of_fold_test.go`.
+
+- **Flags.** `--folds` is 2 or more and needs `--validate` and `--fold`;
+  without `--fold-every` it needs `--patience`, so a fold can end.
+  `--fold` and `--fold-every` need `--folds`. The run starts in fold 1;
+  `HI_FOLD` is the number of the fold being moved to, so n folds are n − 1
+  changes.
+- **When.** Before a round starts, after the stop checks: a fold ends after
+  `--fold-every` rounds of it, or once `--patience` runs out. Patience
+  ends the run only in the last fold.
+- **The command.** On the host, in a worktree of the gains' tip in hi's
+  state (`best-of/<run>/fold/<project>`), removed afterwards, with an hour's
+  limit. The worktree isn't your checkout, so hi also sets `HI_FOLDS`,
+  `HI_PROJECT` (your checkout), `HI_VALIDATE_DATA`, and `HI_BEST_OF_RUN`.
+  hi stages every change; one inside `--edit` fails the run, and nothing is
+  committed. Otherwise the tree is committed on the tip as
+  `best-of <run> fold <n>` and the branch moved with `update-ref`. A
+  command that changes nothing in the project (only the validation folder)
+  makes no commit.
+- **The new baseline.** A box named `<project>-b<n>-f<fold>-base` on
+  `best-of/<run>/fold<fold>` scores the tip as the first baseline does, and
+  a validation container validates it. `best`, `best_validation`, and
+  `peak_validation` become the new numbers; the score and validation time
+  limits are worked out again from them; patience counts from that round.
+  `baseline` and `baseline_validation` stay the run's first.
+- **State.** `run.json` has `folds`, `fold_command`, `fold_every`, `fold`,
+  `fold_start` (the last round of the fold before), and `fold_history`
+  (each change's fold, the round after which it came, its commit, and the
+  new baseline's score and validation).
+- **What agents see.** The task says the data moves forward n − 1 times
+  and the score to beat is measured again on the new data; the history has
+  a `fold <n>` row with the new baseline's score, never its validation.
+- **The view.** `fold k of n` in the header, the best line names the fold's
+  baseline, and a `fold <n>` row for each change.
+- **Resume.** A fold change that failed runs again on `resume`. The tip is
+  saved as soon as the fold's commit is made, so a second run starts from
+  it and, with a `--fold` that writes the windows for `HI_FOLD`, changes
+  nothing.
+- **Templates.** `autoresearch-ml`: `FOLDS` (default 1) and `FOLD_EVERY`
+  in the `Makefile`; `make data` writes fold 1 and keeps the whole text as
+  `text.txt` beside the holdout; `make fold` (on the host only) splits it
+  again for `HI_FOLD`, using the project's `.venv` and paths from
+  `HI_PROJECT`. Fold k ends its validation block (n − k) blocks of 10%
+  before the holdout, so the last fold is the 70/10/10/10 split.
+  `eval/split.json` records the folds, and `make loop` refuses a `FOLDS`
+  that `eval/` wasn't written for.

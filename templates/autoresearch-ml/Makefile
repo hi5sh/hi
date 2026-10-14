@@ -50,10 +50,19 @@ test: ## Tests only
 # hi:end
 
 # Project targets below.
-.PHONY: score validate holdout data loop
+.PHONY: score validate holdout data fold loop
 
-HOLDOUT ?= ../$(notdir $(CURDIR))-holdout/test.txt
-VALIDATION_DIR ?= ../$(notdir $(CURDIR))-validation
+# The project's folder: between folds, hi runs make fold in a worktree of its
+# own and names your checkout in HI_PROJECT, and the validation folder in
+# HI_VALIDATE_DATA.
+PROJECT := $(or $(HI_PROJECT),$(CURDIR))
+HOLDOUT ?= $(abspath $(PROJECT)/..)/$(notdir $(PROJECT))-holdout/test.txt
+VALIDATION_DIR ?= $(or $(HI_VALIDATE_DATA),$(abspath $(PROJECT)/..)/$(notdir $(PROJECT))-validation)
+# How many folds the validation window walks through during a run, so it
+# doesn't wear out (1: it stays put). make data writes fold 1; set it before
+# make data, and move on after FOLD_EVERY rounds, or when --patience runs out.
+FOLDS ?= 1
+FOLD_EVERY ?=
 # How much worse than the best so far a round's validation_bpc may be and still be
 # kept; about the noise of a score, which you can see by running make
 # validate twice.
@@ -75,9 +84,19 @@ holdout: ## Train, then score on the text outside the repository; once, at the e
 	@$(RUN) python evaluate.py --holdout $(HOLDOUT)
 
 data: ## Download the text: eval/ in the repository, the holdout outside it
-	$(RUN) python prepare.py
+	HOLDOUT=$(HOLDOUT) VALIDATION=$(VALIDATION_DIR)/validation.txt $(RUN) python prepare.py --folds $(FOLDS)
+
+fold: ## hi runs it between folds, with HI_FOLD: the validation block joins eval/, the next one leaves it
+	@test -z "$(HI_BOX)" || { echo "the data moves on this machine, not in a box"; exit 1; }
+	@test -n "$(HI_FOLD)" || { echo "hi agent best-of runs make fold between folds, with HI_FOLD set"; exit 1; }
+	@UV_PROJECT_ENVIRONMENT=$(PROJECT)/.venv HOLDOUT=$(HOLDOUT) VALIDATION=$(VALIDATION_DIR)/validation.txt \
+	  $(RUN) python prepare.py --folds $(FOLDS) --fold $(HI_FOLD)
 
 loop: ## Rounds in the background: BOXES a round, up to ROUNDS, BUDGET dollars
+	@test "$(FOLDS)" = 1 || grep -qs '"folds": $(FOLDS),' eval/split.json || \
+	  { echo "eval/ wasn't written for $(FOLDS) folds; make data FOLDS=$(FOLDS), then commit eval/"; exit 1; }
 	hi agent best-of $(BOXES) --rounds $(ROUNDS) --budget $(BUDGET) --patience 10 --max 30m \
 	  --score "make score" --lower --edit train.py \
-	  --validate "make validate" --validate-data $(VALIDATION_DIR) --validate-slack $(VALIDATE_SLACK) program.md
+	  --validate "make validate" --validate-data $(VALIDATION_DIR) --validate-slack $(VALIDATE_SLACK) \
+	  $(if $(filter-out 1,$(FOLDS)),--folds $(FOLDS) --fold "make fold FOLDS=$(FOLDS)" $(if $(FOLD_EVERY),--fold-every $(FOLD_EVERY))) \
+	  program.md

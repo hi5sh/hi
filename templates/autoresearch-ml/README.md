@@ -64,6 +64,27 @@ because it scored well there. `make loop` therefore passes
   twice and see how far the two numbers are apart. With 0, a change that
   is neutral on the validation text fails about half the time.
 
+## Folds
+
+One validation window wears out over a long run. With `FOLDS` above 1, it
+walks forward instead (hi 0.54.0 or later):
+
+```sh
+make data FOLDS=3 && git add eval && git commit -m "Data, fold 1 of 3"
+make loop FOLDS=3 FOLD_EVERY=10   # without FOLD_EVERY, a fold ends when --patience runs out
+```
+
+| Fold | Agents (`eval/`) | Validation |
+|---|---|---|
+| 1 | the first 60% (50% train, 10% val) | the next 10% |
+| 2 | the first 70% | the next 10% |
+| 3 | the first 80%, the usual split | the 10% before the holdout |
+
+Between folds, hi runs `make fold` in a worktree of the gains' tip, commits
+the new `eval/` to the gains' branch, and measures the tip again as the
+fold's baseline. The holdout never moves. `make data` keeps the whole text
+beside the holdout (`text.txt`), so a fold needs no network.
+
 ## After a run
 
 The gains are commits on `best-of/<run>/best`:

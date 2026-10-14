@@ -45,7 +45,8 @@ Three things make the evaluation trustworthy:
   validation window next to the project, and `make loop` passes
   `--validate "make validate" --validate-data ../<folder>-validation`: hi
   scores each round's best on it in a container of its own and keeps it
-  only if it holds there too. See
+  only if it holds there too. With `FOLDS=3`, the window walks forward
+  during the run (`make fold`). See
   [Keep only gains that hold](/guide/autoresearch/validation/).
 - **The holdout is out of reach.** `make data` writes the data after the
   split to a folder next to the project. Boxes only see the repository.

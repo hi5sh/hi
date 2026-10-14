@@ -16,6 +16,9 @@
   `../<folder>-validation/`. hi alone reads it, after each round, in a
   container no agent can reach (`hi agent best-of --validate`); a gain that
   doesn't hold there is rejected. Never copy it in or read it from code.
+- With folds, hi moves the data forward during a run: it commits a new
+  `eval/` to the gains' branch and measures the best result again on it.
+  That is the only change to `eval/` in a run, and it is hi's.
 - Boxes run offline from an image built from `uv.lock`. Don't add
   dependencies during a run; after a change to `uv.lock`, hi rebuilds the
   image on the next box.

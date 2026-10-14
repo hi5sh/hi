@@ -1,3 +1,4 @@
+import itertools
 import math
 from pathlib import Path
 
@@ -51,8 +52,40 @@ def test_validation_and_holdout_are_kept_out_of_eval(tmp_path: Path) -> None:
     assert sizes == (700, 100, 100, 100)
     assert train + val + validation.read_text() + holdout.read_text() == text
     assert sorted(path.name for path in (tmp_path / "eval").iterdir()) == [
+        "split.json",
         "train.txt",
         "val.txt",
         "vocab.json",
     ]
     assert len(Vocabulary.load(tmp_path / "eval")) == 26
+
+
+def test_folds_walk_the_validation_window_forward(tmp_path: Path) -> None:
+    text = "".join(chr(ord("a") + i % 26) for i in range(1000))
+    holdout = tmp_path / "holdout" / "test.txt"
+    validation = tmp_path / "validation" / "validation.txt"
+    seen = []
+    for fold in (1, 2, 3):
+        prepare.save(text, tmp_path / "eval", holdout, validation, folds=3, fold=fold)
+        train = (tmp_path / "eval" / "train.txt").read_text()
+        val = (tmp_path / "eval" / "val.txt").read_text()
+        seen.append((train + val, validation.read_text()))
+        assert (len(train), len(val), len(validation.read_text())) == (
+            500 + 100 * (fold - 1),
+            100,
+            100,
+        )
+        assert holdout.read_text() == text[900:]
+        assert prepare.folds_of(tmp_path / "eval") == 3
+    # Each fold's validation block joins what agents see in the next, and
+    # the last one ends where the holdout starts.
+    for (agents, block), (next_agents, _) in itertools.pairwise(seen):
+        assert next_agents == agents + block
+    assert seen[-1][0] + seen[-1][1] == text[:900]
+
+
+def test_too_many_folds_are_refused() -> None:
+    with pytest.raises(SystemExit, match="nothing to train on"):
+        prepare.bounds(1000, folds=8)
+    with pytest.raises(SystemExit, match="fold 4"):
+        prepare.bounds(1000, folds=3, fold=4)

@@ -206,6 +206,61 @@ lines of its output) and the run's `baseline_validation` and
 
 A rejected round counts as a round without a gain for `--patience`.
 
+## Folds: a window that stays fresh
+
+One validation window wears out: every gate it decides is a little
+selection on it. With `--folds`, the run walks forward through several
+windows, and agents get more data as it goes.
+
+```sh
+hi agent best-of 3 --rounds 60 --score "make score" --higher --edit strategy.py \
+  --validate "make validate" --validate-data ../quant-validation \
+  --folds 3 --fold "make fold" --fold-every 20 program.md
+```
+
+| Flag | Meaning |
+|---|---|
+| `--folds <n>` | the run moves through n folds, from fold 1; needs `--validate` |
+| `--fold "<command>"` | moves to the next fold; hi runs it on this machine |
+| `--fold-every <k>` | move on after k rounds; without it, when `--patience` runs out |
+
+When a fold ends, hi:
+
+1. runs `--fold` in a temporary worktree of the gains' tip, with `HI_FOLD`
+   (the new fold's number), `HI_FOLDS`, `HI_PROJECT` (your checkout), and
+   `HI_VALIDATE_DATA` (the validation folder) set. The command moves the
+   window: the old validation block joins the data in the project, and the
+   next block becomes the validation folder. It must not change the
+   `--edit` files; if it does, the run stops.
+2. commits what it changed to the gains' branch, with the message
+   `best-of <run> fold <n>` and nothing else;
+3. scores the tip in a box and validates it, as the fold's new baseline.
+   The best so far is measured on the new windows, not carried over: the
+   next round has to beat the tip on the new data;
+4. starts `--patience` again, and goes on.
+
+Agents see a `fold` row in their history, with the new baseline's score,
+never its validation. `watch` and `show` show `fold 2 of 3` in the header
+and a row for each fold change. With `--patience` and folds, the run ends
+when patience runs out in the last fold.
+
+The last fold's validation block ends where the holdout starts, so no fold
+touches the holdout. A run that ends early stays in its fold, and `resume`
+goes on from there. If a fold change fails part way, `resume` runs it
+again: write `--fold` so that it writes the windows for `HI_FOLD`, and a
+second run changes nothing.
+
+In `autoresearch-ml`, set `FOLDS` (and `FOLD_EVERY`, if you like) before
+`make data`, which writes fold 1:
+
+```sh
+make data FOLDS=3 && git add eval && git commit -m "Data, fold 1 of 3"
+make loop FOLDS=3 FOLD_EVERY=10
+```
+
+Fold 1 gives agents 60% of the text and validates on the next 10%; each
+fold moves 10% into `eval/`. Fold 3 is the usual 70/10/10/10 split.
+
 ## Choosing the slack
 
 1. Run the validation twice on the same code, on your machine:
@@ -228,7 +283,9 @@ A rejected round counts as a round without a gain for `--patience`.
   less to fit, and noisier numbers if the window is short.
 - **The gate wears out slowly.** Each gate is a question asked of the
   validation data: a run of 20 rounds asks about 20, against the hundreds of
-  scores agents see. The holdout stays the final word.
+  scores agents see. [Folds](#folds-a-window-that-stays-fresh) spread the
+  questions over several windows. The holdout stays the final word.
+- **Folds.** Each fold change scores and validates the tip once more.
 
 ## After a run
 
@@ -251,6 +308,9 @@ score's data; lengthen it before the next run.
 | Every round `rejected` | The slack is too tight for the noise, or the agents are fitting the score's data. Try a slack of about the noise; tell agents in the task that fitted ideas are rejected. |
 | `make validate` in a box says the text stays outside | As it should: agents can't run it. hi runs it in its own container. |
 | `the validation ran out of time` | It took more than twice the baseline validation's time plus a minute. |
+| `say when a fold ends` | `--folds` needs `--fold-every <k>` or `--patience <n>`. |
+| `fold 2: make fold changed strategy.py, inside --edit` | The fold command may move the data, never the agents' files. Fix it, then `hi agent best-of resume <run>`. |
+| `eval/ wasn't written for 3 folds` | `make data FOLDS=3`, commit `eval/`, then `make loop FOLDS=3`. |
 
 The design and its reasons are in the
 [specification](https://github.com/hifinab/cli/blob/main/docs/specs/approved/hi_agent_best_of_validate.md).
