@@ -268,6 +268,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
+| `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. The lead runs `hi team rollback v3 --approval <id>` with an owner's yes |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] \| --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |

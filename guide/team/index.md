@@ -329,6 +329,28 @@ snapshot from the last week, and every snapshot taken before a release.
 When a snapshot fails, the owners hear about it in the channel, and
 `hi team status` says so until one works.
 
+**Rollback.** When a release goes wrong, production can go back to an
+earlier version two ways:
+
+- `hi team release v3` (the lead, once an owner says yes) puts back v3's
+  code and keeps production's data as it is. That's right when the new
+  version is merely wrong.
+- `hi team rollback v3` puts back v3's code *and* production's data as v3
+  left it, from the snapshot taken when production moved on. That's for a
+  release that damaged the data. What was entered since is set aside in a
+  snapshot, and rolling forward the same way puts it back.
+
+The lead proposes a rollback in the channel and says what will be set
+aside; only an owner's yes carries it out. On the machine, an owner runs it
+directly:
+
+```sh
+hi team rollback payments v3          # asks first; --code-only keeps the data
+```
+
+Neither touches the lead's memory, the tasks, or the channel's log; that
+is `hi team restore`.
+
 **Offsite.** A copy on the same disk doesn't survive the disk. Give the
 team an S3-compatible bucket (Hetzner, Cloudflare R2, Backblaze B2, AWS,
 and others), and every snapshot is copied there too:
