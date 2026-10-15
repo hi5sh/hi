@@ -44,7 +44,8 @@ each release says who asked for what it holds.
   agreed to, but a release needs a yes of its own.
 - A release, a rollback, or production's helper still needs an owner's
   yes in the channel, where the team sees it.
-- This reads DMs, so the app needs `im:history` and the `message.im` event,
+- This reads DMs, so the app needs `im:history`, `im:read` (Hermes looks
+  a DM up with it), and the `message.im` event,
   and its Messages tab becomes writable.
 
 ## Transparency
@@ -58,7 +59,7 @@ each release says who asked for what it holds.
 
 ## The Slack app
 
-`hi team manifest <name>` gains `im:history` and `message.im`, and the
+`hi team manifest <name>` gains `im:history`, `im:read`, and `message.im`, and the
 Messages tab is no longer read-only. Update the manifest and reinstall;
 `hi team up` says which scopes are missing.
 

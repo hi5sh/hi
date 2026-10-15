@@ -1405,6 +1405,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   tab is writable.
   Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
 
+### v0.62.1 — im:read
+
+- [x] The manifest asks for `im:read` too: Hermes looks a DM up with it.
+  `hi team up`'s warning says what each missing scope stops, rather than
+  blaming `/hi-<team>` for a missing `im:history`.
+
 ## Planned
 
 ### Next — the helper
