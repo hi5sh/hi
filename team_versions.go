@@ -283,6 +283,8 @@ type teamReleaseResult struct {
 	DataAt   time.Time `json:"data_at,omitzero"`
 	// Approval is the yes that moved production this time.
 	Approval *teamApproval `json:"approval,omitempty"`
+	// AskedBy says who asked for the work a release holds.
+	AskedBy string `json:"asked_by,omitempty"`
 }
 
 // release moves production: to dev's latest commit as the next version, or
@@ -396,9 +398,11 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 			return result, fmt.Errorf("dev has nothing new since production v%d", versions.Production)
 		}
 		var changes []string
-		for _, task := range teamDevChanges(b.repo, loadTeamTasks(b.team)) {
+		tasks := teamDevChanges(b.repo, loadTeamTasks(b.team))
+		for _, task := range tasks {
 			changes = append(changes, task.ID+" "+task.Title)
 		}
+		result.AskedBy = teamAskedBy(tasks)
 		version := 1
 		for _, release := range versions.Releases {
 			version = max(version, release.Version+1)
@@ -457,7 +461,34 @@ func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, no
 	if notes != "" {
 		text.WriteString("\n\n" + notes)
 	}
+	if result.AskedBy != "" {
+		text.WriteString("\n\nAsked for by " + teamSlackEscape(result.AskedBy) + ".")
+	}
 	return text.String()
+}
+
+// teamAskedBy says who asked for a release's work, from its tasks' yeses
+// wherever they were given: Anna (t-12, t-14), Bo (t-13).
+func teamAskedBy(tasks []teamTask) string {
+	var names []string
+	ids := map[string][]string{}
+	for _, task := range tasks {
+		name := "the lead, as small fixes"
+		if task.Approval != nil && task.Approval.Name != "" {
+			name = task.Approval.Name
+		} else if !task.Small {
+			continue
+		}
+		if ids[name] == nil {
+			names = append(names, name)
+		}
+		ids[name] = append(ids[name], task.ID)
+	}
+	var parts []string
+	for _, name := range names {
+		parts = append(parts, fmt.Sprintf("%s (%s)", name, strings.Join(ids[name], ", ")))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // announce posts in the channel itself, outside any thread.

@@ -3,8 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/slack-go/slack"
 )
 
 // A new piece of work starts only once the people said yes. Asking and
@@ -39,6 +42,13 @@ func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) 
 		return teamApproval{}, errors.New("name the message that approved this work: hi team task <role> <brief.md> --approval <id>, " +
 			"with the id from hi team channel --ids. Ask the people first, end your reply, and start the task once one of them says yes. " +
 			"A small fix may start without asking: --small")
+	}
+	if strings.HasPrefix(ref, "dm:") {
+		approval, err := b.teamCheckDMApproval(config, ref, owners, time.Now())
+		if err != nil {
+			return approval, err
+		}
+		return b.unusedApproval(approval, approving)
 	}
 	if teamWebMessageID.MatchString(ref) {
 		approval, err := teamCheckWebApproval(config, ref, owners, time.Now())
@@ -130,4 +140,56 @@ func teamCheckApproval(config teamConfig, ref string, owners bool, now time.Time
 // logged before hi marked bots are known by the name the lead had then.
 func teamChannelFromBot(config teamConfig, message teamChannelMessage) bool {
 	return message.Bot || (message.User == "" && message.Name != "") || message.Name == "team-"+config.Name
+}
+
+// teamDMApproval is a yes in someone's DM with the lead: dm:<member>, or
+// dm:<member>:<ts> for one message.
+var teamDMApproval = regexp.MustCompile(`^dm:([A-Z0-9]{2,20})(?::([0-9]{9,11}\.[0-9]{6}))?$`)
+
+// teamCheckDMApproval checks a yes given in a DM with Slack: the person's
+// newest message there after one of the bot's, within a week (or the one
+// named). The lead only says whose DM it was.
+func (b *teamBroker) teamCheckDMApproval(config teamConfig, ref string, owners bool, now time.Time) (teamApproval, error) {
+	if owners {
+		return teamApproval{}, fmt.Errorf("%s is from a DM; this needs an owner's yes in the channel, where the team sees it", ref)
+	}
+	match := teamDMApproval.FindStringSubmatch(ref)
+	if match == nil {
+		return teamApproval{}, fmt.Errorf("a yes in a DM is --approval dm (in that DM's conversation) or dm:<their member ID>, not %q", ref)
+	}
+	user, want := match[1], match[2]
+	if b.channel == nil {
+		return teamApproval{}, errors.New("hi isn't connected to Slack, so it can't check a DM")
+	}
+	if !b.teamMayAsk(config, user) {
+		return teamApproval{}, fmt.Errorf("%s isn't one of the people who may ask for work", user)
+	}
+	messages, err := b.channel.dmHistory(user, teamSlackTS(now.Add(-teamApprovalMaxAge)))
+	if err != nil {
+		return teamApproval{}, fmt.Errorf("Slack wouldn't show the DM (%v); the team's Slack app needs the im:history scope, from hi team manifest %s", err, config.Name)
+	}
+	var found *slack.Message
+	asked := false
+	for i := range messages {
+		message := &messages[i]
+		switch {
+		case message.BotID != "" || message.SubType == "bot_message":
+			asked = true
+		case message.User == user && message.SubType == "" && asked:
+			if want == "" || message.Timestamp == want {
+				found = message
+			}
+		}
+	}
+	if found == nil {
+		if want != "" {
+			return teamApproval{}, fmt.Errorf("%s isn't a message of theirs after one of yours in the DM, within a week", ref)
+		}
+		return teamApproval{}, errors.New("no message of theirs in the DM after one of yours, within a week: approval is a reply after you asked. Ask, end your reply, and wait for theirs")
+	}
+	name := user
+	if b.channel != nil {
+		name = firstNonEmpty(b.channel.userName(user), user)
+	}
+	return teamApproval{TS: "dm:" + user + ":" + found.Timestamp, Name: name, Text: qClip(found.Text)}, nil
 }

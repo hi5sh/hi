@@ -416,6 +416,14 @@ func (b *teamBroker) handler() http.Handler {
 	mux.HandleFunc("GET /web/questions", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, teamWebQuestionsText(b.team, time.Now()), nil)
 	})
+	mux.HandleFunc("GET /web/may", func(w http.ResponseWriter, r *http.Request) {
+		config, err := loadTeam(b.team)
+		user := r.URL.Query().Get("user")
+		if err == nil && (!slackIDPattern.MatchString(user) || !b.teamMayAsk(config, user)) {
+			err = fmt.Errorf("%s may not ask the team for work", user)
+		}
+		reply(w, "yes", err)
+	})
 	mux.HandleFunc("POST /web/link", func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
 			User string `json:"user"`
@@ -637,6 +645,13 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	if task.Small && b.channel != nil {
 		if config, err := loadTeam(b.team); err == nil {
 			b.channel.post(config.Channel, fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title))
+		}
+	}
+	if task.Approval != nil && strings.HasPrefix(task.Approval.TS, "dm:") && b.channel != nil {
+		// Work agreed in a DM is the team's business too.
+		if config, err := loadTeam(b.team); err == nil {
+			b.channel.post(config.Channel, fmt.Sprintf(":speech_balloon: %s asked for this in a DM with the lead: *%s* (%s)",
+				teamSlackEscape(task.Approval.Name), teamSlackEscape(task.Title), task.ID))
 		}
 	}
 	return task, func() { b.launch(task, member, text, from, files) }, nil
@@ -1072,6 +1087,17 @@ var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": tru
 var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
+	// --approval dm is a yes in the DM the lead is answering: Hermes says
+	// whose it is.
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--approval" && args[i+1] == "dm" {
+			user := os.Getenv("HERMES_SESSION_USER_ID")
+			if os.Getenv("HERMES_SESSION_CHAT_TYPE") != "dm" || user == "" {
+				return errors.New("--approval dm is for a yes in the DM you are answering; elsewhere, name them: --approval dm:<their member ID>")
+			}
+			args[i+1] = "dm:" + user
+		}
+	}
 	socket := os.Getenv(teamSocketEnv)
 	if socket == "" {
 		return errors.New("hi team " + command + " is for a team's lead, in its box; on this machine, hi team status <name> shows a team's tasks")
@@ -1374,6 +1400,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		case len(args) == 1 && args[0] == "questions":
 			if err := call("GET", "/web/questions", nil, &line); err != nil {
+				return err
+			}
+		case len(args) == 3 && args[0] == "may" && args[1] == "--user":
+			// For the plugin: whether someone's DM is the lead's to answer.
+			if err := call("GET", "/web/may?user="+url.QueryEscape(args[2]), nil, &line); err != nil {
 				return err
 			}
 		case len(args) == 3 && args[0] == "link" && args[1] == "--user":

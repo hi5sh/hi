@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/slack-go/slack"
 )
 
 // webTestServer serves a slot's helper to someone signed in with /hi: it
@@ -633,5 +635,72 @@ func TestTeamHelperChatWithRefs(t *testing.T) {
 	said, _ := teamWebApprovalChat("payments", teamApproval{TS: "w-1.3"}, nil)
 	if !strings.Contains(said, "The parts of the page they pointed at:\n\n    Referenced elements:\n    #1 span \"Paid\"\n       selector: td.status > span.badge") {
 		t.Fatal(said)
+	}
+}
+
+func TestTeamDMApproval(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	now := time.Now()
+	ts := func(ago time.Duration) string { return teamSlackTS(now.Add(-ago)) }
+	from := func(user, text string, ago time.Duration) slack.Message {
+		message := teamTestMessage(ts(ago), user, text)
+		return message
+	}
+	bot := func(text string, ago time.Duration) slack.Message {
+		message := teamTestMessage(ts(ago), "", text)
+		message.BotID = "B1"
+		return message
+	}
+	channel.dms = map[string][]slack.Message{
+		"U07ANNA01": {from("U07ANNA01", "Can the badge be red?", 30*time.Minute), bot("Overdue = past due? Shall I?", 20*time.Minute), from("U07ANNA01", "Yes please", 10*time.Minute)},
+		"U1":        {from("U1", "Do it", 10*time.Minute)},
+	}
+	config, _ := loadTeam("payments")
+	approval, err := b.teamFindApproval(config, "dm:U07ANNA01", "task")
+	if err != nil || approval.TS != "dm:U07ANNA01:"+ts(10*time.Minute) || approval.Name != "Anna" || approval.Text != "Yes please" {
+		t.Fatalf("%+v %v", approval, err)
+	}
+	for ref, want := range map[string]string{
+		"dm:U1":                              "after one of yours",
+		"dm:U07STRANGE":                      "may ask for work",
+		"dm:anna":                            "dm:<their member ID>",
+		"dm:U07ANNA01:" + ts(30*time.Minute): "isn't a message of theirs after one of yours",
+	} {
+		if _, err := b.teamFindApproval(config, ref, "task"); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: %v", ref, err)
+		}
+	}
+	if _, err := b.teamFindApproval(config, "dm:U07ANNA01", "release"); err == nil || !strings.Contains(err.Error(), "owner's yes in the channel") {
+		t.Fatal(err)
+	}
+
+	// Work started with it is announced in the channel.
+	task, err := b.startTask(teamRequest{Role: "coder", Brief: "Red badge when overdue", Approval: "dm:U07ANNA01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitTeamTask(t, task.ID)
+	if !strings.Contains(strings.Join(channel.calls, "\n"), "post C07PAYMENTS :speech_balloon: Anna asked for this in a DM with the lead: *Red badge when overdue* ("+task.ID+")") {
+		t.Fatalf("%q", channel.calls)
+	}
+}
+
+func TestTeamAskedBy(t *testing.T) {
+	tasks := []teamTask{
+		{ID: "t-1", Approval: &teamApproval{Name: "Anna"}},
+		{ID: "t-2", Approval: &teamApproval{Name: "Bo"}},
+		{ID: "t-3", Approval: &teamApproval{Name: "Anna"}},
+		{ID: "t-4", Small: true},
+		{ID: "t-5"},
+	}
+	if got := teamAskedBy(tasks); got != "Anna (t-1, t-3), Bo (t-2), the lead, as small fixes (t-4)" {
+		t.Fatal(got)
+	}
+	text := teamReleaseAnnouncement(teamReleaseResult{Release: teamRelease{Version: 2}, Previous: 1, AskedBy: "Anna (t-1)"}, teamApproval{Name: "Owner"}, "Red badges.")
+	if !strings.HasSuffix(text, "Red badges.\n\nAsked for by Anna (t-1).") {
+		t.Fatal(text)
 	}
 }

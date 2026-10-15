@@ -1392,6 +1392,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   saw it. The plugin now answers its commands in the Slack adapter's
   listener, privately, with the member ID Slack sets.
 
+### v0.62.0 — The lead in a DM
+
+- [x] People who may ask for work talk to the lead in the bot's DM, one
+  conversation per DM; anyone else's DM is dropped (the plugin asks
+  `hi team web may`). A yes there approves work with `--approval dm`,
+  which hi checks in the DM itself; releases still need an owner in the
+  channel.
+- [x] Work started from a DM is announced in the channel with who asked,
+  and each release says who asked for what it holds.
+- [x] The manifest gains `im:history` and `message.im`, and the Messages
+  tab is writable.
+  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+
 ## Planned
 
 ### Next — the helper
@@ -1400,9 +1413,6 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   helper.
 - [ ] Answers to feedback: replies in its thread shown back in the
   sender's browser.
-- [ ] Developing in a DM: people who may change the app talk to the lead
-  one to one, so the channel stays for the group; the lead still announces
-  larger changes in the channel, with what changed and who asked for it.
 
 ### Later — `hi team`
 

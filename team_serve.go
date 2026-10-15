@@ -281,6 +281,8 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// No "Hermes is shutting down" or "back online" posts in the channel on
 	// every restart of the team.
 	settings += "gateway:\n  platforms:\n    slack:\n      gateway_restart_notification: false\n"
+	// A DM is one conversation, as in a chat app, not a thread per message.
+	settings += "      dm_top_level_threads_as_sessions: false\n"
 	// A scheduled job's message is just its text, without Hermes' "Cronjob
 	// Response" heading and "To stop or manage this job" line.
 	settings += "cron:\n  wrap_response: false\n"
@@ -291,10 +293,11 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		"OPENROUTER_API_KEY=" + boxClaudePlacehold,
 		"SLACK_BOT_TOKEN=" + secrets.SlackBotToken,
 		"SLACK_APP_TOKEN=" + secrets.SlackAppToken,
-		// One channel, and no direct messages.
+		// One channel, and DMs with the people who may ask for work: the
+		// plugin drops anyone else's (team_people.go).
 		"SLACK_ALLOWED_CHANNELS=" + config.Channel,
 		"SLACK_HOME_CHANNEL=" + config.Channel,
-		"SLACK_DISABLE_DMS=true",
+		"SLACK_DISABLE_DMS=false",
 		// It answers only when @-mentioned, even in its own threads; the
 		// broker logs the rest of the channel for it (team_channel.go).
 		"SLACK_REQUIRE_MENTION=true",
@@ -510,12 +513,12 @@ func teamManifest(config teamConfig) string {
 			"bot_user": map[string]any{"display_name": teamBotName(config.Name), "always_online": true},
 			// The DM is hi's, for people's private links: they read it,
 			// and write in the channel.
-			"app_home":       map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": true},
+			"app_home":       map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": false},
 			"slash_commands": []map[string]any{{"command": teamSlashCommand(config.Name), "description": "A private link to the app's chat with the " + teamBotName(config.Name) + " team lead", "should_escape": false}},
 		},
 		"oauth_config": map[string]any{"scopes": map[string]any{"bot": teamSlackScopes}},
 		"settings": map[string]any{
-			"event_subscriptions":    map[string]any{"bot_events": []string{"app_mention", "message.channels", "message.groups", "reaction_added", "reaction_removed"}},
+			"event_subscriptions":    map[string]any{"bot_events": []string{"app_mention", "message.channels", "message.groups", "message.im", "reaction_added", "reaction_removed"}},
 			"interactivity":          map[string]any{"is_enabled": true},
 			"org_deploy_enabled":     false,
 			"socket_mode_enabled":    true,
@@ -800,6 +803,21 @@ wrote, which address and version they see, and the page they are on.
   owner's yes in Slack, where the team sees it.
 - /__hi/ on the team's addresses is hi's. Tell members never to use it in
   the app.
+
+## DMs
+
+People who may ask for work can also write to you in the bot's DM, one to
+one, so the channel stays for the group. Answer there as in the channel,
+without being @-mentioned; one DM is one conversation.
+
+- Work still waits for a yes. Ask in the DM, end your reply, and when they
+  say yes there, start the task with --approval dm (hi reads the yes from
+  the DM itself). hi announces work started from a DM in the channel, with
+  who asked, so the team sees it.
+- A release, a rollback, or turning production's helper off needs an
+  owner's yes in the channel: ask them there.
+- Keep what is said in a DM to that DM. When it matters to the team (a
+  decision, a change to what others asked for), say so in the channel.
 
 ## What you learn
 

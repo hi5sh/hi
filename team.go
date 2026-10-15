@@ -415,7 +415,7 @@ func (liveTeamSlack) scopes(botToken string) ([]string, error) {
 // teamSlackScopes are what a team's Slack app asks for in its manifest.
 var teamSlackScopes = []string{
 	"app_mentions:read", "channels:history", "channels:read", "chat:write", "commands", "files:read", "files:write",
-	"groups:history", "groups:read", "im:write", "reactions:read", "reactions:write", "users:read",
+	"groups:history", "groups:read", "im:history", "im:write", "reactions:read", "reactions:write", "users:read",
 }
 
 // teamMissingScopes are the scopes the team's app needs that the bot token
@@ -442,9 +442,9 @@ func teamMissingScopes(botToken string) []string {
 // teamScopesAdvice says how to give the app the scopes it lacks.
 func teamScopesAdvice(missing []string) string {
 	advice := fmt.Sprintf("the Slack app lacks %s, so the lead can't read what people share or post everything it should. In Slack's app settings (api.slack.com/apps), add them under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace", strings.Join(missing, ", "))
-	if containsString(missing, "commands") || containsString(missing, "im:write") {
+	if containsString(missing, "commands") || containsString(missing, "im:write") || containsString(missing, "im:history") {
 		// /hi needs the command itself too, which only the manifest adds.
-		advice = fmt.Sprintf("the Slack app lacks %s, so /hi-<team>, which DMs people their private link to the app's chat with the lead, can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints (it has /hi-<team>), Save, then Reinstall to Workspace", strings.Join(missing, ", "))
+		advice = fmt.Sprintf("the Slack app lacks %s, so /hi-<team>, which DMs people their private link to the app's chat with the lead, or talking to the lead in a DM, can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints (it has /hi-<team>), Save, then Reinstall to Workspace", strings.Join(missing, ", "))
 	}
 	return advice
 }

@@ -200,7 +200,7 @@ func (b *teamBroker) teamLinkText(key teamPersonKey) string {
 	} else {
 		text += strings.Join(lines, "\n") + "\n"
 	}
-	text += fmt.Sprintf("They work until <!date^%d^{date_short_pretty}|%s>, and hi updates them here when an address changes. Keep them to yourself: whoever opens them talks to the lead as you. %s in the channel gives you new ones and ends these.",
+	text += fmt.Sprintf("They work until <!date^%d^{date_short_pretty}|%s>, and hi updates them here when an address changes. Keep them to yourself: whoever opens them talks to the lead as you. %s gives you new ones and ends these. You can also write to the lead right here.",
 		key.Ends.Unix(), key.Ends.Format("2 Jan"), teamSlashCommand(b.team))
 	return text
 }

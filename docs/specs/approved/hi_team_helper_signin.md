@@ -125,6 +125,8 @@ When the lead posts in a person's web chat (`hi team web post`) and their
 panel isn't open, hi also sends it to their DM, with the link. The lead
 doesn't answer in DMs; Hermes is told so already (`SLACK_DISABLE_DMS`),
 and the app's Messages tab is read-only, so nobody writes into a void.
+(Since v0.62.0 the lead answers DMs from the people who may ask for work:
+[hi_team_dm.md](hi_team_dm.md).)
 
 **When /hi isn't there.** "@lead send me a link" in the channel works too:
 the lead runs `hi team web link --user <their ID>`, and the link still goes

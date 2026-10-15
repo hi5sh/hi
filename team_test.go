@@ -118,10 +118,10 @@ func TestTeamManifest(t *testing.T) {
 		t.Fatalf("%+v", manifest)
 	}
 	all := strings.Join(append(manifest.OAuth.Scopes.Bot, manifest.Settings.Events.Bot...), " ")
-	// One channel: hi may open a DM to send someone their link, but the
-	// app never reads DMs, and their Messages tab is read-only.
-	if strings.Contains(all, "im:history") || strings.Contains(all, "im:read") || strings.Contains(all, "message.im") || !strings.Contains(all, "message.channels") ||
-		!strings.Contains(all, "im:write") || !strings.Contains(all, "commands") {
+	// One channel, and the bot's DMs: people talk to the lead there, and
+	// hi checks a yes given in one.
+	if !strings.Contains(all, "im:history") || !strings.Contains(all, "message.im") || !strings.Contains(all, "message.channels") ||
+		!strings.Contains(all, "im:write") || !strings.Contains(all, "commands") || strings.Contains(all, "mpim") {
 		t.Fatal(all)
 	}
 	manifestText := teamManifest(testTeamConfig())
@@ -131,7 +131,7 @@ func TestTeamManifest(t *testing.T) {
 	if teamSlashCommand("Team Ab.C") != "/hi-team-ab-c" {
 		t.Fatal(teamSlashCommand("Team Ab.C"))
 	}
-	if !strings.Contains(manifestText, `"command": "/hi-payments"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": true`) {
+	if !strings.Contains(manifestText, `"command": "/hi-payments"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": false`) {
 		t.Fatal(manifestText)
 	}
 }
@@ -231,7 +231,7 @@ func TestWriteTeamLead(t *testing.T) {
 	}
 	lead := filepath.Join(teamDir("payments"), "lead")
 	env, _ := os.ReadFile(filepath.Join(lead, ".env"))
-	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=true", "SLACK_REQUIRE_MENTION=true", "SLACK_STRICT_MENTION=true", "SLACK_ALLOW_ALL_USERS=true"} {
+	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=false", "SLACK_REQUIRE_MENTION=true", "SLACK_STRICT_MENTION=true", "SLACK_ALLOW_ALL_USERS=true"} {
 		if !strings.Contains(string(env), want) {
 			t.Errorf(".env lacks %s:\n%s", want, env)
 		}

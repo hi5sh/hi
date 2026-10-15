@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 DESCRIPTION = "A private link to the app's chat with the lead"
 
@@ -47,14 +48,34 @@ def _link(user):
     return out or "hi couldn't make your link; ask the lead."
 
 
+_MAY = {}  # member ID -> (may they, until when)
+
+
+def _may_ask(user):
+    """Whether someone may ask the team for work, so the lead answers their
+    DM: hi decides, as for /hi-<team>. Kept a few minutes."""
+    known = _MAY.get(user)
+    if known and known[1] > time.monotonic():
+        return known[0]
+    try:
+        done = subprocess.run(["/usr/local/bin/hi", "team", "web", "may", "--user", user],
+                              capture_output=True, text=True, timeout=30)
+        may = done.returncode == 0
+    except Exception:
+        return False  # not now; the next message asks again
+    _MAY[user] = (may, time.monotonic() + (600 if may else 60))
+    return may
+
+
 def _put_first(original):
     """Slack gets at most 50 slash commands from Hermes, its own first, and
     it has that many, so a plugin's command would get no listener: ours go
     right after /hermes."""
     def slashes():
         # The Slack adapter asks for these as it connects: it is loaded by
-        # then, so it can be taught our commands too.
+        # then, so it can be taught our commands, and who may DM the lead.
         _answer_in_dms()
+        _guard_dms()
         entries = [entry for entry in original() if entry[0] not in COMMANDS]
         return (entries[:1] + [(name, DESCRIPTION, "") for name in COMMANDS] + entries[1:])[:50]
     slashes.hi_team = True
@@ -101,3 +122,27 @@ def register(ctx):
             commands_platforms.slack_native_slashes = _put_first(commands_platforms.slack_native_slashes)
     except Exception:
         pass
+
+
+def _guard_dms():
+    """The lead answers DMs from the people who may ask for work only:
+    Hermes' own gate lets the whole workspace in when the team has no
+    askers. Anyone else's DM is dropped before Hermes reads it."""
+    import logging
+    log = logging.getLogger("hi-team")
+    for module in list(sys.modules.values()):
+        adapter = getattr(module, "SlackAdapter", None)
+        check = getattr(adapter, "_early_reject_unauthorized", None)
+        if check is None or getattr(check, "hi_team", False):
+            continue
+
+        def make(original):
+            def reject(self, user_id, channel_id, is_dm):
+                if is_dm and not (user_id and _may_ask(user_id)):
+                    log.info("hi-team: dropped a DM from %s, who may not ask the team for work", user_id)
+                    return True
+                return original(self, user_id, channel_id, is_dm)
+            reject.hi_team = True
+            return reject
+
+        adapter._early_reject_unauthorized = make(check)

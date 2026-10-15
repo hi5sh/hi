@@ -225,6 +225,16 @@ with the lead, as them, checked through Slack:
   `hi team up` says when they're missing. Until then, ask the lead in the
   channel to send you your link.
 
+**Talk to the lead in a DM.** People who may ask for work can also write
+to the team's bot directly, one to one, so the channel stays for the
+group. The lead answers there without being @-mentioned, and a yes in the
+DM approves its work; hi checks that yes in the DM itself. Work started
+from a DM is announced in the channel, with who asked, and each release
+says who asked for what it holds. Releases still need an owner's yes in
+the channel. Anyone else's DM gets no answer. The Slack app needs
+`im:history` and the `message.im` event for this (`hi team manifest
+<name>`).
+
 In the chat with the lead:
 
 - The lead answers as it does in Slack, with the same memory, and knows

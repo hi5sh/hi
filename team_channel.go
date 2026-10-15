@@ -91,6 +91,8 @@ type teamChannelSource interface {
 	dm(user, text string) (channel, ts string, err error)
 	// inChannel says whether someone is a member of the channel.
 	inChannel(channel, user string) bool
+	// dmHistory is the bot's DM with someone since oldest, oldest first.
+	dmHistory(user, oldest string) ([]slack.Message, error)
 }
 
 type liveTeamChannel struct {
@@ -183,6 +185,16 @@ func (l *liveTeamChannel) dm(user, text string) (string, string, error) {
 	}
 	_, ts, err := l.api.PostMessage(im.ID, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
 	return im.ID, ts, err
+}
+
+func (l *liveTeamChannel) dmHistory(user, oldest string) ([]slack.Message, error) {
+	im, _, _, err := l.api.OpenConversation(&slack.OpenConversationParameters{Users: []string{user}, ReturnIM: true})
+	if err != nil {
+		return nil, err
+	}
+	messages, err := l.history(im.ID, oldest)
+	sort.Slice(messages, func(i, j int) bool { return teamTSBefore(messages[i].Timestamp, messages[j].Timestamp) })
+	return messages, err
 }
 
 func (l *liveTeamChannel) inChannel(channel, user string) bool {

@@ -15,6 +15,7 @@ import (
 )
 
 type fakeTeamChannel struct {
+	dms      map[string][]slack.Message // by person, oldest first
 	messages []slack.Message
 	threads  map[string][]slack.Message
 	calls    []string
@@ -67,6 +68,16 @@ func (f *fakeTeamChannel) permalink(channel, ts string) (string, error) {
 func (f *fakeTeamChannel) dm(user, text string) (string, string, error) {
 	f.calls = append(f.calls, "dm "+user+" "+text)
 	return "D" + user, fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+}
+
+func (f *fakeTeamChannel) dmHistory(user, oldest string) ([]slack.Message, error) {
+	var out []slack.Message
+	for _, message := range f.dms[user] {
+		if teamTSBefore(oldest, message.Timestamp) {
+			out = append(out, message)
+		}
+	}
+	return out, nil
 }
 
 func (f *fakeTeamChannel) inChannel(channel, user string) bool {
@@ -216,7 +227,7 @@ func TestTeamMemorySettings(t *testing.T) {
 		t.Fatalf("%v", settings)
 	}
 	yaml, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"memory:\n  provider: hindsight", "  enabled:\n    - hi-team\n    - hindsight", "gateway_restart_notification: false"} {
+	for _, want := range []string{"memory:\n  provider: hindsight", "  enabled:\n    - hi-team\n    - hindsight", "gateway_restart_notification: false", "      dm_top_level_threads_as_sessions: false"} {
 		if !strings.Contains(string(yaml), want) {
 			t.Fatalf("config.yaml lacks %q:\n%s", want, yaml)
 		}
