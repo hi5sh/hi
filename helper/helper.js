@@ -831,9 +831,16 @@ textarea:focus { border-color: var(--accent); }
   banner.querySelector(".ok").addEventListener("click", () => { if (select.hover) take(select.hover, false); });
   banner.querySelector(".done").addEventListener("click", stopSelect);
   pick.addEventListener("click", () => (select.on ? stopSelect() : startSelect()));
-  panel.addEventListener("keydown", (event) => {
-    if (event.altKey && event.code === "KeyS") { event.preventDefault(); select.on ? stopSelect() : startSelect(); }
-  });
+  // Alt+S starts and stops select mode from anywhere on the page, the panel
+  // open or not: people click on the page before they think of it.
+  addEventListener("keydown", (event) => {
+    if (!event.altKey || event.ctrlKey || event.metaKey || event.code !== "KeyS" || !host.isConnected) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (select.on) stopSelect();
+    else if (!state.who) toggle(true); // "Who are you?" first
+    else startSelect();
+  }, true);
 
   // refChips draws references as chips: removable in the composer; in a
   // sent message, hovering one outlines its element if it is on this page.

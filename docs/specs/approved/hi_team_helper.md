@@ -171,8 +171,9 @@ browser keeps its copy until the script changes. It aims to be under
 
 The part the people will use the most, and the reason for this spec.
 
-- **Entering.** The ⌖ button in the composer, or `Alt+S` while the panel is
-  open. A banner at the top of the page says what to do, with ↑, ↓, and
+- **Entering.** The ⌖ button in the composer, or `Alt+S` anywhere on the
+  page, the panel open or not (it asks "Who are you?" first if it doesn't
+  know). A banner at the top of the page says what to do, with ↑, ↓, and
   Done buttons; it sits over the part of the page the panel leaves. The
   panel steps aside while choosing when it would leave less than 480 px of
   the page, and on touch screens. The page itself stays as it is.

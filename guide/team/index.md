@@ -195,8 +195,8 @@ asks who you are, and the browser remembers it.
 
 - The lead answers as it does in Slack, with the same memory, and knows
   which page you are on and which version you see.
-- **Point at what you mean.** The target button beside the message box
-  (or `Alt+S`) lets you click part of the page: it is outlined as you
+- **Point at what you mean.** The target button beside the message box,
+  or `Alt+S` anywhere on the page, lets you click part of the page: it is outlined as you
   hover, `Alt+↑` widens it to the element around it, and a click adds it to
   your message as a chip, `#1 span "Paid"`. Shift-click adds more. The app
   ignores those clicks. The lead gets each element's text, classes, and
