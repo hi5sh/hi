@@ -243,7 +243,7 @@ for the workstation and a `cuda` tag for the cloud.
 Where v0.23.0 differs from the design above:
 
 - **Agents come from the host.** The base image (Ubuntu 24.04 with git,
-  Python, uv, Node.js, ripgrep, and build tools, built locally on first use
+  Python, uv, Node.js LTS, ripgrep, and build tools, built locally on first use
   and tagged by its Containerfile's hash) holds no agent. `claude` and
   Codex's package folder are mounted read-only from the host, so a box runs
   the versions the user has and nothing is downloaded per box.

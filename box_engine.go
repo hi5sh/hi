@@ -113,16 +113,29 @@ func boxHardening(memory string) []string {
 
 // boxContainerfile is hi's base image: Ubuntu with the tools agents use.
 // The agents themselves come from the host, mounted read-only, so the box
-// always runs the versions the user has.
+// always runs the versions the user has. Node.js is the LTS from
+// nodejs.org, checked against pinned checksums: Ubuntu 24.04's nodejs is
+// 18, which current Vite and Vitest, and so the web template, can't run on.
 const boxContainerfile = `FROM docker.io/library/ubuntu:24.04
 RUN userdel -r ubuntu 2>/dev/null || true \
  && useradd --uid 1000 --home-dir /box/home --no-create-home --shell /bin/bash box \
  && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     ca-certificates curl git less nano jq ripgrep fd-find tree unzip xz-utils zip \
-    make build-essential pkg-config python3 python3-venv nodejs npm tmux procps file \
+    make build-essential pkg-config python3 python3-venv tmux procps file \
  && rm -rf /var/lib/apt/lists/* \
  && ln -s /usr/bin/fdfind /usr/local/bin/fd
+RUN case "$(dpkg --print-architecture)" in \
+      amd64) arch=x64 sum=fd8e59d5a511510f6a298afb548f18c7d2b1be404d8b4a27d94fbe49f56cb2d6 ;; \
+      arm64) arch=arm64 sum=6ad1325edbdb5649c379b75a237147a666c95d4f9ae8d340fef2d1575d289ad2 ;; \
+      *) echo "no Node.js build for this architecture" >&2; exit 1 ;; \
+    esac \
+ && curl -fsSLo /tmp/node.tar.xz "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-$arch.tar.xz" \
+ && echo "$sum  /tmp/node.tar.xz" | sha256sum -c - \
+ && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner \
+      --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md \
+ && rm /tmp/node.tar.xz \
+ && node --version && npm --version
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 ENV HOME=/box/home LANG=C.UTF-8 TERM=xterm-256color
 WORKDIR /box
