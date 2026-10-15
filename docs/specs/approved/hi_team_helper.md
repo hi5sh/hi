@@ -1,6 +1,7 @@
 # `hi team` helper specification
 
-Status: Approved (2026-10-15). Slice 1, the chat, is built (v0.57.0).
+Status: Approved (2026-10-15). Slice 1, the chat, is built (v0.57.0); slice
+2, select mode, in v0.58.0.
 
 Dependencies: [hi_team.md](hi_team.md) (the broker, the lead,
 the preview and production addresses, approvals, the channel's log),
@@ -171,8 +172,10 @@ browser keeps its copy until the script changes. It aims to be under
 The part the people will use the most, and the reason for this spec.
 
 - **Entering.** The ⌖ button in the composer, or `Alt+S` while the panel is
-  open. A thin banner at the top of the page says "Select mode: click what
-  you mean · Esc to stop". The page itself stays as it is.
+  open. A banner at the top of the page says what to do, with ↑, ↓, and
+  Done buttons; it sits over the part of the page the panel leaves. The
+  panel steps aside while choosing when it would leave less than 480 px of
+  the page, and on touch screens. The page itself stays as it is.
 - **Hover.** The element under the pointer gets an outline (a box drawn
   over it in a layer that ignores the pointer, not a style on the element),
   a faint fill, and a label with a short name and size: `button.primary ·
@@ -182,20 +185,26 @@ The part the people will use the most, and the reason for this spec.
   `pointerdown`, `pointerup`, `mousedown`, `mouseup`, and `submit` in the
   capture phase on `window` and stops them, so a click selects instead of
   pressing the button or following the link. Scrolling still works.
-- **Getting it exactly right.** `Alt+↑` and `Alt+↓` (or the arrows on the
-  label) move the selection to the parent or back to the child, because the
-  element under the pointer is often a `<span>` inside the button you mean.
-- **Freezing.** A click freezes the box: it stays drawn, follows the
-  element through scrolling and resizing, and the element is added to the
-  composer as a chip (`#1 span "Paid"`). Select mode ends after a click.
-  Shift-click adds more than one element without leaving.
+- **Getting it exactly right.** `Alt+↑` and `Alt+↓` (or ↑ and ↓ in the
+  banner) move the selection to the parent or back to the child, because
+  the element under the pointer is often a `<span>` inside the button you
+  mean. A click inside the outlined parent takes the parent; `Enter` takes
+  what is outlined. The label is only a label: it never catches a click or
+  a tap meant for the page.
+- **Taking it.** A click adds the element to the composer as a chip
+  (`#1 span "Paid"`), and select mode ends. Shift-click adds more than one
+  without leaving; the ones already taken stay outlined and numbered while
+  choosing. At most ten per message.
 - **Chips.** Hovering a chip outlines its element again if it is still on
-  the page. × removes the chip. Chips belong to the unsent message; an
-  unsent message survives a reload (sessionStorage).
-- **Touch.** A tap outlines, and a tap on the label's ✓ freezes.
+  the page (the element itself, or after a reload, its selector). × removes
+  the chip. Chips belong to the unsent message; an unsent message survives
+  a reload (sessionStorage). A sent message shows its chips too, and
+  hovering them outlines the elements in the same way.
+- **Touch.** A tap outlines, and "Use this" in the banner takes it.
 - **Shadow DOM and iframes.** Elements in an app's open shadow roots can be
-  selected (the event's `composedPath()`). Elements inside iframes can't;
-  the iframe itself can.
+  selected (the event's `composedPath()`); their selector is the host's,
+  then `>>>`, then the one inside (`status-card >>> .total`). Elements
+  inside iframes can't; the iframe itself can.
 
 What a reference holds, gathered in the page when it is frozen:
 
@@ -211,7 +220,9 @@ What a reference holds, gathered in the page when it is frozen:
   "html": "<span class=\"badge badge-ok\" data-testid=\"status\">Paid</span>",
                                                    // outerHTML, up to 2 KB, long text cut
   "path": ["main", "section \"Suppliers\"", "table.suppliers", "tr", "td.status"],
-  "landmarks": {"heading": "Suppliers", "label": null},  // the nearest heading and form label
+  "landmarks": {"heading": "Suppliers", "section": "Suppliers"},
+                                                   // the nearest heading before it, its form
+                                                   // label, the region it is in
   "box": {"x": 812, "y": 248, "width": 54, "height": 22, "viewport": [1440, 900]},
   "style": {"color": "rgb(255,255,255)", "background-color": "rgb(34,139,34)",
             "font-size": "12px", "display": "inline-block"},
@@ -224,19 +235,27 @@ What a reference holds, gathered in the page when it is frozen:
   page, preferring ids, `data-testid`, and stable classes over
   `nth-child`. It finds the element again in the same page; the text,
   attributes, and path are what let a coder find it in the code with grep.
-- **Stable names only.** The helper passes `finder` filters that skip
-  names a build generates and the next build changes: ids that look
-  generated (`:r3:`, `ember123`, long hex or digit runs), hashed classes
-  from CSS modules and CSS-in-JS (`_title_x7f2a`, `sc-…`, `css-…`,
-  `jsx-…`, `svelte-…`), and Tailwind's utility classes (`flex`, `mt-4`,
-  `bg-green-600`), which say nothing about which element it is. Such a
-  selector still finds the element, and a coder can grep for it in the
-  code. The filters are OpenPicker's idea, written as `finder` options.
+- **Stable names only.** Selectors skip names a build generates and the
+  next build changes. finder's own filters already take only word-like
+  names (letters and dashes, no short words), which leaves out generated
+  ids (`:r3:`, `ember123`) and hashed classes from CSS modules and
+  CSS-in-JS (`_title_x7f2a`, `sc-…`, `css-1x2`, `jsx-123`). The helper adds
+  Tailwind's utility classes (`flex`, `mt-4`, `bg-green-600`,
+  `text-center`), which say how an element looks, not which it is. The
+  idea is OpenPicker's. When finder can't settle in 400 ms, the selector
+  is the path by position.
+- **How it gets to the page.** hi serves finder (`third_party/finder`,
+  unchanged) and the helper as one script, in one closure with finder's
+  `export`s dropped, so there is still no build step and no global. The
+  script's URL is fixed (`/__hi/helper.js`) and served with `no-cache` and
+  an ETag, so a new hi's helper reaches pages on their next load, without
+  new links.
 - **`source`, when the framework gives it away.** Without depending on any
   framework, the helper checks for what development builds leave on
   elements: Vue's `__vueParentComponent.type.__file`, Svelte's
   `__svelte_meta.loc`, a React fiber's component name, and a
-  `data-hi-source` attribute any build can add. It records a file and line,
+  `data-hi-source` attribute any build can add (`src/Badge.tsx:12`). It
+  records a file and line,
   or just a component name, when one is there, and nothing when none is.
   It's a hint, never required.
 

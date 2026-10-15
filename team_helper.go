@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // The helper puts a chat with the lead into every page of a team's app:
@@ -28,7 +29,19 @@ import (
 // (docs/specs/approved/hi_team_helper.md).
 
 //go:embed helper/helper.js
-var teamHelperScript []byte
+var teamHelperSource []byte
+
+//go:embed third_party/finder/finder.js
+var teamFinderSource []byte
+
+// teamHelperScript is what the browser loads: finder, the selector
+// generator select mode uses, and the helper, in one closure, so the page
+// gets one file and no globals.
+var teamHelperScript = func() []byte {
+	finder := regexp.MustCompile(`(?m)^export `).ReplaceAll(teamFinderSource, nil)
+	script := "(() => {\n\"use strict\";\n" + string(finder) + "\n" + string(teamHelperSource) + "\n})();\n"
+	return []byte(script)
+}()
 
 const (
 	teamHelperPrefix = "/__hi/"
@@ -36,15 +49,17 @@ const (
 	// __leadapi relays a socket the host reaches to it.
 	teamLeadAPIPort   = 8642
 	teamLeadAPISocket = "lead-api.sock"
-	// teamWebMaxText is the longest message the helper takes.
+	// teamWebMaxText is the longest message the helper takes, and
+	// teamWebMaxRefs how many elements one message may point at.
 	teamWebMaxText = 8000
+	teamWebMaxRefs = 10
 	// teamLeadTimeout is how long the lead may take over one answer: it may
 	// look at the project or start a task first.
 	teamLeadTimeout = 20 * time.Minute
 )
 
-// teamHelperVersion keeps a browser's copy of the script until the script
-// changes.
+// teamHelperVersion is the script's ETag: browsers check it on each page
+// load, so a new hi's helper reaches pages at once, without new links.
 func teamHelperVersion() string {
 	return fmt.Sprintf("%x", sha256.Sum256(teamHelperScript))[:12]
 }
@@ -106,7 +121,7 @@ func teamWebSocket(team, slot string) string {
 // teamExposeHelperArgs are what a slot's hi net expose gets for the helper.
 func teamExposeHelperArgs(team, slot string) []string {
 	return []string{"--route", teamHelperPrefix + "=unix:" + teamWebSocket(team, slot),
-		"--inject", teamHelperPrefix + "helper.js?v=" + teamHelperVersion(),
+		"--inject", teamHelperPrefix + "helper.js",
 		"--inject-if", teamHelperFile(team, slot)}
 }
 
@@ -133,6 +148,7 @@ type teamWebMessage struct {
 	Name    string       `json:"name"`
 	Text    string       `json:"text"`
 	Page    *teamWebPage `json:"page,omitempty"`
+	Refs    []teamWebRef `json:"refs,omitempty"` // the elements the person pointed at
 	At      time.Time    `json:"at"`
 	SlackTS string       `json:"slack_ts,omitempty"` // its copy in the channel
 }
@@ -143,6 +159,166 @@ type teamWebPage struct {
 	Title  string `json:"title,omitempty"`
 	Width  int    `json:"width,omitempty"`
 	Height int    `json:"height,omitempty"`
+}
+
+// teamWebRef is an element of the page the person pointed at in select
+// mode, as the helper describes it: enough to find it again on the page,
+// and in the code.
+type teamWebRef struct {
+	N          int               `json:"n"`
+	Selector   string            `json:"selector"`
+	Tag        string            `json:"tag"`
+	Text       string            `json:"text,omitempty"`
+	Attributes map[string]string `json:"attributes,omitempty"`
+	HTML       string            `json:"html,omitempty"`
+	Path       []string          `json:"path,omitempty"`      // its ancestors, outermost first
+	Landmarks  map[string]string `json:"landmarks,omitempty"` // the nearest heading, its form label
+	Box        *teamWebBox       `json:"box,omitempty"`
+	Style      map[string]string `json:"style,omitempty"`
+	Source     *teamWebSource    `json:"source,omitempty"` // when the app's framework gives it away
+}
+
+type teamWebBox struct {
+	X        int    `json:"x"`
+	Y        int    `json:"y"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	Viewport [2]int `json:"viewport"`
+}
+
+type teamWebSource struct {
+	File      string `json:"file,omitempty"`
+	Line      int    `json:"line,omitempty"`
+	Component string `json:"component,omitempty"`
+}
+
+// teamCleanRefs keeps references to a size the lead can read: the page
+// wrote them, so nothing in them is trusted to be short.
+func teamCleanRefs(refs []teamWebRef) []teamWebRef {
+	if len(refs) > teamWebMaxRefs {
+		refs = refs[:teamWebMaxRefs]
+	}
+	clip := func(text string, limit int) string { return teamClipStart(strings.TrimSpace(text), limit) }
+	clipMap := func(in map[string]string, keys, limit int) map[string]string {
+		names := make([]string, 0, len(in))
+		for name := range in {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		out := map[string]string{}
+		for _, name := range names {
+			if len(out) == keys {
+				break
+			}
+			if value := clip(in[name], limit); value != "" {
+				out[clip(name, 40)] = value
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		return out
+	}
+	var clean []teamWebRef
+	for i, ref := range refs {
+		ref.N = i + 1
+		ref.Selector, ref.Tag, ref.Text, ref.HTML = clip(ref.Selector, 500), strings.ToLower(clip(ref.Tag, 30)), clip(ref.Text, 200), clip(ref.HTML, 2048)
+		if ref.Selector == "" || ref.Tag == "" {
+			continue
+		}
+		ref.Attributes, ref.Landmarks, ref.Style = clipMap(ref.Attributes, 20, 200), clipMap(ref.Landmarks, 4, 120), clipMap(ref.Style, 10, 80)
+		if len(ref.Path) > 8 {
+			ref.Path = ref.Path[len(ref.Path)-8:]
+		}
+		for j := range ref.Path {
+			ref.Path[j] = clip(ref.Path[j], 80)
+		}
+		if ref.Source != nil {
+			ref.Source.File, ref.Source.Component = clip(ref.Source.File, 300), clip(ref.Source.Component, 80)
+			if ref.Source.File == "" && ref.Source.Component == "" {
+				ref.Source = nil
+			}
+		}
+		clean = append(clean, ref)
+	}
+	for i := range clean {
+		clean[i].N = i + 1
+	}
+	return clean
+}
+
+// teamClipStart keeps the start of text, at most limit bytes of it, cut
+// between characters.
+func teamClipStart(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	cut := limit - len("…")
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + "…"
+}
+
+// teamWebRefLabel is a reference in a few words: #1 span "Paid".
+func teamWebRefLabel(ref teamWebRef) string {
+	label := fmt.Sprintf("#%d %s", ref.N, ref.Tag)
+	if text := strings.Join(strings.Fields(ref.Text), " "); text != "" {
+		text = teamClipStart(text, 40)
+		label += " " + strconv.Quote(text)
+	}
+	return label
+}
+
+// teamWebRefsText is the references as the lead and a member read them.
+func teamWebRefsText(refs []teamWebRef, indent string) string {
+	if len(refs) == 0 {
+		return ""
+	}
+	var text strings.Builder
+	text.WriteString(indent + "Referenced elements:\n")
+	for _, ref := range refs {
+		fmt.Fprintf(&text, "%s%s\n", indent, teamWebRefLabel(ref))
+		line := func(name, value string) {
+			if value != "" {
+				fmt.Fprintf(&text, "%s   %s: %s\n", indent, name, strings.ReplaceAll(value, "\n", " "))
+			}
+		}
+		line("selector", ref.Selector)
+		line("html", ref.HTML)
+		line("under", strings.Join(ref.Path, " › "))
+		var near []string
+		for _, name := range []string{"heading", "label", "section", "form"} {
+			if value := ref.Landmarks[name]; value != "" {
+				near = append(near, name+" "+strconv.Quote(value))
+			}
+		}
+		line("near", strings.Join(near, "; "))
+		if box := ref.Box; box != nil {
+			look := fmt.Sprintf("%d×%d at (%d, %d) in a %d×%d viewport", box.Width, box.Height, box.X, box.Y, box.Viewport[0], box.Viewport[1])
+			if color := ref.Style["color"]; color != "" {
+				look += "; " + color
+				if background := ref.Style["background-color"]; background != "" && background != "rgba(0, 0, 0, 0)" {
+					look += " on " + background
+				}
+			}
+			if size := ref.Style["font-size"]; size != "" {
+				look += ", " + size
+			}
+			line("box", look)
+		}
+		if source := ref.Source; source != nil {
+			where := source.File
+			if where != "" && source.Line > 0 {
+				where += ":" + strconv.Itoa(source.Line)
+			}
+			if source.Component != "" {
+				where = strings.TrimSpace(where + " (" + source.Component + ")")
+			}
+			line("source", where)
+		}
+	}
+	return text.String()
 }
 
 var (
@@ -238,6 +414,7 @@ type teamWebSend struct {
 	Name         string       `json:"name"`
 	Text         string       `json:"text"`
 	Page         *teamWebPage `json:"page,omitempty"`
+	Refs         []teamWebRef `json:"refs,omitempty"`
 }
 
 // listenWeb opens a socket per address for the helper.
@@ -268,8 +445,14 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		reply(w, status, map[string]string{"error": err.Error()})
 	}
 	mux.HandleFunc("GET "+teamHelperPrefix+"helper.js", func(w http.ResponseWriter, r *http.Request) {
+		etag := `"` + teamHelperVersion() + `"`
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
 		w.Write(teamHelperScript)
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/status", func(w http.ResponseWriter, r *http.Request) {
@@ -318,7 +501,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 	})
 	mux.HandleFunc("POST "+teamHelperPrefix+"api/messages", func(w http.ResponseWriter, r *http.Request) {
 		var send teamWebSend
-		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&send); err != nil {
+		if err := json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&send); err != nil {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
@@ -424,8 +607,9 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 	}
 	send.Name = firstNonEmpty(send.Name, send.Person)
 	if send.Page != nil {
-		send.Page.Path, send.Page.Title = teamClipText(send.Page.Path, 300), teamClipText(send.Page.Title, 200)
+		send.Page.Path, send.Page.Title = teamClipStart(send.Page.Path, 300), teamClipStart(send.Page.Title, 200)
 	}
+	send.Refs = teamCleanRefs(send.Refs)
 
 	b.webMu.Lock()
 	conversation, ok := teamWebConversation{}, false
@@ -450,7 +634,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		return
 	}
 	first := len(conversation.Messages) == 0
-	message := teamWebMessage{N: len(conversation.Messages) + 1, From: "person", Name: send.Name, Text: send.Text, Page: send.Page, At: time.Now().UTC()}
+	message := teamWebMessage{N: len(conversation.Messages) + 1, From: "person", Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, At: time.Now().UTC()}
 	conversation.Messages = append(conversation.Messages, message)
 	if err := saveTeamWebConversation(b.team, conversation); err != nil {
 		b.webMu.Unlock()
@@ -563,6 +747,9 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 		}
 	}
 	input := "[" + strings.Join(parts, " · ") + "]\n\n" + message.Text
+	if refs := teamWebRefsText(message.Refs, ""); refs != "" {
+		input += "\n\n" + refs
+	}
 	if first {
 		input = teamWebFirstNote + "\n\n" + input
 	}
@@ -570,7 +757,7 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 }
 
 // teamWebFirstNote starts each web chat for the lead.
-const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is, which address and version they see, and the page. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
+const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is, which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
 
 // mirrorWeb copies message n of a web chat into the channel: the first
 // starts a thread, the rest reply in it. It never fails the chat.
@@ -597,6 +784,9 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 		text = fmt.Sprintf("*%s*, in the app: %s", teamSlackEscape(message.Name), teamSlackEscape(message.Text))
 	default:
 		text = message.Text
+	}
+	for _, ref := range message.Refs {
+		text += fmt.Sprintf("\n> %s: `%s`", teamSlackEscape(teamWebRefLabel(ref)), strings.ReplaceAll(teamSlackEscape(ref.Selector), "`", "'"))
 	}
 	var ts string
 	if conversation.Thread == "" {
@@ -685,6 +875,9 @@ func teamWebApprovalChat(team string, approval teamApproval) string {
 			where = ", on " + message.Page.Path
 		}
 		fmt.Fprintf(&said, "**%s** (%s%s): %s\n\n", message.Name, message.At.Format("Jan 2 15:04"), where, strings.TrimSpace(message.Text))
+		if refs := teamWebRefsText(message.Refs, "    "); refs != "" {
+			fmt.Fprintf(&said, "  The parts of the page they pointed at:\n\n%s\n", refs)
+		}
 	}
 	return said.String()
 }

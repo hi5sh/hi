@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 // webEvents posts a message to the helper and returns its events, in order.
@@ -73,8 +75,16 @@ func TestTeamHelperChat(t *testing.T) {
 	}
 	script, _ := io.ReadAll(response.Body)
 	response.Body.Close()
-	if !strings.Contains(response.Header.Get("Content-Type"), "javascript") || string(script) != string(teamHelperScript) {
+	if !strings.Contains(response.Header.Get("Content-Type"), "javascript") || string(script) != string(teamHelperScript) || response.Header.Get("Cache-Control") != "no-cache" {
 		t.Fatal("the script:", response.Header)
+	}
+	// A browser's copy is checked, and kept while the script is the same.
+	request, _ := http.NewRequest(http.MethodGet, server.URL+"/__hi/helper.js", nil)
+	request.Header.Set("If-None-Match", response.Header.Get("ETag"))
+	if again, err := http.DefaultClient.Do(request); err != nil || again.StatusCode != http.StatusNotModified {
+		t.Fatal("no 304 for an unchanged script:", err)
+	} else {
+		again.Body.Close()
 	}
 	response, _ = http.Get(server.URL + "/__hi/api/status")
 	var status teamWebStatus
@@ -312,7 +322,7 @@ func TestTeamHelperSwitch(t *testing.T) {
 func TestTeamExposeHasTheHelper(t *testing.T) {
 	setupTeamTest(t)
 	args := strings.Join(teamExposeHelperArgs("payments", teamSlotProduction), " ")
-	for _, want := range []string{"--route /__hi/=unix:" + teamWebSocket("payments", "production"), "--inject /__hi/helper.js?v=" + teamHelperVersion(),
+	for _, want := range []string{"--route /__hi/=unix:" + teamWebSocket("payments", "production"), "--inject /__hi/helper.js --inject-if",
 		"--inject-if " + filepath.Join(teamDir("payments"), "run", "production.helper")} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("%s lacks %s", args, want)
@@ -389,5 +399,97 @@ func TestWriteTeamLeadOpensTheAPI(t *testing.T) {
 		if !strings.Contains(string(env), want) {
 			t.Fatalf(".env lacks %s:\n%s", want, env)
 		}
+	}
+}
+
+func TestTeamHelperScriptHasFinder(t *testing.T) {
+	script := string(teamHelperScript)
+	if !strings.Contains(script, "function finder(input, options)") || strings.Contains(script, "\nexport ") || !strings.HasPrefix(script, "(() => {") {
+		t.Fatal("the served script isn't finder and the helper in one closure")
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("no node to parse it with")
+	}
+	path := filepath.Join(t.TempDir(), "helper.js")
+	os.WriteFile(path, teamHelperScript, 0o600)
+	if out, err := exec.Command(node, "--check", path).CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+}
+
+func TestTeamWebRefs(t *testing.T) {
+	long := strings.Repeat("é", 3000)
+	refs := []teamWebRef{
+		{Selector: "", Tag: "div"}, // no selector: dropped
+		{N: 9, Selector: "main table.suppliers > tbody > tr:nth-child(1) > td.status > span.badge", Tag: "SPAN", Text: "Paid",
+			Attributes: map[string]string{"class": "badge badge-ok", "data-testid": "status"},
+			HTML:       `<span class="badge badge-ok" data-testid="status">Paid</span>`,
+			Path:       []string{"main", `section "Suppliers"`, "table.suppliers", "tr", "td.status"},
+			Landmarks:  map[string]string{"heading": "Suppliers"},
+			Box:        &teamWebBox{X: 812, Y: 248, Width: 54, Height: 22, Viewport: [2]int{1440, 900}},
+			Style:      map[string]string{"color": "rgb(255, 255, 255)", "background-color": "rgb(34, 139, 34)", "font-size": "12px"},
+			Source:     &teamWebSource{File: "src/StatusBadge.vue", Line: 12, Component: "StatusBadge"}},
+		{Selector: "#notes", Tag: "textarea", HTML: long, Text: long},
+	}
+	clean := teamCleanRefs(refs)
+	if len(clean) != 2 || clean[0].N != 1 || clean[0].Tag != "span" || clean[1].N != 2 {
+		t.Fatalf("%+v", clean)
+	}
+	if len(clean[1].HTML) > 2048 || !strings.HasSuffix(clean[1].HTML, "…") || !utf8.ValidString(clean[1].HTML) || len(clean[1].Text) > 200 {
+		t.Fatal("a long reference isn't clipped cleanly:", len(clean[1].HTML), len(clean[1].Text))
+	}
+	text := teamWebRefsText(clean, "")
+	for _, want := range []string{
+		"Referenced elements:\n#1 span \"Paid\"\n",
+		"   selector: main table.suppliers > tbody > tr:nth-child(1) > td.status > span.badge\n",
+		"   under: main › section \"Suppliers\" › table.suppliers › tr › td.status\n",
+		"   near: heading \"Suppliers\"\n",
+		"   box: 54×22 at (812, 248) in a 1440×900 viewport; rgb(255, 255, 255) on rgb(34, 139, 34), 12px\n",
+		"   source: src/StatusBadge.vue:12 (StatusBadge)\n",
+		"#2 textarea \"éééé",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("lacks %q:\n%s", want, text)
+		}
+	}
+	var many []teamWebRef
+	for i := 0; i < 30; i++ {
+		many = append(many, teamWebRef{Selector: "a", Tag: "a"})
+	}
+	if len(teamCleanRefs(many)) != teamWebMaxRefs {
+		t.Fatal("more than ten references kept")
+	}
+}
+
+func TestTeamHelperChatWithRefs(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	var input string
+	b.lead = func(_ context.Context, _, text string, _ func(string)) (string, error) {
+		input = text
+		return "Red when overdue. Shall I?", nil
+	}
+	os.MkdirAll(teamChannelDir("payments"), 0o700)
+	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	defer server.Close()
+	ref := teamWebRef{Selector: "td.status > span.badge", Tag: "span", Text: "Paid", HTML: `<span class="badge">Paid</span>`}
+	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Make this one red", Page: &teamWebPage{Path: "/suppliers"}, Refs: []teamWebRef{ref}})
+	if !strings.Contains(input, "Make this one red\n\nReferenced elements:\n#1 span \"Paid\"\n   selector: td.status > span.badge\n") || !strings.Contains(input, "parts of the page they clicked on") {
+		t.Fatal(input)
+	}
+	if !strings.Contains(channel.calls[0], "Make this one red\n> #1 span \"Paid\": `td.status &gt; span.badge`") {
+		t.Fatalf("%q", channel.calls[0])
+	}
+	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Yes"})
+	conversation, _ := loadTeamWebConversation("payments", "w-1")
+	if len(conversation.Messages[0].Refs) != 1 || conversation.Messages[0].Refs[0].N != 1 {
+		t.Fatalf("%+v", conversation.Messages[0])
+	}
+	said := teamWebApprovalChat("payments", teamApproval{TS: "w-1.3"})
+	if !strings.Contains(said, "The parts of the page they pointed at:\n\n    Referenced elements:\n    #1 span \"Paid\"\n       selector: td.status > span.badge") {
+		t.Fatal(said)
 	}
 }
