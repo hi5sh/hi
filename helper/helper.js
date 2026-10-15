@@ -226,7 +226,17 @@ textarea:focus { border-color: var(--accent); }
 
   const host = document.createElement("hi-helper");
   const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `<style>${CSS}</style>
+  // The styles go in as a constructed stylesheet, which an app's
+  // Content-Security-Policy (style-src 'self') doesn't block, as it does a
+  // <style>; browsers without one get the <style>.
+  let constructed = false;
+  try {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(CSS);
+    root.adoptedStyleSheets = [sheet];
+    constructed = true;
+  } catch { /* an older browser */ }
+  root.innerHTML = (constructed ? "" : `<style>${CSS}</style>`) + `
 <button class="fab" part="button" aria-label="Help" title="Help">${ICONS.chat}<span class="dot"></span></button>
 <button class="toast" aria-live="polite"><span class="from"></span><span class="text"></span></button>
 <section class="panel" role="dialog" aria-label="Help">

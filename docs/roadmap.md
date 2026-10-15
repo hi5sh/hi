@@ -1411,6 +1411,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `hi team up`'s warning says what each missing scope stops, rather than
   blaming `/hi-<team>` for a missing `im:history`.
 
+### v0.62.2 — The helper under a strict policy
+
+- [x] The helper's styles go in as a constructed stylesheet, so an app
+  whose Content-Security-Policy has `style-src 'self'` no longer leaves
+  the button unstyled at the bottom of the page. The pictures of what is
+  pointed at still need inline styles there, so such an app's helper
+  sends words without them.
+
 ## Planned
 
 ### Next — the helper
