@@ -1343,8 +1343,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 - [ ] Say in each release's announcement whether production has the
   helper.
-- [ ] Sign in with Slack instead of "Who are you?", so a yes in the app
-  counts like one in Slack.
+- [ ] Feedback for anyone with the app's link (to the channel, without
+  the lead), and the chat with the lead only for people signed in with
+  `/hi` in Slack, which DMs them a private link.
+  Idea: [hi_team_helper_signin.md](specs/ideas/hi_team_helper_signin.md).
+- [ ] Developing in a DM: people who may change the app talk to the lead
+  one to one, so the channel stays for the group; the lead still announces
+  larger changes in the channel, with what changed and who asked for it.
 
 ### Later — `hi team`
 

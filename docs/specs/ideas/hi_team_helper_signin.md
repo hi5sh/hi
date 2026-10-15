@@ -1,0 +1,142 @@
+# `hi team` helper: feedback for anyone, the chat for people signed in
+
+Status: Idea (2026-10-15). Changes [hi_team_helper.md](../approved/hi_team_helper.md):
+who is talking is no longer claimed in "Who are you?".
+
+## Goal
+
+Today the helper asks "Who are you?", and anyone with the team's link can
+pick a name and talk to the lead as that person. The approval rules keep the
+worst out, but it is impersonation all the same, and anyone with the link
+spends the lead's model budget.
+
+Instead:
+
+1. **The ordinary link is for feedback.** Anyone who has it can point at
+   parts of the page, attach files, and write; the helper sends that to the
+   channel as a feedback item. The lead doesn't answer and nothing changes.
+2. **People who may change the app sign in through Slack.** `/hi` in the
+   team's channel makes hi send them a private link in a DM. With it, the
+   helper is today's chat with the lead, as that person, checked.
+
+## The ordinary link: feedback
+
+`https://team-timmai-atsg.eu1.netbird.services/?hi_key=…`
+
+- The panel is titled "Feedback to the team". It has select mode with the
+  pictures of what was pointed at, files (paste, drop, the paperclip), and
+  an optional name, marked as not checked. It also has a box, ticked by
+  default, for "a picture of what I see": the visible page, drawn with
+  modern-screenshot when the feedback is sent.
+- Sending posts it in the channel as a message of its own, not a thread
+  reply: "📝 Feedback in the app (preview, /suppliers), from 'Cleo' (not
+  checked): …", with the references and, as replies, the files. It is kept
+  as `web/f-12.json` with `web/f-12-files/`.
+- **The lead isn't asked.** No model call, so no budget spent and nothing
+  to talk the lead into. The feedback lines in `channel/` are new to the
+  lead, unlike web chats, so its channel-watch job reads them and keeps
+  what matters. When someone says in Slack "@lead do f-12", the lead runs
+  `hi team web show f-12`, attaches the files to the task, and the work
+  needs a yes as usual.
+- The panel says "Sent to the team as f-12. Thank you." It can't show
+  answers: whoever sent it isn't known (Later: replies in the thread back
+  in the panel).
+- A limit against spam: 30 feedback items a day per address, then the
+  panel says so.
+
+## `/hi`: a private link
+
+1. Someone types `/hi` in the team's channel.
+2. Hermes holds the app's Socket Mode connection, so the command reaches
+   Hermes, which isn't a model call. hi installs a small Hermes plugin in
+   the lead's home, `hi-team`, which registers `/hi`. Its handler takes
+   the Slack user ID from the command's payload, which Slack sets, so it
+   can't be typed, and runs `hi team web link --user U07ANNA` against the
+   broker.
+3. The broker checks that the person may ask for work: an owner or asker,
+   or, with no askers, a member of the channel. Then it makes a key for them,
+   32 random bytes, stored hashed in `web/people.json` with who it is for,
+   when it was made, and when it ends: in 14 days.
+4. hi sends the person a DM from the team's bot, with the preview's and
+   production's links, each with `&hi_user=<key>`. The command's own reply
+   is private (ephemeral): "I've sent you a private link in a DM." Someone
+   who may not change the app gets: "You can send feedback with the app's
+   link; ask an owner to add you."
+5. `/hi` again makes a new key and ends the old one, so a link that leaked
+   dies when its owner asks for a new one.
+
+**The key never reaches the app.** The relay handles `hi_user` the way it
+handles `hi_key`. It sets an HttpOnly cookie that is sent only to `/__hi/`,
+takes the key out of the address, and passes the cookie to the team's
+service as `X-Hi-User` on `/__hi/` requests. The app's own scripts can't
+read it, its server never sees it, and a copied address doesn't carry it.
+
+**Signed in, the helper is today's chat**, with "you're Anna (via Slack)"
+in the header and no "Who are you?". A yes in the chat approves work as a
+Slack yes does, now that the name is checked. Releases, rollbacks, and
+production's helper still need an owner's yes in the channel, which keeps
+them where the team can see them.
+
+**Production's link changes every day** (it is renewed), so a link in a DM
+goes stale. hi keeps the DMs it sent, and updates them, as it does its
+channel message with production's link, while the key is valid.
+
+**The DM**, for now, is only for hi: links, and the lead's later messages.
+When the lead posts in a person's web chat (`hi team web post`) and their
+panel isn't open, hi also sends it to their DM, with the link. The lead
+doesn't answer in DMs; Hermes is told so already (`SLACK_DISABLE_DMS`).
+Writing to the bot in a DM gets: "Use /hi for a link to the app's chat, or
+the channel."
+
+**When /hi isn't there.** "@lead send me a link" in the channel works too:
+the lead runs `hi team web link --user <their ID>`, and the link still goes
+only to that person's DM, so asking for someone else's gets them nothing.
+
+## The Slack app
+
+`hi team manifest` gains:
+
+- `features.slash_commands`: `/hi`, "A private link to the app's chat with
+  the lead", `should_escape: false`.
+- The scopes `commands` (for slash commands) and `im:write` (to open a DM).
+
+An existing team's app needs its manifest updated and the app reinstalled.
+`hi team up` already says which scopes the bot lacks and how to add them;
+until then `/hi` doesn't exist and the helper only takes feedback.
+
+Each team's app has its own `/hi`. In a workspace with several teams,
+Slack's command picker shows each app's `/hi` with the app's name, and the
+plugin replies "this is the timmai team's link" so nobody mixes them up.
+
+## What changes for chats so far
+
+- "Who are you?" goes away, and so does `GET /api/status`'s people list.
+- Web chats made with a claimed name stay in `web/` as they are, and are
+  no longer offered.
+- `GET /api/status` says whether this browser is signed in, and as whom.
+  Messages with a key that ended get "Your link has ended: type /hi in
+  Slack for a new one", and the panel turns into the feedback form.
+
+## Tests
+
+- Without a key, `/__hi/api/messages` is refused and `/__hi/api/feedback`
+  posts a top-level channel message without calling the lead.
+- `/hi` from an asker DMs a link; from someone else, it DMs nothing and
+  replies privately. A new `/hi` ends the old key.
+- The relay turns `hi_user` into a `/__hi/`-only HttpOnly cookie, takes it
+  out of the address, and sends it to the service as `X-Hi-User`; the app
+  never gets the cookie or the header.
+- An ended key, or one for someone no longer an asker, signs nobody in.
+- A web yes from a signed-in asker approves a task; a release still needs
+  Slack.
+
+## Later
+
+- **Developing in a DM.** People who may change the app talk to the lead
+  in their DM, one to one, so the channel stays for the group. Larger
+  changes are still announced in the channel: what changed in the latest
+  updates and who asked for it, so the channel stays the team's record.
+- **Answers to feedback.** Replies in the feedback's thread shown to the
+  sender's browser, without knowing who they are.
+- **Production for some people only.** With people signed in, production's
+  helper could be feedback-only for everyone else.
