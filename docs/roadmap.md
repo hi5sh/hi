@@ -1312,6 +1312,11 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   helper reaches pages on their next load, without new links.
   Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#select-mode) (slice 2).
 
+### v0.58.1 — Alt+S from anywhere on the page
+
+- [x] `Alt+S` starts and stops select mode wherever the focus is, the
+  panel open or not; it worked only while typing in the panel.
+
 ## Planned
 
 ### Next — the helper
