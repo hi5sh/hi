@@ -195,6 +195,13 @@ asks who you are, and the browser remembers it.
 
 - The lead answers as it does in Slack, with the same memory, and knows
   which page you are on and which version you see.
+- **Point at what you mean.** The target button beside the message box
+  (or `Alt+S`) lets you click part of the page: it is outlined as you
+  hover, `Alt+↑` widens it to the element around it, and a click adds it to
+  your message as a chip, `#1 span "Paid"`. Shift-click adds more. The app
+  ignores those clicks. The lead gets each element's text, classes, and
+  HTML, and the coder finds it in the code from them. On a phone, tap it,
+  then "Use this".
 - hi copies each chat into a thread in the channel, so the team sees it.
 - A "yes" in the chat starts the work the lead proposed there, as one in
   Slack does. A release, a rollback, or turning production's chat off
