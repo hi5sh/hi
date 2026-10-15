@@ -1331,6 +1331,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `hi team web show` list and read the chats.
   Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#files-and-pictures) (slice 3).
 
+### v0.59.1 — The lead is working
+
+- [x] The helper shows a spinner and how long the lead has been at it
+  from the moment a message is sent; since v0.59.0 the "is answering" line
+  disappeared until the first words came, so the chat looked stuck.
+
 ## Planned
 
 ### Next — the helper
