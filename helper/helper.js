@@ -78,8 +78,11 @@ header .version { color: var(--muted); font-size: 12px; white-space: nowrap; ove
 .msg pre { margin: 0 0 6px; padding: 8px; background: var(--line); border-radius: 6px; overflow-x: auto; }
 .msg pre code { background: none; padding: 0; }
 .msg a { color: var(--accent); }
-.typing { color: var(--muted); font-size: 13px; }
-.typing::after { content: "…"; animation: blink 1.2s infinite; }
+.typing { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.typing::before { content: ""; width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid var(--line);
+  border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .typing::before { animation-duration: 2.4s; } }
 @keyframes blink { 50% { opacity: .2; } }
 .composer { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; gap: 8px; align-items: flex-end; }
 textarea { flex: 1; resize: none; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line);
@@ -551,11 +554,23 @@ textarea:focus { border-color: var(--accent); }
       body.appendChild(node);
     }
     const last = messages[messages.length - 1];
-    if ((options.typing || (!state.sending && last && last.from === "person")) && !(last && last.from === "lead")) {
+    // Until the lead's first words come, a spinner and how long it has
+    // been working: it may read the project or start a task first.
+    clearInterval(state.ticking);
+    if (last && last.from === "person") {
       const typing = document.createElement("div");
       typing.className = "typing";
-      typing.textContent = (status.lead || "The lead") + " is answering";
       body.appendChild(typing);
+      const since = last.at ? Date.parse(last.at) : (last.sentAt = last.sentAt || Date.now());
+      const tick = () => {
+        const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
+        const lead = status.lead || "The lead";
+        typing.textContent = last.pending ? "Sending…"
+          : seconds < 5 ? lead + " is answering…"
+          : lead + " is " + (seconds < 30 ? "answering" : "working on it") + " · " + Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+      };
+      tick();
+      state.ticking = setInterval(tick, 1000);
     }
     if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
     if (panel.classList.contains("open")) markSeen();
