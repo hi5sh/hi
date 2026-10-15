@@ -289,9 +289,12 @@ func teamRelay(conn net.Conn, socket string) {
 // ---------------------------------------------------------------------------
 // the commands
 
-// teamKey is hi team key <name> openrouter [--unset].
+// teamKey is hi team key <name> openrouter [--unset], or slack.
 func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team key <name> openrouter [--unset]"}
+	usage := usageError{"usage: hi team key <name> openrouter [--unset]\n       hi team key <name> slack"}
+	if len(args) == 2 && args[1] == "slack" {
+		return teamKeySlack(args[0], stdin, stdout)
+	}
 	var words []string
 	unset := false
 	for _, arg := range args {
@@ -337,6 +340,79 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Team %s's model calls use its own OpenRouter key now: the lead's, and the app's at $OPENROUTER_BASE_URL.\n", name)
 	}
 	return nil
+}
+
+// teamKeySlack is hi team key <name> slack: the Slack app's tokens again,
+// after Slack gave new ones. Each is asked for and checked; Enter keeps the
+// one the team has. A running team restarts with them.
+func teamKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
+	config, err := loadTeam(name)
+	if err != nil {
+		return err
+	}
+	secrets, err := loadTeamSecrets(name)
+	if err != nil {
+		return fmt.Errorf("the team's secrets: %w", err)
+	}
+	fmt.Fprintf(stdout, "Team %s's Slack app tokens, from its settings at api.slack.com/apps. Enter keeps the one the team has.\n", name)
+	bot, err := teamAskKeep(stdin, stdout, "Bot User OAuth Token (OAuth & Permissions, xoxb-…)", func(token string) error {
+		if token == "" {
+			return nil
+		}
+		if _, err := teamCheckBotToken(token); err != nil {
+			return err
+		}
+		_, err := teamCheckChannel(name, token, config.Channel)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	app, err := teamAskKeep(stdin, stdout, "App-Level Token (Basic Information, xapp-…)", func(token string) error {
+		if token == "" {
+			return nil
+		}
+		return teamCheckAppToken(token)
+	})
+	if err != nil {
+		return err
+	}
+	if bot == "" && app == "" {
+		fmt.Fprintln(stdout, "Nothing changed.")
+		return nil
+	}
+	if bot != "" {
+		secrets.SlackBotToken = bot
+	}
+	if app != "" {
+		secrets.SlackAppToken = app
+	}
+	if err := saveTeamSecrets(name, secrets); err != nil {
+		return err
+	}
+	if teamState(name) != "up" {
+		fmt.Fprintf(stdout, "Saved. Team %s uses them from its next start: hi team up %s.\n", name, name)
+		return nil
+	}
+	fmt.Fprintf(stdout, "Saved. Team %s restarts with them.\n", name)
+	return teamUp(name, stdout)
+}
+
+// teamAskKeep asks for a secret that Enter leaves as it is (""), and asks
+// again, at a terminal, while check refuses it.
+func teamAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(string) error) (string, error) {
+	for attempt := 1; ; attempt++ {
+		value, err := teamReadSecret(stdin, stdout, label)
+		if err == nil {
+			if err = check(value); err == nil {
+				return value, nil
+			}
+		}
+		if !isTerminal(stdin) || attempt == 5 || errors.Is(err, io.EOF) {
+			return "", err
+		}
+		fmt.Fprintf(stdout, "  %v. Try again.\n", err)
+	}
 }
 
 // teamEnv is hi team env <name> [KEY=VALUE | KEY | --unset KEY]...

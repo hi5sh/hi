@@ -281,6 +281,14 @@ hi team key payments openrouter            # asked for; it shows as *
 hi team key payments openrouter --unset    # this machine's key again
 ```
 
+**Slack.** When Slack gives the app a new token (after a reinstall, or a
+token you revoked), give it to the team; it asks for the bot token and
+the app token, Enter keeps one, and a running team restarts with them:
+
+```sh
+hi team key payments slack
+```
+
 **Settings.** Other keys and settings the app needs reach its boxes as
 environment variables, and nothing else: not the lead, not the members,
 not briefs. The lead sees their names, so it can tell the coder which

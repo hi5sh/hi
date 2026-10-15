@@ -343,6 +343,8 @@ usage:
   hi team key <name> openrouter    give the team an OpenRouter key of its own (asked, never an
                                    argument); --unset goes back to this machine's. No box holds it:
                                    the app reaches models at $OPENROUTER_BASE_URL through hi
+  hi team key <name> slack         the Slack app's tokens again, when Slack gave new ones (asked
+                                   for and checked; Enter keeps one); a running team restarts
   hi team env <name>               the settings the team's app gets, by name
   hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
                                    boxes only (preview and production); KEY alone asks for the value

@@ -69,6 +69,42 @@ func TestTeamKey(t *testing.T) {
 	}
 }
 
+func TestTeamKeySlack(t *testing.T) {
+	newTeamKeysTest(t)
+	saved := teamSystemctl
+	teamSystemctl = func(args ...string) (string, error) { return "inactive", nil }
+	defer func() { teamSystemctl = saved }()
+	before, _ := loadTeamSecrets("payments")
+	var out bytes.Buffer
+	// A token that isn't a bot token isn't taken.
+	if err := teamKey([]string{"payments", "slack"}, strings.NewReader("xapp-wrong\n"), &out); err == nil || !strings.Contains(err.Error(), "starts with xoxb-") {
+		t.Fatal(err)
+	}
+	// Enter keeps the app token.
+	if err := teamKey([]string{"payments", "slack"}, strings.NewReader("xoxb-new-bot\n\n"), &out); err != nil {
+		t.Fatal(err, out.String())
+	}
+	after, _ := loadTeamSecrets("payments")
+	if after.SlackBotToken != "xoxb-new-bot" || after.SlackAppToken != before.SlackAppToken ||
+		!strings.Contains(out.String(), "hi team up payments") || strings.Contains(out.String(), "xoxb-new-bot") {
+		t.Fatalf("%+v %q", after, out.String())
+	}
+	out.Reset()
+	if err := teamKey([]string{"payments", "slack"}, strings.NewReader("\n\n"), &out); err != nil || !strings.Contains(out.String(), "Nothing changed") {
+		t.Fatal(err, out.String())
+	}
+	// Slack refusing it, in the end, changes nothing.
+	saved2 := teamSlack
+	teamSlack = fakeTeamSlack{badBot: true}
+	defer func() { teamSlack = saved2 }()
+	if err := teamKey([]string{"payments", "slack"}, strings.NewReader("xoxb-refused\n"), &out); err == nil {
+		t.Fatal("a refused token was taken")
+	}
+	if kept, _ := loadTeamSecrets("payments"); kept.SlackBotToken != "xoxb-new-bot" {
+		t.Fatal(kept.SlackBotToken)
+	}
+}
+
 func TestTeamEnv(t *testing.T) {
 	newTeamKeysTest(t)
 	var out bytes.Buffer

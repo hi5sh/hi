@@ -1378,6 +1378,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] The helper's chat sends the last words of the lead's answer that
   were still on their way when it finished; they could be dropped.
 
+### v0.61.2 — New Slack tokens
+
+- [x] `hi team key <name> slack`: the Slack app's bot and app tokens
+  again, after Slack gave new ones. Each is asked for and checked with
+  Slack (the bot token also for its scopes and the channel); Enter keeps
+  one, and a running team restarts with them.
+
 ## Planned
 
 ### Next — the helper
