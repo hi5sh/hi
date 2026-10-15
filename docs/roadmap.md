@@ -1277,7 +1277,33 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `hi team snapshot` and `hi team rollback` use it.
   Approved spec: [hi_team_snapshots.md, Rollback](specs/approved/hi_team_snapshots.md#rollback-release-2).
 
+### v0.57.0 — Talk to the lead from the app
+
+- [x] Every page of a team's preview and production has the helper: a
+  button that opens a chat with the lead beside the page. hi net expose
+  adds its script to each page load (`--inject`, `--inject-if`) and serves
+  `/__hi/` from the team's service (`--route`), so it works with any
+  framework and the app holds none of it.
+- [x] The lead answers through Hermes' API server in its box, a
+  conversation per chat, streamed; `hi team __leadapi` relays it to the
+  team's service. hi copies each chat into a thread in the channel, and
+  the lead's channel-watch leaves those copies out.
+- [x] A yes in the chat approves work (`--approval w-3.4`), and the brief
+  gets the chat; releases, rollbacks, and production's helper still need
+  an owner's yes in Slack.
+- [x] `hi team helper`: on in preview and production by default; the lead
+  turns the preview's off when asked, and production's with an owner's
+  yes; `hi team helper <name> production off` on the machine.
+  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md) (slice 1).
+
 ## Planned
+
+### Next — the helper
+
+- [ ] Select mode: point at part of a page, and the lead gets the element
+  (slice 2 of [hi_team_helper.md](specs/approved/hi_team_helper.md)).
+- [ ] The lead's later messages in a chat (`hi team web post`), and images
+  or files attached to a message (slice 3).
 
 ### Later — `hi team`
 
