@@ -1337,16 +1337,30 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   from the moment a message is sent; since v0.59.0 the "is answering" line
   disappeared until the first words came, so the chat looked stuck.
 
+### v0.60.0 — Signed in with /hi
+
+- [x] Anyone with the app's link gets help and feedback, not the lead.
+  Ask: hi answers how the app works from its guide, HELP.md, through the
+  lead's model with no tools, within daily limits. Feedback: posted in the
+  channel as "Feedback f-12", with a picture of the page, what was
+  pointed at, and files; the lead does it only when asked, with a yes.
+- [x] `/hi` in the channel DMs the person their private links (a Hermes
+  plugin in the lead's home), and with them the helper is their chat with
+  the lead, checked through Slack. The relay keeps the key in a cookie
+  only `/__hi/` gets; keys last 14 days, and the DM is updated when an
+  address changes. The manifest gains `/hi`, `commands`, and `im:write`.
+- [x] `hi team web questions` and `hi team web link`; feedback in
+  `hi team web` and `hi team web show f-12`.
+  Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
+
 ## Planned
 
 ### Next — the helper
 
 - [ ] Say in each release's announcement whether production has the
   helper.
-- [ ] Feedback for anyone with the app's link (to the channel, without
-  the lead), and the chat with the lead only for people signed in with
-  `/hi` in Slack, which DMs them a private link.
-  Spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
+- [ ] Answers to feedback: replies in its thread shown back in the
+  sender's browser.
 - [ ] Developing in a DM: people who may change the app talk to the lead
   one to one, so the channel stays for the group; the lead still announces
   larger changes in the channel, with what changed and who asked for it.

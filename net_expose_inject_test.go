@@ -28,7 +28,7 @@ func relayWithHelper(t *testing.T, service http.Handler) (*httptest.Server, stri
 		t.Fatal(err)
 	}
 	helperServer := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		io.WriteString(w, "helper "+r.URL.Path+" cookie="+r.Header.Get("Cookie"))
+		io.WriteString(w, "helper "+r.URL.Path+" cookie="+r.Header.Get("Cookie")+" user="+r.Header.Get(netExposeUserHeader))
 	})}
 	go helperServer.Serve(listener)
 	t.Cleanup(func() { helperServer.Close() })
@@ -221,7 +221,7 @@ func TestNetExposeHelperRouteAndSwitch(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		io.WriteString(w, "app "+r.URL.Path+"<head></head>")
 	}))
-	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", "Cookie", "session=app-secret"); body != "helper /__hi/api/status cookie=" {
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", "Cookie", "session=app-secret"); body != "helper /__hi/api/status cookie= user=" {
 		t.Fatal("the route:", body)
 	}
 	os.Remove(on)
@@ -234,6 +234,40 @@ func TestNetExposeHelperRouteAndSwitch(t *testing.T) {
 	writeTestFile(t, on, "", 0o600)
 	if _, body := fetchPage(t, relay.URL+"/", "document"); !strings.Contains(body, testHelperTag) {
 		t.Fatal("on again, no helper:", body)
+	}
+}
+
+func TestNetExposeUserKey(t *testing.T) {
+	relay, _ := relayWithHelper(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "app "+r.URL.RawQuery+" cookie="+r.Header.Get("Cookie")+" user="+r.Header.Get(netExposeUserHeader))
+	}))
+	key := "abcdefghijklmnopqrstuvwxyz0123456789_-ABCDE"
+	// The link's key becomes a cookie for /__hi/ only, and the browser goes
+	// on without it in the address.
+	response, _ := fetchPage(t, relay.URL+"/suppliers?tab=2&hi_user="+key, "document")
+	if response.StatusCode != http.StatusSeeOther || response.Header.Get("Location") != "/suppliers?tab=2" {
+		t.Fatal(response.Status, response.Header)
+	}
+	cookie := response.Cookies()
+	if len(cookie) != 1 || cookie[0].Name != "hi_user" || cookie[0].Value != key || cookie[0].Path != "/__hi/" || !cookie[0].HttpOnly || !cookie[0].Secure ||
+		cookie[0].SameSite != http.SameSiteStrictMode || cookie[0].MaxAge != 14*24*3600 {
+		t.Fatalf("%+v", cookie)
+	}
+	// /__hi/ gets it as X-Hi-User, never as a cookie; the app gets neither,
+	// and nobody can say who they are with the header themselves.
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", "Cookie", "hi_user="+key+"; session=s"); body != "helper /__hi/api/status cookie= user="+key {
+		t.Fatal(body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", netExposeUserHeader, key); body != "helper /__hi/api/status cookie= user=" {
+		t.Fatal(body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/x", "", "Cookie", "hi_user="+key+"; session=s", netExposeUserHeader, key); body != "app  cookie=session=s user=" {
+		t.Fatal(body)
+	}
+	// A key that isn't one is dropped, and still taken out of the address.
+	response, _ = fetchPage(t, relay.URL+"/?hi_user=<script>", "document")
+	if response.StatusCode != http.StatusSeeOther || response.Header.Get("Location") != "/" || len(response.Cookies()) != 0 {
+		t.Fatal(response.Status, response.Header)
 	}
 }
 

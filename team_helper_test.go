@@ -16,6 +16,37 @@ import (
 	"unicode/utf8"
 )
 
+// webTestServer serves a slot's helper to someone signed in with /hi: it
+// adds their key, as the relay does from the cookie. An empty user signs
+// nobody in.
+func webTestServer(t *testing.T, b *teamBroker, slot, user, name string) *httptest.Server {
+	t.Helper()
+	key := ""
+	if user != "" {
+		key = teamTestKey(t, b.team, user, name)
+	}
+	handler := b.webHandler(slot)
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if key != "" && r.Header.Get(netExposeUserHeader) == "" {
+			r.Header.Set(netExposeUserHeader, key)
+		}
+		handler.ServeHTTP(w, r)
+	}))
+}
+
+// teamTestKey gives someone a key, as /hi does, and returns it.
+func teamTestKey(t *testing.T, team, user, name string) string {
+	t.Helper()
+	people := loadTeamPeople(team)
+	key := "key-" + user + "-0123456789abcdef"
+	now := time.Now().UTC()
+	people.Keys = append(people.Keys, teamPersonKey{Key: key, User: user, Name: name, Made: now, Ends: now.Add(teamKeyLasts)})
+	if err := saveTeamPeople(team, people); err != nil {
+		t.Fatal(err)
+	}
+	return key
+}
+
 // webEvents posts a message to the helper and returns its events, in order.
 func webEvents(t *testing.T, server *httptest.Server, send teamWebSend) ([]string, map[string]json.RawMessage) {
 	t.Helper()
@@ -65,7 +96,7 @@ func TestTeamHelperChat(t *testing.T) {
 	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
 	teamAppendChannel(teamChannelDir("payments"), []teamChannelMessage{{TS: teamSlackTS(time.Now().Add(-time.Hour)), User: "U07ASKER9", Name: "Bo", Text: "hello"}})
 	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Label: "dev, v3 + 2 changes", Commit: "abc123"})
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07ASKER9", "Bo")
 	defer server.Close()
 
 	// The script, and the status: the people to choose from, and the version.
@@ -90,11 +121,11 @@ func TestTeamHelperChat(t *testing.T) {
 	var status teamWebStatus
 	json.NewDecoder(response.Body).Decode(&status)
 	response.Body.Close()
-	if status.Slot != "preview" || status.Version != "dev, v3 + 2 changes" || status.Commit != "abc123" || !status.Anyone || len(status.People) != 2 || status.People[0].Name != "Bo" {
+	if status.Slot != "preview" || status.Version != "dev, v3 + 2 changes" || status.Commit != "abc123" || status.You == nil || status.You.ID != "U07ASKER9" || status.You.Name != "Bo" || status.Ended {
 		t.Fatalf("%+v", status)
 	}
 
-	names, events := webEvents(t, server, teamWebSend{Person: "U07ASKER9", Text: "Make this one red when it's overdue",
+	names, events := webEvents(t, server, teamWebSend{Text: "Make this one red when it's overdue",
 		Page: &teamWebPage{Path: "/suppliers", Title: "Suppliers", Width: 1440, Height: 900}})
 	if strings.Join(names, ",") != "message,delta,delta,done" {
 		t.Fatal(names)
@@ -107,14 +138,14 @@ func TestTeamHelperChat(t *testing.T) {
 	if done.Conversation != "w-1" || done.Message.From != "lead" || done.Message.Text != "Overdue means past the due date?" {
 		t.Fatalf("%+v", done)
 	}
-	for _, want := range []string{"comes from the helper in the team's app", "[web chat w-1 · message w-1.1 · Bo (U07ASKER9) · preview: dev, v3 + 2 changes · /suppliers · \"Suppliers\" · 1440×900]\n\nMake this one red"} {
+	for _, want := range []string{"comes from the helper in the team's app", "[web chat w-1 · message w-1.1 · Bo (U07ASKER9, signed in through Slack) · preview: dev, v3 + 2 changes · /suppliers · \"Suppliers\" · 1440×900]\n\nMake this one red"} {
 		if !strings.Contains(inputs[0], want) {
 			t.Fatalf("the lead's input lacks %q:\n%s", want, inputs[0])
 		}
 	}
 
 	// The second message continues the chat, without the note.
-	webEvents(t, server, teamWebSend{Conversation: "w-1", Person: "U07ASKER9", Text: "Yes, go ahead"})
+	webEvents(t, server, teamWebSend{Conversation: "w-1", Text: "Yes, go ahead"})
 	if strings.Contains(inputs[1], "comes from the helper") || !strings.Contains(inputs[1], "message w-1.3 ·") {
 		t.Fatal(inputs[1])
 	}
@@ -159,7 +190,7 @@ func TestTeamHelperChat(t *testing.T) {
 	}
 
 	// Production's chats are its own; a turned-off helper takes no messages.
-	production := httptest.NewServer(b.webHandler(teamSlotProduction))
+	production := webTestServer(t, b.teamBroker, teamSlotProduction, "U07ASKER9", "Bo")
 	defer production.Close()
 	config, _ := loadTeam("payments")
 	teamSetHelper(&config, teamSlotProduction, false)
@@ -168,7 +199,7 @@ func TestTeamHelperChat(t *testing.T) {
 	if response.StatusCode != http.StatusForbidden {
 		t.Fatal(response.Status)
 	}
-	// A name alone is fine while anyone may ask; an empty message isn't.
+	// An empty message isn't taken.
 	response, _ = http.Post(server.URL+"/__hi/api/messages", "application/json", strings.NewReader(`{"name":"Cleo","text":""}`))
 	response.Body.Close()
 	if response.StatusCode != http.StatusBadRequest {
@@ -176,28 +207,127 @@ func TestTeamHelperChat(t *testing.T) {
 	}
 }
 
-func TestTeamHelperChatWithAskers(t *testing.T) {
+func TestTeamHelperSignIn(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
+	called := false
 	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
+		called = true
 		return "ok", nil
+	}
+	status := func(server *httptest.Server, key string) (teamWebStatus, int) {
+		request, _ := http.NewRequest(http.MethodGet, server.URL+"/__hi/api/status", nil)
+		if key != "" {
+			request.Header.Set(netExposeUserHeader, key)
+		}
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var status teamWebStatus
+		json.NewDecoder(response.Body).Decode(&status)
+		messages, _ := http.NewRequest(http.MethodPost, server.URL+"/__hi/api/messages", strings.NewReader(`{"text":"hi"}`))
+		if key != "" {
+			messages.Header.Set(netExposeUserHeader, key)
+		}
+		answer, _ := http.DefaultClient.Do(messages)
+		answer.Body.Close()
+		return status, answer.StatusCode
+	}
+
+	// Without a key: help and feedback, no chat, and the lead isn't asked;
+	// saying who you are in the message changes nothing.
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "", "")
+	defer server.Close()
+	if got, code := status(server, ""); got.You != nil || got.Ended || code != http.StatusUnauthorized {
+		t.Fatalf("%+v %d", got, code)
+	}
+	response, _ := http.Post(server.URL+"/__hi/api/messages", "application/json", strings.NewReader(`{"person":"U07ASKER9","name":"Bo","text":"hi"}`))
+	response.Body.Close()
+	for _, path := range []string{"conversation", "events?conversation=w-1", "files/w-1/1-a.png"} {
+		answer, _ := http.Get(server.URL + "/__hi/api/" + path)
+		answer.Body.Close()
+		if answer.StatusCode != http.StatusUnauthorized {
+			t.Fatal(path, answer.Status)
+		}
+	}
+	if response.StatusCode != http.StatusUnauthorized || called {
+		t.Fatal("a message without a key:", response.Status, called)
+	}
+
+	// A key hi made works; one it didn't, one that ran out, or one whose
+	// person is no longer an asker has ended.
+	key := teamTestKey(t, "payments", "U07ASKER9", "Bo")
+	if got, code := status(server, key); got.You == nil || got.You.Name != "Bo" || code != http.StatusOK {
+		t.Fatalf("%+v %d", got, code)
+	}
+	if got, code := status(server, "key-nobody-made-0123456789"); got.You != nil || !got.Ended || code != http.StatusUnauthorized {
+		t.Fatalf("%+v %d", got, code)
+	}
+	people := loadTeamPeople("payments")
+	people.Keys = append(people.Keys, teamPersonKey{Key: "key-old-0123456789abcdef", User: "U07ASKER9", Name: "Bo", Ends: time.Now().Add(-time.Minute)})
+	saveTeamPeople("payments", people)
+	if got, _ := status(server, "key-old-0123456789abcdef"); got.You != nil || !got.Ended {
+		t.Fatalf("%+v", got)
 	}
 	config, _ := loadTeam("payments")
 	config.Askers = []string{"U07ASKER1"}
 	saveTeam(config)
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
-	defer server.Close()
-	response, _ := http.Post(server.URL+"/__hi/api/messages", "application/json", strings.NewReader(`{"name":"Cleo","text":"hi"}`))
-	response.Body.Close()
-	if response.StatusCode != http.StatusBadRequest {
-		t.Fatal("a name alone was taken when the team has askers:", response.Status)
+	if got, code := status(server, key); got.You != nil || !got.Ended || code != http.StatusUnauthorized {
+		t.Fatalf("%+v %d", got, code)
 	}
-	response, _ = http.Get(server.URL + "/__hi/api/status")
-	var status teamWebStatus
-	json.NewDecoder(response.Body).Decode(&status)
-	response.Body.Close()
-	if status.Anyone || len(status.People) != 2 {
-		t.Fatalf("%+v", status)
+}
+
+func TestTeamWebLink(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
+	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Label: "dev", Commit: "abc123", URL: "https://team-payments-ab12.example.net/?hi_key=K1", Expose: "team-payments"})
+	b.exposed = func(name string) (netExposeState, bool) { return netExposeState{}, name == "team-payments" }
+
+	if _, err := b.webLink("not-an-id"); err == nil {
+		t.Fatal("took a bad ID")
+	}
+	// Someone not in the channel, with no askers, gets nothing.
+	if _, err := b.webLink("U07STRANGER"); err == nil || !strings.Contains(err.Error(), "isn't one of the people") {
+		t.Fatal(err)
+	}
+	line, err := b.webLink("U07ANNA01")
+	if err != nil || !strings.Contains(line, "DM, Anna") {
+		t.Fatal(line, err)
+	}
+	people := loadTeamPeople("payments")
+	if len(people.Keys) != 1 || people.Keys[0].User != "U07ANNA01" || len(people.Keys[0].Key) != 43 || people.Keys[0].DM != "DU07ANNA01" {
+		t.Fatalf("%+v", people)
+	}
+	first := people.Keys[0]
+	dm := channel.calls[len(channel.calls)-1]
+	if !strings.HasPrefix(dm, "dm U07ANNA01 ") || !strings.Contains(dm, "https://team-payments-ab12.example.net/?hi_key=K1&hi_user="+first.Key+"|open the app>") || strings.Contains(dm, "Production") {
+		t.Fatal(dm)
+	}
+	// /hi again: a new key, and the old one's DM says it ended.
+	if _, err := b.webLink("U07ANNA01"); err != nil {
+		t.Fatal(err)
+	}
+	people = loadTeamPeople("payments")
+	if len(people.Keys) != 1 || people.Keys[0].Key == first.Key {
+		t.Fatalf("%+v", people)
+	}
+	config, _ := loadTeam("payments")
+	if _, ok, ended := b.webUser(config, first.Key); ok || !ended {
+		t.Fatal("the old key still works")
+	}
+	if !strings.Contains(strings.Join(channel.calls, "\n"), "update DU07ANNA01 "+first.DMTS+" :lock: These links have ended") {
+		t.Fatalf("%q", channel.calls)
+	}
+	// A new address: the DM gets it.
+	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Label: "dev", Commit: "abc123", URL: "https://team-payments-cd34.example.net/?hi_key=K2", Expose: "team-payments"})
+	b.refreshLinks()
+	if last := channel.calls[len(channel.calls)-1]; !strings.HasPrefix(last, "update DU07ANNA01 ") || !strings.Contains(last, "cd34.example.net/?hi_key=K2&hi_user="+people.Keys[0].Key) {
+		t.Fatal(last)
 	}
 }
 
@@ -205,7 +335,7 @@ func TestTeamWebApproval(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
 	now := time.Now().UTC()
-	saveTeamWebConversation("payments", teamWebConversation{ID: "w-4", Slot: teamSlotPreview, Person: "U07ASKER9", Name: "Bo", Started: now, Messages: []teamWebMessage{
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-4", Slot: teamSlotPreview, Person: "U07ASKER9", Name: "Bo", Verified: true, Started: now, Messages: []teamWebMessage{
 		{N: 1, From: "person", Name: "Bo", Text: "Make the badge red when overdue", Page: &teamWebPage{Path: "/suppliers"}, At: now},
 		{N: 2, From: "lead", Name: "payments team lead", Text: "Overdue means past the due date? Shall I?", At: now},
 		{N: 3, From: "person", Name: "Bo", Text: "Yes", At: now},
@@ -246,6 +376,16 @@ func TestTeamWebApproval(t *testing.T) {
 	config.Askers = []string{"U07ASKER1"}
 	saveTeam(config)
 	if _, err := b.teamFindApproval(config, "w-4.3", "task"); err == nil || !strings.Contains(err.Error(), "may ask for work") {
+		t.Fatal(err)
+	}
+	// A chat from before /hi, where the name was only claimed, approves
+	// nothing.
+	config.Askers = nil
+	saveTeam(config)
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-5", Slot: teamSlotPreview, Name: "Bo", Started: now, Messages: []teamWebMessage{
+		{N: 1, From: "person", Name: "Bo", Text: "Red?", At: now}, {N: 2, From: "lead", Name: "lead", Text: "Shall I?", At: now}, {N: 3, From: "person", Name: "Bo", Text: "Yes", At: now},
+	}})
+	if _, err := b.teamFindApproval(config, "w-5.3", "task"); err == nil || !strings.Contains(err.Error(), "only said who they are") {
 		t.Fatal(err)
 	}
 }
@@ -475,17 +615,17 @@ func TestTeamHelperChatWithRefs(t *testing.T) {
 		return "Red when overdue. Shall I?", nil
 	}
 	os.MkdirAll(teamChannelDir("payments"), 0o700)
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07ASKER9", "Bo")
 	defer server.Close()
 	ref := teamWebRef{Selector: "td.status > span.badge", Tag: "span", Text: "Paid", HTML: `<span class="badge">Paid</span>`}
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Make this one red", Page: &teamWebPage{Path: "/suppliers"}, Refs: []teamWebRef{ref}})
+	webEvents(t, server, teamWebSend{Text: "Make this one red", Page: &teamWebPage{Path: "/suppliers"}, Refs: []teamWebRef{ref}})
 	if !strings.Contains(input, "Make this one red\n\nReferenced elements:\n#1 span \"Paid\"\n   selector: td.status > span.badge\n") || !strings.Contains(input, "parts of the page they clicked on") {
 		t.Fatal(input)
 	}
 	if !strings.Contains(channel.calls[0], "Make this one red\n> #1 span \"Paid\": `td.status &gt; span.badge`") {
 		t.Fatalf("%q", channel.calls[0])
 	}
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Yes"})
+	webEvents(t, server, teamWebSend{Text: "Yes"})
 	conversation, _ := loadTeamWebConversation("payments", "w-1")
 	if len(conversation.Messages[0].Refs) != 1 || conversation.Messages[0].Refs[0].N != 1 {
 		t.Fatalf("%+v", conversation.Messages[0])

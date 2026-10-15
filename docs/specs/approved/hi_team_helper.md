@@ -2,7 +2,9 @@
 
 Status: Approved (2026-10-15). Slice 1, the chat, is built (v0.57.0); slice
 2, select mode, in v0.58.0; slice 3, files, pictures, and the lead's later
-messages, in v0.59.0.
+messages, in v0.59.0. Since v0.60.0 the chat is only for people signed in
+with /hi, and anyone else gets help and feedback:
+[hi_team_helper_signin.md](hi_team_helper_signin.md).
 
 Dependencies: [hi_team.md](hi_team.md) (the broker, the lead,
 the preview and production addresses, approvals, the channel's log),

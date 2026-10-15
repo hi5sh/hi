@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,11 +39,11 @@ func TestTeamWebFiles(t *testing.T) {
 		return "I see it.", nil
 	}
 	os.MkdirAll(teamChannelDir("payments"), 0o700)
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07CLEO01", "Cleo")
 	defer server.Close()
 	picture := testPNG(t)
 	ref := teamWebRef{Selector: "span.badge", Tag: "span", Text: "Paid"}
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Like this", Refs: []teamWebRef{ref}, Files: []teamWebUpload{
+	webEvents(t, server, teamWebSend{Text: "Like this", Refs: []teamWebRef{ref}, Files: []teamWebUpload{
 		{Name: "mockup.png", Data: picture},
 		{Name: "notes.txt", Data: []byte("columns: due, paid")},
 		{Name: "evil.svg", Data: []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)},
@@ -98,7 +97,7 @@ func TestTeamWebFiles(t *testing.T) {
 	if response := get("2-other.png"); response.StatusCode != 404 {
 		t.Fatal(response.Status)
 	}
-	production := httptest.NewServer(b.webHandler(teamSlotProduction))
+	production := webTestServer(t, b.teamBroker, teamSlotProduction, "U07CLEO01", "Cleo")
 	defer production.Close()
 	if response, _ := http.Get(production.URL + "/__hi/api/files/w-1/1-mockup.png"); response.StatusCode != 404 {
 		t.Fatal("production serves the preview's files")
@@ -114,11 +113,11 @@ func TestTeamWebFiles(t *testing.T) {
 	}
 	// Only files: no words needed; a picture of what wasn't pointed at, and
 	// a reference's picture that isn't one, are refused.
-	webEvents(t, server, teamWebSend{Name: "Cleo", Files: []teamWebUpload{{Name: "shot.png", Data: picture}}})
+	webEvents(t, server, teamWebSend{Files: []teamWebUpload{{Name: "shot.png", Data: picture}}})
 	for _, send := range []teamWebSend{
-		{Name: "Cleo", Text: "x", Files: []teamWebUpload{{Ref: 1, Data: picture}}},
-		{Name: "Cleo", Text: "x", Refs: []teamWebRef{ref}, Files: []teamWebUpload{{Ref: 1, Data: []byte("not a picture")}}},
-		{Name: "Cleo", Text: "x", Files: []teamWebUpload{{Name: "empty.txt"}}},
+		{Text: "x", Files: []teamWebUpload{{Ref: 1, Data: picture}}},
+		{Text: "x", Refs: []teamWebRef{ref}, Files: []teamWebUpload{{Ref: 1, Data: []byte("not a picture")}}},
+		{Text: "x", Files: []teamWebUpload{{Name: "empty.txt"}}},
 	} {
 		data, _ := json.Marshal(send)
 		response, _ := http.Post(server.URL+"/__hi/api/messages", "application/json", bytes.NewReader(data))
@@ -142,9 +141,9 @@ func TestTeamWebPictureFallback(t *testing.T) {
 		}
 		return "I'll open it.", nil
 	}
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07CLEO01", "Cleo")
 	defer server.Close()
-	names, last := webEvents(t, server, teamWebSend{Name: "Cleo", Text: "See", Files: []teamWebUpload{{Name: "shot.png", Data: testPNG(t)}}})
+	names, last := webEvents(t, server, teamWebSend{Text: "See", Files: []teamWebUpload{{Name: "shot.png", Data: testPNG(t)}}})
 	if len(calls) != 2 || calls[0] != 1 || calls[1] != 0 || names[len(names)-1] != "done" || !strings.Contains(string(last["done"]), "I'll open it.") {
 		t.Fatal(calls, names)
 	}
@@ -184,14 +183,14 @@ func TestTeamWebPost(t *testing.T) {
 		return "Shall I make it red?", nil
 	}
 	os.MkdirAll(teamChannelDir("payments"), 0o700)
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07CLEO01", "Cleo")
 	defer server.Close()
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Make Paid red"})
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Yes"})
+	webEvents(t, server, teamWebSend{Text: "Make Paid red"})
+	webEvents(t, server, teamWebSend{Text: "Yes"})
 
 	// A panel listening from its second message on hears the rest, then
 	// the lead's post, as it comes.
-	response, err := http.Get(server.URL + "/__hi/api/events?conversation=w-1&person=&name=Cleo&after=2")
+	response, err := http.Get(server.URL + "/__hi/api/events?conversation=w-1&after=2")
 	if err != nil || response.StatusCode != 200 || response.Header.Get("Content-Type") != "text/event-stream" {
 		t.Fatal(err, response.Status)
 	}
@@ -220,7 +219,7 @@ func TestTeamWebPost(t *testing.T) {
 		t.Fatal(calls)
 	}
 	// The lead's next answer here knows what it posted from elsewhere.
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Looks great"})
+	webEvents(t, server, teamWebSend{Text: "Looks great"})
 	if last := inputs[len(inputs)-1]; !strings.HasPrefix(last, "(Since your last answer here, you also wrote in this chat, with hi team web post:\n> It's red on the preview now: reload to see it.)\n\n[web chat w-1") {
 		t.Fatal(last)
 	}
@@ -246,19 +245,21 @@ func TestTeamWebPost(t *testing.T) {
 	if _, err := b.webPost(teamWebPost{Conversation: "w-1", Text: "hi"}); err == nil || !strings.Contains(err.Error(), "ended w-1") {
 		t.Fatal(err)
 	}
-	webEvents(t, server, teamWebSend{Name: "Cleo", Text: "Another thing"})
+	webEvents(t, server, teamWebSend{Text: "Another thing"})
 	if _, err := b.webPost(teamWebPost{Conversation: "w-1", Text: "hi"}); err == nil || !strings.Contains(err.Error(), "new chat since, w-2: post there") {
 		t.Fatal(err)
 	}
-	for _, query := range []string{"conversation=w-2&name=Bo", "conversation=w-9&name=Cleo"} {
-		if response, _ := http.Get(server.URL + "/__hi/api/events?" + query); response.StatusCode != 404 {
-			t.Fatal(query, response.Status)
+	other := webTestServer(t, b.teamBroker, teamSlotPreview, "U07ASKER9", "Bo")
+	defer other.Close()
+	for _, url := range []string{other.URL + "/__hi/api/events?conversation=w-2", server.URL + "/__hi/api/events?conversation=w-9"} {
+		if response, _ := http.Get(url); response.StatusCode != 404 {
+			t.Fatal(url, response.Status)
 		}
 	}
 
 	// What the lead reads with hi team web.
 	list := teamWebList("payments", time.Now())
-	if !strings.HasPrefix(list, "w-2 · Cleo · preview · 2 messages · last moments ago, from") || !strings.Contains(list, "w-1 · Cleo · preview · 7 messages") || !strings.Contains(list, "· ended") {
+	if !strings.HasPrefix(list, "w-2 · Cleo (U07CLEO01) · preview · 2 messages · last moments ago, from") || !strings.Contains(list, "w-1 · Cleo (U07CLEO01) · preview · 7 messages") || !strings.Contains(list, "· ended") {
 		t.Fatal(list)
 	}
 	shown, err := teamWebShow("payments", "w-1")
@@ -295,7 +296,7 @@ func TestTeamLeadAPIPictures(t *testing.T) {
 func TestTeamHelperServesSnap(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
-	server := httptest.NewServer(b.webHandler(teamSlotPreview))
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "U07CLEO01", "Cleo")
 	defer server.Close()
 	response, err := http.Get(server.URL + "/__hi/snap.js")
 	if err != nil {

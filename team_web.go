@@ -43,13 +43,16 @@ type teamWebFile struct {
 	Type string `json:"type"`
 	Size int    `json:"size"`
 	Ref  int    `json:"ref,omitempty"` // the picture of reference #n
+	// Screen is a picture of what the person saw, sent with feedback.
+	Screen bool `json:"screen,omitempty"`
 }
 
 // teamWebUpload is a file sent with a message.
 type teamWebUpload struct {
-	Name string `json:"name"`
-	Ref  int    `json:"ref,omitempty"`
-	Data []byte `json:"data"`
+	Name   string `json:"name"`
+	Ref    int    `json:"ref,omitempty"`
+	Screen bool   `json:"screen,omitempty"`
+	Data   []byte `json:"data"`
 }
 
 // teamWebPost is a message the lead posts in a chat: hi team web post.
@@ -97,7 +100,7 @@ func teamSaveWebFiles(team, id string, n int, uploads []teamWebUpload, refs int)
 	attached, total := 0, 0
 	for _, upload := range uploads {
 		total += len(upload.Data)
-		if upload.Ref == 0 {
+		if upload.Ref == 0 && !upload.Screen {
 			attached++
 		}
 		switch {
@@ -109,6 +112,8 @@ func teamSaveWebFiles(team, id string, n int, uploads []teamWebUpload, refs int)
 			return nil, fmt.Errorf("there is no #%d for a picture of", upload.Ref)
 		case upload.Ref > 0 && !teamWebPictureType(http.DetectContentType(upload.Data)):
 			return nil, fmt.Errorf("the picture of #%d isn't a picture", upload.Ref)
+		case upload.Screen && !teamWebPictureType(http.DetectContentType(upload.Data)):
+			return nil, errors.New("the picture of the page isn't a picture")
 		}
 	}
 	if attached > teamWebMaxFiles {
@@ -128,9 +133,12 @@ func teamSaveWebFiles(team, id string, n int, uploads []teamWebUpload, refs int)
 	for _, upload := range uploads {
 		kind := teamWebFileType(upload.Name, upload.Data)
 		name := upload.Name
-		if upload.Ref > 0 {
+		if upload.Ref > 0 || upload.Screen {
 			exts, _ := mime.ExtensionsByType(kind)
 			name = fmt.Sprintf("ref-%d", upload.Ref)
+			if upload.Screen {
+				name = "screen"
+			}
 			if len(exts) > 0 {
 				name += exts[len(exts)-1]
 			}
@@ -139,13 +147,16 @@ func teamSaveWebFiles(team, id string, n int, uploads []teamWebUpload, refs int)
 		if err := os.WriteFile(filepath.Join(dir, name), upload.Data, 0o600); err != nil {
 			return nil, err
 		}
-		files = append(files, teamWebFile{Name: name, Type: kind, Size: len(upload.Data), Ref: upload.Ref})
+		files = append(files, teamWebFile{Name: name, Type: kind, Size: len(upload.Data), Ref: upload.Ref, Screen: upload.Screen})
 	}
 	return files, nil
 }
 
 // teamWebFileLabel says what a file is, in a few words.
 func teamWebFileLabel(file teamWebFile) string {
+	if file.Screen {
+		return "a picture of the page as they saw it"
+	}
 	if file.Ref > 0 {
 		return fmt.Sprintf("a picture of #%d", file.Ref)
 	}
@@ -222,7 +233,7 @@ func (b *teamBroker) webPublish(id string, message teamWebMessage) {
 
 // webEvents is GET /__hi/api/events: the chat's messages after the
 // panel's last one, then each new one as it is saved.
-func (b *teamBroker) webEvents(w http.ResponseWriter, r *http.Request, slot string) {
+func (b *teamBroker) webEvents(w http.ResponseWriter, r *http.Request, slot, person string) {
 	query := r.URL.Query()
 	id := query.Get("conversation")
 	after, _ := strconv.Atoi(query.Get("after"))
@@ -231,7 +242,7 @@ func (b *teamBroker) webEvents(w http.ResponseWriter, r *http.Request, slot stri
 	}
 	b.webMu.Lock()
 	conversation, err := loadTeamWebConversation(b.team, id)
-	if err != nil || conversation.Slot != slot || conversation.Person != query.Get("person") || (conversation.Person == "" && conversation.Name != query.Get("name")) {
+	if err != nil || conversation.Slot != slot || !conversation.Verified || conversation.Person != person {
 		b.webMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -297,13 +308,13 @@ func (b *teamBroker) webEvents(w http.ResponseWriter, r *http.Request, slot stri
 // webFile is GET /__hi/api/files/<id>/<name>: a file of a chat in this
 // slot. The app's origin serves it, so only pictures show in the page;
 // everything else downloads.
-func (b *teamBroker) webFile(w http.ResponseWriter, r *http.Request, slot string) {
+func (b *teamBroker) webFile(w http.ResponseWriter, r *http.Request, slot, person string) {
 	id, name := r.PathValue("id"), r.PathValue("name")
 	b.webMu.Lock()
 	conversation, err := loadTeamWebConversation(b.team, id)
 	b.webMu.Unlock()
 	var file *teamWebFile
-	if err == nil && conversation.Slot == slot {
+	if err == nil && conversation.Slot == slot && conversation.Verified && conversation.Person == person {
 		for _, message := range conversation.Messages {
 			for i := range message.Files {
 				if message.Files[i].Name == name {
@@ -360,7 +371,7 @@ func (b *teamBroker) webPost(post teamWebPost) (string, error) {
 	}
 	switch {
 	case conversation.Ended:
-		if open, ok := b.openConversation(conversation.Slot, conversation.Person, conversation.Name); ok {
+		if open, ok := b.openConversation(conversation.Slot, conversation.Person); ok && conversation.Person != "" {
 			return fail(fmt.Errorf("%s started a new chat since, %s: post there", conversation.Name, open.ID))
 		}
 		return fail(fmt.Errorf("%s ended %s and has no chat open; tell them in Slack", conversation.Name, conversation.ID))
@@ -384,10 +395,23 @@ func (b *teamBroker) webPost(post teamWebPost) (string, error) {
 		return fail(err)
 	}
 	b.webPublish(conversation.ID, message)
+	watching := len(b.webListeners[conversation.ID]) > 0
 	b.webMu.Unlock()
 	b.mirrorWeb(config, conversation.ID, n)
-	return fmt.Sprintf("Posted %s.%d to %s on %s. The app shows it at once if they have it open, and a dot on the button otherwise; it's in the chat's thread in the channel too.",
-		conversation.ID, n, conversation.Name, conversation.Slot), nil
+	told := "The app shows it at once, since they have it open"
+	if !watching {
+		told = "They don't have the app open, so it waits there with a dot on the button"
+		if conversation.Verified && b.channel != nil {
+			// Someone signed in with /hi hears about it in their DM.
+			dm := fmt.Sprintf(":speech_balloon: The %s team lead wrote in your chat in the app (%s):\n%s\nOpen the app from your links above to answer.",
+				teamBotName(b.team), conversation.Slot, teamSlackQuote(teamClipStart(text, 1500)))
+			if _, _, err := b.channel.dm(conversation.Person, dm); err == nil {
+				told += ", and hi told them in their DM"
+			}
+		}
+	}
+	return fmt.Sprintf("Posted %s.%d to %s on %s. %s; it's in the chat's thread in the channel too.",
+		conversation.ID, n, conversation.Name, conversation.Slot, told), nil
 }
 
 // teamWebList is hi team web: the chats of the last week, newest first.
@@ -414,8 +438,28 @@ func teamWebList(team string, now time.Time) string {
 		}
 		lines = append(lines, line)
 	}
-	if len(lines) == 0 {
-		return "No chats in the app in the last week."
+	var feedback []string
+	all := loadTeamFeedbacks(team)
+	for i := len(all) - 1; i >= 0 && len(feedback) < 20; i-- {
+		item := all[i]
+		if now.Sub(item.At) > teamApprovalMaxAge {
+			continue
+		}
+		who := "no name"
+		if item.Name != "" {
+			who = strconv.Quote(item.Name) + " (not checked)"
+		}
+		feedback = append(feedback, fmt.Sprintf("%s · feedback · %s · %s · %s ago: %s", item.ID, who, item.Slot, teamWebAgo(now.Sub(item.At)),
+			strconv.Quote(teamClipStart(strings.Join(strings.Fields(item.Text), " "), 80))))
+	}
+	if len(lines) == 0 && len(feedback) == 0 {
+		return "No chats or feedback in the app in the last week."
+	}
+	if len(feedback) > 0 {
+		if len(lines) > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, feedback...)
 	}
 	return strings.Join(lines, "\n")
 }

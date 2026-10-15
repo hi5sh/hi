@@ -37,7 +37,7 @@ func (f *fakeTeamChannel) replies(channel, thread, oldest string) ([]slack.Messa
 }
 
 func (f *fakeTeamChannel) userName(id string) string {
-	return map[string]string{"U1": "Anna", "U2": "Bo"}[id]
+	return map[string]string{"U1": "Anna", "U2": "Bo", "U07ANNA01": "Anna"}[id]
 }
 
 func (f *fakeTeamChannel) post(channel, text string) (string, error) {
@@ -62,6 +62,15 @@ func (f *fakeTeamChannel) update(channel, ts, text string) error {
 
 func (f *fakeTeamChannel) permalink(channel, ts string) (string, error) {
 	return "https://slack.example.com/archives/" + channel + "/p" + strings.ReplaceAll(ts, ".", ""), nil
+}
+
+func (f *fakeTeamChannel) dm(user, text string) (string, string, error) {
+	f.calls = append(f.calls, "dm "+user+" "+text)
+	return "D" + user, fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+}
+
+func (f *fakeTeamChannel) inChannel(channel, user string) bool {
+	return user == "U1" || user == "U2" || user == "U07ANNA01"
 }
 
 func (f *fakeTeamChannel) download(url string, w io.Writer) error {
@@ -207,10 +216,15 @@ func TestTeamMemorySettings(t *testing.T) {
 		t.Fatalf("%v", settings)
 	}
 	yaml, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"memory:\n  provider: hindsight", "  enabled:\n    - hindsight", "gateway_restart_notification: false"} {
+	for _, want := range []string{"memory:\n  provider: hindsight", "  enabled:\n    - hi-team\n    - hindsight", "gateway_restart_notification: false"} {
 		if !strings.Contains(string(yaml), want) {
 			t.Fatalf("config.yaml lacks %q:\n%s", want, yaml)
 		}
+	}
+	// The plugin that gives the channel /hi is in the lead's home.
+	if plugin, err := os.ReadFile(filepath.Join(lead, "plugins", "hi-team", "__init__.py")); err != nil || !strings.Contains(string(plugin), `"team", "web", "link", "--user", user`) ||
+		!fileExists(filepath.Join(lead, "plugins", "hi-team", "plugin.yaml")) {
+		t.Fatal("no /hi plugin:", err)
 	}
 	// Without the server, the lead keeps Hermes' built-in memory.
 	writeTeamLead(config, teamSecrets{}, "10.234.76.2", "")

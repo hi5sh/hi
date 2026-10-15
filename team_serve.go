@@ -272,9 +272,10 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	settings += "terminal:\n  backend: local\n  cwd: /team\n"
 	settings += "approvals:\n  mode: \"off\"\n"
 	settings += "updates:\n  check: false\n"
-	settings += "plugins:\n  auto_update_check_hours: 0\n"
+	// hi-team gives the channel /hi (team_people.go).
+	settings += "plugins:\n  auto_update_check_hours: 0\n  enabled:\n    - " + teamLeadPlugin + "\n"
 	if memoryIP != "" {
-		settings += "  enabled:\n    - " + teamHindsightPlugin + "\n"
+		settings += "    - " + teamHindsightPlugin + "\n"
 		settings += "memory:\n  provider: " + teamHindsightPlugin + "\n"
 	}
 	// No "Hermes is shutting down" or "back online" posts in the channel on
@@ -322,6 +323,15 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	}
 	if memoryIP != "" {
 		if err := writeTeamHindsightConfig(lead, config.Name, memoryIP); err != nil {
+			return err
+		}
+	}
+	plugin := filepath.Join(lead, "plugins", teamLeadPlugin)
+	if err := os.MkdirAll(plugin, 0o700); err != nil {
+		return err
+	}
+	for name, data := range map[string][]byte{"plugin.yaml": teamLeadPluginManifest, "__init__.py": teamLeadPluginSource} {
+		if err := os.WriteFile(filepath.Join(plugin, name), data, 0o600); err != nil {
 			return err
 		}
 	}
@@ -498,6 +508,10 @@ func teamManifest(config teamConfig) string {
 		"display_information": map[string]any{"name": teamBotName(config.Name), "description": description, "background_color": "#1a1a2e"},
 		"features": map[string]any{
 			"bot_user": map[string]any{"display_name": teamBotName(config.Name), "always_online": true},
+			// The DM is hi's, for people's private links: they read it,
+			// and write in the channel.
+			"app_home":       map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": true},
+			"slash_commands": []map[string]any{{"command": "/hi", "description": "A private link to the app's chat with the " + teamBotName(config.Name) + " team lead", "should_escape": false}},
 		},
 		"oauth_config": map[string]any{"scopes": map[string]any{"bot": teamSlackScopes}},
 		"settings": map[string]any{
@@ -702,8 +716,11 @@ of its own on a branch of the project; you get their reports.
 | hi team helper | Whether the app's pages have the helper, the chat with you in the app |
 | hi team helper preview on\|off | Turn the preview's helper on or off, when the people ask |
 | hi team helper production on\|off --approval <id> | The same for production, once an owner says yes in Slack |
-| hi team web | The chats in the app in the last week, newest first |
+| hi team web | The chats and the feedback in the app in the last week, newest first |
 | hi team web show w-3 | One chat, with each message's id, what they pointed at, and their files |
+| hi team web show f-12 | One piece of feedback, with what they pointed at and their files |
+| hi team web questions | What people asked the app's help lately, and its answers |
+| hi team web link --user U07ANNA | DM someone their private links to the app's chat (what /hi does) |
 | hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
 
 Members: %[2]s.
@@ -737,10 +754,32 @@ your memory; don't remove that job.
 ## The app's chat
 
 Every page of the preview and of production has a helper: a button that
-opens a chat with you beside the page. Those messages reach you outside
-Slack and start with a header in brackets: [web chat w-3 · message w-3.2 ·
-Anna (U07ANNA) · preview: dev, v3 + 2 changes · /suppliers · ...]. That is
-who wrote, which address and version they see, and the page they are on.
+opens a panel beside the page. What it is depends on who opens it.
+
+- **Anyone with the app's link** gets help and feedback, never you. Help
+  answers questions about how the app works from HELP.md at the root of
+  the repository, in the version on that address, with no tools: it can
+  only explain. Feedback goes to the channel as its own message, "Feedback
+  f-12", with pictures and files in its thread; your channel watch sees
+  it. When someone asks you to "do f-12", run hi team web show f-12 and
+  attach its files to the task; the work needs a yes as always. hi team
+  web questions shows what people asked the help, which says where they
+  get stuck.
+- **Keep HELP.md current.** It is the app's guide for the people who use
+  it, not developers: what each page is for and how to do the common
+  things, in the app's own words for its buttons and menus. Have the coder
+  update it in the same task as any change people will see, and write it
+  first if it is missing.
+- **People who may ask for work** type /hi in the channel. hi sends them a
+  private link in a DM, and with it the helper is a chat with you, as
+  them, checked. If /hi isn't there yet (the Slack app needs updating),
+  run hi team web link --user <their member ID> when they ask; the links
+  go only to that person's DM.
+
+Messages from the chat reach you outside Slack and start with a header in
+brackets: [web chat w-3 · message w-3.2 · Anna (U07ANNA, signed in through
+Slack) · preview: dev, v3 + 2 changes · /suppliers · ...]. That is who
+wrote, which address and version they see, and the page they are on.
 
 - Answer in a few short sentences: the panel is narrow. Ask about behavior,
   never about code, as in Slack.
@@ -758,7 +797,7 @@ who wrote, which address and version they see, and the page they are on.
 - A yes in the app's chat approves work like one in Slack: pass the
   message's id from the header, --approval w-3.4. hi adds the chat to the
   brief. A release, a rollback, or turning production's helper off needs an
-  owner's yes in Slack: the name in the app isn't checked.
+  owner's yes in Slack, where the team sees it.
 - /__hi/ on the team's addresses is hi's. Tell members never to use it in
   the app.
 

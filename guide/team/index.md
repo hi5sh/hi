@@ -186,12 +186,39 @@ schedule, such as a morning digest, is the lead's scheduled job: a script
 that makes the message from production's code, and the lead posts what it
 prints.
 
-### Talk to the lead from the app
+### Help, feedback, and the lead in the app
 
 Every page of the preview and of production has a round button in the
-corner. It opens a chat with the lead beside the page: ask for a change
-where you see the problem, without switching to Slack. The first time, it
-asks who you are, and the browser remembers it.
+corner. What it opens depends on who you are.
+
+**Anyone with the app's link** gets help and feedback:
+
+- **Ask** how something works, and get an answer from the app's guide,
+  `HELP.md`, which the lead keeps current with each change. The answer
+  comes from hi, not the lead, through a model with no tools: it only
+  explains, so there is nothing to talk it into. Up to 60 questions a day
+  per address, 400 for the team.
+- **Feedback** goes to the team's channel as a message of its own,
+  "Feedback f-12", with what you pointed at, your files, and a picture of
+  the page as you see it (untick it to leave it out). Your name is
+  optional, and marked as not checked. Nothing changes until someone in
+  the channel asks the lead to "do f-12", and that needs a yes as any work
+  does.
+
+**People who may ask the team for work** type `/hi` in the channel. hi
+sends them a private link in a DM, and with it the button opens a chat
+with the lead, as them, checked through Slack:
+
+- The link's key never reaches the app: hi's relay keeps it in a cookie
+  only `/__hi/` gets, so neither the app's server nor its scripts see it.
+  It works for 14 days; `/hi` again gives a new link and ends the old one.
+- When an address changes, hi updates the link in the DM.
+- The Slack app needs the `/hi` command and the `commands` and `im:write`
+  scopes. `hi team manifest <name>` prints the manifest that has them;
+  `hi team up` says when they're missing. Until then, ask the lead in the
+  channel to send you your link.
+
+In the chat with the lead:
 
 - The lead answers as it does in Slack, with the same memory, and knows
   which page you are on and which version you see.
@@ -211,9 +238,11 @@ asks who you are, and the browser remembers it.
   dot and a preview of the message.
 - hi copies each chat into a thread in the channel, files included, so the
   team sees it.
+- **The lead comes back** in your DM too, when it posts in your chat and
+  you don't have the app open.
 - A "yes" in the chat starts the work the lead proposed there, as one in
   Slack does. A release, a rollback, or turning production's chat off
-  still needs an owner's yes in Slack: the name in the chat isn't checked.
+  still needs an owner's yes in Slack, where the team sees it.
 
 The app holds none of it. hi adds the button on the way to the browser, in
 the relay in front of the team's links, so it works whatever the app is

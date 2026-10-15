@@ -440,6 +440,9 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 			r.Header.Del("Authorization")
 			netExposeDropCookie(r, netExposeKeyCookie)
 		}
+		if helper.signIn(recorder, r) {
+			return
+		}
 		var handler http.Handler
 		inject := false
 		if helper.on() {

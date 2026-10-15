@@ -1,7 +1,10 @@
-// The hi team helper: a chat with the team's lead beside any page of the
-// team's app. hi net expose adds this script to each page it relays and
-// serves /__hi/ from the team's service, so the app holds none of it
-// (docs/specs/approved/hi_team_helper.md). Plain JavaScript, no framework,
+// The hi team helper: a panel beside any page of the team's app. For
+// anyone with the app's link it is help, answered from the app's guide,
+// and feedback to the team; for someone signed in with /hi in Slack, it is
+// a chat with the team's lead. hi net expose adds this script to each page
+// it relays and serves /__hi/ from the team's service, so the app holds
+// none of it (docs/specs/approved/hi_team_helper.md and
+// hi_team_helper_signin.md). Plain JavaScript, no framework,
 // no build step: hi serves this file inside one closure with finder
 // (third_party/finder), whose finder() makes select mode's selectors.
 (() => {
@@ -90,12 +93,20 @@ textarea { flex: 1; resize: none; font: inherit; color: var(--fg); background: v
 textarea:focus { border-color: var(--accent); }
 .send { border: 0; background: var(--accent); color: var(--accent-fg); border-radius: 10px; height: 38px; padding: 0 14px; font-weight: 600; }
 .send:disabled { opacity: .5; cursor: default; }
-.who-screen { padding: 16px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
-.who-screen h2 { font-size: 16px; margin: 0 0 4px; }
-.who-screen p { margin: 0 0 8px; color: var(--muted); }
-.who-screen .person { text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; }
-.who-screen .person:hover { border-color: var(--accent); }
-.who-screen form { display: flex; gap: 8px; margin-top: 8px; }
+.tabs { display: flex; gap: 4px; padding: 8px 12px 0; }
+.tabs[hidden] { display: none; }
+.tabs button { flex: 1; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.tabs button.on { background: var(--mine); color: var(--fg); border-color: var(--accent); }
+.extra { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--muted); }
+.extra[hidden] { display: none; }
+.extra input.your-name { flex: 1 1 160px; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+.extra label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.intro { color: var(--muted); margin: auto 8px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
+.intro p { margin: 0; }
+.sent { margin: auto 8px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.sent strong { font-size: 15px; }
+.link-button { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; font-size: 13px; align-self: flex-start; }
+.link-button.center { align-self: center; }
 .composer { flex-direction: column; align-items: stretch; }
 .composer .row { display: flex; gap: 8px; align-items: flex-end; }
 .pick { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 10px; width: 38px; height: 38px;
@@ -149,7 +160,6 @@ textarea:focus { border-color: var(--accent); }
 .toast .text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .toast.tl, .toast.tr { top: 72px; } .toast.bl, .toast.br { bottom: 72px; }
 .toast.tl, .toast.bl { left: 16px; } .toast.tr, .toast.br { right: 16px; }
-.who-screen input { flex: 1; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 `;
 
   const ICONS = {
@@ -217,24 +227,26 @@ textarea:focus { border-color: var(--accent); }
   const host = document.createElement("hi-helper");
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>${CSS}</style>
-<button class="fab" part="button" aria-label="Chat with the team lead" title="Chat with the team lead">${ICONS.chat}<span class="dot"></span></button>
+<button class="fab" part="button" aria-label="Help" title="Help">${ICONS.chat}<span class="dot"></span></button>
 <button class="toast" aria-live="polite"><span class="from"></span><span class="text"></span></button>
-<section class="panel" role="dialog" aria-label="Chat with the team lead">
+<section class="panel" role="dialog" aria-label="Help">
   <header>
     <div class="title"><div class="name"></div><div class="version"></div></div>
     <button class="icon more" aria-label="More">${ICONS.more}</button>
     <button class="icon close" aria-label="Close">${ICONS.close}</button>
     <div class="menu" role="menu">
       <button data-action="new" role="menuitem">New conversation</button>
-      <button data-action="who" role="menuitem">Change who you are</button>
       <button data-action="hide" role="menuitem">Hide the button until reload</button>
     </div>
   </header>
+  <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" role="tab" data-tab="feedback">Feedback</button></div>
   <div class="notice" hidden><span>A new version is up.</span><button data-action="reload">Reload</button></div>
+  <div class="notice ended" hidden><span>Your link has ended: type /hi in the team's Slack channel for a new one.</span></div>
   <div class="body" aria-live="polite"></div>
   <form class="composer">
     <div class="chips"></div>
     <div class="files"></div>
+    <div class="extra" hidden><input class="your-name" placeholder="Your name (optional, not checked)" aria-label="Your name" maxlength="60"><label><input class="screen" type="checkbox" checked> A picture of what I see</label></div>
     <div class="row">
       <button class="pick" type="button" aria-label="Point at part of the page (Alt+S)" title="Point at part of the page (Alt+S)">${ICONS.target}</button>
       <label class="pick attach" aria-label="Attach files" title="Attach files, or paste or drop them here">${ICONS.clip}<input type="file" multiple hidden></label>
@@ -254,19 +266,38 @@ textarea:focus { border-color: var(--accent); }
   const input = $("textarea"), sendButton = $(".send"), composer = $(".composer"), notice = $(".notice");
   const layer = $(".layer"), hoverBox = $(".box.hover"), frozenBoxes = $(".frozen-boxes"), label = $(".label"), banner = $(".banner"), chips = $(".chips"), pick = $(".pick");
   const pending = $(".composer .files"), fileInput = $(".attach input"), toast = $(".toast");
+  const tabs = $(".tabs"), extra = $(".extra"), nameInput = $(".extra .your-name"), screenBox = $(".extra .screen"), ended = $(".notice.ended"), attachLabel = $(".attach");
 
   // The app's keyboard shortcuts shouldn't fire while someone types here.
   for (const type of ["keydown", "keyup", "keypress"]) host.addEventListener(type, (event) => event.stopPropagation());
 
   const state = {
     status: null,
-    who: store.get("localStorage", "who"), // {id, name}
-    conversation: null,
+    conversation: null, // the chat with the lead, signed in
+    tab: store.get("sessionStorage", "tab") || "ask", // ask or feedback, otherwise
+    help: store.get("sessionStorage", "help") || [], // this tab's questions and answers
+    sent: null, // the id of the feedback just sent
     sending: false,
     poll: null,
     refs: [], // the elements pointed at for the next message: {ref, el, image, shot}
     files: [], // the files for the next message: {file, url}
   };
+  // Signed in with /hi: the relay found this person's key in the cookie
+  // only /__hi/ gets.
+  const signedIn = () => !!(state.status && state.status.you);
+  nameInput.value = store.get("localStorage", "name") || "";
+  nameInput.addEventListener("input", () => store.set("localStorage", "name", nameInput.value.trim() || null));
+  tabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("button")?.dataset.tab;
+    if (tab) setTab(tab);
+  });
+  function setTab(tab) {
+    state.tab = tab;
+    store.set("sessionStorage", "tab", tab);
+    state.sent = null;
+    render();
+    input.focus();
+  }
 
   // ---------------------------------------------------------------------
   // the button: a click opens the panel; a drag moves it to another corner
@@ -317,7 +348,7 @@ textarea:focus { border-color: var(--accent); }
       fab.classList.remove("unread");
       toast.classList.remove("show");
       render();
-      if (state.who && !quietly) input.focus();
+      if (!quietly) input.focus();
     } else {
       menu.classList.remove("open");
       fab.focus();
@@ -332,15 +363,13 @@ textarea:focus { border-color: var(--accent); }
     const action = event.target.closest("button")?.dataset.action;
     menu.classList.remove("open");
     if (action === "new") {
-      await call("conversation/new", { method: "POST", body: { person: state.who?.id || "", name: state.who?.name || "" } }).catch(showError);
+      if (signedIn()) await call("conversation/new", { method: "POST", body: {} }).catch(showError);
       state.conversation = null;
+      state.help = [];
+      store.set("sessionStorage", "help", null);
+      state.sent = null;
       render();
       input.focus();
-    } else if (action === "who") {
-      state.who = null;
-      store.set("localStorage", "who", null);
-      state.conversation = null;
-      render();
     } else if (action === "hide") {
       toggle(false);
       fab.style.display = "none";
@@ -367,9 +396,8 @@ textarea:focus { border-color: var(--accent); }
   }
 
   async function loadConversation() {
-    if (!state.who) return;
-    const query = "person=" + encodeURIComponent(state.who.id || "") + "&name=" + encodeURIComponent(state.who.name || "");
-    const response = await call("conversation?" + query);
+    if (!signedIn()) { state.conversation = null; return; }
+    const response = await call("conversation");
     const conversation = await response.json();
     state.conversation = conversation.id ? conversation : null;
   }
@@ -406,9 +434,8 @@ textarea:focus { border-color: var(--accent); }
   async function send(text, items, files) {
     state.sending = true;
     const refs = items.map((item) => item.ref);
-    const page = { path: location.pathname + location.search + location.hash, title: document.title, width: innerWidth, height: innerHeight };
     const conversation = state.conversation || { messages: [] };
-    const shown = { from: "person", name: state.who.name, text, refs, pending: true,
+    const shown = { from: "person", name: state.status.you.name, text, refs, pending: true,
       files: files.map((item) => ({ name: item.file.name, type: item.file.type, url: item.url })), shots: items.map((item) => item.image) };
     conversation.messages = conversation.messages.concat([shown]);
     state.conversation = conversation;
@@ -423,26 +450,10 @@ textarea:focus { border-color: var(--accent); }
       for (const item of files) uploads.push({ name: item.file.name, data: await base64(item.file) });
       const response = await call("messages", {
         method: "POST",
-        body: { conversation: conversation.id || "", person: state.who.id || "", name: state.who.name, text, page, refs, files: uploads },
+        body: { conversation: conversation.id || "", text, page: page(), refs, files: uploads },
       });
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "", finished = false;
-      while (!finished) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let end;
-        while ((end = buffer.indexOf("\n\n")) >= 0) {
-          const chunk = buffer.slice(0, end);
-          buffer = buffer.slice(end + 2);
-          let name = "message", data = "";
-          for (const line of chunk.split("\n")) {
-            if (line.startsWith("event:")) name = line.slice(6).trim();
-            else if (line.startsWith("data:")) data += line.slice(5).trim();
-          }
-          if (!data) continue;
-          const payload = JSON.parse(data);
+      let finished = false;
+      await readEvents(response, (name, payload) => {
           if (name === "message") {
             conversation.id = payload.conversation;
             conversation.messages[conversation.messages.indexOf(shown)] = payload.message;
@@ -460,8 +471,7 @@ textarea:focus { border-color: var(--accent); }
             if (lead) conversation.messages.splice(conversation.messages.indexOf(lead), 1);
             throw new Error(payload.error);
           }
-        }
-      }
+      });
       if (!finished) {
         // The stream was cut; the lead still answers, and the next look shows it.
         if (lead) conversation.messages.splice(conversation.messages.indexOf(lead), 1);
@@ -486,6 +496,112 @@ textarea:focus { border-color: var(--accent); }
     }
   }
 
+  // readEvents reads a stream of server-sent events, calling on(name,
+  // payload) for each, until it ends.
+  async function readEvents(response, on) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      let end;
+      while ((end = buffer.indexOf("\n\n")) >= 0) {
+        const chunk = buffer.slice(0, end);
+        buffer = buffer.slice(end + 2);
+        let name = "message", data = "";
+        for (const line of chunk.split("\n")) {
+          if (line.startsWith("event:")) name = line.slice(6).trim();
+          else if (line.startsWith("data:")) data += line.slice(5).trim();
+        }
+        if (data) on(name, JSON.parse(data));
+      }
+    }
+  }
+
+  const page = () => ({ path: location.pathname + location.search + location.hash, title: document.title, width: innerWidth, height: innerHeight });
+
+  // ask asks the help how the app works: hi answers from the app's guide,
+  // with the page's text and what was pointed at.
+  async function ask(text, items) {
+    state.sending = true;
+    const history = state.help.filter((turn) => !turn.failed).slice(-12).map((turn) => ({ role: turn.from === "person" ? "user" : "assistant", content: turn.text }));
+    const question = { from: "person", text, refs: items.map((item) => item.ref), shots: items.map((item) => item.image) };
+    const answer = { from: "lead", name: "Help", text: "", streaming: true };
+    state.help.push(question);
+    render({ typing: true });
+    try {
+      const response = await call("help", {
+        method: "POST",
+        body: { question: text, history, page: page(), text: tidy(document.body.innerText, 8000), refs: question.refs },
+      });
+      await readEvents(response, (name, payload) => {
+        if (name === "delta") {
+          if (!state.help.includes(answer)) state.help.push(answer);
+          answer.text += payload.text;
+          scheduleRender();
+        } else if (name === "done") {
+          answer.text = payload.text;
+        } else if (name === "error") {
+          throw new Error(payload.error);
+        }
+      });
+      if (!answer.text) throw new Error("The help didn't answer; try again.");
+      delete answer.streaming;
+      if (!state.help.includes(answer)) state.help.push(answer);
+    } catch (error) {
+      state.help = state.help.filter((turn) => turn !== question && turn !== answer);
+      input.value = text;
+      state.refs = items;
+      saveRefs();
+      drawChips();
+      state.sending = false;
+      render();
+      showError(error);
+      return;
+    }
+    state.sending = false;
+    store.set("sessionStorage", "help", state.help.slice(-24).map((turn) => ({ from: turn.from, name: turn.name, text: turn.text, refs: turn.refs })));
+    render();
+  }
+
+  // sendFeedback sends feedback to the team's channel, with a picture of
+  // the page when the box is ticked.
+  async function sendFeedback(text, items, files) {
+    state.sending = true;
+    render();
+    try {
+      const uploads = [];
+      if (screenBox.checked) {
+        const shot = await captureScreen().catch(() => null);
+        if (shot) uploads.push({ name: "screen", screen: true, data: shot.replace(/^data:[^,]*,/, "") });
+      }
+      await Promise.race([Promise.all(items.map((item) => item.shot)), new Promise((resolve) => setTimeout(resolve, 4000))]);
+      items.forEach((item, i) => { if (item.image) uploads.push({ ref: i + 1, data: item.image.replace(/^data:[^,]*,/, "") }); });
+      for (const item of files) uploads.push({ name: item.file.name, data: await base64(item.file) });
+      const response = await call("feedback", {
+        method: "POST",
+        body: { name: nameInput.value.trim(), text, page: page(), refs: items.map((item) => item.ref), files: uploads },
+      });
+      state.sent = (await response.json()).id;
+      for (const item of files) URL.revokeObjectURL(item.url);
+    } catch (error) {
+      input.value = text;
+      state.refs = items;
+      state.files = files;
+      saveRefs();
+      drawChips();
+      drawFiles();
+      state.sending = false;
+      render();
+      showError(error);
+      return;
+    }
+    state.sending = false;
+    render();
+  }
+
   let renderQueued = false;
   function scheduleRender() {
     if (renderQueued) return;
@@ -494,7 +610,7 @@ textarea:focus { border-color: var(--accent); }
       renderQueued = false;
       // While the answer streams in, only it is drawn again.
       const node = body.querySelector(".msg.streaming");
-      const streaming = state.conversation?.messages.find((message) => message.streaming);
+      const streaming = (signedIn() ? state.conversation?.messages || [] : state.help).find((message) => message.streaming);
       if (node && streaming) {
         const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
         node.innerHTML = '<div class="who"></div>' + markdown(streaming.text || "");
@@ -519,31 +635,47 @@ textarea:focus { border-color: var(--accent); }
 
   function render(options = {}) {
     const status = state.status || {};
-    $(".name").textContent = status.lead || "Team lead";
-    $(".version").textContent = [status.version, state.who && "you're " + state.who.name].filter(Boolean).join(" · ");
-    if (!state.who) {
-      composer.style.display = "none";
-      renderWho();
-      return;
+    const chat = signedIn();
+    $(".name").textContent = chat ? status.lead || "Team lead" : "Help · " + (status.team || "the app");
+    $(".version").textContent = [status.version, chat && "you're " + status.you.name + " (via Slack)"].filter(Boolean).join(" · ");
+    const title = chat ? "Chat with the team lead" : "Help";
+    fab.title = title;
+    fab.setAttribute("aria-label", title);
+    panel.setAttribute("aria-label", title);
+    ended.hidden = !status.ended;
+    tabs.hidden = chat;
+    const feedback = !chat && state.tab === "feedback";
+    for (const button of tabs.querySelectorAll("button")) {
+      button.classList.toggle("on", button.dataset.tab === state.tab);
+      button.setAttribute("aria-selected", button.dataset.tab === state.tab);
     }
-    composer.style.display = "";
+    extra.hidden = !feedback;
+    attachLabel.style.display = chat || feedback ? "" : "none";
+    $("[data-action=new]").style.display = chat || (!feedback && state.help.length) ? "" : "none";
+    input.placeholder = chat ? "Message the lead…" : feedback ? "What's wrong, or what would make it better?" : "Ask how something works…";
+    sendButton.textContent = chat || feedback ? "Send" : "Ask";
     sendButton.disabled = state.sending;
     const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
     body.className = "body";
     body.innerHTML = "";
-    const messages = state.conversation?.messages || [];
-    if (!messages.length) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "Ask the lead for a change, report a problem, or ask how something works. You're on " + (location.pathname || "/") + ".";
-      body.appendChild(empty);
-    }
+    clearInterval(state.ticking);
+    if (feedback) renderFeedback();
+    else if (chat) renderChat(status);
+    else renderHelp();
+    if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
+    if (panel.classList.contains("open") && chat) markSeen();
+    listen();
+  }
+
+  // drawMessages draws a conversation: the person's messages and the
+  // lead's, or the help's.
+  function drawMessages(messages, leadName) {
     for (const message of messages) {
       const node = document.createElement("div");
       node.className = "msg " + (message.from === "lead" ? "lead" : "person") + (message.streaming ? " streaming" : "");
       if (message.from === "lead") {
         node.innerHTML = '<div class="who"></div>' + markdown(message.text || "");
-        node.querySelector(".who").textContent = message.name || status.lead || "Lead";
+        node.querySelector(".who").textContent = message.name || leadName;
       } else {
         node.textContent = message.text;
         const pictures = (message.shots || []).slice();
@@ -553,28 +685,94 @@ textarea:focus { border-color: var(--accent); }
       node.appendChild(fileList(message));
       body.appendChild(node);
     }
+  }
+
+  // working shows a spinner, and how long it has been, until the first
+  // words come.
+  function working(since, words) {
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    body.appendChild(typing);
+    const tick = () => {
+      const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
+      typing.textContent = words(seconds);
+    };
+    tick();
+    state.ticking = setInterval(tick, 1000);
+  }
+
+  function renderChat(status) {
+    const messages = state.conversation?.messages || [];
+    if (!messages.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Ask the lead for a change, report a problem, or ask how something works. You're on " + (location.pathname || "/") + ".";
+      body.appendChild(empty);
+    }
+    drawMessages(messages, status.lead || "Lead");
     const last = messages[messages.length - 1];
     // Until the lead's first words come, a spinner and how long it has
     // been working: it may read the project or start a task first.
-    clearInterval(state.ticking);
     if (last && last.from === "person") {
-      const typing = document.createElement("div");
-      typing.className = "typing";
-      body.appendChild(typing);
       const since = last.at ? Date.parse(last.at) : (last.sentAt = last.sentAt || Date.now());
-      const tick = () => {
-        const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
-        const lead = status.lead || "The lead";
-        typing.textContent = last.pending ? "Sending…"
-          : seconds < 5 ? lead + " is answering…"
-          : lead + " is " + (seconds < 30 ? "answering" : "working on it") + " · " + Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
-      };
-      tick();
-      state.ticking = setInterval(tick, 1000);
+      const lead = status.lead || "The lead";
+      working(since, (seconds) => last.pending ? "Sending…"
+        : seconds < 5 ? lead + " is answering…"
+        : lead + " is " + (seconds < 30 ? "answering" : "working on it") + " · " + Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0"));
     }
-    if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
-    if (panel.classList.contains("open")) markSeen();
-    listen();
+  }
+
+  function renderHelp() {
+    if (!state.help.length) {
+      body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Ask how something in the app works. Point at what you mean with ◎ (Alt+S).</p>' +
+        "<p>Something wrong, or an idea? Tell the team under Feedback.</p>" +
+        "<p>On the team? Type <strong>/hi</strong> in its Slack channel for your own link, where this is a chat with the lead.</p></div>");
+      return;
+    }
+    drawMessages(state.help, "Help");
+    const last = state.help[state.help.length - 1];
+    if (state.sending && last.from === "person") {
+      const since = last.sentAt = last.sentAt || Date.now();
+      working(since, () => "Looking it up…");
+    } else if (!state.sending && last.from === "lead") {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "link-button";
+      more.textContent = "Tell the team about this as feedback";
+      more.addEventListener("click", () => {
+        const asked = [...state.help].reverse().find((turn) => turn.from === "person");
+        if (asked && !input.value.trim()) {
+          input.value = asked.text;
+          store.set("sessionStorage", "draft", input.value);
+        }
+        setTab("feedback");
+        grow();
+      });
+      body.appendChild(more);
+    }
+  }
+
+  function renderFeedback() {
+    if (state.sending) {
+      working(Date.now(), () => "Sending to the team…");
+      return;
+    }
+    if (state.sent) {
+      const sent = document.createElement("div");
+      sent.className = "sent";
+      sent.innerHTML = "<strong></strong><span>The team sees it in their Slack channel. Nobody answers here: whoever sent it isn't known.</span>";
+      sent.querySelector("strong").textContent = "Sent to the team as " + state.sent + ". Thank you!";
+      const again = document.createElement("button");
+      again.type = "button";
+      again.className = "link-button center";
+      again.textContent = "Send more";
+      again.addEventListener("click", () => { state.sent = null; render(); input.focus(); });
+      sent.appendChild(again);
+      body.appendChild(sent);
+      return;
+    }
+    body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Tell the team what\'s wrong, or what would make the app better.</p>' +
+      "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the team's Slack channel as it is; nothing changes until they decide.</p></div>");
   }
 
   // ---------------------------------------------------------------------
@@ -633,7 +831,7 @@ textarea:focus { border-color: var(--accent); }
   }
 
   async function addFiles(list) {
-    if (!state.who) return;
+    if (!signedIn() && state.tab !== "feedback") setTab("feedback"); // the help takes no files
     for (const original of Array.from(list || [])) {
       if (state.files.length >= 6) { showError(new Error("Attach at most 6 files to a message.")); break; }
       let file = original;
@@ -687,7 +885,7 @@ textarea:focus { border-color: var(--accent); }
   });
   const dragsFiles = (event) => event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("Files");
   panel.addEventListener("dragover", (event) => {
-    if (!dragsFiles(event) || !state.who) return;
+    if (!dragsFiles(event)) return;
     event.preventDefault();
     panel.classList.add("dragging");
   });
@@ -708,12 +906,11 @@ textarea:focus { border-color: var(--accent); }
   let events = null;
   function listen() {
     const id = state.conversation?.id;
-    if (events && events.chat === id && state.who) return;
+    if (events && events.chat === id && signedIn()) return;
     if (events) { events.close(); events = null; }
-    if (!id || !state.who || typeof EventSource !== "function") return;
+    if (!id || !signedIn() || typeof EventSource !== "function") return;
     const after = Math.max(0, ...state.conversation.messages.map((message) => message.n || 0));
-    const query = "conversation=" + encodeURIComponent(id) + "&person=" + encodeURIComponent(state.who.id || "") +
-      "&name=" + encodeURIComponent(state.who.name || "") + "&after=" + after;
+    const query = "conversation=" + encodeURIComponent(id) + "&after=" + after;
     const source = new EventSource(API + "events?" + query);
     source.chat = id;
     source.addEventListener("message", (event) => { try { arrive(JSON.parse(event.data)); } catch { /* the next one */ } });
@@ -763,42 +960,6 @@ textarea:focus { border-color: var(--accent); }
     toastTimer = setTimeout(() => toast.classList.remove("show"), 20000);
   }
   toast.addEventListener("click", () => { toast.classList.remove("show"); toggle(true); });
-
-  function renderWho() {
-    const status = state.status || {};
-    body.className = "body who-screen";
-    body.innerHTML = "<h2>Who are you?</h2><p>The lead needs to know who's asking. This browser remembers it.</p>";
-    for (const person of status.people || []) {
-      const button = document.createElement("button");
-      button.className = "person";
-      button.textContent = person.name;
-      button.addEventListener("click", () => choose({ id: person.id, name: person.name }));
-      body.appendChild(button);
-    }
-    if (status.anyone) {
-      const form = document.createElement("form");
-      form.innerHTML = '<input placeholder="Or type your name" aria-label="Your name" maxlength="60"><button class="send" type="submit">Go</button>';
-      form.addEventListener("submit", (event) => {
-        event.preventDefault();
-        const name = form.querySelector("input").value.trim();
-        if (name) choose({ id: "", name });
-      });
-      body.appendChild(form);
-    } else if (!(status.people || []).length) {
-      body.insertAdjacentHTML("beforeend", "<p>The team has no people listed yet.</p>");
-    }
-  }
-
-  async function choose(who) {
-    state.who = who;
-    store.set("localStorage", "who", who);
-    state.conversation = null;
-    try { await loadConversation(); } catch (error) { showError(error); }
-    render();
-    waitForAnswer();
-    input.focus();
-  }
-
 
   // ---------------------------------------------------------------------
   // select mode: hovering outlines the element under the pointer, a click
@@ -1047,7 +1208,7 @@ textarea:focus { border-color: var(--accent); }
   const blocked = ["pointerdown", "pointerup", "mousedown", "mouseup", "click", "dblclick", "auxclick", "submit", "contextmenu"];
 
   function startSelect() {
-    if (select.on || !state.who) return;
+    if (select.on) return;
     select.on = true;
     select.hover = null;
     select.children = [];
@@ -1115,7 +1276,6 @@ textarea:focus { border-color: var(--accent); }
     event.preventDefault();
     event.stopImmediatePropagation();
     if (select.on) stopSelect();
-    else if (!state.who) toggle(true); // "Who are you?" first
     else startSelect();
   }, true);
 
@@ -1130,9 +1290,31 @@ textarea:focus { border-color: var(--accent); }
     return "#ffffff";
   }
 
-  async function capture(el) {
+  function loadSnap() {
     snap = snap || import(new URL("/__hi/snap.js", location.href).href).catch((error) => { snap = null; throw error; });
-    const { domToCanvas } = await snap;
+    return snap;
+  }
+
+  // captureScreen is a picture of the page as the person sees it, without
+  // the helper, for feedback.
+  async function captureScreen() {
+    const { domToCanvas } = await loadSnap();
+    const scale = Math.min(window.devicePixelRatio || 1, 1600 / Math.max(innerWidth, innerHeight));
+    const page = await domToCanvas(document.documentElement, {
+      scale, backgroundColor: backgroundOf(document.body), timeout: 5000, filter: (node) => node !== host,
+      width: document.documentElement.scrollWidth, height: Math.min(document.documentElement.scrollHeight, scrollY + innerHeight + 1),
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(innerWidth * scale);
+    canvas.height = Math.round(innerHeight * scale);
+    canvas.getContext("2d").drawImage(page, Math.round(scrollX * scale), Math.round(scrollY * scale), canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    let image = canvas.toDataURL("image/png");
+    if (image.length > 4 * 1024 * 1024) image = canvas.toDataURL("image/jpeg", 0.85);
+    return image;
+  }
+
+  async function capture(el) {
+    const { domToCanvas } = await loadSnap();
     // A small element is shown with what is around it, itself outlined.
     let target = el, rect = el.getBoundingClientRect();
     for (let i = 0; i < 3 && (rect.width < 160 || rect.height < 48); i++) {
@@ -1230,7 +1412,8 @@ textarea:focus { border-color: var(--accent); }
   composer.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = input.value.trim();
-    if ((!text && !state.files.length) || state.sending) return;
+    if ((!text && !(signedIn() && state.files.length)) || state.sending) return;
+    state.sent = null;
     const items = state.refs, files = state.files;
     input.value = "";
     store.set("sessionStorage", "draft", null);
@@ -1240,7 +1423,9 @@ textarea:focus { border-color: var(--accent); }
     drawChips();
     drawFiles();
     grow();
-    send(text, items, files);
+    if (signedIn()) send(text, items, files);
+    else if (state.tab === "feedback") sendFeedback(text, items, files);
+    else ask(text, items);
   });
 
   // ---------------------------------------------------------------------
@@ -1255,12 +1440,12 @@ textarea:focus { border-color: var(--accent); }
     if (before && before.commit && status.commit && status.commit !== before.commit) notice.hidden = false;
     // The commit stays the one this page was loaded with.
     state.status = Object.assign({}, status, { commit: before?.commit || status.commit });
-    if (state.who && state.who.id && !(status.people || []).some((person) => person.id === state.who.id)) {
-      state.who = null; // no longer one of the team's people
-      store.set("localStorage", "who", null);
+    if (before?.you?.id !== status.you?.id) {
+      // Signed in, or the key ended: the panel is the other one now.
+      await loadConversation().catch(() => {});
       return true;
     }
-    return !before || before.version !== status.version || before.lead !== status.lead;
+    return !before || before.version !== status.version || before.lead !== status.lead || before.ended !== status.ended;
   }
 
   (async () => {

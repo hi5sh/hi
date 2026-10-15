@@ -138,10 +138,13 @@ func teamExposeHelperArgs(team, slot string) []string {
 
 // teamWebConversation is web/<id>.json: one chat in the app.
 type teamWebConversation struct {
-	ID       string           `json:"id"` // w-12
-	Slot     string           `json:"slot"`
-	Person   string           `json:"person,omitempty"` // a Slack member ID, as the person said; "" for a name only
-	Name     string           `json:"name"`
+	ID     string `json:"id"` // w-12
+	Slot   string `json:"slot"`
+	Person string `json:"person,omitempty"` // a Slack member ID
+	Name   string `json:"name"`
+	// Verified says the person signed in with /hi, so Person is who they
+	// are; before v0.60 the helper asked, and anyone could claim a name.
+	Verified bool             `json:"verified,omitempty"`
 	Started  time.Time        `json:"started"`
 	Ended    bool             `json:"ended,omitempty"`  // the person started a new one
 	Thread   string           `json:"thread,omitempty"` // its thread in the channel
@@ -394,13 +397,18 @@ func teamWebMirrored(team string) map[string]teamChannelWeb {
 			}
 		}
 	}
+	for _, feedback := range loadTeamFeedbacks(team) {
+		if feedback.SlackTS != "" {
+			mirrored[feedback.SlackTS] = teamChannelWeb{Conversation: feedback.ID, From: "feedback"}
+		}
+	}
 	return mirrored
 }
 
 // ---------------------------------------------------------------------------
 // the helper's API, on the web sockets
 
-// teamWebPerson is someone the helper offers in "Who are you?".
+// teamWebPerson is who is signed in, from their key.
 type teamWebPerson struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -408,22 +416,20 @@ type teamWebPerson struct {
 
 // teamWebStatus is GET /__hi/api/status.
 type teamWebStatus struct {
-	Team    string          `json:"team"`
-	Lead    string          `json:"lead"`
-	Slot    string          `json:"slot"`
-	Version string          `json:"version,omitempty"`
-	Commit  string          `json:"commit,omitempty"`
-	People  []teamWebPerson `json:"people"`
-	// Anyone says whether people outside the list may write: the team has
-	// no askers, so anyone in the channel may ask for work.
-	Anyone bool `json:"anyone"`
+	Team    string `json:"team"`
+	Lead    string `json:"lead"`
+	Slot    string `json:"slot"`
+	Version string `json:"version,omitempty"`
+	Commit  string `json:"commit,omitempty"`
+	// You is who this browser is signed in as, with /hi; nil gets help
+	// and feedback. Ended says its key no longer works.
+	You   *teamWebPerson `json:"you,omitempty"`
+	Ended bool           `json:"ended,omitempty"`
 }
 
 // teamWebSend is POST /__hi/api/messages.
 type teamWebSend struct {
 	Conversation string          `json:"conversation,omitempty"`
-	Person       string          `json:"person,omitempty"`
-	Name         string          `json:"name"`
 	Text         string          `json:"text"`
 	Page         *teamWebPage    `json:"page,omitempty"`
 	Refs         []teamWebRef    `json:"refs,omitempty"`
@@ -481,11 +487,32 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		}
 		w.Write(teamSnapSource)
 	})
+	// you is who sent a request: the person whose key the relay found in
+	// the request's cookie. Nobody else says who they are.
+	you := func(w http.ResponseWriter, r *http.Request) (teamPersonKey, bool) {
+		config, err := loadTeam(b.team)
+		if err != nil {
+			failure(w, http.StatusInternalServerError, err)
+			return teamPersonKey{}, false
+		}
+		person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader))
+		switch {
+		case ended:
+			failure(w, http.StatusUnauthorized, errors.New("your link has ended: type /hi in the team's Slack channel for a new one"))
+		case !ok:
+			failure(w, http.StatusUnauthorized, errors.New("the chat with the lead is for people signed in with /hi in the team's Slack channel"))
+		}
+		return person, ok
+	}
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/events", func(w http.ResponseWriter, r *http.Request) {
-		b.webEvents(w, r, slot)
+		if person, ok := you(w, r); ok {
+			b.webEvents(w, r, slot, person.User)
+		}
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/files/{id}/{name}", func(w http.ResponseWriter, r *http.Request) {
-		b.webFile(w, r, slot)
+		if person, ok := you(w, r); ok {
+			b.webFile(w, r, slot, person.User)
+		}
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/status", func(w http.ResponseWriter, r *http.Request) {
 		config, err := loadTeam(b.team)
@@ -493,16 +520,45 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			failure(w, http.StatusInternalServerError, err)
 			return
 		}
-		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot, People: b.webPeople(config), Anyone: len(config.Askers) == 0}
+		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot}
 		if state, ok := loadTeamSlot(b.team, slot); ok {
 			status.Version, status.Commit = state.Label, state.Commit
 		}
+		if person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader)); ok {
+			status.You = &teamWebPerson{ID: person.User, Name: person.Name}
+		} else {
+			status.Ended = ended
+		}
 		reply(w, http.StatusOK, status)
 	})
+	mux.HandleFunc("POST "+teamHelperPrefix+"api/help", func(w http.ResponseWriter, r *http.Request) {
+		var ask teamHelpAsk
+		if err := json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&ask); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		b.webHelp(w, r, slot, ask)
+	})
+	mux.HandleFunc("POST "+teamHelperPrefix+"api/feedback", func(w http.ResponseWriter, r *http.Request) {
+		var send teamFeedbackSend
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamWebMaxUpload*4/3+(1<<20))).Decode(&send); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		feedback, status, err := b.webFeedback(r, slot, send)
+		if err != nil {
+			failure(w, status, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{"id": feedback.ID})
+	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/conversation", func(w http.ResponseWriter, r *http.Request) {
-		person, name := r.URL.Query().Get("person"), r.URL.Query().Get("name")
+		person, ok := you(w, r)
+		if !ok {
+			return
+		}
 		b.webMu.Lock()
-		conversation, ok := b.openConversation(slot, person, name)
+		conversation, ok := b.openConversation(slot, person.User)
 		b.webMu.Unlock()
 		if !ok {
 			reply(w, http.StatusOK, map[string]any{})
@@ -511,14 +567,13 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		reply(w, http.StatusOK, conversation)
 	})
 	mux.HandleFunc("POST "+teamHelperPrefix+"api/conversation/new", func(w http.ResponseWriter, r *http.Request) {
-		var send teamWebSend
-		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&send); err != nil {
-			failure(w, http.StatusBadRequest, err)
+		person, ok := you(w, r)
+		if !ok {
 			return
 		}
 		b.webMu.Lock()
 		defer b.webMu.Unlock()
-		if conversation, ok := b.openConversation(slot, send.Person, send.Name); ok {
+		if conversation, ok := b.openConversation(slot, person.User); ok {
 			if b.answering[conversation.ID] {
 				failure(w, http.StatusConflict, errors.New("the lead is still answering; start a new chat when it's done"))
 				return
@@ -532,62 +587,27 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		reply(w, http.StatusOK, map[string]any{})
 	})
 	mux.HandleFunc("POST "+teamHelperPrefix+"api/messages", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := you(w, r)
+		if !ok {
+			return
+		}
 		var send teamWebSend
 		if err := json.NewDecoder(io.LimitReader(r.Body, teamWebMaxUpload*4/3+(1<<20))).Decode(&send); err != nil {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		b.webSend(w, r, slot, send)
+		b.webSend(w, r, slot, person, send)
 	})
 	return mux
 }
 
-// webPeople are the people the helper offers: the owners and askers, or
-// with no askers, the owners and everyone heard in the channel lately.
-func (b *teamBroker) webPeople(config teamConfig) []teamWebPerson {
-	names := map[string]string{}
-	var order []string
-	if messages, err := readTeamChannel(teamChannelDir(b.team), teamSlackTS(time.Now().Add(-teamChannelBack))); err == nil {
-		for _, message := range messages {
-			if message.User != "" && !teamChannelFromBot(config, message) {
-				if _, seen := names[message.User]; !seen {
-					order = append(order, message.User)
-				}
-				names[message.User] = message.Name
-			}
-		}
-	}
-	listed := append(append([]string{}, config.Owners...), config.Askers...)
-	if len(config.Askers) == 0 {
-		listed = append(listed, order...)
-	}
-	var people []teamWebPerson
-	seen := map[string]bool{}
-	for _, id := range listed {
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		name := names[id]
-		if name == "" && b.channel != nil {
-			name = b.channel.userName(id)
-		}
-		people = append(people, teamWebPerson{ID: id, Name: firstNonEmpty(name, id)})
-	}
-	sort.SliceStable(people, func(i, j int) bool { return strings.ToLower(people[i].Name) < strings.ToLower(people[j].Name) })
-	return people
-}
-
 // openConversation is this person's chat in this slot that they haven't
-// ended. The caller holds webMu.
-func (b *teamBroker) openConversation(slot, person, name string) (teamWebConversation, bool) {
+// ended, from since they signed in. The caller holds webMu.
+func (b *teamBroker) openConversation(slot, person string) (teamWebConversation, bool) {
 	all := loadTeamWebConversations(b.team)
 	for i := len(all) - 1; i >= 0; i-- {
 		conversation := all[i]
-		if conversation.Slot != slot || conversation.Ended {
-			continue
-		}
-		if (person != "" && conversation.Person == person) || (person == "" && conversation.Person == "" && name != "" && conversation.Name == name) {
+		if conversation.Slot == slot && !conversation.Ended && conversation.Verified && conversation.Person == person {
 			return conversation, true
 		}
 	}
@@ -598,7 +618,7 @@ func (b *teamBroker) openConversation(slot, person, name string) (teamWebConvers
 // answer back as server-sent events: "message" for each saved message,
 // "delta" for the lead's text as it comes, then "done" or "error". The
 // answer is kept and copied to the channel even when the browser goes.
-func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string, send teamWebSend) {
+func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string, person teamPersonKey, send teamWebSend) {
 	fail := func(status int, err error) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
@@ -609,7 +629,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		fail(http.StatusInternalServerError, err)
 		return
 	}
-	send.Text, send.Name = strings.TrimSpace(send.Text), strings.TrimSpace(send.Name)
+	send.Text = strings.TrimSpace(send.Text)
 	switch {
 	case !teamHelperOn(config, slot):
 		fail(http.StatusForbidden, errors.New("the helper is off here"))
@@ -620,24 +640,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 	case len(send.Text) > teamWebMaxText:
 		fail(http.StatusBadRequest, fmt.Errorf("the message is longer than %d characters", teamWebMaxText))
 		return
-	case send.Person != "" && !slackIDPattern.MatchString(send.Person):
-		fail(http.StatusBadRequest, fmt.Errorf("%q isn't a Slack member ID", send.Person))
-		return
-	case send.Person == "" && (send.Name == "" || len(config.Askers) > 0):
-		fail(http.StatusBadRequest, errors.New("say who you are first"))
-		return
 	}
-	if len(send.Name) > 60 {
-		send.Name = send.Name[:60]
-	}
-	if send.Person != "" {
-		for _, person := range b.webPeople(config) {
-			if person.ID == send.Person {
-				send.Name = person.Name
-			}
-		}
-	}
-	send.Name = firstNonEmpty(send.Name, send.Person)
 	if send.Page != nil {
 		send.Page.Path, send.Page.Title = teamClipStart(send.Page.Path, 300), teamClipStart(send.Page.Title, 200)
 	}
@@ -646,19 +649,19 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 	b.webMu.Lock()
 	conversation, ok := teamWebConversation{}, false
 	if send.Conversation != "" {
-		if found, err := loadTeamWebConversation(b.team, send.Conversation); err == nil && found.Slot == slot && !found.Ended && found.Person == send.Person {
+		if found, err := loadTeamWebConversation(b.team, send.Conversation); err == nil && found.Slot == slot && !found.Ended && found.Verified && found.Person == person.User {
 			conversation, ok = found, true
 		}
 	}
 	if !ok {
-		conversation, ok = b.openConversation(slot, send.Person, send.Name)
+		conversation, ok = b.openConversation(slot, person.User)
 	}
 	if !ok {
 		next := 1
 		if all := loadTeamWebConversations(b.team); len(all) > 0 {
 			next = teamWebNumber(all[len(all)-1].ID) + 1
 		}
-		conversation = teamWebConversation{ID: fmt.Sprintf("w-%d", next), Slot: slot, Person: send.Person, Name: send.Name, Started: time.Now().UTC()}
+		conversation = teamWebConversation{ID: fmt.Sprintf("w-%d", next), Slot: slot, Person: person.User, Name: person.Name, Verified: true, Started: time.Now().UTC()}
 	}
 	if b.answering[conversation.ID] {
 		b.webMu.Unlock()
@@ -673,7 +676,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		fail(http.StatusBadRequest, err)
 		return
 	}
-	message := teamWebMessage{N: n, From: "person", Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, Files: files, At: time.Now().UTC()}
+	message := teamWebMessage{N: n, From: "person", Name: person.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, Files: files, At: time.Now().UTC()}
 	conversation.Messages = append(conversation.Messages, message)
 	if err := saveTeamWebConversation(b.team, conversation); err != nil {
 		b.webMu.Unlock()
@@ -777,7 +780,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 func teamWebLeadInput(config teamConfig, conversation teamWebConversation, message teamWebMessage, first bool, seen map[string]bool) string {
 	who := message.Name
 	if conversation.Person != "" {
-		who += " (" + conversation.Person + ")"
+		who += " (" + conversation.Person + ", signed in through Slack)"
 	}
 	parts := []string{"web chat " + conversation.ID, "message " + conversation.ID + "." + strconv.Itoa(message.N), who}
 	version := conversation.Slot
@@ -817,7 +820,7 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 }
 
 // teamWebFirstNote starts each web chat for the lead.
-const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is, which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
+const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
 
 // mirrorWeb copies message n of a web chat into the channel: the first
 // starts a thread, the rest reply in it. It never fails the chat.
@@ -893,8 +896,8 @@ func teamSlackEscape(text string) string {
 
 // teamCheckWebApproval checks a yes given in the app's chat: a person's
 // message, after a message of the lead's in the same chat, within a week.
-// The name in the app is only claimed, so it never approves what needs an
-// owner.
+// Only a chat of someone signed in with /hi counts; what needs an owner
+// still needs a yes in Slack, where the team sees it.
 func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.Time) (teamApproval, error) {
 	if owners {
 		return teamApproval{}, fmt.Errorf("%s is from the app's chat; this needs an owner's yes in Slack", ref)
@@ -909,6 +912,9 @@ func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.T
 		return teamApproval{}, fmt.Errorf("web chat %s has no message %d", conversation.ID, n)
 	}
 	message := conversation.Messages[n-1]
+	if !conversation.Verified {
+		return teamApproval{}, fmt.Errorf("%s is from a chat where %s only said who they are, from before people signed in with /hi; ask them to say yes in Slack, or again in the app after /hi", ref, message.Name)
+	}
 	if message.From != "person" {
 		return teamApproval{}, fmt.Errorf("message %s is yours; the approval must come from one of the people", ref)
 	}

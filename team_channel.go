@@ -55,7 +55,7 @@ type teamChannelMessage struct {
 type teamChannelWeb struct {
 	Conversation string `json:"conversation"`
 	Person       string `json:"person,omitempty"`
-	From         string `json:"from"` // person or lead
+	From         string `json:"from"` // person or lead; feedback for feedback
 }
 
 type teamChannelFile struct {
@@ -86,6 +86,11 @@ type teamChannelSource interface {
 	upload(channel, thread, path, title string) error
 	update(channel, ts, text string) error
 	permalink(channel, ts string) (string, error)
+	// dm sends a person a direct message from the team's bot; update
+	// changes it later, with the channel it returns.
+	dm(user, text string) (channel, ts string, err error)
+	// inChannel says whether someone is a member of the channel.
+	inChannel(channel, user string) bool
 }
 
 type liveTeamChannel struct {
@@ -169,6 +174,33 @@ func (l *liveTeamChannel) upload(channel, thread, path, title string) error {
 func (l *liveTeamChannel) update(channel, ts, text string) error {
 	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false))
 	return err
+}
+
+func (l *liveTeamChannel) dm(user, text string) (string, string, error) {
+	im, _, _, err := l.api.OpenConversation(&slack.OpenConversationParameters{Users: []string{user}, ReturnIM: true})
+	if err != nil {
+		return "", "", err
+	}
+	_, ts, err := l.api.PostMessage(im.ID, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
+	return im.ID, ts, err
+}
+
+func (l *liveTeamChannel) inChannel(channel, user string) bool {
+	cursor := ""
+	for page := 0; page < 50; page++ {
+		members, next, err := l.api.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: channel, Cursor: cursor, Limit: 1000})
+		if err != nil {
+			return false
+		}
+		if containsString(members, user) {
+			return true
+		}
+		if next == "" {
+			return false
+		}
+		cursor = next
+	}
+	return false
 }
 
 func (l *liveTeamChannel) permalink(channel, ts string) (string, error) {

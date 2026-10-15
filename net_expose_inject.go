@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // An exposure can add a script to the pages it relays and serve a path
@@ -24,6 +25,19 @@ import (
 // where the script goes; a page with no <head>, <body>, or <html> that far
 // is passed on as it is.
 const netExposeInjectScan = 64 << 10
+
+// A person's own key to the routes: a link with hi_user=<key> leaves it in
+// a cookie only the routes' paths get, and the relay hands it to the
+// socket as X-Hi-User. The service never sees it, and the page's scripts
+// can't read it (docs/specs/approved/hi_team_helper_signin.md).
+const (
+	netExposeUserParam  = "hi_user"
+	netExposeUserCookie = "hi_user"
+	netExposeUserHeader = "X-Hi-User"
+	netExposeUserLasts  = 14 * 24 * time.Hour
+)
+
+var netExposeUserKey = regexp.MustCompile(`^[A-Za-z0-9_-]{20,100}$`)
 
 // netExposeRoute serves the paths under Prefix from a socket.
 type netExposeRoute struct {
@@ -70,6 +84,46 @@ func (h *netExposeHelper) on() bool {
 	return err == nil
 }
 
+// signIn handles a link's hi_user: the key goes into a cookie for each
+// route, and the browser on to the address without it. It says whether it
+// answered the request.
+func (h *netExposeHelper) signIn(w http.ResponseWriter, r *http.Request) bool {
+	// Only the relay says who someone is, and only to the routes.
+	r.Header.Del(netExposeUserHeader)
+	if h == nil || len(h.Routes) == 0 {
+		return false
+	}
+	if cookie, err := r.Cookie(netExposeUserCookie); err == nil && netExposeUserKey.MatchString(cookie.Value) {
+		for _, route := range h.Routes {
+			if strings.HasPrefix(r.URL.Path, route.Prefix) {
+				r.Header.Set(netExposeUserHeader, cookie.Value)
+			}
+		}
+	}
+	netExposeDropCookie(r, netExposeUserCookie)
+	query := r.URL.Query()
+	if !query.Has(netExposeUserParam) {
+		return false
+	}
+	if key := query.Get(netExposeUserParam); netExposeUserKey.MatchString(key) {
+		for _, route := range h.Routes {
+			http.SetCookie(w, &http.Cookie{Name: netExposeUserCookie, Value: key, Path: route.Prefix, MaxAge: int(netExposeUserLasts / time.Second),
+				Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		}
+	}
+	query.Del(netExposeUserParam)
+	clean := *r.URL
+	clean.RawQuery = query.Encode()
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		r.URL = &clean
+		return false
+	}
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
+	return true
+}
+
 // route is the handler for a path under one of the routes, or nil.
 func (h *netExposeHelper) route(path string) http.Handler {
 	for _, route := range h.Routes {
@@ -80,7 +134,8 @@ func (h *netExposeHelper) route(path string) http.Handler {
 				Rewrite: func(out *httputil.ProxyRequest) {
 					out.SetURL(upstream)
 					out.SetXForwarded()
-					// The app's cookies are the app's.
+					// The app's cookies are the app's. The person's key, when
+					// there is one, came out of them as X-Hi-User (signIn).
 					out.Out.Header.Del("Cookie")
 				},
 				Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {

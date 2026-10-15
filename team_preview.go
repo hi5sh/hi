@@ -342,6 +342,10 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	if err := saveTeamSlot(b.team, next); err != nil {
 		return next, err
 	}
+	if next.NewLink {
+		// The DMs with people's own links get the new address.
+		go b.refreshLinks()
+	}
 	return next, nil
 }
 
@@ -424,6 +428,7 @@ func (b *teamBroker) postProductionLink(state *teamPreview) string {
 		saveTeamSlot(b.team, *state)
 	}
 	link, _ := b.channel.permalink(config.Channel, state.Message)
+	go b.refreshLinks()
 	return link
 }
 

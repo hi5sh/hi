@@ -1,6 +1,6 @@
 # `hi team` helper: feedback for anyone, the chat for people signed in
 
-Status: Approved (2026-10-15). Changes [hi_team_helper.md](../approved/hi_team_helper.md):
+Status: Approved (2026-10-15), built in v0.60.0. Changes [hi_team_helper.md](../approved/hi_team_helper.md):
 who is talking is no longer claimed in "Who are you?".
 
 ## Goal

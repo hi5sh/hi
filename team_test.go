@@ -118,9 +118,15 @@ func TestTeamManifest(t *testing.T) {
 		t.Fatalf("%+v", manifest)
 	}
 	all := strings.Join(append(manifest.OAuth.Scopes.Bot, manifest.Settings.Events.Bot...), " ")
-	// One channel: no direct messages.
-	if strings.Contains(all, "im:") || strings.Contains(all, "message.im") || !strings.Contains(all, "message.channels") {
+	// One channel: hi may open a DM to send someone their link, but the
+	// app never reads DMs, and their Messages tab is read-only.
+	if strings.Contains(all, "im:history") || strings.Contains(all, "im:read") || strings.Contains(all, "message.im") || !strings.Contains(all, "message.channels") ||
+		!strings.Contains(all, "im:write") || !strings.Contains(all, "commands") {
 		t.Fatal(all)
+	}
+	manifestText := teamManifest(testTeamConfig())
+	if !strings.Contains(manifestText, `"command": "/hi"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": true`) {
+		t.Fatal(manifestText)
 	}
 }
 
@@ -200,7 +206,7 @@ func TestTeamNewChecksSlack(t *testing.T) {
 	}
 	// An app made from another manifest lacks scopes the lead needs.
 	teamSlack = fakeTeamSlack{fewScopes: true}
-	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "lacks app_mentions:read, channels:read, files:read") {
+	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "lacks app_mentions:read, channels:read, commands, files:read") {
 		t.Fatal(err)
 	}
 	teamSlack = fakeTeamSlack{}

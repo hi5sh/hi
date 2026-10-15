@@ -1,0 +1,6 @@
+# Written by hi on every start of the team; changes are overwritten.
+name: hi-team
+version: 1.0.0
+description: "/hi in the team's channel: hi DMs the person their private link to the app's chat with the lead."
+author: "hi"
+kind: standalone

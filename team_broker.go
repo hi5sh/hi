@@ -190,10 +190,19 @@ type teamBroker struct {
 	webMu        sync.Mutex
 	answering    map[string]bool
 	webListeners map[string]map[chan teamWebMessage]bool
+	// peopleMu guards people.json, the keys of people signed in with /hi
+	// (team_people.go).
+	peopleMu sync.Mutex
+	// help answers a question in the app from its guide, with no tools;
+	// tests replace it. counts are the day's questions and feedback, for
+	// the limits (team_feedback.go).
+	help   func(ctx context.Context, team string, messages []teamHelpTurn, delta func(string)) (string, error)
+	counts teamWebCounts
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, answering: map[string]bool{}, webListeners: map[string]map[chan teamWebMessage]bool{}}
+	b.help = teamHelpModel
 	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
 		return "", errors.New("the lead's API server isn't set up")
 	}
@@ -395,8 +404,28 @@ func (b *teamBroker) handler() http.Handler {
 		reply(w, teamWebList(b.team, time.Now()), nil)
 	})
 	mux.HandleFunc("GET /web/show", func(w http.ResponseWriter, r *http.Request) {
-		text, err := teamWebShow(b.team, r.URL.Query().Get("id"))
+		id := r.URL.Query().Get("id")
+		if strings.HasPrefix(id, "f-") {
+			text, err := teamFeedbackShow(b.team, id)
+			reply(w, text, err)
+			return
+		}
+		text, err := teamWebShow(b.team, id)
 		reply(w, text, err)
+	})
+	mux.HandleFunc("GET /web/questions", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, teamWebQuestionsText(b.team, time.Now()), nil)
+	})
+	mux.HandleFunc("POST /web/link", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			User string `json:"user"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		line, err := b.webLink(request.User)
+		reply(w, line, err)
 	})
 	mux.HandleFunc("POST /web/post", func(w http.ResponseWriter, r *http.Request) {
 		var post teamWebPost
@@ -1336,11 +1365,19 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		fmt.Fprintln(stdout, line)
 	case "web":
-		usage := usageError{"usage: hi team web  (the chats in the app, last week)\n       hi team web show <chat>\n       hi team web post <chat> <text|-> [--attach <file>]..."}
+		usage := usageError{"usage: hi team web  (the chats and feedback in the app, last week)\n       hi team web show <chat|feedback>\n       hi team web post <chat> <text|-> [--attach <file>]...\n       hi team web questions  (what people asked the app's help)\n       hi team web link --user <Slack member ID>  (DM them their private links)"}
 		var line string
 		switch {
 		case len(args) == 0:
 			if err := call("GET", "/web", nil, &line); err != nil {
+				return err
+			}
+		case len(args) == 1 && args[0] == "questions":
+			if err := call("GET", "/web/questions", nil, &line); err != nil {
+				return err
+			}
+		case len(args) == 3 && args[0] == "link" && args[1] == "--user":
+			if err := call("POST", "/web/link", map[string]string{"user": args[2]}, &line); err != nil {
 				return err
 			}
 		case len(args) == 2 && args[0] == "show":
