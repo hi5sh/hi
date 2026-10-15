@@ -171,6 +171,7 @@ remove_tool() {
   case "$1" in
     terminal) apt_remove tmux btop timg ;;
     node) apt_remove nodejs npm ;;
+    bun) rm -f "$HOME/.local/bin/bun" "$HOME/.local/bin/bunx" ;;
     uv)
       if [[ -x "$HOME/.local/bin/uv" ]]; then
         "$HOME/.local/bin/uv" cache clean || true
@@ -287,6 +288,7 @@ fi
 # which the GPU needs.
 installing podman && packages+=(podman crun uidmap passt)
 installing restic && packages+=(restic)
+installing bun && packages+=(unzip)
 if installing strix; then
   log "Configuring the AMD ROCm repository"
   sudo usermod -a -G render,video "$target_user"
@@ -306,6 +308,25 @@ fi
 if installing node; then
   log "Installing nodejs npm"
   apt_install --no-install-recommends nodejs npm
+fi
+
+# Bun's own installer puts it in ~/.bun/bin and edits the shell profile;
+# the release zip, checked against the release's sums, goes where hi's
+# other tools are.
+if installing bun; then
+  log "Installing Bun"
+  case "$(dpkg --print-architecture)" in
+    amd64) bun_arch=x64 ;;
+    arm64) bun_arch=aarch64 ;;
+    *) fail "Bun has no build for $(dpkg --print-architecture)" ;;
+  esac
+  bun_release=https://github.com/oven-sh/bun/releases/latest/download
+  curl -fsSLo "$tmp_dir/bun-linux-$bun_arch.zip" "$bun_release/bun-linux-$bun_arch.zip"
+  curl -fsSL "$bun_release/SHASUMS256.txt" | grep " bun-linux-$bun_arch.zip\$" |
+    (cd "$tmp_dir" && sha256sum -c -)
+  install -d "$HOME/.local/bin"
+  unzip -joq "$tmp_dir/bun-linux-$bun_arch.zip" "bun-linux-$bun_arch/bun" -d "$HOME/.local/bin"
+  ln -sf bun "$HOME/.local/bin/bunx"
 fi
 
 if installing podman; then

@@ -135,7 +135,8 @@ func saveTeamSlot(team string, state teamPreview) error {
 	return writeFileAtomic(teamSlotPath(team, state.Slot), append(data, '\n'), 0o600)
 }
 
-// teamRunCommand is how the project starts: make run, else npm start.
+// teamRunCommand is how the project starts: make run, else the start
+// script, with Bun when the project has a bun.lock and npm otherwise.
 func teamRunCommand(dir string) (string, error) {
 	if data, err := os.ReadFile(filepath.Join(dir, "Makefile")); err == nil && regexp.MustCompile(`(?m)^run\s*:`).Match(data) {
 		return "make run", nil
@@ -145,6 +146,9 @@ func teamRunCommand(dir string) (string, error) {
 			Scripts map[string]string `json:"scripts"`
 		}
 		if json.Unmarshal(data, &pkg) == nil && pkg.Scripts["start"] != "" {
+			if fileExists(filepath.Join(dir, "bun.lock")) {
+				return "bun install --frozen-lockfile && bun run start", nil
+			}
 			install := "npm install --no-audit --no-fund"
 			if fileExists(filepath.Join(dir, "package-lock.json")) {
 				install = "npm ci --no-audit --no-fund"

@@ -32,7 +32,7 @@ box's changes stay out of your folder until you merge them.
 
 The box is named after the project and a number, such as `myproject-1`, or
 `--name`. The first box builds hi's image, Ubuntu with git, Python, uv,
-Node.js, and the usual tools, which takes a few minutes once.
+Node.js LTS, Bun, and the usual tools, which takes a few minutes once.
 
 ## What the box holds
 

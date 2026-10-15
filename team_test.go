@@ -857,6 +857,10 @@ func TestTeamRunCommand(t *testing.T) {
 	if command, _ := teamRunCommand(dir); !strings.HasPrefix(command, "npm ci") {
 		t.Fatal(command)
 	}
+	writeSkillTestFile(t, filepath.Join(dir, "bun.lock"), `{}`, 0o644)
+	if command, _ := teamRunCommand(dir); command != "bun install --frozen-lockfile && bun run start" {
+		t.Fatal(command)
+	}
 	writeSkillTestFile(t, filepath.Join(dir, "Makefile"), "test:\n\tgo test\nrun: build\n\t./app\n", 0o644)
 	if command, _ := teamRunCommand(dir); command != "make run" {
 		t.Fatal(command)

@@ -72,7 +72,7 @@ func TestInitWritesTheTemplateAndRecordsIt(t *testing.T) {
 func TestInitDryRunAndCancelWriteNothing(t *testing.T) {
 	parent := t.TempDir()
 	code, stdout, _ := runInitIn(t, parent, "", "web", "dash", "--dry-run")
-	if code != 0 || !strings.Contains(stdout, "write    package.json") || !strings.Contains(stdout, "npm ci") {
+	if code != 0 || !strings.Contains(stdout, "write    package.json") || !strings.Contains(stdout, "bun install --frozen-lockfile") {
 		t.Fatalf("dry run: exit %d\n%s", code, stdout)
 	}
 	code, _, stderr := runInitIn(t, parent, "", "web", "dash")
@@ -81,6 +81,16 @@ func TestInitDryRunAndCancelWriteNothing(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(parent); len(entries) != 0 {
 		t.Fatalf("files were written: %v", entries)
+	}
+}
+
+func TestInitNamesTheInstallForAMissingSetupTool(t *testing.T) {
+	restore := itemInstalled
+	itemInstalled = func(item installItem) bool { return item.id != "bun" }
+	defer func() { itemInstalled = restore }()
+	code, _, stderr := runInitIn(t, t.TempDir(), "", "web", "dash", "--yes")
+	if code == 0 || !strings.Contains(stderr, "`hi install bun`") || !strings.Contains(stderr, "files are written") {
+		t.Fatalf("exit %d %s", code, stderr)
 	}
 }
 

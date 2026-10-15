@@ -908,10 +908,10 @@ can run hi team preview production for production's link. Times are UTC,
 so for a time of day somewhere else, run at both possible hours and have
 the script print nothing at the wrong one.
 
-The project starts with make run, or npm start, and must listen on
-0.0.0.0 at the port in $PORT. If the preview says the app didn't answer,
-give the coder a task to fix that, with the lines it printed; the link
-still shows the version before. If the app only listens on a fixed port,
+The project starts with make run, or bun run start (npm start without a
+bun.lock), and must listen on 0.0.0.0 at the port in $PORT. If the
+preview says the app didn't answer, give the coder a task to fix that,
+with the lines it printed; the link still shows the version before. If the app only listens on a fixed port,
 pass it: hi team preview --port 5173.
 
 Don't start the app in your own box: nobody can reach it there.

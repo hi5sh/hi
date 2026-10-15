@@ -121,7 +121,7 @@ func TestBuiltinTemplatesContainNoInternalNames(t *testing.T) {
 }
 
 // TestBuiltinTemplatesPassTheirCheck generates each template and runs its
-// setup and make check. It needs uv, npm, and the network, so it runs only
+// setup and make check. It needs uv, Bun, Node.js, and the network, so it runs only
 // with HI_TEMPLATE_CHECK=1.
 func TestBuiltinTemplatesPassTheirCheck(t *testing.T) {
 	if os.Getenv("HI_TEMPLATE_CHECK") != "1" {

@@ -6,20 +6,21 @@ help: ## Show the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-8s %s\n", $$1, $$2}'
 
 check: ## Packages, format, lint, types, tests, and build; must pass before a change is done
-	npm ls --silent > /dev/null
-	npx --no-install biome ci .
-	npx --no-install tsc
-	npx --no-install vitest run
-	npx --no-install vite build
+	@test ! -e package-lock.json || { echo "package-lock.json: this project uses Bun. Run bun install, which turns it into bun.lock, then delete it."; exit 1; }
+	bun install --frozen-lockfile --silent
+	bun run biome ci .
+	bun check
+	bun run vitest run
+	bun run vite build
 
 fix: ## Format and fix what Biome can
-	npx --no-install biome check --write .
+	bun run biome check --write .
 
 lint: ## Format check and lint only
-	npx --no-install biome ci .
+	bun run biome ci .
 
 test: ## Tests only
-	npx --no-install vitest run
+	bun run vitest run
 # hi:end
 
 # Project targets below.

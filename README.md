@@ -237,7 +237,7 @@ that keep it out of `.env` and `secrets/`, the `hi` skill, and CI.
 ```sh
 hi init                         # choose a template, name, and directory
 hi init python pricing-tools    # Python: uv, ruff, pyrefly, pytest
-hi init web dashboard           # React and TypeScript on Vite: npm, Biome, Vitest
+hi init web dashboard           # React and TypeScript on Vite: Bun, Biome, Vitest
 hi init service orders-api      # FastAPI, SQLAlchemy and Alembic, Dockerfile
 hi init pipeline prices-feed    # an idempotent run --date: land raw, parse, load
 hi init ml forecaster           # PyTorch; ROCm on Strix Halo, CUDA on NVIDIA, else CPU
@@ -396,6 +396,7 @@ under the name in brackets for `hi install <tool>` and `hi uninstall <tool>`:
     [`hf`], used by `hi compute` and `hi login`. The Colab CLI needs uv.
 - [uv](https://docs.astral.sh/uv/) [`uv`]
 - [Node.js](https://nodejs.org) and npm [`node`]
+- [Bun](https://bun.com), in `~/.local/bin` [`bun`]
 - [GitHub CLI](https://cli.github.com) [`gh`]
 - [Docker Engine](https://docs.docker.com/engine/) and Docker Compose [`docker`]
 - [Podman](https://podman.io), rootless, with `crun` [`podman`]

@@ -34,6 +34,7 @@ hi install
 ┃   [x] uv                  Python versions, projects, and tools
 ┃   [x] GitHub CLI          gh, for repositories, pull requests, and sign-in
 ┃   [ ] Node.js             node and npm from Ubuntu
+┃   [ ] Bun                 installs, runs, and tests JavaScript; the web template uses it
 ┃   [ ] Docker              Docker Engine, Buildx, and Compose
 ┃   [ ] Podman              rootless containers that run as you, for hi box
 ┃   [x] Claude Code         Anthropic's coding agent (claude)                    installed
@@ -81,6 +82,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | uv                 | `uv`       | uv                                                        |
 | GitHub CLI         | `gh`       | `gh`                                                      |
 | Node.js            | `node`     | Node.js, npm                                              |
+| Bun                | `bun`      | `bun` and `bunx`, the latest release, checked against its sums |
 | Docker             | `docker`   | Docker Engine, Buildx, Docker Compose                     |
 | Podman             | `podman`   | Rootless Podman with `crun`, `uidmap`, and `passt`; a subordinate ID range if the user has none |
 | Claude Code        | `claude`   | `claude`                                                  |

@@ -48,6 +48,8 @@ var installItems = []installItem{
 		packages: []string{"gh"}, essential: true},
 	{id: "node", title: "Node.js", description: "node and npm from Ubuntu",
 		packages: []string{"nodejs", "npm"}},
+	{id: "bun", title: "Bun", description: "installs, runs, and tests JavaScript; the web template uses it",
+		commands: []string{"bun"}, keeps: "Bun keeps its package cache in ~/.bun."},
 	{id: "docker", title: "Docker", description: "Docker Engine, Buildx, and Compose",
 		packages: []string{"docker-ce"}, keeps: "Docker keeps its images and volumes in /var/lib/docker."},
 	{id: "podman", title: "Podman", description: "rootless containers that run as you, for hi box",

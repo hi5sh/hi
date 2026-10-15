@@ -709,6 +709,9 @@ func executeInit(catalog *templateCatalog, request initRequest, yes, dryRun bool
 	}
 	for _, args := range plan.commands {
 		fmt.Fprintf(stdout, "$ %s\n", strings.Join(args, " "))
+		if item, ok := findInstallItem(args[0]); ok && !itemInstalled(item) {
+			return fmt.Errorf("the files are written, but %s isn't installed: run `hi install %s`, then `%s` in %s", item.title, item.id, strings.Join(args, " "), plan.target)
+		}
 		command := exec.Command(args[0], args[1:]...)
 		command.Dir = plan.target
 		command.Stdout = stdout

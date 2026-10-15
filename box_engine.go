@@ -116,6 +116,8 @@ func boxHardening(memory string) []string {
 // always runs the versions the user has. Node.js is the LTS from
 // nodejs.org, checked against pinned checksums: Ubuntu 24.04's nodejs is
 // 18, which current Vite and Vitest, and so the web template, can't run on.
+// Bun, like uv, is the latest release when the image is built, checked
+// against that release's SHASUMS256.txt.
 const boxContainerfile = `FROM docker.io/library/ubuntu:24.04
 RUN userdel -r ubuntu 2>/dev/null || true \
  && useradd --uid 1000 --home-dir /box/home --no-create-home --shell /bin/bash box \
@@ -136,6 +138,19 @@ RUN case "$(dpkg --print-architecture)" in \
       --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md \
  && rm /tmp/node.tar.xz \
  && node --version && npm --version
+RUN case "$(dpkg --print-architecture)" in \
+      amd64) arch=x64 ;; \
+      arm64) arch=aarch64 ;; \
+      *) echo "no Bun build for this architecture" >&2; exit 1 ;; \
+    esac \
+ && cd /tmp \
+ && curl -fsSLO "https://github.com/oven-sh/bun/releases/latest/download/bun-linux-$arch.zip" \
+ && curl -fsSL https://github.com/oven-sh/bun/releases/latest/download/SHASUMS256.txt \
+    | grep " bun-linux-$arch.zip\$" | sha256sum -c - \
+ && unzip -jq "bun-linux-$arch.zip" "bun-linux-$arch/bun" -d /usr/local/bin \
+ && ln -s bun /usr/local/bin/bunx \
+ && rm "bun-linux-$arch.zip" \
+ && bun --version
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 ENV HOME=/box/home LANG=C.UTF-8 TERM=xterm-256color
 WORKDIR /box

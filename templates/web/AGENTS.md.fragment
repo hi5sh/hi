@@ -1,7 +1,10 @@
 
 ## Web
 
-- Use npm: `npm install <package>` (`--save-dev` for tools), and commit
-  `package-lock.json`. `npm run dev` starts the dev server.
+- Use Bun: `bun add <package>` (`--dev` for tools), and commit `bun.lock`;
+  never npm, which would add a `package-lock.json`. `bun run dev` starts
+  the dev server. A version must be 3 days old before Bun installs it
+  (`bunfig.toml`), and packages' install scripts don't run unless the
+  package is in `trustedDependencies`.
 - Code lives in `src/`, with tests next to the code as `*.test.tsx`.
 - Keep quant and data logic in a Python service, not in the browser.

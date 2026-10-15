@@ -3,9 +3,9 @@
 ## Setup
 
 ```sh
-npm ci
+bun install
 make check
-npm run dev
+bun run dev
 ```
 
 `make help` lists the other targets.

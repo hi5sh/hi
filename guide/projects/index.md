@@ -34,7 +34,7 @@ plan, or `--yes` to skip the question (for agents and scripts).
 | Template | For                              | Stack                                                    |
 |----------|----------------------------------|----------------------------------------------------------|
 | `python` | Libraries and scripts            | uv, ruff, pyrefly, pytest; the package lives in `src/`   |
-| `web`    | Internal web apps and dashboards | React and TypeScript on Vite, npm, Biome, Vitest         |
+| `web`    | Internal web apps and dashboards | React and TypeScript on Vite, Bun, Biome, Vitest         |
 | `service` | Backend services and APIs       | `python` + FastAPI, SQLAlchemy and Alembic, `/healthz` and `/readyz`, Dockerfile, compose |
 | `pipeline` | Data sources and ingestion     | `python` + one idempotent `run --date`, raw files landed before parsing, offline parser tests |
 | `ml`     | Model training                   | `python` + PyTorch for CPU, CUDA, or ROCm, a typed config, a two-step training test |
@@ -44,7 +44,12 @@ The two `autoresearch` templates are shaped for `hi agent best-of` rounds;
 see [Start from a template](/guide/autoresearch/templates/).
 
 `hi init --list` shows them. The Python ones need `uv`, and `web` needs
-Node.js with npm; `hi install` sets up both.
+Bun and Node.js; `hi install` sets up all three. `web` installs with Bun
+and commits `bun.lock`; Vite and Vitest still run on Node.js. A `web`
+project from before v0.61.0 that runs `hi init --update` gets the Bun
+Makefile and upgrade notes for `bunfig.toml`, and its `make check` says to
+run `bun install`, which turns `package-lock.json` into `bun.lock`, and
+then to delete the old file.
 
 Each adds its own checks to `make check`: `service` checks that the health
 endpoints answer and that migrations match the models, `pipeline` that a
@@ -79,7 +84,7 @@ which one you meant.
 | `--name <name>`         | Project name; by default the directory's name               |
 | `--dry-run`             | Print the plan and stop                                     |
 | `--yes`                 | Do not ask for confirmation                                 |
-| `--no-setup`            | Write the files but run no setup command (`uv sync`, `npm ci`, or `make sync` in `ml`) |
+| `--no-setup`            | Write the files but run no setup command (`uv sync`, `bun install`, or `make sync` in `ml`) |
 | `--github <owner/repo>` | Also create a private GitHub repository and push the first commit |
 | `--force`               | With `--update` or `--adopt`: overwrite files `hi` owns even when edited by hand |
 | `--strict`              | With `--check`: fail when private layers can't be checked   |

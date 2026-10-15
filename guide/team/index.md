@@ -161,7 +161,8 @@ so the people can try the work, on their phones too. The link carries its
 own key, so there is no password to copy:
 
 1. hi starts the project in an app box of its own, from the merged code (or
-   a task's branch, before it is merged), with `make run` or `npm start`.
+   a task's branch, before it is merged), with `make run`, or the
+   `start` script: `bun run start` with a `bun.lock`, else `npm start`.
    The app listens on `$PORT`; its port reaches this machine only.
 2. `hi net expose --link` puts it on a temporary HTTPS address through this
    machine's NetBird (see [hi net](/guide/workstation/expose/)), which only
