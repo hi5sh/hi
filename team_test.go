@@ -459,7 +459,13 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 			delete(b.exposures, args[3])
 			return nil, nil
 		case args[0] == "net":
-			name := fmt.Sprintf("%s-x%d", args[len(args)-1], len(b.calls))
+			prefix := ""
+			for i, arg := range args {
+				if arg == "--name" {
+					prefix = args[i+1]
+				}
+			}
+			name := fmt.Sprintf("%s-x%d", prefix, len(b.calls))
 			state := netExposeState{Name: name, URL: "https://" + name + ".example.net", Link: "https://" + name + ".example.net/?hi_key=k", Expires: time.Now().Add(b.lasts)}
 			b.exposures[name] = state
 			return json.Marshal(state)

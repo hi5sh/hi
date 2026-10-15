@@ -77,7 +77,11 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 			}
 		}
 	}
-	if task.Approval != nil {
+	if task.Approval != nil && teamWebMessageID.MatchString(task.Approval.TS) {
+		if said := teamWebApprovalChat(b.team, *task.Approval); said != "" {
+			fmt.Fprintf(&text, "\n## What the people said\n\nThe chat in the app this work was agreed in, in their words, with the page each message was written on. Their links are part of the brief: open them.\n\n%s", teamClipText(said, teamMaxConversation))
+		}
+	} else if task.Approval != nil {
 		if config, err := loadTeam(b.team); err == nil {
 			thread := teamApprovalThread(config, *task.Approval)
 			if len(thread) > 0 {

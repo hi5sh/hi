@@ -47,6 +47,15 @@ type teamChannelMessage struct {
 	Bot    bool              `json:"bot,omitempty"` // a bot's, such as the lead's
 	Text   string            `json:"text"`
 	Files  []teamChannelFile `json:"files,omitempty"`
+	// Web is set on hi's copy of a message from the app's chat.
+	Web *teamChannelWeb `json:"web,omitempty"`
+}
+
+// teamChannelWeb says which web chat a message was copied from.
+type teamChannelWeb struct {
+	Conversation string `json:"conversation"`
+	Person       string `json:"person,omitempty"`
+	From         string `json:"from"` // person or lead
 }
 
 type teamChannelFile struct {
@@ -71,6 +80,8 @@ type teamChannelSource interface {
 	download(url string, w io.Writer) error
 	// post returns the message's timestamp, which update and permalink take.
 	post(channel, text string) (string, error)
+	// postIn replies in a thread.
+	postIn(channel, thread, text string) (string, error)
 	update(channel, ts, text string) error
 	permalink(channel, ts string) (string, error)
 }
@@ -134,6 +145,11 @@ func (l *liveTeamChannel) download(url string, w io.Writer) error { return l.api
 
 func (l *liveTeamChannel) post(channel, text string) (string, error) {
 	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
+	return ts, err
+}
+
+func (l *liveTeamChannel) postIn(channel, thread, text string) (string, error) {
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionTS(thread), slack.MsgOptionDisableLinkUnfurl())
 	return ts, err
 }
 
@@ -237,6 +253,14 @@ func teamPollChannel(team, channel string, source teamChannelSource, now time.Ti
 	for thread := range state.Threads {
 		if teamTSBefore(thread, oldest) {
 			delete(state.Threads, thread)
+		}
+	}
+	if len(logged) > 0 {
+		mirrored := teamWebMirrored(team)
+		for i := range logged {
+			if web, ok := mirrored[logged[i].TS]; ok {
+				logged[i].Web = &web
+			}
 		}
 	}
 	if err := teamAppendChannel(dir, logged); err != nil {
@@ -448,7 +472,17 @@ func runTeamChannel(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	printTeamChannel(messages, dir, ids, stdout)
+	shown := messages
+	if newOnly {
+		// The lead was in the app's chats it copied here.
+		shown = nil
+		for _, message := range messages {
+			if message.Web == nil {
+				shown = append(shown, message)
+			}
+		}
+	}
+	printTeamChannel(shown, dir, ids, stdout)
 	if newOnly && len(messages) > 0 {
 		latest := after
 		for _, message := range messages {

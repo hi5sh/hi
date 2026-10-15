@@ -59,6 +59,11 @@ type netExposeOptions struct {
 	// Follow is a file with the port to relay to, read again when it
 	// changes, so the service can move without the address changing.
 	Follow string `json:"follow,omitempty"`
+	// Routes, Inject, and InjectIf add hi's own paths and a script to the
+	// service's pages (net_expose_inject.go).
+	Routes   []netExposeRoute `json:"routes,omitempty"`
+	Inject   string           `json:"inject,omitempty"`
+	InjectIf string           `json:"inject_if,omitempty"`
 }
 
 // netExposeState is a running exposure, in the state folder.
@@ -108,6 +113,9 @@ options:
   --host <addr>        where the service listens (default localhost)
   --follow <file>      relay to the port written in this file, read again when it
                        changes, so the service can move without a new address
+  --route <prefix>=unix:<socket>  serve paths under /prefix/ from a socket instead
+  --inject <url>       add <script src="<url>" defer> to each page the browser loads
+  --inject-if <file>   inject and route only while this file exists
   --detach             run in the background; print the address and return
   --json               print the result as JSON
 
@@ -163,6 +171,10 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	name := flags.String("name", "", "address prefix")
 	host := flags.String("host", "localhost", "where the service listens")
 	follow := flags.String("follow", "", "a file with the port to relay to")
+	var routes repeatedFlag
+	flags.Var(&routes, "route", "a path prefix served from a socket")
+	inject := flags.String("inject", "", "a script for each page")
+	injectIf := flags.String("inject-if", "", "inject only while this file exists")
 	detach := flags.Bool("detach", false, "run in the background")
 	asJSON := flags.Bool("json", false, "JSON output")
 	positional, err := flags.parse(args)
@@ -176,7 +188,17 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	if err != nil {
 		return netExposeOptions{}, false, err
 	}
-	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow}
+	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow, Inject: *inject, InjectIf: *injectIf}
+	for _, text := range routes {
+		route, err := parseNetExposeRoute(text)
+		if err != nil {
+			return options, false, err
+		}
+		options.Routes = append(options.Routes, route)
+	}
+	if options.InjectIf != "" && options.Inject == "" && len(options.Routes) == 0 {
+		return options, false, errors.New("--inject-if goes with --inject or --route")
+	}
 	switch {
 	case options.Max == noLimit || options.Max > netExposeMaxMax:
 		return options, false, fmt.Errorf("--max is at most %s; an exposure always ends", netExposeMaxMax)
@@ -371,11 +393,12 @@ const (
 // The link's key becomes a cookie that lasts until the exposure ends, and
 // the browser is sent on to the address without it.
 func newNetExposeRelayWithKey(target, key string, expires time.Time, log io.Writer) http.Handler {
-	return newNetExposeRelayTo(func() string { return target }, key, expires, log)
+	return newNetExposeRelayTo(func() string { return target }, key, expires, log, nil)
 }
 
-// newNetExposeRelayTo is the relay for a target that may move.
-func newNetExposeRelayTo(target func() string, key string, expires time.Time, log io.Writer) http.Handler {
+// newNetExposeRelayTo is the relay for a target that may move. helper adds
+// hi's paths and script, when there is one.
+func newNetExposeRelayTo(target func() string, key string, expires time.Time, log io.Writer, helper *netExposeHelper) http.Handler {
 	var mu sync.Mutex
 	matches := func(given string) bool {
 		return given != "" && subtle.ConstantTimeCompare([]byte(given), []byte(key)) == 1
@@ -417,6 +440,16 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 			r.Header.Del("Authorization")
 			netExposeDropCookie(r, netExposeKeyCookie)
 		}
+		var handler http.Handler
+		inject := false
+		if helper.on() {
+			if route := helper.route(r.URL.Path); route != nil {
+				handler = route
+			} else if helper.Inject != "" && netExposePageLoad(r) {
+				inject = true
+				helper.prepare(r)
+			}
+		}
 		upstream, _ := url.Parse(target())
 		proxy := &httputil.ReverseProxy{
 			Rewrite: func(out *httputil.ProxyRequest) {
@@ -429,7 +462,13 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 			},
 			FlushInterval: -1,
 		}
-		proxy.ServeHTTP(recorder, r)
+		if handler == nil {
+			handler = proxy
+			if inject {
+				proxy.ModifyResponse = helper.modify
+			}
+		}
+		handler.ServeHTTP(recorder, r)
 		if r.Header.Get(netExposeProbeHeader) != "" {
 			return // hi's own check that the address works
 		}
@@ -509,7 +548,13 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if options.Follow != "" {
 		current = netExposeFollow(options.Follow, options.Host, options.Port)
 	}
-	relay := &http.Server{Handler: newNetExposeRelayTo(current, key, time.Now().Add(options.Max), stdout), ReadHeaderTimeout: 30 * time.Second}
+	var logMu sync.Mutex
+	helper := newNetExposeHelper(options, func(format string, args ...any) {
+		logMu.Lock()
+		defer logMu.Unlock()
+		fmt.Fprintf(stdout, format+"\n", args...)
+	})
+	relay := &http.Server{Handler: newNetExposeRelayTo(current, key, time.Now().Add(options.Max), stdout, helper), ReadHeaderTimeout: 30 * time.Second}
 	go relay.Serve(listener)
 	defer relay.Close()
 	relayPort := listener.Addr().(*net.TCPAddr).Port

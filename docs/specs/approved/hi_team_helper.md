@@ -1,10 +1,10 @@
 # `hi team` helper specification
 
-Status: Idea (2026-10-15).
+Status: Approved (2026-10-15). Slice 1, the chat, is built (v0.57.0).
 
-Dependencies: [hi_team.md](../approved/hi_team.md) (the broker, the lead,
+Dependencies: [hi_team.md](hi_team.md) (the broker, the lead,
 the preview and production addresses, approvals, the channel's log),
-[hi_net_expose.md](../approved/hi_net_expose.md) (the relay in front of
+[hi_net_expose.md](hi_net_expose.md) (the relay in front of
 every team address), and Hermes' API server (the lead answers outside
 Slack).
 
@@ -104,9 +104,10 @@ Which responses get the tag:
   with `200` and `text/html`. HTML fragments fetched by the page (htmx,
   Turbo, `fetch`) and pages inside iframes are left alone, so the helper
   appears once, at the top.
-- The relay drops `Accept-Encoding` from page-load requests, so the app
-  answers them uncompressed. Pages are small, and other requests stay
-  compressed.
+- The relay asks for page loads uncompressed (`Accept-Encoding: identity`;
+  no header at all would let Go's transport ask for gzip), so it can find
+  where the tag goes. Pages are small, and other requests stay compressed.
+  An app that compresses anyway gets no helper on that page.
 - The tag goes right after the first `<head …>` tag, else before `<body`,
   else after `<html …>` or the doctype. The relay scans the first 64 KB as
   it streams. A page with none of those in its first 64 KB passes through
@@ -127,10 +128,11 @@ cross-origin requests, and no other key is involved.
 
 ## The helper in the page
 
-One script, written in TypeScript without a framework, built with esbuild
-into `helper/dist/helper.js`, and committed. `go build` needs no Node:
-hi embeds the file and serves it as `/__hi/helper.js?v=<hi version>`. It
-aims to be under 50 KB.
+One script, `helper/helper.js`, in plain JavaScript without a framework
+or a build step: hi embeds the file as it is and serves it as
+`/__hi/helper.js?v=<the script's hash>`, so `go build` needs no Node and a
+browser keeps its copy until the script changes. It aims to be under
+50 KB.
 
 - **Isolated.** It mounts one custom element, `<hi-helper>`, at the end of
   `<body>`, with an open shadow root and the highest z-index. Its styles
@@ -138,7 +140,8 @@ aims to be under 50 KB.
   can't leak out. It changes nothing else in the app's DOM except the
   outline layer in select mode, which is also inside `<hi-helper>`.
 - **The button.** A round button in the bottom-right corner, which can be
-  dragged to another corner. The corner, and whether the panel was open,
+  dragged to another corner; the panel opens on that side. The app's
+  keyboard shortcuts don't fire while someone types in the panel. The corner, and whether the panel was open,
   are kept per browser (localStorage, wrapped in try/catch).
 - **The panel.** A side panel on the right, 400 px wide, over the page. On
   a narrow screen it is a bottom sheet. It shows the lead's name ("payments
@@ -146,9 +149,10 @@ aims to be under 50 KB.
   "production v3"), the conversation, and the composer.
 - **Who's talking.** The first time it opens, the helper asks "Who are
   you?" and lists the people who may ask for work (the channel's members
-  when the team has no askers), with names from Slack. The choice is kept
-  per browser and can be changed in the panel. This is a claimed identity,
-  not a sign-in; see Later.
+  when the team has no askers: the owners and everyone heard in the channel
+  in the last two weeks, plus a box to type a name), with names from Slack.
+  The choice is kept per browser and can be changed in the panel. This is a
+  claimed identity, not a sign-in; see Later.
 - **The conversation.** Messages are kept by the team's service, so a
   reload, another page, or another browser shows the same conversation for
   that person and that slot. "New conversation" starts a fresh one. The
@@ -262,43 +266,53 @@ replace hi's.
 **The panel** is the other half of the work: message list, streaming,
 Markdown, a growing composer, attachments. [Deep Chat](https://github.com/OvidijusParsiunas/deep-chat)
 (MIT) is a `<deep-chat>` web component that works without a framework,
-with a custom `handler` for the request and streamed replies, so it could
-sit inside `<hi-helper>` instead of a panel hi writes. Slice 1 tries it
-and keeps it if it allows chips in the composer, a header with the version,
-and messages that arrive from outside (`hi team web post`), and if its
-size is acceptable. That size would replace the 50 KB aim for the
-script. assistant-ui and other React kits are out: the helper can't
-assume the app's framework.
+with a custom `handler` for the request and streamed replies. Slice 1
+looked at it and wrote its own panel: Deep Chat 2.5.1's bundle is 387 KB
+(107 KB compressed), eight times the helper's aim, for every page of every
+app, and the header, "Who are you?", the chips, and messages that arrive
+from outside are hi's to write either way. hi's whole helper is 25 KB
+as it is, before compression. assistant-ui and other React kits are out: the helper can't assume
+the app's framework.
 
 ## The chat reaches the lead
 
 The lead answers web chat through Hermes' API server, not through Slack.
 That's because the helper's messages can't arrive as Slack messages. hi
 would post them with the team's bot, which is the lead's own Slack user,
-and Hermes, like most bots, skips its own messages so it never answers
-itself. The first slice confirms this against the Hermes version hi pins.
+and Hermes' Slack adapter drops messages from bots, its own included
+(checked in its source).
 
 - `hi team up` turns on Hermes' API server in the lead's box
-  (`API_SERVER_ENABLED=true`, `API_SERVER_HOST=0.0.0.0`, a random
-  `API_SERVER_KEY` in `secrets.json`), published to this machine's loopback
-  only, on a port recorded in `run/`. Only the team's service calls it.
+  (`API_SERVER_ENABLED=true`, on 127.0.0.1:8642 inside the box, with a
+  random `API_SERVER_KEY` kept in `secrets.json`). The lead's network is
+  internal, so no port can be published: the team's service starts
+  `hi team __leadapi` in the box (`podman exec -d`), which relays a socket
+  in the broker's folder (`lead-api.sock`) to it, and starts it again
+  whenever the socket stops answering. Only the team's service calls it.
 - **The team's service** (the broker's process) listens on a second socket,
-  `/run/user/<uid>/hi-team-<name>-web`, which each relay routes `/__hi/` to:
+  `/run/user/<uid>/hi-team-<name>-web/`, one socket per address
+  (`preview.sock`, `production.sock`), which the address's relay routes
+  `/__hi/` to, so the service knows which address a request came from. No
+  box mounts it:
 
 ```text
 GET  /__hi/helper.js                      the script
 GET  /__hi/api/status                     team, lead's name, slot, version, people
-GET  /__hi/api/conversation?person=…      this person's conversation in this slot
-POST /__hi/api/messages                   {conversation, person, text, page, refs}
-                                          → the lead's reply as server-sent events
-GET  /__hi/api/events?conversation=…      later messages and "new version", as events
+GET  /__hi/api/conversation?person=…      this person's open conversation on this address
+POST /__hi/api/conversation/new           end it; the next message starts a new one
+POST /__hi/api/messages                   {conversation, person, name, text, page, refs}
+                                          → server-sent events: message, delta…, done or error
+GET  /__hi/api/events?conversation=…      later messages, as events (slice 3)
 ```
 
-  The relay adds the slot to each request (`X-Hi-Slot`), since one service
-  serves both addresses.
+  The relay strips the app's cookies from these requests. The lead's
+  answer is kept and copied to the channel even when the browser leaves
+  before it ends; the panel looks again every few seconds until it is
+  there. A second message while the lead is answering is refused.
 - **One web conversation is one Hermes conversation**, through
   `/v1/responses` with `conversation: "web-<id>"`, streamed. Hermes keeps
-  the transcript, and the lead's long-term memory (Hindsight, the bank
+  the transcript (in `response_store.db` in its home, so it outlives a
+  restart), and the lead's long-term memory (Hindsight, the bank
   `team-<name>`) is shared with Slack, so what is said in either place is
   remembered in both.
 - **What the lead reads.** The service sends the person's text with a
@@ -318,7 +332,10 @@ Referenced elements:
    box: 54×22 at (812, 248); color white on rgb(34,139,34), 12px
 ```
 
-  The full references are kept as JSON with the conversation.
+  The first message of each chat starts with a short note on how chats in
+  the app work: answer briefly, a yes here counts with its message id,
+  production needs Slack. The full references are kept as JSON with the
+  conversation.
 - **The lead's later messages.** The lead's reply ends when its turn ends,
   but work finishes later. `hi team web post <conversation> <file|->`, run
   by the lead through the broker like its other commands, adds a message to
@@ -355,21 +372,28 @@ sight.
 | | Preview (dev, or a task's branch) | Production |
 |---|---|---|
 | Default | on | on |
-| Turned off or on by | anyone who may ask for work | an owner, with a yes in Slack |
+| Turned off or on by | the lead, when the people ask | an owner, with a yes in Slack |
 | Command | `hi team helper preview off` | `hi team helper production off --approval <id>` |
 
-- The setting is `"helper": {"preview": true, "production": true}` in
-  `team.json`, and the broker keeps `run/<slot>.helper` in line with it.
+- The setting is `"helper": {"production": false}` in `team.json` (an
+  address not named has it on), and the team's service keeps
+  `run/<slot>.helper` in line with it. On the machine,
+  `hi team helper <name> production off` needs no approval: whoever runs the
+  machine runs the team. The change is recorded in `versions.json`'s history
+  with its approval, so the same yes can't be used twice.
   The next page load has the helper or doesn't; no release, no restart.
 - An owner asks the lead in Slack ("turn the chat off in production before
   we give the link to the whole finance team"). The lead asks back, the
   owner says yes, and the lead runs the command with that approval, like a
   release.
-- Each release's announcement says whether production has the helper, and
-  so do `hi team status` and `hi team versions` ("production v3, helper
-  off").
+- `hi team status` and the lead's `hi team helper` say whether each address
+  has it; turning production's off or on is announced in the channel.
+  Saying so in each release's announcement is left for later.
 - The setting belongs to the address, not to a release: rolling back to v2
   doesn't turn the helper on again.
+- An address made before hi had the helper gets it when its link is next
+  renewed (production's every day, a preview's when it has less than 12
+  hours left).
 - An app that registered a service worker may still load an old page with
   the script tag from its cache. With the helper off, `/__hi/helper.js`
   isn't served, so the tag loads nothing.
@@ -377,8 +401,8 @@ sight.
 ## The team folder
 
 ```text
-web/            the web conversations: one JSON line per message, with its
-                references, a file per conversation (w-12.jsonl)
+web/            the web conversations, a file each (w-12.json): who, which
+                address, its thread in the channel, and the messages
 run/<slot>.helper   present while the slot's helper is on
 ```
 

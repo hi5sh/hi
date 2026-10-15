@@ -203,7 +203,7 @@ func TestNetExposeFollow(t *testing.T) {
 	_, oldPort := serve("old")
 	_, newPort := serve("new")
 	file := filepath.Join(t.TempDir(), "port")
-	relay := httptest.NewServer(newNetExposeRelayTo(netExposeFollow(file, "127.0.0.1", oldPort), "", time.Time{}, io.Discard))
+	relay := httptest.NewServer(newNetExposeRelayTo(netExposeFollow(file, "127.0.0.1", oldPort), "", time.Time{}, io.Discard, nil))
 	defer relay.Close()
 	get := func() string {
 		response, err := http.Get(relay.URL)

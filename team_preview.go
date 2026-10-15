@@ -317,7 +317,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		if next.Slot == teamSlotProduction {
 			name += "-live"
 		}
-		exposure, err := b.expose(hostPort, portFile, name)
+		exposure, err := b.expose(hostPort, portFile, name, next.Slot)
 		switch {
 		case err != nil && !exposed:
 			discard()
@@ -345,9 +345,11 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	return next, nil
 }
 
-// expose puts the port in portFile on a new address, for a day.
-func (b *teamBroker) expose(hostPort int, portFile, name string) (netExposeState, error) {
-	out, err := b.run("net", "expose", strconv.Itoa(hostPort), "--follow", portFile, "--link", "--detach", "--json", "--max", netExposeMaxMax.String(), "--name", name)
+// expose puts the port in portFile on a new address, for a day, with the
+// helper in its pages while the slot's helper is on.
+func (b *teamBroker) expose(hostPort int, portFile, name, slot string) (netExposeState, error) {
+	args := []string{"net", "expose", strconv.Itoa(hostPort), "--follow", portFile, "--link", "--detach", "--json", "--max", netExposeMaxMax.String(), "--name", name}
+	out, err := b.run(append(args, teamExposeHelperArgs(b.team, slot)...)...)
 	if err != nil {
 		return netExposeState{}, fmt.Errorf("hi net expose: %w (the app runs, but only on this machine)", err)
 	}

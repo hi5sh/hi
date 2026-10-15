@@ -27,17 +27,25 @@ type teamApproval struct {
 
 // teamFindApproval checks ref (a message's ID from hi team channel --ids)
 // against the channel's log, polling Slack first when it isn't logged yet.
-// For a release or a rollback, only an owner's yes counts: production is
-// theirs. A release or setting dev back ("dev") needs a yes
+// For a release, a rollback, or production's helper, only an owner's yes
+// counts: production is theirs. A yes in the app's chat (w-3.4) may start
+// work, but never those: its name is only claimed. A release or setting dev back ("dev") needs a yes
 // of its own, never one that approved something else; one yes may start
 // more than one task.
 func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) (teamApproval, error) {
-	owners := approving == "release" || approving == "rollback"
+	owners := approving == "release" || approving == "rollback" || approving == "helper"
 	ref = strings.Trim(strings.TrimSpace(ref), "[]")
 	if ref == "" {
 		return teamApproval{}, errors.New("name the message that approved this work: hi team task <role> <brief.md> --approval <id>, " +
 			"with the id from hi team channel --ids. Ask the people first, end your reply, and start the task once one of them says yes. " +
 			"A small fix may start without asking: --small")
+	}
+	if teamWebMessageID.MatchString(ref) {
+		approval, err := teamCheckWebApproval(config, ref, owners, time.Now())
+		if err != nil {
+			return approval, err
+		}
+		return b.unusedApproval(approval, approving)
 	}
 	approval, err := teamCheckApproval(config, ref, owners, time.Now())
 	if err != nil && b.channel != nil {
@@ -49,6 +57,12 @@ func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) 
 	if err != nil {
 		return approval, err
 	}
+	return b.unusedApproval(approval, approving)
+}
+
+// unusedApproval refuses a yes that already approved something else, when
+// this work needs a yes of its own.
+func (b *teamBroker) unusedApproval(approval teamApproval, approving string) (teamApproval, error) {
 	used := map[string]bool{}
 	if approving != "task" {
 		for _, task := range loadTeamTasks(b.team) {

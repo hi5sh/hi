@@ -35,6 +35,15 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("the team's Slack tokens: %w", err)
 	}
+	if secrets.LeadAPIKey == "" {
+		secrets.LeadAPIKey = netExposeKey() + netExposeKey()
+		if err := saveTeamSecrets(name, secrets); err != nil {
+			return err
+		}
+	}
+	if err := teamSyncHelper(config); err != nil {
+		return err
+	}
 	if err := hermesInstalled(); err != nil {
 		return err
 	}
@@ -118,9 +127,18 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("the broker's socket for this machine: %w", err)
 	}
-	brokerErr := make(chan error, 2)
+	serveWeb, err := broker.listenWeb(ctx)
+	if err != nil {
+		return fmt.Errorf("the helper's sockets: %w", err)
+	}
+	leadAPI := filepath.Join(brokerDir, teamLeadAPISocket)
+	broker.lead = teamLeadAPI(leadAPI, secrets.LeadAPIKey)
+	brokerErr := make(chan error, 2+len(serveWeb))
 	go func() { brokerErr <- serveBroker() }()
 	go func() { brokerErr <- serveHost() }()
+	for _, serve := range serveWeb {
+		go func() { brokerErr <- serve() }()
+	}
 	broker.resume()
 	if err := broker.commitSpecs(); err != nil {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
@@ -133,6 +151,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		}
 	}()
 	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
+	go teamKeepLeadAPI(engine, container, leadAPI, ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
 	// engine keeps no second copy.
@@ -278,6 +297,12 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		// broker logs the rest of the channel for it (team_channel.go).
 		"SLACK_REQUIRE_MENTION=true",
 		"SLACK_STRICT_MENTION=true",
+	}
+	if secrets.LeadAPIKey != "" {
+		// Hermes' API server, inside the box only: the helper in the app
+		// reaches the lead through it (team_helper.go).
+		env = append(env, "API_SERVER_ENABLED=true", "API_SERVER_HOST=127.0.0.1",
+			fmt.Sprintf("API_SERVER_PORT=%d", teamLeadAPIPort), "API_SERVER_KEY="+secrets.LeadAPIKey)
 	}
 	if len(config.Askers) == 0 {
 		env = append(env, "SLACK_ALLOW_ALL_USERS=true")
@@ -673,6 +698,9 @@ of its own on a branch of the project; you get their reports.
 | hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
 | hi team discard t-4 | Drop an idea that isn't merged: its tasks, reviews, and branches |
 | hi team discard dev --approval <id> | Set dev's code back to production's, once one of the people says yes |
+| hi team helper | Whether the app's pages have the helper, the chat with you in the app |
+| hi team helper preview on\|off | Turn the preview's helper on or off, when the people ask |
+| hi team helper production on\|off --approval <id> | The same for production, once an owner says yes in Slack |
 
 Members: %[2]s.
 
@@ -701,6 +729,24 @@ Shared files are in /team/channel/files. When someone @-mentions you,
 look at what was said before it if the question builds on it. Every 15
 minutes your channel-watch job reads what's new and keeps what matters in
 your memory; don't remove that job.
+
+## The app's chat
+
+Every page of the preview and of production has a helper: a button that
+opens a chat with you beside the page. Those messages reach you outside
+Slack and start with a header in brackets: [web chat w-3 · message w-3.2 ·
+Anna (U07ANNA) · preview: dev, v3 + 2 changes · /suppliers · ...]. That is
+who wrote, which address and version they see, and the page they are on.
+
+- Answer in a few short sentences: the panel is narrow. Ask about behavior,
+  never about code, as in Slack.
+- hi copies each chat into a thread in the channel, so the team sees it.
+- A yes in the app's chat approves work like one in Slack: pass the
+  message's id from the header, --approval w-3.4. hi adds the chat to the
+  brief. A release, a rollback, or turning production's helper off needs an
+  owner's yes in Slack: the name in the app isn't checked.
+- /__hi/ on the team's addresses is hi's. Tell members never to use it in
+  the app.
 
 ## What you learn
 

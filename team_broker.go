@@ -182,10 +182,19 @@ type teamBroker struct {
 	takeSnapshot func(kind, label string) (teamSnapshot, error)
 	// restoreData puts app/ back from a snapshot; tests replace it.
 	restoreData func(id string) error
+	// lead answers a message from the app's chat as the lead, calling delta
+	// with its text as it comes; tests replace it (team_helper.go).
+	lead func(ctx context.Context, conversation, input string, delta func(string)) (string, error)
+	// webMu guards the web chats; answering, those the lead is answering.
+	webMu     sync.Mutex
+	answering map[string]bool
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
-	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds}
+	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, answering: map[string]bool{}}
+	b.lead = func(context.Context, string, string, func(string)) (string, error) {
+		return "", errors.New("the lead's API server isn't set up")
+	}
 	b.app = b.startApp
 	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
 		return teamTakeSnapshot(team, kind, label, teamPause)
@@ -366,6 +375,19 @@ func (b *teamBroker) handler() http.Handler {
 			tasks, err = b.discard(request.Task)
 		}
 		reply(w, tasks, err)
+	})
+	mux.HandleFunc("GET /helper", func(w http.ResponseWriter, r *http.Request) {
+		config, err := loadTeam(b.team)
+		reply(w, teamHelperLine(config), err)
+	})
+	mux.HandleFunc("POST /helper", func(w http.ResponseWriter, r *http.Request) {
+		var request teamHelperRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		config, err := b.setHelper(request)
+		reply(w, teamHelperLine(config), err)
 	})
 	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		view, err := teamVersionsReport(b.team)
@@ -1000,7 +1022,7 @@ var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": tru
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
-var teamLeadOrHost = map[string]bool{"env": true, "rollback": true}
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	socket := os.Getenv(teamSocketEnv)
@@ -1268,6 +1290,33 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		printTeamPreview(stdout, preview)
 		return nil
+	case "helper":
+		usage := usageError{"usage: hi team helper  (whether the app has the helper)\n       hi team helper preview on|off\n       hi team helper production on|off --approval <id>  (an owner's yes in Slack)"}
+		var request teamHelperRequest
+		var words []string
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--approval" && i+1 < len(args) {
+				request.Approval = args[i+1]
+				i++
+			} else {
+				words = append(words, args[i])
+			}
+		}
+		var line string
+		switch {
+		case len(words) == 0 && request.Approval == "":
+			if err := call("GET", "/helper", nil, &line); err != nil {
+				return err
+			}
+		case len(words) == 2 && (words[1] == "on" || words[1] == "off"):
+			request.Slot, request.On = words[0], words[1] == "on"
+			if err := call("POST", "/helper", request, &line); err != nil {
+				return err
+			}
+		default:
+			return usage
+		}
+		fmt.Fprintln(stdout, line)
 	case "stop":
 		if len(args) != 1 {
 			return usageError{"usage: hi team stop <task>"}

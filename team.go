@@ -43,7 +43,10 @@ type teamConfig struct {
 	Branch  string                `json:"branch"`           // the branch the lead merges into
 	Memory  string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
 	Backups *teamBackups          `json:"backups,omitempty"`
-	Created time.Time             `json:"created"`
+	// Helper turns the helper, a chat with the lead in the app, off for an
+	// address (preview, production); on unless set (team_helper.go).
+	Helper  map[string]bool `json:"helper,omitempty"`
+	Created time.Time       `json:"created"`
 }
 
 // teamMember is one role: an agent, its model, and what its box may use.
@@ -67,6 +70,9 @@ type teamSecrets struct {
 	// The bucket snapshots are copied to (hi team backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
+	// LeadAPIKey opens Hermes' API server in the lead's box to the team's
+	// service, for the helper; made on the first start.
+	LeadAPIKey string `json:"lead_api_key,omitempty"`
 }
 
 func teamsDir() string {
@@ -280,6 +286,10 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamEnv(rest, stdin, stdout)
 	case "__app":
 		return runTeamApp(rest, stderr)
+	case "__leadapi":
+		return runTeamLeadAPI(rest, stderr)
+	case "helper":
+		err = teamHelperCommand(rest, stdout)
 	case "manifest":
 		err = withTeamName(rest, func(name string) error {
 			config, err := loadTeam(name)
@@ -355,6 +365,8 @@ usage:
       [--region <region>]          the bucket's region, if it isn't us-east-1
       [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
+  hi team helper <name>            whether the app's pages have the helper, a chat with the lead
+      [preview|production on|off]  turn it on or off for an address, from the next page load
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
@@ -1376,6 +1388,7 @@ func teamStatus(name string, stdout io.Writer) error {
 	if line := teamSnapshotLine(name); line != "" {
 		fmt.Fprintln(stdout, "\n"+line)
 	}
+	fmt.Fprintln(stdout, "\n"+teamHelperLine(config))
 	tasks := loadTeamTasks(name)
 	if len(tasks) == 0 {
 		fmt.Fprintln(stdout, "\nNo tasks yet.")

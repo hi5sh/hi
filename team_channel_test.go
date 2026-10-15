@@ -45,6 +45,11 @@ func (f *fakeTeamChannel) post(channel, text string) (string, error) {
 	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
 }
 
+func (f *fakeTeamChannel) postIn(channel, thread, text string) (string, error) {
+	f.calls = append(f.calls, "postIn "+channel+" "+thread+" "+text)
+	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+}
+
 func (f *fakeTeamChannel) update(channel, ts, text string) error {
 	f.calls = append(f.calls, "update "+channel+" "+ts+" "+text)
 	return nil
@@ -152,6 +157,15 @@ func TestTeamChannelLog(t *testing.T) {
 	}
 	out.Reset()
 	if err := runTeamChannel([]string{"--new"}, &out); err != nil || out.String() != "" {
+		t.Fatalf("%q %v", out.String(), err)
+	}
+	// hi's copies of the app's chats aren't new to the lead: it was there.
+	teamAppendChannel(dir, []teamChannelMessage{
+		{TS: teamSlackTS(time.Now()), Name: "team-payments", Bot: true, Text: "*Bo*, in the app: make it red", Web: &teamChannelWeb{Conversation: "w-1", From: "person"}},
+		{TS: teamSlackTS(time.Now().Add(time.Second)), User: "U2", Name: "Bo", Text: "and bigger"},
+	})
+	out.Reset()
+	if err := runTeamChannel([]string{"--new"}, &out); err != nil || strings.Contains(out.String(), "make it red") || !strings.Contains(out.String(), "and bigger") {
 		t.Fatalf("%q %v", out.String(), err)
 	}
 }
