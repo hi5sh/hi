@@ -1,6 +1,6 @@
 # `hi team` helper: feedback for anyone, the chat for people signed in
 
-Status: Idea (2026-10-15). Changes [hi_team_helper.md](../approved/hi_team_helper.md):
+Status: Approved (2026-10-15). Changes [hi_team_helper.md](../approved/hi_team_helper.md):
 who is talking is no longer claimed in "Who are you?".
 
 ## Goal
@@ -12,18 +12,44 @@ spends the lead's model budget.
 
 Instead:
 
-1. **The ordinary link is for feedback.** Anyone who has it can point at
-   parts of the page, attach files, and write; the helper sends that to the
-   channel as a feedback item. The lead doesn't answer and nothing changes.
+1. **The ordinary link is for help and feedback.** Anyone who has it can
+   ask how the app works and get an answer from the app's guide, or point
+   at parts of the page, attach files, and write feedback, which the helper
+   sends to the channel. The lead isn't in it and nothing changes.
 2. **People who may change the app sign in through Slack.** `/hi` in the
    team's channel makes hi send them a private link in a DM. With it, the
    helper is today's chat with the lead, as that person, checked.
 
-## The ordinary link: feedback
+## The ordinary link: help and feedback
 
 `https://team-timmai-atsg.eu1.netbird.services/?hi_key=…`
 
-- The panel is titled "Feedback to the team". It has select mode with the
+The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
+
+### Ask: how the app works
+
+- Someone asks "how do I add a supplier?" or points at a column and asks
+  what it means. hi answers itself, with one call to the lead's model
+  through the team's OpenRouter key, **with no tools**: the model can't run
+  anything, read the project, or reach Slack, so there is nothing to talk
+  it into. It only explains.
+- What it knows: the app's guide, `HELP.md` at the root of the version on
+  that address (from repo/, at the slot's commit; README.md when there is
+  no HELP.md), the page's visible text, its title and path, and the parts
+  pointed at. The lead keeps HELP.md current: written for the people who
+  use the app, updated with each change they see. hi's skill tells it so.
+- The answer streams in, in a few short sentences. When the guide doesn't
+  say, it says so. When the person reports a problem or wants a change, it
+  points them to the Feedback tab, which takes the question along.
+- The conversation lives in the browser tab; the last turns go with each
+  question. hi keeps the questions and answers in `web/questions.jsonl`, so
+  the lead sees where people get stuck (`hi team web questions`).
+- Limits, for the budget: 60 questions a day per address, 400 a day for
+  the team; the panel says so when one is reached.
+
+### Feedback
+
+- The Feedback tab has select mode with the
   pictures of what was pointed at, files (paste, drop, the paperclip), and
   an optional name, marked as not checked. It also has a box, ticked by
   default, for "a picture of what I see": the visible page, drawn with
@@ -55,8 +81,10 @@ Instead:
    broker.
 3. The broker checks that the person may ask for work: an owner or asker,
    or, with no askers, a member of the channel. Then it makes a key for them,
-   32 random bytes, stored hashed in `web/people.json` with who it is for,
-   when it was made, and when it ends: in 14 days.
+   32 random bytes, stored in `people.json` beside `secrets.json` (no box
+   mounts either) with who it is for, when it was made, and when it ends:
+   in 14 days. It is kept as it is, not hashed, because hi writes it again
+   into the DM's links when an address changes.
 4. hi sends the person a DM from the team's bot, with the preview's and
    production's links, each with `&hi_user=<key>`. The command's own reply
    is private (ephemeral): "I've sent you a private link in a DM." Someone
@@ -77,16 +105,16 @@ Slack yes does, now that the name is checked. Releases, rollbacks, and
 production's helper still need an owner's yes in the channel, which keeps
 them where the team can see them.
 
-**Production's link changes every day** (it is renewed), so a link in a DM
-goes stale. hi keeps the DMs it sent, and updates them, as it does its
-channel message with production's link, while the key is valid.
+**Production's link changes every day** (it is renewed), and a preview
+gets a new address now and then, so a link in a DM goes stale. hi keeps
+the DM it sent each person and updates it, as it does its channel message
+with production's link, while the key is valid.
 
 **The DM**, for now, is only for hi: links, and the lead's later messages.
 When the lead posts in a person's web chat (`hi team web post`) and their
 panel isn't open, hi also sends it to their DM, with the link. The lead
-doesn't answer in DMs; Hermes is told so already (`SLACK_DISABLE_DMS`).
-Writing to the bot in a DM gets: "Use /hi for a link to the app's chat, or
-the channel."
+doesn't answer in DMs; Hermes is told so already (`SLACK_DISABLE_DMS`),
+and the app's Messages tab is read-only, so nobody writes into a void.
 
 **When /hi isn't there.** "@lead send me a link" in the channel works too:
 the lead runs `hi team web link --user <their ID>`, and the link still goes
@@ -99,6 +127,9 @@ only to that person's DM, so asking for someone else's gets them nothing.
 - `features.slash_commands`: `/hi`, "A private link to the app's chat with
   the lead", `should_escape: false`.
 - The scopes `commands` (for slash commands) and `im:write` (to open a DM).
+- `features.app_home`: the Messages tab on and read-only.
+- The lead's Hermes gets the plugin in its home (`plugins/hi-team`) and
+  listed in `plugins.enabled`, written on every start like its settings.
 
 An existing team's app needs its manifest updated and the app reinstalled.
 `hi team up` already says which scopes the bot lacks and how to add them;
@@ -121,6 +152,8 @@ plugin replies "this is the timmai team's link" so nobody mixes them up.
 
 - Without a key, `/__hi/api/messages` is refused and `/__hi/api/feedback`
   posts a top-level channel message without calling the lead.
+- `/__hi/api/help` answers from HELP.md at the slot's commit, with no tools
+  in the request, keeps the question, and stops at the limits.
 - `/hi` from an asker DMs a link; from someone else, it DMs nothing and
   replies privately. A new `/hi` ends the old key.
 - The relay turns `hi_user` into a `/__hi/`-only HttpOnly cookie, takes it
