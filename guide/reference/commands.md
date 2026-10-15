@@ -265,6 +265,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
 | `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
 | `hi team env <name> [KEY=VALUE \| KEY \| --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
+| `hi team helper <name> [preview\|production on\|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |

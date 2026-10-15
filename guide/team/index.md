@@ -186,6 +186,33 @@ schedule, such as a morning digest, is the lead's scheduled job: a script
 that makes the message from production's code, and the lead posts what it
 prints.
 
+### Talk to the lead from the app
+
+Every page of the preview and of production has a round button in the
+corner. It opens a chat with the lead beside the page: ask for a change
+where you see the problem, without switching to Slack. The first time, it
+asks who you are, and the browser remembers it.
+
+- The lead answers as it does in Slack, with the same memory, and knows
+  which page you are on and which version you see.
+- hi copies each chat into a thread in the channel, so the team sees it.
+- A "yes" in the chat starts the work the lead proposed there, as one in
+  Slack does. A release, a rollback, or turning production's chat off
+  still needs an owner's yes in Slack: the name in the chat isn't checked.
+
+The app holds none of it. hi adds the button on the way to the browser, in
+the relay in front of the team's links, so it works whatever the app is
+written in, and `/__hi/` on those links is hi's. To take it out of
+production, an owner asks the lead in Slack, or on the machine:
+
+```sh
+hi team helper payments                    # where it is on
+hi team helper payments production off     # from the next page load; on brings it back
+```
+
+A link made before your hi had the helper gets it when the link is next
+renewed.
+
 ### Keys and settings
 
 Nobody pastes a key into Slack: the lead puts what it is given into
