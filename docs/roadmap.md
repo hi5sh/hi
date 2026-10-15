@@ -1296,12 +1296,26 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   yes; `hi team helper <name> production off` on the machine.
   Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md) (slice 1).
 
+### v0.58.0 — Point at what you mean
+
+- [x] Select mode in the helper: the target button (or `Alt+S`) outlines
+  the element under the pointer, `Alt+↑` and `Alt+↓` widen and narrow it, a
+  click adds it to the message as a chip, Shift-click adds more; the app
+  sees none of those clicks. On touch screens, tap and "Use this".
+- [x] Each element reaches the lead as a reference: a selector (finder,
+  vendored, without Tailwind's utility classes), its text, attributes,
+  HTML, ancestors, nearest heading and label, box and colors, and the
+  source file when a Vue, Svelte, or React development build gives it
+  away. The Slack thread lists them, and a task's brief gets them with the
+  chat. Open shadow roots work; iframes don't.
+- [x] The helper's script has a fixed URL with an ETag, so a new hi's
+  helper reaches pages on their next load, without new links.
+  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#select-mode) (slice 2).
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] Select mode: point at part of a page, and the lead gets the element
-  (slice 2 of [hi_team_helper.md](specs/approved/hi_team_helper.md)).
 - [ ] The lead's later messages in a chat (`hi team web post`), and images
   or files attached to a message (slice 3).
 
