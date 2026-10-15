@@ -1353,6 +1353,22 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `hi team web` and `hi team web show f-12`.
   Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
 
+### v0.61.0 — Bun, and a box that can build the web template
+
+- [x] The base image has Node.js 24 LTS from nodejs.org, checked against
+  pinned sums, in place of Ubuntu 24.04's Node.js 18, which Vite and
+  Vitest refuse; the `web` template's `make check` couldn't pass in a box.
+- [x] Bun in the base image and as `hi install bun`, the latest release,
+  checked against its sums. `hi init` says which `hi install` a missing
+  setup tool needs.
+- [x] The `web` template installs with Bun (`bun.lock`, a 3-day
+  `minimumReleaseAge`) and type-checks with `bun check`; Vite, Vitest, and
+  Biome run as before. `make check` asks an older project to move from
+  `package-lock.json`.
+- [x] A team's preview starts a project with a `bun.lock` with `bun install
+  --frozen-lockfile && bun run start`.
+  Approved spec: [hi_bun.md](specs/approved/hi_bun.md) (slice 1).
+
 ## Planned
 
 ### Next — the helper
@@ -1379,6 +1395,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   TypeSafe's classification model, asked "is this message for the
   lead?". Until then it answers @-mentions only, which works well.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
+### Later — Bun
+
+- [ ] A dependency review in `hi team merge`: `bun pm diff` for the
+  reviewer, an owner's yes for a package that runs an install script, and
+  `bun audit` in the `web` template's `make check`.
+- [ ] An `app` template on Bun alone: `Bun.serve`, HTML imports,
+  `bun:sqlite`, `bun test`, and one executable for production.
+- [ ] A preview check before the lead says a preview is ready, unless
+  `hi web check` covers it; tests for the helper with `bun test`.
+  Approved spec: [hi_bun.md](specs/approved/hi_bun.md).
 
 ### Later — More for the autoresearch templates
 
