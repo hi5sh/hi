@@ -82,6 +82,8 @@ type teamChannelSource interface {
 	post(channel, text string) (string, error)
 	// postIn replies in a thread.
 	postIn(channel, thread, text string) (string, error)
+	// upload shares a file in a thread, titled title.
+	upload(channel, thread, path, title string) error
 	update(channel, ts, text string) error
 	permalink(channel, ts string) (string, error)
 }
@@ -151,6 +153,17 @@ func (l *liveTeamChannel) post(channel, text string) (string, error) {
 func (l *liveTeamChannel) postIn(channel, thread, text string) (string, error) {
 	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionTS(thread), slack.MsgOptionDisableLinkUnfurl())
 	return ts, err
+}
+
+func (l *liveTeamChannel) upload(channel, thread, path, title string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	_, name, _ := strings.Cut(filepath.Base(path), "-") // web files are <message>-<name>
+	_, err = l.api.UploadFileV2(slack.UploadFileV2Parameters{Channel: channel, ThreadTimestamp: thread, File: path, FileSize: int(info.Size()),
+		Filename: firstNonEmpty(name, filepath.Base(path)), Title: title})
+	return err
 }
 
 func (l *liveTeamChannel) update(channel, ts, text string) error {

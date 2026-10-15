@@ -1,7 +1,8 @@
 # `hi team` helper specification
 
 Status: Approved (2026-10-15). Slice 1, the chat, is built (v0.57.0); slice
-2, select mode, in v0.58.0.
+2, select mode, in v0.58.0; slice 3, files, pictures, and the lead's later
+messages, in v0.59.0.
 
 Dependencies: [hi_team.md](hi_team.md) (the broker, the lead,
 the preview and production addresses, approvals, the channel's log),
@@ -320,9 +321,11 @@ GET  /__hi/helper.js                      the script
 GET  /__hi/api/status                     team, lead's name, slot, version, people
 GET  /__hi/api/conversation?person=…      this person's open conversation on this address
 POST /__hi/api/conversation/new           end it; the next message starts a new one
-POST /__hi/api/messages                   {conversation, person, name, text, page, refs}
+POST /__hi/api/messages                   {conversation, person, name, text, page, refs, files}
                                           → server-sent events: message, delta…, done or error
-GET  /__hi/api/events?conversation=…      later messages, as events (slice 3)
+GET  /__hi/api/events?conversation=…&after=n   the chat's messages after n, then each new one
+GET  /__hi/api/files/<chat>/<name>        a file of a message
+GET  /__hi/snap.js                        modern-screenshot, for pictures in select mode
 ```
 
   The relay strips the app's cookies from these requests. The lead's
@@ -357,11 +360,53 @@ Referenced elements:
   production needs Slack. The full references are kept as JSON with the
   conversation.
 - **The lead's later messages.** The lead's reply ends when its turn ends,
-  but work finishes later. `hi team web post <conversation> <file|->`, run
-  by the lead through the broker like its other commands, adds a message to
-  a web conversation. The open panel shows it at once, and a closed one
-  shows a dot on the button. The hi-team skill tells the lead to use it when
-  work asked for in the app is ready to try.
+  but work finishes later. `hi team web post <chat> <text|-> [--attach
+  <file>]…`, run by the lead through the broker like its other commands,
+  adds a message to a web chat, and hi copies it into the chat's thread.
+  It is refused while the lead is answering in that chat (say it in the
+  answer), and in a chat the person ended (hi names their open one).
+  `hi team web` lists the chats of the last week, and `hi team web show
+  <chat>` shows one, with message ids, references, and files.
+  The panel listens on `/__hi/api/events` (an `EventSource`, which picks
+  up where it left off after a reconnect): an open panel shows the message
+  at once; a closed one puts a dot on the button and a preview beside it
+  for 20 seconds. The browser remembers the last message it showed with
+  the panel open, so a page opened later still shows the dot.
+  A posted message isn't in the chat's Hermes conversation, so the lead's
+  next turn there starts with what it posted since its last answer.
+
+## Files and pictures
+
+- **Attaching.** The panel's 📎 button, pasting into the message box (a
+  screenshot from the clipboard), or dropping files on the panel: up to 6
+  files a message, 20 MB each, 32 MB in all with the pictures. A picture
+  larger than 2400 pixels across or 4 MB is made smaller in the browser
+  first. A message may be only files.
+- **Kept with the chat**, in `web/<chat>-files/<message>-<name>`, and
+  mounted read-only in the lead's box at `/team/web`.
+- **What the lead gets.** The message lists each file's path. Pictures
+  (PNG, JPEG, GIF, WebP, up to 4 MB, 8 a message) also go to its model
+  inline, through the Responses API's `input_image` parts, each after a line
+  saying what it is. If the model refuses them, hi asks again without them,
+  and the lead opens the files when it needs to.
+- **The member gets them.** A task approved in the chat gets the chat's
+  files in `/box/files`, like the files of an approving Slack thread; the
+  lead attaches others with `--attach /team/web/…`.
+- **Shown in the panel.** Pictures as thumbnails, anything else as a
+  download. The files come from the app's origin, so only those four
+  picture types are served as what they are; everything else, SVG
+  included, is served as a download, with `nosniff` and a sandbox CSP.
+- **In the channel.** The files follow the message into its Slack thread
+  (the bot has `files:write`).
+- **A picture of each element pointed at.** In select mode, the helper
+  draws the element into a picture with
+  [modern-screenshot](https://github.com/qq15725/modern-screenshot)
+  (MIT, vendored in `third_party/`, served at `/__hi/snap.js` and imported
+  the first time it's needed, so pages that never use select mode don't
+  load it). A small element (under 160×48) is drawn with what is around it,
+  up to three levels out, and itself outlined in red. The picture shows in
+  the chip and goes with the message as `#1`'s; if it takes more than a few
+  seconds, the message goes without it.
 
 ## Everything stays in the channel
 
@@ -423,6 +468,7 @@ sight.
 ```text
 web/            the web conversations, a file each (w-12.json): who, which
                 address, its thread in the channel, and the messages
+web/w-12-files/ the files and pictures of its messages
 run/<slot>.helper   present while the slot's helper is on
 ```
 
@@ -442,6 +488,8 @@ run/<slot>.helper   present while the slot's helper is on
   status badge on the suppliers page turns red when …").
 - When work asked for in the app is on the preview, say so in that
   conversation with `hi team web post`.
+- The pictures of what they pointed at, and their files, come with the
+  message; the files are in `/team/web/<chat>-files`.
 - `/__hi/` is hi's; the app never uses it.
 
 ## Tests
@@ -461,6 +509,13 @@ run/<slot>.helper   present while the slot's helper is on
   conversation, approves a task. A web message never approves a release or
   a change to production's helper.
 - `hi team helper production off` without an owner's approval is refused.
+- A message's files are saved, listed for the lead, pictures sent to it
+  inline (and sent again without them when the model refuses), uploaded to
+  the thread, and copied into an approved task's files. Pictures are served
+  as pictures; SVG and everything else as downloads.
+- `hi team web post` reaches an open event stream at once, is copied to
+  the thread, and is refused while the lead answers in that chat or in an
+  ended chat. The next turn in the chat starts with what was posted.
 - In a test page (plain HTML, React, Vue, and a server-rendered form),
   select mode outlines what is hovered, stops the click from reaching the
   app, freezes on click, walks to the parent with `Alt+↑`, and gives a
@@ -473,9 +528,10 @@ run/<slot>.helper   present while the slot's helper is on
    server; the Slack thread; approvals from the app; `hi team helper`.
 2. **Select mode.** Hover, freeze, parent and child, chips, references to
    the lead and into briefs, source hints.
-3. **After the reply.** `hi team web post`, the new-version notice, and
-   pasting or attaching an image or file to a message (into the task's
-   `/box/files`, as Slack files are).
+3. **After the reply.** `hi team web post`, the event stream, the dot and
+   preview on the button; attaching, pasting, and dropping files (into the
+   task's `/box/files`, as Slack files are); a picture of each element
+   pointed at. (The new-version notice came with slice 1.)
 
 ## Later
 
@@ -486,9 +542,9 @@ run/<slot>.helper   present while the slot's helper is on
 - **Prompt injection through the page.** The references carry the app's
   text, which may hold data people typed in. The lead reads it as the
   person's context, with the same care as a shared file.
-- **A screenshot of the selection**, taken in the page (a DOM-to-image
-  library) or by the team's service with a headless browser, so the lead and
-  the coder see what the person saw.
+- **A sharper picture of the selection.** Drawing the page again in a
+  picture isn't always exact (a web font or a line break can differ); a
+  headless browser in the team's service could take the real thing.
 - **Slack replies back in the app.** A person in Slack answers in the
   mirrored thread, and the app shows it.
 - **Edits in place.** Lovable-style direct changes (text, colors, spacing)

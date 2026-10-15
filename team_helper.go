@@ -34,6 +34,14 @@ var teamHelperSource []byte
 //go:embed third_party/finder/finder.js
 var teamFinderSource []byte
 
+// teamSnapSource is modern-screenshot, an ES module the helper imports
+// when it first takes a picture of what the person points at.
+//
+//go:embed third_party/modern-screenshot/modern-screenshot.js
+var teamSnapSource []byte
+
+var teamSnapVersion = fmt.Sprintf("%x", sha256.Sum256(teamSnapSource))[:16]
+
 // teamHelperScript is what the browser loads: finder, the selector
 // generator select mode uses, and the helper, in one closure, so the page
 // gets one file and no globals.
@@ -143,14 +151,18 @@ type teamWebConversation struct {
 // teamWebMessage is one message of a web chat. Its ID is the
 // conversation's and its number: w-12.3.
 type teamWebMessage struct {
-	N       int          `json:"n"`
-	From    string       `json:"from"` // person or lead
-	Name    string       `json:"name"`
-	Text    string       `json:"text"`
-	Page    *teamWebPage `json:"page,omitempty"`
-	Refs    []teamWebRef `json:"refs,omitempty"` // the elements the person pointed at
-	At      time.Time    `json:"at"`
-	SlackTS string       `json:"slack_ts,omitempty"` // its copy in the channel
+	N     int           `json:"n"`
+	From  string        `json:"from"` // person or lead
+	Name  string        `json:"name"`
+	Text  string        `json:"text"`
+	Page  *teamWebPage  `json:"page,omitempty"`
+	Refs  []teamWebRef  `json:"refs,omitempty"`  // the elements the person pointed at
+	Files []teamWebFile `json:"files,omitempty"` // in web/<id>-files (team_web.go)
+	// Posted is a message of the lead's from outside the chat's
+	// conversation with it: hi team web post.
+	Posted  bool      `json:"posted,omitempty"`
+	At      time.Time `json:"at"`
+	SlackTS string    `json:"slack_ts,omitempty"` // its copy in the channel
 }
 
 // teamWebPage is where the person was when they wrote.
@@ -409,12 +421,13 @@ type teamWebStatus struct {
 
 // teamWebSend is POST /__hi/api/messages.
 type teamWebSend struct {
-	Conversation string       `json:"conversation,omitempty"`
-	Person       string       `json:"person,omitempty"`
-	Name         string       `json:"name"`
-	Text         string       `json:"text"`
-	Page         *teamWebPage `json:"page,omitempty"`
-	Refs         []teamWebRef `json:"refs,omitempty"`
+	Conversation string          `json:"conversation,omitempty"`
+	Person       string          `json:"person,omitempty"`
+	Name         string          `json:"name"`
+	Text         string          `json:"text"`
+	Page         *teamWebPage    `json:"page,omitempty"`
+	Refs         []teamWebRef    `json:"refs,omitempty"`
+	Files        []teamWebUpload `json:"files,omitempty"`
 }
 
 // listenWeb opens a socket per address for the helper.
@@ -454,6 +467,25 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			return
 		}
 		w.Write(teamHelperScript)
+	})
+	mux.HandleFunc("GET "+teamHelperPrefix+"snap.js", func(w http.ResponseWriter, r *http.Request) {
+		// modern-screenshot, for the pictures of what the person points at:
+		// the helper loads it the first time it needs it.
+		etag := `"` + teamSnapVersion + `"`
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Write(teamSnapSource)
+	})
+	mux.HandleFunc("GET "+teamHelperPrefix+"api/events", func(w http.ResponseWriter, r *http.Request) {
+		b.webEvents(w, r, slot)
+	})
+	mux.HandleFunc("GET "+teamHelperPrefix+"api/files/{id}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		b.webFile(w, r, slot)
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/status", func(w http.ResponseWriter, r *http.Request) {
 		config, err := loadTeam(b.team)
@@ -501,7 +533,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 	})
 	mux.HandleFunc("POST "+teamHelperPrefix+"api/messages", func(w http.ResponseWriter, r *http.Request) {
 		var send teamWebSend
-		if err := json.NewDecoder(io.LimitReader(r.Body, 256<<10)).Decode(&send); err != nil {
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamWebMaxUpload*4/3+(1<<20))).Decode(&send); err != nil {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
@@ -582,7 +614,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 	case !teamHelperOn(config, slot):
 		fail(http.StatusForbidden, errors.New("the helper is off here"))
 		return
-	case send.Text == "":
+	case send.Text == "" && len(send.Files) == 0:
 		fail(http.StatusBadRequest, errors.New("the message is empty"))
 		return
 	case len(send.Text) > teamWebMaxText:
@@ -634,7 +666,14 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		return
 	}
 	first := len(conversation.Messages) == 0
-	message := teamWebMessage{N: len(conversation.Messages) + 1, From: "person", Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, At: time.Now().UTC()}
+	n := len(conversation.Messages) + 1
+	files, err := teamSaveWebFiles(b.team, conversation.ID, n, send.Files, len(send.Refs))
+	if err != nil {
+		b.webMu.Unlock()
+		fail(http.StatusBadRequest, err)
+		return
+	}
+	message := teamWebMessage{N: n, From: "person", Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, Files: files, At: time.Now().UTC()}
 	conversation.Messages = append(conversation.Messages, message)
 	if err := saveTeamWebConversation(b.team, conversation); err != nil {
 		b.webMu.Unlock()
@@ -642,6 +681,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		return
 	}
 	b.answering[conversation.ID] = true
+	b.webPublish(conversation.ID, message)
 	b.webMu.Unlock()
 
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -675,12 +715,18 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		b.mirrorWeb(config, conversation.ID, message.N)
 		ctx, cancel := context.WithTimeout(context.Background(), teamLeadTimeout)
 		defer cancel()
-		answer, leadErr = b.lead(ctx, "web-"+conversation.ID, teamWebLeadInput(config, conversation, message, first), func(delta string) {
+		toBrowser := func(delta string) {
 			select {
 			case deltas <- delta:
 			default: // a browser that can't keep up gets the whole answer at the end
 			}
-		})
+		}
+		pictures, seen := teamWebPictures(b.team, conversation.ID, message.Files, message.Name)
+		answer, leadErr = b.lead(ctx, "web-"+conversation.ID, teamWebLeadInput(config, conversation, message, first, seen), pictures, toBrowser)
+		if leadErr != nil && answer == "" && len(pictures) > 0 && ctx.Err() == nil {
+			// A model that can't look at pictures still reads where they are.
+			answer, leadErr = b.lead(ctx, "web-"+conversation.ID, teamWebLeadInput(config, conversation, message, first, nil), nil, toBrowser)
+		}
 		b.webMu.Lock()
 		delete(b.answering, conversation.ID)
 		if leadErr != nil {
@@ -691,7 +737,9 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		if err == nil {
 			reply := teamWebMessage{N: len(saved.Messages) + 1, From: "lead", Name: teamBotName(b.team) + " team lead", Text: strings.TrimSpace(answer), At: time.Now().UTC()}
 			saved.Messages = append(saved.Messages, reply)
-			err = saveTeamWebConversation(b.team, saved)
+			if err = saveTeamWebConversation(b.team, saved); err == nil {
+				b.webPublish(conversation.ID, reply)
+			}
 		}
 		b.webMu.Unlock()
 		if err == nil {
@@ -726,7 +774,7 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 // teamWebLeadInput is what the lead reads for a message in the app: a
 // header saying where it comes from, then the person's words. The first
 // message of a chat also says how a chat in the app works.
-func teamWebLeadInput(config teamConfig, conversation teamWebConversation, message teamWebMessage, first bool) string {
+func teamWebLeadInput(config teamConfig, conversation teamWebConversation, message teamWebMessage, first bool, seen map[string]bool) string {
 	who := message.Name
 	if conversation.Person != "" {
 		who += " (" + conversation.Person + ")"
@@ -750,6 +798,18 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 	if refs := teamWebRefsText(message.Refs, ""); refs != "" {
 		input += "\n\n" + refs
 	}
+	if files := teamWebFilesText(conversation.ID, message.Files, seen, ""); files != "" {
+		input = strings.TrimRight(input, "\n") + "\n\n" + files
+	}
+	// What the lead posted in this chat since its last answer here, from
+	// elsewhere, isn't in this conversation's history: say it.
+	var posted []string
+	for i := message.N - 2; i >= 0 && i < len(conversation.Messages) && conversation.Messages[i].Posted; i-- {
+		posted = append([]string{"> " + strings.ReplaceAll(strings.TrimSpace(conversation.Messages[i].Text), "\n", "\n> ")}, posted...)
+	}
+	if len(posted) > 0 {
+		input = "(Since your last answer here, you also wrote in this chat, with hi team web post:\n" + strings.Join(posted, "\n\n") + ")\n\n" + input
+	}
 	if first {
 		input = teamWebFirstNote + "\n\n" + input
 	}
@@ -757,7 +817,7 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 }
 
 // teamWebFirstNote starts each web chat for the lead.
-const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is, which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
+const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is, which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
 
 // mirrorWeb copies message n of a web chat into the channel: the first
 // starts a thread, the rest reply in it. It never fails the chat.
@@ -798,8 +858,8 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 		return
 	}
 	b.webMu.Lock()
-	defer b.webMu.Unlock()
 	if conversation, err = loadTeamWebConversation(b.team, id); err != nil {
+		b.webMu.Unlock()
 		return
 	}
 	if conversation.Thread == "" {
@@ -807,6 +867,20 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 	}
 	conversation.Messages[n-1].SlackTS = ts
 	saveTeamWebConversation(b.team, conversation)
+	b.webMu.Unlock()
+	// The files follow in the thread, the pictures of what was pointed at
+	// first.
+	for _, refs := range []bool{true, false} {
+		for _, file := range message.Files {
+			if (file.Ref > 0) == refs {
+				_, name, _ := strings.Cut(file.Name, "-")
+				if file.Ref > 0 {
+					name = fmt.Sprintf("#%d", file.Ref)
+				}
+				b.channel.upload(config.Channel, conversation.Thread, filepath.Join(teamWebFilesDir(b.team, id), file.Name), name)
+			}
+		}
+	}
 }
 
 // teamSlackEscape keeps a person's text from becoming Slack markup.
@@ -857,15 +931,16 @@ func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.T
 }
 
 // teamWebApprovalChat is the web chat an approval came from, up to it, for
-// the brief.
-func teamWebApprovalChat(team string, approval teamApproval) string {
+// the brief. add gives the member a file of the chat and says where it
+// finds it.
+func teamWebApprovalChat(team string, approval teamApproval, add func(source, from string) (string, error)) (string, error) {
 	match := teamWebMessageID.FindStringSubmatch(approval.TS)
 	if match == nil {
-		return ""
+		return "", nil
 	}
 	conversation, err := loadTeamWebConversation(team, match[1])
 	if err != nil {
-		return ""
+		return "", nil
 	}
 	n, _ := strconv.Atoi(match[2])
 	var said strings.Builder
@@ -878,8 +953,26 @@ func teamWebApprovalChat(team string, approval teamApproval) string {
 		if refs := teamWebRefsText(message.Refs, "    "); refs != "" {
 			fmt.Fprintf(&said, "  The parts of the page they pointed at:\n\n%s\n", refs)
 		}
+		for _, file := range message.Files {
+			from := message.Name + " in the app's chat"
+			if file.Ref > 0 {
+				from = fmt.Sprintf("how #%d looked on %s's screen", file.Ref, message.Name)
+			}
+			inBox, err := add(filepath.Join(teamWebFilesDir(team, conversation.ID), file.Name), from)
+			if err != nil {
+				return "", err
+			}
+			if file.Ref > 0 {
+				fmt.Fprintf(&said, "  [a picture of #%d: %s]\n", file.Ref, inBox)
+			} else {
+				fmt.Fprintf(&said, "  [%s attached %s]\n", message.Name, inBox)
+			}
+		}
+		if len(message.Files) > 0 {
+			said.WriteString("\n")
+		}
 	}
-	return said.String()
+	return said.String(), nil
 }
 
 // ---------------------------------------------------------------------------
@@ -888,12 +981,20 @@ func teamWebApprovalChat(team string, approval teamApproval) string {
 // teamLeadAPI answers a message as the lead, through Hermes' API server in
 // its box: /v1/responses, with the conversation named so Hermes keeps its
 // history, streamed.
-func teamLeadAPI(socket, key string) func(ctx context.Context, conversation, input string, delta func(string)) (string, error) {
+func teamLeadAPI(socket, key string) func(ctx context.Context, conversation, input string, pictures []teamLeadPicture, delta func(string)) (string, error) {
 	client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}}
-	return func(ctx context.Context, conversation, input string, delta func(string)) (string, error) {
-		body, _ := json.Marshal(map[string]any{"input": input, "conversation": conversation, "stream": true})
+	return func(ctx context.Context, conversation, input string, pictures []teamLeadPicture, delta func(string)) (string, error) {
+		var message any = input
+		if len(pictures) > 0 {
+			parts := []map[string]string{{"type": "input_text", "text": input}}
+			for _, picture := range pictures {
+				parts = append(parts, map[string]string{"type": "input_text", "text": picture.Label}, map[string]string{"type": "input_image", "image_url": picture.URL})
+			}
+			message = []map[string]any{{"role": "user", "content": parts}}
+		}
+		body, _ := json.Marshal(map[string]any{"input": message, "conversation": conversation, "stream": true})
 		request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://lead/v1/responses", strings.NewReader(string(body)))
 		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("Authorization", "Bearer "+key)

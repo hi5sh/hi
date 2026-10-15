@@ -184,15 +184,17 @@ type teamBroker struct {
 	restoreData func(id string) error
 	// lead answers a message from the app's chat as the lead, calling delta
 	// with its text as it comes; tests replace it (team_helper.go).
-	lead func(ctx context.Context, conversation, input string, delta func(string)) (string, error)
-	// webMu guards the web chats; answering, those the lead is answering.
-	webMu     sync.Mutex
-	answering map[string]bool
+	lead func(ctx context.Context, conversation, input string, pictures []teamLeadPicture, delta func(string)) (string, error)
+	// webMu guards the web chats; answering, those the lead is answering;
+	// webListeners, the panels that show each chat (team_web.go).
+	webMu        sync.Mutex
+	answering    map[string]bool
+	webListeners map[string]map[chan teamWebMessage]bool
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
-	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, answering: map[string]bool{}}
-	b.lead = func(context.Context, string, string, func(string)) (string, error) {
+	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, answering: map[string]bool{}, webListeners: map[string]map[chan teamWebMessage]bool{}}
+	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
 		return "", errors.New("the lead's API server isn't set up")
 	}
 	b.app = b.startApp
@@ -388,6 +390,22 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		config, err := b.setHelper(request)
 		reply(w, teamHelperLine(config), err)
+	})
+	mux.HandleFunc("GET /web", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, teamWebList(b.team, time.Now()), nil)
+	})
+	mux.HandleFunc("GET /web/show", func(w http.ResponseWriter, r *http.Request) {
+		text, err := teamWebShow(b.team, r.URL.Query().Get("id"))
+		reply(w, text, err)
+	})
+	mux.HandleFunc("POST /web/post", func(w http.ResponseWriter, r *http.Request) {
+		var post teamWebPost
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamWebMaxUpload*4/3+(1<<20))).Decode(&post); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		line, err := b.webPost(post)
+		reply(w, line, err)
 	})
 	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		view, err := teamVersionsReport(b.team)
@@ -1018,7 +1036,7 @@ func teamTitle(brief string) string {
 // the lead's commands, in its box
 
 var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
-	"versions": true, "release": true, "discard": true}
+	"versions": true, "release": true, "discard": true, "web": true}
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
@@ -1317,6 +1335,48 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return usage
 		}
 		fmt.Fprintln(stdout, line)
+	case "web":
+		usage := usageError{"usage: hi team web  (the chats in the app, last week)\n       hi team web show <chat>\n       hi team web post <chat> <text|-> [--attach <file>]..."}
+		var line string
+		switch {
+		case len(args) == 0:
+			if err := call("GET", "/web", nil, &line); err != nil {
+				return err
+			}
+		case len(args) == 2 && args[0] == "show":
+			if err := call("GET", "/web/show?id="+url.QueryEscape(args[1]), nil, &line); err != nil {
+				return err
+			}
+		case len(args) >= 3 && args[0] == "post":
+			post := teamWebPost{Conversation: args[1]}
+			var words []string
+			for i := 2; i < len(args); i++ {
+				if args[i] == "--attach" && i+1 < len(args) {
+					attachment, err := teamReadAttachment(args[i+1])
+					if err != nil {
+						return err
+					}
+					post.Attachments = append(post.Attachments, attachment)
+					i++
+				} else {
+					words = append(words, args[i])
+				}
+			}
+			post.Text = strings.Join(words, " ")
+			if post.Text == "-" {
+				data, err := io.ReadAll(io.LimitReader(stdin, teamWebMaxText+1))
+				if err != nil {
+					return err
+				}
+				post.Text = string(data)
+			}
+			if err := call("POST", "/web/post", post, &line); err != nil {
+				return err
+			}
+		default:
+			return usage
+		}
+		fmt.Fprintln(stdout, strings.TrimRight(line, "\n"))
 	case "stop":
 		if len(args) != 1 {
 			return usageError{"usage: hi team stop <task>"}

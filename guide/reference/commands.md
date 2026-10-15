@@ -276,7 +276,9 @@ See [Run a team in Slack](/guide/team/).
 
 In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>] [--attach <file>]...`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
-`stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`, and `preview [<task> | production] [--port <n>] [--max <duration>]` or
+`stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`,
+`web` (the chats in the app), `web show <chat>`, `web post <chat> <text|-> [--attach <file>]...`
+(a message in a chat after its answer), and `preview [<task> | production] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a
 temporary address with `hi net expose`. `versions` shows production's
 version and what dev has on top of it; `release --approval <id> --notes <file>`

@@ -50,6 +50,11 @@ func (f *fakeTeamChannel) postIn(channel, thread, text string) (string, error) {
 	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
 }
 
+func (f *fakeTeamChannel) upload(channel, thread, path, title string) error {
+	f.calls = append(f.calls, "upload "+channel+" "+thread+" "+filepath.Base(path)+" "+title)
+	return nil
+}
+
 func (f *fakeTeamChannel) update(channel, ts, text string) error {
 	f.calls = append(f.calls, "update "+channel+" "+ts+" "+text)
 	return nil

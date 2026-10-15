@@ -201,8 +201,16 @@ asks who you are, and the browser remembers it.
   your message as a chip, `#1 span "Paid"`. Shift-click adds more. The app
   ignores those clicks. The lead gets each element's text, classes, and
   HTML, and the coder finds it in the code from them. On a phone, tap it,
-  then "Use this".
-- hi copies each chat into a thread in the channel, so the team sees it.
+  then "Use this". A picture of each part you point at goes with it, so
+  the lead sees what you saw.
+- **Show it.** Paste a screenshot into the message box, drop files on the
+  chat, or use the paperclip: up to 6 files a message. The lead sees the
+  pictures, and the coder gets the files with the work.
+- **The lead comes back.** When work you asked for is ready to try, the
+  lead says so in the same chat. If the chat is closed, the button gets a
+  dot and a preview of the message.
+- hi copies each chat into a thread in the channel, files included, so the
+  team sees it.
 - A "yes" in the chat starts the work the lead proposed there, as one in
   Slack does. A release, a rollback, or turning production's chat off
   still needs an owner's yes in Slack: the name in the chat isn't checked.

@@ -124,6 +124,28 @@ textarea:focus { border-color: var(--accent); }
 .banner.outlined.touch .ok { display: inline-block; background: var(--accent); color: var(--accent-fg); }
 .selecting .banner { display: flex; }
 .panel.away { display: none; }
+.pick.attach { cursor: pointer; }
+.files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; align-items: flex-start; }
+.files .file svg { width: 13px; height: 13px; flex: none; }
+.files:empty { display: none; }
+.files a.picture { display: block; line-height: 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--bg); }
+.files a.picture img { max-width: 220px; max-height: 160px; display: block; }
+.files .file { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--fg); text-decoration: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer .files { margin-top: 0; }
+.composer .files .item { position: relative; }
+.composer .files img { height: 48px; max-width: 96px; display: block; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; }
+.composer .files .item button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 0;
+  background: var(--fg); color: var(--bg); font-size: 12px; line-height: 18px; padding: 0; }
+.chip img { height: 16px; max-width: 40px; border-radius: 3px; object-fit: cover; flex: none; }
+.panel.dragging .body { outline: 2px dashed var(--accent); outline-offset: -8px; }
+.toast { position: fixed; max-width: min(320px, calc(100vw - 32px)); text-align: left; border: 1px solid var(--line); background: var(--bg);
+  color: var(--fg); border-radius: 12px; box-shadow: var(--shadow); padding: 8px 12px; font-size: 13px; display: none; }
+.toast.show { display: block; }
+.toast .from { display: block; font-size: 11px; color: var(--muted); }
+.toast .text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.toast.tl, .toast.tr { top: 72px; } .toast.bl, .toast.br { bottom: 72px; }
+.toast.tl, .toast.bl { left: 16px; } .toast.tr, .toast.br { right: 16px; }
 .who-screen input { flex: 1; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 `;
 
@@ -131,6 +153,7 @@ textarea:focus { border-color: var(--accent); }
     chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
     target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>',
     more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   };
 
@@ -192,6 +215,7 @@ textarea:focus { border-color: var(--accent); }
   const root = host.attachShadow({ mode: "open" });
   root.innerHTML = `<style>${CSS}</style>
 <button class="fab" part="button" aria-label="Chat with the team lead" title="Chat with the team lead">${ICONS.chat}<span class="dot"></span></button>
+<button class="toast" aria-live="polite"><span class="from"></span><span class="text"></span></button>
 <section class="panel" role="dialog" aria-label="Chat with the team lead">
   <header>
     <div class="title"><div class="name"></div><div class="version"></div></div>
@@ -207,8 +231,10 @@ textarea:focus { border-color: var(--accent); }
   <div class="body" aria-live="polite"></div>
   <form class="composer">
     <div class="chips"></div>
+    <div class="files"></div>
     <div class="row">
       <button class="pick" type="button" aria-label="Point at part of the page (Alt+S)" title="Point at part of the page (Alt+S)">${ICONS.target}</button>
+      <label class="pick attach" aria-label="Attach files" title="Attach files, or paste or drop them here">${ICONS.clip}<input type="file" multiple hidden></label>
       <textarea rows="1" placeholder="Message the lead…" aria-label="Message"></textarea>
       <button class="send" type="submit">Send</button>
     </div>
@@ -224,6 +250,7 @@ textarea:focus { border-color: var(--accent); }
   const fab = $(".fab"), panel = $(".panel"), body = $(".body"), menu = $(".menu");
   const input = $("textarea"), sendButton = $(".send"), composer = $(".composer"), notice = $(".notice");
   const layer = $(".layer"), hoverBox = $(".box.hover"), frozenBoxes = $(".frozen-boxes"), label = $(".label"), banner = $(".banner"), chips = $(".chips"), pick = $(".pick");
+  const pending = $(".composer .files"), fileInput = $(".attach input"), toast = $(".toast");
 
   // The app's keyboard shortcuts shouldn't fire while someone types here.
   for (const type of ["keydown", "keyup", "keypress"]) host.addEventListener(type, (event) => event.stopPropagation());
@@ -234,7 +261,8 @@ textarea:focus { border-color: var(--accent); }
     conversation: null,
     sending: false,
     poll: null,
-    refs: [], // the elements pointed at for the next message: {ref, el}
+    refs: [], // the elements pointed at for the next message: {ref, el, image, shot}
+    files: [], // the files for the next message: {file, url}
   };
 
   // ---------------------------------------------------------------------
@@ -243,6 +271,7 @@ textarea:focus { border-color: var(--accent); }
   let corner = store.get("localStorage", "corner") || "br";
   function placeButton() {
     fab.className = "fab " + corner + (fab.classList.contains("unread") ? " unread" : "");
+    toast.className = "toast " + corner + (toast.classList.contains("show") ? " show" : "");
     panel.classList.toggle("left", corner === "tl" || corner === "bl");
     panel.classList.toggle("right", corner === "tr" || corner === "br");
   }
@@ -283,6 +312,7 @@ textarea:focus { border-color: var(--accent); }
     store.set("localStorage", "open", open);
     if (open) {
       fab.classList.remove("unread");
+      toast.classList.remove("show");
       render();
       if (state.who && !quietly) input.focus();
     } else {
@@ -358,19 +388,39 @@ textarea:focus { border-color: var(--accent); }
     }, 5000);
   }
 
-  async function send(text, refs) {
+  // base64 is a file's bytes as JSON carries them.
+  function base64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  // send sends a message with the elements pointed at (items) and the
+  // files attached, and shows the lead's answer as it comes.
+  async function send(text, items, files) {
     state.sending = true;
+    const refs = items.map((item) => item.ref);
     const page = { path: location.pathname + location.search + location.hash, title: document.title, width: innerWidth, height: innerHeight };
     const conversation = state.conversation || { messages: [] };
-    conversation.messages = conversation.messages.concat([{ from: "person", name: state.who.name, text, refs, pending: true }]);
+    const shown = { from: "person", name: state.who.name, text, refs, pending: true,
+      files: files.map((item) => ({ name: item.file.name, type: item.file.type, url: item.url })), shots: items.map((item) => item.image) };
+    conversation.messages = conversation.messages.concat([shown]);
     state.conversation = conversation;
     let answer = "";
     let lead = null;
     render({ typing: true });
     try {
+      // The pictures of what was pointed at, if they're ready soon.
+      await Promise.race([Promise.all(items.map((item) => item.shot)), new Promise((resolve) => setTimeout(resolve, 4000))]);
+      const uploads = [];
+      items.forEach((item, i) => { if (item.image) uploads.push({ ref: i + 1, data: item.image.replace(/^data:[^,]*,/, "") }); });
+      for (const item of files) uploads.push({ name: item.file.name, data: await base64(item.file) });
       const response = await call("messages", {
         method: "POST",
-        body: { conversation: conversation.id || "", person: state.who.id || "", name: state.who.name, text, page, refs },
+        body: { conversation: conversation.id || "", person: state.who.id || "", name: state.who.name, text, page, refs, files: uploads },
       });
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -392,36 +442,41 @@ textarea:focus { border-color: var(--accent); }
           const payload = JSON.parse(data);
           if (name === "message") {
             conversation.id = payload.conversation;
-            conversation.messages[conversation.messages.length - 1] = payload.message;
+            conversation.messages[conversation.messages.indexOf(shown)] = payload.message;
+            render();
           } else if (name === "delta") {
             answer += payload.text;
-            if (!lead) { lead = { from: "lead", name: state.status?.lead || "Lead", text: "" }; conversation.messages.push(lead); }
+            if (!lead) { lead = { from: "lead", name: state.status?.lead || "Lead", text: "", streaming: true }; conversation.messages.push(lead); }
             lead.text = answer;
             scheduleRender();
           } else if (name === "done") {
-            if (lead) conversation.messages.pop();
-            conversation.messages.push(payload.message);
+            if (lead) conversation.messages.splice(conversation.messages.indexOf(lead), 1);
+            if (!conversation.messages.some((message) => message.n === payload.message.n)) conversation.messages.push(payload.message);
             finished = true;
           } else if (name === "error") {
-            if (lead) conversation.messages.pop();
+            if (lead) conversation.messages.splice(conversation.messages.indexOf(lead), 1);
             throw new Error(payload.error);
           }
         }
       }
       if (!finished) {
         // The stream was cut; the lead still answers, and the next look shows it.
-        if (lead) conversation.messages.pop();
+        if (lead) conversation.messages.splice(conversation.messages.indexOf(lead), 1);
       }
+      for (const item of files) URL.revokeObjectURL(item.url);
       state.sending = false;
       render();
       waitForAnswer();
     } catch (error) {
       state.sending = false;
-      const last = conversation.messages[conversation.messages.length - 1];
-      if (last && last.pending) {
-        conversation.messages.pop();
+      if (conversation.messages.includes(shown)) {
+        conversation.messages.splice(conversation.messages.indexOf(shown), 1);
         input.value = text;
-        restoreRefs(refs);
+        state.refs = items;
+        state.files = files;
+        saveRefs();
+        drawChips();
+        drawFiles();
       }
       render();
       showError(error);
@@ -432,7 +487,20 @@ textarea:focus { border-color: var(--accent); }
   function scheduleRender() {
     if (renderQueued) return;
     renderQueued = true;
-    requestAnimationFrame(() => { renderQueued = false; render({ typing: false }); });
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      // While the answer streams in, only it is drawn again.
+      const node = body.querySelector(".msg.streaming");
+      const streaming = state.conversation?.messages.find((message) => message.streaming);
+      if (node && streaming) {
+        const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+        node.innerHTML = '<div class="who"></div>' + markdown(streaming.text || "");
+        node.querySelector(".who").textContent = streaming.name;
+        if (atBottom) body.scrollTop = body.scrollHeight;
+      } else {
+        render({ typing: false });
+      }
+    });
   }
 
   function showError(error) {
@@ -469,14 +537,17 @@ textarea:focus { border-color: var(--accent); }
     }
     for (const message of messages) {
       const node = document.createElement("div");
-      node.className = "msg " + (message.from === "lead" ? "lead" : "person");
+      node.className = "msg " + (message.from === "lead" ? "lead" : "person") + (message.streaming ? " streaming" : "");
       if (message.from === "lead") {
         node.innerHTML = '<div class="who"></div>' + markdown(message.text || "");
         node.querySelector(".who").textContent = message.name || status.lead || "Lead";
       } else {
         node.textContent = message.text;
-        if (message.refs && message.refs.length) node.appendChild(refChips(message.refs, false));
+        const pictures = (message.shots || []).slice();
+        for (const file of message.files || []) if (file.ref) pictures[file.ref - 1] = fileURL(file);
+        if (message.refs && message.refs.length) node.appendChild(refChips(message.refs, false, pictures));
       }
+      node.appendChild(fileList(message));
       body.appendChild(node);
     }
     const last = messages[messages.length - 1];
@@ -487,7 +558,196 @@ textarea:focus { border-color: var(--accent); }
       body.appendChild(typing);
     }
     if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
+    if (panel.classList.contains("open")) markSeen();
+    listen();
   }
+
+  // ---------------------------------------------------------------------
+  // files on messages
+
+  const pictureType = /^image\/(png|jpeg|gif|webp)$/;
+  // fileURL is where a file of a message is: the team's service once sent,
+  // this browser before.
+  const fileURL = (file) => file.url || API + "files/" + encodeURIComponent(state.conversation?.id || "") + "/" + encodeURIComponent(file.name);
+  const fileName = (file) => (file.url ? file.name : file.name.replace(/^\d+-/, ""));
+
+  function fileList(message) {
+    const row = document.createElement("div");
+    row.className = "files";
+    for (const file of message.files || []) {
+      if (file.ref) continue;
+      const link = document.createElement("a");
+      link.href = fileURL(file);
+      link.target = "_blank";
+      link.rel = "noopener";
+      if (pictureType.test(file.type)) {
+        link.className = "picture";
+        const image = new Image();
+        image.src = link.href;
+        image.alt = image.title = fileName(file);
+        link.appendChild(image);
+      } else {
+        link.className = "file";
+        link.download = fileName(file);
+        link.innerHTML = ICONS.clip;
+        link.appendChild(document.createTextNode(fileName(file)));
+      }
+      row.appendChild(link);
+    }
+    return row;
+  }
+
+  // shrink makes a large picture one the lead's model takes: at most 2400
+  // pixels across and 4 MB.
+  async function shrink(file) {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    if (longest <= 2400 && file.size <= 4 * 1024 * 1024) { bitmap.close(); return file; }
+    const scale = Math.min(1, 2400 / longest);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const encode = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+    let blob = await encode(file.type === "image/png" ? "image/png" : "image/jpeg", 0.88);
+    if (blob && blob.size > 4 * 1024 * 1024) blob = await encode("image/jpeg", 0.85);
+    if (!blob) return file;
+    const name = blob.type === file.type ? file.name : file.name.replace(/\.\w+$/, "") + ".jpg";
+    return new File([blob], name, { type: blob.type });
+  }
+
+  async function addFiles(list) {
+    if (!state.who) return;
+    for (const original of Array.from(list || [])) {
+      if (state.files.length >= 6) { showError(new Error("Attach at most 6 files to a message.")); break; }
+      let file = original;
+      if (/^image\/(png|jpeg|webp)$/.test(file.type)) {
+        try { file = await shrink(file); } catch { /* sent as it is */ }
+      }
+      if (file.size > 20 * 1024 * 1024) { showError(new Error(file.name + " is larger than 20 MB.")); continue; }
+      if (!file.size) continue;
+      state.files.push({ file, url: URL.createObjectURL(file) });
+    }
+    drawFiles();
+  }
+
+  function drawFiles() {
+    pending.replaceChildren(...state.files.map((item) => {
+      const box = document.createElement("span");
+      box.className = "item";
+      if (pictureType.test(item.file.type)) {
+        const image = new Image();
+        image.src = item.url;
+        image.alt = image.title = item.file.name;
+        box.appendChild(image);
+      } else {
+        const name = document.createElement("span");
+        name.className = "file";
+        name.innerHTML = ICONS.clip;
+        name.appendChild(document.createTextNode(item.file.name));
+        box.appendChild(name);
+      }
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.setAttribute("aria-label", "Remove " + item.file.name);
+      remove.textContent = "×";
+      remove.addEventListener("click", () => {
+        state.files.splice(state.files.indexOf(item), 1);
+        URL.revokeObjectURL(item.url);
+        drawFiles();
+      });
+      box.appendChild(remove);
+      return box;
+    }));
+  }
+
+  fileInput.addEventListener("change", () => { addFiles(fileInput.files).then(() => { fileInput.value = ""; }); });
+  const attach = $(".attach");
+  attach.tabIndex = 0;
+  attach.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); fileInput.click(); } });
+  input.addEventListener("paste", (event) => {
+    const files = event.clipboardData && event.clipboardData.files;
+    if (files && files.length) { event.preventDefault(); addFiles(files); }
+  });
+  const dragsFiles = (event) => event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("Files");
+  panel.addEventListener("dragover", (event) => {
+    if (!dragsFiles(event) || !state.who) return;
+    event.preventDefault();
+    panel.classList.add("dragging");
+  });
+  panel.addEventListener("dragleave", (event) => { if (!panel.contains(event.relatedTarget)) panel.classList.remove("dragging"); });
+  panel.addEventListener("drop", (event) => {
+    panel.classList.remove("dragging");
+    if (!dragsFiles(event)) return;
+    event.preventDefault();
+    addFiles(event.dataTransfer.files);
+    input.focus();
+  });
+
+  // ---------------------------------------------------------------------
+  // what the lead says later: the team's service sends each new message of
+  // the chat; with the panel closed, the button gets a dot and a preview
+  // shows for a while
+
+  let events = null;
+  function listen() {
+    const id = state.conversation?.id;
+    if (events && events.chat === id && state.who) return;
+    if (events) { events.close(); events = null; }
+    if (!id || !state.who || typeof EventSource !== "function") return;
+    const after = Math.max(0, ...state.conversation.messages.map((message) => message.n || 0));
+    const query = "conversation=" + encodeURIComponent(id) + "&person=" + encodeURIComponent(state.who.id || "") +
+      "&name=" + encodeURIComponent(state.who.name || "") + "&after=" + after;
+    const source = new EventSource(API + "events?" + query);
+    source.chat = id;
+    source.addEventListener("message", (event) => { try { arrive(JSON.parse(event.data)); } catch { /* the next one */ } });
+    source.addEventListener("error", () => {
+      if (source.readyState !== EventSource.CLOSED || events !== source) return;
+      // Not this chat anymore, or the team is restarting: look again soon.
+      events = null;
+      setTimeout(() => loadConversation().then(() => render()).catch(() => setTimeout(listen, 30000)), 10000);
+    });
+    events = source;
+  }
+
+  function arrive(message) {
+    const conversation = state.conversation;
+    // While a message is sent, its own stream says what happens.
+    if (!conversation || state.sending || conversation.messages.some((known) => known.n === message.n)) return;
+    conversation.messages.push(message);
+    conversation.messages.sort((a, b) => (a.n || 1e9) - (b.n || 1e9));
+    if (message.from === "lead" && !panel.classList.contains("open")) {
+      fab.classList.add("unread");
+      showToast(message);
+    }
+    render();
+  }
+
+  // The last message seen with the panel open: what came after is new.
+  function markSeen() {
+    const messages = state.conversation?.messages || [];
+    const last = messages[messages.length - 1];
+    if (state.conversation?.id && last && last.n) store.set("localStorage", "seen", { id: state.conversation.id, n: last.n });
+  }
+
+  function unseen() {
+    const messages = state.conversation?.messages || [];
+    const last = messages[messages.length - 1];
+    const seen = store.get("localStorage", "seen") || {};
+    return last && last.from === "lead" && !(seen.id === state.conversation.id && seen.n >= last.n) ? last : null;
+  }
+
+  let toastTimer = null;
+  function showToast(message) {
+    if (fab.style.display === "none") return;
+    toast.querySelector(".from").textContent = message.name || state.status?.lead || "The lead";
+    toast.querySelector(".text").textContent = tidy(message.text, 300) || "Sent a file";
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 20000);
+  }
+  toast.addEventListener("click", () => { toast.classList.remove("show"); toggle(true); });
 
   function renderWho() {
     const status = state.status || {};
@@ -815,7 +1075,9 @@ textarea:focus { border-color: var(--accent); }
       return;
     }
     if (state.refs.length >= 10) { stopSelect(); return; }
-    state.refs.push({ ref: describe(el), el });
+    const item = { ref: describe(el), el, image: null };
+    item.shot = capture(el).then((image) => { item.image = image; drawChips(); }).catch(() => { /* the words still say which */ });
+    state.refs.push(item);
     saveRefs();
     drawChips();
     if (!more) {
@@ -842,9 +1104,52 @@ textarea:focus { border-color: var(--accent); }
     else startSelect();
   }, true);
 
+  // A picture of each element pointed at goes with it, drawn by
+  // modern-screenshot (third_party), which loads the first time.
+  let snap = null;
+  function backgroundOf(el) {
+    for (let node = el; node; node = parentOf(node)) {
+      const color = getComputedStyle(node).backgroundColor;
+      if (color && color !== "transparent" && !/^rgba\(.*,\s*0\)$/.test(color)) return color;
+    }
+    return "#ffffff";
+  }
+
+  async function capture(el) {
+    snap = snap || import(new URL("/__hi/snap.js", location.href).href).catch((error) => { snap = null; throw error; });
+    const { domToCanvas } = await snap;
+    // A small element is shown with what is around it, itself outlined.
+    let target = el, rect = el.getBoundingClientRect();
+    for (let i = 0; i < 3 && (rect.width < 160 || rect.height < 48); i++) {
+      const parent = parentOf(target);
+      if (!usable(parent)) break;
+      const around = parent.getBoundingClientRect();
+      if (around.width * around.height > innerWidth * innerHeight * 0.6) break;
+      target = parent;
+      rect = around;
+    }
+    if (!rect.width || !rect.height) return null;
+    const scale = Math.min(window.devicePixelRatio || 1, 2, 1600 / Math.max(rect.width, rect.height));
+    const canvas = await domToCanvas(target, { scale, backgroundColor: backgroundOf(target), timeout: 3000, filter: (node) => node !== host });
+    if (target !== el) {
+      const inner = el.getBoundingClientRect();
+      const k = canvas.width / rect.width;
+      const context = canvas.getContext("2d");
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.strokeStyle = "#e5484d";
+      context.lineWidth = Math.max(2, 2 * k);
+      context.strokeRect((inner.left - rect.left) * k - context.lineWidth, (inner.top - rect.top) * k - context.lineWidth,
+        inner.width * k + 2 * context.lineWidth, inner.height * k + 2 * context.lineWidth);
+    }
+    let image = canvas.toDataURL("image/png");
+    if (image.length > 4 * 1024 * 1024) image = canvas.toDataURL("image/jpeg", 0.85);
+    return image;
+  }
+
   // refChips draws references as chips: removable in the composer; in a
   // sent message, hovering one outlines its element if it is on this page.
-  function refChips(refs, removable) {
+  // pictures are the references' pictures, by position.
+  function refChips(refs, removable, pictures = []) {
     const row = document.createElement("div");
     row.className = "chips";
     refs.forEach((item, i) => {
@@ -852,7 +1157,15 @@ textarea:focus { border-color: var(--accent); }
       const chip = document.createElement("span");
       chip.className = "chip";
       chip.title = ref.selector;
-      chip.textContent = chipText(ref, i + 1);
+      const picture = item.image || pictures[i];
+      if (picture) {
+        const image = new Image();
+        image.src = picture;
+        image.alt = "";
+        image.addEventListener("click", () => { if (!picture.startsWith("data:")) open(picture, "_blank", "noopener"); });
+        chip.appendChild(image);
+      }
+      chip.appendChild(document.createTextNode(chipText(ref, i + 1)));
       chip.addEventListener("pointerenter", () => { peek = findRef(item.ref ? item : { ref }); keepDrawing(); });
       chip.addEventListener("pointerleave", () => { peek = null; });
       if (removable) {
@@ -902,15 +1215,17 @@ textarea:focus { border-color: var(--accent); }
   composer.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = input.value.trim();
-    if (!text || state.sending) return;
-    const refs = state.refs.map((item) => item.ref);
+    if ((!text && !state.files.length) || state.sending) return;
+    const items = state.refs, files = state.files;
     input.value = "";
     store.set("sessionStorage", "draft", null);
     state.refs = [];
+    state.files = [];
     saveRefs();
     drawChips();
+    drawFiles();
     grow();
-    send(text, refs);
+    send(text, items, files);
   });
 
   // ---------------------------------------------------------------------
@@ -944,7 +1259,11 @@ textarea:focus { border-color: var(--accent); }
     try { await loadConversation(); } catch { /* shown when the panel opens */ }
     // Open again after a reload, without taking the page's focus.
     if (store.get("localStorage", "open")) toggle(true, true);
-    else render();
+    else {
+      const missed = unseen();
+      if (missed) { fab.classList.add("unread"); showToast(missed); }
+      render();
+    }
     grow();
     waitForAnswer();
     setInterval(() => { refreshStatus().then((changed) => { if (changed && !state.sending) render(); }).catch(() => {}); }, 60000);

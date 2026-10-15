@@ -67,7 +67,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files")} {
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name)} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -164,6 +164,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", specs+":/team/specs",
 		"-v", filepath.Join(dir, "repo")+":/team/repo:ro",
 		"-v", teamChannelDir(name)+":"+teamChannelInBox+":ro",
+		"-v", teamWebStore(name)+":"+teamWebInBox+":ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
@@ -701,6 +702,9 @@ of its own on a branch of the project; you get their reports.
 | hi team helper | Whether the app's pages have the helper, the chat with you in the app |
 | hi team helper preview on\|off | Turn the preview's helper on or off, when the people ask |
 | hi team helper production on\|off --approval <id> | The same for production, once an owner says yes in Slack |
+| hi team web | The chats in the app in the last week, newest first |
+| hi team web show w-3 | One chat, with each message's id, what they pointed at, and their files |
+| hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
 
 Members: %[2]s.
 
@@ -741,6 +745,16 @@ who wrote, which address and version they see, and the page they are on.
 - Answer in a few short sentences: the panel is narrow. Ask about behavior,
   never about code, as in Slack.
 - hi copies each chat into a thread in the channel, so the team sees it.
+- With each part of the page they point at comes a picture of it as they
+  see it. They can attach files too, pictures most often. You see the
+  pictures with the message; all of them are in /team/web/<chat>-files,
+  listed in the message. Work approved in the chat gets its files.
+- Your answer ends when you stop writing. To tell them something later in
+  the same chat (the work is ready to try on the preview, a question came
+  up, it failed), run hi team web post w-3 "..." from wherever you are,
+  with --attach for a picture. The app shows it at once, or puts a dot on
+  the button; hi copies it into the chat's thread. When you finish work
+  that was asked for in the app, tell them there as well as in Slack.
 - A yes in the app's chat approves work like one in Slack: pass the
   message's id from the header, --approval w-3.4. hi adds the chat to the
   brief. A release, a rollback, or turning production's helper off needs an

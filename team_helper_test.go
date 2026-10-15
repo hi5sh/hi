@@ -52,7 +52,7 @@ func TestTeamHelperChat(t *testing.T) {
 	channel := &fakeTeamChannel{}
 	b.channel = channel
 	var inputs []string
-	b.lead = func(ctx context.Context, conversation, input string, delta func(string)) (string, error) {
+	b.lead = func(ctx context.Context, conversation, input string, _ []teamLeadPicture, delta func(string)) (string, error) {
 		if conversation != "web-w-1" {
 			t.Errorf("the lead's conversation is %q", conversation)
 		}
@@ -179,7 +179,9 @@ func TestTeamHelperChat(t *testing.T) {
 func TestTeamHelperChatWithAskers(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
-	b.lead = func(context.Context, string, string, func(string)) (string, error) { return "ok", nil }
+	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
+		return "ok", nil
+	}
 	config, _ := loadTeam("payments")
 	config.Askers = []string{"U07ASKER1"}
 	saveTeam(config)
@@ -377,11 +379,11 @@ func TestTeamLeadAPIRelay(t *testing.T) {
 	} else {
 		conn.Close()
 	}
-	answer, err := teamLeadAPI(socket, "k3y-k3y-k3y-k3y-k3y")(context.Background(), "web-w-2", "hello", nil)
+	answer, err := teamLeadAPI(socket, "k3y-k3y-k3y-k3y-k3y")(context.Background(), "web-w-2", "hello", nil, nil)
 	if err != nil || answer != "Sure." {
 		t.Fatal(answer, err)
 	}
-	if _, err := teamLeadAPI(filepath.Join(t.TempDir(), "none.sock"), "k")(context.Background(), "web-w-2", "hello", nil); err == nil {
+	if _, err := teamLeadAPI(filepath.Join(t.TempDir(), "none.sock"), "k")(context.Background(), "web-w-2", "hello", nil, nil); err == nil {
 		t.Fatal("no lead, no error")
 	}
 	os.Remove(socket)
@@ -468,7 +470,7 @@ func TestTeamHelperChatWithRefs(t *testing.T) {
 	channel := &fakeTeamChannel{}
 	b.channel = channel
 	var input string
-	b.lead = func(_ context.Context, _, text string, _ func(string)) (string, error) {
+	b.lead = func(_ context.Context, _, text string, _ []teamLeadPicture, _ func(string)) (string, error) {
 		input = text
 		return "Red when overdue. Shall I?", nil
 	}
@@ -488,7 +490,7 @@ func TestTeamHelperChatWithRefs(t *testing.T) {
 	if len(conversation.Messages[0].Refs) != 1 || conversation.Messages[0].Refs[0].N != 1 {
 		t.Fatalf("%+v", conversation.Messages[0])
 	}
-	said := teamWebApprovalChat("payments", teamApproval{TS: "w-1.3"})
+	said, _ := teamWebApprovalChat("payments", teamApproval{TS: "w-1.3"}, nil)
 	if !strings.Contains(said, "The parts of the page they pointed at:\n\n    Referenced elements:\n    #1 span \"Paid\"\n       selector: td.status > span.badge") {
 		t.Fatal(said)
 	}
