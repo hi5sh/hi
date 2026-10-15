@@ -1,11 +1,11 @@
 # Bun in boxes, templates, and teams
 
-Status: Draft
+Status: Approved (2026-10-15). Slice 1 is built (v0.61.0).
 
 Dependencies: `hi box` (the base image), `hi init` (the `web` template and
-its layers), [hi_team.md](../approved/hi_team.md) (the preview, merges,
-and approvals), [hi_team_helper.md](../approved/hi_team_helper.md) (the
-helper script), and, for the preview check, [hi_web.md](hi_web.md).
+its layers), `hi install`, [hi_team.md](hi_team.md) (the preview, merges,
+and approvals), [hi_team_helper.md](hi_team_helper.md) (the helper
+script), and, for the preview check, [hi_web.md](../ideas/hi_web.md).
 
 ## Goal
 
@@ -27,7 +27,7 @@ check unchanged (see [Findings](#findings)).
 
 hi's part is:
 
-- **Bun in every box**, pinned and checked like Node.js;
+- **Bun in every box and on the workstation**, the latest release;
 - **templates that use it**, first as the package manager and runner, later
   as the whole stack for small apps;
 - **previews that use it** when a project has a `bun.lock`;
@@ -37,23 +37,25 @@ Not in scope: hi itself stays in Go. Node.js stays in the box, because Bun
 is not fully Node-compatible yet and some tools, such as `agent-browser`,
 expect `node` and `npm`.
 
-## The box
+## The box and the workstation
 
-The base image installs Bun next to Node.js, the same way: one exact
-version, downloaded from the release, checked against a pinned SHA-256 per
-architecture, into `/usr/local/bin`. Bun names its Linux builds `x64` and
-`aarch64`.
+Bun is not pinned. The base image installs the latest release when it is
+built, as it does uv: the zip for the architecture (Bun names its Linux
+builds `x64` and `aarch64`) from
+`github.com/oven-sh/bun/releases/latest/download/`, checked against that
+release's `SHASUMS256.txt`, into `/usr/local/bin` with a `bunx` link.
+Node.js stays pinned, to the LTS from nodejs.org.
 
-```text
-RUN ... curl -fsSLo /tmp/bun.zip \
-      "https://github.com/oven-sh/bun/releases/download/bun-v1.4.3/bun-linux-$arch.zip" \
- && echo "$sum  /tmp/bun.zip" | sha256sum -c - \
- && unzip -j /tmp/bun.zip -d /usr/local/bin && ln -s bun /usr/local/bin/bunx
-```
+The image is tagged by its Containerfile's hash, so a box keeps the Bun it
+was built with until the Containerfile changes or the image is removed;
+`podman rmi` on the `hi-box` image gets the latest at the next box.
 
-A new Bun version is a new Containerfile, so a new image tag, as for any
-other change to the base image. `hi install` gets Bun as an optional host
-tool, so the people who run hi can use it outside boxes too.
+`hi install bun` installs the same release zip, checked the same way, into
+`~/.local/bin` with hi's other tools, since `hi init web` runs
+`bun install` on the workstation. Bun's own installer would put it in
+`~/.bun/bin` and edit the shell profile. When a template's setup command
+is a tool `hi install` knows and it is missing, `hi init` says to run
+`hi install <tool>` instead of failing on a missing program.
 
 ## Templates
 
@@ -66,22 +68,33 @@ The code doesn't change. The tooling does:
 | `package-lock.json` | `bun.lock` |
 | `layer.json` setup: `npm ci` | `bun install --frozen-lockfile` |
 | `npx --no-install tsc` | `bun check` |
-| `npx --no-install biome ci .` | `bun x biome ci .` |
-| `npx --no-install vitest run` | `bun x vitest run` |
-| `npx --no-install vite build` | `bun x vite build` |
+| `npx --no-install biome ci .` | `bun run biome ci .` |
+| `npx --no-install vitest run` | `bun run vitest run` |
+| `npx --no-install vite build` | `bun run vite build` |
 
-`bun x` still runs a tool on Node.js unless it is told `--bun`. That's the
+`bun run <tool>` runs a tool from `node_modules/.bin` and, like
+`npx --no-install`, fails rather than download one that isn't installed.
+It still runs a tool on Node.js unless it is told `--bun`. That's the
 default here: Bun installs and starts things, and Node.js runs Vite and
 Vitest, which are tested on it. `--bun` can follow once team projects have
 shown it to be safe.
 
-The template also gets a `bunfig.toml` with safe install defaults:
+`make check` fails while a `package-lock.json` is there, and says to run
+`bun install`, which turns it into `bun.lock`, and then delete it. That is
+also how a `web` project made before Bun moves over: `hi init --update`
+brings the new Makefile and upgrade notes for `bunfig.toml`, and the
+check says what to do.
+
+The template also gets a `bunfig.toml` with a safe install default:
 
 ```toml
 [install]
-frozenLockfile = true
 minimumReleaseAge = 259200   # 3 days: a package hijacked today isn't installed today
 ```
+
+The lockfile is frozen with `--frozen-lockfile` on each command that
+installs (setup, `make check`, previews), not in `bunfig.toml`, where it
+would also stop the coder's `bun add`.
 
 Bun already runs no package's install scripts unless the package is in
 `trustedDependencies`. The template ships with that list empty.
@@ -109,8 +122,8 @@ habits carry over.
 and npm:
 
 1. A Makefile with a `run` target: `make run`.
-2. A `bun.lock` and a `start` script: `bun install --frozen-lockfile && bun
-   run start`.
+2. A `start` script and a `bun.lock`: `bun install --frozen-lockfile &&
+   bun run start`.
 3. A `package-lock.json`: `npm ci && npm start`, as today.
 4. A `package.json` only: `npm install && npm start`, as today.
 
@@ -137,7 +150,7 @@ like a failing test.
 - **A preview check.** Before the lead says a preview is ready, a short
   script opens it with `Bun.WebView`, visits each page in the app's route
   list, and collects console errors and a screenshot of each. On Linux,
-  `Bun.WebView` drives an installed Chrome. [hi_web.md](hi_web.md)'s `check`
+  `Bun.WebView` drives an installed Chrome. [hi_web.md](../ideas/hi_web.md)'s `check`
   command does the same with Lightpanda, so only one of them should be
   built; see the open questions.
 - **Tests for the helper.** `helper/helper.js` is plain JavaScript embedded
@@ -152,8 +165,8 @@ like a failing test.
 
 ## Releases
 
-1. Bun in the base image; `web` on Bun as package manager and runner;
-   previews that use `bun.lock`.
+1. Bun in the base image and in `hi install`; `web` on Bun as package
+   manager and runner; previews that use `bun.lock` (v0.61.0).
 2. The dependency review in `hi team merge`, and `bun audit` in
    `make check`.
 3. The `app` template.
@@ -161,10 +174,13 @@ like a failing test.
 
 ## Risks
 
-- **A young rewrite.** Bun 1.4 (2026-08-20) moved from Zig to Rust, and
-  1.4.2 fixed regressions two weeks later. Every version is pinned in the
-  image and the templates, and moves only after `make check` passes on the
-  templates in a box.
+- **A young rewrite, unpinned.** Bun 1.4 (2026-08-20) moved from Zig to
+  Rust, and 1.4.2 fixed regressions two weeks later. hi takes the latest
+  release rather than pinning one, so a bad release reaches the next image
+  or `hi install bun`. The template's lockfile pins the packages, the tools
+  that run the build stay on Node.js, and the templates' CI runs
+  `make check` with the latest Bun on every change, which is where a
+  regression shows first.
 - **Node compatibility.** Bun's own notes say it isn't fully Node-compatible
   yet. Running tools on Node.js by default (no `--bun`) and keeping npm
   previews as a fallback keeps a team project from depending on the gaps.
@@ -187,6 +203,15 @@ like a failing test.
   able to approve a newer version for an urgent fix?
 
 ## Findings
+
+### Slice 1
+
+On 2026-10-15, with Bun 1.4.3: in the new base image, `hi init web` and
+`make check` pass in 1.2 s; in a `hi box` on the `dev` network, through
+its proxy, `bun install` takes under a second. `bun check` reported the
+same error as `tsc` for a type error.
+
+### Before
 
 Measured on 2026-10-15 on the Strix Halo host, with the `web` template in
 the base image (`localhost/hi-box`):
