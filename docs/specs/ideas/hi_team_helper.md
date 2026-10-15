@@ -220,6 +220,14 @@ What a reference holds, gathered in the page when it is frozen:
   page, preferring ids, `data-testid`, and stable classes over
   `nth-child`. It finds the element again in the same page; the text,
   attributes, and path are what let a coder find it in the code with grep.
+- **Stable names only.** The helper passes `finder` filters that skip
+  names a build generates and the next build changes: ids that look
+  generated (`:r3:`, `ember123`, long hex or digit runs), hashed classes
+  from CSS modules and CSS-in-JS (`_title_x7f2a`, `sc-…`, `css-…`,
+  `jsx-…`, `svelte-…`), and Tailwind's utility classes (`flex`, `mt-4`,
+  `bg-green-600`), which say nothing about which element it is. Such a
+  selector still finds the element, and a coder can grep for it in the
+  code. The filters are OpenPicker's idea, written as `finder` options.
 - **`source`, when the framework gives it away.** Without depending on any
   framework, the helper checks for what development builds leave on
   elements: Vue's `__vueParentComponent.type.__file`, Svelte's
@@ -240,12 +248,27 @@ one point:
 | [stagewise](https://github.com/stagewise-io/stagewise) | A browser toolbar: select elements, comment, send to an agent | AGPLv3, open core; built to send to an IDE agent (Cursor, Copilot), not to a server |
 | [React Grab](https://github.com/aidenybai/react-grab) | Point at an element, copy its context for an agent | React only, development builds only |
 | [Agentation](https://github.com/benjitaylor/agentation) | Click to annotate UI for agents, with an MCP server | A React component; the app has to include it |
+| [element-picker](https://github.com/jamesbechet/element-picker) | Vanilla JS: hover highlight, a callback on click (MIT) | Only the hover and the click: no label, parent and child, freezing, or stopping the app's clicks, which are most of the work; 23 stars, no releases |
+| [OpenPicker](https://openpicker.dev/) | A picker for no-code tools, with selectors that skip generated ids and hashed classes (MIT) | Its overlay is a browser extension, so the people would have to install it. Its filtering is worth copying (below) |
+| [Viselect](https://github.com/simonwep/viselect) | Drag a rectangle to select many elements | Not needed: Shift-click covers several elements |
+| [SnagRelay](https://snagrelay.com/features/element-picker/) | A hosted bug-report product with an element picker | A hosted service: the app's pages would go to a third party |
 | [`@medv/finder`](https://github.com/antonmedv/finder) | A CSS selector generator | Just the selector, which is the part worth reusing |
 
-So: hi writes the picker and the panel and reuses `finder`. The first slice
-checks this table against the current releases again. A framework-agnostic,
+So: hi writes the picker and reuses `finder`. The first slice checks this
+table against the current releases again. A framework-agnostic,
 permissively licensed picker that can be driven from our own panel would
 replace hi's.
+
+**The panel** is the other half of the work: message list, streaming,
+Markdown, a growing composer, attachments. [Deep Chat](https://github.com/OvidijusParsiunas/deep-chat)
+(MIT) is a `<deep-chat>` web component that works without a framework,
+with a custom `handler` for the request and streamed replies, so it could
+sit inside `<hi-helper>` instead of a panel hi writes. Slice 1 tries it
+and keeps it if it allows chips in the composer, a header with the version,
+and messages that arrive from outside (`hi team web post`), and if its
+size is acceptable. That size would replace the 50 KB aim for the
+script. assistant-ui and other React kits are out: the helper can't
+assume the app's framework.
 
 ## The chat reaches the lead
 
