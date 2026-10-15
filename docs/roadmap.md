@@ -1317,12 +1317,28 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `Alt+S` starts and stops select mode wherever the focus is, the
   panel open or not; it worked only while typing in the panel.
 
+### v0.59.0 — Show it, and hear back
+
+- [x] Files in the helper's chat: paste a screenshot, drop files on the
+  panel, or use the paperclip, up to 6 a message. The lead's model sees
+  the pictures; every file is in `/team/web` in its box, in the chat's
+  Slack thread, and in the files of work approved in the chat.
+- [x] A picture of each element pointed at in select mode (modern-screenshot,
+  vendored, loaded the first time), a small one with what is around it.
+- [x] `hi team web post <chat>`: the lead tells a chat something after its
+  answer, such as that the work is ready to try. The panel shows it at
+  once, or a dot and a preview on the button; `hi team web` and
+  `hi team web show` list and read the chats.
+  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#files-and-pictures) (slice 3).
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] The lead's later messages in a chat (`hi team web post`), and images
-  or files attached to a message (slice 3).
+- [ ] Say in each release's announcement whether production has the
+  helper.
+- [ ] Sign in with Slack instead of "Who are you?", so a yes in the app
+  counts like one in Slack.
 
 ### Later — `hi team`
 
