@@ -218,7 +218,8 @@ with the lead, as them, checked through Slack:
 - When an address changes, hi updates the link in the DM.
 - Each team's command is its own: Slack gives a command that two apps in
   a workspace share to the one installed last. Type it in the team's
-  channel, not in a DM; the lead ignores DMs.
+  channel or in the bot's DM; hi answers it there, privately, and the lead
+  still ignores DMs otherwise.
 - The Slack app needs the `/hi-<team>` command and the `commands` and `im:write`
   scopes. `hi team manifest <name>` prints the manifest that has them;
   `hi team up` says when they're missing. Until then, ask the lead in the

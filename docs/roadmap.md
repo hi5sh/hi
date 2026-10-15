@@ -1385,6 +1385,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Slack (the bot token also for its scopes and the channel); Enter keeps
   one, and a running team restarts with them.
 
+### v0.61.3 — /hi-<team> in the bot's DM
+
+- [x] The team's command works in the bot's DM as well as the channel:
+  Hermes dropped it there, since the lead ignores DMs, before the plugin
+  saw it. The plugin now answers its commands in the Slack adapter's
+  listener, privately, with the member ID Slack sets.
+
 ## Planned
 
 ### Next — the helper

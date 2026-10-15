@@ -76,8 +76,11 @@ Since v0.61.1 the command is the team's own, `/hi-<team>` (`/hi-timmai`), writte
 below. Slack gives a command that two apps in a workspace share to the
 one installed last, so a shared `/hi` reached whichever team was
 reinstalled last (and hi server's app has `/hi` too). The plugin answers
-plain `/hi` as well, for an app whose manifest still has it. Typed in a
-DM, the command gets nothing: Hermes ignores DMs before any plugin runs.
+plain `/hi` as well, for an app whose manifest still has it. Hermes drops
+a slash command typed in a DM before any plugin runs, when DMs are off,
+and the bot's DM is where people type it; so the plugin answers its
+commands in the Slack adapter's listener itself, wherever they are typed
+(since v0.61.3), with the user_id Slack sets.
 
 1. Someone types `/hi` in the team's channel.
 2. Hermes holds the app's Socket Mode connection, so the command reaches
