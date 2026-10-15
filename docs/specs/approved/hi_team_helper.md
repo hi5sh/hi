@@ -121,6 +121,13 @@ Which responses get the tag:
 - When the app sends a `Content-Security-Policy` header, the relay adds
   `'self'` to `script-src` and `connect-src` and, when the policy uses a
   nonce, copies it onto the tag. A policy in a `<meta>` tag is not handled.
+- The helper's styles go in as a constructed stylesheet
+  (`adoptedStyleSheets`), which `style-src` doesn't govern, so a policy
+  with `style-src 'self'` leaves the panel styled (since v0.62.2; a
+  `<style>` in its shadow root was blocked, and the button sat unstyled at
+  the bottom of the page). The pictures of what is pointed at still need
+  inline styles: under such a policy they are left out, and the words go
+  alone.
 
 `/__hi/` is reserved on team addresses. The hi-team skill tells the lead,
 and the lead's briefs tell the coder, never to use it in the app.

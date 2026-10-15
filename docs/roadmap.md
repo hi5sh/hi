@@ -1427,6 +1427,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   helper.
 - [ ] Answers to feedback: replies in its thread shown back in the
   sender's browser.
+- [ ] Production's chat for some people only: with sign-in, production's
+  helper could be help and feedback for everyone else.
+- [ ] An owner's yes in a DM for a release, announced in the channel.
+- [ ] A daily digest in the channel of what was discussed in DMs.
+- [ ] Pictures of what is pointed at under a `style-src 'self'` policy,
+  which blocks the inline styles modern-screenshot needs.
 
 ### Later — `hi team`
 

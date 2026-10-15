@@ -272,7 +272,9 @@ hi team helper payments production off     # from the next page load; on brings 
 ```
 
 A link made before your hi had the helper gets it when the link is next
-renewed.
+renewed. An app whose Content-Security-Policy forbids inline styles
+(`style-src 'self'`) still gets the button and the panel, but the pictures
+of what you point at, and of the page with feedback, are left out there.
 
 ### Keys and settings
 
