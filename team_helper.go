@@ -425,6 +425,8 @@ type teamWebStatus struct {
 	// and feedback. Ended says its key no longer works.
 	You   *teamWebPerson `json:"you,omitempty"`
 	Ended bool           `json:"ended,omitempty"`
+	// Command is the team's command in Slack for a private link.
+	Command string `json:"command"`
 }
 
 // teamWebSend is POST /__hi/api/messages.
@@ -498,9 +500,9 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader))
 		switch {
 		case ended:
-			failure(w, http.StatusUnauthorized, errors.New("your link has ended: type /hi in the team's Slack channel for a new one"))
+			failure(w, http.StatusUnauthorized, fmt.Errorf("your link has ended: type %s in the team's Slack channel for a new one", teamSlashCommand(b.team)))
 		case !ok:
-			failure(w, http.StatusUnauthorized, errors.New("the chat with the lead is for people signed in with /hi in the team's Slack channel"))
+			failure(w, http.StatusUnauthorized, fmt.Errorf("the chat with the lead is for people signed in with %s in the team's Slack channel", teamSlashCommand(b.team)))
 		}
 		return person, ok
 	}
@@ -520,7 +522,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			failure(w, http.StatusInternalServerError, err)
 			return
 		}
-		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot}
+		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot, Command: teamSlashCommand(b.team)}
 		if state, ok := loadTeamSlot(b.team, slot); ok {
 			status.Version, status.Commit = state.Label, state.Commit
 		}
@@ -755,8 +757,9 @@ func (b *teamBroker) webSend(w http.ResponseWriter, r *http.Request, slot string
 		case delta := <-deltas:
 			event("delta", map[string]string{"text": delta})
 		case <-answered:
+			// What the lead said last may still be on its way.
 			for len(deltas) > 0 {
-				<-deltas
+				event("delta", map[string]string{"text": <-deltas})
 			}
 			if leadErr != nil {
 				event("error", map[string]string{"error": "the lead couldn't answer: " + leadErr.Error()})

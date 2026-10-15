@@ -72,6 +72,13 @@ The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
 
 ## `/hi`: a private link
 
+Since v0.61.1 the command is the team's own, `/hi-<team>` (`/hi-timmai`), written `/hi`
+below. Slack gives a command that two apps in a workspace share to the
+one installed last, so a shared `/hi` reached whichever team was
+reinstalled last (and hi server's app has `/hi` too). The plugin answers
+plain `/hi` as well, for an app whose manifest still has it. Typed in a
+DM, the command gets nothing: Hermes ignores DMs before any plugin runs.
+
 1. Someone types `/hi` in the team's channel.
 2. Hermes holds the app's Socket Mode connection, so the command reaches
    Hermes, which isn't a model call. hi installs a small Hermes plugin in
@@ -135,9 +142,8 @@ An existing team's app needs its manifest updated and the app reinstalled.
 `hi team up` already says which scopes the bot lacks and how to add them;
 until then `/hi` doesn't exist and the helper only takes feedback.
 
-Each team's app has its own `/hi`. In a workspace with several teams,
-Slack's command picker shows each app's `/hi` with the app's name, and the
-plugin replies "this is the timmai team's link" so nobody mixes them up.
+Each team's app has its own command, `/hi-<team>`, so several teams in a
+workspace never take each other's.
 
 ## What changes for chats so far
 

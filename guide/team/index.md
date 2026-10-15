@@ -206,15 +206,20 @@ corner. What it opens depends on who you are.
   the channel asks the lead to "do f-12", and that needs a yes as any work
   does.
 
-**People who may ask the team for work** type `/hi` in the channel. hi
+**People who may ask the team for work** type the team's command in the
+channel, `/hi-<team>`, such as `/hi-payments`. hi
 sends them a private link in a DM, and with it the button opens a chat
 with the lead, as them, checked through Slack:
 
 - The link's key never reaches the app: hi's relay keeps it in a cookie
   only `/__hi/` gets, so neither the app's server nor its scripts see it.
-  It works for 14 days; `/hi` again gives a new link and ends the old one.
+  It works for 14 days; the command again gives a new link and ends the
+  old one.
 - When an address changes, hi updates the link in the DM.
-- The Slack app needs the `/hi` command and the `commands` and `im:write`
+- Each team's command is its own: Slack gives a command that two apps in
+  a workspace share to the one installed last. Type it in the team's
+  channel, not in a DM; the lead ignores DMs.
+- The Slack app needs the `/hi-<team>` command and the `commands` and `im:write`
   scopes. `hi team manifest <name>` prints the manifest that has them;
   `hi team up` says when they're missing. Until then, ask the lead in the
   channel to send you your link.

@@ -511,7 +511,7 @@ func teamManifest(config teamConfig) string {
 			// The DM is hi's, for people's private links: they read it,
 			// and write in the channel.
 			"app_home":       map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": true},
-			"slash_commands": []map[string]any{{"command": "/hi", "description": "A private link to the app's chat with the " + teamBotName(config.Name) + " team lead", "should_escape": false}},
+			"slash_commands": []map[string]any{{"command": teamSlashCommand(config.Name), "description": "A private link to the app's chat with the " + teamBotName(config.Name) + " team lead", "should_escape": false}},
 		},
 		"oauth_config": map[string]any{"scopes": map[string]any{"bot": teamSlackScopes}},
 		"settings": map[string]any{
@@ -720,7 +720,7 @@ of its own on a branch of the project; you get their reports.
 | hi team web show w-3 | One chat, with each message's id, what they pointed at, and their files |
 | hi team web show f-12 | One piece of feedback, with what they pointed at and their files |
 | hi team web questions | What people asked the app's help lately, and its answers |
-| hi team web link --user U07ANNA | DM someone their private links to the app's chat (what /hi does) |
+| hi team web link --user U07ANNA | DM someone their private links to the app's chat (what %[4]s does) |
 | hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
 
 Members: %[2]s.
@@ -770,9 +770,9 @@ opens a panel beside the page. What it is depends on who opens it.
   things, in the app's own words for its buttons and menus. Have the coder
   update it in the same task as any change people will see, and write it
   first if it is missing.
-- **People who may ask for work** type /hi in the channel. hi sends them a
+- **People who may ask for work** type %[4]s in the channel. hi sends them a
   private link in a DM, and with it the helper is a chat with you, as
-  them, checked. If /hi isn't there yet (the Slack app needs updating),
+  them, checked. If %[4]s isn't there yet (the Slack app needs updating),
   run hi team web link --user <their member ID> when they ask; the links
   go only to that person's DM.
 
@@ -965,7 +965,7 @@ A review's report starts with Approve or Changes needed. hi team merge
 refuses work that no review approved, and work changed since its review.
 After a merge, tell the people what changed. If a merge doesn't apply
 cleanly, give the coder a new task to redo the work on the latest project.
-`, config.Name, strings.Join(roles, ", "), teamNotesSkill)
+`, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name))
 }
 
 // teamSpecsPath is where the lead's specs live in the project: versioned

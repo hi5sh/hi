@@ -241,7 +241,7 @@ textarea:focus { border-color: var(--accent); }
   </header>
   <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" role="tab" data-tab="feedback">Feedback</button></div>
   <div class="notice" hidden><span>A new version is up.</span><button data-action="reload">Reload</button></div>
-  <div class="notice ended" hidden><span>Your link has ended: type /hi in the team's Slack channel for a new one.</span></div>
+  <div class="notice ended" hidden><span></span></div>
   <div class="body" aria-live="polite"></div>
   <form class="composer">
     <div class="chips"></div>
@@ -643,6 +643,7 @@ textarea:focus { border-color: var(--accent); }
     fab.setAttribute("aria-label", title);
     panel.setAttribute("aria-label", title);
     ended.hidden = !status.ended;
+    ended.firstChild.textContent = "Your link has ended: type " + (status.command || "/hi") + " in the team's Slack channel for a new one.";
     tabs.hidden = chat;
     const feedback = !chat && state.tab === "feedback";
     for (const button of tabs.querySelectorAll("button")) {
@@ -726,7 +727,7 @@ textarea:focus { border-color: var(--accent); }
     if (!state.help.length) {
       body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Ask how something in the app works. Point at what you mean with ◎ (Alt+S).</p>' +
         "<p>Something wrong, or an idea? Tell the team under Feedback.</p>" +
-        "<p>On the team? Type <strong>/hi</strong> in its Slack channel for your own link, where this is a chat with the lead.</p></div>");
+        "<p>On the team? Type <strong>" + escape(state.status?.command || "/hi") + "</strong> in its Slack channel for your own link, where this is a chat with the lead.</p></div>");
       return;
     }
     drawMessages(state.help, "Help");

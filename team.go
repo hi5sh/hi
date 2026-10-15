@@ -442,7 +442,7 @@ func teamScopesAdvice(missing []string) string {
 	advice := fmt.Sprintf("the Slack app lacks %s, so the lead can't read what people share or post everything it should. In Slack's app settings (api.slack.com/apps), add them under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace", strings.Join(missing, ", "))
 	if containsString(missing, "commands") || containsString(missing, "im:write") {
 		// /hi needs the command itself too, which only the manifest adds.
-		advice = fmt.Sprintf("the Slack app lacks %s, so /hi, which DMs people their private link to the app's chat with the lead, can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints (it has /hi), Save, then Reinstall to Workspace", strings.Join(missing, ", "))
+		advice = fmt.Sprintf("the Slack app lacks %s, so /hi-<team>, which DMs people their private link to the app's chat with the lead, can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints (it has /hi-<team>), Save, then Reinstall to Workspace", strings.Join(missing, ", "))
 	}
 	return advice
 }

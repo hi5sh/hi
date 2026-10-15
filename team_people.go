@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -22,8 +23,19 @@ import (
 // feedback (team_feedback.go;
 // docs/specs/approved/hi_team_helper_signin.md).
 
-// The lead's Hermes gets a plugin that gives the channel /hi.
+// The lead's Hermes gets a plugin that gives the channel /hi-<team>.
 const teamLeadPlugin = "hi-team"
+
+// teamSlashCommand is the team's command for a private link: one per
+// team, since Slack gives a command two apps in a workspace share to the
+// one installed last (and hi server's app has /hi).
+func teamSlashCommand(team string) string {
+	name := strings.Trim(regexp.MustCompile(`[^a-z0-9_-]+`).ReplaceAllString(strings.ToLower(team), "-"), "-")
+	if len(name) > 28 {
+		name = name[:28] // Slack's commands are 32 characters at most
+	}
+	return "/hi-" + name
+}
 
 //go:embed helper/hermes/plugin.yaml
 var teamLeadPluginManifest []byte
@@ -139,7 +151,7 @@ func (b *teamBroker) webLink(user string) (string, error) {
 		switch {
 		case old.User == user:
 			if old.DM != "" && now.Before(old.Ends) {
-				b.channel.update(old.DM, old.DMTS, ":lock: These links have ended: you asked for new ones with /hi.")
+				b.channel.update(old.DM, old.DMTS, ":lock: These links have ended: you asked for new ones with "+teamSlashCommand(b.team)+".")
 			}
 		case now.Before(old.Ends.Add(30 * 24 * time.Hour)):
 			kept = append(kept, old)
@@ -188,8 +200,8 @@ func (b *teamBroker) teamLinkText(key teamPersonKey) string {
 	} else {
 		text += strings.Join(lines, "\n") + "\n"
 	}
-	text += fmt.Sprintf("They work until <!date^%d^{date_short_pretty}|%s>, and hi updates them here when an address changes. Keep them to yourself: whoever opens them talks to the lead as you. /hi in the channel gives you new ones and ends these.",
-		key.Ends.Unix(), key.Ends.Format("2 Jan"))
+	text += fmt.Sprintf("They work until <!date^%d^{date_short_pretty}|%s>, and hi updates them here when an address changes. Keep them to yourself: whoever opens them talks to the lead as you. %s in the channel gives you new ones and ends these.",
+		key.Ends.Unix(), key.Ends.Format("2 Jan"), teamSlashCommand(b.team))
 	return text
 }
 

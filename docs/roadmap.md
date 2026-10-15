@@ -1369,6 +1369,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   --frozen-lockfile && bun run start`.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md) (slice 1).
 
+### v0.61.1 — A command per team
+
+- [x] Each team's command is `/hi-<team>` (`/hi-timmai`), in the manifest
+  and the plugin: Slack gives a command two apps in a workspace share to
+  the one installed last, so `/hi` reached whichever team was reinstalled
+  last. Plain `/hi` still works for the team that gets it.
+- [x] The helper's chat sends the last words of the lead's answer that
+  were still on their way when it finished; they could be dropped.
+
 ## Planned
 
 ### Next — the helper

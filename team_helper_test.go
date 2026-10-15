@@ -128,7 +128,7 @@ func TestTeamHelperChat(t *testing.T) {
 	names, events := webEvents(t, server, teamWebSend{Text: "Make this one red when it's overdue",
 		Page: &teamWebPage{Path: "/suppliers", Title: "Suppliers", Width: 1440, Height: 900}})
 	if strings.Join(names, ",") != "message,delta,delta,done" {
-		t.Fatal(names)
+		t.Fatal(names, string(events["delta"]))
 	}
 	var done struct {
 		Conversation string         `json:"conversation"`

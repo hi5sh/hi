@@ -125,7 +125,13 @@ func TestTeamManifest(t *testing.T) {
 		t.Fatal(all)
 	}
 	manifestText := teamManifest(testTeamConfig())
-	if !strings.Contains(manifestText, `"command": "/hi"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": true`) {
+	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "type /hi-payments in the channel") || strings.Contains(skill, "%!") {
+		t.Fatal("the skill doesn't name the team's command")
+	}
+	if teamSlashCommand("Team Ab.C") != "/hi-team-ab-c" {
+		t.Fatal(teamSlashCommand("Team Ab.C"))
+	}
+	if !strings.Contains(manifestText, `"command": "/hi-payments"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": true`) {
 		t.Fatal(manifestText)
 	}
 }
