@@ -1470,6 +1470,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `hi team new` wrote it; once work is merged, or for a project cloned or
   started empty, the lead makes the previews as before.
 
+### v0.68.0 — A welcome page that walks people to the helper
+
+- [x] A new team's app starts with a welcome page instead of a blank one:
+  an arrow points at the chat button, and once the chat is open the page
+  says what it is for, beside the panel. The helper tells the page where
+  its button is and whether it is open (`<hi-helper data-corner
+  data-open data-hidden>` and a `hi-helper` event).
+- [x] Tests for the helper: `bun test` in happy-dom on the script hi
+  serves, run by `go test` where Bun is installed and in CI whenever the
+  helper changes.
+- [x] A new team's lead gets its long-term memory: the Hindsight plugin
+  failed to install where the lead had no plugins folder yet.
+
 ## Planned
 
 ### Next — the helper
@@ -1503,7 +1516,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 ### Later — Bun
 
 - [ ] A preview check before the lead says a preview is ready, unless
-  `hi web check` covers it; tests for the helper with `bun test`.
+  `hi web check` covers it.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md).
 
 ### Later — More for the autoresearch templates
