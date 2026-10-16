@@ -578,8 +578,8 @@ func (p *bundlePlan) dockerfile(base string) (string, error) {
 				// Its --with-deps runs sudo apt-get; the build is root
 				// already, so a stand-in sudo lives for this step only.
 				// Headless Chrome names itself HeadlessChrome and sets
-				// navigator.webdriver, which some CDNs refuse (plejd.com's
-				// images, for one), so /opt/hi/bin/chrome passes the user
+				// navigator.webdriver, which some CDNs refuse (CloudFront in
+				// front of a site's images, for one), so /opt/hi/bin/chrome passes the user
 				// agent a normal Chrome of the same version gives and turns
 				// the automation flag off.
 				b.WriteString(`RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && chmod +x /usr/local/bin/sudo` +

@@ -821,7 +821,8 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] The `web` bundle's Chrome doesn't say it's headless: it gives a
   normal Chrome's user agent, not `HeadlessChrome`, and
   `navigator.webdriver` is false. Some CDNs refuse headless Chrome;
-  plejd.com's images were broken in screenshots and now load.
+  a site's images behind such a CDN were broken in screenshots and now
+  load.
 - [x] The `hi` skill tells agents to scroll before a full-page screenshot,
   so lazy images load, and to open the PNG to check it.
 
@@ -1693,7 +1694,7 @@ cover most needs.
 ### Deferred — Sign in with Google for a team's app
 
 - [ ] Optional per team: people with no key link sign in with Google,
-  limited to one Workspace domain such as plejd.com, in the relay, so key
+  limited to one Workspace domain such as example.com, in the relay, so key
   links keep working. Needs a Google OAuth client (Internal) with one
   return address per team. Decided 2026-10-16 to add later. Draft spec:
   [hi_team_sso.md](specs/ideas/hi_team_sso.md).

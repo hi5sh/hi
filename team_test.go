@@ -27,7 +27,7 @@ func (f fakeTeamSlack) botIdentity(string) (string, string, error) {
 	if f.badBot {
 		return "", "", errors.New("invalid_auth")
 	}
-	return "Plejd", "UBOT", nil
+	return "Acme", "UBOT", nil
 }
 func (fakeTeamSlack) checkAppToken(string) error { return nil }
 func (f fakeTeamSlack) scopes(string) ([]string, error) {

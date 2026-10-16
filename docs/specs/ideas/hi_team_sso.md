@@ -9,9 +9,9 @@ helper's sign-in (`hi_team_helper_signin.md`).
 ## Goal
 
 Let people reach a team's app without a key link by signing in with
-Google, limited to one Google Workspace domain, such as plejd.com.
+Google, limited to one Google Workspace domain, such as example.com.
 Someone who opens `https://timmai.app.hi5.sh/` with no key and no session
-signs in with their plejd.com account and gets in; everyone else is
+signs in with their example.com account and gets in; everyone else is
 turned away. It is optional per team, off by default. Key links keep
 working as they do, also for people outside the domain.
 
@@ -43,7 +43,7 @@ The relay, which already checks the link key, gets a second way in:
    verifier, and verifies the ID token: Google's signature (its published
    keys), `iss`, `aud` (the client ID), `exp`, the `nonce`,
    `email_verified`, and **`hd` equal to one of the team's domains**. An
-   email ending in `@plejd.com` is not enough: `hd` is what says the
+   email ending in `@example.com` is not enough: `hd` is what says the
    account belongs to the Workspace.
 3. The relay sets a session cookie (`hi_sso`, HttpOnly, Secure,
    SameSite=Lax, 14 days) holding the email, the domain, and an expiry,
@@ -93,8 +93,8 @@ hi could switch it on through the API it already uses, but:
 - It gates the whole address, so key links stop working for people
   outside the domain: it can't be "a key or Google".
 - Everyone who opens the app must be a user in the NetBird account.
-- It means "plejd.com accounts" only if the NetBird account signs in
-  through plejd.com's Google Workspace.
+- It means "accounts on the domain" only if the NetBird account signs in
+  through that Google Workspace.
 
 ## Open questions
 

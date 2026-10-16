@@ -298,7 +298,7 @@ read the team's data through the proxy and post it anywhere.
   proxy, since Chrome ignores `HTTPS_PROXY`. `/opt/hi/bin/chrome` is a
   wrapper that gives Chrome the user agent of a normal Chrome of the same
   major version and `--disable-blink-features=AutomationControlled`, so
-  `navigator.webdriver` is false (v0.31.2): CloudFront in front of plejd.com's images
+  `navigator.webdriver` is false (v0.31.2): CloudFront in front of a site's images
   refused `HeadlessChrome` with 403, so screenshots showed broken images. Chrome ran without
   `--no-sandbox` in rootless Podman.
 - Skill files are fetched at their commit into `~/.cache/hi/skills/` and
