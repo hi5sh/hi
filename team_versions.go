@@ -294,6 +294,10 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 	if err != nil {
 		return result, err
 	}
+	config, configErr := loadTeam(b.team)
+	if configErr == nil {
+		announcement += teamReleaseHelperNote(config)
+	}
 	// Production's address shows the new version before the channel hears.
 	if b.channel != nil {
 		if shown, err := b.production(0); err != nil {
@@ -302,10 +306,20 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 			announcement += fmt.Sprintf("\n\nOpen it from <%s|hi's message with production's link>, which hi keeps working.", shown.Permalink)
 		}
 	}
-	if config, err := loadTeam(b.team); err == nil {
+	if configErr == nil {
 		b.announce(config, announcement)
 	}
 	return result, nil
+}
+
+// teamReleaseHelperNote tells the channel that production has no helper,
+// so people trying a release don't look for the chat. On is the default
+// and goes unsaid.
+func teamReleaseHelperNote(config teamConfig) string {
+	if teamHelperOn(config, teamSlotProduction) {
+		return ""
+	}
+	return "\n\nThe helper, the chat with the lead in the app, is off in production."
 }
 
 // moveProduction moves the production branch and records the release; it

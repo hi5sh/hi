@@ -725,3 +725,15 @@ func TestTeamAskedBy(t *testing.T) {
 		t.Fatal(text)
 	}
 }
+
+func TestTeamReleaseHelperNote(t *testing.T) {
+	if note := teamReleaseHelperNote(teamConfig{}); note != "" {
+		t.Fatalf("on by default, but %q", note)
+	}
+	if note := teamReleaseHelperNote(teamConfig{Helper: map[string]bool{teamSlotProduction: true, teamSlotPreview: false}}); note != "" {
+		t.Fatalf("on in production, but %q", note)
+	}
+	if note := teamReleaseHelperNote(teamConfig{Helper: map[string]bool{teamSlotProduction: false}}); !strings.Contains(note, "off in production") {
+		t.Fatalf("off in production, but %q", note)
+	}
+}
