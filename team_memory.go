@@ -139,6 +139,10 @@ func teamInstallHindsightPlugin(lead string) error {
 		os.RemoveAll(checkout)
 	}
 	os.RemoveAll(target)
+	// A new team's lead has no plugins folder yet.
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		return err
+	}
 	if out, err := exec.Command("cp", "-a", cache, target).CombinedOutput(); err != nil {
 		return fmt.Errorf("copying the hindsight plugin: %s", strings.TrimSpace(string(out)))
 	}
