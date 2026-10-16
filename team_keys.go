@@ -118,7 +118,9 @@ func teamAskOpenRouterKey(stdin io.Reader, stdout io.Writer, question string) (s
 }
 
 // teamSettingsStamp changes when what an app's box gets changes, so its
-// box starts again: the settings, and how hi gives them.
+// box starts again: the settings, how hi gives them, and hi itself, which
+// the box runs from a copy made when it started (hi team __app, the
+// models' relay), so an update reaches the app boxes too.
 func teamSettingsStamp(name string) string {
 	secrets, _ := loadTeamSecrets(name)
 	keys := make([]string, 0, len(secrets.Env))
@@ -127,6 +129,7 @@ func teamSettingsStamp(name string) string {
 	}
 	sort.Strings(keys)
 	hash := sha256.New()
+	fmt.Fprintf(hash, "hi=%s\n", teamStampVersion)
 	for _, key := range keys {
 		fmt.Fprintf(hash, "%s=%s\n", key, secrets.Env[key])
 	}
@@ -497,3 +500,6 @@ func teamEnvNames(secrets teamSecrets) []string {
 	sort.Strings(names)
 	return names
 }
+
+// teamStampVersion is the hi in teamSettingsStamp; tests change it.
+var teamStampVersion = version

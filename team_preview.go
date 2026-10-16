@@ -511,13 +511,20 @@ func (b *teamBroker) postProductionLink(state *teamPreview) string {
 // keepLinks keeps production on its address, and gives it a new one
 // before the old ends; a preview whose address has ended is stopped.
 func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
-	var failed time.Time
+	var failed, previewFailed time.Time
 	for {
 		if preview, ok := loadTeamSlot(b.team, teamSlotPreview); ok {
 			if _, exposed := b.exposed(preview.Expose); !exposed {
 				b.previewMu.Lock()
 				b.stopSlot(teamSlotPreview)
 				b.previewMu.Unlock()
+			} else if preview.Settings != teamSettingsStamp(b.team) && time.Since(previewFailed) > 30*time.Minute {
+				// A new hi, or new settings: the same version in a new box,
+				// on the same address.
+				if err := b.refreshPreview(preview); err != nil {
+					fmt.Fprintf(stderr, "hi: the preview in a new box: %v\n", err)
+					previewFailed = time.Now()
+				}
 			}
 		}
 		if time.Since(failed) > 30*time.Minute && b.productionNeedsWork() {
@@ -534,6 +541,19 @@ func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 		case <-time.After(time.Minute):
 		}
 	}
+}
+
+// refreshPreview shows what the preview shows in a new box, beside the
+// old one, keeping its address and what it says it is.
+func (b *teamBroker) refreshPreview(current teamPreview) error {
+	b.previewMu.Lock()
+	defer b.previewMu.Unlock()
+	if now, ok := loadTeamSlot(b.team, teamSlotPreview); !ok || now.Container != current.Container {
+		return nil // changed meanwhile
+	}
+	next := teamPreview{Slot: teamSlotPreview, Source: current.Source, Label: current.Label, Port: current.Port}
+	_, err := b.show(next, current.Commit, teamLinkRenew)
+	return err
 }
 
 // productionNeedsWork says production is released but its address is

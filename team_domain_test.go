@@ -160,3 +160,35 @@ func TestTeamPreviewDomain(t *testing.T) {
 		t.Fatal(last)
 	}
 }
+
+func TestTeamAppBoxesFollowHi(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "app").Run()
+	first, err := b.preview(teamPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The same hi: nothing to do.
+	if loaded, _ := loadTeamSlot("payments", teamSlotPreview); loaded.Settings != teamSettingsStamp("payments") {
+		t.Fatal("stamp")
+	}
+	// An update: the preview moves to a new box, on the same address,
+	// still the same version.
+	before := teamStampVersion
+	teamStampVersion = "v9.9.9"
+	t.Cleanup(func() { teamStampVersion = before })
+	saved, _ := loadTeamSlot("payments", teamSlotPreview)
+	if saved.Settings == teamSettingsStamp("payments") {
+		t.Fatal("the stamp doesn't follow hi")
+	}
+	if err := b.refreshPreview(saved); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := loadTeamSlot("payments", teamSlotPreview)
+	if after.URL != first.URL || after.Container == first.Container || after.Commit != first.Commit || after.Label != first.Label || after.Settings != teamSettingsStamp("payments") {
+		t.Fatalf("%+v\n%+v", first, after)
+	}
+}

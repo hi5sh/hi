@@ -114,7 +114,7 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 		down := "It is down for about a second."
 		if server.team != "" {
-			down = "Its lead restarts, which takes about half a minute; the app stays up."
+			down = "Its lead restarts, which takes about half a minute; the app stays up, and moves to new boxes with the new hi in the next few minutes."
 		}
 		command := []string{"systemctl", "restart", server.unit}
 		switch {

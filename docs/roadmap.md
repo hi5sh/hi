@@ -1566,6 +1566,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   reaches them one by one, and for a few minutes a browser that picked one
   without it got no page.
 
+### v0.73.0 — App boxes on the new hi
+
+- [x] A team's app boxes run the hi they started with (the models' relay,
+  `hi team __app`), so after `hi update` and the team's restart, the
+  preview and production move to new boxes with the new hi, beside the old
+  ones and on the same addresses, without a gap. hi's version is part of
+  the stamp that already did this for new settings, and a running preview
+  now follows it too, as production did.
+
 ## Planned
 
 ### Next — the helper
