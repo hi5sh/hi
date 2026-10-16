@@ -41,7 +41,7 @@ func TestSkillBundleChecks(t *testing.T) {
 		"pip option":       `{"name":"x","description":"d","skills":[{"source":"a/b","skill":"s","commit":"","needs":{"pip":["--index-url=x==1"]}}]}`,
 		"npm range":        `{"name":"x","description":"d","skills":[{"source":"a/b","skill":"s","commit":"","needs":{"npm":["docx@^9"]}}]}`,
 		"short commit":     `{"name":"x","description":"d","skills":[{"source":"a/b","skill":"s","commit":"abc123"}]}`,
-		"hi skill":         `{"name":"x","description":"d","skills":[{"source":"hifinab/cli","skill":"hi","commit":""}]}`,
+		"hi skill":         `{"name":"x","description":"d","skills":[{"source":"hi5sh/hi","skill":"hi","commit":""}]}`,
 		"one-skill source": `{"name":"x","description":"d","skills":[{"source":"a/b/s","skill":"s","commit":""}]}`,
 		"PATH":             `{"name":"x","description":"d","skills":[{"source":"a/b","skill":"s","commit":"","needs":{"env":{"PATH":"/tmp"}}}]}`,
 		"network mode":     `{"name":"x","description":"d","skills":[{"source":"a/b","skill":"s","commit":"","needs":{"network":{"mode":"all"}}}]}`,

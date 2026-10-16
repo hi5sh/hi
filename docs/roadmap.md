@@ -89,7 +89,7 @@ token-read exception in [hi_login.md](specs/approved/hi_login.md).
   it with `hi compute billing`.
 - [x] Close tunnels whose instance was stopped even when the SSH gateway
   stays up; verify Hugging Face SSH and tunnels live.
-- [x] Publish a searchable, multi-page guide at https://hifin.sh/guide/ with
+- [x] Publish a searchable, multi-page guide at https://hi5.sh/guide/ with
   step-by-step setup, examples, and a command reference.
 - [x] Add atomic, checksummed self-updates with `hi update`.
   Approved spec: [hi_update.md](specs/approved/hi_update.md).
@@ -1175,7 +1175,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   tasks, commits, and attempt refs; `watch` and `show` have them.
 - [x] `autoresearch-ml` splits its text four ways and gates every gain on
   `../<folder>-validation` with `make validate`.
-- [x] The guide: [Keep only gains that hold](https://hifin.sh/guide/autoresearch/validation/).
+- [x] The guide: [Keep only gains that hold](https://hi5.sh/guide/autoresearch/validation/).
   Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md)
   (release 1; folds are release 2).
 
@@ -1233,7 +1233,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Agents see a `fold` row with the new score, never its validation.
 - [x] `autoresearch-ml`: `make data FOLDS=3`, `make fold`, and
   `make loop FOLDS=3 FOLD_EVERY=10`; the last fold is the usual split.
-- [x] The guide: [Folds](https://hifin.sh/guide/autoresearch/validation/#folds-a-window-that-stays-fresh).
+- [x] The guide: [Folds](https://hi5.sh/guide/autoresearch/validation/#folds-a-window-that-stays-fresh).
   Approved spec: [hi_agent_best_of_validate.md](specs/approved/hi_agent_best_of_validate.md#expanding-window-release-2)
   (release 2).
 

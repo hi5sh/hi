@@ -1,4 +1,4 @@
-module github.com/hifinab/cli
+module github.com/hi5sh/hi
 
 go 1.24.0
 

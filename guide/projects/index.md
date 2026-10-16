@@ -135,7 +135,7 @@ differently:
 project is behind the templates or has conflicts. Add it to CI:
 
 ```yaml
-- run: curl -fsSL https://hifin.sh/install.sh | sh
+- run: curl -fsSL https://hi5.sh/install.sh | sh
 - run: ~/.local/bin/hi init --update --check
 ```
 

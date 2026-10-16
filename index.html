@@ -224,14 +224,14 @@
       <li><a href="#stack">Stack</a></li>
       <li><a href="#commands">Commands</a></li>
       <li><a href="/guide/">Guide</a></li>
-      <li><a href="https://github.com/hifinab/cli">GitHub</a></li>
+      <li><a href="https://github.com/hi5sh/hi">GitHub</a></li>
     </ul>
   </nav>
 </header>
 
 <main>
   <div class="wrap hero">
-    <a class="pill" href="https://github.com/hifinab/cli/releases/latest"><i></i><span id="ver">latest release</span></a>
+    <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
     <h1>Fresh Ubuntu to <em>AI workstation</em> in one command.</h1>
     <p class="lede">
       <code>hi</code> installs Claude Code, Codex, omp, herdr and Hermes,
@@ -249,8 +249,8 @@
           <p class="option-label">CLI only <span class="pill-tag">most people</span></p>
           <div class="cmdline">
             <span class="ps">$</span>
-            <code>curl -fsSL https://hifin.sh/install.sh | sh</code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hifin.sh/install.sh | sh">copy</button>
+            <code>curl -fsSL https://hi5.sh/install.sh | sh</code>
+            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button>
           </div>
           <p class="note">Just the <code>hi</code> binary, checksum-verified, in <code>~/.local/bin</code>. Update it later with <code>hi update</code>.</p>
         </div>
@@ -258,8 +258,8 @@
           <p class="option-label">Workstation</p>
           <div class="cmdline">
             <span class="ps">$</span>
-            <code>curl -fsSL https://hifin.sh/install.sh | sh<span class="arg"> -s -- install</span></code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hifin.sh/install.sh | sh -s -- install">copy</button>
+            <code>curl -fsSL https://hi5.sh/install.sh | sh<span class="arg"> -s -- install</span></code>
+            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh -s -- install">copy</button>
           </div>
           <p class="note">Installs <code>hi</code>, then opens a menu to pick the Hifin workstation software for Ubuntu 26.04. No GPU setup, no reboot.</p>
         </div>
@@ -267,8 +267,8 @@
           <p class="option-label">Strix Halo</p>
           <div class="cmdline">
             <span class="ps">$</span>
-            <code>curl -fsSL https://hifin.sh/install.sh | sh<span class="arg"> -s -- install strix</span></code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hifin.sh/install.sh | sh -s -- install strix">copy</button>
+            <code>curl -fsSL https://hi5.sh/install.sh | sh<span class="arg"> -s -- install strix</span></code>
+            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh -s -- install strix">copy</button>
           </div>
           <p class="note">The same menu with AMD ROCm for Strix Halo checked. <b>Reboot once</b> when it finishes.</p>
         </div>
@@ -400,9 +400,9 @@
   <div class="wrap">
     <span>hi · static Go binary · Linux amd64 &amp; arm64</span>
     <span>
-      <a href="https://github.com/hifinab/cli">Source</a>
-      <a href="https://github.com/hifinab/cli/releases">Releases</a>
-      <a href="https://github.com/hifinab/cli/blob/main/docs/roadmap.md">Roadmap</a>
+      <a href="https://github.com/hi5sh/hi">Source</a>
+      <a href="https://github.com/hi5sh/hi/releases">Releases</a>
+      <a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a>
       <a href="/install.sh">install.sh</a>
       <a href="/llms.txt">llms.txt</a>
     </span>
@@ -427,7 +427,7 @@
   }), { threshold: 0.12 });
   document.querySelectorAll(".reveal").forEach(el => io.observe(el));
 
-  fetch("https://api.github.com/repos/hifinab/cli/releases/latest")
+  fetch("https://api.github.com/repos/hi5sh/hi/releases/latest")
     .then(r => r.ok ? r.json() : null)
     .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
     .catch(() => {});

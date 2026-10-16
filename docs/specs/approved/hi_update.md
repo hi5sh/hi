@@ -22,7 +22,7 @@ release, including an older one. `--check` reports whether a newer release
 exists and changes nothing.
 
 Releases before v0.7.1 have no `hi update`; they update once with the
-installer, `curl -fsSL https://hifin.sh/install.sh | sh`.
+installer, `curl -fsSL https://hi5.sh/install.sh | sh`.
 
 ## Update flow
 

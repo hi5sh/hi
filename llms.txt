@@ -12,7 +12,7 @@
 
 1. Check whether hi is installed: `hi version`. If it is not, install the CLI
    only (no sudo, no system changes) with
-   `curl -fsSL https://hifin.sh/install.sh | sh`; the binary lands in
+   `curl -fsSL https://hi5.sh/install.sh | sh`; the binary lands in
    `~/.local/bin/hi`.
 2. Load the hi skill, which matches the installed version and holds the rules
    you must follow. Print it with `hi skill --print`. To keep it for later
@@ -31,21 +31,21 @@
 
 ## Guide
 
-- [Your first remote GPU](https://hifin.sh/guide/quickstart/): sign in, run a script, stop it
-- [Let your coding agent use a GPU](https://hifin.sh/guide/tutorials/agent/): what to ask an agent, and what it does
-- [Skills](https://hifin.sh/guide/reference/skill/): `hi skill` finds, installs, and updates agent skills from skills.sh, and writes the hi skill
-- [All commands](https://hifin.sh/guide/reference/commands/): every command and option
-- [Hand tasks to agents](https://hifin.sh/guide/agent/): `hi agent`, Claude Code, Codex, or Hermes on a task in a box, without permission prompts, with one report for every agent, and `--bundle web,office,data` for skills and the tools they need; `hi agent best-of` runs one task in several boxes, checks each, and ranks them, or with `--score` runs rounds that commit only gains, and `--then "<command>"` runs a command when they end
-- [Run a team in Slack](https://hifin.sh/guide/team/): `hi team`, a virtual team of agents in one Slack channel: a Hermes lead talks with the people in plain language and keeps the specs, a coder and a reviewer work in boxes, and the lead merges what the reviewer approves; `hi team key <name> openrouter` and `hi team env <name> KEY=VALUE` give the team its own OpenRouter key and the app its settings, and the app calls models at `$OPENROUTER_BASE_URL` without holding a key; `hi team snapshot`, `snapshots`, `restore`, and `backups` keep the lead's memory, the team's record, and the app's data (`$HI_DATA_DIR`) in restic snapshots, daily and before every release, optionally copied to an S3 bucket
-- [Run code in a box](https://hifin.sh/guide/box/): `hi box`, a shell or a command in a rootless container with no credentials and a limited network, set up per project in `devcontainer.json` (`customizations.hi`, including `bundles`)
-- [Share a local service](https://hifin.sh/guide/workstation/expose/): `hi net expose <port>`, a temporary public address for a service on this machine; ask the user first
-- [Download your team's data](https://hifin.sh/guide/data/): `hi data`, your team's private Hugging Face datasets, models, and buckets through the hi server, on laptops, in boxes, in cloud jobs (`hi compute run --data`), and on machines you SSH into (`hi compute up --data`)
-- [Ask for a command](https://hifin.sh/guide/q/): `hi q`, for people at a terminal; agents don't need it
-- [Start a project](https://hifin.sh/guide/projects/): `hi init` templates, `--update`, and `--adopt`
-- [Troubleshooting](https://hifin.sh/guide/reference/troubleshooting/): messages and what to do
+- [Your first remote GPU](https://hi5.sh/guide/quickstart/): sign in, run a script, stop it
+- [Let your coding agent use a GPU](https://hi5.sh/guide/tutorials/agent/): what to ask an agent, and what it does
+- [Skills](https://hi5.sh/guide/reference/skill/): `hi skill` finds, installs, and updates agent skills from skills.sh, and writes the hi skill
+- [All commands](https://hi5.sh/guide/reference/commands/): every command and option
+- [Hand tasks to agents](https://hi5.sh/guide/agent/): `hi agent`, Claude Code, Codex, or Hermes on a task in a box, without permission prompts, with one report for every agent, and `--bundle web,office,data` for skills and the tools they need; `hi agent best-of` runs one task in several boxes, checks each, and ranks them, or with `--score` runs rounds that commit only gains, and `--then "<command>"` runs a command when they end
+- [Run a team in Slack](https://hi5.sh/guide/team/): `hi team`, a virtual team of agents in one Slack channel: a Hermes lead talks with the people in plain language and keeps the specs, a coder and a reviewer work in boxes, and the lead merges what the reviewer approves; `hi team key <name> openrouter` and `hi team env <name> KEY=VALUE` give the team its own OpenRouter key and the app its settings, and the app calls models at `$OPENROUTER_BASE_URL` without holding a key; `hi team snapshot`, `snapshots`, `restore`, and `backups` keep the lead's memory, the team's record, and the app's data (`$HI_DATA_DIR`) in restic snapshots, daily and before every release, optionally copied to an S3 bucket
+- [Run code in a box](https://hi5.sh/guide/box/): `hi box`, a shell or a command in a rootless container with no credentials and a limited network, set up per project in `devcontainer.json` (`customizations.hi`, including `bundles`)
+- [Share a local service](https://hi5.sh/guide/workstation/expose/): `hi net expose <port>`, a temporary public address for a service on this machine; ask the user first
+- [Download your team's data](https://hi5.sh/guide/data/): `hi data`, your team's private Hugging Face datasets, models, and buckets through the hi server, on laptops, in boxes, in cloud jobs (`hi compute run --data`), and on machines you SSH into (`hi compute up --data`)
+- [Ask for a command](https://hi5.sh/guide/q/): `hi q`, for people at a terminal; agents don't need it
+- [Start a project](https://hi5.sh/guide/projects/): `hi init` templates, `--update`, and `--adopt`
+- [Troubleshooting](https://hi5.sh/guide/reference/troubleshooting/): messages and what to do
 
 ## Optional
 
-- [Install hi](https://hifin.sh/guide/install/): installer options and updating
-- [Managed compute for your team](https://hifin.sh/guide/compute/managed/): requests and approvals through a hi server
-- [Source](https://github.com/hifinab/cli)
+- [Install hi](https://hi5.sh/guide/install/): installer options and updating
+- [Managed compute for your team](https://hi5.sh/guide/compute/managed/): requests and approvals through a hi server
+- [Source](https://github.com/hi5sh/hi)

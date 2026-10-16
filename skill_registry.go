@@ -204,7 +204,7 @@ func skillRisks(audits map[string]skillAudit) []string {
 var skillVerifiedOwners = map[string]bool{
 	"anthropics": true, "openai": true, "vercel": true, "vercel-labs": true, "duckdb": true, "motherduckdb": true,
 	"huggingface": true, "google-gemini": true, "microsoft": true, "github": true, "cloudflare": true,
-	"supabase": true, "stripe": true, "firecrawl": true, "tavily-ai": true, "hifinab": true,
+	"supabase": true, "stripe": true, "firecrawl": true, "tavily-ai": true, "hifinab": true, "hi5sh": true,
 }
 
 func skillVerifiedOwner(source string) bool {

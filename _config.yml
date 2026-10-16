@@ -1,7 +1,7 @@
 # GitHub Pages builds this repository root with Jekyll. index.html and
 # install.sh are served as they are; the guide lives in guide/.
 title: hi guide
-url: https://hifin.sh
+url: https://hi5.sh
 baseurl: ""
 description: Step-by-step guides for the hi CLI
 permalink: pretty

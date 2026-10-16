@@ -288,7 +288,7 @@ func (p qOpenAI) request(ctx context.Context, system string, turns []qTurn, tool
 	}
 	if qHost(p.baseURL) == "openrouter.ai" {
 		// OpenRouter's optional attribution headers.
-		headers["HTTP-Referer"] = "https://hifin.sh"
+		headers["HTTP-Referer"] = "https://hi5.sh"
 		headers["X-Title"] = "hi q"
 	}
 	var response struct {

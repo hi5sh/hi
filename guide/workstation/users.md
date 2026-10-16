@@ -23,5 +23,5 @@ every user. The AI coding tools and the compute CLIs are installed per user,
 so a new user runs the installer once to get `hi` and the compute tools:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh
+curl -fsSL https://hi5.sh/install.sh | sh
 ```

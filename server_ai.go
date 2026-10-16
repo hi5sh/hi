@@ -198,7 +198,7 @@ func (s *hiServer) handleAIChat(w http.ResponseWriter, r *http.Request, device s
 	upstream.Header.Set("Content-Type", "application/json")
 	setAIAuthorization(upstream, key)
 	if qHost(settings.URL) == "openrouter.ai" {
-		upstream.Header.Set("HTTP-Referer", "https://hifin.sh")
+		upstream.Header.Set("HTTP-Referer", "https://hi5.sh")
 		upstream.Header.Set("X-Title", "hi q via hi server")
 	}
 	response, err := http.DefaultClient.Do(upstream)

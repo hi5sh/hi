@@ -27,14 +27,14 @@ func fakeReleasesWith(t *testing.T, latest string, tamper, redirect bool, apiCal
 	asset := "hi-linux-" + runtime.GOARCH
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.URL.Path == "/repos/hifinab/cli/releases/latest":
+		case r.URL.Path == "/repos/hi5sh/hi/releases/latest":
 			if apiCalls != nil {
 				*apiCalls++
 			}
 			fmt.Fprintf(w, `{"tag_name": %q}`, latest)
-		case r.URL.Path == "/hifinab/cli/releases/latest" && redirect:
-			http.Redirect(w, r, "/hifinab/cli/releases/tag/"+latest, http.StatusFound)
-		case strings.HasPrefix(r.URL.Path, "/hifinab/cli/releases/download/"):
+		case r.URL.Path == "/hi5sh/hi/releases/latest" && redirect:
+			http.Redirect(w, r, "/hi5sh/hi/releases/tag/"+latest, http.StatusFound)
+		case strings.HasPrefix(r.URL.Path, "/hi5sh/hi/releases/download/"):
 			parts := strings.Split(r.URL.Path, "/")
 			tag, file := parts[5], parts[6]
 			if tag == "v0.0.404" {

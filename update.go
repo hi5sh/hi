@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-const updateRepository = "hifinab/cli"
+const updateRepository = "hi5sh/hi"
 
 // These are replaced in tests.
 var (

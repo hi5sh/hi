@@ -56,7 +56,7 @@ The value is not the folders. It is three things no folder template gives:
 
 Templates and skills come from **sources**. There are two kinds.
 
-### Built-in: `templates/` in `hifinab/cli`
+### Built-in: `templates/` in `hi5sh/hi`
 
 Generic, well-known project shapes (`python`, `web`, and later `service`,
 `cli`, `ml`, `mobile`) live in the public `hi` repository under `templates/`
@@ -94,7 +94,7 @@ covers the mechanism; that repository documents its own templates.
 
 | Belongs in | Examples |
 |---|---|
-| Built-in (`hifinab/cli/templates/`) | Python library layout, React web app, CI, `make check`, agent configuration, secret scanning |
+| Built-in (`hi5sh/hi/templates/`) | Python library layout, React web app, CI, `make check`, agent configuration, secret scanning |
 | Server source (`hifinab/templates`) | `research`, backtest harness and guard tests, private skills, data access, the team's orchestrator and infrastructure |
 
 The GitHub "template repository" feature is not used: it has no parameters
@@ -395,7 +395,7 @@ replaced.
 
 ## Testing templates
 
-- **Built-in:** `hifinab/cli`'s CI generates every built-in template and
+- **Built-in:** `hi5sh/hi`'s CI generates every built-in template and
   runs each generated repository's setup and `make check`, on every change
   under `templates/` (`HI_TEMPLATE_CHECK=1 go test -run Template .`). It also
   runs the internal-name check.

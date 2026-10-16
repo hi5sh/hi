@@ -131,5 +131,5 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `the hf CLI is not installed`                               | `hi install`, or `curl -LsSf https://hf.co/cli/install.sh \| bash` |
 | `netbird is not installed; run hi install first`            | `hi install`                                                 |
 
-Still stuck? Open an issue at [github.com/hifinab/cli](https://github.com/hifinab/cli/issues)
+Still stuck? Open an issue at [github.com/hi5sh/hi](https://github.com/hi5sh/hi/issues)
 with the command and its output.

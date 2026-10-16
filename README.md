@@ -4,20 +4,20 @@
 Go binary so installation does not require a language runtime.
 
 **Guide:** step-by-step instructions, examples, and every option at
-<https://hifin.sh/guide/>.
+<https://hi5.sh/guide/>.
 
 ## Install
 
 Releases install per user to `~/.local/bin/hi`:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh
+curl -fsSL https://hi5.sh/install.sh | sh
 ```
 
 To set up a new machine in one step, pass the `hi` command after `sh -s --`:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh -s -- install
+curl -fsSL https://hi5.sh/install.sh | sh -s -- install
 ```
 
 The installer supports Linux on amd64 and arm64, verifies the release checksum,
@@ -129,7 +129,7 @@ required.
 proxy: protected by a generated password unless you pass `--link` (a key in
 the link, no login page), `--pin`, `--groups`, or `--public`, ending after `--max` (default 1h), with a request
 log; `--detach`, `ls`, and `stop` for background use. See
-[Share a local service](https://hifin.sh/guide/workstation/expose/).
+[Share a local service](https://hi5.sh/guide/workstation/expose/).
 
 ## Remote compute
 
@@ -352,7 +352,7 @@ on Hugging Face Jobs the server opens a narrow public address with
 elsewhere it sends signed download links. `hi compute up --data
 hifinab/bars-1d` gives a RunPod or Shadeform machine `HF_ENDPOINT` and a
 token for those repositories in its shells. See
-[Download your team's data](https://hifin.sh/guide/data/).
+[Download your team's data](https://hi5.sh/guide/data/).
 
 ## Agent skills
 
@@ -378,7 +378,7 @@ skills.sh's security audits are shown, and a skill rated `high` or
 
 Using Codex or another agent? Run `hi skill add hi --global` once per
 machine. An agent that doesn't have `hi` yet can start from
-<https://hifin.sh/llms.txt>, which tells it to install `hi` and follow the
+<https://hi5.sh/llms.txt>, which tells it to install `hi` and follow the
 skill.
 
 ## Workstation setup
@@ -435,7 +435,7 @@ in each binary, so script changes ship with the next release.
 
 ## Website
 
-GitHub Pages serves the repository root at <https://hifin.sh>. `index.html` is
+GitHub Pages serves the repository root at <https://hi5.sh>. `index.html` is
 the landing page, `install.sh` is the CLI installer, and `llms.txt` points
 coding agents to the skill; all go live when
 pushed to `main`, without a release.

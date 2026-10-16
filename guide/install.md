@@ -9,7 +9,7 @@ needs no root access; it goes to `~/.local/bin/hi`.
 ## Install the CLI
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh
+curl -fsSL https://hi5.sh/install.sh | sh
 ```
 
 The installer downloads the latest release, checks its SHA-256 checksum, and
@@ -36,7 +36,7 @@ installing with `sh -s --`. This installs `hi` and immediately opens the
 `hi install` menu in the same terminal, so you can pick the tools:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh -s -- install
+curl -fsSL https://hi5.sh/install.sh | sh -s -- install
 ```
 
 See [Set up a workstation](/guide/workstation/) for the tools on offer.
@@ -49,7 +49,7 @@ See [Set up a workstation](/guide/workstation/) for the tools on offer.
 | `HI_VERSION`     | Install a specific release, such as `v0.7.0`, instead of latest |
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | HI_VERSION=v0.7.0 sh
+curl -fsSL https://hi5.sh/install.sh | HI_VERSION=v0.7.0 sh
 ```
 
 ## Sign in to a compute provider
@@ -94,7 +94,7 @@ with `hi skill update`.
 `hi update` arrived in v0.7.1. Older versions update once with the installer:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh
+curl -fsSL https://hi5.sh/install.sh | sh
 ```
 
 ## Remove

@@ -282,8 +282,8 @@ in release 2, when the bundles moved to skills.sh; what `hi-data` said
 that the `hi` skill didn't (what to do in a box without `--data`, 401 and
 403, keeping downloads out of git) moved into its "Team data" section.
 
-`hifinab/cli` is public and keeps the skill at `skills/hi/SKILL.md`, so
-`npx skills add hifinab/cli` already installs it; skills.sh lists it once
+`hi5sh/hi` is public and keeps the skill at `skills/hi/SKILL.md`, so
+`npx skills add hi5sh/hi` already installs it; skills.sh lists it once
 someone does. That covered the first item of the roadmap's skills.sh entry.
 
 ## Bundles
@@ -429,6 +429,6 @@ From 2026-10-07:
   install counts.
 - Anthropic's `docx`, `xlsx`, `pptx`, and `pdf` carry a proprietary license;
   most of `anthropics/skills` (for example `webapp-testing`) is Apache 2.0.
-- `hifinab/cli` is public, so its `skills/` folder is visible to
-  `npx skills add hifinab/cli` today, including the ten hand-written
+- `hi5sh/hi` is public, so its `skills/` folder is visible to
+  `npx skills add hi5sh/hi` today, including the ten hand-written
   bundle skills.

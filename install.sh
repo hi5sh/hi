@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repo="hifinab/cli"
+repo="hi5sh/hi"
 version="${HI_VERSION:-latest}"
 install_dir="${HI_INSTALL_DIR:-$HOME/.local/bin}"
 

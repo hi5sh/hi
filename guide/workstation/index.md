@@ -18,7 +18,7 @@ tools you uncheck get removed. Strix Halo machines also get AMD ROCm.
 On a new machine, install `hi` and run the setup in one command:
 
 ```sh
-curl -fsSL https://hifin.sh/install.sh | sh -s -- install
+curl -fsSL https://hi5.sh/install.sh | sh -s -- install
 ```
 
 If `hi` is already installed:

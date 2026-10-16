@@ -141,7 +141,7 @@ A bundle is a named set of skills for one kind of work, with the packages
 each skill needs. `hi agent --bundle web,office` puts the skills in the
 box's home folder and runs the box on an image with those packages; see
 [Bundles](/guide/agent/#bundles-skills-and-the-tools-they-need).
-`hi` has three, in [`bundles/`](https://github.com/hifinab/cli/tree/main/bundles):
+`hi` has three, in [`bundles/`](https://github.com/hi5sh/hi/tree/main/bundles):
 
 | Bundle   | Skills                                                                 |
 |----------|------------------------------------------------------------------------|
@@ -213,7 +213,7 @@ hi skill --print           # show it without writing anything
 Without a terminal, plain `hi skill` writes it too, as it always has. Using
 Codex or another agent on a new machine? Run `hi skill add hi --global`
 once, and every session there can load the skill. An agent that doesn't
-have `hi` yet can start from [hifin.sh/llms.txt](/llms.txt), which tells it
+have `hi` yet can start from [hi5.sh/llms.txt](/llms.txt), which tells it
 to install `hi` and follow this skill.
 
 What agents learn:

@@ -53,7 +53,7 @@ Examples:
 
 ```sh
 hi call github GET /repos/hifinab/templates/contents/README.md
-hi call github GET /repos/hifinab/cli/actions/runs -q status=failure
+hi call github GET /repos/hi5sh/hi/actions/runs -q status=failure
 hi call hf GET /api/models/unsloth/Qwen3-8B-GGUF
 hi call vendor GET /v2/prices -q symbol=ERIC-B -q from=2026-09-01 --out prices.json
 ```

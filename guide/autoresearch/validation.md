@@ -346,4 +346,4 @@ score's data; lengthen it before the next run.
 | `eval/ wasn't written for 3 folds` | `make data FOLDS=3`, commit `eval/`, then `make loop FOLDS=3`. |
 
 The design and its reasons are in the
-[specification](https://github.com/hifinab/cli/blob/main/docs/specs/approved/hi_agent_best_of_validate.md).
+[specification](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_agent_best_of_validate.md).
