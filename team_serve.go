@@ -927,13 +927,14 @@ can run hi team preview production for production's link. Times are UTC,
 so for a time of day somewhere else, run at both possible hours and have
 the script print nothing at the wrong one.
 
-A project hi team new started is already a web app with a blank page:
-Bun serves the pages (React) and the API, the data is SQLite in
-$HI_DATA_DIR, the tests are bun test, and the helper's chat is on every
-page without the app doing anything. hi puts it on the preview when the
-team starts, so the people's own links work before anything is built;
-after that, the previews are yours. Have the coder build on it: tasks
-change that page, add pages and API routes, and keep HELP.md current.
+A project hi team new started is already a web app, with a welcome page
+that walks the people to the helper: Bun serves the pages (React) and the
+API, the data is SQLite in $HI_DATA_DIR, the tests are bun test, and the
+helper's chat is on every page without the app doing anything. hi puts it
+on the preview when the team starts, so the people's own links work
+before anything is built; after that, the previews are yours. Have the
+coder build on it: the first feature replaces the welcome page, and tasks
+add pages and API routes, and keep HELP.md current.
 Choose another stack only when the people need something it can't do,
 and say why in the spec.
 

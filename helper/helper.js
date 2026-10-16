@@ -318,6 +318,21 @@ textarea:focus { border-color: var(--accent); }
     toast.className = "toast " + corner + (toast.classList.contains("show") ? " show" : "");
     panel.classList.toggle("left", corner === "tl" || corner === "bl");
     panel.classList.toggle("right", corner === "tr" || corner === "br");
+    announce();
+  }
+
+  // The page can follow the helper, as a new team's welcome page does to
+  // point at the button: <hi-helper> says where the button is
+  // (data-corner: tl, tr, bl, br), whether the panel is open (data-open),
+  // and whether the button is hidden (data-hidden), and a "hi-helper"
+  // event on window says when any of them changes.
+  function announce() {
+    const detail = { corner, open: panel.classList.contains("open"), hidden: fab.style.display === "none" && !panel.classList.contains("open") };
+    if (host.dataset.corner === detail.corner && host.dataset.open === String(detail.open) && host.dataset.hidden === String(detail.hidden)) return;
+    host.dataset.corner = detail.corner;
+    host.dataset.open = String(detail.open);
+    host.dataset.hidden = String(detail.hidden);
+    dispatchEvent(new CustomEvent("hi-helper", { detail }));
   }
   let drag = null;
   fab.addEventListener("pointerdown", (event) => {
@@ -354,6 +369,7 @@ textarea:focus { border-color: var(--accent); }
     panel.classList.toggle("open", open);
     fab.style.display = open ? "none" : "";
     store.set("localStorage", "open", open);
+    announce();
     if (open) {
       fab.classList.remove("unread");
       toast.classList.remove("show");
@@ -383,6 +399,7 @@ textarea:focus { border-color: var(--accent); }
     } else if (action === "hide") {
       toggle(false);
       fab.style.display = "none";
+      announce();
     }
   });
   notice.addEventListener("click", (event) => { if (event.target.dataset.action === "reload") location.reload(); });

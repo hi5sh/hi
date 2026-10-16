@@ -185,7 +185,7 @@ func TestTeamWizard(t *testing.T) {
 			t.Errorf("no %s", file)
 		}
 	}
-	if fileExists(filepath.Join(repo, ".agents")) || fileExists(filepath.Join(repo, "src/App.test.tsx")) && strings.Contains(readTestFile(t, filepath.Join(repo, "src/App.test.tsx")), "note") {
+	if fileExists(filepath.Join(repo, ".agents")) || strings.Contains(readTestFile(t, filepath.Join(repo, "src/db.ts")), "addNote") {
 		t.Error("the hi skill or the notes example is there")
 	}
 	agents := readTestFile(t, filepath.Join(repo, "AGENTS.md"))

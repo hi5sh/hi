@@ -133,9 +133,12 @@ Node isn't installed.
 A new team's project starts from it (slice 4): nearly every team builds
 a web app, so `hi team new` writes the hidden `team-app` layer on the
 host, where `hi` is, since members' boxes have none. `team-app` is `app`
-with a blank page instead of the notes: `App.tsx` renders an empty
-`<main>`, `db.ts` has no tables yet, and the server has the page and
-`/healthz`. The helper's chat box needs nothing from the project: hi adds
+with a welcome page instead of the notes: an arrow points at the helper's
+button with "Press the chat button to start", and once the panel is open
+the page says what the chat is for, beside the panel (above it on a
+phone), following what `<hi-helper>` tells the page. `db.ts` has no tables
+yet, and the server has the page and `/healthz`. The first feature
+replaces the welcome page. The helper's chat box needs nothing from the project: hi adds
 it to every page it relays. hi adds the team's rules to `AGENTS.md`, the
 purpose to `README.md`, and the lead's `docs/specs/`, and leaves out the
 `hi` skill, which is about a tool the members don't have. The lead's
@@ -215,10 +218,6 @@ to run in its box.
   `Bun.WebView` drives an installed Chrome. [hi_web.md](../ideas/hi_web.md)'s `check`
   command does the same with Lightpanda, so only one of them should be
   built; see the open questions.
-- **Tests for the helper.** `helper/helper.js` is plain JavaScript embedded
-  with `go:embed`, and the Go tests only parse it. `bun test` with happy-dom
-  could test the chat and select mode, and is skipped where Bun isn't
-  installed. The file stays as it is, so `go build` never needs Bun.
 - **Bundles.** `agent_bundle.go` installs npm packages with
   `npm install -g --prefix /opt/hi/npm`. `bun add -g` is faster but puts
   them elsewhere, so `NODE_PATH` and the bundle images change with it.
@@ -232,8 +231,10 @@ to run in its box.
 2. The dependency review in `hi team merge`, and `bun audit` in
    `make check` (v0.63.0).
 3. The `app` template (v0.64.0).
-4. A new team's project starts as a blank web app (v0.66.0).
-5. The preview check, if `hi web` doesn't cover it; tests for the helper.
+4. A new team's project starts as a blank web app (v0.66.0), on the
+   preview from the start (v0.67.0), with a welcome page that walks the
+   people to the helper; tests for the helper (v0.68.0).
+5. The preview check, if `hi web` doesn't cover it.
 
 ## Risks
 

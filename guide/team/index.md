@@ -64,8 +64,9 @@ The setup asks seven things, one at a time:
    and limited apart; Enter uses this machine's, from Hermes. No box ever
    holds it (see [Keys and settings](#keys-and-settings)).
 7. **Code.** Enter starts a new web app for the team to build on: a
-   blank page on Bun, with a database, tests, and the helper's chat on
-   every page (the `app` template in [Projects](../projects/#templates)).
+   welcome page on Bun that walks people to the helper's chat, with a
+   database and tests (the `app` template in
+   [Projects](../projects/#templates)).
    Type `empty` for a repository with only a README, or give one to
    clone: a URL, with this machine's git credentials, or a folder on this
    machine.
@@ -185,9 +186,11 @@ own key, so there is no password to copy:
    a new link only when the old one has less than 12 hours left. If the
    new version doesn't start, the link keeps showing the old one.
 
-A new team's blank app is on the preview as soon as `hi team up` starts
-the team, so the links people get from `/hi` work before anything is
-built. After the first merge, the lead makes the previews.
+A new team's app is on the preview as soon as `hi team up` starts the
+team, so the links people get from `/hi` work before anything is built.
+It is a welcome page that points at the chat button and, once the chat is
+open, says what it is for; the first feature replaces it. After the first
+merge, the lead makes the previews.
 
 Production has a link of its own, which shows the latest release. hi
 renews it before it runs out each day, and keeps one message in the

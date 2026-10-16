@@ -1,0 +1,142 @@
+/* The app's styles. The welcome part goes with the welcome page. */
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #1d1d1f;
+  font:
+    17px / 1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+/* the welcome page */
+
+.welcome {
+  max-width: 36rem;
+  margin: 18vh auto 0;
+  padding: 0 24px;
+}
+
+.welcome h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 16px;
+}
+
+.welcome .example {
+  border-left: 3px solid #2f5bea;
+  padding-left: 12px;
+}
+
+.welcome .quiet {
+  color: #6e6e73;
+  font-size: 15px;
+}
+
+/* With the helper's panel open, 400px wide on its side; on a phone it
+   covers the bottom of the screen, so only the heading shows above it. */
+@media (min-width: 641px) {
+  .welcome.beside-right {
+    margin-left: max(24px, calc((100vw - 400px - 36rem) / 2));
+    margin-right: 400px;
+  }
+
+  .welcome.beside-left {
+    margin-left: 400px;
+    margin-right: max(24px, calc((100vw - 400px - 36rem) / 2));
+  }
+}
+
+@media (max-width: 640px) {
+  .welcome.open {
+    margin-top: 16px;
+  }
+
+  .welcome.open h1 {
+    font-size: 1.25rem;
+  }
+
+  .welcome.open p {
+    display: none;
+  }
+}
+
+/* Beside the helper's button, which sits 16px from its corner. */
+.pointer {
+  position: fixed;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  color: #2f5bea;
+  font-weight: 600;
+  animation: nudge 1.4s ease-in-out infinite;
+}
+
+.pointer svg {
+  width: 48px;
+  height: 48px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pointer.br {
+  right: 72px;
+  bottom: 72px;
+  --dx: 8px;
+  --dy: 8px;
+}
+
+.pointer.bl {
+  left: 72px;
+  bottom: 72px;
+  flex-direction: row-reverse;
+  --dx: -8px;
+  --dy: 8px;
+}
+
+.pointer.bl svg {
+  transform: scaleX(-1);
+}
+
+.pointer.tr {
+  right: 72px;
+  top: 72px;
+  align-items: flex-start;
+  --dx: 8px;
+  --dy: -8px;
+}
+
+.pointer.tr svg {
+  transform: scaleY(-1);
+}
+
+.pointer.tl {
+  left: 72px;
+  top: 72px;
+  align-items: flex-start;
+  flex-direction: row-reverse;
+  --dx: -8px;
+  --dy: -8px;
+}
+
+.pointer.tl svg {
+  transform: scale(-1);
+}
+
+@keyframes nudge {
+  50% {
+    translate: var(--dx) var(--dy);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pointer {
+    animation: none;
+  }
+}

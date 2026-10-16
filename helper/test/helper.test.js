@@ -252,3 +252,29 @@ test("Escape leaves select mode", async () => {
   document.getElementById("pay").click();
   expect(appClicks).toBe(1);
 });
+
+test("tells the page where its button is and whether it is open", async () => {
+  const events = [];
+  const record = (event) => events.push(event.detail);
+  addEventListener("hi-helper", record);
+  try {
+    await start(anyone);
+    const host = document.querySelector("hi-helper");
+    expect(host.dataset).toMatchObject({ corner: "br", open: "false", hidden: "false" });
+    open();
+    expect(host.dataset.open).toBe("true");
+    $(".close").click();
+    expect(host.dataset.open).toBe("false");
+    $(".more").click();
+    $("[data-action=hide]").click();
+    expect(host.dataset.hidden).toBe("true");
+    expect(events).toEqual([
+      { corner: "br", open: false, hidden: false },
+      { corner: "br", open: true, hidden: false },
+      { corner: "br", open: false, hidden: false },
+      { corner: "br", open: false, hidden: true },
+    ]);
+  } finally {
+    removeEventListener("hi-helper", record);
+  }
+});

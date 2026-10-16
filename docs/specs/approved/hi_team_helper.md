@@ -173,6 +173,12 @@ browser keeps its copy until the script changes. It aims to be under
 - **Page context, always.** Every message carries the page's path and
   title, the viewport size, and the version the page shows, with or without
   references.
+- **The page can follow it.** `<hi-helper>` says where the button is
+  (`data-corner`: `tl`, `tr`, `bl`, `br`), whether the panel is open
+  (`data-open`), and whether the button is hidden until a reload
+  (`data-hidden`), and a `hi-helper` event on `window` says when any of
+  them changes. A new team's welcome page uses it to point at the button,
+  and to say what the chat is for once it is open ([hi_bun.md](hi_bun.md)).
 - **A new version.** When the slot moves to a new commit (a merge reaches
   the preview, a release reaches production), the panel says "A new version
   is up" with a reload button. The lead can say "try it now" and mean it.
@@ -525,6 +531,12 @@ run/<slot>.helper   present while the slot's helper is on
 - `hi team web post` reaches an open event stream at once, is copied to
   the thread, and is refused while the lead answers in that chat or in an
   ended chat. The next turn in the chat starts with what was posted.
+- `helper/test` runs the script hi serves in happy-dom with `bun test`,
+  against a fake of the team's service: no button when the service doesn't
+  answer, help, feedback, the chat, the lead's words kept as text,
+  failures that keep what was typed, select mode, and what it tells the
+  page. Go's `TestHelperInABrowser` runs it where Bun is installed, and CI
+  whenever the helper changes.
 - In a test page (plain HTML, React, Vue, and a server-rendered form),
   select mode outlines what is hovered, stops the click from reaching the
   app, freezes on click, walks to the parent with `Alt+↑`, and gives a
