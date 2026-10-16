@@ -1551,6 +1551,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `hi team domain <team> on|off` says when that team still runs an
   older hi, which may not know the setting yet, and how to restart it.
 
+### v0.72.2 — The helper sends again
+
+- [x] Since v0.69.0 the helper sent nothing in chat or Ask: the name box,
+  marked required for feedback, sits in the same form, and the browser
+  refused the form while it was hidden and empty. hi checks the name
+  itself, and the form has `novalidate`.
+
 ## Planned
 
 ### Next — the helper

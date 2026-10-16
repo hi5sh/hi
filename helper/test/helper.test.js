@@ -179,6 +179,14 @@ test("sends feedback to the team", async () => {
   expect(localStorage.getItem("hi-helper-name")).toBe('"Sam"');
 });
 
+// The browser's own form checks would stop every send, also in chat and
+// Ask where the name box is hidden; hi checks the name itself.
+test("leaves the form to hi, not the browser's checks", async () => {
+  await start(anyone);
+  expect($(".composer").noValidate).toBe(true);
+  expect($$(".composer [required]")).toHaveLength(0);
+});
+
 test("feedback waits for a name", async () => {
   await start({ ...anyone, "POST feedback": () => json({ id: "f-8" }) });
   localStorage.removeItem("hi-helper-name");

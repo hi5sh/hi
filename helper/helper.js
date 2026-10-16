@@ -258,10 +258,10 @@ textarea:focus { border-color: var(--accent); }
   <div class="notice" hidden><span>A new version is up.</span><button data-action="reload">Reload</button></div>
   <div class="notice ended" hidden><span></span></div>
   <div class="body" aria-live="polite"></div>
-  <form class="composer">
+  <form class="composer" novalidate>
     <div class="chips"></div>
     <div class="files"></div>
-    <div class="extra" hidden><input class="your-name" placeholder="Your name (not checked)" aria-label="Your name" required maxlength="60"><label><input class="screen" type="checkbox" checked> A picture of what I see</label></div>
+    <div class="extra" hidden><input class="your-name" placeholder="Your name (not checked)" aria-label="Your name" aria-required="true" maxlength="60"><label><input class="screen" type="checkbox" checked> A picture of what I see</label></div>
     <div class="row">
       <button class="pick" type="button" aria-label="Point at part of the page (Alt+S)" title="Point at part of the page (Alt+S)">${ICONS.target}</button>
       <label class="pick attach" aria-label="Attach files" title="Attach files, or paste or drop them here">${ICONS.clip}<input type="file" multiple hidden></label>
