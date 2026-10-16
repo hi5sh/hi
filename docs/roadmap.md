@@ -1419,6 +1419,18 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   pointed at still need inline styles there, so such an app's helper
   sends words without them.
 
+### v0.63.0 — A look at new packages
+
+- [x] A task that changes a `package.json` or its lockfile gives its
+  reviewer the packages it adds, removes, and updates, with what to check
+  and the audit to run, all read from git without running the project.
+- [x] `hi team merge` refuses a task that puts a package in
+  `trustedDependencies`, so its install script would run, without an
+  owner's yes of its own (`--approval <id>`), and prints what changed in
+  the packages for the lead to tell the people.
+- [x] The `web` template's `make check` runs `bun audit --audit-level=high`.
+  Approved spec: [hi_bun.md](specs/approved/hi_bun.md#dependency-review) (slice 2).
+
 ## Planned
 
 ### Next — the helper
@@ -1451,9 +1463,6 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### Later — Bun
 
-- [ ] A dependency review in `hi team merge`: `bun pm diff` for the
-  reviewer, an owner's yes for a package that runs an install script, and
-  `bun audit` in the `web` template's `make check`.
 - [ ] An `app` template on Bun alone: `Bun.serve`, HTML imports,
   `bun:sqlite`, `bun test`, and one executable for production.
 - [ ] A preview check before the lead says a preview is ready, unless
