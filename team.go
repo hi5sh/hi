@@ -290,6 +290,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTeamLeadAPI(rest, stderr)
 	case "helper":
 		err = teamHelperCommand(rest, stdout)
+	case "domain":
+		err = teamDomainCommand(rest, stdin, stdout)
 	case "manifest":
 		err = withTeamName(rest, func(name string) error {
 			config, err := loadTeam(name)
@@ -369,6 +371,8 @@ usage:
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi team helper <name>            whether the app's pages have the helper, a chat with the lead
       [preview|production on|off]  turn it on or off for an address, from the next page load
+  hi team domain [<domain>|off]    names that stay for the apps on this machine: <team>.<domain>
+                                   and <team>-preview.<domain>, on a domain verified in NetBird
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there

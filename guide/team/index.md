@@ -198,6 +198,33 @@ channel with production's current link, edited whenever the link or the
 version changes. Each release's announcement links to that message, so
 nobody has to hunt for the latest link.
 
+### Addresses that stay
+
+By default NetBird makes up each address, and production's changes every
+day. With a domain of your own verified in NetBird, every team on the
+machine gets names that stay: production at `<team>.<domain>` and the
+preview at `<team>-preview.<domain>`, renewed every 30 days on the same
+name. People's cookies for an app last then, so the helper's answers to
+their feedback reach them days later.
+
+1. In NetBird, add the domain under Reverse Proxy > Custom Domains, such
+   as `apps.example.com`.
+2. In its DNS, add a CNAME for `*.apps.example.com` to the proxy cluster
+   NetBird names, such as `eu.proxy.netbird.io`, and verify it in NetBird.
+3. Make a NetBird service user that may manage the reverse proxy (Team >
+   Service Users), with an access token.
+4. On the machine that runs the teams:
+
+```sh
+hi team domain apps.example.com    # asks for the token, checks the domain
+hi team domain                     # where the apps are
+hi team domain off                 # back to addresses NetBird makes up
+```
+
+Production moves within a minute, and the preview with the next one. If
+the name doesn't work, hi uses an address NetBird makes up, tries the name
+again after half an hour, and keeps why in `hi team preview`'s answer.
+
 The app box holds no credentials: no Slack token and no API keys. The app
 finds its own link in the file named by `$HI_PUBLIC_URL_FILE`, which hi
 rewrites whenever the link changes. Anything the people want posted on a
@@ -219,10 +246,16 @@ corner. What it opens depends on who you are.
   per address, 400 for the team.
 - **Feedback** goes to the team's channel as a message of its own,
   "Feedback f-12", with what you pointed at, your files, and a picture of
-  the page as you see it (untick it to leave it out). Your name is
-  optional, and marked as not checked. Nothing changes until someone in
-  the channel asks the lead to "do f-12", and that needs a yes as any work
+  the page as you see it (untick it to leave it out). It asks for your
+  name, marked as not checked. Nothing changes until someone in the
+  channel asks the lead to "do f-12", and that needs a yes as any work
   does.
+- **Answers**: a reply in the feedback's thread that starts with `>` shows
+  up under it in the Feedback tab, in the browser that sent it; other
+  replies stay in Slack. The button gets a dot when the team answers. A
+  cookie only `/__hi/` gets says which browser sent what; on an address
+  that changes each day it lasts until the address does (see
+  [Addresses that stay](#addresses-that-stay)).
 
 **People who may ask the team for work** type the team's command in the
 channel, `/hi-<team>`, such as `/hi-payments`. hi

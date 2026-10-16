@@ -205,9 +205,12 @@ repositories. `hi data get` is not on the machine, so the guide points to
 1. Whether one exposure should serve all runs (as above) or each run gets
    its own, which gives each run its own URL at the cost of a NetBird
    service per run.
-2. Whether to use a custom domain (`--with-custom-domain`) so the URL is
-   stable across restarts of `netbird expose`. Today a restart gives a new
-   name, and runs already going lose the proxy until they ask again.
+2. Whether to use a custom domain so the URL is stable across restarts
+   of `netbird expose`. Today a restart gives a new name, and runs already
+   going lose the proxy until they ask again. `--with-custom-domain`
+   doesn't help: NetBird 0.80 puts a random label in front of it. A
+   NetBird service made through the API does, as `hi net expose --domain`
+   does since v0.70.0 (net_expose_domain.go).
 3. Whether NetBird's dashboard-only static header check is worth setting
    up as a second lock for a permanent service.
 4. `hi server expose on|off` (see [Commands](#commands)) isn't built;

@@ -432,6 +432,9 @@ type teamTestBroker struct {
 	// how long the next one lasts.
 	exposures map[string]netExposeState
 	lasts     time.Duration
+	// domainFails makes hi net expose --domain fail, as for a domain
+	// NetBird doesn't have.
+	domainFails bool
 	// apps are the app boxes started, as "name command port".
 	apps []string
 }
@@ -493,14 +496,24 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 			delete(b.exposures, args[3])
 			return nil, nil
 		case args[0] == "net":
-			prefix := ""
+			prefix, domain := "", ""
 			for i, arg := range args {
-				if arg == "--name" {
+				switch arg {
+				case "--name":
 					prefix = args[i+1]
+				case "--domain":
+					domain = args[i+1]
 				}
 			}
 			name := fmt.Sprintf("%s-x%d", prefix, len(b.calls))
-			state := netExposeState{Name: name, URL: "https://" + name + ".example.net", Link: "https://" + name + ".example.net/?hi_key=k", Expires: time.Now().Add(b.lasts)}
+			host := name + ".example.net"
+			if domain != "" {
+				if b.domainFails {
+					return nil, errors.New("NetBird doesn't have it")
+				}
+				host = domain
+			}
+			state := netExposeState{Name: name, URL: "https://" + host, Link: "https://" + host + "/?hi_key=k", Expires: time.Now().Add(b.lasts)}
 			b.exposures[name] = state
 			return json.Marshal(state)
 		case args[0] == "agent" && args[1] != "wait":

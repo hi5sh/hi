@@ -57,6 +57,21 @@ hi net expose 3000 --max 30m    # default 1h, at most 24h
 
 At `--max`, or on Ctrl+C, the address stops working within seconds.
 
+## An address that stays
+
+```sh
+hi net expose 3000 --link --domain app.apps.example.com --max 720h
+```
+
+`netbird expose` makes up each address. `--domain` puts the service on a
+name you choose instead, under a domain verified in NetBird (Reverse Proxy
+> Custom Domains, with a CNAME for `*.<domain>`), for up to 30 days. hi
+makes it a NetBird service through NetBird's API, with a token from a
+service user that may manage the reverse proxy, in `$NETBIRD_API_TOKEN` or
+saved by `hi team domain`. When the exposure ends, the service is switched
+off rather than removed, so the next exposure on the name takes it over
+with its certificate.
+
 ## In the background
 
 ```sh

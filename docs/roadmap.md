@@ -1499,17 +1499,24 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] Feedback asks for a name: the box flashes until it's filled.
   Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md#feedback).
 
+### v0.70.0 — Addresses that stay
+
+- [x] `hi team domain <domain>`: every team's app on the machine at
+  `<team>.<domain>`, and its preview at `<team>-preview.<domain>`, on a
+  domain verified in NetBird, instead of an address NetBird makes up each
+  day. Renewed every 30 days on the same name, without a gap. So people's
+  cookies for an app last, and the answers to their feedback reach them
+  days later. If the name doesn't work, hi uses a made-up address and
+  tries again after half an hour.
+- [x] `hi net expose --domain <name>`, for up to 30 days: a NetBird
+  service made through NetBird's API, since `netbird expose
+  --with-custom-domain` always adds a random label.
+  Approved spec: [hi_net_expose.md, Releases](specs/approved/hi_net_expose.md#releases) (3).
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] An address that stays for a team's app, and for `hi server
-  expose`: a custom domain (`--with-custom-domain`). Feedback's answers
-  then reach the sender's browser for as long as its cookie lasts, rather
-  than until production's address is renewed the next day, and a restart
-  of `netbird expose` doesn't cut off runs already going.
-  Spec: [hi_server_expose.md, Open questions](specs/approved/hi_server_expose.md#open-questions) (2) and
-  [The exposure's lifetime](specs/approved/hi_server_expose.md#the-exposures-lifetime).
 - [ ] Production's chat for some people only: with sign-in, production's
   helper could be help and feedback for everyone else.
 - [ ] An owner's yes in a DM for a release, announced in the channel.
@@ -1603,6 +1610,11 @@ Follow-ups to v0.24–v0.28, not scheduled yet.
 - [ ] On hold (decided 2026-10-03): `hi data upload`, with its limits
   (which repositories or buckets, approval, review) to be decided then.
   Spec: [hi_data.md, Later: uploads](specs/approved/hi_data.md#later-uploads).
+- [ ] A name that stays for `hi server expose`, as `hi net expose
+  --domain` has (v0.70.0), so a restart of the exposure doesn't cut off
+  runs already going.
+  Spec: [hi_server_expose.md, Open questions](specs/approved/hi_server_expose.md#open-questions) (2) and
+  [The exposure's lifetime](specs/approved/hi_server_expose.md#the-exposures-lifetime).
 - [ ] `hi server expose on|off`, in place of `"expose_listen": "off"`.
   Spec: [hi_server_expose.md, Commands](specs/approved/hi_server_expose.md#commands).
 - [ ] Colab through the proxy: a way to hand Colab the run token, so its

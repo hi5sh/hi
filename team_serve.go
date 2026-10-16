@@ -886,7 +886,9 @@ link only when the old one has less than 12 hours left. Never tell the
 people to run commands or start the app themselves.
 
 Production has a link of its own, which hi keeps working: a release moves
-it to the new version, and hi renews it each day. hi keeps one message in
+it to the new version, and hi renews it before it ends: each day, or
+every 30 days when the apps have names that stay (hi team domain, set by
+whoever runs hi on this machine). hi keeps one message in
 the channel with production's current link, and links to it when it posts
 a release. When people ask where production is, point them to that
 message (hi team preview production prints its link) rather than posting

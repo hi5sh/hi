@@ -56,6 +56,9 @@ type netExposeOptions struct {
 	Groups     string        `json:"groups,omitempty"`
 	Name       string        `json:"name"`
 	JSON       bool          `json:"json,omitempty"`
+	// Domain is a name that stays, under a domain verified in NetBird
+	// (net_expose_domain.go); "" gets a new address from netbird expose.
+	Domain string `json:"domain,omitempty"`
 	// Follow is a file with the port to relay to, read again when it
 	// changes, so the service can move without the address changing.
 	Follow string `json:"follow,omitempty"`
@@ -102,7 +105,7 @@ usage:
   hi net expose stop <name> | --all  stop it now
 
 options:
-  --max <duration>     how long (default 1h, at most 24h)
+  --max <duration>     how long (default 1h, at most 24h; 30 days with --domain)
   --link               the key is in the link: whoever has the whole link gets in,
                        without a login page
   --password <text>    a password page in front (default: one is generated)
@@ -110,6 +113,10 @@ options:
   --groups <g1,g2>     NetBird SSO for users in these groups instead
   --public             no protection: anyone with the address (webhooks, API clients)
   --name <prefix>      the start of the address (default hi-<host>-<port>)
+  --domain <name>      an address that stays, such as app.example.com, under a
+                       domain verified in NetBird (Reverse Proxy > Custom Domains);
+                       needs a NetBird API token in $NETBIRD_API_TOKEN or saved
+                       with hi team domain
   --host <addr>        where the service listens (default localhost)
   --follow <file>      relay to the port written in this file, read again when it
                        changes, so the service can move without a new address
@@ -169,6 +176,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	public := flags.Bool("public", false, "no protection")
 	link := flags.Bool("link", false, "the key in the link")
 	name := flags.String("name", "", "address prefix")
+	domain := flags.String("domain", "", "an address that stays")
 	host := flags.String("host", "localhost", "where the service listens")
 	follow := flags.String("follow", "", "a file with the port to relay to")
 	var routes repeatedFlag
@@ -188,7 +196,15 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	if err != nil {
 		return netExposeOptions{}, false, err
 	}
-	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow, Inject: *inject, InjectIf: *injectIf}
+	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow, Inject: *inject, InjectIf: *injectIf,
+		Domain: strings.ToLower(strings.TrimSpace(*domain))}
+	if options.Domain != "" && !netExposeDomainName.MatchString(options.Domain) {
+		return options, false, fmt.Errorf("--domain %q isn't a name such as app.example.com", options.Domain)
+	}
+	longest := netExposeMaxMax
+	if options.Domain != "" {
+		longest = netExposeDomainMax
+	}
 	for _, text := range routes {
 		route, err := parseNetExposeRoute(text)
 		if err != nil {
@@ -200,8 +216,8 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 		return options, false, errors.New("--inject-if goes with --inject or --route")
 	}
 	switch {
-	case options.Max == noLimit || options.Max > netExposeMaxMax:
-		return options, false, fmt.Errorf("--max is at most %s; an exposure always ends", netExposeMaxMax)
+	case options.Max == noLimit || options.Max > longest:
+		return options, false, fmt.Errorf("--max is at most %s; an exposure always ends", longest)
 	case options.Max <= 0:
 		options.Max = netExposeDefaultMax
 	}
@@ -562,25 +578,38 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	defer relay.Close()
 	relayPort := listener.Addr().(*net.TCPAddr).Port
 
-	cmd, publicURL, name, err := startNetbirdExpose(netExposeArgs(options, relayPort), netExposeReadyAfter)
-	if err != nil {
-		return err
-	}
-	stop := func() {
-		cmd.Process.Signal(os.Interrupt)
-		done := make(chan struct{})
-		go func() { cmd.Wait(); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			cmd.Process.Kill()
+	var cmd *exec.Cmd
+	var publicURL, name string
+	var stop func()
+	ready := netExposeReadyAfter
+	if options.Domain != "" {
+		// A name that stays: a NetBird service, pointed at this relay.
+		if stop, err = netExposePublish(options.Domain, address, relayPort); err != nil {
+			return err
+		}
+		publicURL, ready = "https://"+options.Domain, netExposeDomainReady
+		// Unique, so a renewal on the same name keeps its own state file.
+		name = fmt.Sprintf("%s-%s", options.Name, netExposeKey()[:6])
+	} else {
+		if cmd, publicURL, name, err = startNetbirdExpose(netExposeArgs(options, relayPort), netExposeReadyAfter); err != nil {
+			return err
+		}
+		stop = func() {
+			cmd.Process.Signal(os.Interrupt)
+			done := make(chan struct{})
+			go func() { cmd.Wait(); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				cmd.Process.Kill()
+			}
 		}
 	}
 	defer stop()
 	if name == "" {
 		name = options.Name
 	}
-	if err := waitForNetExpose(publicURL, netExposeReadyAfter); err != nil {
+	if err := waitForNetExpose(publicURL, ready); err != nil {
 		return err
 	}
 	started := time.Now()
@@ -609,7 +638,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if !background {
 		printNetExposeState(state, options.JSON, stdout)
 		if !options.JSON {
-			fmt.Fprintf(stdout, "  until %s; Ctrl+C stops it sooner\n", state.Expires.Local().Format("15:04"))
+			fmt.Fprintf(stdout, "  until %s; Ctrl+C stops it sooner\n", netExposeUntil(state.Expires))
 		}
 	}
 
@@ -617,7 +646,9 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(signals)
 	exited := make(chan error, 1)
-	go func() { exited <- cmd.Wait() }()
+	if cmd != nil {
+		go func() { exited <- cmd.Wait() }()
+	}
 	timer := time.NewTimer(options.Max)
 	defer timer.Stop()
 	select {
@@ -724,7 +755,11 @@ func netExposeDetach(options netExposeOptions, stdout, stderr io.Writer) error {
 	}
 	exited := make(chan struct{})
 	go func() { cmd.Wait(); close(exited) }()
-	deadline := time.After(2*netExposeReadyAfter + 10*time.Second)
+	ready := netExposeReadyAfter
+	if options.Domain != "" {
+		ready = netExposeDomainReady
+	}
+	deadline := time.After(netExposeReadyAfter + ready + 10*time.Second)
 	for {
 		for _, state := range netExposeStates() {
 			if state.PID == cmd.Process.Pid && before[state.Name].PID != state.PID {
@@ -732,7 +767,7 @@ func netExposeDetach(options netExposeOptions, stdout, stderr io.Writer) error {
 				printNetExposeState(state, options.JSON, stdout)
 				if !options.JSON {
 					fmt.Fprintf(stdout, "  until %s, in the background; stop it with: hi net expose stop %s\n  requests are logged in %s\n",
-						state.Expires.Local().Format("15:04"), state.Name, logPath)
+						netExposeUntil(state.Expires), state.Name, logPath)
 				}
 				return nil
 			}
@@ -810,7 +845,7 @@ func netExposeList(args []string, stdout io.Writer) error {
 		case state.Groups != "":
 			protection += " " + state.Groups
 		}
-		fmt.Fprintf(table, "%s\t%s\t%d\t%s\t%s\n", name, firstNonEmpty(state.Link, state.URL), state.Port, protection, state.Expires.Local().Format("15:04"))
+		fmt.Fprintf(table, "%s\t%s\t%d\t%s\t%s\n", name, firstNonEmpty(state.Link, state.URL), state.Port, protection, netExposeUntil(state.Expires))
 	}
 	return table.Flush()
 }
@@ -848,4 +883,13 @@ func netExposeStop(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Stopped %s (%s).\n", state.Name, state.URL)
 	}
 	return nil
+}
+
+// netExposeUntil is when an exposure ends: the time today, with the day
+// after.
+func netExposeUntil(t time.Time) string {
+	if time.Until(t) > 20*time.Hour {
+		return t.Local().Format("Jan 2 15:04")
+	}
+	return t.Local().Format("15:04")
 }

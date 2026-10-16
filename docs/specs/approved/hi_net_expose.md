@@ -145,6 +145,17 @@ The skill tells agents to:
    server, and the skill's rules.
 2. TCP services (`--protocol tcp`, for a database or SSH) without the
    relay's request log; `net_expose` in policy.
+3. `--domain <name>`, built in v0.70.0: an address that stays, under a
+   domain verified in NetBird, for up to 30 days. `netbird expose
+   --with-custom-domain` can't give one: NetBird 0.80 puts a random label
+   in front of the domain. So hi makes a NetBird reverse-proxy service
+   through NetBird's management API (`/api/reverse-proxies/services`), a
+   peer target at the relay's port and no auth of NetBird's own (the
+   relay's lock applies), with a token from `$NETBIRD_API_TOKEN` or saved
+   by `hi team domain`. When the exposure ends, the service is switched
+   off, not removed, and only while it still points at this relay, so a
+   renewal on the same name takes it over without a gap and keeps its
+   certificate.
 
 ## Open questions
 

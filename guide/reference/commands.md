@@ -266,6 +266,7 @@ See [Run a team in Slack](/guide/team/).
 | `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
 | `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them |
 | `hi team env <name> [KEY=VALUE | KEY | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
+| `hi team domain [<domain>|off]` | Names that stay for the teams' apps on this machine: `<team>.<domain>` and `<team>-preview.<domain>`, on a domain verified in NetBird |
 | `hi team helper <name> [preview|production on|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
@@ -363,7 +364,8 @@ hi net status | down | reconnect
 | Command                                             | Does                                                 |
 |-----------------------------------------------------|------------------------------------------------------|
 | `hi net expose <port>`                              | Expose `localhost:<port>` until `--max` or Ctrl+C    |
-| ↳ `--max <duration>`                                | How long; default `1h`, at most `24h`                |
+| ↳ `--max <duration>`                                | How long; default `1h`, at most `24h` (30 days with `--domain`) |
+| ↳ `--domain <name>`                                 | An address that stays, under a domain verified in NetBird; needs a NetBird API token |
 | ↳ `--link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
 | ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
 | ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |

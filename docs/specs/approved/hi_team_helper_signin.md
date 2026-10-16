@@ -80,9 +80,9 @@ The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
   hands it to the helper as `X-Hi-Visitor`, as it does a person's key,
   and the app never sees it. hi keeps a hash of the key with the
   feedback, and `GET /__hi/api/feedback` returns only that browser's.
-  A cookie belongs to one address: until the app has an address that
-  stays (a custom domain), answers reach the browser only while the
-  address it sent from lasts, a day for production.
+  A cookie belongs to one address: unless the apps have names that stay
+  (`hi team domain`), answers reach the browser only while the address
+  it sent from lasts, a day for production.
 - A limit against spam: 30 feedback items a day per address, then the
   panel says so.
 

@@ -71,6 +71,22 @@ type teamPreview struct {
 	NewLink bool `json:"new_link,omitempty"`
 	// Permalink is the channel message's link; only in replies.
 	Permalink string `json:"permalink,omitempty"`
+	// Domain is the name that stays the address is on (hi team domain),
+	// or "" for one NetBird made up. DomainError says why the name it
+	// should be on didn't work, at DomainChecked; hi tries again later.
+	Domain        string    `json:"domain,omitempty"`
+	DomainError   string    `json:"domain_error,omitempty"`
+	DomainChecked time.Time `json:"domain_checked,omitzero"`
+}
+
+// teamDomainRetry is how long hi waits before trying a name that failed
+// again.
+const teamDomainRetry = 30 * time.Minute
+
+// teamDomainSettled says the slot's address is on the name it should be,
+// or the name failed a short while ago.
+func teamDomainSettled(state teamPreview, wanted string) bool {
+	return state.Domain == wanted || (state.DomainError != "" && time.Since(state.DomainChecked) < teamDomainRetry)
 }
 
 func teamSlotPath(team, slot string) string {
@@ -278,7 +294,8 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	current, had := loadTeamSlot(b.team, next.Slot)
 	_, exposed := b.exposed(current.Expose)
 	exposed = had && exposed
-	lasts := exposed && time.Until(current.Expires) > keep
+	wanted := teamSlotDomain(b.team, next.Slot)
+	lasts := exposed && time.Until(current.Expires) > keep && teamDomainSettled(current, wanted)
 	next.Settings = teamSettingsStamp(b.team)
 	if lasts && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings && b.running(current.Container) {
 		current.Label = next.Label
@@ -347,12 +364,28 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	}
 	next.Started = time.Now().UTC()
 	next.URL, next.Password, next.Expose, next.Expires, next.Message = current.URL, current.Password, current.Expose, current.Expires, current.Message
+	next.Domain, next.DomainError, next.DomainChecked = current.Domain, current.DomainError, current.DomainChecked
 	if !lasts {
 		name := "team-" + b.team
 		if next.Slot == teamSlotProduction {
 			name += "-live"
 		}
-		exposure, err := b.expose(hostPort, portFile, name, next.Slot)
+		exposure, err := b.expose(hostPort, portFile, name, next.Slot, wanted)
+		domain := wanted
+		if wanted != "" {
+			next.DomainError, next.DomainChecked = "", time.Now().UTC()
+			if err != nil {
+				// The name that stays doesn't work (yet): an address NetBird
+				// makes up, unless the one the people have still lasts.
+				next.DomainError = err.Error()
+				if exposed && time.Until(current.Expires) > keep {
+					exposure, err = netExposeState{}, errors.New("kept the address")
+				} else {
+					exposure, err = b.expose(hostPort, portFile, name, next.Slot, "")
+					domain = ""
+				}
+			}
+		}
 		switch {
 		case err != nil && !exposed:
 			discard()
@@ -363,6 +396,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 				b.run("net", "expose", "stop", current.Expose)
 			}
 			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = firstNonEmpty(exposure.Link, exposure.URL), exposure.Password, exposure.Name, exposure.Expires, true
+			next.Domain = domain
 			writeTeamSlotAddress(b.team, next.Slot, next.URL)
 		}
 		// Without a new address, the old one shows the new version for
@@ -386,8 +420,15 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 
 // expose puts the port in portFile on a new address, for a day, with the
 // helper in its pages while the slot's helper is on.
-func (b *teamBroker) expose(hostPort int, portFile, name, slot string) (netExposeState, error) {
-	args := []string{"net", "expose", strconv.Itoa(hostPort), "--follow", portFile, "--link", "--detach", "--json", "--max", netExposeMaxMax.String(), "--name", name}
+func (b *teamBroker) expose(hostPort int, portFile, name, slot, domain string) (netExposeState, error) {
+	longest := netExposeMaxMax
+	if domain != "" {
+		longest = netExposeDomainMax
+	}
+	args := []string{"net", "expose", strconv.Itoa(hostPort), "--follow", portFile, "--link", "--detach", "--json", "--max", longest.String(), "--name", name}
+	if domain != "" {
+		args = append(args, "--domain", domain)
+	}
 	out, err := b.run(append(args, teamExposeHelperArgs(b.team, slot)...)...)
 	if err != nil {
 		return netExposeState{}, fmt.Errorf("hi net expose: %w (the app runs, but only on this machine)", err)
@@ -432,7 +473,7 @@ func (b *teamBroker) stopSlot(slot string) {
 // teamProductionLinkText is hi's message in the channel with production's
 // link. Slack shows the time in each reader's own time zone.
 func teamProductionLinkText(state teamPreview) string {
-	return fmt.Sprintf(":globe_with_meridians: *%s* is at <%s|this link>. hi keeps this message current: when production changes, or its link is renewed each day, the link here changes with it. Updated <!date^%d^{date_short_pretty} {time}|%s>.",
+	return fmt.Sprintf(":globe_with_meridians: *%s* is at <%s|this link>. hi keeps this message current: when production changes, or its link is renewed, the link here changes with it. Updated <!date^%d^{date_short_pretty} {time}|%s>.",
 		teamCapitalize(state.Label), state.URL, time.Now().Unix(), time.Now().UTC().Format("2 Jan 15:04 UTC"))
 }
 
@@ -508,6 +549,7 @@ func (b *teamBroker) productionNeedsWork() bool {
 	}
 	_, exposed := b.exposed(state.Expose)
 	return !exposed || time.Until(state.Expires) <= teamLinkRenew || state.Settings != teamSettingsStamp(b.team) ||
+		!teamDomainSettled(state, teamSlotDomain(b.team, teamSlotProduction)) ||
 		state.Commit != boxGit(b.repo, "rev-parse", teamProductionBranch) || !b.running(state.Container)
 }
 
@@ -623,7 +665,7 @@ func printTeamPreview(w io.Writer, preview teamPreview) {
 	if preview.Slot == teamSlotProduction {
 		fmt.Fprintf(w, "%s (%s) is up at:\n  %s\n", teamCapitalize(label), commit, preview.URL)
 		if preview.Permalink != "" {
-			fmt.Fprintf(w, "hi keeps a message in the channel with production's current link: %s\nPoint the people to that message rather than posting the link itself: the link is renewed each day, and the message always has the one that works.\n", preview.Permalink)
+			fmt.Fprintf(w, "hi keeps a message in the channel with production's current link: %s\nPoint the people to that message rather than posting the link itself: the link is renewed now and then, and the message always has the one that works.\n", preview.Permalink)
 		}
 		return
 	}
