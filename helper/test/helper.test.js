@@ -179,6 +179,21 @@ test("sends feedback to the team", async () => {
   expect(localStorage.getItem("hi-helper-name")).toBe('"Sam"');
 });
 
+test("feedback waits for a name", async () => {
+  await start({ ...anyone, "POST feedback": () => json({ id: "f-8" }) });
+  localStorage.removeItem("hi-helper-name");
+  open();
+  $(".tabs [data-tab=feedback]").click();
+  $(".your-name").value = "";
+  type("The total is wrong");
+  expect($(".your-name").classList.contains("needed")).toBe(true);
+  expect($("textarea").value).toBe("The total is wrong");
+  expect(sent("feedback")).toHaveLength(0);
+  $(".your-name").value = "Sam";
+  $(".your-name").dispatchEvent(new Event("input"));
+  expect($(".your-name").classList.contains("needed")).toBe(false);
+});
+
 const signedIn = {
   "GET status": () => json({ team: "payments", version: "v3", commit: "abc", lead: "Payments lead", you: { id: "U07ANA", name: "Ana" } }),
   "GET conversation": () => json({}),

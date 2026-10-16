@@ -28,11 +28,11 @@
   const CSS = `
 :host { all: initial; position: fixed; z-index: 2147483647; inset: 0 auto auto 0; width: 0; height: 0;
   --bg: #ffffff; --fg: #1d1d1f; --muted: #6e6e73; --line: #e3e3e8; --soft: #f4f4f7;
-  --accent: #2f5bea; --accent-fg: #ffffff; --mine: #e9eefe; --warn: #fff4d6; --shadow: 0 12px 40px rgba(0,0,0,.18);
+  --accent: #2f5bea; --accent-fg: #ffffff; --mine: #e9eefe; --warn: #fff4d6; --danger: #d93025; --shadow: 0 12px 40px rgba(0,0,0,.18);
   font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg); }
 @media (prefers-color-scheme: dark) {
   :host { --bg: #1c1c1f; --fg: #f2f2f5; --muted: #a1a1a8; --line: #34343a; --soft: #26262b;
-    --accent: #6d8cff; --accent-fg: #0d0d10; --mine: #26304f; --warn: #3a3220; --shadow: 0 12px 40px rgba(0,0,0,.5); }
+    --accent: #6d8cff; --accent-fg: #0d0d10; --mine: #26304f; --warn: #3a3220; --danger: #ff6b5e; --shadow: 0 12px 40px rgba(0,0,0,.5); }
 }
 * { box-sizing: border-box; }
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -100,6 +100,9 @@ textarea:focus { border-color: var(--accent); }
 .extra { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--muted); }
 .extra[hidden] { display: none; }
 .extra input.your-name { flex: 1 1 160px; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+.extra input.your-name.needed { border-color: var(--danger); animation: flash .45s ease-in-out 4; }
+@keyframes flash { 50% { border-color: var(--line); box-shadow: 0 0 0 3px var(--danger); } }
+@media (prefers-reduced-motion: reduce) { .extra input.your-name.needed { animation: none; } }
 .extra label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .intro { color: var(--muted); margin: auto 8px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
 .intro p { margin: 0; }
@@ -256,7 +259,7 @@ textarea:focus { border-color: var(--accent); }
   <form class="composer">
     <div class="chips"></div>
     <div class="files"></div>
-    <div class="extra" hidden><input class="your-name" placeholder="Your name (optional, not checked)" aria-label="Your name" maxlength="60"><label><input class="screen" type="checkbox" checked> A picture of what I see</label></div>
+    <div class="extra" hidden><input class="your-name" placeholder="Your name (not checked)" aria-label="Your name" required maxlength="60"><label><input class="screen" type="checkbox" checked> A picture of what I see</label></div>
     <div class="row">
       <button class="pick" type="button" aria-label="Point at part of the page (Alt+S)" title="Point at part of the page (Alt+S)">${ICONS.target}</button>
       <label class="pick attach" aria-label="Attach files" title="Attach files, or paste or drop them here">${ICONS.clip}<input type="file" multiple hidden></label>
@@ -296,7 +299,10 @@ textarea:focus { border-color: var(--accent); }
   // only /__hi/ gets.
   const signedIn = () => !!(state.status && state.status.you);
   nameInput.value = store.get("localStorage", "name") || "";
-  nameInput.addEventListener("input", () => store.set("localStorage", "name", nameInput.value.trim() || null));
+  nameInput.addEventListener("input", () => {
+    store.set("localStorage", "name", nameInput.value.trim() || null);
+    if (nameInput.value.trim()) nameInput.classList.remove("needed");
+  });
   tabs.addEventListener("click", (event) => {
     const tab = event.target.closest("button")?.dataset.tab;
     if (tab) setTab(tab);
@@ -1441,6 +1447,14 @@ textarea:focus { border-color: var(--accent); }
     event.preventDefault();
     const text = input.value.trim();
     if ((!text && !(signedIn() && state.files.length)) || state.sending) return;
+    // Feedback says who sent it: the name box flashes until it's filled.
+    if (!signedIn() && state.tab === "feedback" && !nameInput.value.trim()) {
+      nameInput.classList.remove("needed");
+      void nameInput.offsetWidth;
+      nameInput.classList.add("needed");
+      nameInput.focus();
+      return;
+    }
     state.sent = null;
     const items = state.refs, files = state.files;
     input.value = "";

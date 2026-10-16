@@ -449,6 +449,8 @@ func (b *teamBroker) webFeedback(r *http.Request, slot string, send teamFeedback
 		return teamFeedback{}, http.StatusForbidden, errors.New("the helper is off here")
 	case send.Text == "":
 		return teamFeedback{}, http.StatusBadRequest, errors.New("say what it's about")
+	case send.Name == "":
+		return teamFeedback{}, http.StatusBadRequest, errors.New("say who you are")
 	case len(send.Text) > teamWebMaxText:
 		return teamFeedback{}, http.StatusBadRequest, fmt.Errorf("the feedback is longer than %d characters", teamWebMaxText)
 	}

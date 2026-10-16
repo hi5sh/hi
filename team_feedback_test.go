@@ -110,6 +110,11 @@ func TestTeamWebFeedback(t *testing.T) {
 	}
 	server := webTestServer(t, b.teamBroker, teamSlotPreview, "", "")
 	defer server.Close()
+	// Feedback says who sent it.
+	nameless, _ := json.Marshal(teamFeedbackSend{Name: " ", Text: "Overdue should be red"})
+	if response, err := http.Post(server.URL+"/__hi/api/feedback", "application/json", bytes.NewReader(nameless)); err != nil || response.StatusCode != http.StatusBadRequest {
+		t.Fatal(response, err)
+	}
 	ref := teamWebRef{Selector: "td.status", Tag: "td", Text: "Overdue"}
 	send := teamFeedbackSend{Name: "Cleo", Text: "Overdue should be red", Page: &teamWebPage{Path: "/suppliers"}, Refs: []teamWebRef{ref},
 		Files: []teamWebUpload{{Screen: true, Name: "screen", Data: testPNG(t)}, {Ref: 1, Data: testPNG(t)}, {Name: "notes.txt", Data: []byte("30 days")}}}
