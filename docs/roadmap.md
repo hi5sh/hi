@@ -1559,6 +1559,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   refused the form while it was hidden and empty. hi checks the name
   itself, and the form has `novalidate`.
 
+### v0.72.3 — The link once every proxy has the name
+
+- [x] `hi net expose --domain` hands out the address only once every proxy
+  NetBird answers the name from serves it. A new name's certificate
+  reaches them one by one, and for a few minutes a browser that picked one
+  without it got no page.
+
 ## Planned
 
 ### Next — the helper

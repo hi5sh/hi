@@ -612,6 +612,12 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if err := waitForNetExpose(publicURL, ready); err != nil {
 		return err
 	}
+	if options.Domain != "" {
+		// Every proxy, not only the first: the link goes out next.
+		if err := waitForEveryProxy(options.Domain, "443", ready); err != nil {
+			fmt.Fprintf(stderr, "hi: warning: %v\n", err)
+		}
+	}
 	started := time.Now()
 	state := netExposeState{Name: name, URL: publicURL, Port: options.Port, Host: options.Host, Protection: options.Protection,
 		Groups: options.Groups, PID: os.Getpid(), Started: started, Expires: started.Add(options.Max)}

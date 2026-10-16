@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -158,5 +162,43 @@ func TestParseNetExposeDomain(t *testing.T) {
 	}
 	if until := netExposeUntil(time.Now().Add(72 * time.Hour)); !strings.Contains(until, " ") {
 		t.Error(until)
+	}
+}
+
+func TestWaitForEveryProxy(t *testing.T) {
+	// Two proxies for the name: one serves it, one has no certificate for
+	// it yet, then gets one.
+	serving := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusUnauthorized) }))
+	defer serving.Close()
+	var ready atomic.Bool
+	late := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusUnauthorized) }))
+	late.TLS = &tls.Config{GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		if !ready.Load() {
+			return nil, errors.New("no certificate yet")
+		}
+		return &serving.TLS.Certificates[0], nil
+	}}
+	late.StartTLS()
+	defer late.Close()
+	roots := x509.NewCertPool()
+	roots.AddCert(serving.Certificate())
+	addresses := map[string]string{"192.0.2.1": serving.Listener.Addr().String(), "192.0.2.2": late.Listener.Addr().String()}
+	before := []any{netExposeLookup, netExposeProxyAddress, netExposeProxyRoots}
+	netExposeLookup = func(context.Context, string) ([]string, error) { return []string{"192.0.2.1", "192.0.2.2"}, nil }
+	netExposeProxyAddress = func(ip, _ string) string { return addresses[ip] }
+	netExposeProxyRoots = roots
+	t.Cleanup(func() {
+		netExposeLookup = before[0].(func(context.Context, string) ([]string, error))
+		netExposeProxyAddress = before[1].(func(string, string) string)
+		netExposeProxyRoots = before[2].(*x509.CertPool)
+	})
+
+	// httptest's certificate is for example.com.
+	if err := waitForEveryProxy("example.com", "443", time.Second); err == nil || !strings.Contains(err.Error(), "192.0.2.2") || strings.Contains(err.Error(), "192.0.2.1") {
+		t.Fatal(err)
+	}
+	ready.Store(true)
+	if err := waitForEveryProxy("example.com", "443", time.Second); err != nil {
+		t.Fatal(err)
 	}
 }

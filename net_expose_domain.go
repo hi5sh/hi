@@ -2,10 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -216,3 +220,67 @@ func netExposePublish(domain, address string, port int) (stop func(), err error)
 		api.call(http.MethodPut, "/api/reverse-proxies/services/"+url.PathEscape(id), now, nil)
 	}, nil
 }
+
+// netExposeLookup resolves a name to the proxies that serve it; tests
+// replace it.
+var netExposeLookup = net.DefaultResolver.LookupHost
+
+// waitForEveryProxy waits until every proxy NetBird answers the name from
+// serves it: a new name's certificate reaches them one by one, and a
+// browser that picks one without it gets no page at all. It says which
+// still don't when time runs out.
+func waitForEveryProxy(host string, port string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	ready := map[string]bool{}
+	for {
+		addresses, _ := netExposeLookup(context.Background(), host)
+		var waiting []string
+		for _, address := range addresses {
+			if ready[address] {
+				continue
+			}
+			if netExposeProxyServes(host, netExposeProxyAddress(address, port)) {
+				ready[address] = true
+			} else {
+				waiting = append(waiting, address)
+			}
+		}
+		if len(addresses) > 0 && len(waiting) == 0 {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s doesn't answer from every NetBird proxy yet (%s): some visitors get no page for a few more minutes", host, strings.Join(waiting, ", "))
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// netExposeProxyServes says one proxy answers the name over HTTPS with
+// anything but NetBird's own "can't reach the service".
+func netExposeProxyServes(host, address string) bool {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, address)
+			},
+			TLSClientConfig: &tls.Config{ServerName: host, RootCAs: netExposeProxyRoots},
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	request, _ := http.NewRequest(http.MethodGet, "https://"+host+"/", nil)
+	request.Header.Set(netExposeProbeHeader, "1")
+	response, err := client.Do(request)
+	if err != nil {
+		return false
+	}
+	response.Body.Close()
+	return response.StatusCode != http.StatusBadGateway && response.StatusCode != http.StatusNotFound
+}
+
+// netExposeProxyAddress is where to reach one proxy; tests replace it.
+var netExposeProxyAddress = net.JoinHostPort
+
+// netExposeProxyRoots are the certificates trusted for the proxies; nil
+// is the system's, and tests set their own.
+var netExposeProxyRoots *x509.CertPool
