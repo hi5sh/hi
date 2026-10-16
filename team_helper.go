@@ -532,6 +532,9 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			status.You = &teamWebPerson{ID: person.User, Name: person.Name}
 		} else {
 			status.Ended = ended
+		}
+		// Production's panel has feedback for people signed in too.
+		if status.You == nil || slot == teamSlotProduction {
 			_, status.Answers = teamVisitorFeedback(b.team, r.Header.Get(netExposeVisitorHeader), 0)
 		}
 		reply(w, http.StatusOK, status)
@@ -824,10 +827,18 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 		input = "(Since your last answer here, you also wrote in this chat, with hi team web post:\n" + strings.Join(posted, "\n\n") + ")\n\n" + input
 	}
 	if first {
-		input = teamWebFirstNote + "\n\n" + input
+		note := teamWebFirstNote
+		if conversation.Slot == teamSlotProduction {
+			note += "\n\n" + teamWebProductionNote
+		}
+		input = note + "\n\n" + input
 	}
 	return input
 }
+
+// teamWebProductionNote starts a chat from production, where the person
+// uses the app rather than shapes it.
+const teamWebProductionNote = `(They are on production, the version people rely on. What they ask for goes into dev, as from anywhere: say so, then send them the preview link with hi team web post when it is ready to try, naming the version ("dev, v3 + 1 change"). Production gets it with the next release, which needs an owner's yes in Slack; when you ask for it, say what else in dev would go with it. If they only report a problem or ask how something works, answer that; nothing needs to change.)`
 
 // teamWebFirstNote starts each web chat for the lead.
 const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`

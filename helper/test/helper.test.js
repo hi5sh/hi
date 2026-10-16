@@ -253,6 +253,49 @@ test("is a chat with the lead for someone signed in", async () => {
   ]);
 });
 
+// Production is for using the app: signed in, the chat is the Change
+// tab beside Ask and Feedback, and says where a change goes.
+test("on production, the chat with the lead is a tab for someone signed in", async () => {
+  await start({
+    "GET status": () => json({ team: "payments", slot: "production", version: "v3", commit: "abc", lead: "Payments lead", you: { id: "U07ANA", name: "Ana" } }),
+    "GET conversation": () => json({}),
+    "GET feedback": () => json({ feedback: [] }),
+    "POST feedback": () => json({ id: "f-9" }),
+    "POST messages": (body) => sse([["done", { message: { n: 2, from: "lead", name: "Payments lead", text: "It goes into dev." } }]]),
+  });
+  open();
+  expect($(".tabs").hidden).toBe(false);
+  expect($(".tabs [data-tab=change]").hidden).toBe(false);
+  expect($(".tabs [data-tab=ask]").classList.contains("on")).toBe(true);
+  expect($(".name").textContent).toBe("Help · payments");
+  expect($(".version").textContent).toBe("v3 · you're Ana (via Slack)");
+
+  // Feedback: Slack says who, so there is no name box to fill.
+  $(".tabs [data-tab=feedback]").click();
+  expect($(".your-name").style.display).toBe("none");
+  $(".screen").checked = false;
+  type("The total is wrong");
+  await until(() => $(".sent"));
+  expect(sent("feedback")[0].body.name).toBe("");
+
+  $(".tabs [data-tab=change]").click();
+  expect($(".name").textContent).toBe("Payments lead");
+  expect($(".where").textContent).toStartWith("You're on production (v3). A change goes into dev first");
+  type("Make overdue red");
+  await until(() => $$(".msg.lead").length === 1);
+  expect(sent("messages")).toHaveLength(1);
+  expect(sent("help")).toHaveLength(0);
+});
+
+// Not signed in, or on a preview, there is no Change tab.
+test("has no Change tab for anyone else", async () => {
+  sessionStorage.setItem("hi-helper-tab", '"change"');
+  await start({ "GET status": () => json({ team: "payments", slot: "production", version: "v3", commit: "abc" }) });
+  open();
+  expect($(".tabs [data-tab=change]").hidden).toBe(true);
+  expect($(".tabs [data-tab=ask]").classList.contains("on")).toBe(true);
+});
+
 test("keeps a message to send again when the lead can't take it", async () => {
   await start({ ...signedIn, "POST messages": () => sse([["error", { error: "The lead is restarting; try again in a minute" }]]) });
   open();

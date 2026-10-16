@@ -266,7 +266,12 @@ corner. What it opens depends on who you are.
 **People who may ask the team for work** type the team's command in the
 channel, `/hi-<team>`, such as `/hi-payments`. hi
 sends them a private link in a DM, and with it the button opens a chat
-with the lead, as them, checked through Slack:
+with the lead, as them, checked through Slack. On a preview the panel is
+the chat. On production, where most people only use the app, it opens on
+Ask, with Feedback (under their Slack name, no name to type) and a
+**Change** tab for the chat; that tab says a change goes into dev first,
+with a preview link to try it, and reaches production when an owner
+releases it.
 
 - The link's key never reaches the app: hi's relay keeps it in a cookie
   only `/__hi/` gets, so neither the app's server nor its scripts see it.

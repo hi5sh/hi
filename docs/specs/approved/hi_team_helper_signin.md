@@ -1,6 +1,7 @@
 # `hi team` helper: feedback for anyone, the chat for people signed in
 
-Status: Approved (2026-10-15), built in v0.60.0. Changes [hi_team_helper.md](../approved/hi_team_helper.md):
+Status: Approved (2026-10-15), built in v0.60.0; production's tabs in
+v0.74.0. Changes [hi_team_helper.md](../approved/hi_team_helper.md):
 who is talking is no longer claimed in "Who are you?".
 
 ## Goal
@@ -131,6 +132,28 @@ Slack yes does, now that the name is checked. Releases, rollbacks, and
 production's helper still need an owner's yes in the channel, which keeps
 them where the team can see them.
 
+**On production, the chat is a tab** (since v0.74.0). Production is for
+using the app, and a change asked there still goes into dev: it reaches
+production only by a release. So for someone signed in, production's panel
+is the anyone's panel with one more tab:
+
+- It opens on **Ask**. **Feedback** is as for anyone, but signed in: no
+  name box, and hi takes their Slack name and ID from the key, so the
+  channel message says "from @Anna (signed in with /hi-payments)" and the
+  record keeps `user`. Answers reach them as anyone's do, through the
+  `hi_visitor` cookie.
+- **Change** is the chat with the lead. Above it: "You're on production
+  (v3). A change goes into dev first: the lead sends you a preview link
+  to try it, and production gets it when an owner releases it." Its
+  placeholder is "Ask the lead for a change…". A message from the lead
+  while another tab is open puts a dot on the tab; the panel opens on it
+  when the lead wrote since it was last seen.
+- The lead's first note in a chat from production adds that what they ask
+  for goes into dev, that it sends the preview link with `hi team web
+  post` when it is ready, naming the version, and that a release needs an
+  owner's yes, with what else in dev would go with it.
+- On a preview the panel stays the chat, as before.
+
 **Production's link changes every day** (it is renewed), and a preview
 gets a new address now and then, so a link in a DM goes stale. hi keeps
 the DM it sent each person and updates it, as it does its channel message
@@ -196,5 +219,5 @@ workspace never take each other's.
   in their DM, one to one, so the channel stays for the group. Larger
   changes are still announced in the channel: what changed in the latest
   updates and who asked for it, so the channel stays the team's record.
-- **Production for some people only.** With people signed in, production's
-  helper could be feedback-only for everyone else.
+- ~~**Production for some people only.**~~ Built in v0.74.0: production's
+  chat is a tab for people signed in; everyone else has Ask and Feedback.

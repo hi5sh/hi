@@ -1,7 +1,9 @@
 // The hi team helper: a panel beside any page of the team's app. For
 // anyone with the app's link it is help, answered from the app's guide,
 // and feedback to the team; for someone signed in with /hi in Slack, it is
-// a chat with the team's lead. hi net expose adds this script to each page
+// a chat with the team's lead: the whole panel on a preview, and a Change
+// tab beside Ask and Feedback on production, where most people only use
+// the app. hi net expose adds this script to each page
 // it relays and serves /__hi/ from the team's service, so the app holds
 // none of it (docs/specs/approved/hi_team_helper.md and
 // hi_team_helper_signin.md). Plain JavaScript, no framework,
@@ -99,6 +101,9 @@ textarea:focus { border-color: var(--accent); }
 .tabs[hidden] { display: none; }
 .tabs button { flex: 1; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 .tabs button.on { background: var(--mine); color: var(--fg); border-color: var(--accent); }
+.tabs button[hidden] { display: none; }
+.tabs button.new::after { content: " •"; color: var(--accent); }
+.where { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: var(--mine); color: var(--muted); font-size: 13px; }
 .extra { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--muted); }
 .extra[hidden] { display: none; }
 .extra input.your-name { flex: 1 1 160px; font: inherit; color: var(--fg); background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
@@ -254,7 +259,7 @@ textarea:focus { border-color: var(--accent); }
       <button data-action="hide" role="menuitem">Hide the button until reload</button>
     </div>
   </header>
-  <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" role="tab" data-tab="feedback">Feedback</button></div>
+  <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" role="tab" data-tab="feedback">Feedback</button><button type="button" role="tab" data-tab="change" hidden>Change</button></div>
   <div class="notice" hidden><span>A new version is up.</span><button data-action="reload">Reload</button></div>
   <div class="notice ended" hidden><span></span></div>
   <div class="body" aria-live="polite"></div>
@@ -289,7 +294,7 @@ textarea:focus { border-color: var(--accent); }
   const state = {
     status: null,
     conversation: null, // the chat with the lead, signed in
-    tab: store.get("sessionStorage", "tab") || "ask", // ask or feedback, otherwise
+    tab: store.get("sessionStorage", "tab") || "ask", // ask, feedback, or change on production
     help: store.get("sessionStorage", "help") || [], // this tab's questions and answers
     sent: null, // the id of the feedback just sent
     feedback: null, // what this browser sent, newest first, with the team's answers
@@ -301,6 +306,11 @@ textarea:focus { border-color: var(--accent); }
   // Signed in with /hi: the relay found this person's key in the cookie
   // only /__hi/ gets.
   const signedIn = () => !!(state.status && state.status.you);
+  // Production is for using the app: there, the chat with the lead is the
+  // Change tab, for people signed in, and the panel opens on Ask.
+  const production = () => state.status?.slot === "production";
+  const chatting = () => signedIn() && (!production() || state.tab === "change");
+  const feedbackTab = () => !chatting() && state.tab === "feedback";
   nameInput.value = store.get("localStorage", "name") || "";
   nameInput.addEventListener("input", () => {
     store.set("localStorage", "name", nameInput.value.trim() || null);
@@ -383,10 +393,11 @@ textarea:focus { border-color: var(--accent); }
     if (open) {
       // The team answered feedback: that's what the panel opens on.
       if (answersUnseen()) { state.tab = "feedback"; store.set("sessionStorage", "tab", "feedback"); }
+      else if (production() && signedIn() && unseen()) { state.tab = "change"; store.set("sessionStorage", "tab", "change"); }
       fab.classList.remove("unread");
       toast.classList.remove("show");
       render();
-      if (!signedIn() && state.tab === "feedback") loadFeedback();
+      if (feedbackTab()) loadFeedback();
       if (!quietly) input.focus();
     } else {
       menu.classList.remove("open");
@@ -402,7 +413,7 @@ textarea:focus { border-color: var(--accent); }
     const action = event.target.closest("button")?.dataset.action;
     menu.classList.remove("open");
     if (action === "new") {
-      if (signedIn()) await call("conversation/new", { method: "POST", body: {} }).catch(showError);
+      if (chatting()) await call("conversation/new", { method: "POST", body: {} }).catch(showError);
       state.conversation = null;
       state.help = [];
       store.set("sessionStorage", "help", null);
@@ -622,7 +633,7 @@ textarea:focus { border-color: var(--accent); }
       for (const item of files) uploads.push({ name: item.file.name, data: await base64(item.file) });
       const response = await call("feedback", {
         method: "POST",
-        body: { name: nameInput.value.trim(), text, page: page(), refs: items.map((item) => item.ref), files: uploads },
+        body: { name: signedIn() ? "" : nameInput.value.trim(), text, page: page(), refs: items.map((item) => item.ref), files: uploads },
       });
       state.sent = (await response.json()).id;
       for (const item of files) URL.revokeObjectURL(item.url);
@@ -651,7 +662,7 @@ textarea:focus { border-color: var(--accent); }
       renderQueued = false;
       // While the answer streams in, only it is drawn again.
       const node = body.querySelector(".msg.streaming");
-      const streaming = (signedIn() ? state.conversation?.messages || [] : state.help).find((message) => message.streaming);
+      const streaming = (chatting() ? state.conversation?.messages || [] : state.help).find((message) => message.streaming);
       if (node && streaming) {
         const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
         node.innerHTML = '<div class="who"></div>' + markdown(streaming.text || "");
@@ -676,25 +687,31 @@ textarea:focus { border-color: var(--accent); }
 
   function render(options = {}) {
     const status = state.status || {};
-    const chat = signedIn();
+    if (state.tab === "change" && !(signedIn() && production())) state.tab = "ask";
+    const chat = chatting();
     $(".name").textContent = chat ? status.lead || "Team lead" : "Help · " + (status.team || "the app");
-    $(".version").textContent = [status.version, chat && "you're " + status.you.name + " (via Slack)"].filter(Boolean).join(" · ");
+    $(".version").textContent = [status.version, signedIn() && "you're " + status.you.name + " (via Slack)"].filter(Boolean).join(" · ");
     const title = chat ? "Chat with the team lead" : "Help";
     fab.title = title;
     fab.setAttribute("aria-label", title);
     panel.setAttribute("aria-label", title);
     ended.hidden = !status.ended;
     ended.firstChild.textContent = "Your link has ended: type " + (status.command || "/hi") + " in the team's Slack channel for a new one.";
-    tabs.hidden = chat;
-    const feedback = !chat && state.tab === "feedback";
+    // A preview's chat is the whole panel; production's is a tab.
+    tabs.hidden = signedIn() && !production();
+    const change = tabs.querySelector("[data-tab=change]");
+    change.hidden = !signedIn();
+    change.classList.toggle("new", !chat && !!unseen());
+    const feedback = feedbackTab();
     for (const button of tabs.querySelectorAll("button")) {
       button.classList.toggle("on", button.dataset.tab === state.tab);
       button.setAttribute("aria-selected", button.dataset.tab === state.tab);
     }
     extra.hidden = !feedback;
+    nameInput.style.display = signedIn() ? "none" : "";
     attachLabel.style.display = chat || feedback ? "" : "none";
     $("[data-action=new]").style.display = chat || (!feedback && state.help.length) ? "" : "none";
-    input.placeholder = chat ? "Message the lead…" : feedback ? "What's wrong, or what would make it better?" : "Ask how something works…";
+    input.placeholder = chat ? (production() ? "Ask the lead for a change…" : "Message the lead…") : feedback ? "What's wrong, or what would make it better?" : "Ask how something works…";
     sendButton.textContent = chat || feedback ? "Send" : "Ask";
     sendButton.disabled = state.sending;
     const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
@@ -745,10 +762,17 @@ textarea:focus { border-color: var(--accent); }
 
   function renderChat(status) {
     const messages = state.conversation?.messages || [];
+    if (production()) {
+      // Asked here, a change still goes into dev: say so before they ask.
+      const where = document.createElement("div");
+      where.className = "where";
+      where.textContent = "You're on production" + (status.version ? " (" + status.version + ")" : "") + ". A change goes into dev first: the lead sends you a preview link to try it, and production gets it when an owner releases it.";
+      body.appendChild(where);
+    }
     if (!messages.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
-      empty.textContent = "Ask the lead for a change, report a problem, or ask how something works. You're on " + (location.pathname || "/") + ".";
+      empty.textContent = (production() ? "Ask the lead for a change or report a problem." : "Ask the lead for a change, report a problem, or ask how something works.") + " You're on " + (location.pathname || "/") + ".";
       body.appendChild(empty);
     }
     drawMessages(messages, status.lead || "Lead");
@@ -768,7 +792,8 @@ textarea:focus { border-color: var(--accent); }
     if (!state.help.length) {
       body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Ask how something in the app works. Point at what you mean with ◎ (Alt+S).</p>' +
         "<p>Something wrong, or an idea? Tell the team under Feedback.</p>" +
-        "<p>On the team? Type <strong>" + escape(state.status?.command || "/hi") + "</strong> in its Slack channel for your own link, where this is a chat with the lead.</p></div>");
+        (signedIn() ? "<p>To have something changed, use the Change tab: it's a chat with the lead.</p></div>"
+          : "<p>On the team? Type <strong>" + escape(state.status?.command || "/hi") + "</strong> in its Slack channel for your own link, where this is a chat with the lead.</p></div>"));
       return;
     }
     drawMessages(state.help, "Help");
@@ -853,7 +878,6 @@ textarea:focus { border-color: var(--accent); }
   // loadFeedback gets what this browser sent and the team's answers: the
   // hi_visitor cookie says which, and only /__hi/ gets it.
   async function loadFeedback() {
-    if (signedIn()) return;
     try {
       const response = await call("feedback");
       state.feedback = (await response.json()).feedback || [];
@@ -864,7 +888,7 @@ textarea:focus { border-color: var(--accent); }
   // answersUnseen says the team answered feedback since the panel last
   // showed it.
   function answersUnseen() {
-    return !signedIn() && (state.status?.answers || 0) > (store.get("localStorage", "answers-seen") || 0);
+    return (!signedIn() || production()) && (state.status?.answers || 0) > (store.get("localStorage", "answers-seen") || 0);
   }
 
   function noticeAnswers() {
@@ -933,7 +957,7 @@ textarea:focus { border-color: var(--accent); }
   }
 
   async function addFiles(list) {
-    if (!signedIn() && state.tab !== "feedback") setTab("feedback"); // the help takes no files
+    if (!chatting() && state.tab !== "feedback") setTab("feedback"); // the help takes no files
     for (const original of Array.from(list || [])) {
       if (state.files.length >= 6) { showError(new Error("Attach at most 6 files to a message.")); break; }
       let file = original;
@@ -1035,6 +1059,7 @@ textarea:focus { border-color: var(--accent); }
       fab.classList.add("unread");
       showToast(message);
     }
+    // Open on another tab: the Change tab gets a dot (render).
     render();
   }
 
@@ -1514,9 +1539,10 @@ textarea:focus { border-color: var(--accent); }
   composer.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = input.value.trim();
-    if ((!text && !(signedIn() && state.files.length)) || state.sending) return;
+    if ((!text && !(chatting() && state.files.length)) || state.sending) return;
     // Feedback says who sent it: the name box flashes until it's filled.
-    if (!signedIn() && state.tab === "feedback" && !nameInput.value.trim()) {
+    // Signed in, Slack says who.
+    if (!signedIn() && feedbackTab() && !nameInput.value.trim()) {
       nameInput.classList.remove("needed");
       void nameInput.offsetWidth;
       nameInput.classList.add("needed");
@@ -1533,8 +1559,8 @@ textarea:focus { border-color: var(--accent); }
     drawChips();
     drawFiles();
     grow();
-    if (signedIn()) send(text, items, files);
-    else if (state.tab === "feedback") sendFeedback(text, items, files);
+    if (chatting()) send(text, items, files);
+    else if (feedbackTab()) sendFeedback(text, items, files);
     else ask(text, items);
   });
 

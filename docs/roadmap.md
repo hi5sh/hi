@@ -1575,12 +1575,20 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   the stamp that already did this for new settings, and a running preview
   now follows it too, as production did.
 
+### v0.74.0 — Production is for using the app
+
+- [x] On production, the panel opens on Ask and Feedback for everyone; the
+  chat with the lead is a Change tab for people signed in with `/hi`, which
+  says a change goes into dev first, with a preview link to try it, and
+  reaches production with a release. Their feedback carries their Slack
+  name, checked. A chat from production tells the lead the same. A
+  preview's panel stays the chat.
+  Spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] Production's chat for some people only: with sign-in, production's
-  helper could be help and feedback for everyone else.
 - [ ] An owner's yes in a DM for a release, announced in the channel.
 - [ ] A daily digest in the channel of what was discussed in DMs.
 - [ ] Pictures of what is pointed at under a `style-src 'self'` policy,

@@ -254,3 +254,61 @@ func TestTeamFeedbackReply(t *testing.T) {
 		}
 	}
 }
+
+// On production, people signed in have Ask and Feedback beside the chat:
+// their feedback carries their Slack name, checked, and its answers reach
+// them as anyone's do.
+func TestTeamProductionFeedbackSignedIn(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	server := webTestServer(t, b.teamBroker, teamSlotProduction, "", "")
+	defer server.Close()
+	key := teamTestKey(t, "payments", "U07ASKER9", "Bo")
+	visitor := "visitor-key-0123456789abcdef"
+	call := func(method, path, body string) *http.Response {
+		t.Helper()
+		request, _ := http.NewRequest(method, server.URL+"/__hi/api/"+path, strings.NewReader(body))
+		request.Header.Set(netExposeUserHeader, key)
+		request.Header.Set(netExposeVisitorHeader, visitor)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	// No name typed, and one typed is not who it says.
+	response := call(http.MethodPost, "feedback", `{"name":"Someone else","text":"The total is wrong"}`)
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatal(response.Status)
+	}
+	feedback, err := loadTeamFeedback("payments", "f-1")
+	if err != nil || feedback.User != "U07ASKER9" || feedback.Name != "Bo" || feedback.Slot != teamSlotProduction {
+		t.Fatalf("%+v %v", feedback, err)
+	}
+	if len(channel.calls) == 0 || !strings.Contains(channel.calls[0], "(production), from <@U07ASKER9> (signed in with /hi-payments):") {
+		t.Fatalf("%q", channel.calls)
+	}
+	feedback.Answers = []teamFeedbackAnswer{{TS: "1", Name: "Anna", Text: "Fixed in dev", At: time.Now()}}
+	saveTeamFeedback("payments", feedback)
+	var status teamWebStatus
+	json.NewDecoder(call(http.MethodGet, "status", "").Body).Decode(&status)
+	if status.You == nil || status.Answers != 1 {
+		t.Fatalf("%+v", status)
+	}
+}
+
+// A chat from production tells the lead that a change goes into dev.
+func TestTeamWebLeadInputProduction(t *testing.T) {
+	setupTeamTest(t)
+	config, _ := loadTeam("payments")
+	message := teamWebMessage{N: 1, Name: "Bo", Text: "Make overdue red"}
+	for _, slot := range []string{teamSlotPreview, teamSlotProduction} {
+		input := teamWebLeadInput(config, teamWebConversation{ID: "w-1", Slot: slot, Person: "U07ASKER9", Messages: []teamWebMessage{message}}, message, true, map[string]bool{})
+		if got := strings.Contains(input, "They are on production"); got != (slot == teamSlotProduction) {
+			t.Fatal(slot, input)
+		}
+	}
+}

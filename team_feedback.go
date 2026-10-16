@@ -377,9 +377,12 @@ func teamReadChatStream(stream io.Reader, delta func(string)) (string, error) {
 
 // teamFeedback is web/f-<n>.json: feedback from anyone with the app's link.
 type teamFeedback struct {
-	ID      string        `json:"id"` // f-12
-	Slot    string        `json:"slot"`
-	Name    string        `json:"name,omitempty"` // as they typed it; not checked
+	ID   string `json:"id"` // f-12
+	Slot string `json:"slot"`
+	Name string `json:"name,omitempty"` // as they typed it; not checked, unless User is set
+	// User is the Slack user of someone signed in with /hi, so checked;
+	// Name is then their Slack name.
+	User    string        `json:"user,omitempty"`
 	Text    string        `json:"text"`
 	Page    *teamWebPage  `json:"page,omitempty"`
 	Refs    []teamWebRef  `json:"refs,omitempty"`
@@ -584,6 +587,11 @@ func (b *teamBroker) webFeedback(r *http.Request, slot, visitor string, send tea
 		return teamFeedback{}, http.StatusInternalServerError, err
 	}
 	send.Text, send.Name = strings.TrimSpace(send.Text), strings.TrimSpace(send.Name)
+	// Signed in, Slack says who: production's panel has feedback for them too.
+	person, signedIn, _ := b.webUser(config, r.Header.Get(netExposeUserHeader))
+	if signedIn {
+		send.Name = person.Name
+	}
 	switch {
 	case !teamHelperOn(config, slot):
 		return teamFeedback{}, http.StatusForbidden, errors.New("the helper is off here")
@@ -612,6 +620,9 @@ func (b *teamBroker) webFeedback(r *http.Request, slot, visitor string, send tea
 	}
 	feedback := teamFeedback{ID: fmt.Sprintf("f-%d", next), Slot: slot, Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, At: time.Now().UTC(),
 		Visitor: teamVisitorHash(visitor)}
+	if signedIn {
+		feedback.User = person.User
+	}
 	files, err := teamSaveWebFiles(b.team, feedback.ID, 1, send.Files, len(send.Refs))
 	if err == nil {
 		feedback.Files = files
@@ -638,7 +649,9 @@ func (b *teamBroker) postFeedback(config teamConfig, feedback teamFeedback) {
 		where += ", " + feedback.Page.Path
 	}
 	from := "someone who didn't say who they are"
-	if feedback.Name != "" {
+	if feedback.User != "" {
+		from = "<@" + feedback.User + "> (signed in with " + teamSlashCommand(b.team) + ")"
+	} else if feedback.Name != "" {
 		from = "“" + teamSlackEscape(feedback.Name) + "” (a name they typed, not checked)"
 	}
 	text := fmt.Sprintf(":memo: *Feedback %s* in the app (%s), from %s:\n%s", feedback.ID, teamSlackEscape(where), from, teamSlackQuote(feedback.Text))
