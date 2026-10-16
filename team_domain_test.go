@@ -12,6 +12,9 @@ import (
 
 func TestTeamDomain(t *testing.T) {
 	setupTeamTest(t)
+	before := netExposeAddress
+	netExposeAddress = func() (string, error) { return "100.64.0.7", nil }
+	t.Cleanup(func() { netExposeAddress = before })
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fake := fakeNetbird(t)
 	if teamSlotDomain("payments", teamSlotProduction) != "" {
@@ -27,6 +30,12 @@ func TestTeamDomain(t *testing.T) {
 	if err := teamDomainCommand([]string{"other.example.com"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "Custom Domains") {
 		t.Fatal(err)
 	}
+	// A token that may read but not make services, as a Network Admin's.
+	fake.readOnly = true
+	if err := teamDomainCommand([]string{"apps.example.com"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "Admin role") {
+		t.Fatal(err)
+	}
+	fake.readOnly = false
 	if err := teamDomainCommand([]string{"Apps.Example.com."}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}

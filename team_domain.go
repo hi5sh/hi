@@ -177,7 +177,23 @@ func teamCheckDomain(domain string) error {
 	// Reading isn't enough: a role such as Network Admin may list the
 	// domains but not make services. A service that is off, made and
 	// removed at once, says whether the token may.
-	check := netbirdService{Name: "hi-check." + domain, Domain: "hi-check." + domain, Mode: "http", Enabled: false, Targets: []netbirdTarget{}}
+	// It needs a target NetBird takes, or NetBird refuses it as invalid
+	// before it looks at the token's rights: this machine.
+	address, err := netExposeAddress()
+	if err != nil {
+		return errors.New("NetBird isn't connected on this machine; connect with hi net first")
+	}
+	var peers []struct {
+		ID string `json:"id"`
+	}
+	if err := api.call(http.MethodGet, "/api/peers?ip="+url.QueryEscape(address), nil, &peers); err != nil {
+		return err
+	}
+	if len(peers) != 1 {
+		return fmt.Errorf("NetBird's API knows no peer at %s, this machine", address)
+	}
+	check := netbirdService{Name: "hi-check." + domain, Domain: "hi-check." + domain, Mode: "http", Enabled: false,
+		Targets: []netbirdTarget{{TargetID: peers[0].ID, TargetType: "peer", Protocol: "http", Path: "/", Port: 9, Enabled: true}}}
 	var made netbirdService
 	if err := api.call(http.MethodPost, "/api/reverse-proxies/services", check, &made); err != nil {
 		if strings.Contains(err.Error(), "permission denied") {

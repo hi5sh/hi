@@ -18,6 +18,7 @@ type fakeNetbirdAPI struct {
 	services map[string]netbirdService
 	calls    []string
 	domains  func(http.ResponseWriter) // GET /api/reverse-proxies/domains
+	readOnly bool                      // the token may read, not make services
 }
 
 func (f *fakeNetbirdAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +52,16 @@ func (f *fakeNetbirdAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(service.Domain, ".apps.example.com") {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			json.NewEncoder(w).Encode(map[string]string{"message": "domain not found in account"})
+			return
+		}
+		if len(service.Targets) == 0 {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]string{"message": "at least one target is required"})
+			return
+		}
+		if f.readOnly {
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{"message": "permission denied"})
 			return
 		}
 		service.ID = "svc-1"

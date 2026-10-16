@@ -1528,6 +1528,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Network Admin service user may list the custom domains but gets
   "permission denied" making a service; the token must be an Admin's.
 
+### v0.70.3 — A check NetBird can't wave through
+
+- [x] `hi team domain`'s check of the token makes its test service with
+  this machine as the target: NetBird turned one without a target away as
+  invalid before looking at the token's rights, so a Network Admin's token
+  passed.
+
 ## Planned
 
 ### Next — the helper
