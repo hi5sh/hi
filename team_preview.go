@@ -204,6 +204,37 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 	return b.show(next, ref, teamLinkKeep)
 }
 
+// startPreview puts the new team's blank app on the preview when the team
+// starts, so the people's own links (/hi) work before anyone has asked for
+// anything. Only while the project is as hi team new wrote it: once there
+// is work in it, or for a project cloned or started empty, the lead makes
+// the previews.
+func (b *teamBroker) startPreview(stderr io.Writer) {
+	if state, ok := loadTeamSlot(b.team, teamSlotPreview); ok {
+		if _, exposed := b.exposed(state.Expose); exposed {
+			return
+		}
+	}
+	config, err := loadTeam(b.team)
+	if err != nil || !teamFreshApp(b.repo, config.Branch) {
+		return
+	}
+	if _, err := b.preview(teamPreviewRequest{}); err != nil {
+		fmt.Fprintf(stderr, "hi: the blank app's preview: %v\n", err)
+	}
+}
+
+// teamFreshApp says the project is still the blank app from team-app: its
+// only commit outside the lead's specs is hi team new's.
+func teamFreshApp(repo, branch string) bool {
+	data, ok := teamGitShow(repo, branch, templateMetadataPath)
+	var metadata templateMetadataFile
+	if !ok || json.Unmarshal([]byte(data), &metadata) != nil || metadata.Template != teamAppTemplate {
+		return false
+	}
+	return len(strings.Fields(boxGit(repo, "rev-list", branch, "--", ".", ":!"+teamSpecsPath))) == 1
+}
+
 // production puts production on its address and keeps hi's message in the
 // channel up to date with it.
 func (b *teamBroker) production(port int) (teamPreview, error) {

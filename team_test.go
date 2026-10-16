@@ -1036,6 +1036,59 @@ func TestTeamPreview(t *testing.T) {
 	}
 }
 
+func TestTeamStartPreviewOnlyForTheFreshApp(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	var stderr bytes.Buffer
+	apps := func() int {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		return len(b.apps)
+	}
+	// An empty project waits for the lead.
+	b.startPreview(&stderr)
+	if apps() != 0 {
+		t.Fatal(b.apps)
+	}
+	// The blank app hi team new writes goes on the preview, once.
+	os.RemoveAll(b.repo)
+	config, _ := loadTeam("payments")
+	if err := newTeamRepo(config, b.repo, false); err != nil {
+		t.Fatal(err)
+	}
+	b.startPreview(&stderr)
+	if apps() != 1 || !strings.HasSuffix(b.apps[0], " make run 8080") {
+		t.Fatal(b.apps, stderr.String())
+	}
+	if state, ok := loadTeamSlot("payments", teamSlotPreview); !ok || state.URL == "" {
+		t.Fatalf("%+v", state)
+	}
+	b.startPreview(&stderr)
+	if apps() != 1 {
+		t.Fatal("a second preview of the same app")
+	}
+	commit := func(file string) {
+		os.MkdirAll(filepath.Dir(filepath.Join(b.repo, file)), 0o755)
+		os.WriteFile(filepath.Join(b.repo, file), []byte("x\n"), 0o644)
+		exec.Command("git", "-C", b.repo, "add", "-A").Run()
+		exec.Command("git", "-C", b.repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", file).Run()
+	}
+	// The lead's specs don't make it someone's work.
+	commit("docs/specs/suppliers.md")
+	b.preview(teamPreviewRequest{Stop: true})
+	b.startPreview(&stderr)
+	if apps() != 2 {
+		t.Fatal("the app with only specs added wasn't previewed")
+	}
+	// Once work is merged, the lead makes the previews.
+	commit("src/suppliers.ts")
+	b.preview(teamPreviewRequest{Stop: true})
+	b.startPreview(&stderr)
+	if apps() != 2 || stderr.Len() != 0 {
+		t.Fatal(b.apps, stderr.String())
+	}
+}
+
 func TestTeamProductionLink(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)

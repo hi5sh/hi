@@ -140,7 +140,11 @@ it to every page it relays. hi adds the team's rules to `AGENTS.md`, the
 purpose to `README.md`, and the lead's `docs/specs/`, and leaves out the
 `hi` skill, which is about a tool the members don't have. The lead's
 instructions say to build on it and to choose another stack only when the
-people need something it can't do. `empty` in the wizard, or
+people need something it can't do. While the project is still that blank
+app (no commit but hi team new's outside the lead's specs), `hi team up`
+puts it on the preview when none is up, so the people's own links from
+`/hi` work at once; after the first merge, the lead makes the previews.
+`empty` in the wizard, or
 `"empty": true` with `--from`, keeps the old start: a README, the rules,
 and the specs folder.
 

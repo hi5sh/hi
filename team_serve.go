@@ -145,6 +145,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
 	go broker.keepLinks(ctx.Done(), stderr)
+	go broker.startPreview(stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
@@ -929,7 +930,9 @@ the script print nothing at the wrong one.
 A project hi team new started is already a web app with a blank page:
 Bun serves the pages (React) and the API, the data is SQLite in
 $HI_DATA_DIR, the tests are bun test, and the helper's chat is on every
-page without the app doing anything. Have the coder build on it: tasks
+page without the app doing anything. hi puts it on the preview when the
+team starts, so the people's own links work before anything is built;
+after that, the previews are yours. Have the coder build on it: tasks
 change that page, add pages and API routes, and keep HELP.md current.
 Choose another stack only when the people need something it can't do,
 and say why in the spec.

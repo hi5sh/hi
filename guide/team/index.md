@@ -185,6 +185,10 @@ own key, so there is no password to copy:
    a new link only when the old one has less than 12 hours left. If the
    new version doesn't start, the link keeps showing the old one.
 
+A new team's blank app is on the preview as soon as `hi team up` starts
+the team, so the links people get from `/hi` work before anything is
+built. After the first merge, the lead makes the previews.
+
 Production has a link of its own, which shows the latest release. hi
 renews it before it runs out each day, and keeps one message in the
 channel with production's current link, edited whenever the link or the
