@@ -390,7 +390,7 @@ The same report as today, with:
 - [x] Should the `hi` skill become a built-in bundle that `hi agent` always
   attaches, so agents in boxes know how to call `hi`? It's installed with
   every bundle (2026-10-08); without `--bundle` the box still gets none.
-- [ ] Do workspaces pin bundle versions, like `.hifin/template.json` pins
+- [ ] Do workspaces pin bundle versions, like `.hi5/template.json` pins
   templates, or does a run always take the source's current commit?
 - [x] How do bundles relate to skills.sh (v0.30.0)? Bundles list skills.sh
   skills by source and commit (v0.30.1).
@@ -425,5 +425,5 @@ From checking the proposal against the code and specs on 2026-10-07:
 - **The built-in skills aren't in `templates/`.** The `hi` skill is at
   `skills/hi/`, embedded on its own; built-in skills and bundles sit next to
   it at the top of the repository.
-- **Writing `.hifin/agent-spec.json` into the folder** would add a file to
+- **Writing `.hi5/agent-spec.json` into the folder** would add a file to
   every result folder; the plan goes in the box's state folder instead.

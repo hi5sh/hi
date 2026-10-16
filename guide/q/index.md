@@ -150,7 +150,7 @@ typing in are missing.
 ## Project notes
 
 A repository can tell `hi q` things the folder listing doesn't show, in
-`.hifin/q.md` at its root:
+`.hi5/q.md` at its root:
 
 ```markdown
 - Check a change with `make check`; never run `make deploy`.

@@ -4,7 +4,7 @@ Status: Draft
 
 Dependencies: `hi server` (devices, users, groups, policy, Slack, audit),
 `hi ask` (accepting a note is a question to a person), `hi q` project notes
-in `.hifin/q.md`, `hi skill`, and optionally `hi server ai` for search.
+in `.hi5/q.md`, `hi skill`, and optionally `hi server ai` for search.
 
 ## Goal
 
@@ -118,7 +118,7 @@ with evidence, reviewed like a new note.
 Notes on the server are for knowledge that changes, or that shouldn't be in
 the repository. Knowledge that should be permanent belongs in the
 repository itself, reviewed with the code. `hi notes export` writes the
-project's accepted notes into a managed block in `.hifin/q.md` (which
+project's accepted notes into a managed block in `.hi5/q.md` (which
 `hi q` already reads, and which `AGENTS.md` can point to), for a person to
 commit. A note that was exported is marked so, and searches show the
 repository as its source.
@@ -158,7 +158,7 @@ accept|reject <id>`.
   and aren't in the code or docs; the report counts proposals per agent.
 - **Wrong notes trusted.** Review, evidence, review dates, and staleness
   checks reduce it; they don't remove it.
-- **A second place for knowledge** next to `AGENTS.md`, `.hifin/q.md`, and
+- **A second place for knowledge** next to `AGENTS.md`, `.hi5/q.md`, and
   the agents' own memories. The rule of thumb in the docs: permanent and
   about the code goes in the repository; changing, environmental, or
   team-wide goes in notes; personal stays in the agent's own memory.

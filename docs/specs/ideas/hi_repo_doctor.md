@@ -2,7 +2,7 @@
 
 Status: Draft
 
-Dependencies: `.hifin/template.json` and the template manifests introduced by
+Dependencies: `.hi5/template.json` and the template manifests introduced by
 `hi init`.
 
 ## Goal

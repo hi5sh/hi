@@ -246,7 +246,7 @@ hi init --list                  # every template and where it comes from
 ```
 
 It shows every file and command first, never overwrites a file with other
-content, and records what it generated in `.hifin/template.json`.
+content, and records what it generated in `.hi5/template.json`.
 
 Later, `hi init --update` brings a project up to the current templates: it
 replaces what `hi` owns, reports hand edits as conflicts, and writes changes
@@ -343,7 +343,7 @@ hi data get hifinab/bars-1d    # into ./data/bars-1d (--to, --revision, --includ
 The server keeps one read token per organization (`hi server data add
 <org>`) and passes on only the read calls of one repository or bucket; file
 contents come straight from Hugging Face's CDN. In a project, `hi data get`
-records the commit it fetched in `.hifin/data.json`; `hi data run --
+records the commit it fetched in `.hi5/data.json`; `hi data run --
 python train.py` lets `load_dataset` and `from_pretrained` read your team's
 repositories directly, and `hi box --data` gives a box the same.
 `hi compute run --data hifinab/bars-1d train.py` gives a cloud job the data:

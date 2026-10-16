@@ -1,7 +1,7 @@
 # `hi data` specification
 
 Status: Approved (2026-10-03). Datasets and models shipped in v0.24.0,
-buckets in v0.24.2, `hi data run`, `env`, `.hifin/data.json`, and
+buckets in v0.24.2, `hi data run`, `env`, `.hi5/data.json`, and
 `hi box --data` in v0.25.0, and `hi compute run --data` in v0.25.1.
 Decided: groups with no `data` policy read everything, models are
 included, compute instances get signed links, uploads wait.
@@ -105,7 +105,7 @@ hi data ls [<org>] [--json]              datasets, models, and buckets this devi
 hi data info <org>/<name>                size, files, last update, description
 hi data get <org>/<name> [--to <dir>]    download a dataset, model, or bucket
     [--revision <rev>] [--include <glob>]... [--exclude <glob>]... [--no-record]
-hi data get                              in a project: everything recorded in .hifin/data.json
+hi data get                              in a project: everything recorded in .hi5/data.json
 hi data run -- <command> [args]          run a command that can read the team's data
 hi data env                              print HF_ENDPOINT and HF_TOKEN for a shell
 hi box shell|run --data, hi agent --data
@@ -151,9 +151,9 @@ for example when an agent runs it, it prints the same as `hi data ls`.
 3. Before downloading a dataset or model, resolves the branch or tag (the
    default branch when none is given) to a commit and downloads that
    commit, so what is recorded is exactly what was fetched.
-4. In a project (the nearest folder upwards with `.hifin/`), records the
+4. In a project (the nearest folder upwards with `.hi5/`), records the
    repository, the commit, the folder relative to the project, and the
-   filters in `.hifin/data.json`, replacing an earlier entry for the same
+   filters in `.hi5/data.json`, replacing an earlier entry for the same
    repository and folder. `--no-record` skips it, and a folder outside the
    project isn't recorded. `hi data get` with no arguments fetches
    everything recorded, at the recorded commits, without changing the
@@ -342,7 +342,7 @@ The client API is plain HTTP inside NetBird, so `HF_ENDPOINT` is
 1. Datasets and models (v0.24.0), then buckets (v0.24.2): `hi data`, `ls`,
    `info`, `get`; `hi server data add|list|test|remove`; the proxy; `data`
    in policy; audit. Day-long tokens in v0.24.3.
-2. v0.25.0: `hi data run` and `env`; `.hifin/data.json` and `hi data get`
+2. v0.25.0: `hi data run` and `env`; `.hi5/data.json` and `hi data get`
    with no arguments; `hi box --data`.
 3. v0.25.1: `hi compute run --data <org>/<name>[/<pattern>]`, so a job
    downloads on the instance instead of the laptop (see below).

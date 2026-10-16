@@ -174,7 +174,7 @@ a destructive reading. It also includes a short summary of hi's own commands,
 taken from the bundled `skills/hi/SKILL.md`, so `hi q rent me an h100 for an
 hour` can propose `hi compute ...`.
 
-A project can add notes in `.hifin/q.md` at the repository's root (or the
+A project can add notes in `.hi5/q.md` at the repository's root (or the
 current folder outside git), such as how to run its tests or where its logs
 are. The repository writes them, so hi asks once before sending them,
 offering to show them, and asks again when their content changes, as
@@ -297,7 +297,7 @@ installs.
    function), tmux output, tools, and the interactive chat with `-c`.
 3. The Codex backend, local model discovery, and `hi model serve`
    integration.
-4. Project notes in `.hifin/q.md`, and opencode.
+4. Project notes in `.hi5/q.md`, and opencode.
 
 ## Risks
 

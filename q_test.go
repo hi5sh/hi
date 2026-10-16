@@ -818,8 +818,8 @@ func TestQMarkdown(t *testing.T) {
 
 func TestQProjectNotes(t *testing.T) {
 	isolateQ(t)
-	os.MkdirAll(".hifin", 0o755)
-	os.WriteFile(".hifin/q.md", []byte("Run tests with make check.\nNever run make deploy.\n"), 0o644)
+	os.MkdirAll(".hi5", 0o755)
+	os.WriteFile(".hi5/q.md", []byte("Run tests with make check.\nNever run make deploy.\n"), 0o644)
 	_, requests := fakeOpenAISequence(t, map[string]any{"content": "ok"})
 	sent := func() string {
 		return fmt.Sprint(lastMessages((*requests)[len(*requests)-1]))
@@ -840,20 +840,29 @@ func TestQProjectNotes(t *testing.T) {
 		t.Fatalf("asked again: %s", stdout.String())
 	}
 	// A change asks again; allowed, they are sent.
-	os.WriteFile(".hifin/q.md", []byte("Run tests with make check.\nNever run make deploy.\nLogs are in var/log.\n"), 0o644)
+	os.WriteFile(".hi5/q.md", []byte("Run tests with make check.\nNever run make deploy.\nLogs are in var/log.\n"), 0o644)
 	withQTTY(t, "y\n")
 	stdout.Reset()
 	runQ([]string{"where", "are", "logs"}, strings.NewReader(""), &stdout, &stderr)
-	if !strings.Contains(stdout.String(), "Allowed") || !strings.Contains(sent(), "Logs are in var/log.") || !strings.Contains(sent(), "project notes (.hifin/q.md") {
+	if !strings.Contains(stdout.String(), "Allowed") || !strings.Contains(sent(), "Logs are in var/log.") || !strings.Contains(sent(), "project notes (.hi5/q.md") {
 		t.Fatalf("allowed notes: %s\n%s", stdout.String(), sent())
 	}
 	// Without a terminal, new notes are neither asked about nor sent.
-	os.WriteFile(".hifin/q.md", []byte("UNAPPROVED-NOTE\n"), 0o644)
+	os.WriteFile(".hi5/q.md", []byte("UNAPPROVED-NOTE\n"), 0o644)
 	previous := qOpenTTY
 	qOpenTTY = func() (io.ReadWriteCloser, error) { return nil, os.ErrNotExist }
 	defer func() { qOpenTTY = previous }()
 	runQ([]string{"--print", "x"}, strings.NewReader(""), &stdout, &stderr)
 	if strings.Contains(sent(), "UNAPPROVED-NOTE") {
 		t.Fatal("unapproved notes were sent")
+	}
+}
+
+func TestQProjectNotesInALegacyProjectFolder(t *testing.T) {
+	isolateQ(t)
+	os.MkdirAll(".hifin", 0o755)
+	os.WriteFile(".hifin/q.md", []byte("Run tests with make check.\n"), 0o644)
+	if notes := findQProjectNotes(); notes == nil || notes.name != ".hifin/q.md" {
+		t.Fatalf("notes in .hifin: %+v", notes)
 	}
 }

@@ -18,13 +18,13 @@ import (
 )
 
 // What hi data does in a project: it records what was downloaded, at
-// which commit, in .hifin/data.json, so `hi data get` with no arguments
+// which commit, in .hi5/data.json, so `hi data get` with no arguments
 // fetches the same files for a teammate or a compute instance; and it
 // runs commands that read the team's data directly (hi data run, env).
 
-const dataRecordFile = "data.json" // in .hifin/
+const dataRecordFile = "data.json" // in .hi5/
 
-// dataRecord is one download in .hifin/data.json.
+// dataRecord is one download in .hi5/data.json.
 type dataRecord struct {
 	Kind string `json:"kind"`
 	ID   string `json:"id"`
@@ -46,14 +46,15 @@ type dataRecords struct {
 	Data []dataRecord `json:"data"`
 }
 
-// dataProjectRoot is the nearest folder upwards with a .hifin folder.
+// dataProjectRoot is the nearest folder upwards with a .hi5 (or .hifin)
+// folder.
 func dataProjectRoot() (string, bool) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", false
 	}
 	for {
-		if info, err := os.Stat(filepath.Join(dir, ".hifin")); err == nil && info.IsDir() {
+		if isDirectory(filepath.Join(dir, projectFolder)) || isDirectory(filepath.Join(dir, legacyProjectFolder)) {
 			return dir, true
 		}
 		parent := filepath.Dir(dir)
@@ -66,7 +67,7 @@ func dataProjectRoot() (string, bool) {
 
 func loadDataRecords(root string) (dataRecords, error) {
 	var records dataRecords
-	data, err := os.ReadFile(filepath.Join(root, ".hifin", dataRecordFile))
+	data, err := os.ReadFile(filepath.Join(root, projectFolderIn(root), dataRecordFile))
 	if errors.Is(err, os.ErrNotExist) {
 		return records, nil
 	}
@@ -74,7 +75,7 @@ func loadDataRecords(root string) (dataRecords, error) {
 		return records, err
 	}
 	if err := json.Unmarshal(data, &records); err != nil {
-		return records, fmt.Errorf("read .hifin/%s: %w", dataRecordFile, err)
+		return records, fmt.Errorf("read %s/%s: %w", projectFolderIn(root), dataRecordFile, err)
 	}
 	return records, nil
 }
@@ -98,7 +99,7 @@ func saveDataRecord(root string, record dataRecord) error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(root, ".hifin", dataRecordFile)
+	path := filepath.Join(root, projectFolderIn(root), dataRecordFile)
 	if err := os.WriteFile(path+".tmp", append(data, '\n'), 0o644); err != nil {
 		return err
 	}
@@ -178,19 +179,19 @@ func dataBucketState(endpoint, token, id string) (hash string, files int, err er
 // ---------------------------------------------------------------------------
 // hi data get with no arguments
 
-// dataRestore downloads everything .hifin/data.json records, at the
+// dataRestore downloads everything .hi5/data.json records, at the
 // recorded commits, into the recorded folders.
 func dataRestore(client *serverClient, connection *serverConnection, stdin io.Reader, stdout, stderr io.Writer) error {
 	root, ok := dataProjectRoot()
 	if !ok {
-		return usageError{"usage: hi data get <org>/<name>; with no name it fetches what .hifin/data.json records, and there is no .hifin folder here"}
+		return usageError{"usage: hi data get <org>/<name>; with no name it fetches what .hi5/data.json records, and there is no .hi5 folder here"}
 	}
 	records, err := loadDataRecords(root)
 	if err != nil {
 		return err
 	}
 	if len(records.Data) == 0 {
-		return usageError{"nothing is recorded in .hifin/data.json yet; download with `hi data get <org>/<name>` in this project first"}
+		return usageError{"nothing is recorded in " + projectFolderIn(root) + "/data.json yet; download with `hi data get <org>/<name>` in this project first"}
 	}
 	catalog, err := fetchDataCatalog(client)
 	if err != nil {

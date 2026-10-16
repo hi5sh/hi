@@ -488,7 +488,7 @@ func TestHiDataGetRecordsAndRestoresInAProject(t *testing.T) {
 	newDataServer(t)
 	record := fakeHFCommand(t)
 	project := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(project, ".hifin"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(project, ".hi5"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(project, "src"), 0o755); err != nil {
@@ -496,7 +496,7 @@ func TestHiDataGetRecordsAndRestoresInAProject(t *testing.T) {
 	}
 	t.Chdir(filepath.Join(project, "src"))
 
-	if code, _, stderr := runHi("data", "get", "dataset:hifinab/bars", "--to", "../data/bars", "--include", "*.parquet"); code != 0 || !strings.Contains(stderr, "Recorded in .hifin/data.json") {
+	if code, _, stderr := runHi("data", "get", "dataset:hifinab/bars", "--to", "../data/bars", "--include", "*.parquet"); code != 0 || !strings.Contains(stderr, "Recorded in .hi5/data.json") {
 		t.Fatalf("get: code %d\n%s", code, stderr)
 	}
 	if code, _, stderr := runHi("data", "get", "hifinab/scratch", "--to", "../data/scratch"); code != 0 {
@@ -524,7 +524,7 @@ func TestHiDataGetRecordsAndRestoresInAProject(t *testing.T) {
 	// bucket changed since.
 	scratch.FilesHash = "older"
 	data, _ := json.Marshal(dataRecords{Data: []dataRecord{bars, scratch}})
-	writeTestFile(t, filepath.Join(project, ".hifin", "data.json"), string(data), 0o644)
+	writeTestFile(t, filepath.Join(project, ".hi5", "data.json"), string(data), 0o644)
 	os.Remove(record)
 	code, _, stderr := runHi("data", "get")
 	calls, _ := os.ReadFile(record)
@@ -538,7 +538,7 @@ func TestHiDataGetRecordsAndRestoresInAProject(t *testing.T) {
 	}
 
 	t.Chdir(t.TempDir())
-	if code, _, stderr := runHi("data", "get"); code != 2 || !strings.Contains(stderr, "no .hifin folder") {
+	if code, _, stderr := runHi("data", "get"); code != 2 || !strings.Contains(stderr, "no .hi5 folder") {
 		t.Fatalf("get with no name outside a project: code %d\n%s", code, stderr)
 	}
 }
@@ -702,5 +702,24 @@ func TestOAuthDataTokensAreNamed(t *testing.T) {
 	printDataOrgs([]apiDataOrgStatus{{Org: "hifinab", Account: "quantbert", Role: "oauth", Datasets: 1}}, &out)
 	if !strings.Contains(out.String(), "(token of quantbert, a sign-in)") || !strings.Contains(out.String(), "hf auth login") {
 		t.Fatal(out.String())
+	}
+}
+
+func TestHiDataGetRecordsInALegacyProjectFolder(t *testing.T) {
+	newDataServer(t)
+	fakeHFCommand(t)
+	project := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(project, ".hifin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+	if code, _, stderr := runHi("data", "get", "dataset:hifinab/bars"); code != 0 || !strings.Contains(stderr, "Recorded in .hifin/data.json") {
+		t.Fatalf("get: code %d\n%s", code, stderr)
+	}
+	if records, err := loadDataRecords(project); err != nil || len(records.Data) != 1 {
+		t.Fatalf("records: %v %v", records, err)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".hi5")); err == nil {
+		t.Error("a .hi5 folder was made next to .hifin")
 	}
 }

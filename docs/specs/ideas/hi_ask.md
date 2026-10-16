@@ -111,7 +111,7 @@ questions for them, and `hi ask answer <id> "<text>"` replies. Admins have
 
 - `hi skill` teaches the rule: ask when a decision is the person's to make
   or the next step can't be undone; don't ask what the code, the docs, or
-  `.hifin/q.md` already answer; ask once, wait, and never ask again to get a
+  `.hi5/q.md` already answer; ask once, wait, and never ask again to get a
   different answer.
 - A question from a box carries the box's name and goes through the host's
   hi over the box socket from the hi box spec, so the box holds no device

@@ -221,7 +221,7 @@ Makefile                    help, check, fix, test (managed block + project targ
 docs/specs/                 feature specifications
 docs/roadmap.md             planned work, decisions required, completed
 docs/decisions/             short decision records
-.hifin/template.json        what generated this repository
+.hi5/template.json        what generated this repository
 README.md
 ```
 
@@ -236,7 +236,7 @@ README.md
   `hi skill` writes them, so the two never fight over the folder. Copies, rather than a Claude plugin
   marketplace, because they work for every agent and in cloud sessions, where
   marketplace plugins do not load. Each copy carries the `hi` marker used by
-  `hi skill`, its source and version are recorded in `.hifin/template.json`,
+  `hi skill`, its source and version are recorded in `.hi5/template.json`,
   and a template installs at most a handful, since every skill description
   costs context on every turn.
 - **`make check`** runs, in order: lockfile check, format check, lint, type
@@ -284,7 +284,7 @@ worth testing end to end.
 
 ## Metadata and file ownership
 
-`.hifin/template.json` records what generated the repository:
+`.hi5/template.json` records what generated the repository:
 
 ```json
 {
@@ -342,7 +342,7 @@ far as the user's group may see them.
 
 ## Updating: `hi init --update`
 
-1. Read `.hifin/template.json`; stop if it is missing or invalid.
+1. Read `.hi5/template.json`; stop if it is missing or invalid.
 2. Resolve each layer's target: the running `hi` for built-in layers, the
    server source's current commit for server layers. A server layer whose
    source is unreachable keeps its recorded commit, and the output says so.
@@ -384,7 +384,7 @@ records.
 
 Most of the team's repositories predate `hi init`. Adoption adds the
 template's owned and managed files, its skills and check targets, and
-`.hifin/template.json`. Managed blocks go at the top of existing `AGENTS.md`,
+`.hi5/template.json`. Managed blocks go at the top of existing `AGENTS.md`,
 `.gitignore`, and `Makefile` files, keeping their content. It never moves or
 rewrites existing source and never adds seeded files; it lists the seeded
 files the repository lacks, which explains what `make check` may not pass
@@ -454,7 +454,7 @@ run, the files written, and the next commands: enter the directory,
 12. `hi init --adopt` adds files without moving or rewriting existing source.
 13. Failures from `uv`, `npm`, `gh`, or the server stop generation with the
     command or request that failed.
-14. `.hifin/template.json` contains no machine-specific or secret data.
+14. `.hi5/template.json` contains no machine-specific or secret data.
 15. The built-in templates contain no internal names, enforced in CI.
 
 ## Decisions required

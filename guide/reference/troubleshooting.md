@@ -80,7 +80,7 @@ what to do next.
 | `… are not signed by this server's key`                     | Nothing from that bundle was used. Tell an admin; if the server was replaced on purpose, `hi disconnect` and `hi connect` again. |
 | `the server … has a different key than when this device connected` | Same as above.                                       |
 | `make check` fails right after `hi init`                    | Run the setup first: `uv sync`, `bun install`, or `make sync` in `ml`. `hi init --no-setup` skips it. |
-| `… has no .hifin/template.json`                             | `hi init --update` works only on projects `hi init` made. Use `hi init --adopt <template>` first. |
+| `… has no .hi5/template.json`                             | `hi init --update` works only on projects `hi init` made. Use `hi init --adopt <template>` first. |
 | `… were edited by hand and left alone`                      | Make the change in the template, or rerun `hi init --update --force` to overwrite them. |
 | `… conflict with the template; nothing was written`         | `--adopt` found files `hi` would own, or `Makefile` targets it would add. Move them aside, or pass `--force`. |
 | `… uses layers from …, which this device can't reach`       | Run `hi connect status`: private layers need the server. In CI, `--check` without `--strict` skips them. |

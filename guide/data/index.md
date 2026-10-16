@@ -53,13 +53,13 @@ continues where it stopped.
 
 ## Keep track in a project
 
-In a project made with `hi init` (any folder with a `.hifin` folder), `hi
-data get` records what it downloaded in `.hifin/data.json`: the repository,
+In a project made with `hi init` (any folder with a `.hi5` folder), `hi
+data get` records what it downloaded in `.hi5/data.json`: the repository,
 the exact commit, the folder, and the filters. Commit the file, and a
 teammate gets the same files with:
 
 ```sh
-hi data get        # no name: everything .hifin/data.json records, at the recorded commits
+hi data get        # no name: everything .hi5/data.json records, at the recorded commits
 ```
 
 A branch or tag is pinned to the commit it pointed to at the time, so a

@@ -1445,6 +1445,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   from hifin.sh to https://hi5.sh. `hi update` and the installer download
   from `hi5sh/hi`; older versions still update through GitHub's redirect.
 
+### v0.65.0 — The `.hi5` folder
+
+- [x] A project's records for `hi` (`template.json`, `data.json`, and
+  `q.md`) live in `.hi5/`. `hi` still reads `.hifin/` in older projects,
+  and `hi init --update` renames it to `.hi5/`.
+- [x] The site at hi5.sh: HI + AI = hi5 on the home page, and the hi5
+  name in the guide, the skill, and `hi`'s help.
+
 ## Planned
 
 ### Next — the helper

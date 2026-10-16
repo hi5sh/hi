@@ -314,3 +314,30 @@ func TestInitMentionsANewerHi(t *testing.T) {
 		t.Fatalf("an up-to-date hi was told to update: %s", stderr)
 	}
 }
+
+func TestUpdateRenamesTheLegacyProjectFolder(t *testing.T) {
+	source := newLocalTemplate(t)
+	project := source.generate(t)
+	if err := os.Rename(filepath.Join(project, ".hi5"), filepath.Join(project, ".hifin")); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(project, ".hifin", "q.md"), "Run make check.\n", 0o644)
+
+	if code, stdout, stderr := runInitInProject(t, project, "--update", "--check"); code != 0 || !strings.Contains(stdout, "Nothing to update") {
+		t.Fatalf("a .hifin project is not read: %d\n%s%s", code, stdout, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".hifin")); err != nil {
+		t.Fatal("--check renamed the folder")
+	}
+	code, stdout, stderr := runInitInProject(t, project, "--update", "--yes")
+	if code != 0 || !strings.Contains(stdout, "Renamed .hifin to .hi5") {
+		t.Fatalf("update: %d\n%s%s", code, stdout, stderr)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".hifin")); err == nil {
+		t.Error(".hifin is still there")
+	}
+	readTestFile(t, filepath.Join(project, ".hi5", "template.json"))
+	if got := readTestFile(t, filepath.Join(project, ".hi5", "q.md")); got != "Run make check.\n" {
+		t.Errorf("q.md did not move: %q", got)
+	}
+}

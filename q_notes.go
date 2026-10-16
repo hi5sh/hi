@@ -11,13 +11,13 @@ import (
 	"strings"
 )
 
-// A repository can give hi q notes in .hifin/q.md: how to run its tests,
+// A repository can give hi q notes in .hi5/q.md: how to run its tests,
 // where its logs are, what not to run. The repository writes them, so they
 // are used only after the user allows them, once per file content, as
 // direnv does for .envrc.
 
 const (
-	qNotesFile  = ".hifin/q.md"
+	qNotesFile  = "q.md" // in .hi5/
 	qNotesLimit = 4 << 10
 )
 
@@ -25,6 +25,7 @@ const (
 // in.
 type qProjectNotes struct {
 	path string
+	name string // as the repository has it, such as .hi5/q.md
 	data []byte
 }
 
@@ -35,12 +36,12 @@ func findQProjectNotes() *qProjectNotes {
 	if root == "" {
 		root, _ = os.Getwd()
 	}
-	path := filepath.Join(root, qNotesFile)
-	data, err := os.ReadFile(path)
+	name := projectFolderIn(root) + "/" + qNotesFile
+	data, err := os.ReadFile(filepath.Join(root, name))
 	if err != nil || len(strings.TrimSpace(string(data))) == 0 {
 		return nil
 	}
-	return &qProjectNotes{path: path, data: data}
+	return &qProjectNotes{path: filepath.Join(root, name), name: name, data: data}
 }
 
 func (n *qProjectNotes) sum() string {
@@ -110,7 +111,7 @@ func (n *qProjectNotes) decide(allowed bool) {
 // them first.
 func askQProjectNotes(notes *qProjectNotes, keys io.Reader, out io.Writer) {
 	for {
-		fmt.Fprintf(out, "  This repository has notes for hi q in %s (%d lines), written by the repository.\n  Send them with your questions? [y/N/v to view] ", qNotesFile, notes.lines())
+		fmt.Fprintf(out, "  This repository has notes for hi q in %s (%d lines), written by the repository.\n  Send them with your questions? [y/N/v to view] ", notes.name, notes.lines())
 		answer, err := readLine(keys)
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		switch {

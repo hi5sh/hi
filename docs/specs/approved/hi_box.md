@@ -329,7 +329,7 @@ release.
    the ones that run on the host or widen the box (`initializeCommand`,
    `runArgs`, `mounts`, `privileged`, `capAdd`). hi's own settings, such as
    extra domains, the network preset, and the GPU, go under
-   `customizations.hi` in the same file. No `.hifin/box.json`.
+   `customizations.hi` in the same file. No `.hi5/box.json`.
 
 ## Findings
 

@@ -20,7 +20,42 @@ import (
 	"time"
 )
 
-const templateMetadataPath = ".hifin/template.json"
+// projectFolder holds a project's records for hi: what generated it, its
+// data downloads, and notes for hi q. Projects from before v0.65.0 have
+// legacyProjectFolder instead; hi reads it there, and `hi init --update`
+// renames it.
+const (
+	projectFolder       = ".hi5"
+	legacyProjectFolder = ".hifin"
+)
+
+const templateMetadataPath = projectFolder + "/template.json"
+
+// projectFolderIn is the folder in root that holds hi's records: .hi5, or
+// .hifin in a project nobody has updated yet.
+func projectFolderIn(root string) string {
+	if !isDirectory(filepath.Join(root, projectFolder)) && isDirectory(filepath.Join(root, legacyProjectFolder)) {
+		return legacyProjectFolder
+	}
+	return projectFolder
+}
+
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+// renameLegacyProjectFolder renames .hifin in root to .hi5.
+func renameLegacyProjectFolder(root string, stdout io.Writer) error {
+	if projectFolderIn(root) != legacyProjectFolder {
+		return nil
+	}
+	if err := os.Rename(filepath.Join(root, legacyProjectFolder), filepath.Join(root, projectFolder)); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Renamed %s to %s; commit the rename.\n", legacyProjectFolder, projectFolder)
+	return nil
+}
 
 // templateCatalog is every template layer this hi can see, and where each
 // source keeps its skills.

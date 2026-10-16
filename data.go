@@ -62,14 +62,14 @@ Usage:
   hi data info <org>/<name>               Size, files, and last update
   hi data get <org>/<name> [--to DIR]     Download it with hf (default: ./data/<name>)
       [--revision REV] [--include GLOB]... [--exclude GLOB]... [--no-record]
-  hi data get                             In a project: everything .hifin/data.json records
+  hi data get                             In a project: everything .hi5/data.json records
   hi data run -- <command> [args]         Run a command that reads the team's data directly
                                           (load_dataset, from_pretrained, hf:// paths)
   hi data env                             HF_ENDPOINT and HF_TOKEN for a shell:
                                           eval "$(hi data env)"
 
-In a project (a folder with .hifin/), hi data get records the repository,
-the commit it downloaded, and the folder in .hifin/data.json.
+In a project (a folder with .hi5/), hi data get records the repository,
+the commit it downloaded, and the folder in .hi5/data.json.
 
 Buckets download with hf buckets sync and have no revisions. When several
 share a name, put dataset:, model:, or bucket: in front.
@@ -387,7 +387,7 @@ func dataGetCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	flags.StringVar(&options.revision, "revision", "", "branch, tag, or commit")
 	flags.Var(&include, "include", "only files matching this pattern")
 	flags.Var(&exclude, "exclude", "skip files matching this pattern")
-	flags.BoolVar(&options.noRecord, "no-record", false, "don't record it in .hifin/data.json")
+	flags.BoolVar(&options.noRecord, "no-record", false, "don't record it in .hi5/data.json")
 	positional, err := flags.parse(args)
 	if err != nil || len(positional) > 1 || (len(positional) == 0 && len(args) > 0) {
 		return usageError{"usage: hi data get <org>/<name> [--to DIR] [--revision REV] [--include GLOB]... [--exclude GLOB]... [--no-record]"}
@@ -519,14 +519,14 @@ func downloadData(client *serverClient, connection *serverConnection, item dataI
 	}
 	relative, err := filepath.Rel(root, absolute)
 	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		fmt.Fprintf(stderr, "hi: not recorded in .hifin/data.json: %s is outside the project\n", options.to)
+		fmt.Fprintf(stderr, "hi: not recorded in %s/data.json: %s is outside the project\n", projectFolderIn(root), options.to)
 		return nil
 	}
 	record.To, record.Fetched = filepath.ToSlash(relative), computeNow().UTC()
 	if err := saveDataRecord(root, record); err != nil {
 		return fmt.Errorf("downloaded, but not recorded: %w", err)
 	}
-	fmt.Fprintf(stderr, "Recorded in .hifin/%s; `hi data get` there fetches the same files again.\n", dataRecordFile)
+	fmt.Fprintf(stderr, "Recorded in %s/%s; `hi data get` there fetches the same files again.\n", projectFolderIn(root), dataRecordFile)
 	return nil
 }
 

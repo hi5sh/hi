@@ -47,7 +47,7 @@ type templateChange struct {
 	notes     []byte            // docs/upgrades content, if any
 	moved     map[string]string // built-in layers now in a server source: name → source
 	notesPath string
-	record    []byte // the new .hifin/template.json
+	record    []byte // the new .hi5/template.json
 	commands  [][]string
 }
 
@@ -73,7 +73,7 @@ func (c *templateChange) conflicts() []string {
 
 func readTemplateMetadata(target string) (templateMetadataFile, error) {
 	var metadata templateMetadataFile
-	data, err := os.ReadFile(filepath.Join(target, templateMetadataPath))
+	data, err := os.ReadFile(filepath.Join(target, projectFolderIn(target), "template.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		return metadata, fmt.Errorf("%s has no %s; start it with `hi init <template> .` or `hi init --adopt <template>`", target, templateMetadataPath)
 	}
@@ -526,7 +526,7 @@ var makeTargetPattern = regexp.MustCompile(`(?m)^(help|check|fix|lint|test)\s*:`
 // planAdopt adds a template's owned and managed files to an existing
 // repository. It never touches the project's own files.
 func planAdopt(catalog *templateCatalog, templateName, name, target string, force bool) (*templateChange, error) {
-	if _, err := os.Stat(filepath.Join(target, templateMetadataPath)); err == nil {
+	if _, err := os.Stat(filepath.Join(target, projectFolderIn(target), "template.json")); err == nil {
 		return nil, fmt.Errorf("%s is already under a template; use `hi init --update`", target)
 	}
 	if info, err := os.Stat(target); err != nil || !info.IsDir() {
@@ -697,9 +697,15 @@ func executeUpdate(catalog *templateCatalog, directory string, check, strict, fo
 		return nil
 	}
 	if len(pending) == 0 && change.notesPath == "" {
+		if dryRun {
+			return nil
+		}
+		if err := renameLegacyProjectFolder(target, stdout); err != nil {
+			return err
+		}
 		// Record the new versions and names even when no file changed.
 		current, _ := os.ReadFile(filepath.Join(target, templateMetadataPath))
-		if !bytes.Equal(current, change.record) && !dryRun {
+		if !bytes.Equal(current, change.record) {
 			return writeInitFiles(target, []initEntry{{path: templateMetadataPath, data: change.record}})
 		}
 		return nil
@@ -709,6 +715,9 @@ func executeUpdate(catalog *templateCatalog, directory string, check, strict, fo
 		return nil
 	}
 	if err := confirm(stdin, stdout, yes, "Update it?"); err != nil {
+		return err
+	}
+	if err := renameLegacyProjectFolder(target, stdout); err != nil {
 		return err
 	}
 	if err := applyTemplateChange(change, stdout, stderr); err != nil {

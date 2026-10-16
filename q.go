@@ -61,7 +61,7 @@ func runQ(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout)
 		fmt.Fprint(stdout, gatherQContext("").render())
 		if notes := findQProjectNotes(); notes != nil && notes.decision() != "allowed" {
-			fmt.Fprintf(stdout, "\n(%s is not sent: %s)\n", qNotesFile, map[string]string{
+			fmt.Fprintf(stdout, "\n(%s is not sent: %s)\n", notes.name, map[string]string{
 				"": "not allowed yet; hi q asks in a terminal", "refused": "you chose not to use it"}[notes.decision()])
 		}
 		return 0

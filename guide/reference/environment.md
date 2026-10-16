@@ -49,8 +49,8 @@ description: The environment variables hi reads and the files it writes.
 | `~/.config/hi/q.json`, `~/.config/hi/q-key` | The model chosen with `hi q --setup`, and its key (mode 0600) |
 | `~/.local/state/hi/q/log.jsonl`             | Commands `hi q` ran: time, folder, prompt, class, exit status; no output |
 | `~/.local/state/hi/q/server.json`           | Whether the connected hi server serves a model, checked at most hourly, and a failure for five minutes |
-| `~/.local/state/hi/q/notes.json`            | For each `.hifin/q.md`, the content you allowed or refused |
-| `.hifin/q.md` (in a project)                | Notes for `hi q`, used after you allow them             |
+| `~/.local/state/hi/q/notes.json`            | For each `.hi5/q.md`, the content you allowed or refused |
+| `.hi5/q.md` (in a project)                | Notes for `hi q`, used after you allow them             |
 | `~/.local/state/hi/box/<name>/`             | A box: `box.json`, its worktree (`work/`), home folder (an agent's result in `home/.hi-agent/`), allowlist (`allow`), and `network.log` |
 | `~/.local/state/hi/box/domains.json`        | Projects' extra domains you allowed or refused          |
 | `~/.config/hi/box-claude-token`             | The token from `hi agent token claude` (mode 0600); only the box proxy reads it |
@@ -58,10 +58,10 @@ description: The environment variables hi reads and the files it writes.
 | `~/.local/state/hi/q/shell-<pid>`           | With shell integration: that shell's last 30 commands and exit status, and commands handed between it and `hi q`; removed after the shell exits |
 | `~/.bashrc`, `~/.zshrc`                     | Two lines for the shell integration, added by `hi q --setup` after asking |
 | `~/.cache/hi/templates/<source>/<commit>/`  | Server templates, cached after their signature was checked; deleted by `hi disconnect` |
-| `.hifin/template.json` (in a project)       | What `hi init` generated: template, versions or commits, and file hashes; no paths or names |
+| `.hi5/template.json` (in a project)       | What `hi init` generated: template, versions or commits, and file hashes; no paths or names |
 | `docs/upgrades/<version>.md` (in a project) | From `hi init --update`: template changes to the project's own files, for an agent to apply; delete it afterward |
 
-In a project, `hi data get` records its downloads in `.hifin/data.json`:
+In a project, `hi data get` records its downloads in `.hi5/data.json`:
 each repository, the commit, the folder, and the filters. Commit it with
 the code that uses the data.
 

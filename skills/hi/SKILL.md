@@ -194,7 +194,7 @@ hi data get hifinab/fdb --include 'runs/*' --to data/fdb-runs
    try another way to reach the data.
 4. If `hf` is missing, `pip install -U huggingface_hub` installs it.
 5. In a project, `hi data get` records what it fetched, at which commit, in
-   `.hifin/data.json`; keep that file in the commit that uses the data.
+   `.hi5/data.json`; keep that file in the commit that uses the data.
    `hi data get` with no name fetches everything recorded.
 6. For code that reads the data itself (`load_dataset`, `from_pretrained`,
    `hf://` paths in pandas), run it with `hi data run -- <command>`

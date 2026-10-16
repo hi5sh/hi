@@ -388,7 +388,7 @@ they need.
 hi server templates add private https://github.com/hifinab/templates [--ref main]
 ```
 
-- `<name>` is how devices and `.hifin/template.json` refer to the source. It
+- `<name>` is how devices and `.hi5/template.json` refer to the source. It
   must not be `builtin` or `local`.
 - For an `https://` URL the server asks for a read-only token (a GitHub
   fine-grained token limited to that one repository, with contents read

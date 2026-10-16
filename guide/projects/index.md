@@ -172,7 +172,11 @@ From then on, `hi init --update` works on it like on any generated project.
 
 ## What hi records
 
-`.hifin/template.json` records the template, the `hi` version or private
+`.hi5/template.json` records the template, the `hi` version or private
 commit of each layer, and a hash of every file it wrote with its kind and
 source. It holds no paths, user names, or secrets. Commit it: `--update`
 and `--check` depend on it.
+
+Projects made before v0.65.0 keep these records in `.hifin/` instead.
+`hi` still reads them there, and the next `hi init --update` renames the
+folder to `.hi5/`; commit the rename.

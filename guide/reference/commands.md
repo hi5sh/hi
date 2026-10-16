@@ -136,8 +136,8 @@ server; `hf` runs with `HF_ENDPOINT` pointing to it.
 | `hi data info <org>/<name>`                         | Size, largest files, and last update                 |
 | `hi data get <org>/<name> [--to <dir>]`             | Download it with `hf` (buckets with `hf buckets sync`); default folder `./data/<name>` |
 | ↳ `--revision <rev>`, `--include <glob>`, `--exclude <glob>` | A branch, tag, or commit; filters, repeatable |
-| ↳ `--no-record`                                     | Don't record it in the project's `.hifin/data.json`  |
-| `hi data get`                                       | In a project: everything `.hifin/data.json` records, at the recorded commits |
+| ↳ `--no-record`                                     | Don't record it in the project's `.hi5/data.json`  |
+| `hi data get`                                       | In a project: everything `.hi5/data.json` records, at the recorded commits |
 | `hi data run -- <command>`                          | Run a command that reads your team's data directly    |
 | `hi data env`                                       | `HF_ENDPOINT` and `HF_TOKEN` for `eval` in a shell    |
 
