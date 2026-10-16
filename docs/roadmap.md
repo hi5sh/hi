@@ -1549,7 +1549,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   settings or fixes until it restarts. `--restart` restarts them without
   asking, `--no-restart` prints the commands.
 - [x] `hi team domain <team> on|off` says when that team still runs an
-  older hi, so nothing changes until it restarts, and how to restart it.
+  older hi, which may not know the setting yet, and how to restart it.
 
 ## Planned
 

@@ -280,6 +280,6 @@ func teamWarnOldHi(name string, stdout io.Writer) {
 				restart = "systemctl --user restart " + process.unit
 			}
 		}
-		fmt.Fprintf(stdout, "But %s still runs the hi it started with, from before an update, which doesn't know this setting: nothing changes until it restarts (hi update offers to):\n  %s\n", name, restart)
+		fmt.Fprintf(stdout, "Note: %s still runs the hi it started with, from before an update. If that hi is older than this setting, nothing changes until the team restarts (hi update offers to):\n  %s\n", name, restart)
 	}
 }
