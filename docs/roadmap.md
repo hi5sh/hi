@@ -1439,6 +1439,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `HELP.md` for the helper, and `bun run build` for one executable.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md#app-step-2-bun-as-the-whole-stack) (slice 3).
 
+### v0.64.1 — hi5sh/hi and hi5.sh
+
+- [x] The repository moved from `hifinab/cli` to `hi5sh/hi`, and the site
+  from hifin.sh to https://hi5.sh. `hi update` and the installer download
+  from `hi5sh/hi`; older versions still update through GitHub's redirect.
+
 ## Planned
 
 ### Next — the helper
