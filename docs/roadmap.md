@@ -1483,12 +1483,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] A new team's lead gets its long-term memory: the Hindsight plugin
   failed to install where the lead had no plugins folder yet.
 
+### v0.68.1 — Releases say when production has no helper
+
+- [x] A release's or rollback's announcement in the channel says when the
+  helper is off in production, so people trying it don't look for the
+  chat. While it is on, the default, nothing is added.
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] Say in each release's announcement whether production has the
-  helper.
 - [ ] Answers to feedback: replies in its thread shown back in the
   sender's browser.
 - [ ] Production's chat for some people only: with sign-in, production's
