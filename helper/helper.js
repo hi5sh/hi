@@ -73,6 +73,8 @@ header .version { color: var(--muted); font-size: 12px; white-space: nowrap; ove
 .msg { max-width: 92%; padding: 8px 12px; border-radius: 12px; overflow-wrap: anywhere; }
 .msg.person { align-self: flex-end; background: var(--mine); border-bottom-right-radius: 4px; white-space: pre-wrap; }
 .msg.lead { align-self: flex-start; background: var(--soft); border-bottom-left-radius: 4px; }
+.msg.answer { white-space: pre-wrap; }
+.msg .when { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 .msg.error { align-self: stretch; background: var(--warn); font-size: 13px; }
 .msg .who { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
 .msg p { margin: 0 0 6px; } .msg p:last-child { margin-bottom: 0; }
@@ -290,6 +292,7 @@ textarea:focus { border-color: var(--accent); }
     tab: store.get("sessionStorage", "tab") || "ask", // ask or feedback, otherwise
     help: store.get("sessionStorage", "help") || [], // this tab's questions and answers
     sent: null, // the id of the feedback just sent
+    feedback: null, // what this browser sent, newest first, with the team's answers
     sending: false,
     poll: null,
     refs: [], // the elements pointed at for the next message: {ref, el, image, shot}
@@ -313,6 +316,7 @@ textarea:focus { border-color: var(--accent); }
     state.sent = null;
     render();
     input.focus();
+    if (tab === "feedback") loadFeedback();
   }
 
   // ---------------------------------------------------------------------
@@ -377,9 +381,12 @@ textarea:focus { border-color: var(--accent); }
     store.set("localStorage", "open", open);
     announce();
     if (open) {
+      // The team answered feedback: that's what the panel opens on.
+      if (answersUnseen()) { state.tab = "feedback"; store.set("sessionStorage", "tab", "feedback"); }
       fab.classList.remove("unread");
       toast.classList.remove("show");
       render();
+      if (!signedIn() && state.tab === "feedback") loadFeedback();
       if (!quietly) input.focus();
     } else {
       menu.classList.remove("open");
@@ -619,6 +626,7 @@ textarea:focus { border-color: var(--accent); }
       });
       state.sent = (await response.json()).id;
       for (const item of files) URL.revokeObjectURL(item.url);
+      loadFeedback();
     } catch (error) {
       input.value = text;
       state.refs = items;
@@ -794,7 +802,7 @@ textarea:focus { border-color: var(--accent); }
     if (state.sent) {
       const sent = document.createElement("div");
       sent.className = "sent";
-      sent.innerHTML = "<strong></strong><span>The team sees it in their Slack channel. Nobody answers here: whoever sent it isn't known.</span>";
+      sent.innerHTML = "<strong></strong><span>The team sees it in their Slack channel. Their answers show up here, in this browser.</span>";
       sent.querySelector("strong").textContent = "Sent to the team as " + state.sent + ". Thank you!";
       const again = document.createElement("button");
       again.type = "button";
@@ -803,10 +811,70 @@ textarea:focus { border-color: var(--accent); }
       again.addEventListener("click", () => { state.sent = null; render(); input.focus(); });
       sent.appendChild(again);
       body.appendChild(sent);
+      drawFeedback();
       return;
     }
     body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Tell the team what\'s wrong, or what would make the app better.</p>' +
-      "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the team's Slack channel as it is; nothing changes until they decide.</p></div>");
+      "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the team's Slack channel as it is; nothing changes until they decide. Their answers show up here.</p></div>");
+    drawFeedback();
+  }
+
+  // drawFeedback draws what this browser sent, oldest first, each with
+  // the team's answers under it.
+  function drawFeedback() {
+    const sent = (state.feedback || []).slice().reverse();
+    for (const item of sent) {
+      if (item.id === state.sent) continue;
+      const node = document.createElement("div");
+      node.className = "msg person";
+      node.innerHTML = '<div class="when"></div><div class="text"></div>';
+      node.querySelector(".when").textContent = item.id + " · " + when(item.at);
+      node.querySelector(".text").textContent = item.text;
+      body.appendChild(node);
+      for (const answer of item.answers || []) {
+        const reply = document.createElement("div");
+        reply.className = "msg lead answer";
+        reply.innerHTML = '<div class="who"></div><div class="text"></div>';
+        reply.querySelector(".who").textContent = (answer.name || "The team") + " · " + when(answer.at);
+        reply.querySelector(".text").textContent = answer.text;
+        body.appendChild(reply);
+      }
+    }
+    if (panel.classList.contains("open") && state.status) store.set("localStorage", "answers-seen", state.status.answers || 0);
+  }
+
+  function when(at) {
+    const date = new Date(at);
+    if (isNaN(date)) return "";
+    const today = new Date().toDateString() === date.toDateString();
+    return today ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : date.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+
+  // loadFeedback gets what this browser sent and the team's answers: the
+  // hi_visitor cookie says which, and only /__hi/ gets it.
+  async function loadFeedback() {
+    if (signedIn()) return;
+    try {
+      const response = await call("feedback");
+      state.feedback = (await response.json()).feedback || [];
+    } catch { return; }
+    if (!state.sending && state.tab === "feedback") render();
+  }
+
+  // answersUnseen says the team answered feedback since the panel last
+  // showed it.
+  function answersUnseen() {
+    return !signedIn() && (state.status?.answers || 0) > (store.get("localStorage", "answers-seen") || 0);
+  }
+
+  function noticeAnswers() {
+    if (!answersUnseen()) return;
+    if (panel.classList.contains("open")) {
+      if (state.tab === "feedback") loadFeedback();
+      return;
+    }
+    fab.classList.add("unread");
+    showToast({ name: "The team", text: "answered your feedback." });
   }
 
   // ---------------------------------------------------------------------
@@ -1487,6 +1555,7 @@ textarea:focus { border-color: var(--accent); }
       await loadConversation().catch(() => {});
       return true;
     }
+    if (before && (before.answers || 0) !== (status.answers || 0)) noticeAnswers();
     return !before || before.version !== status.version || before.lead !== status.lead || before.ended !== status.ended;
   }
 
@@ -1504,6 +1573,7 @@ textarea:focus { border-color: var(--accent); }
     else {
       const missed = unseen();
       if (missed) { fab.classList.add("unread"); showToast(missed); }
+      else noticeAnswers();
       render();
     }
     grow();

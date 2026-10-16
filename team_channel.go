@@ -323,6 +323,9 @@ func teamPollChannel(team, channel string, source teamChannelSource, now time.Ti
 	if err := teamAppendChannel(dir, logged); err != nil {
 		return err
 	}
+	if err := teamTakeFeedbackAnswers(team, logged); err != nil {
+		failed = err
+	}
 	data, _ := json.MarshalIndent(state, "", "  ")
 	if err := os.WriteFile(filepath.Join(dir, ".watch.json.tmp"), append(data, '\n'), 0o600); err != nil {
 		return err

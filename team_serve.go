@@ -766,9 +766,12 @@ opens a panel beside the page. What it is depends on who opens it.
   only explain. Feedback goes to the channel as its own message, "Feedback
   f-12", with pictures and files in its thread; your channel watch sees
   it. When someone asks you to "do f-12", run hi team web show f-12 and
-  attach its files to the task; the work needs a yes as always. hi team
-  web questions shows what people asked the help, which says where they
-  get stuck.
+  attach its files to the task; the work needs a yes as always. A reply
+  in its thread that starts with > is shown to the sender in the app, in
+  the browser they sent it from; other replies stay in Slack. When you
+  are asked to tell them something, such as that the change is on the
+  preview, reply in the thread starting with >. hi team web questions
+  shows what people asked the help, which says where they get stuck.
 - **Keep HELP.md current.** It is the app's guide for the people who use
   it, not developers: what each page is for and how to do the common
   things, in the app's own words for its buttons and menus. Have the coder

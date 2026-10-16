@@ -65,9 +65,24 @@ The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
   what matters. When someone says in Slack "@lead do f-12", the lead runs
   `hi team web show f-12`, attaches the files to the task, and the work
   needs a yes as usual.
-- The panel says "Sent to the team as f-12. Thank you." It can't show
-  answers: whoever sent it isn't known (Later: replies in the thread back
-  in the panel).
+- The panel says "Sent to the team as f-12. Thank you."
+- **Answers.** A reply in the feedback's thread that starts with `>` is
+  for the sender; other replies stay in Slack, for the team. The message
+  in the channel says so. hi's watch of the channel keeps these answers in
+  `web/f-12.json`, without the quote marks, and the panel's Feedback tab
+  shows what this browser sent with the answers under each. The button
+  gets a dot, and a note says "The team answered your feedback"; the
+  panel opens on the Feedback tab. Answers come within the watch's two
+  minutes.
+- **Who sent it, without knowing who they are.** The first feedback from
+  a browser gets a key of its own in a `hi_visitor` cookie: HttpOnly,
+  Secure, SameSite=Strict, for `/__hi/` only, lasting 400 days. The relay
+  hands it to the helper as `X-Hi-Visitor`, as it does a person's key,
+  and the app never sees it. hi keeps a hash of the key with the
+  feedback, and `GET /__hi/api/feedback` returns only that browser's.
+  A cookie belongs to one address: until the app has an address that
+  stays (a custom domain), answers reach the browser only while the
+  address it sent from lasts, a day for production.
 - A limit against spam: 30 feedback items a day per address, then the
   panel says so.
 
@@ -181,7 +196,5 @@ workspace never take each other's.
   in their DM, one to one, so the channel stays for the group. Larger
   changes are still announced in the channel: what changed in the latest
   updates and who asked for it, so the channel stays the team's record.
-- **Answers to feedback.** Replies in the feedback's thread shown to the
-  sender's browser, without knowing who they are.
 - **Production for some people only.** With people signed in, production's
   helper could be feedback-only for everyone else.

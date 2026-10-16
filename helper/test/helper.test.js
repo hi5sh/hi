@@ -194,6 +194,25 @@ test("feedback waits for a name", async () => {
   expect($(".your-name").classList.contains("needed")).toBe(false);
 });
 
+test("shows the team's answers to feedback", async () => {
+  await start({
+    "GET status": () => json({ team: "payments", version: "v3", commit: "abc", answers: 1 }),
+    "GET feedback": () => json({ feedback: [{ id: "f-4", text: "The total is wrong", at: "2026-10-15T09:00:00Z",
+      answers: [{ name: "Anna", text: "Fixed, thanks!\nTry again.", at: "2026-10-16T10:00:00Z" }] }] }),
+  });
+  // The button says the team answered, and the panel opens on it.
+  await until(() => $(".fab.unread"));
+  expect($(".toast .text").textContent).toBe("answered your feedback.");
+  open();
+  await until(() => $(".msg.answer"));
+  expect($(".tabs [data-tab=feedback]").classList.contains("on")).toBe(true);
+  expect($(".msg.person .when").textContent).toStartWith("f-4 · ");
+  expect($(".msg.person .text").textContent).toBe("The total is wrong");
+  expect($(".msg.answer .who").textContent).toStartWith("Anna · ");
+  expect($(".msg.answer .text").textContent).toBe("Fixed, thanks!\nTry again.");
+  expect(localStorage.getItem("hi-helper-answers-seen")).toBe("1");
+});
+
 const signedIn = {
   "GET status": () => json({ team: "payments", version: "v3", commit: "abc", lead: "Payments lead", you: { id: "U07ANA", name: "Ana" } }),
   "GET conversation": () => json({}),

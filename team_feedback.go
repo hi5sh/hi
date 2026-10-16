@@ -3,6 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -381,6 +386,141 @@ type teamFeedback struct {
 	Files   []teamWebFile `json:"files,omitempty"` // in web/f-<n>-files
 	At      time.Time     `json:"at"`
 	SlackTS string        `json:"slack_ts,omitempty"`
+	// Visitor is a hash of the key in the sender's hi_visitor cookie: who
+	// may read the answers, without anyone knowing who they are.
+	Visitor string `json:"visitor,omitempty"`
+	// Answers are the replies in its thread that start with >: what the
+	// team says to the sender. Other replies stay in Slack.
+	Answers []teamFeedbackAnswer `json:"answers,omitempty"`
+}
+
+// teamFeedbackAnswer is a reply in feedback's thread meant for its sender.
+type teamFeedbackAnswer struct {
+	TS   string    `json:"ts"`
+	Name string    `json:"name"`
+	Text string    `json:"text"`
+	At   time.Time `json:"at"`
+}
+
+// teamVisitorLasts is how long the hi_visitor cookie lasts: as long as
+// browsers let one.
+const teamVisitorLasts = 400 * 24 * time.Hour
+
+// teamFeedbackMu keeps the channel's watch, which adds answers, and the
+// broker, which adds the Slack message, from saving feedback at once.
+var teamFeedbackMu sync.Mutex
+
+// teamVisitorHash is what feedback keeps of a visitor's key.
+func teamVisitorHash(key string) string {
+	if !netExposeUserKey.MatchString(key) {
+		return ""
+	}
+	sum := sha256.Sum256([]byte("hi-visitor:" + key))
+	return hex.EncodeToString(sum[:])
+}
+
+// teamVisitor is the visitor's key the relay found in the request's
+// cookie, or a new one set in the cookie now.
+func teamVisitor(w http.ResponseWriter, r *http.Request) string {
+	if key := r.Header.Get(netExposeVisitorHeader); netExposeUserKey.MatchString(key) {
+		return key
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return ""
+	}
+	key := base64.RawURLEncoding.EncodeToString(raw)
+	http.SetCookie(w, &http.Cookie{Name: netExposeVisitorCookie, Value: key, Path: teamHelperPrefix, MaxAge: int(teamVisitorLasts / time.Second),
+		Secure: true, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	return key
+}
+
+// teamFeedbackSent is one of a visitor's feedback, for GET
+// /__hi/api/feedback.
+type teamFeedbackSent struct {
+	ID      string               `json:"id"`
+	Text    string               `json:"text"`
+	At      time.Time            `json:"at"`
+	Answers []teamFeedbackAnswer `json:"answers"`
+}
+
+// teamVisitorFeedback is what this visitor sent, newest first, and how
+// many answers it has.
+func teamVisitorFeedback(team, key string, limit int) ([]teamFeedbackSent, int) {
+	hash := teamVisitorHash(key)
+	if hash == "" {
+		return nil, 0
+	}
+	all := loadTeamFeedbacks(team)
+	var sent []teamFeedbackSent
+	answers := 0
+	for i := len(all) - 1; i >= 0; i-- {
+		feedback := all[i]
+		if feedback.Visitor != hash {
+			continue
+		}
+		answers += len(feedback.Answers)
+		if len(sent) < limit {
+			sent = append(sent, teamFeedbackSent{ID: feedback.ID, Text: feedback.Text, At: feedback.At, Answers: append([]teamFeedbackAnswer{}, feedback.Answers...)})
+		}
+	}
+	return sent, answers
+}
+
+// teamFeedbackReply reads a reply in feedback's thread: one that starts
+// with > is for the sender, without the quote marks.
+func teamFeedbackReply(text string) (string, bool) {
+	if !strings.HasPrefix(text, ">") {
+		return "", false
+	}
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if rest, ok := strings.CutPrefix(line, ">"); ok {
+			lines[i] = strings.TrimPrefix(rest, " ")
+		}
+	}
+	answer := strings.TrimSpace(strings.Join(lines, "\n"))
+	return answer, answer != ""
+}
+
+// teamTakeFeedbackAnswers keeps the replies in feedback's threads that
+// are for its sender, from what the channel's watch just logged.
+func teamTakeFeedbackAnswers(team string, logged []teamChannelMessage) error {
+	var replies []teamChannelMessage
+	for _, message := range logged {
+		if message.Thread != "" && strings.HasPrefix(message.Text, ">") {
+			replies = append(replies, message)
+		}
+	}
+	if len(replies) == 0 {
+		return nil
+	}
+	teamFeedbackMu.Lock()
+	defer teamFeedbackMu.Unlock()
+	threads := map[string]teamFeedback{}
+	for _, feedback := range loadTeamFeedbacks(team) {
+		if feedback.SlackTS != "" {
+			threads[feedback.SlackTS] = feedback
+		}
+	}
+	changed := map[string]bool{}
+	for _, message := range replies {
+		feedback, ok := threads[message.Thread]
+		text, isAnswer := teamFeedbackReply(message.Text)
+		if !ok || !isAnswer || slices.ContainsFunc(feedback.Answers, func(answer teamFeedbackAnswer) bool { return answer.TS == message.TS }) {
+			continue
+		}
+		feedback.Answers = append(feedback.Answers, teamFeedbackAnswer{TS: message.TS, Name: message.Name, Text: teamClipStart(text, teamWebMaxText), At: teamTSTime(message.TS).UTC()})
+		threads[message.Thread] = feedback
+		changed[message.Thread] = true
+	}
+	var failed error
+	for thread := range changed {
+		if err := saveTeamFeedback(team, threads[thread]); err != nil {
+			failed = err
+		}
+	}
+	return failed
 }
 
 // teamFeedbackSend is POST /__hi/api/feedback.
@@ -438,7 +578,7 @@ func teamFeedbackNumber(id string) int {
 // webFeedback is POST /__hi/api/feedback: kept, and posted in the channel
 // as a message of its own, with the files in its thread. The lead isn't
 // asked; its watch of the channel reads it.
-func (b *teamBroker) webFeedback(r *http.Request, slot string, send teamFeedbackSend) (teamFeedback, int, error) {
+func (b *teamBroker) webFeedback(r *http.Request, slot, visitor string, send teamFeedbackSend) (teamFeedback, int, error) {
 	config, err := loadTeam(b.team)
 	if err != nil {
 		return teamFeedback{}, http.StatusInternalServerError, err
@@ -470,7 +610,8 @@ func (b *teamBroker) webFeedback(r *http.Request, slot string, send teamFeedback
 	if all := loadTeamFeedbacks(b.team); len(all) > 0 {
 		next = teamFeedbackNumber(all[len(all)-1].ID) + 1
 	}
-	feedback := teamFeedback{ID: fmt.Sprintf("f-%d", next), Slot: slot, Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, At: time.Now().UTC()}
+	feedback := teamFeedback{ID: fmt.Sprintf("f-%d", next), Slot: slot, Name: send.Name, Text: send.Text, Page: send.Page, Refs: send.Refs, At: time.Now().UTC(),
+		Visitor: teamVisitorHash(visitor)}
 	files, err := teamSaveWebFiles(b.team, feedback.ID, 1, send.Files, len(send.Refs))
 	if err == nil {
 		feedback.Files = files
@@ -504,16 +645,18 @@ func (b *teamBroker) postFeedback(config teamConfig, feedback teamFeedback) {
 	for _, ref := range feedback.Refs {
 		text += fmt.Sprintf("\n> %s: `%s`", teamSlackEscape(teamWebRefLabel(ref)), strings.ReplaceAll(teamSlackEscape(ref.Selector), "`", "'"))
 	}
-	text += fmt.Sprintf("\n_To have it done, ask the lead: “do %s”._", feedback.ID)
+	text += fmt.Sprintf("\n_To have it done, ask the lead: “do %s”. To answer %s in the app, start a reply with >; other replies stay here._", feedback.ID, firstNonEmpty(teamSlackEscape(feedback.Name), "them"))
 	ts, err := b.channel.post(config.Channel, text)
 	if err != nil {
 		return
 	}
 	b.webMu.Lock()
+	teamFeedbackMu.Lock()
 	if saved, err := loadTeamFeedback(b.team, feedback.ID); err == nil {
 		saved.SlackTS = ts
 		saveTeamFeedback(b.team, saved)
 	}
+	teamFeedbackMu.Unlock()
 	b.webMu.Unlock()
 	for _, order := range []int{0, 1, 2} {
 		for _, file := range feedback.Files {

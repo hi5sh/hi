@@ -29,6 +29,9 @@ func relayWithHelper(t *testing.T, service http.Handler) (*httptest.Server, stri
 	}
 	helperServer := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "helper "+r.URL.Path+" cookie="+r.Header.Get("Cookie")+" user="+r.Header.Get(netExposeUserHeader))
+		if visitor := r.Header.Get(netExposeVisitorHeader); visitor != "" {
+			io.WriteString(w, " visitor="+visitor)
+		}
 	})}
 	go helperServer.Serve(listener)
 	t.Cleanup(func() { helperServer.Close() })
@@ -262,6 +265,16 @@ func TestNetExposeUserKey(t *testing.T) {
 		t.Fatal(body)
 	}
 	if _, body := fetchPage(t, relay.URL+"/x", "", "Cookie", "hi_user="+key+"; session=s", netExposeUserHeader, key); body != "app  cookie=session=s user=" {
+		t.Fatal(body)
+	}
+	// The visitor's key goes the same way, as X-Hi-Visitor.
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", "Cookie", "hi_visitor="+key+"; session=s"); body != "helper /__hi/api/status cookie= user= visitor="+key {
+		t.Fatal(body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", "", netExposeVisitorHeader, key); body != "helper /__hi/api/status cookie= user=" {
+		t.Fatal(body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/x", "", "Cookie", "hi_visitor="+key+"; session=s"); body != "app  cookie=session=s user=" {
 		t.Fatal(body)
 	}
 	// A key that isn't one is dropped, and still taken out of the address.

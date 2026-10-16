@@ -37,6 +37,15 @@ const (
 	netExposeUserLasts  = 14 * 24 * time.Hour
 )
 
+// A visitor's key, for people who aren't signed in: the routes set it in a
+// cookie of their own, and the relay hands it to the socket as
+// X-Hi-Visitor, as it does a person's key. hi team uses it to show
+// feedback's answers to whoever sent it.
+const (
+	netExposeVisitorCookie = "hi_visitor"
+	netExposeVisitorHeader = "X-Hi-Visitor"
+)
+
 var netExposeUserKey = regexp.MustCompile(`^[A-Za-z0-9_-]{20,100}$`)
 
 // netExposeRoute serves the paths under Prefix from a socket.
@@ -90,17 +99,20 @@ func (h *netExposeHelper) on() bool {
 func (h *netExposeHelper) signIn(w http.ResponseWriter, r *http.Request) bool {
 	// Only the relay says who someone is, and only to the routes.
 	r.Header.Del(netExposeUserHeader)
+	r.Header.Del(netExposeVisitorHeader)
 	if h == nil || len(h.Routes) == 0 {
 		return false
 	}
-	if cookie, err := r.Cookie(netExposeUserCookie); err == nil && netExposeUserKey.MatchString(cookie.Value) {
-		for _, route := range h.Routes {
-			if strings.HasPrefix(r.URL.Path, route.Prefix) {
-				r.Header.Set(netExposeUserHeader, cookie.Value)
+	for cookieName, header := range map[string]string{netExposeUserCookie: netExposeUserHeader, netExposeVisitorCookie: netExposeVisitorHeader} {
+		if cookie, err := r.Cookie(cookieName); err == nil && netExposeUserKey.MatchString(cookie.Value) {
+			for _, route := range h.Routes {
+				if strings.HasPrefix(r.URL.Path, route.Prefix) {
+					r.Header.Set(header, cookie.Value)
+				}
 			}
 		}
+		netExposeDropCookie(r, cookieName)
 	}
-	netExposeDropCookie(r, netExposeUserCookie)
 	query := r.URL.Query()
 	if !query.Has(netExposeUserParam) {
 		return false
@@ -135,7 +147,8 @@ func (h *netExposeHelper) route(path string) http.Handler {
 					out.SetURL(upstream)
 					out.SetXForwarded()
 					// The app's cookies are the app's. The person's key, when
-					// there is one, came out of them as X-Hi-User (signIn).
+					// there is one, came out of them as X-Hi-User, and the
+					// visitor's as X-Hi-Visitor (signIn).
 					out.Out.Header.Del("Cookie")
 				},
 				Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {

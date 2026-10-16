@@ -427,6 +427,8 @@ type teamWebStatus struct {
 	Ended bool           `json:"ended,omitempty"`
 	// Command is the team's command in Slack for a private link.
 	Command string `json:"command"`
+	// Answers counts the team's answers to this browser's feedback.
+	Answers int `json:"answers,omitempty"`
 }
 
 // teamWebSend is POST /__hi/api/messages.
@@ -530,6 +532,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			status.You = &teamWebPerson{ID: person.User, Name: person.Name}
 		} else {
 			status.Ended = ended
+			_, status.Answers = teamVisitorFeedback(b.team, r.Header.Get(netExposeVisitorHeader), 0)
 		}
 		reply(w, http.StatusOK, status)
 	})
@@ -547,12 +550,16 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		feedback, status, err := b.webFeedback(r, slot, send)
+		feedback, status, err := b.webFeedback(r, slot, teamVisitor(w, r), send)
 		if err != nil {
 			failure(w, status, err)
 			return
 		}
 		reply(w, http.StatusOK, map[string]string{"id": feedback.ID})
+	})
+	mux.HandleFunc("GET "+teamHelperPrefix+"api/feedback", func(w http.ResponseWriter, r *http.Request) {
+		sent, _ := teamVisitorFeedback(b.team, r.Header.Get(netExposeVisitorHeader), 20)
+		reply(w, http.StatusOK, map[string]any{"feedback": append([]teamFeedbackSent{}, sent...)})
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/conversation", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := you(w, r)

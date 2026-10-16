@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/slack-go/slack"
 )
 
 func TestTeamWebHelp(t *testing.T) {
@@ -167,5 +169,88 @@ func TestTeamWebFeedback(t *testing.T) {
 	}
 	if _, err := loadTeamFeedback("payments", "f-2"); err == nil {
 		t.Fatal("refused feedback was kept")
+	}
+}
+
+func TestTeamFeedbackAnswers(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	b.channel = &fakeTeamChannel{}
+	server := webTestServer(t, b.teamBroker, teamSlotPreview, "", "")
+	defer server.Close()
+	visitor := "visitor-key-0123456789abcdef"
+	call := func(method, path, key, body string) *http.Response {
+		t.Helper()
+		request, _ := http.NewRequest(method, server.URL+"/__hi/api/"+path, strings.NewReader(body))
+		if key != "" {
+			request.Header.Set(netExposeVisitorHeader, key)
+		}
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return response
+	}
+	// A browser without the cookie gets one; one with it keeps it.
+	response := call(http.MethodPost, "feedback", "", `{"name":"Cleo","text":"Make it red"}`)
+	if cookies := response.Cookies(); response.StatusCode != http.StatusOK || len(cookies) != 1 || cookies[0].Name != "hi_visitor" ||
+		cookies[0].Path != "/__hi/" || !cookies[0].HttpOnly || !cookies[0].Secure || !netExposeUserKey.MatchString(cookies[0].Value) {
+		t.Fatal(response.Status, cookies)
+	}
+	response = call(http.MethodPost, "feedback", visitor, `{"name":"Cleo","text":"The total is wrong"}`)
+	if response.StatusCode != http.StatusOK || len(response.Cookies()) != 0 {
+		t.Fatal(response.Status, response.Cookies())
+	}
+
+	// In Slack: a reply for the team, and one for Cleo, which starts with >.
+	now := time.Now()
+	root := teamSlackTS(now.Add(-time.Hour))
+	feedback, _ := loadTeamFeedback("payments", "f-2")
+	feedback.SlackTS = root
+	saveTeamFeedback("payments", feedback)
+	parent := teamTestMessage(root, "", "Feedback f-2")
+	parent.ReplyCount, parent.LatestReply = 2, teamSlackTS(now.Add(-time.Minute))
+	internal := teamTestMessage(teamSlackTS(now.Add(-2*time.Minute)), "U2", "Probably the rounding")
+	answer := teamTestMessage(teamSlackTS(now.Add(-time.Minute)), "U1", "&gt; Fixed, thanks!\n&gt; Try the preview again.")
+	internal.ThreadTimestamp, answer.ThreadTimestamp = root, root
+	source := &fakeTeamChannel{messages: []slack.Message{parent}, threads: map[string][]slack.Message{root: {parent, internal, answer}}}
+	for range 2 {
+		if err := teamPollChannel("payments", "C07PAYMENTS", source, now); err != nil {
+			t.Fatal(err)
+		}
+		source.threads[root][0].LatestReply = teamSlackTS(now)
+	}
+
+	var list struct {
+		Feedback []teamFeedbackSent `json:"feedback"`
+	}
+	json.NewDecoder(call(http.MethodGet, "feedback", visitor, "").Body).Decode(&list)
+	if len(list.Feedback) != 1 || list.Feedback[0].ID != "f-2" || len(list.Feedback[0].Answers) != 1 ||
+		list.Feedback[0].Answers[0].Name != "Anna" || list.Feedback[0].Answers[0].Text != "Fixed, thanks!\nTry the preview again." {
+		t.Fatalf("%+v", list)
+	}
+	var status teamWebStatus
+	json.NewDecoder(call(http.MethodGet, "status", visitor, "").Body).Decode(&status)
+	if status.Answers != 1 {
+		t.Fatalf("%+v", status)
+	}
+	// Nobody else sees them.
+	list.Feedback = nil
+	json.NewDecoder(call(http.MethodGet, "feedback", "someone-else-0123456789abcdef", "").Body).Decode(&list)
+	if len(list.Feedback) != 0 {
+		t.Fatalf("%+v", list)
+	}
+}
+
+func TestTeamFeedbackReply(t *testing.T) {
+	for text, want := range map[string]string{
+		"> Fixed":             "Fixed",
+		">Fixed\n> again\nok": "Fixed\nagain\nok",
+		"Fixed":               "",
+		"> ":                  "",
+	} {
+		if got, ok := teamFeedbackReply(text); got != want || ok != (want != "") {
+			t.Errorf("%q: %q %v", text, got, ok)
+		}
 	}
 }
