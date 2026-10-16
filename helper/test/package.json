@@ -1,0 +1,11 @@
+{
+  "name": "hi-helper-test",
+  "private": true,
+  "description": "Tests of the hi team helper (../helper.js) in happy-dom; hi doesn't need them to build",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.1"
+  }
+}

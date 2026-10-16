@@ -562,6 +562,27 @@ func TestTeamHelperScriptHasFinder(t *testing.T) {
 	}
 }
 
+// TestHelperInABrowser runs helper/test, the helper's tests in happy-dom,
+// on the exact script hi serves. It needs Bun and the network for the
+// first install, so it is skipped without Bun; CI runs it whenever the
+// helper changes.
+func TestHelperInABrowser(t *testing.T) {
+	bun, err := exec.LookPath("bun")
+	if err != nil {
+		t.Skip("no bun to run the helper's tests with")
+	}
+	script := filepath.Join(t.TempDir(), "helper.js")
+	os.WriteFile(script, teamHelperScript, 0o600)
+	for _, args := range [][]string{{"install", "--frozen-lockfile", "--silent"}, {"test"}} {
+		command := exec.Command(bun, args...)
+		command.Dir = filepath.Join("helper", "test")
+		command.Env = append(os.Environ(), "HI_HELPER_SCRIPT="+script)
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("bun %s: %v\n%s", args[0], err, out)
+		}
+	}
+}
+
 func TestTeamWebRefs(t *testing.T) {
 	long := strings.Repeat("é", 3000)
 	refs := []teamWebRef{

@@ -1,5 +1,6 @@
 .env
 templates/*/node_modules/
+helper/test/node_modules/
 templates/*/.venv/
 templates/*/dist/
 /cli
