@@ -176,8 +176,28 @@ func TestTeamWizard(t *testing.T) {
 		t.Fatalf("%+v", secrets)
 	}
 	repo := filepath.Join(teamDir("payments"), "repo")
-	if boxGit(repo, "log", "--oneline") == "" || !fileExists(filepath.Join(repo, "AGENTS.md")) {
+	if boxGit(repo, "log", "--oneline") == "" || !fileExists(filepath.Join(repo, "AGENTS.md")) || boxGit(repo, "status", "--porcelain") != "" {
 		t.Fatal("no first commit")
+	}
+	// The project is a blank web app, with the team's purpose and rules.
+	for _, file := range []string{"package.json", "bun.lock", "Makefile", "HELP.md", "src/App.tsx", "src/server.ts", templateMetadataPath} {
+		if boxGit(repo, "ls-files", file) == "" {
+			t.Errorf("no %s", file)
+		}
+	}
+	if fileExists(filepath.Join(repo, ".agents")) || fileExists(filepath.Join(repo, "src/App.test.tsx")) && strings.Contains(readTestFile(t, filepath.Join(repo, "src/App.test.tsx")), "note") {
+		t.Error("the hi skill or the notes example is there")
+	}
+	agents := readTestFile(t, filepath.Join(repo, "AGENTS.md"))
+	if !strings.Contains(agents, "make check") || !strings.Contains(agents, "bun:sqlite") || !strings.Contains(agents, "a lead that talks with the people") {
+		t.Error(agents)
+	}
+	if readme := readTestFile(t, filepath.Join(repo, "README.md")); !strings.HasPrefix(readme, "# Payments\n\nTrack supplier payments for the finance admins\n\nA web app on Bun") {
+		t.Error(readme)
+	}
+	if !strings.Contains(readTestFile(t, filepath.Join(repo, "docs/specs/README.md")), "The lead keeps one file per feature") ||
+		!strings.Contains(readTestFile(t, filepath.Join(repo, "src/index.html")), "<title>Payments</title>") {
+		t.Error("the specs folder or the page's title")
 	}
 	soul, _ := os.ReadFile(filepath.Join(teamDir("payments"), "lead", "SOUL.md"))
 	if !strings.Contains(string(soul), "<@U07OWNER1>") || !strings.Contains(string(soul), "may not read code") {
@@ -423,7 +443,7 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 	for _, sub := range []string{"tasks", "lead"} {
 		os.MkdirAll(filepath.Join(dir, sub), 0o700)
 	}
-	if err := newTeamRepo(config, filepath.Join(dir, "repo")); err != nil {
+	if err := newTeamRepo(config, filepath.Join(dir, "repo"), true); err != nil {
 		t.Fatal(err)
 	}
 	saveTeam(config)
@@ -819,10 +839,14 @@ func TestTeamMovedFolder(t *testing.T) {
 	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
 	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
 	file := filepath.Join(dir, "answers.json")
-	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
+	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "empty": true}`, 0o600)
 	var out bytes.Buffer
 	if err := teamNew([]string{"payments", "--dir", "elsewhere/pay", "--from", file}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
+	}
+	// "empty": only the README, the rules, and the specs folder.
+	if files := boxGit(filepath.Join(teamDir("payments"), "repo"), "ls-files"); files != "AGENTS.md\nREADME.md\ndocs/specs/README.md" {
+		t.Fatal(files)
 	}
 	if teamDir("payments") != filepath.Join(dir, "elsewhere", "pay") {
 		t.Fatal(teamDir("payments"))

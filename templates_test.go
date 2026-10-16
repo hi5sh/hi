@@ -141,6 +141,24 @@ func TestBuiltinTemplatesPassTheirCheck(t *testing.T) {
 			}
 		})
 	}
+	// A new hi team's project, which hi team new writes from team-app.
+	t.Run("team-app", func(t *testing.T) {
+		project := t.TempDir()
+		entries, err := teamAppEntries(teamConfig{Name: "check-team", Purpose: "Check the team's project"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := writeInitFiles(project, entries); err != nil {
+			t.Fatal(err)
+		}
+		for _, args := range [][]string{{"git", "init", "-q"}, {"make", "check"}} {
+			command := exec.Command(args[0], args[1:]...)
+			command.Dir = project
+			if output, err := command.CombinedOutput(); err != nil {
+				t.Fatalf("%s: %v\n%s", strings.Join(args, " "), err, output)
+			}
+		}
+	})
 }
 
 func TestLockfileGroupMarkersFollowTheName(t *testing.T) {

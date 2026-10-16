@@ -477,6 +477,9 @@ type teamAnswers struct {
 	teamConfig
 	Clone  string `json:"clone,omitempty"`
 	GitHub string `json:"github,omitempty"` // owner/name of a new private repository
+	// Empty starts a new repository with only a README and the team's rules,
+	// instead of a web app on Bun.
+	Empty bool `json:"empty,omitempty"`
 	// checked: the wizard checked Slack as it went.
 	checked bool
 }
@@ -550,7 +553,7 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		os.RemoveAll(dir)
 		return err
 	}
-	if err := createTeamFolder(&config, secrets, answers.Clone, stdout); err != nil {
+	if err := createTeamFolder(&config, secrets, answers.Clone, answers.Empty, stdout); err != nil {
 		os.RemoveAll(dir)
 		os.Remove(filepath.Join(teamsDir(), name))
 		return err
@@ -707,13 +710,18 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 
 	fmt.Fprintln(stdout, "\n7/7 Code")
 	fmt.Fprintln(stdout, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
-	fmt.Fprintln(stdout, "Enter starts a new git repository there. Or give a repository to clone: a URL, cloned with this")
-	fmt.Fprintln(stdout, "machine's git credentials, or a folder on this machine.")
+	fmt.Fprintln(stdout, "Enter starts a new web app there: a blank page on Bun, with a database and tests, and the")
+	fmt.Fprintln(stdout, "helper's chat on every page. Type empty for a repository with only a README, or give one to")
+	fmt.Fprintln(stdout, "clone: a URL, cloned with this machine's git credentials, or a folder on this machine.")
 	clone, err := teamAskUntil(stdin, stdout, "Repository [new]", false, func(string) error { return nil })
 	if err != nil {
 		return answers, secrets, err
 	}
-	if clone != "new" {
+	switch clone {
+	case "", "new":
+	case "empty":
+		answers.Empty = true
+	default:
 		answers.Clone = clone
 	}
 	if answers.Clone == "" {
@@ -940,7 +948,7 @@ func teamCheckSlack(config teamConfig, secrets teamSecrets, stdout io.Writer) er
 
 // createTeamFolder makes the folder, the repository, and the lead's first
 // files.
-func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, stdout io.Writer) error {
+func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, empty bool, stdout io.Writer) error {
 	dir := teamDir(config.Name)
 	for _, sub := range []string{"lead", "tasks", "run", "logs"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o700); err != nil {
@@ -971,7 +979,7 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, std
 		if boxGit(repo, "rev-parse", "--verify", "-q", "HEAD") == "" {
 			return errors.New("the repository has no commits yet; push a first commit, or let the team start a new one")
 		}
-	} else if err := newTeamRepo(*config, repo); err != nil {
+	} else if err := newTeamRepo(*config, repo, empty); err != nil {
 		return err
 	}
 	config.Branch = firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main")
@@ -984,20 +992,28 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, std
 	return os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte(teamSoul(*config)), 0o600)
 }
 
-func newTeamRepo(config teamConfig, repo string) error {
+func newTeamRepo(config teamConfig, repo string, empty bool) error {
 	if err := os.MkdirAll(repo, 0o755); err != nil {
 		return err
 	}
-	files := map[string]string{
-		"README.md":                  "# " + config.Name + "\n\n" + config.Purpose + "\n",
-		"AGENTS.md":                  teamAgentsFile,
-		teamSpecsPath + "/README.md": teamSpecsReadme(config),
-	}
-	for name, content := range files {
-		os.MkdirAll(filepath.Dir(filepath.Join(repo, name)), 0o755)
-		if err := os.WriteFile(filepath.Join(repo, name), []byte(content), 0o644); err != nil {
+	var entries []initEntry
+	if empty {
+		files := map[string]string{
+			"README.md":                  "# " + config.Name + "\n\n" + config.Purpose + "\n",
+			"AGENTS.md":                  teamAgentsFile,
+			teamSpecsPath + "/README.md": teamSpecsReadme(config),
+		}
+		for _, name := range sortedKeys(files) {
+			entries = append(entries, initEntry{path: name, data: []byte(files[name])})
+		}
+	} else {
+		var err error
+		if entries, err = teamAppEntries(config); err != nil {
 			return err
 		}
+	}
+	if err := writeInitFiles(repo, entries); err != nil {
+		return err
 	}
 	author := []string{"-c", "user.name=" + firstNonEmpty(boxGit(".", "config", "user.name"), "hi team "+config.Name),
 		"-c", "user.email=" + firstNonEmpty(boxGit(".", "config", "user.email"), "team-"+config.Name+"@hi.invalid")}
@@ -1007,6 +1023,42 @@ func newTeamRepo(config teamConfig, repo string) error {
 		}
 	}
 	return nil
+}
+
+// teamAppTemplate is what a new team's project starts from: the app
+// template with a blank page, since nearly every team builds a web app.
+// The helper's chat box needs nothing from it: hi adds it to every page.
+const teamAppTemplate = "team-app"
+
+// teamAppEntries are the files of a new team's project: the template's,
+// with the team's purpose in README.md, the team's rules in AGENTS.md, and
+// the lead's specs folder. The template's skills are left out: they are
+// about hi, which the members' boxes don't have.
+func teamAppEntries(config teamConfig) ([]initEntry, error) {
+	catalog := &templateCatalog{}
+	var err error
+	if catalog.layers, err = builtinTemplateLayers(); err != nil {
+		return nil, err
+	}
+	composed, err := composeTemplateAllowingHidden(catalog.layers, teamAppTemplate, map[string]string{"name": config.Name})
+	if err != nil {
+		return nil, err
+	}
+	composed.Skills = nil
+	readme := string(composed.Files["README.md"])
+	_, rest, _ := strings.Cut(readme, "\n\n")
+	composed.Files["README.md"] = []byte("# " + titleName(config.Name) + "\n\n" + config.Purpose + "\n\n" + rest)
+	composed.Files["AGENTS.md"] = append(composed.Files["AGENTS.md"], "\n"+teamAgentsFile...)
+	composed.Files[teamSpecsPath+"/README.md"] = []byte(teamSpecsReadme(config))
+	entries, skillSources, err := templateEntries(catalog, composed)
+	if err != nil {
+		return nil, err
+	}
+	metadata, err := templateMetadata(composed, entries, skillSources, config.Name, nil)
+	if err != nil {
+		return nil, err
+	}
+	return append(entries, initEntry{path: templateMetadataPath, data: metadata}), nil
 }
 
 const teamAgentsFile = `# Working on this project

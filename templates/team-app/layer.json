@@ -1,0 +1,7 @@
+{
+  "name": "team-app",
+  "summary": "A hi team's project: the app template with a blank page",
+  "extends": "app",
+  "hidden": true,
+  "schema": 1
+}

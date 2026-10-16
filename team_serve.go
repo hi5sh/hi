@@ -926,6 +926,14 @@ can run hi team preview production for production's link. Times are UTC,
 so for a time of day somewhere else, run at both possible hours and have
 the script print nothing at the wrong one.
 
+A project hi team new started is already a web app with a blank page:
+Bun serves the pages (React) and the API, the data is SQLite in
+$HI_DATA_DIR, the tests are bun test, and the helper's chat is on every
+page without the app doing anything. Have the coder build on it: tasks
+change that page, add pages and API routes, and keep HELP.md current.
+Choose another stack only when the people need something it can't do,
+and say why in the spec.
+
 The project starts with make run, or bun run start (npm start without a
 bun.lock), and must listen on 0.0.0.0 at the port in $PORT. If the
 preview says the app didn't answer, give the coder a task to fix that,

@@ -5,10 +5,12 @@ on:
     paths:
       - "templates/**"
       - "templates*.go"
+      - "team.go"
   pull_request:
     paths:
       - "templates/**"
       - "templates*.go"
+      - "team.go"
 
 jobs:
   templates:

@@ -1,6 +1,6 @@
 # Bun in boxes, templates, and teams
 
-Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0), and slice 3 (v0.64.0).
+Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0), slice 3 (v0.64.0), and slice 4 (v0.66.0).
 
 Dependencies: `hi box` (the base image), `hi init` (the `web` template and
 its layers), `hi install`, [hi_team.md](hi_team.md) (the preview, merges,
@@ -130,10 +130,19 @@ There is no Node.js, Vite, or Vitest in it; Biome's command is the one
 tool Bun starts that ships as a Node script, and Bun runs it as Node when
 Node isn't installed.
 
-A team's project starts empty today, and members' boxes have no `hi` to
-run `hi init app` in, so a team gets the template only when the lead asks
-the coder to build it that way. Starting a team's project from a template
-is a later step.
+A new team's project starts from it (slice 4): nearly every team builds
+a web app, so `hi team new` writes the hidden `team-app` layer on the
+host, where `hi` is, since members' boxes have none. `team-app` is `app`
+with a blank page instead of the notes: `App.tsx` renders an empty
+`<main>`, `db.ts` has no tables yet, and the server has the page and
+`/healthz`. The helper's chat box needs nothing from the project: hi adds
+it to every page it relays. hi adds the team's rules to `AGENTS.md`, the
+purpose to `README.md`, and the lead's `docs/specs/`, and leaves out the
+`hi` skill, which is about a tool the members don't have. The lead's
+instructions say to build on it and to choose another stack only when the
+people need something it can't do. `empty` in the wizard, or
+`"empty": true` with `--from`, keeps the old start: a README, the rules,
+and the specs folder.
 
 Fewer packages means fewer to install, update, review, and allow through
 the box proxy. The coder still gets React and TypeScript, so its usual
@@ -219,7 +228,8 @@ to run in its box.
 2. The dependency review in `hi team merge`, and `bun audit` in
    `make check` (v0.63.0).
 3. The `app` template (v0.64.0).
-4. The preview check, if `hi web` doesn't cover it; tests for the helper.
+4. A new team's project starts as a blank web app (v0.66.0).
+5. The preview check, if `hi web` doesn't cover it; tests for the helper.
 
 ## Risks
 

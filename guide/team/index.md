@@ -63,8 +63,12 @@ The setup asks seven things, one at a time:
 6. **Models.** An OpenRouter key of the team's own, so its use is billed
    and limited apart; Enter uses this machine's, from Hermes. No box ever
    holds it (see [Keys and settings](#keys-and-settings)).
-7. **Code.** Enter starts a new git repository; or give one to clone: a
-   URL, with this machine's git credentials, or a folder on this machine.
+7. **Code.** Enter starts a new web app for the team to build on: a
+   blank page on Bun, with a database, tests, and the helper's chat on
+   every page (the `app` template in [Projects](../projects/#templates)).
+   Type `empty` for a repository with only a README, or give one to
+   clone: a URL, with this machine's git credentials, or a folder on this
+   machine.
    A new repository can go on GitHub too: give `owner/name`, and hi
    creates a private repository with this machine's `gh` sign-in.
 

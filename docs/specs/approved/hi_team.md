@@ -367,8 +367,9 @@ hi team discard dev --approval <id>              dev's code back to production's
 6. **Model keys.** Through your team's hi server (`hi server ai`), which
    records the team's spend, or keys of its own. Either way the keys stay
    outside the boxes, through the proxy.
-7. **Code.** A new repository, or an existing one and a token limited to
-   it.
+7. **Code.** A new repository, which starts as a blank web app from the
+   hidden `team-app` template ([hi_bun.md](hi_bun.md)) or, with `empty`,
+   with only a README; or an existing one and a token limited to it.
 8. **Backups.** The S3-compatible bucket offsite snapshots go to (its
    endpoint, bucket, and keys, without echo), and how long to keep them.
 9. **Budget.** Dollars a month; the lead stops starting tasks when it is
