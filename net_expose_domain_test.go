@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,6 +58,8 @@ func (f *fakeNetbirdAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(service)
 	case r.Method == http.MethodGet:
 		json.NewEncoder(w).Encode(f.services[id])
+	case r.Method == http.MethodDelete:
+		delete(f.services, id)
 	case r.Method == http.MethodPut:
 		var service netbirdService
 		json.NewDecoder(r.Body).Decode(&service)
@@ -113,7 +116,7 @@ func TestNetExposePublish(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("NETBIRD_API_TOKEN", "nbp_wrong")
-	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003); err == nil || !strings.Contains(err.Error(), "service user") {
+	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003); !errors.Is(err, errNetbirdToken) {
 		t.Fatal(err)
 	}
 	// Without a token at all.

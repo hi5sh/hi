@@ -1520,6 +1520,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   saves a token given in `$NETBIRD_API_TOKEN` too, since the teams run as
   services without it.
 
+### v0.70.2 — A NetBird token that works
+
+- [x] `hi team domain` asks for another token when NetBird no longer
+  knows the saved one, and takes one on request with `--new-token`.
+- [x] It checks that the token may make services, not only read them: a
+  Network Admin service user may list the custom domains but gets
+  "permission denied" making a service; the token must be an Admin's.
+
 ## Planned
 
 ### Next — the helper

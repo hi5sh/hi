@@ -211,14 +211,16 @@ their feedback reach them days later.
    as `apps.example.com`.
 2. In its DNS, add a CNAME for `*.apps.example.com` to the proxy cluster
    NetBird names, such as `eu.proxy.netbird.io`, and verify it in NetBird.
-3. Make a NetBird service user that may manage the reverse proxy (Team >
-   Service Users), with an access token.
+3. Make a NetBird service user with the Admin role (Team > Service
+   Users), with an access token. A Network Admin may read the reverse
+   proxy but not make services.
 4. On the machine that runs the teams:
 
 ```sh
 hi team domain apps.example.com    # asks for the token, checks the domain
 hi team domain                     # where the apps are
 hi team domain off                 # back to addresses NetBird makes up
+hi team domain apps.example.com --new-token   # another token; hi also asks when NetBird refuses the saved one
 ```
 
 Production moves within a minute, and the preview with the next one. If

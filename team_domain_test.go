@@ -30,6 +30,22 @@ func TestTeamDomain(t *testing.T) {
 	if err := teamDomainCommand([]string{"Apps.Example.com."}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
+	// The check leaves no service behind.
+	if len(fake.services) != 0 {
+		t.Fatalf("%+v", fake.services)
+	}
+	// A token NetBird doesn't know any more: a new one is asked for.
+	saveNetbirdAPIToken("nbp_gone")
+	t.Setenv("NETBIRD_API_TOKEN", "")
+	gone := filepath.Join(t.TempDir(), "new.txt")
+	os.WriteFile(gone, []byte("nbp_test\n"), 0o600)
+	newFile, _ := os.Open(gone)
+	defer newFile.Close()
+	out.Reset()
+	if err := teamDomainCommand([]string{"apps.example.com"}, newFile, &out); err != nil || !strings.Contains(out.String(), "doesn't know the saved token") {
+		t.Fatal(err, out.String())
+	}
+	t.Setenv("NETBIRD_API_TOKEN", "nbp_test")
 	// The token from $NETBIRD_API_TOKEN is saved for the teams, which run
 	// without it.
 	if token, err := os.ReadFile(netbirdTokenPath()); err != nil || strings.TrimSpace(string(token)) != "nbp_test" {

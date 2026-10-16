@@ -79,6 +79,10 @@ var netbirdAPIURL = func() (string, error) {
 	return "https://" + strings.TrimSuffix(management.Host, ":443"), nil
 }
 
+// errNetbirdToken is a token NetBird doesn't take: deleted, expired, or
+// mistyped.
+var errNetbirdToken = errors.New("NetBird doesn't know the API token (deleted or expired?); hi team domain <domain> --new-token takes another")
+
 type netbirdAPI struct {
 	base, token string
 	client      *http.Client
@@ -125,6 +129,11 @@ func (a netbirdAPI) call(method, path string, in, out any) error {
 		message := firstNonEmpty(failure.Message, strings.TrimSpace(string(data)), response.Status)
 		if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
 			message += " (the NetBird API token must be a service user's that may manage the reverse proxy)"
+		}
+		if response.StatusCode == http.StatusUnauthorized || strings.Contains(message, "invalid token") {
+			// NetBird says "not found" for a token it doesn't know, and
+			// names it: the message stays out of hi's output.
+			return fmt.Errorf("NetBird's API, %s %s: %w", method, path, errNetbirdToken)
 		}
 		return fmt.Errorf("NetBird's API, %s %s: %s", method, path, message)
 	}
