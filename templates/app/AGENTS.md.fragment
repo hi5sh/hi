@@ -1,0 +1,23 @@
+
+## App
+
+- Bun is the runtime, package manager, bundler, and test runner; there is
+  no Node.js, Vite, or Vitest here. `bun add <package>` (`--dev` for
+  tools), and commit `bun.lock`; never npm.
+- Before adding a package, check whether Bun already does it: `Bun.serve`
+  (routes, static files, WebSockets), `bun:sqlite`, `Bun.password`,
+  `Bun.file`, `Bun.cron`, `fetch`. Fewer packages are fewer to review.
+- `src/server.ts` is the server and its API routes; `src/index.html` and
+  `src/App.tsx` are the pages, bundled by Bun when the server starts.
+  Tests sit next to the code as `*.test.ts(x)`; page tests get a document
+  from happy-dom (`src/test-dom.ts`).
+- Keep what must last in the database, in `$HI_DATA_DIR`: the app's own
+  folder is replaced at every release. Change the tables only by adding a
+  line to `migrations` in `src/db.ts`, never by editing an old one.
+- Listen on `0.0.0.0` at `$PORT`; `make run` is how previews and
+  production start the app.
+- A version must be 3 days old before Bun installs it (`bunfig.toml`), and
+  packages' install scripts don't run unless the package is in
+  `trustedDependencies` or on Bun's own vetted list; add a package there
+  only when it can't work without its script. `make check` fails on a high
+  or critical advisory (`bun audit`).

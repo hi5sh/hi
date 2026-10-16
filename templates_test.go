@@ -24,7 +24,7 @@ func composeBuiltin(t *testing.T, name, project string) *composedTemplate {
 }
 
 func TestBuiltinTemplatesReplaceEverySentinel(t *testing.T) {
-	for _, name := range []string{"python", "web", "service", "pipeline", "ml", "autoresearch-ml"} {
+	for _, name := range []string{"python", "web", "app", "service", "pipeline", "ml", "autoresearch-ml"} {
 		composed := composeBuiltin(t, name, "pricing-tools")
 		for path, data := range composed.Files {
 			if strings.Contains(strings.ToLower(path), "hifin") || strings.Contains(strings.ToLower(string(data)), "hifin") {
@@ -127,7 +127,7 @@ func TestBuiltinTemplatesPassTheirCheck(t *testing.T) {
 	if os.Getenv("HI_TEMPLATE_CHECK") != "1" {
 		t.Skip("set HI_TEMPLATE_CHECK=1 to generate the templates and run make check")
 	}
-	for _, name := range []string{"python", "web", "service", "pipeline", "ml", "autoresearch-ml"} {
+	for _, name := range []string{"python", "web", "app", "service", "pipeline", "ml", "autoresearch-ml"} {
 		t.Run(name, func(t *testing.T) {
 			parent := t.TempDir()
 			code, stdout, stderr := runInitIn(t, parent, "", name, "check-"+name, "--yes")

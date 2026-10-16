@@ -238,6 +238,7 @@ that keep it out of `.env` and `secrets/`, the `hi` skill, and CI.
 hi init                         # choose a template, name, and directory
 hi init python pricing-tools    # Python: uv, ruff, pyrefly, pytest
 hi init web dashboard           # React and TypeScript on Vite: Bun, Biome, Vitest
+hi init app suppliers           # a web app on Bun alone: Bun.serve, React, SQLite, bun test
 hi init service orders-api      # FastAPI, SQLAlchemy and Alembic, Dockerfile
 hi init pipeline prices-feed    # an idempotent run --date: land raw, parse, load
 hi init ml forecaster           # PyTorch; ROCm on Strix Halo, CUDA on NVIDIA, else CPU

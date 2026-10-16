@@ -1,0 +1,8 @@
+[install]
+# A version must be 3 days old before it is installed, so a package
+# hijacked today isn't installed today.
+minimumReleaseAge = 259200
+
+[test]
+# Tests of the pages get a browser's document from happy-dom.
+preload = ["./src/test-dom.ts"]

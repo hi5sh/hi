@@ -35,6 +35,7 @@ plan, or `--yes` to skip the question (for agents and scripts).
 |----------|----------------------------------|----------------------------------------------------------|
 | `python` | Libraries and scripts            | uv, ruff, pyrefly, pytest; the package lives in `src/`   |
 | `web`    | Internal web apps and dashboards | React and TypeScript on Vite, Bun, Biome, Vitest         |
+| `app`    | Small web apps with their own data | Bun alone: `Bun.serve`, React, SQLite in `$HI_DATA_DIR`, `bun test`, one executable from `bun run build` |
 | `service` | Backend services and APIs       | `python` + FastAPI, SQLAlchemy and Alembic, `/healthz` and `/readyz`, Dockerfile, compose |
 | `pipeline` | Data sources and ingestion     | `python` + one idempotent `run --date`, raw files landed before parsing, offline parser tests |
 | `ml`     | Model training                   | `python` + PyTorch for CPU, CUDA, or ROCm, a typed config, a two-step training test |
@@ -43,8 +44,8 @@ plan, or `--yes` to skip the question (for agents and scripts).
 The two `autoresearch` templates are shaped for `hi agent best-of` rounds;
 see [Start from a template](/guide/autoresearch/templates/).
 
-`hi init --list` shows them. The Python ones need `uv`, and `web` needs
-Bun and Node.js; `hi install` sets up all three. `web` installs with Bun
+`hi init --list` shows them. The Python ones need `uv`, `web` needs Bun
+and Node.js, and `app` needs only Bun; `hi install` sets up all three. `web` installs with Bun
 and commits `bun.lock`; Vite and Vitest still run on Node.js. A `web`
 project from before v0.61.0 that runs `hi init --update` gets the Bun
 Makefile and upgrade notes for `bunfig.toml`, and its `make check` says to

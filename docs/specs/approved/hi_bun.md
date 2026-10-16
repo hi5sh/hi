@@ -1,6 +1,6 @@
 # Bun in boxes, templates, and teams
 
-Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0).
+Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0), and slice 3 (v0.64.0).
 
 Dependencies: `hi box` (the base image), `hi init` (the `web` template and
 its layers), `hi install`, [hi_team.md](hi_team.md) (the preview, merges,
@@ -101,16 +101,39 @@ Bun already runs no package's install scripts unless the package is in
 
 ### `app`, step 2: Bun as the whole stack
 
-A second template for the apps hi teams are asked for most often, such as a
-form, a table, or a small dashboard for a few admins. It uses one runtime
-and almost no packages:
+A second template, in this repository with the other general ones (the
+private repository is for finance's), for the apps hi teams are asked for
+most often, such as a form, a table, or a small dashboard for a few admins.
+It uses one runtime and two packages, React and React DOM:
 
-- the server is `Bun.serve` with routes, and the front end is HTML imports
-  (`bun ./index.html` in development, with hot reload);
-- data lives in SQLite through `bun:sqlite`, in a folder the team backs up;
-- tests use `bun test`, with happy-dom for the pages;
-- `make run` starts the server on `$PORT`, as the preview expects;
-- `bun build --compile` makes production one executable.
+- the server is `Bun.serve` in `src/server.ts`, with its API routes, and
+  serves `src/index.html` as an HTML import, which Bun bundles with the
+  React pages when the server starts (`make dev` with hot reload);
+- data lives in SQLite through `bun:sqlite`, in `app.db` in
+  `$HI_DATA_DIR` (`data/` without it), with numbered migrations counted by
+  `PRAGMA user_version`;
+- tests use `bun test`: the database, the server on a random port with an
+  in-memory database, and the pages with happy-dom (`src/test-dom.ts`,
+  preloaded, which keeps Bun's own `fetch` and `Response` for the server's
+  tests);
+- `make run` installs and starts the server on `0.0.0.0:$PORT`, as the
+  preview expects;
+- `bun run build` makes `dist/app`, one executable with the pages inside,
+  which `make check` builds every time;
+- `HELP.md`, the guide the team helper answers from, starts with the one
+  page there is.
+
+The example is a list of notes: enough to show a route, a table, a form,
+and a test of each, and small enough to delete.
+
+There is no Node.js, Vite, or Vitest in it; Biome's command is the one
+tool Bun starts that ships as a Node script, and Bun runs it as Node when
+Node isn't installed.
+
+A team's project starts empty today, and members' boxes have no `hi` to
+run `hi init app` in, so a team gets the template only when the lead asks
+the coder to build it that way. Starting a team's project from a template
+is a later step.
 
 Fewer packages means fewer to install, update, review, and allow through
 the box proxy. The coder still gets React and TypeScript, so its usual
@@ -195,7 +218,7 @@ to run in its box.
    manager and runner; previews that use `bun.lock` (v0.61.0).
 2. The dependency review in `hi team merge`, and `bun audit` in
    `make check` (v0.63.0).
-3. The `app` template.
+3. The `app` template (v0.64.0).
 4. The preview check, if `hi web` doesn't cover it; tests for the helper.
 
 ## Risks
@@ -218,8 +241,6 @@ to run in its box.
 
 ## Open questions
 
-- Should `app` live in this repository or in the private templates
-  repository, with its own roadmap?
 - The preview check: `Bun.WebView` with the box's Chrome, or
   `hi web check` with Lightpanda? Lightpanda is lighter; WebView is already
   in the box once Bun is.
@@ -229,6 +250,14 @@ to run in its box.
   able to approve a newer version for an urgent fix?
 
 ## Findings
+
+### Slice 3
+
+On 2026-10-16, with Bun 1.4.3, `hi init app` and `make check` (audit,
+Biome, `bun check`, six tests, and the executable) pass in the base image;
+`make run` answers on `$PORT` and writes `app.db` to `$HI_DATA_DIR`. The
+executable is 92 MB and serves the pages and the API with nothing else
+installed.
 
 ### Slice 1
 
