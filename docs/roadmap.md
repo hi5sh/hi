@@ -1463,6 +1463,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `--from`, starts with only a README, as before.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md#app-step-2-bun-as-the-whole-stack) (slice 4).
 
+### v0.67.0 — The blank app's first preview
+
+- [x] `hi team up` puts a new team's blank app on the preview, so the
+  links people get from `/hi` work at once. Only while the project is as
+  `hi team new` wrote it; once work is merged, or for a project cloned or
+  started empty, the lead makes the previews as before.
+
 ## Planned
 
 ### Next — the helper
