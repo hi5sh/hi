@@ -1690,6 +1690,14 @@ More providers come last, after every planned release above, and only if
 they are needed. RunPod, Shadeform, Hugging Face Jobs, and Colab already
 cover most needs.
 
+### Deferred — Sign in with Google for a team's app
+
+- [ ] Optional per team: people with no key link sign in with Google,
+  limited to one Workspace domain such as plejd.com, in the relay, so key
+  links keep working. Needs a Google OAuth client (Internal) with one
+  return address per team. Decided 2026-10-16 to add later. Draft spec:
+  [hi_team_sso.md](specs/ideas/hi_team_sso.md).
+
 ### Deferred — More compute providers
 
 On-demand providers to add to `hi compute`, in priority order. Ranked
