@@ -406,6 +406,8 @@ type teamTestBroker struct {
 	mu      sync.Mutex
 	calls   []string
 	reports map[string]string // box → the report block's JSON
+	// files are more files a box commits, by box and path.
+	files map[string]map[string]string
 	// exposures are the addresses hi net expose gave, by name; lasts is
 	// how long the next one lasts.
 	exposures map[string]netExposeState
@@ -500,6 +502,10 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 				os.MkdirAll(filepath.Join(work, "docs", "specs"), 0o755)
 				os.WriteFile(filepath.Join(work, "docs", "specs", "suppliers.md"), []byte("Status: Done\n"), 0o644)
 				os.WriteFile(filepath.Join(work, "docs", "specs", box+".md"), []byte("mine\n"), 0o644)
+				for name, content := range b.files[box] {
+					os.MkdirAll(filepath.Dir(filepath.Join(work, name)), 0o755)
+					os.WriteFile(filepath.Join(work, name), []byte(content), 0o644)
+				}
 				exec.Command("git", "-C", work, "add", "-A").Run()
 				exec.Command("git", "-C", work, "commit", "-q", "-m", box).Run()
 				exec.Command("git", "-C", repo, "worktree", "remove", "--force", work).Run()
@@ -585,7 +591,7 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	}
 
 	// Not merged without a review.
-	if _, err := b.merge("t-1"); err == nil || !strings.Contains(err.Error(), "no review approved") {
+	if _, err := b.merge("t-1", ""); err == nil || !strings.Contains(err.Error(), "no review approved") {
 		t.Fatal(err)
 	}
 	b.reports["payments-t-2"] = `{"status": "complete", "summary": "Changes needed: no tests."}`
@@ -604,7 +610,7 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	if !strings.Contains(string(reviewBrief), "Check the empty list.") || !strings.Contains(string(reviewBrief), "Add a supplier list") {
 		t.Fatal(string(reviewBrief))
 	}
-	if _, err := b.merge("t-1"); err == nil {
+	if _, err := b.merge("t-1", ""); err == nil {
 		t.Fatal("merged with changes needed")
 	}
 
@@ -626,7 +632,7 @@ func TestTeamBrokerTaskReviewMerge(t *testing.T) {
 	if approval = waitTeamTask(t, approval.ID); approval.Verdict != "approve" {
 		t.Fatalf("%+v", approval)
 	}
-	merged, err := b.merge("t-3")
+	merged, err := b.merge("t-3", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -709,7 +715,7 @@ func TestTeamBrokerReviewLoop(t *testing.T) {
 		}
 	}
 	// Merging the task merges its latest fix.
-	merged, err := b.merge("t-1")
+	merged, err := b.merge("t-1", "")
 	if err != nil || merged.ID != "t-3" || merged.Status != "merged" {
 		t.Fatal(merged.ID, merged.Status, err)
 	}
@@ -727,7 +733,7 @@ func TestTeamBrokerReviewLoop(t *testing.T) {
 	if !strings.Contains(b.brief(steps[2]), "All done.") {
 		t.Fatal(b.brief(steps[2]))
 	}
-	if _, err := b.merge("t-5"); err == nil || !strings.Contains(err.Error(), "no review approved t-9") {
+	if _, err := b.merge("t-5", ""); err == nil || !strings.Contains(err.Error(), "no review approved t-9") {
 		t.Fatal(err)
 	}
 	out.Reset()

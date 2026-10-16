@@ -267,7 +267,7 @@ hi team review <task> [<notes.md>]               the reviewer checks a task's la
 hi team wait <task>                              wait for a task and its review rounds, and print how they ended
 hi team show <task>                              its state and report, without waiting
 hi team tasks                                    list the tasks
-hi team merge <task>                             merge it, once a review approved its latest commit
+hi team merge <task> [--approval <id>]           merge it, once a review approved its latest commit (an owner's yes for a new install script)
 hi team stop <task>                              stop a task's box
 hi team preview [<task>] [--port <n>]            show dev or a task's branch on the preview link
 hi team preview stop                             end the preview

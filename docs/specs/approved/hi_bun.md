@@ -1,6 +1,6 @@
 # Bun in boxes, templates, and teams
 
-Status: Approved (2026-10-15). Slice 1 is built (v0.61.0).
+Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0).
 
 Dependencies: `hi box` (the base image), `hi init` (the `web` template and
 its layers), `hi install`, [hi_team.md](hi_team.md) (the preview, merges,
@@ -133,17 +133,43 @@ between the coder's push and a working link.
 
 ## Dependency review
 
-When a task changes `package.json` or `bun.lock`, `hi team merge` runs
-`bun pm diff` against dev and gives the reviewer what it found: packages
-added and removed, new install scripts, and new imports of sensitive
-modules such as `child_process`. A package that would run an install script
-needs an owner's approval in the channel before its name goes into
-`trustedDependencies`, like any other approval. The lead tells the people in
-plain words: "this change adds 3 packages; one wants to run a script when
-it's installed".
+When a task changes a `package.json`, `bun.lock`, or `package-lock.json`,
+the broker compares them with where the task started, from git on the
+host, without running anything from the project:
 
-`bun audit` runs in `make check`, so a known vulnerability fails the check
-like a failing test.
+- the direct dependencies added, removed, and updated, from `package.json`;
+- every package the lockfile adds, removes, or updates, counting what the
+  direct ones need;
+- names new in `trustedDependencies`;
+- a `package.json` whose dependencies changed while its lockfile didn't,
+  so the frozen install in checks and previews would fail.
+
+The reviewer's brief gets this as a Packages section, with what to check:
+that the work needs each new package, that it is widely used, maintained,
+and licensed for the use, and that the install and `bun audit` (or
+`npm audit`) pass in its box.
+
+Bun runs a package's install script only when the package is in
+`trustedDependencies` or on Bun's own list of vetted packages (367 in Bun
+1.4.3, such as esbuild and sharp); every other package's script is
+blocked, even with an empty `trustedDependencies`. So a name new in
+`trustedDependencies` is what lets new code run on every machine that
+installs the app, and `hi team merge` refuses it without an owner's yes:
+`hi team merge t-4 --approval <id>`, a yes of its own, never one that
+approved something else. The lead asks in plain words: "t-4 needs sharp,
+which runs its own code when it's installed, to resize the photos. May
+it?"
+
+After a merge, `hi team merge` prints what changed in the packages, and the
+lead tells the people in plain words what each new package is for.
+
+`bun audit --audit-level=high` runs in the `web` template's `make check`,
+so a high or critical advisory fails the check like a failing test.
+
+`bun pm diff` compares two versions of one package, not two lockfiles, so
+hi reads the lockfiles itself. The lockfile records no install scripts;
+only an install shows them (`bun pm untrusted`), which is the reviewer's
+to run in its box.
 
 ## Later
 
@@ -168,7 +194,7 @@ like a failing test.
 1. Bun in the base image and in `hi install`; `web` on Bun as package
    manager and runner; previews that use `bun.lock` (v0.61.0).
 2. The dependency review in `hi team merge`, and `bun audit` in
-   `make check`.
+   `make check` (v0.63.0).
 3. The `app` template.
 4. The preview check, if `hi web` doesn't cover it; tests for the helper.
 

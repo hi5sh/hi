@@ -115,6 +115,13 @@ lead in between. The lead hears once: approved, or changes still needed.
 Once the reviewer approves, the lead merges and tells the people what
 changed and how to try it. A feature is done when they agree it works.
 
+Work that adds packages gets a closer look. The reviewer's brief lists what
+the task adds, removes, and updates, and the reviewer checks each new
+package and runs the audit. Bun runs a package's install script only when
+the project trusts it (`trustedDependencies`) or Bun vets it, so a task
+that trusts a new package can't be merged until an owner says yes: the
+lead asks in the channel what the package is and why the app needs it.
+
 A member sees only its brief and the project, so the broker sends what
 the people gave along with it: the thread the work was agreed in, in their
 words with their links, and the files shared there (screenshots,

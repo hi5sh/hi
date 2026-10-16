@@ -75,8 +75,12 @@ type teamTask struct {
 	// without one.
 	Approval *teamApproval `json:"approval,omitempty"`
 	Small    bool          `json:"small,omitempty"`
-	Created  time.Time     `json:"created"`
-	Finished time.Time     `json:"finished,omitempty"`
+	// Packages is what a merged task changed in the project's packages, and
+	// TrustApproval the owner's yes to new install scripts.
+	Packages      string        `json:"packages,omitempty"`
+	TrustApproval *teamApproval `json:"trust_approval,omitempty"`
+	Created       time.Time     `json:"created"`
+	Finished      time.Time     `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -342,7 +346,7 @@ func (b *teamBroker) handler() http.Handler {
 			reply(w, nil, err)
 			return
 		}
-		task, err := b.merge(request.Task)
+		task, err := b.merge(request.Task, request.Approval)
 		reply(w, task, err)
 	})
 	mux.HandleFunc("POST /stop", func(w http.ResponseWriter, r *http.Request) {
@@ -720,6 +724,9 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		saveTeamTask(b.team, task)
 	}
 	brief := teamReviewBrief(b.team, config.Branch, task, reviewed, base, b.brief(reviewed), notes)
+	if packages := teamDependencyChanges(b.repo, base, commit); len(packages) > 0 {
+		brief += teamReviewPackages(packages)
+	}
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
 
@@ -755,6 +762,17 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	if reviewed.Report != nil && len(reviewed.Report.Report) > 0 && string(reviewed.Report.Report) != "null" {
 		fmt.Fprintf(&text, "\n## The %s's report\n\n%s\n", reviewed.Role, string(reviewed.Report.Report))
 	}
+	return text.String()
+}
+
+// teamReviewPackages asks the reviewer to check the packages a task
+// changes.
+func teamReviewPackages(packages []teamDependencyProject) string {
+	var text strings.Builder
+	fmt.Fprintf(&text, "\n## Packages\n\nThis work changes the project's packages:\n\n%s\n\n", teamDependencyText(packages))
+	text.WriteString("For each package it adds, check that the work needs it, that it is widely used and maintained, and that its license allows this use; a smaller package, or a few lines of code, is often better. ")
+	text.WriteString("Run the install (bun install --frozen-lockfile, or npm ci for a package-lock.json) and the audit (bun audit, or npm audit): a known vulnerability is a change needed. ")
+	text.WriteString("A name new in trustedDependencies runs its own install script on every machine that installs the project: approve it only if the work can't do without it, and say why in your summary. The merge also needs an owner's yes for it.\n")
 	return text.String()
 }
 
@@ -931,7 +949,7 @@ func (b *teamBroker) stop(id string) (teamTask, error) {
 // merge merges a task's branch into the team's branch, once a review of
 // its latest commit approved it. A task the broker had fixed merges as its
 // latest fix.
-func (b *teamBroker) merge(id string) (teamTask, error) {
+func (b *teamBroker) merge(id, approvalRef string) (teamTask, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	task, busy, err := teamLatestWork(b.team, id)
@@ -961,6 +979,23 @@ func (b *teamBroker) merge(id string) (teamTask, error) {
 	if approval == nil {
 		return task, fmt.Errorf("no review approved %s's latest commit; run hi team review %s", task.ID, task.ID)
 	}
+	var packages []teamDependencyProject
+	if base := boxGit(b.repo, "merge-base", config.Branch, head); base != "" {
+		packages = teamDependencyChanges(b.repo, base, head)
+	}
+	if trusted := teamDependencyTrusted(packages); len(trusted) > 0 {
+		if approvalRef == "" {
+			return task, fmt.Errorf("%s adds %s to trustedDependencies, which runs their install scripts on every machine that installs the app. "+
+				"Only an owner may allow that: ask the owners in the channel in plain words (which package, that it runs its own code when it is installed, and why the app needs it), end your reply, "+
+				"and once an owner says yes, run hi team merge %s --approval <id>", task.ID, strings.Join(trusted, ", "), id)
+		}
+		yes, err := b.teamFindApproval(config, approvalRef, "trust")
+		if err != nil {
+			return task, err
+		}
+		task.TrustApproval = &yes
+	}
+	task.Packages = teamDependencyText(packages)
 	if err := b.commitSpecsLocked(config); err != nil {
 		return task, fmt.Errorf("committing the specs: %w", err)
 	}
@@ -1206,13 +1241,28 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		printTeamTasks(tasks, 30, stdout)
 	case "merge":
-		if len(args) != 1 {
-			return usageError{"usage: hi team merge <task>"}
+		request := teamRequest{}
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "--approval" && i+1 < len(args):
+				request.Approval = args[i+1]
+				i++
+			case request.Task == "" && !strings.HasPrefix(args[i], "-"):
+				request.Task = args[i]
+			default:
+				return usageError{"usage: hi team merge <task> [--approval <id>]  (an owner's yes, when the task trusts a package's install script)"}
+			}
 		}
-		if err := call("POST", "/merge", teamRequest{Task: args[0]}, &task); err != nil {
+		if request.Task == "" {
+			return usageError{"usage: hi team merge <task> [--approval <id>]"}
+		}
+		if err := call("POST", "/merge", request, &task); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "Merged %s (%s) as %s.\n", task.ID, task.Title, task.Merged[:min(len(task.Merged), 12)])
+		if task.Packages != "" {
+			fmt.Fprintf(stdout, "It changes the app's packages; tell the people in plain words what it adds and why:\n%s\n", task.Packages)
+		}
 		if len(task.SpecsKept) > 0 {
 			fmt.Fprintf(stdout, "The task changed your specs (%s); the merge kept yours. Update them yourself if they need it.\n", strings.Join(task.SpecsKept, ", "))
 		}

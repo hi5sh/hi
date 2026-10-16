@@ -5,9 +5,10 @@
 help: ## Show the targets
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-8s %s\n", $$1, $$2}'
 
-check: ## Packages, format, lint, types, tests, and build; must pass before a change is done
+check: ## Packages and their advisories, format, lint, types, tests, and build; must pass before a change is done
 	@test ! -e package-lock.json || { echo "package-lock.json: this project uses Bun. Run bun install, which turns it into bun.lock, then delete it."; exit 1; }
 	bun install --frozen-lockfile --silent
+	bun audit --audit-level=high
 	bun run biome ci .
 	bun check
 	bun run vitest run

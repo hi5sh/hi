@@ -703,7 +703,7 @@ of its own on a branch of the project; you get their reports.
 | hi team wait t-4 | Wait for t-4, its review, and the fixes the review asked for; print how it ended |
 | hi team show t-4 | Print the same without waiting |
 | hi team tasks | List the tasks |
-| hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it |
+| hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it (--approval <id>: an owner's yes to a package's install script) |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4 again, with your notes; rarely needed |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
 | hi team preview | Show the project's main branch on the preview link, for the people to try |
@@ -983,6 +983,13 @@ A review's report starts with Approve or Changes needed. hi team merge
 refuses work that no review approved, and work changed since its review.
 After a merge, tell the people what changed. If a merge doesn't apply
 cleanly, give the coder a new task to redo the work on the latest project.
+
+When a task adds packages, the reviewer checks them, and hi team merge
+lists them: say in plain words what each is for. If the task puts a
+package in trustedDependencies, its install script would run on every
+machine that installs the app, and hi team merge needs an owner's yes:
+ask the owners what it is and why the app needs it, end your reply, and
+merge with --approval <id> once one says yes.
 `, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name))
 }
 

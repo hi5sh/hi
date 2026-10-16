@@ -41,7 +41,7 @@ func teamTestMerge(t *testing.T, b *teamTestBroker, brief string) teamTask {
 		t.Fatal(err)
 	}
 	waitTeamTask(t, review.ID)
-	merged, err := b.merge(task.ID)
+	merged, err := b.merge(task.ID, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestTeamVersions(t *testing.T) {
 		t.Fatal(err)
 	}
 	more = waitTeamTask(t, more.ID)
-	if _, err := b.merge(ideas[1].ID); err == nil {
+	if _, err := b.merge(ideas[1].ID, ""); err == nil {
 		t.Fatal("merged without a review")
 	}
 	discarded, err := b.discard(more.ID)
