@@ -1542,6 +1542,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   NetBird makes up. `off` moves a team back within a minute.
 - [x] `hi team ls` no longer lists `settings.json` as a team.
 
+### v0.72.0 — Teams on the new hi
+
+- [x] `hi update` offers to restart the teams still running the hi they
+  started with, as it does `hi server`: a team doesn't take up new
+  settings or fixes until it restarts. `--restart` restarts them without
+  asking, `--no-restart` prints the commands.
+- [x] `hi team domain <team> on|off` says when that team still runs an
+  older hi, so nothing changes until it restarts, and how to restart it.
+
 ## Planned
 
 ### Next — the helper

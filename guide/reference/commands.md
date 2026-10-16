@@ -27,7 +27,7 @@ description: Every hi command and option in one place.
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
-| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart a `hi server` service still on the old version |
+| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi server` and team services still on the old version |
 | `hi version`, `hi help`          | Version and help                                       |
 
 ## hi compute

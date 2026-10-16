@@ -251,9 +251,35 @@ func teamDomainSwitch(name string, on bool, stdout io.Writer) error {
 	}
 	if !on {
 		fmt.Fprintf(stdout, "%s goes back to addresses NetBird makes up: production's within a minute, the preview with the next one.\n", name)
-		return nil
+	} else {
+		fmt.Fprintf(stdout, "%s moves to https://%s within a minute, and its preview to https://%s with the next one. The first visit waits for the certificate.\n",
+			name, teamSlotDomain(name, teamSlotProduction), teamSlotDomain(name, teamSlotPreview))
 	}
-	fmt.Fprintf(stdout, "%s moves to https://%s within a minute, and its preview to https://%s with the next one. The first visit waits for the certificate.\n",
-		name, teamSlotDomain(name, teamSlotProduction), teamSlotDomain(name, teamSlotPreview))
+	teamWarnOldHi(name, stdout)
 	return nil
+}
+
+// teamWarnOldHi says when a team still runs a hi from before an update,
+// which doesn't know newer settings, and how to restart it.
+func teamWarnOldHi(name string, stdout io.Writer) {
+	path, err := updateExecutable()
+	if err != nil {
+		return
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	for _, process := range staleServers(path) {
+		if process.team != name {
+			continue
+		}
+		restart := "hi team down " + name + " && hi team up " + name
+		if process.unit != "" {
+			restart = "systemctl restart " + process.unit
+			if process.user {
+				restart = "systemctl --user restart " + process.unit
+			}
+		}
+		fmt.Fprintf(stdout, "But %s still runs the hi it started with, from before an update, which doesn't know this setting: nothing changes until it restarts (hi update offers to):\n  %s\n", name, restart)
+	}
 }

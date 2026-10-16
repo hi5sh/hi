@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,5 +110,40 @@ func TestUpdateAsksBeforeRestarting(t *testing.T) {
 	runUpdateTest("--check")
 	if len(*runs) != 0 {
 		t.Fatalf("runs %q", *runs)
+	}
+}
+
+func TestUpdateRestartsStaleTeams(t *testing.T) {
+	requireLinux(t)
+	installedBinary(t, "v0.9.0")
+	fakeReleases(t, "v0.9.0", false)
+	path, _ := updateExecutable()
+	userUnit := "0::/user.slice/user-1000.slice/user@1000.service/app.slice/%s\n"
+	fakeProc(t, map[string][3]string{
+		"201": {path + " (deleted)", path + "\x00team\x00__serve\x00aiman\x00", fmt.Sprintf(userUnit, "hi-team-aiman.service")},
+		"202": {path, path + "\x00team\x00__serve\x00timmai\x00", fmt.Sprintf(userUnit, "hi-team-timmai.service")},
+		"203": {path + " (deleted)", path + "\x00team\x00__app\x00x\x00", fmt.Sprintf(userUnit, "other.service")},
+	})
+	runs := recordUpdateRuns(t)
+	previous := updateIsTerminal
+	updateIsTerminal = func(io.Reader) bool { return true }
+	defer func() { updateIsTerminal = previous }()
+	var out, errOut bytes.Buffer
+	run([]string{"update"}, strings.NewReader("\n"), &out, &errOut)
+	want := "systemctl --user restart hi-team-aiman.service|systemctl --user is-active --quiet hi-team-aiman.service"
+	if strings.Join(*runs, "|") != want || !strings.Contains(out.String(), "Its lead restarts") {
+		t.Fatalf("runs %q\n%s", *runs, out.String())
+	}
+
+	// hi team domain says the setting waits for the restart.
+	var said bytes.Buffer
+	teamWarnOldHi("aiman", &said)
+	if !strings.Contains(said.String(), "systemctl --user restart hi-team-aiman.service") {
+		t.Fatal(said.String())
+	}
+	said.Reset()
+	teamWarnOldHi("timmai", &said)
+	if said.Len() != 0 {
+		t.Fatal(said.String())
 	}
 }

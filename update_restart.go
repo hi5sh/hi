@@ -10,9 +10,9 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi server run` still runs the old binary
-// until it restarts. hi update finds such servers, and the systemd unit
-// that runs them, and offers to restart them.
+// After an update, a running `hi server run` or team (`hi team __serve`)
+// still runs the old binary until it restarts. hi update finds them, and
+// the systemd unit that runs them, and offers to restart them.
 
 // These are replaced in tests.
 var (
@@ -25,12 +25,21 @@ var (
 	}
 )
 
-// staleServer is a hi server running a binary that has since been
-// replaced.
+// staleServer is a hi server, or a team, running a binary that has since
+// been replaced.
 type staleServer struct {
 	pid  int
 	unit string // such as hi-server.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
+	team string // the team's name; "" for a hi server
+}
+
+// what names it in a sentence.
+func (s staleServer) what() string {
+	if s.team != "" {
+		return "Team " + s.team
+	}
+	return "A hi server"
 }
 
 // staleServers lists hi servers started from path whose binary has been
@@ -56,10 +65,14 @@ func staleServers(path string) []staleServer {
 			continue
 		}
 		args := strings.Split(strings.TrimRight(string(command), "\x00"), "\x00")
-		if len(args) < 3 || args[1] != "server" || args[2] != "run" {
+		server := staleServer{pid: pid}
+		switch {
+		case len(args) >= 3 && args[1] == "server" && args[2] == "run":
+		case len(args) == 4 && args[1] == "team" && args[2] == "__serve":
+			server.team = args[3]
+		default:
 			continue
 		}
-		server := staleServer{pid: pid}
 		server.unit, server.user = systemdUnit(filepath.Join(dir, "cgroup"))
 		servers = append(servers, server)
 	}
@@ -96,8 +109,12 @@ func systemdUnit(cgroupPath string) (string, bool) {
 func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout, stderr io.Writer) error {
 	for _, server := range staleServers(path) {
 		if server.unit == "" {
-			fmt.Fprintf(stdout, "A hi server (process %d) still runs the old version; restart it to run %s.\n", server.pid, newVersion)
+			fmt.Fprintf(stdout, "%s (process %d) still runs the old version; restart it to run %s.\n", server.what(), server.pid, newVersion)
 			continue
+		}
+		down := "It is down for about a second."
+		if server.team != "" {
+			down = "Its lead restarts, which takes about half a minute; the app stays up."
 		}
 		command := []string{"systemctl", "restart", server.unit}
 		switch {
@@ -112,7 +129,7 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			continue
 		}
 		if mode == "ask" {
-			fmt.Fprintf(stdout, "%s still runs the old version. Restart it now so it runs %s? It is down for about a second. [Y/n] ", server.unit, newVersion)
+			fmt.Fprintf(stdout, "%s still runs the old version. Restart it now so it runs %s? %s [Y/n] ", server.unit, newVersion, down)
 			answer, _ := readLine(stdin)
 			if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "" && answer != "y" && answer != "yes" {
 				fmt.Fprintf(stdout, "Not restarted. When you are ready:\n  %s\n", line)
@@ -128,7 +145,11 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			check = append([]string{"--user"}, check...)
 		}
 		if err := updateRun(nil, io.Discard, io.Discard, "systemctl", check...); err != nil {
-			return fmt.Errorf("%s did not come back up; check `journalctl -u %s`", server.unit, server.unit)
+			logs := "journalctl -u " + server.unit
+			if server.user {
+				logs = "journalctl --user -u " + server.unit
+			}
+			return fmt.Errorf("%s did not come back up; check `%s`", server.unit, logs)
 		}
 		fmt.Fprintf(stdout, "%s runs %s.\n", server.unit, newVersion)
 	}
