@@ -1431,6 +1431,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] The `web` template's `make check` runs `bun audit --audit-level=high`.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md#dependency-review) (slice 2).
 
+### v0.64.0 — The `app` template
+
+- [x] `hi init app`: a web app on Bun alone, with `Bun.serve`, React pages
+  bundled from an HTML import, SQLite in `$HI_DATA_DIR` with numbered
+  migrations, `bun test` for the database, the server, and the pages,
+  `HELP.md` for the helper, and `bun run build` for one executable.
+  Approved spec: [hi_bun.md](specs/approved/hi_bun.md#app-step-2-bun-as-the-whole-stack) (slice 3).
+
 ## Planned
 
 ### Next — the helper
@@ -1463,8 +1471,8 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### Later — Bun
 
-- [ ] An `app` template on Bun alone: `Bun.serve`, HTML imports,
-  `bun:sqlite`, `bun test`, and one executable for production.
+- [ ] A team's project can start from a template, such as `app`, chosen
+  in `hi team new` or by the lead for a new app.
 - [ ] A preview check before the lead says a preview is ready, unless
   `hi web check` covers it; tests for the helper with `bun test`.
   Approved spec: [hi_bun.md](specs/approved/hi_bun.md).
