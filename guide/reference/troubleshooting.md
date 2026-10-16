@@ -128,7 +128,7 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | Message                                                     | What to do                                                   |
 |-------------------------------------------------------------|--------------------------------------------------------------|
 | `hi: command not found` right after installing              | Open a new shell, or run `~/.local/bin/hi`.                  |
-| `the hf CLI is not installed`                               | `hi install`, or `curl -LsSf https://hf.co/cli/install.sh \| bash` |
+| `the hf CLI is not installed`                               | `hi install`, or `curl -LsSf https://hf.co/cli/install.sh | bash` |
 | `netbird is not installed; run hi install first`            | `hi install`                                                 |
 
 Still stuck? Open an issue at [github.com/hi5sh/hi](https://github.com/hi5sh/hi/issues)

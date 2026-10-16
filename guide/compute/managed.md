@@ -194,7 +194,7 @@ machine with the arrow keys and press `s` to stop it, or `q` to quit.
 When the server serves a model, [`hi q`](/guide/q/) uses it without a key or
 any setup, and `hi q --setup` lists it first. Your choice of model is
 yours; the server passes requests to the upstream with your team's key.
-`hi q --status` shows "… via <server>".
+`hi q --status` shows `… via <server>`.
 
 If the server can't be reached, `hi q` falls back to your own key or Claude
 Code, if you have one, and says so in a dim line. Without one, it stops

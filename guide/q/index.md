@@ -207,7 +207,7 @@ classes. The model's own label can make a class stricter, never looser.
 |-------------------|--------------------------------------------------------------|---------------------|
 | **read-only**     | `ls`, `du -sh *`, `git log`, `find` without `-delete`        | Enter               |
 | **changes files** | `mv`, `mkdir`, `sed -i`, `git commit`, a `>` redirect         | Enter               |
-| **dangerous**     | `sudo`, `rm -r` outside the current folder, `dd`, `mkfs`, `curl … \| sh`, `git push --force`, `git reset --hard`, `docker system prune`, writes to `/etc` or `~/.ssh` | Enter, then type `yes` |
+| **dangerous**     | `sudo`, `rm -r` outside the current folder, `dd`, `mkfs`, `curl … | sh`, `git push --force`, `git reset --hard`, `docker system prune`, writes to `/etc` or `~/.ssh` | Enter, then type `yes` |
 
 For `mv`, `cp`, `rm`, `ln`, `chmod`, and `chown`, every glob shows what it
 matches before you decide. A command `hi` can't parse counts as dangerous.

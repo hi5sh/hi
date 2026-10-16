@@ -239,8 +239,8 @@ DM approves its work; hi checks that yes in the DM itself. Work started
 from a DM is announced in the channel, with who asked, and each release
 says who asked for what it holds. Releases still need an owner's yes in
 the channel. Anyone else's DM gets no answer. The Slack app needs
-`im:history`, `im:read`, and the `message.im` event for this (`hi team manifest
-<name>`).
+`im:history`, `im:read`, and the `message.im` event for this
+(`hi team manifest <name>`).
 
 In the chat with the lead:
 

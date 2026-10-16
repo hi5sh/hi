@@ -8,14 +8,14 @@ description: Every hi command and option in one place.
 | Command                          | Does                                                   |
 |----------------------------------|--------------------------------------------------------|
 | `hi compute …`                   | Rent and use remote machines; see below                |
-| `hi login <hf\|colab\|runpod\|shadeform>` | Sign in to a compute provider               |
+| `hi login <hf|colab|runpod|shadeform>` | Sign in to a compute provider               |
 | `hi connect <server>`            | Join a hi server; `status`, `key`                      |
 | `hi disconnect`                  | Leave it; use your own keys again                      |
 | `hi data …`                      | Download your team's Hugging Face datasets, models, and buckets; see below |
 | `hi server …`                    | Run the server that brokers compute; see below         |
 | `hi init [<template> <dir>]`     | Start a project from a template; `--update`, `--adopt` |
 | `hi q [<what you want>]`         | Ask for a shell command, or chat; see below            |
-| `hi shell-init bash\|zsh`        | Shell integration for `hi q`                           |
+| `hi shell-init bash|zsh`        | Shell integration for `hi q`                           |
 | `hi agent …`                     | Hand a task to Claude Code, Codex, or Hermes in a box; see below |
 | `hi team …`                      | A virtual team of agents in a Slack channel; see below |
 | `hi box …`                       | Run a shell or a command in a rootless box; see below  |
@@ -27,7 +27,7 @@ description: Every hi command and option in one place.
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
-| `hi update [--check] [--version <tag>] [--restart\|--no-restart]` | Update `hi`; offer to restart a `hi server` service still on the old version |
+| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart a `hi server` service still on the old version |
 | `hi version`, `hi help`          | Version and help                                       |
 
 ## hi compute
@@ -37,18 +37,18 @@ description: Every hi command and option in one place.
 | `hi compute`                                         | Guided menu in a terminal; help otherwise             |
 | `hi compute providers`                               | Which providers are signed in, and what is missing     |
 | `hi compute hardware [--on <provider>] [--community]` | Hardware, memory, and prices; `--community` lists RunPod Community Cloud |
-| `hi compute billing [<account> \| --clear]`          | Who pays on Hugging Face, and the Colab balance       |
+| `hi compute billing [<account> | --clear]`          | Who pays on Hugging Face, and the Colab balance       |
 | `hi compute up [options]`                            | Start an instance                                      |
 | `hi compute run [options] <script.py> [-- args]`     | Run a Python script to completion                      |
 | `hi compute run [options] <image> -- <command>`      | Run a container command to completion (Hugging Face)   |
-| `hi compute serve [options] <recipe \| owner/repo-GGUF>` | Serve a GGUF model with an OpenAI-compatible API   |
+| `hi compute serve [options] <recipe | owner/repo-GGUF>` | Serve a GGUF model with an OpenAI-compatible API   |
 | `hi compute ls`                                      | Everything running, with limits                        |
 | `hi compute status <name>`                           | One run or instance in detail                          |
 | `hi compute ssh <name> [-- <command>]`               | Shell, or one command                                  |
 | `hi compute tunnel <name> <port>[:<local>]`          | Forward a remote port to `127.0.0.1`                   |
 | `hi compute logs <name> [--follow] [-n <lines>]`     | Output and setup logs                                  |
 | `hi compute wait <name>…`                            | Wait for runs to end; exits with their status          |
-| `hi compute stop [<name> \| --all] [--yes]`          | Stop and release; without a name, pick from a list    |
+| `hi compute stop [<name> | --all] [--yes]`          | Stop and release; without a name, pick from a list    |
 | `hi compute proxy <name>`                            | The SSH transport, for `ProxyCommand` (Colab)          |
 | `hi compute requests [<id> [--wait] [--timeout <d>]] [--json]` | Your requests to the hi server; exit 3 pending, 4 denied |
 | `hi compute extend <name> <duration> [--reason <r>] [--no-wait]` | Ask the hi server for more time |
@@ -97,29 +97,29 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi disconnect`                                     | Forget the server and delete the device key          |
 | `hi server init [--listen <addr>]`                  | Create the server's state                            |
 | `hi server run`                                     | Serve clients                                        |
-| `hi server provider add\|remove\|list [<provider>]` | Provider keys (RunPod)                              |
+| `hi server provider add|remove|list [<provider>]` | Provider keys (RunPod)                              |
 | `hi server user add <u> --group <g> [--key <k>]`    | Add a user; `--key` pre-approves a device            |
 | `hi server user remove <u>`, `user list`            | Remove a user and their devices; list users          |
 | `hi server requests [--all]`                        | What is waiting for a decision                       |
 | `hi server approve <id> [--group <g>]`              | Approve an enrollment or compute request             |
 | `hi server deny <id> [--reason <r>]`                | Deny a request                                       |
 | `hi server ls`                                      | Everything running, for every user                   |
-| `hi server stop <name> \| --user <u> \| --all`      | Stop instances                                       |
+| `hi server stop <name> | --user <u> | --all`      | Stop instances                                       |
 | `hi server audit [--since <d>]`                     | The audit log                                        |
 | `hi server slack setup`, `slack manifest`           | Connect a Slack app; print its manifest              |
 | `hi server approvers add <id> --name <user>`        | Let a Slack member approve and stop; `remove`, `list` |
-| `hi server policy show\|edit\|example\|check`       | Group limits, auto-approve, and budgets              |
+| `hi server policy show|edit|example|check`       | Group limits, auto-approve, and budgets              |
 | `hi server spend [--since <d>]`                     | Spend per user and group, compute and models         |
-| `hi server ai [set [--url <u>] [--model <m>] [--no-key]\|off\|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key |
+| `hi server ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key |
 | `hi server live [--wall] [--names full] [--reasons]` | Live dashboard; `--wall` is read-only               |
-| `sudo hi server wall setup\|add\|remove\|list`       | Show the wall on screens over SSH                    |
+| `sudo hi server wall setup|add|remove|list`       | Show the wall on screens over SSH                    |
 | `hi server viewer add <name> --key <k>`             | A device that may only watch                         |
 | `hi server templates add <name> <git-url> [--ref <r>]` | Serve a private repository's templates and skills |
-| `hi server templates list\|sync\|remove [<name>]`    | Show, fetch now, or stop serving template sources  |
+| `hi server templates list|sync|remove [<name>]`    | Show, fetch now, or stop serving template sources  |
 | `hi server templates rename <name> <new-name>`      | Rename a source; keeps its token and history         |
 | `hi server data`                                    | Menu: Hugging Face organizations for `hi data`       |
 | `hi server data add <org>... [--token-file <f>]`    | Serve organizations' datasets, models, and buckets; asks for a read token |
-| `hi server data list\|test\|remove [<org>]`          | Show, check, or stop serving organizations           |
+| `hi server data list|test|remove [<org>]`          | Show, check, or stop serving organizations           |
 | `hi server expose [stop]`                           | The public address cloud runs reach `hi data` through, and the runs using it; close it |
 | `hi server expose revoke <run>`                     | End one cloud run's token now                                             |
 
@@ -132,11 +132,11 @@ server; `hf` runs with `HF_ENDPOINT` pointing to it.
 | Command                                             | Does                                                 |
 |-----------------------------------------------------|------------------------------------------------------|
 | `hi data`                                           | Search by words, pick a dataset or model, and download it |
-| `hi data ls [<org>] [--kind dataset\|model\|bucket] [--json]` | What you may download                   |
+| `hi data ls [<org>] [--kind dataset|model|bucket] [--json]` | What you may download                   |
 | `hi data info <org>/<name>`                         | Size, largest files, and last update                 |
 | `hi data get <org>/<name> [--to <dir>]`             | Download it with `hf` (buckets with `hf buckets sync`); default folder `./data/<name>` |
-| `  --revision <rev>`, `--include <glob>`, `--exclude <glob>` | A branch, tag, or commit; filters, repeatable |
-| `  --no-record`                                     | Don't record it in the project's `.hifin/data.json`  |
+| ↳ `--revision <rev>`, `--include <glob>`, `--exclude <glob>` | A branch, tag, or commit; filters, repeatable |
+| ↳ `--no-record`                                     | Don't record it in the project's `.hifin/data.json`  |
 | `hi data get`                                       | In a project: everything `.hifin/data.json` records, at the recorded commits |
 | `hi data run -- <command>`                          | Run a command that reads your team's data directly    |
 | `hi data env`                                       | `HF_ENDPOINT` and `HF_TOKEN` for `eval` in a shell    |
@@ -187,13 +187,13 @@ device your team's private ones.
 | `hi q`                           | Chat: ask, run, and follow up; `/clear`, `/context`, `/model`, `/exit` or Ctrl-D |
 | `hi q <what you want>`           | Propose one command; Enter runs it, e edits, c copies, ? explains, Esc cancels |
 | `hi q -c [question]`             | Continue the last conversation                               |
-| `<cmd> \| hi q <question>`       | Ask about piped output, up to 32 KB                          |
+| `<cmd> | hi q <question>`       | Ask about piped output, up to 32 KB                          |
 | `hi q --explain '<command>'`     | Explain a command without running it                         |
 | `hi q --print <question>`        | Print only the command, for scripts                          |
 | `hi q --setup`                   | Choose the model (Claude Code, OpenRouter, an OpenAI-compatible endpoint, or an Anthropic key), and set up the shell |
 | `hi q --status`                  | The model in use, where it came from, and the shell integration |
 | `hi q --context`                 | What is sent with each question                              |
-| `hi shell-init bash\|zsh`        | The shell integration script, for `eval` in an rc file       |
+| `hi shell-init bash|zsh`        | The shell integration script, for `eval` in an rc file       |
 
 Everything from the first word that doesn't start with `-` is the
 question, so `hi q status of the log file` asks the model. hi's own options
@@ -208,16 +208,16 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 
 | Command                                  | Does                                                     |
 |------------------------------------------|----------------------------------------------------------|
-| `hi agent [claude\|codex] "<task>"`      | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
-| `hi agent [claude\|codex] <brief.md>`    | The task is the file's contents; `-` reads it from stdin |
-| `hi agent claude\|codex`                 | An interactive session in a box, without permission prompts |
+| `hi agent [claude|codex] "<task>"`      | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
+| `hi agent [claude|codex] <brief.md>`    | The task is the file's contents; `-` reads it from stdin |
+| `hi agent claude|codex`                 | An interactive session in a box, without permission prompts |
 | `hi agent wait <name> [--json]`          | Wait for a run and print its report                      |
 | `hi agent best-of <n> "<task>"`          | The same task in n boxes (2 to 8) at once; hi checks each and ranks them |
 | `hi agent best-of ls [--json]`           | Best-of runs and their state                             |
 | `hi agent best-of show <run> [--full]`   | The table again; `--full` adds each box's diff           |
 | `hi agent best-of keep <run> <box>`      | Keep one box and its branch, remove the others           |
 | `hi agent best-of rm <run>`              | Remove every box of a run and its branches               |
-| `hi agent best-of <n> --score "<cmd>" --lower\|--higher --rounds <n>\|forever "<task>"` | Rounds: each starts from the best so far, and hi commits a result only when its score beats it |
+| `hi agent best-of <n> --score "<cmd>" --lower|--higher --rounds <n>|forever "<task>"` | Rounds: each starts from the best so far, and hi commits a result only when its score beats it |
 | `hi agent best-of watch <run>`           | Follow a run with rounds; q leaves the view, the run goes on |
 | `hi agent best-of stop <run> [--now]`    | Stop after the current round; `--now` removes its boxes too |
 | `hi agent best-of resume <run>`          | Go on from the best so far; `--rounds`, `--for`, `--budget` give more |
@@ -265,13 +265,13 @@ See [Run a team in Slack](/guide/team/).
 | `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
 | `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
 | `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them |
-| `hi team env <name> [KEY=VALUE \| KEY \| --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
-| `hi team helper <name> [preview\|production on\|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
+| `hi team env <name> [KEY=VALUE | KEY | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
+| `hi team helper <name> [preview|production on|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. The lead runs `hi team rollback v3 --approval <id>` with an owner's yes |
-| `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] \| --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
+| `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
@@ -298,7 +298,7 @@ dev's code back to production's.
 | `hi box attach <name>`               | Follow an agent, or take over a box's terminal           |
 | `hi box diff <name> [--full]`        | Commits and files, flagging files that run on the host   |
 | `hi box allow <name> [<domain>]`     | Allow a domain, or list what was refused                 |
-| `hi box stop\|rm <name> [--force]`   | Stop, or remove the box and its worktree                 |
+| `hi box stop|rm <name> [--force]`   | Stop, or remove the box and its worktree                 |
 | `hi box rm --all [--force] [--yes]`  | Remove every box after one question                      |
 
 Options when starting: `--name`, `--network locked|dev|open`,
@@ -329,7 +329,7 @@ a name. See [Bundles](/guide/agent/#bundles-skills-and-the-tools-they-need).
 | `hi skill add <source>`              | Install from `owner/repo`, `owner/repo/skill`, a git URL, or a folder |
 | `hi skill add hi`                    | Write the `hi` skill (plain `hi skill` does too, without a terminal) |
 | `hi skill ls`                        | Installed skills, their source, commit, and state        |
-| `hi skill show <name\|source>`       | Description, license, files, and audits                  |
+| `hi skill show <name|source>`       | Description, license, files, and audits                  |
 | `hi skill update [name…] [--check]`  | Move skills to their source's newest commit              |
 | `hi skill update --bundles`          | Move the skills in `bundles/<name>.json` to newer commits |
 | `hi skill rm <name>…`                | Remove skills                                            |
@@ -363,12 +363,12 @@ hi net status | down | reconnect
 | Command                                             | Does                                                 |
 |-----------------------------------------------------|------------------------------------------------------|
 | `hi net expose <port>`                              | Expose `localhost:<port>` until `--max` or Ctrl+C    |
-| `  --max <duration>`                                | How long; default `1h`, at most `24h`                |
-| `  --link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
-| `  --name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
-| `  --detach`, `--json`                              | Run in the background; print JSON                    |
+| ↳ `--max <duration>`                                | How long; default `1h`, at most `24h`                |
+| ↳ `--link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
+| ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
+| ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |
-| `hi net expose stop <name> \| --all`                | Stop it now                                          |
+| `hi net expose stop <name> | --all`                | Stop it now                                          |
 
 See [Share a local service](/guide/workstation/expose/).
 
