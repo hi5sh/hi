@@ -1489,12 +1489,27 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   helper is off in production, so people trying it don't look for the
   chat. While it is on, the default, nothing is added.
 
+### v0.69.0 — Answers to feedback
+
+- [x] A reply in feedback's thread that starts with `>` is shown to the
+  sender in the app's Feedback tab, under what they sent; other replies
+  stay in Slack. The button gets a dot and a note when the team answers.
+  A `hi_visitor` cookie, which only `/__hi/` gets, says which browser sent
+  what, without anyone knowing who it is.
+- [x] Feedback asks for a name: the box flashes until it's filled.
+  Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md#feedback).
+
 ## Planned
 
 ### Next — the helper
 
-- [ ] Answers to feedback: replies in its thread shown back in the
-  sender's browser.
+- [ ] An address that stays for a team's app, and for `hi server
+  expose`: a custom domain (`--with-custom-domain`). Feedback's answers
+  then reach the sender's browser for as long as its cookie lasts, rather
+  than until production's address is renewed the next day, and a restart
+  of `netbird expose` doesn't cut off runs already going.
+  Spec: [hi_server_expose.md, Open questions](specs/approved/hi_server_expose.md#open-questions) (2) and
+  [The exposure's lifetime](specs/approved/hi_server_expose.md#the-exposures-lifetime).
 - [ ] Production's chat for some people only: with sign-in, production's
   helper could be help and feedback for everyone else.
 - [ ] An owner's yes in a DM for a release, announced in the channel.
@@ -1588,11 +1603,6 @@ Follow-ups to v0.24–v0.28, not scheduled yet.
 - [ ] On hold (decided 2026-10-03): `hi data upload`, with its limits
   (which repositories or buckets, approval, review) to be decided then.
   Spec: [hi_data.md, Later: uploads](specs/approved/hi_data.md#later-uploads).
-- [ ] A stable public address for `hi server expose`: a custom domain
-  (`--with-custom-domain`), so a restart of `netbird expose` doesn't cut
-  off runs already going.
-  Spec: [hi_server_expose.md, Open questions](specs/approved/hi_server_expose.md#open-questions) (2) and
-  [The exposure's lifetime](specs/approved/hi_server_expose.md#the-exposures-lifetime).
 - [ ] `hi server expose on|off`, in place of `"expose_listen": "off"`.
   Spec: [hi_server_expose.md, Commands](specs/approved/hi_server_expose.md#commands).
 - [ ] Colab through the proxy: a way to hand Colab the run token, so its
