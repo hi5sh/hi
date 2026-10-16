@@ -1513,6 +1513,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   --with-custom-domain` always adds a random label.
   Approved spec: [hi_net_expose.md, Releases](specs/approved/hi_net_expose.md#releases) (3).
 
+### v0.70.1 — The NetBird token from anywhere
+
+- [x] `hi team domain` reads the NetBird API token from standard input
+  when that isn't a terminal (`hi team domain <domain> < token.txt`), and
+  saves a token given in `$NETBIRD_API_TOKEN` too, since the teams run as
+  services without it.
+
 ## Planned
 
 ### Next — the helper

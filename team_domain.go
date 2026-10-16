@@ -79,25 +79,36 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if !netExposeDomainName.MatchString(domain) {
 		return fmt.Errorf("%q isn't a domain such as apps.example.com", args[0])
 	}
-	if _, err := netbirdAPIToken(); err != nil {
-		file, ok := stdin.(*os.File)
-		if !ok || !interactive(stdin, stdout) {
-			return errors.New("hi needs a NetBird API token to name the apps: set NETBIRD_API_TOKEN, from a service user that may manage the reverse proxy (NetBird: Team > Service Users)")
+	token, err := netbirdAPIToken()
+	if err != nil {
+		// Asked for at a terminal, or read from a pipe or file:
+		// hi team domain app.example.com < token.txt
+		file, isFile := stdin.(*os.File)
+		var read []byte
+		switch {
+		case isFile && interactive(stdin, stdout):
+			fmt.Fprint(stdout, "A NetBird API token, from a service user that may manage the reverse proxy (Team > Service Users): ")
+			read, err = readSecret(file, stdout)
+			fmt.Fprintln(stdout)
+		case isFile && !teamStdinTerminal(file):
+			read, err = io.ReadAll(io.LimitReader(stdin, 4096))
+		default:
+			return errors.New("hi needs a NetBird API token, from a service user that may manage the reverse proxy (NetBird: Team > Service Users): run hi team domain in a terminal, where it asks for it, or give it on standard input (hi team domain <domain> < token.txt)")
 		}
-		fmt.Fprint(stdout, "A NetBird API token, from a service user that may manage the reverse proxy (Team > Service Users): ")
-		token, err := readSecret(file, stdout)
-		fmt.Fprintln(stdout)
 		if err != nil {
 			return err
 		}
-		if strings.TrimSpace(string(token)) == "" {
+		if token = strings.TrimSpace(string(read)); token == "" {
 			return errors.New("no token")
 		}
-		if err := saveNetbirdAPIToken(string(token)); err != nil {
-			return err
-		}
+		os.Setenv("NETBIRD_API_TOKEN", token)
 	}
 	if err := teamCheckDomain(domain); err != nil {
+		return err
+	}
+	// Saved, even from $NETBIRD_API_TOKEN: the teams run as services,
+	// without it.
+	if err := saveNetbirdAPIToken(token); err != nil {
 		return err
 	}
 	settings.Domain = domain
@@ -134,4 +145,11 @@ func teamCheckDomain(domain string) error {
 		return nil
 	}
 	return fmt.Errorf("NetBird doesn't have %s. %s", domain, setup)
+}
+
+// teamStdinTerminal says standard input is a terminal, where hi asks
+// rather than reads.
+func teamStdinTerminal(file *os.File) bool {
+	info, err := file.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }

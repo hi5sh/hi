@@ -12,6 +12,7 @@ import (
 
 func TestTeamDomain(t *testing.T) {
 	setupTeamTest(t)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fake := fakeNetbird(t)
 	if teamSlotDomain("payments", teamSlotProduction) != "" {
 		t.Fatal("a name without a domain")
@@ -28,6 +29,25 @@ func TestTeamDomain(t *testing.T) {
 	}
 	if err := teamDomainCommand([]string{"Apps.Example.com."}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
+	}
+	// The token from $NETBIRD_API_TOKEN is saved for the teams, which run
+	// without it.
+	if token, err := os.ReadFile(netbirdTokenPath()); err != nil || strings.TrimSpace(string(token)) != "nbp_test" {
+		t.Fatal(string(token), err)
+	}
+	// Without one, it reads the token from standard input when that isn't
+	// a terminal.
+	t.Setenv("NETBIRD_API_TOKEN", "")
+	os.Remove(netbirdTokenPath())
+	piped := filepath.Join(t.TempDir(), "token.txt")
+	os.WriteFile(piped, []byte("nbp_test\n"), 0o600)
+	file, _ := os.Open(piped)
+	defer file.Close()
+	if err := teamDomainCommand([]string{"apps.example.com"}, file, &out); err != nil {
+		t.Fatal(err)
+	}
+	if token, _ := os.ReadFile(netbirdTokenPath()); strings.TrimSpace(string(token)) != "nbp_test" {
+		t.Fatal(string(token))
 	}
 	if got := teamSlotDomain("payments", teamSlotProduction) + " " + teamSlotDomain("payments", teamSlotPreview); got != "payments.apps.example.com payments-preview.apps.example.com" {
 		t.Fatal(got)
