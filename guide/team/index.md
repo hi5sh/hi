@@ -201,10 +201,10 @@ nobody has to hunt for the latest link.
 ### Addresses that stay
 
 By default NetBird makes up each address, and production's changes every
-day. With a domain of your own verified in NetBird, every team on the
-machine gets names that stay: production at `<team>.<domain>` and the
-preview at `<team>-preview.<domain>`, renewed every 30 days on the same
-name. People's cookies for an app last then, so the helper's answers to
+day. With a domain of your own verified in NetBird, a team you turn it on
+for gets names that stay: production at `<team>.<domain>` and the preview
+at `<team>-preview.<domain>`, renewed every 30 days on the same name.
+Teams are off until you turn it on for them. People's cookies for an app last then, so the helper's answers to
 their feedback reach them days later.
 
 1. In NetBird, add the domain under Reverse Proxy > Custom Domains, such
@@ -218,12 +218,16 @@ their feedback reach them days later.
 
 ```sh
 hi team domain apps.example.com    # asks for the token, checks the domain
-hi team domain                     # where the apps are
-hi team domain off                 # back to addresses NetBird makes up
+hi team domain payments on         # payments.apps.example.com
+hi team domain payments off        # back to an address NetBird makes up
+hi team domain                     # the domain, and which teams have it on
+hi team domain off                 # no domain for any team
 hi team domain apps.example.com --new-token   # another token; hi also asks when NetBird refuses the saved one
 ```
 
-Production moves within a minute, and the preview with the next one. If
+A team's production moves within a minute of `on` or `off`, and its
+preview with the next one. A team still running an older hi moves when
+it is restarted. If
 the name doesn't work, hi uses an address NetBird makes up, tries the name
 again after half an hour, and keeps why in `hi team preview`'s answer.
 

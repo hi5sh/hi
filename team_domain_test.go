@@ -74,9 +74,29 @@ func TestTeamDomain(t *testing.T) {
 	if token, _ := os.ReadFile(netbirdTokenPath()); strings.TrimSpace(string(token)) != "nbp_test" {
 		t.Fatal(string(token))
 	}
+	// A team moves only once it's on for it.
+	os.MkdirAll(teamDir("payments"), 0o700)
+	if err := saveTeam(testTeamConfig()); err != nil {
+		t.Fatal(err)
+	}
+	if teamSlotDomain("payments", teamSlotProduction) != "" {
+		t.Fatal("on for a team that didn't ask")
+	}
+	if err := teamDomainCommand([]string{"payments", "on"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
 	if got := teamSlotDomain("payments", teamSlotProduction) + " " + teamSlotDomain("payments", teamSlotPreview); got != "payments.apps.example.com payments-preview.apps.example.com" {
 		t.Fatal(got)
 	}
+	out.Reset()
+	teamDomainCommand(nil, strings.NewReader(""), &out)
+	if !strings.Contains(out.String(), "payments: https://payments.apps.example.com") {
+		t.Fatal(out.String())
+	}
+	if err := teamDomainCommand([]string{"payments", "off"}, strings.NewReader(""), &out); err != nil || teamSlotDomain("payments", teamSlotProduction) != "" {
+		t.Fatal(err)
+	}
+	teamDomainCommand([]string{"payments", "on"}, strings.NewReader(""), &out)
 	if err := teamDomainCommand([]string{"off"}, strings.NewReader(""), &out); err != nil || teamSlotDomain("payments", teamSlotProduction) != "" {
 		t.Fatal(err)
 	}
@@ -108,6 +128,9 @@ func TestTeamPreviewDomain(t *testing.T) {
 	if err := saveTeamsSettings(teamsSettings{Domain: "apps.example.com"}); err != nil {
 		t.Fatal(err)
 	}
+	config, _ := loadTeam("payments")
+	config.Domain = true
+	saveTeam(config)
 	// A name NetBird doesn't have yet: an address it makes up, and why.
 	b.domainFails = true
 	first, err := b.preview(teamPreviewRequest{})

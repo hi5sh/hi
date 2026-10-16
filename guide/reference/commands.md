@@ -266,7 +266,8 @@ See [Run a team in Slack](/guide/team/).
 | `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
 | `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them |
 | `hi team env <name> [KEY=VALUE | KEY | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
-| `hi team domain [<domain>|off]` | Names that stay for the teams' apps on this machine: `<team>.<domain>` and `<team>-preview.<domain>`, on a domain verified in NetBird |
+| `hi team domain [<domain> [--new-token]|off]` | A domain verified in NetBird for the teams' apps on this machine, with a NetBird Admin service user's token |
+| `hi team domain <name> on|off` | The team's app at `<name>.<domain>` and its preview at `<name>-preview.<domain>`, names that stay; off by default |
 | `hi team helper <name> [preview|production on|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |

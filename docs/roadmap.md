@@ -1535,6 +1535,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   invalid before looking at the token's rights, so a Network Admin's token
   passed.
 
+### v0.71.0 — A domain per team
+
+- [x] `hi team domain <team> on|off`: the machine's domain is for the
+  teams it's turned on for, off by default, so test teams keep addresses
+  NetBird makes up. `off` moves a team back within a minute.
+- [x] `hi team ls` no longer lists `settings.json` as a team.
+
 ## Planned
 
 ### Next — the helper

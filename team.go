@@ -45,8 +45,11 @@ type teamConfig struct {
 	Backups *teamBackups          `json:"backups,omitempty"`
 	// Helper turns the helper, a chat with the lead in the app, off for an
 	// address (preview, production); on unless set (team_helper.go).
-	Helper  map[string]bool `json:"helper,omitempty"`
-	Created time.Time       `json:"created"`
+	Helper map[string]bool `json:"helper,omitempty"`
+	// Domain puts the team's app on the machine's domain (hi team domain
+	// <team> on): names that stay, rather than ones NetBird makes up.
+	Domain  bool      `json:"domain,omitempty"`
+	Created time.Time `json:"created"`
 }
 
 // teamMember is one role: an agent, its model, and what its box may use.
@@ -371,8 +374,9 @@ usage:
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi team helper <name>            whether the app's pages have the helper, a chat with the lead
       [preview|production on|off]  turn it on or off for an address, from the next page load
-  hi team domain [<domain>|off]    names that stay for the apps on this machine: <team>.<domain>
-                                   and <team>-preview.<domain>, on a domain verified in NetBird
+  hi team domain [<domain>|off]    a domain verified in NetBird for the apps on this machine
+  hi team domain <name> on|off     the team's app at <name>.<domain>, its preview at
+                                   <name>-preview.<domain>; off by default
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
@@ -1424,6 +1428,9 @@ func teamList(stdout io.Writer) error {
 	table := tabwriter.NewWriter(stdout, 0, 0, 3, ' ', 0)
 	count := 0
 	for _, entry := range entries {
+		if !teamNamePattern.MatchString(entry.Name()) {
+			continue // settings.json, not a team
+		}
 		config, err := loadTeam(entry.Name())
 		if err != nil {
 			fmt.Fprintf(table, "%s\t%s\n", entry.Name(), err)

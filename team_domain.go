@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-// A domain for the teams' apps on this machine: each team's production at
-// <team>.<domain> and its preview at <team>-preview.<domain>, names that
-// stay, so the people's cookies for an app (the helper's answers to their
+// A domain for the teams' apps on this machine: a team that has it on
+// (hi team domain <team> on) has its production at <team>.<domain> and its
+// preview at <team>-preview.<domain>, names that stay, so the people's cookies for an app (the helper's answers to their
 // feedback, their sign-in) last. Without one, NetBird makes up an address
 // each day.
 
@@ -48,13 +48,17 @@ func teamSlotDomain(team, slot string) string {
 	if domain == "" {
 		return ""
 	}
+	if config, err := loadTeam(team); err != nil || !config.Domain {
+		return ""
+	}
 	if slot == teamSlotPreview {
 		return team + "-preview." + domain
 	}
 	return team + "." + domain
 }
 
-// teamDomainCommand is hi team domain [<domain>|off].
+// teamDomainCommand is hi team domain [<domain>|off], and hi team domain
+// <team> on|off.
 func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	settings := loadTeamsSettings()
 	if len(args) == 0 {
@@ -62,8 +66,23 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			fmt.Fprintln(stdout, "The teams' apps get an address from NetBird that changes each day. hi team domain <domain> gives them names that stay.")
 			return nil
 		}
-		fmt.Fprintf(stdout, "The teams' apps are at <team>.%s, and their previews at <team>-preview.%s.\n", settings.Domain, settings.Domain)
+		var on []string
+		entries, _ := os.ReadDir(teamsDir())
+		for _, entry := range entries {
+			if config, err := loadTeam(entry.Name()); err == nil && teamNamePattern.MatchString(entry.Name()) && config.Domain {
+				on = append(on, fmt.Sprintf("  %s: https://%s", config.Name, teamSlotDomain(config.Name, teamSlotProduction)))
+			}
+		}
+		fmt.Fprintf(stdout, "The domain for the teams' apps is %s.\n", settings.Domain)
+		if len(on) == 0 {
+			fmt.Fprintln(stdout, "No team has it on yet: hi team domain <team> on.")
+		} else {
+			fmt.Fprintln(stdout, "On for:\n"+strings.Join(on, "\n"))
+		}
 		return nil
+	}
+	if len(args) == 2 && (args[1] == "on" || args[1] == "off") {
+		return teamDomainSwitch(args[0], args[1] == "on", stdout)
 	}
 	newToken := false
 	if len(args) == 2 && args[1] == "--new-token" {
@@ -77,7 +96,7 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err := saveTeamsSettings(settings); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, "The teams' apps go back to addresses NetBird makes up: production's within a minute, a preview with the next one.")
+		fmt.Fprintln(stdout, "The teams' apps go back to addresses NetBird makes up: production's within a minute, a preview with the next one, for the teams that run this version of hi.")
 		return nil
 	}
 	domain := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(args[0]), "."))
@@ -141,7 +160,7 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := saveTeamsSettings(settings); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "The teams' apps move to <team>.%s within a minute, such as https://payments.%s, and their previews to <team>-preview.%s with the next preview. The first visit to each waits for its certificate.\n", domain, domain, domain)
+	fmt.Fprintf(stdout, "The domain for the teams' apps is %s. No team moves until you turn it on for it: hi team domain <team> on.\n", domain)
 	return nil
 }
 
@@ -214,4 +233,27 @@ func teamCheckDomain(domain string) error {
 func teamStdinTerminal(file *os.File) bool {
 	info, err := file.Stat()
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+// teamDomainSwitch turns the machine's domain on or off for one team.
+func teamDomainSwitch(name string, on bool, stdout io.Writer) error {
+	config, err := loadTeam(name)
+	if err != nil {
+		return err
+	}
+	domain := loadTeamsSettings().Domain
+	if on && domain == "" {
+		return errors.New("this machine has no domain for the teams' apps yet: hi team domain <domain> first")
+	}
+	config.Domain = on
+	if err := saveTeam(config); err != nil {
+		return err
+	}
+	if !on {
+		fmt.Fprintf(stdout, "%s goes back to addresses NetBird makes up: production's within a minute, the preview with the next one.\n", name)
+		return nil
+	}
+	fmt.Fprintf(stdout, "%s moves to https://%s within a minute, and its preview to https://%s with the next one. The first visit waits for the certificate.\n",
+		name, teamSlotDomain(name, teamSlotProduction), teamSlotDomain(name, teamSlotPreview))
+	return nil
 }
