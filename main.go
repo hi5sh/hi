@@ -129,7 +129,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, `hi prepares Hifin development machines and projects.
+	fmt.Fprintln(w, `hi prepares hi5 development machines and projects.
 
 Usage:
   hi adduser <name>             Create a user with render and video access

@@ -1,6 +1,6 @@
 # hi
 
-> hi is a single-binary CLI for Hifin machines and projects: it rents remote GPUs
+> hi is a single-binary CLI for hi5 machines and projects: it rents remote GPUs
 > (Google Colab, Hugging Face Jobs, RunPod, Shadeform) with `hi compute`, starts
 > projects from templates with `hi init`, sets up Ubuntu workstations with
 > `hi install`, turns plain-words requests into shell commands with `hi q`,

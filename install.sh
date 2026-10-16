@@ -60,7 +60,7 @@ case ":${PATH}:" in
       profile="${HI_PROFILE:-$HOME/.profile}"
       path_line='export PATH="$HOME/.local/bin:$PATH"'
       if ! grep -F "$path_line" "$profile" >/dev/null 2>&1; then
-        printf '\n# Added by the hifin CLI installer.\n%s\n' "$path_line" >> "$profile"
+        printf '\n# Added by the hi installer.\n%s\n' "$path_line" >> "$profile"
       fi
       printf 'Added %s to PATH in %s for new shells.\n' "${install_dir}" "$profile"
     else

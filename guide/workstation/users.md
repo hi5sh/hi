@@ -1,6 +1,6 @@
 ---
 title: Users
-description: Add a user to a Hifin workstation with GPU access in one step.
+description: Add a user to a hi5 workstation with GPU access in one step.
 ---
 
 `hi adduser` creates a user who can use the GPU straight away:

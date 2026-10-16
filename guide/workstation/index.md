@@ -1,9 +1,9 @@
 ---
 title: Set up a workstation
-description: Turn a fresh Ubuntu 26.04 machine into a Hifin workstation with hi install, choosing tools from a menu, including Strix Halo GPU support and its verification report.
+description: Turn a fresh Ubuntu 26.04 machine into a hi5 workstation with hi install, choosing tools from a menu, including Strix Halo GPU support and its verification report.
 ---
 
-`hi install` opens a menu of the Hifin workstation software on Ubuntu 26.04.
+`hi install` opens a menu of the hi5 workstation software on Ubuntu 26.04.
 Check what the machine should have: missing tools get installed, and installed
 tools you uncheck get removed. Strix Halo machines also get AMD ROCm.
 
@@ -130,7 +130,7 @@ The final report confirms that ROCm sees the `gfx1151` GPU through both
 
 ## Next
 
-- Join the Hifin network: [NetBird network](/guide/workstation/netbird/)
+- Join the hi5 network: [NetBird network](/guide/workstation/netbird/)
 - Show a web app or receive a webhook from this machine: [Share a local service](/guide/workstation/expose/)
 - Add people to the machine: [Users](/guide/workstation/users/)
 - Sign in to compute providers: [Install hi](/guide/install/#sign-in-to-a-compute-provider)

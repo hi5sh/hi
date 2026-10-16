@@ -1,9 +1,9 @@
 ---
 title: The hi guide
-description: Step-by-step guides for hi, the Hifin command-line tool. Set up a workstation, then rent GPUs on Colab or Hugging Face to run jobs, open shells, and serve models.
+description: Step-by-step guides for hi, the hi5 command-line tool. Set up a workstation, then rent GPUs on Colab or Hugging Face to run jobs, open shells, and serve models.
 ---
 
-`hi` does two jobs. It sets up Hifin workstations, and its `hi compute`
+`hi` does two jobs. It sets up hi5 workstations, and its `hi compute`
 commands rent remote machines so you can use a GPU you do not have: run a
 training script, open a shell, forward a port to your laptop, or serve a model
 with an OpenAI-compatible API. The same commands work on Google Colab and
@@ -38,7 +38,7 @@ Hugging Face.
 | Run a team of agents in a Slack channel            | [Run a team in Slack]({{ '/guide/team/' | relative_url }}) |
 | Turn "move the md files to notes" into a command   | [Ask for a command]({{ '/guide/q/' | relative_url }})              |
 | Start a new repository that agents work well in   | [Start a project]({{ '/guide/projects/' | relative_url }})          |
-| Set up a new Hifin machine                         | [Set up a workstation]({{ '/guide/workstation/' | relative_url }}) |
+| Set up a new hi5 machine                         | [Set up a workstation]({{ '/guide/workstation/' | relative_url }}) |
 | Fix an error message                               | [Troubleshooting]({{ '/guide/reference/troubleshooting/' | relative_url }}) |
 
 ## Conventions

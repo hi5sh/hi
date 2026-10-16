@@ -1,11 +1,11 @@
 ---
 name: hi
-description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through a hi server (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), and NetBird (hi net). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a Hifin machine. Not for local model serving or cloud infrastructure management.
+description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through a hi server (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), and NetBird (hi net). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
 ---
 
 # hi
 
-`hi` is the Hifin command-line tool. Its `hi compute` commands rent remote
+`hi` is the hi5 command-line tool. Its `hi compute` commands rent remote
 machines from Colab, Hugging Face, RunPod, or Shadeform with the same commands
 on all of them, and give them back. `hi init` starts new projects from
 templates. On a machine connected to your team's hi server, `hi data` gets the
@@ -406,7 +406,7 @@ A new skill is loaded in the next session, not this one.
 
 These change the machine and need sudo; run them only when asked.
 
-- `hi install`: a checkbox menu of the Hifin workstation software (and AMD
+- `hi install`: a checkbox menu of the hi5 workstation software (and AMD
   ROCm for Strix Halo); unchecking an installed tool removes it. Without a
   terminal, use `hi install <tool>...` or `hi install --all`, and
   `hi uninstall <tool>...`; `hi install --list` is read-only and safe to run.

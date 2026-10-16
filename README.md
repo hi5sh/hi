@@ -1,6 +1,6 @@
 # hi
 
-`hi` prepares Hifin Linux machines and project folders. It is a small, static
+`hi` prepares hi5 Linux machines and project folders. It is a small, static
 Go binary so installation does not require a language runtime.
 
 **Guide:** step-by-step instructions, examples, and every option at

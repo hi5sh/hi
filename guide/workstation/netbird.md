@@ -1,9 +1,9 @@
 ---
 title: NetBird network
-description: Enroll a machine in the Hifin NetBird network with a setup key that never lands in shell history, and manage the connection afterwards.
+description: Enroll a machine in the hi5 NetBird network with a setup key that never lands in shell history, and manage the connection afterwards.
 ---
 
-[NetBird](https://netbird.io) connects Hifin machines in a private network.
+[NetBird](https://netbird.io) connects hi5 machines in a private network.
 `hi net` enrolls a machine without exposing the setup key: it never appears in
 shell history, process lists, or output.
 
