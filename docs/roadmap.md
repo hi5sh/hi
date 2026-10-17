@@ -1657,6 +1657,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   carry over. Refused while a task is running.
   Spec: [hi_team.md](specs/approved/hi_team.md), Commands.
 
+### v0.78.1 — A renamed lead knows its name
+
+- [x] `hi team rename` puts the new name in the two lines of the lead's
+  SOUL.md that hi wrote with the old one; the rest is the lead's and
+  stays.
+
 ## Planned
 
 ### Guide — a diagram for every tool

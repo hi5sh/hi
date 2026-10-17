@@ -117,6 +117,7 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := os.WriteFile(filepath.Join(folder, "team.json"), append(data, '\n'), 0o600); err != nil {
 		return err
 	}
+	teamRenameSoul(filepath.Join(folder, "lead"), old, name)
 	teamRenameMemoryContext(filepath.Join(folder, "lead"), old)
 	if err := os.Remove(filepath.Join(teamsDir(), old)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -153,4 +154,19 @@ func teamRenameMemoryContext(lead, old string) {
 	delete(settings, "retain_context")
 	data, _ = json.MarshalIndent(settings, "", "  ")
 	os.WriteFile(path, append(data, '\n'), 0o600)
+}
+
+// teamRenameSoul puts the new name in the lines of SOUL.md that hi wrote
+// with the old one (teamSoul). The rest is the lead's, and stays.
+func teamRenameSoul(lead, old, name string) {
+	path := filepath.Join(lead, "SOUL.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	soul := strings.Replace(string(data), "# The "+old+" team's lead\n", "# The "+name+" team's lead\n", 1)
+	soul = strings.Replace(soul, "You lead the "+old+" team,", "You lead the "+name+" team,", 1)
+	if soul != string(data) {
+		os.WriteFile(path, []byte(soul), 0o600)
+	}
 }
