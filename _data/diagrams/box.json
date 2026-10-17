@@ -1,0 +1,54 @@
+{
+  "caption": "How hi box works. On your machine, hi box starts a rootless container, the box, with your project or a new worktree of it, and an empty home folder: no SSH keys, no tokens, nothing else from your home. The box has no route out. Its only way out is hi's proxy, which lets through the hosts the network preset allows, logs every connection, and adds a token only where hi puts one, such as an agent's sign-in. Outside are the allowed hosts: GitHub and package registries with the dev preset.",
+  "you": "You",
+  "via": "hi box shell · hi box run -- <command>",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "project",
+      "label": "your folder",
+      "mark": 2,
+      "summary": "Or a new worktree on `hi-box/<name>` with `--worktree`.",
+      "items": [
+        {"title": "~/projects/myproject", "role": "project", "does": "At the same path in the box, with `.git` so the box can commit.", "chip": "git", "tone": "dim"}
+      ]
+    },
+    {
+      "name": "box",
+      "label": "rootless container",
+      "mark": 3,
+      "via": "mounted",
+      "summary": "Nothing else from your home folder.",
+      "items": [
+        {"title": "myproject-1", "role": "shell, command, or agent", "does": "Runs as you with an empty home of its own. Name lookups fail, so nothing gets out around the proxy.", "chip": "Podman", "tone": "accent", "entry": "You work here"}
+      ]
+    },
+    {
+      "name": "proxy",
+      "label": "the only way out",
+      "mark": 4,
+      "via": "every connection",
+      "summary": "On a private network with no route out but this.",
+      "items": [
+        {"title": "myproject-1-proxy", "role": "allowlist and log", "does": "Lets through what `--network` and `hi box allow` allow, and adds tokens the box never holds.", "chip": "--network dev", "tone": "mint"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "outside",
+      "label": "allowed hosts only",
+      "via": "allowed hosts",
+      "items": [
+        {"title": "github.com · pypi.org · npmjs.org", "role": "the dev preset", "does": "GitHub, package registries, PyTorch, and Hugging Face. `locked` allows nothing; `open` allows everything, still logged.", "chip": "internet", "tone": "dim"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Where hi runs. The box sees nothing of it but the project."},
+    {"mark": 2, "term": "Project", "text": "Your folder, or a worktree on its own branch, so the box's changes wait until you merge them."},
+    {"mark": 3, "term": "Box", "text": "A rootless container: what runs in it can't read your keys or reach your network."},
+    {"mark": 4, "term": "Proxy", "text": "The box's only way out: a host allowlist, a log, and tokens added on the way."}
+  ]
+}

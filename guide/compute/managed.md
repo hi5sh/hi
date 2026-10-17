@@ -22,6 +22,8 @@ and then use the same `hi compute` commands as before.
 This release manages RunPod. Admins approve from Slack or the server box.
 Budgets and a live dashboard come in later releases.
 
+{% include diagram.html name="managed" %}
+
 ## For users
 
 ### Join the server

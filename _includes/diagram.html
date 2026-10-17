@@ -1,0 +1,18 @@
+{%- comment -%}
+A structure diagram for the guide: how a hi tool's parts fit together,
+drawn from _data/diagrams/<name>.json. Use it as
+  {% include diagram.html name="box" %}
+docs/guide-diagrams.md says how to write one.
+{%- endcomment -%}
+{%- assign d = site.data.diagrams[include.name] -%}
+<figure class="hd">
+<figcaption class="hd-sr">{{ d.caption | escape }}</figcaption>
+<div class="hd-flow" aria-hidden="true">
+{%- if d.you %}<div class="hd-top"><span class="hd-you">{{ d.you | escape }}</span>{% if d.via %}<span class="hd-down"><em>{{ d.via | escape }}</em></span>{% else %}<span class="hd-down"></span>{% endif %}</div>{% endif -%}
+<div class="hd-frame">{% if d.frame %}<span class="hd-frametag">{% if d.frame_mark %}<span class="hd-mk">{{ d.frame_mark }}</span>{% endif %}{{ d.frame | escape }}</span>{% endif %}<div class="hd-cols">
+{%- for group in d.groups -%}{%- include diagram-group.html group=group first=forloop.first -%}{%- endfor -%}
+</div></div>
+{%- if d.after -%}{%- for group in d.after -%}<span class="hd-down">{% if group.via %}<em>{{ group.via | escape }}</em>{% endif %}</span><div class="hd-cols hd-after">{%- include diagram-group.html group=group first=true -%}</div>{%- endfor -%}{%- endif -%}
+</div>
+{%- if d.key %}<dl class="hd-key">{% for k in d.key %}<div><dt><span class="hd-mk">{{ k.mark }}</span>{{ k.term | escape }}</dt><dd>{{ k.text | markdownify | remove: "<p>" | remove: "</p>" | strip }}</dd></div>{% endfor %}</dl>{% endif %}
+</figure>

@@ -19,6 +19,8 @@ hi box run --gpu -- python train.py   # with the Strix Halo GPU
 Coding agents run in boxes too: [`hi agent`](/guide/agent/) starts Claude
 Code or Codex in one, without permission prompts, and reports what it did.
 
+{% include diagram.html name="box" %}
+
 ## Start a box
 
 ```sh

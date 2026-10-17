@@ -22,6 +22,8 @@ whether it works.
 One team has one channel, one Slack app, and one machine. A new project is a
 new team.
 
+{% include diagram.html name="team" %}
+
 The lead and the members can reach any website, so the lead can read the
 links people give it and the members can install what they need. Their
 boxes are the boundary: they hold no keys or sign-ins (hi's proxy adds the

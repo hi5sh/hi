@@ -1,0 +1,12 @@
+{%- assign g = include.group -%}
+{%- unless include.first %}<span class="hd-arrow">{% if g.via %}<em>{{ g.via | escape }}</em>{% endif %}</span>{% endunless -%}
+<div class="hd-group"><div class="hd-ghead">{% if g.mark %}<span class="hd-mk">{{ g.mark }}</span>{% endif %}<span class="hd-gname">{{ g.name | escape }}</span>{% if g.label %}<span class="hd-glabel">{{ g.label | escape }}</span>{% endif %}</div>
+{%- if g.summary %}<p class="hd-gsum">{{ g.summary | markdownify | remove: "<p>" | remove: "</p>" | strip }}</p>{% endif -%}
+{%- for item in g.items -%}
+<div class="hd-card{% if item.entry %} hd-entrycard{% endif %}"><div class="hd-bar"><i></i><i></i><i></i>{% if item.mark %}<span class="hd-mk">{{ item.mark }}</span>{% endif %}<code>{{ item.title | escape }}</code></div><div class="hd-body">
+{%- if item.entry %}<div class="hd-entry">{{ item.entry | escape }}</div>{% endif -%}
+<div class="hd-role">{{ item.role | escape }}</div><p class="hd-does">{{ item.does | markdownify | remove: "<p>" | remove: "</p>" | strip }}</p>
+{%- if item.chip %}<span class="hd-chip hd-tone-{{ item.tone | default: 'dim' }}"><i></i>{{ item.chip | escape }}</span>{% endif -%}
+</div></div>
+{%- endfor -%}
+</div>

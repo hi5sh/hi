@@ -1,0 +1,59 @@
+{
+  "caption": "How hi agent works. You hand a task to hi agent. It checks out your last commit into a new worktree on its own branch, starts a box on it, and starts the proxy, the only part that holds the agent's sign-in. Claude Code, Codex, or Hermes works in the box without permission prompts, with a placeholder token. When the agent stops, hi writes one report, the same shape for every agent: what it said, whether the tests pass, the changed files, tokens, and cost. You review the branch and keep it with git merge.",
+  "you": "You",
+  "via": "hi agent claude \"<task>\"",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "worktree",
+      "label": "from your last commit",
+      "mark": 2,
+      "items": [
+        {"title": "hi-box/myproject-1", "role": "branch", "does": "The agent's commits wait here for you. Uncommitted changes stay out.", "chip": "git", "tone": "dim"}
+      ]
+    },
+    {
+      "name": "box",
+      "label": "the agent's room",
+      "mark": 3,
+      "items": [
+        {"title": "myproject-1", "role": "agent", "does": "Claude Code, Codex, or Hermes, without permission prompts. Its token is a placeholder.", "chip": "Claude Code", "tone": "amber", "entry": "hi box attach follows it"}
+      ]
+    },
+    {
+      "name": "proxy",
+      "label": "holds the sign-in",
+      "mark": 4,
+      "items": [
+        {"title": "myproject-1-proxy", "role": "sign-in and allowlist", "does": "Puts your real token on calls to the model's API, and lets through only allowed hosts.", "chip": "--network dev", "tone": "mint"}
+      ]
+    },
+    {
+      "name": "report",
+      "label": "one shape for all",
+      "mark": 5,
+      "via": "when it stops",
+      "items": [
+        {"title": "hi agent wait myproject-1", "role": "report", "does": "What it said, whether the tests pass, changed files, tokens, and cost; `--json` for scripts.", "chip": "status · summary", "tone": "accent"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "your call",
+      "label": "review and keep",
+      "via": "you decide",
+      "items": [
+        {"title": "hi box diff myproject-1", "role": "keep or drop", "does": "`git merge hi-box/myproject-1` keeps the work; `hi box rm` cleans up. `best-of` runs several and ranks them.", "chip": "git merge", "tone": "dim"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Where hi and the agent's sign-in live; the agent gets neither."},
+    {"mark": 2, "term": "Worktree", "text": "A fresh checkout on its own branch, so nothing changes in your folder."},
+    {"mark": 3, "term": "Box", "text": "Where the agent works without prompts: it can't read your keys or leave through anything but the proxy."},
+    {"mark": 4, "term": "Proxy", "text": "The only part with your real token; it adds it on the way to the model's API."},
+    {"mark": 5, "term": "Report", "text": "The same for every agent, so a script or another agent can read it."}
+  ]
+}

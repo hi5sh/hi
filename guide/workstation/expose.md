@@ -23,6 +23,8 @@ It uses NetBird's reverse proxy, so the machine must be on
 [NetBird](/guide/workstation/netbird/), and a NetBird admin must have turned
 on **Peer Expose** once (Settings > Clients in the NetBird dashboard).
 
+{% include diagram.html name="expose" %}
+
 ## Who gets in
 
 By default, a password page sits in front, with a password hi makes up and
