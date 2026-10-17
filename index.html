@@ -3,18 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hi5 — humans and AI, creating together</title>
-<meta name="description" content="hi5: human intelligence and AI, working together. hi turns a fresh Ubuntu machine into a hi5 AI workstation: Claude Code, Codex, omp, herdr, Hermes, ROCm, Docker and NetBird in one command. It also starts agent-ready projects, rents GPUs, downloads your team's data, and shares local services on a temporary public address.">
+<title>hi5 — where humans and AI build together</title>
+<meta name="description" content="hi5 is an open-source ecosystem where people and AI agents build software together: a team of agents in Slack that builds apps for people who don't code, coding agents in safe boxes, remote GPUs, and one command that turns Ubuntu into an AI workstation.">
 <meta name="theme-color" content="#0a0c11">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%239aa0ff'/><stop offset='1' stop-color='%236fd9b8'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='%230a0c11'/><text x='32' y='44' font-family='monospace' font-size='26' font-weight='700' text-anchor='middle' fill='url(%23g)'>hi5</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* One long scroll that gets more technical as it goes: the vision, a
+     team's story, hi team, the agents, the infrastructure, the building
+     blocks, and the open-source project. */
   :root {
+    color-scheme: dark;
     --bg: #0a0c11;
     --bg-raised: #10131a;
     --bg-card: #11141c;
+    --bg-code: #0d1016;
     --line: rgba(255, 255, 255, 0.07);
     --line-strong: rgba(255, 255, 255, 0.13);
     --text: #eef0f5;
@@ -23,522 +28,443 @@
     --accent: #7c83ff;
     --accent-soft: rgba(124, 131, 255, 0.12);
     --mint: #4fd1a5;
+    --mint-soft: rgba(79, 209, 165, 0.10);
     --warm: #ffb46b;
     --warm-soft: rgba(255, 180, 107, 0.12);
+    --violet: #c3a6e0;
+    --sky: #8fb8d8;
     --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 17px/1.6 var(--sans);
-    -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
-  }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
   a { color: inherit; }
-  ::selection { background: var(--accent); color: #fff; }
+  ::selection { background: var(--accent); color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  code { font-family: var(--mono); }
+  h1, h2, h3 { text-wrap: balance; }
 
-  /* The handshake behind the hero, fading into the page */
-  .banner {
-    position: absolute; inset: 0 0 auto 0; height: 640px; z-index: -1; pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(10, 12, 17, 0.12) 0%, rgba(10, 12, 17, 0.08) 22%, rgba(10, 12, 17, 0.35) 52%, rgba(10, 12, 17, 0.88) 78%, var(--bg) 100%),
-      radial-gradient(ellipse 75% 90% at 50% 30%, transparent 55%, rgba(10, 12, 17, 0.75) 100%),
-      url("assets/hi5-banner.jpg") center 28% / cover no-repeat;
-  }
-
-  /* Soft light behind the hero */
-  .glow {
-    position: absolute; inset: 0 0 auto 0; height: 760px; z-index: -1; pointer-events: none;
-    background:
-      radial-gradient(ellipse 60% 55% at 50% 0%, rgba(124, 131, 255, 0.16), transparent 70%),
-      radial-gradient(ellipse 35% 35% at 78% 18%, rgba(79, 209, 165, 0.06), transparent 70%);
-  }
-  .glow::after {
-    content: ""; position: absolute; inset: 0;
-    background-image:
-      linear-gradient(var(--line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--line) 1px, transparent 1px);
-    background-size: 64px 64px;
-    opacity: .5;
-    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 70%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 20%, transparent 70%);
-  }
-
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
-
-  nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 22px 0; gap: 16px;
-  }
-  .logo { font: 700 21px var(--mono); text-decoration: none; letter-spacing: -0.02em; }
-  .logo { color: #fff; text-shadow: 0 1px 12px rgba(10, 12, 17, 0.6); }
-  .logo b { color: #000; text-shadow: 0 0 10px rgba(255, 255, 255, 0.35); }
+  /* Header */
+  header.top { position: relative; z-index: 10; }
+  nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; }
+  .logo { font: 700 21px var(--mono); text-decoration: none; letter-spacing: -0.02em; color: var(--text); text-shadow: 0 1px 12px rgba(10, 12, 17, 0.6); }
+  .logo b { color: var(--bg); text-shadow: 0 0 10px rgba(255, 255, 255, 0.35); }
   nav ul { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; font-size: 15px; }
-  nav ul a { color: #fff; text-decoration: none; text-shadow: 0 1px 10px rgba(10, 12, 17, 0.7); text-underline-offset: 4px; }
+  nav ul a { color: var(--text); text-decoration: none; text-shadow: 0 1px 10px rgba(10, 12, 17, 0.7); text-underline-offset: 4px; }
   nav ul a:hover { text-decoration: underline; }
-  header.wrap { position: relative; z-index: 10; }
-  .menu-toggle {
-    display: none; width: 42px; height: 42px; padding: 12px 10px; border-radius: 10px; cursor: pointer;
-    flex-direction: column; justify-content: space-between;
-    background: rgba(10, 12, 17, 0.55); border: 1px solid var(--line-strong);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    -webkit-tap-highlight-color: transparent;
-  }
-  .menu-toggle:focus { outline: none; }
-  .menu-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .menu-toggle span { display: block; height: 2px; background: #fff; border-radius: 2px; transition: transform .2s ease, opacity .2s ease; }
+  .menu-toggle { display: none; width: 42px; height: 42px; padding: 12px 10px; border-radius: 10px; cursor: pointer; flex-direction: column; justify-content: space-between; background: rgba(10, 12, 17, 0.55); border: 1px solid var(--line-strong); -webkit-tap-highlight-color: transparent; }
+  .menu-toggle span { display: block; height: 2px; background: var(--text); border-radius: 2px; transition: transform .2s ease, opacity .2s ease; }
   .menu-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
   .menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
   .menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
   /* Hero */
-  .hero { position: relative; padding: 300px 0 40px; text-align: center; }
-  .hero h1, .hero .kicker { text-shadow: 0 2px 24px rgba(10, 12, 17, 0.9); }
-  .pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 999px;
-    font: 500 13px var(--mono); color: var(--text); background: rgba(10, 12, 17, 0.62);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    text-decoration: none; transition: border-color .2s, color .2s;
-  }
-  .pill:hover { border-color: var(--accent); color: var(--text); }
+  .banner { position: absolute; inset: 0 0 auto 0; height: 640px; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(10,12,17,.15) 0%, rgba(10,12,17,.08) 22%, rgba(10,12,17,.4) 52%, rgba(10,12,17,.9) 80%, var(--bg) 100%),
+      radial-gradient(ellipse 75% 90% at 50% 30%, transparent 55%, rgba(10,12,17,.75) 100%),
+      url("assets/hi5-banner.jpg") center 28% / cover no-repeat; }
+  .hero { padding-block: 270px 24px; text-align: center; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 999px; font: 500 13px var(--mono); background: rgba(10,12,17,.62); text-decoration: none; }
   .pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
-  h1 {
-    font-size: clamp(40px, 7vw, 76px); line-height: 1.05; letter-spacing: -0.04em;
-    margin: 26px auto 20px; max-width: 860px; font-weight: 700;
-  }
-  h1 em {
-    font-style: normal;
-    background: linear-gradient(100deg, var(--warm), #c79bff 45%, var(--accent) 65%, #6fd9b8);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .kicker { margin: 26px 0 0; font: 600 14px var(--mono); letter-spacing: .14em; color: var(--muted); }
-  .kicker .h { color: var(--warm); }
-  .kicker .a { color: var(--mint); }
-  .kicker .five { color: var(--text); }
-  .kicker + h1 { margin-top: 14px; }
-  .lede { max-width: 620px; margin: 0 auto; color: var(--muted); font-size: 18.5px; }
-  .lede code { font: 16px var(--mono); color: var(--text); }
-
-  /* Terminal */
-  .term {
-    max-width: 780px; margin: 44px auto 0; text-align: left;
-    border-radius: 14px; background: #0d1016;
-    border: 1px solid var(--line-strong);
-    box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(124,131,255,0.06), 0 30px 80px -40px rgba(124,131,255,0.35);
-    overflow: hidden;
-  }
-  .term-bar { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .dots { display: flex; gap: 7px; margin-right: 8px; }
-  .dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.14); }
-  .term-title { font: 500 13px var(--mono); color: var(--dim); }
-  .term-body { padding: 4px 20px; font: 15px/1.7 var(--mono); }
-  .option { padding: 18px 0; }
-  .option + .option { border-top: 1px solid var(--line); }
-  .option-label {
-    margin: 0 0 8px; display: flex; align-items: center; gap: 10px;
-    font: 600 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
-  }
-  .pill-tag {
-    font: 500 11px var(--mono); letter-spacing: 0; text-transform: none; color: var(--mint);
-    border: 1px solid rgba(79, 209, 165, 0.35); border-radius: 999px; padding: 1px 8px;
-  }
-  .cmdline { display: flex; align-items: center; gap: 12px; }
-  .cmdline code { flex: 1; min-width: 0; overflow-wrap: anywhere; color: var(--text); }
-  .cmdline .ps { color: var(--dim); user-select: none; }
-  .cmdline .arg { color: var(--accent); }
-  .copy {
-    flex: none; font: 600 12px var(--mono); color: #fff; background: var(--accent);
-    border: 0; border-radius: 7px; padding: 7px 12px; cursor: pointer; transition: filter .2s;
-  }
-  .copy:hover { filter: brightness(1.12); }
-  .note { color: var(--dim); margin: 8px 0 0; font-size: 13.5px; }
-  .guide-link { margin: 22px 0 0; color: var(--muted); font-size: 15.5px; }
-  .guide-link a { color: var(--accent); text-decoration: none; }
-  .guide-link a:hover { text-decoration: underline; }
-  .note b { color: var(--text); font-weight: 600; }
+  .kicker { margin: 24px 0 0; font: 600 14px var(--mono); letter-spacing: .14em; color: var(--muted); }
+  .kicker .h { color: var(--warm); } .kicker .a { color: var(--mint); }
+  h1 { font-size: clamp(40px, 7vw, 74px); line-height: 1.04; letter-spacing: -0.04em; margin: 14px auto 18px; max-width: 880px; font-weight: 700; text-shadow: 0 2px 24px rgba(10,12,17,.9); }
+  h1 em { font-style: normal; background: linear-gradient(100deg, var(--warm), var(--violet) 45%, var(--accent) 65%, var(--mint)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { max-width: 600px; margin: 0 auto; color: var(--muted); font-size: 19px; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 30px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font: 600 15.5px var(--sans); text-decoration: none; border: 1px solid var(--line-strong); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.ghost { background: rgba(10,12,17,.5); }
+  .btn.ghost:hover { border-color: var(--accent); }
 
   /* Sections */
-  section.wrap { margin-top: 104px; }
+  section { padding-block: 92px 0; }
   .eyebrow { font: 600 12.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
-  h2 { font-size: clamp(30px, 4.5vw, 44px); letter-spacing: -0.03em; line-height: 1.1; margin: 10px 0 12px; }
-  .sub { color: var(--muted); max-width: 620px; margin: 0 0 36px; }
+  h2 { font-size: clamp(30px, 4.5vw, 46px); letter-spacing: -0.03em; line-height: 1.08; margin: 10px 0 14px; }
+  .sub { color: var(--muted); max-width: 640px; margin: 0 0 36px; font-size: 18px; }
+  .sub code, li code, p code { font-size: .88em; color: var(--text); background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 5px; }
+  .more { display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 28px; font-size: 15.5px; }
+  .more a { color: var(--accent); text-decoration: none; }
+  .more a:hover { text-decoration: underline; }
 
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
-  .card {
-    display: flex; flex-direction: column; gap: 10px;
-    padding: 24px; border-radius: 14px; text-decoration: none;
-    background: var(--bg-card); border: 1px solid var(--line);
-    transition: border-color .2s, background .2s;
-  }
-  .card:hover { border-color: rgba(124,131,255,0.45); background: #131723; }
-  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .badge {
-    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
-    font: 700 15px var(--mono); color: var(--accent); background: var(--accent-soft);
-  }
-  .arrow { color: var(--dim); font: 16px var(--mono); transition: color .2s; }
-  .card:hover .arrow { color: var(--accent); }
-  .card h3 { margin: 6px 0 0; font-size: 21px; letter-spacing: -0.02em; }
-  .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
-  .card p code { font: 13px var(--mono); color: var(--text); }
-  .card .bin { margin-top: auto; padding-top: 10px; font: 13px var(--mono); color: var(--dim); }
-
-  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 8px 15px; border-radius: 999px; font: 500 14px var(--mono); text-decoration: none;
-    border: 1px solid var(--line-strong); background: rgba(255,255,255,0.02); transition: border-color .2s, color .2s;
-  }
-  .chip:hover { border-color: var(--accent); color: var(--text); }
-  .chip small { color: var(--dim); font-size: 12px; }
-
-  .cmds { border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); overflow: hidden; }
-  .cmd { display: grid; grid-template-columns: minmax(200px, 300px) 1fr; gap: 20px; padding: 16px 22px; border-top: 1px solid var(--line); align-items: baseline; }
-  .cmd:first-child { border-top: 0; }
-  .cmd code { font: 600 14.5px var(--mono); color: var(--text); }
-  .cmd code span { color: var(--accent); }
-  .cmd p { margin: 0; color: var(--muted); font-size: 15.5px; }
-
-  .strix {
-    display: grid; grid-template-columns: 1.1fr 1fr; gap: 28px; align-items: center;
-    padding: 36px; border-radius: 18px; border: 1px solid var(--line-strong);
-    background: radial-gradient(circle at 0% 0%, rgba(124,131,255,0.10), transparent 60%), var(--bg-raised);
-  }
-  .strix h2 { margin-top: 6px; }
-  .strix ol { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 12px; }
-  .strix li {
-    counter-increment: s; display: flex; gap: 14px; align-items: flex-start;
-    font-size: 15.5px; color: var(--muted);
-  }
-  .strix li::before {
-    content: counter(s); flex: none; width: 26px; height: 26px; border-radius: 7px;
-    display: grid; place-items: center; font: 700 12.5px var(--mono);
-    color: var(--accent); background: var(--accent-soft);
-  }
-  .strix li code, .sub code, .note code { font: 13.5px var(--mono); color: var(--text); background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 5px; }
-
-  /* HI + AI = hi5 */
-  .equation { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; }
-  .side {
-    display: flex; gap: 18px; align-items: flex-start; padding: 24px; border-radius: 14px;
-    background: var(--bg-card); border: 1px solid var(--line);
-  }
-  .side .mark { font: 700 34px/1 var(--mono); letter-spacing: -0.03em; }
-  .side.human { box-shadow: inset 0 1px 0 rgba(255, 180, 107, 0.18); }
-  .side.human .mark { color: var(--warm); }
-  .side.machine { box-shadow: inset 0 1px 0 rgba(79, 209, 165, 0.18); }
-  .side.machine .mark { color: var(--mint); }
-  .side h3 { margin: 0 0 4px; font-size: 19px; letter-spacing: -0.01em; }
+  /* HI + AI */
+  .equation { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 14px; align-items: stretch; }
+  .side { display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: 14px; background: var(--bg-card); border: 1px solid var(--line); min-width: 0; }
+  .side .mark { font: 700 30px/1 var(--mono); letter-spacing: -0.03em; }
+  .side.human .mark { color: var(--warm); } .side.machine .mark { color: var(--mint); }
+  .side.five { background: radial-gradient(ellipse 60% 120% at 20% 0%, var(--warm-soft), transparent 70%), radial-gradient(ellipse 60% 120% at 80% 0%, var(--mint-soft), transparent 70%), var(--bg-raised); border-color: var(--line-strong); }
+  .side.five .mark { color: var(--text); }
+  .side h3 { margin: 6px 0 0; font-size: 18px; }
   .side p { margin: 0; color: var(--muted); font-size: 15px; }
-  .op { display: grid; place-items: center; font: 600 24px var(--mono); color: var(--dim); }
-  .result {
-    grid-column: 1 / -1; text-align: center; padding: 30px 24px; border-radius: 14px;
-    border: 1px solid var(--line-strong);
-    background:
-      radial-gradient(ellipse 45% 120% at 20% 0%, var(--warm-soft), transparent 70%),
-      radial-gradient(ellipse 45% 120% at 80% 0%, rgba(79, 209, 165, 0.10), transparent 70%),
-      var(--bg-raised);
-  }
-  .result .word { display: inline-flex; align-items: center; gap: 12px; font: 700 40px/1 var(--mono); letter-spacing: -0.03em; }
-  .result .word svg { width: 36px; height: 36px; color: var(--warm); }
-  .result p { margin: 12px 0 0; font-weight: 500; font-size: 18px; }
-  .story { color: var(--muted); max-width: 680px; margin: 28px 0 22px; }
-  .pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
-  .pair { padding: 20px 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
-  .pair p { margin: 0; font-size: 15.5px; color: var(--muted); }
-  .pair p + p { margin-top: 10px; }
-  .pair .who { display: block; font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 2px; }
-  .pair .you .who { color: var(--warm); }
-  .pair .hi .who { color: var(--mint); }
-  .pair code { font: 13.5px var(--mono); color: var(--text); }
+  .op { display: grid; place-items: center; font: 600 22px var(--mono); color: var(--dim); }
 
-  footer { margin-top: 100px; padding: 36px 0 48px; border-top: 1px solid var(--line); color: var(--dim); font-size: 14px; }
-  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  footer a { color: var(--muted); text-decoration: none; margin-left: 18px; }
-  footer a:first-child { margin-left: 0; }
+  /* The story */
+  .story { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .thread { border-radius: 16px; border: 1px solid var(--line-strong); background: var(--bg-raised); overflow: hidden; }
+  .thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 600 13.5px var(--mono); }
+  .thread-bar small { font-weight: 400; color: var(--dim); }
+  .msgs { display: flex; flex-direction: column; gap: 14px; padding: 18px 16px 20px; }
+  .msg { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; font-size: 15px; line-height: 1.5; }
+  .av { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font: 700 12px var(--mono); color: var(--bg); }
+  .av.person { background: var(--warm); } .av.lead { background: var(--violet); } .av.hi { background: var(--accent); }
+  .who { font-weight: 700; font-size: 14px; } .who small { font-weight: 400; color: var(--dim); margin-left: 6px; font-size: 12.5px; }
+  .msg p { margin: 2px 0 0; color: var(--text); }
+  .msg ol { margin: 6px 0 0; padding-left: 20px; color: var(--text); }
+  .msg .link { display: inline-block; margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--mint-soft); border: 1px solid rgba(79,209,165,.35); font: 13px var(--mono); color: var(--mint); word-break: break-all; }
+  .msg.sys p { color: var(--muted); font-size: 14px; }
+  .caption { margin: 10px 2px 0; color: var(--dim); font-size: 13px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: step; }
+  .steps li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  .steps li::before { content: counter(step); width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 700 14px var(--mono); color: var(--accent); background: var(--accent-soft); }
+  .steps h3 { margin: 2px 0 4px; font-size: 18px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  /* The team */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; }
+  .role { display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  .role .tag { align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-strong); font: 12px var(--mono); color: var(--muted); }
+  .role .tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
+  .role h3 { margin: 4px 0 0; font-size: 20px; }
+  .role p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .role.people { border-color: rgba(255,180,107,.35); background: linear-gradient(var(--warm-soft), transparent 70%), var(--bg-card); }
+  .t-warm { --tone: var(--warm); } .t-violet { --tone: var(--violet); } .t-amber { --tone: #f0b45b; } .t-sky { --tone: var(--sky); } .t-dim { --tone: var(--dim); }
+  .promises { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 26px; margin: 30px 0 0; padding: 22px 24px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); list-style: none; }
+  .promises li { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; font-size: 15.5px; color: var(--muted); }
+  .promises li::before { content: "✓"; color: var(--mint); font-weight: 700; }
+  .promises b { color: var(--text); font-weight: 600; }
+
+  /* Capabilities and infrastructure */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+  .feature { display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); min-width: 0; }
+  .feature .name { font: 700 15px var(--mono); color: var(--accent); }
+  .feature h3 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .feature a.go { margin-top: auto; padding-top: 6px; color: var(--accent); text-decoration: none; font-size: 15px; }
+  .feature a.go:hover { text-decoration: underline; }
+  .snip { margin: 4px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--bg-code); border: 1px solid var(--line); font: 13px/1.6 var(--mono); color: var(--muted); overflow-x: auto; white-space: pre; }
+  .snip .c { color: var(--text); } .snip .k { color: var(--accent); } .snip .ok { color: var(--mint); }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 0 0 26px; padding: 18px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); overflow-x: auto; }
+  .node { flex: 1 1 140px; min-width: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg-card); }
+  .node b { display: block; font: 600 13px var(--mono); color: var(--accent); }
+  .node span { font-size: 13.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+  .arrow { flex: 0 0 auto; align-self: center; font: 600 18px var(--mono); color: var(--accent); }
+
+  /* Building blocks */
+  .term { border-radius: 14px; background: var(--bg-code); border: 1px solid var(--line-strong); overflow: hidden; }
+  .term-bar { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .dots { display: flex; gap: 7px; margin-right: 8px; } .dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.14); }
+  .term-title { font: 500 13px var(--mono); color: var(--dim); }
+  .term-body { padding: 4px 20px; font: 15px/1.7 var(--mono); }
+  .option { padding: 16px 0; } .option + .option { border-top: 1px solid var(--line); }
+  .option-label { margin: 0 0 8px; display: flex; align-items: center; gap: 10px; font: 600 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .pill-tag { font: 500 11px var(--mono); letter-spacing: 0; text-transform: none; color: var(--mint); border: 1px solid rgba(79,209,165,.35); border-radius: 999px; padding: 1px 8px; }
+  .cmdline { display: flex; align-items: center; gap: 12px; }
+  .cmdline code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .cmdline .ps { color: var(--dim); user-select: none; } .cmdline .arg { color: var(--accent); }
+  .copy { flex: none; font: 600 12px var(--mono); color: var(--bg); background: var(--accent); border: 0; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  .note { color: var(--dim); margin: 8px 0 0; font-size: 13.5px; } .note code { color: var(--text); }
+  .blocks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .block h3 { margin: 0 0 6px; font-size: 21px; }
+  .block > p { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tool { display: block; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-card); text-decoration: none; }
+  .tool:hover { border-color: rgba(124,131,255,.45); }
+  .tool b { display: block; font-size: 15px; } .tool span { font: 12px var(--mono); color: var(--dim); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { padding: 6px 12px; border-radius: 999px; font: 500 13px var(--mono); text-decoration: none; border: 1px solid var(--line-strong); }
+  .chip:hover { border-color: var(--accent); }
+  details.all { margin-top: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  details.all summary { cursor: pointer; padding: 18px 22px; font: 600 15px var(--mono); list-style-position: inside; }
+  .cmd { display: grid; grid-template-columns: minmax(180px, 290px) minmax(0, 1fr); gap: 18px; padding: 14px 22px; border-top: 1px solid var(--line); align-items: baseline; }
+  .cmd code { font: 600 14px var(--mono); } .cmd code span { color: var(--accent); }
+  .cmd p { margin: 0; color: var(--muted); font-size: 15px; }
+  .strix { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 28px; padding: 28px; border-radius: 16px; border: 1px solid var(--line-strong); background: radial-gradient(circle at 0% 0%, rgba(124,131,255,.10), transparent 60%), var(--bg-raised); }
+  .strix h3 { margin: 4px 0 6px; font-size: 22px; } .strix p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .strix ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: grid; gap: 6px; }
+
+  /* Community */
+  .community { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .community a { display: block; padding: 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); text-decoration: none; }
+  .community a:hover { border-color: rgba(124,131,255,.45); }
+  .community b { display: block; font-size: 17px; margin-bottom: 4px; } .community span { color: var(--muted); font-size: 15px; }
+  .closing { margin-top: 40px; padding: 40px 24px; text-align: center; border-radius: 18px; border: 1px solid var(--line-strong); background: radial-gradient(ellipse 50% 120% at 20% 0%, var(--warm-soft), transparent 70%), radial-gradient(ellipse 50% 120% at 80% 0%, var(--mint-soft), transparent 70%), var(--bg-raised); }
+  .closing h2 { margin-top: 0; }
+  footer { margin-top: 90px; border-top: 1px solid var(--line); padding-block: 28px; color: var(--dim); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+  footer a { color: var(--muted); text-decoration: none; margin-left: 16px; } footer a:first-child { margin-left: 0; }
   footer a:hover { color: var(--text); }
 
-  .reveal { opacity: 0; transform: translateY(8px); transition: opacity .5s ease, transform .5s ease; }
-  .reveal.in { opacity: 1; transform: none; }
-
+  @media (max-width: 860px) {
+    .story, .blocks, .strix { grid-template-columns: minmax(0, 1fr); }
+    .equation { grid-template-columns: minmax(0, 1fr); }
+    .op { padding: 0; }
+  }
   @media (max-width: 760px) {
     .menu-toggle { display: flex; }
-    nav ul {
-      display: none; position: absolute; top: 74px; right: 16px; min-width: 210px;
-      flex-direction: column; gap: 2px; padding: 8px;
-      background: rgba(16, 19, 26, 0.96); border: 1px solid var(--line-strong); border-radius: 14px;
-      box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    }
+    nav ul { display: none; position: absolute; top: 74px; right: max(16px, env(safe-area-inset-right, 0px)); min-width: 210px; flex-direction: column; gap: 2px; padding: 8px; background: rgba(16,19,26,.97); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.85); }
     nav ul.open { display: flex; }
     nav ul a { display: block; padding: 11px 14px; border-radius: 9px; font-size: 16px; text-shadow: none; }
-    nav ul a:hover, nav ul a:focus-visible { background: var(--accent-soft); text-decoration: none; }
-    .hero { padding-top: 190px; }
-    .banner { height: 400px; background-image:
-      linear-gradient(180deg, rgba(10, 12, 17, 0.12) 0%, rgba(10, 12, 17, 0.08) 25%, rgba(10, 12, 17, 0.4) 55%, rgba(10, 12, 17, 0.9) 80%, var(--bg) 100%),
-      url("assets/hi5-banner-1000.jpg"); background-size: auto, cover; background-position: center, 45% 30%; }
-    .cmd { grid-template-columns: 1fr; gap: 4px; }
-    .strix { grid-template-columns: 1fr; padding: 24px; }
-    .equation { grid-template-columns: 1fr; gap: 10px; }
-    .op { padding: 2px 0; }
-    .result .word { font-size: 32px; }
+    nav ul a:hover { background: var(--accent-soft); text-decoration: none; }
+    .hero { padding-top: 180px; }
+    .banner { height: 420px; background-image: linear-gradient(180deg, rgba(10,12,17,.15) 0%, rgba(10,12,17,.08) 25%, rgba(10,12,17,.45) 55%, rgba(10,12,17,.9) 80%, var(--bg) 100%), url("assets/hi5-banner-1000.jpg"); background-size: auto, cover; background-position: center, 45% 30%; }
+    .cmd { grid-template-columns: minmax(0, 1fr); gap: 4px; }
     .term-body { font-size: 13.5px; padding: 4px 16px; }
-    .cmdline { flex-wrap: wrap; align-items: flex-start; }
-    .cmdline code { flex-basis: calc(100% - 30px); }
+    .cmdline { flex-wrap: wrap; } .cmdline code { flex-basis: calc(100% - 30px); }
+    section { padding-top: 72px; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before { transition: none !important; }
-    .reveal { opacity: 1; transform: none; }
-  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
 </head>
 <body>
-<div class="banner" role="img" aria-label="A robot arm and a human arm clasping hands"></div>
-<div class="glow" aria-hidden="true"></div>
 
-<header class="wrap">
-  <nav>
-    <a class="logo" href="#"><b>hi</b>5.sh</a>
-    <button class="menu-toggle" type="button" aria-controls="site-menu" aria-expanded="false" aria-label="Open the menu">
-      <span></span><span></span><span></span>
-    </button>
+<div class="banner" role="img" aria-label="A robot arm and a human arm clasping hands"></div>
+<header class="top wrap">
+  <nav aria-label="Site">
+    <a class="logo" href="#top"><b>hi</b>5.sh</a>
+    <button class="menu-toggle" type="button" id="menu-toggle" aria-controls="site-menu" aria-expanded="false" aria-label="Open the menu"><span></span><span></span><span></span></button>
     <ul id="site-menu">
-      <li><a href="#hi5">Why hi5</a></li>
-      <li><a href="#ai">AI toolkit</a></li>
-      <li><a href="#stack">Stack</a></li>
-      <li><a href="#commands">Commands</a></li>
-      <li><a href="/guide/">Guide</a></li>
+      <li><a href="#why">Why hi5</a></li>
+      <li><a href="#team">Teams</a></li>
+      <li><a href="#explore">Explore</a></li>
+      <li><a href="/guide/">Docs</a></li>
       <li><a href="https://github.com/hi5sh/hi">GitHub</a></li>
     </ul>
   </nav>
 </header>
 
-<main>
+<main id="top">
   <div class="wrap hero">
     <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
-    <p class="kicker"><span class="h">HI</span> + <span class="a">AI</span> = <span class="five">hi5</span></p>
-    <h1>Humans and machines, <em>creating together.</em></h1>
-    <p class="lede">
-      You bring the direction and judgment; agents bring the speed. <code>hi</code> gives
-      both a place to work: one command turns fresh Ubuntu into an AI workstation with
-      Claude Code, Codex, omp, herdr and Hermes, wires up ROCm, Docker and NetBird, then
-      checks everything is working. It's a single static binary with no runtime to install.
-    </p>
-
-    <div class="term" role="region" aria-label="Install commands">
-      <div class="term-bar">
-        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
-        <span class="term-title">install</span>
-      </div>
-      <div class="term-body">
-        <div class="option">
-          <p class="option-label">CLI only <span class="pill-tag">most people</span></p>
-          <div class="cmdline">
-            <span class="ps">$</span>
-            <code>curl -fsSL https://hi5.sh/install.sh | sh</code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button>
-          </div>
-          <p class="note">Just the <code>hi</code> binary, checksum-verified, in <code>~/.local/bin</code>. Update it later with <code>hi update</code>.</p>
-        </div>
-        <div class="option">
-          <p class="option-label">Workstation</p>
-          <div class="cmdline">
-            <span class="ps">$</span>
-            <code>curl -fsSL https://hi5.sh/install.sh | sh<span class="arg"> -s -- install</span></code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh -s -- install">copy</button>
-          </div>
-          <p class="note">Installs <code>hi</code>, then opens a menu to pick the hi5 workstation software for Ubuntu 26.04. No GPU setup, no reboot.</p>
-        </div>
-        <div class="option">
-          <p class="option-label">Strix Halo</p>
-          <div class="cmdline">
-            <span class="ps">$</span>
-            <code>curl -fsSL https://hi5.sh/install.sh | sh<span class="arg"> -s -- install strix</span></code>
-            <button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh -s -- install strix">copy</button>
-          </div>
-          <p class="note">The same menu with AMD ROCm for Strix Halo checked. <b>Reboot once</b> when it finishes.</p>
-        </div>
-      </div>
+    <p class="kicker"><span class="h">HI</span> + <span class="a">AI</span> = hi5</p>
+    <h1>Where humans and AI <em>build together.</em></h1>
+    <p class="lede">Great ideas can come from anyone. hi5 brings people and AI agents together to turn them into working software, on machines you run yourself. Open source.</p>
+    <div class="ctas">
+      <a class="btn primary" href="#story">Explore hi5 ↓</a>
+      <a class="btn ghost" href="https://github.com/hi5sh/hi">View on GitHub ↗</a>
     </div>
-    <p class="guide-link">New here? <a href="/guide/quickstart/">Rent your first GPU in five minutes</a> or <a href="/guide/">read the guide</a>.</p>
   </div>
 
-  <section id="hi5" class="wrap reveal">
-    <div class="eyebrow">// Why hi5</div>
-    <h2>Two kinds of intelligence, one outcome.</h2>
+  <section id="why" class="wrap" aria-labelledby="why-h">
+    <div class="eyebrow">Why hi5</div>
+    <h2 id="why-h">Two kinds of intelligence, one outcome.</h2>
+    <p class="sub">A high five takes two different hands meeting at the same moment. People decide what matters and what ships; agents do the work in between.</p>
     <div class="equation">
-      <div class="side human">
-        <span class="mark">HI</span>
-        <div><h3>Human intelligence</h3><p>Creativity, judgment, curiosity, and direction.</p></div>
-      </div>
+      <div class="side human"><span class="mark">HI</span><h3>Human intelligence</h3><p>Ideas, judgment, and the last word on what gets built.</p></div>
       <div class="op" aria-hidden="true">+</div>
-      <div class="side machine">
-        <span class="mark">AI</span>
-        <div><h3>Artificial intelligence</h3><p>Speed, stamina, and many attempts in parallel.</p></div>
-      </div>
-      <div class="result">
-        <span class="word">hi5 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></span>
-        <p>Humans and machines creating together.</p>
-      </div>
-    </div>
-    <p class="story">A high five takes two different hands meeting at the same moment. <code>hi</code> is built the same way: people decide what matters and what ships, and agents do the work in between.</p>
-    <div class="pairs">
-      <div class="pair">
-        <p class="you"><span class="who">You</span>Write the task and the check that proves it worked.</p>
-        <p class="hi"><span class="who">Agents</span><code>hi agent</code> works on it in a box, on its own branch, and reports back what changed.</p>
-      </div>
-      <div class="pair">
-        <p class="you"><span class="who">You</span>Say yes to the GPU and how long it may run.</p>
-        <p class="hi"><span class="who">Agents</span><code>hi compute</code> rents it, runs the job, and stops it when the time is up.</p>
-      </div>
-      <div class="pair">
-        <p class="you"><span class="who">You</span>Talk with your team in Slack, in plain words.</p>
-        <p class="hi"><span class="who">Agents</span><code>hi team</code>'s lead keeps the specs; a coder and a reviewer build the app.</p>
-      </div>
+      <div class="side machine"><span class="mark">AI</span><h3>Artificial intelligence</h3><p>Speed, stamina, and many attempts in parallel.</p></div>
+      <div class="op" aria-hidden="true">=</div>
+      <div class="side five"><span class="mark">hi5</span><h3>Building together</h3><p>Software made by people who know the problem, with agents who do the work.</p></div>
     </div>
   </section>
 
-  <section id="ai" class="wrap reveal">
-    <div class="eyebrow">// AI toolkit</div>
-    <h2>Your agents, ready at first login.</h2>
-    <p class="sub">Every workstation gets the same set of coding agents and GPU tooling, installed per user in <code>~/.local/bin</code>.</p>
-    <div class="cards">
-      <a class="card" href="https://code.claude.com/docs">
-        <div class="card-top"><span class="badge">✳</span><span class="arrow">↗</span></div>
-        <h3>Claude Code</h3>
-        <p>Anthropic's agentic coding tool. It reads your codebase, edits files and runs commands from the terminal.</p>
-        <span class="bin">$ claude</span>
-      </a>
-      <a class="card" href="https://developers.openai.com/codex/cli">
-        <div class="card-top"><span class="badge">&gt;_</span><span class="arrow">↗</span></div>
-        <h3>Codex CLI</h3>
-        <p>OpenAI's coding agent for the terminal. <code>hi</code> installs it without prompts, so setup never stalls.</p>
-        <span class="bin">$ codex</span>
-      </a>
-      <a class="card" href="https://omp.sh">
-        <div class="card-top"><span class="badge">◎</span><span class="arrow">↗</span></div>
-        <h3>omp</h3>
-        <p>A terminal coding agent with the IDE wired in: subagents, plan mode, LSP, DAP and hindsight memory.</p>
-        <span class="bin">$ omp</span>
-      </a>
-      <a class="card" href="https://herdr.dev">
-        <div class="card-top"><span class="badge">⋈</span><span class="arrow">↗</span></div>
-        <h3>herdr</h3>
-        <p>The runtime coding agents run on, for keeping several agents working side by side.</p>
-        <span class="bin">$ herdr</span>
-      </a>
-      <a class="card" href="https://github.com/NousResearch/hermes-agent">
-        <div class="card-top"><span class="badge">☿</span><span class="arrow">↗</span></div>
-        <h3>Hermes Agent</h3>
-        <p>Nous Research's agent with tools, memory and messaging gateways, on any model through OpenRouter.</p>
-        <span class="bin">$ hermes</span>
-      </a>
-      <a class="card" href="https://rocm.docs.amd.com">
-        <div class="card-top"><span class="badge">▲</span><span class="arrow">↗</span></div>
-        <h3>AMD ROCm 10</h3>
-        <p>GPU compute for Strix Halo (<code>gfx1151</code>), plus render and video group access to run local models.</p>
-        <span class="bin">hi install strix</span>
-      </a>
-      <a class="card" href="https://pypi.org/project/amd-debug-tools/">
-        <div class="card-top"><span class="badge">⚙</span><span class="arrow">↗</span></div>
-        <h3>amd-debug-tools</h3>
-        <p>AMD's diagnostics for sleep, power and GPU state on Ryzen AI machines, installed with pipx.</p>
-        <span class="bin">hi install strix</span>
-      </a>
-    </div>
-  </section>
-
-  <section id="stack" class="wrap reveal">
-    <div class="eyebrow">// Also installed</div>
-    <h2>The rest of the stack.</h2>
-    <p class="sub">Ubuntu 26.04 packages and signed upstream repositories. Check what you need in <code>hi install</code>; uncheck it later to remove it.</p>
-    <div class="chips">
-      <a class="chip" href="https://docs.astral.sh/uv/">uv <small>python</small></a>
-      <a class="chip" href="https://pipx.pypa.io">pipx <small>python</small></a>
-      <a class="chip" href="https://nodejs.org">Node.js + npm</a>
-      <a class="chip" href="https://docs.docker.com/engine/">Docker Engine + Compose</a>
-      <a class="chip" href="https://podman.io">Podman <small>rootless</small></a>
-      <a class="chip" href="https://cli.github.com">GitHub CLI</a>
-      <a class="chip" href="https://netbird.io">NetBird <small>mesh VPN</small></a>
-      <a class="chip" href="https://github.com/googlecolab/google-colab-cli">Colab CLI <small>compute</small></a>
-      <a class="chip" href="https://huggingface.co/docs/huggingface_hub/guides/cli">hf CLI <small>compute</small></a>
-      <a class="chip" href="https://github.com/aristocratos/btop">btop</a>
-      <a class="chip" href="https://github.com/tmux/tmux">tmux</a>
-      <a class="chip" href="https://github.com/hzeller/timg">timg <small>images</small></a>
-    </div>
-  </section>
-
-  <section id="commands" class="wrap reveal">
-    <div class="eyebrow">// Commands</div>
-    <h2>Small surface, sharp edges.</h2>
-    <p class="sub">Each command does one thing and delegates to the native tool underneath.</p>
-    <div class="cmds">
-      <div class="cmd"><code>hi install</code><p>Install the workstation software. Offers a hostname change, then asks for sudo once.</p></div>
-      <div class="cmd"><code>hi install <span>strix</span></code><p>Everything above plus ROCm and GPU groups, finishing with a local hardware report.</p></div>
-      <div class="cmd"><code>hi verify <span>strix</span></code><p>Re-run the hardware report after the reboot. Nothing is uploaded.</p></div>
-      <div class="cmd"><code>hi net</code><p>Enroll with NetBird. The setup key is read without echo and never lands in shell history.</p></div>
-      <div class="cmd"><code>hi net <span>status · down · reconnect</span></code><p>Check, disconnect or reconnect an enrolled peer without a new key.</p></div>
-      <div class="cmd"><code>hi net expose <span>&lt;port&gt;</span></code><p>Put a web app or webhook receiver on your machine, even on localhost, on a temporary public HTTPS address. Password-protected by default, ends on its own, logs every request.</p></div>
-      <div class="cmd"><code>hi init <span>&lt;template&gt; &lt;dir&gt;</span></code><p>Start a project agents work well in: <code>make check</code>, short agent rules, safe settings and CI. Python, web, service, pipeline, ML and autoresearch (model training) built in, plus your team's own, and <code>--update</code> keeps projects current.</p></div>
-      <div class="cmd"><code>hi q <span>&lt;what you want&gt;</span></code><p>Ask for a shell command in plain words, or chat. The model looks at your files first; you see the command, and what its globs match, before Enter runs it. Uses Claude Code, OpenRouter or any OpenAI-compatible endpoint.</p></div>
-      <div class="cmd"><code>hi agent <span>&lt;task&gt;</span></code><p>Hand a task to Claude Code, Codex, or Hermes. It works without permission prompts in a box, on its own branch, and you get one report back, the same for every agent: what it said, whether it worked, and what changed. <code>--bundle web,office,data</code> adds skills and tools for browsing, documents and data.</p></div>
-      <div class="cmd"><code>hi agent best-of <span>&lt;n&gt; &lt;task&gt;</span></code><p>Run one task in n boxes at once, mixing agents. hi runs your check in each box itself and ranks the results, and you keep one. With <code>--score</code> it runs rounds, autoresearch-style: each starts from the best so far, and hi commits a result only when its score beats it. <code>--then</code> runs a command of yours, such as a report, when the rounds end.</p></div>
-      <div class="cmd"><code>hi team new <span>&lt;name&gt;</span></code><p>A virtual team of agents in one Slack channel: a Hermes lead talks with your people and keeps the specs, a coder and a reviewer work in boxes, and the app runs in previews and production. <code>hi team key</code> gives it an OpenRouter key of its own and <code>hi team env</code> the app's settings, so nobody pastes a key into Slack.</p></div>
-      <div class="cmd"><code>hi box <span>shell · run</span></code><p>Run a shell or a command in a rootless container: the project and nothing else, no credentials, a network that reaches only what you allow, and the Strix Halo GPU if you want it. <code>devcontainer.json</code> sets it up for the whole project.</p></div>
-      <div class="cmd"><code>hi compute</code><p>Guided menu to start, reach and stop remote GPU machines on Colab, Hugging Face, RunPod or Shadeform, with lifetime limits.</p></div>
-      <div class="cmd"><code>hi compute stop</code><p>Pick a running machine from a list, or all of them, and stop it after confirming.</p></div>
-      <div class="cmd"><code>hi compute run <span>&lt;script.py&gt;</span></code><p>Run a script or container to completion on rented hardware and stream its logs.</p></div>
-      <div class="cmd"><code>hi compute serve <span>&lt;model&gt;</span></code><p>Serve a GGUF model with llama.cpp on a rented GPU and tunnel its OpenAI-compatible API to localhost.</p></div>
-      <div class="cmd"><code>hi connect <span>&lt;server&gt;</span></code><p>Join your team's hi server, which approves and pays for GPUs and serves your team's project templates.</p></div>
-      <div class="cmd"><code>hi data</code><p>Search your team's private Hugging Face datasets, models and buckets and download one with <code>hf</code>, or read them straight from code with <code>hi data run</code>. The server keeps the token; your machine never holds one.</p></div>
-      <div class="cmd"><code>hi compute run <span>--data &lt;org&gt;/&lt;name&gt;</span></code><p>Give a cloud job your team's data: the server opens a narrow public address with NetBird for the run, so the job downloads it and can call <code>load_dataset</code> itself, with no Hugging Face token on the machine.</p></div>
-      <div class="cmd"><code>hi skills</code><p>Find, install, and update agent skills from skills.sh, pinned and audited, and teach agents to use hi safely.</p></div>
-      <div class="cmd"><code>hi adduser <span>&lt;name&gt;</span></code><p>Create a user who already has render and video access.</p></div>
-      <div class="cmd"><code>hi update</code><p>Update hi itself to the latest release, checksum-verified. <code>--check</code> only looks.</p></div>
-      <div class="cmd"><code>hi version</code><p>Print the installed version.</p></div>
-    </div>
-    <p class="guide-link">Step-by-step instructions, examples and every option: <a href="/guide/">the hi guide</a>.</p>
-  </section>
-
-  <section class="wrap reveal">
-    <div class="strix">
-      <div>
-        <div class="eyebrow">// Strix Halo</div>
-        <h2>Tested on real silicon.</h2>
-        <p class="sub" style="margin:0">Exercised on an AMD Ryzen AI Max+ 395 with Radeon 8060S graphics; the final report detects the GPU through both <code>amd-smi</code> and <code>rocminfo</code>.</p>
-      </div>
-      <ol>
-        <li><span>Run the one-liner above on Ubuntu 26.04 amd64.</span></li>
-        <li><span>Pick a hostname, enter your sudo password, and let it run.</span></li>
-        <li><span>Reboot, then run <code>hi verify strix</code> for the final report.</span></li>
-        <li><span>Run <code>hi net</code> to join the NetBird mesh.</span></li>
+  <section id="story" class="wrap" aria-labelledby="story-h">
+    <div class="eyebrow">From idea to application</div>
+    <h2 id="story-h">From idea to application. Together.</h2>
+    <p class="sub">Someone in HR needs a better onboarding checklist. Instead of filing a request and waiting, she asks the team in Slack.</p>
+    <div class="story">
+      <figure style="margin:0">
+        <div class="thread" role="img" aria-label="An example Slack thread between an HR employee and the team's AI lead, from the request to a working link.">
+          <div class="thread-bar"><span># onboarding</span><small>Slack · an example</small></div>
+          <div class="msgs">
+            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria <small>HR</small></span><p><b>@onboarding</b> New hires get their checklist by email and steps get missed. Can we have something better?</p></div></div>
+            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding <small>the team's lead · AI</small></span><p>Happy to. Who uses it, HR only or managers too? And what should happen when a step is late?</p></div></div>
+            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria</span><p>HR and managers. Late steps in red.</p></div></div>
+            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding</span><p>Here's what you'll be able to do:</p><ol><li>Add a new hire with a start date</li><li>See their checklist and tick steps off</li><li>See late steps in red</li></ol><p>Shall I start?</p></div></div>
+            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria</span><p>Yes, go.</p></div></div>
+            <div class="msg sys"><span class="av hi">hi</span><div><span class="who">hi <small>the team's coder and reviewer</small></span><p>The coder builds it on its own branch; the reviewer checks it before it reaches you.</p></div></div>
+            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding</span><p>Ready to try on your phone. Add a new hire who starts next Monday:</p><span class="link">https://onboarding-preview.apps.example.com</span></div></div>
+          </div>
+        </div>
+        <figcaption class="caption">An example. The steps are what a hi team does today; the names and the app are made up.</figcaption>
+      </figure>
+      <ol class="steps">
+        <li><div><h3>The idea</h3><p>Say what you need in Slack, in your own words. No ticket and no spec template.</p></div></li>
+        <li><div><h3>The conversation</h3><p>The team's lead, an AI, asks what it needs to know and writes down what will change and how you'll check it. Nothing starts until you say yes.</p></div></li>
+        <li><div><h3>The build</h3><p>A coder agent builds it on a branch of its own. A reviewer agent, a different model, checks every change before you see it.</p></div></li>
+        <li><div><h3>The result</h3><p>A link that opens on your phone. Say what works and ask for more. It goes live when an owner says so, and every page has a button for help and feedback.</p></div></li>
       </ol>
+    </div>
+  </section>
+
+  <section id="team" class="wrap" aria-labelledby="team-h">
+    <div class="eyebrow">hi team</div>
+    <h2 id="team-h">Meet your new team.</h2>
+    <p class="sub">A hi team lives in one Slack channel and builds one app for the people in it. You bring the ideas and the decisions; the agents bring the work.</p>
+    <div class="roles">
+      <div class="role people"><span class="tag t-warm"><i></i>people</span><h3>You and your colleagues</h3><p>Ask, agree, and try. You decide what gets built and when it goes live. Nobody needs to read code.</p></div>
+      <div class="role"><span class="tag t-violet"><i></i>Hermes</span><h3>The lead</h3><p>Talks with you in plain language, plans the work, keeps the specs, and remembers what was said. It never writes code.</p></div>
+      <div class="role"><span class="tag t-amber"><i></i>Claude Code</span><h3>The coder</h3><p>Builds each piece of work on a branch of its own, with tests, and learns the project's habits as it goes.</p></div>
+      <div class="role"><span class="tag t-sky"><i></i>Codex</span><h3>The reviewer</h3><p>Checks the work against what you agreed to, and sends it back until it's right.</p></div>
+      <div class="role"><span class="tag t-dim"><i></i>git</span><h3>Developers, if you have them</h3><p>The app is an ordinary git repository, on GitHub if you like, so people who read code can follow every change.</p></div>
+    </div>
+    <ul class="promises">
+      <li><span><b>Nothing starts without a yes</b> from one of the people.</span></li>
+      <li><span><b>Production changes only</b> when an owner says so.</span></li>
+      <li><span><b>Snapshots every day</b> and before every release.</span></li>
+      <li><span><b>Runs on your machine.</b> Keys never reach the agents.</span></li>
+    </ul>
+    <div class="ctas" style="justify-content:flex-start">
+      <a class="btn primary" href="/guide/team/">Explore hi team</a>
+      <a class="btn ghost" href="/guide/team/setup/">Set up a team</a>
+    </div>
+  </section>
+
+  <section id="explore" class="wrap" aria-labelledby="agents-h">
+    <div class="eyebrow">Agents</div>
+    <h2 id="agents-h">Different agents. Different strengths. One team.</h2>
+    <p class="sub">The same tools a hi team uses, in your terminal. Hand work to Claude Code, Codex, or Hermes, try ideas several ways at once, and keep only what works.</p>
+    <div class="features">
+      <div class="feature">
+        <span class="name">hi agent</span><h3>Delegate a task</h3>
+        <p>Hand a task to any agent. It works without permission prompts in a box, on its own branch, and you get one report back, the same for every agent.</p>
+        <div class="snip"><span class="c">$ hi agent "make the flaky sync test reliable"</span>
+The test now waits on the thread's event.
+<span class="ok">Changed on hi-box/myproject-1:</span> tests/test_sync.py</div>
+        <a class="go" href="/guide/agent/">Hand tasks to agents →</a>
+      </div>
+      <div class="feature">
+        <span class="name">hi agent best-of</span><h3>Compare several attempts</h3>
+        <p>Run one task several ways at once, mixing agents. hi runs your check on each result itself and ranks them; you keep the best.</p>
+        <div class="snip"><span class="c">$ hi agent best-of 3 <span class="k">--agents</span> claude,codex \
+    "make the loader 2x faster"</span></div>
+        <a class="go" href="/guide/autoresearch/best-of/">Several attempts at once →</a>
+      </div>
+      <div class="feature">
+        <span class="name">rounds</span><h3>Improve overnight</h3>
+        <p>Give a score to improve and let it run: each round starts from the best so far, and hi commits a result only when its score beats it.</p>
+        <div class="snip"><span class="c">$ hi agent best-of 4 <span class="k">--rounds</span> 100 \
+    <span class="k">--score</span> "make score" <span class="k">--lower</span></span></div>
+        <a class="go" href="/guide/autoresearch/">Autoresearch with hi →</a>
+      </div>
+      <div class="feature">
+        <span class="name">hi q</span><h3>Ask for a command</h3>
+        <p>Say what you want in plain words and get one shell command back. You see it, and what it would change, before anything runs.</p>
+        <div class="snip"><span class="c">$ hi q move the md files into notes</span>
+mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
+        <a class="go" href="/guide/q/">Ask for a command →</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="infra" class="wrap" aria-labelledby="infra-h">
+    <div class="eyebrow">Behind the scenes</div>
+    <h2 id="infra-h">Powerful infrastructure. Behind the scenes.</h2>
+    <p class="sub">Every agent works somewhere it can't hurt you, and every GPU stops when its time is up.</p>
+    <div class="flow" role="img" aria-label="How a box works: you start hi box, the box holds only the project, its only way out is hi's proxy, which lets through allowed hosts only.">
+      <div class="node"><b>you</b><span><code>hi box shell</code> or <code>hi agent</code></span></div><span class="arrow" aria-hidden="true">→</span>
+      <div class="node"><b>box</b><span>The project, nothing else from your home folder</span></div><span class="arrow" aria-hidden="true">→</span>
+      <div class="node"><b>proxy</b><span>The only way out; adds keys the box never holds</span></div><span class="arrow" aria-hidden="true">→</span>
+      <div class="node"><b>allowed hosts</b><span>GitHub and package registries, logged</span></div>
+    </div>
+    <div class="features">
+      <div class="feature"><span class="name">hi box</span><h3>A room for every agent</h3><p>A rootless container with the project and nothing else: no SSH keys, no tokens, and a network that reaches only what you allow. The GPU too, if you want it.</p><a class="go" href="/guide/box/">Run code in a box →</a></div>
+      <div class="feature"><span class="name">hi compute</span><h3>GPUs when you need them</h3><p>One set of commands for Colab, Hugging Face, RunPod, and Shadeform: run a job, open a shell, or serve a model. Every machine has a time limit.</p><a class="go" href="/guide/compute/">How hi compute works →</a></div>
+      <div class="feature"><span class="name">hi server</span><h3>One place for the team's keys</h3><p>Holds the provider keys, approves GPU starts in Slack, warns on budgets, and serves the team's data, model, and private templates.</p><a class="go" href="/guide/compute/managed/">Managed compute →</a></div>
+      <div class="feature"><span class="name">hi net expose</span><h3>Share what you're running</h3><p>Put a web app on your machine on a temporary HTTPS address, behind a password, a PIN, or a key in the link. It ends on its own.</p><a class="go" href="/guide/workstation/expose/">Share a local service →</a></div>
+    </div>
+  </section>
+
+  <section id="blocks" class="wrap" aria-labelledby="blocks-h">
+    <div class="eyebrow">Building blocks</div>
+    <h2 id="blocks-h">Explore the building blocks.</h2>
+    <p class="sub">hi5 started as one command that turns fresh Ubuntu into an AI workstation. It's still the foundation: a single static binary, with no runtime to install.</p>
+    <div class="term" role="region" aria-label="Install commands">
+      <div class="term-bar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="term-title">install</span></div>
+      <div class="term-body">
+        <div class="option"><p class="option-label">CLI only <span class="pill-tag">most people</span></p>
+          <div class="cmdline"><span class="ps">$</span><code>curl -fsSL /install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL /install.sh | sh">copy</button></div>
+          <p class="note">Just the <code>hi</code> binary, checksum-verified, in <code>~/.local/bin</code>. Update it later with <code>hi update</code>.</p></div>
+        <div class="option"><p class="option-label">Workstation</p>
+          <div class="cmdline"><span class="ps">$</span><code>curl -fsSL /install.sh | sh<span class="arg"> -s -- install</span></code><button class="copy" type="button" data-copy="curl -fsSL /install.sh | sh -s -- install">copy</button></div>
+          <p class="note">Installs <code>hi</code>, then a menu to pick the workstation software for Ubuntu 26.04.</p></div>
+        <div class="option"><p class="option-label">Strix Halo</p>
+          <div class="cmdline"><span class="ps">$</span><code>curl -fsSL /install.sh | sh<span class="arg"> -s -- install strix</span></code><button class="copy" type="button" data-copy="curl -fsSL /install.sh | sh -s -- install strix">copy</button></div>
+          <p class="note">The same menu with AMD ROCm for Strix Halo. Reboot once when it finishes.</p></div>
+      </div>
+    </div>
+    <div class="blocks" style="margin-top:34px">
+      <div class="block">
+        <h3>Agents at first login</h3>
+        <p>Every workstation gets the same coding agents and GPU tooling.</p>
+        <div class="tools">
+          <a class="tool" href="https://code.claude.com/docs"><b>Claude Code</b><span>$ claude</span></a>
+          <a class="tool" href="https://developers.openai.com/codex/cli"><b>Codex CLI</b><span>$ codex</span></a>
+          <a class="tool" href="https://github.com/NousResearch/hermes-agent"><b>Hermes Agent</b><span>$ hermes</span></a>
+          <a class="tool" href="https://omp.sh"><b>omp</b><span>$ omp</span></a>
+          <a class="tool" href="https://herdr.dev"><b>herdr</b><span>$ herdr</span></a>
+          <a class="tool" href="https://rocm.docs.amd.com"><b>AMD ROCm 10</b><span>hi install strix</span></a>
+          <a class="tool" href="https://pypi.org/project/amd-debug-tools/"><b>amd-debug-tools</b><span>hi install strix</span></a>
+        </div>
+        <div class="chips">
+          <a class="chip" href="https://docs.astral.sh/uv/">uv</a><a class="chip" href="https://pipx.pypa.io">pipx</a><a class="chip" href="https://nodejs.org">Node.js</a><a class="chip" href="https://docs.docker.com/engine/">Docker</a><a class="chip" href="https://podman.io">Podman</a><a class="chip" href="https://cli.github.com">GitHub CLI</a><a class="chip" href="https://netbird.io">NetBird</a><a class="chip" href="https://github.com/googlecolab/google-colab-cli">Colab CLI</a><a class="chip" href="https://huggingface.co/docs/huggingface_hub/guides/cli">hf CLI</a><a class="chip" href="https://github.com/aristocratos/btop">btop</a><a class="chip" href="https://github.com/tmux/tmux">tmux</a><a class="chip" href="https://github.com/hzeller/timg">timg</a>
+        </div>
+      </div>
+      <div class="block">
+        <h3>Projects agents work well in</h3>
+        <p><code>hi init</code> starts a repository with one check agents run, short agent rules, safe settings, and CI, from built-in templates or your team's own. <code>hi skills</code> installs agent skills, pinned and audited. <code>hi data</code> downloads your team's private datasets without a token on your machine.</p>
+        <div class="snip"><span class="c">$ hi init python pricing-tools</span>
+<span class="c">$ cd pricing-tools &amp;&amp; make check</span></div>
+        <div class="more" style="margin-top:16px"><a href="/guide/projects/">Start a project →</a><a href="/guide/data/">Your team's data →</a><a href="/guide/reference/skill/">Skills →</a></div>
+      </div>
+    </div>
+    <details class="all">
+      <summary>Every command</summary>
+      <div>
+        <div class="cmd"><code>hi install <span>[strix]</span></code><p>Install the workstation software; with <code>strix</code>, ROCm and GPU groups too, ending with a hardware report.</p></div>
+        <div class="cmd"><code>hi verify strix</code><p>Re-run the hardware report after the reboot. Nothing is uploaded.</p></div>
+        <div class="cmd"><code>hi net <span>· status · down · reconnect</span></code><p>Join NetBird, then check, disconnect, or reconnect.</p></div>
+        <div class="cmd"><code>hi net expose <span>&lt;port&gt;</span></code><p>A local service on a temporary public HTTPS address, password-protected by default.</p></div>
+        <div class="cmd"><code>hi init <span>&lt;template&gt; &lt;dir&gt;</span></code><p>Start a project agents work well in; <code>--update</code> keeps it current.</p></div>
+        <div class="cmd"><code>hi q <span>&lt;what you want&gt;</span></code><p>A shell command from plain words, or a chat.</p></div>
+        <div class="cmd"><code>hi agent <span>&lt;task&gt;</span></code><p>A task for Claude Code, Codex, or Hermes, in a box, with one report.</p></div>
+        <div class="cmd"><code>hi agent best-of <span>&lt;n&gt; &lt;task&gt;</span></code><p>One task in n boxes, checked and ranked; with <code>--score</code>, rounds that keep only gains.</p></div>
+        <div class="cmd"><code>hi team new <span>&lt;name&gt;</span></code><p>A team of agents in one Slack channel that builds and runs an app.</p></div>
+        <div class="cmd"><code>hi box <span>shell · run</span></code><p>A shell or a command in a rootless container with no credentials.</p></div>
+        <div class="cmd"><code>hi compute <span>run · up · serve · stop</span></code><p>Remote GPUs on Colab, Hugging Face, RunPod, or Shadeform, with time limits.</p></div>
+        <div class="cmd"><code>hi connect <span>&lt;server&gt;</span></code><p>Join your team's hi server.</p></div>
+        <div class="cmd"><code>hi data</code><p>Your team's private Hugging Face datasets, models, and buckets.</p></div>
+        <div class="cmd"><code>hi skills</code><p>Agent skills from skills.sh, pinned and audited.</p></div>
+        <div class="cmd"><code>hi adduser <span>&lt;name&gt;</span></code><p>A user with render and video access.</p></div>
+        <div class="cmd"><code>hi update · version</code><p>Update hi, checksum-verified, or print its version.</p></div>
+      </div>
+    </details>
+    <div class="strix">
+      <div><div class="eyebrow">Strix Halo</div><h3>Tested on real silicon.</h3><p>An AMD Ryzen AI Max+ 395 with Radeon 8060S graphics; the final report finds the GPU through <code>amd-smi</code> and <code>rocminfo</code>.</p></div>
+      <ol><li>Run the Strix Halo one-liner on Ubuntu 26.04.</li><li>Pick a hostname and enter your sudo password.</li><li>Reboot, then <code>hi verify strix</code>.</li><li><code>hi net</code> to join NetBird.</li></ol>
+    </div>
+  </section>
+
+  <section id="community" class="wrap" aria-labelledby="community-h">
+    <div class="eyebrow">Open source</div>
+    <h2 id="community-h">Built in the open. Built together.</h2>
+    <p class="sub">hi5 is open source under the Apache License 2.0. The roadmap, the specs, and the guide are public, and the project is built with the same agents it runs.</p>
+    <div class="community">
+      <a href="https://github.com/hi5sh/hi"><b>Source</b><span>Every line, and every change, on GitHub.</span></a>
+      <a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md"><b>Roadmap</b><span>What's released, what's next, and how each was tested.</span></a>
+      <a href="https://github.com/hi5sh/hi/tree/main/docs/specs"><b>Specs</b><span>How each part works, written before it's built.</span></a>
+      <a href="/guide/"><b>Guide</b><span>Step by step, with diagrams of how the parts fit.</span></a>
+    </div>
+    <div class="closing">
+      <h2>Bring an idea. Build it together.</h2>
+      <div class="ctas">
+        <a class="btn primary" href="/guide/install/">Get started</a>
+        <a class="btn ghost" href="https://github.com/hi5sh/hi">Contribute on GitHub ↗</a>
+      </div>
     </div>
   </section>
 </main>
 
-<footer>
-  <div class="wrap">
-    <span>hi5 · humans and machines creating together · static Go binary · Linux amd64 &amp; arm64</span>
-    <span>
-      <a href="https://github.com/hi5sh/hi">Source</a>
-      <a href="https://github.com/hi5sh/hi/releases">Releases</a>
-      <a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a>
-      <a href="/install.sh">install.sh</a>
-      <a href="/llms.txt">llms.txt</a>
-    </span>
-  </div>
-</footer>
+<footer><div class="wrap">
+  <span>hi5 · humans and AI building together · Apache-2.0</span>
+  <span><a href="https://github.com/hi5sh/hi">Source</a><a href="https://github.com/hi5sh/hi/releases">Releases</a><a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a><a href="/install.sh">install.sh</a><a href="/llms.txt">llms.txt</a></span>
+</div></footer>
+
 
 <script>
-  // The menu on narrow screens: the button opens the links as a panel; a
-  // link, Escape, or a tap elsewhere closes it.
-  const menuButton = document.querySelector(".menu-toggle");
+  const menuButton = document.getElementById("menu-toggle");
   const menu = document.getElementById("site-menu");
   const setMenu = open => {
     menu.classList.toggle("open", open);
@@ -547,30 +473,15 @@
   };
   menuButton.addEventListener("click", () => setMenu(!menu.classList.contains("open")));
   menu.addEventListener("click", e => { if (e.target.closest("a")) setMenu(false); });
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && menu.classList.contains("open")) { setMenu(false); menuButton.focus(); }
-  });
-  document.addEventListener("click", e => {
-    if (menu.classList.contains("open") && !e.target.closest("nav")) setMenu(false);
-  });
-
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && menu.classList.contains("open")) { setMenu(false); menuButton.focus(); } });
+  document.addEventListener("click", e => { if (menu.classList.contains("open") && !e.target.closest("nav")) setMenu(false); });
   document.querySelectorAll(".copy[data-copy]").forEach(button => {
     button.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(button.dataset.copy);
-        button.textContent = "copied ✓";
-      } catch {
-        button.textContent = "select + copy";
-      }
+      try { await navigator.clipboard.writeText(button.dataset.copy); button.textContent = "copied ✓"; }
+      catch { button.textContent = "select + copy"; }
       setTimeout(() => (button.textContent = "copy"), 1600);
     });
   });
-
-  const io = new IntersectionObserver(entries => entries.forEach(e => {
-    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-  }), { threshold: 0.12 });
-  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
-
   fetch("https://api.github.com/repos/hi5sh/hi/releases/latest")
     .then(r => r.ok ? r.json() : null)
     .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
