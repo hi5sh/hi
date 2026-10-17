@@ -156,7 +156,9 @@ such as a trap in the tests. hi gives both to every task for that role, so
 the next coder starts where the last one left off, also when you switch
 the coder to another agent. Members propose lessons in their reports, and
 the lead decides what to keep. Edit a `ROLE.md` to change how a role works
-for your team, such as a reviewer who also checks accessibility.
+for your team, such as a reviewer who also checks accessibility. A team
+template, from the setup's code question, can bring roles of its own: a
+researcher who knows your data, a coder with your conventions.
 
 The project has a map for the agents, `docs/map.md`: what it already has
 (pages, routes, tables, shared code) and where each lives, the agents'

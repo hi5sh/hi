@@ -115,6 +115,12 @@ is how hi's built-in layers are laid out; a name may not be in both places.
 `project_templates/` keeps a source's templates together, apart from
 `skills/` and `docs/`, and needs hi 0.51.1 or newer.
 
+A layer's `team/` folder is for a hi team made from the template, never
+for the project: `team/roles/<role>/ROLE.md` (and `LEARNED.md`) give the
+team's roles their standing instructions (v0.77.0,
+[hi_team_roles.md](hi_team_roles.md#5-roles-come-from-the-template)).
+`hi init` and `--update` leave it out of the project.
+
 Built-in layers today are `base` (hidden: never chosen on its own), `python`,
 and `web`.
 

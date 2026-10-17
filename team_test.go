@@ -46,6 +46,9 @@ func setupTeamTest(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("HI_TEAMS_DIR", filepath.Join(dir, "teams"))
+	// Not this machine's hi server: no server templates.
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	hermes := filepath.Join(dir, "hermes")
 	t.Setenv("HERMES_HOME", hermes)
 	t.Setenv("HERMES_INSTALL_DIR", "")

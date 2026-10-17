@@ -1626,13 +1626,23 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   decisions, and specs.
   Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), ideas 1 to 4.
 
+### v0.77.0 — Roles from the template
+
+- [x] A team can start from a team template: one that extends team-app,
+  built in, from `HI_TEMPLATES_DIR`, or from the hi server's sources. The
+  setup offers them beside "new" and "empty"; team.json records it.
+- [x] A layer's `team/` folder is the team's, never the project's:
+  `team/roles/<role>/ROLE.md` gives a role its instructions, ahead of hi's
+  defaults, which now live in team-app's own `team/` folder. A cloned or
+  empty project still takes a template's roles.
+  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 5.
+
 ## Planned
 
 ### Next — roles that remember
 
 Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
 
-- [ ] Roles from the template, also from private template sources.
 - [ ] Only if continuations clearly suffer without it: resuming a member's
   session for `--on`.
 

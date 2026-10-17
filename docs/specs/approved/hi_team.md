@@ -386,7 +386,10 @@ hi team discard dev --approval <id>              dev's code back to production's
    outside the boxes, through the proxy.
 7. **Code.** A new repository, which starts as a blank web app from the
    hidden `team-app` template ([hi_bun.md](hi_bun.md)) or, with `empty`,
-   with only a README; or an existing one and a token limited to it.
+   with only a README; or an existing one and a token limited to it. A
+   team template, one that extends `team-app`, may be named instead of
+   "new": its project, and its roles (v0.77.0,
+   [hi_team_roles.md](hi_team_roles.md#5-roles-come-from-the-template)).
 8. **Backups.** The S3-compatible bucket offsite snapshots go to (its
    endpoint, bucket, and keys, without echo), and how long to keep them.
 9. **Budget.** Dollars a month; the lead stops starting tasks when it is

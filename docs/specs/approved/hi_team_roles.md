@@ -1,8 +1,8 @@
 # hi team: roles that remember, and a map of the project
 
 Status: Approved (2026-10-17). Continuing work (idea 6) is built in
-v0.75.0, roles and the map (ideas 1 to 4) in v0.76.0. Template roles
-(idea 5) and session resume are next.
+v0.75.0, roles and the map (ideas 1 to 4) in v0.76.0, template roles
+(idea 5) in v0.77.0. Session resume waits for evidence.
 
 Dependencies: `hi team` (the broker, briefs, the review loop, SOUL.md, the
 lead's Hindsight memory), the `team-app` template (`hi init`), and
@@ -265,8 +265,25 @@ competence"). hi's version is smaller: the team's starting `roles/` and
   that kind of project then starts with a researcher that already knows
   how the work is done.
 
-This reuses template layers; the only new part is that `hi team new` copies
-`roles/` from the composed template into the team folder.
+This reuses template layers:
+
+- **A layer's `team/` folder is the team's, not the project's.**
+  `team/roles/<role>/ROLE.md` and `LEARNED.md` go to the team's `roles/`;
+  `hi init` and `--update` never write `team/` into a project. The
+  built-in team-app layer keeps hi's default roles there, so the defaults
+  are files, not code.
+- **A team template is one that extends team-app.** `hi team new` offers
+  those it finds (built in, `HI_TEMPLATES_DIR`, the hi server's sources)
+  beside "new" and "empty" in the wizard's code question; `"template"` in
+  the answers file does the same, and team.json records it. A template
+  that doesn't extend team-app is refused: a team's machinery (previews,
+  the helper, `$HI_DATA_DIR`) expects its app.
+- **Roles come from the template first, then hi.** A member's role takes
+  the template's file when it has one, else hi's default. A role the
+  template writes itself that no member fills is kept too, and
+  `hi team new` says so ("add a member for one in team.json to use it").
+- **A cloned or empty project still takes a template's roles**, without
+  its files.
 
 ### 6. Continuing work: telling a follow-up from a new idea
 

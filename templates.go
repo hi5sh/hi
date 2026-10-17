@@ -25,6 +25,10 @@ const (
 	// projectTemplatesDir holds a source's layers, one folder each, beside
 	// skills/ and docs/. Layers at the top of a source still load.
 	projectTemplatesDir = "project_templates"
+	// teamTemplateDir is a layer's folder for a hi team rather than the
+	// project: roles/<role>/ROLE.md and LEARNED.md. It never reaches a
+	// project's files.
+	teamTemplateDir = "team"
 )
 
 // templateLayer is one layer's layer.json plus where its files live.
@@ -74,6 +78,9 @@ type composedTemplate struct {
 	// Origins names the source of the last layer that wrote or added to
 	// each file.
 	Origins map[string]string
+	// Team are the files of the layers' team/ folders, for a hi team made
+	// from the template, by their path in it.
+	Team map[string][]byte
 }
 
 // loadTemplateSource reads every layer in a source: each top-level folder
@@ -175,7 +182,7 @@ func composeTemplate(layers map[string]*templateLayer, name string, params map[s
 		return nil, fmt.Errorf("%q is a shared layer, not a template", name)
 	}
 	result := &composedTemplate{Name: name, Layers: chain, Files: map[string][]byte{}, Commands: map[string][][]string{},
-		Origins: map[string]string{}}
+		Origins: map[string]string{}, Team: map[string][]byte{}}
 	substitute := map[string]string{}
 	for _, layer := range chain {
 		for key, param := range layer.Params {
@@ -223,6 +230,10 @@ func composeTemplate(layers map[string]*templateLayer, name string, params map[s
 			if err != nil {
 				return err
 			}
+			if team, ok := strings.CutPrefix(name, teamTemplateDir+"/"); ok {
+				result.Team[team] = data
+				return nil
+			}
 			target, fragment := strings.CutSuffix(name, fragmentSuffix)
 			if fragment {
 				result.Files[target] = insertFragment(result.Files[target], data)
@@ -265,6 +276,11 @@ func composeTemplate(layers map[string]*templateLayer, name string, params map[s
 		origins[replacer.Replace(name)] = result.Origins[name]
 	}
 	result.Files, result.Origins = files, origins
+	for name, data := range result.Team {
+		if isTextFile(data) {
+			result.Team[name] = []byte(replacer.Replace(string(data)))
+		}
+	}
 	result.Skills = uniqueStrings(result.Skills)
 	return result, nil
 }

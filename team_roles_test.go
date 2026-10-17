@@ -113,3 +113,95 @@ func TestTeamSoulLearnsAboutRoles(t *testing.T) {
 		t.Fatal(string(data))
 	}
 }
+
+func TestTeamAppKeepsTeamFilesOutOfTheProject(t *testing.T) {
+	layers, err := builtinTemplateLayers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	composed, err := composeTemplateAllowingHidden(layers, teamAppTemplate, map[string]string{"name": "payments"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name := range composed.Files {
+		if strings.HasPrefix(name, teamTemplateDir+"/") {
+			t.Fatalf("%s is in the project", name)
+		}
+	}
+	if _, ok := composed.Files["docs/map.md"]; !ok {
+		t.Fatal("no map in the project")
+	}
+	if string(composed.Team["roles/reviewer/ROLE.md"]) != teamRoleDefault("reviewer") || !strings.Contains(teamRoleDefault("reviewer"), "docs/map.md") {
+		t.Fatal("the reviewer's role isn't the template's")
+	}
+	if !strings.HasPrefix(teamRoleDefault("designer"), "# The designer") {
+		t.Fatal(teamRoleDefault("designer"))
+	}
+}
+
+func TestTeamFromATemplate(t *testing.T) {
+	dir := setupTeamTest(t)
+	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	source := filepath.Join(dir, "source")
+	writeSkillTestFile(t, filepath.Join(source, "desk", "layer.json"), `{"name": "desk", "summary": "A research desk", "extends": "team-app", "schema": 1}`, 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "desk", "team", "roles", "coder", "ROLE.md"), "# The coder\n\nBacktests come with their data's dates.\n", 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "desk", "team", "roles", "researcher", "ROLE.md"), "# The researcher\n\nCite the data.\n", 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "desk", "team", "notes.txt"), "not a role\n", 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "desk", "docs", "desk.md"), "# Hifin Template Name desk\n", 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "plain", "layer.json"), `{"name": "plain", "summary": "Not a team's", "extends": "app", "schema": 1}`, 0o644)
+	t.Setenv("HI_TEMPLATES_DIR", source)
+
+	answers := filepath.Join(dir, "answers.json")
+	writeSkillTestFile(t, answers, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "template": "plain"}`, 0o600)
+	var out bytes.Buffer
+	if err := teamNew([]string{"payments", "--from", answers}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), `"plain" isn't a team template`) {
+		t.Fatal(err)
+	}
+
+	writeSkillTestFile(t, answers, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "template": "desk"}`, 0o600)
+	out.Reset()
+	if err := teamNew([]string{"payments", "--from", answers}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	roles := teamRolesDir("payments")
+	if data, _ := os.ReadFile(filepath.Join(roles, "coder", teamRoleFile)); !strings.Contains(string(data), "Backtests come with their data's dates") {
+		t.Fatal(string(data))
+	}
+	// The roles the template doesn't have come from hi's defaults.
+	if data, _ := os.ReadFile(filepath.Join(roles, "reviewer", teamRoleFile)); string(data) != teamRoleDefault("reviewer") {
+		t.Fatal(string(data))
+	}
+	if !strings.Contains(out.String(), "The template also has roles for researcher") || fileExists(filepath.Join(roles, "notes.txt")) {
+		t.Fatal(out.String())
+	}
+	repo := filepath.Join(teamDir("payments"), "repo")
+	files := boxGit(repo, "ls-files")
+	if !strings.Contains(files, "docs/desk.md") || !strings.Contains(files, "docs/map.md") || strings.Contains(files, "team/") {
+		t.Fatal(files)
+	}
+	if config, _ := loadTeam("payments"); config.Template != "desk" {
+		t.Fatalf("%+v", config)
+	}
+}
+
+func TestTeamClonedTakesATemplatesRoles(t *testing.T) {
+	dir := setupTeamTest(t)
+	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	source := filepath.Join(dir, "source")
+	writeSkillTestFile(t, filepath.Join(source, "desk", "layer.json"), `{"name": "desk", "summary": "A research desk", "extends": "team-app", "schema": 1}`, 0o644)
+	writeSkillTestFile(t, filepath.Join(source, "desk", "team", "roles", "coder", "ROLE.md"), "# The coder\n\nFrom the desk.\n", 0o644)
+	t.Setenv("HI_TEMPLATES_DIR", source)
+	answers := filepath.Join(dir, "answers.json")
+	writeSkillTestFile(t, answers, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "template": "desk", "empty": true}`, 0o600)
+	if err := teamNew([]string{"payments", "--from", answers}, strings.NewReader(""), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(teamRolesDir("payments"), "coder", teamRoleFile)); string(data) != "# The coder\n\nFrom the desk.\n" {
+		t.Fatal(string(data))
+	}
+	if files := boxGit(filepath.Join(teamDir("payments"), "repo"), "ls-files"); files != "AGENTS.md\nREADME.md\ndocs/specs/README.md" {
+		t.Fatal(files)
+	}
+}

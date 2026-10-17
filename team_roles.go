@@ -58,6 +58,45 @@ func writeTeamRoles(config teamConfig) error {
 	return nil
 }
 
+// writeTeamTemplateFiles keeps a team template's roles, from its team/
+// folder (roles/<role>/ROLE.md and LEARNED.md), before hi fills in the
+// rest: the members' roles, and the others the template wrote itself
+// rather than took from hi's team-app. Other files there are left out.
+func writeTeamTemplateFiles(config teamConfig, files map[string][]byte) error {
+	for _, name := range sortedKeys(files) {
+		parts := strings.Split(name, "/")
+		if len(parts) != 3 || parts[0] != "roles" || !teamRolePattern.MatchString(parts[1]) || (parts[2] != teamRoleFile && parts[2] != teamLearnedFile) {
+			continue
+		}
+		if _, member := config.Members[parts[1]]; !member && (parts[2] != teamRoleFile || string(files[name]) == teamRoleDefault(parts[1])) {
+			continue
+		}
+		dir := filepath.Join(teamRolesDir(config.Name), parts[1])
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+		if path := filepath.Join(dir, parts[2]); !fileExists(path) {
+			if err := os.WriteFile(path, files[name], 0o600); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// teamExtraRoles are the roles the team's folder has that no member
+// fills, such as a template's researcher.
+func teamExtraRoles(config teamConfig) []string {
+	entries, _ := os.ReadDir(teamRolesDir(config.Name))
+	var extra []string
+	for _, entry := range entries {
+		if _, member := config.Members[entry.Name()]; entry.IsDir() && !member {
+			extra = append(extra, entry.Name())
+		}
+	}
+	return extra
+}
+
 // teamRoleBrief is what a brief carries about the member's position: its
 // instructions, what it has learned, and how to add to that.
 func teamRoleBrief(team, role string) string {
@@ -141,72 +180,12 @@ belongs to the project into the repository. Keep it under about 3 KB. -->
 `, role)
 }
 
-// teamRoleDefault is a role's standing instructions when the team starts.
+// teamRoleDefault is a role's standing instructions when the team starts
+// without a template's: the built-in team template's for the roles it
+// has, and a general one for the rest.
 func teamRoleDefault(role string) string {
-	switch role {
-	case "coder":
-		return `# The coder
-
-You build what the brief asks, on your own branch, for people who may not
-read code, so the code, its tests, and its docs explain themselves.
-
-- Look before you build: the map (docs/map.md), the decisions
-  (docs/decisions/), and the code itself. Extend what exists; a second
-  version of something the project already has is a bug, however well it
-  works.
-- Write tests for each thing the brief says must work, and run all the
-  tests before you finish.
-- Keep HELP.md current for anything the people will see, and the map for
-  anything you add or move.
-- Do the brief, all of it, and nothing beyond it. Put what else you
-  noticed in your report's follow-ups.
-- Say plainly in your report what you didn't do or couldn't check.
-`
-	case "reviewer":
-		return `# The reviewer
-
-You check a member's work before the lead merges it, as the person on the
-team who reads every change.
-
-- Duplicates: does the work build something docs/map.md already lists, or
-  that the code already has? That is a change needed, even when it works:
-  extend the existing one instead.
-- The map and decisions: does docs/map.md still match the code after this
-  work, and is a technical choice that someone could undo by accident
-  written down in docs/decisions/?
-- The people's side: HELP.md says how to use what changed, in the app's
-  own words, and the README still says how to run and test the project.
-- Be specific: each change needed says where and what, so the coder can do
-  it without asking. Don't ask for changes of taste.
-`
-	case "devops":
-		return `# Devops
-
-You keep the project running and shippable: how it starts, what it needs,
-and what it keeps.
-
-- The project starts with make run, listening on 0.0.0.0 at $PORT, and
-  keeps what must last in $HI_DATA_DIR, never in its own folder, which is
-  replaced at every release.
-- Settings and keys come from the environment; their names go in the
-  docs, never their values, in the code or a brief.
-- Prefer what the runtime already does over another package or service.
-- Write down in docs/decisions/ how and why the project runs as it does.
-`
-	case "researcher":
-		return `# The researcher
-
-You find out what the team needs to know before it builds: options, how
-others solved it, what a service or library can do.
-
-- Answer the question in the brief, with sources: links, versions, dates.
-- Keep what you found apart from what you recommend, and say how sure you
-  are of each.
-- Weigh options against this project, its map (docs/map.md), and what the
-  people asked for, not in general.
-- Change no code unless the brief asks; put what you found in the report,
-  or in a file under docs/ when the brief asks for one.
-`
+	if data, err := builtinTemplateFiles.ReadFile("templates/" + teamAppTemplate + "/" + teamTemplateDir + "/roles/" + role + "/" + teamRoleFile); err == nil {
+		return string(data)
 	}
 	return fmt.Sprintf(`# The %[1]s
 

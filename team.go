@@ -48,8 +48,12 @@ type teamConfig struct {
 	Helper map[string]bool `json:"helper,omitempty"`
 	// Domain puts the team's app on the machine's domain (hi team domain
 	// <team> on): names that stay, rather than ones NetBird makes up.
-	Domain  bool      `json:"domain,omitempty"`
-	Created time.Time `json:"created"`
+	Domain bool `json:"domain,omitempty"`
+	// Template is the team template the project and the roles started
+	// from, one that extends team-app, such as one from the hi server's
+	// sources; empty is team-app itself.
+	Template string    `json:"template,omitempty"`
+	Created  time.Time `json:"created"`
 }
 
 // teamMember is one role: an agent, its model, and what its box may use.
@@ -576,6 +580,9 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		member := config.Members[role]
 		fmt.Fprintf(stdout, "  %-10s %s\n", role, teamMemberLabel(member))
 	}
+	if extra := teamExtraRoles(config); len(extra) > 0 {
+		fmt.Fprintf(stdout, "The template also has roles for %s: add a member for one in team.json to use it.\n", strings.Join(extra, ", "))
+	}
 	fmt.Fprintf(stdout, "\nStart it with:\n  hi team up %s\n", name)
 	return nil
 }
@@ -721,14 +728,27 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 	fmt.Fprintln(stdout, "Enter starts a new web app there: a blank page on Bun, with a database and tests, and the")
 	fmt.Fprintln(stdout, "helper's chat on every page. Type empty for a repository with only a README, or give one to")
 	fmt.Fprintln(stdout, "clone: a URL, cloned with this machine's git credentials, or a folder on this machine.")
+	templates := map[string]bool{}
+	if catalog, err := loadTemplateCatalog(io.Discard); err == nil {
+		if offered := teamTemplates(catalog); len(offered) > 0 {
+			fmt.Fprintln(stdout, "Or name a team template, a web app with its roles ready for a kind of work:")
+			for _, template := range offered {
+				key := firstNonEmpty(template.key, template.Name)
+				templates[key] = true
+				fmt.Fprintf(stdout, "  %-20s %s\n", key, template.Summary)
+			}
+		}
+	}
 	clone, err := teamAskUntil(stdin, stdout, "Repository [new]", false, func(string) error { return nil })
 	if err != nil {
 		return answers, secrets, err
 	}
-	switch clone {
-	case "", "new":
-	case "empty":
+	switch {
+	case clone == "" || clone == "new":
+	case clone == "empty":
 		answers.Empty = true
+	case templates[clone]:
+		config.Template = clone
 	default:
 		answers.Clone = clone
 	}
@@ -990,6 +1010,12 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 	} else if err := newTeamRepo(*config, repo, empty); err != nil {
 		return err
 	}
+	// A cloned or empty project still takes a template's roles.
+	if config.Template != "" && (clone != "" || empty) {
+		if _, _, err := teamComposeTemplate(*config); err != nil {
+			return err
+		}
+	}
 	config.Branch = firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main")
 	if err := saveTeam(*config); err != nil {
 		return err
@@ -1001,6 +1027,60 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte(teamSoul(*config)), 0o600)
+}
+
+// teamComposeTemplate composes the team's template, team-app or one that
+// extends it, and keeps its roles in the team's folder.
+func teamComposeTemplate(config teamConfig) (*composedTemplate, *templateCatalog, error) {
+	catalog := &templateCatalog{}
+	var err error
+	if config.Template == "" {
+		catalog.layers, err = builtinTemplateLayers()
+	} else {
+		catalog, err = loadTemplateCatalog(os.Stderr)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	name := firstNonEmpty(config.Template, teamAppTemplate)
+	if config.Template != "" && !teamIsTemplate(catalog, name) {
+		return nil, nil, fmt.Errorf("%q isn't a team template: one that extends %s (hi init --list shows the templates)", name, teamAppTemplate)
+	}
+	composed, err := composeTemplateAllowingHidden(catalog.layers, name, map[string]string{"name": config.Name})
+	if err != nil {
+		return nil, nil, err
+	}
+	return composed, catalog, writeTeamTemplateFiles(config, composed.Team)
+}
+
+// teamTemplates are the templates a team can start from: those that
+// extend team-app, by name.
+func teamTemplates(catalog *templateCatalog) []*templateLayer {
+	var templates []*templateLayer
+	for _, key := range sortedKeys(catalog.layers) {
+		if key != teamAppTemplate && teamIsTemplate(catalog, key) {
+			templates = append(templates, catalog.layers[key])
+		}
+	}
+	return templates
+}
+
+// teamIsTemplate says whether a template extends team-app.
+func teamIsTemplate(catalog *templateCatalog, name string) bool {
+	layer, ok := catalog.layers[name]
+	if !ok || (layer.Hidden && name != teamAppTemplate) {
+		return false
+	}
+	chain, err := layerChain(catalog.layers, name)
+	if err != nil {
+		return false
+	}
+	for _, layer := range chain {
+		if layer.Name == teamAppTemplate {
+			return true
+		}
+	}
+	return false
 }
 
 func newTeamRepo(config teamConfig, repo string, empty bool) error {
@@ -1044,14 +1124,10 @@ const teamAppTemplate = "team-app"
 // teamAppEntries are the files of a new team's project: the template's,
 // with the team's purpose in README.md, the team's rules in AGENTS.md, and
 // the lead's specs folder. The template's skills are left out: they are
-// about hi, which the members' boxes don't have.
+// about hi, which the members' boxes don't have. Its team/ folder gives
+// the team's roles.
 func teamAppEntries(config teamConfig) ([]initEntry, error) {
-	catalog := &templateCatalog{}
-	var err error
-	if catalog.layers, err = builtinTemplateLayers(); err != nil {
-		return nil, err
-	}
-	composed, err := composeTemplateAllowingHidden(catalog.layers, teamAppTemplate, map[string]string{"name": config.Name})
+	composed, catalog, err := teamComposeTemplate(config)
 	if err != nil {
 		return nil, err
 	}
