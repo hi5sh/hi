@@ -248,6 +248,76 @@ competence"). hi's version is smaller: the team's starting `roles/` and
 This reuses template layers; the only new part is that `hi team new` copies
 `roles/` from the composed template into the team folder.
 
+### 6. Continuing work: telling a follow-up from a new idea
+
+`--on t-4` continues unmerged work: same branch, t-4's files and first
+brief, no new yes, no new idea counted. Except in the review loop, where
+the broker starts fixes itself, **the lead decides** whether a request is
+more of t-4 or something new. It decides from memory, which is the gap
+this spec is about. A real development harness doesn't leave that to
+memory: it knows which work is open, where it came from, and what a
+command would lose.
+
+The broker can do the same with what it already records: each task's
+`on`, its approval (thread included), its branch, and the open ideas.
+Four kinds of response, from lightest to strongest:
+
+- **Hint.** The broker can't know, so it says what it sees and goes on.
+- **Redirect.** There's exactly one right target, so the broker uses it
+  and says so.
+- **Block.** Going on would lose work or skip a gate, so the broker
+  refuses and gives the command that's right.
+- **Recover.** It went wrong anyway; the way back with existing commands.
+
+#### Choosing between new and continued
+
+| Case | Today | Proposed |
+|---|---|---|
+| **New task while related work is unmerged.** The people want more on t-4, and the lead starts a new task. Its branch starts from `main`, without t-4's code, so the coder redoes it or the two conflict. | Nothing; it counts as another idea. | **Block** when the approval is a reply in the same Slack thread as t-4's approval: that's almost always more of t-4. "This yes is in t-4's thread (suppliers page, not merged). Use `--on t-4`, or `--new` if it really is separate." **Hint** otherwise: every new task prints the open ideas, one line each, with "more of one of these? use `--on`". |
+| **Continuing merged work.** `--on t-4` after t-4 is merged. | Refused: "isn't a finished task with a branch to continue". | **Redirect in words:** "t-4 is merged into dev, and a new task starts from dev with its code. Start a new task; it needs a yes." |
+| **Continuing discarded work.** | Refused, same message. | **Hint:** "t-4 was discarded on <date>. Start again with a new task; its brief is in `hi team show t-4`." |
+| **`--on` for unrelated work.** The lead puts a different feature on t-4's branch, by mistake or to avoid asking for a yes or hitting the five-idea limit. Two ideas then merge or discard together, and the people never approved the second. | Nothing stops it: `--on` needs no yes. | Three guards. (1) The **reviewer checks scope against the approval**, not only the brief: its brief already carries how the work started, and its ROLE.md says work beyond what the people approved is "Changes needed: outside what was approved in t-4". (2) The **broker announces each continuation in the original approval's thread** ("Continuing t-4: sort the list by name"), so the people see what's being added to what they agreed. (3) SOUL.md says it plainly: `--on` is for more of the same request, never a new one. |
+| **A failed or stopped task.** `--on` a task that failed partway. | Allowed when it has a branch. | **Hint:** "t-4 failed (<reason>); its branch has 3 commits; continuing from them." Usually right, so no block. |
+
+#### Continuing the wrong step
+
+| Case | Today | Proposed |
+|---|---|---|
+| **An older step of an idea.** t-4 was continued by t-7; the lead, thinking "t-4", runs `--on t-4` again. The new branch starts from t-4 and leaves out t-7's commits. The idea forks, and the fork may count as a new idea. | The broker follows its own review fixes (`teamLatestWork` walks `Next`), but not continuations the lead started (`On`). | **Redirect** to the idea's latest task, as review fixes already are: "t-4 was continued by t-7; continuing t-7." If the idea has already forked (two latest tasks), **block** with both and ask which to keep (`hi team discard` the other). |
+| **The idea is still working.** `--on` while t-4, a fix of it, or a continuation of it runs. | Blocked for the review loop: "still in review; hi team wait". A continuation the lead started isn't checked, so two can run at once. | **Block** for every step of the idea, using the same latest-task walk: one piece of work per idea at a time. |
+
+#### When the code moved on
+
+| Case | Today | Proposed |
+|---|---|---|
+| **`main` moved since the idea started.** Other work was merged, and t-4's branch is behind. | The specs are handled: `teamSpecsMoved` tells the member to merge them first. Code isn't, and the merge later fails: "doesn't merge cleanly; give the coder a new task to redo it". | **Hint in the brief** for code too: if `main` changed files the idea also changed, the continuation brief says so and asks the coder to merge `main` first and resolve. **Recover** when a merge fails: the broker offers the exact next step, a continuation whose brief it writes ("bring t-4 up to date with dev: merge it and resolve these files"), reviewed like any other work, as the fix brief is today. |
+| **The branch is gone** (removed by hand, or a restore from before it). | Refused: "branch is gone". | **Hint:** "t-4's branch is gone; start a new task from its brief (`hi team show t-4`)." |
+
+#### When the lead has lost track
+
+| Case | Today | Proposed |
+|---|---|---|
+| **After a restart or compaction** the lead doesn't remember which task is which piece of work. | `hi team tasks` lists tasks; `hi team versions` lists the open ideas. | `hi team tasks` **groups by idea**, showing the chain (t-4, then fix t-6, then t-7) with each idea's thread and status. The lead's skill says to check it before any `--on`. It's a change to existing output, not a new command. |
+| **The five-idea limit is full** and the people ask for something new. | Refused, with the list. | Same, and the list says which ideas are oldest and which wait on the people, so the lead can ask "shall we drop the export idea from last week?" |
+
+#### Recovering from a wrong choice
+
+- **Started new instead of continuing:** `hi team discard t-8` and redo it
+  as `--on t-4`. Both exist, and the new task's brief and files carry
+  over by attaching them again.
+- **Two ideas on one branch:** the reviewer should have caught it (above).
+  If it's merged, it's in dev, not production: the people try it, and
+  `hi team discard dev` puts dev back on production if they want neither.
+  Splitting a branch isn't worth a command.
+- **A forked idea:** the redirect above prevents new forks; an existing
+  one is resolved by discarding one side.
+
+What's new in code: following `On` as well as `Next` when finding an
+idea's latest task (redirect and block), the same-thread check with a
+`--new` override, one announcement line in the approval's thread, the
+grouped `hi team tasks`, and the brief and message texts. The reviewer's
+scope check and the SOUL.md line are text.
+
 ## Not taken from OpenRig
 
 Each would be a new feature or work against how hi teams are meant to work:
@@ -276,9 +346,14 @@ Each would be a new feature or work against how hi teams are meant to work:
    `teamReviewBrief` into its ROLE.md default. Lead guidance covers
    `Learned:` follow-ups and keeping the file small. Backups already
    include the folder.
-3. **Template roles.** `hi team new` copies `roles/` from the template.
+3. **Continuing work** (idea 6). First the safety fixes: redirect an
+   `--on` to the idea's latest task, one piece of work per idea at a time,
+   and the reviewer's scope check against the approval. Then the help: the
+   same-thread block with `--new`, the thread announcement, `hi team
+   tasks` grouped by idea, and the up-to-date hint and merge recovery.
+4. **Template roles.** `hi team new` copies `roles/` from the template.
    Private sources can ship roles.
-4. **Only on evidence:** session resume for `--on`.
+5. **Only on evidence:** session resume for `--on`.
 
 ## How we'll know
 
@@ -302,3 +377,9 @@ Each would be a new feature or work against how hi teams are meant to work:
   rung.
 - When a hi team uses [hi_notes.md](hi_notes.md), do learned lines that
   apply beyond the project go there as proposals?
+- Is a reply in the same thread a strong enough signal to block a new
+  task, or should it only warn? A thread can drift to a new subject. The
+  `--new` override keeps a block cheap, but it's one more flag for the
+  lead to learn.
+- Should a continuation need a yes after all, once it's announced in the
+  thread, for example when it's the third continuation of one idea?
