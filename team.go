@@ -52,8 +52,11 @@ type teamConfig struct {
 	// Template is the team template the project and the roles started
 	// from, one that extends team-app, such as one from the hi server's
 	// sources; empty is team-app itself.
-	Template string    `json:"template,omitempty"`
-	Created  time.Time `json:"created"`
+	Template string `json:"template,omitempty"`
+	// MadeAs is the name the team was made with, when hi team rename has
+	// given it another since: its memory bank and its snapshots keep it.
+	MadeAs  string    `json:"made_as,omitempty"`
+	Created time.Time `json:"created"`
 }
 
 // teamMember is one role: an agent, its model, and what its box may use.
@@ -260,6 +263,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = withTeamName(rest, func(name string) error { return teamDown(name, stdout) })
 	case "rm", "remove":
 		err = teamRemove(rest, stdin, stdout)
+	case "rename":
+		err = teamRename(rest, stdin, stdout)
 	case "ls", "list":
 		err = teamList(stdout)
 	case "status":
@@ -344,6 +349,9 @@ usage:
   hi team rm [<name>]              stop it and remove it from this machine: its service, boxes,
                                    and folder; without a name, pick it from a list
       [--keep-folder]              keep the folder; hi team up <folder> brings the team back
+      [--yes]                      don't ask first
+  hi team rename <name> <new>      give the team another name, after its Slack app's: its bot,
+                                   its /hi-<name> command, its service; memory and snapshots stay
       [--yes]                      don't ask first
   hi team ls                       teams on this machine
   hi team status <name>            whether it is up, its members, and its tasks

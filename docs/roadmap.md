@@ -1646,6 +1646,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   on a team that forked work before v0.75.0.
   Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
 
+### v0.78.0 — Rename a team
+
+- [x] `hi team rename <name> <new>` follows a renamed Slack app: the
+  bot's handle, `/hi-<new>`, the service and the snapshot timer, the boxes
+  named after the team, the snapshots' folder, and the folder when it is
+  still `team-<name>`. A team that was up starts again. The memory bank and
+  the snapshots stay filed under the name the team was made with
+  (team.json's `made_as`), so what the lead remembers and every snapshot
+  carry over. Refused while a task is running.
+  Spec: [hi_team.md](specs/approved/hi_team.md), Commands.
+
 ## Planned
 
 ### Guide — a diagram for every tool

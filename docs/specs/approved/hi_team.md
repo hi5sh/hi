@@ -2,7 +2,7 @@
 
 Status: Approved (2026-10-10). The first slice is built (v0.37.0); since
 then dev and production, keys, snapshots, rollback, the helper, and domains
-have shipped (v0.38.0 to v0.77.1; see the roadmap). Export and import, and
+have shipped (v0.38.0 to v0.78.0; see the roadmap). Export and import, and
 the security advisor, are not built.
 
 Dependencies: `hi box` (boxes, the proxy, token injection, the allowlist),
@@ -249,6 +249,7 @@ hi team up <name>               start the team and keep it up (also after a rebo
 hi team down <name>             stop it; the folder stays
 hi team rm <name> [--keep-folder]  stop it and remove it from this host: its service,
                                 its boxes, and (unless --keep-folder) its folder
+hi team rename <name> <new>     give the team another name, after its Slack app's (v0.78.0)
 hi team ls                      teams on this host, up or down, spend this month
 hi team status <name>           members, running tasks, preview and live versions
 hi team logs <name> [<task>] [-f]  the lead's log, or a task's

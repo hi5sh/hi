@@ -330,7 +330,7 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		return err
 	}
 	if memoryIP != "" {
-		if err := writeTeamHindsightConfig(lead, config.Name, memoryIP); err != nil {
+		if err := writeTeamHindsightConfig(lead, config.Name, config.madeAs(), memoryIP); err != nil {
 			return err
 		}
 	}

@@ -320,7 +320,14 @@ func teamAfterSnapshot(team, kind string) error {
 	return teamCopyOffsite(team, kind == teamSnapshotDaily)
 }
 
-func teamSnapshotHost(team string) string { return "hi-team-" + team }
+// teamSnapshotHost is what a team's snapshots are filed under: the name
+// it was made with, so a renamed team keeps the ones it took before.
+func teamSnapshotHost(team string) string {
+	if config, err := loadTeam(team); err == nil {
+		team = config.madeAs()
+	}
+	return "hi-team-" + team
+}
 
 // teamForgetArgs keeps the policy's daily, weekly, and monthly snapshots,
 // everything from the last week, and every snapshot before a release.

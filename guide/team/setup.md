@@ -74,6 +74,7 @@ hi team status payments   # up or down, its members, its tasks
 hi team logs payments     # the lead's log
 hi team down payments     # stop it; the folder stays
 hi team rm payments       # stop it and remove it, folder and all
+hi team rename payments billing   # give it another name
 ```
 
 `hi team up` installs a systemd user service, `hi-team-payments`, which
@@ -86,6 +87,13 @@ folder. With `--keep-folder` the folder stays, and `hi team up <folder>`
 brings the team back. Deleting just the folder leaves the service and the
 name behind. The Slack app and channel, and a GitHub repository, are yours
 to remove in Slack and GitHub.
+
+`hi team rename` follows a new name for the Slack app: the bot's handle,
+the `/hi-<name>` command, the service, and the folder when it is still
+`team-<name>`. The team stops while it's done and starts again if it was
+up. Its tasks, memory, and snapshots carry over: team.json's `made_as`
+keeps the name the memory bank and the snapshots are filed under. Then
+paste `hi team manifest <new name>` into the app's manifest in Slack.
 
 ## Put the project on GitHub
 
