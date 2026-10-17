@@ -1637,6 +1637,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   empty project still takes a template's roles.
   Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 5.
 
+### v0.77.1 — An idea ends at merged work
+
+- [x] Two lines of work that went on from the same merged task are two
+  ideas: continuing one is no longer refused as a split, `hi team tasks`
+  shows each line from the merged task it went on from rather than the
+  whole history, and discarding one no longer discards the other. Found
+  on a team that forked work before v0.75.0.
+  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
+
 ## Planned
 
 ### Next — roles that remember

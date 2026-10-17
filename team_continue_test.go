@@ -194,8 +194,44 @@ func TestTeamContinueAfterDevMoved(t *testing.T) {
 	// tasks shows the idea as its line of tasks.
 	var out bytes.Buffer
 	printTeamTasks(loadTeamTasks("payments"), 30, &out)
-	want := fmt.Sprintf("  %s: %s > %s > %s (done)", catchUp.ID, first.ID, more.ID, catchUp.ID)
+	want := fmt.Sprintf("  %s (done) Bring %s up to date with main\n      %s > %s > %s\n", catchUp.ID, more.ID, first.ID, more.ID, catchUp.ID)
 	if !strings.Contains(out.String(), "Not merged yet (1 of 5 ideas)") || !strings.Contains(out.String(), want) {
 		t.Fatal(out.String())
+	}
+}
+
+// Lines of work that went on from the same merged task are separate ideas,
+// as in a team that forked work before v0.75.0.
+func TestTeamIdeasEndAtMergedWork(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	for _, task := range []teamTask{
+		{ID: "t-1", Kind: "task", Status: "merged", Branch: "hi-box/payments-t-1", Title: "A list"},
+		{ID: "t-2", Kind: "task", On: "t-1", Status: "done", Branch: "hi-box/payments-t-2", Title: "Left behind"},
+		{ID: "t-3", Kind: "task", On: "t-1", Status: "merged", Branch: "hi-box/payments-t-3", Title: "Kept"},
+		{ID: "t-4", Kind: "task", On: "t-3", Status: "failed", Branch: "hi-box/payments-t-4", Title: "Failed on"},
+	} {
+		task.Role, task.Agent, task.Created = "coder", "claude", time.Now()
+		saveTeamTask("payments", task)
+	}
+	tasks := loadTeamTasks("payments")
+	if ideas := teamOpenIdeas(tasks); len(ideas) != 2 {
+		t.Fatalf("%+v", ideas)
+	}
+	on, hints, err := b.continuing("t-4")
+	if err != nil || on != "t-4" || len(hints) != 1 || !strings.Contains(hints[0], "t-4 failed") {
+		t.Fatal(on, hints, err)
+	}
+	var out bytes.Buffer
+	printTeamIdeas(tasks, &out)
+	if !strings.Contains(out.String(), "  t-2 (done) Left behind\n      t-1 (merged) > t-2\n") || !strings.Contains(out.String(), "      t-3 (merged) > t-4\n") {
+		t.Fatal(out.String())
+	}
+	// Discarding one line leaves the other.
+	if _, err := b.discard("t-2"); err != nil {
+		t.Fatal(err)
+	}
+	if four, _ := loadTeamTask("payments", "t-4"); four.Status != "failed" {
+		t.Fatalf("t-4 is %s", four.Status)
 	}
 }

@@ -170,7 +170,12 @@ func printTeamIdeas(tasks []teamTask, w io.Writer) {
 	fmt.Fprintf(w, "Not merged yet (%d of %d ideas); continue one with --on its latest task:\n", len(ideas), teamMaxIdeas)
 	for _, idea := range ideas {
 		var line []string
-		for _, task := range teamChain(tasks, idea.ID) {
+		chain := teamChain(tasks, idea.ID)
+		if first := chain[0]; first.On != "" {
+			// The line goes on from merged work.
+			line = append(line, first.On+" (merged)")
+		}
+		for _, task := range chain {
 			line = append(line, task.ID)
 		}
 		status := idea.Status
@@ -179,11 +184,13 @@ func printTeamIdeas(tasks []teamTask, w io.Writer) {
 				status = idea.Status + ", review: " + task.Verdict
 			}
 		}
-		asked := ""
-		if root, err := teamFindTask(tasks, line[0]); err == nil && root.Approval != nil {
-			asked = "; asked by " + root.Approval.Name
+		if root, err := teamFindTask(tasks, teamChainRoot(tasks, idea.ID)); err == nil && root.Approval != nil {
+			status += "; asked by " + root.Approval.Name
 		}
-		fmt.Fprintf(w, "  %s: %s (%s%s) %s\n", idea.ID, strings.Join(line, " > "), status, asked, qClip(idea.Title))
+		fmt.Fprintf(w, "  %s (%s) %s\n", idea.ID, status, qClip(idea.Title))
+		if len(line) > 1 {
+			fmt.Fprintf(w, "      %s\n", strings.Join(line, " > "))
+		}
 	}
 	fmt.Fprintln(w)
 }

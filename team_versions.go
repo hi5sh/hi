@@ -214,13 +214,21 @@ func teamApprovalSlackThread(approval teamApproval) string {
 var teamSlackTSPattern = regexp.MustCompile(`^[0-9]{9,11}\.[0-9]{6}$`)
 
 // teamChain is a task and every task that continues it, or that it
-// continues: one idea.
+// continues, through work that isn't merged or discarded: one idea. A
+// merge ends what lines of work share, so two lines that continued the
+// same merged task are two ideas.
 func teamChain(tasks []teamTask, id string) []teamTask {
+	open := map[string]bool{}
+	for _, task := range tasks {
+		if task.Kind == "task" && task.Status != "merged" && task.Status != "discarded" {
+			open[task.ID] = true
+		}
+	}
 	in := map[string]bool{id: true}
 	for grew := true; grew; {
 		grew = false
 		for _, task := range tasks {
-			if task.Kind != "task" || task.On == "" || in[task.ID] == in[task.On] {
+			if !open[task.ID] || !open[task.On] || in[task.ID] == in[task.On] {
 				continue
 			}
 			in[task.ID], in[task.On], grew = true, true, true

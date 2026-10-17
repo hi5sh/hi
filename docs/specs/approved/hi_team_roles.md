@@ -350,6 +350,13 @@ Four kinds of response, from lightest to strongest:
 - **A forked idea:** the redirect above prevents new forks; an existing
   one is resolved by discarding one side.
 
+**An idea ends at merged work** (v0.77.1). Its tasks are those connected
+through `--on` that aren't merged or discarded. Two lines that went on
+from the same merged task are two ideas, as the five-idea count already
+counted them: continuing one isn't refused as a split, `hi team tasks`
+shows each line from the merged task it went on from, and discarding one
+leaves the other. Found on a team that forked work before v0.75.0.
+
 What's new in code: following `On` as well as `Next` when finding an
 idea's latest task (redirect and block), the same-thread check with a
 `--new` override (an approval records its thread), one announcement line
