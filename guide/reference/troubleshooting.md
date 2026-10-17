@@ -106,7 +106,7 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `the hi data token has expired`                             | Run the command through `hi data` again; tokens last a day.  |
 | `the hi server is older than v0.25.1`                       | An admin runs `hi update` on the server box.                 |
 | `the server can't expose the data proxy (…); using signed links instead` | The run still works. To use the proxy, an admin turns on Peer Expose in NetBird (Settings > Clients); `hi server expose` shows the last problem. |
-| `the data is too much to send with one Hugging Face job`    | Name a folder or pattern after the repository (`--data hifinab/fdb/runs/*`), or use Colab. Happens only with signed links. |
+| `the data is too much to send with one Hugging Face job`    | Name a folder or pattern after the repository (`--data acme/fdb/runs/*`), or use Colab. Happens only with signed links. |
 | `the download link for … has expired`                       | The job started more than about an hour after the links were made. Run it again. |
 
 ## Sharing a local service

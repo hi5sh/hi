@@ -40,7 +40,7 @@ hi compute billing
 Hugging Face:
 ACCOUNT    TYPE  CAN PAY  PLAN  BILLED
 quantbert  user  no
-hifinab    org   yes      team  <- hi bills this
+acme    org   yes      team  <- hi bills this
 ```
 
 If no account can pay, add credits at

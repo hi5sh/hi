@@ -517,7 +517,7 @@ out the organizations' datasets, models, and buckets through a proxy, so
 nobody needs a Hugging Face account or token of their own:
 
 ```sh
-hi server data add hifinab        # asks for the token; it shows as *
+hi server data add acme        # asks for the token; it shows as *
 hi server data                    # a menu: add, test, remove
 hi server data list|test|remove <org>
 ```
@@ -529,7 +529,7 @@ hi server data list|test|remove <org>
   can, so hi warns about it as it does about a write token. `list` and
   `test` show whose token each organization uses.
 - Every group reads everything by default. To limit one, add
-  `"data": ["hifinab/bars-1d", "hifinab/public-*"]` to it in `policy.json`;
+  `"data": ["acme/bars-1d", "acme/public-*"]` to it in `policy.json`;
   `[]` allows nothing.
 - Token grants are in the audit log, and each download in
   `data_usage.jsonl`.
@@ -565,7 +565,7 @@ their own:
 ```sh
 hi server ai set                       # asks for the OpenRouter key, shown as *
 hi server ai set --model google/gemini-2.5-flash   # change the default
-hi server ai set --url http://aiw11.hi.fin:8731/v1 --model <name> --no-key
+hi server ai set --url http://gpu-1.example.com:8731/v1 --model <name> --no-key
                                        # a model on your own machine, no key
 hi server ai                           # the setup and this month's use per user
 hi server ai off                       # stop serving; keeps the key

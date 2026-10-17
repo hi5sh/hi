@@ -71,7 +71,7 @@ first is up. Next:
 ```
 
 On Hugging Face, the same step is `--gpu t4-small`, and the start line also
-names who pays, as in `($0.40/h, billed to hifinab)`.
+names who pays, as in `($0.40/h, billed to acme)`.
 
 ## 4. Use it
 

@@ -70,7 +70,7 @@ which SSH requires.
 - [x] Start and reach Hugging Face instances with `hi compute up`, `ssh`,
   `tunnel`, and `logs`; serve models with `hi compute serve`.
 - [x] Infer the provider from the hardware name when both are signed in.
-- [x] Verify against a live account (the `hifinab` organization): runs,
+- [x] Verify against a live account (the `acme` organization): runs,
   detached runs, `up`/`stop`, and `serve` on a `t4-small` (ready in about a
   minute, ~220 tokens/s for Qwen3-0.6B), for under $0.05. SSH through the Jobs
   gateway still needs a registered key to test.
@@ -370,16 +370,16 @@ private or quant-related goes in the built-in templates.
   group by `template_sources` in policy.
 - [x] List and generate server templates in `hi init`, cached per commit,
   with server layers extending built-in ones.
-- [x] Move the quant work into the private `hifinab/templates`: the
+- [x] Move the quant work into the private `acme/templates`: the
   `research` template with its backtest guards, and the private skills
   `time-series-validity` and `backtest-evaluation`. Layers can `remove`
   files they inherit.
 - [x] The `data-access` skill (2026-10-12), once `hi data` settled data
   access: the team's data is its Hugging Face organizations, through `hi data`.
 - [x] Verify live on vmhiserver (2026-10-01): the server signed and served
-  `hifinab/templates` at 7362a3e, a laptop stored its key, and
+  `acme/templates` at 7362a3e, a laptop stored its key, and
   `hi init research` passed `make check`. The server reads GitHub with a
-  fine-grained, read-only token for that one repository (the `hifinab` org
+  fine-grained, read-only token for that one repository (the `acme` org
   has deploy keys turned off), and a new commit reached the laptop after
   `hi server templates sync`.
   Approved spec: [hi_server.md](specs/approved/hi_server.md#template-sources);
@@ -387,7 +387,7 @@ private or quant-related goes in the built-in templates.
 
 Dependency: the v0.16.0 layers and metadata; the open decisions
 (backtest engine, data access, scheduling) are tracked in
-`hifinab/templates`.
+`acme/templates`.
 
 ### v0.17.1 — Template syncs that can't hang
 
@@ -716,7 +716,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Spec: [hi_server_expose.md, Cloud machines](specs/approved/hi_server_expose.md#cloud-machines) and
   [Releases](specs/approved/hi_server_expose.md#releases) (2).
   Tested on 2026-10-07 on RunPod (RTX 2000 Ada) through vmhiserver:
-  `hf download` and `load_dataset` of hifinab/bars-1d, and a refusal for a
+  `hf download` and `load_dataset` of acme/bars-1d, and a refusal for a
   repository not named.
 
 ### v0.29.1 — Tasks from markdown files
@@ -940,7 +940,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 ### v0.36.3 — The quant template moves to the private repo
 
 - [x] `autoresearch-quant` is no longer built into hi; it is in
-  `hifinab/templates` and reaches connected devices through `hi server`,
+  `acme/templates` and reaches connected devices through `hi server`,
   with its tutorial, run b-3 and its specification. The public guide and
   docs no longer describe it, and its tutorial's address redirects.
 - [x] `hi init --update` follows a layer that left the built-ins to the
@@ -1442,7 +1442,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### v0.64.1 — hi5sh/hi and hi5.sh
 
-- [x] The repository moved from `hifinab/cli` to `hi5sh/hi`, and the site
+- [x] The repository moved from `acme/cli` to `hi5sh/hi`, and the site
   from hifin.sh to https://hi5.sh. `hi update` and the installer download
   from `hi5sh/hi`; older versions still update through GitHub's redirect.
 
@@ -1702,7 +1702,7 @@ Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
 
 Finance work (`autoresearch-quant`'s data sources, fitted regime models)
 moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in
-`hifinab/templates`. Fitted models there need the boxes to allow more
+`acme/templates`. Fitted models there need the boxes to allow more
 libraries.
 
 ### Later — `hi compute`

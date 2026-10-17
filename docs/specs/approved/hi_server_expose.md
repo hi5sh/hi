@@ -145,7 +145,7 @@ can't expose.
   environment, and runs the script with `HF_ENDPOINT` and `HF_TOKEN` set to
   the proxy and the run token.
 
-With these, the script can also call `load_dataset("hifinab/...")` for any
+With these, the script can also call `load_dataset("acme/...")` for any
 repository named with `--data`. There is no size limit and no one-hour
 expiry.
 
@@ -236,14 +236,14 @@ Checked on 2026-10-04 on vmhiserver (NetBird 0.79.0, NetBird cloud):
   seconds.
 
 Prototype, checked the same day with a throwaway hi server on vmhiserver
-(ports 7399 and 7400, only the hifinab data token):
+(ports 7399 and 7400, only the acme data token):
 
 - The first `POST /v1/data/run-access` started `netbird expose 7400
   --with-name-prefix hi-vmhiserver` and answered with
   `https://hi-vmhiserver-y4v6.eu1.netbird.services/hf` once `/health`
   responded; the start and the run token were audited.
 - A real Hugging Face job (`cpu-basic`) got the run token as the encrypted
-  secret `HI_DATA_TOKEN` and downloaded `hifinab/fintabarena-results`
+  secret `HI_DATA_TOKEN` and downloaded `acme/fintabarena-results`
   through it: 150 files, 35.6 MB, in 13 s (2 s with signed links; each
   file's call goes through NetBird's proxy first). The script then called
   `hf_hub_download` for a file itself, and a repository the token doesn't

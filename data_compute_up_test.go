@@ -38,20 +38,20 @@ func TestComputeUpDataHandsTheMachineARunToken(t *testing.T) {
 	ts, _, public := upWithData(t)
 	// RunPod through the hi server, approved by policy.
 	code, stdout, stderr := runComputeTest("up", "--on", "runpod", "--gpu", "rtx-4090", "--name", "box", "--max", "2h",
-		"--data", "hifinab/ranker", "--data", "dataset:hifinab/bars", "--reason", "train", "--yes")
+		"--data", "acme/ranker", "--data", "dataset:acme/bars", "--reason", "train", "--yes")
 	if code != 0 {
 		t.Fatalf("exit code %d\n%s%s", code, stdout, stderr)
 	}
 	sent := dataUpSent(t)
 	if !strings.Contains(sent, "export HF_ENDPOINT='"+public+"/hf'") || !strings.Contains(sent, "export HF_TOKEN="+dataTokenPrefix) ||
-		!strings.Contains(sent, "export HI_DATA_REPOS='hifinab/ranker hifinab/bars'") {
+		!strings.Contains(sent, "export HI_DATA_REPOS='acme/ranker acme/bars'") {
 		t.Fatalf("the machine got:\n%s", sent)
 	}
 	calls := readTestFile(t, filepath.Join(os.Getenv("FAKE_DIR"), "calls.log"))
 	if !strings.Contains(calls, "root@10.0.0.9") || !strings.Contains(calls, "cat > ~/.hi/data.env") || !strings.Contains(calls, "~/.bashrc ~/.profile") {
 		t.Fatalf("ssh calls:\n%s", calls)
 	}
-	if !strings.Contains(stdout, "box can read hifinab/ranker, hifinab/bars through the hi server until") {
+	if !strings.Contains(stdout, "box can read acme/ranker, acme/bars through the hi server until") {
 		t.Fatalf("stdout:\n%s", stdout)
 	}
 	// The token is in neither the pod's settings nor the output.
@@ -66,8 +66,8 @@ func TestComputeUpDataHandsTheMachineARunToken(t *testing.T) {
 	}
 
 	// Shadeform with the device's own key works the same way.
-	code, stdout, stderr = runComputeTest("up", "--on", "shadeform", "--gpu", "h100", "--name", "vm", "--max", "1h", "--data", "hifinab/ranker", "--yes")
-	if code != 0 || !strings.Contains(stdout, "vm can read hifinab/ranker") || strings.Count(dataUpSent(t), "export HF_TOKEN=") != 2 {
+	code, stdout, stderr = runComputeTest("up", "--on", "shadeform", "--gpu", "h100", "--name", "vm", "--max", "1h", "--data", "acme/ranker", "--yes")
+	if code != 0 || !strings.Contains(stdout, "vm can read acme/ranker") || strings.Count(dataUpSent(t), "export HF_TOKEN=") != 2 {
 		t.Fatalf("shadeform: %d\n%s%s", code, stdout, stderr)
 	}
 }
@@ -79,11 +79,11 @@ func TestComputeUpDataRefusesBeforeStarting(t *testing.T) {
 		want string
 	}{
 		{[]string{"--on", "colab", "--gpu", "t4"}, "RunPod and Shadeform"},
-		{[]string{"--on", "shadeform", "--gpu", "h100", "--data", "hifinab/bars/data"}, "whole repositories"},
-		{[]string{"--on", "shadeform", "--gpu", "h100", "--data", "hifinab/secret"}, "not among what you may download"},
+		{[]string{"--on", "shadeform", "--gpu", "h100", "--data", "acme/bars/data"}, "whole repositories"},
+		{[]string{"--on", "shadeform", "--gpu", "h100", "--data", "acme/secret"}, "not among what you may download"},
 		{[]string{"--on", "runpod", "--gpu", "rtx-4090", "--no-wait"}, "--no-wait"},
 	} {
-		args := append([]string{"up", "--name", "x", "--max", "1h", "--reason", "train", "--data", "hifinab/ranker", "--yes"}, test.args...)
+		args := append([]string{"up", "--name", "x", "--max", "1h", "--reason", "train", "--data", "acme/ranker", "--yes"}, test.args...)
 		code, stdout, stderr := runComputeTest(args...)
 		if code == 0 || !strings.Contains(stderr, test.want) {
 			t.Errorf("%v: code %d, want %q\n%s%s", test.args, code, test.want, stdout, stderr)
@@ -99,11 +99,11 @@ func TestComputeUpDataRefusesBeforeStarting(t *testing.T) {
 
 func TestComputeUpDataKeepsTokensOffCommunityCloud(t *testing.T) {
 	request := upRequest{hardware: computeHardware{name: "rtx-a4000@community"}}
-	if _, err := checkDataUp(&runpodProvider{}, request, []string{"hifinab/ranker"}); err == nil || !strings.Contains(err.Error(), "Community Cloud") {
+	if _, err := checkDataUp(&runpodProvider{}, request, []string{"acme/ranker"}); err == nil || !strings.Contains(err.Error(), "Community Cloud") {
 		t.Fatalf("err = %v", err)
 	}
 	request = upRequest{hardware: computeHardware{name: "rtx-4090"}, noWait: true}
-	if _, err := checkDataUp(&runpodProvider{}, request, []string{"hifinab/ranker"}); err == nil || !strings.Contains(err.Error(), "--no-wait") {
+	if _, err := checkDataUp(&runpodProvider{}, request, []string{"acme/ranker"}); err == nil || !strings.Contains(err.Error(), "--no-wait") {
 		t.Fatalf("err = %v", err)
 	}
 }

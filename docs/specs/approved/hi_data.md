@@ -22,11 +22,11 @@ later (see [Later: uploads](#later-uploads)). The design choice below follows
 
 ```text
 $ hi data
-  hifinab
-  › dataset  hifinab/daily-bars        12.4 GB  updated 2 days ago
-    dataset  hifinab/fills-2026         3.1 GB  updated today
-    model    hifinab/ranker-v3          1.8 GB  updated 5 days ago
-    bucket   hifinab/scratch           80.2 GB  412 files
+  acme
+  › dataset  acme/daily-bars        12.4 GB  updated 2 days ago
+    dataset  acme/fills-2026         3.1 GB  updated today
+    model    acme/ranker-v3          1.8 GB  updated 5 days ago
+    bucket   acme/scratch           80.2 GB  412 files
   name2
     dataset  name2/reference-data      620 MB   updated 3 weeks ago
 ```
@@ -44,11 +44,11 @@ sends them to a device. It runs a small Hugging Face proxy instead:
 ```text
  device                                hi server                          huggingface.co
  ──────                                ─────────                          ──────────────
- hi data get hifinab/daily-bars
+ hi data get acme/daily-bars
    │ signed POST /v1/data/token ─────▶ checks group policy
    │ ◀── hi data token (24 h, this device)
    │
-   │ runs: hf download --repo-type dataset hifinab/daily-bars
+   │ runs: hf download --repo-type dataset acme/daily-bars
    │       HF_ENDPOINT=http://<server>/hf   HF_TOKEN=<hi data token>
    │
    │ GET /hf/api/datasets/... ───────▶ checks token, method, path, policy
@@ -60,7 +60,7 @@ sends them to a device. It runs a small Hugging Face proxy instead:
 
 - `huggingface_hub`, the `hf` CLI, and `datasets` send every Hub call to
   `HF_ENDPOINT`, including the link for refreshing Xet tokens. So the
-  official tools work unchanged, and so does `load_dataset("hifinab/...")`
+  official tools work unchanged, and so does `load_dataset("acme/...")`
   in a script run through `hi data run`.
 - The bytes don't go through the server. Downloads are answered with a 302
   to a signed CDN URL (valid about an hour, no token needed), or with a Xet
@@ -165,9 +165,9 @@ for example when an agent runs it, it prints the same as `hi data ls`.
 ```json
 {
   "data": [
-    { "kind": "dataset", "id": "hifinab/bars-1d", "revision": "9981174…",
+    { "kind": "dataset", "id": "acme/bars-1d", "revision": "9981174…",
       "to": "data/bars-1d", "include": ["2026/*"], "fetched": "2026-10-03T21:03:50Z" },
-    { "kind": "bucket", "id": "hifinab/fdb", "to": "data/fdb",
+    { "kind": "bucket", "id": "acme/fdb", "to": "data/fdb",
       "files_hash": "5c1e…", "files": 412, "fetched": "2026-10-03T21:04:10Z" }
   ]
 }
@@ -182,7 +182,7 @@ doesn't bundle it.
 a fresh hi data token for every repository the group may read (scope
 `*`), so `load_dataset`, `hf_hub_download`, and `hf://datasets/...` paths
 in pandas or Polars read the team's private data directly, and
-`from_pretrained("hifinab/...")` loads the team's models. The command's
+`from_pretrained("acme/...")` loads the team's models. The command's
 exit status is passed on. `hi data env` prints the two variables for
 `eval "$(hi data env)"` in a shell; the token lasts a day.
 
@@ -240,8 +240,8 @@ they reach the server; that is left for later.
 datasets, models, and buckets the group may read.
 
 ```json
-"staff":    { "data": ["hifinab/*", "name2/*"] },
-"students": { "data": ["hifinab/daily-bars", "hifinab/public-*"] },
+"staff":    { "data": ["acme/*", "name2/*"] },
+"students": { "data": ["acme/daily-bars", "acme/public-*"] },
 "agents":   { "data": [] }
 ```
 
@@ -257,9 +257,9 @@ datasets, models, and buckets the group may read.
 ### Adding organizations
 
 ```text
-$ hi server data add hifinab name2
-Hugging Face token for hifinab, name2: ****************
-✓ hifinab: 14 datasets, 4 models, 3 buckets (token of service-bot, read-only)
+$ hi server data add acme name2
+Hugging Face token for acme, name2: ****************
+✓ acme: 14 datasets, 4 models, 3 buckets (token of service-bot, read-only)
 ✓ name2:   2 datasets, 0 models, 0 buckets
 ```
 
@@ -389,7 +389,7 @@ server:
    bucket's info, its `tree?recursive=true`, a `HEAD` on one file's
    `resolve`, and a Xet read token; the files come from Xet storage. A
    19-file public bucket synced through the proxy on 2026-10-03, and a
-   private 36 GB bucket (`hifinab/fdb`) from the team's server.
+   private 36 GB bucket (`acme/fdb`) from the team's server.
 8. In `hi data run`, `datasets.load_dataset` (datasets 5.0.1), pandas
    `read_parquet("hf://datasets/...")`, and `hf_hub_download` all read
    through the proxy with no other Hub calls needed.
@@ -401,7 +401,7 @@ server:
     no token (6 KB wrapper), and ran the script with its arguments. With
     an old model's 1.4 MB in-git `tokenizer.json`, the Hugging Face size
     check refused it and named the file. On 2026-10-04 a real Hugging Face
-    job (`cpu-basic`) downloaded `hifinab/fintabarena-results` from the
+    job (`cpu-basic`) downloaded `acme/fintabarena-results` from the
     team's server: 150 files, 35.6 MB, parquet, pickle, and JSON kept in
     git, in 2 s, with no `HF_TOKEN` on the instance; the script's PEP 723
     dependencies installed and it ran with its arguments.

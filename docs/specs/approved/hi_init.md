@@ -67,7 +67,7 @@ connection, so `hi init python` works on any machine with `hi`.
   in a `hi` release, and `hi update` brings it to a device.
 - Nothing private or team-specific may be added: no internal hostnames, data sources,
   vendors, schemas, or research methods. The repository's CI rejects known
-  internal names (such as `.hi.fin` addresses) under `templates/`.
+  internal names (such as your own domain's addresses) under `templates/`.
 - A never-connected `hi` sees only the built-in templates.
 
 ### Server sources: private repositories behind `hi server`
@@ -76,7 +76,7 @@ Private templates and skills live in private git repositories that an admin
 registers on the team's `hi server`:
 
 ```text
-hi server templates add private https://github.com/hifinab/templates
+hi server templates add private https://github.com/acme/templates
 ```
 
 The server holds the read access, mirrors the repository, and serves its
@@ -86,7 +86,7 @@ need access to the repository on GitHub, and agents enrolled with
 syncs, signs, and limits sources is in
 [hi_server.md](hi_server.md#template-sources).
 
-`hifinab/templates` is Hifin's private repo, registered as `private`. Everything quant-related is there
+A team's private repo, such as `acme/templates` registered as `private`, holds its own templates. Everything quant-related is there
 and only there: the `research` template and its backtest guards, private skills
 such as `time-series-validity`, `backtest-evaluation`, and `data-access`, the
 data-access helper, and the decisions behind them. This specification
@@ -95,7 +95,7 @@ covers the mechanism; that repository documents its own templates.
 | Belongs in | Examples |
 |---|---|
 | Built-in (`hi5sh/hi/templates/`) | Python library layout, React web app, CI, `make check`, agent configuration, secret scanning |
-| Server source (`hifinab/templates`) | `research`, backtest harness and guard tests, private skills, data access, the team's orchestrator and infrastructure |
+| Server source (`acme/templates`) | `research`, backtest harness and guard tests, private skills, data access, the team's orchestrator and infrastructure |
 
 The GitHub "template repository" feature is not used: it has no parameters
 and no way to update a repository later.
@@ -470,7 +470,7 @@ run, the files written, and the next commands: enter the directory,
    chosen there is that every group sees every source.
 
 Decisions about the private templates (backtest engine, data access,
-pipeline scheduling) are tracked in `hifinab/templates`.
+pipeline scheduling) are tracked in `acme/templates`.
 
 ## Evidence
 

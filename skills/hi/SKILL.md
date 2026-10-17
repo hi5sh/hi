@@ -75,7 +75,7 @@ otherwise pass `--on colab`, `--on hf`, or `--on runpod`.
 `hi compute billing` shows which Hugging Face account pays (the user's own if
 it can pay, otherwise their only organization that can) and the Colab
 compute-unit balance. The start line of every paid command names the payer,
-as in `($1.00/h, billed to hifinab)`; include it when you ask the user.
+as in `($1.00/h, billed to acme)`; include it when you ask the user.
 Changing the saved payer with `hi compute billing ACCOUNT` is the user's
 decision.
 
@@ -179,10 +179,10 @@ runs without one.
 
 ```sh
 hi data ls --json                    # what the user may download: kind, id, size, updated
-hi data ls hifinab --kind dataset    # one organization, one kind
-hi data info hifinab/bars-1d         # size, file count, and the largest files
-hi data get hifinab/bars-1d          # into ./data/bars-1d with hf
-hi data get hifinab/fdb --include 'runs/*' --to data/fdb-runs
+hi data ls acme --kind dataset    # one organization, one kind
+hi data info acme/bars-1d         # size, file count, and the largest files
+hi data get acme/bars-1d          # into ./data/bars-1d with hf
+hi data get acme/fdb --include 'runs/*' --to data/fdb-runs
 ```
 
 1. Check the size with `hi data info` before a download, and tell the user
@@ -219,8 +219,8 @@ hi data get hifinab/fdb --include 'runs/*' --to data/fdb-runs
    proxy outside the box adds the real token. Use `hf` or Python directly:
 
    ```sh
-   hf download --repo-type dataset hifinab/bars-1d --include "data/2025-*" --local-dir data/bars-1d
-   python -c 'from datasets import load_dataset; print(load_dataset("hifinab/bars-1d", split="train"))'
+   hf download --repo-type dataset acme/bars-1d --include "data/2025-*" --local-dir data/bars-1d
+   python -c 'from datasets import load_dataset; print(load_dataset("acme/bars-1d", split="train"))'
    ```
 
    Without `HF_ENDPOINT`, the box was started without `--data`: stop and

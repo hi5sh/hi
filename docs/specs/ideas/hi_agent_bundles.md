@@ -144,7 +144,7 @@ Bundles live where templates and skills already do, so team bundles need no
 new server command, signing, or cache:
 
 ```text
-                this repository (built-in)    a team source (hifinab/templates)
+                this repository (built-in)    a team source (acme/templates)
 layers          templates/<layer>/            <layer>/
 bundles         bundles/<name>.json           bundles/<name>.json
 ```
@@ -158,8 +158,8 @@ describes; a team bundle may also name the team source's own
 `skills/<name>`, to decide when team bundles are built.
 
 What goes where follows the templates' rule: generic bundles that anyone
-using `hi` can use are built in; anything about Hifin's own work (quant
-skills, internal sources, report styles) goes in `hifinab/templates`.
+using `hi` can use are built in; anything about a company's own work (quant
+skills, internal sources, report styles) goes in `acme/templates`.
 
 A local folder in `HI_BUNDLES_DIR` (default `~/.local/share/hi/bundles/`)
 with the same `bundles/` layout is the person's own and isn't signed. When
@@ -421,7 +421,7 @@ From checking the proposal against the code and specs on 2026-10-07:
 - **`apt install chromium` doesn't work on Ubuntu images**, where it's a
   snap. Playwright's own browser download does, hence the `browsers` key.
 - **The `research` name is taken:** it's a private template in
-  `hifinab/templates`, so the built-in bundle is called `web`.
+  `acme/templates`, so the built-in bundle is called `web`.
 - **The built-in skills aren't in `templates/`.** The `hi` skill is at
   `skills/hi/`, embedded on its own; built-in skills and bundles sit next to
   it at the top of the repository.

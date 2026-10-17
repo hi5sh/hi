@@ -1,7 +1,7 @@
 {
   "caption": "How hi data works. On a machine connected to your team's hi server, hi data get asks the server for a hi data token for one repository, for a day, and runs the official hf tool pointed at the server with that token. The server passes on only calls that read what your group may read, swaps in the team's Hugging Face token, and records who downloaded what. File contents come straight from Hugging Face's storage to your machine, so the server never sees them, and no Hugging Face token is ever on your machine.",
   "you": "You, or your agent",
-  "via": "hi data get example/bars-1d",
+  "via": "hi data get acme/bars-1d",
   "frame": "your machine",
   "frame_mark": 1,
   "groups": [

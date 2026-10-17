@@ -37,7 +37,7 @@ func TestRunTokensWorkOnlyThroughTheExposure(t *testing.T) {
 		t.Fatal(err)
 	}
 	var access apiRunAccess
-	if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:hifinab/ranker"}, "seconds": 3600, "run": "job1"}, &access); err != nil {
+	if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:acme/ranker"}, "seconds": 3600, "run": "job1"}, &access); err != nil {
 		t.Fatal(err)
 	}
 	if access.Endpoint != public+"/hf" || !strings.HasPrefix(access.Token, dataTokenPrefix) || access.Expires.Sub(computeNow()) < time.Hour {
@@ -58,20 +58,20 @@ func TestRunTokensWorkOnlyThroughTheExposure(t *testing.T) {
 		return response
 	}
 	// Through the public URL, for its repository; links point back at it.
-	response := call(public, "/hf/hifinab/ranker/resolve/main/config.json", access.Token)
+	response := call(public, "/hf/acme/ranker/resolve/main/config.json", access.Token)
 	if response.StatusCode != http.StatusTemporaryRedirect || !strings.HasPrefix(response.Header.Get("Location"), public+"/hf/api/resolve-cache/") {
 		t.Fatalf("through the exposure: %d %q", response.StatusCode, response.Header.Get("Location"))
 	}
-	if response := call(public, "/hf/api/models/hifinab/bars", access.Token); response.StatusCode != http.StatusForbidden {
+	if response := call(public, "/hf/api/models/acme/bars", access.Token); response.StatusCode != http.StatusForbidden {
 		t.Fatalf("another repository: %d", response.StatusCode)
 	}
 	// A run token is no use inside NetBird, and a device's token none outside.
-	if response := call(ts.url, "/hf/api/models/hifinab/ranker", access.Token); response.StatusCode != http.StatusUnauthorized {
+	if response := call(ts.url, "/hf/api/models/acme/ranker", access.Token); response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("a run token on the client listener: %d", response.StatusCode)
 	}
 	device := ts.aliceDevice(t)
 	laptop := ts.server.issueDataToken(dataClaims{Device: device.Fingerprint, User: "alice", Scope: "*", Expires: computeNow().Add(time.Hour).Unix()})
-	if response := call(public, "/hf/api/models/hifinab/ranker", laptop); response.StatusCode != http.StatusUnauthorized {
+	if response := call(public, "/hf/api/models/acme/ranker", laptop); response.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("a device token through the exposure: %d", response.StatusCode)
 	}
 	// Only /hf and /health answer.
@@ -94,7 +94,7 @@ func TestComputeDataUsesTheExposureOnHuggingFace(t *testing.T) {
 	writeTestFile(t, script, "print('hi')\n", 0o644)
 	request := runRequest{script: script, max: time.Hour, name: "job1"}
 	var stderr strings.Builder
-	cleanup, err := prepareDataRun(&request, []string{"model:hifinab/ranker"}, "hf", &stderr)
+	cleanup, err := prepareDataRun(&request, []string{"model:acme/ranker"}, "hf", &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestComputeDataUsesTheExposureOnHuggingFace(t *testing.T) {
 	}
 	// Colab keeps the signed links.
 	request = runRequest{script: script}
-	cleanup2, err := prepareDataRun(&request, []string{"dataset:hifinab/bars/data"}, "colab", &stderr)
+	cleanup2, err := prepareDataRun(&request, []string{"dataset:acme/bars/data"}, "colab", &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestComputeDataFallsBackWithoutExposure(t *testing.T) {
 	writeTestFile(t, script, "print('hi')\n", 0o644)
 	request := runRequest{script: script}
 	var stderr strings.Builder
-	cleanup, err := prepareDataRun(&request, []string{"dataset:hifinab/bars/data"}, "hf", &stderr)
+	cleanup, err := prepareDataRun(&request, []string{"dataset:acme/bars/data"}, "hf", &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,12 +216,12 @@ func TestRevokeARunToken(t *testing.T) {
 	}
 	var first, second apiRunAccess
 	for run, access := range map[string]*apiRunAccess{"job1": &first, "job2": &second} {
-		if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:hifinab/ranker"}, "seconds": 3600, "run": run}, access); err != nil {
+		if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:acme/ranker"}, "seconds": 3600, "run": run}, access); err != nil {
 			t.Fatal(err)
 		}
 	}
 	status := func(token string) int {
-		request, _ := http.NewRequest(http.MethodHead, public+"/hf/hifinab/ranker/resolve/main/config.json", nil)
+		request, _ := http.NewRequest(http.MethodHead, public+"/hf/acme/ranker/resolve/main/config.json", nil)
 		request.Header.Set("Authorization", "Bearer "+token)
 		response, err := (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(request)
 		if err != nil {
@@ -234,7 +234,7 @@ func TestRevokeARunToken(t *testing.T) {
 		t.Fatal("the run token doesn't work before revoking")
 	}
 	code, stdout, stderr := runHi("server", "expose", "--dir", ts.dir)
-	if code != 0 || !strings.Contains(stdout, "job1") || !strings.Contains(stdout, "job2") || !strings.Contains(stdout, "model:hifinab/ranker") {
+	if code != 0 || !strings.Contains(stdout, "job1") || !strings.Contains(stdout, "job2") || !strings.Contains(stdout, "model:acme/ranker") {
 		t.Fatalf("expose: %d %s %s", code, stdout, stderr)
 	}
 	code, stdout, stderr = runHi("server", "expose", "revoke", "job1", "--dir", ts.dir)
@@ -246,7 +246,7 @@ func TestRevokeARunToken(t *testing.T) {
 		t.Fatal("revoking job1 changed the wrong tokens")
 	}
 	var again apiRunAccess
-	if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:hifinab/ranker"}, "run": "job1"}, &again); err == nil || !strings.Contains(err.Error(), "revoked") {
+	if err := client.call(http.MethodPost, "/v1/data/run-access", map[string]any{"scopes": []string{"model:acme/ranker"}, "run": "job1"}, &again); err == nil || !strings.Contains(err.Error(), "revoked") {
 		t.Fatalf("a new token for a revoked run: %v", err)
 	}
 	if _, stdout, _ := runHi("server", "expose", "--dir", ts.dir); !strings.Contains(stdout, "revoked") {

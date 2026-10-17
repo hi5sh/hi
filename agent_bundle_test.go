@@ -82,20 +82,20 @@ func TestBundleNetworkQuestion(t *testing.T) {
 
 func TestTeamAndLocalBundles(t *testing.T) {
 	team := fstest.MapFS{
-		"bundles/quant.json": {Data: []byte(`{"name":"quant","description":"Hifin's quant work.","skills":[
+		"bundles/quant.json": {Data: []byte(`{"name":"quant","description":"A quant team's work.","skills":[
 			{"source":".","skill":"bars","commit":"","needs":{"pip":["polars==1.30.0"]}},
 			{"source":"duckdb/duckdb-skills","skill":"query","commit":"7feda8e01e22bc0886c86123f3884947e36d8c69"}]}`)},
 		"skills/bars/SKILL.md": {Data: []byte("---\nname: bars\ndescription: Read bars.\n---\nUse polars.\n")},
 	}
-	bundles, err := loadBundleSource(bundleSource{name: "hifinab", files: team, commit: "abc"})
+	bundles, err := loadBundleSource(bundleSource{name: "acme", files: team, commit: "abc"})
 	if err != nil || bundles["quant"] == nil {
 		t.Fatalf("team bundles: %v", err)
 	}
-	if _, _, err := checkTemplateSource("hifinab", team); err != nil {
+	if _, _, err := checkTemplateSource("acme", team); err != nil {
 		t.Fatalf("a source with only bundles and skills: %v", err)
 	}
 	broken := fstest.MapFS{"bundles/x.json": {Data: []byte(`{"name":"x","description":"d","skills":[{"source":".","skill":"gone","commit":""}]}`)}}
-	if _, err := loadBundleSource(bundleSource{name: "hifinab", files: broken}); err == nil || !strings.Contains(err.Error(), "not in skills/") {
+	if _, err := loadBundleSource(bundleSource{name: "acme", files: broken}); err == nil || !strings.Contains(err.Error(), "not in skills/") {
 		t.Fatalf("a missing own skill: %v", err)
 	}
 	// The built-in source has no skills of its own.

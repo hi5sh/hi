@@ -53,7 +53,7 @@ hi notes export [--project]        write accepted project notes into the reposit
 A proposal goes to the owner first for an agent's note, through `hi ask`:
 
 ```text
-📝 Claude Code (for iman) proposes a note for hifinab/prices-feed:
+📝 Claude Code (for iman) proposes a note for acme/prices-feed:
    "test_prices fails before 09:00 UTC: the fixture builds 'today' in
    Europe/Stockholm. Run with TZ=UTC or after 09:00."
    ▸ evidence (8 lines)

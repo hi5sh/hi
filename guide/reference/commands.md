@@ -143,7 +143,7 @@ server; `hf` runs with `HF_ENDPOINT` pointing to it.
 
 Put `dataset:`, `model:`, or `bucket:` in front when several share a name.
 Buckets have no revisions. A group's
-`data` patterns in policy (`["hifinab/*"]`) limit what it sees; without
+`data` patterns in policy (`["acme/*"]`) limit what it sees; without
 them it sees everything.
 
 ## hi login

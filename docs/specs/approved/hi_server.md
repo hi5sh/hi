@@ -385,7 +385,7 @@ they need.
 ### Adding a source
 
 ```text
-hi server templates add private https://github.com/hifinab/templates [--ref main]
+hi server templates add private https://github.com/acme/templates [--ref main]
 ```
 
 - `<name>` is how devices and `.hi5/template.json` refer to the source. It
@@ -467,7 +467,7 @@ hi server slack setup               # prints the app manifest to install,
                                     # asks for the bot and app tokens,
                                     # picks #compute-approvals and approvers
 hi server policy edit               # groups, limits, auto-approve rules
-hi server templates add private https://github.com/hifinab/templates
+hi server templates add private https://github.com/acme/templates
                                     # optional: private templates
 sudo systemctl enable --now hi-server
 ```

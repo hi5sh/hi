@@ -283,7 +283,7 @@ access; OpenAI clients pass it as the API key. Progress comes from the
 script's `hi-state:` lines in the job logs. `hi compute tunnel` still gives a
 localhost URL over SSH.
 
-Verified live on 2026-09-27 in the `hifinab` organization: image and script
+Verified live on 2026-09-27 in the `acme` organization: image and script
 runs with arguments, environment, secrets, and exit codes; `--detach`,
 `logs --follow`, `wait`, and `status` on finished jobs; `up` and `stop`; and
 `serve unsloth/Qwen3-0.6B-GGUF --quant Q4_K_M` on a `t4-small`, ready one
@@ -296,7 +296,7 @@ On 2026-09-28, with the user's key registered: `ssh` through the Jobs SSH
 gateway and a `tunnel` to a web server on the job both work. The gateway keeps
 answering keep-alives after a job is cancelled, so `tunnel` also checks every
 30 seconds that the instance still runs and closes itself (26 seconds after
-`stop` in the live test). Automatic billing chose `hifinab`, the only account
+`stop` in the live test). Automatic billing chose `acme`, the only account
 that can pay.
 
 ### Phasing

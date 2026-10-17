@@ -38,7 +38,7 @@ func parseDataRunRef(value string) (dataRunRef, error) {
 	}
 	parts := strings.SplitN(rest, "/", 3)
 	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
-		return dataRunRef{}, usageError{fmt.Sprintf("--data %q: use <org>/<name>, optionally with a folder or pattern after it, as in hifinab/fdb/runs/*", value)}
+		return dataRunRef{}, usageError{fmt.Sprintf("--data %q: use <org>/<name>, optionally with a folder or pattern after it, as in acme/fdb/runs/*", value)}
 	}
 	id := parts[0] + "/" + parts[1]
 	ref := dataRunRef{ref: kind + id, id: id}
@@ -244,7 +244,7 @@ func dataRunTooLarge(repos []dataRunRepo, size int) error {
 		message += "; these files are kept in git rather than Hugging Face's storage, so they have no download link and travel inside the job: " +
 			strings.Join(inline, ", ") + ". Leave them out with a pattern, or run on Colab, which has no such limit"
 	} else {
-		message += fmt.Sprintf("; %d download links is too many, so name a folder or pattern, as in --data hifinab/fdb/runs/2026-09/*, or run on Colab", links)
+		message += fmt.Sprintf("; %d download links is too many, so name a folder or pattern, as in --data acme/fdb/runs/2026-09/*, or run on Colab", links)
 	}
 	return errors.New(message)
 }

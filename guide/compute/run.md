@@ -78,8 +78,8 @@ With a hi server that serves your team's Hugging Face data
 the script starts:
 
 ```sh
-hi compute run --gpu a10g-small --data hifinab/bars-1d train.py
-hi compute run --gpu a10g-small --data hifinab/fdb/runs/2026-09 --data hifinab/ranker train.py
+hi compute run --gpu a10g-small --data acme/bars-1d train.py
+hi compute run --gpu a10g-small --data acme/fdb/runs/2026-09 --data acme/ranker train.py
 ```
 
 Each repository lands in `data/<name>` next to where the script runs, as
@@ -98,7 +98,7 @@ can then read those repositories itself:
 
 ```python
 from datasets import load_dataset
-results = load_dataset("hifinab/fintabarena-results")   # works in the job too
+results = load_dataset("acme/fintabarena-results")   # works in the job too
 ```
 
 This needs **Peer Expose** turned on in NetBird (Settings > Clients); the
@@ -124,7 +124,7 @@ hi compute run --gpu a10g-small --max 6h --detach --name finetune train.py
 ```
 
 ```text
-Started job 6ab97cba…: https://huggingface.co/jobs/hifinab/6ab97cba…
+Started job 6ab97cba…: https://huggingface.co/jobs/acme/6ab97cba…
 Follow it with: hi compute logs finetune --follow
 Wait for it:    hi compute wait finetune
 ```

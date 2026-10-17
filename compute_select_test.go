@@ -103,10 +103,10 @@ func TestListSelectFiltersAndChooses(t *testing.T) {
 }
 
 func TestSearchSelectTakesEveryKeyAsASearch(t *testing.T) {
-	options := []string{"model    hifinab/gemma-3-27b_experiment_1", "model    hifinab/gemma-3-4b_experiment_1",
-		"dataset  hifinab/bars-1d", "model    hifinab/qwen-9b"}
+	options := []string{"model    acme/gemma-3-27b_experiment_1", "model    acme/gemma-3-4b_experiment_1",
+		"dataset  acme/bars-1d", "model    acme/qwen-9b"}
 	for i := 0; i < 40; i++ {
-		options = append(options, fmt.Sprintf("model    hifinab/run-%02d", i))
+		options = append(options, fmt.Sprintf("model    acme/run-%02d", i))
 	}
 	m := newSearchSelect("Which one?", "", options)
 	m.Update(tea.WindowSizeMsg{Height: 60})
@@ -136,9 +136,9 @@ func TestSearchSelectTakesEveryKeyAsASearch(t *testing.T) {
 func TestLineUISearchesLongLists(t *testing.T) {
 	var options []string
 	for i := 0; i < 20; i++ {
-		options = append(options, fmt.Sprintf("model hifinab/run-%02d", i))
+		options = append(options, fmt.Sprintf("model acme/run-%02d", i))
 	}
-	options = append(options, "dataset hifinab/bars-1d")
+	options = append(options, "dataset acme/bars-1d")
 	var out strings.Builder
 	ui := lineUI{in: strings.NewReader("nothing here\nbars\n1\n"), out: &out}
 	choice, err := ui.choose("Which one?", options, true)

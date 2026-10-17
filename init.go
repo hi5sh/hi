@@ -602,7 +602,7 @@ func runInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) in
 		return 2
 	}
 	if *github != "" && !regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`).MatchString(*github) {
-		fmt.Fprintln(stderr, "hi: --github takes owner/repository, for example hifinab/pricing-tools")
+		fmt.Fprintln(stderr, "hi: --github takes owner/repository, for example acme/pricing-tools")
 		return 2
 	}
 

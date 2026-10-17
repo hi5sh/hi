@@ -337,7 +337,7 @@ tool and no Hugging Face token on the machine:
 ```sh
 hi data                        # search by words, pick one, download it
 hi data ls                     # what you may download
-hi data get hifinab/bars-1d    # into ./data/bars-1d (--to, --revision, --include, --exclude)
+hi data get acme/bars-1d    # into ./data/bars-1d (--to, --revision, --include, --exclude)
 ```
 
 The server keeps one read token per organization (`hi server data add
@@ -346,11 +346,11 @@ contents come straight from Hugging Face's CDN. In a project, `hi data get`
 records the commit it fetched in `.hi5/data.json`; `hi data run --
 python train.py` lets `load_dataset` and `from_pretrained` read your team's
 repositories directly, and `hi box --data` gives a box the same.
-`hi compute run --data hifinab/bars-1d train.py` gives a cloud job the data:
+`hi compute run --data acme/bars-1d train.py` gives a cloud job the data:
 on Hugging Face Jobs the server opens a narrow public address with
 `netbird expose` for the run, so the script can also call `load_dataset`;
 elsewhere it sends signed download links. `hi compute up --data
-hifinab/bars-1d` gives a RunPod or Shadeform machine `HF_ENDPOINT` and a
+acme/bars-1d` gives a RunPod or Shadeform machine `HF_ENDPOINT` and a
 token for those repositories in its shells. See
 [Download your team's data](https://hi5.sh/guide/data/).
 

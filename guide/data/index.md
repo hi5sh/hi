@@ -11,7 +11,7 @@ the server.
 ```sh
 hi data                          # search, pick one, download it
 hi data ls                       # everything you may download
-hi data get hifinab/bars-1d      # straight to ./data/bars-1d
+hi data get acme/bars-1d      # straight to ./data/bars-1d
 ```
 
 You need a machine connected to your team's server (`hi connect`) and `hf`:
@@ -30,22 +30,22 @@ move, Enter downloads, and Esc clears the search, then leaves.
 
 ```sh
 hi data ls                       # kind, name, size, and last update
-hi data ls hifinab --kind bucket # one organization, one kind
+hi data ls acme --kind bucket # one organization, one kind
 hi data ls --json                # for scripts and agents
-hi data info hifinab/finset2     # size, file count, and the largest files
+hi data info acme/finset2     # size, file count, and the largest files
 ```
 
 When a dataset, a model, or a bucket share a name, put `dataset:`,
-`model:`, or `bucket:` in front, as in `hi data get bucket:hifinab/fdb`.
+`model:`, or `bucket:` in front, as in `hi data get bucket:acme/fdb`.
 
 ## Download
 
 ```sh
-hi data get hifinab/finset2                          # into ./data/finset2
-hi data get hifinab/ranker --to models/ranker        # another folder
-hi data get hifinab/bars-1d --revision v2            # a branch, tag, or commit
-hi data get hifinab/fdb --include 'runs/2026-09/*'   # only some files; repeat for more
-hi data get hifinab/fdb --exclude '*.tmp'
+hi data get acme/finset2                          # into ./data/finset2
+hi data get acme/ranker --to models/ranker        # another folder
+hi data get acme/bars-1d --revision v2            # a branch, tag, or commit
+hi data get acme/fdb --include 'runs/2026-09/*'   # only some files; repeat for more
+hi data get acme/fdb --exclude '*.tmp'
 ```
 
 Datasets and models download with `hf download`, buckets with
@@ -83,13 +83,13 @@ In it, the usual Hugging Face code works with private repositories:
 
 ```python
 from datasets import load_dataset
-bars = load_dataset("hifinab/bars-1d", split="train")
+bars = load_dataset("acme/bars-1d", split="train")
 
 import pandas as pd
-fills = pd.read_parquet("hf://datasets/hifinab/fills/2026-09.parquet")
+fills = pd.read_parquet("hf://datasets/acme/fills/2026-09.parquet")
 
 from transformers import AutoModel
-model = AutoModel.from_pretrained("hifinab/ranker")
+model = AutoModel.from_pretrained("acme/ranker")
 ```
 
 For a whole shell session:
@@ -106,7 +106,7 @@ read your team's data:
 
 ```sh
 hi box run --data -- python train.py
-hi agent claude --data "train the ranker on hifinab/bars-1d"
+hi agent claude --data "train the ranker on acme/bars-1d"
 ```
 
 The box gets a placeholder token; hi's proxy outside the box adds the real
@@ -118,7 +118,7 @@ one on the way to the server, and allows Hugging Face's download hosts.
 the script starts, through signed links that need no token:
 
 ```sh
-hi compute run --gpu a10g-small --data hifinab/bars-1d train.py
+hi compute run --gpu a10g-small --data acme/bars-1d train.py
 ```
 
 On Hugging Face Jobs, the server opens a narrow public address with
@@ -131,8 +131,8 @@ repositories you named. See [Run a script](/guide/compute/run/#your-teams-data).
 you name, through the same public address, until its `--max`:
 
 ```sh
-hi compute up --on runpod --gpu rtx-4090 --name train --max 4h --data hifinab/bars-1d --data hifinab/ranker
-hi compute ssh train -- hf download --repo-type dataset hifinab/bars-1d --local-dir data/bars-1d
+hi compute up --on runpod --gpu rtx-4090 --name train --max 4h --data acme/bars-1d --data acme/ranker
+hi compute ssh train -- hf download --repo-type dataset acme/bars-1d --local-dir data/bars-1d
 ```
 
 Before the machine starts, hi asks the server for a token that reads only
@@ -146,7 +146,7 @@ install it in a virtual environment:
 
 ```sh
 hi compute ssh train -- 'python3 -m venv ~/venv && ~/venv/bin/pip install -q huggingface_hub datasets'
-hi compute ssh train -- ~/venv/bin/hf download --repo-type dataset hifinab/bars-1d --local-dir data/bars-1d
+hi compute ssh train -- ~/venv/bin/hf download --repo-type dataset acme/bars-1d --local-dir data/bars-1d
 ```
 
 A repository you didn't name answers with an error about the token's
@@ -187,8 +187,8 @@ On the server box, connect an organization with a token that can read it.
 A fine-grained, read-only token limited to the organization is best:
 
 ```sh
-hi server data add hifinab           # asks for the token; it shows as *
-hi server data add hifinab name2     # one token for several organizations
+hi server data add acme           # asks for the token; it shows as *
+hi server data add acme name2     # one token for several organizations
 hi server data                       # a menu: add, test, remove
 hi server data list                  # organizations and what they hold
 hi server data test                  # check every token now
@@ -200,7 +200,7 @@ patterns in `policy.json` (`hi server policy edit`); an empty list allows
 nothing:
 
 ```json
-"students": { "data": ["hifinab/bars-1d", "hifinab/public-*"] }
+"students": { "data": ["acme/bars-1d", "acme/public-*"] }
 ```
 
 Token grants are in the audit log (`hi server audit`), and every download

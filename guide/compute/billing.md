@@ -29,7 +29,7 @@ Starting paid hardware prints the price, the limit, and on Hugging Face the
 account that pays, then asks:
 
 ```text
-Run train.py on hf a10g-small ($1.00/h, billed to hifinab), stopping after 1h.
+Run train.py on hf a10g-small ($1.00/h, billed to acme), stopping after 1h.
 Start it? [y/N]
 ```
 
@@ -110,7 +110,7 @@ hi compute billing
 Hugging Face:
 ACCOUNT    TYPE  CAN PAY  PLAN  BILLED
 quantbert  user  no
-hifinab    org   yes      team  <- hi bills this
+acme    org   yes      team  <- hi bills this
 
 Chosen by: automatic: your own account if it can pay, else your only organization that can
 ```
@@ -118,7 +118,7 @@ Chosen by: automatic: your own account if it can pay, else your only organizatio
 Choose one explicitly, or go back to automatic:
 
 ```sh
-hi compute billing hifinab
+hi compute billing acme
 hi compute billing --clear
 ```
 
