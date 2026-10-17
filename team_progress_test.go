@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -99,6 +100,46 @@ func TestTeamProgressCard(t *testing.T) {
 	source.streamErr = ""
 	if got = step(start.Add(33 * time.Minute)); got != "" {
 		t.Fatal("a card after someone stopped it:", got)
+	}
+}
+
+func TestTeamProgressSmallFix(t *testing.T) {
+	setupTeamTest(t)
+	dir := t.TempDir()
+	if err := teamRegister("payments", dir); err != nil {
+		t.Fatal(err)
+	}
+	config := testTeamConfig()
+	config.Progress = true
+	saveTeam(config)
+	os.MkdirAll(teamTaskDir("payments"), 0o700)
+	os.MkdirAll(teamChannelDir("payments"), 0o700)
+	// The person's message, in a thread, that asked for the fix.
+	os.WriteFile(filepath.Join(teamChannelDir("payments"), "2026-10-17.jsonl"),
+		[]byte(`{"ts":"1792254900.000100","thread":"1792254766.636789","user":"U07ANNA01","name":"Anna","text":"wrong model"}`+"\n"), 0o600)
+	b := newTeamBroker("payments", "hi")
+	if _, err := b.teamFindThread(config, "nope"); err == nil {
+		t.Fatal("--in took something that isn't an id")
+	}
+	if _, err := b.teamFindThread(config, "1792254999.000100"); err == nil || !strings.Contains(err.Error(), "--ids") {
+		t.Fatal(err)
+	}
+	thread, err := b.teamFindThread(config, "[1792254900.000100]")
+	if err != nil || thread != "1792254766.636789" {
+		t.Fatal(thread, err)
+	}
+
+	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	saveTeamTask("payments", teamTask{ID: "t-1", Role: "coder", Agent: "claude", Kind: "task", Title: "Fix the model", Status: "running", Created: start, Small: true, Thread: thread})
+	// A small fix without a thread has no card.
+	saveTeamTask("payments", teamTask{ID: "t-2", Role: "coder", Agent: "claude", Kind: "task", Title: "Typo", Status: "running", Created: start, Small: true})
+	source := &fakeTeamChannel{}
+	b.channel = source
+	if err := b.updateProgress(map[string]*agentProgressReader{}, start.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if len(source.calls) != 1 || !strings.HasPrefix(source.calls[0], "startStream C07PAYMENTS 1792254766.636789 U07OWNER1 ") || !strings.Contains(source.calls[0], "Fix the model") {
+		t.Fatal(source.calls)
 	}
 }
 

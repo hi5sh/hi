@@ -74,6 +74,36 @@ func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) 
 	return b.unusedApproval(approval, approving)
 }
 
+// teamFindThread is the Slack thread of a message in the channel's log,
+// by its id from hi team channel --ids: the thread it is in, or its own.
+func (b *teamBroker) teamFindThread(config teamConfig, ref string) (string, error) {
+	ref = strings.Trim(strings.TrimSpace(ref), "[]")
+	if !teamSlackTSPattern.MatchString(ref) {
+		return "", fmt.Errorf("--in takes the id of the message the fix was asked for in, from hi team channel --ids, not %q", ref)
+	}
+	find := func() (string, bool) {
+		messages, _ := readTeamChannel(teamChannelDir(b.team), teamSlackTS(teamTSTime(ref).Add(-time.Second)))
+		for _, message := range messages {
+			if message.TS == ref {
+				return firstNonEmpty(message.Thread, message.TS), true
+			}
+		}
+		return "", false
+	}
+	if thread, ok := find(); ok {
+		return thread, nil
+	}
+	if b.channel != nil {
+		// Said a moment ago: the log may be up to two minutes behind.
+		if err := teamPollChannel(b.team, config.Channel, b.channel, time.Now()); err == nil {
+			if thread, ok := find(); ok {
+				return thread, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no message %s in the channel; hi team channel --ids lists them", ref)
+}
+
 // unusedApproval refuses a yes that already approved something else, when
 // this work needs a yes of its own.
 func (b *teamBroker) unusedApproval(approval teamApproval, approving string) (teamApproval, error) {

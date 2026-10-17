@@ -1701,6 +1701,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   OpenRouter and failed in the preview. The lead and the project's map
   say it: an agent's model, such as Codex's, goes through OpenRouter.
 
+### v0.80.2 — A small fix's progress in its thread
+
+- [x] A small fix gets a progress card too. `hi team task --small --in
+  <id>` names the message it was asked for in: hi says it started in that
+  thread, and the card goes there. Without `--in`, the card goes in the
+  thread of hi's message in the channel. Found when a small fix ran with
+  no card, since it had no yes to tell its thread.
+
 ## Planned
 
 ### Guide — a diagram for every tool

@@ -75,6 +75,9 @@ type teamTask struct {
 	// without one.
 	Approval *teamApproval `json:"approval,omitempty"`
 	Small    bool          `json:"small,omitempty"`
+	// Thread is a small fix's Slack thread: the one it was asked for in
+	// (--in), else that of hi's message that it started.
+	Thread string `json:"thread,omitempty"`
 	// Packages is what a merged task changed in the project's packages, and
 	// TrustApproval the owner's yes to new install scripts.
 	Packages      string        `json:"packages,omitempty"`
@@ -346,6 +349,8 @@ type teamRequest struct {
 	// starts a small fix without one.
 	Approval string `json:"approval,omitempty"`
 	Small    bool   `json:"small,omitempty"`
+	// In is the message a small fix was asked for in.
+	In string `json:"in,omitempty"`
 	// New starts new work even though its yes is in the thread of work
 	// that isn't merged yet.
 	New bool `json:"new,omitempty"`
@@ -728,6 +733,15 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		task.On, from = on.ID, on.Branch
 	} else if request.Small {
 		task.Small = true
+		if request.In != "" {
+			config, err := loadTeam(b.team)
+			if err != nil {
+				return teamTask{}, nil, err
+			}
+			if task.Thread, err = b.teamFindThread(config, request.In); err != nil {
+				return teamTask{}, nil, err
+			}
+		}
 	} else {
 		config, err := loadTeam(b.team)
 		if err != nil {
@@ -788,7 +802,14 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	}
 	if task.Small && b.channel != nil {
 		if config, err := loadTeam(b.team); err == nil {
-			b.channel.post(config.Channel, fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title))
+			text := fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title)
+			if task.Thread != "" {
+				b.channel.postIn(config.Channel, task.Thread, text)
+			} else if ts, err := b.channel.post(config.Channel, text); err == nil {
+				// Its progress card goes in this message's thread.
+				task.Thread = ts
+				saveTeamTask(b.team, task)
+			}
 		}
 	}
 	if task.Approval != nil && strings.HasPrefix(task.Approval.TS, "dm:") && b.channel != nil {
@@ -1387,6 +1408,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--small" {
 				request.Small = true
+			} else if args[i] == "--in" && i+1 < len(args) {
+				request.In = args[i+1]
+				i++
 			} else if args[i] == "--new" {
 				request.New = true
 			} else if args[i] == "--attach" && i+1 < len(args) {

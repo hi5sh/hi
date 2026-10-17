@@ -85,7 +85,8 @@ now (the coder working on it, the reviewer checking it, approved, merged),
 and, opened, a line per task (the coder's, each review, each fix) that
 says whether it runs, for how long and in how many steps, or how it
 ended. The card ends a few minutes after nothing runs; more work on the
-same thing later gets a card of its own. Stopping the card in Slack stops
+same thing later gets a card of its own. A small fix's card goes in the
+thread it was asked for in. Stopping the card in Slack stops
 it for that work. It is off by default.
 
 ## The lead's memory

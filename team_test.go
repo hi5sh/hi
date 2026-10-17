@@ -817,6 +817,10 @@ func TestTeamBrokerSocket(t *testing.T) {
 	if !strings.Contains(out.String(), `t-1 started: the coder (Claude Code) works on "Add a supplier list"`) {
 		t.Fatal(out.String())
 	}
+	// Its progress card goes in the thread of that message.
+	if task, _ := loadTeamTask("payments", "t-1"); task.Thread != "1700000000.000001" {
+		t.Fatal(task.Thread)
+	}
 	out.Reset()
 	if err := runTeamLeadCommand("wait", []string{"t-1"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)

@@ -84,8 +84,8 @@ func teamProgressRoot(byID map[string]teamTask, task teamTask) (teamTask, bool) 
 	seen := map[string]bool{}
 	for !seen[task.ID] {
 		seen[task.ID] = true
-		if task.Approval != nil {
-			return task, teamApprovalSlackThread(*task.Approval) != ""
+		if task.Approval != nil || task.Small {
+			return task, teamProgressThread(task) != ""
 		}
 		up := firstNonEmpty(task.Review, task.On)
 		next, ok := byID[up]
@@ -95,6 +95,15 @@ func teamProgressRoot(byID map[string]teamTask, task teamTask) (teamTask, bool) 
 		task = next
 	}
 	return teamTask{}, false
+}
+
+// teamProgressThread is the thread a root's card goes in: the one its
+// yes was given in, or a small fix's.
+func teamProgressThread(root teamTask) string {
+	if root.Approval != nil {
+		return teamApprovalSlackThread(*root.Approval)
+	}
+	return root.Thread
 }
 
 // followProgress keeps the progress cards current until done.
@@ -165,13 +174,12 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 			if !active || stopped {
 				continue
 			}
-			approval := *byID[root].Approval
-			card := teamProgressCard{Root: root, Thread: teamApprovalSlackThread(approval), Active: now}
+			card := teamProgressCard{Root: root, Thread: teamProgressThread(byID[root]), Active: now}
 			for _, task := range fresh {
 				card.Tasks = append(card.Tasks, task.ID)
 			}
 			chunks := teamProgressChunks(&card, byID, fresh, readers, now)
-			ts, err := b.channel.startStream(config.Channel, card.Thread, b.progressRecipient(config, approval), chunks)
+			ts, err := b.channel.startStream(config.Channel, card.Thread, b.progressRecipient(config, byID[root]), chunks)
 			if err != nil {
 				failed = append(failed, fmt.Sprintf("starting the card for %s: %v", root, err))
 				continue
@@ -220,11 +228,12 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 
 // progressRecipient is who agreed the work, from the channel's log;
 // Slack wants a person for a card in a channel. The first owner otherwise.
-func (b *teamBroker) progressRecipient(config teamConfig, approval teamApproval) string {
-	if teamSlackTSPattern.MatchString(approval.TS) {
-		messages, _ := readTeamChannel(teamChannelDir(b.team), teamSlackTS(teamTSTime(approval.TS).Add(-time.Second)))
+func (b *teamBroker) progressRecipient(config teamConfig, root teamTask) string {
+	if root.Approval != nil && teamSlackTSPattern.MatchString(root.Approval.TS) {
+		ts := root.Approval.TS
+		messages, _ := readTeamChannel(teamChannelDir(b.team), teamSlackTS(teamTSTime(ts).Add(-time.Second)))
 		for _, message := range messages {
-			if message.TS == approval.TS && message.User != "" {
+			if message.TS == ts && message.User != "" {
 				return message.User
 			}
 		}

@@ -735,7 +735,7 @@ of its own on a branch of the project; you get their reports.
 | Command | What it does |
 |---|---|
 | hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
-| hi team task coder <brief.md> --small | Start a small fix, such as a typo, without asking first; hi tells the channel |
+| hi team task coder <brief.md> --small --in <id> | Start a small fix, such as a typo, without asking first; --in is the id of the message it was asked for in, so hi says so in that thread |
 | hi team task coder <brief.md> --on t-4 | Continue t-4's work on its branch with more of the same request: hi continues its latest task |
 | hi team task ... --attach <file> | Send a file with the task, such as an image shared in the channel; repeat for more |
 | hi team wait t-4 | Wait for t-4, its review, and the fixes the review asked for; print how it ended |
@@ -775,7 +775,9 @@ yes, find their message's id with hi team channel --since 1h --ids (the
 id in brackets after the name) and pass it: --approval <id>. hi checks that
 the message is theirs and answers your question, and refuses the task
 otherwise. Continuing a task (--on) needs no new go-ahead, and a small fix
-(--small) needs none, but hi tells the channel it started.
+(--small) needs none, but hi tells the channel it started: pass --in with
+the id of the message that asked for it, and hi says so in its thread,
+where the people see the fix's progress.
 
 ## Continuing work
 
