@@ -224,6 +224,14 @@ type teamBroker struct {
 	// app's box runs; tests replace them.
 	exposed func(name string) (netExposeState, bool)
 	running func(container string) bool
+	// wakeLead adds a job to the lead's Hermes that runs once, soon, with a
+	// prompt, its answer delivered to a Slack thread (team_handoff.go);
+	// nil in tests that don't set it.
+	wakeLead func(name, prompt, deliver string) error
+	// handoffMu guards waits, the lead's hi team waits by the task they
+	// started from, and run/handoff.json.
+	handoffMu sync.Mutex
+	waits     map[string]int
 	// channel is the team's Slack channel, to check approvals that aren't
 	// logged yet and to say when a small fix starts; nil in tests.
 	channel teamChannelSource
@@ -257,7 +265,7 @@ type teamBroker struct {
 }
 
 func newTeamBroker(team, hi string) *teamBroker {
-	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, answering: map[string]bool{}, webListeners: map[string]map[chan teamWebMessage]bool{}}
+	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, waits: map[string]int{}, answering: map[string]bool{}, webListeners: map[string]map[chan teamWebMessage]bool{}}
 	b.help = teamHelpModel
 	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
 		return "", errors.New("the lead's API server isn't set up")
@@ -518,6 +526,9 @@ func (b *teamBroker) handler() http.Handler {
 		id := r.URL.Query().Get("id")
 		wait, _ := time.ParseDuration(r.URL.Query().Get("wait"))
 		deadline := time.Now().Add(min(wait, 30*time.Minute))
+		if wait > 0 {
+			defer b.waitingOn(id)()
+		}
 		for {
 			steps, err := teamSteps(b.team, id)
 			if err != nil || !teamTaskActive(steps[len(steps)-1]) || time.Now().After(deadline) {
@@ -526,6 +537,9 @@ func (b *teamBroker) handler() http.Handler {
 					view.teamTask = steps[0]
 					if len(steps) > 1 {
 						view.Steps = steps
+					}
+					if last := steps[len(steps)-1]; !teamTaskActive(last) {
+						b.heard(last.ID) // the lead reads how the work ended
 					}
 				}
 				reply(w, view, err)

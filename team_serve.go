@@ -149,6 +149,16 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
 	go broker.keepLinks(ctx.Done(), stderr)
+	broker.wakeLead = func(name, prompt, deliver string) error {
+		// A job that runs once, in a minute, with the hi-team skill; its
+		// answer goes to the thread.
+		args := append(append([]string{"exec", container}, runtime.Command...), "cron", "create", "1m", prompt,
+			"--name", name, "--repeat", "1", "--skill", "hi-team", "--deliver", deliver, "--failure-deliver", "local")
+		if out, err := engine.output(args...); err != nil {
+			return fmt.Errorf("%s", qFirstLine(strings.TrimSpace(out), err.Error()))
+		}
+		return nil
+	}
 	go broker.followProgress(ctx.Done(), stderr)
 	go broker.startPreview(stderr)
 	go func() {

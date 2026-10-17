@@ -89,6 +89,11 @@ same thing later gets a card of its own. A small fix's card goes in the
 thread it was asked for in. Deleting the card in Slack stops
 it for that work. It is off by default.
 
+If the team restarts while the lead waits for a task (an update, a
+reboot), its wait ends without the answer. hi notices when that work
+ends with no wait to hear it, and wakes the lead once, so it reads how it
+went and says in the thread where the work stands.
+
 ## The lead's memory
 
 The lead's long-term memory is [Hindsight](https://github.com/vectorize-io/hindsight):

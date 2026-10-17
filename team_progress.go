@@ -104,12 +104,16 @@ func teamProgressThread(root teamTask) string {
 	return root.Thread
 }
 
-// followProgress keeps the progress cards current until done.
+// followProgress keeps the progress cards current, and wakes the lead
+// for work no wait told it the end of (team_handoff.go), until done.
 func (b *teamBroker) followProgress(done <-chan struct{}, stderr io.Writer) {
 	readers := map[string]*agentProgressReader{}
 	for {
 		if err := b.updateProgress(readers, time.Now()); err != nil {
 			fmt.Fprintf(stderr, "hi: the progress cards in Slack: %v\n", err)
+		}
+		if err := b.checkHandoffs(time.Now()); err != nil {
+			fmt.Fprintf(stderr, "hi: %v\n", err)
 		}
 		select {
 		case <-done:

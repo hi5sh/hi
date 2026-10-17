@@ -1730,6 +1730,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   edits the card only when that changes. A card someone deletes isn't
   posted again for that work.
 
+### v0.80.5 — The lead hears how work ended, after a restart
+
+- [x] A restart of the team (hi update --restart, a reboot) ended the
+  lead's background hi team wait without its answer, and the lead went on
+  telling the people the coder was at it while nobody was. The broker
+  notes whether a wait or hi team show handed the lead how each piece of
+  work ended; when work settles and none did within a minute, hi wakes
+  the lead once, with a one-time job in its Hermes whose answer goes to
+  the thread the work was agreed in. Work that settled before hi kept
+  track counts as heard, so no team hears about old work.
+
 ## Planned
 
 ### Guide — a diagram for every tool
