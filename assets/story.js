@@ -202,11 +202,12 @@
       const w = this.box.clientWidth || W;
       this.stage.style.transform = `scale(${w / W})`;
     }
-    dur(s) { return this.opts.mode === "full" ? s.dur : s.short; }
+    pace() { return (STORY.pace && STORY.pace[this.opts.mode]) || 1; }
+    dur(s) { return (this.opts.mode === "full" ? s.dur : s.short) * this.pace(); }
     itemTime(s, node) {
-      if (this.opts.mode === "full") return +node.dataset.at;
-      if (node.dataset.atShort != null) return +node.dataset.atShort;
-      return Math.round(+node.dataset.at * s.short / s.dur);
+      let t = +node.dataset.at;
+      if (this.opts.mode === "short") t = node.dataset.atShort != null ? +node.dataset.atShort : t * s.short / s.dur;
+      return Math.round(t * this.pace());
     }
     seek(i, t = 0, byUser = false) {
       const s = this.scenes[i];

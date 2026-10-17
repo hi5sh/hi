@@ -9,6 +9,9 @@
 // scaled to the loop's length), and `full: true` keeps an item out of the loop.
 // docs/story-animation.md says how to change and export it.
 window.HI5_STORY = {
+  // Every time below is multiplied by this: 1 plays the scenes as written,
+  // more is slower. The loop's compressed timings read best a little slower.
+  pace: { short: 1.35, full: 1.2 },
   team: "onboarding",
   channel: "#hr-onboarding",
   preview: "https://onboarding-preview.apps.example.com",

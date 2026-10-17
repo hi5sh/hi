@@ -11,8 +11,8 @@ definitions, with no video and no library, in three files:
 | `assets/story.css` | How the scenes look, in the page's own colours. |
 
 Two versions come from the same scenes: the loop in the box (seven scenes,
-about 29 seconds, muted by nature, restarting without a cut) and the full
-story (nine scenes, about 1:46) behind "Watch the full story", in a dialog
+about 39 seconds, muted by nature, restarting without a cut) and the full
+story (nine scenes, about 2:07) behind "Watch the full story", in a dialog
 with play, pause, previous, next, and a dot per scene.
 
 ## Changing the story
@@ -31,8 +31,11 @@ A scene in `story-scenes.js` looks like this:
 },
 ```
 
+- `pace`, at the top of the file, multiplies every time: `short` for the
+  loop and `full` for the full story. It is the knob for "a little slower"
+  or "a little faster" without touching the scenes.
 - `dur` is the scene's length in the full story and `short` its length in the
-  loop, both in milliseconds. Leave `short` out to keep a scene out of the
+  loop, both in milliseconds, before `pace`. Leave `short` out to keep a scene out of the
   loop. The loop's order is the scenes' order.
 - Every timed item has `at`, its time from the scene's start in the full
   story. In the loop it appears at `atShort`, or at `at` scaled to the loop's
