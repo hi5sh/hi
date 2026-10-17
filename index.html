@@ -106,15 +106,6 @@
   .thread { border-radius: 16px; border: 1px solid var(--line-strong); background: var(--bg-raised); overflow: hidden; }
   .thread-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 600 13.5px var(--mono); }
   .thread-bar small { font-weight: 400; color: var(--dim); }
-  .msgs { display: flex; flex-direction: column; gap: 14px; padding: 18px 16px 20px; }
-  .msg { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; font-size: 15px; line-height: 1.5; }
-  .av { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font: 700 12px var(--mono); color: var(--bg); }
-  .av.person { background: var(--warm); } .av.lead { background: var(--violet); } .av.hi { background: var(--accent); }
-  .who { font-weight: 700; font-size: 14px; } .who small { font-weight: 400; color: var(--dim); margin-left: 6px; font-size: 12.5px; }
-  .msg p { margin: 2px 0 0; color: var(--text); }
-  .msg ol { margin: 6px 0 0; padding-left: 20px; color: var(--text); }
-  .msg .link { display: inline-block; margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: var(--mint-soft); border: 1px solid rgba(79,209,165,.35); font: 13px var(--mono); color: var(--mint); word-break: break-all; }
-  .msg.sys p { color: var(--muted); font-size: 14px; }
   .caption { margin: 10px 2px 0; color: var(--dim); font-size: 13px; }
   .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: step; }
   .steps li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
@@ -217,6 +208,7 @@
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
+<link rel="stylesheet" href="assets/story.css">
 </head>
 <body>
 
@@ -263,30 +255,34 @@
   <section id="story" class="wrap" aria-labelledby="story-h">
     <div class="eyebrow">From idea to application</div>
     <h2 id="story-h">From idea to application. Together.</h2>
-    <p class="sub">Someone in HR needs a better onboarding checklist. Instead of filing a request and waiting, she asks the team in Slack.</p>
+    <p class="sub">Someone in HR has an idea. With a hi team, she builds it with her colleagues and the team's agents, and keeps improving it.</p>
     <div class="story">
       <figure style="margin:0">
-        <div class="thread" role="img" aria-label="An example Slack thread between an HR employee and the team's AI lead, from the request to a working link.">
-          <div class="thread-bar"><span># onboarding</span><small>Slack · an example</small></div>
-          <div class="msgs">
-            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria <small>HR</small></span><p><b>@onboarding</b> New hires get their checklist by email and steps get missed. Can we have something better?</p></div></div>
-            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding <small>the team's lead · AI</small></span><p>Happy to. Who uses it, HR only or managers too? And what should happen when a step is late?</p></div></div>
-            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria</span><p>HR and managers. Late steps in red.</p></div></div>
-            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding</span><p>Here's what you'll be able to do:</p><ol><li>Add a new hire with a start date</li><li>See their checklist and tick steps off</li><li>See late steps in red</li></ol><p>Shall I start?</p></div></div>
-            <div class="msg"><span class="av person">MA</span><div><span class="who">Maria</span><p>Yes, go.</p></div></div>
-            <div class="msg sys"><span class="av hi">hi</span><div><span class="who">hi <small>the team's coder and reviewer</small></span><p>The coder builds it on its own branch; the reviewer checks it before it reaches you.</p></div></div>
-            <div class="msg"><span class="av lead">LD</span><div><span class="who">onboarding</span><p>Ready to try on your phone. Add a new hire who starts next Monday:</p><span class="link">https://onboarding-preview.apps.example.com</span></div></div>
+        <div data-story>
+          <div class="thread" data-story-fallback role="img" aria-label="An example Slack thread between an HR employee and the team's AI lead, from the request to a working link.">
+            <div class="thread-bar"><span># hr-onboarding</span><small>Slack · an example</small></div>
+            <div class="msgs">
+              <div class="msg"><span class="av t-warm">EM</span><div class="mbody"><span class="who">Emma <small>HR</small></span><p><b>@onboarding</b> An app to manage onboarding for new hires. Steps get missed when it's all by email.</p></div></div>
+              <div class="msg"><span class="av t-violet">LD</span><div class="mbody"><span class="who">onboarding <small>the team's lead · AI</small></span><p>Here's what the first version does:</p><ol><li>Add a new hire with a start date</li><li>Their steps, each with an owner</li><li>Late steps in red</li></ol><p>Shall I start?</p></div></div>
+              <div class="msg"><span class="av t-warm">EM</span><div class="mbody"><span class="who">Emma</span><p>Yes, go.</p></div></div>
+              <div class="msg"><span class="av t-violet">LD</span><div class="mbody"><span class="who">onboarding</span><p>The first version is ready to try:</p><span class="link">https://onboarding-preview.apps.example.com</span></div></div>
+            </div>
           </div>
         </div>
-        <figcaption class="caption">An example. The steps are what a hi team does today; the names and the app are made up.</figcaption>
+        <figcaption class="caption">An example. The steps are what a hi team does today; Emma, Alex, Sarah, and the app are made up. <button class="st-open" type="button" data-story-open>Watch the full story (1:46) ▶</button></figcaption>
       </figure>
       <ol class="steps">
-        <li><div><h3>The idea</h3><p>Say what you need in Slack, in your own words. No ticket and no spec template.</p></div></li>
+        <li><div><h3>The idea</h3><p>Say what you need in Slack, in your own words. IT sets up a team for you with one command.</p></div></li>
         <li><div><h3>The conversation</h3><p>The team's lead, an AI, asks what it needs to know and writes down what will change and how you'll check it. Nothing starts until you say yes.</p></div></li>
         <li><div><h3>The build</h3><p>A coder agent builds it on a branch of its own. A reviewer agent, a different model, checks every change before you see it.</p></div></li>
-        <li><div><h3>The result</h3><p>A link that opens on your phone. Say what works and ask for more. It goes live when an owner says so, and every page has a button for help and feedback.</p></div></li>
+        <li><div><h3>The result</h3><p>A link that opens on your phone. Say what works and ask for more, from inside the app. It goes live when an owner says so.</p></div></li>
       </ol>
     </div>
+    <dialog class="st-dialog" data-story-dialog aria-labelledby="story-dialog-h">
+      <div class="st-dialog-head"><h2 id="story-dialog-h">From idea to application</h2><button class="st-close" type="button" data-story-close aria-label="Close">✕</button></div>
+      <div data-story-full></div>
+      <p class="st-note">Nine scenes, about 1:46. Emma, Alex, Sarah, and the onboarding app are an example; what the team does is what a hi team does today.</p>
+    </dialog>
   </section>
 
   <section id="team" class="wrap" aria-labelledby="team-h">
@@ -487,5 +483,7 @@ mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
     .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
     .catch(() => {});
 </script>
+<script src="assets/story-scenes.js" defer></script>
+<script src="assets/story.js" defer></script>
 </body>
 </html>
