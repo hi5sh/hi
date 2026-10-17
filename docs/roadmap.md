@@ -1699,6 +1699,11 @@ Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
 - [ ] Data for `autoresearch-ml` beyond one text file.
 - [ ] A record of every holdout look in `autoresearch-base`, so a holdout
   spent is visible.
+- [ ] An interactive menu for autoresearch (asked for on 2026-10-17): one
+  command that walks through a run's choices, such as the template and
+  project, the data and folds, the agents, boxes, rounds, patience, and
+  budget, with what each costs and trades off; starts the run; and then
+  follows it: watch, stop, results, and the quality checks.
 
 Finance work (`autoresearch-quant`'s data sources, fitted regime models)
 moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in
