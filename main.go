@@ -149,7 +149,7 @@ Usage:
   hi data                       Download your team's Hugging Face datasets, models, and buckets
   hi disconnect                 Leave it; hi compute uses your own keys again
   hi server                     Run the server that brokers compute and serves templates for your team
-  hi init [<template> <dir>]    Start a project from a template (python, web, service, pipeline, ml)
+  hi init [<template> <dir>]    Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml)
   hi q <what you want to do>    Ask an AI model for a shell command, then run, copy, or explain it
   hi q                          Chat with it; hi q --setup chooses the model and sets up the shell
   hi agent [claude|codex|hermes] [task]
@@ -161,7 +161,7 @@ Usage:
   hi skills                     Find, install, and update agent skills from skills.sh (hi skill help);
                                 hi skill add hi teaches agents to use hi
   hi verify strix               Check an installed Strix Halo workstation
-  hi update [--check]           Update hi to the latest release, and restart a hi server running the old one
+  hi update [--check]           Update hi to the latest release, and restart a hi server or team running the old one
   hi version                    Print the installed version
   hi help                       Show this help`)
 }

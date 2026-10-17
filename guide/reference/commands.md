@@ -97,7 +97,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi disconnect`                                     | Forget the server and delete the device key          |
 | `hi server init [--listen <addr>]`                  | Create the server's state                            |
 | `hi server run`                                     | Serve clients                                        |
-| `hi server provider add|remove|list [<provider>]` | Provider keys (RunPod)                              |
+| `hi server provider add|remove|list [<provider>]` | Provider keys (RunPod, Shadeform)                   |
 | `hi server user add <u> --group <g> [--key <k>]`    | Add a user; `--key` pre-approves a device            |
 | `hi server user remove <u>`, `user list`            | Remove a user and their devices; list users          |
 | `hi server requests [--all]`                        | What is waiting for a decision                       |
@@ -177,7 +177,8 @@ hi init --adopt python           # bring this existing repository under a templa
 | `--force`               | With `--update` or `--adopt`: overwrite files hi owns even when edited by hand |
 | `--strict`              | With `--check`: fail when private layers can't be checked |
 
-Templates: `python`, `web`, `service`, `pipeline`, `ml`, and on a connected
+Templates: `python`, `web`, `app`, `service`, `pipeline`, `ml`,
+`autoresearch-ml`, and on a connected
 device your team's private ones.
 
 ## hi q
@@ -208,9 +209,9 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 
 | Command                                  | Does                                                     |
 |------------------------------------------|----------------------------------------------------------|
-| `hi agent [claude|codex] "<task>"`      | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
-| `hi agent [claude|codex] <brief.md>`    | The task is the file's contents; `-` reads it from stdin |
-| `hi agent claude|codex`                 | An interactive session in a box, without permission prompts |
+| `hi agent [claude|codex|hermes] "<task>"` | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
+| `hi agent [claude|codex|hermes] <brief.md>` | The task is the file's contents; `-` reads it from stdin |
+| `hi agent claude|codex|hermes`          | An interactive session in a box, without permission prompts |
 | `hi agent wait <name> [--json]`          | Wait for a run and print its report                      |
 | `hi agent best-of <n> "<task>"`          | The same task in n boxes (2 to 8) at once; hi checks each and ranks them |
 | `hi agent best-of ls [--json]`           | Best-of runs and their state                             |
@@ -227,6 +228,8 @@ Options: `--detach` to start and return, `--json` for the report as JSON on
 stdout, `--task-file <path>` for a task file whose name doesn't end in
 `.md`, `--model <model>` for the agent's model (without it, the one in your
 own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
+`--from <commit>` to start the worktree from a commit or branch instead of
+`HEAD`, `--files <folder>` for files the agent may read at `/box/files`,
 `--bundle a,b` for bundles of skills and the tools they need, and the box
 options below. A brief's front matter can set `agent`, `model`, `bundles`,
 `network`, `allow`, `data`, and `gpu`. Exits with 0 when the agent is done and
@@ -255,7 +258,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 
 | Command | What it does |
 |---|---|
-| `hi team new <name> [--from <file.json>]` | Set up a team: its Slack app, channel, people, members, and code |
+| `hi team new <name> [--dir <folder>] [--from <file.json>]` | Set up a team: its Slack app, channel, people, members, and code |
 | `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi team down <name>`                     | Stop it; its folder stays |
 | `hi team rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its members' boxes, and its folder; `--keep-folder` keeps the folder |
@@ -277,7 +280,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 
-In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task>] [--attach <file>]...`,
+In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task> | --new] [--attach <file>]...`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
 `stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`,
 `web` (the chats and feedback in the app), `web show <chat|feedback>`, `web post <chat> <text|-> [--attach <file>]...`, `web questions` (what people asked the app's help), `web link --user <member ID>` (DM someone their private links, as `/hi` does)

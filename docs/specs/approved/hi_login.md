@@ -1,6 +1,7 @@
 # `hi login` specification
 
-Status: Approved
+Status: Approved. Built: `hf` and `colab` in v0.7.0, `runpod` in v0.8.0, and
+`shadeform` in v0.12.0.
 
 Dependencies: the `hf` CLI for Hugging Face; the Colab CLI for Colab.
 

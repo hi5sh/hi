@@ -7,7 +7,7 @@ description: The environment variables hi reads and the files it writes.
 
 | Variable                | Used for                                                          |
 |-------------------------|-------------------------------------------------------------------|
-| `HI_COMPUTE_PROVIDER`   | Default provider for `hi compute`: `colab`, `hf`, or `runpod`     |
+| `HI_COMPUTE_PROVIDER`   | Default provider for `hi compute`: `colab`, `hf`, `runpod`, or `shadeform` |
 | `HI_HF_NAMESPACE`       | Hugging Face account to bill; overrides `hi compute billing`      |
 | `HF_TOKEN`              | Hugging Face token; otherwise read from the token file            |
 | `HF_TOKEN_PATH`         | Where to find the Hugging Face token file                         |
@@ -16,7 +16,9 @@ description: The environment variables hi reads and the files it writes.
 | `HI_DATA_ENDPOINT`, `HI_DATA_TOKEN` | In a `hi compute run --data` job: the server's public data proxy and the run token (an encrypted secret); the script gets them as `HF_ENDPOINT` and `HF_TOKEN` |
 | `HI_BOX`                | Set inside a `hi box`; with `--data`, the box also has `HF_ENDPOINT` and a placeholder `HF_TOKEN` |
 | `RUNPOD_API_KEY`        | RunPod API key; otherwise read from `~/.runpod/config.toml`       |
+| `SHADEFORM_API_KEY`     | Shadeform API key; otherwise read from `~/.config/hi/shadeform_key` |
 | `HI_NETBIRD_SETUP_KEY`  | Setup key for `hi net` in scripts                                 |
+| `NETBIRD_API_TOKEN`     | NetBird Admin token for `hi net expose --domain` and `hi team domain` |
 | `HI_Q_BASE_URL`, `HI_Q_MODEL`, `HI_Q_API_KEY` | `hi q`: an OpenAI-compatible endpoint, its model, and key |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | `hi q`: OpenAI, or another endpoint with an OpenAI key |
 | `OPENROUTER_API_KEY`    | `hi q`: OpenRouter                                                |
@@ -26,6 +28,10 @@ description: The environment variables hi reads and the files it writes.
 | `TMUX`, `TMUX_PANE`     | `hi q`: inside tmux, the pane's last 100 lines are context        |
 | `VISUAL`, `EDITOR`      | `hi q`: the editor behind `e`                                     |
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
+| `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
+| `HI_SERVER_DIR`         | Where `hi server` keeps its state                                 |
+| `HI_TEAMS_DIR`          | Where `hi team` keeps teams; default `~/.local/share/hi/teams`    |
+| `HI_TEAM_SLACK_BOT_TOKEN`, `HI_TEAM_SLACK_APP_TOKEN`, `HI_TEAM_OPENROUTER_API_KEY` | `hi team new --from`: the team's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_INSTALL_DIR`        | Installer: where to put `hi`                                      |
 | `HI_VERSION`            | Installer: which release to install                               |
 | `XDG_CONFIG_HOME`       | Base of `hi`'s config folder; default `~/.config`                 |

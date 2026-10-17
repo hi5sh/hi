@@ -19,8 +19,9 @@ and then use the same `hi compute` commands as before.
 > your own Google sign-in.
 {: .note}
 
-This release manages RunPod. Admins approve from Slack or the server box.
-Budgets and a live dashboard come in later releases.
+hi manages RunPod and Shadeform. Admins approve from Slack or the server box,
+groups can have budgets, and `hi compute live` and `hi server live` show what
+is running.
 
 {% include diagram.html name="managed" %}
 

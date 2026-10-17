@@ -45,8 +45,9 @@ The setup asks seven things, one at a time:
    Type `empty` for a repository with only a README, or give one to
    clone: a URL, with this machine's git credentials, or a folder on this
    machine.
-   Or name a team template from your team's private templates, a web app
-   with roles of its own for a kind of work.
+   Or name a team template: a web app with roles of its own for a kind of
+   work, built into hi, in `HI_TEMPLATES_DIR`, or from your hi server's
+   templates.
    A new repository can go on GitHub too: give `owner/name`, and hi
    creates a private repository with this machine's `gh` sign-in.
 

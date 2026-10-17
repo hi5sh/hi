@@ -40,7 +40,7 @@ hi net status      Show NetBird connection status
 hi net down        Disconnect NetBird
 hi net reconnect   Reconnect an enrolled NetBird peer
 hi net expose 3000 Put a local service on a temporary public address (hi net expose help)
-hi init            Start a project from a template (python, web, service, pipeline, ml, autoresearch-ml, and your server's own)
+hi init            Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml, and your server's own)
 hi compute         Start, reach, and stop remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
 hi login <hf|colab|runpod|shadeform>  Sign in to a compute provider
 hi connect <server>         Join your team's hi server, which approves and pays for compute
@@ -56,7 +56,7 @@ hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
 hi verify strix    Check an installed Strix Halo workstation
-hi update          Update hi to the latest release, and restart a hi server service on the old one (--check, --version, --restart)
+hi update          Update hi to the latest release, and restart a hi server or team on the old one (--check, --version, --restart)
 hi version         Print the installed version
 hi help            Show help
 ```

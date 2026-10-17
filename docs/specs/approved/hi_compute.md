@@ -2,7 +2,8 @@
 
 Status: Approved for runs, instances, SSH, tunnels, logs, and serving on
 Colab, Hugging Face, and RunPod, in that order. Colab (v0.6.0) and Hugging
-Face (v0.7.0) are released, and so is RunPod (v0.8.0).
+Face (v0.7.0) are released, and so are RunPod (v0.8.0), Shadeform (v0.12.0),
+and RunPod Community Cloud (v0.12.2).
 Everything marked **(draft)** is not yet approved: the full TUI, compute files,
 templates, file copy, SSH config integration, idle limits, and further
 providers.
@@ -347,8 +348,9 @@ hi compute pull <name> <path> [<dest>]  Copy files back                      (dr
 ```
 
 Until the full TUI is approved, bare `hi compute` in a terminal opens a
-numbered menu over the commands above that prints the equivalent command for
-every action. Without a terminal it prints help.
+styled guided menu (since v0.7.2) over the commands above that prints the
+equivalent command for every action; without a styled terminal it falls back
+to a numbered menu, and without a terminal it prints help.
 
 Options for `run` and `up`:
 

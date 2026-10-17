@@ -1442,7 +1442,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### v0.64.1 — hi5sh/hi and hi5.sh
 
-- [x] The repository moved from `acme/cli` to `hi5sh/hi`, and the site
+- [x] The repository moved to `hi5sh/hi`, and the site
   from hifin.sh to https://hi5.sh. `hi update` and the installer download
   from `hi5sh/hi`; older versions still update through GitHub's redirect.
 
@@ -1673,6 +1673,8 @@ Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
 
 ### Later — `hi team`
 
+Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 - [ ] A security advisor that reviews the proxy's log, the members'
   commands, and merged changes, and tells the owners about anything risky
   rather than blocking the team; Hermes' `approvals.mode: smart` is one
@@ -1684,7 +1686,6 @@ Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
   one question, such as [Jev](https://docs.pipecat.ai/api-reference/server/classifiers/jev),
   TypeSafe's classification model, asked "is this message for the
   lead?". Until then it answers @-mentions only, which works well.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — Bun
 
@@ -1706,8 +1707,8 @@ Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
   follows it: watch, stop, results, and the quality checks.
 
 Finance work (`autoresearch-quant`'s data sources, fitted regime models)
-moved on 2026-10-12 to the private repo's roadmap, `docs/roadmap.md` in
-`acme/templates`. Fitted models there need the boxes to allow more
+moved on 2026-10-12 to the roadmap in the private templates repository,
+`docs/roadmap.md`. Fitted models there need the boxes to allow more
 libraries.
 
 ### Later — `hi compute`
@@ -1721,18 +1722,20 @@ libraries.
 
 ### Later — Learn from agent-machine services
 
-- [x] Study [boxd](https://docs.boxd.sh/) and similar services (Fly's
-  Sprites, E2B, Daytona, Modal Sandboxes) and write down which ideas fit
-  `hi compute` and `hi server`. Candidates from boxd:
-  - Checkpoints before risky changes, and forking a running machine into an
-    identical copy.
-  - Suspending idle machines and resuming them quickly, which pairs with the
-    idle GPU flag (Later — `hi compute`).
-  - An HTTPS URL for every machine or `serve`, instead of an SSH tunnel.
-  - Environment variables and secrets set once and injected into every
-    machine the user owns, never on Community Cloud (v0.12.2).
-  - Sharing a running machine with a teammate, recorded in the audit log.
-  - A live desktop view that a person can watch and take over from an agent.
+[boxd](https://docs.boxd.sh/) and similar services (Fly's Sprites, E2B,
+Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
+`hi server`. Candidates from boxd:
+
+- Checkpoints before risky changes, and forking a running machine into an
+  identical copy.
+- Suspending idle machines and resuming them quickly, which pairs with the
+  idle GPU flag (Later — `hi compute`).
+- An HTTPS URL for every machine or `serve`, instead of an SSH tunnel.
+- Environment variables and secrets set once and injected into every
+  machine the user owns, never on Community Cloud (v0.12.2).
+- Sharing a running machine with a teammate, recorded in the audit log.
+- A live desktop view that a person can watch and take over from an agent.
+
 - [ ] Turn the ideas worth building into draft specs in `specs/ideas/`.
   Started: [hi_compute_idle.md](specs/ideas/hi_compute_idle.md) has the
   idle GPU flag and why suspend and resume doesn't fit the current
@@ -1750,7 +1753,9 @@ libraries.
   the live view. Spec: [hi_agent.md](specs/approved/hi_agent.md#sign-ins-on-the-server-release-3) (3).
 - [ ] `--on <machine>` and `--remote`, and Antigravity CLI.
   Spec: [hi_agent.md, Releases](specs/approved/hi_agent.md#releases) (4).
-  Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md) (draft).
+- [ ] A planner that picks bundles for a task; bundles themselves shipped
+  in v0.31.0. Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md),
+  release 3 (draft).
 
 ### Later — `hi data` and `hi server expose`
 
@@ -1886,6 +1891,3 @@ scheduled to a version yet.
 
 Waiting until Modal's Go SDK leaves beta and its package path settles. Not
 scheduled to a version yet.
-
-The TUI, compute files, and templates in the same spec are still marked draft;
-v0.6.0 ships a numbered menu instead of the full TUI.
