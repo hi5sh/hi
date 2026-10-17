@@ -16,15 +16,13 @@ import (
 // A progress card is a reply hi keeps current in the Slack thread where
 // work was agreed: a plan of the work's tasks (the coder's, each review,
 // each fix), each running, done, or failed, under a title that says what
-// is happening now. Slack shows it as a live message with a spinner
-// (chat.startStream in plan mode), so the people see the members work
-// while the lead waits for them.
+// is happening now, so the people see the members work while the lead
+// waits for them.
 //
-// What Slack does with a card, found by trying it: a task_update with an
-// id it has seen replaces that task's title and status but adds its
-// details to what it had, so details go once, when the task ends; and
-// stopping a card marks tasks still in progress as failed, so a card stops
-// only when none is running.
+// It is an ordinary message with a plan block, which hi edits. A live
+// message (chat.startStream) shows a spinner, but Slack ends it after
+// about ten minutes and marks a task still running then as failed, and a
+// task can run for an hour, so hi doesn't stream.
 
 const (
 	teamProgressEvery = 20 * time.Second
@@ -39,10 +37,10 @@ type teamProgressCard struct {
 	Thread  string    `json:"thread"`
 	TS      string    `json:"ts"`
 	Tasks   []string  `json:"tasks"`             // the tasks it shows, in order
-	Ended   []string  `json:"ended,omitempty"`   // tasks whose details it sent
+	Shown   string    `json:"shown,omitempty"`   // what it shows, to edit it only when that changes
 	Active  time.Time `json:"active"`            // when a task last ran
-	Closed  bool      `json:"closed,omitempty"`  // stopped, by hi or by someone in Slack
-	Stopped bool      `json:"stopped,omitempty"` // someone stopped it in Slack: no new card for this work
+	Closed  bool      `json:"closed,omitempty"`  // done with: the work settled, or the card is gone
+	Removed bool      `json:"removed,omitempty"` // someone deleted it: no new card for this work
 }
 
 type teamProgressState struct {
@@ -167,24 +165,24 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 		}
 		i, has := open[root]
 		if !has {
-			stopped := false
+			removed := false
 			for _, card := range state.Cards {
-				stopped = stopped || card.Root == root && card.Stopped
+				removed = removed || card.Root == root && card.Removed
 			}
-			if !active || stopped {
+			if !active || removed {
 				continue
 			}
 			card := teamProgressCard{Root: root, Thread: teamProgressThread(byID[root]), Active: now}
 			for _, task := range fresh {
 				card.Tasks = append(card.Tasks, task.ID)
 			}
-			chunks := teamProgressChunks(&card, byID, fresh, readers, now)
-			ts, err := b.channel.startStream(config.Channel, card.Thread, b.progressRecipient(config, byID[root]), chunks)
+			text, blocks := teamProgressBlocks(card, byID, readers, now)
+			ts, err := b.channel.postBlocks(config.Channel, card.Thread, text, blocks)
 			if err != nil {
-				failed = append(failed, fmt.Sprintf("starting the card for %s: %v", root, err))
+				failed = append(failed, fmt.Sprintf("posting the card for %s: %v", root, err))
 				continue
 			}
-			card.TS = ts
+			card.TS, card.Shown = ts, teamProgressShown(blocks)
 			state.Cards = append(state.Cards, card)
 			continue
 		}
@@ -197,25 +195,22 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 		if active {
 			card.Active = now
 		}
-		chunks := teamProgressChunks(card, byID, fresh, readers, now)
-		settled := !active && now.Sub(card.Active) >= teamProgressSettle
-		if err := b.channel.appendStream(config.Channel, card.TS, chunks); err != nil {
-			var slackErr teamSlackError
-			if errors.As(err, &slackErr) && (slackErr.code == "stopped_by_user" || slackErr.code == "message_not_in_streaming_state") {
-				// Someone stopped it, or Slack ended it: a card that
-				// Slack ended gets a successor while the work runs.
-				card.Closed, card.Stopped = true, slackErr.code == "stopped_by_user"
+		text, blocks := teamProgressBlocks(*card, byID, readers, now)
+		if shown := teamProgressShown(blocks); shown != card.Shown {
+			if err := b.channel.updateBlocks(config.Channel, card.TS, text, blocks); err != nil {
+				var slackErr teamSlackError
+				if errors.As(err, &slackErr) && slackErr.code == "message_not_found" {
+					card.Closed, card.Removed = true, true
+					continue
+				}
+				failed = append(failed, fmt.Sprintf("updating the card for %s: %v", root, err))
 				continue
 			}
-			failed = append(failed, fmt.Sprintf("updating the card for %s: %v", root, err))
-			continue
+			card.Shown = shown
 		}
-		if settled {
-			if err := b.channel.stopStream(config.Channel, card.TS); err != nil {
-				failed = append(failed, fmt.Sprintf("ending the card for %s: %v", root, err))
-			}
-			card.Closed = true
-		}
+		// It ends once nothing has run for a while: the broker starts the
+		// next review or fix in that time.
+		card.Closed = !active && now.Sub(card.Active) >= teamProgressSettle
 	}
 	if err := saveTeamProgress(b.team, state); err != nil {
 		return err
@@ -226,60 +221,36 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 	return nil
 }
 
-// progressRecipient is who agreed the work, from the channel's log;
-// Slack wants a person for a card in a channel. The first owner otherwise.
-func (b *teamBroker) progressRecipient(config teamConfig, root teamTask) string {
-	if root.Approval != nil && teamSlackTSPattern.MatchString(root.Approval.TS) {
-		ts := root.Approval.TS
-		messages, _ := readTeamChannel(teamChannelDir(b.team), teamSlackTS(teamTSTime(ts).Add(-time.Second)))
-		for _, message := range messages {
-			if message.TS == ts && message.User != "" {
-				return message.User
-			}
-		}
-	}
-	if len(config.Owners) > 0 {
-		return config.Owners[0]
-	}
-	return ""
-}
-
-// teamProgressChunks is a card's plan as it is now: its title, then a
-// task_update per task, with the details of a task that ended the first
-// time the card shows it ended.
-func teamProgressChunks(card *teamProgressCard, byID map[string]teamTask, fresh []teamTask, readers map[string]*agentProgressReader, now time.Time) []map[string]any {
-	root := byID[card.Root]
+// teamProgressBlocks is a card as it is now: a plan block, its title
+// what happens now and a task per task, and the message's text.
+func teamProgressBlocks(card teamProgressCard, byID map[string]teamTask, readers map[string]*agentProgressReader, now time.Time) (string, []map[string]any) {
 	var running *teamTask
 	var last teamTask
-	chunks := []map[string]any{nil} // the title goes first, once it's known
+	tasks := []map[string]any{}
 	for _, id := range card.Tasks {
 		task, ok := byID[id]
 		if !ok {
 			continue
 		}
 		last = task
-		title := teamProgressTaskTitle(task)
-		chunk := map[string]any{"type": "task_update", "id": task.ID}
+		line := map[string]any{"task_id": task.ID, "title": teamProgressClip(teamProgressTaskTitle(task))}
+		var details string
 		switch {
 		case teamTaskActive(task):
 			running = &task
-			chunk["status"] = "in_progress"
-			title += " · " + teamProgressRunning(task, readers, now)
+			line["status"], details = "in_progress", teamProgressRunning(task, readers, now)
 		case task.Status == "done" || task.Status == "merged":
-			chunk["status"] = "complete"
+			line["status"], details = "complete", teamProgressEnded(task)
 			delete(readers, task.ID)
 		default: // failed, stopped, discarded
-			chunk["status"] = "error"
+			line["status"], details = "error", teamProgressEnded(task)
 			delete(readers, task.ID)
 		}
-		chunk["title"] = teamProgressClip(title)
-		if !teamTaskActive(task) && !containsString(card.Ended, task.ID) {
-			chunk["details"] = teamProgressClip(teamProgressEnded(task))
-			card.Ended = append(card.Ended, task.ID)
-		}
-		chunks = append(chunks, chunk)
+		line["details"] = map[string]any{"type": "rich_text", "elements": []map[string]any{{"type": "rich_text_section",
+			"elements": []map[string]any{{"type": "text", "text": teamProgressClip(details)}}}}}
+		tasks = append(tasks, line)
 	}
-	headline := ""
+	var headline string
 	switch {
 	case running != nil && running.Kind == "review":
 		headline = "the reviewer is checking the work"
@@ -296,8 +267,14 @@ func teamProgressChunks(card *teamProgressCard, byID map[string]teamTask, fresh 
 	default:
 		headline = "done; the lead looks at it"
 	}
-	chunks[0] = map[string]any{"type": "plan_update", "title": teamProgressClip(root.Title + " · " + headline)}
-	return chunks
+	title := teamProgressClip(byID[card.Root].Title + " · " + headline)
+	return title, []map[string]any{{"type": "plan", "title": title, "tasks": tasks}}
+}
+
+// teamProgressShown is what a card shows, to compare.
+func teamProgressShown(blocks []map[string]any) string {
+	data, _ := json.Marshal(blocks)
+	return string(data)
 }
 
 func teamProgressTaskTitle(task teamTask) string {
@@ -306,7 +283,7 @@ func teamProgressTaskTitle(task teamTask) string {
 
 // teamProgressRunning is how long a task has run, and its steps so far.
 func teamProgressRunning(task teamTask, readers map[string]*agentProgressReader, now time.Time) string {
-	text := "running " + teamProgressMinutes(now.Sub(task.Created))
+	text := "running for " + teamProgressMinutes(now.Sub(task.Created))
 	reader := readers[task.ID]
 	if reader == nil && task.Box != "" {
 		reader = newAgentProgressReader(task.Agent, boxStateFile(task.Box, "home"))
@@ -315,6 +292,13 @@ func teamProgressRunning(task teamTask, readers map[string]*agentProgressReader,
 	if reader != nil {
 		if progress := reader.poll(); progress.steps > 0 {
 			text += fmt.Sprintf(" · %d steps", progress.steps)
+			if step := strings.Join(strings.Fields(progress.step), " "); step != "" {
+				// What it does now, such as "Bash: bun test".
+				if runes := []rune(step); len(runes) > 100 {
+					step = string(runes[:99]) + "…"
+				}
+				text += " · now: " + step
+			}
 		}
 	}
 	return text
@@ -395,7 +379,7 @@ func teamProgressCommand(args []string, stdout io.Writer) error {
 }
 
 // ---------------------------------------------------------------------------
-// Slack's streaming methods, which the Slack library hi uses doesn't have.
+// Slack's Web API with blocks the Slack library hi uses doesn't know.
 
 // teamSlackError is an error Slack answered with, by its code.
 type teamSlackError struct{ code string }
@@ -428,16 +412,8 @@ func (l *liveTeamChannel) call(method string, body map[string]any) (map[string]a
 	return out, nil
 }
 
-func (l *liveTeamChannel) startStream(channel, thread, user string, chunks []map[string]any) (string, error) {
-	if l.teamID == "" {
-		out, err := l.call("auth.test", map[string]any{})
-		if err != nil {
-			return "", err
-		}
-		l.teamID, _ = out["team_id"].(string)
-	}
-	out, err := l.call("chat.startStream", map[string]any{"channel": channel, "thread_ts": thread, "recipient_user_id": user,
-		"recipient_team_id": l.teamID, "task_display_mode": "plan", "chunks": chunks})
+func (l *liveTeamChannel) postBlocks(channel, thread, text string, blocks []map[string]any) (string, error) {
+	out, err := l.call("chat.postMessage", map[string]any{"channel": channel, "thread_ts": thread, "text": text, "blocks": blocks, "unfurl_links": false})
 	if err != nil {
 		return "", err
 	}
@@ -445,12 +421,7 @@ func (l *liveTeamChannel) startStream(channel, thread, user string, chunks []map
 	return ts, nil
 }
 
-func (l *liveTeamChannel) appendStream(channel, ts string, chunks []map[string]any) error {
-	_, err := l.call("chat.appendStream", map[string]any{"channel": channel, "ts": ts, "chunks": chunks})
-	return err
-}
-
-func (l *liveTeamChannel) stopStream(channel, ts string) error {
-	_, err := l.call("chat.stopStream", map[string]any{"channel": channel, "ts": ts})
+func (l *liveTeamChannel) updateBlocks(channel, ts, text string, blocks []map[string]any) error {
+	_, err := l.call("chat.update", map[string]any{"channel": channel, "ts": ts, "text": text, "blocks": blocks})
 	return err
 }

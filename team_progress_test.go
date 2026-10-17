@@ -51,55 +51,62 @@ func TestTeamProgressCard(t *testing.T) {
 	}
 
 	got := step(start.Add(2 * time.Minute))
-	if !strings.HasPrefix(got, "startStream C07PAYMENTS 1792254766.636789 U07OWNER1 ") || strings.Count(got, "\n") != 0 {
+	if !strings.HasPrefix(got, "postBlocks C07PAYMENTS 1792254766.636789 ") || strings.Count(got, "\n") != 0 {
 		t.Fatal(got)
 	}
-	for _, want := range []string{`"title":"Sentiment · the coder is working on it"`, `"id":"t-1"`, `"status":"in_progress"`, `running 2m`} {
+	for _, want := range []string{`"type":"plan"`, `"title":"Sentiment · the coder is working on it"`, `"task_id":"t-1"`, `"status":"in_progress"`, `running for 2m`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %s in %s", want, got)
 		}
 	}
 
-	// The coder is done and the reviewer asks for changes: each line's
-	// details go once, since Slack adds them to what it has.
+	// The coder is done and the reviewer is checking.
 	save(teamTask{ID: "t-1", Role: "coder", Agent: "claude", Kind: "task", Title: "Sentiment", Status: "done", Created: start, Finished: start.Add(9 * time.Minute), Approval: yes})
 	save(teamTask{ID: "t-3", Role: "reviewer", Agent: "codex", Kind: "review", Review: "t-1", Title: "Review t-1", Status: "running", Created: start.Add(9 * time.Minute)})
 	got = step(start.Add(10 * time.Minute))
-	if !strings.HasPrefix(got, "appendStream C07PAYMENTS ") || !strings.Contains(got, `"details":"done in 9m"`) || !strings.Contains(got, "the reviewer is checking") {
+	if !strings.HasPrefix(got, "updateBlocks C07PAYMENTS 1700000000.000001 ") || !strings.Contains(got, `"text":"done in 9m"`) || !strings.Contains(got, "the reviewer is checking") {
 		t.Fatal(got)
 	}
-	got = step(start.Add(11 * time.Minute))
-	if strings.Contains(got, "details") {
-		t.Fatal("details sent twice:", got)
+	// Nothing changed, nothing to edit.
+	if got = step(start.Add(10*time.Minute + 20*time.Second)); got != "" {
+		t.Fatal("edited a card that shows the same:", got)
 	}
 
 	// Approved, nothing runs: the card waits for a next round, then ends.
 	save(teamTask{ID: "t-3", Role: "reviewer", Agent: "codex", Kind: "review", Review: "t-1", Title: "Review t-1", Status: "done", Verdict: "approve", Created: start.Add(9 * time.Minute), Finished: start.Add(12 * time.Minute)})
 	got = step(start.Add(12 * time.Minute))
-	if strings.Contains(got, "stopStream") || !strings.Contains(got, `"details":"approved in 3m"`) || !strings.Contains(got, "the lead merges it") {
+	if !strings.Contains(got, `"text":"approved in 3m"`) || !strings.Contains(got, "the lead merges it") {
 		t.Fatal(got)
 	}
-	got = step(start.Add(16 * time.Minute))
-	if !strings.HasSuffix(got, "stopStream C07PAYMENTS 1700000000.000001") {
-		t.Fatal(got)
+	step(start.Add(16 * time.Minute))
+	if state := loadTeamProgress("payments"); len(state.Cards) != 1 || !state.Cards[0].Closed {
+		t.Fatal("the card for settled work is still open:", state)
 	}
 	if got = step(start.Add(17 * time.Minute)); got != "" {
-		t.Fatal("an ended card for settled work:", got)
+		t.Fatal("a closed card for settled work:", got)
 	}
 
 	// More work on it later gets a card of its own, with only the new tasks.
 	save(teamTask{ID: "t-4", Role: "coder", Agent: "claude", Kind: "task", On: "t-1", Title: "More", Status: "running", Created: start.Add(30 * time.Minute)})
 	got = step(start.Add(31 * time.Minute))
-	if !strings.HasPrefix(got, "startStream") || strings.Contains(got, `"id":"t-1"`) || !strings.Contains(got, `"id":"t-4"`) {
+	if !strings.HasPrefix(got, "postBlocks") || strings.Contains(got, `"task_id":"t-1"`) || !strings.Contains(got, `"task_id":"t-4"`) {
 		t.Fatal(got)
 	}
 
-	// Someone stops the card in Slack: no new one for this work.
-	source.streamErr = "stopped_by_user"
-	step(start.Add(32 * time.Minute))
-	source.streamErr = ""
-	if got = step(start.Add(33 * time.Minute)); got != "" {
-		t.Fatal("a card after someone stopped it:", got)
+	// Someone deletes the card in Slack: no new one for this work.
+	source.updateErr = "message_not_found"
+	step(start.Add(33 * time.Minute))
+	source.updateErr = ""
+	if got = step(start.Add(34 * time.Minute)); got != "" {
+		t.Fatal("a card after someone deleted it:", got)
+	}
+
+	// A task that runs past ten minutes stays running on its card.
+	save(teamTask{ID: "t-5", Role: "coder", Agent: "claude", Kind: "task", Title: "Long", Status: "running", Created: start.Add(40 * time.Minute), Approval: &teamApproval{TS: "1792255000.000100", Thread: "1792255000.000100"}})
+	step(start.Add(41 * time.Minute))
+	got = step(start.Add(95 * time.Minute))
+	if !strings.Contains(got, `"status":"in_progress"`) || !strings.Contains(got, "running for 55m") {
+		t.Fatal(got)
 	}
 }
 
@@ -138,7 +145,7 @@ func TestTeamProgressSmallFix(t *testing.T) {
 	if err := b.updateProgress(map[string]*agentProgressReader{}, start.Add(time.Minute)); err != nil {
 		t.Fatal(err)
 	}
-	if len(source.calls) != 1 || !strings.HasPrefix(source.calls[0], "startStream C07PAYMENTS 1792254766.636789 U07OWNER1 ") || !strings.Contains(source.calls[0], "Fix the model") {
+	if len(source.calls) != 1 || !strings.HasPrefix(source.calls[0], "postBlocks C07PAYMENTS 1792254766.636789 ") || !strings.Contains(source.calls[0], "Fix the model") {
 		t.Fatal(source.calls)
 	}
 }

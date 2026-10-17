@@ -1720,6 +1720,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   the option, not when the coder runs into it. Found when the lead
   suggested a data source that needs a key without saying how to add it.
 
+### v0.80.4 — A progress card that lasts
+
+- [x] The progress card is an ordinary reply with a plan block that hi
+  edits, no longer a live message: Slack ends a live message after about
+  ten minutes, even one updated every 20 seconds, and marks a task still
+  running then as failed, while a task can run for an hour. A running task
+  says for how long, in how many steps, and what its agent does now; hi
+  edits the card only when that changes. A card someone deletes isn't
+  posted again for that work.
+
 ## Planned
 
 ### Guide — a diagram for every tool

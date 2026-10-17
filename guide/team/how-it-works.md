@@ -80,13 +80,13 @@ cares about what. `hi team channel payments --since 2h` shows you the log.
 
 While the members work, the lead waits, and the channel can go quiet for a
 while. With `hi team progress payments on`, hi keeps a live card in the
-thread the work was agreed in: a spinner and a title that says what happens
-now (the coder working on it, the reviewer checking it, approved, merged),
+thread the work was agreed in, which hi edits as the work goes on: a title
+that says what happens now (the coder working on it, the reviewer checking it, approved, merged),
 and, opened, a line per task (the coder's, each review, each fix) that
-says whether it runs, for how long and in how many steps, or how it
-ended. The card ends a few minutes after nothing runs; more work on the
+says whether it runs (for how long, in how many steps, and what its agent
+does now) or how it ended. The card ends a few minutes after nothing runs; more work on the
 same thing later gets a card of its own. A small fix's card goes in the
-thread it was asked for in. Stopping the card in Slack stops
+thread it was asked for in. Deleting the card in Slack stops
 it for that work. It is off by default.
 
 ## The lead's memory

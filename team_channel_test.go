@@ -19,8 +19,8 @@ type fakeTeamChannel struct {
 	messages []slack.Message
 	threads  map[string][]slack.Message
 	calls    []string
-	// streamErr is what appendStream answers, such as stopped_by_user.
-	streamErr string
+	// updateErr is what updateBlocks answers, such as message_not_found.
+	updateErr string
 }
 
 func (f *fakeTeamChannel) history(channel, oldest string) ([]slack.Message, error) {
@@ -63,23 +63,18 @@ func (f *fakeTeamChannel) update(channel, ts, text string) error {
 	return nil
 }
 
-func (f *fakeTeamChannel) startStream(channel, thread, user string, chunks []map[string]any) (string, error) {
-	data, _ := json.Marshal(chunks)
-	f.calls = append(f.calls, "startStream "+channel+" "+thread+" "+user+" "+string(data))
+func (f *fakeTeamChannel) postBlocks(channel, thread, text string, blocks []map[string]any) (string, error) {
+	data, _ := json.Marshal(blocks)
+	f.calls = append(f.calls, "postBlocks "+channel+" "+thread+" "+string(data))
 	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
 }
 
-func (f *fakeTeamChannel) appendStream(channel, ts string, chunks []map[string]any) error {
-	data, _ := json.Marshal(chunks)
-	f.calls = append(f.calls, "appendStream "+channel+" "+ts+" "+string(data))
-	if f.streamErr != "" {
-		return teamSlackError{f.streamErr}
+func (f *fakeTeamChannel) updateBlocks(channel, ts, text string, blocks []map[string]any) error {
+	data, _ := json.Marshal(blocks)
+	f.calls = append(f.calls, "updateBlocks "+channel+" "+ts+" "+string(data))
+	if f.updateErr != "" {
+		return teamSlackError{f.updateErr}
 	}
-	return nil
-}
-
-func (f *fakeTeamChannel) stopStream(channel, ts string) error {
-	f.calls = append(f.calls, "stopStream "+channel+" "+ts)
 	return nil
 }
 
