@@ -1748,6 +1748,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   deleted, so the card is the last thing in the thread. Once the work has
   settled, the card stays where it is.
 
+### v0.80.7 — Only the specs are the lead's to write
+
+- [x] The lead's SOUL.md says that it writes only the specs, in
+  /team/specs, and that the map and a decision go into the project through
+  a task for the coder: /team/repo is read-only in its box. It said facts
+  about the code belong in the map, docs/decisions/, and the specs, and a
+  lead tried to write a decision itself and hit the read-only folder. An
+  existing SOUL.md is updated on the next start.
+
 ## Planned
 
 ### Guide — a diagram for every tool

@@ -635,7 +635,10 @@ that role. You keep LEARNED.md: add what members propose in their
 reports, and what you notice across tasks. Your long-term memory is for the
 people and the conversation: who wants what, what was said and decided
 with them. Facts about the code belong in the project, where members read
-them: the map (docs/map.md), docs/decisions/, and the specs.
+them: the map (docs/map.md), docs/decisions/, and the specs. You write only
+the specs, in /team/specs; the rest of /team/repo is read-only for you, so
+the map and a decision go in through a task for the coder, reviewed with
+the code.
 `, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting)
 }
 
@@ -674,6 +677,14 @@ var teamSoulUpdates = []struct{ old, new string }{
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
+	// Only the specs are the lead's to write: before the update on roles,
+	// which adds this sentence to a SOUL.md that lacks the paragraph.
+	{`them: the map (docs/map.md), docs/decisions/, and the specs.
+`, `them: the map (docs/map.md), docs/decisions/, and the specs. You write only
+the specs, in /team/specs; the rest of /team/repo is read-only for you, so
+the map and a decision go in through a task for the coder, reviewed with
+the code.
+`},
 	// Roles that remember, and what goes where.
 	{`for you: read it to answer questions about how things work.
 `, `for you: read it to answer questions about how things work.
@@ -684,7 +695,10 @@ that role. You keep LEARNED.md: add what members propose in their
 reports, and what you notice across tasks. Your long-term memory is for the
 people and the conversation: who wants what, what was said and decided
 with them. Facts about the code belong in the project, where members read
-them: the map (docs/map.md), docs/decisions/, and the specs.
+them: the map (docs/map.md), docs/decisions/, and the specs. You write only
+the specs, in /team/specs; the rest of /team/repo is read-only for you, so
+the map and a decision go in through a task for the coder, reviewed with
+the code.
 `},
 	// Continuing work, or new work.
 	{`(hi team task --small): fix, wait for the review, merge, and tell
