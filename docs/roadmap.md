@@ -1692,6 +1692,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   a task still running as failed when a card stops; a task's details go
   once, since Slack adds them to what it has. Off by default.
 
+### v0.80.1 — No hi in the app's box
+
+- [x] hi is in an app's box only to start the app and relay its model
+  calls, now off the box's PATH, so an app that looks for `hi` doesn't
+  find it and try `hi agent`, which can't run there (no podman, no agents,
+  no logins). Found on a team whose app preferred `hi agent codex` over
+  OpenRouter and failed in the preview. The lead and the project's map
+  say it: an agent's model, such as Codex's, goes through OpenRouter.
+
 ## Planned
 
 ### Guide — a diagram for every tool

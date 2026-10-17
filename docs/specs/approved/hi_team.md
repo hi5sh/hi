@@ -2,7 +2,7 @@
 
 Status: Approved (2026-10-10). The first slice is built (v0.37.0); since
 then dev and production, keys, snapshots, rollback, the helper, and domains
-have shipped (v0.38.0 to v0.80.0; see the roadmap). Export and import, and
+have shipped (v0.38.0 to v0.80.1; see the roadmap). Export and import, and
 the security advisor, are not built.
 
 Dependencies: `hi box` (boxes, the proxy, token injection, the allowlist),

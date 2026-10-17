@@ -603,9 +603,9 @@ func (b *teamBroker) startApp(name, src, data, address, command string, port, ho
 	run = append(run, "-v", src+":/app", "-w", "/app", "-v", data+":"+teamAppDataDir,
 		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
 		"-v", models+":"+teamAppModelsDir,
-		"-v", b.hi+":/usr/local/bin/hi:ro",
+		"-v", b.hi+":"+teamAppRelay+":ro",
 		"--env-file", envFile,
-		image, "/usr/local/bin/hi", "team", "__app", teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
+		image, teamAppRelay, "team", "__app", teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
 	name, args := teamOutsideService(engine.bin, run)
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
 		return fmt.Errorf("%s: %s", engine.name, qFirstLine(strings.TrimSpace(string(out)), err.Error()))

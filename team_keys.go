@@ -35,7 +35,11 @@ const (
 	teamModelsSocket = "models.sock"
 	// teamAppModelsDir is where an app's box sees the models socket, and
 	// teamAppModelsPort where the relay in the box listens.
-	teamAppModelsDir  = "/hi-models"
+	teamAppModelsDir = "/hi-models"
+	// teamAppRelay is hi in an app's box, off its PATH: it starts the app
+	// and relays its model calls, and nothing else of hi works there, so
+	// an app that looks for hi doesn't find it (and try hi agent).
+	teamAppRelay      = "/usr/local/libexec/hi-relay"
 	teamAppModelsPort = 3129
 )
 

@@ -989,7 +989,11 @@ link is in the file named by $HI_PUBLIC_URL_FILE, and it changes each
 day, so the app reads that file whenever it needs its link, never once
 at start or from a setting in the code. For models, the app calls
 OpenRouter's API at $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY; hi
-puts the team's real key on each call, in previews and production. Other
+puts the team's real key on each call, in previews and production. The
+agents (hi agent, Claude Code, Codex) don't run in the app's box: it has
+no hi, no agents, and no logins. When people want the app to use an
+agent's model, such as Codex's, the app calls that model through
+OpenRouter (an openai/ model for Codex's); say so in the brief. Other
 keys the app needs are settings the people add on the machine with hi
 team env <team> KEY=VALUE, which reach the app as environment variables;
 hi team env in your box lists their names. Keys and tokens never go in a

@@ -29,7 +29,10 @@ what each thing is and where to look, and leave the detail to the code and
 ## Outside services
 
 - Models: OpenRouter at `$OPENROUTER_BASE_URL` with `$OPENROUTER_API_KEY`;
-  hi adds the team's real key on each call.
+  hi adds the team's real key on each call. The app's box has no `hi`, no
+  agents, and no logins, so `hi agent` and Codex or Claude Code don't run
+  there: for an agent's model, call it through OpenRouter (an `openai/`
+  model for Codex's).
 - The helper, the chat with the team in the corner of every page: hi adds
   it, and `/__hi/` belongs to hi.
 
