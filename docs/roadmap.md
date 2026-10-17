@@ -1743,6 +1743,14 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   covers runs on RunPod, Shadeform, and managed providers. The services
   were compared on 2026-10-01 in [hi_box.md](specs/approved/hi_box.md#services).
 
+### Later — `hi skill`
+
+- [ ] No private organizations hardcoded in hi: the verified owners in
+  `skill_registry.go` list one, which a team's own setting, such as the
+  hi server's, should add instead. The same goes for any other
+  team-specific name in the code.
+  Approved spec: [hi_skill.md](specs/approved/hi_skill.md).
+
 ### Later — `hi agent`
 
 - [ ] Tiers (`--tier read|edit|full`), `--max`, `resume`, a configured
