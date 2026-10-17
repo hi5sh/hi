@@ -7,6 +7,10 @@
       url: /guide/install/
     - title: Your first remote GPU
       url: /guide/quickstart/
+- section: Agent teams
+  pages:
+    - title: Run a team in Slack
+      url: /guide/team/
 - section: Remote compute
   pages:
     - title: How hi compute works
@@ -51,8 +55,6 @@
       url: /guide/q/
     - title: Hand tasks to agents
       url: /guide/agent/
-    - title: Run a team in Slack
-      url: /guide/team/
     - title: Run code in a box
       url: /guide/box/
     - title: Download the team's data
