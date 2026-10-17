@@ -1,17 +1,19 @@
 ---
 title: The hi guide
-description: Step-by-step guides for hi, the hi5 command-line tool. Set up a workstation, then rent GPUs on Colab or Hugging Face to run jobs, open shells, and serve models.
+description: Step-by-step guides for hi, the hi5 command-line tool. Run a team of agents in Slack, hand tasks to agents in boxes, set up a workstation, and rent GPUs to run jobs, open shells, and serve models.
 ---
 
-`hi` does two jobs. It sets up hi5 workstations, and its `hi compute`
-commands rent remote machines so you can use a GPU you do not have: run a
-training script, open a shell, forward a port to your laptop, or serve a model
-with an OpenAI-compatible API. The same commands work on Google Colab and
-Hugging Face.
+`hi` gives people and agents a place to work together. It sets up hi5
+workstations; runs coding agents safely in [boxes]({{ '/guide/box/' | relative_url }});
+runs a [team of agents in Slack]({{ '/guide/team/' | relative_url }}) that
+builds and runs an app for people who don't need to read code; and rents
+remote GPUs with `hi compute`, so you can run a training script, open a
+shell, or serve a model on hardware you don't have.
 
 ## Where to start
 
 <div class="cards">
+  <a href="{{ '/guide/team/' | relative_url }}"><strong>A team of agents in Slack</strong><span>A lead you talk to, a coder and a reviewer, and an app people try on their phones.</span></a>
   <a href="{{ '/guide/install/' | relative_url }}"><strong>Install hi</strong><span>One command on Linux, then sign in to a provider.</span></a>
   <a href="{{ '/guide/quickstart/' | relative_url }}"><strong>Your first remote GPU</strong><span>Five minutes from install to a shell on a rented GPU.</span></a>
   <a href="{{ '/guide/compute/' | relative_url }}"><strong>How hi compute works</strong><span>Providers, runs and instances, hardware names, and limits.</span></a>
@@ -35,7 +37,8 @@ Hugging Face.
 | Let agents improve a number overnight, keeping only gains | [Rounds that keep only gains]({{ '/guide/autoresearch/rounds/' | relative_url }}) |
 | Start an autoresearch project for a model | [Start from a template]({{ '/guide/autoresearch/templates/' | relative_url }}) |
 | Let Claude Code or Codex use a GPU safely          | [Let your coding agent use a GPU]({{ '/guide/tutorials/agent/' | relative_url }}) |
-| Run a team of agents in a Slack channel            | [Run a team in Slack]({{ '/guide/team/' | relative_url }}) |
+| Run a team of agents in a Slack channel            | [A team of agents in Slack]({{ '/guide/team/' | relative_url }}) |
+| Set up a team of agents for your channel          | [Set up a team]({{ '/guide/team/setup/' | relative_url }}) |
 | Turn "move the md files to notes" into a command   | [Ask for a command]({{ '/guide/q/' | relative_url }})              |
 | Start a new repository that agents work well in   | [Start a project]({{ '/guide/projects/' | relative_url }})          |
 | Set up a new hi5 machine                         | [Set up a workstation]({{ '/guide/workstation/' | relative_url }}) |

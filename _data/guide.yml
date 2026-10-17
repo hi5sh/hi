@@ -9,8 +9,22 @@
       url: /guide/quickstart/
 - section: Agent teams
   pages:
-    - title: Run a team in Slack
+    - title: What a hi team is
       url: /guide/team/
+    - title: Set up a team
+      url: /guide/team/setup/
+    - title: How the team works
+      url: /guide/team/how-it-works/
+    - title: Try what the team built
+      url: /guide/team/app/
+    - title: Help and chat in the app
+      url: /guide/team/helper/
+    - title: Keys and settings
+      url: /guide/team/keys/
+    - title: Dev and production
+      url: /guide/team/releases/
+    - title: The folder and backups
+      url: /guide/team/folder/
 - section: Remote compute
   pages:
     - title: How hi compute works

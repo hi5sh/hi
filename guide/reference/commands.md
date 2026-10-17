@@ -251,7 +251,7 @@ See [Autoresearch](/guide/autoresearch/).
 
 ## hi team
 
-See [Run a team in Slack](/guide/team/).
+See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how the team works](/guide/team/how-it-works/).
 
 | Command | What it does |
 |---|---|
