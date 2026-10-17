@@ -72,8 +72,15 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 			}
 		}
 		if root := teamChainRoot(loadTeamTasks(b.team), task.On); root != "" {
-			if brief := teamBriefBody(b.brief(teamTask{ID: root})); brief != "" {
+			saved := b.brief(teamTask{ID: root})
+			if brief := teamBriefBody(saved); brief != "" {
 				fmt.Fprintf(&text, "\n## How this work started (%s)\n\n%s\n", root, teamClipText(brief, teamMaxConversation))
+			}
+			// What the people said when they agreed to it, so this work
+			// stays within it.
+			if _, said, ok := strings.Cut(saved, "\n## What the people said\n"); ok {
+				said, _, _ = strings.Cut(said, "\n## ")
+				fmt.Fprintf(&text, "\n### What the people agreed to (%s)\n%s\n", root, strings.TrimRight(said, "\n"))
 			}
 		}
 	}

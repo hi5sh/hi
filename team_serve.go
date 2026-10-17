@@ -604,6 +604,10 @@ Small fixes, such as a typo or a wrong label, needn't wait for the people
 to agree first (hi team task --small): fix, wait for the review, merge, and tell
 them what changed.
 
+More of work that isn't merged yet, from the same request, continues it
+(--on) without a new yes; anything new is a new task and waits for one.
+The hi-team skill says how to tell them apart.
+
 ## What you keep
 
 You hold the project's memory. Keep /team/specs current: one file per
@@ -649,6 +653,16 @@ var teamSoulUpdates = []struct{ old, new string }{
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
+	// Continuing work, or new work.
+	{`(hi team task --small): fix, wait for the review, merge, and tell
+them what changed.
+`, `(hi team task --small): fix, wait for the review, merge, and tell
+them what changed.
+
+More of work that isn't merged yet, from the same request, continues it
+(--on) without a new yes; anything new is a new task and waits for one.
+The hi-team skill says how to tell them apart.
+`},
 	// Links that Slack can open.
 	{`  decision; not each step in between.
 `, `  decision; not each step in between.
@@ -699,11 +713,11 @@ of its own on a branch of the project; you get their reports.
 |---|---|
 | hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
 | hi team task coder <brief.md> --small | Start a small fix, such as a typo, without asking first; hi tells the channel |
-| hi team task coder <brief.md> --on t-4 | Continue t-4's latest work on its branch, for example with more from the people |
+| hi team task coder <brief.md> --on t-4 | Continue t-4's work on its branch with more of the same request: hi continues its latest task |
 | hi team task ... --attach <file> | Send a file with the task, such as an image shared in the channel; repeat for more |
 | hi team wait t-4 | Wait for t-4, its review, and the fixes the review asked for; print how it ended |
 | hi team show t-4 | Print the same without waiting |
-| hi team tasks | List the tasks |
+| hi team tasks | The ideas not merged yet, each as its line of tasks, then the tasks |
 | hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it (--approval <id>: an owner's yes to a package's install script) |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4 again, with your notes; rarely needed |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
@@ -739,6 +753,30 @@ id in brackets after the name) and pass it: --approval <id>. hi checks that
 the message is theirs and answers your question, and refuses the task
 otherwise. Continuing a task (--on) needs no new go-ahead, and a small fix
 (--small) needs none, but hi tells the channel it started.
+
+## Continuing work
+
+A request is either more of work that isn't merged yet, or new work.
+
+- **More of the same** (they tried t-4 and want the list sorted, or a
+  label changed): --on t-4. It goes on from t-4's branch, needs no new yes,
+  and isn't another idea. hi announces it in the thread where they agreed
+  to t-4, so they see what you add. Say t-4 even when t-4 was continued
+  since: hi continues its latest task and tells you which.
+- **Something new**, even in the same conversation: a new task, with a
+  yes. Never put new work on --on to skip asking or to stay under five
+  ideas: the reviewer checks the work against what the people agreed to,
+  and sends back what's outside it.
+- **Merged work** can't be continued: its code is in dev, where every new
+  task starts, so more of it is a new task with a yes.
+
+hi team tasks shows the open ideas, each as its line of tasks
+(t-4 > t-6 > t-7); look there before deciding. hi refuses, and says why,
+when going on would lose work: a yes in the thread of an idea that isn't
+merged (more of it is --on; if it really is separate, add --new), work
+whose idea is still running, or an idea that split in two (discard one).
+When a merge conflicts with dev, hi starts the work to bring it up to
+date itself and tells you; wait for it and merge that.
 
 ## The channel
 

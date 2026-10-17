@@ -26,6 +26,10 @@ type teamApproval struct {
 	TS   string `json:"ts"`
 	Name string `json:"name"`
 	Text string `json:"text"`
+	// Thread is the Slack thread the yes was given in: a reply's thread in
+	// the channel, or a web chat's copy there; empty for a yes outside a
+	// thread or in a DM.
+	Thread string `json:"thread,omitempty"`
 }
 
 // teamFindApproval checks ref (a message's ID from hi team channel --ids)
@@ -136,7 +140,7 @@ func teamCheckApproval(config teamConfig, ref string, owners bool, now time.Time
 	if !answered {
 		return teamApproval{}, fmt.Errorf("message %s from %s doesn't answer you: approval is a reply after you asked, in the same thread. Ask, end your reply, and wait for theirs", ref, found.Name)
 	}
-	return teamApproval{TS: found.TS, Name: found.Name, Text: qClip(found.Text)}, nil
+	return teamApproval{TS: found.TS, Name: found.Name, Text: qClip(found.Text), Thread: found.Thread}, nil
 }
 
 // teamChannelFromBot says whether a logged message is a bot's; lines

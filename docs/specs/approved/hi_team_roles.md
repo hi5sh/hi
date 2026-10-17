@@ -1,6 +1,7 @@
 # hi team: roles that remember, and a map of the project
 
-Status: Draft (2026-10-17)
+Status: Approved (2026-10-17). Continuing work (idea 6) is built in
+v0.75.0; roles and the map (ideas 1 to 4) are next.
 
 Dependencies: `hi team` (the broker, briefs, the review loop, SOUL.md, the
 lead's Hindsight memory), the `team-app` template (`hi init`), and
@@ -14,6 +15,13 @@ structure, not its machinery: hi keeps its lead, boxes, approvals and
 broker as they are.
 
 ## Goal
+
+A coding agent (Claude Code, Codex, Hermes) is a harness for one session.
+A hi team is a harness around them for a project: it holds what outlasts
+any one session, which work is open and how its tasks connect, who
+approved what, the branches and releases, and, with this spec, what each
+role has learned. This spec is about that layer: how it's organized and
+how it remembers.
 
 Make a hi team's organization (who does what, what each role knows, and
 where that knowledge lives) work better over weeks and months, mostly by
@@ -101,10 +109,13 @@ team-payments/
 ```
 
 - **ROLE.md** holds the role's standing instructions, written by
-  `hi team new` from defaults. The owners and the lead may edit it. The
-  reviewer's checklist moves here out of the Go code. hi keeps it current
-  the way it keeps SOUL.md: it replaces a paragraph only where the text is
-  still word for word its own.
+  `hi team new` from defaults, and by `hi team up` for a role without one.
+  The owners and the lead may edit it. What the broker relies on stays in
+  its own brief text, where an edit can't remove it: the reviewer's check
+  against the brief and the people's approval, tests, secrets, and the
+  verdict format the broker reads. ROLE.md holds the rest: what good work
+  is on this team, and the checks particular to the role, such as the
+  map (idea 3).
 - **LEARNED.md** is the position's memory: short, specific, non-obvious
   things, each with the task that taught it.
 
@@ -124,7 +135,8 @@ team-payments/
   doesn't. The lead also adds what it sees across tasks, such as the same
   review note three times.
 - **Small on purpose.** LEARNED.md stays under about 3 KB, a page an agent
-  reads in seconds. Instruction files help only when they are specific and
+  reads in seconds; the broker puts at most 6 KB of it in a brief and says
+  so when it cut. Instruction files help only when they are specific and
   short (the research [hi_notes.md](hi_notes.md) cites). When it's full,
   the lead merges lines, drops what no longer holds, or moves a line up
   (idea 2).
@@ -143,7 +155,7 @@ a place it already has or nearly has:
 |---|---|---|---|
 | **Record** | constantly | the channel log, `tasks/` (briefs, reports), Hindsight | hi, the members, Hermes |
 | **Learned** | days to weeks | `roles/<role>/LEARNED.md`, the lead's own skill | the lead |
-| **Project truth** | rarely | the repository: `docs/specs/`, `docs/map.md`, `docs/decisions.md`, `AGENTS.md`, `HELP.md` | members in tasks, reviewed and merged |
+| **Project truth** | rarely | the repository: `docs/specs/`, `docs/map.md`, `docs/decisions/`, `AGENTS.md`, `HELP.md` | members in tasks, reviewed and merged |
 
 - **Records are kept, never loaded whole.** They're the evidence the
   levels above point to (`t-12`).
@@ -196,12 +208,16 @@ anything; extend what's here rather than building beside it.
 - **`docs/map.md`** comes with the `team-app` template, describing the
   welcome page. It stays short (about 150 lines), with headings, so a brief
   can point at `docs/map.md#data`.
-- **`docs/decisions.md`**: one dated paragraph per technical choice, with
-  why and the task. It answers "why is it built like this", which the map
-  doesn't.
-- **`AGENTS.md` gains three lines:** read `docs/map.md` first; extend what
-  the map lists instead of building beside it; update the map and
-  decisions in the same task as the change (as with `HELP.md` today).
+- **`docs/decisions/`**: one short file per technical choice, with why and
+  the task, as hi's project templates already lay out
+  (`NNNN-short-title.md`). It answers "why is it built like this", which
+  the map doesn't.
+- **Every brief says it,** after the specs rule, so teams made before this
+  get it too: read `docs/map.md` first; extend what the map lists instead
+  of building beside it; update the map, and add a decision for a
+  technical choice, in the same work (as with `HELP.md` today); and write
+  the map from the code if it's missing. A new team's `AGENTS.md` says the
+  same.
 - **The reviewer checks it.** Two more lines in the reviewer's ROLE.md:
   does this duplicate something on the map, and does the map still match
   the code?
@@ -209,8 +225,8 @@ anything; extend what's here rather than building beside it.
   and the lead reads the map to answer people's questions about what the
   app can do.
 
-Existing teams get the files through the template's `--update` path, or
-the lead's first task writes the map from the code.
+Existing teams get the map from their next task, which writes it from the
+code because the brief asks for it when it's missing.
 
 ### 4. Ask what a past task knew
 
@@ -271,31 +287,32 @@ Four kinds of response, from lightest to strongest:
 
 #### Choosing between new and continued
 
-| Case | Today | Proposed |
+| Case | Before v0.75.0 | Since |
 |---|---|---|
-| **New task while related work is unmerged.** The people want more on t-4, and the lead starts a new task. Its branch starts from `main`, without t-4's code, so the coder redoes it or the two conflict. | Nothing; it counts as another idea. | **Block** when the approval is a reply in the same Slack thread as t-4's approval: that's almost always more of t-4. "This yes is in t-4's thread (suppliers page, not merged). Use `--on t-4`, or `--new` if it really is separate." **Hint** otherwise: every new task prints the open ideas, one line each, with "more of one of these? use `--on`". |
-| **Continuing merged work.** `--on t-4` after t-4 is merged. | Refused: "isn't a finished task with a branch to continue". | **Redirect in words:** "t-4 is merged into dev, and a new task starts from dev with its code. Start a new task; it needs a yes." |
+| **New task while related work is unmerged.** The people want more on t-4, and the lead starts a new task. Its branch starts from `main`, without t-4's code, so the coder redoes it or the two conflict. | Nothing; it counts as another idea. | **Block** when the approval is a later yes in the same Slack thread (or web chat) as t-4's: that's almost always more of t-4. "This yes is in the thread of t-4 (suppliers page), which isn't merged yet. If it's more of that work, `--on t-4`; if it really is separate, add `--new`." The same yes may still start several tasks, when the lead splits the work. **Hint** otherwise: every new task prints the open ideas, one line each, with "if this is more of one of them, stop it and continue that one". |
+| **Continuing merged work.** `--on t-4` after t-4 is merged. | Refused: "isn't a finished task with a branch to continue". | **Redirect in words:** "t-4 is merged already: its code is in dev, where new work starts. Start a new task without --on; it needs a yes." |
+| **Continuing a review.** `--on` a review's ID. | Refused, same message. | **Redirect in words** to the work it reviewed. |
 | **Continuing discarded work.** | Refused, same message. | **Hint:** "t-4 was discarded on <date>. Start again with a new task; its brief is in `hi team show t-4`." |
 | **`--on` for unrelated work.** The lead puts a different feature on t-4's branch, by mistake or to avoid asking for a yes or hitting the five-idea limit. Two ideas then merge or discard together, and the people never approved the second. | Nothing stops it: `--on` needs no yes. | Three guards. (1) The **reviewer checks scope against the approval**, not only the brief: its brief already carries how the work started, and its ROLE.md says work beyond what the people approved is "Changes needed: outside what was approved in t-4". (2) The **broker announces each continuation in the original approval's thread** ("Continuing t-4: sort the list by name"), so the people see what's being added to what they agreed. (3) SOUL.md says it plainly: `--on` is for more of the same request, never a new one. |
 | **A failed or stopped task.** `--on` a task that failed partway. | Allowed when it has a branch. | **Hint:** "t-4 failed (<reason>); its branch has 3 commits; continuing from them." Usually right, so no block. |
 
 #### Continuing the wrong step
 
-| Case | Today | Proposed |
+| Case | Before v0.75.0 | Since |
 |---|---|---|
 | **An older step of an idea.** t-4 was continued by t-7; the lead, thinking "t-4", runs `--on t-4` again. The new branch starts from t-4 and leaves out t-7's commits. The idea forks, and the fork may count as a new idea. | The broker follows its own review fixes (`teamLatestWork` walks `Next`), but not continuations the lead started (`On`). | **Redirect** to the idea's latest task, as review fixes already are: "t-4 was continued by t-7; continuing t-7." If the idea has already forked (two latest tasks), **block** with both and ask which to keep (`hi team discard` the other). |
 | **The idea is still working.** `--on` while t-4, a fix of it, or a continuation of it runs. | Blocked for the review loop: "still in review; hi team wait". A continuation the lead started isn't checked, so two can run at once. | **Block** for every step of the idea, using the same latest-task walk: one piece of work per idea at a time. |
 
 #### When the code moved on
 
-| Case | Today | Proposed |
+| Case | Before v0.75.0 | Since |
 |---|---|---|
-| **`main` moved since the idea started.** Other work was merged, and t-4's branch is behind. | The specs are handled: `teamSpecsMoved` tells the member to merge them first. Code isn't, and the merge later fails: "doesn't merge cleanly; give the coder a new task to redo it". | **Hint in the brief** for code too: if `main` changed files the idea also changed, the continuation brief says so and asks the coder to merge `main` first and resolve. **Recover** when a merge fails: the broker offers the exact next step, a continuation whose brief it writes ("bring t-4 up to date with dev: merge it and resolve these files"), reviewed like any other work, as the fix brief is today. |
+| **`main` moved since the idea started.** Other work was merged, and t-4's branch is behind. | The specs are handled: `teamSpecsMoved` tells the member to merge them first. Code isn't, and the merge later fails: "doesn't merge cleanly; give the coder a new task to redo it". | **Hint in the brief** for code too: if `main` changed files the idea also changed, the continuation brief says so and asks the coder to merge `main` first and resolve. **Redirect** when a merge conflicts: the broker starts the continuation itself ("Bring t-4 up to date with main": merge it, resolve the conflicting files it names, test, change nothing else), and the reviewer checks it like any other work, as the broker starts review fixes today. The lead is told, waits for it, and merges that. |
 | **The branch is gone** (removed by hand, or a restore from before it). | Refused: "branch is gone". | **Hint:** "t-4's branch is gone; start a new task from its brief (`hi team show t-4`)." |
 
 #### When the lead has lost track
 
-| Case | Today | Proposed |
+| Case | Before v0.75.0 | Since |
 |---|---|---|
 | **After a restart or compaction** the lead doesn't remember which task is which piece of work. | `hi team tasks` lists tasks; `hi team versions` lists the open ideas. | `hi team tasks` **groups by idea**, showing the chain (t-4, then fix t-6, then t-7) with each idea's thread and status. The lead's skill says to check it before any `--on`. It's a change to existing output, not a new command. |
 | **The five-idea limit is full** and the people ask for something new. | Refused, with the list. | Same, and the list says which ideas are oldest and which wait on the people, so the lead can ask "shall we drop the export idea from last week?" |
@@ -314,9 +331,14 @@ Four kinds of response, from lightest to strongest:
 
 What's new in code: following `On` as well as `Next` when finding an
 idea's latest task (redirect and block), the same-thread check with a
-`--new` override, one announcement line in the approval's thread, the
-grouped `hi team tasks`, and the brief and message texts. The reviewer's
-scope check and the SOUL.md line are text.
+`--new` override (an approval records its thread), one announcement line
+in the approval's thread, the catch-up after a conflicting merge, the
+grouped `hi team tasks`, and the brief and message texts. A continuation's
+brief carries what the people said when they agreed to the work, so its
+reviewer can check scope against it. The reviewer's scope check and the
+SOUL.md and skill paragraphs are text. A continuation that was discarded
+or failed before it had a branch no longer hides the work it continued
+from the count of open ideas.
 
 ## Not taken from OpenRig
 
@@ -335,25 +357,23 @@ Each would be a new feature or work against how hi teams are meant to work:
 
 ## Slices
 
-1. **Text only.** Add `docs/map.md` and `docs/decisions.md` to `team-app`.
-   Add the trailhead lines to `AGENTS.md`, the map checks to the review
-   brief, and the guidance on what goes where to SOUL.md and the hi-team
-   skill. Existing teams get it through `teamSoulUpdates` and the
-   template's update.
-2. **Roles folder.** `roles/<role>/ROLE.md` and `LEARNED.md`: written by
-   `hi team new`, created on `hi team up` for teams without them, and
-   added to briefs by the broker. The reviewer's text moves out of
-   `teamReviewBrief` into its ROLE.md default. Lead guidance covers
-   `Learned:` follow-ups and keeping the file small. Backups already
-   include the folder.
-3. **Continuing work** (idea 6). First the safety fixes: redirect an
+1. **Continuing work** (idea 6), v0.75.0. The safety fixes (redirect an
    `--on` to the idea's latest task, one piece of work per idea at a time,
-   and the reviewer's scope check against the approval. Then the help: the
+   the reviewer's scope check against the approval) and the help (the
    same-thread block with `--new`, the thread announcement, `hi team
-   tasks` grouped by idea, and the up-to-date hint and merge recovery.
-4. **Template roles.** `hi team new` copies `roles/` from the template.
-   Private sources can ship roles.
-5. **Only on evidence:** session resume for `--on`.
+   tasks` grouped by idea, the up-to-date hint, and the catch-up after a
+   conflicting merge).
+2. **Roles and the map** (ideas 1 to 3), v0.76.0. `roles/<role>/ROLE.md`
+   and `LEARNED.md`, written by `hi team new` and by `hi team up` for teams
+   without them, mounted writable in the lead's box at `/team/roles`, and
+   added to every brief for the role by the broker. `Learned:` follow-ups
+   shown to the lead as proposals. `docs/map.md` in `team-app` and the map
+   rule in every brief and a new team's `AGENTS.md`. The guidance on what
+   goes where (Hindsight or files) in SOUL.md and the hi-team skill.
+   Backups already include the folder.
+3. **Template roles** (idea 5). `hi team new` copies `roles/` from the
+   template. Private sources can ship roles.
+4. **Only on evidence:** session resume for `--on`.
 
 ## How we'll know
 
@@ -364,22 +384,20 @@ Each would be a new feature or work against how hi teams are meant to work:
   as well as before. Everything it needs is in the folder and the
   repository.
 
-## Open questions
+## Decided
 
-- Should LEARNED.md lines expire, as notes do in
-  [hi_notes.md](hi_notes.md) (a review date), or is the lead's pruning
-  enough at this size?
-- Should the people see `roles/` and the map (a page in the app's helper,
-  or a channel command), or is it the agents' business?
-- Is `docs/map.md` kept by hand, by members in each task, or partly
-  generated (routes and tables from the code), which can't go stale? The
-  generated part could come later, as OpenRig's "derived from source" top
-  rung.
-- When a hi team uses [hi_notes.md](hi_notes.md), do learned lines that
-  apply beyond the project go there as proposals?
-- Is a reply in the same thread a strong enough signal to block a new
-  task, or should it only warn? A thread can drift to a new subject. The
-  `--new` override keeps a block cheap, but it's one more flag for the
-  lead to learn.
-- Should a continuation need a yes after all, once it's announced in the
-  thread, for example when it's the third continuation of one idea?
+- **LEARNED.md doesn't expire.** At about 3 KB the lead's pruning is
+  enough; review dates belong to [hi_notes.md](hi_notes.md), across
+  projects.
+- **`roles/` and the map are the agents' business** for now: files in the
+  team folder and the repository, readable by whoever runs the team.
+- **Members keep the map by hand,** in the same task as each change. A
+  generated part (routes and tables read from the code), which can't go
+  stale, can come later: OpenRig's "derived from source" rung.
+- **hi_notes comes later.** When it exists, learned lines that apply
+  beyond the project become proposals there.
+- **A later yes in the same thread blocks a new task,** with `--new` to go
+  on. A thread can drift, but the override costs one word, and starting
+  new work where a follow-up was meant costs a branch without the code.
+- **A continuation needs no yes.** It's announced in the thread instead,
+  and the reviewer checks it against what the people agreed to.

@@ -954,7 +954,7 @@ func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.T
 	if !answered {
 		return teamApproval{}, fmt.Errorf("message %s from %s doesn't answer you: approval is a reply after you asked, in the same chat. Ask, end your reply, and wait for theirs", ref, message.Name)
 	}
-	return teamApproval{TS: ref, Name: message.Name, Text: qClip(message.Text)}, nil
+	return teamApproval{TS: ref, Name: message.Name, Text: qClip(message.Text), Thread: conversation.Thread}, nil
 }
 
 // teamWebApprovalChat is the web chat an approval came from, up to it, for

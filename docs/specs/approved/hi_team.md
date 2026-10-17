@@ -261,12 +261,12 @@ hi team remove <name>           delete the team (asks; offers a last export)
 The lead runs these in its box, through the broker:
 
 ```text
-hi team task <role> <brief.md|-> [--on <task>] [--attach <file>]...
-                                                 start a task; --on continues a task on its branch
+hi team task <role> <brief.md|-> [--approval <id> [--new] | --small | --on <task>] [--attach <file>]...
+                                                 start a task; --on continues a task's work on its branch
 hi team review <task> [<notes.md>]               the reviewer checks a task's latest commit again
 hi team wait <task>                              wait for a task and its review rounds, and print how they ended
 hi team show <task>                              its state and report, without waiting
-hi team tasks                                    list the tasks
+hi team tasks                                    the ideas not merged, each as its line of tasks, then the tasks
 hi team merge <task> [--approval <id>]           merge it, once a review approved its latest commit (an owner's yes for a new install script)
 hi team stop <task>                              stop a task's box
 hi team preview [<task>] [--port <n>]            show dev or a task's branch on the preview link
@@ -346,6 +346,18 @@ hi team discard dev --approval <id>              dev's code back to production's
 - A merge is `git merge --no-ff` into the team's branch, then a push when
   the repository was cloned. The merged tasks' boxes and branches, and
   their reviews', are removed.
+- **Continuing work** (v0.75.0; [hi_team_roles.md](hi_team_roles.md#6-continuing-work-telling-a-follow-up-from-a-new-idea)).
+  `--on` given any task of an idea continues its latest work, and says
+  so; it's refused while any of the idea's work runs, when the idea split
+  in two, and for merged, discarded, or review tasks, each with what to do
+  instead. A new task whose yes is a later reply in the thread of an
+  unmerged idea is refused unless `--new`: more of it is `--on`. Each
+  continuation the lead starts is announced in the thread its work was
+  agreed in, and its brief carries what the people said there, which the
+  reviewer checks the work against. A continuation whose files also
+  changed on the team's branch is told to merge it first. A merge that
+  conflicts starts that member's "bring it up to date" continuation, which
+  is reviewed as usual, and tells the lead to merge it instead.
 
 ## The wizard
 

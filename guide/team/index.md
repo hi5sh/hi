@@ -412,6 +412,16 @@ too, with what was set aside, and it stays in the project's history.
 Unmerged ideas are capped at five. Each new task starts one, and its
 follow-ups continue it. The broker refuses a sixth until one is merged or
 discarded, so ideas can't pile up beyond what anyone can follow in Slack.
+
+When you ask for more of something that isn't merged yet ("nice, but sort
+it by name"), the lead continues that work on its branch rather than
+starting over, and hi says so in the thread where you agreed to it, so
+you see what's added to what you said yes to. Anything new still waits
+for a yes. hi keeps the lead from losing work along the way: it refuses a
+new task when your yes came later in the thread of work still open,
+continues the latest version of a piece of work rather than an older one,
+and when work no longer merges because dev moved on, it has the member
+bring it up to date and the reviewer check it again.
 `hi team status payments` shows production's version, what dev has on top
 of it, and the ideas still open.
 

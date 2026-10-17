@@ -1585,7 +1585,46 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   preview's panel stays the chat.
   Spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
 
+### v0.75.0 — Continuing work without losing any
+
+- [x] `--on` given any task of an idea continues its latest work and says
+  so, instead of branching from an older step and leaving work out; it is
+  refused while any of the idea's work runs, when the idea split in two,
+  and for merged, discarded, or review tasks, each with what to do instead.
+- [x] A new task whose yes came later in the thread of an unmerged idea is
+  refused, as more of that work is `--on`; `--new` says it really is
+  separate. One yes may still start several tasks. Every new task lists
+  the ideas still open.
+- [x] A continuation is announced in the thread its work was agreed in,
+  and carries what the people said there; the reviewer sends back work
+  outside what they approved.
+- [x] A continuation is told when dev changed the same files since, and a
+  merge that conflicts starts the member's "bring it up to date" work,
+  reviewed as usual, instead of only failing.
+- [x] `hi team tasks` and `hi team status` show the open ideas as lines of
+  tasks (t-4 > t-6 > t-7).
+- [x] A continuation that was discarded or failed before it had a branch
+  no longer hides the work it continued from the five-idea count.
+  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
+
 ## Planned
+
+### Next — roles that remember
+
+Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
+
+- [ ] Each role has a home in the team folder, `roles/<role>/`, with its
+  standing instructions (`ROLE.md`) and what it has learned
+  (`LEARNED.md`), given with every brief for the role; members propose
+  lessons as `Learned:` follow-ups, and the lead keeps them.
+- [ ] A map of the project for the agents, `docs/map.md`, read before
+  building and kept current in each task, so members extend what exists
+  rather than build beside it; the reviewer checks it.
+- [ ] What goes where: conversation and people in the lead's Hindsight
+  memory, technical facts in the repository's map, decisions, and specs.
+- [ ] Roles from the template, also from private template sources.
+- [ ] Only if continuations clearly suffer without it: resuming a member's
+  session for `--on`.
 
 ### Next — the helper
 

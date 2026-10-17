@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -125,24 +126,92 @@ func teamDevChanges(repo string, tasks []teamTask) []teamTask {
 // teamOpenIdeas are the pieces of work not merged or discarded: each line
 // of tasks once, by its latest task.
 func teamOpenIdeas(tasks []teamTask) []teamTask {
+	return teamOpenWork(tasks, tasks)
+}
+
+// teamOpenWork is the latest open work among some of the tasks: those
+// that aren't merged or discarded, have work, and no task continues.
+func teamOpenWork(tasks, among []teamTask) []teamTask {
 	continued := map[string]bool{}
 	for _, task := range tasks {
-		if task.Kind == "task" && task.On != "" && task.Status != "discarded" {
+		if teamContinues(task) {
 			continued[task.On] = true
 		}
 	}
-	var ideas []teamTask
-	for _, task := range tasks {
+	var open []teamTask
+	for _, task := range among {
 		if task.Kind != "task" || task.Status == "merged" || task.Status == "discarded" || continued[task.ID] {
 			continue
 		}
 		if task.Branch == "" && !teamTaskActive(task) {
 			continue // failed before it had any work
 		}
-		ideas = append(ideas, task)
+		open = append(open, task)
 	}
-	return ideas
+	return open
 }
+
+// teamContinues says whether a task carries on the one it continues. A
+// continuation that was discarded, or failed before it had a branch,
+// leaves that work where it was.
+func teamContinues(task teamTask) bool {
+	return task.Kind == "task" && task.On != "" && task.Status != "discarded" && (task.Branch != "" || teamTaskActive(task))
+}
+
+// teamIdeaLatest is where the idea a task belongs to stands: its open
+// work that nothing continues. One task is the place to continue it; more
+// mean the idea split, and continuing an older one would leave work out.
+func teamIdeaLatest(tasks []teamTask, id string) []teamTask {
+	return teamOpenWork(tasks, teamChain(tasks, id))
+}
+
+// teamIdeaBusy is a step of a task's idea that is still working: one of
+// its tasks, or a review of one; nil when none is.
+func teamIdeaBusy(tasks []teamTask, id string) *teamTask {
+	in := map[string]bool{}
+	for _, task := range teamChain(tasks, id) {
+		in[task.ID] = true
+	}
+	for i, task := range tasks {
+		if teamTaskActive(task) && (in[task.ID] || (task.Kind == "review" && in[task.Review])) {
+			return &tasks[i]
+		}
+	}
+	return nil
+}
+
+// teamIdeaInThread is the open idea that another yes in the same Slack
+// thread started, or nil: new work agreed later in that thread is most
+// likely more of it. The same yes may start several tasks, when the lead
+// splits the work.
+func teamIdeaInThread(tasks []teamTask, approval teamApproval) *teamTask {
+	if approval.Thread == "" {
+		return nil
+	}
+	for _, idea := range teamOpenIdeas(tasks) {
+		for _, task := range teamChain(tasks, idea.ID) {
+			if task.Approval != nil && task.Approval.Thread == approval.Thread && task.Approval.TS != approval.TS {
+				return &idea
+			}
+		}
+	}
+	return nil
+}
+
+// teamApprovalSlackThread is the thread in the channel where a yes was
+// given, to say more there: its thread, or the message itself when it
+// started none; empty for a yes in a DM.
+func teamApprovalSlackThread(approval teamApproval) string {
+	if approval.Thread != "" {
+		return approval.Thread
+	}
+	if teamSlackTSPattern.MatchString(approval.TS) {
+		return approval.TS
+	}
+	return ""
+}
+
+var teamSlackTSPattern = regexp.MustCompile(`^[0-9]{9,11}\.[0-9]{6}$`)
 
 // teamChain is a task and every task that continues it, or that it
 // continues: one idea.

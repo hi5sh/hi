@@ -79,8 +79,11 @@ type teamTask struct {
 	// TrustApproval the owner's yes to new install scripts.
 	Packages      string        `json:"packages,omitempty"`
 	TrustApproval *teamApproval `json:"trust_approval,omitempty"`
-	Created       time.Time     `json:"created"`
-	Finished      time.Time     `json:"finished,omitempty"`
+	// Hints are what the broker told the lead when the task started: the
+	// work it continues instead, the ideas still open.
+	Hints    []string  `json:"hints,omitempty"`
+	Created  time.Time `json:"created"`
+	Finished time.Time `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -141,6 +144,7 @@ func teamTaskNumber(id string) int {
 }
 
 func printTeamTasks(tasks []teamTask, last int, w io.Writer) {
+	printTeamIdeas(tasks, w)
 	if len(tasks) > last {
 		tasks = tasks[len(tasks)-last:]
 	}
@@ -154,6 +158,44 @@ func printTeamTasks(tasks []teamTask, last int, w io.Writer) {
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", task.ID, task.Role, status, task.Created.Local().Format("Jan 2 15:04"), qClip(task.Title))
 	}
 	table.Flush()
+}
+
+// printTeamIdeas lists the ideas not merged yet, each as the line of tasks
+// it grew from, so the lead sees which work a follow-up belongs to.
+func printTeamIdeas(tasks []teamTask, w io.Writer) {
+	ideas := teamOpenIdeas(tasks)
+	if len(ideas) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "Not merged yet (%d of %d ideas); continue one with --on its latest task:\n", len(ideas), teamMaxIdeas)
+	for _, idea := range ideas {
+		var line []string
+		for _, task := range teamChain(tasks, idea.ID) {
+			line = append(line, task.ID)
+		}
+		status := idea.Status
+		for _, task := range tasks {
+			if task.Kind == "review" && task.Review == idea.ID && task.Verdict != "" {
+				status = idea.Status + ", review: " + task.Verdict
+			}
+		}
+		asked := ""
+		if root, err := teamFindTask(tasks, line[0]); err == nil && root.Approval != nil {
+			asked = "; asked by " + root.Approval.Name
+		}
+		fmt.Fprintf(w, "  %s: %s (%s%s) %s\n", idea.ID, strings.Join(line, " > "), status, asked, qClip(idea.Title))
+	}
+	fmt.Fprintln(w)
+}
+
+// teamFindTask is a task among some, by ID.
+func teamFindTask(tasks []teamTask, id string) (teamTask, error) {
+	for _, task := range tasks {
+		if task.ID == id {
+			return task, nil
+		}
+	}
+	return teamTask{}, fmt.Errorf("no task %s", id)
 }
 
 // ---------------------------------------------------------------------------
@@ -297,8 +339,13 @@ type teamRequest struct {
 	// starts a small fix without one.
 	Approval string `json:"approval,omitempty"`
 	Small    bool   `json:"small,omitempty"`
+	// New starts new work even though its yes is in the thread of work
+	// that isn't merged yet.
+	New bool `json:"new,omitempty"`
 	// Attachments are files the lead sends with a task, from its box.
 	Attachments []teamAttachment `json:"attachments,omitempty"`
+	// hints go to the new task's Hints.
+	hints []string
 }
 
 func (b *teamBroker) handler() http.Handler {
@@ -560,23 +607,92 @@ func (b *teamBroker) member(role string) (teamMember, error) {
 }
 
 func (b *teamBroker) startTask(request teamRequest) (teamTask, error) {
-	// Continuing a task the broker had reviewed continues its latest fix.
 	if request.On != "" {
-		work, busy, err := teamLatestWork(b.team, request.On)
+		on, hints, err := b.continuing(request.On)
 		if err != nil {
 			return teamTask{}, err
 		}
-		if busy != nil && busy.ID != request.On {
-			return teamTask{}, fmt.Errorf("%s's work is still in review (%s is working on it); hi team wait %s waits for the outcome", request.On, busy.ID, request.On)
-		}
-		request.On = work.ID
+		request.On, request.hints = on, hints
 	}
 	task, start, err := b.newWork(request, 0)
 	if err != nil {
 		return task, err
 	}
+	if task.On != "" {
+		b.announceContinuation(task)
+	}
 	go start()
 	return task, nil
+}
+
+// continuing is the task that work continuing id goes on from: id, or the
+// latest work of its idea, so nothing done since is left out. It refuses
+// what can't be continued, saying what to do instead, and while any of
+// the idea's work is still going: one piece of work per idea at a time.
+func (b *teamBroker) continuing(id string) (string, []string, error) {
+	on, err := loadTeamTask(b.team, id)
+	if err != nil {
+		return "", nil, err
+	}
+	switch {
+	case on.Kind == "review":
+		return "", nil, fmt.Errorf("%s is a review; continue the work it reviewed: --on %s", id, on.Review)
+	case on.Status == "merged":
+		return "", nil, fmt.Errorf("%s is merged already: its code is in dev, where new work starts. Start a new task without --on; it needs a yes, as new work does", id)
+	case on.Status == "discarded":
+		return "", nil, fmt.Errorf("%s was discarded. To do it after all, start a new task, with a yes; hi team show %s has its brief", id, id)
+	}
+	tasks := loadTeamTasks(b.team)
+	if busy := teamIdeaBusy(tasks, id); busy != nil {
+		waitFor := busy.ID
+		if busy.Kind == "review" {
+			waitFor = busy.Review
+		}
+		if busy.Kind == "review" || busy.Round > 0 {
+			return "", nil, fmt.Errorf("%s's work is still in review (%s is working on it); hi team wait %s waits for the outcome", id, busy.ID, waitFor)
+		}
+		return "", nil, fmt.Errorf("%s's work is still going (%s is working on it); hi team wait %s waits for it, then continue with --on %s", id, busy.ID, waitFor, busy.ID)
+	}
+	latest := teamIdeaLatest(tasks, id)
+	switch len(latest) {
+	case 0:
+		return id, nil, nil
+	case 1:
+	default:
+		var lines []string
+		for _, task := range latest {
+			lines = append(lines, fmt.Sprintf("%s (%s) %s", task.ID, task.Status, task.Title))
+		}
+		return "", nil, fmt.Errorf("the work %s belongs to has split into %d lines, none merged:\n  %s\nContinue the one to keep with --on, and drop the other with hi team discard, so no work is left behind",
+			id, len(latest), strings.Join(lines, "\n  "))
+	}
+	work := latest[0]
+	var hints []string
+	if work.ID != id {
+		hints = append(hints, fmt.Sprintf("%s was continued since, so this continues %s (%s), with all the work so far.", id, work.ID, work.Title))
+	}
+	if work.Status == "failed" || work.Status == "stopped" {
+		hints = append(hints, fmt.Sprintf("%s %s before it finished; this continues from what it committed.", work.ID, work.Status))
+	}
+	return work.ID, hints, nil
+}
+
+// announceContinuation says in the thread the work was agreed in what the
+// lead added to it, so the people see what goes on from their yes.
+func (b *teamBroker) announceContinuation(task teamTask) {
+	if b.channel == nil {
+		return
+	}
+	root, err := loadTeamTask(b.team, teamChainRoot(loadTeamTasks(b.team), task.On))
+	if err != nil || root.Approval == nil {
+		return
+	}
+	thread := teamApprovalSlackThread(*root.Approval)
+	config, err := loadTeam(b.team)
+	if thread == "" || err != nil {
+		return
+	}
+	b.channel.postIn(config.Channel, thread, fmt.Sprintf("More on this (%s): %s", task.ID, teamSlackEscape(task.Title)))
 }
 
 // newWork saves a member's task, and returns it with what starts its box.
@@ -614,7 +730,21 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		if err != nil {
 			return teamTask{}, nil, err
 		}
+		if idea := teamIdeaInThread(loadTeamTasks(b.team), approval); idea != nil && !request.New {
+			return teamTask{}, nil, fmt.Errorf("this yes is in the thread of %s (%s), which isn't merged yet. If it's more of that work, continue it: hi team task %s <brief> --on %s, with no new yes. If it really is separate work, add --new",
+				idea.ID, idea.Title, idea.Role, idea.ID)
+		}
 		task.Approval = &approval
+	}
+	task.Hints = request.hints
+	if task.On == "" {
+		if ideas := teamOpenIdeas(loadTeamTasks(b.team)); len(ideas) > 0 {
+			var lines []string
+			for _, idea := range ideas {
+				lines = append(lines, fmt.Sprintf("%s (%s) %s", idea.ID, idea.Status, idea.Title))
+			}
+			task.Hints = append(task.Hints, "Not merged yet: "+strings.Join(lines, "; ")+". If this is more of one of them, stop it and continue that one with --on instead.")
+		}
 	}
 	if err := b.roomForIdea(task.On); err != nil {
 		return teamTask{}, nil, err
@@ -634,6 +764,9 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 		if config, err := loadTeam(b.team); err == nil {
 			text += teamSpecsMoved(config.Branch)
+			if moved := teamMovedFiles(b.repo, config.Branch, from); len(moved) > 0 {
+				text += teamCodeMoved(config.Branch, moved)
+			}
 		}
 	}
 	files, extra, err := b.teamTaskFiles(task, request.Attachments)
@@ -742,6 +875,34 @@ func teamSpecsMoved(branch string) string {
 	return fmt.Sprintf("Your branch started from %[1]s, and the lead may have changed docs/specs/ there since. If git diff HEAD %[1]s -- docs/specs/ shows changes, run git merge %[1]s first, so you work to the current specs.\n", branch)
 }
 
+// teamMovedFiles are the files the team's branch changed since work began
+// on another branch that the work changed too, specs aside: where a merge
+// may conflict.
+func teamMovedFiles(repo, branch, work string) []string {
+	base := boxGit(repo, "merge-base", branch, work)
+	if base == "" {
+		return nil
+	}
+	mine := map[string]bool{}
+	for _, name := range strings.Split(boxGit(repo, "diff", "--name-only", base, work), "\n") {
+		mine[name] = true
+	}
+	var both []string
+	for _, name := range strings.Split(boxGit(repo, "diff", "--name-only", base, branch), "\n") {
+		if name != "" && mine[name] && !strings.HasPrefix(name, teamSpecsPath+"/") {
+			both = append(both, name)
+		}
+	}
+	return both
+}
+
+// teamCodeMoved tells a member continuing a branch that the team's branch
+// changed the same files since.
+func teamCodeMoved(branch string, files []string) string {
+	return fmt.Sprintf("%[1]s has changed since this work began, in files it changes too: %[2]s. Run git merge %[1]s before anything else and resolve any conflicts, so you build on the current code, and commit the merge.\n",
+		branch, strings.Join(files, ", "))
+}
+
 func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, notes string) string {
 	var text strings.Builder
 	fmt.Fprintf(&text, "# Review %s for the %s team\n\n", task.ID, team)
@@ -749,7 +910,7 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	fmt.Fprintf(&text, "The work is the commits since %s:\n\n    git log --oneline %s..HEAD\n    git diff %s...HEAD\n\n", base[:min(len(base), 12)], base, base)
 	fmt.Fprintf(&text, "The current specs are the ones on %[1]s: this branch's docs/specs/ may be older, from when the work started. Read them with git show %[1]s:docs/specs/<file>, and see what changed with git diff HEAD %[1]s -- docs/specs/. Judge the work against those, not against an older copy on the branch.\n\n", branch)
 	text.WriteString("Check that:\n\n")
-	text.WriteString("- it does what the brief asks, and nothing it doesn't;\n")
+	text.WriteString("- it does what the brief asks, and nothing beyond it or beyond what the people approved (their words are in the brief below, or in how the work started): work they didn't ask for is a change needed, \"outside what was approved\", however useful;\n")
 	text.WriteString("- it has tests for what the brief says must work, and the tests pass when you run them;\n")
 	text.WriteString("- it doesn't break what worked before, leak secrets, or leave debugging behind;\n")
 	text.WriteString("- the README still says how to run and test the project.\n\n")
@@ -950,6 +1111,46 @@ func (b *teamBroker) stop(id string) (teamTask, error) {
 // its latest commit approved it. A task the broker had fixed merges as its
 // latest fix.
 func (b *teamBroker) merge(id, approvalRef string) (teamTask, error) {
+	task, err := b.mergeWork(id, approvalRef)
+	var conflict *teamMergeConflict
+	if errors.As(err, &conflict) {
+		return task, b.catchUp(task, conflict)
+	}
+	return task, err
+}
+
+// teamMergeConflict is work that doesn't merge into the team's branch:
+// the branch changed the same lines since.
+type teamMergeConflict struct {
+	branch string
+	files  []string
+	out    string
+}
+
+func (c *teamMergeConflict) Error() string { return "the merge conflicts: " + c.out }
+
+// catchUp redirects a merge that conflicts: the member who did the work
+// merges the team's branch into it and resolves the conflicts, as a
+// continuation the broker starts and has reviewed like any other. The
+// lead merges that once it's approved.
+func (b *teamBroker) catchUp(task teamTask, conflict *teamMergeConflict) error {
+	where := ""
+	if len(conflict.files) > 0 {
+		where = " in " + strings.Join(conflict.files, ", ")
+	}
+	brief := fmt.Sprintf("Bring %[1]s up to date with %[2]s\n\n%[2]s changed since this work began, and the two no longer merge: they change the same lines%[3]s. Run git merge %[2]s, resolve each conflict so that both what %[2]s has now and what this work adds keep working, run the tests, and commit the merge. Change nothing else.\n",
+		task.ID, conflict.branch, where)
+	fix, start, err := b.newWork(teamRequest{Role: task.Role, Brief: brief, On: task.ID}, 0)
+	if err != nil {
+		return fmt.Errorf("%s doesn't merge cleanly into %s (it conflicts%s), and hi couldn't start the work to bring it up to date: %v. Give the %s a task on it with --on %s", task.ID, conflict.branch, where, err, task.Role, task.ID)
+	}
+	go start()
+	return fmt.Errorf("%s doesn't merge cleanly into %s: both changed the same lines%s. hi started %s: the %s merges %s into the work and resolves them, and the reviewer checks it as usual. hi team wait %s, then hi team merge %s",
+		task.ID, conflict.branch, where, fix.ID, task.Role, conflict.branch, fix.ID, fix.ID)
+}
+
+// mergeWork merges a task's latest reviewed work into the team's branch.
+func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	task, busy, err := teamLatestWork(b.team, id)
@@ -1004,8 +1205,12 @@ func (b *teamBroker) merge(id, approvalRef string) (teamTask, error) {
 	}
 	message := fmt.Sprintf("%s\n\nTask %s by the %s, approved in review %s by the reviewer.", task.Title, task.ID, task.Role, approval.ID)
 	if out, err := teamGit(b.repo, "merge", "--no-ff", "-m", message, task.Branch); err != nil {
+		conflicted := boxGit(b.repo, "diff", "--name-only", "--diff-filter=U")
 		teamGit(b.repo, "merge", "--abort")
-		return task, fmt.Errorf("%s doesn't merge cleanly into %s (%s); give the coder a new task to redo it on the latest %s", task.ID, config.Branch, qFirstLine(out, err.Error()), config.Branch)
+		if conflicted == "" {
+			return task, fmt.Errorf("%s doesn't merge into %s: %s", task.ID, config.Branch, qFirstLine(out, err.Error()))
+		}
+		return task, &teamMergeConflict{branch: config.Branch, files: strings.Split(conflicted, "\n"), out: qFirstLine(out, err.Error())}
 	}
 	// The specs are the lead's: a member's changes to them, such as marking a
 	// feature done before the people agree it is, are left out, so the
@@ -1174,6 +1379,8 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--small" {
 				request.Small = true
+			} else if args[i] == "--new" {
+				request.New = true
 			} else if args[i] == "--attach" && i+1 < len(args) {
 				attachment, err := teamReadAttachment(args[i+1])
 				if err != nil {
@@ -1186,7 +1393,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> | --small | --on <task>] [--attach <file>]..."}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--attach <file>]..."}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -1197,6 +1404,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return err
 		}
 		fmt.Fprintf(stdout, "%s started: the %s (%s) works on %q.\n", task.ID, task.Role, agentDisplayName(task.Agent), task.Title)
+		for _, hint := range task.Hints {
+			fmt.Fprintln(stdout, hint)
+		}
 		if task.Files != "" {
 			fmt.Fprintln(stdout, "It has the files from the conversation, and yours, at /box/files; its brief says what each is.")
 		}
