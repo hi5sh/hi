@@ -719,7 +719,8 @@ func teamSkill(config teamConfig) string {
 	for _, role := range teamRoles(config)[1:] {
 		roles = append(roles, role)
 	}
-	return fmt.Sprintf(`---
+	// <team> in the text is the team's name.
+	return strings.ReplaceAll(fmt.Sprintf(`---
 name: hi-team
 description: Hand tasks to the %[1]s team's members (%[2]s), merge their reviewed work into dev, and release dev to production, with the hi team command.
 metadata:
@@ -960,6 +961,33 @@ the channel once what's happening, and carry on; you are told when it
 finishes. If it prints "Still working", wait again, without telling the
 channel about each review round: the people hear when it's ready to try.
 
+## What needs someone at the machine
+
+Some changes can't be made from the channel, by you or by the members:
+someone who runs hi on the team's machine makes them. That is often not
+the person asking, but their IT team, or whoever set up the team.
+Whenever a plan or an answer depends on one, say so in the same reply, in
+plain words: what is needed and why, the exact command, and that if they
+don't run hi on the machine themselves, they ask their IT team to run it.
+Say it when you first suggest the option (a data source that needs a key,
+say), not later, when the coder runs into it. Then ask them to tell you
+when it's done, and wait for that before the work that needs it.
+
+| On the machine | For |
+|---|---|
+| hi team env <team> NAME | a key or setting the app needs, such as a data source's API key; hi asks for the value, so it never goes in the channel |
+| hi team key <team> openrouter | the team's own OpenRouter key, for the app's models and yours |
+| hi team manifest <team> | the Slack app's settings again, when the bot needs a new permission: paste them in the app's settings at api.slack.com, then reinstall the app |
+| hi team domain <team> on | the app on an address that stays |
+| hi team github <team> <owner/repo> | the project on GitHub |
+| hi team progress <team> on | a live card in the thread while the members work |
+
+For example: "The prices API needs a key. Whoever runs hi on our machine
+adds it with hi team env <team> PRICES_API_KEY; hi asks for the key, so
+it never goes in Slack. If that isn't you, ask your IT team to run it,
+and tell me when it's there." Never ask for a key in the channel, and
+don't use one that someone posts there.
+
 ## Previews
 
 After a merge, run hi team preview. It shows the new version on the
@@ -996,13 +1024,13 @@ agents (hi agent, Claude Code, Codex) don't run in the app's box: it has
 no hi, no agents, and no logins. When people want the app to use an
 agent's model, such as Codex's, the app calls that model through
 OpenRouter (an openai/ model for Codex's); say so in the brief. Other
-keys the app needs are settings the people add on the machine with hi
-team env <team> KEY=VALUE, which reach the app as environment variables;
-hi team env in your box lists their names. Keys and tokens never go in a
-brief or the code, where every member and every copy of the project can
-read them. When someone offers one in the channel, don't use it: ask
-them to run hi team env (or hi team key <team> openrouter, for models)
-on the machine, and tell the coder the variable's name.
+keys the app needs are settings added on the machine with hi team env
+<team> NAME (see What needs someone at the machine), which reach the app
+as environment variables; hi team env in your box lists their names.
+Keys and tokens never go in a brief or the code, where every member and
+every copy of the project can read them. Tell the coder the variable's
+name, and that its own box doesn't have the value: it tests with made-up
+answers, and the real calls happen in the preview.
 
 What the app must keep, such as the people's entries, uploads, or a
 database, goes in the folder named by $HI_DATA_DIR (/data). It outlives
@@ -1102,7 +1130,7 @@ package in trustedDependencies, its install script would run on every
 machine that installs the app, and hi team merge needs an owner's yes:
 ask the owners what it is and why the app needs it, end your reply, and
 merge with --approval <id> once one says yes.
-`, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name))
+`, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name)), "<team>", config.Name)
 }
 
 // teamSpecsPath is where the lead's specs live in the project: versioned

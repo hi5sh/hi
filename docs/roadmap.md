@@ -1709,6 +1709,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   thread of hi's message in the channel. Found when a small fix ran with
   no card, since it had no yes to tell its thread.
 
+### v0.80.3 — What needs someone at the machine
+
+- [x] The lead's hi-team skill has a section on what only someone who
+  runs hi on the team's machine can do (a key or setting for the app, the
+  team's OpenRouter key, the Slack app's settings, a domain, GitHub,
+  progress cards), with the commands. Whenever a plan depends on one, the
+  lead says so in the same reply, with the exact command, and that people
+  who don't run hi themselves ask their IT team; when it first suggests
+  the option, not when the coder runs into it. Found when the lead
+  suggested a data source that needs a key without saying how to add it.
+
 ## Planned
 
 ### Guide — a diagram for every tool
