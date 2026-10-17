@@ -93,15 +93,22 @@ type teamChannelSource interface {
 	inChannel(channel, user string) bool
 	// dmHistory is the bot's DM with someone since oldest, oldest first.
 	dmHistory(user, oldest string) ([]slack.Message, error)
+	// startStream starts a progress card in a thread for user, appendStream
+	// brings it up to date, and stopStream ends it (team_progress.go).
+	startStream(channel, thread, user string, chunks []map[string]any) (string, error)
+	appendStream(channel, ts string, chunks []map[string]any) error
+	stopStream(channel, ts string) error
 }
 
 type liveTeamChannel struct {
-	api   *slack.Client
-	names map[string]string
+	api    *slack.Client
+	token  string
+	teamID string // the workspace's, for a progress card
+	names  map[string]string
 }
 
 func newLiveTeamChannel(botToken string) *liveTeamChannel {
-	return &liveTeamChannel{api: slack.New(botToken), names: map[string]string{}}
+	return &liveTeamChannel{api: slack.New(botToken), token: botToken, names: map[string]string{}}
 }
 
 func (l *liveTeamChannel) history(channel, oldest string) ([]slack.Message, error) {

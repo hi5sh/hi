@@ -76,6 +76,18 @@ every 15 minutes the lead reads what's new and keeps what matters in its
 memory: a decision made in passing, a link or a video someone shared, who
 cares about what. `hi team channel payments --since 2h` shows you the log.
 
+## Progress in the thread
+
+While the members work, the lead waits, and the channel can go quiet for a
+while. With `hi team progress payments on`, hi keeps a live card in the
+thread the work was agreed in: a spinner and a title that says what happens
+now (the coder working on it, the reviewer checking it, approved, merged),
+and, opened, a line per task (the coder's, each review, each fix) that
+says whether it runs, for how long and in how many steps, or how it
+ended. The card ends a few minutes after nothing runs; more work on the
+same thing later gets a card of its own. Stopping the card in Slack stops
+it for that work. It is off by default.
+
 ## The lead's memory
 
 The lead's long-term memory is [Hindsight](https://github.com/vectorize-io/hindsight):

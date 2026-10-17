@@ -1682,6 +1682,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   Hindsight's client goes into the command, since that Python ignores
   `PYTHONPATH`. An older Hermes still runs from `venv/`.
 
+### v0.80.0 — Progress in the thread
+
+- [x] `hi team progress <name> on` keeps a live card in the thread the
+  work was agreed in (Slack's `chat.startStream` in plan mode): a title
+  that says what happens now, and a line per task, running (for how long,
+  in how many steps) or how it ended. The broker updates it every 20
+  seconds and ends it a few minutes after nothing runs, since Slack marks
+  a task still running as failed when a card stops; a task's details go
+  once, since Slack adds them to what it has. Off by default.
+
 ## Planned
 
 ### Guide — a diagram for every tool

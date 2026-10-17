@@ -149,6 +149,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
 	go broker.keepLinks(ctx.Done(), stderr)
+	go broker.followProgress(ctx.Done(), stderr)
 	go broker.startPreview(stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {

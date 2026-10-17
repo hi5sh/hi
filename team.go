@@ -46,6 +46,9 @@ type teamConfig struct {
 	// Helper turns the helper, a chat with the lead in the app, off for an
 	// address (preview, production); on unless set (team_helper.go).
 	Helper map[string]bool `json:"helper,omitempty"`
+	// Progress keeps a progress card in Slack's thread for work that runs
+	// (hi team progress <team> on; team_progress.go).
+	Progress bool `json:"progress,omitempty"`
 	// Domain puts the team's app on the machine's domain (hi team domain
 	// <team> on): names that stay, rather than ones NetBird makes up.
 	Domain bool `json:"domain,omitempty"`
@@ -302,6 +305,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTeamLeadAPI(rest, stderr)
 	case "helper":
 		err = teamHelperCommand(rest, stdout)
+	case "progress":
+		err = teamProgressCommand(rest, stdout)
 	case "domain":
 		err = teamDomainCommand(rest, stdin, stdout)
 	case "manifest":
@@ -384,6 +389,8 @@ usage:
       [--region <region>]          the bucket's region, if it isn't us-east-1
       [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
+  hi team progress <name> [on|off]  a live card in the thread the work was agreed in: each task
+                                   running, done, or failed, and what happens now; off by default
   hi team helper <name>            whether the app's pages have the helper, a chat with the lead
       [preview|production on|off]  turn it on or off for an address, from the next page load
   hi team domain [<domain>|off]    a domain verified in NetBird for the apps on this machine
