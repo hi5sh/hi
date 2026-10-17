@@ -29,6 +29,9 @@ func TestTeamRename(t *testing.T) {
 	if err := writeTeamHindsightConfig(filepath.Join(folder, "lead"), "payments", "payments", "10.0.0.2"); err != nil {
 		t.Fatal(err)
 	}
+	os.MkdirAll(filepath.Join(folder, "lead", "skills", teamNotesSkill), 0o700)
+	os.WriteFile(filepath.Join(folder, "lead", "skills", teamNotesSkill, "SKILL.md"), []byte(teamNotes(testTeamConfig())), 0o600)
+	os.WriteFile(filepath.Join(folder, "slack-manifest.json"), []byte(teamManifest(testTeamConfig())+"\n"), 0o600)
 	os.WriteFile(filepath.Join(folder, "lead", "SOUL.md"), []byte(teamSoul(testTeamConfig())+"\nThe payments team's people like short answers.\n"), 0o600)
 
 	var out bytes.Buffer
@@ -66,6 +69,12 @@ func TestTeamRename(t *testing.T) {
 	soul, _ := os.ReadFile(filepath.Join(moved, "lead", "SOUL.md"))
 	if !strings.HasPrefix(string(soul), "# The billing team's lead\n\nYou lead the billing team,") || !strings.Contains(string(soul), "The payments team's people") {
 		t.Fatal(string(soul))
+	}
+
+	notes, _ := os.ReadFile(filepath.Join(moved, "lead", "skills", teamNotesSkill, "SKILL.md"))
+	manifest, _ := os.ReadFile(filepath.Join(moved, "slack-manifest.json"))
+	if string(notes) != teamNotes(config) || string(manifest) != teamManifest(config)+"\n" || strings.Contains(string(manifest), "/hi-payments") {
+		t.Fatal(string(notes), string(manifest))
 	}
 
 	// The memory bank stays the one it was made with; the context hi wrote

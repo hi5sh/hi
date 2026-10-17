@@ -118,6 +118,10 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	teamRenameSoul(filepath.Join(folder, "lead"), old, name)
+	teamRenameNotes(filepath.Join(folder, "lead"), old, name)
+	if fileExists(filepath.Join(folder, "slack-manifest.json")) {
+		os.WriteFile(filepath.Join(folder, "slack-manifest.json"), []byte(teamManifest(config)+"\n"), 0o600)
+	}
 	teamRenameMemoryContext(filepath.Join(folder, "lead"), old)
 	if err := os.Remove(filepath.Join(teamsDir(), old)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
@@ -168,5 +172,19 @@ func teamRenameSoul(lead, old, name string) {
 	soul = strings.Replace(soul, "You lead the "+old+" team,", "You lead the "+name+" team,", 1)
 	if soul != string(data) {
 		os.WriteFile(path, []byte(soul), 0o600)
+	}
+}
+
+// teamRenameNotes puts the new name in the description hi wrote for the
+// lead's notes skill (teamNotes); the notes are the lead's, and stay.
+func teamRenameNotes(lead, old, name string) {
+	path := filepath.Join(lead, "skills", teamNotesSkill, "SKILL.md")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	notes := strings.Replace(string(data), "description: What you learned running the "+old+" team,", "description: What you learned running the "+name+" team,", 1)
+	if notes != string(data) {
+		os.WriteFile(path, []byte(notes), 0o600)
 	}
 }

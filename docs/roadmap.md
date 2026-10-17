@@ -1663,6 +1663,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   SOUL.md that hi wrote with the old one; the rest is the lead's and
   stays.
 
+### v0.78.2 — The rest of a renamed team's name
+
+- [x] `hi team rename` also writes the folder's `slack-manifest.json`
+  again, so it no longer gives Slack the old name and command, and puts
+  the new name in the description of the lead's notes skill.
+
 ## Planned
 
 ### Guide — a diagram for every tool
