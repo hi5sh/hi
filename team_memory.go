@@ -54,12 +54,12 @@ func hiShareDir() string {
 // teamHindsightSite installs the plugin's client library, once per
 // machine, in a folder of its own: Hermes' Python has everything else it
 // needs.
-func teamHindsightSite() (string, error) {
+func teamHindsightSite(runtime hermesRuntime) (string, error) {
 	site := filepath.Join(hiShareDir(), teamHindsightSiteDir)
 	if fileExists(filepath.Join(site, "hindsight_client")) {
 		return site, nil
 	}
-	python := filepath.Join(hermesInstallDir(), "venv", "bin", "python")
+	python := runtime.Command[0]
 	partial := site + ".part"
 	os.RemoveAll(partial)
 	out, err := exec.Command(python, "-m", "pip", "install", "--quiet", "--disable-pip-version-check", "--no-deps",
@@ -184,7 +184,7 @@ func teamMemoryContext(team string) string {
 // teamPrepareMemory readies everything the lead's memory needs before the
 // team starts: the image, the client library, and the plugin. Any failure
 // leaves the team on Hermes' built-in memory, with a line in the journal.
-func teamPrepareMemory(engine boxEngine, config teamConfig, stderr io.Writer) (site string, ok bool) {
+func teamPrepareMemory(engine boxEngine, config teamConfig, runtime hermesRuntime, stderr io.Writer) (site string, ok bool) {
 	if !teamMemoryOn(config) {
 		return "", false
 	}
@@ -198,7 +198,7 @@ func teamPrepareMemory(engine boxEngine, config teamConfig, stderr io.Writer) (s
 			return fail(fmt.Errorf("%s pull: %s", engine.name, qFirstLine(strings.TrimSpace(out), err.Error())))
 		}
 	}
-	site, err := teamHindsightSite()
+	site, err := teamHindsightSite(runtime)
 	if err != nil {
 		return fail(err)
 	}

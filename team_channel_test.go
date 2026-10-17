@@ -243,7 +243,7 @@ func TestTeamMemorySettings(t *testing.T) {
 		t.Fatal(string(yaml))
 	}
 	config.Memory = "off"
-	if _, ok := teamPrepareMemory(boxEngine{}, config, io.Discard); ok {
+	if _, ok := teamPrepareMemory(boxEngine{}, config, hermesRuntime{}, io.Discard); ok {
 		t.Fatal("memory off still prepares Hindsight")
 	}
 

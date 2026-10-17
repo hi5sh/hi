@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -143,5 +145,75 @@ db.commit()
 	}
 	if reader := newAgentProgressReader("hermes", home); reader.poll().steps != 2 {
 		t.Fatal("the status line's reader")
+	}
+}
+
+func TestHermesRuntimeFromLauncher(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	hermes := filepath.Join(home, ".hermes")
+	t.Setenv("HERMES_HOME", hermes)
+	t.Setenv("HERMES_INSTALL_DIR", "")
+	install := filepath.Join(hermes, "hermes-agent")
+	python := filepath.Join(hermes, "tools", "python-3.14", "bin", "python3")
+	writeSkillTestFile(t, python, "", 0o755)
+	writeSkillTestFile(t, filepath.Join(install, ".hermes", "bin", "hermes"),
+		"#!/bin/sh\n[ \"$1\" = --print-runtime-command ] && echo '[\""+python+"\", \"-I\", \"-c\", \"import hermes_bootstrap; run()\"]'\n", 0o755)
+	if !hermesPresent() {
+		t.Fatal("a Hermes with only its launcher isn't found")
+	}
+	if _, err := loadHermesRuntime(); err == nil || !strings.Contains(err.Error(), "pm repair") {
+		t.Fatal("a Hermes without packages:", err)
+	}
+
+	// Its packages: the environment facts.json names, under installs/<key>.
+	sum := sha256.Sum256([]byte(install))
+	key := hex.EncodeToString(sum[:])[:16]
+	state := filepath.Join(hermes, "installs", key)
+	environment := filepath.Join(state, "environments", "g1")
+	os.MkdirAll(filepath.Join(environment, "venv"), 0o755)
+	os.MkdirAll(filepath.Join(environment, ".leases"), 0o755)
+	writeSkillTestFile(t, filepath.Join(state, "facts.json"), `{"packages": {"venv": {"environment": "`+environment+`/venv", "resolved_lock": "`+environment+`/workspace/uv.lock"}}, "schema": 1}`, 0o600)
+	runtime, err := loadHermesRuntime()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(runtime.Command) != 4 || runtime.Command[0] != python || runtime.Key != key || runtime.Environment != environment {
+		t.Fatal(runtime)
+	}
+	if strings.Join(runtime.Mounts, " ") != filepath.Join(hermes, "tools", "python-3.14") {
+		t.Fatal(runtime.Mounts)
+	}
+
+	// In the box, the environment is under the box's Hermes home, where
+	// Hermes looks for it, and its leases are writable.
+	lead := t.TempDir()
+	os.MkdirAll(filepath.Join(lead, "installs", key, "environments", "g0"), 0o700)
+	var run []string
+	if err := hermesMounts(runtime, lead, &run); err != nil {
+		t.Fatal(err)
+	}
+	inBox := "/box/home/.hermes/installs/" + key + "/environments/g1"
+	if want := []string{"-v", install + ":" + install + ":ro", "-v", runtime.Mounts[0] + ":" + runtime.Mounts[0] + ":ro",
+		"-v", environment + ":" + inBox + ":ro", "-v", environment + "/.leases:" + inBox + "/.leases"}; strings.Join(run, " ") != strings.Join(want, " ") {
+		t.Fatal(run)
+	}
+	facts, _ := os.ReadFile(filepath.Join(lead, "installs", key, "facts.json"))
+	if !strings.Contains(string(facts), `"`+inBox+`/venv"`) || !strings.Contains(string(facts), inBox+"/workspace/uv.lock") || strings.Contains(string(facts), state) {
+		t.Fatal(string(facts))
+	}
+	if fileExists(filepath.Join(lead, "installs", key, "environments", "g0")) {
+		t.Fatal("an older environment's place is still there")
+	}
+
+	with, ok := hermesWithSite(runtime.Command, "/home/u/.local/share/hi/hindsight")
+	if !ok || with[3] != `import sys; sys.path.append("/home/u/.local/share/hi/hindsight"); import hermes_bootstrap; run()` || runtime.Command[3] != "import hermes_bootstrap; run()" {
+		t.Fatal(with)
+	}
+	if _, ok := hermesWithSite([]string{"/h/hermes-agent/venv/bin/python", "/h/hermes-agent/hermes"}, "/s"); !ok {
+		t.Fatal("an older Hermes reads PYTHONPATH")
+	}
+	if _, ok := hermesWithSite([]string{"/usr/bin/hermes"}, "/s"); ok {
+		t.Fatal("a command hi doesn't know can't take the folder")
 	}
 }

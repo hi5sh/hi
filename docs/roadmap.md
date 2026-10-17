@@ -1669,6 +1669,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   again, so it no longer gives Slack the old name and command, and puts
   the new name in the description of the lead's notes skill.
 
+### v0.79.0 — Hermes on its own Python
+
+- [x] A Hermes that runs on its own Python (its launcher in
+  `hermes-agent/.hermes/bin`, since September 2026) runs that way in a
+  team's lead box and in `hi agent hermes`: the command its launcher
+  prints, its Python, and the environment its `facts.json` names, mounted
+  under the box's Hermes home where Hermes looks for it, with its leases
+  writable so a Hermes update doesn't remove it under a running lead.
+  Before, hi kept starting Hermes from the old `venv/`, which Hermes no
+  longer updates: new code on old packages, and a crash on Python 3.11.
+  Hindsight's client goes into the command, since that Python ignores
+  `PYTHONPATH`. An older Hermes still runs from `venv/`.
+
 ## Planned
 
 ### Guide — a diagram for every tool

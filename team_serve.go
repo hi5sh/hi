@@ -47,6 +47,10 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := hermesInstalled(); err != nil {
 		return err
 	}
+	runtime, err := loadHermesRuntime()
+	if err != nil {
+		return err
+	}
 	engine, warning, err := detectBoxEngine()
 	if err != nil {
 		return err
@@ -97,7 +101,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 
 	// The lead's long-term memory: Hindsight on the team's network.
 	memoryIP := ""
-	if site, ok := teamPrepareMemory(engine, config, stderr); ok {
+	if site, ok := teamPrepareMemory(engine, config, runtime, stderr); ok {
 		if err := startTeamMemory(engine, config, meta.ProxyIP); err != nil {
 			fmt.Fprintf(stderr, "hi: the lead's long-term memory (Hindsight) is off this time: %v\n", err)
 		} else {
@@ -151,7 +155,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
 		}
 	}()
-	go teamEnsureChannelJob(engine, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
+	go teamEnsureChannelJob(engine, runtime, container, filepath.Join(dir, "lead"), ctx.Done(), stderr)
 	go teamKeepLeadAPI(engine, container, leadAPI, ctx.Done(), stderr)
 
 	// The lead's output reaches the journal through this process, so the
@@ -170,7 +174,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
-	hermesMounts(&run)
+	if err := hermesMounts(runtime, filepath.Join(dir, "lead"), &run); err != nil {
+		return err
+	}
 	noProxy := "localhost,127.0.0.1," + meta.ProxyIP
 	if memorySite != "" {
 		run = append(run, "-v", memorySite+":"+memorySite+":ro")
@@ -200,8 +206,15 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	for _, key := range keys {
 		run = append(run, "-e", key+"="+env[key])
 	}
-	install := hermesInstallDir()
-	run = append(run, meta.Image, filepath.Join(install, "venv", "bin", "python"), filepath.Join(install, "hermes"), "gateway", "run", "--accept-hooks")
+	command := runtime.Command
+	if memorySite != "" {
+		var ok bool
+		if command, ok = hermesWithSite(command, memorySite); !ok {
+			fmt.Fprintln(stderr, "hi: Hermes runs in a way hi doesn't know, so the lead may not find Hindsight's client and keep to Hermes' built-in memory")
+		}
+	}
+	run = append(append(run, meta.Image), command...)
+	run = append(run, "gateway", "run", "--accept-hooks")
 
 	// systemd stops the team with SIGTERM; the lead gets time to finish
 	// what it is saying.
@@ -242,21 +255,6 @@ func teamBrokerDir(name string) string {
 		return filepath.Join(runtime, "hi-team-"+name)
 	}
 	return filepath.Join(teamDir(name), "run", "broker")
-}
-
-// hermesMounts mounts the host's Hermes and its Python read-only, at the
-// same paths.
-func hermesMounts(run *[]string) {
-	install := hermesInstallDir()
-	*run = append(*run, "-v", install+":"+install+":ro")
-	// The venv's python is a link to a Python uv installed in the home
-	// folder; that comes along read-only at the same path.
-	if python, err := filepath.EvalSymlinks(filepath.Join(install, "venv", "bin", "python")); err == nil {
-		home, _ := os.UserHomeDir()
-		if root := filepath.Dir(filepath.Dir(filepath.Dir(python))); strings.HasPrefix(root, home+"/") {
-			*run = append(*run, "-v", root+":"+root+":ro")
-		}
-	}
 }
 
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
@@ -403,9 +401,8 @@ Keep what is worth remembering in your memory: decisions and wishes for the proj
 // teamEnsureChannelJob adds the channel-watch job to the lead's Hermes
 // once it runs, unless the job is there already (the lead may have tuned
 // it).
-func teamEnsureChannelJob(engine boxEngine, container, lead string, done <-chan struct{}, stderr io.Writer) {
+func teamEnsureChannelJob(engine boxEngine, runtime hermesRuntime, container, lead string, done <-chan struct{}, stderr io.Writer) {
 	jobs := filepath.Join(lead, "cron", "jobs.json")
-	install := hermesInstallDir()
 	for attempt := 0; attempt < 30; attempt++ {
 		select {
 		case <-done:
@@ -424,9 +421,10 @@ func teamEnsureChannelJob(engine boxEngine, container, lead string, done <-chan 
 				}
 			}
 		}
-		out, err := engine.output("exec", container, filepath.Join(install, "venv", "bin", "python"), filepath.Join(install, "hermes"),
+		args := append(append([]string{"exec", container}, runtime.Command...),
 			"cron", "create", "every 15m", teamChannelPrompt, "--name", teamChannelJob, "--script", teamChannelScript,
 			"--skill", "hi-team", "--deliver", "local", "--failure-deliver", "local")
+		out, err := engine.output(args...)
 		if err == nil {
 			return
 		}
