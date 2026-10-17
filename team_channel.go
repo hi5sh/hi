@@ -97,6 +97,8 @@ type teamChannelSource interface {
 	// changes it: a progress card (team_progress.go).
 	postBlocks(channel, thread, text string, blocks []map[string]any) (string, error)
 	updateBlocks(channel, ts, text string, blocks []map[string]any) error
+	// deleteMessage deletes one of the bot's messages.
+	deleteMessage(channel, ts string) error
 }
 
 type liveTeamChannel struct {

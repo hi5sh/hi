@@ -69,6 +69,11 @@ func (f *fakeTeamChannel) postBlocks(channel, thread, text string, blocks []map[
 	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
 }
 
+func (f *fakeTeamChannel) deleteMessage(channel, ts string) error {
+	f.calls = append(f.calls, "deleteMessage "+channel+" "+ts)
+	return nil
+}
+
 func (f *fakeTeamChannel) updateBlocks(channel, ts, text string, blocks []map[string]any) error {
 	data, _ := json.Marshal(blocks)
 	f.calls = append(f.calls, "updateBlocks "+channel+" "+ts+" "+string(data))

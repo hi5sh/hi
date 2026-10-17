@@ -1741,6 +1741,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   the thread the work was agreed in. Work that settled before hi kept
   track counts as heard, so no team hears about old work.
 
+### v0.80.6 — The progress card stays at the end of the thread
+
+- [x] While work runs, a progress card that someone wrote below (the lead,
+  most often) is posted again at the end of the thread and the old one
+  deleted, so the card is the last thing in the thread. Once the work has
+  settled, the card stays where it is.
+
 ## Planned
 
 ### Guide — a diagram for every tool

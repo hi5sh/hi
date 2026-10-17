@@ -200,10 +200,23 @@ func (b *teamBroker) updateProgress(readers map[string]*agentProgressReader, now
 			card.Active = now
 		}
 		text, blocks := teamProgressBlocks(*card, byID, readers, now)
+		if active && b.progressBuried(*card) {
+			// Someone wrote below it: it moves to the end of the thread,
+			// posted again there, the old one deleted.
+			ts, err := b.channel.postBlocks(config.Channel, card.Thread, text, blocks)
+			if err != nil {
+				failed = append(failed, fmt.Sprintf("moving the card for %s down: %v", root, err))
+				continue
+			}
+			if err := b.channel.deleteMessage(config.Channel, card.TS); err != nil && !teamSlackCode(err, "message_not_found") {
+				failed = append(failed, fmt.Sprintf("deleting the card for %s that moved down: %v", root, err))
+			}
+			card.TS, card.Shown = ts, teamProgressShown(blocks)
+			continue
+		}
 		if shown := teamProgressShown(blocks); shown != card.Shown {
 			if err := b.channel.updateBlocks(config.Channel, card.TS, text, blocks); err != nil {
-				var slackErr teamSlackError
-				if errors.As(err, &slackErr) && slackErr.code == "message_not_found" {
+				if teamSlackCode(err, "message_not_found") {
 					card.Closed, card.Removed = true, true
 					continue
 				}
@@ -273,6 +286,18 @@ func teamProgressBlocks(card teamProgressCard, byID map[string]teamTask, readers
 	}
 	title := teamProgressClip(byID[card.Root].Title + " · " + headline)
 	return title, []map[string]any{{"type": "plan", "title": title, "tasks": tasks}}
+}
+
+// progressBuried says whether a message came after a card in its thread,
+// by the channel's log.
+func (b *teamBroker) progressBuried(card teamProgressCard) bool {
+	messages, _ := readTeamChannel(teamChannelDir(b.team), card.TS)
+	for _, message := range messages {
+		if message.Thread == card.Thread && teamTSBefore(card.TS, message.TS) {
+			return true
+		}
+	}
+	return false
 }
 
 // teamProgressShown is what a card shows, to compare.
@@ -390,6 +415,12 @@ type teamSlackError struct{ code string }
 
 func (e teamSlackError) Error() string { return e.code }
 
+// teamSlackCode says whether Slack answered err with code.
+func teamSlackCode(err error, code string) bool {
+	var slackErr teamSlackError
+	return errors.As(err, &slackErr) && slackErr.code == code
+}
+
 // call posts a Web API method as JSON with the bot's token.
 func (l *liveTeamChannel) call(method string, body map[string]any) (map[string]any, error) {
 	data, _ := json.Marshal(body)
@@ -423,6 +454,11 @@ func (l *liveTeamChannel) postBlocks(channel, thread, text string, blocks []map[
 	}
 	ts, _ := out["ts"].(string)
 	return ts, nil
+}
+
+func (l *liveTeamChannel) deleteMessage(channel, ts string) error {
+	_, err := l.call("chat.delete", map[string]any{"channel": channel, "ts": ts})
+	return err
 }
 
 func (l *liveTeamChannel) updateBlocks(channel, ts, text string, blocks []map[string]any) error {

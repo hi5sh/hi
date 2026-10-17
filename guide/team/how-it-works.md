@@ -84,7 +84,9 @@ thread the work was agreed in, which hi edits as the work goes on: a title
 that says what happens now (the coder working on it, the reviewer checking it, approved, merged),
 and, opened, a line per task (the coder's, each review, each fix) that
 says whether it runs (for how long, in how many steps, and what its agent
-does now) or how it ended. The card ends a few minutes after nothing runs; more work on the
+does now) or how it ended. While the work runs, the card stays at the end of the
+thread: when someone writes below it, hi posts it again there. The card
+ends a few minutes after nothing runs; more work on the
 same thing later gets a card of its own. A small fix's card goes in the
 thread it was asked for in. Deleting the card in Slack stops
 it for that work. It is off by default.

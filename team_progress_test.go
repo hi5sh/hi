@@ -71,6 +71,23 @@ func TestTeamProgressCard(t *testing.T) {
 	if got = step(start.Add(10*time.Minute + 20*time.Second)); got != "" {
 		t.Fatal("edited a card that shows the same:", got)
 	}
+	// The lead writes in the thread below the card: the card moves to the
+	// end, posted again, the old one deleted.
+	os.MkdirAll(teamChannelDir("payments"), 0o700)
+	os.WriteFile(filepath.Join(teamChannelDir("payments"), time.Unix(1700000000, 0).Local().Format("2006-01-02")+".jsonl"),
+		[]byte(`{"ts":"1700000000.000002","thread":"1792254766.636789","name":"payments","bot":true,"text":"The reviewer is on it."}`+"\n"), 0o600)
+	got = step(start.Add(10*time.Minute + 40*time.Second))
+	if lines := strings.Split(got, "\n"); len(lines) != 2 || !strings.HasPrefix(lines[0], "postBlocks C07PAYMENTS 1792254766.636789 ") ||
+		lines[1] != "deleteMessage C07PAYMENTS 1700000000.000001" {
+		t.Fatal(got)
+	}
+	if state := loadTeamProgress("payments"); state.Cards[0].TS == "1700000000.000001" {
+		t.Fatal("the card's record still has the old message")
+	}
+	// Below nothing now: it stays.
+	if got = step(start.Add(10*time.Minute + 50*time.Second)); got != "" {
+		t.Fatal(got)
+	}
 
 	// Approved, nothing runs: the card waits for a next round, then ends.
 	save(teamTask{ID: "t-3", Role: "reviewer", Agent: "codex", Kind: "review", Review: "t-1", Title: "Review t-1", Status: "done", Verdict: "approve", Created: start.Add(9 * time.Minute), Finished: start.Add(12 * time.Minute)})
