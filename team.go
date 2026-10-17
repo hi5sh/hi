@@ -997,6 +997,9 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 	if err := os.WriteFile(filepath.Join(dir, "slack-manifest.json"), []byte(teamManifest(*config)+"\n"), 0o600); err != nil {
 		return err
 	}
+	if err := writeTeamRoles(*config); err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(dir, "lead", "SOUL.md"), []byte(teamSoul(*config)), 0o600)
 }
 
@@ -1077,6 +1080,11 @@ code, so the code, its tests, and its docs must explain themselves.
 
 - docs/specs/ is the lead's: what was agreed with the people, feature by
   feature. Read it; don't change it.
+- docs/map.md is the map of what the project already has and where it
+  lives. Read it before adding anything, extend what it lists rather than
+  building beside it, and keep it current in the same work as a change.
+  A technical choice someone shouldn't undo by accident gets a short file
+  in docs/decisions/.
 - Work only on the task in your brief. If something else needs doing, say
   so in your report's follow-ups.
 - Every change comes with tests for what the brief says must work. Run them

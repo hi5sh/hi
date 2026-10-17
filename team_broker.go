@@ -759,7 +759,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
 	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s\n", task.ID, task.Role, b.team, brief)
-	text += "\n" + teamSpecsRule + "\n"
+	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 		if config, err := loadTeam(b.team); err == nil {
@@ -774,7 +774,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		b.fail(task, err)
 		return task, nil, fmt.Errorf("the task's files: %w", err)
 	}
-	text += extra
+	text += extra + teamRoleBrief(b.team, task.Role)
 	if files != "" {
 		task.Files = files
 		saveTeamTask(b.team, task)
@@ -860,6 +860,7 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 	if packages := teamDependencyChanges(b.repo, base, commit); len(packages) > 0 {
 		brief += teamReviewPackages(packages)
 	}
+	brief += teamRoleBrief(b.team, "reviewer")
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
 
@@ -1838,6 +1839,12 @@ func printTeamTask(task teamTask, w io.Writer) {
 		}
 		if text := strings.TrimSpace(agentReportBlock.ReplaceAllString(report.Text, "")); text != "" {
 			fmt.Fprintf(w, "\n%s\n", text)
+		}
+		if proposals := teamLearnedProposals(report); len(proposals) > 0 {
+			fmt.Fprintf(w, "\nThe %s proposes for /team/roles/%s/%s; add what's true and useful, in a line each with %s:\n", task.Role, task.Role, teamLearnedFile, task.ID)
+			for _, proposal := range proposals {
+				fmt.Fprintf(w, "  - %s\n", proposal)
+			}
 		}
 	}
 }

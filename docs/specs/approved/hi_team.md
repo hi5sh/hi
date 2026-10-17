@@ -57,6 +57,10 @@ bundle, and standing instructions.
 }
 ```
 
+- **Each role has a home** in the team's folder, `roles/<role>/`: its
+  standing instructions (`ROLE.md`) and what it has learned on this team
+  (`LEARNED.md`), given with every brief for the role. See
+  [hi_team_roles.md](hi_team_roles.md) (v0.76.0).
 - **The lead** (Hermes) is the only member that runs all the time. It is
   the communicator and coordinator: it talks in the channel, keeps the
   project's memory, specs, and docs, breaks work into tasks, and decides
@@ -213,6 +217,7 @@ version production is on, and every move with its approval.
   lead/              Hermes' home: memory, state.db, SOUL.md, skills, cron
   repo/              the project's git repository (main, branches, tags);
                      repo/docs/specs is what the lead and the people agreed
+  roles/             each member's role: ROLE.md and LEARNED.md (v0.76.0)
   tasks/             each task's brief (t-3.md) and record (t-3.json)
   channel/           the channel's log (a JSON line per message, a file per
                      day) and the files shared in it

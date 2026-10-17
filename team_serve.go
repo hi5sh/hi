@@ -163,6 +163,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", home+":/box/home",
 		"-v", filepath.Join(dir, "lead")+":/box/home/.hermes",
 		"-v", specs+":/team/specs",
+		"-v", teamRolesDir(name)+":/team/roles",
 		"-v", filepath.Join(dir, "repo")+":/team/repo:ro",
 		"-v", teamChannelDir(name)+":"+teamChannelInBox+":ro",
 		"-v", teamWebStore(name)+":"+teamWebInBox+":ro",
@@ -323,6 +324,9 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 			return err
 		}
 	} else if err := updateTeamSoul(filepath.Join(lead, "SOUL.md")); err != nil {
+		return err
+	}
+	if err := writeTeamRoles(config); err != nil {
 		return err
 	}
 	if memoryIP != "" {
@@ -615,6 +619,14 @@ feature, with its status. It is the project's docs/specs folder: hi commits
 your changes when a task starts and when work is merged, so the members see
 them and they go wherever the code goes. /team/repo is the project as merged, read-only
 for you: read it to answer questions about how things work.
+
+Each member's role keeps what it learns in /team/roles/<role>/LEARNED.md,
+and its standing instructions in ROLE.md; hi gives both to every task for
+that role. You keep LEARNED.md: add what members propose in their
+reports, and what you notice across tasks. Your long-term memory is for the
+people and the conversation: who wants what, what was said and decided
+with them. Facts about the code belong in the project, where members read
+them: the map (docs/map.md), docs/decisions/, and the specs.
 `, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting)
 }
 
@@ -653,6 +665,18 @@ var teamSoulUpdates = []struct{ old, new string }{
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
+	// Roles that remember, and what goes where.
+	{`for you: read it to answer questions about how things work.
+`, `for you: read it to answer questions about how things work.
+
+Each member's role keeps what it learns in /team/roles/<role>/LEARNED.md,
+and its standing instructions in ROLE.md; hi gives both to every task for
+that role. You keep LEARNED.md: add what members propose in their
+reports, and what you notice across tasks. Your long-term memory is for the
+people and the conversation: who wants what, what was said and decided
+with them. Facts about the code belong in the project, where members read
+them: the map (docs/map.md), docs/decisions/, and the specs.
+`},
 	// Continuing work, or new work.
 	{`(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.
@@ -860,6 +884,34 @@ without being @-mentioned; one DM is one conversation.
   owner's yes in the channel: ask them there.
 - Keep what is said in a DM to that DM. When it matters to the team (a
   decision, a change to what others asked for), say so in the channel.
+
+## Roles and what they learn
+
+Each member is a role that outlasts its tasks: /team/roles/<role>/ holds
+its ROLE.md, how it works on this team, and its LEARNED.md, what earlier
+tasks taught it. hi gives both to every task for the role, whichever agent
+does it. hi writes them once; then they are yours and the owners' to edit.
+
+- When a report proposes something ("The coder proposes for
+  /team/roles/coder/LEARNED.md"), add what's true and useful, one line in
+  your own words with the task, such as "- Tests need TZ=UTC: the fixtures
+  build today in local time. (t-7)". Leave out what the code or the map
+  already says.
+- Add what you notice yourself: the same review note twice means the next
+  coder should hear it before the reviewer does.
+- Keep each LEARNED.md under about 3 KB: merge lines, drop what no longer
+  holds. What has become a fact about the project, such as a convention
+  or why it's built a way, goes into the project instead: a task for the
+  coder that puts it in docs/map.md or docs/decisions/, reviewed with the
+  code.
+- To change how a role works for this team (a reviewer stricter about
+  accessibility, a coder that always adds a screenshot), edit its ROLE.md.
+
+The project's map, docs/map.md, says what the project already has and
+where it lives. Members read it before building and keep it current, and
+the reviewer sends back work that duplicates something on it. Read it to
+answer what the app can do, and name the parts of it a task touches in the
+brief. A project without one gets it from its next task.
 
 ## What you learn
 

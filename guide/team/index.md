@@ -149,6 +149,21 @@ every 15 minutes the lead reads what's new and keeps what matters in its
 memory: a decision made in passing, a link or a video someone shared, who
 cares about what. `hi team channel payments --since 2h` shows you the log.
 
+Each member is a role that outlasts its tasks. A task is a fresh agent in
+a fresh box, but the role keeps a folder in the team's `roles/`: `ROLE.md`,
+how it works on this team, and `LEARNED.md`, what earlier tasks taught it,
+such as a trap in the tests. hi gives both to every task for that role, so
+the next coder starts where the last one left off, also when you switch
+the coder to another agent. Members propose lessons in their reports, and
+the lead decides what to keep. Edit a `ROLE.md` to change how a role works
+for your team, such as a reviewer who also checks accessibility.
+
+The project has a map for the agents, `docs/map.md`: what it already has
+(pages, routes, tables, shared code) and where each lives, the agents'
+counterpart to `HELP.md`. Members read it before building and keep it
+current, and the reviewer sends back work that builds a second version of
+something on it. Why it's built as it is goes in `docs/decisions/`.
+
 The lead's long-term memory is [Hindsight](https://github.com/vectorize-io/hindsight):
 a memory server that runs beside the lead, keeps the facts, people, and
 decisions from every conversation, and recalls the ones that matter before
@@ -437,6 +452,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `secrets.json` | The Slack tokens, readable only by you |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions |
 | `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature |
+| `roles/` | A folder per member's role: `ROLE.md`, how it works on this team, and `LEARNED.md`, what its earlier tasks taught it |
 | `tasks/` | Each task's brief and report |
 | `channel/` | The channel's log, a file per day, and the files people shared |
 | `memory/` | The lead's long-term memory: Hindsight's database |

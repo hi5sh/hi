@@ -1,7 +1,8 @@
 # hi team: roles that remember, and a map of the project
 
 Status: Approved (2026-10-17). Continuing work (idea 6) is built in
-v0.75.0; roles and the map (ideas 1 to 4) are next.
+v0.75.0, roles and the map (ideas 1 to 4) in v0.76.0. Template roles
+(idea 5) and session resume are next.
 
 Dependencies: `hi team` (the broker, briefs, the review loop, SOUL.md, the
 lead's Hindsight memory), the `team-app` template (`hi init`), and
@@ -130,8 +131,10 @@ team-payments/
   heading and before the lead's brief, as it adds the specs rule today.
   The member reads them; it doesn't write them.
 - **Members propose, the lead keeps.** The report already has
-  `follow_ups`. A follow-up starting with `Learned:` is a proposal. The
-  lead reads it with the report and adds it to the role's LEARNED.md, or
+  `follow_ups`. A follow-up starting with `Learned:` is a proposal, and the
+  brief says so. `hi team wait` and `show` list a report's proposals under
+  "The coder proposes for /team/roles/coder/LEARNED.md". The lead, with
+  `/team/roles` writable in its box, adds what's true in its own words, or
   doesn't. The lead also adds what it sees across tasks, such as the same
   review note three times.
 - **Small on purpose.** LEARNED.md stays under about 3 KB, a page an agent
@@ -206,7 +209,8 @@ anything; extend what's here rather than building beside it.
 ```
 
 - **`docs/map.md`** comes with the `team-app` template, describing the
-  welcome page. It stays short (about 150 lines), with headings, so a brief
+  welcome page (a team started with an empty project gets it from its
+  first task). It stays short (about 150 lines), with headings, so a brief
   can point at `docs/map.md#data`.
 - **`docs/decisions/`**: one short file per technical choice, with why and
   the task, as hi's project templates already lay out

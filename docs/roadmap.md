@@ -1607,21 +1607,31 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   no longer hides the work it continued from the five-idea count.
   Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
 
+### v0.76.0 — Roles that remember, and a map of the project
+
+- [x] Each member's role has a home in the team's folder, `roles/<role>/`:
+  `ROLE.md`, how it works on this team, and `LEARNED.md`, what its earlier
+  tasks taught it. hi writes them once, from defaults for the coder,
+  reviewer, devops, and researcher, and gives both to every brief for the
+  role, whichever agent does it. The lead has them at `/team/roles`.
+- [x] Members propose lessons as follow-ups starting with `Learned:`; the
+  lead sees them with the report and keeps what's true.
+- [x] A map of the project for the agents, `docs/map.md`, in a new team's
+  app: what it has and where. Every brief says to read it, extend what it
+  lists rather than build beside it, and keep it and `docs/decisions/`
+  current, and to write it when it's missing; the reviewer sends back
+  duplicates.
+- [x] The lead's SOUL.md and skill say what goes where: the people and the
+  conversation in its long-term memory, facts about the code in the map,
+  decisions, and specs.
+  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), ideas 1 to 4.
+
 ## Planned
 
 ### Next — roles that remember
 
 Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
 
-- [ ] Each role has a home in the team folder, `roles/<role>/`, with its
-  standing instructions (`ROLE.md`) and what it has learned
-  (`LEARNED.md`), given with every brief for the role; members propose
-  lessons as `Learned:` follow-ups, and the lead keeps them.
-- [ ] A map of the project for the agents, `docs/map.md`, read before
-  building and kept current in each task, so members extend what exists
-  rather than build beside it; the reviewer checks it.
-- [ ] What goes where: conversation and people in the lead's Hindsight
-  memory, technical facts in the repository's map, decisions, and specs.
 - [ ] Roles from the template, also from private template sources.
 - [ ] Only if continuations clearly suffer without it: resuming a member's
   session for `--on`.
