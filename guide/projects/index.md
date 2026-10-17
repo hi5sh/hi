@@ -16,6 +16,8 @@ start. Every template gives you:
 - **The `hi` skill**, so agents know how to rent a GPU with `hi compute`.
 - **CI** that runs `make check` on every push and pull request.
 
+{% include diagram.html name="init" %}
+
 ## Create a project
 
 ```sh

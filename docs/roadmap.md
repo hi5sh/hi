@@ -1648,16 +1648,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ## Planned
 
-### Next — diagrams for every tool
+### Guide — a diagram for every tool
 
-Convention: [guide-diagrams.md](guide-diagrams.md). The box, agent, team,
-managed compute, and `hi net expose` pages have theirs.
+Convention: [guide-diagrams.md](guide-diagrams.md).
 
-- [ ] A structure diagram on the remaining tools' main pages: how
-  `hi compute` works (providers, runs and instances), `hi init` and its
-  template layers, `hi q`, `hi data`, `hi server` for admins, and
-  autoresearch's attempts and rounds; each page then joins
-  `guideDiagramPages`.
+- [x] A structure diagram on every tool's main page: box, agent, team,
+  how `hi compute` works, managed compute and the `hi server` for admins,
+  `hi net expose`, `hi init`, `hi q`, `hi data`, and autoresearch.
+  `guideDiagramPages` in `guide_diagrams_test.go` keeps them there.
 
 ### Next — roles that remember
 

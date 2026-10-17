@@ -20,6 +20,8 @@ You need a machine connected to your team's server (`hi connect`) and `hf`:
 pip install -U huggingface_hub   # or: uv tool install huggingface_hub
 ```
 
+{% include diagram.html name="data" %}
+
 ## Find what you need
 
 `hi data` in a terminal shows a list with a search field. Type words in any

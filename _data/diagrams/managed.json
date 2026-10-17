@@ -1,5 +1,5 @@
 {
-  "caption": "How managed compute works. You and your agents run the same hi compute commands. On a device that joined with hi connect, each start goes to the team's hi server, signed with the device's key, instead of to the provider. The server checks the group's policy and budget, and when a person must say yes it asks an approver in Slack, never the requester. Then it starts the machine with the provider key only it holds, and stops it at its limit even when your laptop is off. Every call is in its audit log.",
+  "caption": "How managed compute works. You and your agents run the same hi compute commands. On a device that joined with hi connect, each start goes to the team's hi server, signed with the device's key, instead of to the provider. The server checks the group's policy, and when a person must say yes it asks an approver in Slack, never the requester. Then it starts the machine with the provider key only it holds, and stops it at its limit even when your laptop is off. Every call is in its audit log.",
   "you": "You, or your agent",
   "via": "hi compute up --gpu rtx-4090",
   "frame": "the team's NetBird network",
@@ -29,7 +29,7 @@
         {
           "title": "compute.internal",
           "role": "decides and calls",
-          "does": "Checks the group's policy and budget, holds the provider keys, makes every provider call, and keeps the audit log.",
+          "does": "Checks the group's policy, holds the provider keys, makes every provider call, and keeps the audit log.",
           "chip": "hi server",
           "tone": "accent"
         }
@@ -46,7 +46,7 @@
         {
           "title": "Slack",
           "role": "approve or deny",
-          "does": "A button in Slack, or `hi server approve` on the server; a policy can approve within budget.",
+          "does": "A button in Slack, or `hi server approve` on the server; a policy can approve small requests on its own.",
           "chip": "Slack",
           "tone": "violet"
         }

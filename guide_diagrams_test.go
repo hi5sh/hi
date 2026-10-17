@@ -15,14 +15,19 @@ import (
 // diagram (_includes/diagram.html, docs/guide-diagrams.md). These tests
 // keep the diagrams well formed and make one part of every tool's page.
 
-// guideDiagramPages are the pages that must open with a diagram, and which.
-// A new tool's guide page goes here with its diagram.
-var guideDiagramPages = map[string]string{
-	"guide/box/index.md":          "box",
-	"guide/agent/index.md":        "agent",
-	"guide/team/index.md":         "team",
-	"guide/compute/managed.md":    "managed",
-	"guide/workstation/expose.md": "expose",
+// guideDiagramPages are the pages that must show diagrams, and which. A new
+// tool's guide page goes here with its diagram.
+var guideDiagramPages = map[string][]string{
+	"guide/box/index.md":          {"box"},
+	"guide/agent/index.md":        {"agent"},
+	"guide/team/index.md":         {"team"},
+	"guide/compute/index.md":      {"compute"},
+	"guide/compute/managed.md":    {"managed", "server"},
+	"guide/workstation/expose.md": {"expose"},
+	"guide/projects/index.md":     {"init"},
+	"guide/q/index.md":            {"q"},
+	"guide/data/index.md":         {"data"},
+	"guide/autoresearch/index.md": {"autoresearch"},
 }
 
 type guideDiagramItem struct {
@@ -186,9 +191,11 @@ func TestGuidePagesHaveTheirDiagrams(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for page, name := range guideDiagramPages {
-		if usedBy[name] != page {
-			t.Errorf("%s should show the %s diagram: {%% include diagram.html name=%q %%}", page, name, name)
+	for page, names := range guideDiagramPages {
+		for _, name := range names {
+			if usedBy[name] != page {
+				t.Errorf("%s should show the %s diagram: {%% include diagram.html name=%q %%}", page, name, name)
+			}
 		}
 	}
 	for name := range diagrams {

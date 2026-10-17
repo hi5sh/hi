@@ -228,6 +228,8 @@ until they stop.
 
 ## For admins
 
+{% include diagram.html name="server" %}
+
 ### Set up the server
 
 On a small always-on Linux machine, enrolled in NetBird with `hi net`:

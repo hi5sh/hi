@@ -1,0 +1,63 @@
+{
+  "caption": "How hi data works. On a machine connected to your team's hi server, hi data get asks the server for a hi data token for one repository, for a day, and runs the official hf tool pointed at the server with that token. The server passes on only calls that read what your group may read, swaps in the team's Hugging Face token, and records who downloaded what. File contents come straight from Hugging Face's storage to your machine, so the server never sees them, and no Hugging Face token is ever on your machine.",
+  "you": "You, or your agent",
+  "via": "hi data get example/bars-1d",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "hi data",
+      "label": "asks for a token",
+      "mark": 2,
+      "items": [
+        {"title": "hi data get", "role": "one repository, one day", "does": "Gets a hi data token from the server that works only for this download, from this machine.", "chip": "hi", "tone": "accent", "entry": "You work here"}
+      ]
+    },
+    {
+      "name": "hf",
+      "label": "the official tool",
+      "mark": 3,
+      "via": "runs",
+      "items": [
+        {"title": "hf download", "role": "downloads", "does": "Pointed at your server, with the hi data token instead of a Hugging Face one.", "chip": "huggingface_hub", "tone": "dim"}
+      ]
+    },
+    {
+      "name": "files",
+      "label": "on your disk",
+      "mark": 4,
+      "via": "lands in",
+      "items": [
+        {"title": "./data/bars-1d", "role": "the download", "does": "Straight from Hugging Face's storage; large files never pass through the server.", "chip": "files", "tone": "dim"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "hi server",
+      "label": "holds the tokens",
+      "mark": 5,
+      "via": "every API call goes through",
+      "items": [
+        {"title": "hi server data", "role": "checks and swaps", "does": "Passes on only reads of what your group may read, swaps in the team's token, and records who downloaded what.", "chip": "audit log", "tone": "accent"}
+      ]
+    },
+    {
+      "name": "Hugging Face",
+      "label": "the Hub and its storage",
+      "mark": 6,
+      "via": "with the team's token",
+      "items": [
+        {"title": "huggingface.co", "role": "the team's private repos", "does": "Answers the API through the server, and sends the files themselves straight to your machine.", "chip": "CDN", "tone": "mint"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Connected to the server with `hi connect`; it never holds a Hugging Face token."},
+    {"mark": 2, "term": "hi data", "text": "Finds what you may download and asks for a token limited to it."},
+    {"mark": 3, "term": "hf", "text": "Hugging Face's own tool, so downloads resume and cache as usual."},
+    {"mark": 4, "term": "Files", "text": "Where your project and its code expect them."},
+    {"mark": 5, "term": "hi server", "text": "The only holder of the team's token, and the record of every download."},
+    {"mark": 6, "term": "Hugging Face", "text": "Sees the team's token, never yours; you don't need an account there."}
+  ]
+}

@@ -30,6 +30,8 @@ If the command fails, `hi q` offers to ask for a fix: press Enter and the
 model gets the exit status and the end of the error output, and proposes
 something else. It tries up to three times.
 
+{% include diagram.html name="q" %}
+
 ## Chat
 
 `hi q` on its own opens a prompt below the current line. Ask, run what it

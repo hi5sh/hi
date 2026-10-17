@@ -1,0 +1,44 @@
+{
+  "caption": "How hi compute works. You, or your agent, run one set of commands on your machine: hi compute run, up, or serve. hi picks the provider, checks the hardware name before calling it, confirms paid hardware, and gives every machine a time limit. It drives each provider through that provider's own CLI or API, with your sign-in, and hardware names and prices stay the provider's. The provider starts a run, which ends when its command finishes, or an instance, which stays until you stop it or it reaches its limit.",
+  "you": "You, or your agent",
+  "via": "hi compute run · up · serve",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "hi compute",
+      "label": "one set of commands",
+      "mark": 2,
+      "items": [
+        {"title": "hi compute up --gpu G4", "role": "picks and checks", "does": "Picks the provider, checks the hardware name before calling it, asks before paid hardware, and sets `--max`.", "chip": "hi", "tone": "accent", "entry": "You work here"}
+      ]
+    },
+    {
+      "name": "provider's tool",
+      "label": "with your sign-in",
+      "mark": 3,
+      "via": "translates",
+      "items": [
+        {"title": "Colab CLI · HF Jobs · RunPod · Shadeform", "role": "each provider's own way", "does": "hi drives each one through its own CLI or REST API; `--dry-run` shows the exact call.", "chip": "your sign-in", "tone": "dim"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "rented machine",
+      "label": "run or instance",
+      "mark": 4,
+      "via": "starts, and stops at --max",
+      "items": [
+        {"title": "t4-3fa1", "role": "run", "does": "Runs your script or command and ends with it; `hi compute logs` follows it.", "chip": "GPU", "tone": "mint"},
+        {"title": "box", "role": "instance", "does": "Stays until you stop it or it reaches `--max`: ssh, a tunnel, a notebook, a model server.", "chip": "GPU", "tone": "mint"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Where hi runs; you use the rented machine as if it were local."},
+    {"mark": 2, "term": "hi compute", "text": "The same commands for every provider, with a check before anything costs money."},
+    {"mark": 3, "term": "Provider's tool", "text": "hi hides each provider's tool, but not its hardware names or prices."},
+    {"mark": 4, "term": "Run or instance", "text": "A run ends with its command; an instance ends when you stop it. Both end at their limit."}
+  ]
+}

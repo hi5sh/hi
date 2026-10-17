@@ -28,6 +28,8 @@ Rounds are Karpathy's [autoresearch](https://github.com/karpathy/autoresearch)
 loop (try an idea, measure it, keep it only if it's better, repeat), with
 the judging moved from the agent to hi.
 
+{% include diagram.html name="autoresearch" %}
+
 ## Why you can leave it running
 
 - **hi judges, not the agent.** When an agent ends, hi itself runs your
