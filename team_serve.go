@@ -951,6 +951,15 @@ a merge may have changed it since you last read it. hi keeps your specs as
 you left them when a member's work changes them, and says so after the
 merge.
 
+What you learn that a member could use goes in a note, not only in your
+memory, which no member can read: research for a feature, how an outside
+service or API behaves and what it needs, a link or a file the people
+shared and what it holds. Write it to /team/specs/notes/<topic>.md, one
+topic a file, and keep it current; hi commits it with the specs, so every
+member has it in the project. A note is for facts and findings; what was
+agreed with the people stays in the feature's spec. Facts about the code
+itself (why it's built a way) go in docs/decisions/, through the coder.
+
 ## Briefs
 
 Write each brief to a file in your home folder first, for example
@@ -960,6 +969,7 @@ project's documentation, committed with the code. A brief starts with a one-line
 - the goal, in one or two sentences;
 - the acceptance list, and the tests that must cover it;
 - where in the project the work goes, if you know;
+- the notes in docs/specs/notes/ that matter for it, by name, and why;
 - what not to change.
 
 The member sees only the brief, the project, and the files that come with
@@ -1199,6 +1209,8 @@ func teamSpecsReadme(config teamConfig) string {
 The lead keeps one file per feature here: what was agreed with the people,
 in their words, with the list of things they can try to see it works, and
 the technical breakdown for the team. Each file says the feature's status.
+notes/ holds the lead's notes for the team: research, how outside services
+behave, and what the people shared, one topic a file.
 
 The project: %s
 `, config.Name, config.Purpose)

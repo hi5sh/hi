@@ -91,7 +91,7 @@ type teamTask struct {
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
 // leaves out a member's changes to them.
-const teamSpecsRule = "docs/specs/ is the lead's: read it, but don't change it, not even a feature's status; the lead updates it."
+const teamSpecsRule = "docs/specs/ is the lead's: read it, but don't change it, not even a feature's status; the lead updates it. docs/specs/notes/ holds the lead's notes for the team (research, how outside services behave, what the people shared): read the ones your brief names, and look there before you research something yourself."
 
 var (
 	teamTaskID     = regexp.MustCompile(`^t-[0-9]{1,6}$`)

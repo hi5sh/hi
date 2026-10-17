@@ -12,7 +12,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `team.json` | Purpose, channel, owners, members |
 | `secrets.json` | The Slack tokens, readable only by you |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions |
-| `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature |
+| `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature, and `notes/` there the lead's notes for the members |
 | `roles/` | A folder per member's role: `ROLE.md`, how it works on this team, and `LEARNED.md`, what its earlier tasks taught it |
 | `tasks/` | Each task's brief and report |
 | `channel/` | The channel's log, a file per day, and the files people shared |

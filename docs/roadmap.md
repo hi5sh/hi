@@ -1757,6 +1757,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   lead tried to write a decision itself and hit the read-only folder. An
   existing SOUL.md is updated on the next start.
 
+### v0.80.8 — Notes for the members
+
+- [x] What the lead learns that a member could use (research, how an
+  outside service behaves, what the people shared) goes in
+  docs/specs/notes/<topic>.md, committed with the specs, not only in the
+  lead's memory, which no member reads. Every brief names the notes that
+  matter for it, and every member's brief says to look there before
+  researching something itself.
+
 ## Planned
 
 ### Guide — a diagram for every tool

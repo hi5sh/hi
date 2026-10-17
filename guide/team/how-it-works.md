@@ -76,6 +76,15 @@ every 15 minutes the lead reads what's new and keeps what matters in its
 memory: a decision made in passing, a link or a video someone shared, who
 cares about what. `hi team channel payments --since 2h` shows you the log.
 
+## Notes for the members
+
+Members see the brief, the project, and the files that come with a task,
+not the channel or the lead's memory. So what the lead learns that a
+member could use (research, how an outside service behaves, what someone
+shared) goes in a note, `docs/specs/notes/<topic>.md`, committed with the
+specs. Every brief names the notes that matter for it, and members look
+there before researching something themselves.
+
 ## Progress in the thread
 
 While the members work, the lead waits, and the channel can go quiet for a
