@@ -439,3 +439,7 @@ GitHub Pages serves the repository root at <https://hi5.sh>. `index.html` is
 the landing page, `install.sh` is the CLI installer, and `llms.txt` points
 coding agents to the skill; all go live when
 pushed to `main`, without a release.
+## License
+
+hi is open source under the [Apache License 2.0](LICENSE). The code in
+`third_party/` keeps its own MIT licenses, in each folder.
