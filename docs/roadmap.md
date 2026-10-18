@@ -1991,6 +1991,15 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   could open it. It now gives the address without the key and says a key
   in the link guards it. Found in cartman's first deep review.
 
+### v0.89.2 — A deep review's names, and the lead's words
+
+- [x] A team's review boxes and report are named after the team, not its
+  `repo/` folder: `hi agent review --name <name>`, which the broker passes.
+- [x] The lead tells the people what a deep review found in their words:
+  no file, function, or route names or jargon unless they ask, and each
+  finding in a line of its own with its number. Both found in cartman's
+  first deep review.
+
 ## Planned
 
 ### Guide — a diagram for every tool

@@ -194,7 +194,7 @@ func writeReviewReport(rv review) error {
 // go into a brief as it is.
 func reviewMarkdown(rv review) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Review %s: %s\n\n", rv.ID, path.Base(rv.Root))
+	fmt.Fprintf(&b, "# Review %s: %s\n\n", rv.ID, reviewProjectName(rv))
 	b.WriteString(reviewHandover + "\n>\n")
 	if rv.Context != "" {
 		b.WriteString("> The reviewers had the context below from the people who asked; they knew nothing else about the app.\n\n")

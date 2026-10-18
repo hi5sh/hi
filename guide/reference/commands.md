@@ -248,7 +248,7 @@ options below. A brief's front matter can set `agent`, `model`, `bundles`,
 review a commit instead of the working tree, `--since <ref>` to focus on
 what changed since, `--path <dir>` to narrow it, `--context <file.md>` for
 what the code doesn't show, `--compare <id|report.json>` against an
-earlier review, `--sarif`, `--out <dir>` for a copy of the report, `--budget <dollars>`,
+earlier review, `--sarif`, `--out <dir>` for a copy of the report, `--name <name>` for what box names and the report call the project, `--budget <dollars>`,
 `--max <duration>` per run (default 30m), `--parallel <k>` (default 3),
 `--detach`, `--json`, and `--yes`. Reports are in
 `~/.local/state/hi/reviews/<id>/`. See [Review a whole repository](/guide/agent/review/).

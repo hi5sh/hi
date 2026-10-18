@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"path"
-	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
@@ -129,7 +127,7 @@ func writeReviewHTML(rv review) (string, error) {
 		return "", err
 	}
 	var page bytes.Buffer
-	title := fmt.Sprintf("Review %s: %s", rv.ID, path.Base(strings.TrimSuffix(firstNonEmpty(rv.Source, rv.Root), ".git")))
+	title := fmt.Sprintf("Review %s: %s", rv.ID, reviewProjectName(rv))
 	if err := reviewPage.Execute(&page, map[string]any{"Title": title, "Body": template.HTML(body.String())}); err != nil {
 		return "", err
 	}

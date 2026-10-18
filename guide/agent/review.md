@@ -244,7 +244,7 @@ and how each agent is paid, and asks (`--yes` skips the question).
 hi agent review [<folder>|<url>]  review this repository, a subfolder of it, or one from a URL
     --area a,b|all|<brief.md>  --agents claude,codex  --judge <agent>  --passes <n>
     --ref <ref>  --since <ref>  --path <dir>  --context <file.md>  --compare <id|report.json>
-    --sarif  --out <dir>  --budget <usd>  --max <duration>  --parallel <k>  --detach  --json  --yes
+    --sarif  --out <dir>  --name <name>  --budget <usd>  --max <duration>  --parallel <k>  --detach  --json  --yes
 hi agent review ls                reviews, their state, cost, and counts
 hi agent review show <id>         the findings; --md the report, --html a page, --sarif SARIF,
                                   --json the record, --rejected the rest

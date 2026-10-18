@@ -49,7 +49,10 @@ type review struct {
 	ID string `json:"id"`
 	// Source is where a fetched repository came from; Root is then its
 	// clone in the review's folder.
-	Source  string    `json:"source,omitempty"`
+	Source string `json:"source,omitempty"`
+	// Name is what the project is called in box names and the report,
+	// when its folder's name doesn't say, as for a team's repo/ (--name).
+	Name    string    `json:"name,omitempty"`
 	Root    string    `json:"root"`
 	Head    string    `json:"head"`   // HEAD when the review started
 	Commit  string    `json:"commit"` // what was reviewed: HEAD, --ref, or a snapshot of the working tree
@@ -201,7 +204,7 @@ var (
 type reviewFlags struct {
 	areas, agents, judge, passes, ref string
 	context, budget, limit, parallel  string
-	since, compare, out, fixes        string
+	since, compare, out, fixes, name  string
 	paths                             []string
 	yes, detach, json, md, rejected   bool
 	sarif, html                       bool
@@ -256,6 +259,8 @@ func runReview(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.out = value()
 		case is("--fixes"):
 			flags.fixes = value()
+		case is("--name"):
+			flags.name = value()
 		case arg == "--sarif":
 			flags.sarif = true
 		case arg == "--html":
@@ -356,6 +361,7 @@ options:
   --compare <id|file>    say what's new, still seen, and not seen since an earlier review or report.json
   --sarif                also write report.sarif, with confirmed and uncertain findings
   --out <dir>            also write the report there when it ends
+  --name <name>          what to call the project in box names and the report (default: its folder's or URL's name)
   --budget <usd>         no run starts once agents have reported this many dollars
   --max <duration>       the time limit for each run (default 30m)
   --parallel <k>         runs at once, 1 to 8 (default 3)
@@ -578,6 +584,9 @@ func planReview(folder string, flags reviewFlags, id, source string) (*review, e
 		rv.earlier = &earlier
 	}
 	rv.SARIF = flags.sarif
+	if rv.Name = strings.TrimSpace(flags.name); len(rv.Name) > 60 || strings.ContainsAny(rv.Name, "/\n") {
+		return nil, usageError{"--name is the project's name, such as --name payments"}
+	}
 	if flags.fixes != "" {
 		data, err := os.ReadFile(flags.fixes)
 		if err == nil {
@@ -1073,11 +1082,20 @@ func startReviewRun(rv *review, run *reviewRun, log io.Writer) error {
 	return nil
 }
 
-func reviewBoxName(rv review, run reviewRun) string {
-	base := bestOfNameBase(filepath.Base(rv.Root))
-	if rv.Source != "" {
-		base = bestOfNameBase(strings.TrimSuffix(path.Base(strings.TrimRight(rv.Source, "/")), ".git"))
+// reviewProjectName is what a review calls the project: --name, the
+// repository's name from its URL, or its folder's.
+func reviewProjectName(rv review) string {
+	switch {
+	case rv.Name != "":
+		return rv.Name
+	case rv.Source != "":
+		return strings.TrimSuffix(path.Base(strings.TrimRight(rv.Source, "/")), ".git")
 	}
+	return filepath.Base(rv.Root)
+}
+
+func reviewBoxName(rv review, run reviewRun) string {
+	base := bestOfNameBase(reviewProjectName(rv))
 	name := fmt.Sprintf("%s-%s-%s", base, rv.ID, run.ID)
 	if len(name) > 40 {
 		name = fmt.Sprintf("%s-%s-%s", base[:max(1, len(base)-(len(name)-40))], rv.ID, run.ID)

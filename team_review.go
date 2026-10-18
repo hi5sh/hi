@@ -159,7 +159,7 @@ func (b *teamBroker) startDeepReview(request teamDeepReviewRequest) (teamDeepRev
 	if err := os.WriteFile(contextFile, []byte(b.deepReviewContext(config, versions, request.Context)), 0o600); err != nil {
 		return teamDeepReview{}, err
 	}
-	args := []string{"agent", "review", b.repo, "--ref", record.Commit, "--context", contextFile,
+	args := []string{"agent", "review", b.repo, "--name", b.team, "--ref", record.Commit, "--context", contextFile,
 		"--budget", strconv.FormatFloat(request.Budget, 'f', 2, 64), "--yes", "--detach", "--json"}
 	if request.Areas != "" {
 		args = append(args, "--area", request.Areas)
@@ -411,9 +411,9 @@ func teamDeepReviewPrompt(record teamDeepReview, rv review, sent bool) string {
 	}
 	return fmt.Sprintf(`This is hi, not a person. The deep review %[1]s that %[2]s agreed to (%[3]s) is over. %[4]s%[5]s %[6]s
 
-The report is /team/reviews/%[1]s/report.md. Read it, then write for the people in this thread, in plain words:
+The report is /team/reviews/%[1]s/report.md. Read it, then write for the people in this thread. They may not read code: leave out file, function, and route names, and jargon such as CSRF, SSRF, or JSON, unless they ask. Say what could go wrong for them, in their words: "someone with the link could stop the history from filling in", not "POST /api/history/pause has no auth". The report's titles are for the team; write each finding in a line of your own, with its number (F-1) so people can name it.
 
-- How many findings were confirmed, by severity, each with its one-line title, and nothing about how to exploit them.
+- How many findings were confirmed, by severity, each in that line of yours, and nothing about how to exploit them.
 - That these are recommendations to weigh, not requirements: the reviewers read the code and didn't know how the app is run, who uses it, or what protects it.
 - Which findings you think matter for this team and why, and which you think don't, because of how the app is run, who uses it, or what protects it (say what each one assumes when that's the reason).
 - The questions you can't settle yourself, about those assumptions.

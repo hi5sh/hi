@@ -735,3 +735,11 @@ v0.89.0, 2026-10-18. Code: `team_review.go`; tests: `team_review_test.go`.
   it went to the agents' providers, and the description made a guarded
   app look open. The context now gives the address without its query and
   says the link carries a secret key without which the app doesn't open.
+- **v0.89.2: names and words.** The same run named its boxes
+  `repo-r-1-…` and its report "Review r-1: repo", after the team's `repo/`
+  folder: `--name` now says what to call the project, and the broker
+  passes the team's name. And the lead's summary used file names and
+  terms such as CSRF; its prompt now asks for no file, function, or route
+  names and no jargon unless the people ask, says what could go wrong for
+  them in their words, and has it write each finding in a line of its own
+  with its number, since the report's titles are for the team.

@@ -109,7 +109,7 @@ func TestTeamDeepReview(t *testing.T) {
 		t.Fatalf("record: %+v", record)
 	}
 	args := reviews[0]
-	for _, want := range []string{"agent review " + b.repo, "--ref " + main, "--budget 30.00", "--agents claude:opus,codex", "--yes --detach --json", "--context "} {
+	for _, want := range []string{"agent review " + b.repo + " --name payments", "--ref " + main, "--budget 30.00", "--agents claude:opus,codex", "--yes --detach --json", "--context "} {
 		if !strings.Contains(args, want) {
 			t.Errorf("hi agent review lacks %q: %s", want, args)
 		}
@@ -175,7 +175,7 @@ func TestTeamDeepReview(t *testing.T) {
 	wake := strings.Join(woken, "\n---\n")
 	mu.Unlock()
 	for _, want := range []string{"hi-review-r-1\nslack:C07PAYMENTS:" + thread, "/team/reviews/r-1/report.md", "recommendations to weigh, not requirements",
-		"Don't offer to fix everything", "--finding r-1:F-1", "nothing about how to exploit them", "hi sent U07OWNER1 the full report"} {
+		"Don't offer to fix everything", "--finding r-1:F-1", "leave out file, function, and route names", "in a line of your own", "nothing about how to exploit them", "hi sent U07OWNER1 the full report"} {
 		if !strings.Contains(wake, want) {
 			t.Errorf("the lead's prompt lacks %q:\n%s", want, wake)
 		}

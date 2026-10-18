@@ -612,9 +612,16 @@ func TestReviewBriefsAndSince(t *testing.T) {
 	reviewCommit(t, project, map[string]string{"api/boards.ts": "export const boards = []\n"})
 	os.WriteFile(filepath.Join(project, "mine.md"), []byte("Look for missing audit logs.\n"), 0o644)
 
-	rv, err := planReview("", reviewFlags{agents: "claude", areas: "security,look-ahead,mine.md", since: "v1"}, "r-1", "")
+	rv, err := planReview("", reviewFlags{agents: "claude", areas: "security,look-ahead,mine.md", since: "v1", name: "payments"}, "r-1", "")
 	if err != nil {
 		t.Fatal(err)
+	}
+	// --name is what box names and the report call the project.
+	if box := reviewBoxName(*rv, reviewRun{ID: "security-1"}); box != "payments-r-1-security-1" || !strings.HasPrefix(reviewMarkdown(*rv), "# Review r-1: payments\n") {
+		t.Errorf("name: %s", box)
+	}
+	if _, err := planReview("", reviewFlags{agents: "claude", name: "a/b"}, "r-2", ""); err == nil {
+		t.Error("a name with a slash was accepted")
 	}
 	if strings.Join(rv.Areas, ",") != "security,look-ahead,mine" || rv.Briefs["look-ahead"] != "Look for prices used before they were known." {
 		t.Fatalf("areas %v, briefs %v", rv.Areas, rv.Briefs)
