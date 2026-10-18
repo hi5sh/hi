@@ -1796,6 +1796,13 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   (`hi net expose --key`), so people's links keep working and nobody gets
   new ones. Found updating a team whose addresses run until November.
 
+### v0.81.2 — Releases post production's link
+
+- [x] A release's message in the channel linked to hi's older message with
+  production's link, so people jumped back through the channel to open
+  it. It now posts production's link itself, and the lead does the same
+  when people ask where production is.
+
 ## Planned
 
 ### Guide — a diagram for every tool
