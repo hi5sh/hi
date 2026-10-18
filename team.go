@@ -56,6 +56,11 @@ type teamConfig struct {
 	// from, one that extends team-app, such as one from the hi server's
 	// sources; empty is team-app itself.
 	Template string `json:"template,omitempty"`
+	// Adopted is where a project someone else wrote came from (hi team
+	// adopt); ProjectAgentSettings lets members load its own agent
+	// settings (hooks, MCP servers), off by default (team_adopt.go).
+	Adopted              *teamAdopted `json:"adopted,omitempty"`
+	ProjectAgentSettings bool         `json:"project_agent_settings,omitempty"`
 	// MadeAs is the name the team was made with, when hi team rename has
 	// given it another since: its memory bank and its snapshots keep it.
 	MadeAs  string    `json:"made_as,omitempty"`
@@ -240,6 +245,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch command {
 	case "new":
 		err = teamNew(rest, stdin, stdout)
+	case "adopt":
+		err = teamAdoptCommand(rest, stdin, stdout)
 	case "up":
 		if len(rest) == 0 && interactive(stdin, stdout) {
 			name, pickErr := teamPick(stdin, stdout, "Start or restart a team")
@@ -351,6 +358,14 @@ usage:
       [--from <file.json>]         the answers from a file; the Slack tokens from
                                    HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, and the
                                    team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY
+  hi team adopt <name> <source>    the same setup for a project someone else wrote, such as one on
+                                   GitHub (github.com/owner/name, owner/name, or a URL): the team keeps
+                                   its own copy and never pushes to it; a first task makes it run
+      [--ref <branch|tag|commit>]  where to start; upstream's default branch otherwise
+      [--github <owner/name>]      keep the team's copy in a new private GitHub repository too
+      [--shallow|--full]           only its latest commit, or its whole history even over 1 GB
+      [--no-survey]                no first task; the lead starts from the project as it is
+      [--dir, --from, --yes]       as for hi team new; --yes doesn't ask before adopting
   hi team up [<name>]              start or restart the team and keep it up, also after a reboot;
                                    without a name, pick it from a list
   hi team up <folder>              the same for a team whose folder moved or was copied here
@@ -522,6 +537,17 @@ type teamAnswers struct {
 	// Empty starts a new repository with only a README and the team's rules,
 	// instead of a web app on Bun.
 	Empty bool `json:"empty,omitempty"`
+	// Adopt is a project someone else wrote to adopt (hi team adopt), from
+	// Ref; Shallow fetches only its latest commit, and NoSurvey skips the
+	// first task. PushToSource makes a clone or an adoption push its
+	// merges back to where it came from, as a project of your own does.
+	Adopt        string `json:"adopt,omitempty"`
+	Ref          string `json:"ref,omitempty"`
+	Shallow      bool   `json:"shallow,omitempty"`
+	NoSurvey     bool   `json:"no_survey,omitempty"`
+	PushToSource bool   `json:"push_to_source,omitempty"`
+	// adoption is the adoption the wizard or the answers prepared.
+	adoption *teamAdoption
 	// checked: the wizard checked Slack as it went.
 	checked bool
 }
@@ -551,6 +577,12 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 	if name == "" {
 		return usageError{"usage: hi team new <name> [--dir <folder>] [--from <file.json>]"}
 	}
+	return teamCreate(name, folder, from, nil, stdin, stdout)
+}
+
+// teamCreate sets up a team, from the wizard or answers in a file, with a
+// project that's new, cloned, or adopted (hi team adopt).
+func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader, stdout io.Writer) error {
 	if !teamNamePattern.MatchString(name) {
 		return fmt.Errorf("a team's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
 	}
@@ -571,15 +603,50 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 	var answers teamAnswers
 	var secrets teamSecrets
 	if from != "" {
-		answers, secrets, err = teamAnswersFromFile(name, from)
-	} else {
-		answers, secrets, err = teamWizard(name, dir, stdin, stdout)
+		if answers, secrets, err = teamAnswersFromFile(name, from); err != nil {
+			return err
+		}
+		// A URL to clone that this machine can't push to is someone
+		// else's project: adopted, unless the answers say to push there.
+		if adopt == nil && answers.Adopt == "" && reviewIsURL(answers.Clone) {
+			answers.Adopt, answers.Clone = answers.Clone, ""
+		}
+		adopt = teamAdoptFromAnswers(adopt, answers)
 	}
-	if err != nil {
-		return err
+	if adopt != nil {
+		defer adopt.discard()
+		ok, err := adopt.prepare(dir, stdin, stdout)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.New("nothing was adopted or set up")
+		}
+		if adopt.Push {
+			// A project of the owner's own: cloned, and pushed to, as before.
+			answers.Clone, adopt = adopt.url, nil
+		}
+	}
+	if from == "" {
+		answers, secrets, err = teamWizard(name, dir, adopt, stdin, stdout)
+		if answers.adoption != nil && answers.adoption != adopt {
+			defer answers.adoption.discard()
+		}
+		if err != nil {
+			return err
+		}
+	} else {
+		answers.adoption = adopt
+	}
+	if answers.adoption != nil {
+		answers.adoption.GitHub = firstNonEmpty(answers.adoption.GitHub, answers.GitHub)
+		answers.GitHub = answers.adoption.GitHub
 	}
 	config := answers.teamConfig
 	config.Name, config.Created = name, time.Now().UTC()
+	if config.Purpose == "" && answers.adoption != nil {
+		config.Purpose = answers.adoption.summary.Description
+	}
 	if err := validateTeam(config); err != nil {
 		return err
 	}
@@ -595,7 +662,7 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		os.RemoveAll(dir)
 		return err
 	}
-	if err := createTeamFolder(&config, secrets, answers.Clone, answers.Empty, stdout); err != nil {
+	if err := createTeamFolder(&config, secrets, answers.Clone, answers.Empty, answers.adoption, stdout); err != nil {
 		os.RemoveAll(dir)
 		os.Remove(filepath.Join(teamsDir(), name))
 		return err
@@ -612,6 +679,9 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if extra := teamExtraRoles(config); len(extra) > 0 {
 		fmt.Fprintf(stdout, "The template also has roles for %s: add a member for one in team.json to use it.\n", strings.Join(extra, ", "))
+	}
+	if config.Adopted != nil && !config.Adopted.NoSurvey {
+		fmt.Fprintf(stdout, "\nWhen it starts, the coder reads %s, makes it run, and maps it; then the lead introduces it in the channel.\n", config.Adopted.Name)
 	}
 	fmt.Fprintf(stdout, "\nStart it with:\n  hi team up %s\n", name)
 	return nil
@@ -637,7 +707,7 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	return answers, secrets, nil
 }
 
-func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswers, teamSecrets, error) {
+func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout io.Writer) (teamAnswers, teamSecrets, error) {
 	var answers teamAnswers
 	var secrets teamSecrets
 	config := &answers.teamConfig
@@ -648,7 +718,11 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 
 	fmt.Fprintln(stdout, "1/7 Purpose")
 	fmt.Fprintln(stdout, "In one sentence, what is this team for? The lead starts from it.")
-	if config.Purpose, err = teamAsk(stdin, stdout, "Purpose", ""); err != nil {
+	offered := ""
+	if adopt != nil {
+		offered = adopt.summary.Description
+	}
+	if config.Purpose, err = teamAsk(stdin, stdout, "Purpose", offered); err != nil {
 		return answers, secrets, err
 	}
 
@@ -755,36 +829,72 @@ func teamWizard(name, dir string, stdin io.Reader, stdout io.Writer) (teamAnswer
 
 	fmt.Fprintln(stdout, "\n7/7 Code")
 	fmt.Fprintln(stdout, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
-	fmt.Fprintln(stdout, "Enter starts a new web app there: a blank page on Bun, with a database and tests, and the")
-	fmt.Fprintln(stdout, "helper's chat on every page. Type empty for a repository with only a README, or give one to")
-	fmt.Fprintln(stdout, "clone: a URL, cloned with this machine's git credentials, or a folder on this machine.")
-	templates := map[string]bool{}
-	if catalog, err := loadTemplateCatalog(io.Discard); err == nil {
-		if offered := teamTemplates(catalog); len(offered) > 0 {
-			fmt.Fprintln(stdout, "Or name a team template, a web app with its roles ready for a kind of work:")
-			for _, template := range offered {
-				key := firstNonEmpty(template.key, template.Name)
-				templates[key] = true
-				fmt.Fprintf(stdout, "  %-20s %s\n", key, template.Summary)
+	if adopt != nil {
+		fmt.Fprintf(stdout, "It's %s, adopted: the team never pushes to it.\n", adopt.displayName())
+		answers.adoption = adopt
+	} else {
+		fmt.Fprintln(stdout, "Enter starts a new web app there: a blank page on Bun, with a database and tests, and the")
+		fmt.Fprintln(stdout, "helper's chat on every page. Type empty for a repository with only a README. Or give a project")
+		fmt.Fprintln(stdout, "someone else wrote, such as github.com/owner/name, to adopt it: the team works on its own copy")
+		fmt.Fprintln(stdout, "and never pushes to theirs. A folder on this machine is cloned, and its owner pulls from the team.")
+		templates := map[string]bool{}
+		if catalog, err := loadTemplateCatalog(io.Discard); err == nil {
+			if offered := teamTemplates(catalog); len(offered) > 0 {
+				fmt.Fprintln(stdout, "Or name a team template, a web app with its roles ready for a kind of work:")
+				for _, template := range offered {
+					key := firstNonEmpty(template.key, template.Name)
+					templates[key] = true
+					fmt.Fprintf(stdout, "  %-20s %s\n", key, template.Summary)
+				}
 			}
 		}
+		clone, err := teamAskUntil(stdin, stdout, "Repository [new]", false, func(answer string) error {
+			if answer == "" || answer == "new" || answer == "empty" || templates[answer] || !reviewIsURL(answer) {
+				return nil
+			}
+			// Someone else's project, or one of yours to push to.
+			adoption := &teamAdoption{Source: answer}
+			ok, err := adoption.prepare(dir, stdin, stdout)
+			switch {
+			case err != nil:
+				return err
+			case !ok:
+				return errors.New("not adopted; give another, or press Enter for a new app")
+			case adoption.Push:
+				answers.Clone = adoption.url
+			default:
+				answers.adoption = adoption
+			}
+			return nil
+		})
+		if err != nil {
+			return answers, secrets, err
+		}
+		switch {
+		case answers.adoption != nil || answers.Clone != "":
+		case clone == "" || clone == "new":
+		case clone == "empty":
+			answers.Empty = true
+		case templates[clone]:
+			config.Template = clone
+		default:
+			answers.Clone = clone
+		}
 	}
-	clone, err := teamAskUntil(stdin, stdout, "Repository [new]", false, func(string) error { return nil })
-	if err != nil {
-		return answers, secrets, err
-	}
+	adoption := answers.adoption
 	switch {
-	case clone == "" || clone == "new":
-	case clone == "empty":
-		answers.Empty = true
-	case templates[clone]:
-		config.Template = clone
-	default:
-		answers.Clone = clone
-	}
-	if answers.Clone == "" {
+	case adoption != nil && (adoption.GitHub != "" || adoption.Shallow):
+		if adoption.Shallow {
+			fmt.Fprintln(stdout, "With only its latest commit, the copy stays on this machine.")
+		}
+	case adoption != nil:
+		fmt.Fprintln(stdout, "Keep the team's copy on GitHub too? Give owner/name, and hi creates a private repository with")
+		fmt.Fprintln(stdout, "the project's history, with this machine's GitHub sign-in (gh); the team pushes every merge there.")
+	case answers.Clone == "":
 		fmt.Fprintln(stdout, "Put it on GitHub too? Give owner/name, such as imanhabib/world-clock, and hi creates a private")
 		fmt.Fprintln(stdout, "repository with this machine's GitHub sign-in (gh); the team pushes every merge there.")
+	}
+	if answers.Clone == "" && !(adoption != nil && (adoption.GitHub != "" || adoption.Shallow)) {
 		if answers.GitHub, err = teamAskUntil(stdin, stdout, "GitHub [Enter keeps it on this machine]", false, func(name string) error {
 			if name == "" {
 				return nil
@@ -1006,7 +1116,7 @@ func teamCheckSlack(config teamConfig, secrets teamSecrets, stdout io.Writer) er
 
 // createTeamFolder makes the folder, the repository, and the lead's first
 // files.
-func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, empty bool, stdout io.Writer) error {
+func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, empty bool, adopt *teamAdoption, stdout io.Writer) error {
 	dir := teamDir(config.Name)
 	for _, sub := range []string{"lead", "tasks", "run", "logs"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o700); err != nil {
@@ -1021,7 +1131,12 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 		return err
 	}
 	repo := filepath.Join(dir, "repo")
-	if clone != "" {
+	if adopt != nil {
+		if err := os.Rename(adopt.stage, repo); err != nil {
+			return err
+		}
+		adopt.stage = ""
+	} else if clone != "" {
 		fmt.Fprintf(stdout, "Cloning %s…\n", clone)
 		if out, err := exec.Command("git", "clone", "-q", clone, repo).CombinedOutput(); err != nil {
 			return fmt.Errorf("git clone: %s", qFirstLine(string(out), err.Error()))
@@ -1047,6 +1162,11 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 		}
 	}
 	config.Branch = firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main")
+	if adopt != nil {
+		if err := teamSetUpAdopted(config, adopt, repo, stdout); err != nil {
+			return err
+		}
+	}
 	if err := saveTeam(*config); err != nil {
 		return err
 	}

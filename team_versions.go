@@ -690,6 +690,9 @@ func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 		text.WriteString("\n" + notes + "\n")
 	}
 	text.WriteString(teamReleaseDataNote(b.team))
+	if versions.Production == 0 {
+		text.WriteString(teamReleaseLicenceNote(config))
+	}
 	if state, ok := loadTeamSlot(b.team, teamSlotPreview); ok && state.URL != "" {
 		if _, exposed := b.exposed(state.Expose); exposed {
 			fmt.Fprintf(&text, "\nTry it on <%s|the preview>", state.URL)
@@ -850,8 +853,14 @@ func (b *teamBroker) resetDev(ref string) ([]teamTask, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Before the first release, an adopted project goes back to v0, the
+	// project as it came.
+	target, label := teamProductionBranch, fmt.Sprintf("production v%d", versions.Production)
 	if versions.Production == 0 {
-		return nil, errors.New("nothing is released yet, so there's no production to go back to")
+		if _, adopted := versions.release(0); !adopted || boxGit(b.repo, "rev-parse", "--verify", "-q", teamReleaseTag(0)) == "" {
+			return nil, errors.New("nothing is released yet, so there's no production to go back to")
+		}
+		target, label = teamReleaseTag(0), "v0, the project as adopted"
 	}
 	if err := b.commitSpecsLocked(config); err != nil {
 		return nil, fmt.Errorf("committing the specs: %w", err)
@@ -859,18 +868,18 @@ func (b *teamBroker) resetDev(ref string) ([]teamTask, error) {
 	if err := b.onTeamBranch(config); err != nil {
 		return nil, err
 	}
-	if teamSameCode(b.repo, teamProductionBranch, "HEAD") {
-		return nil, fmt.Errorf("dev is the same as production v%d already", versions.Production)
+	if teamSameCode(b.repo, target, "HEAD") {
+		return nil, fmt.Errorf("dev is the same as %s already", label)
 	}
 	changes := teamDevChanges(b.repo, loadTeamTasks(b.team))
 	var lines []string
 	for _, task := range changes {
 		lines = append(lines, "- "+task.ID+" "+task.Title)
 	}
-	if out, err := teamGit(b.repo, "restore", "--source="+teamProductionBranch, "--staged", "--worktree", "--", ".", ":(exclude)"+teamSpecsPath); err != nil {
+	if out, err := teamGit(b.repo, "restore", "--source="+target, "--staged", "--worktree", "--", ".", ":(exclude)"+teamSpecsPath); err != nil {
 		return nil, fmt.Errorf("git restore: %s", qFirstLine(out, err.Error()))
 	}
-	message := fmt.Sprintf("Set dev back to production v%d\n\nApproved by %s.", versions.Production, approval.Name)
+	message := fmt.Sprintf("Set dev back to %s\n\nApproved by %s.", label, approval.Name)
 	if len(lines) > 0 {
 		message += " Set aside:\n\n" + strings.Join(lines, "\n")
 	}
@@ -882,7 +891,7 @@ func (b *teamBroker) resetDev(ref string) ([]teamTask, error) {
 		changes[i].Status = "discarded"
 		saveTeamTask(b.team, changes[i])
 	}
-	versions.History = append(versions.History, teamVersionEvent{What: fmt.Sprintf("dev back to v%d", versions.Production), Approval: &approval, At: time.Now().UTC()})
+	versions.History = append(versions.History, teamVersionEvent{What: "dev back to " + strings.TrimPrefix(label, "production "), Approval: &approval, At: time.Now().UTC()})
 	if err := saveTeamVersions(b.team, versions); err != nil {
 		return changes, err
 	}
@@ -891,7 +900,7 @@ func (b *teamBroker) resetDev(ref string) ([]teamTask, error) {
 			return changes, fmt.Errorf("dev is set back, but git push failed: %s", qFirstLine(out, err.Error()))
 		}
 	}
-	text := fmt.Sprintf(":broom: *Dev is set back to production v%d*, approved by %s. Production didn't change.", versions.Production, approval.Name)
+	text := fmt.Sprintf(":broom: *Dev is set back to %s*, approved by %s. Production didn't change.", label, approval.Name)
 	if len(changes) > 0 {
 		var titles []string
 		for _, task := range changes {

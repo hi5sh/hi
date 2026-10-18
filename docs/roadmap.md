@@ -2000,6 +2000,39 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   finding in a line of its own with its number. Both found in cartman's
   first deep review.
 
+### v0.90.0 — A team on a project someone else wrote
+
+- [x] `hi team adopt <name> <source>` makes a team whose project is one
+  someone else wrote, such as one on GitHub
+  ([hi_team_adopt.md](specs/ideas/hi_team_adopt.md)): `hi team new` with
+  the code step answered and the purpose offered from its description.
+  In `hi team new`, a project's address in the code step adopts it too.
+- [x] It's fetched without running anything from it, as `hi agent review`
+  fetches (`fetchRepository`), and hi shows what it found before asking:
+  the licence and what it means, size and history, languages, how it
+  seems to run, its files for agents, and the packages with install
+  scripts. Over 1 GB, hi asks before taking the whole history.
+- [x] A repository this machine's `gh` can push to is the owner's choice,
+  no by default; anything else is adopted. The source becomes `upstream`,
+  with a push address git can't use, its tags under `upstream/`, and the
+  team's branch tracks nothing. `--github` keeps a private copy, with
+  the history.
+- [x] One commit adds the team's rules in a hi block at the top of
+  `AGENTS.md`, above the project's own notes, `docs/specs/`, and
+  `.hi5/adopted.json`. It is v0 (`release-0`); `hi team discard dev`
+  puts dev back to it before the first release, and releases start at v1.
+- [x] The survey: on the first `hi team up`, hi has the coder make the
+  project run on `$PORT` (`make hi-run` when its `run` means something
+  else, which the preview now uses first), run its tests, map it, and
+  say what's missing, up to $10 for Claude Code. When it ends, hi wakes
+  the lead under its own message in the channel, to merge it and
+  introduce the project in the people's words.
+- [x] Members of an adopted team run Claude Code without the project's
+  hooks, MCP servers, and permissions (`hi agent --no-project-settings`),
+  unless `team.json` says `"project_agent_settings": true`. The lead's
+  SOUL.md and hi-team skill say where the project came from and how to
+  speak of it.
+
 ## Planned
 
 ### Guide — a diagram for every tool

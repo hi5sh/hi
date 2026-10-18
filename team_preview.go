@@ -155,11 +155,17 @@ func saveTeamSlot(team string, state teamPreview) error {
 	return writeFileAtomic(teamSlotPath(team, state.Slot), append(data, '\n'), 0o600)
 }
 
-// teamRunCommand is how the project starts: make run, else the start
-// script, with Bun when the project has a bun.lock and npm otherwise.
+// teamRunCommand is how the project starts: make hi-run, for a project
+// whose own run target means something else (hi team adopt), else make
+// run, else the start script, with Bun when the project has a bun.lock
+// and npm otherwise.
 func teamRunCommand(dir string) (string, error) {
-	if data, err := os.ReadFile(filepath.Join(dir, "Makefile")); err == nil && regexp.MustCompile(`(?m)^run\s*:`).Match(data) {
-		return "make run", nil
+	if data, err := os.ReadFile(filepath.Join(dir, "Makefile")); err == nil {
+		for _, target := range []string{"hi-run", "run"} {
+			if regexp.MustCompile(`(?m)^` + target + `\s*:`).Match(data) {
+				return "make " + target, nil
+			}
+		}
 	}
 	if data, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
 		var pkg struct {

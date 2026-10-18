@@ -236,8 +236,10 @@ stdout, `--task-file <path>` for a task file whose name doesn't end in
 own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
 `--from <commit>` to start the worktree from a commit or branch instead of
 `HEAD`, `--files <folder>` for files the agent may read at `/box/files`,
-`--bundle a,b` for bundles of skills and the tools they need, and the box
-options below. A brief's front matter can set `agent`, `model`, `bundles`,
+`--bundle a,b` for bundles of skills and the tools they need,
+`--no-project-settings` for Claude Code without the project's own hooks,
+MCP servers, and permissions, `--max-budget-usd <n>` for the most Claude
+Code may spend, and the box options below. A brief's front matter can set `agent`, `model`, `bundles`,
 `network`, `allow`, `data`, and `gpu`. Exits with 0 when the agent is done and
 1 when it failed. See [Hand tasks to agents](/guide/agent/).
 
@@ -277,6 +279,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | Command | What it does |
 |---|---|
 | `hi team new <name> [--dir <folder>] [--from <file.json>]` | Set up a team: its Slack app, channel, people, members, and code |
+| `hi team adopt <name> <source> [--ref <branch\|tag\|commit>] [--github <owner/name>] [--shallow\|--full] [--no-survey] [--dir <folder>] [--from <file.json>] [--yes]` | The same setup for a project someone else wrote (`github.com/owner/name`, `owner/name`, or a URL), fetched without running anything from it: the team keeps its own copy, with the project as `upstream` that never takes a push, and a first task makes it run and maps it; see [Start from someone else's project](/guide/team/adopt/) |
 | `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi team down <name>`                     | Stop it; its folder stays |
 | `hi team rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its members' boxes, and its folder; `--keep-folder` keeps the folder |

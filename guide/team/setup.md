@@ -42,9 +42,14 @@ The setup asks seven things, one at a time:
    welcome page on Bun that walks people to the helper's chat, with a
    database and tests (the `app` template in
    [Projects](/guide/projects/#templates)).
-   Type `empty` for a repository with only a README, or give one to
-   clone: a URL, with this machine's git credentials, or a folder on this
-   machine.
+   Type `empty` for a repository with only a README. Give a project
+   someone else wrote, such as `github.com/owner/name`, to adopt it: the
+   team works on its own copy and never pushes to theirs (see
+   [Start from someone else's project](/guide/team/adopt/), and
+   `hi team adopt`, which asks about it first). A repository this
+   machine can push to is yours: hi asks whether the team should push
+   its merges there. A folder on this machine is cloned, and its owner
+   pulls from the team.
    Or name a team template: a web app with roles of its own for a kind of
    work, built into hi, in `HI_TEMPLATES_DIR`, or from your hi server's
    templates.
@@ -105,7 +110,8 @@ hi creates a private repository with this machine's GitHub sign-in (`gh`),
 or connects an existing empty one, and pushes the project. From then on the
 team pushes every merge there. No GitHub credential enters a box: the
 pushes run on the machine, so nobody can talk the lead into revealing a
-token. A team whose project was cloned from a URL pushes there already.
+token. A team whose project was cloned from a URL of yours pushes there
+already; an adopted project never pushes to the one it came from.
 
 The specs go with the code: the lead writes them in the project's
 `docs/specs/`, and hi commits its changes whenever a task starts and

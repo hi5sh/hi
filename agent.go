@@ -142,6 +142,9 @@ options:
                          own Claude Code or Codex settings, else opus for Claude Code
   --from <commit>        start the worktree from this commit or branch instead of HEAD
   --files <folder>       files the agent may read, such as images or documents, at /box/files (read-only)
+  --no-project-settings  Claude Code without the project's own hooks, MCP servers, and permissions
+                         (.claude/), for a project someone else wrote
+  --max-budget-usd <n>   the most Claude Code may spend on the run, in dollars
   --bundle a,b           attach bundles: their skills, and an image with what they need (hi bundle ls)
   --name, --network, --allow, --gpu, --data, --here, --image, --memory
                          the box's options, as for hi box
@@ -403,8 +406,8 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 			model = " --model " + shellQuote(meta.Model)
 		}
 		// The project's own hooks, MCP servers, and permissions stay off in
-		// code under review.
-		if meta.Untrusted {
+		// code under review, and in a project someone else wrote.
+		if meta.Untrusted || meta.NoProjectSettings {
 			model += " --setting-sources user"
 		}
 		if meta.BudgetUSD > 0 {

@@ -88,8 +88,11 @@ type teamTask struct {
 	// Findings are the deep review's findings the task sets out to fix
 	// (--finding), so the next review can say they weren't seen since.
 	Findings []teamTaskFinding `json:"findings,omitempty"`
-	Created  time.Time         `json:"created"`
-	Finished time.Time         `json:"finished,omitempty"`
+	// Survey is an adopted project's first task, which hi starts
+	// (team_adopt.go).
+	Survey   bool      `json:"survey,omitempty"`
+	Created  time.Time `json:"created"`
+	Finished time.Time `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -377,6 +380,9 @@ type teamRequest struct {
 	Findings []string `json:"findings,omitempty"`
 	// hints go to the new task's Hints.
 	hints []string
+	// survey is an adopted project's first task, started by hi with the
+	// owner's yes at the terminal.
+	survey bool
 }
 
 func (b *teamBroker) handler() http.Handler {
@@ -802,6 +808,9 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 			return teamTask{}, nil, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
 		}
 		task.On, from = on.ID, on.Branch
+	} else if request.survey {
+		task.Survey = true
+		task.Approval = &teamApproval{TS: "adopt", Name: "the owner who adopted the project, on the machine", Text: "hi team adopt"}
 	} else if request.Small {
 		task.Small = true
 		if request.In != "" {
@@ -1072,6 +1081,14 @@ func (b *teamBroker) launch(task teamTask, member teamMember, brief, from, files
 	// Members reach any site unless team.json narrows it; the box is the
 	// boundary.
 	args = append(args, "--network", firstNonEmpty(member.Network, "open"))
+	// A project someone else wrote keeps its own agent settings off, and
+	// its survey has a budget.
+	if config, err := loadTeam(b.team); err == nil && config.Adopted != nil && !config.ProjectAgentSettings {
+		args = append(args, "--no-project-settings")
+	}
+	if task.Survey && task.Agent == "claude" {
+		args = append(args, "--max-budget-usd", strconv.Itoa(teamSurveyBudgetUSD))
+	}
 	for _, host := range member.Allow {
 		args = append(args, "--allow", host)
 	}
@@ -1126,7 +1143,9 @@ func (b *teamBroker) wait(task teamTask) {
 	saveTeamTask(b.team, task)
 	if start != nil {
 		start()
+		return
 	}
+	b.surveyEnded(task)
 }
 
 // nextStep starts the review loop's next step after a finished one: a

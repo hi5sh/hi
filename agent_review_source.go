@@ -98,13 +98,21 @@ func reviewCloneEnv() []string {
 var reviewFetch = fetchReviewSource
 
 // fetchReviewSource clones a repository into dir on this machine, running
+// nothing from it.
+func fetchReviewSource(source, dir string) error {
+	_, err := fetchRepository(source, dir)
+	return err
+}
+
+// fetchRepository clones a repository into dir on this machine, running
 // nothing from it: first without any sign-in, then, for a GitHub
 // repository that needs one, through gh, which keeps the token out of
-// the address.
-func fetchReviewSource(source, dir string) error {
+// the address. extra are more of git clone's options, such as --depth 1;
+// viaGH says the clone needed gh's sign-in.
+func fetchRepository(source, dir string, extra ...string) (viaGH bool, err error) {
 	cloneURL, github, err := reviewCloneURL(source)
 	if err != nil {
-		return err
+		return false, err
 	}
 	clone := func(command string, args ...string) error {
 		os.RemoveAll(dir)
@@ -117,25 +125,25 @@ func fetchReviewSource(source, dir string) error {
 		}
 		return nil
 	}
-	args := append(append([]string{}, reviewCloneArgs...), "clone", "--quiet", "--template=", "--no-recurse-submodules", "--", cloneURL, dir)
-	if err = clone("git", args...); err == nil {
-		return reviewLockClone(dir)
+	args := append(append(append([]string{}, reviewCloneArgs...), "clone", "--quiet", "--template=", "--no-recurse-submodules"), extra...)
+	if err = clone("git", append(args, "--", cloneURL, dir)...); err == nil {
+		return false, reviewLockClone(dir)
 	}
 	if github == "" {
-		return err
+		return false, err
 	}
 	if _, lookErr := exec.LookPath("gh"); lookErr != nil {
-		return fmt.Errorf("couldn't fetch %s (%v); for a private repository, install gh and sign in with gh auth login", source, err)
+		return false, fmt.Errorf("couldn't fetch %s (%v); for a private repository, install gh and sign in with gh auth login", source, err)
 	}
 	// gh adds its own credential helper for github.com, and git clone takes
 	// the rest of the settings for the new repository.
-	ghArgs := []string{"repo", "clone", github, dir, "--", "--quiet", "--template=", "--no-recurse-submodules",
+	ghArgs := append([]string{"repo", "clone", github, dir, "--", "--quiet", "--template=", "--no-recurse-submodules",
 		"--config", "core.hooksPath=/dev/null", "--config", "core.fsmonitor=false", "--config", "filter.lfs.smudge=",
-		"--config", "filter.lfs.process=", "--config", "filter.lfs.required=false"}
+		"--config", "filter.lfs.process=", "--config", "filter.lfs.required=false"}, extra...)
 	if ghErr := clone("gh", ghArgs...); ghErr != nil {
-		return fmt.Errorf("couldn't fetch %s: %v; through gh: %v", source, err, ghErr)
+		return false, fmt.Errorf("couldn't fetch %s: %v; through gh: %v", source, err, ghErr)
 	}
-	return reviewLockClone(dir)
+	return true, reviewLockClone(dir)
 }
 
 // reviewLockClone keeps the clone's settings for what hi does in it later

@@ -1,6 +1,6 @@
 # `hi team adopt`: a team for a project someone else wrote
 
-Status: Draft (2026-10-18)
+Status: Draft (2026-10-18). The first slice is built (v0.90.0).
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the
 broker, dev and production, previews), [hi_team_roles.md](../approved/hi_team_roles.md)
@@ -74,7 +74,8 @@ repository hi can't check, is adopted.
 
 ```text
 hi team adopt <name> <source> [--ref <branch|tag|commit>] [--github <owner/name>]
-                              [--dir <folder>] [--from <answers.json>] [--no-survey]
+                              [--shallow|--full] [--no-survey] [--dir <folder>]
+                              [--from <answers.json>] [--yes]
                                     the wizard, with the code step answered: adopt <source>
 hi team upstream <name>             where dev stands against upstream, and upstream's new tags
 ```
@@ -91,10 +92,15 @@ hi team task <role> <brief> --approval <id> --upstream [<ref>]
   this machine stays today's clone, since it's someone's working copy.
 - `hi team adopt` is `hi team new` with step 7 answered and step 1
   offered from the repository: the purpose defaults to its GitHub
-  description, which the owner keeps or rewrites. Everything else is the
-  same wizard, and `--from` takes `"adopt": "<source>"` like `"clone"`.
+  description, which the owner keeps or rewrites. hi fetches the project
+  and asks before the wizard starts, so nobody sets up a Slack app for a
+  project they then turn down. Everything else is the same wizard, and
+  `--from` takes `"adopt": "<source>"`, with `"ref"`, `"shallow"`, and
+  `"no_survey"`; a `"clone"` address is adopted too unless
+  `"push_to_source": true` says it's the owner's to push to.
 - In `hi team new`, step 7 offers it: a source that hi finds is someone
-  else's is adopted, and says so.
+  else's is adopted, and says so. A no there asks for the repository
+  again.
 - `--github <owner/name>` puts the team's copy in a new private repository,
   with upstream's history, and the team pushes there. Not a GitHub fork:
   a fork of a public repository can't be private, and it would tie the
@@ -110,15 +116,19 @@ project:
 
 - `git clone` with the host's hooks, filters, and credential helpers
   turned off, and file and ext transports refused, so a submodule URL
-  can't read the host's own folders. A private repository the host's `gh`
-  can read is cloned through `gh`; any other URL is cloned without the
-  host's credentials.
+  can't read the host's own folders: `hi agent review`'s fetch
+  (`fetchRepository`). A private repository the host's `gh` can read is
+  cloned through `gh`; any other URL is cloned without the host's
+  credentials. The clone keeps those settings for what hi does in it
+  later.
 - Full history by default: the members use `git log` and `git blame` to
-  understand code. Over 1 GB, hi asks before going on and offers
-  `--depth 1`. Git LFS files are fetched only when the survey says the app
-  needs them.
-- Submodules are listed, not fetched; the survey fetches the ones the app
-  needs, under the same rules.
+  understand code. Over 1 GB (GitHub's size), hi asks before going on and
+  offers only the latest commit (`--shallow`, `--depth 1`); without a
+  terminal it needs `--shallow` or `--full`. A shallow copy stays on the
+  host: it can't seed a new GitHub repository. Git LFS files stay
+  pointers, and the survey says when the app needs them.
+- Submodules are listed, not fetched; the survey says which the app
+  needs.
 - `--ref` picks the starting point; the default is upstream's default
   branch. It becomes the team's branch, named as upstream names it (`main`,
   `master`), as `config.Branch` is today.
@@ -133,15 +143,20 @@ terminal:
 
 ```text
 ada/pocket-kanban: A kanban board for small teams
-  licence      MIT
-  size         14 MB, 1,204 commits, last one 3 days ago
-  languages    TypeScript 81%, CSS 12%, Shell 7%
-  runs with    package.json (start: vite preview), a devcontainer
-  agent files  CLAUDE.md, .claude/settings.json (hooks), AGENTS.md
+  licence         MIT
+  size            14 MB, 1,204 commits, the last one 3 days ago
+  languages       TypeScript 81%, CSS 12%, Shell 7%
+  runs with       package.json (start: vite preview), a devcontainer
+  agent files     AGENTS.md, CLAUDE.md, .claude/ (hooks)
+                  the members read them as the project's notes; its agent settings stay off
+  install scripts 2 packages run their own code when installed, in the boxes only: esbuild, sharp
 Adopt it? The team keeps its own copy and never pushes to ada/pocket-kanban. [Y/n]
 ```
 
-Each line is read from git or GitHub's API; nothing is run or installed.
+Each line is read from git or GitHub's API (through `gh` when it's signed
+in, else without a sign-in); nothing is run or installed. Languages are
+by size, from git's own list of files; the licence is GitHub's answer,
+else the common licence the `LICENSE` file's text matches.
 
 ### 2. Record where it started
 
@@ -150,19 +165,22 @@ Each line is read from git or GitHub's API; nothing is run or installed.
 ```jsonc
 "adopted": {
   "from": "https://github.com/ada/pocket-kanban.git",
-  "ref": "main",
-  "commit": "4f1c2e9",
+  "github": "ada/pocket-kanban",
+  "name": "pocket-kanban",
+  "follow": "main",          // upstream's branch the team keeps up with
+  "commit": "4f1c2e9…",      // upstream's commit it started from
   "licence": "MIT",
   "at": "2026-10-18T09:12:00Z",
-  "by": "U07OWNER"
+  "by": "imanhabib"          // who ran hi team adopt, on the machine
 }
 ```
 
-and `versions.json` a release **v0**, the project as adopted, tagged
-`release-0`. Production is on v0, so `hi team discard dev` and `hi team
-rollback v0` always lead back to the project as it came. v0 gets an
-address only if it runs as it is; otherwise production's address starts
-with v1.
+and `versions.json` a release **v0**, the adoption commit (below), tagged
+`release-0`. Production stays "nothing released yet": v0 is where the
+team started, not a version anyone relies on, so it has no address, and
+production's first release is v1. Before that, `hi team discard dev`
+puts dev back to v0, the project as it came; after it, back to
+production, as for any team.
 
 ### 3. Add the team's rules, around the project's own
 
@@ -188,8 +206,8 @@ The first task, started by the broker without an approval (the owner's
 yes at the terminal is the approval, recorded in the task) and announced
 in the channel. `--no-survey` skips it.
 
-It goes to the coder, with a brief hi writes, on the branch `adopt/survey`,
-and is reviewed and merged like any work. Its jobs, in order:
+It goes to the coder, with a brief hi writes, and is reviewed like any
+work; the lead merges it. Its jobs, in order:
 
 1. **Run it.** Find how the project builds, starts, and tests; install
    what it needs, in the box; start it on `$PORT` on 0.0.0.0. Add a
@@ -209,20 +227,22 @@ and is reviewed and merged like any work. Its jobs, in order:
    half-built, and anything the licence or the project's `CONTRIBUTING.md`
    asks of people who change it.
 
-Its report has a section for the lead, not for the commit: the app in
-three sentences, a list of things the people can try, what doesn't work
-yet, and the settings it needs. The survey's budget is capped (default
-$10 of the team's month), and when it runs out the report says how far
-it got.
+Its report ends with a section for the lead, "For the lead": the app in
+three sentences, things the people can try, what doesn't work yet, and
+the settings it needs. When the coder is Claude Code, the survey may
+spend at most $10 (`hi agent --max-budget-usd`); Codex has no such
+limit of its own.
 
 The review checks the survey's own changes (the run target, the docs)
 against the brief, and that the preview starts.
 
 ### 5. The lead introduces it
 
-When the survey is merged, `hi team up` puts dev on the preview (as it
-does for a blank app's first preview), and the lead posts in the channel,
-outside any thread, what the survey found, in the people's words: what
+When the survey's work and its reviews end, hi wakes the lead once (a
+Hermes job that runs once, as for work whose wait was cut short). The
+lead merges it, runs `hi team preview`, and its answer is posted in the
+thread of hi's message that the team adopted the project, in the
+people's words: what
 the app is, its preview link, what to try, what doesn't work yet, and the
 one or two choices it needs from them ("It needs a Google sign-in key to
 let people log in; should I set it up, or turn sign-in off for now?").
@@ -261,8 +281,8 @@ start at v1.
   pocket-kanban's v2.3; there's a v2.4 with a calendar view. Want it?"
 - **Going back.** "Put it back the way it came" is `hi team discard dev`
   to v0, with an approval, as today.
-- **Credit.** `/docs/user/` says where the app came from and its licence,
-  in a line at the bottom, from `.hi5/adopted.json`.
+- **Credit.** The user docs the survey writes end with a line that says
+  where the app came from and its licence, so `/docs/user/` says it.
 
 ## Security
 
@@ -274,13 +294,15 @@ particular:
 - **No project code on the host.** The fetch runs none (above). hi's
   other host-side reads of the project (the dependency review, the run
   command) parse files and never run them, as today.
-- **The project's agent settings are off.** A member's agent starts
-  without the project's own settings: hooks, MCP servers, permissions, and
-  plugins in `.claude/`, `.codex/`, and the like. For Claude Code that's
-  `--setting-sources user`; each agent's equivalent is part of the build.
-  An owner can turn them on (`"project_agent_settings": true` in
-  `team.json`), after the survey lists what they do. The survey's report
-  and the terminal at adoption name them.
+- **The project's agent settings are off.** Members run Claude Code
+  without the project's own settings: hooks, MCP servers, permissions,
+  and plugins in `.claude/` (`--setting-sources user`, through `hi agent
+  --no-project-settings`, which the broker passes for every task and
+  review of an adopted team). Codex and Hermes members are as on any
+  team: hi has no switch for their project settings. Someone at the
+  machine can turn them on (`"project_agent_settings": true` in
+  `team.json`) once an owner knows what they do; the terminal at
+  adoption names the files.
 - **Instruction files are notes.** Covered above: the team's rules come
   first and win.
 - **Install scripts.** The dependency review covers what a task changes;
@@ -294,9 +316,11 @@ particular:
   `dev` or `locked`, as today.
 - **Licence.** hi reads it (the `LICENSE` file, matched against the
   common licences' texts, and GitHub's answer) and says it at adoption.
-  It never decides: with no licence, or one that asks for the source to be
-  shared when the app is offered over a network (AGPL), hi says so at
-  adoption and when an owner turns on a public address, and goes on.
+  It never decides: with no licence, one hi doesn't know, or one that asks
+  for the source to be shared when the app is offered over a network
+  (AGPL), hi says so at adoption and in the first release's ask, and goes
+  on; the lead's skill tells it to remind the owners before the app
+  reaches people outside the team.
 
 ## Later
 

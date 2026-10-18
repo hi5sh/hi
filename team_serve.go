@@ -161,6 +161,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	go broker.followProgress(ctx.Done(), stderr)
 	go broker.startPreview(stderr)
+	go broker.startSurvey(stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
@@ -667,7 +668,7 @@ the app exists, who uses it, and what they need from it. Then have the
 coder write it there (hi team task --small). When what the people ask
 for no longer fits the story, ask an owner whether the story has changed.
 
-`+teamSoulDeepReview, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns)
+`+teamSoulDeepReview, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns) + teamSoulAdopted(config)
 }
 
 // teamSlackFormatting is how the lead writes for Slack. Hermes turns
@@ -1330,7 +1331,7 @@ package in trustedDependencies, its install script would run on every
 machine that installs the app, and hi team merge needs an owner's yes:
 ask the owners what it is and why the app needs it, end your reply, and
 merge with --approval <id> once one says yes.
-`, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name)), "<team>", config.Name)
+`, config.Name, strings.Join(roles, ", "), teamNotesSkill, teamSlashCommand(config.Name))+teamSkillAdopted(config), "<team>", config.Name)
 }
 
 // teamSpecsPath is where the lead's specs live in the project: versioned

@@ -13,6 +13,8 @@
       url: /guide/team/
     - title: Set up a team
       url: /guide/team/setup/
+    - title: Start from someone else's project
+      url: /guide/team/adopt/
     - title: How the team works
       url: /guide/team/how-it-works/
     - title: Try what the team built

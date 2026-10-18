@@ -79,6 +79,10 @@ type boxMeta struct {
 	Untrusted bool `json:"untrusted,omitempty"`
 	// BudgetUSD is Claude Code's own spending limit for the run.
 	BudgetUSD float64 `json:"budget_usd,omitempty"`
+	// NoProjectSettings runs the agent without the project's own settings,
+	// for a project someone else wrote (hi team adopt), on the project's
+	// image as usual.
+	NoProjectSettings bool `json:"no_project_settings,omitempty"`
 }
 
 type boxOptions struct {
@@ -114,7 +118,10 @@ type boxOptions struct {
 	// untrusted is for hi agent review: hi's own image without the
 	// project's devcontainer.json, and the agent without its settings.
 	untrusted bool
-	budgetUSD float64 // hi agent review: Claude Code's own spending limit
+	budgetUSD float64 // hi agent review and --max-budget-usd: Claude Code's own spending limit
+	// noProjectSettings is hi agent --no-project-settings: the agent
+	// without the project's hooks, MCP servers, and permissions.
+	noProjectSettings bool
 }
 
 func boxStateFile(parts ...string) string {
@@ -251,6 +258,14 @@ func parseBoxOptions(command string, args []string) (boxOptions, error) {
 			options.model, err = value()
 		case command == "agent" && (arg == "--from" || strings.HasPrefix(arg, "--from=")):
 			options.from, err = value()
+		case command == "agent" && arg == "--no-project-settings":
+			options.noProjectSettings = true
+		case command == "agent" && (arg == "--max-budget-usd" || strings.HasPrefix(arg, "--max-budget-usd=")):
+			if text, err = value(); err == nil {
+				if options.budgetUSD, err = strconv.ParseFloat(text, 64); err != nil || options.budgetUSD <= 0 {
+					err = fmt.Errorf("--max-budget-usd is dollars, such as 10, not %q", text)
+				}
+			}
 		case command == "agent" && (arg == "--files" || strings.HasPrefix(arg, "--files=")):
 			text, err = value()
 			if err == nil {
@@ -427,6 +442,7 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 		Created: time.Now().UTC(), Background: agent && prompt != "", Prompt: qClip(prompt), TaskFile: options.taskFile}
 	if agent {
 		meta.Model, meta.Untrusted, meta.BudgetUSD = options.model, options.untrusted, options.budgetUSD
+		meta.NoProjectSettings = options.noProjectSettings
 	}
 	// Agents get a worktree in a git repository, and work in place outside
 	// one.

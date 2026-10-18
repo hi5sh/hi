@@ -47,6 +47,7 @@ a member, give it a `network` in `team.json` (see
 | Page | What it covers |
 |---|---|
 | [Set up a team](/guide/team/setup/) | What to install, the setup's seven questions, starting and stopping, GitHub, and changing a member |
+| [Start from someone else's project](/guide/team/adopt/) | `hi team adopt`: a team on a project found on GitHub, its own copy, and a first task that makes it run |
 | [How the team works](/guide/team/how-it-works/) | From a request to a merge: approvals, reviews, the lead's memory, roles that learn, the project's map, and follow-ups |
 | [Try what the team built](/guide/team/app/) | Previews and production on links that open on a phone, and addresses that stay |
 | [Help and chat in the app](/guide/team/helper/) | The button on every page: help, feedback, and a chat with the lead |
