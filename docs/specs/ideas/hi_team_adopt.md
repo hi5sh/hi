@@ -1,6 +1,7 @@
 # `hi team adopt`: a team for a project someone else wrote
 
-Status: Draft (2026-10-18). The first slice is built (v0.90.0).
+Status: Draft (2026-10-18). The first slice is built (v0.90.0), and
+keeping up with upstream (v0.91.0).
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the
 broker, dev and production, previews), [hi_team_roles.md](../approved/hi_team_roles.md)
@@ -256,23 +257,36 @@ start at v1.
 ## Keeping up with upstream
 
 - The broker fetches upstream from the host once a day (and on `hi team
-  upstream`), into `refs/remotes/upstream/*` and `refs/tags/upstream/*`,
-  which the members' worktrees can read. No box reaches upstream with
-  credentials.
-- `hi team upstream` says where dev stands: "dev is upstream's v2.3
-  (4f1c2e9) + 14 of the team's changes; upstream has 37 commits since,
-  and v2.4". A new upstream tag goes into the channel log for the lead,
-  which may tell the people, in their words, what's new, and ask whether
-  they want it.
-- **Bringing upstream in is work like any other**: it needs a yes, and
-  `--upstream` starts the task by merging upstream's branch or a tag into
-  its new branch. The member resolves conflicts and runs the tests; the
-  reviewer's brief says the upstream commits are named by range and not
-  reviewed line by line, and that the review is of the merge's own
-  changes, the tests, and the dependency review, which runs on the
-  package changes as for any task.
-- `adopted.commit` stays what was adopted; `hi team upstream` records
-  each upstream merge in `versions.json` with its range.
+  upstream`, and before an `--upstream` task), into `refs/remotes/upstream/*`
+  and `refs/tags/upstream/*`, which the members' worktrees can read, with
+  the same settings as the clone; a private repository through `gh`'s
+  sign-in. No box reaches upstream with credentials. `run/upstream.json`
+  says when it last fetched, and why it couldn't.
+- `hi team upstream` says where dev stands: "Dev: pocket-kanban's v2.3
+  (4f1c2e9) + 14 commits of the team's. Upstream: 37 commits on main
+  since, and 1 newer tag: v2.4." The tag that names dev's upstream commit
+  comes from `git tag --points-at`, since `git describe` gives a moved
+  annotated tag its old name.
+- **A new version.** When the daily fetch finds a new release tag (`v2.4`,
+  `1.10.0`; not nightlies), hi posts it in the channel and wakes the lead
+  under that message, at most once a week: the lead reads what changed
+  (`git log`, the changelog) and says, in the people's words, what's new
+  that they'd notice and whether they want it, and starts nothing. The
+  first check takes what's there as what the team started with; a new
+  version within the quiet week waits for the next check after it.
+- **Bringing upstream in is work like any other**: it needs a yes (not
+  `--small`, not `--on`), and `--upstream` (the latest on the branch the
+  team follows) or `--upstream=<tag>` starts the task's brief with the
+  merge to run on its branch, and asks the member to resolve conflicts,
+  run the tests, and say what upstream changed that the people would
+  notice. The reviewer's brief says the upstream commits are named by
+  range and not reviewed line by line, and that the review is of the
+  merge's own changes (`git show --remerge-diff`), the tests, and the
+  dependency review, which runs on the package changes as for any task.
+  Work dev already has is refused.
+- `adopted.commit` stays what was adopted; each merge of such work is
+  recorded in `team.json`'s `adopted.merges`, with what it brought in,
+  from which commit, and the task, and `hi team upstream` lists them.
 
 ## The people's view
 

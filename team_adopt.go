@@ -47,6 +47,8 @@ type teamAdopted struct {
 	Survey     string `json:"survey,omitempty"`
 	Thread     string `json:"thread,omitempty"`
 	Introduced bool   `json:"introduced,omitempty"`
+	// Merges are the times the team brought upstream in (team_upstream.go).
+	Merges []teamUpstreamMerge `json:"merges,omitempty"`
 }
 
 const (
@@ -1011,6 +1013,19 @@ first release, hi team discard dev --approval <id> puts dev back to it.
   servers); whoever runs hi on the machine can turn them on with
   "project_agent_settings": true in team.json, once an owner agrees
   knowing what they do.
+- **What's new there.** hi fetches %[1]s once a day. hi team upstream
+  says where dev stands: which of its versions dev has, how many commits
+  are the team's, and what %[1]s has added since, with its new tags. When
+  it has a new version, hi wakes you under its message in the channel, at
+  most once a week: say in the people's words what's new that they'd
+  notice, and ask whether they want it. Read what changed with git -C
+  /team/repo log upstream/<tag>, or its changelog.
+- **Bringing it in** is work like any other, with a yes: hi team task
+  coder <brief.md> --approval <id> --upstream=v2.4 (or --upstream alone
+  for the latest on its branch). The coder starts by merging it, resolves
+  what conflicts, and runs the tests; the reviewer checks what the merge
+  changed, not the authors' own commits. Say in the brief what the people
+  want from it, and what of the team's work must keep working.
 - **Previews.** When the project's own make run means something else,
   the Makefile's hi-run target starts it for previews, and hi uses it
   first.

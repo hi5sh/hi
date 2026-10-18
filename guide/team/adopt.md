@@ -122,6 +122,39 @@ only the team's folder, and the proxy in between. To let members load the
 project's settings, once an owner knows what they do, set
 `"project_agent_settings": true` in `team.json`.
 
+## Keeping up with the project it came from
+
+The project's authors keep working on it. hi fetches it from this machine
+once a day, running nothing from it, so the members' copies always have
+its latest branches and tags.
+
+```sh
+hi team upstream kanban
+```
+
+```text
+pocket-kanban, from https://github.com/ada/pocket-kanban.git, branch main.
+Dev: pocket-kanban's v2.3 (4f1c2e9) + 14 commits of the team's.
+Upstream: 37 commits on main since, and 1 newer tag: v2.4.
+  git log --oneline 4f1c2e9..upstream/main shows them.
+Fetched Oct 18 09:12.
+```
+
+When it has a new version (a tag such as `v2.4`), hi says so in the
+channel, at most once a week, and the lead says under it, in the people's
+words, what's new that they'd notice and whether they want it:
+
+> pocket-kanban has a new version with a calendar view, and a fix for
+> cards that vanished when two people moved them at once. Want it?
+
+Bringing it in is work like any other, and waits for a yes. The lead
+starts it with `--upstream=v2.4` (or `--upstream` for the latest on its
+branch): the coder merges it into a branch of its own, resolves what
+conflicts with the team's work, and runs the tests. The reviewer checks
+what the merge itself changed, how each conflict was resolved and the
+packages it changes, not the authors' own commits line by line. Once it's
+merged, `hi team upstream` lists it.
+
 ## From a file
 
 Without a terminal, give the answers in a file, as for `hi team new`, with

@@ -281,6 +281,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = withTeamName(rest, func(name string) error { return teamStatus(name, stdout) })
 	case "logs":
 		err = teamLogs(rest, stdout, stderr)
+	case "upstream":
+		err = teamUpstreamCommand(rest, stdout)
 	case "github":
 		if len(rest) != 2 {
 			err = usageError{"usage: hi team github <name> <owner/repository>"}
@@ -429,6 +431,8 @@ usage:
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
+  hi team upstream <name>          for an adopted project: fetch the project it came from, and say
+                                   where dev stands against it and what's new there
 
 A team is its folder. hi finds it by name through `+teamsDir()+`.`)
 }

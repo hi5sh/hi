@@ -301,8 +301,11 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
+| `hi team upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the team's, and what it has added since, with its new tags |
 
-In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task> | --new] [--attach <file>]...`,
+In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task> | --new] [--upstream[=<tag>]] [--attach <file>]...`
+(`--upstream`: for an adopted project, work that starts by merging the project it came from, its latest or a tag),
+`upstream`,
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
 `stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`,
 `web` (the chats and feedback in the app), `web show <chat|feedback>`, `web post <chat> <text|-> [--attach <file>]...`, `web questions` (what people asked the app's help), `web link --user <member ID>` (DM someone their private links, as `/hi` does)

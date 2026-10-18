@@ -2033,6 +2033,24 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   SOUL.md and hi-team skill say where the project came from and how to
   speak of it.
 
+### v0.91.0 — Keeping up with the project a team adopted
+
+- [x] The broker fetches upstream from the machine once a day, running
+  nothing from it, through `gh`'s sign-in for a private repository, into
+  `upstream/` branches and tags every member's worktree can read.
+- [x] `hi team upstream <name>`, and `hi team upstream` in the lead's box:
+  which of upstream's versions dev has, how many commits are the team's,
+  what upstream has added since, its newer tags, and what the team has
+  brought in.
+- [x] A new upstream release (a tag such as `v2.4`) is posted in the
+  channel at most once a week, and the lead is woken under it to say in
+  the people's words what's new and ask whether they want it. The first
+  check takes what's there as what the team started with.
+- [x] `hi team task ... --upstream[=<tag>]` starts work, on a yes, by
+  merging upstream's branch or a tag: the brief says how and what to
+  report, the review checks the merge's own changes rather than the
+  authors' commits, and `team.json` records each upstream merge.
+
 ## Planned
 
 ### Guide — a diagram for every tool

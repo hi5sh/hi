@@ -89,10 +89,13 @@ type teamTask struct {
 	// (--finding), so the next review can say they weren't seen since.
 	Findings []teamTaskFinding `json:"findings,omitempty"`
 	// Survey is an adopted project's first task, which hi starts
-	// (team_adopt.go).
-	Survey   bool      `json:"survey,omitempty"`
-	Created  time.Time `json:"created"`
-	Finished time.Time `json:"finished,omitempty"`
+	// (team_adopt.go). UpstreamLabel and UpstreamCommit are what a task
+	// with --upstream brings in from it (team_upstream.go).
+	Survey         bool      `json:"survey,omitempty"`
+	UpstreamLabel  string    `json:"upstream_label,omitempty"`
+	UpstreamCommit string    `json:"upstream_commit,omitempty"`
+	Created        time.Time `json:"created"`
+	Finished       time.Time `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -378,6 +381,10 @@ type teamRequest struct {
 	Attachments []teamAttachment `json:"attachments,omitempty"`
 	// Findings are a deep review's findings the task fixes, as r-4:F-1.
 	Findings []string `json:"findings,omitempty"`
+	// Upstream starts the work by merging the adopted project's branch, or
+	// UpstreamRef: one of its tags (team_upstream.go).
+	Upstream    bool   `json:"upstream,omitempty"`
+	UpstreamRef string `json:"upstream_ref,omitempty"`
 	// hints go to the new task's Hints.
 	hints []string
 	// survey is an adopted project's first task, started by hi with the
@@ -571,6 +578,10 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		line, err := b.webPost(post)
 		reply(w, line, err)
+	})
+	mux.HandleFunc("GET /upstream", func(w http.ResponseWriter, r *http.Request) {
+		view, err := b.upstream()
+		reply(w, view, err)
 	})
 	mux.HandleFunc("GET /versions", func(w http.ResponseWriter, r *http.Request) {
 		view, err := teamVersionsReport(b.team)
@@ -837,6 +848,12 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		}
 		task.Approval = &approval
 	}
+	upstreamText := ""
+	if request.Upstream {
+		if upstreamText, err = b.upstreamWork(&task, request); err != nil {
+			return teamTask{}, nil, err
+		}
+	}
 	task.Hints = request.hints
 	if task.On == "" {
 		if ideas := teamOpenIdeas(loadTeamTasks(b.team)); len(ideas) > 0 {
@@ -859,7 +876,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	}
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
-	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s%s\n", task.ID, task.Role, b.team, brief, findingsText)
+	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s%s%s\n", task.ID, task.Role, b.team, brief, upstreamText, findingsText)
 	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
@@ -982,6 +999,9 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		saveTeamTask(b.team, task)
 	}
 	brief := teamReviewBrief(b.team, config.Branch, task, reviewed, base, b.brief(reviewed), notes)
+	if work, ok := teamUpstreamWorkOf(loadTeamTasks(b.team), reviewed); ok && config.Adopted != nil {
+		brief += teamUpstreamReviewNote(config.Adopted, work, boxGit(b.repo, "merge-base", config.Branch, work.UpstreamCommit))
+	}
 	if packages := teamDependencyChanges(b.repo, base, commit); len(packages) > 0 {
 		brief += teamReviewPackages(packages)
 	}
@@ -1384,6 +1404,13 @@ func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 			}
 		}
 	}
+	var chain []teamTask
+	for _, other := range tasks {
+		if merged[other.ID] {
+			chain = append(chain, other)
+		}
+	}
+	b.recordUpstreamMerge(&config, chain)
 	for _, other := range tasks {
 		if (merged[other.ID] || merged[other.Review]) && !teamTaskActive(other) {
 			b.run("box", "rm", "--force", other.Box)
@@ -1461,7 +1488,7 @@ var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": tru
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
-var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true}
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true, "upstream": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	// --approval dm is a yes in the DM the lead is answering: Hermes says
@@ -1521,6 +1548,8 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--new" {
 				request.New = true
+			} else if args[i] == "--upstream" || strings.HasPrefix(args[i], "--upstream=") {
+				request.Upstream, request.UpstreamRef = true, strings.TrimPrefix(strings.TrimPrefix(args[i], "--upstream"), "=")
 			} else if args[i] == "--finding" && i+1 < len(args) {
 				request.Findings = append(request.Findings, args[i+1])
 				i++
@@ -1536,7 +1565,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--attach <file>]... [--finding r-4:F-1]..."}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--upstream[=<tag>]] [--attach <file>]... [--finding r-4:F-1]..."}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -1915,6 +1944,15 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return usage
 		}
 		fmt.Fprintln(stdout, strings.TrimRight(line, "\n"))
+	case "upstream":
+		if len(args) != 0 {
+			return usageError{"usage: hi team upstream"}
+		}
+		var view teamUpstreamView
+		if err := call("GET", "/upstream", nil, &view); err != nil {
+			return err
+		}
+		printTeamUpstream(view, stdout)
 	case "stop":
 		if len(args) != 1 {
 			return usageError{"usage: hi team stop <task>"}

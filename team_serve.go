@@ -162,6 +162,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.followProgress(ctx.Done(), stderr)
 	go broker.startPreview(stderr)
 	go broker.startSurvey(stderr)
+	go broker.keepUpstream(ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
