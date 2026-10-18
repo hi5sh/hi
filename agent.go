@@ -86,8 +86,11 @@ func runAgent(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		printAgentUsage(stdout)
 		return 0
 	}
-	if args[0] == "best-of" {
+	switch args[0] {
+	case "best-of":
 		return runBestOf(args[1:], stdin, stdout, stderr)
+	case "review":
+		return runReview(args[1:], stdin, stdout, stderr)
 	}
 	kind, rest := "", args
 	switch {
@@ -127,6 +130,8 @@ usage:
   hi agent wait <name> [--json]     wait for a run and print its report
   hi agent best-of <n> "<task>"     the same task in n boxes at once, checked and ranked
                                     (hi agent best-of help)
+  hi agent review [<folder>]        agents review a whole repository and a second agent checks
+                                    each finding; recommendations, never changes (hi agent review help)
   hi agent token claude             store a long-lived Claude token from claude setup-token
 
 options:
@@ -397,6 +402,14 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if meta.Model != "" {
 			model = " --model " + shellQuote(meta.Model)
 		}
+		// The project's own hooks, MCP servers, and permissions stay off in
+		// code under review.
+		if meta.Untrusted {
+			model += " --setting-sources user"
+		}
+		if meta.BudgetUSD > 0 {
+			model += fmt.Sprintf(" --max-budget-usd %.2f", meta.BudgetUSD)
+		}
 		if prompt == "" {
 			command := []string{"claude", "--dangerously-skip-permissions"}
 			if meta.Model != "" {
@@ -446,6 +459,16 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		return hermesBoxSetup(prompt, meta, homeDir, results, run)
 	}
 	return nil, fmt.Errorf("unknown agent %q", kind)
+}
+
+// agentTimedCommand runs an agent's command under a time limit, then stops
+// whatever it left running. agent.json holds its exit status and time, and
+// the box exits with the agent's status.
+func agentTimedCommand(command []string, limit time.Duration) []string {
+	results := "/box/home/" + agentResultDir
+	script := fmt.Sprintf(`start=$(date +%%s); timeout -k 30 %d "$@"; status=$?; ended=$(date +%%s); kill -9 -1 2>/dev/null; `+
+		`printf '{"agent_exit":%%d,"agent_seconds":%%d}\n' "$status" $((ended-start)) > %s/agent.json; exit $status`, int(limit/time.Second), results)
+	return append([]string{"sh", "-c", script, "sh"}, command...)
 }
 
 // boxClaudeSecret is the file the proxy reads Claude's token from: one

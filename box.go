@@ -73,6 +73,12 @@ type boxMeta struct {
 	Bundles    []string  `json:"bundles,omitempty"`
 	Skills     []string  `json:"skills,omitempty"`
 	Created    time.Time `json:"created"`
+
+	// Untrusted boxes review code someone else may have written for agents
+	// to read: hi's own image, and the agent without the project's settings.
+	Untrusted bool `json:"untrusted,omitempty"`
+	// BudgetUSD is Claude Code's own spending limit for the run.
+	BudgetUSD float64 `json:"budget_usd,omitempty"`
 }
 
 type boxOptions struct {
@@ -105,6 +111,10 @@ type boxOptions struct {
 	// fromBrief holds what a task file's front matter asked for, to ask
 	// about before it widens the box (agent.go).
 	fromBrief *agentFrontMatter
+	// untrusted is for hi agent review: hi's own image without the
+	// project's devcontainer.json, and the agent without its settings.
+	untrusted bool
+	budgetUSD float64 // hi agent review: Claude Code's own spending limit
 }
 
 func boxStateFile(parts ...string) string {
@@ -321,9 +331,11 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 	if root == "" || root == "/" || strings.HasPrefix(home+"/", root+"/") {
 		return meta, fmt.Errorf("run hi box in a project folder, not in %s: the box gets the whole folder", firstNonEmpty(root, "/"))
 	}
-	devcontainer, err := readBoxDevcontainer(root)
-	if err != nil {
-		return meta, err
+	var devcontainer *boxDevcontainer
+	if !options.untrusted {
+		if devcontainer, err = readBoxDevcontainer(root); err != nil {
+			return meta, err
+		}
 	}
 	if devcontainer != nil && len(devcontainer.ignored) > 0 {
 		fmt.Fprintf(stdout, "Ignoring %s from %s: they run on the host or widen the box.\n", strings.Join(devcontainer.ignored, ", "), filepath.Base(devcontainer.path))
@@ -414,7 +426,7 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 	meta = boxMeta{Name: name, Agent: kind, Root: root, Network: network, GPU: gpu, Data: data, Engine: engine.name,
 		Created: time.Now().UTC(), Background: agent && prompt != "", Prompt: qClip(prompt), TaskFile: options.taskFile}
 	if agent {
-		meta.Model = options.model
+		meta.Model, meta.Untrusted, meta.BudgetUSD = options.model, options.untrusted, options.budgetUSD
 	}
 	// Agents get a worktree in a git repository, and work in place outside
 	// one.
@@ -591,6 +603,8 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 			if options.scoreMax > 0 {
 				env["HI_SCORE_MAX"] = strconv.Itoa(int(options.scoreMax / time.Second))
 			}
+		} else if err == nil && options.maxTime > 0 && prompt != "" {
+			command = agentTimedCommand(command, options.maxTime)
 		}
 	}
 	if err != nil {

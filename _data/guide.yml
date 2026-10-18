@@ -71,6 +71,8 @@
       url: /guide/q/
     - title: Hand tasks to agents
       url: /guide/agent/
+    - title: Review a whole repository
+      url: /guide/agent/review/
     - title: Run code in a box
       url: /guide/box/
     - title: Download the team's data

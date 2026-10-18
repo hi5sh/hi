@@ -222,6 +222,12 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 | `hi agent best-of watch <run>`           | Follow a run with rounds; q leaves the view, the run goes on |
 | `hi agent best-of stop <run> [--now]`    | Stop after the current round; `--now` removes its boxes too |
 | `hi agent best-of resume <run>`          | Go on from the best so far; `--rounds`, `--for`, `--budget` give more |
+| `hi agent review [<folder>]`            | Agents review a whole repository, each in a locked box on a snapshot; hi checks every quoted line and another agent confirms or rejects each finding |
+| `hi agent review ls`                     | Reviews, their state, cost, and counts                   |
+| `hi agent review show <id> [--md|--json|--rejected]` | The findings; `--md` the whole report, `--json` the record |
+| `hi agent review watch <id>`             | Follow a review; Ctrl+C stops following, not the review  |
+| `hi agent review stop <id>`              | Stop it, keep what's done, and write the report          |
+| `hi agent review rm <id>`                | Remove a review, its report, and its snapshot            |
 | `hi agent token claude`                  | Store a long-lived token from `claude setup-token`       |
 
 Options: `--detach` to start and return, `--json` for the report as JSON on
@@ -234,6 +240,15 @@ own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
 options below. A brief's front matter can set `agent`, `model`, `bundles`,
 `network`, `allow`, `data`, and `gpu`. Exits with 0 when the agent is done and
 1 when it failed. See [Hand tasks to agents](/guide/agent/).
+
+`review` takes `--area security,correctness,performance,maintainability`
+or `all` (default: `security,correctness`), `--agents claude,codex` (in
+turn), `--judge <agent>`, `--passes <n>` (1 to 3), `--ref <ref>` to review
+a commit instead of the working tree, `--path <dir>` to narrow it,
+`--context <file.md>` for what the code doesn't show, `--budget <dollars>`,
+`--max <duration>` per run (default 30m), `--parallel <k>` (default 3),
+`--detach`, `--json`, and `--yes`. Reports are in
+`~/.local/state/hi/reviews/<id>/`. See [Review a whole repository](/guide/agent/review/).
 
 `best-of` also takes `--agents claude,codex` (taken in turn), `--check
 "<command>"` (default: `make check`), `--max <duration>` per agent, and

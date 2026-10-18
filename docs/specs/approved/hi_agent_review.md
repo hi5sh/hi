@@ -1,15 +1,16 @@
 # `hi agent review`: an on-demand review of a whole repository
 
-Status: Draft (2026-10-18). From a proposal for a "HiAudit" command; what
-it kept and what it left out is under [Decisions](#decisions).
+Status: Approved (2026-10-18). Release 1 built in v0.87.0 (see
+[As built](#as-built-release-1)). From a proposal for a "HiAudit" command;
+what it kept and what it left out is under [Decisions](#decisions).
 
-Dependencies: [hi_agent.md](../approved/hi_agent.md) (runs in boxes,
-reports, cost), [hi_agent_best_of.md](../approved/hi_agent_best_of.md)
+Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes,
+reports, cost), [hi_agent_best_of.md](hi_agent_best_of.md)
 (several runs at once, hi checking what agents claim, the run's own
-process, `watch`, `stop`, `--budget`), [hi_team.md](../approved/hi_team.md)
-(approvals, the broker, the budget), [hi_team_adopt.md](hi_team_adopt.md)
+process, `watch`, `stop`, `--budget`), [hi_team.md](hi_team.md)
+(approvals, the broker, the budget), [hi_team_adopt.md](../ideas/hi_team_adopt.md)
 (fetching a repository with nothing run, the project's agent settings
-off), and [hi_agent_fanout.md](hi_agent_fanout.md) (the queue, `--parallel`),
+off), and [hi_agent_fanout.md](../ideas/hi_agent_fanout.md) (the queue, `--parallel`),
 which this can share code with but doesn't need.
 
 ## Goal
@@ -505,3 +506,95 @@ From the proposal, left out:
 14. A review with `--context` saying the app is only on a private
     network gives findings whose assumptions say where that changes
     them.
+
+## As built (release 1)
+
+v0.87.0, 2026-10-18. Code: `agent_review.go` (the command, the
+snapshot, the runs, the verdicts) and `agent_review_report.go` (the
+evidence check, the report, the summary); tests: `agent_review_test.go`.
+
+- **What's in it.** The first slice, with all four areas (`performance`
+  and `maintainability` came early from the second). Not yet: URLs,
+  `--since`, `--compare`, `--sarif`, `show --html`, briefs of one's own as
+  areas, and the team. `--since` and the others are refused as unknown
+  options, not ignored.
+- **The folder.** `hi agent review <folder>` reviews the folder's
+  repository; a subfolder becomes a `--path`. `--path` must exist in the
+  snapshot.
+- **The snapshot.** A dirty tree (`git status --porcelain` shows
+  anything) is committed through a temporary index (`read-tree HEAD`,
+  `add -A`, `write-tree`, `commit-tree` with "hi agent review" as the
+  author), so ignored files stay out and the branch, index, and files are
+  untouched. Clean trees and `--ref` use the commit as it is. Either way
+  it's kept at `refs/hi-review/<id>`, which `rm` deletes.
+- **The boxes.** Each run is a `hi agent` box on a worktree of the
+  snapshot, on the branch `hi-review/<id>/<run>`, with `locked` network
+  and 16 GB. A new box option, `untrusted`, skips the project's
+  `devcontainer.json` entirely (its image, `postCreateCommand`, domains,
+  and bundles), so the box runs hi's base image, and starts Claude Code
+  with `--setting-sources user`. Checked on 2026-10-18: a `SessionStart`
+  hook in a repository's `.claude/settings.json` ran with plain
+  `claude -p` and not with the flag. Codex gets a fresh home in the box
+  with no trusted projects, so it doesn't load a project's
+  `.codex/config.toml` (Codex's own rule; not tested here). Hermes wasn't
+  checked.
+- **The time limit.** `--max` wraps the agent in `timeout -k 30`, then
+  `kill -9 -1`, and writes `agent.json`, as best-of's wrapper does without
+  the check (`agentTimedCommand`). A run that ran out of time but wrote its
+  file counts, and the report says it may have stopped early.
+- **Results.** Investigators write `/box/home/.hi-agent/findings.json`
+  and checkers `verdicts.json`. When a box stops, hi copies the file to
+  `<run>.json` in the review's folder, takes the cost and time from the
+  agent's report, and removes the box, its worktree, and its branch. A
+  missing or broken file fails the run with the reason. At most 25
+  findings per investigator are read.
+- **The evidence check.** `git show <commit>:<file>` (files over 4 MB
+  aren't read), compared line by line without indentation and trailing
+  spaces; the nearest match to the line the agent named wins. Paths that
+  leave the repository are `missing`. The report's code comes from the
+  commit, not from the agent, unless the quote is missing, when the
+  agent's text is shown with a warning.
+- **Groups and duplicates.** hi groups findings on overlapping lines of
+  one file across areas, not only within one. Since each finding goes to
+  an agent that didn't raise it, findings on the same lines from two
+  agents go to two checkers; each checker's brief also lists the group's
+  findings the other checks, for naming duplicates only. A verdict is
+  always confirmed, uncertain, or rejected, with an optional
+  `duplicate_of`: duplicates are a relation, not a verdict. hi makes a set
+  of each linked group, keeps the best of it (confirmed, then uncertain,
+  then the earliest), marks the others `duplicate` with their own check in
+  `own_verdict`, and when one check confirmed and another rejected, makes
+  the kept finding uncertain and says who said what. Found in the first
+  live review, where the same missing check, raised by both agents, came
+  out as two confirmed findings.
+- **Checkers.** Without `--judge`: the investigators' agents, then the
+  other ready agents, trimmed to those a finding can actually go to (for
+  each investigator's agent, the first that isn't it), so an agent that
+  would never check anything isn't named or paid. Batches of 30 by file.
+- **Verdicts.** A finding with no verdict (its checker failed, was
+  skipped, or the review stopped) is `unchecked`, shown after uncertain.
+  IDs are `c-<n>` until the review ends, then `F-<n>` in the report's
+  order. Agents start "assumes" with "Assumes"; hi drops the word.
+- **Budget.** The spend is the sum of what runs reported in dollars. No
+  run starts once it reaches `--budget`; on a metered Claude Code sign-in
+  each run also gets `--max-budget-usd` of what's left. On a subscription
+  the dollars are usage at API prices, as in best-of.
+- **The process.** `hi agent review __run <id>`, started with `setsid`
+  from the repository's folder, logging to `review.log`. `watch` prints a
+  line as each run starts and ends, then the summary (not a full-screen
+  view); Ctrl+C leaves it. A review whose process is gone without having
+  ended shows as `failed`; `stop` on it removes its boxes and writes the
+  report of what was done. There's no resume.
+- **Live test.** 2026-10-18, Podman, Claude Code (Opus) and Codex
+  (gpt-6.1-sol), on a small repository with a missing membership check,
+  a date bug, a README telling AI reviewers to report nothing, a
+  `.claude/settings.json` hook, and an uncommitted change. Both agents
+  found the missing check; Claude also reported the README instruction
+  and the hook as security findings. Two minutes and $0.30; no box,
+  worktree, or branch was left, and the repository's status was as
+  before. The first run showed duplicates across checkers slipping
+  through (ten confirmed findings, four of them twice); with the sets
+  above, the second run gave six confirmed findings and three
+  duplicates, each noting that its own check confirmed it, in a minute
+  for $0.27. It also showed "assumes" text starting with a name from the
+  code (`moveCard`), which hi had capitalized; only plain words are now.

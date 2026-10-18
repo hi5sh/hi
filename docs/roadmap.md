@@ -1928,6 +1928,26 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   turn, then says what it started. SOUL.md's "Answer first." becomes
   "Be quick."
 
+### v0.87.0 — A review of the whole repository
+
+- [x] `hi agent review` has agents read a whole repository for problems
+  ([hi_agent_review.md](specs/approved/hi_agent_review.md)): security
+  and correctness by default, performance and maintainability on
+  request. Each investigator works in a locked box on a snapshot of the
+  working tree, on hi's own image, with Claude Code not loading the
+  project's hooks, MCP servers, or permissions. hi checks every quoted
+  line against the snapshot, and an agent that didn't raise a finding
+  confirms or rejects it; findings two agents raised become one, and
+  checks that disagree make it uncertain.
+- [x] The report is advice: `report.md` opens with a note that the
+  findings are recommendations to weigh, every finding says what it
+  assumes, and each is a section that can go into a brief as it is.
+  `--context` tells the reviewers what the code doesn't show. Reports
+  are in `~/.local/state/hi/reviews/<id>/`, readable only by you.
+- [x] `ls`, `show` (`--md`, `--json`, `--rejected`), `watch`, `stop`,
+  and `rm`; `--budget`, `--max`, and `--parallel`. Nothing in the
+  repository is changed, and no box, worktree, or branch is left.
+
 ## Planned
 
 ### Guide — a diagram for every tool
@@ -2057,10 +2077,12 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
 - [ ] A planner that picks bundles for a task; bundles themselves shipped
   in v0.31.0. Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md),
   release 3 (draft).
-- [ ] An on-demand review of a whole repository: investigators per area
-  in locked boxes, hi checking every quoted line, a second agent
-  accepting or rejecting each finding, and in a team only on an owner's
-  yes with a budget. Spec: [hi_agent_review.md](specs/ideas/hi_agent_review.md) (draft).
+- [ ] `hi agent review` of a URL, `--since`, `--compare` with an earlier
+  review, `--sarif`, `show --html`, and briefs of a project's own as
+  areas. Spec: [hi_agent_review.md](specs/approved/hi_agent_review.md), first slice (2).
+- [ ] A team's lead offers a review before a risky release and runs it on
+  an owner's yes with a budget: `hi team review --project`. Spec:
+  [hi_agent_review.md](specs/approved/hi_agent_review.md#with-a-team), first slice (3).
 - [ ] `--desktop`: a Linux desktop in the box that the agent drives with
   `hi-desktop` and a person watches and takes over in the browser; a `cad`
   bundle with Blender, FreeCAD, CadQuery, and KiCad, scripted first.

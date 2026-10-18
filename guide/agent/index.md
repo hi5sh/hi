@@ -245,6 +245,14 @@ hi agent best-of 3 --agents claude,codex "make the backtest loader 2x faster"
 hi agent best-of 4 --rounds 50 --score "make score" --lower --edit train.py program.md
 ```
 
+## A review of the whole repository
+
+`hi agent review` has agents read the whole repository for security and
+correctness problems, each in a locked box on a snapshot; hi checks every
+line they quote, and a different agent confirms or rejects each finding.
+The report is recommendations, and nothing is changed. See
+[Review a whole repository](/guide/agent/review/).
+
 ## The report as JSON
 
 `--json` prints the report on stdout and everything else on stderr, for

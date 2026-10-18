@@ -33,6 +33,7 @@ shell, or serve a model on hardware you don't have.
 | Know what I am paying and who pays                 | [Costs, limits, and billing]({{ '/guide/compute/billing/' | relative_url }}) |
 | Set up Colab or Hugging Face for the first time    | [Google Colab]({{ '/guide/compute/colab/' | relative_url }}), [Hugging Face Jobs]({{ '/guide/compute/hugging-face/' | relative_url }}) |
 | Hand a task to Claude Code, Codex, or Hermes in a sandbox   | [Hand tasks to agents]({{ '/guide/agent/' | relative_url }})   |
+| Have agents review a whole repository, with every finding checked | [Review a whole repository]({{ '/guide/agent/review/' | relative_url }}) |
 | Try a task several times and keep the best result  | [Several attempts at once]({{ '/guide/autoresearch/best-of/' | relative_url }}) |
 | Let agents improve a number overnight, keeping only gains | [Rounds that keep only gains]({{ '/guide/autoresearch/rounds/' | relative_url }}) |
 | Start an autoresearch project for a model | [Start from a template]({{ '/guide/autoresearch/templates/' | relative_url }}) |
