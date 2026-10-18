@@ -1948,6 +1948,24 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   and `rm`; `--budget`, `--max`, and `--parallel`. Nothing in the
   repository is changed, and no box, worktree, or branch is left.
 
+### v0.88.0 — Reviews of repositories from elsewhere, and of what changed
+
+- [x] `hi agent review github.com/owner/name` (or `owner/name`, `https://`,
+  `git@`) clones the repository into the review's folder without running
+  anything from it: no hooks, templates, or credential helpers from this
+  machine, no LFS filters, submodules listed but not fetched, and only
+  network transports. Private GitHub repositories come through `gh`; an
+  address with a token in it is refused.
+- [x] `--since <ref>` focuses the review on what changed, read with the
+  whole repository around it. `--area` takes a brief of yours, or a name
+  in the repository's `.hi5/review/` (not for a fetched repository, whose
+  author wrote them).
+- [x] `--compare <id|report.json>`: each earlier finding is still seen,
+  not seen with its code changed, or not seen with its code unchanged,
+  matched by fingerprint or by place; new findings are marked new.
+- [x] `--sarif` writes `report.sarif`, `--out <dir>` a copy of the
+  report, and `show --html` a page that loads nothing and runs nothing.
+
 ## Planned
 
 ### Guide — a diagram for every tool
@@ -2077,9 +2095,6 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
 - [ ] A planner that picks bundles for a task; bundles themselves shipped
   in v0.31.0. Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md),
   release 3 (draft).
-- [ ] `hi agent review` of a URL, `--since`, `--compare` with an earlier
-  review, `--sarif`, `show --html`, and briefs of a project's own as
-  areas. Spec: [hi_agent_review.md](specs/approved/hi_agent_review.md), first slice (2).
 - [ ] A team's lead offers a review before a risky release and runs it on
   an owner's yes with a budget: `hi team review --project`. Spec:
   [hi_agent_review.md](specs/approved/hi_agent_review.md#with-a-team), first slice (3).

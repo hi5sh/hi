@@ -1,7 +1,8 @@
 # `hi agent review`: an on-demand review of a whole repository
 
 Status: Approved (2026-10-18). Release 1 built in v0.87.0 (see
-[As built](#as-built-release-1)). From a proposal for a "HiAudit" command;
+[As built](#as-built-release-1)), release 2 in v0.88.0 (see
+[As built](#as-built-release-2)). From a proposal for a "HiAudit" command;
 what it kept and what it left out is under [Decisions](#decisions).
 
 Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes,
@@ -598,3 +599,72 @@ evidence check, the report, the summary); tests: `agent_review_test.go`.
   duplicates, each noting that its own check confirmed it, in a minute
   for $0.27. It also showed "assumes" text starting with a name from the
   code (`moveCard`), which hi had capitalized; only plain words are now.
+
+## As built (release 2)
+
+v0.88.0, 2026-10-18. Code: `agent_review_source.go` (URLs, briefs,
+`--since`), `agent_review_compare.go`, and `agent_review_export.go`
+(SARIF, the page).
+
+- **URLs.** `github.com/owner/name`, `owner/name` (when no such folder is
+  here), `https://`, `http://`, `ssh://`, `git://`, and `git@host:path`.
+  hi clones into `<review>/source` with `git -c credential.helper= -c
+  core.hooksPath=/dev/null -c core.fsmonitor=false`, LFS filters off,
+  `protocol.file` and `protocol.ext` refused, `clone --template=
+  --no-recurse-submodules`, and `GIT_ALLOW_PROTOCOL=https:http:ssh:git`,
+  `GIT_TERMINAL_PROMPT=0`, `GIT_LFS_SKIP_SMUDGE=1`, and
+  `GIT_CONFIG_NOSYSTEM=1`. An address with a user name or token (other
+  than `ssh://user@`) is refused. A GitHub clone that fails without a
+  sign-in is tried again through `gh repo clone`, which brings its own
+  credential helper; that path wasn't tested live. Full history, so
+  `--since` and `git log` work; there's no size question yet.
+- **The clone keeps its settings.** `-c` only lasts for the clone, and hi
+  later runs git in it (worktrees for the boxes, removing branches), where
+  this machine's hooks and LFS filter would apply. So hi writes
+  `core.hooksPath`, `core.fsmonitor`, and the LFS filter settings into the
+  clone's own config. Found by reading the first live clone's config.
+- **Names.** The clone's folder is `source`, so box names and the report
+  use the repository's name from the URL, and `ls` shows the URL.
+- **Briefs.** `--area` takes a `.md` path (or anything with a `/`), or a
+  name that is `.hi5/review/<name>.md` in a repository on this machine. A
+  fetched repository's briefs aren't taken by name: they'd be its author's
+  instructions to the investigators. The area's name comes from the file's
+  name; one that matches a built-in area gets `-brief`. Front matter is
+  dropped. Each brief is quoted in the report and is its SARIF rule's
+  description.
+- **`--since`.** Resolved when the review is planned, and the files are
+  listed after the snapshot, so uncommitted changes count. The diff is
+  `since...commit`, from where the histories meet. The brief names up to
+  200 files and says that problems in code the changes don't touch or
+  make worse are out of scope; the first live run reported older
+  problems too, before that sentence.
+- **`--compare`.** A review's id, or any `report.json`. A copy goes into
+  the review's folder as `compare.json` when it starts. Findings now keep
+  `code`, the lines at the reviewed commit, so a comparison doesn't need
+  the earlier repository; reports from v0.87.0 have none, and their quotes
+  are used. Matching is by fingerprint, then by place: where the earlier
+  code is now, any finding of this review over those lines, whatever its
+  area, since the same problem is often raised under another one. Earlier
+  duplicates aren't compared. A matched finding has `earlier`, and its
+  section says "still seen" or "new".
+- **`--sarif`.** SARIF 2.1.0: a rule per area, results for confirmed and
+  uncertain findings, `error` for critical and high, `warning` for
+  medium, `note` for low, `partialFingerprints` `hiAgentReview/v1`, and a
+  message that ends with what the finding assumes and that it's a
+  recommendation. `show <id> --sarif` writes and prints it for a review
+  that ended without it.
+- **`--out`.** When the report is written, `report.md`, `report.json`,
+  and `report.sarif` are copied there, 0600.
+- **`show --html`.** goldmark with GFM, which doesn't render raw HTML, so
+  a finding's text can't put markup on the page; a template with inline
+  styles for light and dark, `Content-Security-Policy: default-src
+  'none'; style-src 'unsafe-inline'`, and no scripts. Written only on
+  request, next to `report.md`. Looked at in Chromium on a desktop width
+  and a phone width in dark mode, where a long commit hash overflowed;
+  inline code now wraps.
+- **Live tests.** 2026-10-18, Claude Code and Codex: `jonschlinkert/is-odd`
+  by URL with `--sarif` (one confirmed finding, a minute, $0.20); then
+  again with `--compare` (the finding still seen under a new title,
+  $0.22); and the sample repository `--since v1` with a brief of one's own,
+  which found the commit's `=` in place of `==` as critical and gave the
+  brief's area its own findings.

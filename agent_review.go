@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -45,7 +46,10 @@ var reviewAreaBriefs = map[string]string{
 // review is review.json in the review's folder; report.json is the same
 // record once the review ends.
 type review struct {
-	ID      string    `json:"id"`
+	ID string `json:"id"`
+	// Source is where a fetched repository came from; Root is then its
+	// clone in the review's folder.
+	Source  string    `json:"source,omitempty"`
 	Root    string    `json:"root"`
 	Head    string    `json:"head"`   // HEAD when the review started
 	Commit  string    `json:"commit"` // what was reviewed: HEAD, --ref, or a snapshot of the working tree
@@ -55,13 +59,22 @@ type review struct {
 	Created time.Time `json:"created"`
 	Ended   time.Time `json:"ended,omitzero"`
 
-	Areas      []string `json:"areas"`
-	Paths      []string `json:"paths,omitempty"`
-	Context    string   `json:"context,omitempty"`
-	Passes     int      `json:"passes"`
-	Parallel   int      `json:"parallel"`
-	MaxSeconds int      `json:"max_seconds"`
-	Budget     float64  `json:"budget_usd,omitempty"`
+	Areas []string `json:"areas"`
+	// Briefs are the areas that aren't built in, by name.
+	Briefs map[string]string `json:"briefs,omitempty"`
+	// Since focuses the review on what changed from that commit.
+	Since       string         `json:"since,omitempty"`
+	SinceCommit string         `json:"since_commit,omitempty"`
+	SinceFiles  []string       `json:"since_files,omitempty"`
+	Compare     *reviewCompare `json:"compare,omitempty"`
+	SARIF       bool           `json:"sarif,omitempty"`
+	Out         string         `json:"out,omitempty"` // a folder the report is also written to
+	Paths       []string       `json:"paths,omitempty"`
+	Context     string         `json:"context,omitempty"`
+	Passes      int            `json:"passes"`
+	Parallel    int            `json:"parallel"`
+	MaxSeconds  int            `json:"max_seconds"`
+	Budget      float64        `json:"budget_usd,omitempty"`
 	// Judges are the agents that may check findings, in the order they're
 	// picked; each finding goes to the first that didn't raise it.
 	Judges      []string `json:"judges"`
@@ -74,6 +87,9 @@ type review struct {
 
 	Runs     []reviewRun     `json:"runs"`
 	Findings []reviewFinding `json:"findings"`
+
+	// earlier is the review --compare names, while the review starts.
+	earlier *review
 }
 
 // reviewRun is one agent's run: an investigation of an area, or the
@@ -111,10 +127,12 @@ type reviewFinding struct {
 	Start      int    `json:"start_line"`
 	End        int    `json:"end_line"`
 	Quote      string `json:"quote"`
-	What       string `json:"what,omitempty"`
-	Failure    string `json:"failure"`
-	Assumes    string `json:"assumes,omitempty"`
-	Direction  string `json:"direction,omitempty"`
+	// Code is the lines at the reviewed commit, when hi found the quote.
+	Code      string `json:"code,omitempty"`
+	What      string `json:"what,omitempty"`
+	Failure   string `json:"failure"`
+	Assumes   string `json:"assumes,omitempty"`
+	Direction string `json:"direction,omitempty"`
 
 	// Evidence is hi's check of the quote against the reviewed commit:
 	// exact, moved (hi corrected the lines), or missing.
@@ -130,7 +148,16 @@ type reviewFinding struct {
 	OwnVerdict    string   `json:"own_verdict,omitempty"`    // a duplicate's own check
 	AlsoRaisedBy  []string `json:"also_raised_by,omitempty"` // agents whose duplicates point here
 	Fingerprint   string   `json:"fingerprint"`
+	Earlier       string   `json:"earlier,omitempty"` // the finding it was in the review compared with
 	Reproduced    bool     `json:"reproduced"`
+}
+
+// brief is what an area's investigators look for.
+func (rv review) brief(area string) string {
+	if brief := rv.Briefs[area]; brief != "" {
+		return brief
+	}
+	return reviewAreaBriefs[area]
 }
 
 // severity is the adjudicator's, if it gave one, else the investigator's.
@@ -171,8 +198,10 @@ var (
 type reviewFlags struct {
 	areas, agents, judge, passes, ref string
 	context, budget, limit, parallel  string
+	since, compare, out               string
 	paths                             []string
 	yes, detach, json, md, rejected   bool
+	sarif, html                       bool
 }
 
 func runReview(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -216,6 +245,16 @@ func runReview(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.limit = value()
 		case is("--parallel"):
 			flags.parallel = value()
+		case is("--since"):
+			flags.since = value()
+		case is("--compare"):
+			flags.compare = value()
+		case is("--out"):
+			flags.out = value()
+		case arg == "--sarif":
+			flags.sarif = true
+		case arg == "--html":
+			flags.html = true
 		case arg == "--yes" || arg == "-y":
 			flags.yes = true
 		case arg == "--detach":
@@ -250,7 +289,7 @@ func runReview(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = listReviews(stdout)
 	case "show":
 		var id string
-		if id, err = one("show <id> [--md|--json|--rejected]"); err == nil {
+		if id, err = one("show <id> [--md|--json|--sarif|--html|--rejected]"); err == nil {
 			err = showReview(id, flags, stdout)
 		}
 	case "watch":
@@ -290,23 +329,28 @@ snapshot, and a different agent confirms or rejects each finding. The report
 is recommendations for you to weigh; nothing in the repository is changed.
 
 usage:
-  hi agent review [<folder>]        review this repository, or the folder's (a subfolder narrows it)
+  hi agent review [<folder>|<url>]  review this repository, a folder's, or one fetched from a URL
+                                    (github.com/owner/name, owner/name, https://, or git@; a subfolder narrows it)
   hi agent review ls                reviews, their state, cost, and counts
-  hi agent review show <id>         the findings; --md the whole report, --json the record,
-                                    --rejected also what the checks rejected
+  hi agent review show <id>         the findings; --md the whole report, --json the record, --sarif SARIF,
+                                    --html a page to read in a browser, --rejected also what the checks rejected
   hi agent review watch <id>        follow a review; Ctrl+C stops following, not the review
   hi agent review stop <id>         stop it, keeping what's done, and write the report
   hi agent review rm <id>           remove a review and its report
 
 options:
-  --area a,b|all         what to look for: security, correctness, performance, maintainability
-                         (default: security,correctness)
+  --area a,b|all         what to look for: security, correctness, performance, maintainability, a brief
+                         of yours (a .md file), or a name in the repository's .hi5/review/ (default: security,correctness)
   --agents claude,codex  who investigates, in turns, each with :model if you like (default: the first ready)
   --judge <agent>        who checks the findings (default: for each, a ready agent that didn't raise it)
   --passes <n>           investigators per area, 1 to 3 (default 1)
-  --ref <ref>            review a commit, branch, or tag instead of the working tree
+  --ref <ref>            review a commit, branch, or tag instead of the working tree (or the URL's default branch)
+  --since <ref>          focus on what changed since <ref>, read with the whole repository around it
   --path <dir>           only this folder; give it again for more
   --context <file.md>    what the code doesn't show: how the app is run, who uses it, what protects it
+  --compare <id|file>    say what's new, still seen, and not seen since an earlier review or report.json
+  --sarif                also write report.sarif, with confirmed and uncertain findings
+  --out <dir>            also write the report there when it ends
   --budget <usd>         no run starts once agents have reported this many dollars
   --max <duration>       the time limit for each run (default 30m)
   --parallel <k>         runs at once, 1 to 8 (default 3)
@@ -321,18 +365,35 @@ Reports are in ~/.local/state/hi/reviews/<id>/ (report.md, report.json), readabl
 // starting
 
 func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stderr io.Writer) error {
-	if strings.Contains(folder, "://") || strings.HasPrefix(folder, "git@") || strings.HasPrefix(folder, "github.com/") {
-		return usageError{"hi agent review reviews a repository on this machine for now; clone it first, then hi agent review <folder>"}
-	}
 	info := stdout
 	if flags.json {
 		info = stderr
 	}
-	rv, err := planReview(folder, flags)
+	id, source := nextReviewID(), ""
+	cleanup := func() {}
+	if reviewIsURL(folder) {
+		// A repository from elsewhere is cloned into the review's folder,
+		// running nothing from it, and goes with the review.
+		source = folder
+		if err := os.MkdirAll(reviewStateFile(id), 0o700); err != nil {
+			return err
+		}
+		os.Chmod(reviewStateFile(), 0o700)
+		cleanup = func() { os.RemoveAll(reviewStateFile(id)) }
+		fmt.Fprintf(info, "Fetching %s; nothing from it runs on this machine.\n", source)
+		folder = reviewStateFile(id, "source")
+		if err := reviewFetch(source, folder); err != nil {
+			cleanup()
+			return err
+		}
+	}
+	rv, err := planReview(folder, flags, id, source)
 	if err != nil {
+		cleanup()
 		return err
 	}
 	if err := confirmReview(rv, flags.yes, stdin, info); err != nil {
+		cleanup()
 		return err
 	}
 	// The review starts now, not when the question was asked.
@@ -344,6 +405,27 @@ func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stde
 	if err := snapshotReview(rv); err != nil {
 		os.RemoveAll(reviewStateFile(rv.ID))
 		return err
+	}
+	fail := func(err error) error {
+		reviewDropRef(*rv)
+		os.RemoveAll(reviewStateFile(rv.ID))
+		return err
+	}
+	// What changed since is worked out on the snapshot, uncommitted
+	// changes included.
+	if rv.Since != "" {
+		if err := reviewSince(rv, rv.Since); err != nil {
+			return fail(err)
+		}
+	}
+	if rv.earlier != nil {
+		data, err := json.Marshal(rv.earlier)
+		if err == nil {
+			err = os.WriteFile(reviewStateFile(rv.ID, "compare.json"), data, 0o600)
+		}
+		if err != nil {
+			return fail(err)
+		}
 	}
 	for _, path := range rv.Paths {
 		if !reviewGitExists(rv.Root, rv.Commit, path) {
@@ -380,7 +462,7 @@ func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stde
 
 // planReview checks the flags and works out the runs, before anything is
 // made.
-func planReview(folder string, flags reviewFlags) (*review, error) {
+func planReview(folder string, flags reviewFlags, id, source string) (*review, error) {
 	start := firstNonEmpty(folder, ".")
 	absolute, err := filepath.Abs(start)
 	if err != nil {
@@ -397,7 +479,7 @@ func planReview(folder string, flags reviewFlags) (*review, error) {
 	if head == "" {
 		return nil, errors.New("the repository has no commits yet; commit something to review")
 	}
-	rv := &review{ID: nextReviewID(), Root: root, Head: head, Created: time.Now().UTC(), State: "running", Runs: []reviewRun{}, Findings: []reviewFinding{}}
+	rv := &review{ID: id, Source: source, Root: root, Head: head, Created: time.Now().UTC(), State: "running", Runs: []reviewRun{}, Findings: []reviewFinding{}}
 	rv.By = firstNonEmpty(boxGit(root, "config", "user.name"), os.Getenv("USER"))
 
 	// A subfolder narrows the review to it.
@@ -434,14 +516,21 @@ func planReview(folder string, flags reviewFlags) (*review, error) {
 		rv.Areas = append([]string{}, reviewAreas...)
 	default:
 		for _, area := range strings.Split(areas, ",") {
-			area = strings.ToLower(strings.TrimSpace(area))
-			if area == "" || containsString(rv.Areas, area) {
-				continue
+			if area = strings.TrimSpace(area); reviewAreaBriefs[strings.ToLower(area)] != "" {
+				area = strings.ToLower(area)
+			} else if area != "" {
+				name, brief, err := reviewBrief(area, root, source == "")
+				if err != nil {
+					return nil, err
+				}
+				if rv.Briefs == nil {
+					rv.Briefs = map[string]string{}
+				}
+				area, rv.Briefs[name] = name, brief
 			}
-			if reviewAreaBriefs[area] == "" {
-				return nil, usageError{fmt.Sprintf("--area takes %s, or all; not %q", strings.Join(reviewAreas, ", "), area)}
+			if area != "" && !containsString(rv.Areas, area) {
+				rv.Areas = append(rv.Areas, area)
 			}
-			rv.Areas = append(rv.Areas, area)
 		}
 	}
 	if rv.Passes = 1; flags.passes != "" {
@@ -464,6 +553,26 @@ func planReview(folder string, flags reviewFlags) (*review, error) {
 	if flags.budget != "" {
 		if rv.Budget, err = strconv.ParseFloat(strings.TrimPrefix(flags.budget, "$"), 64); err != nil || rv.Budget <= 0 {
 			return nil, usageError{fmt.Sprintf("--budget is dollars, such as --budget 20, not %q", flags.budget)}
+		}
+	}
+	if flags.since != "" {
+		if rv.SinceCommit = boxGit(root, "rev-parse", "--verify", "-q", flags.since+"^{commit}"); rv.SinceCommit == "" {
+			return nil, fmt.Errorf("--since %s isn't a commit in this repository", flags.since)
+		}
+		rv.Since = flags.since
+	}
+	if flags.compare != "" {
+		earlier, err := loadReviewCompare(flags.compare)
+		if err != nil {
+			return nil, err
+		}
+		rv.Compare = &reviewCompare{From: flags.compare, FromID: earlier.ID, FromCommit: earlier.Commit, FromDate: earlier.Created, Items: []reviewCompareItem{}}
+		rv.earlier = &earlier
+	}
+	rv.SARIF = flags.sarif
+	if flags.out != "" {
+		if rv.Out, err = filepath.Abs(flags.out); err != nil {
+			return nil, err
 		}
 	}
 	if flags.context != "" {
@@ -540,9 +649,21 @@ func confirmReview(rv *review, yes bool, stdin io.Reader, w io.Writer) error {
 	case rv.Dirty:
 		what += " with your uncommitted changes"
 	}
-	fmt.Fprintf(w, "Review %s of %s at %s.\n", rv.ID, homeTilde(rv.Root), what)
+	where := homeTilde(rv.Root)
+	if rv.Source != "" {
+		where = rv.Source
+	}
+	fmt.Fprintf(w, "Review %s of %s at %s.\n", rv.ID, where, what)
 	if len(rv.Paths) > 0 {
 		fmt.Fprintf(w, "  only       %s\n", strings.Join(rv.Paths, ", "))
+	}
+	if rv.Since != "" {
+		fmt.Fprintf(w, "  focus      what changed since %s (%s)\n", rv.Since, shortCommit(rv.SinceCommit))
+	}
+	for _, area := range rv.Areas {
+		if rv.Briefs[area] != "" {
+			fmt.Fprintf(w, "  brief      %s: %s\n", area, reviewLine(rv.Briefs[area], 70))
+		}
 	}
 	fmt.Fprintf(w, "  areas      %s\n", strings.Join(rv.Areas, ", "))
 	var runs []string
@@ -579,7 +700,17 @@ func confirmReview(rv *review, yes bool, stdin io.Reader, w io.Writer) error {
 		fmt.Fprintln(w, "             Codex reports only tokens, so its runs don't count against --budget")
 	}
 	fmt.Fprintf(w, "  code goes  to %s, as with any hi agent run\n", reviewProviders(*rv))
-	fmt.Fprintf(w, "  report     %s, readable only by you\n", homeTilde(reviewStateFile(rv.ID)))
+	report := homeTilde(reviewStateFile(rv.ID)) + ", readable only by you"
+	if rv.SARIF {
+		report += "; with report.sarif"
+	}
+	if rv.Out != "" {
+		report += "; and a copy in " + homeTilde(rv.Out)
+	}
+	fmt.Fprintf(w, "  report     %s\n", report)
+	if rv.Compare != nil {
+		fmt.Fprintf(w, "  compare    with %s (%s, at %s)\n", rv.Compare.FromID, rv.Compare.FromDate.Format("2006-01-02"), shortCommit(rv.Compare.FromCommit))
+	}
 	if yes {
 		return nil
 	}
@@ -927,6 +1058,9 @@ func startReviewRun(rv *review, run *reviewRun, log io.Writer) error {
 
 func reviewBoxName(rv review, run reviewRun) string {
 	base := bestOfNameBase(filepath.Base(rv.Root))
+	if rv.Source != "" {
+		base = bestOfNameBase(strings.TrimSuffix(path.Base(strings.TrimRight(rv.Source, "/")), ".git"))
+	}
 	name := fmt.Sprintf("%s-%s-%s", base, rv.ID, run.ID)
 	if len(name) > 40 {
 		name = fmt.Sprintf("%s-%s-%s", base[:max(1, len(base)-(len(name)-40))], rv.ID, run.ID)
@@ -1039,7 +1173,10 @@ func reviewTask(rv review, run reviewRun) (string, error) {
 	case "investigate":
 		fmt.Fprintf(&b, "# Review: %s\n\nYou are reviewing a repository for %s problems, as one of several independent reviewers. Another agent will check each thing you report against the code, and hi checks every line you quote.\n\n", run.Area, run.Area)
 		fmt.Fprintf(&b, "The repository is the current folder, at commit %s. Review %s. If docs/map.md exists, it's the team's map of the project: use it to find your way, and check what it says.\n\n", rv.Commit, scope)
-		fmt.Fprintf(&b, "## What to look for\n\n%s\n\nA finding is a concrete failure: what input or state leads to what wrong result. Not style, not taste, not \"consider adding\". Every finding rests on code you read and quote. If you find nothing worth reporting, report nothing: an empty list is a good answer.\n\n", reviewAreaBriefs[run.Area])
+		if since := reviewSinceText(rv); since != "" {
+			b.WriteString(since + "\n")
+		}
+		fmt.Fprintf(&b, "## What to look for\n\n%s\n\nA finding is a concrete failure: what input or state leads to what wrong result. Not style, not taste, not \"consider adding\". Every finding rests on code you read and quote. If you find nothing worth reporting, report nothing: an empty list is a good answer.\n\n", rv.brief(run.Area))
 		fmt.Fprintf(&b, "## What you know beyond the code\n\n%s\n\n%s\n\n", contextText, reviewRules)
 		fmt.Fprintf(&b, "## What to write\n\nWrite your findings to /box/home/%s/findings.json, at most %d, most important first:\n\n", agentResultDir, reviewMaxFindings)
 		b.WriteString("```json\n" + `{"findings": [{
@@ -1503,6 +1640,7 @@ func settleReview(rv *review) {
 			}
 		}
 	}
+	compareReview(rv)
 }
 
 // ---------------------------------------------------------------------------
@@ -1568,7 +1706,7 @@ func listReviews(w io.Writer) error {
 	sort.Slice(reviews, func(a, b int) bool { return reviews[a].Created.After(reviews[b].Created) })
 	fmt.Fprintf(w, "%-6s %-9s %-34s %-24s %-28s %s\n", "ID", "STATE", "REPOSITORY", "AREAS", "FINDINGS", "COST")
 	for _, rv := range reviews {
-		where := homeTilde(rv.Root) + " @ " + shortCommit(rv.Commit)
+		where := firstNonEmpty(rv.Source, homeTilde(rv.Root)) + " @ " + shortCommit(rv.Commit)
 		fmt.Fprintf(w, "%-6s %-9s %-34s %-24s %-28s %s\n", rv.ID, rv.State, qClipWidth(where, 34), qClipWidth(strings.Join(rv.Areas, ","), 24),
 			reviewCountsText(rv), reviewCostText(rv))
 	}
@@ -1613,6 +1751,26 @@ func showReview(id string, flags reviewFlags, w io.Writer) error {
 	switch {
 	case flags.json:
 		return printReviewJSON(rv, w)
+	case flags.sarif:
+		if rv.State == "running" {
+			return fmt.Errorf("%s is still running; its findings come when it ends", id)
+		}
+		data, err := reviewSARIF(rv)
+		if err != nil {
+			return err
+		}
+		if err := writeReviewSARIF(rv); err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(w, string(data))
+		return err
+	case flags.html:
+		file, err := writeReviewHTML(rv)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "Wrote %s; open it in a browser. It loads nothing and only you can read it.\n", homeTilde(file))
+		return nil
 	case flags.md:
 		data, err := os.ReadFile(reviewStateFile(id, "report.md"))
 		if err != nil {

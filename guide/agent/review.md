@@ -66,6 +66,68 @@ stop it. `hi agent review watch <id>` follows it again.
 The default is `security,correctness`; `--area all` takes all four, and
 `--passes 2` gives each area two investigators.
 
+### Areas of your own
+
+An area is a brief: what to look for, and what counts. Write one for what
+matters to your project and pass it by its path, or keep it in the
+repository as `.hi5/review/<name>.md` and pass its name:
+
+```sh
+hi agent review --area security,audit-trail.md
+hi agent review --area look-ahead          # .hi5/review/look-ahead.md
+```
+
+```markdown
+Look for actions that change or delete people's data without leaving a
+record of who did it and when.
+```
+
+The report quotes each brief. A repository fetched from a URL was written
+by someone else, so its own `.hi5/review/` briefs aren't used: they'd be
+its author's instructions to the reviewers. Pass a brief of yours by path
+instead.
+
+## A repository from elsewhere
+
+```sh
+hi agent review github.com/ada/pocket-board
+hi agent review ada/pocket-board --ref v2.3
+hi agent review https://git.example.com/team/board.git
+```
+
+hi clones it into the review's folder, without running anything from
+it: no hooks or templates from your machine, no credential helpers, no
+LFS filters, submodules listed but not fetched, and only network
+transports, so a submodule can't point at a folder on your machine. A
+private GitHub repository comes through your `gh` sign-in (`gh auth
+login`); an address with a token in it is refused. The clone goes when
+you `rm` the review.
+
+## What changed since a release
+
+```sh
+hi agent review --since v1.4
+```
+
+The investigators get the files that changed since `v1.4` and `git diff`
+to read them, and still read the rest of the repository to understand
+them, so they find problems the changes cause in code that didn't
+change. A review before a release, of what the release adds.
+
+## Compared with an earlier review
+
+```sh
+hi agent review --compare r-3
+hi agent review --compare ~/reviews/r-3/report.json
+```
+
+Each finding of the earlier review is **still seen** (the same
+finding, or one over the same lines now), **not seen, code changed** (its
+lines aren't there any more: likely fixed or moved), or **not seen, code
+unchanged** (its lines are still there and nobody raised it this time:
+worth a look). New findings are marked new. A finding not seen is never
+called fixed: agents miss things.
+
 ## Recommendations, not requirements
 
 The agents read code at one commit. They don't know how the app is
@@ -130,6 +192,18 @@ assigns req.body.column without validation, saves the card, and returns it
 without checking board membership.
 ````
 
+`hi agent review show <id> --html` writes `report.html` next to it, to
+read in a browser: one file, its styles inline, no scripts, and a policy
+that loads nothing, so it opens offline and stays private. HTML in a
+finding's text isn't rendered.
+
+`--sarif` also writes `report.sarif`, with the confirmed and uncertain
+findings, for an editor's SARIF viewer or a code scanning page you upload
+it to; each result says what it assumes. `show <id> --sarif` writes it
+for a review that ended without it. `--out <dir>` also writes the report
+files there when the review ends; inside the repository, don't commit
+them.
+
 Rejected findings and duplicates are listed at the end with the reason,
 so nobody raises them again without seeing why. When two agents raise the
 same problem it becomes one finding, "raised by claude, and separately by
@@ -139,8 +213,8 @@ codex"; when their checks disagree, it's uncertain and says who said what.
 
 The repository may have been written to steer agents that read it.
 
-- **Nothing from it runs on your machine.** The snapshot and the evidence
-  check read files from git.
+- **Nothing from it runs on your machine.** The clone, the snapshot, and
+  the evidence check read files from git.
 - **Locked boxes.** The `locked` network (each agent's own hosts and
   nothing else), hi's own image instead of the project's
   `devcontainer.json`, and the agent without the project's settings:
@@ -167,17 +241,17 @@ and how each agent is paid, and asks (`--yes` skips the question).
 ## Commands
 
 ```text
-hi agent review [<folder>]        review this repository, or a subfolder of it
-    --area a,b|all  --agents claude,codex  --judge <agent>  --passes <n>
-    --ref <ref>  --path <dir>  --context <file.md>
-    --budget <usd>  --max <duration>  --parallel <k>  --detach  --json  --yes
+hi agent review [<folder>|<url>]  review this repository, a subfolder of it, or one from a URL
+    --area a,b|all|<brief.md>  --agents claude,codex  --judge <agent>  --passes <n>
+    --ref <ref>  --since <ref>  --path <dir>  --context <file.md>  --compare <id|report.json>
+    --sarif  --out <dir>  --budget <usd>  --max <duration>  --parallel <k>  --detach  --json  --yes
 hi agent review ls                reviews, their state, cost, and counts
-hi agent review show <id>         the findings; --md the report, --json the record, --rejected the rest
+hi agent review show <id>         the findings; --md the report, --html a page, --sarif SARIF,
+                                  --json the record, --rejected the rest
 hi agent review watch <id>        follow a review; Ctrl+C stops following, not the review
 hi agent review stop <id>         stop it, keep what's done, and write the report
 hi agent review rm <id>           remove a review, its report, and its snapshot
 ```
 
-Reviewing a URL, comparing with an earlier review, SARIF, an HTML page
-of the report, and reviews a team's lead offers in Slack are planned; see
-the [spec](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_agent_review.md).
+Reviews a team's lead offers in Slack, on an owner's yes with a budget,
+are planned; see the [spec](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_agent_review.md#with-a-team).

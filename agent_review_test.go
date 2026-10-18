@@ -74,7 +74,7 @@ func TestReviewSnapshotLeavesTheTreeAlone(t *testing.T) {
 	boxGit(project, "add", "new.ts")
 	head, status := boxGit(project, "rev-parse", "HEAD"), boxGit(project, "status", "--porcelain")
 
-	rv, err := planReview("", reviewFlags{agents: "claude"})
+	rv, err := planReview("", reviewFlags{agents: "claude"}, nextReviewID(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,9 @@ func TestReviewSnapshotLeavesTheTreeAlone(t *testing.T) {
 func TestReviewFlags(t *testing.T) {
 	agentTestSetup(t)
 	for _, args := range [][]string{
-		{"https://github.com/ada/pocket-kanban"},
+		{"https://token@github.com/ada/pocket-kanban"},
+		{"file:///etc"},
+		{"--area", "nothing-here"},
 		{"--area", "style"},
 		{"--passes", "4"},
 		{"--max", "10s"},
@@ -191,7 +193,7 @@ func TestReviewRun(t *testing.T) {
 				 "what": "moveCard saves the new column without checking the board.", "failure": "Anyone signed in can move cards on boards they weren't invited to.",
 				 "assumes": "People who sign in shouldn't all see every board.", "direction": "Check the card's board against the caller's boards before saving."},
 				{"title": "the board check is skipped", "severity": "critical", "file": "api/cards.ts", "start_line": 1,
-				 "quote": "if (card.board !== user.board) throw", "failure": "made up", "assumes": "nothing"}
+				 "quote": "if (card.board !== user.board) throw", "failure": "made up <img src=x onerror=alert(1)>", "assumes": "nothing"}
 			]}`)
 		case strings.HasSuffix(box, "correctness-1"):
 			write("findings.json", `{"findings": [
@@ -209,7 +211,8 @@ func TestReviewRun(t *testing.T) {
 	})
 
 	var stdout, stderr bytes.Buffer
-	if status := runAgent([]string{"review", "--agents", "claude,codex", "--yes", "--detach"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
+	out := filepath.Join(t.TempDir(), "reports")
+	if status := runAgent([]string{"review", "--agents", "claude,codex", "--sarif", "--out", out, "--yes", "--detach"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
 		t.Fatalf("status %d: %s", status, stderr.String())
 	}
 	for _, want := range []string{"Review r-1 of", "security-1 (claude), correctness-1 (codex)", "each finding by an agent that didn't raise it", "locked network", "Anthropic and OpenAI"} {
@@ -361,6 +364,47 @@ func TestReviewRun(t *testing.T) {
 		t.Fatalf("json: %v", err)
 	}
 
+	// SARIF has the confirmed and uncertain findings, and --out a copy.
+	var sarif struct {
+		Runs []struct {
+			Results []struct {
+				RuleID              string                `json:"ruleId"`
+				Level               string                `json:"level"`
+				PartialFingerprints map[string]string     `json:"partialFingerprints"`
+				Message             struct{ Text string } `json:"message"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	data, _ = os.ReadFile(reviewStateFile("r-1", "report.sarif"))
+	if err := json.Unmarshal(data, &sarif); err != nil || len(sarif.Runs[0].Results) != 2 {
+		t.Fatalf("sarif: %v %s", err, data)
+	}
+	first := sarif.Runs[0].Results[0]
+	if first.Level != "error" || first.PartialFingerprints["hiAgentReview/v1"] != real.Fingerprint || !strings.Contains(first.Message.Text, "Assumes: People who sign in") {
+		t.Errorf("first result: %+v", first)
+	}
+	for _, name := range []string{"report.md", "report.json", "report.sarif"} {
+		if info, err := os.Stat(filepath.Join(out, name)); err != nil || info.Mode().Perm() != 0o600 {
+			t.Errorf("--out lacks %s: %v", name, err)
+		}
+	}
+
+	// The page loads nothing, runs nothing, and doesn't render a finding's
+	// HTML.
+	stdout.Reset()
+	if status := runAgent([]string{"review", "show", "r-1", "--html"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
+		t.Fatalf("show --html: %s", stderr.String())
+	}
+	page, _ := os.ReadFile(reviewStateFile("r-1", "report.html"))
+	for _, want := range []string{"default-src 'none'", "These are recommendations, not requirements", "<h2", "prefers-color-scheme: dark"} {
+		if !strings.Contains(string(page), want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+	if strings.Contains(string(page), "<script") || strings.Contains(string(page), "<img") {
+		t.Errorf("the page has HTML from a finding:\n%s", page)
+	}
+
 	// rm takes the report and the snapshot's ref.
 	if status := runAgent([]string{"review", "rm", "r-1", "--yes"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
 		t.Fatalf("rm: %s", stderr.String())
@@ -472,5 +516,200 @@ func TestReviewSettleDuplicates(t *testing.T) {
 	}
 	if f := byAgentSeverity["claude:medium:"]; f.Verdict != "uncertain" || f.DuplicateOf != "" {
 		t.Errorf("c-5: %+v", f)
+	}
+}
+
+func TestReviewCloneURL(t *testing.T) {
+	for _, c := range []struct{ in, url, github string }{
+		{"github.com/ada/pocket-board", "https://github.com/ada/pocket-board.git", "ada/pocket-board"},
+		{"ada/pocket-board", "https://github.com/ada/pocket-board.git", "ada/pocket-board"},
+		{"https://github.com/ada/pocket-board/tree/main", "https://github.com/ada/pocket-board.git", "ada/pocket-board"},
+		{"git@github.com:ada/pocket-board.git", "git@github.com:ada/pocket-board.git", "ada/pocket-board"},
+		{"https://git.example.com/team/board.git", "https://git.example.com/team/board.git", ""},
+	} {
+		got, github, err := reviewCloneURL(c.in)
+		if err != nil || got != c.url || github != c.github {
+			t.Errorf("%s: %s %s %v", c.in, got, github, err)
+		}
+	}
+	for _, in := range []string{"https://ghp_token@github.com/ada/board", "file:///home/ada/board", "ext::sh -c touch% /tmp/x", "https://github.com/ada"} {
+		if _, _, err := reviewCloneURL(in); err == nil {
+			t.Errorf("%s was accepted", in)
+		}
+	}
+	// The clone runs with nothing from this machine that could run code,
+	// and only network transports.
+	args := strings.Join(reviewCloneArgs, " ")
+	for _, want := range []string{"core.hooksPath=/dev/null", "credential.helper=", "protocol.file.allow=never", "protocol.ext.allow=never"} {
+		if !strings.Contains(args, want) {
+			t.Errorf("clone settings lack %s", want)
+		}
+	}
+	if !strings.Contains(strings.Join(reviewCloneEnv(), " "), "GIT_ALLOW_PROTOCOL=https:http:ssh:git") {
+		t.Error("the clone allows local transports")
+	}
+	// The clone keeps them for what hi does in it later.
+	dir := t.TempDir()
+	boxGit(dir, "init", "-q")
+	if err := reviewLockClone(dir); err != nil {
+		t.Fatal(err)
+	}
+	if boxGit(dir, "config", "core.hooksPath") != "/dev/null" || boxGit(dir, "config", "filter.lfs.required") != "false" {
+		t.Error("the clone's config lacks the settings")
+	}
+}
+
+func TestReviewFromURL(t *testing.T) {
+	project, _, _ := agentTestSetup(t)
+	reviewCommit(t, project, map[string]string{"api/cards.ts": reviewCardsFile, ".hi5/review/leakage.md": "Look for leaks.\n"})
+	reviewSpawn = func(string, string) error { return nil }
+	var fetched string
+	reviewFetch = func(source, dir string) error {
+		fetched = source
+		return boxCommand(nil, io.Discard, io.Discard, "git", "clone", "-q", project, dir)
+	}
+	t.Cleanup(func() { reviewSpawn, reviewFetch = nil, fetchReviewSource })
+	t.Chdir(t.TempDir())
+
+	var stdout, stderr bytes.Buffer
+	// A fetched repository's own briefs aren't taken by name: its author
+	// wrote them.
+	if status := runAgent([]string{"review", "ada/pocket-board", "--area", "leakage", "--agents", "claude", "--yes", "--detach"}, strings.NewReader(""), &stdout, &stderr); status == 0 ||
+		!strings.Contains(stderr.String(), "its author wrote them") {
+		t.Fatalf("a fetched repository's brief was used: %d %s", status, stderr.String())
+	}
+	if entries, _ := os.ReadDir(reviewStateFile()); len(entries) != 0 {
+		t.Fatal("a review that didn't start left its clone")
+	}
+	stdout.Reset()
+	if status := runAgent([]string{"review", "ada/pocket-board", "--agents", "claude", "--yes", "--detach"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
+		t.Fatalf("status %d: %s", status, stderr.String())
+	}
+	rv, err := loadReview("r-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fetched != "ada/pocket-board" || rv.Source != "ada/pocket-board" || rv.Root != reviewStateFile("r-1", "source") || rv.Dirty {
+		t.Fatalf("review: %+v", rv)
+	}
+	if !strings.Contains(stdout.String(), "Review r-1 of ada/pocket-board") || !strings.Contains(stdout.String(), "nothing from it runs on this machine") {
+		t.Errorf("confirmation:\n%s", stdout.String())
+	}
+	if status := runAgent([]string{"review", "rm", "r-1", "--yes"}, strings.NewReader(""), &stdout, &stderr); status == 0 {
+		t.Fatal("rm removed a running review")
+	}
+	rv.State = "stopped"
+	saveReview(&rv)
+	if status := runAgent([]string{"review", "rm", "r-1", "--yes"}, strings.NewReader(""), &stdout, &stderr); status != 0 || fileExists(rv.Root) {
+		t.Fatalf("rm left the clone: %s", stderr.String())
+	}
+}
+
+func TestReviewBriefsAndSince(t *testing.T) {
+	project, _, _ := agentTestSetup(t)
+	reviewCommit(t, project, map[string]string{"api/cards.ts": reviewCardsFile, ".hi5/review/look-ahead.md": "---\nagent: claude\n---\nLook for prices used before they were known.\n"})
+	boxGit(project, "tag", "v1")
+	reviewCommit(t, project, map[string]string{"api/boards.ts": "export const boards = []\n"})
+	os.WriteFile(filepath.Join(project, "mine.md"), []byte("Look for missing audit logs.\n"), 0o644)
+
+	rv, err := planReview("", reviewFlags{agents: "claude", areas: "security,look-ahead,mine.md", since: "v1"}, "r-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(rv.Areas, ",") != "security,look-ahead,mine" || rv.Briefs["look-ahead"] != "Look for prices used before they were known." {
+		t.Fatalf("areas %v, briefs %v", rv.Areas, rv.Briefs)
+	}
+	os.MkdirAll(reviewStateFile("r-1"), 0o700)
+	if err := snapshotReview(rv); err != nil {
+		t.Fatal(err)
+	}
+	if err := reviewSince(rv, "v1"); err != nil {
+		t.Fatal(err)
+	}
+	// The uncommitted brief file is in the snapshot, so it changed too.
+	if strings.Join(rv.SinceFiles, ",") != "api/boards.ts,mine.md" {
+		t.Fatalf("since files: %v", rv.SinceFiles)
+	}
+	task, _ := reviewTask(*rv, reviewRun{Kind: "investigate", Area: "look-ahead"})
+	for _, want := range []string{"Look for prices used before they were known.", "Focus on what changed since v1", "- api/boards.ts", "git diff "} {
+		if !strings.Contains(task, want) {
+			t.Errorf("task lacks %q:\n%s", want, task)
+		}
+	}
+	if err := reviewSince(rv, rv.Commit); err == nil {
+		t.Error("--since the reviewed commit itself was accepted")
+	}
+	if _, err := planReview("", reviewFlags{agents: "claude", areas: "nope.md"}, "r-2", ""); err == nil {
+		t.Error("a missing brief was accepted")
+	}
+}
+
+func TestReviewCompare(t *testing.T) {
+	project, _, _ := agentTestSetup(t)
+	reviewCommit(t, project, map[string]string{"api/cards.ts": reviewCardsFile, "util/dates.ts": "const day = 86400000\nexport const due = (d) => Math.floor(d / day)\n"})
+	commit := boxGit(project, "rev-parse", "HEAD")
+
+	// The earlier review: three findings and a duplicate.
+	earlier := review{ID: "r-1", Root: project, Commit: commit, Created: time.Now().Add(-48 * time.Hour), State: "done", Findings: []reviewFinding{
+		{ID: "F-1", Area: "security", File: "api/cards.ts", Title: "no board check", Verdict: "confirmed", Code: "    card.column = body.column", Fingerprint: "aaa"},
+		{ID: "F-2", Area: "correctness", File: "util/dates.ts", Title: "days floor", Verdict: "confirmed", Code: "export const due = (d) => Math.floor(d / day)"},
+		{ID: "F-3", Area: "correctness", File: "api/cards.ts", Title: "save not awaited", Verdict: "uncertain", Code: "    await db.save(card)"},
+		{ID: "F-4", Area: "security", File: "api/cards.ts", Title: "dup", Verdict: "duplicate", DuplicateOf: "F-1"},
+		{ID: "F-5", Area: "security", File: "api/cards.ts", Title: "by fingerprint", Verdict: "rejected", Fingerprint: "zzz", Code: "nowhere"},
+	}}
+	os.MkdirAll(reviewStateFile("r-1"), 0o700)
+	data, _ := json.Marshal(earlier)
+	os.WriteFile(reviewStateFile("r-1", "report.json"), data, 0o600)
+	saveReview(&earlier)
+
+	// Since then the date code changed; the cards code didn't.
+	reviewCommit(t, project, map[string]string{"util/dates.ts": "export const due = (d) => Math.round(d / 864e5)\n"})
+	got, err := loadReviewCompare("r-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rv := review{ID: "r-2", Root: project, Commit: boxGit(project, "rev-parse", "HEAD"), State: "done",
+		Compare: &reviewCompare{From: "r-1", FromID: "r-1", FromCommit: commit}, Findings: []reviewFinding{
+			// The same problem, raised in another area over more lines.
+			{ID: "F-1", Area: "correctness", File: "api/cards.ts", Start: 4, End: 6, Evidence: "exact", Verdict: "confirmed", Fingerprint: "bbb"},
+			{ID: "F-2", Area: "security", File: "api/cards.ts", Start: 1, End: 1, Evidence: "exact", Verdict: "uncertain", Fingerprint: "zzz"},
+			{ID: "F-3", Area: "security", File: "api/boards.ts", Start: 1, End: 1, Evidence: "exact", Verdict: "confirmed", Fingerprint: "ccc"},
+		}}
+	os.MkdirAll(reviewStateFile("r-2"), 0o700)
+	data, _ = json.Marshal(got)
+	os.WriteFile(reviewStateFile("r-2", "compare.json"), data, 0o600)
+	compareReview(&rv)
+	status := map[string]string{}
+	for _, item := range rv.Compare.Items {
+		status[item.ID] = item.Status + " " + item.Now
+	}
+	want := map[string]string{"F-1": "still seen F-1", "F-2": "not seen, code changed ", "F-3": "still seen F-1", "F-5": "still seen F-2"}
+	for id, w := range want {
+		if status[id] != w {
+			t.Errorf("%s: %q, want %q", id, status[id], w)
+		}
+	}
+	if _, ok := status["F-4"]; ok {
+		t.Error("a duplicate was compared")
+	}
+	if rv.Findings[0].Earlier != "F-1" || rv.Findings[2].Earlier != "" {
+		t.Errorf("earlier: %+v", rv.Findings)
+	}
+	if counts := reviewCompareCounts(rv); counts != "since r-1: 1 new, 3 still seen, 1 not seen with the code changed, 0 not seen with the code unchanged" {
+		t.Errorf("counts: %s", counts)
+	}
+
+	// Without a finding over its lines, unchanged code is "not seen, code
+	// unchanged", not fixed.
+	rv.Findings = rv.Findings[2:]
+	compareReview(&rv)
+	for _, item := range rv.Compare.Items {
+		if item.ID == "F-3" && item.Status != "not seen, code unchanged" {
+			t.Errorf("F-3: %+v", item)
+		}
+	}
+	section := reviewCompareMarkdown(rv)
+	if !strings.Contains(section, "## Compared with r-1") || !strings.Contains(section, "isn't called fixed") || !strings.Contains(section, "**Not seen, code unchanged**") {
+		t.Errorf("section:\n%s", section)
 	}
 }

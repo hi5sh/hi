@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 )
@@ -78,6 +79,7 @@ func checkReviewEvidence(root, commit string, f *reviewFinding) {
 	}
 	if f.Start >= 1 && matchAt(f.Start-1) {
 		f.Evidence, f.End = "exact", f.Start+len(quote)-1
+		f.Code = strings.Join(lines[f.Start-1:f.End], "\n")
 		return
 	}
 	// The nearest place the quote is, to where the agent said.
@@ -89,6 +91,7 @@ func checkReviewEvidence(root, commit string, f *reviewFinding) {
 	}
 	if best >= 0 {
 		f.Evidence, f.Start, f.End = "moved", best+1, best+len(quote)
+		f.Code = strings.Join(lines[best:best+len(quote)], "\n")
 	}
 }
 
@@ -118,8 +121,8 @@ func reviewQuoteLines(quote string) []string {
 // reviewFingerprint matches a finding across reviews: its area, file, and
 // the quoted code with spaces collapsed, not its line numbers.
 func reviewFingerprint(f reviewFinding, root, commit string) string {
-	code := strings.Join(reviewQuoteLines(f.Quote), "\n")
-	if f.Evidence != "missing" {
+	code := firstNonEmpty(f.Code, strings.Join(reviewQuoteLines(f.Quote), "\n"))
+	if f.Code == "" && f.Evidence != "missing" {
 		if lines := reviewFileLines(root, commit, f.File); f.End <= len(lines) && f.Start >= 1 {
 			code = strings.Join(lines[f.Start-1:f.End], "\n")
 		}
@@ -158,7 +161,32 @@ func writeReviewReport(rv review) error {
 	if err := os.WriteFile(reviewStateFile(rv.ID, "report.json"), append(data, '\n'), 0o600); err != nil {
 		return err
 	}
-	return os.WriteFile(reviewStateFile(rv.ID, "report.md"), []byte(reviewMarkdown(rv)), 0o600)
+	if err := os.WriteFile(reviewStateFile(rv.ID, "report.md"), []byte(reviewMarkdown(rv)), 0o600); err != nil {
+		return err
+	}
+	names := []string{"report.md", "report.json"}
+	if rv.SARIF {
+		if err := writeReviewSARIF(rv); err != nil {
+			return err
+		}
+		names = append(names, "report.sarif")
+	}
+	if rv.Out == "" {
+		return nil
+	}
+	if err := os.MkdirAll(rv.Out, 0o700); err != nil {
+		return err
+	}
+	for _, name := range names {
+		data, err := os.ReadFile(reviewStateFile(rv.ID, name))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(rv.Out, name), data, 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // reviewMarkdown is report.md: the handover, what was reviewed and what
@@ -182,9 +210,16 @@ func reviewMarkdown(rv review) string {
 	case rv.Dirty:
 		what += fmt.Sprintf(", a snapshot of the working tree with its uncommitted changes, on `%s`", shortCommit(rv.Head))
 	}
-	fmt.Fprintf(&b, "- **Repository:** %s at %s\n", homeTilde(rv.Root), what)
+	if rv.Source != "" {
+		fmt.Fprintf(&b, "- **Repository:** %s at %s, fetched without running anything from it\n", rv.Source, what)
+	} else {
+		fmt.Fprintf(&b, "- **Repository:** %s at %s\n", homeTilde(rv.Root), what)
+	}
 	if len(rv.Paths) > 0 {
 		fmt.Fprintf(&b, "- **Only:** %s\n", strings.Join(rv.Paths, ", "))
+	}
+	if rv.Since != "" {
+		fmt.Fprintf(&b, "- **Focus:** what changed since %s (`%s`), %s\n", rv.Since, shortCommit(rv.SinceCommit), plural(len(rv.SinceFiles), "file"))
 	}
 	fmt.Fprintf(&b, "- **Areas:** %s\n", strings.Join(rv.Areas, ", "))
 	var investigators, checkers []string
@@ -209,6 +244,11 @@ func reviewMarkdown(rv review) string {
 	if rv.Context != "" {
 		b.WriteString("\n**Context given to the reviewers:**\n\n" + reviewIndent(rv.Context, "> ") + "\n")
 	}
+	for _, area := range rv.Areas {
+		if brief := rv.Briefs[area]; brief != "" {
+			fmt.Fprintf(&b, "\n**The %s brief, given by the people who asked:**\n\n%s\n", area, reviewIndent(brief, "> "))
+		}
+	}
 
 	b.WriteString("\n## What wasn't\n\n")
 	gaps := reviewGaps(rv)
@@ -231,6 +271,7 @@ func reviewMarkdown(rv review) string {
 		}
 		b.WriteString("\n" + reviewFindingMarkdown(rv, f))
 	}
+	b.WriteString(reviewCompareMarkdown(rv))
 	if counts["rejected"]+counts["duplicate"] > 0 {
 		b.WriteString("\n## Rejected and duplicates\n\nThe second opinion didn't hold these up, or they repeat a finding above. They're here so nobody raises them again without seeing why.\n\n")
 		for _, f := range rv.Findings {
@@ -343,14 +384,23 @@ func reviewFindingMarkdown(rv review, f reviewFinding) string {
 	if len(f.AlsoRaisedBy) > 0 {
 		raised += ", and separately by " + strings.Join(f.AlsoRaisedBy, ", ")
 	}
-	fmt.Fprintf(&b, "- Raised by: %s\n\n", raised)
+	fmt.Fprintf(&b, "- Raised by: %s\n", raised)
+	if rv.Compare != nil {
+		if f.Earlier != "" {
+			fmt.Fprintf(&b, "- Since %s: still seen, as %s there\n", rv.Compare.FromID, f.Earlier)
+		} else {
+			fmt.Fprintf(&b, "- Since %s: new\n", rv.Compare.FromID)
+		}
+	}
+	b.WriteString("\n")
 	if f.What != "" {
 		fmt.Fprintf(&b, "**What the code does.** %s\n\n", f.What)
 	}
 	code, label := "", ""
 	switch f.Evidence {
 	case "exact", "moved":
-		if all := reviewFileLines(rv.Root, rv.Commit, f.File); f.Start >= 1 && f.End <= len(all) {
+		code = f.Code
+		if all := reviewFileLines(rv.Root, rv.Commit, f.File); code == "" && f.Start >= 1 && f.End <= len(all) {
 			code = strings.Join(all[f.Start-1:f.End], "\n")
 		}
 	case "missing":
@@ -409,7 +459,11 @@ func printReviewSummary(rv review, rejected bool, w io.Writer) {
 	if rv.Dirty {
 		what += " (with uncommitted changes)"
 	}
-	header := fmt.Sprintf("Review %s · %s @ %s · %s", rv.ID, homeTilde(rv.Root), what, strings.Join(rv.Areas, ", "))
+	where := homeTilde(rv.Root)
+	if rv.Source != "" {
+		where = rv.Source
+	}
+	header := fmt.Sprintf("Review %s · %s @ %s · %s", rv.ID, where, what, strings.Join(rv.Areas, ", "))
 	if !rv.Ended.IsZero() {
 		header += " · " + formatDuration(rv.Ended.Sub(rv.Created))
 	}
@@ -453,6 +507,9 @@ func printReviewSummary(rv review, rejected bool, w io.Writer) {
 		}
 	}
 	fmt.Fprintf(w, "  %s (%s) · %s\n", plural(len(investigators), "investigator"), strings.Join(reviewUnique(investigators), ", "), reviewTallyText(rv))
+	if compared := reviewCompareCounts(rv); compared != "" {
+		fmt.Fprintf(w, "  %s%s\n", strings.ToUpper(compared[:1]), compared[1:])
+	}
 	gaps := reviewGaps(rv)
 	if len(gaps) == 1 && gaps[0] == "Every run finished." {
 		fmt.Fprintln(w, "  Not covered: nothing left out · Reproduced: none (not attempted)")
@@ -467,6 +524,7 @@ func printReviewSummary(rv review, rejected bool, w io.Writer) {
 	}
 	fmt.Fprintln(w, "  "+reviewHandoverLine)
 	fmt.Fprintf(w, "  hi agent review show %s --md   the report, with each finding in full (%s)\n", rv.ID, homeTilde(reviewStateFile(rv.ID, "report.md")))
+	fmt.Fprintf(w, "  hi agent review show %s --html the same as a page to read in a browser\n", rv.ID)
 }
 
 func reviewShortSeverity(severity string) string {
