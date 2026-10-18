@@ -1803,6 +1803,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   it. It now posts production's link itself, and the lead does the same
   when people ask where production is.
 
+### v0.81.3 — The docs' link in a release
+
+- [x] A release's message has the docs' link on the line under
+  production's link, on the same address with its key. An address on a
+  relay from before `/docs` leaves it out until its next address.
+
 ## Planned
 
 ### Guide — a diagram for every tool
