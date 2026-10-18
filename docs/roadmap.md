@@ -1920,6 +1920,7 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   machine the user owns, never on Community Cloud (v0.12.2).
 - Sharing a running machine with a teammate, recorded in the audit log.
 - A live desktop view that a person can watch and take over from an agent.
+  Spec: [hi_box_desktop.md](specs/ideas/hi_box_desktop.md) (draft).
 
 - [ ] Turn the ideas worth building into draft specs in `specs/ideas/`.
   Started: [hi_compute_idle.md](specs/ideas/hi_compute_idle.md) has the
@@ -1953,6 +1954,10 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   in locked boxes, hi checking every quoted line, a second agent
   accepting or rejecting each finding, and in a team only on an owner's
   yes with a budget. Spec: [hi_agent_review.md](specs/ideas/hi_agent_review.md) (draft).
+- [ ] `--desktop`: a Linux desktop in the box that the agent drives with
+  `hi-desktop` and a person watches and takes over in the browser; a `cad`
+  bundle with Blender, FreeCAD, CadQuery, and KiCad, scripted first.
+  Spec: [hi_box_desktop.md](specs/ideas/hi_box_desktop.md) (draft).
 
 ### Later — `hi data` and `hi server expose`
 
