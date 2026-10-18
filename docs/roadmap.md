@@ -1924,6 +1924,10 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
 - [ ] A planner that picks bundles for a task; bundles themselves shipped
   in v0.31.0. Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md),
   release 3 (draft).
+- [ ] An on-demand review of a whole repository: investigators per area
+  in locked boxes, hi checking every quoted line, a second agent
+  accepting or rejecting each finding, and in a team only on an owner's
+  yes with a budget. Spec: [hi_agent_review.md](specs/ideas/hi_agent_review.md) (draft).
 
 ### Later — `hi data` and `hi server expose`
 
