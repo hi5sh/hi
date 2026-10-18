@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTeamSay(t *testing.T) {
@@ -12,7 +13,13 @@ func TestTeamSay(t *testing.T) {
 	channel := &fakeTeamChannel{}
 	b.channel = channel
 	var input string
+	tries := 0
+	teamSayRetry = time.Millisecond
 	b.lead = func(_ context.Context, conversation, text string, _ []teamLeadPicture, _ func(string)) (string, error) {
+		// A lead that is still starting is tried again.
+		if tries++; tries == 1 {
+			return "", errTeamLeadUnreachable
+		}
 		input = conversation + "\n" + text
 		return "On it.", nil
 	}

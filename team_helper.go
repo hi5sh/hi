@@ -1017,6 +1017,10 @@ func teamWebApprovalChat(team string, approval teamApproval, add func(source, fr
 // teamLeadAPI answers a message as the lead, through Hermes' API server in
 // its box: /v1/responses, with the conversation named so Hermes keeps its
 // history, streamed.
+// errTeamLeadUnreachable is a message that never reached the lead, as
+// while its box starts: safe to send again.
+var errTeamLeadUnreachable = errors.New("the lead isn't reachable yet; try again in a minute")
+
 func teamLeadAPI(socket, key string) func(ctx context.Context, conversation, input string, pictures []teamLeadPicture, delta func(string)) (string, error) {
 	client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
@@ -1036,7 +1040,7 @@ func teamLeadAPI(socket, key string) func(ctx context.Context, conversation, inp
 		request.Header.Set("Authorization", "Bearer "+key)
 		response, err := client.Do(request)
 		if err != nil {
-			return "", errors.New("the lead isn't reachable yet; try again in a minute")
+			return "", errTeamLeadUnreachable
 		}
 		defer response.Body.Close()
 		if response.StatusCode != http.StatusOK {

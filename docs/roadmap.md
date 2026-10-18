@@ -1832,6 +1832,12 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   without Slack. hi posts it in the channel, the lead answers in its
   thread, and it is a go-ahead for the work it asks for, not a release.
 
+### v0.83.1 — hi team say waits for a lead that is starting
+
+- [x] A message sent while the lead's box was still starting, as right
+  after `hi update --restart`, got "the lead isn't reachable yet" in its
+  thread. It now waits up to five minutes for the lead.
+
 ## Planned
 
 ### Guide — a diagram for every tool

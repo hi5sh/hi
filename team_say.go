@@ -40,6 +40,10 @@ type teamSayRequest struct {
 
 const teamSayMaxText = 8000
 
+// teamSayLeadWait is how long a message waits for a lead that isn't up
+// yet, trying every teamSayRetry.
+var teamSayLeadWait, teamSayRetry = 5 * time.Minute, 10 * time.Second
+
 var teamSayApproval = regexp.MustCompile(`^say:([0-9]{9,11}\.[0-9]{6})$`)
 
 func teamSayPath(team string) string { return filepath.Join(teamDir(team), "run", "say.json") }
@@ -100,6 +104,14 @@ func (b *teamBroker) say(request teamSayRequest) (teamSaid, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), teamLeadTimeout)
 		defer cancel()
 		answer, err := b.lead(ctx, "say-"+said.TS, teamSayLeadInput(config, said), nil, nil)
+		// A lead whose box is starting, as after hi update, gets a while.
+		for start := time.Now(); errors.Is(err, errTeamLeadUnreachable) && time.Since(start) < teamSayLeadWait; {
+			select {
+			case <-ctx.Done():
+			case <-time.After(teamSayRetry):
+			}
+			answer, err = b.lead(ctx, "say-"+said.TS, teamSayLeadInput(config, said), nil, nil)
+		}
 		done := said
 		if answer = strings.TrimSpace(answer); err != nil && answer == "" {
 			done.Error = err.Error()
