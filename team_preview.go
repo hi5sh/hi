@@ -723,7 +723,7 @@ func printTeamPreview(w io.Writer, preview teamPreview) {
 	if preview.Slot == teamSlotProduction {
 		fmt.Fprintf(w, "%s (%s) is up at:\n  %s\n", teamCapitalize(label), commit, preview.URL)
 		if preview.Permalink != "" {
-			fmt.Fprintf(w, "hi keeps a message in the channel with production's current link: %s\nPoint the people to that message rather than posting the link itself: the link is renewed now and then, and the message always has the one that works.\n", preview.Permalink)
+			fmt.Fprintf(w, "Post this link itself when people ask for production, not a link to an older message. hi also keeps a message in the channel with the current one: %s\n", preview.Permalink)
 		}
 		return
 	}

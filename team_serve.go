@@ -1071,11 +1071,11 @@ Production has a link of its own, which hi keeps working: a release moves
 it to the new version, and hi renews it before it ends: each day, or
 every 30 days when the apps have names that stay (hi team domain, set by
 whoever runs hi on this machine). hi keeps one message in
-the channel with production's current link, and links to it when it posts
-a release. When people ask where production is, point them to that
-message (hi team preview production prints its link) rather than posting
-the link itself: a link you post stops working when it is renewed, and
-hi can't edit your messages.
+the channel with production's current link, and posts the link itself
+when it announces a release. When people ask where production is, run
+hi team preview production and post the link it prints, never a link to
+an older message: jumping back through the channel is what people don't
+want.
 
 The app's box has no credentials: no Slack token, no API keys. Its own
 link is in the file named by $HI_PUBLIC_URL_FILE, and it changes each

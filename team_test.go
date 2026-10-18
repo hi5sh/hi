@@ -1127,7 +1127,7 @@ func TestTeamProductionLink(t *testing.T) {
 	teamTestMerge(t, b, "Suppliers")
 
 	// The release puts production on its own address, and hi posts its
-	// link in the channel, then links to that message.
+	// link in the channel, and the link again in the release's message.
 	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 20), Notes: "Suppliers"}); err != nil {
 		t.Fatal(err)
 	}
@@ -1144,7 +1144,7 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatalf("the app's address file has %q", address())
 	}
 	calls := strings.Join(channel.calls, "\n")
-	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "hi's message with production's link") {
+	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+first.URL+"|production's link>") {
 		t.Fatal(calls)
 	}
 

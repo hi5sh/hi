@@ -379,8 +379,8 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 	if b.channel != nil {
 		if shown, err := b.production(0); err != nil {
 			result.Warning = strings.TrimSpace(result.Warning + "\nProduction's address still shows the version before: " + err.Error())
-		} else if shown.Permalink != "" {
-			announcement += fmt.Sprintf("\n\nOpen it from <%s|hi's message with production's link>, which hi keeps working.", shown.Permalink)
+		} else if shown.URL != "" {
+			announcement += fmt.Sprintf("\n\nOpen it at <%s|production's link>.", shown.URL)
 		}
 	}
 	if configErr == nil {
