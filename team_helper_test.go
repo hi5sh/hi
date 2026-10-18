@@ -126,6 +126,18 @@ func TestTeamHelperChat(t *testing.T) {
 	if status.Slot != "preview" || status.Version != "dev, v3 + 2 changes" || status.Commit != "abc123" || status.You == nil || status.You.ID != "U07ASKER9" || status.You.Name != "Bo" || status.Ended {
 		t.Fatalf("%+v", status)
 	}
+	// A relay from before /docs/ doesn't send it to hi: no docs button.
+	if status.Docs != "" {
+		t.Fatal(status.Docs)
+	}
+	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Label: "dev, v3 + 2 changes", Commit: "abc123", Relay: teamRelayStamp("payments", teamSlotPreview)})
+	response, _ = http.Get(server.URL + "/__hi/api/status")
+	status = teamWebStatus{}
+	json.NewDecoder(response.Body).Decode(&status)
+	response.Body.Close()
+	if status.Docs != "/docs/" {
+		t.Fatalf("%+v", status)
+	}
 
 	names, events := webEvents(t, server, teamWebSend{Text: "Make this one red when it's overdue",
 		Page: &teamWebPage{Path: "/suppliers", Title: "Suppliers", Width: 1440, Height: 900}})

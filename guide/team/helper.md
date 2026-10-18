@@ -14,6 +14,11 @@ corner. What it opens depends on who you are.
   comes from hi, not the lead, through a model with no tools: it only
   explains, so there is nothing to talk it into. Up to 60 questions a day
   per address, 400 for the team.
+- **Docs**, between Ask and Feedback, opens the app's
+  [docs](/guide/team/docs/) at `/docs` in a new browser tab, so the page
+  you were on stays as it was. In a preview's chat, which has no tabs,
+  it is in the ⋯ menu. An address on a relay from before `/docs` has
+  no Docs button.
 - **Feedback** goes to the team's channel as a message of its own,
   "Feedback f-12", with what you pointed at, your files, and a picture of
   the page as you see it (untick it to leave it out). It asks for your

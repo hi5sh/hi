@@ -1875,6 +1875,14 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   to draw in ASCII; the reviewer sends ASCII drawings back; and the
   lead's skill says to ask for boxes blocks by name.
 
+### v0.85.0 — The docs from the helper
+
+- [x] The helper has a **Docs** button between Ask and Feedback, which
+  opens `/docs` in a new browser tab (in the same tab from a page of the
+  docs), and "The app's docs" in its ⋯ menu for a preview's chat, which
+  has no tabs. hi's status says where the docs are, only on an address
+  whose relay sends `/docs/` to hi.
+
 ## Planned
 
 ### Guide — a diagram for every tool

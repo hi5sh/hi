@@ -443,6 +443,9 @@ type teamWebStatus struct {
 	Command string `json:"command"`
 	// Answers counts the team's answers to this browser's feedback.
 	Answers int `json:"answers,omitempty"`
+	// Docs is where the app's docs are on this address, when its relay
+	// sends /docs/ to hi (every relay since v0.81.1 records its stamp).
+	Docs string `json:"docs,omitempty"`
 }
 
 // teamWebSend is POST /__hi/api/messages.
@@ -541,6 +544,9 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot, Command: teamSlashCommand(b.team)}
 		if state, ok := loadTeamSlot(b.team, slot); ok {
 			status.Version, status.Commit = state.Label, state.Commit
+			if state.Relay != "" {
+				status.Docs = teamDocsPrefix
+			}
 		}
 		if person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader)); ok {
 			status.You = &teamWebPerson{ID: person.User, Name: person.Name}

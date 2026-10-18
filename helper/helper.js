@@ -66,6 +66,7 @@ header .version { color: var(--muted); font-size: 12px; white-space: nowrap; ove
 .menu.open { display: block; }
 .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; }
 .menu button:hover { background: var(--soft); }
+.menu button[hidden] { display: none; }
 .notice { margin: 8px 12px 0; padding: 8px 10px; border-radius: 8px; background: var(--warn); font-size: 13px;
   display: flex; gap: 8px; align-items: center; }
 .notice[hidden] { display: none; }
@@ -256,10 +257,11 @@ textarea:focus { border-color: var(--accent); }
     <button class="icon close" aria-label="Close">${ICONS.close}</button>
     <div class="menu" role="menu">
       <button data-action="new" role="menuitem">New conversation</button>
+      <button data-action="docs" role="menuitem" hidden>The app's docs</button>
       <button data-action="hide" role="menuitem">Hide the button until reload</button>
     </div>
   </header>
-  <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" role="tab" data-tab="feedback">Feedback</button><button type="button" role="tab" data-tab="change" hidden>Change</button></div>
+  <div class="tabs" role="tablist" hidden><button type="button" role="tab" data-tab="ask">Ask</button><button type="button" class="docs" title="The app's docs, in a new tab" hidden>Docs</button><button type="button" role="tab" data-tab="feedback">Feedback</button><button type="button" role="tab" data-tab="change" hidden>Change</button></div>
   <div class="notice" hidden><span>A new version is up.</span><button data-action="reload">Reload</button></div>
   <div class="notice ended" hidden><span></span></div>
   <div class="body" aria-live="polite"></div>
@@ -317,9 +319,18 @@ textarea:focus { border-color: var(--accent); }
     if (nameInput.value.trim()) nameInput.classList.remove("needed");
   });
   tabs.addEventListener("click", (event) => {
-    const tab = event.target.closest("button")?.dataset.tab;
-    if (tab) setTab(tab);
+    const button = event.target.closest("button");
+    if (button?.classList.contains("docs")) openDocs();
+    else if (button?.dataset.tab) setTab(button.dataset.tab);
   });
+  // openDocs opens the app's docs: in a new browser tab from the app, so
+  // the page stays as it was, or in this one from a page of the docs.
+  function openDocs() {
+    const docs = state.status?.docs;
+    if (!docs) return;
+    if (location.pathname.startsWith(docs)) location.assign(docs);
+    else window.open(docs, "_blank", "noopener");
+  }
   function setTab(tab) {
     state.tab = tab;
     store.set("sessionStorage", "tab", tab);
@@ -412,6 +423,7 @@ textarea:focus { border-color: var(--accent); }
   menu.addEventListener("click", async (event) => {
     const action = event.target.closest("button")?.dataset.action;
     menu.classList.remove("open");
+    if (action === "docs") openDocs();
     if (action === "new") {
       if (chatting()) await call("conversation/new", { method: "POST", body: {} }).catch(showError);
       state.conversation = null;
@@ -702,6 +714,10 @@ textarea:focus { border-color: var(--accent); }
     const change = tabs.querySelector("[data-tab=change]");
     change.hidden = !signedIn();
     change.classList.toggle("new", !chat && !!unseen());
+    // The docs: a button beside Ask and Feedback, and in the menu for a
+    // preview's chat, which has no tabs.
+    tabs.querySelector(".docs").hidden = !status.docs;
+    $("[data-action=docs]").hidden = !status.docs;
     const feedback = feedbackTab();
     for (const button of tabs.querySelectorAll("button")) {
       button.classList.toggle("on", button.dataset.tab === state.tab);

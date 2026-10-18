@@ -296,6 +296,36 @@ test("has no Change tab for anyone else", async () => {
   expect($(".tabs [data-tab=ask]").classList.contains("on")).toBe(true);
 });
 
+// The docs are a button between Ask and Feedback, and in the menu for a
+// preview's chat; an address without /docs has neither.
+test("opens the app's docs from the panel", async () => {
+  const opened = spyOn(window, "open").mockImplementation(() => null);
+  await start({ "GET status": () => json({ team: "payments", slot: "production", version: "v3", commit: "abc", docs: "/docs/" }) });
+  open();
+  const labels = $$(".tabs button").filter((button) => !button.hidden).map((button) => button.textContent);
+  expect(labels).toEqual(["Ask", "Docs", "Feedback"]);
+  $(".tabs .docs").click();
+  expect(opened).toHaveBeenCalledWith("/docs/", "_blank", "noopener");
+  expect($(".tabs [data-tab=ask]").classList.contains("on")).toBe(true);
+  expect($("[data-action=docs]").hidden).toBe(false);
+});
+
+test("opens the docs from the menu in a preview's chat", async () => {
+  const opened = spyOn(window, "open").mockImplementation(() => null);
+  await start({ ...signedIn, "GET status": () => json({ team: "payments", slot: "preview", version: "dev", commit: "abc", you: { id: "U07ANA", name: "Ana" }, docs: "/docs/" }) });
+  open();
+  expect($(".tabs").hidden).toBe(true);
+  $("[data-action=docs]").click();
+  expect(opened).toHaveBeenCalledWith("/docs/", "_blank", "noopener");
+});
+
+test("has no docs button where the address has no docs", async () => {
+  await start(anyone);
+  open();
+  expect($(".tabs .docs").hidden).toBe(true);
+  expect($("[data-action=docs]").hidden).toBe(true);
+});
+
 test("keeps a message to send again when the lead can't take it", async () => {
   await start({ ...signedIn, "POST messages": () => sse([["error", { error: "The lead is restarting; try again in a minute" }]]) });
   open();
