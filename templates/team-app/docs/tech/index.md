@@ -4,8 +4,9 @@
 for developers and agents: the parts of the app and how they connect,
 drawn. A boxes block is a structure diagram like the hi guide's (boxes in
 boxes, numbered marks, a key; docs/guide-diagrams.md in hi says how), and
-a mermaid block a Mermaid chart: a sequence for how a request flows, an
-erDiagram for the tables. Keep the detail in the map (docs/map.md), the
+a mermaid block a chart in Mermaid's language, drawn by pele: a sequence
+for how a request flows, an erDiagram for the tables, a stateDiagram-v2,
+a timeline; every kind Mermaid has works. Keep the detail in the map (docs/map.md), the
 decisions (docs/decisions/), the specs (docs/specs/), and the code; hi
 writes the changelog from the releases. Change this page in the same work
 as a change to how the parts connect. -->

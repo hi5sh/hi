@@ -163,15 +163,24 @@ func TestTeamDocsServe(t *testing.T) {
 		!strings.Contains(body, "preview: dev, v1 &#43; 1 change") || !strings.Contains(body, "2 pages") {
 		t.Fatal(body)
 	}
-	// A part: its menu, the page, where it comes from; Mermaid only where
-	// a page has a chart.
+	// A part: its menu, the page, where it comes from; the charts' script
+	// only where a page has a chart.
 	_, _, body = get("/docs/user/orders")
 	if !strings.Contains(body, `<a href="/docs/user/orders" aria-current="page">Orders</a>`) || !strings.Contains(body, "<strong>Add</strong>") ||
-		!strings.Contains(body, `From <a href="/docs/raw/docs/user/orders.md">docs/user/orders.md</a>`) || strings.Contains(body, teamDocsMermaid) {
+		!strings.Contains(body, `From <a href="/docs/raw/docs/user/orders.md">docs/user/orders.md</a>`) || strings.Contains(body, teamDocsCharts) {
 		t.Fatal(body)
 	}
-	if _, _, body = get("/docs/tech/"); !strings.Contains(body, teamDocsMermaid) || !strings.Contains(body, `<p class="menu-group">Decisions</p>`) {
+	if _, _, body = get("/docs/tech/"); !strings.Contains(body, teamDocsCharts) || !strings.Contains(body, `<p class="menu-group">Decisions</p>`) {
 		t.Fatal(body)
+	}
+	// The script that draws the charts, from hi, kept by the browser.
+	if status, kind, body = get(teamDocsCharts); status != 200 || kind != "text/javascript; charset=utf-8" || body != string(teamDocsPele) {
+		t.Fatal(status, kind, len(body))
+	}
+	request, _ := http.NewRequest("GET", server.URL+teamDocsCharts, nil)
+	request.Header.Set("If-None-Match", `"`+teamDocsPeleVersion+`"`)
+	if response, err := http.DefaultClient.Do(request); err != nil || response.StatusCode != http.StatusNotModified {
+		t.Fatal(err, response.StatusCode)
 	}
 	// The changelog, from the releases, with dev's changes on the preview.
 	_, _, body = get("/docs/tech/changelog")

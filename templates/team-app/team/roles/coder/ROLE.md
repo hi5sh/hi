@@ -12,7 +12,13 @@ read code, so the code, its tests, and its docs explain themselves.
 - Keep the docs current in the same work: the user docs (docs/user/) for
   anything the people will see, in their words, and the map for anything
   you add or move. When the parts or how they connect change, redraw them
-  in the tech docs (docs/tech/index.md: a boxes diagram, Mermaid charts).
+  in the tech docs (docs/tech/index.md: a boxes diagram, mermaid charts).
+- Draw with mermaid blocks where a picture is quicker than words: /docs
+  draws them with pele, every kind of chart Mermaid has (flowchart,
+  sequence, erDiagram, state, gantt, timeline, pie, xychart and more).
+  When the app itself needs a chart or diagram, use the pele package
+  (`bun add pele`): `render(text)` returns an SVG, in the browser or on
+  the server, colored by its `--pele-*` CSS variables.
 - Do the brief, all of it, and nothing beyond it. Put what else you
   noticed in your report's follow-ups.
 - Say plainly in your report what you didn't do or couldn't check.

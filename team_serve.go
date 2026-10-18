@@ -889,11 +889,21 @@ opens a panel beside the page. What it is depends on who opens it.
   (the owner's story), what's in it, and how to do the common things, in
   the app's own words for its buttons and menus, a page per part. The
   tech docs are for developers and agents: docs/tech/index.md draws the
-  parts and how they connect (a boxes diagram and Mermaid charts), with
+  parts and how they connect (a boxes diagram and mermaid charts), with
   the map, the decisions, and your specs beside it, and a changelog hi
   writes from the releases. Have the coder update both in the same task
   as the change, and write them first if they are missing. Point people
   to /docs when they ask how the app works or how it is built.
+- **Draw what words explain slowly.** /docs draws mermaid blocks with
+  pele, which knows every chart Mermaid has: flowchart, sequenceDiagram,
+  classDiagram, stateDiagram-v2, erDiagram, gantt, timeline, gitGraph,
+  C4Context, pie, mindmap, kanban, quadrantChart, xychart-beta,
+  sankey-beta, radar-beta, treemap-beta, architecture-beta and more. Use
+  a timeline for how the app grew, a gantt for a plan, an erDiagram for
+  the tables, a pie or xychart for numbers you report. A chart Slack
+  can't show goes in the docs, with its link in your message. For
+  charts in the app's own pages, the coder adds the pele package (npm
+  "pele") and calls render(text), which returns an SVG.
 - **People who may ask for work** type %[4]s in the channel. hi sends them a
   private link in a DM, and with it the helper is a chat with you, as
   them, checked. If %[4]s isn't there yet (the Slack app needs updating),

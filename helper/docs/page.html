@@ -73,12 +73,25 @@
   </main>
 </div>
 {{- end}}
-{{- if .Mermaid}}
+{{- if .Charts}}
 <script type="module">
-import mermaid from {{.Mermaid}};
-const dark = matchMedia("(prefers-color-scheme: dark)").matches;
-mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "default" });
-mermaid.run({ querySelector: "pre.mermaid" });
+import { render } from {{.Charts}};
+// Each mermaid block becomes its chart, drawn to the column's width; the
+// colors come from the page's own, so dark mode needs no second drawing.
+for (const block of document.querySelectorAll("pre.mermaid")) {
+  const chart = document.createElement("figure");
+  chart.className = "chart";
+  try {
+    chart.innerHTML = render(block.textContent, { maxWidth: block.clientWidth }).svg;
+  } catch (err) {
+    chart.className = "chart broken";
+    chart.append(block.cloneNode(true));
+    const why = document.createElement("figcaption");
+    why.textContent = "This chart doesn't draw: " + (err.message || err);
+    chart.append(why);
+  }
+  block.replaceWith(chart);
+}
 </script>
 {{- end}}
 </body>

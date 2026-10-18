@@ -96,7 +96,19 @@ a { color: var(--accent); }
 .prose code { font: 0.9em var(--mono); padding: 1px 5px; border-radius: 5px; background: var(--bg-code); border: 1px solid var(--line); }
 .prose pre { overflow-x: auto; padding: 14px 16px; border-radius: 10px; background: var(--bg-code); border: 1px solid var(--line); font-size: 13.5px; line-height: 1.55; }
 .prose pre code { padding: 0; border: 0; background: none; font-size: inherit; }
-.prose pre.mermaid { background: var(--bg-raised); text-align: center; }
+.prose pre.mermaid { background: var(--bg-raised); }
+/* Charts: pele draws the mermaid blocks with these colors, the page's own. */
+.chart {
+  --pele-bg: var(--bg-raised); --pele-fg: var(--text); --pele-muted: var(--muted);
+  --pele-line: var(--muted); --pele-surface: var(--bg-code); --pele-surface-alt: var(--bg);
+  --pele-border: var(--line-strong); --pele-accent: var(--accent); --pele-critical: var(--red);
+  --pele-font: var(--sans); --pele-font-mono: var(--mono);
+  margin: 0 0 18px; padding: 14px; border-radius: 10px; background: var(--bg-raised); border: 1px solid var(--line); text-align: center; overflow-x: auto;
+}
+.chart svg { max-width: 100%; height: auto; }
+.chart.broken { text-align: left; border: 1px dashed var(--red); }
+.chart.broken pre { margin: 0 0 8px; }
+.chart figcaption { font-size: 13px; color: var(--muted); }
 .prose blockquote { margin: 0 0 14px; padding: 2px 16px; border-left: 3px solid var(--accent); color: var(--muted); }
 .prose table { display: block; overflow-x: auto; border-collapse: collapse; margin: 0 0 16px; font-size: 14.5px; }
 .prose th, .prose td { padding: 6px 12px; border: 1px solid var(--line-strong); text-align: left; vertical-align: top; }

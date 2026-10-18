@@ -153,6 +153,15 @@ a { color: inherit; }
 .prose hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
 
 /* Code blocks */
+/* Charts: pele draws the mermaid blocks with the guide's colors. */
+.chart {
+  --pele-bg: var(--bg-raised); --pele-fg: var(--text); --pele-muted: var(--muted);
+  --pele-line: var(--muted); --pele-surface: var(--bg-code); --pele-surface-alt: var(--bg);
+  --pele-border: var(--line-strong); --pele-accent: var(--accent); --pele-critical: var(--red);
+  --pele-font: var(--sans); --pele-font-mono: var(--mono);
+  margin: 0 0 22px; padding: 16px; border-radius: 10px; background: var(--bg-raised); border: 1px solid var(--line); text-align: center; overflow-x: auto;
+}
+.chart svg { max-width: 100%; height: auto; }
 .prose div.highlighter-rouge, .prose pre {
   position: relative; margin: 0 0 18px;
 }

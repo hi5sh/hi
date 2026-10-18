@@ -1,6 +1,6 @@
 ---
 title: The app's docs
-description: "Every app a hi team builds has its docs at /docs: user docs for the people who use it, tech docs for developers and agents, drawn with box diagrams and Mermaid charts."
+description: "Every app a hi team builds has its docs at /docs: user docs for the people who use it, tech docs for developers and agents, drawn with box diagrams and charts."
 ---
 
 Every app a hi team builds has its docs on its own addresses, at `/docs`
@@ -36,9 +36,9 @@ and why. The menu holds:
 - **The first page**, `docs/tech/index.md`: the parts of the app and how
   they connect, drawn. A `boxes` block is a structure diagram like the
   ones in this guide (boxes in boxes, numbered marks, a key), written as
-  JSON; a `mermaid` block is a [Mermaid](https://mermaid.js.org) chart,
-  such as a sequence for how a request flows or an `erDiagram` of the
-  tables. More pages go in `docs/tech/`.
+  JSON; a `mermaid` block is a chart in [Mermaid](https://mermaid.js.org)'s
+  language, such as a sequence for how a request flows or an `erDiagram`
+  of the tables. More pages go in `docs/tech/`.
 - **The map**, `docs/map.md`: what the project has and where each part
   lives.
 - **The changelog**: hi writes it from the team's releases, each version
@@ -49,6 +49,39 @@ and why. The menu holds:
 
 The coder updates the docs in the same task as the change, and the
 reviewer sends back work whose docs don't match it.
+
+## Charts
+
+hi draws the `mermaid` blocks with [pele](https://pele.run), which reads
+Mermaid's language and draws every kind of chart Mermaid has built in:
+flowcharts, sequences, classes, states, `erDiagram`, Gantt, timelines,
+git graphs, C4, pies, mind maps, kanban, quadrant, XY, sankey, radar,
+treemap and more. It draws in the page's colors, light or dark, and turns
+a wide flowchart on its side on a phone. hi serves pele itself, at
+`/docs/pele.js`, so the charts load nothing from elsewhere. A chart with
+a mistake shows its text and what is wrong, and the rest of the page
+still draws.
+
+This is how a page of the docs reaches you:
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant R as hi's relay
+    participant T as The team's service
+    participant G as The project (git)
+    B->>R: GET /docs/tech/
+    R->>T: /docs/ always goes to hi, never to the app
+    T->>G: docs/ in the version on this address
+    G-->>T: the Markdown files
+    T-->>B: the page, with boxes drawn
+    B->>T: GET /docs/pele.js, once
+    Note over B: pele draws the mermaid blocks
+```
+
+The app can use pele too, for charts on its own pages: the coder adds the
+[`pele` package](https://www.npmjs.com/package/pele) and calls
+`render(text)`, which gives an SVG, in the browser or on the server.
 
 ## For agents
 

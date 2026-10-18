@@ -1,7 +1,8 @@
 # `hi team` docs: `/docs` on every app
 
 Status: Approved (2026-10-18), built in v0.81.0; addresses that stay get
-the new routes since v0.81.1.
+the new routes since v0.81.1; charts drawn by pele, served from hi, since
+v0.82.0.
 
 Dependencies: [hi_team.md](hi_team.md) (the addresses, releases, the
 lead and its members), [hi_team_helper.md](hi_team_helper.md) (the
@@ -77,9 +78,20 @@ Pages are Markdown (GitHub's: tables, task lists), with:
 - **`boxes` blocks**: the hi guide's structure diagrams
   ([guide-diagrams.md](../../guide-diagrams.md)), the same JSON, drawn
   by hi. One that doesn't parse shows why, with its text.
-- **`mermaid` blocks**: Mermaid charts, drawn in the browser by Mermaid
-  11.4.1 from jsDelivr, loaded only on a page that has one, with
-  `securityLevel: strict`.
+- **`mermaid` blocks**: charts in Mermaid's language, drawn in the
+  browser by [pele](https://pele.run) 1.6.0 (MIT, from Obsidian's
+  developers), which draws every diagram type Mermaid has built in, as
+  SVG without scripts or HTML labels. hi embeds it
+  (`third_party/pele/`) and serves it at `/docs/pele.js?v=<hash>`,
+  cached for good, loaded only on a page that has a chart; nothing comes
+  from a CDN. Its colors are the page's (`--pele-*` CSS variables set
+  from the docs' tokens), so dark mode needs no second drawing; it draws
+  to the column's width and turns a wide flowchart on its side on a
+  phone. A chart that doesn't parse keeps its text, with the error.
+  Chosen over Mermaid itself after drawing 60 charts from real projects
+  with both: the same 58 drew and the same 2 failed, pele's layouts were
+  easier to read, and it was about 4 times faster and a seventh of the
+  size; Mermaid 11.4.1 had no radar or treemap.
 - **Links between docs as files** (`../map.md`, `decisions/0001-x.md`),
   so they work on GitHub too; hi points them at the pages. Pictures and
   other files under `docs/` are served from `/docs/raw/<file>`.
@@ -137,6 +149,13 @@ the links people have keep working and nobody gets new ones (since
 v0.81.1). An address NetBird made up gets the routes with its next
 address, within a day, rather than new links for everyone at once.
 
+Members draw with pele beyond the docs too: the lead's skill says which
+chart fits what (a timeline for how the app grew, a gantt for a plan, an
+erDiagram for the tables), every brief's map rule says mermaid blocks
+work in the docs, and the coder's role says to use the `pele` package
+for charts in the app's own pages. The hi guide draws its `mermaid`
+blocks with the same copy (`_layouts/guide.html`).
+
 hi reads `docs/` and `HELP.md` from the commit with one `git archive`
 (at most 2 MB a file, 32 MB in all) and keeps the last six versions in
 memory.
@@ -146,5 +165,4 @@ memory.
 - Tech docs only for people signed in with `/hi`, for a public
   production app whose internals shouldn't be public.
 - Search across the docs.
-- Mermaid bundled into hi rather than loaded from a CDN.
 - A check members can run on `boxes` JSON before committing.

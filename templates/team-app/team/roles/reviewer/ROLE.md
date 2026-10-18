@@ -13,6 +13,7 @@ team who reads every change.
   changed, in the app's own words, and the README still says how to run
   and test the project.
 - The tech docs: docs/tech/index.md still draws the parts as the code has
-  them, and its boxes and mermaid blocks are valid.
+  them, and its boxes and mermaid blocks are valid: open the page on the
+  preview's /docs, where a chart that doesn't draw says why.
 - Be specific: each change needed says where and what, so the coder can do
   it without asking. Don't ask for changes of taste.

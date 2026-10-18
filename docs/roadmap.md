@@ -1809,6 +1809,18 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   production's link, on the same address with its key. An address on a
   relay from before `/docs` leaves it out until its next address.
 
+### v0.82.0 — Charts drawn by pele
+
+- [x] The docs' `mermaid` blocks are drawn by [pele](https://pele.run),
+  which reads Mermaid's language and draws every chart type Mermaid has,
+  in the page's colors, light or dark. hi serves it at `/docs/pele.js`
+  instead of loading Mermaid from a CDN. Tried on 60 charts from real
+  projects: the same ones drew as with Mermaid, clearer and faster.
+- [x] Members know their charts: the lead's skill says which fits what,
+  the map rule in every brief says mermaid blocks work in the docs, and
+  the coder uses the `pele` package for charts in the app.
+- [x] The hi guide draws `mermaid` blocks with pele too.
+
 ## Planned
 
 ### Guide — a diagram for every tool

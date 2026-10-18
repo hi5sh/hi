@@ -3,6 +3,7 @@ package main
 import (
 	"archive/tar"
 	"bytes"
+	"crypto/sha256"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -42,6 +43,14 @@ var teamDocsPageSource string
 //go:embed helper/docs/docs.css
 var teamDocsCSS string
 
+// teamDocsPele draws the docs' Mermaid charts in the browser: pele, served
+// from hi at /docs/pele.js, so the charts need no CDN (third_party/pele).
+//
+//go:embed third_party/pele/pele.js
+var teamDocsPele []byte
+
+var teamDocsPeleVersion = fmt.Sprintf("%x", sha256.Sum256(teamDocsPele))[:16]
+
 const (
 	teamDocsPrefix = "/docs/"
 	// The two parts, in the repository.
@@ -51,10 +60,11 @@ const (
 	// teamDocsMaxTotal all of them together, per version.
 	teamDocsMaxFile  = 2 << 20
 	teamDocsMaxTotal = 32 << 20
-	// teamDocsMermaid is the Mermaid the pages load for their charts, from
-	// a CDN, only on a page that has one.
-	teamDocsMermaid = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs"
 )
+
+// teamDocsCharts is the address of the script that draws the charts, which
+// a page loads only when it has one.
+var teamDocsCharts = teamDocsPrefix + "pele.js?v=" + teamDocsPeleVersion
 
 // teamDocsPage is one page of the docs: a Markdown file, or a page hi
 // writes (the changelog).
@@ -513,7 +523,7 @@ type teamDocsView struct {
 	Body    template.HTML
 	Source  string // the page's file, for agents and the curious
 	Empty   bool
-	Mermaid template.JS // the import's address, as a string in quotes
+	Charts  template.JS // the import's address, as a string in quotes
 	Style   template.CSS
 	Users   int
 	Techs   int
@@ -560,6 +570,17 @@ func (b *teamBroker) docsHandler(slot string) http.Handler {
 		case rest == "llms.txt":
 			teamDocsIndex(w, config, version)
 			return
+		case rest == "pele.js":
+			etag := `"` + teamDocsPeleVersion + `"`
+			w.Header().Set("ETag", etag)
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			if r.Header.Get("If-None-Match") == etag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+			w.Write(teamDocsPele)
+			return
 		case area == "raw":
 			data, ok := version.Files[at]
 			if !ok {
@@ -595,10 +616,10 @@ func (b *teamBroker) docsHandler(slot string) http.Handler {
 				view.Body, _ = version.render([]byte(teamDocsChangelog(b.team, slot)), "")
 			default:
 				view.Title, view.Source = page.Title, page.File
-				var mermaid bool
-				view.Body, mermaid = version.render(version.Files[page.File], page.File)
-				if mermaid {
-					view.Mermaid = template.JS(`"` + teamDocsMermaid + `"`)
+				var charts bool
+				view.Body, charts = version.render(version.Files[page.File], page.File)
+				if charts {
+					view.Charts = template.JS(`"` + teamDocsCharts + `"`)
 				}
 			}
 		default:
