@@ -596,9 +596,12 @@ You don't write code yourself. You hand tasks to the members:
 
 The hi-team skill says how: hi team task, wait, and merge.
 
-Answer first. Look at the code only as much as you need to answer or to
-write a brief, a few files at most; the member reads the rest in its
-task. A turn of yours stops after %[6]d steps and answers with what it has.
+Be quick. When a message asks for work, start it in the same turn (hi
+team task, with a short brief), then say what you started: your answer
+ends your turn, and nothing happens after it until someone writes. Look
+at the code only as much as you need for the brief, a few files at most;
+the member reads the rest in its task. A turn of yours stops after %[6]d
+steps and answers with what it has.
 
 ## How work is done
 
@@ -678,6 +681,18 @@ const teamSlackFormatting = `- Slack shows only part of Markdown. Write plain Ma
 // teamSoulUpdates are paragraphs an earlier hi wrote in a lead's SOUL.md,
 // with what this hi says instead. SOUL.md is the lead's to edit, so hi
 // replaces a paragraph only where it is still word for word its own.
+var (
+	teamSoulAnswerFirst = fmt.Sprintf(`Answer first. Look at the code only as much as you need to answer or to
+write a brief, a few files at most; the member reads the rest in its
+task. A turn of yours stops after %d steps and answers with what it has.`, teamLeadMaxTurns)
+	teamSoulBeQuick = fmt.Sprintf(`Be quick. When a message asks for work, start it in the same turn (hi
+team task, with a short brief), then say what you started: your answer
+ends your turn, and nothing happens after it until someone writes. Look
+at the code only as much as you need for the brief, a few files at most;
+the member reads the rest in its task. A turn of yours stops after %d
+steps and answers with what it has.`, teamLeadMaxTurns)
+)
+
 var teamSoulUpdates = []struct{ old, new string }{
 	// Posts at milestones, not at each step.
 	{`- Keep them posted in short messages: what you're doing, what's next, and
@@ -763,12 +778,10 @@ for no longer fits the story, ask an owner whether the story has changed.
    piece; only an owner's yes puts it in production, as the next version
    (the hi-team skill says how). Always say which version people are
    looking at: production v3, or dev.`},
-	// The lead answers before it reads much code (v0.86.1).
-	{"## How work is done", fmt.Sprintf(`Answer first. Look at the code only as much as you need to answer or to
-write a brief, a few files at most; the member reads the rest in its
-task. A turn of yours stops after %d steps and answers with what it has.
-
-## How work is done`, teamLeadMaxTurns)},
+	// The lead starts the work, then answers, before it reads much code;
+	// v0.86.1's paragraph first, so it isn't added beside it.
+	{teamSoulAnswerFirst, teamSoulBeQuick},
+	{"## How work is done", teamSoulBeQuick + "\n\n## How work is done"},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team

@@ -36,7 +36,7 @@ func TestTeamSay(t *testing.T) {
 		channel.calls[1] != "postIn C07PAYMENTS "+said.TS+" On it." {
 		t.Fatalf("%q", channel.calls)
 	}
-	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi team say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "--approval say:"+said.TS) || !strings.Contains(input, "Answer soon and briefly") {
+	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi team say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "--approval say:"+said.TS) || !strings.Contains(input, "start it first, with hi team task") {
 		t.Fatal(input)
 	}
 

@@ -1919,6 +1919,15 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   calls (`agent.max_turns`), after which it answers with what it has.
   SOUL.md gains "Answer first."
 
+### v0.86.2 — The lead starts the work, then answers
+
+- [x] With v0.86.1's "answer soon", cartman's lead answered "I am on it"
+  and ended its turn without starting the task: an answer ends the turn,
+  and nothing happens until someone writes again. The lead now starts the
+  work a message asks for (hi team task, with a short brief) in the same
+  turn, then says what it started. SOUL.md's "Answer first." becomes
+  "Be quick."
+
 ## Planned
 
 ### Guide — a diagram for every tool

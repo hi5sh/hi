@@ -1299,3 +1299,20 @@ func TestTeamConnectGitHub(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// v0.86.1's paragraph is replaced, not kept beside the new one.
+func TestTeamSoulBeQuick(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SOUL.md")
+	os.WriteFile(path, []byte("x\n\n"+teamSoulAnswerFirst+"\n\n## How work is done\n"), 0o600)
+	if err := updateTeamSoul(path); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n## How work is done\n" {
+		t.Fatalf("%s", data)
+	}
+	os.WriteFile(path, []byte("x\n\n## How work is done\n"), 0o600)
+	updateTeamSoul(path)
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n## How work is done\n" {
+		t.Fatalf("%s", data)
+	}
+}

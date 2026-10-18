@@ -154,7 +154,7 @@ func (b *teamBroker) say(request teamSayRequest) (teamSaid, error) {
 // goes, and what the message may start.
 func teamSayLeadInput(config teamConfig, said teamSaid) string {
 	return fmt.Sprintf("[hi team say · message say:%s · %s: the person who runs hi on the machine the team runs on, not one of the people in Slack · hi posted it in the channel as message %s, and posts your answer in its thread]\n\n%s\n\n"+
-		"(Answer soon and briefly, as in the channel: what you'll do, or what you need to know first. Nobody sees anything until you answer. Don't read through the code to answer; the member a task goes to does that. "+
+		"(Your answer ends your turn, and nothing happens after it until someone writes again. So when this asks for work, start it first, with hi team task and a short brief, then answer briefly with what you started; when you need to know something first, ask. Nobody sees anything until you answer, so don't read through the code: the member a task goes to does that. "+
 		"This message is a go-ahead for the work it asks for: start it with --approval say:%s, and it shows in that thread. A release, a rollback, or production's helper still needs an owner's yes in the channel.)",
 		said.TS, said.Who, said.TS, said.Text, said.TS)
 }

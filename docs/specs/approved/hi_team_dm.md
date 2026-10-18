@@ -81,8 +81,10 @@ message, and hi posts the answer in that message's thread. `--wait`
 prints the answer too.
 
 Nobody in Slack sees that conversation until it ends, and a reply in the
-thread is a conversation of its own. So hi asks the lead to answer soon
-and briefly, and leave reading the code to the member a task goes to.
+thread is a conversation of its own, and the answer ends the lead's turn.
+So hi asks the lead to start the work the message asks for (hi team
+task, with a short brief), then answer briefly with what it started,
+and to leave reading the code to the member a task goes to.
 When there is no answer after 2 minutes, hi posts "The lead is still
 working on this; its answer comes in this thread." Every turn of the
 lead's stops after 60 model calls (`agent.max_turns`) and answers with
