@@ -1827,6 +1827,16 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
   one question, such as [Jev](https://docs.pipecat.ai/api-reference/server/classifiers/jev),
   TypeSafe's classification model, asked "is this message for the
   lead?". Until then it answers @-mentions only, which works well.
+- [ ] Adopt a project someone else wrote, such as one found on GitHub:
+  `hi team adopt <name> <source>`, a copy that never pushes to the source,
+  a survey that makes it run and maps it, and keeping up with upstream.
+  Spec: [hi_team_adopt.md](specs/ideas/hi_team_adopt.md) (draft).
+- [ ] Explore a playground team for trying projects out: one team whose
+  adopted project can be swapped (`hi team adopt playground <url>
+  --replace`), keeping the old one as a branch, so trying something
+  doesn't cost a new Slack app and channel. Decide whether it's worth
+  bending "a new project is a new team". See
+  [hi_team_adopt.md](specs/ideas/hi_team_adopt.md#decisions).
 
 ### Later — Bun
 
