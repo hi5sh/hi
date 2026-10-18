@@ -80,6 +80,15 @@ Hermes' API server, as it does the app's chat, in a conversation per
 message, and hi posts the answer in that message's thread. `--wait`
 prints the answer too.
 
+Nobody in Slack sees that conversation until it ends, and a reply in the
+thread is a conversation of its own. So hi asks the lead to answer soon
+and briefly, and leave reading the code to the member a task goes to.
+When there is no answer after 2 minutes, hi posts "The lead is still
+working on this; its answer comes in this thread." Every turn of the
+lead's stops after 60 model calls (`agent.max_turns`) and answers with
+what it has. (Before v0.86.1 a lead searched team cartman's code for 13
+minutes, 200 calls, and said nothing.)
+
 The message is a go-ahead for the work it asks for, as
 `--approval say:<ts>`, kept in `run/say.json` for a week: the machine's
 admin can change anything there already. A release, a rollback, or

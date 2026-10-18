@@ -268,6 +268,10 @@ func teamBrokerDir(name string) string {
 	return filepath.Join(teamDir(name), "run", "broker")
 }
 
+// teamLeadMaxTurns caps the model calls in one turn of the lead's; few
+// answers need more than 20.
+const teamLeadMaxTurns = 60
+
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
 // start: its settings, its .env, and the hi-team skill. SOUL.md and the
 // memories are the lead's own and are left alone.
@@ -297,6 +301,10 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// A scheduled job's message is just its text, without Hermes' "Cronjob
 	// Response" heading and "To stop or manage this job" line.
 	settings += "cron:\n  wrap_response: false\n"
+	// A turn that keeps calling tools stops and answers with what it has:
+	// the lead talks and hands work to members, and a lead stuck searching
+	// the code ran 200 calls in 13 minutes before anyone saw a word.
+	settings += fmt.Sprintf("agent:\n  max_turns: %d\n", teamLeadMaxTurns)
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}
@@ -588,6 +596,10 @@ You don't write code yourself. You hand tasks to the members:
 
 The hi-team skill says how: hi team task, wait, and merge.
 
+Answer first. Look at the code only as much as you need to answer or to
+write a brief, a few files at most; the member reads the rest in its
+task. A turn of yours stops after %[6]d steps and answers with what it has.
+
 ## How work is done
 
 1. Agree with the people what will change and how they will know it works:
@@ -650,7 +662,7 @@ the story isn't told yet, ask an owner for it early, in plain words: why
 the app exists, who uses it, and what they need from it. Then have the
 coder write it there (hi team task --small). When what the people ask
 for no longer fits the story, ask an owner whether the story has changed.
-`, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting)
+`, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns)
 }
 
 // teamSlackFormatting is how the lead writes for Slack. Hermes turns
@@ -751,6 +763,12 @@ for no longer fits the story, ask an owner whether the story has changed.
    piece; only an owner's yes puts it in production, as the next version
    (the hi-team skill says how). Always say which version people are
    looking at: production v3, or dev.`},
+	// The lead answers before it reads much code (v0.86.1).
+	{"## How work is done", fmt.Sprintf(`Answer first. Look at the code only as much as you need to answer or to
+write a brief, a few files at most; the member reads the rest in its
+task. A turn of yours stops after %d steps and answers with what it has.
+
+## How work is done`, teamLeadMaxTurns)},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team

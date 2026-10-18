@@ -1908,6 +1908,17 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   copy of the preview's data, under the same yes. `hi team release --ask`
   says when production has no data yet and the preview has some.
 
+### v0.86.1 — The lead answers hi team say
+
+- [x] A message from `hi team say` reached team cartman's lead, which
+  searched the code for 13 minutes (200 model calls, repeating the same
+  searches) and posted nothing; an owner asked in the thread, and a second
+  conversation answered. hi now asks the lead to answer soon and leave the
+  code to the member, posts "The lead is still working on this" in the
+  thread after 2 minutes, and caps each turn of the lead's at 60 model
+  calls (`agent.max_turns`), after which it answers with what it has.
+  SOUL.md gains "Answer first."
+
 ## Planned
 
 ### Guide — a diagram for every tool

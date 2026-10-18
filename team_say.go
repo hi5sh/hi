@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -43,6 +44,12 @@ const teamSayMaxText = 8000
 // teamSayLeadWait is how long a message waits for a lead that isn't up
 // yet, trying every teamSayRetry.
 var teamSayLeadWait, teamSayRetry = 5 * time.Minute, 10 * time.Second
+
+// teamSayWorkingAfter is when a thread with no answer yet says the lead is
+// on it, so nobody asks again while it works: the people in Slack can't
+// see a turn through Hermes' API server, and their reply in the thread is
+// a conversation of its own.
+var teamSayWorkingAfter = 2 * time.Minute
 
 var teamSayApproval = regexp.MustCompile(`^say:([0-9]{9,11}\.[0-9]{6})$`)
 
@@ -103,6 +110,16 @@ func (b *teamBroker) say(request teamSayRequest) (teamSaid, error) {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), teamLeadTimeout)
 		defer cancel()
+		// The note never comes after the answer.
+		var workingMu sync.Mutex
+		answering := false
+		working := time.AfterFunc(teamSayWorkingAfter, func() {
+			workingMu.Lock()
+			defer workingMu.Unlock()
+			if !answering {
+				b.channel.postIn(config.Channel, said.TS, "The lead is still working on this; its answer comes in this thread.")
+			}
+		})
 		answer, err := b.lead(ctx, "say-"+said.TS, teamSayLeadInput(config, said), nil, nil)
 		// A lead whose box is starting, as after hi update, gets a while.
 		for start := time.Now(); errors.Is(err, errTeamLeadUnreachable) && time.Since(start) < teamSayLeadWait; {
@@ -112,6 +129,10 @@ func (b *teamBroker) say(request teamSayRequest) (teamSaid, error) {
 			}
 			answer, err = b.lead(ctx, "say-"+said.TS, teamSayLeadInput(config, said), nil, nil)
 		}
+		working.Stop()
+		workingMu.Lock()
+		answering = true
+		workingMu.Unlock()
 		done := said
 		if answer = strings.TrimSpace(answer); err != nil && answer == "" {
 			done.Error = err.Error()
@@ -133,7 +154,8 @@ func (b *teamBroker) say(request teamSayRequest) (teamSaid, error) {
 // goes, and what the message may start.
 func teamSayLeadInput(config teamConfig, said teamSaid) string {
 	return fmt.Sprintf("[hi team say · message say:%s · %s: the person who runs hi on the machine the team runs on, not one of the people in Slack · hi posted it in the channel as message %s, and posts your answer in its thread]\n\n%s\n\n"+
-		"(This message is a go-ahead for the work it asks for: start it with --approval say:%s, and it shows in that thread. A release, a rollback, or production's helper still needs an owner's yes in the channel.)",
+		"(Answer soon and briefly, as in the channel: what you'll do, or what you need to know first. Nobody sees anything until you answer. Don't read through the code to answer; the member a task goes to does that. "+
+		"This message is a go-ahead for the work it asks for: start it with --approval say:%s, and it shows in that thread. A release, a rollback, or production's helper still needs an owner's yes in the channel.)",
 		said.TS, said.Who, said.TS, said.Text, said.TS)
 }
 

@@ -36,7 +36,7 @@ func TestTeamSay(t *testing.T) {
 		channel.calls[1] != "postIn C07PAYMENTS "+said.TS+" On it." {
 		t.Fatalf("%q", channel.calls)
 	}
-	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi team say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "--approval say:"+said.TS) {
+	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi team say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "--approval say:"+said.TS) || !strings.Contains(input, "Answer soon and briefly") {
 		t.Fatal(input)
 	}
 
@@ -59,5 +59,26 @@ func TestTeamSay(t *testing.T) {
 	waitTeamTask(t, task.ID)
 	if got := teamTaskAskedBy(task); got != "asked for by admin on the machine" {
 		t.Fatal(got)
+	}
+}
+
+// A lead that takes long says so in the thread, once, before its answer.
+func TestTeamSayWorking(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	teamSayWorkingAfter = 10 * time.Millisecond
+	t.Cleanup(func() { teamSayWorkingAfter = 2 * time.Minute })
+	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
+		time.Sleep(100 * time.Millisecond)
+		return "Done.", nil
+	}
+	said, err := b.say(teamSayRequest{Text: "Look into it", Wait: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(channel.calls) != 3 || channel.calls[1] != "postIn C07PAYMENTS "+said.TS+" The lead is still working on this; its answer comes in this thread." || channel.calls[2] != "postIn C07PAYMENTS "+said.TS+" Done." {
+		t.Fatalf("%q", channel.calls)
 	}
 }
