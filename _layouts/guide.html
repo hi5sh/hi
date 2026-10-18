@@ -97,11 +97,12 @@
 // mermaid blocks become charts, drawn by pele (third_party/pele) in the
 // guide's colors; a chart that doesn't draw stays as its source.
 import { render } from "{{ '/third_party/pele/pele.js' | relative_url }}";
-for (const block of document.querySelectorAll(".prose div.language-mermaid")) {
+for (const code of document.querySelectorAll(".prose code.language-mermaid, .prose .language-mermaid code")) {
+  const block = code.closest("div.highlighter-rouge") || code.closest("pre");
   try {
     const chart = document.createElement("figure");
     chart.className = "chart";
-    chart.innerHTML = render(block.querySelector("code").textContent, { maxWidth: block.clientWidth }).svg;
+    chart.innerHTML = render(code.textContent, { maxWidth: block.clientWidth }).svg;
     block.replaceWith(chart);
   } catch (err) {
     console.warn("chart:", err.message || err);
