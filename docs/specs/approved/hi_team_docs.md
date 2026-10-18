@@ -149,6 +149,13 @@ the links people have keep working and nobody gets new ones (since
 v0.81.1). An address NetBird made up gets the routes with its next
 address, within a day, rather than new links for everyone at once.
 
+Every brief shows members both blocks after the map rule
+(`teamDrawRule`): the boxes block's JSON with an example that draws, and
+which Mermaid chart fits what, and says never to draw in ASCII or
+box-drawing characters, which /docs shows as text. The reviewer's checks
+include it. (Before v0.84.1 members had never seen the boxes format, and
+a team's coder drew its "box diagram" in ASCII.)
+
 Members draw with pele beyond the docs too: the lead's skill says which
 chart fits what (a timeline for how the app grew, a gantt for a plan, an
 erDiagram for the tables), every brief's map rule says mermaid blocks

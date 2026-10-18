@@ -56,7 +56,7 @@ func TestTeamBriefsCarryTheRole(t *testing.T) {
 	task := teamTestSmall(t, b, teamRequest{Brief: "Add a supplier list"})
 	brief, _ := os.ReadFile(filepath.Join(teamTaskDir("payments"), task.ID+".md"))
 	for _, want := range []string{
-		teamSpecsRule + "\n\n" + teamMapRule,
+		teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule,
 		"## Your role on this team (roles/coder/ROLE.md)\n\n### The coder",
 		"## What the coder has learned on this team (roles/coder/LEARNED.md)",
 		"- Tests need TZ=UTC",

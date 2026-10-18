@@ -801,7 +801,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
 	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s\n", task.ID, task.Role, b.team, brief)
-	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n"
+	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 		if config, err := loadTeam(b.team); err == nil {
@@ -980,7 +980,8 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	text.WriteString("- it does what the brief asks, and nothing beyond it or beyond what the people approved (their words are in the brief below, or in how the work started): work they didn't ask for is a change needed, \"outside what was approved\", however useful;\n")
 	text.WriteString("- it has tests for what the brief says must work, and the tests pass when you run them;\n")
 	text.WriteString("- it doesn't break what worked before, leak secrets, or leave debugging behind;\n")
-	text.WriteString("- the README still says how to run and test the project.\n\n")
+	text.WriteString("- the README still says how to run and test the project;\n")
+	text.WriteString("- its diagrams in the docs are boxes or mermaid blocks, never drawings in ASCII or box-drawing characters, which /docs shows as text: one is a change needed.\n\n")
 	text.WriteString("Don't fix anything yourself and don't commit: say what must change.\n\n")
 	text.WriteString("In your report, start the summary with \"Approve:\" if it can be merged as it is, or with \"Changes needed:\" and put each change in follow_ups.\n\n")
 	if notes = strings.TrimSpace(notes); notes != "" {

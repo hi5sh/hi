@@ -282,3 +282,21 @@ func TestTeamDocsLinkKeepsKey(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// The boxes block every brief shows members draws, with each part.
+func TestTeamDrawRuleExampleDraws(t *testing.T) {
+	start := strings.Index(teamDrawRule, "```boxes\n")
+	end := strings.Index(teamDrawRule[start+3:], "```") + start + 3
+	block := teamDrawRule[start : end+3]
+	version := &teamDocsVersion{Files: map[string][]byte{}}
+	body, _ := version.render([]byte("# Parts\n\n"+block+"\n"), "docs/tech/index.md")
+	html := string(body)
+	if strings.Contains(html, "docs-broken") {
+		t.Fatal(html)
+	}
+	for _, want := range []string{"People using the app", "src/server.ts", "app.db", "api.example.com", "The team&#39;s machine", "<code>code</code>"} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("no %q in\n%s", want, html)
+		}
+	}
+}

@@ -1865,6 +1865,16 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] Addresses on a team's domain move to a relay with this, on the same
   link and key, as they did for /docs in v0.81.1.
 
+### v0.84.1 — Members draw boxes, not ASCII art
+
+- [x] A team's tech docs had "the same thing as boxes" drawn in ASCII
+  box-drawing characters, which /docs shows as text: the lead asked for
+  "box diagrams" and the coder had never seen the boxes format, which
+  lived only in hi's guide and the template's example page. Every brief
+  now shows the boxes block's JSON with a working example and says never
+  to draw in ASCII; the reviewer sends ASCII drawings back; and the
+  lead's skill says to ask for boxes blocks by name.
+
 ## Planned
 
 ### Guide — a diagram for every tool

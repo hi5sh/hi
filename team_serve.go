@@ -909,9 +909,14 @@ opens a panel beside the page. What it is depends on who opens it.
   writes from the releases. Have the coder update both in the same task
   as the change, and write them first if they are missing. Point people
   to /docs when they ask how the app works or how it is built.
-- **Draw what words explain slowly.** /docs draws mermaid blocks with
-  pele, which knows every chart Mermaid has: flowchart, sequenceDiagram,
-  classDiagram, stateDiagram-v2, erDiagram, gantt, timeline, gitGraph,
+- **Draw what words explain slowly.** /docs draws two kinds of block:
+  boxes blocks, the structure as cards in boxes with numbered marks and a
+  key, like the hi guide's (every brief shows members the JSON), and
+  mermaid blocks. When you ask for "box diagrams", say boxes blocks:
+  members otherwise draw ASCII art, which shows as text. Mermaid blocks
+  are drawn by pele, which knows every chart Mermaid has: flowchart,
+  sequenceDiagram, classDiagram, stateDiagram-v2, erDiagram, gantt,
+  timeline, gitGraph,
   C4Context, pie, mindmap, kanban, quadrantChart, xychart-beta,
   sankey-beta, radar-beta, treemap-beta, architecture-beta and more. Use
   a timeline for how the app grew, a gantt for a plan, an erDiagram for

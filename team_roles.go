@@ -33,6 +33,25 @@ const (
 // how a member finds what already exists before building.
 const teamMapRule = "docs/map.md is the project's map: what it already has (pages, API routes, tables, shared code, outside services) and where each lives. Read it before you add anything, and extend what it lists rather than building something beside it. When your work adds or moves something on it, update it in the same work, and add a short file to docs/decisions/ for a technical choice someone shouldn't undo by accident. If there's no docs/map.md yet and your work changes code, write it from the code as part of this work. The docs at /docs come from the project too: update the user docs (docs/user/) for anything the people will see, and docs/tech/index.md when the parts or how they connect change. Draw with mermaid blocks there (every kind of Mermaid chart, drawn by pele); for charts in the app itself, use the pele package, whose render(text) returns an SVG."
 
+// teamDrawRule follows the map rule in every brief: how to draw in the
+// docs. Without the format, members drew boxes as ASCII art, which /docs
+// shows as text.
+const teamDrawRule = "Drawing in the docs: /docs draws two kinds of fenced block, and nothing else. Never draw with ASCII or box-drawing characters (┌─┐, +--+, |, ->) in a code block; it shows as text, and the reviewer sends it back.\n" +
+	"- A boxes block draws the structure, what runs where and what is inside what, as cards in boxes with numbered marks and a key. It is JSON:\n" +
+	"```boxes\n" +
+	`{"caption": "The whole diagram in sentences, for screen readers.",` + "\n" +
+	` "you": "People using the app", "via": "the app's address",` + "\n" +
+	` "frame": "the team's machine", "frame_mark": 1,` + "\n" +
+	` "groups": [{"name": "app box", "label": "rootless container", "mark": 2, "summary": "One line on the part.",` + "\n" +
+	`   "items": [{"title": "src/server.ts", "role": "Bun server", "does": "One sentence; ` + "`code`" + ` is fine.", "chip": "Bun", "tone": "mint", "entry": "pages and API"}]},` + "\n" +
+	`  {"name": "data", "via": "SQL", "mark": 3, "items": [{"title": "app.db", "role": "SQLite", "does": "Every order.", "chip": "SQLite", "tone": "dim"}]}],` + "\n" +
+	` "after": [{"name": "outside", "via": "HTTPS", "items": [{"title": "api.example.com", "role": "forecasts", "does": "One sentence.", "chip": "API", "tone": "dim"}]}],` + "\n" +
+	` "key": [{"mark": 1, "term": "The team's machine", "text": "One sentence."}, {"mark": 2, "term": "The app box", "text": "One sentence."}, {"mark": 3, "term": "The data", "text": "One sentence."}]}` + "\n" +
+	"```\n" +
+	"  Groups are the parts inside the frame, one to four, in the order things happen; via is the arrow into a group; after holds what runs outside the frame. A sentence per card, every mark in the key. Tones: accent, mint, amber, sky, violet, red, dim.\n" +
+	"- A mermaid block draws how things move and change, with every kind of Mermaid chart (drawn by pele): sequenceDiagram for a request, stateDiagram-v2, erDiagram for the tables, flowchart, timeline, gantt, and the rest.\n" +
+	"Open the page on the preview's /docs to see them drawn; a block that doesn't parse says why there."
+
 func teamRolesDir(team string) string { return filepath.Join(teamDir(team), "roles") }
 
 // writeTeamRoles gives every member's role a home with its files, leaving
