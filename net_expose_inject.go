@@ -48,10 +48,12 @@ const (
 
 var netExposeUserKey = regexp.MustCompile(`^[A-Za-z0-9_-]{20,100}$`)
 
-// netExposeRoute serves the paths under Prefix from a socket.
+// netExposeRoute serves the paths under Prefix from a socket: while
+// --inject-if's file exists, or Always.
 type netExposeRoute struct {
 	Prefix string `json:"prefix"`
 	Socket string `json:"socket"`
+	Always bool   `json:"always,omitempty"`
 }
 
 // netExposeHelper is what an exposure adds to the service; nil adds
@@ -136,9 +138,21 @@ func (h *netExposeHelper) signIn(w http.ResponseWriter, r *http.Request) bool {
 	return true
 }
 
-// route is the handler for a path under one of the routes, or nil.
-func (h *netExposeHelper) route(path string) http.Handler {
+// route is the handler for a path under one of the routes, or nil; on
+// says whether the helper is.
+func (h *netExposeHelper) route(path string, on bool) http.Handler {
 	for _, route := range h.Routes {
+		if !on && !route.Always {
+			continue
+		}
+		if path+"/" == route.Prefix {
+			// /docs is /docs/: people type an address without its slash.
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				target := *r.URL
+				target.Path = route.Prefix
+				http.Redirect(w, r, target.RequestURI(), http.StatusMovedPermanently)
+			})
+		}
 		if strings.HasPrefix(path, route.Prefix) {
 			socket := route.Socket
 			upstream, _ := url.Parse("http://helper")

@@ -8,8 +8,9 @@ corner. What it opens depends on who you are.
 
 **Anyone with the app's link** gets help and feedback:
 
-- **Ask** how something works, and get an answer from the app's guide,
-  `HELP.md`, which the lead keeps current with each change. The answer
+- **Ask** how something works, and get an answer from the app's
+  [user docs](/guide/team/docs/) (`HELP.md` in a project from before
+  them), which the lead keeps current with each change. The answer
   comes from hi, not the lead, through a model with no tools: it only
   explains, so there is nothing to talk it into. Up to 60 questions a day
   per address, 400 for the team.

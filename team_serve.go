@@ -639,6 +639,14 @@ them: the map (docs/map.md), docs/decisions/, and the specs. You write only
 the specs, in /team/specs; the rest of /team/repo is read-only for you, so
 the map and a decision go in through a task for the coder, reviewed with
 the code.
+
+The project's story is in its user docs, docs/user/index.md: why it
+exists and who it's for, in an owner's words. It is the team's north
+star: read it before you plan a feature, and steer by it. While it says
+the story isn't told yet, ask an owner for it early, in plain words: why
+the app exists, who uses it, and what they need from it. Then have the
+coder write it there (hi team task --small). When what the people ask
+for no longer fits the story, ask an owner whether the story has changed.
 `, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting)
 }
 
@@ -709,6 +717,21 @@ them what changed.
 More of work that isn't merged yet, from the same request, continues it
 (--on) without a new yes; anything new is a new task and waits for one.
 The hi-team skill says how to tell them apart.
+`},
+	// The story, in the user docs: after the updates on roles and on the
+	// specs, which end the paragraph it follows.
+	{`the map and a decision go in through a task for the coder, reviewed with
+the code.
+`, `the map and a decision go in through a task for the coder, reviewed with
+the code.
+
+The project's story is in its user docs, docs/user/index.md: why it
+exists and who it's for, in an owner's words. It is the team's north
+star: read it before you plan a feature, and steer by it. While it says
+the story isn't told yet, ask an owner for it early, in plain words: why
+the app exists, who uses it, and what they need from it. Then have the
+coder write it there (hi team task --small). When what the people ask
+for no longer fits the story, ask an owner whether the story has changed.
 `},
 	// Links that Slack can open.
 	{`  decision; not each step in between.
@@ -849,22 +872,28 @@ Every page of the preview and of production has a helper: a button that
 opens a panel beside the page. What it is depends on who opens it.
 
 - **Anyone with the app's link** gets help and feedback, never you. Help
-  answers questions about how the app works from HELP.md at the root of
-  the repository, in the version on that address, with no tools: it can
-  only explain. Feedback goes to the channel as its own message, "Feedback
-  f-12", with pictures and files in its thread; your channel watch sees
-  it. When someone asks you to "do f-12", run hi team web show f-12 and
+  answers questions about how the app works from the user docs
+  (docs/user/; HELP.md in a project from before them), in the version on
+  that address, with no tools: it can only explain. Feedback goes to the
+  channel as its own message, "Feedback f-12", with pictures and files in
+  its thread; your channel watch sees it. When someone asks you to "do f-12", run hi team web show f-12 and
   attach its files to the task; the work needs a yes as always. A reply
   in its thread that starts with > is shown to the sender in the app, in
   the browser they sent it from; other replies stay in Slack. When you
   are asked to tell them something, such as that the change is on the
   preview, reply in the thread starting with >. hi team web questions
   shows what people asked the help, which says where they get stuck.
-- **Keep HELP.md current.** It is the app's guide for the people who use
-  it, not developers: what each page is for and how to do the common
-  things, in the app's own words for its buttons and menus. Have the coder
-  update it in the same task as any change people will see, and write it
-  first if it is missing.
+- **Keep the docs current.** Every address shows the project's docs at
+  /docs, a page with two ways in. The user docs (docs/user/) are for the
+  people who use the app, not developers: why it exists and who it's for
+  (the owner's story), what's in it, and how to do the common things, in
+  the app's own words for its buttons and menus, a page per part. The
+  tech docs are for developers and agents: docs/tech/index.md draws the
+  parts and how they connect (a boxes diagram and Mermaid charts), with
+  the map, the decisions, and your specs beside it, and a changelog hi
+  writes from the releases. Have the coder update both in the same task
+  as the change, and write them first if they are missing. Point people
+  to /docs when they ask how the app works or how it is built.
 - **People who may ask for work** type %[4]s in the channel. hi sends them a
   private link in a DM, and with it the helper is a chat with you, as
   them, checked. If %[4]s isn't there yet (the Slack app needs updating),
@@ -1096,7 +1125,7 @@ helper's chat is on every page without the app doing anything. hi puts it
 on the preview when the team starts, so the people's own links work
 before anything is built; after that, the previews are yours. Have the
 coder build on it: the first feature replaces the welcome page, and tasks
-add pages and API routes, and keep HELP.md current.
+add pages and API routes, and keep the docs current.
 Choose another stack only when the people need something it can't do,
 and say why in the spec.
 

@@ -121,6 +121,7 @@ options:
   --follow <file>      relay to the port written in this file, read again when it
                        changes, so the service can move without a new address
   --route <prefix>=unix:<socket>  serve paths under /prefix/ from a socket instead
+  --route-always <prefix>=unix:<socket>  the same, whatever --inject-if says
   --inject <url>       add <script src="<url>" defer> to each page the browser loads
   --inject-if <file>   inject and route only while this file exists
   --detach             run in the background; print the address and return
@@ -179,8 +180,9 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	domain := flags.String("domain", "", "an address that stays")
 	host := flags.String("host", "localhost", "where the service listens")
 	follow := flags.String("follow", "", "a file with the port to relay to")
-	var routes repeatedFlag
+	var routes, always repeatedFlag
 	flags.Var(&routes, "route", "a path prefix served from a socket")
+	flags.Var(&always, "route-always", "a path prefix served from a socket, whatever --inject-if says")
 	inject := flags.String("inject", "", "a script for each page")
 	injectIf := flags.String("inject-if", "", "inject only while this file exists")
 	detach := flags.Bool("detach", false, "run in the background")
@@ -210,6 +212,14 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 		if err != nil {
 			return options, false, err
 		}
+		options.Routes = append(options.Routes, route)
+	}
+	for _, text := range always {
+		route, err := parseNetExposeRoute(text)
+		if err != nil {
+			return options, false, fmt.Errorf("--route-always%s", strings.TrimPrefix(err.Error(), "--route"))
+		}
+		route.Always = true
 		options.Routes = append(options.Routes, route)
 	}
 	if options.InjectIf != "" && options.Inject == "" && len(options.Routes) == 0 {
@@ -461,10 +471,11 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 		}
 		var handler http.Handler
 		inject := false
-		if helper.on() {
-			if route := helper.route(r.URL.Path); route != nil {
+		if helper != nil {
+			on := helper.on()
+			if route := helper.route(r.URL.Path, on); route != nil {
 				handler = route
-			} else if helper.Inject != "" && netExposePageLoad(r) {
+			} else if on && helper.Inject != "" && netExposePageLoad(r) {
 				inject = true
 				helper.prepare(r)
 			}

@@ -1766,6 +1766,27 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   matter for it, and every member's brief says to look there before
   researching something itself.
 
+### v0.81.0 — The app's docs at /docs
+
+- [x] Every team's app has its docs at `/docs` on its addresses: a page
+  with two ways in, **User docs** and **Tech docs**
+  ([hi_team_docs.md](specs/approved/hi_team_docs.md)). The user docs are
+  `docs/user/`: why the app exists and who it's for (the owners' story),
+  what's in it, how to do things. The tech docs are `docs/tech/` (the
+  parts drawn with `boxes` diagrams, like the guide's, and Mermaid
+  charts), the map, the decisions, the specs and notes, and a changelog
+  hi writes from the releases. hi serves them from the version on the
+  address, whatever the app is written in; `/docs/llms.txt` and
+  `/docs/raw/` are for agents.
+- [x] The helper's Ask answers from the user docs (HELP.md without them).
+  The team-app template starts with both parts instead of HELP.md; the
+  coder, the reviewer, and every brief keep them current.
+- [x] The story is the team's north star: the lead asks an owner for it
+  while it's missing, and reads it before planning. An existing SOUL.md
+  gets the paragraph on the next start.
+- [x] `hi net expose --route-always`: a route that stays when the helper
+  is off, so the docs do.
+
 ## Planned
 
 ### Guide — a diagram for every tool

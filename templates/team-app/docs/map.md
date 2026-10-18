@@ -34,11 +34,19 @@ what each thing is and where to look, and leave the detail to the code and
   there: for an agent's model, call it through OpenRouter (an `openai/`
   model for Codex's).
 - The helper, the chat with the team in the corner of every page: hi adds
-  it, and `/__hi/` belongs to hi.
+  it, and `/__hi/` belongs to hi, as does `/docs/`.
 
 ## Docs
 
-- `HELP.md`: the guide for the people who use the app; the helper answers
-  from it.
+hi shows the docs at `/docs/` on the app's addresses, from this folder in
+the version on each: a page with two ways in, the user docs and the tech
+docs.
+
+- `docs/user/`: the user docs, for the people who use the app: why it
+  exists and who it's for (the owner's story), what's in it, and how to do
+  things, a page per part. The helper answers from them.
+- `docs/tech/`: the tech docs' first page, for developers and agents: the
+  parts and how they connect, drawn (`boxes` and `mermaid` blocks).
 - `docs/specs/`: what the lead and the people agreed, feature by feature.
 - `docs/decisions/`: why the project is built as it is, one file each.
+- The changelog at `/docs/tech/changelog`: hi writes it from the releases.

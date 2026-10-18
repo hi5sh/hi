@@ -126,9 +126,11 @@ func teamWebSocket(team, slot string) string {
 	return filepath.Join(teamWebDir(team), slot+".sock")
 }
 
-// teamExposeHelperArgs are what a slot's hi net expose gets for the helper.
+// teamExposeHelperArgs are what a slot's hi net expose gets for the helper
+// and the docs.
 func teamExposeHelperArgs(team, slot string) []string {
 	return []string{"--route", teamHelperPrefix + "=unix:" + teamWebSocket(team, slot),
+		"--route-always", teamDocsPrefix + "=unix:" + teamWebSocket(team, slot),
 		"--inject", teamHelperPrefix + "helper.js",
 		"--inject-if", teamHelperFile(team, slot)}
 }
@@ -610,6 +612,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		}
 		b.webSend(w, r, slot, person, send)
 	})
+	mux.Handle("GET "+teamDocsPrefix, b.docsHandler(slot))
 	return mux
 }
 

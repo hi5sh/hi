@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/slack-go/slack v0.17.3
+	github.com/yuin/goldmark v1.8.6
 	golang.org/x/term v0.40.0
 	mvdan.cc/sh/v3 v3.12.0
 )

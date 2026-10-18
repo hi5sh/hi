@@ -31,7 +31,7 @@ const (
 
 // teamMapRule follows the specs rule in every brief: the project's map is
 // how a member finds what already exists before building.
-const teamMapRule = "docs/map.md is the project's map: what it already has (pages, API routes, tables, shared code, outside services) and where each lives. Read it before you add anything, and extend what it lists rather than building something beside it. When your work adds or moves something on it, update it in the same work, and add a short file to docs/decisions/ for a technical choice someone shouldn't undo by accident. If there's no docs/map.md yet and your work changes code, write it from the code as part of this work."
+const teamMapRule = "docs/map.md is the project's map: what it already has (pages, API routes, tables, shared code, outside services) and where each lives. Read it before you add anything, and extend what it lists rather than building something beside it. When your work adds or moves something on it, update it in the same work, and add a short file to docs/decisions/ for a technical choice someone shouldn't undo by accident. If there's no docs/map.md yet and your work changes code, write it from the code as part of this work. The docs at /docs come from the project too: update the user docs (docs/user/) for anything the people will see, and docs/tech/index.md when the parts or how they connect change."
 
 func teamRolesDir(team string) string { return filepath.Join(teamDir(team), "roles") }
 

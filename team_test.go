@@ -183,10 +183,14 @@ func TestTeamWizard(t *testing.T) {
 		t.Fatal("no first commit")
 	}
 	// The project is a blank web app, with the team's purpose and rules.
-	for _, file := range []string{"package.json", "bun.lock", "Makefile", "HELP.md", "src/App.tsx", "src/server.ts", templateMetadataPath} {
+	for _, file := range []string{"package.json", "bun.lock", "Makefile", "docs/user/index.md", "docs/tech/index.md", "src/App.tsx", "src/server.ts", templateMetadataPath} {
 		if boxGit(repo, "ls-files", file) == "" {
 			t.Errorf("no %s", file)
 		}
+	}
+	// The user docs are the guide: no HELP.md beside them.
+	if boxGit(repo, "ls-files", "HELP.md") != "" || !strings.HasPrefix(readTestFile(t, filepath.Join(repo, "docs/user/index.md")), "# Payments\n") {
+		t.Error("HELP.md, or the user docs without the app's name")
 	}
 	if fileExists(filepath.Join(repo, ".agents")) || strings.Contains(readTestFile(t, filepath.Join(repo, "src/db.ts")), "addNote") {
 		t.Error("the hi skill or the notes example is there")

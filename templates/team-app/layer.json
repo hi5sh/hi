@@ -3,5 +3,8 @@
   "summary": "A hi team's project: the app template with a blank page",
   "extends": "app",
   "hidden": true,
-  "schema": 1
+  "schema": 1,
+  "remove": [
+    "HELP.md"
+  ]
 }

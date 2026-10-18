@@ -134,6 +134,6 @@ researcher who knows your data, a coder with your conventions.
 
 The project has a map for the agents, `docs/map.md`: what it already has
 (pages, routes, tables, shared code) and where each lives, the agents'
-counterpart to `HELP.md`. Members read it before building and keep it
+counterpart to the user docs (see [The app's docs](/guide/team/docs/)). Members read it before building and keep it
 current, and the reviewer sends back work that builds a second version of
 something on it. Why it's built as it is goes in `docs/decisions/`.
