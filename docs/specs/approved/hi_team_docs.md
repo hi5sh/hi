@@ -1,6 +1,7 @@
 # `hi team` docs: `/docs` on every app
 
-Status: Approved (2026-10-18), built in v0.81.0.
+Status: Approved (2026-10-18), built in v0.81.0; addresses that stay get
+the new routes since v0.81.1.
 
 Dependencies: [hi_team.md](hi_team.md) (the addresses, releases, the
 lead and its members), [hi_team_helper.md](hi_team_helper.md) (the
@@ -125,9 +126,16 @@ with a new `hi net expose --route-always <prefix>=unix:<socket>`: a route
 that stays while `--inject-if`'s file is gone, so turning the helper off
 doesn't take the docs away (the docs then leave out the helper's script).
 `/docs` without its slash redirects to `/docs/`. The docs have the app's
-protection: its key, password, or login. An address made before v0.81.0
-gets `/docs/` with its next new address (within a day, or the next
-preview or release).
+protection: its key, password, or login.
+
+Each slot remembers what its relay routes (`relay` in run/<slot>.json, a
+hash of the helper's and the docs' arguments). An address on a name that
+stays (hi team domain) whose relay routes less than hi does now, such as
+one made before v0.81.0, moves to a new relay when the team starts on the
+new hi: the same name and, with `hi net expose --key`, the same key, so
+the links people have keep working and nobody gets new ones (since
+v0.81.1). An address NetBird made up gets the routes with its next
+address, within a day, rather than new links for everyone at once.
 
 hi reads `docs/` and `HELP.md` from the commit with one `git archive`
 (at most 2 MB a file, 32 MB in all) and keeps the last six versions in

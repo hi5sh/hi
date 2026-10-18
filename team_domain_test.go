@@ -159,6 +159,30 @@ func TestTeamPreviewDomain(t *testing.T) {
 	if !strings.Contains(last, "--max 720h0m0s") || !strings.Contains(last, "--name team-payments --domain payments-preview.apps.example.com ") {
 		t.Fatal(last)
 	}
+	// A relay from a hi that routed less (before /docs/): a new relay on
+	// the same name, with the same key, so the links people have work.
+	saved, _ = loadTeamSlot("payments", teamSlotPreview)
+	if saved.Relay != teamRelayStamp("payments", teamSlotPreview) {
+		t.Fatal("no relay stamp")
+	}
+	saved.Relay = ""
+	saveTeamSlot("payments", saved)
+	if !teamRelayOutdated(saved, teamSlotDomain("payments", teamSlotPreview), teamRelayStamp("payments", teamSlotPreview)) {
+		t.Fatal("not outdated")
+	}
+	calls := len(b.calls)
+	third, err := b.preview(teamPreviewRequest{})
+	if err != nil || third.URL != second.URL || third.NewLink || third.Relay != teamRelayStamp("payments", teamSlotPreview) {
+		t.Fatalf("%+v %v", third, err)
+	}
+	if moved := strings.Join(b.calls[calls:], "\n"); !strings.Contains(moved, "--domain payments-preview.apps.example.com --key k --route") ||
+		!strings.Contains(moved, "--route-always /docs/=unix:") {
+		t.Fatal(moved)
+	}
+	// An address NetBird made up waits for its next one.
+	if teamRelayOutdated(teamPreview{URL: first.URL}, "", "x") {
+		t.Fatal("made-up address")
+	}
 }
 
 func TestTeamAppBoxesFollowHi(t *testing.T) {

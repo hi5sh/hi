@@ -1787,6 +1787,15 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `hi net expose --route-always`: a route that stays when the helper
   is off, so the docs do.
 
+### v0.81.1 — /docs on addresses that stay
+
+- [x] An address on a name that stays kept its relay for 30 days, so a
+  team with a domain wouldn't see `/docs` for weeks after the update.
+  Each slot now remembers what its relay routes; when hi routes more, the
+  address moves to a new relay on the same name with the same key
+  (`hi net expose --key`), so people's links keep working and nobody gets
+  new ones. Found updating a team whose addresses run until November.
+
 ## Planned
 
 ### Guide — a diagram for every tool

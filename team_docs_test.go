@@ -254,6 +254,15 @@ func TestNetExposeRouteAlways(t *testing.T) {
 	if recorder.Code != http.StatusMovedPermanently || recorder.Header().Get("Location") != "/docs/?x=1" {
 		t.Fatal(recorder.Code, recorder.Header())
 	}
+	// --key keeps a link's key on a new relay.
+	if options, _, err := parseNetExpose([]string{"8080", "--link", "--key", "rsRBVGgndWebrISOCchVlw"}); err != nil || options.Secret != "rsRBVGgndWebrISOCchVlw" {
+		t.Fatal(options.Secret, err)
+	}
+	for _, args := range [][]string{{"8080", "--key", "rsRBVGgndWebrISOCchVlw"}, {"8080", "--link", "--key", "short"}} {
+		if _, _, err := parseNetExpose(args); err == nil || !strings.Contains(err.Error(), "--key goes with --link") {
+			t.Fatal(args, err)
+		}
+	}
 	if _, _, err := parseNetExpose([]string{"8080", "--link", "--route-always", "docs"}); err == nil || !strings.Contains(err.Error(), "--route-always takes") {
 		t.Fatal(err)
 	}

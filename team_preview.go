@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,6 +66,9 @@ type teamPreview struct {
 	// Settings is teamSettingsStamp when the box started; a change starts
 	// the app again.
 	Settings string `json:"settings,omitempty"`
+	// Relay is teamRelayStamp when the address's relay started: what it
+	// routes to hi, such as /docs/.
+	Relay string `json:"relay,omitempty"`
 	// Message is hi's message in the channel with production's link.
 	Message string `json:"message,omitempty"`
 	// NewLink says the address isn't the one the people had; only in replies.
@@ -295,7 +299,12 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	_, exposed := b.exposed(current.Expose)
 	exposed = had && exposed
 	wanted := teamSlotDomain(b.team, next.Slot)
-	lasts := exposed && time.Until(current.Expires) > keep && teamDomainSettled(current, wanted)
+	// An address that stays, on a relay from before hi routed what it
+	// routes now, moves to a new relay with the same key, so the links
+	// people have keep working.
+	relay := teamRelayStamp(b.team, next.Slot)
+	outdated := teamRelayOutdated(current, wanted, relay) && exposed
+	lasts := exposed && time.Until(current.Expires) > keep && teamDomainSettled(current, wanted) && !outdated
 	next.Settings = teamSettingsStamp(b.team)
 	if lasts && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings && b.running(current.Container) {
 		current.Label = next.Label
@@ -365,12 +374,17 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	next.Started = time.Now().UTC()
 	next.URL, next.Password, next.Expose, next.Expires, next.Message = current.URL, current.Password, current.Expose, current.Expires, current.Message
 	next.Domain, next.DomainError, next.DomainChecked = current.Domain, current.DomainError, current.DomainChecked
+	next.Relay = current.Relay
 	if !lasts {
 		name := "team-" + b.team
 		if next.Slot == teamSlotProduction {
 			name += "-live"
 		}
-		exposure, err := b.expose(hostPort, portFile, name, next.Slot, wanted)
+		key := ""
+		if outdated {
+			key = teamLinkKey(current.URL)
+		}
+		exposure, err := b.expose(hostPort, portFile, name, next.Slot, wanted, key)
 		domain := wanted
 		if wanted != "" {
 			next.DomainError, next.DomainChecked = "", time.Now().UTC()
@@ -381,7 +395,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 				if exposed && time.Until(current.Expires) > keep {
 					exposure, err = netExposeState{}, errors.New("kept the address")
 				} else {
-					exposure, err = b.expose(hostPort, portFile, name, next.Slot, "")
+					exposure, err = b.expose(hostPort, portFile, name, next.Slot, "", "")
 					domain = ""
 				}
 			}
@@ -395,7 +409,9 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 			if exposed {
 				b.run("net", "expose", "stop", current.Expose)
 			}
-			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = firstNonEmpty(exposure.Link, exposure.URL), exposure.Password, exposure.Name, exposure.Expires, true
+			link := firstNonEmpty(exposure.Link, exposure.URL)
+			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = link, exposure.Password, exposure.Name, exposure.Expires, !exposed || link != current.URL
+			next.Relay = relay
 			next.Domain = domain
 			writeTeamSlotAddress(b.team, next.Slot, next.URL)
 		}
@@ -420,7 +436,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 
 // expose puts the port in portFile on a new address, for a day, with the
 // helper in its pages while the slot's helper is on.
-func (b *teamBroker) expose(hostPort int, portFile, name, slot, domain string) (netExposeState, error) {
+func (b *teamBroker) expose(hostPort int, portFile, name, slot, domain, key string) (netExposeState, error) {
 	longest := netExposeMaxMax
 	if domain != "" {
 		longest = netExposeDomainMax
@@ -428,6 +444,9 @@ func (b *teamBroker) expose(hostPort int, portFile, name, slot, domain string) (
 	args := []string{"net", "expose", strconv.Itoa(hostPort), "--follow", portFile, "--link", "--detach", "--json", "--max", longest.String(), "--name", name}
 	if domain != "" {
 		args = append(args, "--domain", domain)
+	}
+	if key != "" {
+		args = append(args, "--key", key)
 	}
 	out, err := b.run(append(args, teamExposeHelperArgs(b.team, slot)...)...)
 	if err != nil {
@@ -518,7 +537,8 @@ func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 				b.previewMu.Lock()
 				b.stopSlot(teamSlotPreview)
 				b.previewMu.Unlock()
-			} else if preview.Settings != teamSettingsStamp(b.team) && time.Since(previewFailed) > 30*time.Minute {
+			} else if (preview.Settings != teamSettingsStamp(b.team) || teamRelayOutdated(preview, teamSlotDomain(b.team, teamSlotPreview), teamRelayStamp(b.team, teamSlotPreview))) &&
+				time.Since(previewFailed) > 30*time.Minute {
 				// A new hi, or new settings: the same version in a new box,
 				// on the same address.
 				if err := b.refreshPreview(preview); err != nil {
@@ -570,7 +590,25 @@ func (b *teamBroker) productionNeedsWork() bool {
 	_, exposed := b.exposed(state.Expose)
 	return !exposed || time.Until(state.Expires) <= teamLinkRenew || state.Settings != teamSettingsStamp(b.team) ||
 		!teamDomainSettled(state, teamSlotDomain(b.team, teamSlotProduction)) ||
-		state.Commit != boxGit(b.repo, "rev-parse", teamProductionBranch) || !b.running(state.Container)
+		state.Commit != boxGit(b.repo, "rev-parse", teamProductionBranch) || !b.running(state.Container) ||
+		teamRelayOutdated(state, teamSlotDomain(b.team, teamSlotProduction), teamRelayStamp(b.team, teamSlotProduction))
+}
+
+// teamRelayOutdated says a slot's address is on a name that stays but its
+// relay routes less than hi does now. An address NetBird made up gets the
+// new routes with its next address, within a day, rather than new links
+// for everyone now.
+func teamRelayOutdated(state teamPreview, wanted, relay string) bool {
+	return wanted != "" && state.Domain == wanted && state.Relay != relay
+}
+
+// teamLinkKey is the key in an address's link.
+func teamLinkKey(link string) string {
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return ""
+	}
+	return parsed.Query().Get(netExposeKeyParam)
 }
 
 // startApp runs the project in its box: the hardening every box has, no

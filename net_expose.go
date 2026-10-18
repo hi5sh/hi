@@ -124,6 +124,9 @@ options:
   --route-always <prefix>=unix:<socket>  the same, whatever --inject-if says
   --inject <url>       add <script src="<url>" defer> to each page the browser loads
   --inject-if <file>   inject and route only while this file exists
+  --key <key>          with --link, this key instead of a new one, so the links
+                       already given out keep working (a new relay on the same
+                       --domain)
   --detach             run in the background; print the address and return
   --json               print the result as JSON
 
@@ -176,6 +179,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	groups := flags.String("groups", "", "SSO groups")
 	public := flags.Bool("public", false, "no protection")
 	link := flags.Bool("link", false, "the key in the link")
+	key := flags.String("key", "", "with --link, this key instead of a new one")
 	name := flags.String("name", "", "address prefix")
 	domain := flags.String("domain", "", "an address that stays")
 	host := flags.String("host", "localhost", "where the service listens")
@@ -240,11 +244,17 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	if chosen > 1 {
 		return options, false, errors.New("choose one of --link, --password, --pin, --groups, and --public")
 	}
+	if *key != "" && (!*link || !netExposeLinkKey.MatchString(*key)) {
+		return options, false, errors.New("--key goes with --link, and is 16 to 100 letters, digits, - and _")
+	}
 	switch {
 	case *public:
 		options.Protection = "public"
 	case *link:
 		options.Protection, options.Secret = "link", netExposeKey()
+		if *key != "" {
+			options.Secret = *key
+		}
 	case *pin != "":
 		if !regexp.MustCompile(`^[0-9]{6}$`).MatchString(*pin) {
 			return options, false, errors.New("--pin is 6 digits")
@@ -291,6 +301,9 @@ func netExposePassword() string {
 }
 
 // netExposeKey is a link's key: 128 random bits, URL-safe.
+// netExposeLinkKey is a key --key takes: the kind netExposeKey makes.
+var netExposeLinkKey = regexp.MustCompile(`^[A-Za-z0-9_-]{16,100}$`)
+
 func netExposeKey() string {
 	key := make([]byte, 16)
 	rand.Read(key)
