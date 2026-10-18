@@ -123,6 +123,20 @@ func TestTeamDeepReview(t *testing.T) {
 	if !strings.Contains(strings.Join(channel.calls, "\n"), "postIn C07PAYMENTS "+thread+" Deep review r-1 started on dev") {
 		t.Errorf("no word in the thread: %v", channel.calls)
 	}
+	// Production's key stays out of the context; that a key guards it
+	// doesn't.
+	data, _ := json.Marshal(teamPreview{Slot: teamSlotProduction, URL: "https://payments.app.example.net/?hi_key=s3cret-key"})
+	os.MkdirAll(filepath.Dir(teamSlotPath("payments", teamSlotProduction)), 0o700)
+	os.WriteFile(teamSlotPath("payments", teamSlotProduction), data, 0o600)
+	versions, _ := loadTeamVersions("payments")
+	context = []byte(b.deepReviewContext(config, versions, ""))
+	if strings.Contains(string(context), "s3cret-key") || strings.Contains(string(context), "hi_key") ||
+		!strings.Contains(string(context), "https://payments.app.example.net/,") && !strings.Contains(string(context), "https://payments.app.example.net/ ") ||
+		!strings.Contains(string(context), "carries a secret key") {
+		t.Errorf("the context with production's key:\n%s", context)
+	}
+	os.Remove(teamSlotPath("payments", teamSlotProduction))
+
 	// One at a time, and a yes counts once.
 	if _, err := ask(teamDeepReviewRequest{Approval: yes, Budget: 30}); err == nil {
 		t.Fatal("a second review started while one runs")

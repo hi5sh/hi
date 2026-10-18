@@ -285,11 +285,20 @@ func (b *teamBroker) deepReviewContext(config teamConfig, versions teamVersions,
 	fmt.Fprintf(&c, "This is the project of a team of agents in a Slack channel, for the people in it.\n\nWhat it's for: %s\n\n", config.Purpose)
 	var production teamPreview
 	if data, err := os.ReadFile(teamSlotPath(b.team, teamSlotProduction)); err == nil && json.Unmarshal(data, &production) == nil && production.URL != "" {
-		guard := "Anyone who has the link can open it; there's no login page in front of it."
+		// The address without its key: the key is what lets people in,
+		// and it isn't the reviewers' to have.
+		address, guard := production.URL, "Anyone who has the address can open it; there's no login page in front of it."
+		if parsed, err := url.Parse(production.URL); err == nil {
+			if parsed.Query().Get(netExposeKeyParam) != "" {
+				guard = "Its link carries a secret key: without the key, the app doesn't open, and the page asks for the link. Only the people the team gives the link to can reach it."
+			}
+			parsed.RawQuery, parsed.Fragment = "", ""
+			address = parsed.String()
+		}
 		if production.Password != "" {
 			guard = "A login page with a shared password is in front of it."
 		}
-		fmt.Fprintf(&c, "Production (v%d) is at %s, reachable from the internet. %s\n\n", versions.Production, production.URL, guard)
+		fmt.Fprintf(&c, "Production (v%d) is at %s, reachable from the internet. %s\n\n", versions.Production, address, guard)
 	} else {
 		c.WriteString("Production isn't running at an address yet.\n\n")
 	}

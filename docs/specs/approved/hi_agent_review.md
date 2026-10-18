@@ -698,8 +698,8 @@ v0.89.0, 2026-10-18. Code: `team_review.go`; tests: `team_review_test.go`.
   own process, outside the team's service, so a team restart doesn't stop
   it. It posts "Deep review r-4 started on dev (…)" in the yes's thread.
 - **The context.** The team's purpose; production's address and whether
-  a password page guards it (from `run/production.json`), or that it isn't
-  running; how many owners and askers there are; the files in
+  a password page or a key in its link guards it (from
+  `run/production.json`), or that it isn't running; how many owners and askers there are; the files in
   `docs/decisions/` by name; and the lead's notes.
 - **`--fixes`.** A file of fingerprint to work, from merged tasks'
   findings. A compared item gets `fixed_by`, and the report says "not
@@ -729,3 +729,9 @@ v0.89.0, 2026-10-18. Code: `team_review.go`; tests: `team_review_test.go`.
   real people. The tests run the broker's whole path with a fake Slack
   and a fake `hi agent review`; `hi agent review --detach --json`, `stop`,
   and `rm` were run live on their own.
+- **v0.89.1: production's key.** The first live deep review, on cartman,
+  gave the reviewers production's whole link, `hi_key` and all, and said
+  anyone with the link could open it. The key is what lets people in, so
+  it went to the agents' providers, and the description made a guarded
+  app look open. The context now gives the address without its query and
+  says the link carries a secret key without which the app doesn't open.

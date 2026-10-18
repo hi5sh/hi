@@ -1984,6 +1984,13 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   people choose. Fixes name the finding (`--finding r-4:F-1`), and the next
   review says what wasn't seen since which task.
 
+### v0.89.1 — A deep review never gets production's key
+
+- [x] The context a deep review's agents get named production's whole
+  link, with the key that lets people in, and said anyone with the link
+  could open it. It now gives the address without the key and says a key
+  in the link guards it. Found in cartman's first deep review.
+
 ## Planned
 
 ### Guide — a diagram for every tool
