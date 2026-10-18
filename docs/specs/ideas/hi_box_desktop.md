@@ -1,6 +1,8 @@
 # `hi box --desktop` specification
 
-Status: Draft
+Status: Draft. Not to be implemented until every check in
+[Verify before building](#verify-before-building) has passed and is
+recorded under [Findings](#findings).
 
 Dependencies: `hi box` and its egress proxy
 ([hi_box.md](../approved/hi_box.md)), bundles
@@ -186,6 +188,66 @@ with a time and, for clicks and keys, the screenshot the agent last saw.
 Takeovers and hand-backs, with who did them, go there too, and with a
 server to the audit log. `hi box diff` lists the screenshots with the
 changed files.
+
+## Verify before building
+
+Nothing in this spec is built until each check below has been tried on
+aiw11 in a rootless Podman box with hi's hardening (`--cap-drop=ALL`,
+`no-new-privileges`, `--userns=keep-id`), and the result, with the date,
+versions, and commands, is written under Findings. A check that fails
+changes the design here first. The spec is approved only after that.
+
+For release 1:
+
+1. **The desktop starts in a hardened box.** Xvnc, Openbox, and websockify
+   run as the box's user from Ubuntu 24.04's packages, with no added
+   capability. Pass: noVNC shows the desktop in a browser on the host.
+2. **The proxy can forward it.** The proxy container's listener reaches
+   port 6080 on the box's `--internal` network, published on 127.0.0.1
+   only. Pass: the desktop works through it, and nothing else on the
+   machine or the VPN can connect.
+3. **View-only is enforced by the server.** With the view-only password,
+   input sent by a modified client is ignored by Xvnc, not just hidden by
+   noVNC's page.
+4. **The agent can work it.** Claude Code and Codex in a box each use
+   `xdotool` and `scrot` (by hand, before `hi-desktop` exists) to open a
+   file in a GUI app, change it, and save it. Pass: both finish, and the
+   screenshots, scaled to 1568 pixels, are clear enough to read menus and
+   dialogs.
+5. **A person and the agent can share it.** A person takes the mouse while
+   the agent is mid-task, and the agent, told to stop and wait, picks up
+   correctly from a fresh screenshot afterwards.
+6. **Chrome goes through the proxy.** The `web` bundle's Chrome on the
+   desktop reaches allowed hosts and is refused the rest, and
+   `hi box allow` takes effect without restarting it.
+7. **Cost.** Memory, CPU, and image size with the desktop idle and with
+   Blender open, against the same box without it.
+
+For release 2: Blender's tarball, FreeCAD, CadQuery, build123d, OpenSCAD,
+and KiCad each install in the bundle image and run their scripted path
+headless (render, export STEP and STL, `kicad-cli`) in a box, and each
+opens on the desktop. Blender's Cycles renders on the GPU through HIP with
+`--gpu`.
+
+For release 3: Sway headless and wayvnc, and VirtualGL with ROCm's Mesa,
+each tried with `/dev/dri` in a rootless box on gfx1151, and Blender's
+viewport frame rate compared with llvmpipe on the same scene (open
+question 4).
+
+Explore, alongside the checks, before settling the design:
+
+- KasmVNC, which has its own web client, view-only users, and better
+  compression, against TigerVNC with noVNC; and Xpra, which shows single
+  windows rather than a whole desktop.
+- How hosted agent desktops (the services in hi_box.md) handle
+  takeover and passwords, for ideas this design missed.
+- Whether an accessibility tree (AT-SPI) gives the agent buttons and
+  fields by name in GTK and Qt apps, which would be more reliable than
+  coordinates from screenshots.
+
+## Findings
+
+None yet.
 
 ## Releases
 

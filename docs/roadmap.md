@@ -2086,6 +2086,8 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
 - [ ] `--desktop`: a Linux desktop in the box that the agent drives with
   `hi-desktop` and a person watches and takes over in the browser; a `cad`
   bundle with Blender, FreeCAD, CadQuery, and KiCad, scripted first.
+  First test and explore everything in the spec's "Verify before
+  building" on aiw11 and record it; only then approve and build.
   Spec: [hi_box_desktop.md](specs/ideas/hi_box_desktop.md) (draft).
 
 ### Later — `hi data` and `hi server expose`
