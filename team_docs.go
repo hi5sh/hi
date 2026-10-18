@@ -68,6 +68,16 @@ type teamDocsPage struct {
 
 func (p teamDocsPage) URL() string { return teamDocsPrefix + p.Area + "/" + p.Path }
 
+// teamDocsLink is the docs on an address's link, keeping its key.
+func teamDocsLink(link string) string {
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return ""
+	}
+	parsed.Path = teamDocsPrefix
+	return parsed.String()
+}
+
 // teamDocsVersion is the docs of one commit: their files and pages. A
 // commit's files never change, so it is read once.
 type teamDocsVersion struct {

@@ -381,6 +381,10 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 			result.Warning = strings.TrimSpace(result.Warning + "\nProduction's address still shows the version before: " + err.Error())
 		} else if shown.URL != "" {
 			announcement += fmt.Sprintf("\n\nOpen it at <%s|production's link>.", shown.URL)
+			// An address on a relay from before /docs/ shows the app there.
+			if shown.Relay == teamRelayStamp(b.team, teamSlotProduction) {
+				announcement += fmt.Sprintf("\nHere are the links to the docs: <%s|docs>.", teamDocsLink(shown.URL))
+			}
 		}
 	}
 	if configErr == nil {

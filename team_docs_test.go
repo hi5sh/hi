@@ -267,3 +267,9 @@ func TestNetExposeRouteAlways(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestTeamDocsLinkKeepsKey(t *testing.T) {
+	if got := teamDocsLink("https://payments.example.com/?hi_key=abc"); got != "https://payments.example.com/docs/?hi_key=abc" {
+		t.Fatal(got)
+	}
+}

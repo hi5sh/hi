@@ -1144,7 +1144,7 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatalf("the app's address file has %q", address())
 	}
 	calls := strings.Join(channel.calls, "\n")
-	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+first.URL+"|production's link>") {
+	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+first.URL+"|production's link>.\nHere are the links to the docs: <"+teamDocsLink(first.URL)+"|docs>") {
 		t.Fatal(calls)
 	}
 
