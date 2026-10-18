@@ -460,7 +460,7 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 	b := &teamTestBroker{teamBroker: newTeamBroker("payments", "hi"), reports: map[string]string{}, exposures: map[string]netExposeState{}, lasts: 24 * time.Hour}
 	// Tests review by hand, except where they turn the rounds on.
 	b.reviewRounds = 0
-	b.app = func(name, src, data, address, command string, port, hostPort int) error {
+	b.app = func(slot, name, src, data, address, command string, port, hostPort int) error {
 		if !fileExists(data) {
 			t.Error("the app's box gets no data folder")
 		}
@@ -487,6 +487,17 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 			}
 		}
 		return false
+	}
+	b.removeApp = func(container string) {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		var kept []string
+		for _, app := range b.apps {
+			if !strings.HasPrefix(app, container+" ") {
+				kept = append(kept, app)
+			}
+		}
+		b.apps = kept
 	}
 	b.exposed = func(name string) (netExposeState, bool) {
 		b.mu.Lock()

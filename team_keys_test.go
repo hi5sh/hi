@@ -143,7 +143,7 @@ func TestTeamEnv(t *testing.T) {
 
 	// The app's box gets the settings, the models, and its address, with
 	// the placeholder for a key; the file has them and nobody else can read it.
-	env := teamAppEnv("payments", 8080)
+	env := teamAppEnv("payments", teamSlotPreview, 8080)
 	if env["WEATHER_API_KEY"] != "w-123" || env["MAPS_KEY"] != "" || env["PORT"] != "8080" || env["OPENROUTER_API_KEY"] != boxClaudePlacehold ||
 		env["OPENROUTER_BASE_URL"] != "http://127.0.0.1:3129/api/v1" || env["HI_PUBLIC_URL_FILE"] != teamAppAddressFile {
 		t.Fatalf("%v", env)

@@ -384,6 +384,9 @@ type teamReleaseRequest struct {
 	In string `json:"in,omitempty"`
 	// Data puts production's data back as Version left it too: a rollback.
 	Data bool `json:"data,omitempty"`
+	// DataFrom is "preview" for a release that gives production a copy of
+	// the preview's data, under the same yes.
+	DataFrom string `json:"data_from,omitempty"`
 	// host is an owner on the machine, through the host's socket, who
 	// needs no yes in the channel. The lead's socket never sets it.
 	host string
@@ -402,6 +405,9 @@ type teamReleaseResult struct {
 	// taken when DataAt.
 	DataFrom string    `json:"data_from,omitempty"`
 	DataAt   time.Time `json:"data_at,omitzero"`
+	// PreviewData is how much of the preview's data a release copied to
+	// production (--data preview).
+	PreviewData int64 `json:"preview_data,omitempty"`
 	// Approval is the yes that moved production this time.
 	Approval *teamApproval `json:"approval,omitempty"`
 	// AskedBy says who asked for the work a release holds.
@@ -471,6 +477,9 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	}
 	if len(notes) > 3000 {
 		return teamReleaseResult{}, errors.New("keep the notes short: a few lines, under 3000 characters")
+	}
+	if request.DataFrom != "" && (request.DataFrom != teamSlotPreview || request.Version != 0) {
+		return teamReleaseResult{}, errors.New("--data preview goes with a release of dev: production gets a copy of the preview's data")
 	}
 	var approval teamApproval
 	if request.host != "" {
@@ -549,6 +558,16 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 		}
 		release := teamRelease{Version: version, Commit: head, Notes: notes, Changes: changes, Approval: &approval, Released: event.At}
 		b.snapshotBefore(version, &result)
+		if request.DataFrom == teamSlotPreview {
+			if _, had, _ := teamDataUsage(teamSlotDataDir(b.team, teamSlotProduction)); had > 0 && result.Snapshot == "" {
+				return result, fmt.Errorf("nothing was released: production's data couldn't be snapshotted first, so it would be lost. %s", strings.TrimSpace(result.Warning))
+			}
+			copied, err := b.copyDataLocked(teamSlotPreview, teamSlotProduction)
+			if err != nil {
+				return result, fmt.Errorf("nothing was released: %w", err)
+			}
+			result.PreviewData = copied.Bytes
+		}
 		if out, err := teamGit(b.repo, "branch", "-f", teamProductionBranch, head); err != nil {
 			return result, fmt.Errorf("git branch: %s", qFirstLine(out, err.Error()))
 		}
@@ -557,6 +576,9 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 		}
 		versions.Releases = append(versions.Releases, release)
 		event.What = fmt.Sprintf("release v%d", version)
+		if result.PreviewData > 0 {
+			event.What += ", with a copy of the preview's data"
+		}
 		event.From, event.To = versions.Production, version
 		versions.Production, result.Release = version, release
 		push = []string{teamProductionBranch, "refs/tags/" + teamReleaseTag(version)}
@@ -597,6 +619,9 @@ func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, no
 		fmt.Fprintf(&text, ":rocket: *Production v%d is out*, the first release, approved by %s.", version, approval.Name)
 	default:
 		fmt.Fprintf(&text, ":rocket: *Production v%d is out* (it was v%d), approved by %s.", version, result.Previous, approval.Name)
+	}
+	if result.PreviewData > 0 {
+		fmt.Fprintf(&text, " Production starts with a copy of the preview's data (%s).", teamDataSize(result.PreviewData))
 	}
 	if notes != "" {
 		text.WriteString("\n\n" + notes)
@@ -664,6 +689,7 @@ func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 	if notes != "" {
 		text.WriteString("\n" + notes + "\n")
 	}
+	text.WriteString(teamReleaseDataNote(b.team))
 	if state, ok := loadTeamSlot(b.team, teamSlotPreview); ok && state.URL != "" {
 		if _, exposed := b.exposed(state.Expose); exposed {
 			fmt.Fprintf(&text, "\nTry it on <%s|the preview>", state.URL)
@@ -690,6 +716,17 @@ func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 		return teamReleaseAsk{}, err
 	}
 	return ask, nil
+}
+
+// teamReleaseDataNote is a line for the ask when production has no data
+// yet and the preview has: an owner says whether it goes along.
+func teamReleaseDataNote(team string) string {
+	_, had, _ := teamDataUsage(teamSlotDataDir(team, teamSlotProduction))
+	bytes, files, _ := teamDataUsage(teamSlotDataDir(team, teamSlotPreview))
+	if had > 0 || files == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nProduction starts with no data of its own; the preview has %s. Say whether production should start with a copy of it.\n", teamDataSize(bytes))
 }
 
 // teamTaskAskedBy says who asked for one piece of work, and where.

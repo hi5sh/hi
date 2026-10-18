@@ -128,3 +128,25 @@ outlives every release and is in every snapshot. Each preview has a data
 folder of its own, apart from production's. The app's own folder is a
 fresh copy of the code at each release, so anything written there is
 lost. The lead and the coder are told to keep data in `$HI_DATA_DIR`.
+
+The preview and production run at the same time. `$HI_SLOT` tells the app
+which one it is (`preview` or `production`). Work that costs money, such
+as a model call per item, a backfill from an outside service, or mail,
+runs only in production; otherwise it runs twice, on the same keys.
+
+A release moves the code, never the data. To move data between the two:
+
+```sh
+hi team data payments                              # both folders: size, files, last change
+hi team data payments copy production preview      # try a change on production's data
+hi team data payments copy preview production      # production starts from what the preview gathered
+```
+
+A copy pauses the box it copies from, so the copy is consistent, and
+restarts the other on it. A copy to production snapshots production's data
+first and is posted in the channel. A copy to the preview keeps the
+preview's data from before in `run/preview-data-before/`. The lead can ask
+for either: the preview's copy on its own, production's with an owner's
+yes. For a first release, the lead can take the preview's data along
+(`hi team release --data preview`), and the release summary says when
+there is data to take.

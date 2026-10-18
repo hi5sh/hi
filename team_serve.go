@@ -1129,9 +1129,35 @@ What the app must keep, such as the people's entries, uploads, or a
 database, goes in the folder named by $HI_DATA_DIR (/data). It outlives
 every release, and hi snapshots production's daily and before every
 release; the app's own folder is a fresh copy of the code each time, so
-anything written there is lost at the next release. Previews have a data
-folder of their own, apart from production's. Say this in briefs for
-anything that stores data.
+anything written there is lost at the next release. Say this in briefs
+for anything that stores data.
+
+The preview and production run at the same time, each on a data folder
+of its own; a release moves the code, never the data. $HI_SLOT tells the
+app which one it is (preview or production). Production owns the data:
+
+| Data | Where it belongs |
+|---|---|
+| What the people enter (entries, uploads, accounts) | production's alone |
+| What comes from outside, or is worked out from it (feeds, prices, files read, a model's answers) | gathered once, by production; the preview gets a copy |
+| What people make while trying a preview | the preview's, thrown away freely |
+
+So in briefs: background work that costs money (a model call per item),
+reads an outside service a lot (a backfill, a scrape), or does something
+outside the app (sends mail, posts, places orders) runs only when
+$HI_SLOT is production. In a preview it does nothing, or a small sample.
+Otherwise it runs twice, at twice the cost, on the same keys.
+
+hi team data lists both folders. hi team data copy production preview
+gives the preview a copy of production's data, for trying a change on
+real data; no yes is needed, and the preview's own is kept once. The
+other way, hi team data copy preview production --approval <id>, needs
+an owner's yes, and hi snapshots production's data first. It is for
+data the preview gathered before production existed. When you ask for
+the first release and the preview has gathered data production needs, hi
+team release --ask says so: release with --data preview only if the
+owner's yes says to take it along. When people ask whether a release
+uses the same data, say they are separate, and offer the copy.
 
 If the people lose data or want things as they were, an owner can put
 the team back as it was at a snapshot on the machine (hi team snapshots

@@ -14,6 +14,10 @@
 - Keep what must last in the database, in `$HI_DATA_DIR`: the app's own
   folder is replaced at every release. Change the tables only by adding a
   line to `migrations` in `src/db.ts`, never by editing an old one.
+- In a hi team, `$HI_SLOT` is `preview` or `production`, and both run at
+  once. Background work that costs money (a model call per item), reads an
+  outside service a lot, or acts outside the app (mail, posts, orders)
+  runs only in production.
 - Listen on `0.0.0.0` at `$PORT`; `make run` is how previews and
   production start the app.
 - A version must be 3 days old before Bun installs it (`bunfig.toml`), and

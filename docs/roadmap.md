@@ -1883,6 +1883,31 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   has no tabs. hi's status says where the docs are, only on an address
   whose relay sends `/docs/` to hi.
 
+### v0.86.0 — The app's data across preview and production
+
+Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
+
+- [x] Team cartman's first release started production on an empty data
+  folder. Production then read 533k press releases again and called a
+  model again for releases the preview had already scored, while the
+  preview's workers kept running on the same keys. Every app box now gets
+  `$HI_SLOT` (`preview` or `production`). The lead's skill, briefs, the
+  project's `AGENTS.md`, and the templates say that background work that
+  costs money, reads an outside service a lot, or acts outside the app
+  runs only in production.
+- [x] `hi team data <name>` lists both data folders. `hi team data <name>
+  copy <from> <to>` makes one a copy of the other:
+  - The source's box pauses while it is copied, so the copy is consistent.
+  - The target's box restarts on the copy, on the same address.
+  - Production's data is snapshotted first, and the copy is posted in the
+    channel.
+  - The preview's data from before is kept in `run/preview-data-before/`.
+- [x] The lead runs `hi team data copy production preview` itself.
+  `hi team data copy preview production` needs an owner's yes.
+- [x] `hi team release --data preview` releases and starts production on a
+  copy of the preview's data, under the same yes. `hi team release --ask`
+  says when production has no data yet and the preview has some.
+
 ## Planned
 
 ### Guide — a diagram for every tool

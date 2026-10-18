@@ -355,7 +355,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		discard()
 		return teamPreview{}, err
 	}
-	if err := b.app(next.Container, next.App, data, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
+	if err := b.app(next.Slot, next.Container, next.App, data, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
 	}
@@ -613,10 +613,10 @@ func teamLinkKey(link string) string {
 
 // startApp runs the project in its box: the hardening every box has, no
 // credentials, its port published to this machine only, its data folder
-// at /data, its address
-// folder read-only at /hi, the team's settings, and the models socket,
-// which hi team __app relays to an ordinary address in the box.
-func (b *teamBroker) startApp(name, src, data, address, command string, port, hostPort int) error {
+// at /data, its address folder read-only at /hi, its slot and the team's
+// settings, and the models socket, which hi team __app relays to an
+// ordinary address in the box.
+func (b *teamBroker) startApp(slot, name, src, data, address, command string, port, hostPort int) error {
 	engine, _, err := detectBoxEngine()
 	if err != nil {
 		return err
@@ -629,7 +629,7 @@ func (b *teamBroker) startApp(name, src, data, address, command string, port, ho
 	if err := os.MkdirAll(models, 0o700); err != nil {
 		return err
 	}
-	envFile, err := writeTeamAppEnvFile(b.team, teamAppEnv(b.team, port))
+	envFile, err := writeTeamAppEnvFile(b.team, teamAppEnv(b.team, slot, port))
 	if err != nil {
 		return err
 	}

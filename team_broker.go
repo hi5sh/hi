@@ -218,12 +218,14 @@ type teamBroker struct {
 	mu   sync.Mutex
 	// previewMu keeps one preview start or stop at a time.
 	previewMu sync.Mutex
-	// app starts the project's box; tests replace it.
-	app func(name, src, data, address, command string, port, hostPort int) error
+	// app starts the project's box for a slot; tests replace it.
+	app func(slot, name, src, data, address, command string, port, hostPort int) error
 	// exposed finds a running hi net expose by name, and running says an
 	// app's box runs; tests replace them.
 	exposed func(name string) (netExposeState, bool)
 	running func(container string) bool
+	// removeApp removes an app's box; tests replace it.
+	removeApp func(container string)
 	// wakeLead adds a job to the lead's Hermes that runs once, soon, with a
 	// prompt, its answer delivered to a Slack thread (team_handoff.go);
 	// nil in tests that don't set it.
@@ -279,6 +281,7 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b.restoreData = func(id string) error { return teamRestoreData(team, id) }
 	b.exposed = teamExposed
 	b.running = b.appRunning
+	b.removeApp = func(container string) { b.engineOutput("rm", "-f", container) }
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the
 		// team; only the waiters belong to it, and resume starts them again.
@@ -449,6 +452,19 @@ func (b *teamBroker) handler() http.Handler {
 			return
 		}
 		result, err := b.release(request)
+		reply(w, result, err)
+	})
+	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, teamDataFolders(b.team, b.running), nil)
+	})
+	mux.HandleFunc("POST /data/copy", func(w http.ResponseWriter, r *http.Request) {
+		var request teamDataCopyRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		request.Who = "" // only the host's socket speaks for someone on the machine
+		result, err := b.copyData(request)
 		reply(w, result, err)
 	})
 	mux.HandleFunc("POST /discard", func(w http.ResponseWriter, r *http.Request) {
@@ -1392,7 +1408,7 @@ var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": tru
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
-var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true}
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	// --approval dm is a yes in the DM the lead is answering: Hermes says
@@ -1567,7 +1583,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		} else {
 			fmt.Fprintf(stdout, "The app gets these settings as environment variables: %s\n", strings.Join(names, ", "))
 		}
-		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production.\n")
+		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production. $HI_SLOT says which one the app is (preview or production), and $HI_DATA_DIR is its data folder.\n")
 	case "versions":
 		if len(args) != 0 {
 			return usageError{"usage: hi team versions"}
@@ -1590,6 +1606,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			case args[i] == "--approval" && i+1 < len(args):
 				request.Approval = args[i+1]
 				i++
+			case args[i] == "--data" && i+1 < len(args):
+				request.DataFrom = args[i+1]
+				i++
 			case args[i] == "--notes" && i+1 < len(args):
 				notes, err := teamReadBrief(args[i+1], stdin)
 				if err != nil {
@@ -1600,7 +1619,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			case request.Version == 0 && teamVersionArg.MatchString(args[i]):
 				request.Version, _ = strconv.Atoi(strings.TrimPrefix(args[i], "v"))
 			default:
-				return usageError{"usage: hi team release --ask [--in <id>] [--notes <file|->]  (ask the owners in the channel, or in the thread of the message that asked, with what dev has and who asked for it)\n       hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
+				return usageError{"usage: hi team release --ask [--in <id>] [--notes <file|->]  (ask the owners in the channel, or in the thread of the message that asked, with what dev has and who asked for it)\n       hi team release --approval <id> --notes <file|-> [--data preview]  (dev to production as the next version; --data preview starts production with a copy of the preview's data, when the owner's yes says so)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
 			}
 		}
 		if request.In != "" && !ask {
@@ -1625,6 +1644,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			fmt.Fprintf(stdout, "Production is on v%d now (it was on v%d). hi posted it in the channel.\n", result.Release.Version, result.Previous)
 		} else {
 			fmt.Fprintf(stdout, "Released v%d: production is dev's latest now. hi posted it in the channel with your notes.\n", result.Release.Version)
+			if result.PreviewData > 0 {
+				fmt.Fprintf(stdout, "Production started with a copy of the preview's data (%s).\n", teamDataSize(result.PreviewData))
+			}
 		}
 		if result.Warning != "" {
 			fmt.Fprintln(stdout, result.Warning)
@@ -1653,6 +1675,44 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			result.Release.Version, result.Previous, result.DataAt.Local().Format("Mon Jan 2 at 15:04"), result.Snapshot)
 		if result.Warning != "" {
 			fmt.Fprintln(stdout, result.Warning)
+		}
+	case "data":
+		if len(args) == 0 {
+			var folders []teamDataFolder
+			if err := call("GET", "/data", nil, &folders); err != nil {
+				return err
+			}
+			printTeamDataFolders(stdout, folders)
+			fmt.Fprintln(stdout, "The app sees its own as $HI_DATA_DIR, and $HI_SLOT says which it is. hi team data copy production preview gives the preview a copy of production's; the other way needs an owner's yes.")
+			break
+		}
+		var request teamDataCopyRequest
+		usage := usageError{"usage: hi team data  (the data folders)\n       hi team data copy production preview  (the preview gets a copy of production's data)\n       hi team data copy preview production --approval <id>  (production gets a copy of the preview's; an owner's yes)"}
+		var words []string
+		for i := 0; i < len(args); i++ {
+			if args[i] == "--approval" && i+1 < len(args) {
+				request.Approval = args[i+1]
+				i++
+			} else {
+				words = append(words, args[i])
+			}
+		}
+		if len(words) != 3 || words[0] != "copy" {
+			return usage
+		}
+		request.From, request.To = words[1], words[2]
+		if err := teamCheckDataSlots(request.From, request.To); err != nil {
+			return err
+		}
+		var result teamDataCopy
+		if err := call("POST", "/data/copy", request, &result); err != nil {
+			return err
+		}
+		printTeamDataCopy(stdout, result)
+		if result.To == teamSlotProduction {
+			fmt.Fprintln(stdout, "hi posted it in the channel.")
+		} else {
+			fmt.Fprintln(stdout, "Tell the people the preview shows production's data now, on the same link.")
 		}
 	case "discard":
 		request := teamRequest{}

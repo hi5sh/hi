@@ -293,6 +293,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamRestoreCommand(rest, stdin, stdout)
 	case "rollback":
 		err = teamRollbackCommand(rest, stdin, stdout)
+	case "data":
+		err = teamDataCommand(rest, stdin, stdout)
 	case "say":
 		err = teamSayCommand(rest, stdin, stdout)
 	case "backups":
@@ -388,6 +390,13 @@ usage:
                                    entered since is kept in a snapshot, and going forward the same
                                    way puts it back
       [--code-only]                the code alone; production's data stays as it is
+      [--yes]                      don't ask first
+  hi team data <name>              the app's data folders, production's and the preview's: size,
+                                   files, last change
+  hi team data <name> copy <from> <to>  one's data becomes a copy of the other's: preview production
+                                   (production starts from what the preview gathered; its data is
+                                   snapshotted first) or production preview (the preview tries
+                                   production's data)
       [--yes]                      don't ask first
   hi team backups <name>           where snapshots are kept, and for how long
       [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
@@ -1189,6 +1198,12 @@ code, so the code, its tests, and its docs must explain themselves.
 - Data the app must keep (the people's entries, uploads, a database) goes
   in the folder named by $HI_DATA_DIR, never in the project's own folder,
   which is a fresh copy of the code at every release.
+- $HI_SLOT is preview or production. Work in the background that costs
+  money (a model call per item), reads an outside service a lot (a
+  backfill, a scrape), or does something outside the app (sends mail,
+  posts, places orders) runs only when $HI_SLOT is production; in a
+  preview it does nothing, or a small sample such as the last few days.
+  Preview and production run at the same time, each with its own data.
 - The project starts with ` + "`make run`" + `: a Makefile run target that starts the
   app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
   the lead can show the people a preview.

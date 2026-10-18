@@ -455,11 +455,14 @@ func TestTeamAppDataFolders(t *testing.T) {
 		teamSlotDataDir("payments", teamSlotPreview) != filepath.Join(teamDir("payments"), "run", "preview-data") {
 		t.Fatal(teamSlotDataDir("payments", teamSlotProduction), teamSlotDataDir("payments", teamSlotPreview))
 	}
-	if env := teamAppEnv("payments", 8080); env["HI_DATA_DIR"] != "/data" {
+	if env := teamAppEnv("payments", teamSlotProduction, 8080); env["HI_DATA_DIR"] != "/data" || env["HI_SLOT"] != "production" {
 		t.Fatal(env)
 	}
-	if !teamAppEnvReserved["HI_DATA_DIR"] {
-		t.Fatal("HI_DATA_DIR is hi's")
+	if env := teamAppEnv("payments", teamSlotPreview, 8080); env["HI_SLOT"] != "preview" {
+		t.Fatal(env)
+	}
+	if !teamAppEnvReserved["HI_DATA_DIR"] || !teamAppEnvReserved["HI_SLOT"] {
+		t.Fatal("HI_DATA_DIR and HI_SLOT are hi's")
 	}
 }
 

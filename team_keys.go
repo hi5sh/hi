@@ -49,7 +49,7 @@ var teamEnvName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // teamAppEnvReserved are the variables hi sets in an app's box itself.
 var teamAppEnvReserved = map[string]bool{"HOME": true, "PORT": true, "HOST": true, "PATH": true,
-	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
+	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
 
 // teamModelsDir holds the broker's models socket; app boxes mount it.
 func teamModelsDir(name string) string { return teamBrokerDir(name) + "-models" }
@@ -140,10 +140,11 @@ func teamSettingsStamp(name string) string {
 	return "v1:" + hex.EncodeToString(hash.Sum(nil))[:16]
 }
 
-// teamAppEnv is what an app's box gets: its port, its address file, the
-// models at an ordinary address with a placeholder key, and the team's
-// settings.
-func teamAppEnv(name string, port int) map[string]string {
+// teamAppEnv is what an app's box gets: its port, its address file, its
+// slot ($HI_SLOT, preview or production, so work that costs money runs in
+// production only), the models at an ordinary address with a placeholder
+// key, and the team's settings.
+func teamAppEnv(name, slot string, port int) map[string]string {
 	env := map[string]string{}
 	if secrets, err := loadTeamSecrets(name); err == nil {
 		for key, value := range secrets.Env {
@@ -153,6 +154,7 @@ func teamAppEnv(name string, port int) map[string]string {
 	env["HOME"], env["PORT"], env["HOST"] = "/tmp", strconv.Itoa(port), "0.0.0.0"
 	env["HI_PUBLIC_URL_FILE"] = teamAppAddressFile
 	env["HI_DATA_DIR"] = teamAppDataDir
+	env["HI_SLOT"] = slot
 	env["OPENROUTER_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/api/v1", teamAppModelsPort)
 	env["OPENROUTER_API_KEY"] = boxClaudePlacehold
 	return env
