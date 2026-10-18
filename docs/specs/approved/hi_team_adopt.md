@@ -1,13 +1,15 @@
 # `hi team adopt`: a team for a project someone else wrote
 
-Status: Draft (2026-10-18). The first slice is built (v0.90.0), and
-keeping up with upstream (v0.91.0).
+Status: Approved (2026-10-18), built in three slices: adopting, the
+survey, and the lead's introduction (v0.90.0); keeping up with upstream
+(v0.91.0); and contributing back (v0.92.0). The ideas under Later are not
+built.
 
-Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the
-broker, dev and production, previews), [hi_team_roles.md](../approved/hi_team_roles.md)
-(roles from a template), [hi_team_docs.md](../approved/hi_team_docs.md)
-(`docs/map.md`, `/docs`), [hi_init.md](../approved/hi_init.md#adopting-an-existing-repository-hi-init---adopt-type)
-(managed blocks in existing files), [hi_bun.md](../approved/hi_bun.md)
+Dependencies: [hi_team.md](hi_team.md) (the wizard, the
+broker, dev and production, previews), [hi_team_roles.md](hi_team_roles.md)
+(roles from a template), [hi_team_docs.md](hi_team_docs.md)
+(`docs/map.md`, `/docs`), [hi_init.md](hi_init.md#adopting-an-existing-repository-hi-init---adopt-type)
+(managed blocks in existing files), [hi_bun.md](hi_bun.md)
 (the dependency review), and `hi box`'s devcontainer support.
 
 ## Goal
@@ -78,15 +80,17 @@ hi team adopt <name> <source> [--ref <branch|tag|commit>] [--github <owner/name>
                               [--shallow|--full] [--no-survey] [--dir <folder>]
                               [--from <answers.json>] [--yes]
                                     the wizard, with the code step answered: adopt <source>
-hi team upstream <name>             where dev stands against upstream, and upstream's new tags
+hi team upstream <name>             fetch upstream, and say where dev stands against it, with its new tags
 ```
 
 The lead runs, in its box, through the broker:
 
 ```text
 hi team upstream                    the same
-hi team task <role> <brief> --approval <id> --upstream [<ref>]
-                                    work that starts by merging upstream (its latest, or <ref>)
+hi team task <role> <brief> --approval <id> --upstream[=<tag>]
+                                    work that starts by merging upstream (its latest, or <tag>)
+hi team propose <task> --approval <id> --notes <file>
+                                    offer merged work to upstream as a draft pull request (an owner's yes)
 ```
 
 - `<source>` is a GitHub URL, `owner/name`, or any git URL. A folder on
@@ -248,7 +252,7 @@ the app is, its preview link, what to try, what doesn't work yet, and the
 one or two choices it needs from them ("It needs a Google sign-in key to
 let people log in; should I set it up, or turn sign-in off for now?").
 Settings that need a secret go through the team's keys
-([hi_team_keys.md](../approved/hi_team_keys.md)), never into Slack.
+([hi_team_keys.md](hi_team_keys.md)), never into Slack.
 
 From here the team works as any team does: the people ask, the lead
 agrees an acceptance list, the members build and review, and releases
@@ -287,6 +291,41 @@ start at v1.
 - `adopted.commit` stays what was adopted; each merge of such work is
   recorded in `team.json`'s `adopted.merges`, with what it brought in,
   from which commit, and the task, and `hi team upstream` lists them.
+
+## Contributing back
+
+When the people want a change of the team's offered to the project's
+authors, the lead asks an owner, in plain words: which change, that it
+goes to the public project as a draft under the GitHub account on the
+team's machine, and that its maintainers may turn it down. It reads the
+project's contributing guide first, since some projects don't take
+changes written by agents. On an owner's yes:
+
+```text
+hi team propose t-7 --approval <id> --notes <description.md>
+```
+
+- **Merged work only:** what the people agreed works. Naming any task of
+  a line of work finds the merge that brought it into dev. Work that
+  brought upstream in has nothing of the team's to offer, and is refused;
+  so is work proposed already, with its link.
+- **The change alone.** hi takes the merge's diff, leaving out the team's
+  own files (`docs/specs/`, `.hi5/`, `AGENTS.md`, `docs/map.md`,
+  `docs/user/`, `docs/tech/`, `docs/decisions/`) unless upstream has them
+  too, and applies it (`git apply --3way`) to upstream's latest, fetched
+  first, in a worktree of its own that it removes after. When it doesn't
+  apply, hi says to bring upstream in first.
+- **A draft, from a fork.** The commit is the task's title, by the
+  machine's own git identity. `gh repo fork` makes a fork under the
+  machine's GitHub account, or finds it; hi pushes the commit to a branch
+  `hi-team-<team>-<task>` there with `gh`'s sign-in, from the host, trying
+  again while a new fork is being made, and opens a draft pull request
+  against upstream's branch with the lead's description and a line that
+  agents made the change and a person marks it ready. The task records
+  the link and the owner's yes.
+
+Nothing reaches the project without an owner's yes in the channel, and
+nothing is marked ready by hi: a person sends it.
 
 ## The people's view
 
@@ -338,12 +377,6 @@ particular:
 
 ## Later
 
-- **Contributing back.** `hi team propose <task> --approval <id>`: an
-  owner's yes, then the broker pushes the task's work to a fork under the
-  owner's GitHub account and opens a draft pull request, as the owner,
-  with the lead's description and the project's `CONTRIBUTING.md` in
-  mind. Draft only: a person sends it. Many projects have rules about
-  changes written by agents, which the survey reads.
 - **Projects that aren't web apps.** A command-line tool or a library has
   nothing to preview. The survey could write a `make demo` whose output
   the lead shows, or a small page that runs it.
@@ -354,6 +387,11 @@ particular:
 - **Adopting from Slack or the hi server.** `/hi adopt <url>` on the hi
   server, to make a team without a terminal, once teams can be made
   without one.
+- **A playground team** whose project can be swapped, for trying
+  projects out without a Slack app each (Decisions, 1).
+- **Codex's and Hermes' project settings.** Members other than Claude
+  Code still load what a project sets up for them; each needs a switch
+  of its own.
 
 ## Decisions
 
@@ -375,17 +413,18 @@ particular:
    Over 1 GB, hi asks first and offers a shallow one (`--depth 1`), which
    brings only the latest commit.
 
-## First slice
+## Slices
 
-1. `hi team adopt <name> <source>` and step 7's adoption: the fetch with
-   nothing run, the summary at the terminal, the `upstream` remote that
-   can't push, tags under `upstream/`, `adopted` in `team.json`, v0, and
-   `--github` for a private copy.
-2. The team's rules in `AGENTS.md`, `docs/specs/README.md`, and the
-   project's agent settings off for the members.
-3. The survey, `hi-run`, and the lead's introduction.
-
-Then `hi team upstream` and `--upstream` tasks; then contributing back.
+1. **v0.90.0.** `hi team adopt <name> <source>` and step 7's adoption:
+   the fetch with nothing run, the summary at the terminal, the
+   `upstream` remote that can't push, tags under `upstream/`, `adopted`
+   in `team.json`, v0, and `--github` for a private copy. The team's
+   rules in `AGENTS.md`, `docs/specs/README.md`, and the project's agent
+   settings off for the members. The survey, `hi-run`, and the lead's
+   introduction.
+2. **v0.91.0.** `hi team upstream`, the daily fetch and the lead woken
+   for a new version, and `--upstream` tasks.
+3. **v0.92.0.** `hi team propose`.
 
 ## Acceptance
 
@@ -408,3 +447,8 @@ Then `hi team upstream` and `--upstream` tasks; then contributing back.
    adopted.
 9. `hi team upstream` reports the team's changes and upstream's since
    adoption, after upstream moves.
+10. A task with `--upstream=<tag>` starts by merging it, needs a yes, and
+    its review checks the merge's own changes; `team.json` records the
+    merge.
+11. `hi team propose` opens a draft pull request with the change alone on
+    upstream's latest, only on an owner's yes, and leaves no worktree.

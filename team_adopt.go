@@ -1032,7 +1032,31 @@ first release, hi team discard dev --approval <id> puts dev back to it.
 - **Licence:** %[4]s. When the app is about to reach people outside the
   team, remind the owners in a line of what the licence asks, if
   anything; it's theirs to decide.
-`, adopted.Name, adopted.From, survey, licence)
+`, adopted.Name, adopted.From, survey, licence) + teamSkillPropose(adopted)
+}
+
+// teamSkillPropose is how the lead offers a change back to a project on
+// GitHub (team_propose.go).
+func teamSkillPropose(adopted *teamAdopted) string {
+	if adopted.GitHub == "" {
+		return ""
+	}
+	return fmt.Sprintf(`- **Giving a change back.** When the people want a change of the team's
+  offered to %[1]s's authors, or you think a fix would help them too, ask
+  an owner first, in plain words: which change, that it goes to %[1]s's
+  public project on GitHub as a draft under the GitHub account on the
+  team's machine, and that its maintainers may turn it down. Read its
+  contributing guide first (git -C /team/repo show
+  upstream/%[2]s:CONTRIBUTING.md, if it has one): some projects don't take
+  changes written by AI agents, and then say so instead of asking. On an
+  owner's yes, write a description for its maintainers, who are
+  developers (what it changes and why, how it was tested), to a file, and
+  run hi team propose t-7 --approval <id> --notes <file>, for merged work.
+  hi puts the change alone on %[1]s's latest, without the team's specs,
+  rules, and docs, opens a draft, and prints its link: post it, and say
+  the owner marks it ready once they've read it. When it doesn't apply to
+  the latest, bring upstream in first.
+`, adopted.Name, adopted.Follow)
 }
 
 // teamSoulAdopted is SOUL.md's section for a team on a project someone

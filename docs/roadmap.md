@@ -2004,7 +2004,7 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
 
 - [x] `hi team adopt <name> <source>` makes a team whose project is one
   someone else wrote, such as one on GitHub
-  ([hi_team_adopt.md](specs/ideas/hi_team_adopt.md)): `hi team new` with
+  ([hi_team_adopt.md](specs/approved/hi_team_adopt.md)): `hi team new` with
   the code step answered and the purpose offered from its description.
   In `hi team new`, a project's address in the code step adopts it too.
 - [x] It's fetched without running anything from it, as `hi agent review`
@@ -2051,6 +2051,20 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   report, the review checks the merge's own changes rather than the
   authors' commits, and `team.json` records each upstream merge.
 
+### v0.92.0 — Contributing back to the project a team adopted
+
+- [x] `hi team propose <task> --approval <id> --notes <file>` offers the
+  adopted project a piece of the team's merged work, once an owner says
+  yes: the change alone, without the team's specs, rules, and docs, on
+  upstream's latest, pushed from the machine to a fork under its GitHub
+  account, as a draft pull request with the lead's description and a
+  line that agents made it. Work that doesn't apply waits for upstream to
+  be brought in; work that brought upstream in, and work proposed
+  already, are refused.
+- [x] The lead's skill says when to offer it, to read the project's
+  contributing guide first, and to ask an owner in plain words. The spec
+  moves to approved with what was built.
+
 ## Planned
 
 ### Guide — a diagram for every tool
@@ -2091,16 +2105,17 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
   one question, such as [Jev](https://docs.pipecat.ai/api-reference/server/classifiers/jev),
   TypeSafe's classification model, asked "is this message for the
   lead?". Until then it answers @-mentions only, which works well.
-- [ ] Adopt a project someone else wrote, such as one found on GitHub:
+- [x] Adopt a project someone else wrote, such as one found on GitHub:
   `hi team adopt <name> <source>`, a copy that never pushes to the source,
-  a survey that makes it run and maps it, and keeping up with upstream.
-  Spec: [hi_team_adopt.md](specs/ideas/hi_team_adopt.md) (draft).
+  a survey that makes it run and maps it, keeping up with upstream, and
+  contributing back (v0.90.0 to v0.92.0). Spec:
+  [hi_team_adopt.md](specs/approved/hi_team_adopt.md).
 - [ ] Explore a playground team for trying projects out: one team whose
   adopted project can be swapped (`hi team adopt playground <url>
   --replace`), keeping the old one as a branch, so trying something
   doesn't cost a new Slack app and channel. Decide whether it's worth
   bending "a new project is a new team". See
-  [hi_team_adopt.md](specs/ideas/hi_team_adopt.md#decisions).
+  [hi_team_adopt.md](specs/approved/hi_team_adopt.md#decisions).
 
 ### Later — Bun
 

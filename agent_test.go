@@ -415,3 +415,29 @@ func TestAgentModel(t *testing.T) {
 		}
 	}
 }
+
+func TestAgentNoProjectSettings(t *testing.T) {
+	options, err := parseBoxOptions("agent", []string{"--no-project-settings", "--max-budget-usd", "10", "task"})
+	if err != nil || !options.noProjectSettings || options.budgetUSD != 10 {
+		t.Fatal(options, err)
+	}
+	if _, err := parseBoxOptions("agent", []string{"--max-budget-usd", "lots", "task"}); err == nil {
+		t.Fatal("a budget that isn't dollars")
+	}
+	claude := filepath.Join(t.TempDir(), "claude")
+	writeSkillTestFile(t, claude, "", 0o755)
+	previous := boxLookPath
+	boxLookPath = func(string) (string, error) { return claude, nil }
+	t.Cleanup(func() { boxLookPath = previous })
+	for settings, want := range map[bool]bool{true: true, false: false} {
+		var run []string
+		command, err := agentBoxSetup("claude", "Go.", boxMeta{Name: "m", Workdir: "/w", NoProjectSettings: settings, BudgetUSD: 10}, t.TempDir(), &run, map[string]string{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		line := strings.Join(command, " ")
+		if strings.Contains(line, "--setting-sources user") != want || !strings.Contains(line, "--max-budget-usd 10.00") {
+			t.Fatalf("%v: %s", settings, line)
+		}
+	}
+}

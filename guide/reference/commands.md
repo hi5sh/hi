@@ -305,7 +305,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 
 In its box, the lead runs `hi team task <role> <brief.md> [--approval <message id> | --small | --on <task> | --new] [--upstream[=<tag>]] [--attach <file>]...`
 (`--upstream`: for an adopted project, work that starts by merging the project it came from, its latest or a tag),
-`upstream`,
+`upstream`, `propose <task> --approval <id> --notes <file>` (an adopted project: offer merged work to the project it came from, as a draft pull request, on an owner's yes),
 `review <task>`, `wait <task>`, `show <task>`, `tasks`, `merge <task>`,
 `stop <task>`, `env` (the names of the app's settings), `channel [--since 2h | --new]`,
 `web` (the chats and feedback in the app), `web show <chat|feedback>`, `web post <chat> <text|-> [--attach <file>]...`, `web questions` (what people asked the app's help), `web link --user <member ID>` (DM someone their private links, as `/hi` does)

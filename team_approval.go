@@ -41,7 +41,7 @@ type teamApproval struct {
 // of its own, never one that approved something else; one yes may start
 // more than one task.
 func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) (teamApproval, error) {
-	owners := approving == "release" || approving == "rollback" || approving == "helper" || approving == "trust" || approving == "data" || approving == "review"
+	owners := approving == "release" || approving == "rollback" || approving == "helper" || approving == "trust" || approving == "data" || approving == "review" || approving == "propose"
 	ref = strings.Trim(strings.TrimSpace(ref), "[]")
 	if ref == "" {
 		return teamApproval{}, errors.New("name the message that approved this work: hi team task <role> <brief.md> --approval <id>, " +

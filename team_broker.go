@@ -91,11 +91,17 @@ type teamTask struct {
 	// Survey is an adopted project's first task, which hi starts
 	// (team_adopt.go). UpstreamLabel and UpstreamCommit are what a task
 	// with --upstream brings in from it (team_upstream.go).
-	Survey         bool      `json:"survey,omitempty"`
-	UpstreamLabel  string    `json:"upstream_label,omitempty"`
-	UpstreamCommit string    `json:"upstream_commit,omitempty"`
-	Created        time.Time `json:"created"`
-	Finished       time.Time `json:"finished,omitempty"`
+	Survey         bool   `json:"survey,omitempty"`
+	UpstreamLabel  string `json:"upstream_label,omitempty"`
+	UpstreamCommit string `json:"upstream_commit,omitempty"`
+	// Proposed is the draft pull request that offered merged work back to
+	// the adopted project, on ProposeApproval, an owner's yes
+	// (team_propose.go).
+	Proposed        string        `json:"proposed,omitempty"`
+	ProposedAt      time.Time     `json:"proposed_at,omitempty"`
+	ProposeApproval *teamApproval `json:"propose_approval,omitempty"`
+	Created         time.Time     `json:"created"`
+	Finished        time.Time     `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -578,6 +584,15 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		line, err := b.webPost(post)
 		reply(w, line, err)
+	})
+	mux.HandleFunc("POST /propose", func(w http.ResponseWriter, r *http.Request) {
+		var request teamProposeRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		task, err := b.propose(request)
+		reply(w, task, err)
 	})
 	mux.HandleFunc("GET /upstream", func(w http.ResponseWriter, r *http.Request) {
 		view, err := b.upstream()
@@ -1484,7 +1499,7 @@ func teamTitle(brief string) string {
 // the lead's commands, in its box
 
 var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
-	"versions": true, "release": true, "discard": true, "web": true}
+	"versions": true, "release": true, "discard": true, "web": true, "propose": true}
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
@@ -1944,6 +1959,34 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return usage
 		}
 		fmt.Fprintln(stdout, strings.TrimRight(line, "\n"))
+	case "propose":
+		usage := usageError{"usage: hi team propose <task> --approval <id> --notes <file>"}
+		var request teamProposeRequest
+		for i := 0; i < len(args); i++ {
+			switch {
+			case args[i] == "--approval" && i+1 < len(args):
+				i++
+				request.Approval = args[i]
+			case args[i] == "--notes" && i+1 < len(args):
+				i++
+				notes, err := teamReadBrief(args[i], stdin)
+				if err != nil {
+					return err
+				}
+				request.Notes = notes
+			case request.Task == "" && !strings.HasPrefix(args[i], "-"):
+				request.Task = args[i]
+			default:
+				return usage
+			}
+		}
+		if request.Task == "" || request.Approval == "" || request.Notes == "" {
+			return usage
+		}
+		if err := call("POST", "/propose", request, &task); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "%s is offered to the project it came from, as a draft pull request: %s\nThe owner whose GitHub account opened it marks it ready once they've read it.\n", task.ID, task.Proposed)
 	case "upstream":
 		if len(args) != 0 {
 			return usageError{"usage: hi team upstream"}

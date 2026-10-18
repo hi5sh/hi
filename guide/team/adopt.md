@@ -155,6 +155,27 @@ what the merge itself changed, how each conflict was resolved and the
 packages it changes, not the authors' own commits line by line. Once it's
 merged, `hi team upstream` lists it.
 
+## Giving a change back
+
+Sometimes what the team built would help the project's authors too: a
+fix, a small feature. The lead offers it only on an owner's yes, after
+reading the project's contributing guide (some projects don't take
+changes written by AI agents), and asks in plain words:
+
+> The fix for cards vanishing could help everyone who uses pocket-kanban.
+> Shall I offer it to its authors? It goes to their public project on
+> GitHub as a draft under the GitHub account on our machine, and they
+> may turn it down.
+
+On the yes, the lead runs `hi team propose t-7 --approval <id> --notes
+<file>` with a description for the maintainers, for work that's merged.
+On the machine, hi takes the change alone, without the team's specs,
+rules, and docs, puts it on the project's latest, pushes it to a fork
+under the machine's GitHub account (`gh repo fork`), and opens a draft
+pull request that says agents made it. The owner whose account opened it
+reads it and marks it ready; hi never does. When the change doesn't apply
+to the project's latest, the team brings upstream in first.
+
 ## From a file
 
 Without a terminal, give the answers in a file, as for `hi team new`, with
