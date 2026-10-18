@@ -274,6 +274,7 @@ The lead runs these in its box, through the broker:
 hi team task <role> <brief.md|-> [--approval <id> [--new] | --small | --on <task>] [--attach <file>]...
                                                  start a task; --on continues a task's work on its branch
 hi team review <task> [<notes.md>]               the reviewer checks a task's latest commit again
+hi team review --project --approval <id> --budget <usd>  a deep review of the whole project, on an owner's yes to that figure (hi_agent_review.md)
 hi team wait <task>                              wait for a task and its review rounds, and print how they ended
 hi team show <task>                              its state and report, without waiting
 hi team tasks                                    the ideas not merged, each as its line of tasks, then the tasks

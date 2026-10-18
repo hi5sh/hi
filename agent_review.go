@@ -68,13 +68,16 @@ type review struct {
 	SinceFiles  []string       `json:"since_files,omitempty"`
 	Compare     *reviewCompare `json:"compare,omitempty"`
 	SARIF       bool           `json:"sarif,omitempty"`
-	Out         string         `json:"out,omitempty"` // a folder the report is also written to
-	Paths       []string       `json:"paths,omitempty"`
-	Context     string         `json:"context,omitempty"`
-	Passes      int            `json:"passes"`
-	Parallel    int            `json:"parallel"`
-	MaxSeconds  int            `json:"max_seconds"`
-	Budget      float64        `json:"budget_usd,omitempty"`
+	// Fixes are the work that set out to fix earlier findings, by their
+	// fingerprint, such as a team's task (--fixes, from hi team).
+	Fixes      map[string]string `json:"fixes,omitempty"`
+	Out        string            `json:"out,omitempty"` // a folder the report is also written to
+	Paths      []string          `json:"paths,omitempty"`
+	Context    string            `json:"context,omitempty"`
+	Passes     int               `json:"passes"`
+	Parallel   int               `json:"parallel"`
+	MaxSeconds int               `json:"max_seconds"`
+	Budget     float64           `json:"budget_usd,omitempty"`
 	// Judges are the agents that may check findings, in the order they're
 	// picked; each finding goes to the first that didn't raise it.
 	Judges      []string `json:"judges"`
@@ -198,7 +201,7 @@ var (
 type reviewFlags struct {
 	areas, agents, judge, passes, ref string
 	context, budget, limit, parallel  string
-	since, compare, out               string
+	since, compare, out, fixes        string
 	paths                             []string
 	yes, detach, json, md, rejected   bool
 	sarif, html                       bool
@@ -251,6 +254,8 @@ func runReview(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			flags.compare = value()
 		case is("--out"):
 			flags.out = value()
+		case is("--fixes"):
+			flags.fixes = value()
 		case arg == "--sarif":
 			flags.sarif = true
 		case arg == "--html":
@@ -442,6 +447,9 @@ func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stde
 		os.RemoveAll(reviewStateFile(rv.ID))
 		return fmt.Errorf("starting the review: %w", err)
 	}
+	if flags.detach && flags.json {
+		return printReviewJSON(*rv, stdout)
+	}
 	if flags.detach || !isTerminal(stdin) && !flags.json {
 		fmt.Fprintf(info, "%s runs in the background.\n  hi agent review watch %s   follow it\n  hi agent review show %s    its findings, once it ends\n  hi agent review stop %s    stop it and keep what's done\n",
 			rv.ID, rv.ID, rv.ID, rv.ID)
@@ -570,6 +578,15 @@ func planReview(folder string, flags reviewFlags, id, source string) (*review, e
 		rv.earlier = &earlier
 	}
 	rv.SARIF = flags.sarif
+	if flags.fixes != "" {
+		data, err := os.ReadFile(flags.fixes)
+		if err == nil {
+			err = json.Unmarshal(data, &rv.Fixes)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("--fixes: %w", err)
+		}
+	}
 	if flags.out != "" {
 		if rv.Out, err = filepath.Abs(flags.out); err != nil {
 			return nil, err

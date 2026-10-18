@@ -1966,6 +1966,24 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
 - [x] `--sarif` writes `report.sarif`, `--out <dir>` a copy of the
   report, and `show --html` a page that loads nothing and runs nothing.
 
+### v0.89.0 — A deep review before a release
+
+- [x] A team's lead offers a deep review of the whole project before a
+  risky release, with the most it may cost
+  ([hi_agent_review.md](specs/approved/hi_agent_review.md#with-a-team)).
+  Only an owner's yes in the channel, to a question of the lead's naming
+  that figure, starts it: `hi team review --project --approval <id>
+  --budget <usd>`. hi says so in the thread.
+- [x] The reviewers get what the team knows: the purpose, whether
+  production is on the internet and behind a password, who may use it,
+  the decisions, and what the people told the lead. The coder's and
+  reviewer's agents investigate, each checking the other's findings.
+- [x] When it ends, the owner who said yes gets the report in a DM, the
+  lead is woken in the thread to post a summary without exploit detail,
+  say which findings it thinks matter here and which don't, and let the
+  people choose. Fixes name the finding (`--finding r-4:F-1`), and the next
+  review says what wasn't seen since which task.
+
 ## Planned
 
 ### Guide — a diagram for every tool
@@ -2095,9 +2113,6 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
 - [ ] A planner that picks bundles for a task; bundles themselves shipped
   in v0.31.0. Spec: [hi_agent_bundles.md](specs/ideas/hi_agent_bundles.md),
   release 3 (draft).
-- [ ] A team's lead offers a review before a risky release and runs it on
-  an owner's yes with a budget: `hi team review --project`. Spec:
-  [hi_agent_review.md](specs/approved/hi_agent_review.md#with-a-team), first slice (3).
 - [ ] `--desktop`: a Linux desktop in the box that the agent drives with
   `hi-desktop` and a person watches and takes over in the browser; a `cad`
   bundle with Blender, FreeCAD, CadQuery, and KiCad, scripted first.

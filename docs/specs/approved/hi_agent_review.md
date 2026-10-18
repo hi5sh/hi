@@ -2,7 +2,8 @@
 
 Status: Approved (2026-10-18). Release 1 built in v0.87.0 (see
 [As built](#as-built-release-1)), release 2 in v0.88.0 (see
-[As built](#as-built-release-2)). From a proposal for a "HiAudit" command;
+[As built](#as-built-release-2)), release 3 in v0.89.0 (see
+[As built](#as-built-release-3)). From a proposal for a "HiAudit" command;
 what it kept and what it left out is under [Decisions](#decisions).
 
 Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes,
@@ -668,3 +669,63 @@ v0.88.0, 2026-10-18. Code: `agent_review_source.go` (URLs, briefs,
   $0.22); and the sample repository `--since v1` with a brief of one's own,
   which found the commit's `=` in place of `==` as critical and gave the
   brief's area its own findings.
+
+## As built (release 3)
+
+v0.89.0, 2026-10-18. Code: `team_review.go`; tests: `team_review_test.go`.
+
+- **The lead's commands.** `hi team review --project --approval <id>
+  --budget <usd> [--area a,b] [--since <v2|ref>] [--version v3]
+  [--context <notes.md>]`, and `hi team review list`, `show <id>`, and
+  `stop <id>`, through the broker. `hi team review <task>` is unchanged.
+  `--context` is the lead's notes from the people, read in its box.
+- **The yes.** An owner's, as for a release: `review` joins the
+  approvals only owners give, so a yes in a DM is refused and the lead
+  asks in the channel. On top of the usual checks, the lead's last
+  message in the yes's thread before it has to contain the budget as a
+  dollar figure (`$30`, `$30.00`). The yes counts once, and one deep
+  review runs at a time.
+- **No team budget.** [hi_team.md](hi_team.md) has a monthly budget that
+  isn't built, so "the budget must fit in what is left of the team's
+  month" has nothing to check against. The review's own `--budget` is
+  the limit; SOUL.md has the lead say "of the month" only as words.
+- **The run.** The broker runs `hi agent review <repo> --ref <commit>
+  --context <reviews/context.md> --budget <usd> --yes --detach --json`
+  (which now prints the new review's record), with `--agents` the coder's
+  and reviewer's agents and models, `--area` and `--since` when given
+  (`v2` means that release's commit), `--compare` with the team's last
+  review that ended, and `--fixes`. The review runs in hi agent review's
+  own process, outside the team's service, so a team restart doesn't stop
+  it. It posts "Deep review r-4 started on dev (…)" in the yes's thread.
+- **The context.** The team's purpose; production's address and whether
+  a password page guards it (from `run/production.json`), or that it isn't
+  running; how many owners and askers there are; the files in
+  `docs/decisions/` by name; and the lead's notes.
+- **`--fixes`.** A file of fingerprint to work, from merged tasks'
+  findings. A compared item gets `fixed_by`, and the report says "not
+  seen since t-14", or "still seen, though t-14 set out to fix it".
+- **The end.** The broker looks at the review every 30 seconds (and
+  again after a restart, for one that ran or ended without the lead
+  hearing). When it ends, it copies `report.md`, `report.json`, and a
+  `report.html` it renders into the team's `reviews/<id>/`, mounted
+  read-only at `/team/reviews` in the lead's box (a new mount, so a
+  running team gets it on its next restart), DMs the owner who said yes
+  the tally and uploads `report.md` and `report.html` there, and wakes the
+  lead with a job delivered to the yes's thread. The prompt says what to
+  post (the tally by severity, titles only, no exploit detail, the
+  recommendations note), to say which findings matter here and which
+  don't and why, to ask about assumptions, not to offer to fix everything,
+  to remember what the people decide, and how to fix one.
+- **Fixes.** `hi team task … --finding r-4:F-1` (repeatable) records the
+  finding's review, ID, title, and fingerprint on the task, and adds its
+  section from `report.md` under "From the deep review" unless the brief
+  already has it.
+- **SOUL.md.** A "Deep reviews" section at the end: when to offer it, in
+  what words, the owner's yes in the channel naming the figure, a no is a
+  no for that release, and that findings are recommendations. An existing
+  SOUL.md gets it once, after the story's paragraph. The hi-team skill has
+  the new commands.
+- **Not tested live.** That needs a team in a real Slack channel with
+  real people. The tests run the broker's whole path with a fake Slack
+  and a fake `hi agent review`; `hi agent review --detach --json`, `stop`,
+  and `rm` were run live on their own.

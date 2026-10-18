@@ -25,6 +25,8 @@
       url: /guide/team/keys/
     - title: Dev and production
       url: /guide/team/releases/
+    - title: A deep review before a release
+      url: /guide/team/reviews/
     - title: The folder and backups
       url: /guide/team/folder/
 - section: Remote compute

@@ -253,5 +253,6 @@ hi agent review stop <id>         stop it, keep what's done, and write the repor
 hi agent review rm <id>           remove a review, its report, and its snapshot
 ```
 
-Reviews a team's lead offers in Slack, on an owner's yes with a budget,
-are planned; see the [spec](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_agent_review.md#with-a-team).
+In a team, the lead offers a review before a risky release and runs it
+on an owner's yes with a budget: see
+[A deep review before a release](/guide/team/reviews/).

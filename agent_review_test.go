@@ -708,6 +708,17 @@ func TestReviewCompare(t *testing.T) {
 			t.Errorf("F-3: %+v", item)
 		}
 	}
+	// A task that set out to fix one says so.
+	rv.Fixes = map[string]string{"zzz": "t-14"}
+	compareReview(&rv)
+	for _, item := range rv.Compare.Items {
+		if item.ID == "F-5" && item.FixedBy != "t-14" {
+			t.Errorf("F-5: %+v", item)
+		}
+	}
+	if !strings.Contains(reviewCompareMarkdown(rv), "F-5 · by fingerprint (`api/cards.ts`, security, was rejected): not seen since t-14") {
+		t.Errorf("the comparison doesn't name the fix:\n%s", reviewCompareMarkdown(rv))
+	}
 	section := reviewCompareMarkdown(rv)
 	if !strings.Contains(section, "## Compared with r-1") || !strings.Contains(section, "isn't called fixed") || !strings.Contains(section, "**Not seen, code unchanged**") {
 		t.Errorf("section:\n%s", section)

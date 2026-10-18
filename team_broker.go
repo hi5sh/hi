@@ -84,9 +84,12 @@ type teamTask struct {
 	TrustApproval *teamApproval `json:"trust_approval,omitempty"`
 	// Hints are what the broker told the lead when the task started: the
 	// work it continues instead, the ideas still open.
-	Hints    []string  `json:"hints,omitempty"`
-	Created  time.Time `json:"created"`
-	Finished time.Time `json:"finished,omitempty"`
+	Hints []string `json:"hints,omitempty"`
+	// Findings are the deep review's findings the task sets out to fix
+	// (--finding), so the next review can say they weren't seen since.
+	Findings []teamTaskFinding `json:"findings,omitempty"`
+	Created  time.Time         `json:"created"`
+	Finished time.Time         `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -350,6 +353,7 @@ func (b *teamBroker) resume() {
 		}
 		go b.wait(task)
 	}
+	b.resumeDeepReviews()
 }
 
 type teamRequest struct {
@@ -369,6 +373,8 @@ type teamRequest struct {
 	New bool `json:"new,omitempty"`
 	// Attachments are files the lead sends with a task, from its box.
 	Attachments []teamAttachment `json:"attachments,omitempty"`
+	// Findings are a deep review's findings the task fixes, as r-4:F-1.
+	Findings []string `json:"findings,omitempty"`
 	// hints go to the new task's Hints.
 	hints []string
 }
@@ -420,6 +426,28 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		task, err := b.merge(request.Task, request.Approval)
 		reply(w, task, err)
+	})
+	mux.HandleFunc("POST /deep-review", func(w http.ResponseWriter, r *http.Request) {
+		var request teamDeepReviewRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamMaxBrief+64<<10)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		review, err := b.startDeepReview(request)
+		reply(w, review, err)
+	})
+	mux.HandleFunc("POST /deep-review/stop", func(w http.ResponseWriter, r *http.Request) {
+		request, err := read(r)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		text, err := b.stopDeepReview(request.Task)
+		reply(w, map[string]string{"text": text}, err)
+	})
+	mux.HandleFunc("GET /deep-review", func(w http.ResponseWriter, r *http.Request) {
+		text, err := b.showDeepReviews(r.URL.Query().Get("id"))
+		reply(w, map[string]string{"text": text}, err)
 	})
 	mux.HandleFunc("POST /stop", func(w http.ResponseWriter, r *http.Request) {
 		request, err := read(r)
@@ -758,6 +786,12 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		return teamTask{}, nil, fmt.Errorf("the brief is longer than %d KB", teamMaxBrief>>10)
 	}
 	task := teamTask{Role: request.Role, Agent: member.Agent, Model: member.Model, Kind: "task", Title: teamTitle(brief), Round: round}
+	findingsText := ""
+	if len(request.Findings) > 0 {
+		if task.Findings, findingsText, err = teamTaskFindings(b.team, request.Findings, brief); err != nil {
+			return teamTask{}, nil, err
+		}
+	}
 	from := ""
 	if request.On != "" {
 		on, err := loadTeamTask(b.team, request.On)
@@ -816,7 +850,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	}
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
-	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s\n", task.ID, task.Role, b.team, brief)
+	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s%s\n", task.ID, task.Role, b.team, brief, findingsText)
 	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
@@ -1468,6 +1502,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--new" {
 				request.New = true
+			} else if args[i] == "--finding" && i+1 < len(args) {
+				request.Findings = append(request.Findings, args[i+1])
+				i++
 			} else if args[i] == "--attach" && i+1 < len(args) {
 				attachment, err := teamReadAttachment(args[i+1])
 				if err != nil {
@@ -1480,7 +1517,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--attach <file>]..."}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--attach <file>]... [--finding r-4:F-1]..."}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -1499,8 +1536,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		fmt.Fprintf(stdout, "hi team wait %s waits for its report.\n", task.ID)
 	case "review":
+		if containsString(args, "--project") || (len(args) > 0 && (args[0] == "stop" || args[0] == "show" || args[0] == "list")) {
+			return runTeamDeepReviewCommand(args, stdin, stdout, call)
+		}
 		if len(args) < 1 || len(args) > 2 {
-			return usageError{"usage: hi team review <task> [<notes.md>]"}
+			return usageError{"usage: hi team review <task> [<notes.md>], or hi team review --project --approval <id> --budget <usd>"}
 		}
 		request := teamRequest{Task: args[0]}
 		if len(args) == 2 {

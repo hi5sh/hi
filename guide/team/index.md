@@ -52,4 +52,5 @@ a member, give it a `network` in `team.json` (see
 | [Help and chat in the app](/guide/team/helper/) | The button on every page: help, feedback, and a chat with the lead |
 | [Keys and settings](/guide/team/keys/) | The team's model key, Slack tokens, and the app's settings, none of them in Slack or the code |
 | [Dev and production](/guide/team/releases/) | Versions, releases, and going back |
+| [A deep review before a release](/guide/team/reviews/) | A review of the whole project, on an owner's yes with a budget |
 | [The folder and backups](/guide/team/folder/) | Everything the team knows in one folder, snapshots, restore, rollback, and offsite copies |

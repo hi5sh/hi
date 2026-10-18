@@ -71,7 +71,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name)} {
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name), teamReviewsDir(name)} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -182,6 +182,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", filepath.Join(dir, "repo")+":/team/repo:ro",
 		"-v", teamChannelDir(name)+":"+teamChannelInBox+":ro",
 		"-v", teamWebStore(name)+":"+teamWebInBox+":ro",
+		"-v", teamReviewsDir(name)+":/team/reviews:ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
@@ -665,7 +666,8 @@ the story isn't told yet, ask an owner for it early, in plain words: why
 the app exists, who uses it, and what they need from it. Then have the
 coder write it there (hi team task --small). When what the people ask
 for no longer fits the story, ask an owner whether the story has changed.
-`, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns)
+
+`+teamSoulDeepReview, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns)
 }
 
 // teamSlackFormatting is how the lead writes for Slack. Hermes turns
@@ -692,6 +694,36 @@ at the code only as much as you need for the brief, a few files at most;
 the member reads the rest in its task. A turn of yours stops after %d
 steps and answers with what it has.`, teamLeadMaxTurns)
 )
+
+// teamSoulDeepReview is how the lead offers a deep review of the whole
+// project (team_review.go).
+const teamSoulDeepReview = `## Deep reviews
+
+Besides the review of each task, you can offer the owners a deep review:
+agents read the whole project for security and correctness problems, and
+another agent checks each finding. It changes nothing, takes about as
+long as a task, and costs real money, so you offer it and never start it
+on your own.
+
+- Offer it before a release whose changes touch signing in, who may see
+  or change what, payments, people's data, or how the app is deployed;
+  when people say they're worried about one of those; or soon after the
+  project came from somewhere else. Say in plain words what changed, what
+  the review does, that it changes nothing, and the most it may cost in
+  dollars: "Want a deep review before we release? Two agents read the
+  whole app for security and correctness problems, and a third checks
+  what they find. It can cost up to $30, and changes nothing."
+- Only an owner's yes in the channel starts it, and your question must
+  name the dollar figure you pass: hi team review --project --approval
+  <id> --budget 30. Pass what people have told you that bears on it with
+  --context <notes.md>: who uses the app, what it holds, what protects it.
+- A no is a no: remember it, and don't offer again for that release
+  unless someone brings it up.
+- When it ends, hi wakes you in the thread and says what to do. Its
+  findings are recommendations, not requirements: say which you think
+  matter for this team and which don't, and let the people choose what
+  to fix.
+`
 
 var teamSoulUpdates = []struct{ old, new string }{
 	// Posts at milestones, not at each step.
@@ -781,6 +813,9 @@ for no longer fits the story, ask an owner whether the story has changed.
 	// The lead starts the work, then answers, before it reads much code;
 	// v0.86.1's paragraph first, so it isn't added beside it.
 	{teamSoulAnswerFirst, teamSoulBeQuick},
+	// Deep reviews, after the story's paragraph, which ends SOUL.md.
+	{"for no longer fits the story, ask an owner whether the story has changed.\n",
+		"for no longer fits the story, ask an owner whether the story has changed.\n\n" + teamSoulDeepReview},
 	{"## How work is done", teamSoulBeQuick + "\n\n## How work is done"},
 }
 
@@ -836,6 +871,11 @@ of its own on a branch of the project; you get their reports.
 | hi team tasks | The ideas not merged yet, each as its line of tasks, then the tasks |
 | hi team merge t-4 | Merge t-4's latest work into the project once the reviewer approved it (--approval <id>: an owner's yes to a package's install script) |
 | hi team review t-4 [<notes.md>] | Have the reviewer check t-4 again, with your notes; rarely needed |
+| hi team review --project --approval <id> --budget <usd> [--area a,b] [--since v2] [--version v3] [--context <notes.md>] | A deep review of the whole project (dev, or a version), once an owner says yes in the channel to your question naming the budget; it changes nothing, and hi wakes you when it ends |
+| hi team review list | The deep reviews, their state, and who agreed to each |
+| hi team review show r-4 | A deep review's findings; the whole report is /team/reviews/r-4/report.md once it ends |
+| hi team review stop r-4 | Stop a deep review, keeping what it found so far, when an owner asks |
+| hi team task coder <brief.md> --approval <id> --finding r-4:F-1 | Fix a deep review's finding the people chose: hi adds its section from the report to the brief, and the next review says whether it was seen since |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
 | hi team preview | Show the project's main branch on the preview link, for the people to try |
 | hi team preview t-4 | The same for a task's branch, before it is merged |

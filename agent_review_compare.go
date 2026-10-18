@@ -32,6 +32,8 @@ type reviewCompareItem struct {
 	// investigator raised it).
 	Status string `json:"status"`
 	Now    string `json:"now,omitempty"` // the finding it is now
+	// FixedBy is the work that set out to fix it, from --fixes.
+	FixedBy string `json:"fixed_by,omitempty"`
 }
 
 // loadReviewCompare reads the earlier review: one of yours by its id, or a
@@ -87,7 +89,7 @@ func compareReview(rv *review) {
 		if e.Verdict == "duplicate" {
 			continue
 		}
-		item := reviewCompareItem{ID: e.ID, Title: e.Title, Area: e.Area, File: e.File, Verdict: e.Verdict}
+		item := reviewCompareItem{ID: e.ID, Title: e.Title, Area: e.Area, File: e.File, Verdict: e.Verdict, FixedBy: rv.Fixes[e.Fingerprint]}
 		for _, f := range rv.Findings {
 			if f.Fingerprint != "" && f.Fingerprint == e.Fingerprint {
 				item.Now = primary(f)
@@ -178,8 +180,14 @@ func reviewCompareMarkdown(rv review) string {
 				continue
 			}
 			line := fmt.Sprintf("- %s · %s (`%s`, %s, was %s)", item.ID, item.Title, item.File, item.Area, item.Verdict)
-			if item.Now != "" {
+			switch {
+			case item.Now != "":
 				line += ": now " + item.Now
+				if item.FixedBy != "" {
+					line += fmt.Sprintf(", though %s set out to fix it", item.FixedBy)
+				}
+			case item.FixedBy != "":
+				line += ": not seen since " + item.FixedBy
 			}
 			lines = append(lines, line)
 		}
