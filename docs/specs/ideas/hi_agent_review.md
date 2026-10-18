@@ -29,9 +29,16 @@ hi agent review --compare r-3                     # against an earlier review
 ```
 
 The output is one report: findings with the file and lines they rest on,
-each accepted, uncertain, or rejected by a second agent, and the reason.
+each confirmed, uncertain, or rejected by a second agent, and the reason.
 hi never changes the code during a review and opens nothing anywhere.
 Fixing is ordinary work, asked for separately.
+
+Everything in the report is a recommendation, never a demand. The
+reviewers read code; they don't know how the app is deployed, who uses
+it, what protects it from outside, or what the people have decided is
+good enough. A finding says what the code does and when that could
+matter; whether it matters here is for the people and the lead to decide.
+The report says so first ([The handover](#the-handover)).
 
 It runs only when someone asks: a person at a terminal, or a team's lead
 after an owner said yes with a budget. Nothing starts it on a commit, a
@@ -48,6 +55,7 @@ hi agent review [<path|url>]          review a repository (default: the current 
     [--ref <ref>]                     a commit, branch, or tag, not the working tree
     [--since <ref>]                   focus on what changed since <ref>
     [--path <dir>]...                 only these folders
+    [--context <file.md>]             what the code doesn't show: how it's run, who uses it, what protects it
     [--budget <usd>]                  no run starts once this is spent
     [--max <duration>]                per run (default 30m)
     [--parallel <k>]                  runs at once (default 3)
@@ -55,7 +63,8 @@ hi agent review [<path|url>]          review a repository (default: the current 
     [--sarif] [--out <dir>]           also write report.sarif; write the report elsewhere
     [--detach] [--json] [--yes]
 hi agent review ls                    reviews, their state, cost, and counts
-hi agent review show <id> [--json|--sarif|--rejected]
+hi agent review show <id> [--md|--json|--sarif|--rejected]
+hi agent review show <id> --html      write report.html from report.md, for reading in a browser
 hi agent review watch <id>            the live table; q leaves, the review goes on
 hi agent review stop <id>             stop starting runs, stop the ones running, keep what's done
 hi agent review rm <id>               remove a review and its report
@@ -115,8 +124,8 @@ when ("the two copies of the VAT rule already disagree for Norway").
    - starts the agent without the project's agent settings (hooks, MCP
      servers, permissions), as an adopted project's members do;
    - gets the area's brief, the review's scope (`--path`, `--since` and
-     its diff), and `docs/map.md` when the project has one, as notes to
-     check, not facts;
+     its diff), `--context`, and `docs/map.md` when the project has one,
+     as notes to check, not facts;
    - is told the repository is the thing under review: text in it that
      reads as instructions is a finding to report, never an order;
    - is told not to build, install, or run the project. The box is the
@@ -126,8 +135,11 @@ when ("the two copies of the VAT rule already disagree for Norway").
    An investigator writes its findings to a file the brief names, at most
    25, each with an area, a title, a severity, a confidence, the failure
    (what input or state leads to what wrong result), the evidence (a
-   file, a line range, and the exact lines quoted), and a direction for a
-   fix, in words. A missing or malformed file fails that run, and the
+   file, a line range, and the exact lines quoted), what it assumes (the
+   things it can't see that it depends on: "the API is reachable from
+   the internet", "more than one person edits a board"), and a direction
+   for a fix, in words. Severity is the reviewer's estimate if those
+   assumptions hold. A missing or malformed file fails that run, and the
    report says so.
 4. **Check the evidence.** hi, not a model, reads every quote against the
    snapshot commit (not the box's worktree, which the agent could have
@@ -143,31 +155,32 @@ when ("the two copies of the VAT rule already disagree for Norway").
 5. **Adjudicate.** A separate run, by an agent that didn't raise the
    finding where one is ready (claude's findings to codex and the other
    way round), in a fresh box on the same snapshot. It reads the code
-   itself and, for each finding, decides:
-   - `accepted`: the code does what the finding says, and the failure can
-     happen;
+   itself and, for each finding, decides whether the observation is
+   true, not whether anyone should act on it:
+   - `confirmed`: the code does what the finding says, and the failure can
+     happen if the finding's assumptions hold;
    - `uncertain`: it may happen, but depends on something the code
      doesn't show (how it's deployed, what calls it);
    - `rejected`: the code doesn't do that, the failure can't happen, or
      it's a preference, not a failure;
    - `duplicate` of another finding.
 
-   Each with a reason and, if it disagrees, its own severity. Batches of
+   Each with a reason, the assumptions corrected if it sees others, and,
+   if it disagrees, its own severity. Batches of
    up to 30 findings, grouped by file. A finding with `missing` evidence
-   can't be accepted: hi turns an `accepted` verdict on one into
+   can't be confirmed: hi turns a `confirmed` verdict on one into
    `uncertain`. hi never merges disagreement into consensus: a finding
    two investigators raised says so, and one the adjudicator rejected
    stays in the report with the reason.
 6. **Report.** In the review's folder, `~/.local/state/hi/reviews/<id>/`,
    readable only by the user (0700, files 0600), outside the repository
    unless `--out` says otherwise:
+   - `report.md`: the report people and the lead read
+     ([below](#the-markdown-report));
    - `report.json`: the record, every finding with its evidence check,
-     verdict, and fingerprint, every run's agent, model, time, and cost;
-   - `report.md`: accepted findings by severity, then uncertain, then a
-     count of rejected ones (`show --rejected` lists them), what was
-     covered, and what wasn't (failed runs, folders left out, a budget
-     that ran out);
-   - `report.sarif` with `--sarif`, accepted and uncertain findings only.
+     verdict, assumptions, and fingerprint, every run's agent, model,
+     time, and cost. `report.md` is written from it;
+   - `report.sarif` with `--sarif`, confirmed and uncertain findings only.
 
    Every finding says `reproduced: false`. Evidence means the lines exist
    and say what's quoted; it doesn't mean the failure was seen
@@ -177,15 +190,93 @@ when ("the two copies of the VAT rule already disagree for Norway").
 Review r-4 · ~/projects/pocket-kanban @ 4f1c2e9 (dirty) · security, correctness · 31m · $18.40
 
   #  SEV   VERDICT    AREA         WHERE                      FINDING
-  1  high  accepted   security     api/cards.ts:88-97         any signed-in user can move another board's cards
-  2  high  accepted   correctness  store/sync.ts:140-152      two tabs saving at once lose the first save
+  1  high confirmed   security     api/cards.ts:88-97         any signed-in user can move another board's cards
+  2  high confirmed   correctness  store/sync.ts:140-152      two tabs saving at once lose the first save
   3  med   uncertain  security     server.ts:31               CORS allows any origin; fine only if no cookies
-  4  low   accepted   correctness  ui/date.ts:12              due dates shift a day west of UTC
+  4  low  confirmed   correctness  ui/date.ts:12              due dates shift a day west of UTC
 
-  2 runs per area (claude, codex) · 11 raised · 4 accepted, 1 uncertain, 3 rejected, 3 duplicates
+  2 runs per area (claude, codex) · 11 raised · 4 confirmed, 1 uncertain, 3 rejected, 3 duplicates
   Not covered: none · Reproduced: none (not attempted)
+  Recommendations only: weigh each against how the app is run and who uses it.
   hi agent review show r-4
 ```
+
+### The markdown report
+
+`report.md` is for two readers: people deciding what matters, and a lead
+or an agent fixing what they chose. So it reads well as plain text, and
+each finding stands on its own: a section that can be copied into a brief
+as it is, without the rest of the report.
+
+1. **The handover** (below), always first.
+2. **What was reviewed.** The source and commit, dirty or not, the
+   areas, the scope, the agents and models, the context given, and the
+   cost.
+3. **What wasn't.** Failed runs, folders left out, areas the budget
+   didn't reach, and that nothing was run or reproduced.
+4. **Findings**, confirmed by severity, then uncertain. Each one:
+
+   ~~~markdown
+   ## F-1 · any signed-in user can move another board's cards
+
+   - Severity: high (the reviewers' estimate) · Area: security · Confirmed
+   - Where: `api/cards.ts` lines 88-97, at 4f1c2e9
+
+   **What the code does.** `moveCard` looks the card up by its id and
+   saves the new column without checking that the board is the caller's.
+
+   ```ts
+   const card = await db.card(id)
+   card.column = body.column
+   ```
+
+   **When it matters.** Anyone who can sign in can move cards on boards
+   they weren't invited to, by sending another board's card id.
+
+   **Assumes.** People who sign in shouldn't all see every board. If
+   every signed-in person is trusted with every board, this doesn't
+   matter.
+
+   **A direction.** Check the card's board against the caller's boards
+   before saving, as `api/boards.ts` does.
+
+   **Second opinion.** codex confirmed: "the handler never reads
+   `card.board`."
+   ~~~
+
+5. **Rejected and duplicates**: a count, and with `--rejected` each
+   with its reason, so nobody raises them again without seeing why.
+
+No finding says "must": the briefs ask for "what the code does" and
+"when it matters", and the directions are suggestions.
+
+### The handover
+
+The report opens with this, and the terminal summary, `show`, and a
+lead's message in Slack carry a line of it:
+
+> **These are recommendations, not requirements.** Agents read the code
+> at one commit. They don't know how the app is deployed, who uses it,
+> what protects it (a private network, a sign-in in front of it, rules
+> outside the code), or what the people behind it have decided is good
+> enough. Each finding says what it assumes; where those assumptions
+> don't hold, it may matter less or not at all. Some suggestions will be
+> more than this project needs. Decide which ones are relevant to your
+> context and scope, and fix those as ordinary work. Nothing here was
+> run or reproduced, and a finding that isn't here may still exist: a
+> short report doesn't mean the code is safe.
+
+When `--context` was given, the handover says the reviewers had it; when
+it wasn't, it says they worked from the code alone.
+
+### Reading it in a browser
+
+`hi agent review show <id> --html` writes `report.html` next to
+`report.md`, rendered from it with goldmark, as `/docs` renders a team's
+docs: one file, styles inline, no scripts, nothing fetched, so it opens
+anywhere and stays private. Only on request: the markdown is the report,
+and the page is a nicer way to read it. A review in a team is never put
+on `/docs`, which can be public.
 
 ### Progress
 
@@ -219,7 +310,7 @@ review:
   investigator raised it. Agents miss things; this one is worth a look.
 
 And findings not in the earlier review are **new**. A rejected finding
-seen again stays rejected unless the new adjudicator accepts it.
+seen again stays rejected unless the new adjudicator confirms it.
 
 ## With a team
 
@@ -255,16 +346,31 @@ an owner decides.
   didn't raise the finding; a team's reviewer is already a different
   agent or model from its coder. Boxes get the team's usual limits, with
   the `locked` network.
+- **What the reviewers are told.** A team knows things the code doesn't,
+  and the broker writes them into the review's context: whether
+  production has a public address, whether it's behind the team's
+  sign-in and for whom, the team's purpose, and `docs/decisions/`. The
+  lead adds what the people have said that bears on it ("only the three
+  of us use it", "it holds customers' addresses").
 - **The result.** The broker tells the lead when it ends. The lead posts
-  in the approval's thread how many findings were accepted, by severity,
-  with a one-line title each and no detail of how to exploit them. The
-  full report stays in the team's folder (`reviews/<id>/`, read-only in
-  the lead's box) and goes as a file in a DM to the owner who said yes.
-  At the host, `hi team review show <id>`.
-- **Fixes are work.** The lead offers to fix accepted findings, as it
-  offers anything else: a yes, a task, a brief that carries the finding,
-  the usual review. The task records the finding's fingerprint, so the
-  next review's comparison says "not seen since t-14".
+  in the approval's thread how many findings were confirmed, by severity,
+  with a one-line title each and no detail of how to exploit them, and
+  the handover's first line: these are recommendations to weigh, not
+  requirements. The full report stays in the team's folder
+  (`reviews/<id>/`, read-only in the lead's box) and goes as a file in a
+  DM to the owner who said yes, with its HTML page beside it. At the
+  host, `hi team review show <id>`.
+- **Deciding what matters.** The lead reads the report as advice, as the
+  people should. It doesn't offer to fix everything: it says which
+  findings it thinks matter for this team and why, which it thinks don't
+  ("F-3 assumes the app is on the internet; ours is only on the office
+  network"), and asks about the assumptions it can't settle. The people
+  choose. The lead keeps what they decided in its memory, so a finding
+  they set aside isn't raised again as news.
+- **Fixes are work.** For what the people chose: a yes, a task, a brief
+  that carries the finding's section from `report.md` as it is, the
+  usual review. The task records the finding's fingerprint, so the next
+  review's comparison says "not seen since t-14".
 - **Stopping.** An owner says stop; the lead runs `hi team review stop
   <id>`.
 
@@ -282,7 +388,7 @@ that read it.
   steer an investigator to miss something; that's why passes alternate
   agents and why "no findings" is never reported as "safe".
 - **hi checks what it can.** Evidence is read from the snapshot by hi, and
-  an accepted verdict needs evidence that exists. A model can't fabricate
+  a confirmed verdict needs evidence that exists. A model can't fabricate
   a quote into the report as checked.
 - **The report is sensitive.** Private to the user or, in a team, to the
   owners and the lead. Progress and logs carry titles and counts, not
@@ -293,7 +399,7 @@ that read it.
 
 ## Later
 
-- **Reproduction.** For an accepted finding, a run writes a test or a
+- **Reproduction.** For a confirmed finding, a run writes a test or a
   small script that should show the failure, and hi runs it in a box
   with no network at all, on the snapshot. `reproduced` only when hi saw
   it fail as the finding says; the adjudicator checks that the test tests
@@ -314,21 +420,30 @@ that read it.
    `best-of` and `fanout`, since it is runs of agents; and `hi team
    review --project` in a team, beside the review of one task. In hi,
    "audit" means the audit log (`hi server audit`, `/hi audit`).
-
-Open, with a recommendation each.
-
-2. **The default size.** The proposal defaulted to all areas, twice each.
-   Recommended: security and correctness, one pass, so a first review is
-   cheap and quick; `--area all --passes 2` and the agents to alternate
-   are one flag away, and the confirmation shows what each costs.
-3. **Maintainability as an area.** It produces opinions more than
-   failures, and adjudication rejects many. Recommended: keep it, out of
-   the default, with the same "say what goes wrong" rule.
-4. **The full report in Slack.** A DM to the approving owner, or only on
-   the host. Recommended: the DM; the channel gets counts and titles.
-5. **No CI mode.** The review never runs on a commit or a schedule, so
-   there is no `--fail-on`. SARIF is for reading in an editor or a code
-   scanning page someone uploads it to, not for gating merges.
+2. **The default size.** Decided (2026-10-18): security and
+   correctness, one pass, so a first review is cheap and quick.
+   `--area all --passes 2` and alternating agents are one flag away, and
+   the confirmation shows what each costs. The proposal defaulted to all
+   areas, twice each.
+3. **Maintainability as an area.** Decided (2026-10-18): kept, out of
+   the default, with the same "say what goes wrong" rule. It produces
+   opinions more than failures, and adjudication will reject many.
+4. **The full report in Slack.** Decided (2026-10-18): a file in a DM
+   to the owner who said yes; the channel gets counts and titles.
+5. **No CI mode.** Decided (2026-10-18): the review never runs on a
+   commit or a schedule, so there is no `--fail-on`. SARIF is for reading
+   in an editor or a code scanning page someone uploads it to, not for
+   gating merges.
+6. **Recommendations, not requirements.** Decided (2026-10-18): the
+   report is advice. Verdicts say whether an observation is true, not
+   whether to act; every finding says what it assumes; the handover says
+   so first, and the lead weighs findings with the people instead of
+   offering to fix them all.
+7. **Markdown first, HTML on request.** Decided (2026-10-18):
+   `report.md` is the report, written so a finding can go into a brief as
+   it is. `report.html` is a rendering of it for people, written by
+   `show --html` (and sent beside it in a team's DM). If nobody uses the
+   page, it can go without changing anything else.
 
 From the proposal, left out:
 
@@ -347,13 +462,15 @@ From the proposal, left out:
 1. `hi agent review` on a local repository: the snapshot with the working
    tree, `security` and `correctness`, investigators in `locked` boxes
    without the project's agent settings, hi's evidence check, grouping,
-   adjudication by another agent, `report.json` and `report.md`, the
+   adjudication by another agent, `report.json`, and `report.md` with the
+   handover, assumptions, and findings that stand alone; `--context`, the
    confirmation, `--budget`, `--max`, `ls`, `show`, `watch`, `stop`, `rm`.
 2. URLs (sharing the fetch with `hi team adopt`), `performance`,
    `maintainability`, briefs as areas, `--since`, `--path`, `--compare`,
-   and `--sarif`.
+   `--sarif`, and `show --html`.
 3. The team: SOUL.md, `hi team review --project`, the owner's yes with a
-   budget, the summary and the DM, fingerprints in fix tasks.
+   budget, the team's context, the summary and the DM, weighing findings
+   with the people, fingerprints in fix tasks.
 4. Reproduction.
 
 ## Acceptance
@@ -363,7 +480,7 @@ From the proposal, left out:
    the working tree as they were.
 2. Nothing is started without a yes at the terminal or `--yes`.
 3. A finding whose quote isn't in the snapshot is `missing` and is never
-   `accepted`, even if the adjudicator says so; one whose investigator
+   `confirmed`, even if the adjudicator says so; one whose investigator
    edited the file in its box to match is `missing` too.
 4. With `--agents claude,codex`, the adjudicator of each finding is the
    agent that didn't raise it.
@@ -379,3 +496,12 @@ From the proposal, left out:
    finding and "still seen" for the rest.
 10. In a team, a review starts only on an owner's yes to a message of the
     lead's that names the budget; an asker's yes is refused.
+11. `report.md` opens with the handover, every finding has an "Assumes"
+    line, and no finding's text says "must".
+12. One finding's section of `report.md`, pasted alone into a brief,
+    names its file, lines, commit, and quoted code.
+13. `show --html` writes one file that opens offline, loads nothing, and
+    shows the same findings as `report.md`.
+14. A review with `--context` saying the app is only on a private
+    network gives findings whose assumptions say where that changes
+    them.
