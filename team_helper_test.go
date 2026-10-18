@@ -698,13 +698,21 @@ func TestTeamDMApproval(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Work started with it is announced in the channel.
+	// Work started with it goes to the owners in a DM, not the channel.
 	task, err := b.startTask(teamRequest{Role: "coder", Brief: "Red badge when overdue", Approval: "dm:U07ANNA01"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	waitTeamTask(t, task.ID)
-	if !strings.Contains(strings.Join(channel.calls, "\n"), "post C07PAYMENTS :speech_balloon: Anna asked for this in a DM with the lead: *Red badge when overdue* ("+task.ID+")") {
+	calls := strings.Join(channel.calls, "\n")
+	if !strings.Contains(calls, "dm U07OWNER1 :speech_balloon: Anna asked the lead for this in a DM: *Red badge when overdue* ("+task.ID+").") || strings.Contains(calls, "post C07PAYMENTS") {
+		t.Fatalf("%q", channel.calls)
+	}
+	// An owner who asked isn't told what they asked for.
+	config.Owners = []string{"U07OWNER1", "U07ANNA01"}
+	channel.calls = nil
+	b.tellOwners(config, "U07ANNA01", "hello")
+	if len(channel.calls) != 1 || channel.calls[0] != "dm U07OWNER1 hello" {
 		t.Fatalf("%q", channel.calls)
 	}
 }

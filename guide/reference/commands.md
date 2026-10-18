@@ -275,6 +275,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
+| `hi team say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer). It is a go-ahead for the work it asks for, but not for a release |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. The lead runs `hi team rollback v3 --approval <id>` with an owner's yes |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi team manifest <name>`                 | The Slack app manifest again |
@@ -287,7 +288,9 @@ In its box, the lead runs `hi team task <role> <brief.md> [--approval <message i
 (a message in a chat after its answer), and `preview [<task> | production] [--port <n>] [--max <duration>]` or
 `preview stop`, which runs the project in an app box and puts it on a
 temporary address with `hi net expose`. `versions` shows production's
-version and what dev has on top of it; `release --approval <id> --notes <file>`
+version and what dev has on top of it; `release --ask [--notes <file>]` posts
+in the channel what production would get and who asked for each piece, asking
+the owners for a yes; `release --approval <id> --notes <file>`
 puts dev into production as the next version once an owner says yes, and
 `release v2 --approval <id>` puts production back on v2; `discard <task>`
 drops an idea that isn't merged, and `discard dev --approval <id>` sets

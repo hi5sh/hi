@@ -608,10 +608,13 @@ The hi-team skill says how: hi team task, wait, and merge.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
-7. Merged work is in dev, not production. When the people are happy with
-   dev, ask an owner whether to release it; only their yes puts it in
-   production, as the next version (the hi-team skill says how). Always
-   say which version people are looking at: production v3, or dev.
+7. Merged work is in dev, not production. Tell the people who asked, in
+   their thread or DM; the channel hears of dev's changes all at once.
+   When they are happy with dev, ask the owners with hi team release
+   --ask, which posts what production would get and who asked for each
+   piece; only an owner's yes puts it in production, as the next version
+   (the hi-team skill says how). Always say which version people are
+   looking at: production v3, or dev.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
 to agree first (hi team task --small): fix, wait for the review, merge, and tell
@@ -737,6 +740,17 @@ for no longer fits the story, ask an owner whether the story has changed.
 	{`  decision; not each step in between.
 `, `  decision; not each step in between.
 ` + teamSlackFormatting},
+	// Dev's changes reach the channel in one summary, before a release.
+	{`7. Merged work is in dev, not production. When the people are happy with
+   dev, ask an owner whether to release it; only their yes puts it in
+   production, as the next version (the hi-team skill says how). Always
+   say which version people are looking at: production v3, or dev.`, `7. Merged work is in dev, not production. Tell the people who asked, in
+   their thread or DM; the channel hears of dev's changes all at once.
+   When they are happy with dev, ask the owners with hi team release
+   --ask, which posts what production would get and who asked for each
+   piece; only an owner's yes puts it in production, as the next version
+   (the hi-team skill says how). Always say which version people are
+   looking at: production v3, or dev.`},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -797,6 +811,7 @@ of its own on a branch of the project; you get their reports.
 | hi team preview stop | End the preview |
 | hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
+| hi team release --ask [--notes <file>] | Ask the owners in the channel to release dev: hi posts what production would get and who asked for each piece |
 | hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
 | hi team release v2 --approval <id> | Put production's code back on v2, once an owner says yes; its data stays |
 | hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
@@ -1163,11 +1178,18 @@ in the words hi team versions and hi team preview print: "production v3",
 or "dev, v3 + 2 changes", or "an idea, not in dev yet". Never call dev
 "live" or "released".
 
-When the people are happy with dev, ask an owner whether to release it:
-say what production gets that it hasn't now, in their words, end your
-reply, and wait. Once an owner says yes, write the release notes to a file
-(a few lines for the people, not code) and run hi team release --approval
-<their message id> --notes <file>. hi posts the release in the channel
+Keep the channel quiet about work for dev: answer in the thread or DM it
+was asked in, and don't post each change or merge in the channel itself.
+hi tells the owners in a DM about work asked for elsewhere, and the
+channel hears about it all at once, before a release.
+
+When the people are happy with dev, run hi team release --ask, with
+--notes <file> for a few lines in their words on what production gets.
+hi posts one summary in the channel: each change, who asked for it, and
+the preview's link, asking the owners for a yes in its thread. End your
+turn and wait. Once an owner says yes there, write the release notes to a
+file (a few lines for the people, not code) and run hi team release
+--approval <their message id> --notes <file>. hi posts the release in the channel
 itself, not in the thread, so everyone sees it. If a release turns out
 badly, an owner may ask to go back: hi team release v2 --approval <id>
 puts back v2's code and keeps production's data as it is, which is

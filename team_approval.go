@@ -54,6 +54,13 @@ func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) 
 		}
 		return b.unusedApproval(approval, approving)
 	}
+	if teamSayApproval.MatchString(ref) {
+		approval, err := teamCheckSayApproval(config, ref, owners, time.Now())
+		if err != nil {
+			return approval, err
+		}
+		return b.unusedApproval(approval, approving)
+	}
 	if teamWebMessageID.MatchString(ref) {
 		approval, err := teamCheckWebApproval(config, ref, owners, time.Now())
 		if err != nil {

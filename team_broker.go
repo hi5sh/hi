@@ -254,6 +254,8 @@ type teamBroker struct {
 	webMu        sync.Mutex
 	answering    map[string]bool
 	webListeners map[string]map[chan teamWebMessage]bool
+	// sayMu guards run/say.json, the messages from hi team say.
+	sayMu sync.Mutex
 	// peopleMu guards people.json, the keys of people signed in with /hi
 	// (team_people.go).
 	peopleMu sync.Mutex
@@ -441,6 +443,11 @@ func (b *teamBroker) handler() http.Handler {
 			return
 		}
 		request.Data = r.URL.Query().Get("data") == "1"
+		if r.URL.Query().Get("ask") == "1" {
+			ask, err := b.askRelease(request.Notes)
+			reply(w, ask, err)
+			return
+		}
 		result, err := b.release(request)
 		reply(w, result, err)
 	})
@@ -814,26 +821,43 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		task.Files = files
 		saveTeamTask(b.team, task)
 	}
+	// The channel isn't told of each piece of work for dev: a small fix
+	// says so in the thread it was asked in, and work from elsewhere goes
+	// to the owners in a DM. The channel hears of it all at once, in the
+	// summary before a release (hi team release --ask).
 	if task.Small && b.channel != nil {
 		if config, err := loadTeam(b.team); err == nil {
 			text := fmt.Sprintf("Small fix started without waiting for a go-ahead (%s): %s", task.ID, task.Title)
 			if task.Thread != "" {
 				b.channel.postIn(config.Channel, task.Thread, text)
-			} else if ts, err := b.channel.post(config.Channel, text); err == nil {
-				// Its progress card goes in this message's thread.
-				task.Thread = ts
-				saveTeamTask(b.team, task)
+			} else {
+				b.tellOwners(config, "", fmt.Sprintf(":wrench: The lead started a small fix for dev without waiting for a go-ahead: *%s* (%s). It reaches production only in a release you say yes to.",
+					teamSlackEscape(task.Title), task.ID))
 			}
 		}
 	}
 	if task.Approval != nil && strings.HasPrefix(task.Approval.TS, "dm:") && b.channel != nil {
-		// Work agreed in a DM is the team's business too.
+		// Work agreed in a DM is the owners' business too.
 		if config, err := loadTeam(b.team); err == nil {
-			b.channel.post(config.Channel, fmt.Sprintf(":speech_balloon: %s asked for this in a DM with the lead: *%s* (%s)",
+			asker, _, _ := strings.Cut(strings.TrimPrefix(task.Approval.TS, "dm:"), ":")
+			b.tellOwners(config, asker, fmt.Sprintf(":speech_balloon: %s asked the lead for this in a DM: *%s* (%s). It goes into dev; it reaches production only in a release you say yes to.",
 				teamSlackEscape(task.Approval.Name), teamSlackEscape(task.Title), task.ID))
 		}
 	}
 	return task, func() { b.launch(task, member, text, from, files) }, nil
+}
+
+// tellOwners sends the team's owners a DM, all but except (who already
+// knows, having asked).
+func (b *teamBroker) tellOwners(config teamConfig, except, text string) {
+	if b.channel == nil {
+		return
+	}
+	for _, owner := range config.Owners {
+		if owner != except {
+			b.channel.dm(owner, text)
+		}
+	}
 }
 
 // roomForIdea refuses a task that would start one idea too many. Continuing
@@ -1554,8 +1578,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		printTeamVersions(view, stdout)
 	case "release":
 		var request teamReleaseRequest
+		ask := false
 		for i := 0; i < len(args); i++ {
 			switch {
+			case args[i] == "--ask":
+				ask = true
 			case args[i] == "--approval" && i+1 < len(args):
 				request.Approval = args[i+1]
 				i++
@@ -1569,8 +1596,19 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			case request.Version == 0 && teamVersionArg.MatchString(args[i]):
 				request.Version, _ = strconv.Atoi(strings.TrimPrefix(args[i], "v"))
 			default:
-				return usageError{"usage: hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
+				return usageError{"usage: hi team release --ask [--notes <file|->]  (ask the owners in the channel, with what dev has and who asked for it)\n       hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
 			}
+		}
+		if ask {
+			if request.Approval != "" || request.Version != 0 {
+				return usageError{"usage: hi team release --ask [--notes <file|->]  (no --approval: the yes comes after)"}
+			}
+			var asked teamReleaseAsk
+			if err := call("POST", "/release?ask=1", request, &asked); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "Asked the owners in the channel (message %s): v%d with %d change(s) and who asked for each. Wait for an owner's yes in its thread, then hi team release --approval <their message id> --notes <file>.\n", asked.TS, asked.Version, asked.Changes)
+			break
 		}
 		var result teamReleaseResult
 		if err := call("POST", "/release", request, &result); err != nil {

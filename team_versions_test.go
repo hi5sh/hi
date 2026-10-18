@@ -81,6 +81,16 @@ func TestTeamVersions(t *testing.T) {
 		t.Fatalf("%+v", view)
 	}
 
+	// The owners are asked in the channel, with what dev has and who asked.
+	ask, askErr := b.askRelease("Suppliers, and a search.")
+	if askErr != nil || ask.Version != 1 || ask.Changes != 2 || ask.TS == "" {
+		t.Fatalf("%+v %v", ask, askErr)
+	}
+	if !strings.HasPrefix(posted(), "post C07PAYMENTS :package: *Ready for the first release, production v1?* Dev has:\n• Add a supplier list ("+first.ID+"), ") ||
+		!strings.Contains(posted(), "\nSuppliers, and a search.\n") || !strings.HasSuffix(posted(), "An owner's yes in this thread releases it as v1.") {
+		t.Fatal(posted())
+	}
+
 	// Only an owner's yes releases, with notes for the people.
 	asker := teamTestYes(t, "U07ASKER", 30)
 	owner := teamTestYes(t, "U07OWNER1", 20)
@@ -108,6 +118,9 @@ func TestTeamVersions(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 19), Notes: "x"}); err == nil || !strings.Contains(err.Error(), "nothing new since production v1") {
+		t.Fatal(err)
+	}
+	if _, err := b.askRelease(""); err == nil || !strings.Contains(err.Error(), "nothing new since production v1") {
 		t.Fatal(err)
 	}
 	if view, _ = teamVersionsReport("payments"); view.Dev != "dev, the same as production v1" {

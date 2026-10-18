@@ -562,6 +562,90 @@ func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, no
 	return text.String()
 }
 
+// teamReleaseAsk is what hi team release --ask posted: the summary of what
+// the next release would hold, whose thread takes an owner's yes.
+type teamReleaseAsk struct {
+	TS      string `json:"ts"`
+	Version int    `json:"version"`
+	Changes int    `json:"changes"`
+}
+
+// askRelease posts in the channel what production would get from dev, who
+// asked for each piece, and where to try it, and asks the owners for a yes
+// in its thread: the one message the channel gets about work for dev.
+func (b *teamBroker) askRelease(notes string) (teamReleaseAsk, error) {
+	notes = strings.TrimSpace(notes)
+	if len(notes) > 3000 {
+		return teamReleaseAsk{}, errors.New("keep the notes short: a few lines, under 3000 characters")
+	}
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return teamReleaseAsk{}, err
+	}
+	if b.channel == nil {
+		return teamReleaseAsk{}, errors.New("hi isn't connected to Slack, so it can't ask the channel")
+	}
+	versions, err := loadTeamVersions(b.team)
+	if err != nil {
+		return teamReleaseAsk{}, err
+	}
+	head := boxGit(b.repo, "rev-parse", config.Branch)
+	if head == "" {
+		return teamReleaseAsk{}, fmt.Errorf("the project has no %s branch", config.Branch)
+	}
+	production := boxGit(b.repo, "rev-parse", "--verify", "-q", teamProductionBranch)
+	if production != "" && teamSameCode(b.repo, production, head) {
+		return teamReleaseAsk{}, fmt.Errorf("dev has nothing new since production v%d", versions.Production)
+	}
+	ask := teamReleaseAsk{Version: 1}
+	for _, release := range versions.Releases {
+		ask.Version = max(ask.Version, release.Version+1)
+	}
+	tasks := teamDevChanges(b.repo, loadTeamTasks(b.team))
+	ask.Changes = len(tasks)
+	var text strings.Builder
+	if versions.Production == 0 {
+		fmt.Fprintf(&text, ":package: *Ready for the first release, production v%d?* Dev has:\n", ask.Version)
+	} else {
+		fmt.Fprintf(&text, ":package: *Ready for production v%d?* Dev has what production v%d hasn't:\n", ask.Version, versions.Production)
+	}
+	for _, task := range tasks {
+		fmt.Fprintf(&text, "• %s (%s), %s\n", teamSlackEscape(task.Title), task.ID, teamTaskAskedBy(task))
+	}
+	if len(tasks) == 0 {
+		text.WriteString("• changes made outside the team's tasks\n")
+	}
+	if notes != "" {
+		text.WriteString("\n" + notes + "\n")
+	}
+	if state, ok := loadTeamSlot(b.team, teamSlotPreview); ok && state.URL != "" {
+		if _, exposed := b.exposed(state.Expose); exposed {
+			fmt.Fprintf(&text, "\nTry it on <%s|the preview>.", state.URL)
+		}
+	}
+	fmt.Fprintf(&text, "\nAn owner's yes in this thread releases it as v%d.", ask.Version)
+	if ask.TS, err = b.channel.post(config.Channel, text.String()); err != nil {
+		return teamReleaseAsk{}, err
+	}
+	return ask, nil
+}
+
+// teamTaskAskedBy says who asked for one piece of work, and where.
+func teamTaskAskedBy(task teamTask) string {
+	switch {
+	case task.Approval == nil || task.Approval.Name == "":
+		if task.Small {
+			return "a small fix by the lead"
+		}
+		return "continuing earlier work"
+	case strings.HasPrefix(task.Approval.TS, "dm:"):
+		return "asked for by " + teamSlackEscape(task.Approval.Name) + " in a DM"
+	case teamWebMessageID.MatchString(task.Approval.TS):
+		return "asked for by " + teamSlackEscape(task.Approval.Name) + " in the app"
+	}
+	return "asked for by " + teamSlackEscape(task.Approval.Name)
+}
+
 // teamAskedBy says who asked for a release's work, from its tasks' yeses
 // wherever they were given: Anna (t-12, t-14), Bo (t-13).
 func teamAskedBy(tasks []teamTask) string {

@@ -632,6 +632,15 @@ func (b *teamBroker) hostHandler() http.Handler {
 		result, err := b.release(teamReleaseRequest{Version: request.Version, Data: !request.CodeOnly, host: firstNonEmpty(request.Who, "someone") + " on the machine"})
 		reply(w, result, err)
 	})
+	mux.HandleFunc("POST /say", func(w http.ResponseWriter, r *http.Request) {
+		var request teamSayRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		said, err := b.say(request)
+		reply(w, said, err)
+	})
 	return mux
 }
 

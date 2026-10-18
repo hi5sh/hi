@@ -13,8 +13,19 @@ are looking at:
   yes. Each release gets the next number: v1, v2, and so on, tagged
   `release-1`, `release-2`.
 
-When the people are happy with dev, the lead asks an owner whether to
-release it, and only that owner's reply lets the broker move production
+Work for dev stays out of the channel: the lead answers in the thread or
+DM where it was asked, and work asked for in a DM, or a small fix the lead
+started on its own, goes to the owners in a DM. The channel hears about
+dev once, before a release. When the people are happy with dev, the lead
+runs `hi team release --ask`, and hi posts one summary in the channel:
+
+> :package: **Ready for production v4?** Dev has what production v3 hasn't:
+> • Red badge when overdue (t-12), asked for by Anna in a DM
+> • Fix the date format (t-14), a small fix by the lead
+>
+> Try it on the preview. An owner's yes in this thread releases it as v4.
+
+Only an owner's yes in that thread lets the broker move production
 (`hi team release`). If a release goes badly, an owner may ask to put
 production back on an earlier version.
 

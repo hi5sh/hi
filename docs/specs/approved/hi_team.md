@@ -2,7 +2,7 @@
 
 Status: Approved (2026-10-10). The first slice is built (v0.37.0); since
 then dev and production, keys, snapshots, rollback, the helper, and domains
-have shipped (v0.38.0 to v0.82.0; see the roadmap). Export and import, and
+have shipped (v0.38.0 to v0.83.0; see the roadmap). Export and import, and
 the security advisor, are not built.
 
 Dependencies: `hi box` (boxes, the proxy, token injection, the allowlist),
@@ -260,6 +260,7 @@ hi team snapshots <name>        list them
 hi team restore <name> <snapshot>  put data, memory, and the record back (hi_team_snapshots.md)
 hi team backups <name>          where snapshots are kept, and offsite
 hi team rollback <name> <release>  production's code and data back (hi_team_snapshots.md)
+hi team say <name> <text|-> [--wait]  tell the lead something from the machine (hi_team_dm.md)
 hi team export <name> <file>    the folder as one encrypted file
 hi team import <file>           a team from an export, on this or another host
 hi team manifest <name>         print the Slack app manifest again
@@ -282,6 +283,7 @@ hi team preview [<task>] [--port <n>]            show dev or a task's branch on 
 hi team preview stop                             end the preview
 hi team preview production                       production's link, and hi's message that keeps it current
 hi team versions                                 production's version, what dev has on top, open ideas
+hi team release --ask [--notes <file>]           ask the owners in the channel: what dev has, who asked
 hi team release --approval <id> --notes <file>   dev to production as the next version (an owner's yes)
 hi team release v2 --approval <id>               production back on v2 (an owner's yes)
 hi team discard <task>                           drop an idea that isn't merged

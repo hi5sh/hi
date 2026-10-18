@@ -1821,6 +1821,17 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   the coder uses the `pele` package for charts in the app.
 - [x] The hi guide draws `mermaid` blocks with pele too.
 
+### v0.83.0 — A quieter channel, and hi team say
+
+- [x] Work for dev no longer posts in the channel: work asked for in a
+  DM, and small fixes started outside a thread, go to the owners in a DM
+  (not to an owner who asked). The channel hears about dev once, before
+  a release: `hi team release --ask` posts each change, who asked for
+  it, and the preview's link, and an owner's yes in its thread releases.
+- [x] `hi team say <name> <text>`: the machine's admin talks to the lead
+  without Slack. hi posts it in the channel, the lead answers in its
+  thread, and it is a go-ahead for the work it asks for, not a release.
+
 ## Planned
 
 ### Guide — a diagram for every tool

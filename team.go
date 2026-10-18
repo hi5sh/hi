@@ -293,6 +293,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamRestoreCommand(rest, stdin, stdout)
 	case "rollback":
 		err = teamRollbackCommand(rest, stdin, stdout)
+	case "say":
+		err = teamSayCommand(rest, stdin, stdout)
 	case "backups":
 		err = teamBackupsCommand(rest, stdin, stdout)
 	case "key":
@@ -361,6 +363,10 @@ usage:
   hi team ls                       teams on this machine
   hi team status <name>            whether it is up, its members, and its tasks
   hi team logs <name> [<task>] [-f]  the lead's log, or a task's; -f follows it
+  hi team say <name> <text|->      tell the lead something from this machine: hi posts it in the
+                                   channel, and the lead answers in its thread; it is a go-ahead
+                                   for the work it asks for, not for a release
+      [--wait]                     wait for the answer and print it
   hi team channel <name> [--since 2h]  what was said in the channel (the last day by default)
   hi team key <name> openrouter    give the team an OpenRouter key of its own (asked, never an
                                    argument); --unset goes back to this machine's. No box holds it:

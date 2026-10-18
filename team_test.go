@@ -814,15 +814,16 @@ func TestTeamBrokerSocket(t *testing.T) {
 	if err := runTeamLeadCommand("task", []string{"coder", brief, "--small"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
-	// A small fix starts without a go-ahead, and the channel hears of it.
-	if len(slackChannel.calls) != 1 || slackChannel.calls[0] != "post C07PAYMENTS Small fix started without waiting for a go-ahead (t-1): Add a supplier list" {
+	// A small fix starts without a go-ahead; asked for outside a thread,
+	// the owners hear of it in a DM, not the channel.
+	if len(slackChannel.calls) != 1 || !strings.HasPrefix(slackChannel.calls[0], "dm U07OWNER1 :wrench: The lead started a small fix for dev without waiting for a go-ahead: *Add a supplier list* (t-1).") {
 		t.Fatal(slackChannel.calls)
 	}
 	if !strings.Contains(out.String(), `t-1 started: the coder (Claude Code) works on "Add a supplier list"`) {
 		t.Fatal(out.String())
 	}
-	// Its progress card goes in the thread of that message.
-	if task, _ := loadTeamTask("payments", "t-1"); task.Thread != "1700000000.000001" {
+	// With no thread, there is no progress card.
+	if task, _ := loadTeamTask("payments", "t-1"); task.Thread != "" {
 		t.Fatal(task.Thread)
 	}
 	out.Reset()
