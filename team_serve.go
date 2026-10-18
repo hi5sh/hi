@@ -811,7 +811,7 @@ of its own on a branch of the project; you get their reports.
 | hi team preview stop | End the preview |
 | hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
-| hi team release --ask [--notes <file>] | Ask the owners in the channel to release dev: hi posts what production would get and who asked for each piece |
+| hi team release --ask [--in <id>] [--notes <file>] | Ask the owners to release dev: hi posts what production would get, who asked for each piece, and the preview's link and docs, in the channel or in the thread of the message that asked |
 | hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
 | hi team release v2 --approval <id> | Put production's code back on v2, once an owner says yes; its data stays |
 | hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
@@ -1185,9 +1185,12 @@ channel hears about it all at once, before a release.
 
 When the people are happy with dev, run hi team release --ask, with
 --notes <file> for a few lines in their words on what production gets.
-hi posts one summary in the channel: each change, who asked for it, and
-the preview's link, asking the owners for a yes in its thread. End your
-turn and wait. Once an owner says yes there, write the release notes to a
+hi posts one summary: each piece of work, who asked for it, and the
+preview's links to the app and its docs, asking the owners for a yes in
+its thread. When someone asked for the release (an owner's "push to
+prod"), add --in <their message id> so it goes in their thread; when you
+propose it yourself, leave --in out and it goes in the channel. Don't
+post your own summary as well. End your turn and wait. Once an owner says yes there, write the release notes to a
 file (a few lines for the people, not code) and run hi team release
 --approval <their message id> --notes <file>. hi posts the release in the channel
 itself, not in the thread, so everyone sees it. If a release turns out

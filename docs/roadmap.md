@@ -1838,6 +1838,19 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   after `hi update --restart`, got "the lead isn't reachable yet" in its
   thread. It now waits up to five minutes for the lead.
 
+### v0.83.2 — The release summary, complete
+
+- [x] The summary before a release (`hi team release --ask`) has the
+  preview's docs link beside its app link, as the release itself has
+  production's.
+- [x] Work shows as what was asked for: a fix after a review counted as
+  "continuing earlier work" and left out the task it fixed, and who
+  asked for it. Each piece of work is now its first task's title, with
+  all its tasks (t-29, t-31) and who asked, in the summary and in the
+  release's "Asked for by".
+- [x] When an owner asks for the release ("push to prod"), the lead puts
+  the summary in their thread (`--in <id>`), where their yes goes too.
+
 ## Planned
 
 ### Guide — a diagram for every tool

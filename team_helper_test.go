@@ -725,7 +725,10 @@ func TestTeamAskedBy(t *testing.T) {
 		{ID: "t-4", Small: true},
 		{ID: "t-5"},
 	}
-	if got := teamAskedBy(tasks); got != "Anna (t-1, t-3), Bo (t-2), the lead, as small fixes (t-4)" {
+	// A fix after a review counts as the work it fixed, asked for by the
+	// same person.
+	tasks = append(tasks, teamTask{ID: "t-6", On: "t-2"})
+	if got := teamAskedBy(teamDevWork(tasks, tasks)); got != "Anna (t-1, t-3), Bo (t-2, t-6), the lead, as small fixes (t-4)" {
 		t.Fatal(got)
 	}
 	text := teamReleaseAnnouncement(teamReleaseResult{Release: teamRelease{Version: 2}, Previous: 1, AskedBy: "Anna (t-1)"}, teamApproval{Name: "Owner"}, "Red badges.")

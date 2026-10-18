@@ -57,11 +57,15 @@ each release says who asked for what it holds.
   this was posted in the channel, which made it chatty: every small
   change for dev was a message there. A small fix the lead starts outside
   a thread goes to the owners the same way.
-- **Before a release**, `hi team release --ask [--notes <file>]` posts
-  one summary in the channel: each change dev has that production
-  hasn't, who asked for it and where (a DM, the app, the channel, or a
-  small fix by the lead), and the preview's link, asking the owners for a
-  yes in its thread. That is when the channel hears about dev's work.
+- **Before a release**, `hi team release --ask [--in <id>] [--notes
+  <file>]` posts one summary: each piece of work dev has that production
+  hasn't (its first task's title, with the tasks that continued it, such
+  as a fix after a review), who asked for it and where (a DM, the app,
+  the channel, or a small fix by the lead), and the preview's links to
+  the app and its docs, asking the owners for a yes in its thread. It
+  goes in the channel, or, when someone asked for the release, in the
+  thread of their message (`--in`). That is when the channel hears about
+  dev's work.
 - **Each release says who asked** for the work it holds: "Asked for by
   Anna (t-12, t-14), Bo (t-13)", from the tasks' approvals, wherever they
   were given: the channel, the app's chat, or a DM.

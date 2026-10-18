@@ -444,7 +444,7 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		request.Data = r.URL.Query().Get("data") == "1"
 		if r.URL.Query().Get("ask") == "1" {
-			ask, err := b.askRelease(request.Notes)
+			ask, err := b.askRelease(request.Notes, request.In)
 			reply(w, ask, err)
 			return
 		}
@@ -1583,6 +1583,9 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			switch {
 			case args[i] == "--ask":
 				ask = true
+			case args[i] == "--in" && i+1 < len(args):
+				request.In = args[i+1]
+				i++
 			case args[i] == "--approval" && i+1 < len(args):
 				request.Approval = args[i+1]
 				i++
@@ -1596,18 +1599,21 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			case request.Version == 0 && teamVersionArg.MatchString(args[i]):
 				request.Version, _ = strconv.Atoi(strings.TrimPrefix(args[i], "v"))
 			default:
-				return usageError{"usage: hi team release --ask [--notes <file|->]  (ask the owners in the channel, with what dev has and who asked for it)\n       hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
+				return usageError{"usage: hi team release --ask [--in <id>] [--notes <file|->]  (ask the owners in the channel, or in the thread of the message that asked, with what dev has and who asked for it)\n       hi team release --approval <id> --notes <file|->  (dev to production as the next version)\n       hi team release v2 --approval <id> [--notes <file|->]  (production back to an earlier version)"}
 			}
+		}
+		if request.In != "" && !ask {
+			return usageError{"--in goes with --ask: hi team release --ask --in <id>"}
 		}
 		if ask {
 			if request.Approval != "" || request.Version != 0 {
-				return usageError{"usage: hi team release --ask [--notes <file|->]  (no --approval: the yes comes after)"}
+				return usageError{"usage: hi team release --ask [--in <id>] [--notes <file|->]  (no --approval: the yes comes after)"}
 			}
 			var asked teamReleaseAsk
 			if err := call("POST", "/release?ask=1", request, &asked); err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "Asked the owners in the channel (message %s): v%d with %d change(s) and who asked for each. Wait for an owner's yes in its thread, then hi team release --approval <their message id> --notes <file>.\n", asked.TS, asked.Version, asked.Changes)
+			fmt.Fprintf(stdout, "Asked the owners (message %s): v%d with %d piece(s) of work and who asked for each. Wait for an owner's yes in its thread, then hi team release --approval <their message id> --notes <file>.\n", asked.TS, asked.Version, asked.Changes)
 			break
 		}
 		var result teamReleaseResult

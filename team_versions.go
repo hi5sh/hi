@@ -123,6 +123,47 @@ func teamDevChanges(repo string, tasks []teamTask) []teamTask {
 	return changes
 }
 
+// teamWork is one piece of work that dev has and production hasn't: the
+// task it was asked for with (the root of its line of tasks), and every
+// merged task of that line, such as the fixes after a review.
+type teamWork struct {
+	Root teamTask
+	IDs  []string
+}
+
+// teamDevWork groups dev's changes by the task each line started with, so
+// a fix after a review shows as the work it fixed, asked for by whoever
+// asked for that.
+func teamDevWork(all, changes []teamTask) []teamWork {
+	byID := map[string]teamTask{}
+	for _, task := range all {
+		byID[task.ID] = task
+	}
+	var work []teamWork
+	at := map[string]int{}
+	for _, task := range changes {
+		root, seen := task, map[string]bool{}
+		for root.On != "" && !seen[root.ID] {
+			seen[root.ID] = true
+			up, ok := byID[root.On]
+			if !ok {
+				break
+			}
+			root = up
+		}
+		i, ok := at[root.ID]
+		if !ok {
+			i, at[root.ID] = len(work), len(work)
+			work = append(work, teamWork{Root: root})
+		}
+		if root.ID != task.ID && !containsString(work[i].IDs, root.ID) {
+			work[i].IDs = append(work[i].IDs, root.ID)
+		}
+		work[i].IDs = append(work[i].IDs, task.ID)
+	}
+	return work
+}
+
 // teamOpenIdeas are the pieces of work not merged or discarded: each line
 // of tasks once, by its latest task.
 func teamOpenIdeas(tasks []teamTask) []teamTask {
@@ -338,6 +379,9 @@ type teamReleaseRequest struct {
 	Version  int    `json:"version,omitempty"` // an earlier release to put production back on; 0 releases dev
 	Notes    string `json:"notes,omitempty"`
 	Approval string `json:"approval,omitempty"`
+	// In is the message a release was asked for in, for --ask: the
+	// summary goes in its thread.
+	In string `json:"in,omitempty"`
 	// Data puts production's data back as Version left it too: a rollback.
 	Data bool `json:"data,omitempty"`
 	// host is an owner on the machine, through the host's socket, who
@@ -493,11 +537,12 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 			return result, fmt.Errorf("dev has nothing new since production v%d", versions.Production)
 		}
 		var changes []string
-		tasks := teamDevChanges(b.repo, loadTeamTasks(b.team))
+		all := loadTeamTasks(b.team)
+		tasks := teamDevChanges(b.repo, all)
 		for _, task := range tasks {
 			changes = append(changes, task.ID+" "+task.Title)
 		}
-		result.AskedBy = teamAskedBy(tasks)
+		result.AskedBy = teamAskedBy(teamDevWork(all, tasks))
 		version := 1
 		for _, release := range versions.Releases {
 			version = max(version, release.Version+1)
@@ -573,7 +618,7 @@ type teamReleaseAsk struct {
 // askRelease posts in the channel what production would get from dev, who
 // asked for each piece, and where to try it, and asks the owners for a yes
 // in its thread: the one message the channel gets about work for dev.
-func (b *teamBroker) askRelease(notes string) (teamReleaseAsk, error) {
+func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 	notes = strings.TrimSpace(notes)
 	if len(notes) > 3000 {
 		return teamReleaseAsk{}, errors.New("keep the notes short: a few lines, under 3000 characters")
@@ -601,18 +646,19 @@ func (b *teamBroker) askRelease(notes string) (teamReleaseAsk, error) {
 	for _, release := range versions.Releases {
 		ask.Version = max(ask.Version, release.Version+1)
 	}
-	tasks := teamDevChanges(b.repo, loadTeamTasks(b.team))
-	ask.Changes = len(tasks)
+	all := loadTeamTasks(b.team)
+	work := teamDevWork(all, teamDevChanges(b.repo, all))
+	ask.Changes = len(work)
 	var text strings.Builder
 	if versions.Production == 0 {
 		fmt.Fprintf(&text, ":package: *Ready for the first release, production v%d?* Dev has:\n", ask.Version)
 	} else {
 		fmt.Fprintf(&text, ":package: *Ready for production v%d?* Dev has what production v%d hasn't:\n", ask.Version, versions.Production)
 	}
-	for _, task := range tasks {
-		fmt.Fprintf(&text, "• %s (%s), %s\n", teamSlackEscape(task.Title), task.ID, teamTaskAskedBy(task))
+	for _, piece := range work {
+		fmt.Fprintf(&text, "• %s (%s), %s\n", teamSlackEscape(piece.Root.Title), strings.Join(piece.IDs, ", "), teamTaskAskedBy(piece.Root))
 	}
-	if len(tasks) == 0 {
+	if len(work) == 0 {
 		text.WriteString("• changes made outside the team's tasks\n")
 	}
 	if notes != "" {
@@ -620,10 +666,26 @@ func (b *teamBroker) askRelease(notes string) (teamReleaseAsk, error) {
 	}
 	if state, ok := loadTeamSlot(b.team, teamSlotPreview); ok && state.URL != "" {
 		if _, exposed := b.exposed(state.Expose); exposed {
-			fmt.Fprintf(&text, "\nTry it on <%s|the preview>.", state.URL)
+			fmt.Fprintf(&text, "\nTry it on <%s|the preview>", state.URL)
+			// An address on a relay from before /docs/ shows the app there.
+			if state.Relay == teamRelayStamp(b.team, teamSlotPreview) {
+				fmt.Fprintf(&text, ", and read what changed in <%s|its docs>", teamDocsLink(state.URL))
+			}
+			text.WriteString(".")
 		}
 	}
 	fmt.Fprintf(&text, "\nAn owner's yes in this thread releases it as v%d.", ask.Version)
+	if in != "" {
+		// Asked for in a thread: the summary and the yes go there.
+		thread, err := b.teamFindThread(config, in)
+		if err != nil {
+			return teamReleaseAsk{}, err
+		}
+		if ask.TS, err = b.channel.postIn(config.Channel, thread, text.String()); err != nil {
+			return teamReleaseAsk{}, err
+		}
+		return ask, nil
+	}
 	if ask.TS, err = b.channel.post(config.Channel, text.String()); err != nil {
 		return teamReleaseAsk{}, err
 	}
@@ -648,10 +710,11 @@ func teamTaskAskedBy(task teamTask) string {
 
 // teamAskedBy says who asked for a release's work, from its tasks' yeses
 // wherever they were given: Anna (t-12, t-14), Bo (t-13).
-func teamAskedBy(tasks []teamTask) string {
+func teamAskedBy(work []teamWork) string {
 	var names []string
 	ids := map[string][]string{}
-	for _, task := range tasks {
+	for _, piece := range work {
+		task := piece.Root
 		name := "the lead, as small fixes"
 		if task.Approval != nil && task.Approval.Name != "" {
 			name = task.Approval.Name
@@ -661,7 +724,7 @@ func teamAskedBy(tasks []teamTask) string {
 		if ids[name] == nil {
 			names = append(names, name)
 		}
-		ids[name] = append(ids[name], task.ID)
+		ids[name] = append(ids[name], firstNonEmpty(strings.Join(piece.IDs, ", "), task.ID))
 	}
 	var parts []string
 	for _, name := range names {
