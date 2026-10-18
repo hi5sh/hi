@@ -135,11 +135,17 @@ func teamExposeHelperArgs(team, slot string) []string {
 		"--inject-if", teamHelperFile(team, slot)}
 }
 
-// teamRelayStamp is what a slot's relay routes to hi, in short: when a new
-// hi routes more, such as /docs/, an address that stays gets a new relay.
+// teamRelayStamp is what a slot's relay routes to hi, and how, in short:
+// when a new hi routes more, such as /docs/, or relays differently, an
+// address that stays gets a new relay.
 func teamRelayStamp(team, slot string) string {
-	return fmt.Sprintf("%x", sha256.Sum256([]byte(strings.Join(teamExposeHelperArgs(team, slot), "\x00"))))[:12]
+	args := append([]string{teamRelayGeneration}, teamExposeHelperArgs(team, slot)...)
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(strings.Join(args, "\x00"))))[:12]
 }
+
+// teamRelayGeneration changes when the relay itself does in a way running
+// relays should get: 2 waits for a service that is restarting (v0.84.0).
+const teamRelayGeneration = "relay 2"
 
 // ---------------------------------------------------------------------------
 // web conversations, in web/

@@ -482,6 +482,9 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 		if helper.signIn(recorder, r) {
 			return
 		}
+		if r.Header.Get(netExposeProbeHeader) != "" {
+			r = netExposeNoWait(r)
+		}
 		var handler http.Handler
 		inject := false
 		if helper != nil {
@@ -500,8 +503,9 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 				out.Out.Host = out.In.Host
 				out.SetXForwarded()
 			},
-			ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-				http.Error(w, "hi net expose: nothing answers on "+upstream.Host+" on the exposing machine", http.StatusBadGateway)
+			Transport: netExposeTransport,
+			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+				netExposeDown(w, r, upstream.Host+" on the exposing machine")
 			},
 			FlushInterval: -1,
 		}

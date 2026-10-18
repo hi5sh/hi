@@ -1851,6 +1851,20 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] When an owner asks for the release ("push to prod"), the lead puts
   the summary in their thread (`--in <id>`), where their yes goes too.
 
+### v0.84.0 — The relay waits for a restart
+
+- [x] While a hi team's service restarted (`hi update --restart`), its
+  addresses showed "hi net expose: nothing answers on
+  /run/user/1000/hi-team-…/production.sock" for a few seconds, on /docs
+  and the helper. The relay now waits up to ten seconds for the service,
+  or the app, to answer again; a connection that never opened sent
+  nothing, so this is safe for any request. If it still doesn't answer,
+  a page load gets a page that says the app is restarting and tries
+  again by itself, and anything else a short 503. hi's own readiness
+  check doesn't wait.
+- [x] Addresses on a team's domain move to a relay with this, on the same
+  link and key, as they did for /docs in v0.81.1.
+
 ## Planned
 
 ### Guide — a diagram for every tool

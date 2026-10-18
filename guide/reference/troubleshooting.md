@@ -116,7 +116,7 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `NetBird isn't connected on this machine`                   | Connect with `hi net` (or `hi net reconnect`) first.         |
 | `peer expose is not enabled … turns on Peer Expose`         | A NetBird admin turns on Peer Expose in Settings > Clients, once. |
 | `nothing answers on localhost:<port> yet`                   | Start the service, or check the port. Visitors get an error page until it answers. |
-| `hi net expose: nothing answers on … on the exposing machine` (in the browser) | The service stopped or listens elsewhere; `--host` points at another address. |
+| "Just a moment: the app isn't answering right now" (in the browser) | The relay waited ten seconds and the service still didn't answer: it stopped, is restarting slowly, or listens elsewhere (`--host` points at another address). The page tries again by itself. A service that comes back within ten seconds, as a hi team's does on `hi update --restart`, is waited for and never shows it. |
 | A webhook or script gets 401                                | Password, PIN, and SSO are login pages for browsers. Use `--public`, and have the service check its own token or signature. |
 | `doesn't answer yet; NetBird may be slow`                   | NetBird's proxy took too long to publish the name. Try again. |
 | `--max is at most 24h`                                      | Exposures always end; start a new one when it does.          |

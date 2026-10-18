@@ -166,10 +166,10 @@ func (h *netExposeHelper) route(path string, on bool) http.Handler {
 					out.Out.Header.Del("Cookie")
 				},
 				Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+					return netExposeDial(ctx, "unix", socket)
 				}},
-				ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-					http.Error(w, "hi net expose: nothing answers on "+socket, http.StatusBadGateway)
+				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+					netExposeDown(w, r, socket)
 				},
 				FlushInterval: -1,
 			}
