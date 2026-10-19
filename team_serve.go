@@ -305,6 +305,9 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// A scheduled job's message is just its text, without Hermes' "Cronjob
 	// Response" heading and "To stop or manage this job" line.
 	settings += "cron:\n  wrap_response: false\n"
+	// No "Interrupting current task" reply, with its /busy tip, when someone
+	// writes while the lead is working: the lead still takes the message.
+	settings += "display:\n  busy_ack_enabled: false\n"
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.

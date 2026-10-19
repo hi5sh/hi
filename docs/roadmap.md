@@ -2131,6 +2131,12 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   opens by @-mentioning someone else stays between people. Hermes'
   `strict_mention` is off and `ignore_other_user_mentions` on.
 
+### v0.95.2 — No "Interrupting current task"
+
+- [x] When someone writes while the lead is working, it takes the message
+  without posting Hermes' "Interrupting current task" and its `/busy`
+  tip (`display.busy_ack_enabled: false`).
+
 ## Planned
 
 ### Guide — a diagram for every tool
