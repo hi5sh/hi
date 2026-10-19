@@ -86,6 +86,7 @@ func TestTeamJobsAlertOncePerIncident(t *testing.T) {
 	woken := teamTestWakes(b.teamBroker)
 	b.appLogs = func(string) string { return "fetching r-338\nno text" }
 	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	b.started = now.Add(-time.Hour)
 	check := func(at time.Time) {
 		t.Helper()
 		if err := b.checkJobs(at); err != nil {
@@ -173,6 +174,7 @@ func TestTeamJobsOnThePreview(t *testing.T) {
 	b.channel = channel
 	woken := teamTestWakes(b.teamBroker)
 	now := time.Now()
+	b.started = now.Add(-time.Hour)
 	// Dev on the preview: hi team jobs --preview shows it, nobody is told.
 	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
 	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Source: "main", Container: "app-preview"})
@@ -529,5 +531,44 @@ func TestTeamJobsCheckUnreported(t *testing.T) {
 	check()
 	if len(*woken) != 1 {
 		t.Fatal(*woken)
+	}
+}
+
+// Starting the team cuts the app's model calls: a job that trips on it
+// and moves again within minutes raises nothing, and one that doesn't is
+// told with the start.
+func TestTeamJobsSettleAfterStart(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	woken := teamTestWakes(b.teamBroker)
+	start := time.Date(2026, 10, 19, 12, 29, 8, 0, time.UTC)
+	b.started = start
+	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
+	saveTeamSlot("payments", teamPreview{Slot: teamSlotProduction, Container: "app-prod"})
+	check := func(at time.Time) {
+		t.Helper()
+		if err := b.checkJobs(at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTeamTestJob(t, teamSlotProduction, teamJob{Job: "history", State: "failed", Done: 37, At: start.Add(14 * time.Second), Error: "ECONNRESET"})
+	check(start.Add(time.Minute))
+	writeTeamTestJob(t, teamSlotProduction, teamJob{Job: "history", State: "running", Done: 38, At: start.Add(time.Minute)})
+	check(start.Add(2 * time.Minute))
+	if len(channel.calls) != 0 || len(*woken) != 0 {
+		t.Fatal(channel.calls, *woken)
+	}
+
+	// Still failed once the team has settled: an incident, with the start.
+	writeTeamTestJob(t, teamSlotProduction, teamJob{Job: "history", State: "failed", Done: 40, At: start.Add(3 * time.Minute), Error: "ECONNRESET"})
+	check(start.Add(5 * time.Minute))
+	if len(channel.calls) != 0 {
+		t.Fatal(channel.calls)
+	}
+	check(start.Add(11 * time.Minute))
+	if len(channel.calls) != 1 || !strings.Contains(channel.calls[0], "hi started the team at 12:29 UTC") || len(*woken) != 1 {
+		t.Fatal(channel.calls, *woken)
 	}
 }

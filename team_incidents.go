@@ -335,6 +335,12 @@ func (b *teamBroker) openJobIncident(slot string, job teamJob, condition string,
 			detail += "\n\nThe app's last lines:\n" + logs
 		}
 	}
+	alert := title + "."
+	if !b.started.IsZero() && now.Sub(b.started) < 2*teamJobSettle {
+		restarted := fmt.Sprintf("hi started the team at %s UTC, which cuts the app's model calls and restarts its boxes; that may be the cause, though the job hasn't moved again since.", b.started.UTC().Format("15:04"))
+		alert += "\n" + restarted
+		detail += "\n\n" + restarted
+	}
 	incident := teamIncident{Kind: "job", Slot: slot, Job: job.Job, Title: title, Detail: detail, Opened: now.UTC()}
 	thread := ""
 	if slot == teamSlotPreview {
@@ -356,7 +362,7 @@ func (b *teamBroker) openJobIncident(slot string, job teamJob, condition string,
 		}
 		thread = teamProgressThread(root)
 	}
-	return b.openIncident(incident, title+".\nThe lead looks into it here.", thread, teamIncidentPrompt)
+	return b.openIncident(incident, alert+"\nThe lead looks into it here.", thread, teamIncidentPrompt)
 }
 
 // appStopped opens an incident for production's box, which stopped on its

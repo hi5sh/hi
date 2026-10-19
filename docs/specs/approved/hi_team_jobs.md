@@ -140,6 +140,15 @@ already checks production's address. It raises an alert when:
 
 ## Incidents
 
+For the first 10 minutes after the team starts, hi holds a job's
+incident. Starting the team (a new hi, a reboot) stops hi's proxy for
+the app's model calls and starts the app in a new box, so a job can trip
+on calls cut short; one that moves again in that time raises nothing.
+One still failed, blocked, stalled, or silent after it opens its
+incident then, and says when hi started the team. (In v0.98.0 cartman's
+history analysis failed on ECONNRESET 14 seconds after an update
+restarted the team, and was running again a minute later.)
+
 An incident is one thread, and one record. The broker posts the alert
 once, in the channel, and writes the record, `incidents/i-<n>.json` in
 the team's folder. A job that stays stuck gets no second alert. The

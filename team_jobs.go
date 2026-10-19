@@ -34,6 +34,11 @@ const (
 	// teamJobSampleEvery is how often the broker notes a job's count, for
 	// its rate.
 	teamJobSampleEvery = time.Hour
+	// teamJobSettle is how long after the team starts hi holds a job's
+	// incident: starting the team (a new hi) cuts the app's model calls
+	// through hi and restarts its boxes, and a job that trips on that
+	// moves again within minutes.
+	teamJobSettle = 10 * time.Minute
 	teamJobsMax        = 64      // job files read per slot
 	teamJobFileMax     = 8 << 10 // bytes read from a job's file
 )
@@ -236,6 +241,8 @@ func (b *teamBroker) checkJobs(now time.Time) error {
 				// Worse, or stuck anew, within the same incident.
 				watch.Alerted = key
 				b.addIncidentEvent(watch.Open, teamIncidentEvent{Who: "hi", Action: "changed", Result: teamJobConditionText(job, condition)})
+			case !b.started.IsZero() && now.Sub(b.started) < teamJobSettle:
+				// Held: asked again next minute, once the team has settled.
 			default:
 				watch.Alerted = key
 				incident, err := b.openJobIncident(slot, job, condition, now)

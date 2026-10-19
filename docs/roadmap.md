@@ -2192,6 +2192,14 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   which then uses `assistant.threads.setStatus`.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v0.98.1 — No alarm for hi's own restart
+
+- [x] For 10 minutes after the team starts, hi holds job incidents: a
+  restart cuts the app's model calls, and a job that trips on that and
+  moves again raises nothing. One that doesn't recover opens its
+  incident then, saying when hi started the team.
+  Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool
