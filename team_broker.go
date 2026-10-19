@@ -1114,6 +1114,7 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	text.WriteString("- it does what the brief asks, and nothing beyond it or beyond what the people approved (their words are in the brief below, or in how the work started): work they didn't ask for is a change needed, \"outside what was approved\", however useful;\n")
 	text.WriteString("- it has tests for what the brief says must work, and the tests pass when you run them;\n")
 	text.WriteString("- it doesn't break what worked before, leak secrets, or leave debugging behind;\n")
+	text.WriteString("- long work it adds or changes (a loop over many records, a queue, a backfill, an import, a scheduled recalculation) reports as a job, as the coder's brief says, and writes blocked or failed with why wherever it stops on its own (too many failures, a limit, an item it can't process): one that would stop without saying so is a change needed;\n")
 	text.WriteString("- the README still says how to run and test the project;\n")
 	text.WriteString("- its diagrams in the docs are boxes or mermaid blocks, never drawings in ASCII or box-drawing characters, which /docs shows as text: one is a change needed.\n\n")
 	text.WriteString("Don't fix anything yourself and don't commit: say what must change.\n\n")

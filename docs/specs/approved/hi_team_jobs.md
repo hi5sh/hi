@@ -101,6 +101,26 @@ recalculation) reports as a job, and stops on an item it can't process
 unless its spec gives a rule for the case. The team-app template's coder
 role says the same, for new teams.
 
+A job that stops on its own for any other reason, such as too many
+failures in a row or a limit it reached, writes `failed` or `blocked`
+with why before it stops: one that only stops looks idle to hi. Long work
+a change touches that doesn't report yet is made to report in the same
+change, and the reviewer counts long work that would stop without saying
+so as a change needed (v0.96.1).
+
+### Work written before
+
+An app written before v0.93.0 may run long work that never reports, and
+hi can't see it stop. In one team, a history worker stopped after five
+failures in a row, kept only its own status, and nobody heard. So, once
+per team, when dev has merged work and no job has ever reported, hi posts
+in the channel that the lead checks the app's long work, and wakes the
+lead in that thread. The lead reads dev for such work, starts the fix as
+one small task when any doesn't report or stops without saying so, and
+asks an owner for the release once it is merged. A team with no merged
+work is marked as checked without asking, since every brief and review
+carries the rule. hi keeps that it asked in `run/jobs-checked`.
+
 ## What the broker watches
 
 Every minute the broker reads production's and the preview's jobs, as it

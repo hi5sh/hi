@@ -45,7 +45,9 @@ const teamJobsRule = "Long work in the app: work that can outlive a request (a l
 	`{"state": "running|blocked|failed|done", "done": <count>, "total": <count>, "unit": "<word>", "stall_after": "30m", "at": "<RFC 3339 time>", "item": "<what it is on>", "error": "<why, for people>"}` +
 	", or runs \"$HI\" team job <job> --done <count> (also --total, --unit, --item, --error, --stall-after, and --running, --blocked, --failed, --finished). " +
 	"stall_after is how long its count may stay the same before hi alerts: set it to what is normal for the job. Without $HI_JOBS_DIR, as in your box and the tests, it writes nothing. " +
-	"When the job meets an item it can't process, it stops with state blocked, the item, and why, unless the job's spec gives a rule for that case: never skip, drop, or make up an item on its own, since later values may depend on it. Put the job's name and its rules in its spec.\n" +
+	"When the job meets an item it can't process, it stops with state blocked, the item, and why, unless the job's spec gives a rule for that case: never skip, drop, or make up an item on its own, since later values may depend on it. " +
+	"A job that stops on its own for any other reason (too many failures in a row, a limit it reached) writes failed or blocked with why before it stops: a job that only stops looks to hi like one that is idle. " +
+	"Long work your change touches that doesn't report yet is made to report too. Put the job's name and its rules in its spec.\n" +
 	"If you notice something broken outside your work, such as production, add a line to your report's follow_ups starting with \"Alert:\"; hi tells the lead at once."
 
 var teamJobName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
@@ -269,12 +271,73 @@ func (b *teamBroker) watchJobs(done <-chan struct{}, stderr io.Writer) {
 		if err := b.remindIncidents(time.Now()); err != nil {
 			fmt.Fprintf(stderr, "hi: reminding about incidents: %v\n", err)
 		}
+		if err := b.checkUnreported(); err != nil {
+			fmt.Fprintf(stderr, "hi: asking the lead about the app's long work: %v\n", err)
+		}
 		select {
 		case <-done:
 			return
 		case <-time.After(time.Minute):
 		}
 	}
+}
+
+// An app written before hi watched jobs (v0.93.0) may have long work that
+// doesn't report, and hi can't see it stop. Once per team, when its dev
+// has merged work and no job has ever reported, hi asks the lead to look
+// through the app for such work and brief the fix. A team with no merged
+// work yet needs no check: every brief and review since carries the rule.
+
+func teamJobsCheckedPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "jobs-checked")
+}
+
+// checkUnreported asks the lead, once, to find the app's long work that
+// hi can't see.
+func (b *teamBroker) checkUnreported() error {
+	path := teamJobsCheckedPath(b.team)
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	}
+	merged := false
+	for _, task := range loadTeamTasks(b.team) {
+		merged = merged || task.Status == "merged"
+	}
+	reported := len(readTeamJobs(b.team, "production")) > 0 || len(readTeamJobs(b.team, "preview")) > 0
+	if merged && !reported {
+		if b.wakeLead == nil {
+			return nil // asked once the lead is there
+		}
+		config, err := loadTeam(b.team)
+		if err != nil {
+			return err
+		}
+		deliver := "slack:" + config.Channel
+		if b.channel != nil {
+			ts, err := b.channel.post(config.Channel, ":mag: *hi now watches the app's long work*, such as a backfill or an import, and says when it stops. Work written before can't be seen yet: the lead checks this app's and says here what needs changing.")
+			if err != nil {
+				return err
+			}
+			deliver += ":" + ts
+		}
+		if err := b.wakeLead("hi-jobs-check", teamUnreportedPrompt(), deliver); err != nil {
+			return err
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o600)
+}
+
+func teamUnreportedPrompt() string {
+	return `This is hi, not a person. hi now watches the app's long work: work that can outlive a request (a loop over many records, a queue consumer, a backfill, an import, a scheduled recalculation, a worker started with the app) reports as a job, and hi opens an incident and wakes you when one fails, is blocked, stops moving, or goes silent. This app's work was written before that, and no job has reported yet, so hi can't see it stop.
+
+Look through dev (/team/repo) and the specs, reading only, for such work. For each piece, note whether it reports as a job ($HI_JOBS_DIR or "$HI" team job), and whether it says so when it stops on its own: after too many failures in a row, at a limit, or on an item it can't process, it must write blocked or failed with why, not just stop. hi team jobs shows what reports today.
+
+If any doesn't, start the fix as one small task (hi team task coder <brief.md> --small): each piece reports as a named job, with a stall_after that is normal for it, and writes blocked or failed with the item and why wherever it stops on its own today, keeping its behavior otherwise. The coder's brief carries the rule on how. Once it is merged, ask an owner for the release, since production is where the work runs.
+
+What you write is posted under hi's message: in a few plain lines, which work hi couldn't see stopping, in the people's words, and what you started. If all of it already reports, say so in one line.`
 }
 
 func teamJobConditionText(job teamJob, condition string) string {

@@ -2148,6 +2148,17 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   `hi team up` warns until an app has it. Paste `hi team manifest
   <name>` into the app's App Manifest and reinstall.
 
+### v0.96.1 — Long work hi couldn't see
+
+- [x] A job that stops on its own (too many failures in a row, a limit)
+  writes `failed` or `blocked` with why first, and long work a change
+  touches is made to report: every brief says so, and the reviewer counts
+  long work that would stop silently as a change needed.
+- [x] Once per team whose dev has merged work and no job has reported,
+  hi asks the lead in the channel to find the app's long work that hi
+  can't see, and to start its fix as a small task.
+  Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

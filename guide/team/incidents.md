@@ -46,7 +46,14 @@ An app that would rather not write JSON runs hi, which is in its box:
 ```
 
 You don't write this yourself: every brief tells the members that long
-work reports as a job.
+work reports as a job, and that a job which stops on its own (too many
+failures in a row, a limit) says so first. The reviewer sends back work
+that would stop silently.
+
+An app from before hi watched jobs may have long work that doesn't
+report. The first time hi starts a team whose app has merged work and no
+job, it posts in the channel and the lead checks the app, then starts a
+small task to fix what hi can't see.
 
 **A job never skips an item on its own.** In some jobs one record doesn't
 matter. In others every later value depends on the one before: a series

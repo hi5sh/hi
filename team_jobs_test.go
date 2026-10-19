@@ -492,3 +492,42 @@ func TestTeamParseFinishedAt(t *testing.T) {
 		t.Error("parsed half a time")
 	}
 }
+
+func TestTeamJobsCheckUnreported(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	woken := teamTestWakes(b.teamBroker)
+	check := func() {
+		t.Helper()
+		if err := b.checkUnreported(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A team with no merged work has nothing written before the rule.
+	check()
+	if len(channel.calls) != 0 || len(*woken) != 0 || !fileExists(teamJobsCheckedPath("payments")) {
+		t.Fatal(channel.calls, *woken)
+	}
+
+	// Merged work and no job reported: the lead is asked once.
+	os.Remove(teamJobsCheckedPath("payments"))
+	saveTeamTask("payments", teamTask{ID: "t-1", Role: "coder", Kind: "task", Title: "History worker", Status: "merged"})
+	check()
+	check()
+	if len(channel.calls) != 1 || len(*woken) != 1 || !strings.HasPrefix((*woken)[0], "hi-jobs-check ") {
+		t.Fatal(channel.calls, *woken)
+	}
+	if !strings.Contains((*woken)[0], "--small") || !strings.Contains((*woken)[0], "blocked or failed") {
+		t.Fatal((*woken)[0])
+	}
+
+	// An app whose work already reports isn't asked about.
+	os.Remove(teamJobsCheckedPath("payments"))
+	writeTeamTestJob(t, teamSlotProduction, teamJob{Job: "backfill", State: "running", Done: 1, At: time.Now()})
+	check()
+	if len(*woken) != 1 {
+		t.Fatal(*woken)
+	}
+}
