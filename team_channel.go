@@ -201,8 +201,34 @@ func (l *liveTeamChannel) dmHistory(user, oldest string) ([]slack.Message, error
 		return nil, err
 	}
 	messages, err := l.history(im.ID, oldest)
-	sort.Slice(messages, func(i, j int) bool { return teamTSBefore(messages[i].Timestamp, messages[j].Timestamp) })
-	return messages, err
+	if err != nil {
+		return nil, err
+	}
+	return teamDMWithThreads(messages, func(thread string) ([]slack.Message, error) { return l.replies(im.ID, thread, oldest) })
+}
+
+// teamDMWithThreads adds the replies in a DM's threads to its top-level
+// messages, oldest first: the DM's history leaves them out, and a yes
+// said in a thread is as much a yes as one at the top. A thread whose
+// first message is older than the history's start isn't read.
+func teamDMWithThreads(messages []slack.Message, replies func(thread string) ([]slack.Message, error)) ([]slack.Message, error) {
+	all := append([]slack.Message{}, messages...)
+	for _, message := range messages {
+		if message.ReplyCount == 0 && message.LatestReply == "" {
+			continue
+		}
+		thread, err := replies(message.Timestamp)
+		if err != nil {
+			return nil, err
+		}
+		for _, reply := range thread {
+			if reply.Timestamp != message.Timestamp {
+				all = append(all, reply)
+			}
+		}
+	}
+	sort.Slice(all, func(i, j int) bool { return teamTSBefore(all[i].Timestamp, all[j].Timestamp) })
+	return all, nil
 }
 
 func (l *liveTeamChannel) inChannel(channel, user string) bool {

@@ -99,6 +99,12 @@ production's helper still needs an owner's yes in the channel. Since
 v0.97.0 an owner may release dev from their own DM with the lead
 (`--approval dm`); the channel then gets only the PROD line.
 
+A yes in a DM is the person's newest message there after one of the
+bot's, within a week, read from the DM's top level and the replies in
+its threads. Slack's DM history leaves replies out; before v0.97.1 a yes
+said in a thread went unseen, and an older message at the top of the DM
+counted instead.
+
 ## The Slack app
 
 `hi team manifest <name>` gains `im:history`, `im:read`, and `message.im`, and the

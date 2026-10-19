@@ -865,3 +865,41 @@ func TestTeamWebHistory(t *testing.T) {
 		}
 	}
 }
+
+// A yes in a DM's thread counts, not an older message at the top of the
+// DM (v0.97.1: t-95 was approved by "is it running?").
+func TestTeamDMApprovalInThread(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	now := time.Now()
+	ts := func(ago time.Duration) string { return teamSlackTS(now.Add(-ago)) }
+	bot := func(message slack.Message) slack.Message {
+		message.BotID = "B1"
+		return message
+	}
+	asked := bot(teamTestMessage(ts(60*time.Minute), "", "Production v10 is out."))
+	question := teamTestMessage(ts(40*time.Minute), "U07OWNER1", "is it running? it seems stuck still ?")
+	question.ReplyCount, question.LatestReply = 2, ts(5*time.Minute)
+	thread := []slack.Message{
+		question,
+		bot(teamTestMessage(ts(35*time.Minute), "", "It is stuck. Shall I fix it?")),
+		teamTestMessage(ts(5*time.Minute), "U07OWNER1", "Change of plan: fix both. Go ahead."),
+	}
+	messages, err := teamDMWithThreads([]slack.Message{asked, question}, func(parent string) ([]slack.Message, error) {
+		if parent != question.Timestamp {
+			t.Fatal("read the replies of", parent)
+		}
+		return thread, nil
+	})
+	if err != nil || len(messages) != 4 || messages[3].Text != "Change of plan: fix both. Go ahead." {
+		t.Fatalf("%v %+v", err, messages)
+	}
+	channel.dms = map[string][]slack.Message{"U07OWNER1": messages}
+	config, _ := loadTeam("payments")
+	approval, err := b.teamFindApproval(config, "dm:U07OWNER1", "task")
+	if err != nil || approval.Text != "Change of plan: fix both. Go ahead." || approval.TS != "dm:U07OWNER1:"+ts(5*time.Minute) {
+		t.Fatalf("%+v %v", approval, err)
+	}
+}

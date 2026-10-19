@@ -2171,6 +2171,13 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   dm`; a rollback and production's helper still need the channel.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v0.97.1 — A yes in a DM's thread
+
+- [x] hi reads the replies in a DM's threads when it checks a yes given
+  there: Slack's DM history leaves them out, so a yes in a thread went
+  unseen and an older message at the top of the DM counted instead.
+  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool
