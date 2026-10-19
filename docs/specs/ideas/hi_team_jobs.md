@@ -1,6 +1,6 @@
 # `hi team jobs`: the app's long work, watched
 
-Status: Draft (2026-10-18).
+Status: Draft (2026-10-18, revised 2026-10-19).
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the broker, the lead,
 approvals, preview and production), [hi_team_data.md](../approved/hi_team_data.md)
@@ -29,9 +29,16 @@ So:
 - **The broker watches them** without a model: a job that fails, goes
   quiet, or whose box stops raises an alert in the channel and wakes the
   lead once.
-- **The lead investigates and either resolves it or asks a person**, with
-  what it found and the choices. It never decides on its own what to do
-  with data it couldn't process.
+- **A member's failed task wakes the lead too**, as an incident of the
+  same kind.
+- **The lead handles what it can and asks about the rest.** The lead is
+  there so the people don't have to babysit the work: it retries, restarts,
+  re-briefs, and applies the rules the people gave, on its own. It asks a
+  person when a choice would change results nobody has ruled on, can't be
+  undone, or goes past what it may spend.
+- **Everything the lead does on its own is logged**: in the incident's
+  thread as it happens, and in the incident's record in the team folder,
+  so anyone can see later what it decided and why.
 - **Status questions take one step**: `hi team jobs` gives every job's
   state, count, rate, and last error.
 
@@ -61,7 +68,7 @@ writes to a temporary name and renames, so hi never reads half a file:
 |---|---|
 | `state` | `running`, `blocked`, `failed`, or `done` |
 | `done`, `total`, `unit` | progress; `total` may be left out when unknown |
-| `stall_after` | how long `done` may stay the same before the job counts as stalled (default 30m) |
+| `stall_after` | how long `done` may stay the same before the job counts as stalled (default 30m); each job sets what is normal for it, so one that waits on a rate-limited API can say 2h |
 | `at` | when the app last wrote the file; a heartbeat even when `done` doesn't move |
 | `item` | the item the job is on, or stopped at |
 | `error` | why it is `blocked` or `failed`, in a sentence a person can read |
@@ -100,73 +107,138 @@ already checks production's address. It raises an alert when:
 - **The app's box stopped** while a job was `running`: the box's exit
   code and the last lines of its log are in the alert.
 
-An incident is one thread. The broker posts the alert once, in the
-channel, and keeps that thread's record in `run/jobs.json`. A job that
-stays stuck gets no second alert. The thread gets one line when it
-recovers ("backfill-classify is running again: 8,410 of 533,386"), and
-the incident closes. A job that fails again later opens a new one. The
-preview's jobs alert only in the thread of the task that is shown, never
-in the channel, since a preview is somebody's work in progress.
+## Incidents
+
+An incident is one thread, and one record. The broker posts the alert
+once, in the channel, and writes the record, `incidents/i-<n>.json` in
+the team's folder. A job that stays stuck gets no second alert. The
+thread gets one line when it recovers ("backfill-classify is running
+again: 8,410 of 533,386"), and the incident closes. A job that fails
+again later opens a new one. The preview's jobs alert only in the thread
+of the task that is shown, never in the channel, since a preview is
+somebody's work in progress.
+
+A member's task that fails is an incident too: a box that didn't start, a
+run that hit `--max`, an agent that crashed or gave up, a report that says
+it couldn't finish. Its alert goes in the thread where the work was
+agreed, beside the progress card, not in the channel.
 
 Nothing in the watching costs a model call. The lead is woken only for an
 incident, once.
 
-## What the lead does with an alert
+## What the lead does
 
 The broker starts a lead turn for the incident, the way `hi team say`
-does, with what the lead would otherwise spend its turn finding: the
-job's record, the item, the error, the box's last log lines, and how far
-the job had come. The lead's answer goes in the alert's thread.
+does, with what the lead would otherwise spend its turn finding: for a
+job, its record, the item, the error, the box's last log lines, and how
+far it had come; for a task, its brief, its report, and how it ended. The
+lead answers in the incident's thread.
 
-The lead's instructions for an alert:
+It first finds out why, reading only: the item, the logs, the code, the
+job's history, the task's report. Then it decides whether it can handle
+the incident alone.
 
-1. **Find out why**, reading only: the item, the logs, the code that
-   stopped, the job's history. Nothing in production changes.
-2. **Check whether the job has a recorded rule for this case.** A job's
-   rules are what the people decided about it before, in the project's
-   specs and the lead's memory: "a release with no text and no readable
-   PDF is tagged invalid and the job moves on". Only a decision someone
-   made counts as a rule. The lead's own guess doesn't.
-3. **Then either resolve it or ask:**
-   - **It resolves it** when the cause is something that passes (a
-     network error, a service that was down), and the job is running
-     again by the time the lead answers. It says what happened. It also
-     resolves it when a recorded rule covers the case and the job's code
-     doesn't follow it yet: it proposes the fix as ordinary work, which
-     waits for a yes as all work does.
-   - **It asks a person** in every other case: no rule covers it, the
-     fix would change data already computed, or it isn't sure. It says
-     what it found, what depends on the item (does later work use it?),
-     and the choices, each with what it would do to the results:
+### What it handles alone
 
-     > backfill-classify stopped at release 338809a1 (2009-12-29): its
-     > page has no text and its PDF can't be read.
-     >
-     > Nothing later depends on this release's sentiment, so skipping it
-     > changes nothing else. Choices:
-     > 1. Tag it invalid and move on, and do the same for such releases
-     >    from now on (a rule for this job).
-     > 2. Tag it invalid and move on, and stop again at the next one.
-     > 3. Leave the job stopped while someone looks.
-     >
-     > I'd take 1. @owner, which?
+The lead is there to take the micromanaging off the people, so most
+incidents should end without anyone being asked. It acts on its own when
+the action can be undone, changes no result nobody has ruled on, and
+stays within the team's budget:
 
-The answer becomes the job's rule. The lead keeps it in its memory and in
-the job's spec, and the coder's next brief for that job carries it. The
-next time the case comes up, the lead resolves it without asking.
+- **Wait or retry** when the cause passes: a network error, a service
+  that was down, a rate limit. It checks back once the job should have
+  moved.
+- **Restart the app's box** when it stopped or a job went silent, once
+  per incident. A second stop in the same incident goes to a person.
+- **Retry a member's task** that failed for a reason outside the work (the
+  box didn't start, the agent's service was down), once, with `--on`.
+- **Re-brief a member** whose task failed on the work itself: a brief that
+  was too large is split, an unclear one is made clearer, a missing
+  detail is added. Twice at most; then it asks.
+- **Apply a rule the people gave.** A job's rules are what the people
+  decided about it, kept in the job's spec and the lead's memory: "a
+  release with no text and no readable PDF is tagged invalid and the job
+  moves on". When the job's code doesn't follow the rule yet, the lead
+  starts the fix as a small task (`--small`). It reaches production as
+  every change does, with an owner's yes for the release, and the lead
+  asks for that yes in the same thread.
 
-**Skipping is never the default.** In some jobs one item doesn't matter:
-a release that can't be read is just missing. In others every later value
-depends on it: a series computed from the one before, a running balance, a
-model fed the last result. There, skipping an item silently makes
-everything after it wrong. Only the people know which kind a job is. So a
-job's code stops (`blocked`) on an item it can't process unless a rule for
-that case has been recorded, and the lead asks rather than assumes. When
-the people answer, the lead also records which kind of job it is, so the
-next question can say so.
+### What it asks about
 
-If nobody answers in the thread within a day, the lead posts one reminder
-there, @-mentioning the owners. Nothing happens to the job meanwhile.
+It asks a person when:
+
+- **No rule covers a choice that changes results.** Above all, what to do
+  with an item a job can't process (below).
+- **The action can't be undone**: deleting or rewriting data already
+  computed, a rollback.
+- **It would spend more** than the team's budget leaves, or more than the
+  incident is worth.
+- **Its own attempts ran out**: the box stopped again after a restart, a
+  re-briefed task failed twice.
+- **It isn't sure** what happened.
+
+It says what it found, what depends on it, and the choices, each with
+what it would do to the results, and which it would take:
+
+> backfill-classify stopped at release 338809a1 (2009-12-29): its page has
+> no text and its PDF can't be read.
+>
+> Nothing later depends on this release's sentiment, so skipping it
+> changes nothing else. Choices:
+> 1. Tag it invalid and move on, and do the same for such releases from
+>    now on (a rule for this job).
+> 2. Tag it invalid and move on, and stop again at the next one.
+> 3. Leave the job stopped while someone looks.
+>
+> I'd take 1. @owner, which?
+
+The answer becomes the job's rule, recorded with who gave it. The lead
+keeps it in its memory and in the job's spec, and the coder's next brief
+for that job carries it. The next time the case comes up, the lead
+handles it alone.
+
+If nobody answers within a day, the lead posts one reminder in the
+thread, @-mentioning the owners. Nothing happens to the job meanwhile.
+
+### Skipping is never the default
+
+In some jobs one item doesn't matter: a release that can't be read is
+just missing. In others every later value depends on it: a series
+computed from the one before, a running balance, a model fed the last
+result. There, skipping an item silently makes everything after it wrong.
+Only the people know which kind a job is. So a job's code stops
+(`blocked`) on an item it can't process unless a rule for that case has
+been recorded, and the lead asks rather than assumes. When the people
+answer, the lead also records which kind of job it is, so the next
+question can say so.
+
+## What the lead did, and why
+
+Everything the lead does on its own in an incident is logged twice:
+
+- **In the thread, as it happens**: one line per action, saying what and
+  why ("Restarted the app's box: it was killed for memory at 14:02, and
+  the job had been silent since. Once per incident."). People who follow
+  the channel see the decisions without asking for them.
+- **In the incident's record**, `incidents/i-<n>.json`: when it was
+  raised and by what, what the lead found, each action (who took it,
+  which command, why, what happened), each question and its answer with
+  who answered, the rule it produced, and how the incident closed.
+
+hi writes the record, not the lead: the lead's actions go through hi's
+commands (`hi team task`, the restart, the rule), each with `--incident
+<id> --because "<why>"`, and the broker appends them. A note the lead
+writes itself is kept too, marked as its own. So the record shows what
+was done, not only what the lead says it did.
+
+```text
+hi team incidents                    open incidents, then the last month's
+hi team incidents <id>               one incident's timeline
+hi team incidents --rules            every rule the people gave, by job, with who and when
+```
+
+Incidents live in the team's folder, beside `tasks/`, so snapshots and the
+daily backups keep them.
 
 ## Status questions
 
@@ -176,13 +248,17 @@ hi team jobs --preview          the preview's
 hi team jobs --json
 ```
 
-The rate comes from the broker's own samples of `done`: one an hour, a
-week of them, in `run/jobs.json`. So "how many per day" is a number hi
-already has, not something the lead works out from the database. The
-lead's hi-team skill says to answer status questions with this first.
+The rate comes from the broker's own samples of `done`, one an hour, in
+`run/jobs.json`. So "how many per day" is a number hi already has, not
+something the lead works out from the database. The lead's hi-team skill
+says to answer status questions with this first.
 
 In the incident that led to this spec, the lead used up its 60 turns on a
 question this answers in one.
+
+Job records and samples older than a month are dropped: by then they are
+stale, and the daily backups keep the history. A job that hasn't written
+its file in a month is no longer listed.
 
 ## `hi team alert`
 
@@ -192,11 +268,11 @@ A smaller, separate thing, for the members and the lead's own cron jobs:
 hi team alert "production's export has been returning 500 since 14:00"
 ```
 
-It posts in the channel with the alert style and wakes the lead as an
-incident would. A member that notices production broken while working on
-something else uses it instead of burying the note in its report. It is
-rate-limited per team (one a minute, ten a day). It doesn't cover the
-app's jobs, which report as above.
+It opens an incident, with the alert style in the channel, and wakes the
+lead as any incident does. A member that notices production broken while
+working on something else uses it instead of burying the note in its
+report. It is rate-limited per team (one a minute, ten a day). It doesn't
+cover the app's jobs, which report as above.
 
 ## Decisions
 
@@ -208,19 +284,23 @@ app's jobs, which report as above.
   in the app's box only relays the model socket today, and an HTTP
   endpoint would mean one more thing in the box that must stay up for the
   watching to work. `$HI team job` is there for apps that want a call.
-- **No skip by default, per job rules instead.** See above.
-  Whether an item can be dropped depends on the job, and only people can
-  say. A rule, once given, saves asking again.
+- **The lead acts alone on what can be undone.** People shouldn't have to
+  approve a retry or a restart. They are asked about choices that change
+  results, can't be undone, or cost more, and about anything the lead
+  tried twice.
+- **No skip by default; rules per job instead.** Whether an item can be
+  dropped depends on the job, and only people can say. A rule, once
+  given, saves asking again.
+- **hi keeps the log, not the lead.** A record the lead writes about
+  itself is only as good as its memory of the turn. The broker records
+  each command as it runs.
 - **One alert per incident.** A job that stays stuck for a day must not
   post 1,440 times. The thread is where it is discussed and where it
   recovers.
-
-## Open questions
-
-- Should a member's failed task also wake the lead as an incident? The
-  progress card shows it, but the lead learns of it only from the
-  member's report.
-- `stall_after` per job, or per job and per state (a job that waits on a
-  rate-limited API may sit still for an hour on purpose)?
-- How long to keep a finished job's record and samples: a week, or until
-  the next release?
+- **A member's failed task is an incident.** The progress card shows the
+  people a failure, but the lead learned of it only from the report, if
+  at all.
+- **`stall_after` per job.** What counts as stuck depends on the job.
+  Per state can come later if a job needs it.
+- **A month of job history.** Older records are stale, and the daily
+  backups keep the history. Incidents are kept, as tasks are.
