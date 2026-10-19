@@ -374,6 +374,15 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 			return err
 		}
 	}
+	ack := filepath.Join(lead, "hooks", "hi-dm-ack")
+	if err := os.MkdirAll(ack, 0o700); err != nil {
+		return err
+	}
+	for name, data := range map[string][]byte{"HOOK.yaml": teamLeadAckManifest, "handler.py": teamLeadAckSource} {
+		if err := os.WriteFile(filepath.Join(ack, name), data, 0o600); err != nil {
+			return err
+		}
+	}
 	if err := os.MkdirAll(filepath.Join(lead, "scripts"), 0o700); err != nil {
 		return err
 	}
@@ -1209,9 +1218,12 @@ babysit the work, and ask them about the rest.
   When it is resolved and hi hasn't closed it, hi team incidents close
   i-3 --because "...". hi closes a job's incident itself when the job
   moves again.
-- **Status questions** ("how many a day?", "how far is the backfill?"):
-  hi team jobs answers in one step, from hi's own hourly counts. Look
-  there before reading the database.
+- **Status questions** ("how many a day?", "how far is the backfill?",
+  "is it stuck?", "why no new results?"): hi team jobs answers in one
+  step, from hi's own hourly counts. Look there before reading the
+  database. Before you say work is stuck or broken, or propose a fix for
+  it, run hi team jobs and hi team versions: what you remember may be
+  from before the last release, which may have fixed it already.
 - When you brief work that adds long work to the app, say it reports as
   a job, with its name and what to do with an item it can't process.
 

@@ -43,6 +43,15 @@ var teamLeadPluginManifest []byte
 //go:embed helper/hermes/__init__.py
 var teamLeadPluginSource []byte
 
+// The lead's first reply to a new message in a DM, so Slack shows its
+// status while it works (a Hermes hook).
+//
+//go:embed helper/hermes/hooks/dm-ack/HOOK.yaml
+var teamLeadAckManifest []byte
+
+//go:embed helper/hermes/hooks/dm-ack/handler.py
+var teamLeadAckSource []byte
+
 // teamKeyLasts is how long a person's key works; /hi again makes a new one
 // and ends the old.
 const teamKeyLasts = 14 * 24 * time.Hour

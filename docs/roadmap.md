@@ -2200,6 +2200,18 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   incident then, saying when hi started the team.
   Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
 
+### v0.98.2 — A sign of life in a DM
+
+- [x] A new message at the top of a DM gets "Looking into it…" in its
+  thread at once, from a Hermes hook hi writes, and the lead's status
+  shows there while it works; hi deletes the line once the lead has
+  answered. Slack shows a status only in a thread, and before this a DM
+  had only the 👀 for minutes.
+- [x] Before the lead says work is stuck or proposes a fix, it checks hi
+  team jobs and hi team versions: cartman once proposed two fixes that
+  production v11 already had, from memory.
+  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

@@ -271,6 +271,9 @@ func TestWriteTeamLead(t *testing.T) {
 	if script, err := os.Stat(filepath.Join(lead, "scripts", teamChannelScript)); err != nil || script.Mode()&0o100 == 0 {
 		t.Fatal("the channel-watch script is missing", err)
 	}
+	if hook, err := os.ReadFile(filepath.Join(lead, "hooks", "hi-dm-ack", "HOOK.yaml")); err != nil || !strings.Contains(string(hook), "agent:start") || !fileExists(filepath.Join(lead, "hooks", "hi-dm-ack", "handler.py")) {
+		t.Fatal("the DM's first-reply hook is missing", err)
+	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
 	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60"} {
 		if !strings.Contains(string(settings), want) {

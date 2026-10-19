@@ -99,6 +99,13 @@ production's helper still needs an owner's yes in the channel. Since
 v0.97.0 an owner may release dev from their own DM with the lead
 (`--approval dm`); the channel then gets only the PROD line.
 
+A new message at the top of a DM gets "Looking into it…" in its thread
+as soon as the lead starts on it, and hi deletes that line once the lead
+has answered (v0.98.2). Slack shows the lead's status only in a thread,
+and the answer, which opens the thread, may take minutes. It is a
+Hermes hook hi writes in the lead's home (hooks/hi-dm-ack) on every
+start, and asks no model. A reply in a thread needs none.
+
 A yes in a DM is the person's newest message there after one of the
 bot's, within a week, read from the DM's top level and the replies in
 its threads. Slack's DM history leaves replies out; before v0.97.1 a yes
