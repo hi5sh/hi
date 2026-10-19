@@ -2212,6 +2212,16 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   production v11 already had, from memory.
   Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
 
+### v0.99.0 — Dev where it's asked for
+
+- [x] A new dev version goes to the person working on it: hi posts the
+  DEV line, its app and docs links, and the lead's notes in the thread
+  or DM the lead is answering, not in the channel, where every iteration
+  was noise for everyone else. `hi team preview --channel` posts it in
+  the channel when the people ask for that. The lead's SOUL.md and the
+  hi-team skill say so.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

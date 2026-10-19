@@ -75,6 +75,10 @@ type teamPreview struct {
 	NewLink bool `json:"new_link,omitempty"`
 	// Permalink is the channel message's link; only in replies.
 	Permalink string `json:"permalink,omitempty"`
+	// Docs is the docs' link, and Told where hi told of a new dev
+	// version ("thread", "dm", "channel"); only in replies.
+	Docs string `json:"docs,omitempty"`
+	Told string `json:"told,omitempty"`
 	// Domain is the name that stays the address is on (hi team domain),
 	// or "" for one NetBird made up. DomainError says why the name it
 	// should be on didn't work, at DomainChecked; hi tries again later.
@@ -190,8 +194,14 @@ type teamPreviewRequest struct {
 	Production bool   `json:"production,omitempty"`
 	Port       int    `json:"port,omitempty"`
 	Stop       bool   `json:"stop,omitempty"`
-	// Notes say what is new in dev, for the people: the DEV line's thread.
+	// Notes say what is new in dev, for the people, under the DEV line.
 	Notes string `json:"notes,omitempty"`
+	// The DEV line goes where the lead is talking with the person who
+	// asked: the thread of the channel message In, or DM. Channel posts it
+	// in the channel as well, when the people ask for that.
+	In      string         `json:"in,omitempty"`
+	DM      *teamReleaseDM `json:"dm,omitempty"`
+	Channel bool           `json:"channel,omitempty"`
 }
 
 // preview puts dev, a task's branch, or production on its address, or
@@ -231,60 +241,119 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 		return b.show(next, ref, teamLinkKeep)
 	}
 	state, err := b.show(next, ref, teamLinkKeep)
-	if err == nil {
-		b.announceDev(config, state, request.Notes)
+	if err != nil {
+		return state, err
 	}
-	return state, err
+	if state.URL != "" && state.Relay == teamRelayStamp(b.team, teamSlotPreview) {
+		state.Docs = teamDocsLink(state.URL)
+	}
+	told, err := b.announceDev(config, state, request)
+	if err != nil && request.Channel {
+		return state, err
+	}
+	// Not told in the thread: the lead passes the links on itself.
+	state.Told = told
+	return state, nil
 }
 
 func teamDevAnnouncedPath(team string) string {
 	return filepath.Join(teamDir(team), "run", "dev-announced")
 }
 
-// announceDev tells the channel, in one line, that the preview shows a new
-// version of dev, once per version; what is new goes in the line's
-// thread: the lead's notes, or the work merged since the last one.
-func (b *teamBroker) announceDev(config teamConfig, state teamPreview, notes string) {
+// teamDevToldPath holds the commit and the place hi last told of dev in
+// a thread or DM, so the same version isn't told twice there.
+func teamDevToldPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "dev-told")
+}
+
+// announceDev tells of a new version of dev, in one line with its links
+// and what is new: in the thread or DM the lead is answering, where the
+// person who asked for the work is, and in the channel only when the
+// people ask for that, so each step of the work doesn't reach everyone.
+// It returns where it told: "thread", "dm", "channel", or "" for nowhere.
+func (b *teamBroker) announceDev(config teamConfig, state teamPreview, request teamPreviewRequest) (string, error) {
 	if b.channel == nil || teamFreshApp(b.repo, config.Branch) {
-		return
-	}
-	data, _ := os.ReadFile(teamDevAnnouncedPath(b.team))
-	last := strings.TrimSpace(string(data))
-	if last == state.Commit {
-		return
+		if request.Channel {
+			return "", errors.New("hi isn't connected to Slack, or the app has nothing in it yet, so there is nothing to post in the channel")
+		}
+		return "", nil
 	}
 	view, err := teamVersionsReport(b.team)
 	if err != nil || len(view.Changes) == 0 && view.Production > 0 {
-		return // the same as production: nothing new to try
+		if request.Channel {
+			return "", fmt.Errorf("dev is the same as production v%d: nothing new to post", view.Production)
+		}
+		return "", nil // the same as production: nothing new to try
 	}
-	label := strings.TrimPrefix(view.Dev, "dev, ")
-	docs := ""
-	if state.URL != "" && state.Relay == teamRelayStamp(b.team, teamSlotPreview) {
-		docs = teamDocsLink(state.URL)
-	}
-	details := strings.TrimSpace(notes)
-	if details == "" {
-		var lines []string
-		all := loadTeamTasks(b.team)
-		var fresh []teamTask
-		for _, task := range view.Changes {
-			if last == "" || !teamIsAncestor(b.repo, task.Merged, last) {
-				fresh = append(fresh, task)
+	announced, _ := os.ReadFile(teamDevAnnouncedPath(b.team))
+	lastChannel := strings.TrimSpace(string(announced))
+	headline := fmt.Sprintf("New DEV version (%s) :test_tube:", strings.TrimPrefix(view.Dev, "dev, ")) + teamSlotLinks(state.URL, state.Docs)
+	details := func(since string) string {
+		text := strings.TrimSpace(request.Notes)
+		if text == "" {
+			var lines []string
+			var fresh []teamTask
+			for _, task := range view.Changes {
+				if since == "" || !teamIsAncestor(b.repo, task.Merged, since) {
+					fresh = append(fresh, task)
+				}
+			}
+			for _, piece := range teamDevWork(loadTeamTasks(b.team), fresh) {
+				lines = append(lines, fmt.Sprintf("• %s (%s), %s", teamSlackEscape(piece.Root.Title), strings.Join(piece.IDs, ", "), teamTaskAskedBy(piece.Root)))
+			}
+			if len(lines) > 0 {
+				text = "New in dev:\n" + strings.Join(lines, "\n")
 			}
 		}
-		for _, piece := range teamDevWork(all, fresh) {
-			lines = append(lines, fmt.Sprintf("• %s (%s), %s", teamSlackEscape(piece.Root.Title), strings.Join(piece.IDs, ", "), teamTaskAskedBy(piece.Root)))
+		if view.Production > 0 {
+			text += fmt.Sprintf("\n\nProduction stays on v%d until an owner releases dev.", view.Production)
 		}
-		if len(lines) > 0 {
-			details = "New in dev:\n" + strings.Join(lines, "\n")
+		return strings.TrimSpace(text)
+	}
+
+	if request.Channel {
+		if lastChannel == state.Commit {
+			return "", errors.New("the channel has this dev version already; point people to hi's DEV line there")
 		}
-	}
-	if view.Production > 0 {
-		details += fmt.Sprintf("\n\nProduction stays on v%d until an owner releases dev.", view.Production)
-	}
-	if b.announceInThread(config, fmt.Sprintf("New DEV version (%s) :test_tube:", label)+teamSlotLinks(state.URL, docs), details) != "" {
+		if b.announceInThread(config, headline, details(lastChannel)) == "" {
+			return "", errors.New("Slack wouldn't take the DEV line")
+		}
 		writeFileAtomic(teamDevAnnouncedPath(b.team), []byte(state.Commit+"\n"), 0o600)
+		return "channel", nil
 	}
+
+	// In the thread or DM the lead is answering.
+	var channel, thread, user, told string
+	switch {
+	case request.DM != nil && request.DM.User != "":
+		channel, thread, user, told = request.DM.Channel, request.DM.Thread, request.DM.User, "dm"
+	case request.In != "":
+		if thread, err = b.teamFindThread(config, request.In); err != nil {
+			return "", err
+		}
+		channel, told = config.Channel, "thread"
+	default:
+		return "", nil
+	}
+	place := state.Commit + " " + firstNonEmpty(channel, user) + " " + thread
+	if data, _ := os.ReadFile(teamDevToldPath(b.team)); strings.TrimSpace(string(data)) == place {
+		return told, nil
+	}
+	text := headline
+	if more := details(lastChannel); more != "" {
+		text += "\n" + more
+	}
+	switch {
+	case channel != "" && thread != "":
+		_, err = b.channel.postIn(channel, thread, text)
+	default:
+		_, _, err = b.channel.dm(user, text)
+	}
+	if err != nil {
+		return "", err
+	}
+	writeFileAtomic(teamDevToldPath(b.team), []byte(place+"\n"), 0o600)
+	return told, nil
 }
 
 // startPreview puts the new team's blank app on the preview when the team
@@ -836,4 +905,15 @@ func printTeamPreview(w io.Writer, preview teamPreview) {
 		fmt.Fprintf(w, "  password: %s\n", preview.Password)
 	}
 	fmt.Fprintln(w, "It works on phones too. A new preview shows on the same link while it has 12 hours left; hi team preview stop ends it.")
+	if preview.Docs != "" {
+		fmt.Fprintf(w, "Its docs: %s\n", preview.Docs)
+	}
+	switch preview.Told {
+	case "thread", "dm":
+		fmt.Fprintf(w, "hi posted the new DEV line, with its links and what's new, in this %s; don't post the links again. The channel hears of it only when the people ask: then run hi team preview --channel.\n", preview.Told)
+	case "channel":
+		fmt.Fprintln(w, "hi posted the DEV line in the channel, with what's new in its thread.")
+	default:
+		fmt.Fprintln(w, "hi posted nothing in Slack: give the person who asked the version and its links in your reply. The channel hears of a new dev version only when the people ask: then run hi team preview --channel.")
+	}
 }

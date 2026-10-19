@@ -193,11 +193,16 @@ Two versions of the project, named the same way everywhere:
   "New PROD version (v16) :rocket: -> App: link - Docs: link" (or "PROD
   back on v14"), and in its thread the version before, who approved it,
   who asked for each piece, and the lead's notes for the people. A new
-  dev on the preview (`hi team preview --notes <file>`) is one line too,
-  once per commit, "New DEV version (v15 + 2 changes) :test_tube: -> App:
-  link - Docs: link", with the lead's notes, or else the work merged
-  since the last one, in its thread (v0.97.0). Setting dev back to
-  production is posted in the channel itself.
+  dev on the preview (`hi team preview --notes <file>`) is "New DEV
+  version (v15 + 2 changes) :test_tube: -> App: link - Docs: link", with
+  the lead's notes, or else the work merged since the last one, posted
+  once per commit in the thread or DM the lead is answering (Hermes says
+  which; `--in <id>` names another thread), not in the channel: each
+  iteration in the channel was noise for everyone not working on it
+  (v0.99.0). When the people ask for it there, `hi team preview
+  --channel` posts the line in the channel, once per commit, with the
+  rest in its thread. Setting dev back to production is posted in the
+  channel itself.
 - **From a DM.** An owner's yes in their DM with the lead releases dev
   (`--approval dm`); a rollback or production's helper still needs an
   owner's yes in the channel.

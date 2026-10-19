@@ -1143,23 +1143,44 @@ func TestTeamProductionLink(t *testing.T) {
 	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
 	teamTestMerge(t, b, "Suppliers")
 
-	// The preview of a new dev gets one line in the channel, once, with
-	// the lead's notes in its thread.
-	dev, err := b.preview(teamPreviewRequest{Notes: "You can list suppliers now."})
+	// A new dev is told where the lead is answering, once, with its links
+	// and the lead's notes; the channel hears nothing of it.
+	dm := &teamReleaseDM{User: "U07ANNA", Channel: "D07ANNA", Thread: "1700000100.000001"}
+	dev, err := b.preview(teamPreviewRequest{Notes: "You can list suppliers now.", DM: dm})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.preview(teamPreviewRequest{}); err != nil {
+	if dev.Told != "dm" {
+		t.Fatalf("%+v", dev)
+	}
+	if _, err := b.preview(teamPreviewRequest{DM: dm}); err != nil {
 		t.Fatal(err)
 	}
-	var lines []string
-	for _, call := range channel.calls {
-		if strings.Contains(call, "DEV version") || strings.Contains(call, "list suppliers") {
-			lines = append(lines, call)
-		}
+	if again, _ := b.preview(teamPreviewRequest{}); again.Told != "" {
+		t.Fatalf("%+v", again)
 	}
-	if len(lines) != 2 || lines[0] != "post C07PAYMENTS New DEV version (1 change, nothing released yet) :test_tube: -> App: <"+dev.URL+"|link> - Docs: <"+teamDocsLink(dev.URL)+"|link>" ||
-		!strings.HasPrefix(lines[1], "postIn C07PAYMENTS ") || !strings.HasSuffix(lines[1], " You can list suppliers now.") {
+	devLines := func() []string {
+		var lines []string
+		for _, call := range channel.calls {
+			if strings.Contains(call, "DEV version") || strings.Contains(call, "in dev") {
+				lines = append(lines, call)
+			}
+		}
+		return lines
+	}
+	headline := "New DEV version (1 change, nothing released yet) :test_tube: -> App: <" + dev.URL + "|link> - Docs: <" + teamDocsLink(dev.URL) + "|link>"
+	if lines := devLines(); len(lines) != 1 || lines[0] != "postIn D07ANNA 1700000100.000001 "+headline+"\nYou can list suppliers now." {
+		t.Fatalf("%q", lines)
+	}
+	// Asked to, hi posts it in the channel, once, with what's new in the
+	// line's thread.
+	if _, err := b.preview(teamPreviewRequest{Channel: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.preview(teamPreviewRequest{Channel: true}); err == nil || !strings.Contains(err.Error(), "already") {
+		t.Fatal(err)
+	}
+	if lines := devLines(); len(lines) != 3 || lines[1] != "post C07PAYMENTS "+headline || !strings.HasPrefix(lines[2], "postIn C07PAYMENTS ") || !strings.Contains(lines[2], "New in dev:\n• Suppliers") {
 		t.Fatalf("%q", lines)
 	}
 

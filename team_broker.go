@@ -1926,12 +1926,28 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				}
 				request.Notes = notes
 				i++
+			case args[i] == "--in" && i+1 < len(args):
+				request.In = args[i+1]
+				i++
+			case args[i] == "--channel":
+				request.Channel = true
 			case request.Task == "" && !request.Production && args[i] == "production":
 				request.Production = true
 			case request.Task == "" && !request.Production && teamTaskID.MatchString(args[i]):
 				request.Task = args[i]
 			default:
-				return usageError{"usage: hi team preview [<task> | production] [--port <n>] [--notes <file|->] | hi team preview stop"}
+				return usageError{"usage: hi team preview [<task> | production] [--port <n>] [--notes <file|->] [--in <id>] [--channel] | hi team preview stop"}
+			}
+		}
+		if (request.Channel || request.In != "") && (request.Task != "" || request.Production || request.Stop) {
+			return usageError{"--in and --channel are for dev's preview: hi team preview [--notes <file|->] [--in <id>] [--channel]"}
+		}
+		// The DEV line goes where the lead is answering: Hermes says where.
+		if request.In == "" && !request.Channel {
+			if os.Getenv("HERMES_SESSION_CHAT_TYPE") == "dm" && os.Getenv("HERMES_SESSION_USER_ID") != "" {
+				request.DM = &teamReleaseDM{User: os.Getenv("HERMES_SESSION_USER_ID"), Channel: os.Getenv("HERMES_SESSION_CHAT_ID"), Thread: os.Getenv("HERMES_SESSION_THREAD_ID")}
+			} else {
+				request.In = os.Getenv("HERMES_SESSION_THREAD_ID")
 			}
 		}
 		var preview teamPreview
