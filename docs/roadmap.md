@@ -2123,6 +2123,14 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   [hi_team_commands.md](specs/ideas/hi_team_commands.md).
 - [x] The compute guide lists Shadeform with the other providers.
 
+### v0.95.1 — The lead follows its threads
+
+- [x] Once someone @-mentions the lead, it answers every later reply in
+  that thread without a fresh @, and so in the threads it started, such
+  as "Ready for production": a plain "yes" there reaches it. A reply that
+  opens by @-mentioning someone else stays between people. Hermes'
+  `strict_mention` is off and `ignore_other_user_mentions` on.
+
 ## Planned
 
 ### Guide — a diagram for every tool
