@@ -150,11 +150,15 @@ browser keeps its copy until the script changes. It aims to be under
   live in the shadow root, so the app's CSS can't reach in and the helper's
   can't leak out. It changes nothing else in the app's DOM except the
   outline layer in select mode, which is also inside `<hi-helper>`.
-- **The button.** A round button in the bottom-right corner, which can be
-  dragged to another corner; the panel opens on that side. The app's
-  keyboard shortcuts don't fire while someone types in the panel. The corner, and whether the panel was open,
-  are kept per browser (localStorage, wrapped in try/catch).
-- **The panel.** A side panel on the right, 400 px wide, over the page. On
+- **The button.** A round button in the bottom-left corner (bottom-right
+  before v0.95), which can be dragged to another corner; the panel opens
+  on that side. The app's keyboard shortcuts don't fire while someone
+  types in the panel. The corner, the panel's width, and whether the panel
+  was open are kept per browser (localStorage, wrapped in try/catch).
+- **The panel.** A side panel on the button's side, 400 px wide, over the
+  page. Its inner edge drags it wider or narrower, from 320 px to all but
+  240 px of the window (at most 1100 px), and lights up while it does;
+  arrow keys on the edge do the same, and a double-click puts it back. On
   a narrow screen it is a bottom sheet. It shows the lead's name ("payments
   team lead"), which version the page is ("dev, v3 + 2 changes",
   "production v3"), the conversation, and the composer.
@@ -183,7 +187,8 @@ browser keeps its copy until the script changes. It aims to be under
   (`data-corner`: `tl`, `tr`, `bl`, `br`), whether the panel is open
   (`data-open`), and whether the button is hidden until a reload
   (`data-hidden`), and whether whoever is there can chat with the lead
-  (`data-chat`, signed in through Slack), and a `hi-helper` event on
+  (`data-chat`, signed in through Slack), and how wide the panel is
+  (`data-width`, in pixels), and a `hi-helper` event on
   `window` says when any of them changes. A `hi-helper-send` event on
   `window` with `{ text }` opens the panel on the chat (production's
   Change tab) and sends it; for someone who can't chat, the text waits in

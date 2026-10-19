@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 // The welcome page of a new team's app. Someone signed in starts here: what
 // they type in the middle of the page goes to the helper, the chat with
@@ -6,11 +6,11 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 // helper's button. Replace this when the team builds the app's first page,
 // with styles.css's welcome part.
 // hi adds the helper to every page; <hi-helper> says where its button is,
-// whether its panel is open, and whether whoever is here can chat with the
+// whether its panel is open and how wide, and whether whoever is here can chat with the
 // lead, and a "hi-helper" event says when that changes. A "hi-helper-send"
 // event hands it a message to send.
 
-type Helper = { corner: string; open: boolean; hidden: boolean; chat: boolean };
+type Helper = { corner: string; open: boolean; hidden: boolean; chat: boolean; width: number };
 
 function helperNow(): Helper | null {
   const host = document.querySelector<HTMLElement>("hi-helper");
@@ -22,6 +22,7 @@ function helperNow(): Helper | null {
     open: host.dataset.open === "true",
     hidden: host.dataset.hidden === "true",
     chat: host.dataset.chat === "true",
+    width: Number(host.dataset.width) || 400,
   };
 }
 
@@ -75,9 +76,13 @@ export function App() {
 
   const side = helper?.corner.endsWith("l") ? "left" : "right";
   if (helper?.open) {
-    // The text moves beside the helper's panel, which is on the button's side.
+    // The text moves beside the helper's panel, which is on the button's
+    // side, as wide as the person made it.
     return (
-      <main className={`welcome open beside-${side}`}>
+      <main
+        className={`welcome open beside-${side}`}
+        style={{ "--helper-width": `${helper.width}px` } as CSSProperties}
+      >
         <div className="column">
           <h1>Here you talk with your team's lead</h1>
           <p>

@@ -4,7 +4,9 @@ description: "The button on every page of a hi team's app: help from the app's g
 ---
 
 Every page of the preview and of production has a round button in the
-corner. What it opens depends on who you are.
+bottom-left corner; drag it to another corner if it covers something. The
+panel opens on its side, and you can drag the panel's edge to make it
+wider. What it opens depends on who you are.
 
 **Anyone with the app's link** gets help and feedback:
 

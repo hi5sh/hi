@@ -10,7 +10,13 @@ afterEach(() => {
 });
 
 // helper stands in for hi's helper: its element and its event.
-function helper(state: { corner?: string; open?: boolean; hidden?: boolean; chat?: boolean }) {
+function helper(state: {
+  corner?: string;
+  open?: boolean;
+  hidden?: boolean;
+  chat?: boolean;
+  width?: number;
+}) {
   let host = document.querySelector<HTMLElement>("hi-helper");
   if (!host) {
     host = document.createElement("hi-helper");
@@ -20,6 +26,7 @@ function helper(state: { corner?: string; open?: boolean; hidden?: boolean; chat
   host.dataset.open = String(state.open ?? false);
   host.dataset.hidden = String(state.hidden ?? false);
   host.dataset.chat = String(state.chat ?? false);
+  host.dataset.width = String(state.width ?? 400);
   act(() => {
     dispatchEvent(new CustomEvent("hi-helper"));
   });
@@ -39,6 +46,10 @@ test("points at the chat button, then says what the chat is for", () => {
   helper({ corner: "br", open: true });
   expect(screen.getByRole("heading").textContent).toBe("Here you talk with your team's lead");
   expect(screen.getByRole("main").className).toBe("welcome open beside-right");
+  // As wide as the person made the panel.
+  helper({ corner: "bl", open: true, width: 560 });
+  expect(screen.getByRole("main").className).toBe("welcome open beside-left");
+  expect(screen.getByRole("main").style.getPropertyValue("--helper-width")).toBe("560px");
   expect(screen.queryByRole("note")).toBeNull();
   helper({ corner: "tl" });
   expect(screen.getByRole("note").className).toBe("pointer tl");

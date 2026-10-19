@@ -168,15 +168,16 @@ body {
   }
 }
 
-/* With the helper's panel open, 400px wide on its side; on a phone it
-   covers the bottom of the screen, so only the heading shows above it. */
+/* With the helper's panel open on its side, as wide as the person made
+   it; on a phone it covers the bottom of the screen, so only the heading
+   shows above it. */
 @media (min-width: 641px) {
   .welcome.beside-right {
-    padding-right: 424px;
+    padding-right: calc(var(--helper-width, 400px) + 24px);
   }
 
   .welcome.beside-left {
-    padding-left: 424px;
+    padding-left: calc(var(--helper-width, 400px) + 24px);
   }
 }
 

@@ -46,13 +46,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .fab.unread .dot { display: block; }
 .fab.tl, .fab.tr { top: 16px; } .fab.bl, .fab.br { bottom: 16px; }
 .fab.tl, .fab.bl { left: 16px; } .fab.tr, .fab.br { right: 16px; }
-.panel { position: fixed; top: 0; bottom: 0; width: min(400px, 100vw); background: var(--bg);
+.panel { position: fixed; top: 0; bottom: 0; width: min(var(--width, 400px), 100vw); background: var(--bg);
   border-left: 1px solid var(--line); box-shadow: var(--shadow); display: none; flex-direction: column; }
 .panel.right { right: 0; } .panel.left { left: 0; border-left: 0; border-right: 1px solid var(--line); }
 .panel.open { display: flex; }
+.grip { position: absolute; top: 0; bottom: 0; width: 10px; cursor: col-resize; touch-action: none; z-index: 1; outline: none; }
+.panel.right .grip { left: -5px; } .panel.left .grip { right: -5px; }
+.grip::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent; transition: background .15s; }
+.grip:hover::after, .grip:focus-visible::after, .panel.resizing .grip::after { background: var(--accent); }
+.panel.resizing { user-select: none; }
 @media (max-width: 640px) {
   .panel, .panel.left, .panel.right { top: auto; left: 0; right: 0; width: 100vw; height: 85vh;
     border: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; }
+  .grip { display: none; }
 }
 header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); }
 header .title { flex: 1; min-width: 0; }
@@ -262,6 +268,7 @@ textarea:focus { border-color: var(--accent); }
 <button class="fab" part="button" aria-label="Help" title="Help">${ICONS.chat}<span class="dot"></span></button>
 <button class="toast" aria-live="polite"><span class="from"></span><span class="text"></span></button>
 <section class="panel" role="dialog" aria-label="Help">
+  <div class="grip" role="separator" aria-orientation="vertical" aria-label="Drag to make the panel wider or narrower" title="Drag to resize; double-click for the usual width" tabindex="0"></div>
   <header>
     <div class="title"><div class="name"></div><div class="version"></div></div>
     <button class="icon history" aria-label="Past chats" title="Past chats" aria-pressed="false">${ICONS.history}</button>
@@ -357,7 +364,9 @@ textarea:focus { border-color: var(--accent); }
   // ---------------------------------------------------------------------
   // the button: a click opens the panel; a drag moves it to another corner
 
-  let corner = store.get("localStorage", "corner") || "br";
+  // The button starts bottom left, and the panel opens on the left, beside
+  // the page, as in the tools people know; it can be dragged to any corner.
+  let corner = store.get("localStorage", "corner") || "bl";
   function placeButton() {
     fab.className = "fab " + corner + (fab.classList.contains("unread") ? " unread" : "");
     toast.className = "toast " + corner + (toast.classList.contains("show") ? " show" : "");
@@ -366,14 +375,58 @@ textarea:focus { border-color: var(--accent); }
     announce();
   }
 
+  // The panel's width: its inner edge drags wider or narrower, between a
+  // phone's width and most of the window, and the browser keeps it.
+  const grip = $(".grip");
+  const usualWidth = 400;
+  const fit = (value) => Math.round(Math.max(320, Math.min(value, Math.max(320, Math.min(1100, innerWidth - 240)))));
+  let width = fit(store.get("localStorage", "width") || usualWidth);
+  panel.style.setProperty("--width", width + "px");
+  function setWidth(value, keep) {
+    width = fit(value);
+    panel.style.setProperty("--width", width + "px");
+    grip.setAttribute("aria-valuenow", String(width));
+    if (keep) store.set("localStorage", "width", width === usualWidth ? null : width);
+    announce();
+  }
+  let resizing = false;
+  grip.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    resizing = true;
+    grip.setPointerCapture(event.pointerId);
+    panel.classList.add("resizing");
+  });
+  grip.addEventListener("pointermove", (event) => {
+    if (resizing) setWidth(panel.classList.contains("left") ? event.clientX : innerWidth - event.clientX);
+  });
+  const stopResizing = () => {
+    if (!resizing) return;
+    resizing = false;
+    panel.classList.remove("resizing");
+    setWidth(width, true);
+  };
+  grip.addEventListener("pointerup", stopResizing);
+  grip.addEventListener("pointercancel", stopResizing);
+  grip.addEventListener("dblclick", () => setWidth(usualWidth, true));
+  grip.addEventListener("keydown", (event) => {
+    const wider = panel.classList.contains("left") ? "ArrowRight" : "ArrowLeft";
+    const narrower = wider === "ArrowRight" ? "ArrowLeft" : "ArrowRight";
+    if (event.key === wider || event.key === narrower) {
+      event.preventDefault();
+      setWidth(width + (event.key === wider ? 40 : -40), true);
+    }
+  });
+  addEventListener("resize", () => setWidth(store.get("localStorage", "width") || usualWidth));
+
   // The page can follow the helper, as a new team's welcome page does to
   // point at the button: <hi-helper> says where the button is
   // (data-corner: tl, tr, bl, br), whether the panel is open (data-open),
   // whether the button is hidden (data-hidden), and whether whoever is
   // here can chat with the lead (data-chat, signed in through Slack), and
-  // a "hi-helper" event on window says when any of them changes.
+  // how wide the panel is in pixels (data-width), and a "hi-helper" event
+  // on window says when any of them changes.
   function announce() {
-    const detail = { corner, open: panel.classList.contains("open"), hidden: fab.style.display === "none" && !panel.classList.contains("open"), chat: signedIn() };
+    const detail = { corner, open: panel.classList.contains("open"), hidden: fab.style.display === "none" && !panel.classList.contains("open"), chat: signedIn(), width };
     if (Object.keys(detail).every((key) => host.dataset[key] === String(detail[key]))) return;
     for (const key in detail) host.dataset[key] = String(detail[key]);
     dispatchEvent(new CustomEvent("hi-helper", { detail }));

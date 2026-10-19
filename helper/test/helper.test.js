@@ -375,7 +375,7 @@ test("tells the page where its button is and whether it is open", async () => {
   try {
     await start(anyone);
     const host = document.querySelector("hi-helper");
-    expect(host.dataset).toMatchObject({ corner: "br", open: "false", hidden: "false", chat: "false" });
+    expect(host.dataset).toMatchObject({ corner: "bl", open: "false", hidden: "false", chat: "false", width: "400" });
     open();
     expect(host.dataset.open).toBe("true");
     $(".close").click();
@@ -384,10 +384,10 @@ test("tells the page where its button is and whether it is open", async () => {
     $("[data-action=hide]").click();
     expect(host.dataset.hidden).toBe("true");
     expect(events).toEqual([
-      { corner: "br", open: false, hidden: false, chat: false },
-      { corner: "br", open: true, hidden: false, chat: false },
-      { corner: "br", open: false, hidden: false, chat: false },
-      { corner: "br", open: false, hidden: true, chat: false },
+      { corner: "bl", open: false, hidden: false, chat: false, width: 400 },
+      { corner: "bl", open: true, hidden: false, chat: false, width: 400 },
+      { corner: "bl", open: false, hidden: false, chat: false, width: 400 },
+      { corner: "bl", open: false, hidden: true, chat: false, width: 400 },
     ]);
   } finally {
     removeEventListener("hi-helper", record);
@@ -480,4 +480,26 @@ test("has no history for someone who can't chat", async () => {
   open();
   expect($(".history").hidden).toBe(true);
   expect($(".fresh").hidden).toBe(true);
+});
+
+// The panel starts on the left, and its inner edge makes it wider or
+// narrower; the browser keeps the width.
+test("opens on the left and resizes from its edge", async () => {
+  await start(anyone);
+  open();
+  const panel = $(".panel");
+  expect(panel.classList.contains("left")).toBe(true);
+  expect(panel.style.getPropertyValue("--width")).toBe("400px");
+  const grip = $(".grip");
+  grip.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  grip.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  expect(panel.style.getPropertyValue("--width")).toBe("480px");
+  expect(document.querySelector("hi-helper").dataset.width).toBe("480");
+  expect(localStorage.getItem("hi-helper-width")).toBe("480");
+  // Never narrower than a phone, nor wider than leaves room for the page.
+  for (let i = 0; i < 40; i++) grip.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+  expect(panel.style.getPropertyValue("--width")).toBe("320px");
+  grip.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  expect(panel.style.getPropertyValue("--width")).toBe("400px");
+  expect(localStorage.getItem("hi-helper-width")).toBeNull();
 });
