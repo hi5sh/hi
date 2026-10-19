@@ -38,9 +38,9 @@ const (
 	// incident: starting the team (a new hi) cuts the app's model calls
 	// through hi and restarts its boxes, and a job that trips on that
 	// moves again within minutes.
-	teamJobSettle = 10 * time.Minute
-	teamJobsMax        = 64      // job files read per slot
-	teamJobFileMax     = 8 << 10 // bytes read from a job's file
+	teamJobSettle  = 10 * time.Minute
+	teamJobsMax    = 64      // job files read per slot
+	teamJobFileMax = 8 << 10 // bytes read from a job's file
 )
 
 // teamJobsRule follows the drawing rule in every brief: how the app's long
