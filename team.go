@@ -484,7 +484,7 @@ func (liveTeamSlack) scopes(botToken string) ([]string, error) {
 
 // teamSlackScopes are what a team's Slack app asks for in its manifest.
 var teamSlackScopes = []string{
-	"app_mentions:read", "channels:history", "channels:read", "chat:write", "commands", "files:read", "files:write",
+	"app_mentions:read", "assistant:write", "channels:history", "channels:read", "chat:write", "commands", "files:read", "files:write",
 	"groups:history", "groups:read", "im:history", "im:read", "im:write", "reactions:read", "reactions:write", "users:read",
 }
 
@@ -519,8 +519,12 @@ func teamScopesAdvice(missing []string) string {
 	if containsString(missing, "im:history") || containsString(missing, "im:read") {
 		lost = append(lost, "talking to the lead in a DM")
 	}
+	if containsString(missing, "assistant:write") {
+		lost = append(lost, "Slack's thinking indicator while the lead works")
+	}
 	if len(lost) > 0 {
-		// These need the manifest's command and events too, not just scopes.
+		// These need the manifest's command, events, and agent view too,
+		// not just scopes.
 		advice = fmt.Sprintf("the Slack app lacks %s, so %s can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints, Save, then Reinstall to Workspace", strings.Join(missing, ", "), strings.Join(lost, ", and "))
 	}
 	return advice

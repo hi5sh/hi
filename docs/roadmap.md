@@ -2137,6 +2137,17 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   without posting Hermes' "Interrupting current task" and its `/busy`
   tip (`display.busy_ack_enabled: false`).
 
+### v0.96.0 — The lead shows it is thinking
+
+- [x] While the lead works, Slack shows that it is thinking: its own
+  animated line in the thread, and "cartman is thinking…" under the reply
+  box, naming what it does without paths or commands
+  (`display.live_status: verb`).
+- [x] The team's manifest turns on Slack's agent view (not the assistant
+  view Slack retires in February 2027) and asks for `assistant:write`;
+  `hi team up` warns until an app has it. Paste `hi team manifest
+  <name>` into the app's App Manifest and reinstall.
+
 ## Planned
 
 ### Guide — a diagram for every tool

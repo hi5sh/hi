@@ -62,7 +62,11 @@ made from an older or another manifest can lack one, such as `files:read`,
 and then the lead gets an error on every file people share; hi names the
 missing scopes, and adding them under OAuth & Permissions and reinstalling
 the app fixes it. `hi team up` checks again and warns, for teams made
-before. Without a terminal, give the answers in a file and the tokens in
+before. Apps made before v0.96.0 lack `assistant:write`, which lets
+Slack show that the lead is thinking while it works: paste the manifest
+`hi team manifest <name>` prints into the app's App Manifest, Save, and
+reinstall. It turns on Slack's agent view, which Slack can't turn off
+again. Without a terminal, give the answers in a file and the tokens in
 `HI_TEAM_SLACK_BOT_TOKEN` and `HI_TEAM_SLACK_APP_TOKEN` (and the team's
 OpenRouter key, if it has one, in `HI_TEAM_OPENROUTER_API_KEY`):
 

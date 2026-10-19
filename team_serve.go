@@ -307,7 +307,9 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	settings += "cron:\n  wrap_response: false\n"
 	// No "Interrupting current task" reply, with its /busy tip, when someone
 	// writes while the lead is working: the lead still takes the message.
-	settings += "display:\n  busy_ack_enabled: false\n"
+	// Slack's thinking indicator names what the lead does, without the
+	// paths and commands, which the channel has no use for.
+	settings += "display:\n  busy_ack_enabled: false\n  live_status: verb\n"
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.
@@ -531,8 +533,9 @@ func appendTeamNotes(path string, paragraphs []string) error {
 	return err
 }
 
-// teamManifest is the team's Slack app: Socket Mode, one channel, no
-// direct messages or assistant view.
+// teamManifest is the team's Slack app: Socket Mode, one channel, the
+// bot's DMs, and Slack's agent view, whose assistant:write lets the lead
+// show that it is thinking while it works.
 func teamManifest(config teamConfig) string {
 	description := firstNonEmpty(config.Purpose, "A hi team")
 	if len(description) > 139 {
@@ -544,12 +547,15 @@ func teamManifest(config teamConfig) string {
 			"bot_user": map[string]any{"display_name": teamBotName(config.Name), "always_online": true},
 			// The DM is hi's, for people's private links: they read it,
 			// and write in the channel.
-			"app_home":       map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": false},
+			"app_home": map[string]any{"home_tab_enabled": false, "messages_tab_enabled": true, "messages_tab_read_only_enabled": false},
+			// Slack's newer agent view, not the assistant view it retires in
+			// February 2027: a DM stays one conversation.
+			"agent_view":     map[string]any{"agent_description": "The " + teamBotName(config.Name) + " team lead"},
 			"slash_commands": []map[string]any{{"command": teamSlashCommand(config.Name), "description": "A private link to the app's chat with the " + teamBotName(config.Name) + " team lead", "should_escape": false}},
 		},
 		"oauth_config": map[string]any{"scopes": map[string]any{"bot": teamSlackScopes}},
 		"settings": map[string]any{
-			"event_subscriptions":    map[string]any{"bot_events": []string{"app_mention", "message.channels", "message.groups", "message.im", "reaction_added", "reaction_removed"}},
+			"event_subscriptions":    map[string]any{"bot_events": []string{"app_context_changed", "app_home_opened", "app_mention", "message.channels", "message.groups", "message.im", "reaction_added", "reaction_removed"}},
 			"interactivity":          map[string]any{"is_enabled": true},
 			"org_deploy_enabled":     false,
 			"socket_mode_enabled":    true,

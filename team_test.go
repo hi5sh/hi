@@ -124,7 +124,8 @@ func TestTeamManifest(t *testing.T) {
 	// One channel, and the bot's DMs: people talk to the lead there, and
 	// hi checks a yes given in one.
 	if !strings.Contains(all, "im:history") || !strings.Contains(all, "message.im") || !strings.Contains(all, "message.channels") ||
-		!strings.Contains(all, "im:write") || !strings.Contains(all, "commands") || strings.Contains(all, "mpim") {
+		!strings.Contains(all, "im:write") || !strings.Contains(all, "commands") || strings.Contains(all, "mpim") ||
+		!strings.Contains(all, "assistant:write") || !strings.Contains(all, "app_home_opened") {
 		t.Fatal(all)
 	}
 	manifestText := teamManifest(testTeamConfig())
@@ -134,7 +135,8 @@ func TestTeamManifest(t *testing.T) {
 	if teamSlashCommand("Team Ab.C") != "/hi-team-ab-c" {
 		t.Fatal(teamSlashCommand("Team Ab.C"))
 	}
-	if !strings.Contains(manifestText, `"command": "/hi-payments"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": false`) {
+	if !strings.Contains(manifestText, `"command": "/hi-payments"`) || !strings.Contains(manifestText, `"messages_tab_read_only_enabled": false`) ||
+		!strings.Contains(manifestText, `"agent_view"`) || strings.Contains(manifestText, `"assistant_view"`) {
 		t.Fatal(manifestText)
 	}
 }
@@ -239,7 +241,7 @@ func TestTeamNewChecksSlack(t *testing.T) {
 	}
 	// An app made from another manifest lacks scopes the lead needs.
 	teamSlack = fakeTeamSlack{fewScopes: true}
-	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "lacks app_mentions:read, channels:read, commands, files:read") {
+	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "lacks app_mentions:read, assistant:write, channels:read, commands, files:read") {
 		t.Fatal(err)
 	}
 	teamSlack = fakeTeamSlack{}
@@ -270,7 +272,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the channel-watch script is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false", "agent:\n  max_turns: 60"} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}
