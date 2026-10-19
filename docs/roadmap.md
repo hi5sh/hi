@@ -2106,6 +2106,23 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   every chat was too much. Chats without a checked person, and threads
   already in the channel, stay there.
 
+### v0.95.0 — The chat, beside the page
+
+- [x] A new chat from the pen button in the helper's header, or `/clear`
+  (or `/new`) typed as a message, so a new change doesn't carry the last
+  one's talk; nothing goes to the lead.
+- [x] The clock button lists the person's past chats on that address, the
+  latest first; opening one makes it the chat again, and the lead still
+  has all of it (`GET /__hi/api/conversations`, `POST
+  /__hi/api/conversation/open`).
+- [x] The button starts bottom left and the panel opens on the left. Its
+  inner edge drags it wider or narrower (320 px to all but 240 px of the
+  window), lights up while it does, and the browser keeps the width;
+  `<hi-helper data-width>` tells the page.
+- [x] Spec draft for `/` commands in the chat:
+  [hi_team_commands.md](specs/ideas/hi_team_commands.md).
+- [x] The compute guide lists Shadeform with the other providers.
+
 ## Planned
 
 ### Guide — a diagram for every tool
