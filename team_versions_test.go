@@ -86,19 +86,37 @@ func TestTeamVersions(t *testing.T) {
 	b.exposed = func(name string) (netExposeState, bool) { return netExposeState{}, name == "team-payments" }
 	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
 	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, URL: "https://p.example.com/?hi_key=k", Expose: "team-payments", Relay: teamRelayStamp("payments", teamSlotPreview)})
-	ask, askErr := b.askRelease("Suppliers, and a search.", "")
+	ask, askErr := b.askRelease("Suppliers, and a search.", "", nil)
 	if askErr != nil || ask.Version != 1 || ask.Changes != 2 || ask.TS == "" {
 		t.Fatalf("%+v %v", ask, askErr)
 	}
-	if !strings.HasPrefix(posted(), "post C07PAYMENTS :package: *Ready for the first release, production v1?* Dev has:\n• Add a supplier list ("+first.ID+"), ") ||
+	// One line in the channel, the rest in its thread.
+	if headline := channel.calls[len(channel.calls)-2]; headline != "post C07PAYMENTS :package: *Ready for the first release, production v1?* (2 changes, nothing released yet) An owner's yes in the thread releases it." {
+		t.Fatal(headline)
+	}
+	if !strings.HasPrefix(posted(), "postIn C07PAYMENTS "+ask.TS+" Dev has:\n• Add a supplier list ("+first.ID+"), ") ||
 		!strings.Contains(posted(), "\nSuppliers, and a search.\n") || !strings.HasSuffix(posted(), "Try it on <https://p.example.com/?hi_key=k|the preview>, and read what changed in <https://p.example.com/docs/?hi_key=k|its docs>.\nAn owner's yes in this thread releases it as v1.") {
 		t.Fatal(posted())
+	}
+	// Asked from an owner's DM, it goes there, and nowhere else; from
+	// someone else's, in the channel.
+	calls := len(channel.calls)
+	if ask, err := b.askRelease("", "", &teamReleaseDM{User: "U07OWNER1", Channel: "D07OWNER", Thread: "1700000000.000900"}); err != nil || !ask.InDM ||
+		len(channel.calls) != calls+1 || !strings.HasPrefix(posted(), "postIn D07OWNER 1700000000.000900 :package: *Ready for the first release, production v1?* Dev has:") ||
+		!strings.HasSuffix(posted(), "Say yes here and I release it as v1; the channel gets one line about it.") {
+		t.Fatal(ask, err, posted())
+	}
+	if ask, err := b.askRelease("", "", &teamReleaseDM{User: "U07OWNER1"}); err != nil || !ask.InDM || !strings.HasPrefix(posted(), "dm U07OWNER1 :package:") {
+		t.Fatal(ask, err, posted())
+	}
+	if ask, err := b.askRelease("", "", &teamReleaseDM{User: "U07ASKER"}); err != nil || ask.InDM || !strings.HasPrefix(channel.calls[len(channel.calls)-2], "post C07PAYMENTS :package:") {
+		t.Fatal(ask, err, channel.calls)
 	}
 	// Asked for in a message, the summary goes in its thread.
 	request := teamTestYes(t, "U07OWNER1", 35)
 	config, _ := loadTeam("payments")
 	thread, _ := b.teamFindThread(config, request)
-	if _, err := b.askRelease("", request); err != nil || thread == "" || !strings.HasPrefix(posted(), "postIn C07PAYMENTS "+thread+" :package: *Ready for the first release") {
+	if _, err := b.askRelease("", request, nil); err != nil || thread == "" || !strings.HasPrefix(posted(), "postIn C07PAYMENTS "+thread+" :package: *Ready for the first release") {
 		t.Fatal(err, posted())
 	}
 
@@ -134,7 +152,7 @@ func TestTeamVersions(t *testing.T) {
 	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 19), Notes: "x"}); err == nil || !strings.Contains(err.Error(), "nothing new since production v1") {
 		t.Fatal(err)
 	}
-	if _, err := b.askRelease("", ""); err == nil || !strings.Contains(err.Error(), "nothing new since production v1") {
+	if _, err := b.askRelease("", "", nil); err == nil || !strings.Contains(err.Error(), "nothing new since production v1") {
 		t.Fatal(err)
 	}
 	if view, _ = teamVersionsReport("payments"); view.Dev != "dev, the same as production v1" {

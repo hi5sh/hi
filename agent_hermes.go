@@ -172,6 +172,45 @@ func hermesWithSite(command []string, site string) ([]string, bool) {
 	return command, len(command) >= 2 && filepath.Base(command[0]) == "python" && filepath.Base(filepath.Dir(filepath.Dir(command[0]))) == "venv"
 }
 
+// hermesSlackStatusPrelude hides Slack's Agent Sessions API from Hermes,
+// so its Slack adapter shows the lead's status with
+// assistant.threads.setStatus. Hermes v0.22.2 prefers
+// agents.sessions.setStatus once slack-sdk has it (3.44), but passes it
+// the status line, where that method takes a lifecycle state: Slack
+// refuses every call, Hermes logs it only in debug, and the thread shows
+// nothing while the lead works.
+const hermesSlackStatusPrelude = `import sys, importlib.util
+class _HiSlackStatus:
+    def find_spec(self, name, path=None, target=None):
+        if name != "slack_sdk.web.async_client":
+            return None
+        sys.meta_path.remove(self)
+        spec = importlib.util.find_spec(name)
+        if spec is None or spec.loader is None:
+            return spec
+        run = spec.loader.exec_module
+        def exec_module(module):
+            run(module)
+            for method in ("agents_sessions_setStatus", "agents_sessions_rename"):
+                if method in vars(module.AsyncWebClient):
+                    delattr(module.AsyncWebClient, method)
+        spec.loader.exec_module = exec_module
+        return spec
+sys.meta_path.insert(0, _HiSlackStatus())
+`
+
+// hermesWithSlackStatus runs hermesSlackStatusPrelude before Hermes, in
+// a command of the shape hermesWithSite knows; it reports false for any
+// other.
+func hermesWithSlackStatus(command []string) ([]string, bool) {
+	if len(command) >= 4 && command[1] == "-I" && command[2] == "-c" {
+		with := append([]string(nil), command...)
+		with[3] = hermesSlackStatusPrelude + with[3]
+		return with, true
+	}
+	return command, false
+}
+
 func hermesInstallDir() string {
 	return firstNonEmpty(os.Getenv("HERMES_INSTALL_DIR"), filepath.Join(hermesHome(), "hermes-agent"))
 }

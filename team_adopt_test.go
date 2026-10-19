@@ -151,7 +151,7 @@ func TestTeamAdopt(t *testing.T) {
 		t.Fatalf("%+v", versions)
 	}
 	b := newTeamBroker("payments", "hi")
-	if ask, err := b.askRelease("", ""); err == nil || ask.Version > 1 {
+	if ask, err := b.askRelease("", "", nil); err == nil || ask.Version > 1 {
 		t.Fatal(ask, err)
 	}
 	// The lead knows where the project came from, and how to say it.
@@ -406,7 +406,7 @@ func TestTeamReleaseLicenceNote(t *testing.T) {
 	config, _ := loadTeam("payments")
 	config.Adopted = &teamAdopted{Name: "pocket-kanban", Licence: "none"}
 	saveTeam(config)
-	if _, err := b.askRelease("", ""); err != nil {
+	if _, err := b.askRelease("", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	if posted := strings.Join(channel.calls, "\n"); !strings.Contains(posted, ":scroll: This app started from pocket-kanban. Its licence: no licence") {

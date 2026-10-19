@@ -2178,6 +2178,20 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   unseen and an older message at the top of the DM counted instead.
   Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
 
+### v0.98.0 — Asked where the owner is
+
+- [x] `hi team release --ask` run from an owner's DM asks them in that
+  DM, never the channel; their yes there releases dev, and the channel
+  gets only the PROD line. The lead's notes saying otherwise are marked
+  out of date.
+- [x] In the channel, the ask is one line, with what production would
+  get and the preview's links in its thread, where the owners say yes.
+- [x] The lead's "is thinking…" line shows again: Hermes v0.22.2 sent its
+  status to Slack's new Agent Sessions API, which takes only a lifecycle
+  state and refused every call. hi hides that API from the lead's Hermes,
+  which then uses `assistant.threads.setStatus`.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

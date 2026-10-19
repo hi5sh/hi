@@ -217,3 +217,14 @@ func TestHermesRuntimeFromLauncher(t *testing.T) {
 		t.Fatal("a command hi doesn't know can't take the folder")
 	}
 }
+
+func TestHermesWithSlackStatus(t *testing.T) {
+	command := []string{"/py/bin/python3", "-I", "-c", "import hermes_bootstrap"}
+	with, ok := hermesWithSlackStatus(command)
+	if !ok || !strings.HasPrefix(with[3], hermesSlackStatusPrelude) || !strings.HasSuffix(with[3], "\nimport hermes_bootstrap") || command[3] != "import hermes_bootstrap" {
+		t.Fatalf("%q", with)
+	}
+	if _, ok := hermesWithSlackStatus([]string{"/usr/bin/hermes"}); ok {
+		t.Fatal("changed a command of another shape")
+	}
+}

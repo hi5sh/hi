@@ -517,7 +517,7 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		request.Data = r.URL.Query().Get("data") == "1"
 		if r.URL.Query().Get("ask") == "1" {
-			ask, err := b.askRelease(request.Notes, request.In)
+			ask, err := b.askRelease(request.Notes, request.In, request.DM)
 			reply(w, ask, err)
 			return
 		}
@@ -1784,9 +1784,17 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			if request.Approval != "" || request.Version != 0 {
 				return usageError{"usage: hi team release --ask [--in <id>] [--notes <file|->]  (no --approval: the yes comes after)"}
 			}
+			// Asked from a DM: an owner is asked there.
+			if os.Getenv("HERMES_SESSION_CHAT_TYPE") == "dm" && os.Getenv("HERMES_SESSION_USER_ID") != "" && request.In == "" {
+				request.DM = &teamReleaseDM{User: os.Getenv("HERMES_SESSION_USER_ID"), Channel: os.Getenv("HERMES_SESSION_CHAT_ID"), Thread: os.Getenv("HERMES_SESSION_THREAD_ID")}
+			}
 			var asked teamReleaseAsk
 			if err := call("POST", "/release?ask=1", request, &asked); err != nil {
 				return err
+			}
+			if asked.InDM {
+				fmt.Fprintf(stdout, "Asked them in this DM: v%d with %d piece(s) of work. Don't post it in the channel, and don't repeat it: end your turn. When they say yes here, run hi team release --approval dm --notes <file>; the channel gets one line about it.\n", asked.Version, asked.Changes)
+				break
 			}
 			fmt.Fprintf(stdout, "Asked the owners (message %s): v%d with %d piece(s) of work and who asked for each. Wait for an owner's yes in its thread, then hi team release --approval <their message id> --notes <file>.\n", asked.TS, asked.Version, asked.Changes)
 			break

@@ -33,8 +33,9 @@ the owner's yes in the DM releases it, and the channel gets only the PROD
 line. A rollback, or production's helper, still needs an owner's yes in
 the channel.
 
-In the channel, the lead runs `hi team release --ask`, and hi posts one
-summary:
+When the lead runs `hi team release --ask` in an owner's DM, hi asks
+them there. In the channel, hi posts one line, "Ready for production
+v4? (v3 + 2 changes)", and in its thread one summary:
 
 > :package: **Ready for production v4?** Dev has what production v3 hasn't:
 > • Red badge when overdue (t-12), asked for by Anna in a DM

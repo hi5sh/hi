@@ -228,6 +228,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 			fmt.Fprintln(stderr, "hi: Hermes runs in a way hi doesn't know, so the lead may not find Hindsight's client and keep to Hermes' built-in memory")
 		}
 	}
+	if with, ok := hermesWithSlackStatus(command); ok {
+		command = with
+	}
 	run = append(append(run, meta.Image), command...)
 	run = append(run, "gateway", "run", "--accept-hooks")
 
@@ -917,7 +920,7 @@ of its own on a branch of the project; you get their reports.
 | hi team preview stop | End the preview |
 | hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
-| hi team release --ask [--in <id>] [--notes <file>] | Ask the owners to release dev: hi posts what production would get, who asked for each piece, and the preview's link and docs, in the channel or in the thread of the message that asked |
+| hi team release --ask [--in <id>] [--notes <file>] | Ask the owners to release dev: what production would get, who asked for each piece, and the preview's links; from an owner's DM it goes in that DM, otherwise one line in the channel with the rest in its thread, or in the thread of the message that asked |
 | hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes (in the channel, or --approval dm in their DM); hi posts one line in the channel, with the notes in its thread |
 | hi team release v2 --approval <id> | Put production's code back on v2, once an owner says yes; its data stays |
 | hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
@@ -1382,14 +1385,18 @@ talk to you about it:
 
 When the people are happy with dev, ask an owner for a release:
 
-- **In an owner's DM with you** ("push dev to prod"): say there, in a
-  few lines, what production would get (hi team versions lists it), ask
-  for their yes, and end your turn. When they say yes in the DM, release
-  with --approval dm. Nothing goes in the channel but hi's PROD line.
+- **In an owner's DM with you** ("push dev to prod"): run hi team release
+  --ask there, with --notes <file>. hi asks them in that DM, never in the
+  channel, and says so; don't post it anywhere else, and end your turn.
+  When they say yes in the DM, release with --approval dm. Nothing goes
+  in the channel but hi's PROD line. An owner's yes in their DM is
+  enough: never send an owner to the channel to approve a release. Notes
+  of yours that say a DM can't approve a release are from before hi
+  v0.97.0: follow this instead, and fix the note.
 - **In the channel**, run hi team release --ask, with --notes <file> for a
-  few lines in their words on what production gets. hi posts one summary:
-  each piece of work, who asked for it, and the preview's links, asking
-  the owners for a yes in its thread. When someone asked for the release
+  few lines in their words on what production gets. hi posts one line,
+  with each piece of work, who asked for it, and the preview's links in
+  its thread, asking the owners for a yes there. When someone asked for the release
   in a thread, add --in <their message id> so it goes there; when you
   propose it yourself, leave --in out. Don't post your own summary as
   well. End your turn and wait, and once an owner says yes there, release

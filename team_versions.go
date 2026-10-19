@@ -382,6 +382,9 @@ type teamReleaseRequest struct {
 	// In is the message a release was asked for in, for --ask: the
 	// summary goes in its thread.
 	In string `json:"in,omitempty"`
+	// DM is the DM the lead asked from, for --ask: Hermes says whose it
+	// is, and the thread in it. An owner's ask is answered there.
+	DM *teamReleaseDM `json:"dm,omitempty"`
 	// Data puts production's data back as Version left it too: a rollback.
 	Data bool `json:"data,omitempty"`
 	// DataFrom is "preview" for a release that gives production a copy of
@@ -665,18 +668,29 @@ func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, no
 	return text.String()
 }
 
+// teamReleaseDM is the DM a release was asked for in.
+type teamReleaseDM struct {
+	User    string `json:"user"`
+	Channel string `json:"channel,omitempty"`
+	Thread  string `json:"thread,omitempty"`
+}
+
 // teamReleaseAsk is what hi team release --ask posted: the summary of what
 // the next release would hold, whose thread takes an owner's yes.
 type teamReleaseAsk struct {
 	TS      string `json:"ts"`
 	Version int    `json:"version"`
 	Changes int    `json:"changes"`
+	InDM    bool   `json:"in_dm,omitempty"`
 }
 
-// askRelease posts in the channel what production would get from dev, who
-// asked for each piece, and where to try it, and asks the owners for a yes
-// in its thread: the one message the channel gets about work for dev.
-func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
+// askRelease asks the owners whether to release dev: what production
+// would get, who asked for each piece, and where to try it. Asked from an
+// owner's DM, it goes there, and the owner's yes there releases it; the
+// channel hears only of the release. Otherwise the channel gets one line,
+// and the rest and the owners' yes go in its thread, or in the thread of
+// the message that asked (in).
+func (b *teamBroker) askRelease(notes, in string, dm *teamReleaseDM) (teamReleaseAsk, error) {
 	notes = strings.TrimSpace(notes)
 	if len(notes) > 3000 {
 		return teamReleaseAsk{}, errors.New("keep the notes short: a few lines, under 3000 characters")
@@ -709,9 +723,9 @@ func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 	ask.Changes = len(work)
 	var text strings.Builder
 	if versions.Production == 0 {
-		fmt.Fprintf(&text, ":package: *Ready for the first release, production v%d?* Dev has:\n", ask.Version)
+		text.WriteString("Dev has:\n")
 	} else {
-		fmt.Fprintf(&text, ":package: *Ready for production v%d?* Dev has what production v%d hasn't:\n", ask.Version, versions.Production)
+		fmt.Fprintf(&text, "Dev has what production v%d hasn't:\n", versions.Production)
 	}
 	for _, piece := range work {
 		fmt.Fprintf(&text, "• %s (%s), %s\n", teamSlackEscape(piece.Root.Title), strings.Join(piece.IDs, ", "), teamTaskAskedBy(piece.Root))
@@ -736,20 +750,35 @@ func (b *teamBroker) askRelease(notes, in string) (teamReleaseAsk, error) {
 			text.WriteString(".")
 		}
 	}
-	fmt.Fprintf(&text, "\nAn owner's yes in this thread releases it as v%d.", ask.Version)
+	question := fmt.Sprintf(":package: *Ready for production v%d?*", ask.Version)
+	if versions.Production == 0 {
+		question = fmt.Sprintf(":package: *Ready for the first release, production v%d?*", ask.Version)
+	}
+	if dm != nil && containsString(config.Owners, dm.User) {
+		ask.InDM = true
+		body := question + " " + text.String() + fmt.Sprintf("\nSay yes here and I release it as v%d; the channel gets one line about it.", ask.Version)
+		if dm.Channel != "" && dm.Thread != "" {
+			ask.TS, err = b.channel.postIn(dm.Channel, dm.Thread, body)
+		} else {
+			_, ask.TS, err = b.channel.dm(dm.User, body)
+		}
+		return ask, err
+	}
+	yes := fmt.Sprintf("\nAn owner's yes in this thread releases it as v%d.", ask.Version)
 	if in != "" {
 		// Asked for in a thread: the summary and the yes go there.
 		thread, err := b.teamFindThread(config, in)
 		if err != nil {
 			return teamReleaseAsk{}, err
 		}
-		if ask.TS, err = b.channel.postIn(config.Channel, thread, text.String()); err != nil {
+		if ask.TS, err = b.channel.postIn(config.Channel, thread, question+" "+text.String()+yes); err != nil {
 			return teamReleaseAsk{}, err
 		}
 		return ask, nil
 	}
-	if ask.TS, err = b.channel.post(config.Channel, text.String()); err != nil {
-		return teamReleaseAsk{}, err
+	headline := fmt.Sprintf("%s (%s) An owner's yes in the thread releases it.", question, strings.TrimPrefix(teamDevLabel(versions.Production, len(teamDevChanges(b.repo, all))), "dev, "))
+	if ask.TS = b.announceInThread(config, headline, text.String()+yes); ask.TS == "" {
+		return teamReleaseAsk{}, errors.New("Slack wouldn't take the question")
 	}
 	return ask, nil
 }
