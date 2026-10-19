@@ -2092,6 +2092,20 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   `hi team alert` raises one from the lead's box. A month of job history
   is kept.
 
+### v0.94.0 — Starting with the lead
+
+- [x] A new team's app starts with "What should your app do?" and a
+  message box in the middle of the page, for someone signed in through
+  Slack. Sent, the box moves over to the helper's side and fades, the
+  panel opens there (production's Change tab), and the message goes to
+  the lead. Anyone else still gets the arrow at the chat button. The
+  helper says whether whoever is there can chat (`data-chat`) and takes a
+  message from the page with a `hi-helper-send` event.
+- [x] A chat in the app from someone signed in through Slack is copied
+  into a thread in their DM with the bot, not the channel, where a copy of
+  every chat was too much. Chats without a checked person, and threads
+  already in the channel, stay there.
+
 ## Planned
 
 ### Guide — a diagram for every tool
