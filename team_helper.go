@@ -623,6 +623,37 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		}
 		reply(w, http.StatusOK, map[string]any{})
 	})
+	mux.HandleFunc("GET "+teamHelperPrefix+"api/conversations", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := you(w, r)
+		if !ok {
+			return
+		}
+		b.webMu.Lock()
+		chats := b.pastConversations(slot, person.User)
+		b.webMu.Unlock()
+		reply(w, http.StatusOK, map[string]any{"conversations": chats})
+	})
+	mux.HandleFunc("POST "+teamHelperPrefix+"api/conversation/open", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := you(w, r)
+		if !ok {
+			return
+		}
+		var open struct {
+			Conversation string `json:"conversation"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&open); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		b.webMu.Lock()
+		defer b.webMu.Unlock()
+		conversation, status, err := b.reopenConversation(slot, person.User, open.Conversation)
+		if err != nil {
+			failure(w, status, err)
+			return
+		}
+		reply(w, http.StatusOK, conversation)
+	})
 	mux.HandleFunc("POST "+teamHelperPrefix+"api/messages", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := you(w, r)
 		if !ok {
@@ -650,6 +681,69 @@ func (b *teamBroker) openConversation(slot, person string) (teamWebConversation,
 		}
 	}
 	return teamWebConversation{}, false
+}
+
+// teamWebChatSummary is a chat in the helper's history.
+type teamWebChatSummary struct {
+	ID       string    `json:"id"`
+	Title    string    `json:"title"` // its first message, clipped
+	Started  time.Time `json:"started"`
+	Last     time.Time `json:"last"`
+	Messages int       `json:"messages"`
+	Open     bool      `json:"open,omitempty"` // the chat the panel shows
+}
+
+// teamWebHistory is how many past chats the helper lists.
+const teamWebHistory = 30
+
+// pastConversations is this person's chats in this slot, the latest first:
+// the open one and the ones they ended. The caller holds webMu.
+func (b *teamBroker) pastConversations(slot, person string) []teamWebChatSummary {
+	chats := []teamWebChatSummary{}
+	all := loadTeamWebConversations(b.team)
+	for i := len(all) - 1; i >= 0 && len(chats) < teamWebHistory; i-- {
+		conversation := all[i]
+		if conversation.Slot != slot || !conversation.Verified || conversation.Person != person || len(conversation.Messages) == 0 {
+			continue
+		}
+		summary := teamWebChatSummary{ID: conversation.ID, Started: conversation.Started, Messages: len(conversation.Messages), Open: !conversation.Ended,
+			Last: conversation.Messages[len(conversation.Messages)-1].At}
+		for _, message := range conversation.Messages {
+			if message.From == "person" && message.Text != "" {
+				summary.Title = teamClipStart(strings.Join(strings.Fields(message.Text), " "), 120)
+				break
+			}
+		}
+		chats = append(chats, summary)
+	}
+	sort.SliceStable(chats, func(i, j int) bool { return chats[i].Last.After(chats[j].Last) })
+	return chats
+}
+
+// reopenConversation makes a past chat of this person's the open one
+// again, and ends the one that was: the lead's conversation for it still
+// has everything said there. The caller holds webMu.
+func (b *teamBroker) reopenConversation(slot, person, id string) (teamWebConversation, int, error) {
+	conversation, err := loadTeamWebConversation(b.team, id)
+	if err != nil || conversation.Slot != slot || !conversation.Verified || conversation.Person != person {
+		return teamWebConversation{}, http.StatusNotFound, errors.New("no such chat of yours here")
+	}
+	if current, ok := b.openConversation(slot, person); ok && current.ID != id {
+		if b.answering[current.ID] {
+			return teamWebConversation{}, http.StatusConflict, errors.New("the lead is still answering; open another chat when it's done")
+		}
+		current.Ended = true
+		if err := saveTeamWebConversation(b.team, current); err != nil {
+			return teamWebConversation{}, http.StatusInternalServerError, err
+		}
+	}
+	if conversation.Ended {
+		conversation.Ended = false
+		if err := saveTeamWebConversation(b.team, conversation); err != nil {
+			return teamWebConversation{}, http.StatusInternalServerError, err
+		}
+	}
+	return conversation, http.StatusOK, nil
 }
 
 // webSend takes a person's message, has the lead answer it, and streams the

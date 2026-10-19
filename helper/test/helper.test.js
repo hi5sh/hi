@@ -425,3 +425,59 @@ test("leaves a handed message in the box for someone who can't chat", async () =
   expect($("textarea").value).toBe("A page for our suppliers");
   expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
 });
+
+// Starting over: the header's button, or /clear in the box, ends the chat
+// without sending anything to the lead.
+test("starts a new chat from the header or with /clear", async () => {
+  let ended = 0;
+  await start({
+    ...signedIn,
+    "GET conversation": () => json({ id: "w-1", messages: [{ n: 1, from: "person", name: "Ana", text: "Old talk" }, { n: 2, from: "lead", name: "Payments lead", text: "Old answer" }] }),
+    "POST conversation/new": () => { ended++; return json({}); },
+  });
+  open();
+  await until(() => $$(".msg").length === 2);
+  expect($(".fresh").hidden).toBe(false);
+  $(".fresh").click();
+  await until(() => $$(".msg").length === 0);
+  expect(ended).toBe(1);
+
+  type("/clear");
+  await until(() => ended === 2);
+  expect(sent("messages")).toHaveLength(0);
+  expect($("textarea").value).toBe("");
+});
+
+test("lists past chats and opens one again", async () => {
+  const chats = [
+    { id: "w-2", title: "Make overdue red", started: "2026-10-19T08:00:00Z", last: "2026-10-19T08:05:00Z", messages: 2, open: true },
+    { id: "w-1", title: "Train from the start", started: "2026-10-18T08:00:00Z", last: "2026-10-18T09:00:00Z", messages: 4 },
+  ];
+  await start({
+    ...signedIn,
+    "GET conversation": () => json({ id: "w-2", messages: [{ n: 1, from: "person", name: "Ana", text: "Make overdue red" }] }),
+    "GET conversations": () => json({ conversations: chats }),
+    "POST conversation/open": (body) => json({ id: body.conversation, messages: [{ n: 1, from: "person", name: "Ana", text: "Train from the start" }, { n: 2, from: "lead", name: "Payments lead", text: "Walking forward." }] }),
+  });
+  open();
+  expect($(".history").hidden).toBe(false);
+  $(".history").click();
+  await until(() => $$(".history-list button").length === 2);
+  expect($(".history").getAttribute("aria-pressed")).toBe("true");
+  const items = $$(".history-list button");
+  expect(items[0].className).toBe("open");
+  expect(items[0].querySelector(".what").textContent).toBe("Make overdue red");
+  expect(items[0].querySelector(".when").textContent).toEndWith("2 messages · now");
+  items[1].click();
+  await until(() => $$(".msg.lead").length === 1);
+  expect(sent("conversation/open")[0].body).toEqual({ conversation: "w-1" });
+  expect($(".msg.lead").textContent).toContain("Walking forward.");
+  expect($(".history").getAttribute("aria-pressed")).toBe("false");
+});
+
+test("has no history for someone who can't chat", async () => {
+  await start(anyone);
+  open();
+  expect($(".history").hidden).toBe(true);
+  expect($(".fresh").hidden).toBe(true);
+});

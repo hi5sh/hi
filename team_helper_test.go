@@ -791,3 +791,68 @@ func TestTeamWebMirrorWhere(t *testing.T) {
 		t.Fatalf("%+v %v", approval, err)
 	}
 }
+
+// The helper's history: a person's past chats here, latest first, and one
+// opened again becomes the chat, ending the one that was.
+func TestTeamWebHistory(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	b.lead = func(_ context.Context, _, _ string, _ []teamLeadPicture, _ func(string)) (string, error) {
+		return "On it.", nil
+	}
+	server := webTestServer(t, b.teamBroker, teamSlotProduction, "U07ASKER9", "Bo")
+	defer server.Close()
+	webEvents(t, server, teamWebSend{Text: "Train from   the start\nof the data"})
+	http.Post(server.URL+"/__hi/api/conversation/new", "application/json", strings.NewReader("{}"))
+	webEvents(t, server, teamWebSend{Text: "Make overdue red"})
+	// Someone else's chat, and one on the preview, aren't in it.
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-3", Slot: teamSlotProduction, Person: "U07OTHER1", Name: "Cleo", Verified: true,
+		Messages: []teamWebMessage{{N: 1, From: "person", Text: "Hi", At: time.Now()}}})
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-4", Slot: teamSlotPreview, Person: "U07ASKER9", Name: "Bo", Verified: true,
+		Messages: []teamWebMessage{{N: 1, From: "person", Text: "Hi", At: time.Now()}}})
+
+	history := func() []teamWebChatSummary {
+		response, err := http.Get(server.URL + "/__hi/api/conversations")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var list struct {
+			Conversations []teamWebChatSummary `json:"conversations"`
+		}
+		json.NewDecoder(response.Body).Decode(&list)
+		return list.Conversations
+	}
+	chats := history()
+	if len(chats) != 2 || chats[0].ID != "w-2" || !chats[0].Open || chats[0].Title != "Make overdue red" || chats[0].Messages != 2 ||
+		chats[1].ID != "w-1" || chats[1].Open || chats[1].Title != "Train from the start of the data" {
+		t.Fatalf("%+v", chats)
+	}
+
+	open := func(id string) (*http.Response, teamWebConversation) {
+		response, err := http.Post(server.URL+"/__hi/api/conversation/open", "application/json", strings.NewReader(`{"conversation":"`+id+`"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var conversation teamWebConversation
+		json.NewDecoder(response.Body).Decode(&conversation)
+		return response, conversation
+	}
+	if response, conversation := open("w-1"); response.StatusCode != http.StatusOK || conversation.ID != "w-1" || len(conversation.Messages) != 2 {
+		t.Fatal(response.Status, conversation)
+	}
+	if was, _ := loadTeamWebConversation("payments", "w-2"); !was.Ended {
+		t.Fatal("the chat that was open didn't end")
+	}
+	// The next message goes on in it, under the lead's same conversation.
+	webEvents(t, server, teamWebSend{Text: "Any news?"})
+	if again, _ := loadTeamWebConversation("payments", "w-1"); len(again.Messages) != 4 || again.Ended {
+		t.Fatalf("%+v", again)
+	}
+	for _, id := range []string{"w-3", "w-4", "w-99"} {
+		if response, _ := open(id); response.StatusCode != http.StatusNotFound {
+			t.Fatal(id, response.Status)
+		}
+	}
+}

@@ -166,7 +166,13 @@ browser keeps its copy until the script changes. It aims to be under
   claimed identity, not a sign-in; see Later.
 - **The conversation.** Messages are kept by the team's service, so a
   reload, another page, or another browser shows the same conversation for
-  that person and that slot. "New conversation" starts a fresh one. The
+  that person and that slot. The pen button in the header, "New
+  conversation" in the menu, or `/clear` (or `/new`) typed as a message
+  starts a fresh one, so a new change doesn't carry the last one's talk;
+  nothing is sent to the lead. The clock button lists the person's past
+  chats on that address, the latest first (`GET /__hi/api/conversations`);
+  opening one makes it the chat again and ends the one that was (`POST
+  /__hi/api/conversation/open`), and the lead still has all of it. The
   lead's replies stream in as they are written, and are shown as a safe
   subset of Markdown (paragraphs, lists, bold, code, links), never as raw
   HTML.

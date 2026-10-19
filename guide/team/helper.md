@@ -69,6 +69,10 @@ the channel. Anyone else's DM gets no answer. The Slack app needs
 
 In the chat with the lead:
 
+- **One chat per change.** The pen button at the top, or `/clear` typed
+  as a message, starts a new chat, so the next change doesn't carry the
+  last one's talk. The clock button lists your past chats on that
+  address; open one to go on in it, and the lead remembers all of it.
 - The lead answers as it does in Slack, with the same memory, and knows
   which page you are on and which version you see.
 - **Point at what you mean.** The target button beside the message box,

@@ -61,6 +61,15 @@ header .version { color: var(--muted); font-size: 12px; white-space: nowrap; ove
 .icon { border: 0; background: none; width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
 .icon:hover { background: var(--soft); color: var(--fg); }
 .icon svg { width: 18px; height: 18px; }
+.icon[aria-pressed="true"] { background: var(--soft); color: var(--fg); }
+.icon[hidden] { display: none; }
+.history-list { display: flex; flex-direction: column; gap: 4px; }
+.history-list h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 0 4px 4px; }
+.history-list button { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; color: var(--fg); font: inherit; }
+.history-list button:hover { background: var(--soft); }
+.history-list button.open { border-color: var(--accent); }
+.history-list .what { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-list .when { display: block; color: var(--muted); font-size: 12px; }
 .menu { position: absolute; top: 52px; right: 12px; background: var(--bg); border: 1px solid var(--line);
   border-radius: 10px; box-shadow: var(--shadow); padding: 4px; display: none; min-width: 200px; }
 .menu.open { display: block; }
@@ -179,6 +188,8 @@ textarea:focus { border-color: var(--accent); }
     target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>',
     clip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>',
     more: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+    fresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L12 14.8l-3.6.8.8-3.6z"/></svg>',
+    history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>',
   };
 
   // ---------------------------------------------------------------------
@@ -253,6 +264,8 @@ textarea:focus { border-color: var(--accent); }
 <section class="panel" role="dialog" aria-label="Help">
   <header>
     <div class="title"><div class="name"></div><div class="version"></div></div>
+    <button class="icon history" aria-label="Past chats" title="Past chats" aria-pressed="false">${ICONS.history}</button>
+    <button class="icon fresh" aria-label="New chat" title="New chat (or type /clear)">${ICONS.fresh}</button>
     <button class="icon more" aria-label="More">${ICONS.more}</button>
     <button class="icon close" aria-label="Close">${ICONS.close}</button>
     <div class="menu" role="menu">
@@ -304,6 +317,7 @@ textarea:focus { border-color: var(--accent); }
     poll: null,
     refs: [], // the elements pointed at for the next message: {ref, el, image, shot}
     files: [], // the files for the next message: {file, url}
+    past: null, // the past chats, while the panel lists them
   };
   // Signed in with /hi: the relay found this person's key in the cookie
   // only /__hi/ gets.
@@ -434,18 +448,14 @@ textarea:focus { border-color: var(--accent); }
     if (event.key === "Escape") { menu.classList.contains("open") ? menu.classList.remove("open") : toggle(false); }
   });
   $(".more").addEventListener("click", () => menu.classList.toggle("open"));
+  $(".fresh").addEventListener("click", () => newConversation());
+  $(".history").addEventListener("click", () => (state.past ? closePast() : openPast()));
   menu.addEventListener("click", async (event) => {
     const action = event.target.closest("button")?.dataset.action;
     menu.classList.remove("open");
     if (action === "docs") openDocs();
     if (action === "new") {
-      if (chatting()) await call("conversation/new", { method: "POST", body: {} }).catch(showError);
-      state.conversation = null;
-      state.help = [];
-      store.set("sessionStorage", "help", null);
-      state.sent = null;
-      render();
-      input.focus();
+      newConversation();
     } else if (action === "hide") {
       toggle(false);
       fab.style.display = "none";
@@ -453,6 +463,77 @@ textarea:focus { border-color: var(--accent); }
     }
   });
   notice.addEventListener("click", (event) => { if (event.target.dataset.action === "reload") location.reload(); });
+
+  // newConversation starts over: a new chat with the lead, which doesn't
+  // carry the last one's talk, or a new page of questions. The header's
+  // button, the menu, and /clear in the box do it.
+  async function newConversation() {
+    if (chatting()) {
+      try {
+        await call("conversation/new", { method: "POST", body: {} });
+      } catch (error) {
+        showError(error);
+        return;
+      }
+    }
+    state.conversation = null;
+    state.past = null;
+    state.help = [];
+    store.set("sessionStorage", "help", null);
+    state.sent = null;
+    render();
+    input.focus();
+  }
+
+  // The past chats: this person's chats with the lead here, the latest
+  // first. Opening one makes it the chat again, and the lead still has
+  // everything said in it.
+  async function openPast() {
+    try {
+      const response = await call("conversations");
+      state.past = (await response.json()).conversations || [];
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    render();
+  }
+  function closePast() {
+    state.past = null;
+    render();
+    input.focus();
+  }
+  async function resume(id) {
+    try {
+      const response = await call("conversation/open", { method: "POST", body: { conversation: id } });
+      state.conversation = await response.json();
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    closePast();
+    body.scrollTop = body.scrollHeight;
+    waitForAnswer();
+  }
+  function renderPast() {
+    const list = document.createElement("div");
+    list.className = "history-list";
+    list.innerHTML = "<h2>Past chats</h2>";
+    if (!state.past.length) list.insertAdjacentHTML("beforeend", '<div class="empty">No chats here yet.</div>');
+    for (const chat of state.past) {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = chat.open ? "open" : "";
+      const last = new Date(chat.last);
+      const when = last.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " + last.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+      item.innerHTML = '<span class="what"></span><span class="when"></span>';
+      item.querySelector(".what").textContent = chat.title || "(files only)";
+      item.querySelector(".when").textContent = when + " · " + chat.messages + (chat.messages === 1 ? " message" : " messages") + (chat.open ? " · now" : "");
+      item.addEventListener("click", () => (chat.open ? closePast() : resume(chat.id)));
+      list.appendChild(item);
+    }
+    body.appendChild(list);
+  }
 
   // ---------------------------------------------------------------------
   // talking to the team's service
@@ -741,6 +822,10 @@ textarea:focus { border-color: var(--accent); }
     nameInput.style.display = signedIn() ? "none" : "";
     attachLabel.style.display = chat || feedback ? "" : "none";
     $("[data-action=new]").style.display = chat || (!feedback && state.help.length) ? "" : "none";
+    $(".fresh").hidden = !(chat || (!feedback && state.help.length));
+    if (!chat) state.past = null;
+    $(".history").hidden = !chat;
+    $(".history").setAttribute("aria-pressed", String(!!state.past));
     input.placeholder = chat ? (production() ? "Ask the lead for a change…" : "Message the lead…") : feedback ? "What's wrong, or what would make it better?" : "Ask how something works…";
     sendButton.textContent = chat || feedback ? "Send" : "Ask";
     sendButton.disabled = state.sending;
@@ -749,6 +834,7 @@ textarea:focus { border-color: var(--accent); }
     body.innerHTML = "";
     clearInterval(state.ticking);
     if (feedback) renderFeedback();
+    else if (chat && state.past) renderPast();
     else if (chat) renderChat(status);
     else renderHelp();
     if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
@@ -1571,6 +1657,15 @@ textarea:focus { border-color: var(--accent); }
     event.preventDefault();
     const text = input.value.trim();
     if ((!text && !(chatting() && state.files.length)) || state.sending) return;
+    // /clear (or /new) starts a new chat instead of saying it.
+    if (!feedbackTab() && /^\/(clear|new)$/i.test(text)) {
+      input.value = "";
+      store.set("sessionStorage", "draft", null);
+      grow();
+      newConversation();
+      return;
+    }
+    state.past = null;
     // Feedback says who sent it: the name box flashes until it's filled.
     // Signed in, Slack says who.
     if (!signedIn() && feedbackTab() && !nameInput.value.trim()) {
