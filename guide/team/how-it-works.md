@@ -68,9 +68,11 @@ ideas still open.
 
 ## The lead in the channel
 
-The lead answers only when someone @-mentions it (`@payments`), even
-in a thread it's part of, so people can talk among themselves in the
-channel. It still follows everything: hi keeps a log of the channel,
+The lead answers when someone @-mentions it (`@payments`). In that
+thread, and in a thread the lead started, it answers every reply
+without a fresh @, except one that opens by @-mentioning someone else
+(`@anna what do you think?`); elsewhere in the channel people talk among
+themselves. It still follows everything: hi keeps a log of the channel,
 threads and shared files included, in the team's `channel/` folder, and
 every 15 minutes the lead reads what's new and keeps what matters in its
 memory: a decision made in passing, a link or a video someone shared, who

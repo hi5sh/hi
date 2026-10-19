@@ -258,7 +258,7 @@ func TestWriteTeamLead(t *testing.T) {
 	}
 	lead := filepath.Join(teamDir("payments"), "lead")
 	env, _ := os.ReadFile(filepath.Join(lead, ".env"))
-	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=false", "SLACK_REQUIRE_MENTION=true", "SLACK_STRICT_MENTION=true", "SLACK_ALLOW_ALL_USERS=true"} {
+	for _, want := range []string{"OPENROUTER_API_KEY=" + boxClaudePlacehold, "SLACK_BOT_TOKEN=xoxb-1", "SLACK_ALLOWED_CHANNELS=C07PAYMENTS", "SLACK_DISABLE_DMS=false", "SLACK_REQUIRE_MENTION=true", "SLACK_IGNORE_OTHER_USER_MENTIONS=true", "SLACK_ALLOW_ALL_USERS=true"} {
 		if !strings.Contains(string(env), want) {
 			t.Errorf(".env lacks %s:\n%s", want, env)
 		}

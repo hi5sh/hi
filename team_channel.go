@@ -17,7 +17,8 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// The lead answers only when someone @-mentions it, but it should know
+// The lead answers only in threads someone @-mentioned it in, or that it
+// started, but it should know
 // everything said in its channel: a link someone found, a video, a wish
 // in passing. Hermes drops the messages that don't mention it, so the
 // broker keeps the channel's log itself, from the host with the bot's

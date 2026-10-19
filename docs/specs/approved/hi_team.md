@@ -84,10 +84,11 @@ bundle, and standing instructions.
   first if the message isn't logged yet. `--small` starts a small fix
   without one, and the broker posts in the channel that it did. The task
   records its approval.
-- **The lead answers only when @-mentioned**, even in its own threads
-  (Hermes' `require_mention` and `strict_mention`), so people can talk
-  among themselves. It still takes in everything: Hermes drops messages
-  that don't mention it, so the broker logs the channel from the host with
+- **The lead answers when @-mentioned**, then follows that thread, and
+  the threads it started, without a fresh @ (Hermes' `require_mention`;
+  `strict_mention` is off). A reply that opens by @-mentioning someone
+  else stays between people (`ignore_other_user_mentions`). It still
+  takes in everything: Hermes drops the messages it doesn't answer, so the broker logs the channel from the host with
   the bot's token (`conversations.history` and `conversations.replies`
   every two minutes, threads up to two weeks old, shared files up to 50 MB)
   into `channel/`, mounted read-only in the lead's box. The lead reads it

@@ -321,10 +321,12 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		"SLACK_ALLOWED_CHANNELS=" + config.Channel,
 		"SLACK_HOME_CHANNEL=" + config.Channel,
 		"SLACK_DISABLE_DMS=false",
-		// It answers only when @-mentioned, even in its own threads; the
-		// broker logs the rest of the channel for it (team_channel.go).
+		// It answers when @-mentioned, and then follows that thread without
+		// a fresh @, as it does threads it started, except for a reply that
+		// opens by @-mentioning someone else. The broker logs the rest of
+		// the channel for it (team_channel.go).
 		"SLACK_REQUIRE_MENTION=true",
-		"SLACK_STRICT_MENTION=true",
+		"SLACK_IGNORE_OTHER_USER_MENTIONS=true",
 	}
 	if secrets.LeadAPIKey != "" {
 		// Hermes' API server, inside the box only: the helper in the app
@@ -945,8 +947,10 @@ date itself and tells you; wait for it and merge that.
 
 ## The channel
 
-You answer only when someone @-mentions you, but hi keeps a log of
-everything said in the channel, threads and shared files included:
+You answer when someone @-mentions you, and after that every reply in
+that thread, as in the threads you start, without a fresh @; a reply
+that opens by @-mentioning someone else is not for you. hi keeps a log
+of everything said in the channel, threads and shared files included:
 
 | Command | What it does |
 |---|---|
