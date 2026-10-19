@@ -29,6 +29,7 @@ instances share `ls`, `status`, `logs`, `stop`, and the same limits.
 | [Google Colab](/guide/compute/colab/)           | The Colab CLI                | Prepaid compute units on Pro+, 96 GB G4 GPUs, 176 GB RAM      |
 | [Hugging Face Jobs](/guide/compute/hugging-face/) | The Jobs REST API          | Pay per minute, any container image, detached runs, secrets, HTTPS endpoints |
 | [RunPod](/guide/compute/runpod/)                | The REST API v2              | A wide range of GPUs, SSH straight into the pod, any container image |
+| [Shadeform](/guide/compute/shadeform/)          | The REST API                 | GPUs from many clouds on one bill, each type at its cheapest free offer, SSH into a whole VM |
 
 ```sh
 hi compute providers    # which providers are signed in
@@ -39,7 +40,7 @@ hi compute hardware     # every provider's hardware, memory, and price
 
 `hi` picks the provider in this order:
 
-1. `--on colab`, `--on hf`, or `--on runpod` on the command.
+1. `--on colab`, `--on hf`, `--on runpod`, or `--on shadeform` on the command.
 2. The `HI_COMPUTE_PROVIDER` environment variable.
 3. The hardware name: `--gpu G4` only exists on Colab, `--gpu a10g-small`
    only on Hugging Face, `--gpu rtx-4090` only on RunPod.
