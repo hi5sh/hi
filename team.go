@@ -283,6 +283,12 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamLogs(rest, stdout, stderr)
 	case "upstream":
 		err = teamUpstreamCommand(rest, stdout)
+	case "jobs":
+		err = teamJobsCommand(rest, stdout)
+	case "incidents":
+		err = teamIncidentsCommand(rest, stdout)
+	case "job":
+		err = teamJobCommand(rest, stdout)
 	case "github":
 		if len(rest) != 2 {
 			err = usageError{"usage: hi team github <name> <owner/repository>"}
@@ -431,6 +437,9 @@ usage:
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
+  hi team jobs <name> [--preview]  the app's long work: each job's state, count, rate a day, last error
+  hi team incidents <name> [<id>]  what went wrong while nobody looked, and what the lead did about it
+                                   (--rules: the decisions the people made about the app's jobs)
   hi team upstream <name>          for an adopted project: fetch the project it came from, and say
                                    where dev stands against it and what's new there
 

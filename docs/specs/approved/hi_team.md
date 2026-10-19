@@ -222,6 +222,8 @@ version production is on, and every move with its approval.
                      repo/docs/specs is what the lead and the people agreed
   roles/             each member's role: ROLE.md and LEARNED.md (v0.76.0)
   tasks/             each task's brief (t-3.md) and record (t-3.json)
+  incidents/         what went wrong and what the lead did (i-3.json), and the
+                     people's rules for the app's jobs (hi_team_jobs.md)
   channel/           the channel's log (a JSON line per message, a file per
                      day) and the files shared in it
   memory/            the lead's long-term memory: Hindsight's database

@@ -208,7 +208,7 @@ func TestTeamAppBoxesFollowHi(t *testing.T) {
 	if saved.Settings == teamSettingsStamp("payments") {
 		t.Fatal("the stamp doesn't follow hi")
 	}
-	if err := b.refreshPreview(saved); err != nil {
+	if _, err := b.refreshPreview(saved); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := loadTeamSlot("payments", teamSlotPreview)

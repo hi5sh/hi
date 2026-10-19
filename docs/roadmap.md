@@ -2065,6 +2065,33 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
   contributing guide first, and to ask an owner in plain words. The spec
   moves to approved with what was built.
 
+### v0.93.0 — When something goes wrong
+
+Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+
+- [x] The app's long work reports as jobs: a file per job in
+  `$HI_JOBS_DIR` (`/jobs` in the app's box, `run/<slot>-jobs/` on the
+  machine), or `"$HI" team job <job> --done <n>`. Every brief says so, and
+  that a job stops on an item it can't process unless its spec gives a
+  rule: it never skips one on its own.
+- [x] The broker reads production's and the preview's jobs every minute,
+  without a model, and opens an incident when a job is blocked or failed,
+  its count stops moving, or it stops writing; also when production's app
+  stops on its own, a member's task fails, or a member's report has an
+  `Alert:` follow-up. One thread and one record each
+  (`incidents/i-<n>.json`); hi closes a job's incident when it moves again.
+- [x] The lead is woken once per incident with the job's file, the app's
+  last lines, and the people's rules for the job. It handles what can be
+  undone on its own (retry, one restart, re-briefing, a rule's fix), asks
+  about the rest, and logs each action with `--incident <id> --because`:
+  hi posts it in the thread and keeps it in the record. hi reminds the
+  owners once when a question waits a day.
+- [x] `hi team jobs` gives each job's state, count, rate a day from hi's
+  hourly counts, and last error; `hi team incidents` the incidents, their
+  timelines, and the rules (`hi team incidents rule ... --approval <id>`);
+  `hi team alert` raises one from the lead's box. A month of job history
+  is kept.
+
 ## Planned
 
 ### Guide — a diagram for every tool

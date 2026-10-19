@@ -19,6 +19,9 @@ read code, so the code, its tests, and its docs explain themselves.
   When the app itself needs a chart or diagram, use the pele package
   (`bun add pele`): `render(text)` returns an SVG, in the browser or on
   the server, colored by its `--pele-*` CSS variables.
+- Long work in the app (a backfill, an import, a recalculation) reports
+  as a job in `$HI_JOBS_DIR`, and stops on an item it can't process
+  unless its spec gives a rule for that case: never skip one on its own.
 - Do the brief, all of it, and nothing beyond it. Put what else you
   noticed in your report's follow-ups.
 - Say plainly in your report what you didn't do or couldn't check.

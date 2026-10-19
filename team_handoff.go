@@ -158,10 +158,14 @@ func teamHandoffPrompt(root, last teamTask) string {
 	if last.Kind == "review" && last.Round > 0 {
 		ended = fmt.Sprintf("%s (review %d)", ended, last.Round)
 	}
+	note := ""
+	if last.Incident != "" {
+		note = "\n\n" + teamTaskIncidentNote(last)
+	}
 	return fmt.Sprintf(`This is hi, not a person. You started %s (%s) and were waiting for it, but your wait ended before the work did, as when the team restarts, so you haven't heard how it went. It has ended: %s, %s.
 
 Run hi team wait %s to read how it ended, then carry on as after any wait: if the reviewer approved, merge it and run hi team preview; if changes are still needed, read the reviewer's notes and decide (continue with hi team task coder <brief.md> --on %s, or ask the people); if it failed, find out why.
 
-What you write at the end is posted in the thread where the work was agreed. End with a short note to the people there on where the work stands and what happens next. If you said earlier that the work was still running, say that it had in fact finished.`,
-		root.ID, root.Title, last.ID, ended, root.ID, root.ID)
+What you write at the end is posted in the thread where the work was agreed. End with a short note to the people there on where the work stands and what happens next. If you said earlier that the work was still running, say that it had in fact finished.%s`,
+		root.ID, root.Title, last.ID, ended, root.ID, root.ID, note)
 }

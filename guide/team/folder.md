@@ -15,6 +15,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 | `repo/` | The project's git repository; `repo/docs/specs/` holds what the lead and the people agreed, one file per feature, and `notes/` there the lead's notes for the members |
 | `roles/` | A folder per member's role: `ROLE.md`, how it works on this team, and `LEARNED.md`, what its earlier tasks taught it |
 | `tasks/` | Each task's brief and report |
+| `incidents/` | What went wrong while nobody looked, and what the lead did about it, one file each; `rules.json`, the people's decisions about the app's jobs. See [When something goes wrong](/guide/team/incidents/) |
 | `channel/` | The channel's log, a file per day, and the files people shared |
 | `memory/` | The lead's long-term memory: Hindsight's database |
 | `app/` | Production's data: what the app keeps in `$HI_DATA_DIR` |

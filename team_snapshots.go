@@ -876,7 +876,7 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	code = code || !fileExists(filepath.Join(dir, "repo"))
 	fmt.Fprintf(stdout, "This puts team %s back as it was %s, in snapshot %s (%s):\n", team, snapshot.Time.Local().Format("Mon Jan 2 at 15:04"), snapshot.ID, snapshot.why())
 	fmt.Fprintln(stdout, "  the lead's memory     lead/, memory/")
-	fmt.Fprintln(stdout, "  the team's record     versions.json, tasks/, channel/, logs/")
+	fmt.Fprintln(stdout, "  the team's record     versions.json, tasks/, incidents/, channel/, logs/")
 	fmt.Fprintln(stdout, "  the app's data        app/")
 	if code {
 		fmt.Fprintln(stdout, "  the code              repo/")

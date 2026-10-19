@@ -155,6 +155,10 @@ func teamAppEnv(name, slot string, port int) map[string]string {
 	env["HI_PUBLIC_URL_FILE"] = teamAppAddressFile
 	env["HI_DATA_DIR"] = teamAppDataDir
 	env["HI_SLOT"] = slot
+	// The app's long work reports here, as files or with "$HI" team job
+	// (team_jobs.go).
+	env["HI_JOBS_DIR"] = teamAppJobsDir
+	env["HI"] = teamAppRelay
 	env["OPENROUTER_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/api/v1", teamAppModelsPort)
 	env["OPENROUTER_API_KEY"] = boxClaudePlacehold
 	return env

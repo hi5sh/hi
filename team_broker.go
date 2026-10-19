@@ -100,8 +100,12 @@ type teamTask struct {
 	Proposed        string        `json:"proposed,omitempty"`
 	ProposedAt      time.Time     `json:"proposed_at,omitempty"`
 	ProposeApproval *teamApproval `json:"propose_approval,omitempty"`
-	Created         time.Time     `json:"created"`
-	Finished        time.Time     `json:"finished,omitempty"`
+	// Incident is the incident its failure opened, or added to; ForIncident
+	// the one the lead started it for (team_incidents.go).
+	Incident    string    `json:"incident,omitempty"`
+	ForIncident string    `json:"for_incident,omitempty"`
+	Created     time.Time `json:"created"`
+	Finished    time.Time `json:"finished,omitempty"`
 }
 
 // teamSpecsRule ends every brief: the specs are the lead's, and a merge
@@ -273,6 +277,15 @@ type teamBroker struct {
 	webListeners map[string]map[chan teamWebMessage]bool
 	// sayMu guards run/say.json, the messages from hi team say.
 	sayMu sync.Mutex
+	// jobsMu guards run/jobs.json, and incidentMu the incidents
+	// (team_jobs.go, team_incidents.go). started is when this broker
+	// started: a box that stopped before it isn't an incident. appLogs and
+	// appExit read an app's box; tests replace them.
+	jobsMu     sync.Mutex
+	incidentMu sync.Mutex
+	started    time.Time
+	appLogs    func(container string) string
+	appExit    func(container string) (exit int, finished time.Time, ok bool)
 	// peopleMu guards people.json, the keys of people signed in with /hi
 	// (team_people.go).
 	peopleMu sync.Mutex
@@ -286,6 +299,12 @@ type teamBroker struct {
 func newTeamBroker(team, hi string) *teamBroker {
 	b := &teamBroker{team: team, repo: filepath.Join(teamDir(team), "repo"), hi: hi, reviewRounds: teamReviewRounds, waits: map[string]int{}, answering: map[string]bool{}, webListeners: map[string]map[chan teamWebMessage]bool{}}
 	b.help = teamHelpModel
+	b.started = time.Now()
+	b.appLogs = func(container string) string {
+		out, _ := b.engineOutput("logs", "--tail", strconv.Itoa(teamIncidentLogLines), container)
+		return out
+	}
+	b.appExit = b.appExitState
 	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
 		return "", errors.New("the lead's API server isn't set up")
 	}
@@ -391,6 +410,10 @@ type teamRequest struct {
 	// UpstreamRef: one of its tags (team_upstream.go).
 	Upstream    bool   `json:"upstream,omitempty"`
 	UpstreamRef string `json:"upstream_ref,omitempty"`
+	// Incident is the incident the lead starts the work for, and Because
+	// why; hi logs it there (team_incidents.go).
+	Incident string `json:"incident,omitempty"`
+	Because  string `json:"because,omitempty"`
 	// hints go to the new task's Hints.
 	hints []string
 	// survey is an adopted project's first task, started by hi with the
@@ -594,6 +617,7 @@ func (b *teamBroker) handler() http.Handler {
 		task, err := b.propose(request)
 		reply(w, task, err)
 	})
+	b.incidentRoutes(mux, reply)
 	mux.HandleFunc("GET /upstream", func(w http.ResponseWriter, r *http.Request) {
 		view, err := b.upstream()
 		reply(w, view, err)
@@ -818,6 +842,13 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		return teamTask{}, nil, fmt.Errorf("the brief is longer than %d KB", teamMaxBrief>>10)
 	}
 	task := teamTask{Role: request.Role, Agent: member.Agent, Model: member.Model, Kind: "task", Title: teamTitle(brief), Round: round}
+	var incident teamIncident
+	if request.Incident != "" {
+		if incident, err = b.leadIncident(request.Incident, request.Because); err != nil {
+			return teamTask{}, nil, err
+		}
+		task.ForIncident = incident.ID
+	}
 	findingsText := ""
 	if len(request.Findings) > 0 {
 		if task.Findings, findingsText, err = teamTaskFindings(b.team, request.Findings, brief); err != nil {
@@ -834,6 +865,9 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 			return teamTask{}, nil, fmt.Errorf("%s isn't a finished task with a branch to continue", on.ID)
 		}
 		task.On, from = on.ID, on.Branch
+		if task.ForIncident == "" && on.ForIncident != "" && b.incidentOpen(on.ForIncident) {
+			task.ForIncident = on.ForIncident // a fix after a review, say
+		}
 	} else if request.survey {
 		task.Survey = true
 		task.Approval = &teamApproval{TS: "adopt", Name: "the owner who adopted the project, on the machine", Text: "hi team adopt"}
@@ -847,6 +881,8 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 			if task.Thread, err = b.teamFindThread(config, request.In); err != nil {
 				return teamTask{}, nil, err
 			}
+		} else {
+			task.Thread = incident.Thread // a fix for an incident says so in its thread
 		}
 	} else {
 		config, err := loadTeam(b.team)
@@ -892,7 +928,7 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
 	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s%s%s\n", task.ID, task.Role, b.team, brief, upstreamText, findingsText)
-	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n"
+	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n\n" + teamJobsRule + "\n"
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 		if config, err := loadTeam(b.team); err == nil {
@@ -934,6 +970,10 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 			b.tellOwners(config, asker, fmt.Sprintf(":speech_balloon: %s asked the lead for this in a DM: *%s* (%s). It goes into dev; it reaches production only in a release you say yes to.",
 				teamSlackEscape(task.Approval.Name), teamSlackEscape(task.Title), task.ID))
 		}
+	}
+	if incident.ID != "" {
+		command := fmt.Sprintf("hi team task %s → %s", task.Role, task.ID)
+		b.logIncidentAction(incident, teamIncidentEvent{Who: "lead", Action: "task", Command: command, Result: task.Title, Because: request.Because, Approval: task.Approval})
 	}
 	return task, func() { b.launch(task, member, text, from, files) }, nil
 }
@@ -1171,11 +1211,14 @@ func (b *teamBroker) wait(task teamTask) {
 	if task.Kind == "review" {
 		task.Verdict = teamVerdict(report)
 	}
+	task = b.taskFailed(task)
+	b.memberAlerts(task)
 	// The next step is saved before this one shows as finished, so the lead
 	// waiting on the loop never sees it end early.
 	next, start := b.nextStep(task)
 	task.Next = next
 	saveTeamTask(b.team, task)
+	b.taskEnded(task)
 	if start != nil {
 		start()
 		return
@@ -1242,7 +1285,9 @@ func teamFixBrief(review, reviewed teamTask, rounds int) string {
 
 func (b *teamBroker) fail(task teamTask, err error) {
 	task.Status, task.Error, task.Finished = "failed", err.Error(), time.Now().UTC()
+	task = b.taskFailed(task)
 	saveTeamTask(b.team, task)
+	b.taskEnded(task)
 }
 
 // teamVerdict reads a review's report: approve only when the reviewer
@@ -1499,11 +1544,11 @@ func teamTitle(brief string) string {
 // the lead's commands, in its box
 
 var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
-	"versions": true, "release": true, "discard": true, "web": true, "propose": true}
+	"versions": true, "release": true, "discard": true, "web": true, "propose": true, "alert": true}
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
-var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true, "upstream": true}
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true, "upstream": true, "jobs": true, "incidents": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	// --approval dm is a yes in the DM the lead is answering: Hermes says
@@ -1563,6 +1608,12 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				i++
 			} else if args[i] == "--new" {
 				request.New = true
+			} else if args[i] == "--incident" && i+1 < len(args) {
+				request.Incident = args[i+1]
+				i++
+			} else if args[i] == "--because" && i+1 < len(args) {
+				request.Because = args[i+1]
+				i++
 			} else if args[i] == "--upstream" || strings.HasPrefix(args[i], "--upstream=") {
 				request.Upstream, request.UpstreamRef = true, strings.TrimPrefix(strings.TrimPrefix(args[i], "--upstream"), "=")
 			} else if args[i] == "--finding" && i+1 < len(args) {
@@ -1580,7 +1631,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--upstream[=<tag>]] [--attach <file>]... [--finding r-4:F-1]..."}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--upstream[=<tag>]] [--attach <file>]... [--finding r-4:F-1]... [--incident <id> --because <why>]"}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -1987,6 +2038,8 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			return err
 		}
 		fmt.Fprintf(stdout, "%s is offered to the project it came from, as a draft pull request: %s\nThe owner whose GitHub account opened it marks it ready once they've read it.\n", task.ID, task.Proposed)
+	case "jobs", "incidents", "alert":
+		return runTeamIncidentLeadCommand(command, args, stdout, call)
 	case "upstream":
 		if len(args) != 0 {
 			return usageError{"usage: hi team upstream"}
@@ -2109,6 +2162,9 @@ func printTeamTask(task teamTask, w io.Writer) {
 	}
 	if task.Error != "" {
 		fmt.Fprintf(w, "Error: %s\n", task.Error)
+	}
+	if task.Incident != "" {
+		fmt.Fprintf(w, "Incident: %s\n", teamTaskIncidentNote(task))
 	}
 	if teamTaskActive(task) {
 		fmt.Fprintf(w, "Still working; hi team wait %s waits again.\n", task.ID)

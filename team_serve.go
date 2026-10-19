@@ -163,6 +163,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.startPreview(stderr)
 	go broker.startSurvey(stderr)
 	go broker.keepUpstream(ctx.Done(), stderr)
+	go broker.watchJobs(ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
@@ -899,6 +900,9 @@ of its own on a branch of the project; you get their reports.
 | hi team web questions | What people asked the app's help lately, and its answers |
 | hi team web link --user U07ANNA | DM someone their private links to the app's chat (what %[4]s does) |
 | hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
+| hi team jobs [--preview] | The app's long work: each job's state, count, rate a day, where it is, and its last error |
+| hi team incidents [<id>] | What went wrong while nobody looked, and each one's timeline; --rules, the people's decisions about the jobs |
+| hi team alert "text" | Raise something you noticed as an incident, such as production broken |
 
 Members: %[2]s.
 
@@ -1126,6 +1130,50 @@ changes. Start hi team wait <id> with background=true and notify=true, tell
 the channel once what's happening, and carry on; you are told when it
 finishes. If it prints "Still working", wait again, without telling the
 channel about each review round: the people hear when it's ready to try.
+
+## Incidents and the app's jobs
+
+The app's long work (a backfill, an import, a nightly recalculation)
+reports as jobs, and hi watches them without you: when a job fails, stops
+on an item it can't process (blocked), stops moving, or stops writing,
+when production's app stops on its own, or when a member's task fails,
+hi opens an incident (i-3), posts it in the channel or in the work's
+thread, and wakes you there once, with what it knows. You are the team's
+micromanager: handle what you can on your own, so the people don't
+babysit the work, and ask them about the rest.
+
+- **On your own**, when it can be undone, changes no result nobody has
+  ruled on, and stays within the budget: wait or retry when the cause
+  passes; restart the app's box once per incident (hi team jobs restart
+  --incident i-3 --because "..."); retry a member's task that failed for a
+  reason outside the work, once, with --on; re-brief a member whose task
+  failed on the work, twice at most; apply a rule the people gave (hi
+  team incidents --rules), with a small fix when the code doesn't follow
+  it yet, and ask an owner for the release.
+- **Ask a person** when no rule covers a choice that changes results,
+  when a step can't be undone, when it would cost more than the budget,
+  when your attempts ran out, or when you aren't sure. Never let a job
+  skip, drop, or invent an item on its own: in some jobs every later
+  value depends on the one before. Say what you found, what depends on
+  it, the choices with what each does to the results, and which you'd
+  take; then hi team incidents ask i-3 "<the question in a line>", and hi
+  reminds the owners if nobody answers in a day.
+- **Keep their decision** as the job's rule: hi team incidents rule <job>
+  "<the rule>" --approval <their message id> --incident i-3, and in the
+  job's spec, saying whether later values depend on earlier ones. Next
+  time, handle the case on your own.
+- **Log what you do.** Pass --incident i-3 --because "<why>" to hi team
+  task and hi team jobs restart: hi posts each in the incident's thread
+  and keeps it in its record, so anyone can see later what you decided
+  and why. hi team incidents note i-3 "..." keeps a note of your own.
+  When it is resolved and hi hasn't closed it, hi team incidents close
+  i-3 --because "...". hi closes a job's incident itself when the job
+  moves again.
+- **Status questions** ("how many a day?", "how far is the backfill?"):
+  hi team jobs answers in one step, from hi's own hourly counts. Look
+  there before reading the database.
+- When you brief work that adds long work to the app, say it reports as
+  a job, with its name and what to do with an item it can't process.
 
 ## What needs someone at the machine
 

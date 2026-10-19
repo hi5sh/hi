@@ -1,6 +1,8 @@
 # `hi team jobs`: the app's long work, watched
 
-Status: Draft (2026-10-18, revised 2026-10-19).
+Status: Approved (2026-10-19), built in v0.93.0. Drafted 2026-10-18 after a
+production backfill sat stopped on one record for days without anyone
+knowing.
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the broker, the lead,
 approvals, preview and production), [hi_team_data.md](../approved/hi_team_data.md)
@@ -46,7 +48,7 @@ So:
 
 A job is a named piece of long work, such as `backfill-classify`. The app
 writes one file per job, `$HI_JOBS_DIR/<job>.json` (in the app's box,
-`/hi/jobs`, mounted from `run/<slot>-jobs/` in the team's folder). It
+`/jobs`, mounted from `run/<slot>-jobs/` in the team's folder). It
 writes to a temporary name and renames, so hi never reads half a file:
 
 ```json
@@ -80,19 +82,24 @@ it broke. The difference matters to the lead (below), not to the broker,
 which alerts on both.
 
 For apps that would rather not write files, the `hi` binary is already in
-the app's box (the relay that starts it), and gives the same thing in one
-call:
+the app's box (the relay that starts it, as `$HI`), and gives the same
+thing in one call. What a call doesn't say stays as the file had it, and
+a job that runs again drops its last error:
 
 ```sh
-"$HI" team job backfill-classify --running --done 8272 --total 533386
+"$HI" team job backfill-classify --done 8272 --total 533386 --unit releases
 "$HI" team job backfill-classify --blocked --item 338809a1 --error "the release has no text and its PDF can't be read"
-"$HI" team job backfill-classify --done
+"$HI" team job backfill-classify --finished
 ```
 
-The team's templates and the coder's role instructions carry the rule:
-any work that can outlive a request (a loop over records, a queue
-consumer, a scheduled recalculation) reports as a job. A reviewer asks for
-it when it is missing.
+The states are `--running` (the default), `--blocked`, `--failed`, and
+`--finished`; `--done` is the count.
+
+Every brief carries the rule, after the drawing rule: any work that can
+outlive a request (a loop over records, a queue consumer, a scheduled
+recalculation) reports as a job, and stops on an item it can't process
+unless its spec gives a rule for the case. The team-app template's coder
+role says the same, for new teams.
 
 ## What the broker watches
 
@@ -104,8 +111,12 @@ already checks production's address. It raises an alert when:
   `stall_after`.
 - **A job is silent**: `running`, but `at` is older than `stall_after`.
   Whatever ran it died without saying so.
-- **The app's box stopped** while a job was `running`: the box's exit
-  code and the last lines of its log are in the alert.
+- **Production's app stopped on its own**, whether or not a job was
+  running: the box's exit code (137 is said to be a kill, often for
+  memory), the jobs that were running, and the last lines of its log are
+  in the alert. hi already starts a stopped production again; the
+  incident is posted before it does. A box that stopped before the team
+  started (a reboot, `hi team down`) isn't one.
 
 ## Incidents
 
@@ -128,11 +139,13 @@ incident, once.
 
 ## What the lead does
 
-The broker starts a lead turn for the incident, the way `hi team say`
-does, with what the lead would otherwise spend its turn finding: for a
-job, its record, the item, the error, the box's last log lines, and how
-far it had come; for a task, its brief, its report, and how it ended. The
-lead answers in the incident's thread.
+The broker wakes the lead for the incident with a job in its Hermes that
+runs once, as it does when a wait missed the end of work, with what the
+lead would otherwise spend its turn finding: for a job, its file, the
+box's last log lines, and the people's rules for it. The lead answers in
+the incident's thread. A failed task's incident comes to the lead with
+the task: `hi team wait` prints it, and when no wait is there, hi's
+wake-up for work that ended says it.
 
 It first finds out why, reading only: the item, the logs, the code, the
 job's history, the task's report. Then it decides whether it can handle
@@ -148,8 +161,10 @@ stays within the team's budget:
 - **Wait or retry** when the cause passes: a network error, a service
   that was down, a rate limit. It checks back once the job should have
   moved.
-- **Restart the app's box** when it stopped or a job went silent, once
-  per incident. A second stop in the same incident goes to a person.
+- **Restart the app's box** when a job went silent while the box still
+  runs, once per incident: `hi team jobs restart [--preview] --incident
+  <id> --because "<why>"`. A second restart needs a person's yes
+  (`--approval <id>`). A box that stopped hi starts again itself.
 - **Retry a member's task** that failed for a reason outside the work (the
   box didn't start, the agent's service was down), once, with `--on`.
 - **Re-brief a member** whose task failed on the work itself: a brief that
@@ -197,8 +212,15 @@ keeps it in its memory and in the job's spec, and the coder's next brief
 for that job carries it. The next time the case comes up, the lead
 handles it alone.
 
-If nobody answers within a day, the lead posts one reminder in the
-thread, @-mentioning the owners. Nothing happens to the job meanwhile.
+The lead marks the question with `hi team incidents ask <id> "<the
+question>"`. If nobody answers in the thread within a day, hi posts one
+reminder there, @-mentioning the owners. Nothing happens to the job
+meanwhile.
+
+A rule needs the people's message: `hi team incidents rule <job> "<the
+rule>" --approval <id> [--incident <id>]`, which hi checks as it checks a
+yes for work, and keeps in `incidents/rules.json` with who gave it. Every
+wake-up for that job carries its rules.
 
 ### Skipping is never the default
 
@@ -227,15 +249,28 @@ Everything the lead does on its own in an incident is logged twice:
 
 hi writes the record, not the lead: the lead's actions go through hi's
 commands (`hi team task`, the restart, the rule), each with `--incident
-<id> --because "<why>"`, and the broker appends them. A note the lead
-writes itself is kept too, marked as its own. So the record shows what
-was done, not only what the lead says it did.
+<id> --because "<why>"`, and the broker appends them. A task started for
+an incident is followed: hi notes how it ended, a failure of it stays in
+the same incident, and a failed task's incident closes once the work
+after it is done. A note the lead writes itself is kept too, marked as
+its own. So the record shows what was done, not only what the lead says
+it did.
 
 ```text
-hi team incidents                    open incidents, then the last month's
-hi team incidents <id>               one incident's timeline
-hi team incidents --rules            every rule the people gave, by job, with who and when
+hi team incidents [<name>]                 open incidents, then the last month's
+hi team incidents [<name>] <id>            one incident's timeline
+hi team incidents [<name>] --rules         every rule the people gave, by job, with who and when
+hi team incidents ask <id> "<question>"    the lead: waiting for the people (hi reminds once)
+hi team incidents note <id> "<text>"       the lead: a note of its own
+hi team incidents close <id> --because ... the lead: resolved
+hi team incidents rule <job> "<rule>" --approval <id> [--incident <id>]
+hi team jobs restart [--preview] --incident <id> --because ... [--approval <id>]
+hi team jobs forget <job> [--preview] --because ...   a job a release took out
 ```
+
+On the machine the commands take the team's name and read its folder, so
+they work while the team is down; in the lead's box they go to its
+socket.
 
 Incidents live in the team's folder, beside `tasks/`, so snapshots and the
 daily backups keep them.
@@ -262,17 +297,20 @@ its file in a month is no longer listed.
 
 ## `hi team alert`
 
-A smaller, separate thing, for the members and the lead's own cron jobs:
+A smaller, separate thing, for the lead's own cron jobs and turns:
 
 ```sh
 hi team alert "production's export has been returning 500 since 14:00"
 ```
 
 It opens an incident, with the alert style in the channel, and wakes the
-lead as any incident does. A member that notices production broken while
-working on something else uses it instead of burying the note in its
-report. It is rate-limited per team (one a minute, ten a day). It doesn't
-cover the app's jobs, which report as above.
+lead as any incident does. A member's box can't reach the broker, so a
+member that notices production broken while working on something else
+puts a line starting with `Alert:` in its report's follow-ups, which
+every brief says, and hi opens the incident when the task ends, instead
+of the note being buried in the report. Alerts are rate-limited per team
+(one a minute, ten a day). They don't cover the app's jobs, which report
+as above.
 
 ## Decisions
 

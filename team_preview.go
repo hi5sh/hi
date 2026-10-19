@@ -479,6 +479,36 @@ func (b *teamBroker) appRunning(container string) bool {
 	return err == nil && strings.TrimSpace(out) == "true"
 }
 
+// appExitState is how an app's box that stopped ended: its exit code and
+// when. ok is false for a box that runs, or isn't there.
+func (b *teamBroker) appExitState(container string) (int, time.Time, bool) {
+	out, err := b.engineOutput("inspect", "-f", "{{.State.Running}} {{.State.ExitCode}} {{.State.FinishedAt}}", container)
+	fields := strings.Fields(out)
+	if err != nil || len(fields) < 3 || fields[0] != "false" {
+		return 0, time.Time{}, false
+	}
+	exit, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return 0, time.Time{}, false
+	}
+	finished, ok := teamParseFinishedAt(fields[2:])
+	return exit, finished, ok
+}
+
+// teamParseFinishedAt reads when a box stopped, as the engine says it:
+// Docker 2026-10-18T14:02:11.123Z, Podman 2026-10-18 14:02:11.123 +0000 UTC.
+func teamParseFinishedAt(fields []string) (time.Time, bool) {
+	if len(fields) == 1 {
+		finished, err := time.Parse(time.RFC3339Nano, fields[0])
+		return finished, err == nil
+	}
+	if len(fields) >= 3 {
+		finished, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", strings.Join(fields[:3], " "))
+		return finished, err == nil
+	}
+	return time.Time{}, false
+}
+
 // stopSlot ends a slot's address and its app's box.
 func (b *teamBroker) stopSlot(slot string) {
 	if state, ok := loadTeamSlot(b.team, slot); ok {
@@ -547,13 +577,16 @@ func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 				time.Since(previewFailed) > 30*time.Minute {
 				// A new hi, or new settings: the same version in a new box,
 				// on the same address.
-				if err := b.refreshPreview(preview); err != nil {
+				if _, err := b.refreshPreview(preview); err != nil {
 					fmt.Fprintf(stderr, "hi: the preview in a new box: %v\n", err)
 					previewFailed = time.Now()
 				}
 			}
 		}
 		if time.Since(failed) > 30*time.Minute && b.productionNeedsWork() {
+			if state, ok := loadTeamSlot(b.team, teamSlotProduction); ok {
+				b.appStopped(state) // an incident, when it stopped on its own
+			}
 			if _, err := b.production(0); err != nil {
 				fmt.Fprintf(stderr, "hi: putting production on its address: %v\n", err)
 				failed = time.Now()
@@ -571,15 +604,14 @@ func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 
 // refreshPreview shows what the preview shows in a new box, beside the
 // old one, keeping its address and what it says it is.
-func (b *teamBroker) refreshPreview(current teamPreview) error {
+func (b *teamBroker) refreshPreview(current teamPreview) (teamPreview, error) {
 	b.previewMu.Lock()
 	defer b.previewMu.Unlock()
 	if now, ok := loadTeamSlot(b.team, teamSlotPreview); !ok || now.Container != current.Container {
-		return nil // changed meanwhile
+		return now, nil // changed meanwhile
 	}
 	next := teamPreview{Slot: teamSlotPreview, Source: current.Source, Label: current.Label, Port: current.Port}
-	_, err := b.show(next, current.Commit, teamLinkRenew)
-	return err
+	return b.show(next, current.Commit, teamLinkRenew)
 }
 
 // productionNeedsWork says production is released but its address is
@@ -635,6 +667,10 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	if err := os.MkdirAll(models, 0o700); err != nil {
 		return err
 	}
+	jobs := teamSlotJobsDir(b.team, slot)
+	if err := os.MkdirAll(jobs, 0o700); err != nil {
+		return err
+	}
 	envFile, err := writeTeamAppEnvFile(b.team, teamAppEnv(b.team, slot, port))
 	if err != nil {
 		return err
@@ -647,6 +683,7 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	run = append(run, "-v", src+":/app", "-w", "/app", "-v", data+":"+teamAppDataDir,
 		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
 		"-v", models+":"+teamAppModelsDir,
+		"-v", jobs+":"+teamAppJobsDir,
 		"-v", b.hi+":"+teamAppRelay+":ro",
 		"--env-file", envFile,
 		image, teamAppRelay, "team", "__app", teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
