@@ -64,8 +64,9 @@ each release says who asked for what it holds.
   the channel, or a small fix by the lead), and the preview's links to
   the app and its docs, asking the owners for a yes in its thread. It
   goes in the channel, or, when someone asked for the release, in the
-  thread of their message (`--in`). That is when the channel hears about
-  dev's work.
+  thread of their message (`--in`). Each new dev on the preview, and each
+  release, also gets one line in the channel, with what it brings in its
+  thread (v0.97.0).
 - **Each release says who asked** for the work it holds: "Asked for by
   Anna (t-12, t-14), Bo (t-13)", from the tasks' approvals, wherever they
   were given: the channel, the app's chat, or a DM.
@@ -94,7 +95,9 @@ minutes, 200 calls, and said nothing.)
 The message is a go-ahead for the work it asks for, as
 `--approval say:<ts>`, kept in `run/say.json` for a week: the machine's
 admin can change anything there already. A release, a rollback, or
-production's helper still needs an owner's yes in the channel.
+production's helper still needs an owner's yes in the channel. Since
+v0.97.0 an owner may release dev from their own DM with the lead
+(`--approval dm`); the channel then gets only the PROD line.
 
 ## The Slack app
 

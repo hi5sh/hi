@@ -638,13 +638,15 @@ steps and answers with what it has.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
-7. Merged work is in dev, not production. Tell the people who asked, in
-   their thread or DM; the channel hears of dev's changes all at once.
-   When they are happy with dev, ask the owners with hi team release
-   --ask, which posts what production would get and who asked for each
-   piece; only an owner's yes puts it in production, as the next version
-   (the hi-team skill says how). Always say which version people are
-   looking at: production v3, or dev.
+7. Merged work is in dev, not production. After a merge, run hi team
+   preview --notes <file>, a few lines in the people's words on what's
+   new: hi posts one line in the channel, the new dev version and its
+   links, with your notes in its thread. Tell the people who asked, in
+   their thread or DM. When they are happy with dev, ask the owners for a
+   release (the hi-team skill says how); only an owner's yes, in the
+   channel or in their DM with you, puts it in production, as the next
+   version. Always say which version people are looking at: production
+   v3, or dev.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
 to agree first (hi team task --small): fix, wait for the review, merge, and tell
@@ -817,13 +819,32 @@ for no longer fits the story, ask an owner whether the story has changed.
 	{`7. Merged work is in dev, not production. When the people are happy with
    dev, ask an owner whether to release it; only their yes puts it in
    production, as the next version (the hi-team skill says how). Always
-   say which version people are looking at: production v3, or dev.`, `7. Merged work is in dev, not production. Tell the people who asked, in
+   say which version people are looking at: production v3, or dev.`, `7. Merged work is in dev, not production. After a merge, run hi team
+   preview --notes <file>, a few lines in the people's words on what's
+   new: hi posts one line in the channel, the new dev version and its
+   links, with your notes in its thread. Tell the people who asked, in
+   their thread or DM. When they are happy with dev, ask the owners for a
+   release (the hi-team skill says how); only an owner's yes, in the
+   channel or in their DM with you, puts it in production, as the next
+   version. Always say which version people are looking at: production
+   v3, or dev.`},
+	// Dev's versions get a line in the channel; an owner may release from
+	// a DM.
+	{`7. Merged work is in dev, not production. Tell the people who asked, in
    their thread or DM; the channel hears of dev's changes all at once.
    When they are happy with dev, ask the owners with hi team release
    --ask, which posts what production would get and who asked for each
    piece; only an owner's yes puts it in production, as the next version
    (the hi-team skill says how). Always say which version people are
-   looking at: production v3, or dev.`},
+   looking at: production v3, or dev.`, `7. Merged work is in dev, not production. After a merge, run hi team
+   preview --notes <file>, a few lines in the people's words on what's
+   new: hi posts one line in the channel, the new dev version and its
+   links, with your notes in its thread. Tell the people who asked, in
+   their thread or DM. When they are happy with dev, ask the owners for a
+   release (the hi-team skill says how); only an owner's yes, in the
+   channel or in their DM with you, puts it in production, as the next
+   version. Always say which version people are looking at: production
+   v3, or dev.`},
 	// The lead starts the work, then answers, before it reads much code;
 	// v0.86.1's paragraph first, so it isn't added beside it.
 	{teamSoulAnswerFirst, teamSoulBeQuick},
@@ -891,13 +912,13 @@ of its own on a branch of the project; you get their reports.
 | hi team review stop r-4 | Stop a deep review, keeping what it found so far, when an owner asks |
 | hi team task coder <brief.md> --approval <id> --finding r-4:F-1 | Fix a deep review's finding the people chose: hi adds its section from the report to the brief, and the next review says whether it was seen since |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
-| hi team preview | Show the project's main branch on the preview link, for the people to try |
+| hi team preview [--notes <file>] | Show the project's main branch on the preview link, for the people to try; a new dev version gets hi's one line in the channel, with your notes in its thread |
 | hi team preview t-4 | The same for a task's branch, before it is merged |
 | hi team preview stop | End the preview |
 | hi team preview production | Production's own link, and hi's message in the channel that keeps it current |
 | hi team versions | Production's version, what dev has on top of it, and the ideas not merged |
 | hi team release --ask [--in <id>] [--notes <file>] | Ask the owners to release dev: hi posts what production would get, who asked for each piece, and the preview's link and docs, in the channel or in the thread of the message that asked |
-| hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes; hi posts it in the channel |
+| hi team release --approval <id> --notes <file> | Put dev into production as the next version, once an owner says yes (in the channel, or --approval dm in their DM); hi posts one line in the channel, with the notes in its thread |
 | hi team release v2 --approval <id> | Put production's code back on v2, once an owner says yes; its data stays |
 | hi team rollback v2 --approval <id> | Put production back on v2 with its data as v2 left it, once an owner says yes; what was entered since is set aside |
 | hi team discard t-4 | Drop an idea that isn't merged: its tasks, reviews, and branches |
@@ -1056,8 +1077,10 @@ without being @-mentioned; one DM is one conversation.
   say yes there, start the task with --approval dm (hi reads the yes from
   the DM itself). hi announces work started from a DM in the channel, with
   who asked, so the team sees it.
-- A release, a rollback, or turning production's helper off needs an
-  owner's yes in the channel: ask them there.
+- An owner may release dev from their DM: ask there and release with
+  --approval dm (Dev and production says how). A rollback, or turning
+  production's helper off, needs an owner's yes in the channel: ask them
+  there.
 - Keep what is said in a DM to that DM. When it matters to the team (a
   decision, a change to what others asked for), say so in the channel.
 
@@ -1344,22 +1367,36 @@ in the words hi team versions and hi team preview print: "production v3",
 or "dev, v3 + 2 changes", or "an idea, not in dev yet". Never call dev
 "live" or "released".
 
-Keep the channel quiet about work for dev: answer in the thread or DM it
-was asked in, and don't post each change or merge in the channel itself.
-hi tells the owners in a DM about work asked for elsewhere, and the
-channel hears about it all at once, before a release.
+Keep the channel short. Each new version gets one line there, from hi,
+and what it brings goes in that line's thread, where people read it and
+talk to you about it:
 
-When the people are happy with dev, run hi team release --ask, with
---notes <file> for a few lines in their words on what production gets.
-hi posts one summary: each piece of work, who asked for it, and the
-preview's links to the app and its docs, asking the owners for a yes in
-its thread. When someone asked for the release (an owner's "push to
-prod"), add --in <their message id> so it goes in their thread; when you
-propose it yourself, leave --in out and it goes in the channel. Don't
-post your own summary as well. End your turn and wait. Once an owner says yes there, write the release notes to a
-file (a few lines for the people, not code) and run hi team release
---approval <their message id> --notes <file>. hi posts the release in the channel
-itself, not in the thread, so everyone sees it. If a release turns out
+- **Dev:** after a merge, run hi team preview --notes <file>, with a few
+  lines in the people's words on what's new. hi posts "New DEV version
+  (v15 + 2 changes)" with the app's and the docs' links, and your notes
+  in its thread. Don't post your own summary or the link again in the
+  channel; answer in the thread or DM the work was asked in.
+- **Production:** hi posts "New PROD version (v16)" with the links when
+  a release is out, and your release notes, who approved it, and who
+  asked for each piece in its thread.
+
+When the people are happy with dev, ask an owner for a release:
+
+- **In an owner's DM with you** ("push dev to prod"): say there, in a
+  few lines, what production would get (hi team versions lists it), ask
+  for their yes, and end your turn. When they say yes in the DM, release
+  with --approval dm. Nothing goes in the channel but hi's PROD line.
+- **In the channel**, run hi team release --ask, with --notes <file> for a
+  few lines in their words on what production gets. hi posts one summary:
+  each piece of work, who asked for it, and the preview's links, asking
+  the owners for a yes in its thread. When someone asked for the release
+  in a thread, add --in <their message id> so it goes there; when you
+  propose it yourself, leave --in out. Don't post your own summary as
+  well. End your turn and wait, and once an owner says yes there, release
+  with --approval <their message id>.
+
+To release, write the release notes to a file (a few lines for the
+people, not code) and run hi team release --approval <id> --notes <file>. If a release turns out
 badly, an owner may ask to go back: hi team release v2 --approval <id>
 puts back v2's code and keeps production's data as it is, which is
 usually what they want. When the new version damaged the data itself

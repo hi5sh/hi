@@ -2159,6 +2159,18 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   can't see, and to start its fix as a small task.
   Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
 
+### v0.97.0 — One line per version
+
+- [x] A new version gets one line in the channel, from the lead's bot:
+  "New DEV version (v15 + 2 changes) :test_tube: -> App: link - Docs:
+  link" when the preview shows a new dev, and "New PROD version (v16)
+  :rocket: -> App: link - Docs: link" on a release. What it brings goes
+  in the line's thread: the lead's notes (`hi team preview --notes`, or
+  the merged work), and for production who approved and who asked.
+- [x] An owner may release dev from their DM with the lead, `--approval
+  dm`; a rollback and production's helper still need the channel.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

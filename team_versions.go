@@ -426,21 +426,51 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 		announcement += teamReleaseHelperNote(config)
 	}
 	// Production's address shows the new version before the channel hears.
+	app, docs := "", ""
 	if b.channel != nil {
 		if shown, err := b.production(0); err != nil {
 			result.Warning = strings.TrimSpace(result.Warning + "\nProduction's address still shows the version before: " + err.Error())
 		} else if shown.URL != "" {
-			announcement += fmt.Sprintf("\n\nOpen it at <%s|production's link>.", shown.URL)
+			app = shown.URL
 			// An address on a relay from before /docs/ shows the app there.
 			if shown.Relay == teamRelayStamp(b.team, teamSlotProduction) {
-				announcement += fmt.Sprintf("\nHere are the links to the docs: <%s|docs>.", teamDocsLink(shown.URL))
+				docs = teamDocsLink(shown.URL)
 			}
 		}
 	}
 	if configErr == nil {
-		b.announce(config, announcement)
+		b.announceInThread(config, teamReleaseHeadline(result, app, docs), announcement)
 	}
 	return result, nil
+}
+
+// teamReleaseHeadline is the release's one line in the channel; what it
+// brings goes in the line's thread.
+func teamReleaseHeadline(result teamReleaseResult, app, docs string) string {
+	version := result.Release.Version
+	var text string
+	switch {
+	case result.Back:
+		text = fmt.Sprintf("PROD back on v%d :leftwards_arrow_with_hook:", version)
+	case result.Again:
+		text = fmt.Sprintf("PROD on v%d again :rocket:", version)
+	default:
+		text = fmt.Sprintf("New PROD version (v%d) :rocket:", version)
+	}
+	return text + teamSlotLinks(app, docs)
+}
+
+// teamSlotLinks are an address's links in a headline: " -> App: link -
+// Docs: link".
+func teamSlotLinks(app, docs string) string {
+	if app == "" {
+		return ""
+	}
+	text := fmt.Sprintf(" -> App: <%s|link>", app)
+	if docs != "" {
+		text += fmt.Sprintf(" - Docs: <%s|link>", docs)
+	}
+	return text
 }
 
 // teamReleaseHelperNote tells the channel that production has no helper,
@@ -599,6 +629,9 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 
 func teamReleaseAnnouncement(result teamReleaseResult, approval teamApproval, notes string) string {
 	var text strings.Builder
+	if strings.HasPrefix(approval.TS, "dm:") {
+		approval.Name += " in a DM"
+	}
 	version := result.Release.Version
 	data := ""
 	if result.DataFrom != "" {
@@ -778,6 +811,22 @@ func (b *teamBroker) announce(config teamConfig, text string) {
 	if b.channel != nil {
 		b.channel.post(config.Channel, text)
 	}
+}
+
+// announceInThread posts one line in the channel, and the rest in its
+// thread, where people who want it read it and talk to the lead about it.
+func (b *teamBroker) announceInThread(config teamConfig, headline, details string) string {
+	if b.channel == nil {
+		return ""
+	}
+	ts, err := b.channel.post(config.Channel, headline)
+	if err != nil {
+		return ""
+	}
+	if details = strings.TrimSpace(details); details != "" {
+		b.channel.postIn(config.Channel, ts, details)
+	}
+	return ts
 }
 
 // discard drops an idea that isn't merged: the task, the tasks that

@@ -190,6 +190,8 @@ type teamPreviewRequest struct {
 	Production bool   `json:"production,omitempty"`
 	Port       int    `json:"port,omitempty"`
 	Stop       bool   `json:"stop,omitempty"`
+	// Notes say what is new in dev, for the people: the DEV line's thread.
+	Notes string `json:"notes,omitempty"`
 }
 
 // preview puts dev, a task's branch, or production on its address, or
@@ -226,8 +228,63 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 			return teamPreview{}, fmt.Errorf("%s has no branch of its own (%s); preview %s instead", task.ID, task.Status, config.Branch)
 		}
 		next.Source, next.Label, ref = task.ID, fmt.Sprintf("idea %s, not in dev yet", task.ID), task.Branch
+		return b.show(next, ref, teamLinkKeep)
 	}
-	return b.show(next, ref, teamLinkKeep)
+	state, err := b.show(next, ref, teamLinkKeep)
+	if err == nil {
+		b.announceDev(config, state, request.Notes)
+	}
+	return state, err
+}
+
+func teamDevAnnouncedPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "dev-announced")
+}
+
+// announceDev tells the channel, in one line, that the preview shows a new
+// version of dev, once per version; what is new goes in the line's
+// thread: the lead's notes, or the work merged since the last one.
+func (b *teamBroker) announceDev(config teamConfig, state teamPreview, notes string) {
+	if b.channel == nil || teamFreshApp(b.repo, config.Branch) {
+		return
+	}
+	data, _ := os.ReadFile(teamDevAnnouncedPath(b.team))
+	last := strings.TrimSpace(string(data))
+	if last == state.Commit {
+		return
+	}
+	view, err := teamVersionsReport(b.team)
+	if err != nil || len(view.Changes) == 0 && view.Production > 0 {
+		return // the same as production: nothing new to try
+	}
+	label := strings.TrimPrefix(view.Dev, "dev, ")
+	docs := ""
+	if state.URL != "" && state.Relay == teamRelayStamp(b.team, teamSlotPreview) {
+		docs = teamDocsLink(state.URL)
+	}
+	details := strings.TrimSpace(notes)
+	if details == "" {
+		var lines []string
+		all := loadTeamTasks(b.team)
+		var fresh []teamTask
+		for _, task := range view.Changes {
+			if last == "" || !teamIsAncestor(b.repo, task.Merged, last) {
+				fresh = append(fresh, task)
+			}
+		}
+		for _, piece := range teamDevWork(all, fresh) {
+			lines = append(lines, fmt.Sprintf("• %s (%s), %s", teamSlackEscape(piece.Root.Title), strings.Join(piece.IDs, ", "), teamTaskAskedBy(piece.Root)))
+		}
+		if len(lines) > 0 {
+			details = "New in dev:\n" + strings.Join(lines, "\n")
+		}
+	}
+	if view.Production > 0 {
+		details += fmt.Sprintf("\n\nProduction stays on v%d until an owner releases dev.", view.Production)
+	}
+	if b.announceInThread(config, fmt.Sprintf("New DEV version (%s) :test_tube:", label)+teamSlotLinks(state.URL, docs), details) != "" {
+		writeFileAtomic(teamDevAnnouncedPath(b.team), []byte(state.Commit+"\n"), 0o600)
+	}
 }
 
 // startPreview puts the new team's blank app on the preview when the team

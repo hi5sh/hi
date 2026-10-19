@@ -690,6 +690,7 @@ func TestTeamDMApproval(t *testing.T) {
 	channel.dms = map[string][]slack.Message{
 		"U07ANNA01": {from("U07ANNA01", "Can the badge be red?", 30*time.Minute), bot("Overdue = past due? Shall I?", 20*time.Minute), from("U07ANNA01", "Yes please", 10*time.Minute)},
 		"U1":        {bot(":speech_balloon: You, in the app (preview): Make it red", 15*time.Minute), from("U1", "Do it", 10*time.Minute)},
+		"U07OWNER1": {bot("Production would get the red badge. Release it?", 5*time.Minute), from("U07OWNER1", "Yes, push it", 4*time.Minute)},
 	}
 	// hi's copy of a chat in the app isn't the lead asking in the DM.
 	saveTeamWebConversation("payments", teamWebConversation{ID: "w-1", Slot: teamSlotPreview, Person: "U1", Name: "Anna", Verified: true, Started: now, DM: "DU1", Thread: ts(15 * time.Minute),
@@ -709,7 +710,15 @@ func TestTeamDMApproval(t *testing.T) {
 			t.Errorf("%s: %v", ref, err)
 		}
 	}
-	if _, err := b.teamFindApproval(config, "dm:U07ANNA01", "release"); err == nil || !strings.Contains(err.Error(), "owner's yes in the channel") {
+	// An owner may release from a DM, so it takes an owner; the rest of
+	// what is theirs is said in the channel.
+	if _, err := b.teamFindApproval(config, "dm:U07ANNA01", "release"); err == nil || !strings.Contains(err.Error(), "isn't one of the team's owners") {
+		t.Fatal(err)
+	}
+	if approval, err := b.teamFindApproval(config, "dm:U07OWNER1", "release"); err != nil || approval.Text != "Yes, push it" {
+		t.Fatal(approval, err)
+	}
+	if _, err := b.teamFindApproval(config, "dm:U07OWNER1", "rollback"); err == nil || !strings.Contains(err.Error(), "owner's yes in the channel") {
 		t.Fatal(err)
 	}
 

@@ -36,7 +36,8 @@ type teamApproval struct {
 // against the channel's log, polling Slack first when it isn't logged yet.
 // For a release, a rollback, production's helper, a package's install
 // script (trust), or production's data from the preview (data), only an
-// owner's yes counts: production is theirs. A yes in the app's chat (w-3.4) may start
+// owner's yes counts: production is theirs. Of those, only a release may be
+// said yes to in the owner's DM with the lead. A yes in the app's chat (w-3.4) may start
 // work, but never those: its name is only claimed. A release or setting dev back ("dev") needs a yes
 // of its own, never one that approved something else; one yes may start
 // more than one task.
@@ -49,6 +50,11 @@ func (b *teamBroker) teamFindApproval(config teamConfig, ref, approving string) 
 			"A small fix may start without asking: --small")
 	}
 	if strings.HasPrefix(ref, "dm:") {
+		// An owner may release from a DM; the rest of what is theirs is
+		// said where the team sees it.
+		if owners && approving != "release" {
+			return teamApproval{}, fmt.Errorf("%s is from a DM; this needs an owner's yes in the channel, where the team sees it", ref)
+		}
 		approval, err := b.teamCheckDMApproval(config, ref, owners, time.Now())
 		if err != nil {
 			return approval, err
@@ -200,9 +206,6 @@ var teamDMApproval = regexp.MustCompile(`^dm:([A-Z0-9]{2,20})(?::([0-9]{9,11}\.[
 // newest message there after one of the bot's, within a week (or the one
 // named). The lead only says whose DM it was.
 func (b *teamBroker) teamCheckDMApproval(config teamConfig, ref string, owners bool, now time.Time) (teamApproval, error) {
-	if owners {
-		return teamApproval{}, fmt.Errorf("%s is from a DM; this needs an owner's yes in the channel, where the team sees it", ref)
-	}
 	match := teamDMApproval.FindStringSubmatch(ref)
 	if match == nil {
 		return teamApproval{}, fmt.Errorf("a yes in a DM is --approval dm (in that DM's conversation) or dm:<their member ID>, not %q", ref)
@@ -213,6 +216,9 @@ func (b *teamBroker) teamCheckDMApproval(config teamConfig, ref string, owners b
 	}
 	if !b.teamMayAsk(config, user) {
 		return teamApproval{}, fmt.Errorf("%s isn't one of the people who may ask for work", user)
+	}
+	if owners && !containsString(config.Owners, user) {
+		return teamApproval{}, fmt.Errorf("%s isn't one of the team's owners (%s); only an owner may approve this", user, strings.Join(config.Owners, ", "))
 	}
 	messages, err := b.channel.dmHistory(user, teamSlackTS(now.Add(-teamApprovalMaxAge)))
 	if err != nil {

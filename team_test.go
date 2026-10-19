@@ -1140,6 +1140,26 @@ func TestTeamProductionLink(t *testing.T) {
 	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
 	teamTestMerge(t, b, "Suppliers")
 
+	// The preview of a new dev gets one line in the channel, once, with
+	// the lead's notes in its thread.
+	dev, err := b.preview(teamPreviewRequest{Notes: "You can list suppliers now."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.preview(teamPreviewRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	var lines []string
+	for _, call := range channel.calls {
+		if strings.Contains(call, "DEV version") || strings.Contains(call, "list suppliers") {
+			lines = append(lines, call)
+		}
+	}
+	if len(lines) != 2 || lines[0] != "post C07PAYMENTS New DEV version (1 change, nothing released yet) :test_tube: -> App: <"+dev.URL+"|link> - Docs: <"+teamDocsLink(dev.URL)+"|link>" ||
+		!strings.HasPrefix(lines[1], "postIn C07PAYMENTS ") || !strings.HasSuffix(lines[1], " You can list suppliers now.") {
+		t.Fatalf("%q", lines)
+	}
+
 	// The release puts production on its own address, and hi posts its
 	// link in the channel, and the link again in the release's message.
 	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 20), Notes: "Suppliers"}); err != nil {
@@ -1158,7 +1178,7 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatalf("the app's address file has %q", address())
 	}
 	calls := strings.Join(channel.calls, "\n")
-	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+first.URL+"|production's link>.\nHere are the links to the docs: <"+teamDocsLink(first.URL)+"|docs>") {
+	if !strings.Contains(calls, "*Production v1* is at <"+first.URL+"|this link>") || !strings.Contains(calls, "post C07PAYMENTS New PROD version (v1) :rocket: -> App: <"+first.URL+"|link> - Docs: <"+teamDocsLink(first.URL)+"|link>") {
 		t.Fatal(calls)
 	}
 

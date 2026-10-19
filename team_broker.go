@@ -1911,12 +1911,19 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				}
 				request.Port = port
 				i++
+			case args[i] == "--notes" && i+1 < len(args):
+				notes, err := teamReadBrief(args[i+1], stdin)
+				if err != nil {
+					return err
+				}
+				request.Notes = notes
+				i++
 			case request.Task == "" && !request.Production && args[i] == "production":
 				request.Production = true
 			case request.Task == "" && !request.Production && teamTaskID.MatchString(args[i]):
 				request.Task = args[i]
 			default:
-				return usageError{"usage: hi team preview [<task> | production] [--port <n>] | hi team preview stop"}
+				return usageError{"usage: hi team preview [<task> | production] [--port <n>] [--notes <file|->] | hi team preview stop"}
 			}
 		}
 		var preview teamPreview

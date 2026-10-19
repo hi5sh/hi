@@ -189,9 +189,18 @@ Two versions of the project, named the same way everywhere:
   <id>` puts production back on an earlier release (the remote branch is
   force-pushed: it is the broker's alone). The numbers never repeat.
 - An approval counts once: a yes to a task doesn't also release it.
-- **Announced.** Every move of production, and every time dev is set back
-  to it, is posted in the channel itself, outside any thread: the version,
-  the one before, who approved it, and the lead's notes for the people.
+- **Announced.** Every move of production is one line in the channel,
+  "New PROD version (v16) :rocket: -> App: link - Docs: link" (or "PROD
+  back on v14"), and in its thread the version before, who approved it,
+  who asked for each piece, and the lead's notes for the people. A new
+  dev on the preview (`hi team preview --notes <file>`) is one line too,
+  once per commit, "New DEV version (v15 + 2 changes) :test_tube: -> App:
+  link - Docs: link", with the lead's notes, or else the work merged
+  since the last one, in its thread (v0.97.0). Setting dev back to
+  production is posted in the channel itself.
+- **From a DM.** An owner's yes in their DM with the lead releases dev
+  (`--approval dm`); a rollback or production's helper still needs an
+  owner's yes in the channel.
 - **Discarding.** `hi team discard <task>` drops an idea that isn't merged:
   the task, the tasks continuing it or that it continues, their reviews,
   boxes, and branches. `hi team discard dev --approval <id>` (anyone who

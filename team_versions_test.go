@@ -119,8 +119,11 @@ func TestTeamVersions(t *testing.T) {
 	if result.Release.Version != 1 || boxGit(b.repo, "rev-parse", "production") != head || boxGit(b.repo, "rev-parse", "release-1^{commit}") != head {
 		t.Fatalf("%+v", result)
 	}
-	if !strings.Contains(posted(), "post C07PAYMENTS :rocket: *Production v1 is out*, the first release, approved by U07OWNER1.\n\n- A list of suppliers") {
-		t.Fatal(posted())
+	// One line in the channel; what it brings in its thread.
+	headline := channel.calls[len(channel.calls)-2]
+	if !strings.HasPrefix(headline, "post C07PAYMENTS New PROD version (v1) :rocket:") ||
+		!strings.HasPrefix(posted(), "postIn C07PAYMENTS ") || !strings.Contains(posted(), " :rocket: *Production v1 is out*, the first release, approved by U07OWNER1.\n\n- A list of suppliers") {
+		t.Fatal(headline, posted())
 	}
 	if len(result.Release.Changes) != 2 || !strings.HasPrefix(result.Release.Changes[0], first.ID+" ") {
 		t.Fatal(result.Release.Changes)
