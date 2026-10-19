@@ -76,7 +76,7 @@ func TestTeamWebFiles(t *testing.T) {
 			uploads++
 		}
 	}
-	if uploads != 4 || !strings.Contains(strings.Join(channel.calls, "\n"), "upload C07PAYMENTS 1700000000.000001 1-ref-1.png #1\nupload C07PAYMENTS 1700000000.000001 1-mockup.png mockup.png") {
+	if uploads != 4 || !strings.Contains(strings.Join(channel.calls, "\n"), "upload DU07CLEO01 1700000000.000001 1-ref-1.png #1\nupload DU07CLEO01 1700000000.000001 1-mockup.png mockup.png") {
 		t.Fatalf("%q", channel.calls)
 	}
 	// A picture shows in the page; anything else, SVG too, only downloads.
@@ -215,7 +215,7 @@ func TestTeamWebPost(t *testing.T) {
 		t.Fatalf("%s %+v", id, posted)
 	}
 	calls := strings.Join(channel.calls, "\n")
-	if !strings.Contains(calls, "postIn C07PAYMENTS 1700000000.000001 It's red on the preview now") || !strings.Contains(calls, "upload C07PAYMENTS 1700000000.000001 5-preview.png preview.png") {
+	if !strings.Contains(calls, "postIn DU07CLEO01 1700000000.000001 It's red on the preview now") || !strings.Contains(calls, "upload DU07CLEO01 1700000000.000001 5-preview.png preview.png") || !strings.Contains(line, "in the chat's thread in their DM too") {
 		t.Fatal(calls)
 	}
 	// The lead's next answer here knows what it posted from elsewhere.

@@ -1014,7 +1014,8 @@ wrote, which address and version they see, and the page they are on.
 
 - Answer in a few short sentences: the panel is narrow. Ask about behavior,
   never about code, as in Slack.
-- hi copies each chat into a thread in the channel, so the team sees it.
+- hi copies each chat into a thread in the person's DM with you, or in
+  the channel when they aren't signed in through Slack.
 - With each part of the page they point at comes a picture of it as they
   see it. They can attach files too, pictures most often. You see the
   pictures with the message; all of them are in /team/web/<chat>-files,

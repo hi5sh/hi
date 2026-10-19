@@ -175,10 +175,10 @@ func TestTeamHelperChat(t *testing.T) {
 			t.Fatalf("message %d wasn't copied to the channel", message.N)
 		}
 	}
-	// One thread in the channel: the first message starts it.
-	if len(channel.calls) != 4 || !strings.HasPrefix(channel.calls[0], "post C07PAYMENTS :speech_balloon: *Bo*, in the app (preview, /suppliers): Make this one red") ||
-		!strings.HasPrefix(channel.calls[1], "postIn C07PAYMENTS "+conversation.Thread+" Overdue means") ||
-		!strings.HasPrefix(channel.calls[2], "postIn C07PAYMENTS "+conversation.Thread+" *Bo*, in the app: Yes, go ahead") {
+	// One thread in Bo's DM, not the channel: the first message starts it.
+	if len(channel.calls) != 4 || conversation.DM != "DU07ASKER9" || !strings.HasPrefix(channel.calls[0], "dm U07ASKER9 :speech_balloon: You, in the app (preview, /suppliers): Make this one red") ||
+		!strings.HasPrefix(channel.calls[1], "postIn DU07ASKER9 "+conversation.Thread+" Overdue means") ||
+		!strings.HasPrefix(channel.calls[2], "postIn DU07ASKER9 "+conversation.Thread+" You, in the app: Yes, go ahead") {
 		t.Fatalf("%q", channel.calls)
 	}
 	// The channel's log marks the copies, and the lead's --new skips them.
@@ -689,8 +689,11 @@ func TestTeamDMApproval(t *testing.T) {
 	}
 	channel.dms = map[string][]slack.Message{
 		"U07ANNA01": {from("U07ANNA01", "Can the badge be red?", 30*time.Minute), bot("Overdue = past due? Shall I?", 20*time.Minute), from("U07ANNA01", "Yes please", 10*time.Minute)},
-		"U1":        {from("U1", "Do it", 10*time.Minute)},
+		"U1":        {bot(":speech_balloon: You, in the app (preview): Make it red", 15*time.Minute), from("U1", "Do it", 10*time.Minute)},
 	}
+	// hi's copy of a chat in the app isn't the lead asking in the DM.
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-1", Slot: teamSlotPreview, Person: "U1", Name: "Anna", Verified: true, Started: now, DM: "DU1", Thread: ts(15 * time.Minute),
+		Messages: []teamWebMessage{{N: 1, From: "person", Name: "Anna", Text: "Make it red", At: now, SlackTS: ts(15 * time.Minute)}}})
 	config, _ := loadTeam("payments")
 	approval, err := b.teamFindApproval(config, "dm:U07ANNA01", "task")
 	if err != nil || approval.TS != "dm:U07ANNA01:"+ts(10*time.Minute) || approval.Name != "Anna" || approval.Text != "Yes please" {
@@ -758,5 +761,33 @@ func TestTeamReleaseHelperNote(t *testing.T) {
 	}
 	if note := teamReleaseHelperNote(teamConfig{Helper: map[string]bool{teamSlotProduction: false}}); !strings.Contains(note, "off in production") {
 		t.Fatalf("off in production, but %q", note)
+	}
+}
+
+func TestTeamWebMirrorWhere(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	config, _ := loadTeam("payments")
+	now := time.Now()
+	message := teamWebMessage{N: 1, From: "person", Name: "Bo", Text: "Make it red", At: now}
+	// Someone who only said who they are: the channel, with their name.
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-1", Slot: teamSlotPreview, Name: "Bo", Started: now, Messages: []teamWebMessage{message}})
+	// A chat whose thread is in the channel already stays there.
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-2", Slot: teamSlotPreview, Person: "U07ASKER9", Name: "Bo", Verified: true, Started: now, Thread: "1700000000.000009",
+		Messages: []teamWebMessage{message, {N: 2, From: "person", Name: "Bo", Text: "Yes", At: now}}})
+	b.mirrorWeb(config, "w-1", 1)
+	b.mirrorWeb(config, "w-2", 2)
+	if len(channel.calls) != 2 || channel.calls[0] != "post C07PAYMENTS :speech_balloon: *Bo*, in the app (preview): Make it red" ||
+		channel.calls[1] != "postIn C07PAYMENTS 1700000000.000009 *Bo*, in the app: Yes" {
+		t.Fatalf("%q", channel.calls)
+	}
+	// A yes in a chat copied into the DM has no thread in the channel.
+	saveTeamWebConversation("payments", teamWebConversation{ID: "w-3", Slot: teamSlotPreview, Person: "U07ASKER9", Name: "Bo", Verified: true, Started: now, Thread: "1700000000.000011", DM: "DU07ASKER9",
+		Messages: []teamWebMessage{message, {N: 2, From: "lead", Name: "lead", Text: "Shall I?", At: now}, {N: 3, From: "person", Name: "Bo", Text: "Yes", At: now}}})
+	approval, err := teamCheckWebApproval(config, "w-3.3", false, now)
+	if err != nil || approval.Thread != "" {
+		t.Fatalf("%+v %v", approval, err)
 	}
 }

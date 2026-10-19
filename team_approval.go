@@ -220,9 +220,11 @@ func (b *teamBroker) teamCheckDMApproval(config teamConfig, ref string, owners b
 	}
 	var found *slack.Message
 	asked := false
+	mirrored := teamWebMirrored(config.Name) // the app's chats, copied into the DM
 	for i := range messages {
 		message := &messages[i]
 		switch {
+		case mirrored[message.Timestamp].Conversation != "":
 		case message.BotID != "" || message.SubType == "bot_message":
 			asked = true
 		case message.User == user && message.SubType == "" && asked:

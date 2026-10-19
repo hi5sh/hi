@@ -85,8 +85,8 @@ In the chat with the lead:
 - **The lead comes back.** When work you asked for is ready to try, the
   lead says so in the same chat. If the chat is closed, the button gets a
   dot and a preview of the message.
-- hi copies each chat into a thread in the channel, files included, so the
-  team sees it.
+- hi copies each chat into a thread in your DM with the lead in Slack,
+  files included, so you have it there too. The channel stays quiet.
 - **The lead comes back** in your DM too, when it posts in your chat and
   you don't have the app open.
 - A "yes" in the chat starts the work the lead proposed there, as one in

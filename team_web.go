@@ -346,7 +346,7 @@ func (b *teamBroker) webFile(w http.ResponseWriter, r *http.Request, slot, perso
 // webPost puts a message of the lead's in a chat, after its answer: work
 // that is ready to try, a question that came up. The panel shows it at
 // once, or with a dot on the button, and hi copies it into the chat's
-// thread in the channel.
+// thread in Slack.
 func (b *teamBroker) webPost(post teamWebPost) (string, error) {
 	config, err := loadTeam(b.team)
 	if err != nil {
@@ -410,8 +410,12 @@ func (b *teamBroker) webPost(post teamWebPost) (string, error) {
 			}
 		}
 	}
-	return fmt.Sprintf("Posted %s.%d to %s on %s. %s; it's in the chat's thread in the channel too.",
-		conversation.ID, n, conversation.Name, conversation.Slot, told), nil
+	copied := "the channel"
+	if conversation.DM != "" {
+		copied = "their DM"
+	}
+	return fmt.Sprintf("Posted %s.%d to %s on %s. %s; it's in the chat's thread in %s too.",
+		conversation.ID, n, conversation.Name, conversation.Slot, told, copied), nil
 }
 
 // teamWebList is hi team web: the chats of the last week, newest first.

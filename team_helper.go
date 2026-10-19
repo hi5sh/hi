@@ -25,7 +25,8 @@ import (
 // hi net expose adds its script to the pages it relays and sends /__hi/ to
 // the team's service, on a socket per address. The lead answers through
 // Hermes' API server, in a conversation of its own per web chat, and hi
-// copies each chat into a thread in the channel, the team's record
+// copies each chat into a thread: in the DM of the person signed in through
+// Slack, or in the channel for a chat whose person isn't checked
 // (docs/specs/approved/hi_team_helper.md).
 
 //go:embed helper/helper.js
@@ -158,10 +159,14 @@ type teamWebConversation struct {
 	Name   string `json:"name"`
 	// Verified says the person signed in with /hi, so Person is who they
 	// are; before v0.60 the helper asked, and anyone could claim a name.
-	Verified bool             `json:"verified,omitempty"`
-	Started  time.Time        `json:"started"`
-	Ended    bool             `json:"ended,omitempty"`  // the person started a new one
-	Thread   string           `json:"thread,omitempty"` // its thread in the channel
+	Verified bool      `json:"verified,omitempty"`
+	Started  time.Time `json:"started"`
+	Ended    bool      `json:"ended,omitempty"`  // the person started a new one
+	Thread   string    `json:"thread,omitempty"` // its thread in Slack
+	// DM is the person's DM with the bot when Thread is in it, not in the
+	// channel: a chat in the app is between them and the lead, and a copy
+	// of each in the channel was too much for the team.
+	DM       string           `json:"dm,omitempty"`
 	Messages []teamWebMessage `json:"messages"`
 }
 
@@ -862,10 +867,11 @@ func teamWebLeadInput(config teamConfig, conversation teamWebConversation, messa
 const teamWebProductionNote = `(They are on production, the version people rely on. What they ask for goes into dev, as from anywhere: say so, then send them the preview link with hi team web post when it is ready to try, naming the version ("dev, v3 + 1 change"). Production gets it with the next release, which needs an owner's yes in Slack; when you ask for it, say what else in dev would go with it. If they only report a problem or ask how something works, answer that; nothing needs to change.)`
 
 // teamWebFirstNote starts each web chat for the lead.
-const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in the channel. Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
+const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in the brief, since the coder finds them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in their DM with you (in the channel when they aren't signed in through Slack). Your answer ends when you stop writing; to tell them something here later, such as that the work is ready to try, run hi team web post <chat> "...". Work still waits for a yes: a yes here counts, with its message id from the header as --approval, such as --approval w-3.4. A release, a rollback, or turning production's helper off needs an owner's yes in Slack.)`
 
-// mirrorWeb copies message n of a web chat into the channel: the first
-// starts a thread, the rest reply in it. It never fails the chat.
+// mirrorWeb copies message n of a web chat into Slack: the first starts a
+// thread, the rest reply in it. The thread is in the person's DM when they
+// signed in through Slack, else in the channel. It never fails the chat.
 func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 	if b.channel == nil {
 		return
@@ -877,6 +883,9 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 		return
 	}
 	message := conversation.Messages[n-1]
+	// A chat whose thread is already in the channel, from before, stays
+	// there.
+	inDM := conversation.DM != "" || (conversation.Thread == "" && conversation.Verified && conversation.Person != "")
 	var text string
 	switch {
 	case conversation.Thread == "":
@@ -884,7 +893,13 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 		if message.Page != nil && message.Page.Path != "" {
 			where += ", " + message.Page.Path
 		}
-		text = fmt.Sprintf(":speech_balloon: *%s*, in the app (%s): %s", teamSlackEscape(message.Name), teamSlackEscape(where), teamSlackEscape(message.Text))
+		who := "*" + teamSlackEscape(message.Name) + "*"
+		if inDM {
+			who = "You"
+		}
+		text = fmt.Sprintf(":speech_balloon: %s, in the app (%s): %s", who, teamSlackEscape(where), teamSlackEscape(message.Text))
+	case message.From == "person" && inDM:
+		text = "You, in the app: " + teamSlackEscape(message.Text)
 	case message.From == "person":
 		text = fmt.Sprintf("*%s*, in the app: %s", teamSlackEscape(message.Name), teamSlackEscape(message.Text))
 	default:
@@ -893,11 +908,18 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 	for _, ref := range message.Refs {
 		text += fmt.Sprintf("\n> %s: `%s`", teamSlackEscape(teamWebRefLabel(ref)), strings.ReplaceAll(teamSlackEscape(ref.Selector), "`", "'"))
 	}
+	where := config.Channel
+	if inDM {
+		where = conversation.DM
+	}
 	var ts string
-	if conversation.Thread == "" {
-		ts, err = b.channel.post(config.Channel, text)
-	} else {
-		ts, err = b.channel.postIn(config.Channel, conversation.Thread, text)
+	switch {
+	case conversation.Thread != "":
+		ts, err = b.channel.postIn(where, conversation.Thread, text)
+	case inDM:
+		where, ts, err = b.channel.dm(conversation.Person, text)
+	default:
+		ts, err = b.channel.post(where, text)
 	}
 	if err != nil {
 		return
@@ -909,6 +931,9 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 	}
 	if conversation.Thread == "" {
 		conversation.Thread = ts
+		if inDM {
+			conversation.DM = where
+		}
 	}
 	conversation.Messages[n-1].SlackTS = ts
 	saveTeamWebConversation(b.team, conversation)
@@ -922,7 +947,7 @@ func (b *teamBroker) mirrorWeb(config teamConfig, id string, n int) {
 				if file.Ref > 0 {
 					name = fmt.Sprintf("#%d", file.Ref)
 				}
-				b.channel.upload(config.Channel, conversation.Thread, filepath.Join(teamWebFilesDir(b.team, id), file.Name), name)
+				b.channel.upload(where, conversation.Thread, filepath.Join(teamWebFilesDir(b.team, id), file.Name), name)
 			}
 		}
 	}
@@ -975,7 +1000,13 @@ func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.T
 	if !answered {
 		return teamApproval{}, fmt.Errorf("message %s from %s doesn't answer you: approval is a reply after you asked, in the same chat. Ask, end your reply, and wait for theirs", ref, message.Name)
 	}
-	return teamApproval{TS: ref, Name: message.Name, Text: qClip(message.Text), Thread: conversation.Thread}, nil
+	// A chat copied into the person's DM has no thread in the channel to
+	// say more in.
+	thread := conversation.Thread
+	if conversation.DM != "" {
+		thread = ""
+	}
+	return teamApproval{TS: ref, Name: message.Name, Text: qClip(message.Text), Thread: thread}, nil
 }
 
 // teamWebApprovalChat is the web chat an approval came from, up to it, for

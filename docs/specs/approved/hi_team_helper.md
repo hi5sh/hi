@@ -429,6 +429,12 @@ A hi team lives in its Slack channel, and its log is the team's record. Web
 chat is copied there, so no conversation happens out of the people's
 sight.
 
+- Since 2026-10-19, a chat of someone signed in through Slack is copied into a
+  thread in their DM with the bot instead, "💬 You, in the app (...)": a
+  copy of every chat in the channel was too much for the team. A chat whose
+  person isn't checked, and one whose thread was in the channel already,
+  stay in the channel. A yes in it has no thread in the channel to say more
+  in, as for a yes in a DM.
 - The first message of a web conversation starts a thread in the channel,
   posted by hi: "💬 *Anna*, in the app (preview, /suppliers): Make this one
   red when it's overdue", with the references as a short list. Every later
