@@ -375,7 +375,7 @@ test("tells the page where its button is and whether it is open", async () => {
   try {
     await start(anyone);
     const host = document.querySelector("hi-helper");
-    expect(host.dataset).toMatchObject({ corner: "br", open: "false", hidden: "false" });
+    expect(host.dataset).toMatchObject({ corner: "br", open: "false", hidden: "false", chat: "false" });
     open();
     expect(host.dataset.open).toBe("true");
     $(".close").click();
@@ -384,12 +384,44 @@ test("tells the page where its button is and whether it is open", async () => {
     $("[data-action=hide]").click();
     expect(host.dataset.hidden).toBe("true");
     expect(events).toEqual([
-      { corner: "br", open: false, hidden: false },
-      { corner: "br", open: true, hidden: false },
-      { corner: "br", open: false, hidden: false },
-      { corner: "br", open: false, hidden: true },
+      { corner: "br", open: false, hidden: false, chat: false },
+      { corner: "br", open: true, hidden: false, chat: false },
+      { corner: "br", open: false, hidden: false, chat: false },
+      { corner: "br", open: false, hidden: true, chat: false },
     ]);
   } finally {
     removeEventListener("hi-helper", record);
   }
+});
+
+// The welcome page's own message box: the helper opens on the chat and
+// sends what was typed there, on production in the Change tab.
+test("sends a message the page hands it", async () => {
+  for (const slot of ["preview", "production"]) {
+    await start({
+      "GET status": () => json({ team: "payments", slot, version: "v3", commit: "abc", lead: "Payments lead", you: { id: "U07ANA", name: "Ana" } }),
+      "GET conversation": () => json({}),
+      "POST messages": (body) => sse([["done", { message: { n: 2, from: "lead", name: "Payments lead", text: "On it." } }]]),
+    });
+    expect(document.querySelector("hi-helper").dataset.chat).toBe("true");
+    dispatchEvent(new CustomEvent("hi-helper-send", { detail: { text: "  A page for our suppliers " } }));
+    expect($(".panel").classList.contains("open")).toBe(true);
+    await until(() => $$(".msg.lead").length === 1);
+    expect(sent("messages").map((request) => request.body.text)).toEqual(["A page for our suppliers"]);
+    expect($(".name").textContent).toBe("Payments lead");
+    expect($("textarea").value).toBe("");
+    mock.restore();
+    document.querySelector("hi-helper").remove();
+    delete window.__hiHelper;
+    sessionStorage.clear();
+    localStorage.clear();
+  }
+});
+
+test("leaves a handed message in the box for someone who can't chat", async () => {
+  await start(anyone);
+  dispatchEvent(new CustomEvent("hi-helper-send", { detail: { text: "A page for our suppliers" } }));
+  expect($(".panel").classList.contains("open")).toBe(true);
+  expect($("textarea").value).toBe("A page for our suppliers");
+  expect(requests.filter((request) => request.method === "POST")).toHaveLength(0);
 });

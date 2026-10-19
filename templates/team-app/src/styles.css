@@ -12,12 +12,22 @@ body {
     sans-serif;
 }
 
-/* the welcome page */
+/* the welcome page: a soft light on the page, the text in a column */
 
 .welcome {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 18vh 24px 24px;
+  background:
+    radial-gradient(70% 45% at 50% 0%, #fbfaf7 0%, transparent 100%),
+    radial-gradient(45% 55% at 0% 100%, #f2a7e4 0%, transparent 100%),
+    radial-gradient(55% 60% at 100% 100%, #a99bf7 0%, transparent 100%),
+    linear-gradient(180deg, #f4f6ff 0%, #b9cbff 55%, #7ea6ff 100%);
+}
+
+.welcome .column {
   max-width: 36rem;
-  margin: 18vh auto 0;
-  padding: 0 24px;
+  margin: 0 auto;
 }
 
 .welcome h1 {
@@ -36,23 +46,151 @@ body {
   font-size: 15px;
 }
 
+/* Someone who can chat starts in the middle of the page, as a message to
+   the lead. Sent, the box moves over to the helper's panel and fades. */
+.welcome.start .column {
+  max-width: 44rem;
+  text-align: center;
+}
+
+.welcome.start h1 {
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.welcome .lede {
+  color: #48484d;
+  margin: 0 0 32px;
+}
+
+.ask {
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid rgb(0 0 0 / 0.06);
+  border-radius: 24px;
+  padding: 18px 18px 12px;
+  box-shadow: 0 24px 60px -24px rgb(30 50 120 / 0.45);
+}
+
+.ask textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.ask .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ask button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: #1d1d1f;
+  color: #ffffff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: opacity 0.15s;
+}
+
+.ask button:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.ask svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.welcome.toward-right {
+  --toward: 30vw;
+}
+
+.welcome.toward-left {
+  --toward: -30vw;
+}
+
+/* The text beside the helper's panel comes in as the panel opens. */
+@media (prefers-reduced-motion: no-preference) {
+  .welcome.leaving h1,
+  .welcome.leaving .lede {
+    animation: fade-up 0.3s ease-in forwards;
+  }
+
+  .welcome.leaving .ask {
+    animation: hand-over 0.42s cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  }
+
+  .welcome.open .column {
+    animation: settle 0.5s ease-out;
+  }
+}
+
+@keyframes fade-up {
+  to {
+    opacity: 0;
+    translate: 0 -12px;
+  }
+}
+
+@keyframes hand-over {
+  to {
+    opacity: 0;
+    translate: var(--toward) 0;
+    scale: 0.85;
+    filter: blur(6px);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
 /* With the helper's panel open, 400px wide on its side; on a phone it
    covers the bottom of the screen, so only the heading shows above it. */
 @media (min-width: 641px) {
   .welcome.beside-right {
-    margin-left: max(24px, calc((100vw - 400px - 36rem) / 2));
-    margin-right: 400px;
+    padding-right: 424px;
   }
 
   .welcome.beside-left {
-    margin-left: 400px;
-    margin-right: max(24px, calc((100vw - 400px - 36rem) / 2));
+    padding-left: 424px;
   }
 }
 
 @media (max-width: 640px) {
+  .welcome.start {
+    padding-top: 12vh;
+  }
+
+  .welcome .row .quiet {
+    display: none;
+  }
+
   .welcome.open {
-    margin-top: 16px;
+    padding-top: 16px;
   }
 
   .welcome.open h1 {

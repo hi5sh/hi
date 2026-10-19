@@ -39,7 +39,7 @@ The setup asks seven things, one at a time:
    and limited apart; Enter uses this machine's, from Hermes. No box ever
    holds it (see [Keys and settings](/guide/team/keys/)).
 7. **Code.** Enter starts a new web app for the team to build on: a
-   welcome page on Bun that walks people to the helper's chat, with a
+   welcome page on Bun that starts the chat with the lead, with a
    database and tests (the `app` template in
    [Projects](/guide/projects/#templates)).
    Type `empty` for a repository with only a README. Give a project

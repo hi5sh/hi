@@ -23,8 +23,10 @@ own key, so there is no password to copy:
 
 A new team's app is on the preview as soon as `hi team up` starts the
 team, so the links people get from `/hi` work before anything is built.
-It is a welcome page that points at the chat button and, once the chat is
-open, says what it is for; the first feature replaces it. After the first
+It is a welcome page that asks "What should your app do?" with a message
+box in the middle: what you type there opens the chat with the lead beside
+the page and goes to it. Before you sign in with `/hi`, it points at the
+chat button instead. The first feature replaces it. After the first
 merge, the lead makes the previews.
 
 Production has a link of its own, which shows the latest release. hi

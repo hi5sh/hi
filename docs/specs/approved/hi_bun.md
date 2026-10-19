@@ -133,8 +133,11 @@ Node isn't installed.
 A new team's project starts from it (slice 4): nearly every team builds
 a web app, so `hi team new` writes the hidden `team-app` layer on the
 host, where `hi` is, since members' boxes have none. `team-app` is `app`
-with a welcome page instead of the notes: an arrow points at the helper's
-button with "Press the chat button to start", and once the panel is open
+with a welcome page instead of the notes. Someone signed in through Slack
+gets a message box in the middle of the page, "What should your app do?":
+sent, it moves over and fades into the helper's panel, which opens and
+sends it to the lead. For anyone else an arrow points at the helper's
+button with "Press the chat button to start". Once the panel is open
 the page says what the chat is for, beside the panel (above it on a
 phone), following what `<hi-helper>` tells the page. `db.ts` has no tables
 yet, and the server has the page and `/healthz`. The first feature

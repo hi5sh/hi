@@ -176,9 +176,15 @@ browser keeps its copy until the script changes. It aims to be under
 - **The page can follow it.** `<hi-helper>` says where the button is
   (`data-corner`: `tl`, `tr`, `bl`, `br`), whether the panel is open
   (`data-open`), and whether the button is hidden until a reload
-  (`data-hidden`), and a `hi-helper` event on `window` says when any of
-  them changes. A new team's welcome page uses it to point at the button,
-  and to say what the chat is for once it is open ([hi_bun.md](hi_bun.md)).
+  (`data-hidden`), and whether whoever is there can chat with the lead
+  (`data-chat`, signed in through Slack), and a `hi-helper` event on
+  `window` says when any of them changes. A `hi-helper-send` event on
+  `window` with `{ text }` opens the panel on the chat (production's
+  Change tab) and sends it; for someone who can't chat, the text waits in
+  the panel's box. A new team's welcome page uses both: a message box in
+  the middle of the page for someone signed in, which moves over to the
+  panel as the message goes, an arrow at the button for anyone else, and
+  what the chat is for once it is open ([hi_bun.md](hi_bun.md)).
 - **A new version.** When the slot moves to a new commit (a merge reaches
   the preview, a release reaches production), the panel says "A new version
   is up" with a reload button. The lead can say "try it now" and mean it.

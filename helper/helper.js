@@ -355,16 +355,30 @@ textarea:focus { border-color: var(--accent); }
   // The page can follow the helper, as a new team's welcome page does to
   // point at the button: <hi-helper> says where the button is
   // (data-corner: tl, tr, bl, br), whether the panel is open (data-open),
-  // and whether the button is hidden (data-hidden), and a "hi-helper"
-  // event on window says when any of them changes.
+  // whether the button is hidden (data-hidden), and whether whoever is
+  // here can chat with the lead (data-chat, signed in through Slack), and
+  // a "hi-helper" event on window says when any of them changes.
   function announce() {
-    const detail = { corner, open: panel.classList.contains("open"), hidden: fab.style.display === "none" && !panel.classList.contains("open") };
-    if (host.dataset.corner === detail.corner && host.dataset.open === String(detail.open) && host.dataset.hidden === String(detail.hidden)) return;
-    host.dataset.corner = detail.corner;
-    host.dataset.open = String(detail.open);
-    host.dataset.hidden = String(detail.hidden);
+    const detail = { corner, open: panel.classList.contains("open"), hidden: fab.style.display === "none" && !panel.classList.contains("open"), chat: signedIn() };
+    if (Object.keys(detail).every((key) => host.dataset[key] === String(detail[key]))) return;
+    for (const key in detail) host.dataset[key] = String(detail[key]);
     dispatchEvent(new CustomEvent("hi-helper", { detail }));
   }
+
+  // The page can start the chat too, as the welcome page does from its own
+  // message box: a "hi-helper-send" event on window with { text } opens
+  // the panel on the chat with the lead and sends it there. Anyone who
+  // can't chat finds the text in the panel's box instead.
+  addEventListener("hi-helper-send", (event) => {
+    const text = String(event.detail?.text || "").trim();
+    if (!text || !state.status || !host.isConnected) return;
+    toggle(true);
+    if (production() && signedIn() && state.tab !== "change") setTab("change");
+    input.value = text;
+    store.set("sessionStorage", "draft", text);
+    grow();
+    if (chatting()) composer.dispatchEvent(new Event("submit", { cancelable: true }));
+  });
   let drag = null;
   fab.addEventListener("pointerdown", (event) => {
     drag = { x: event.clientX, y: event.clientY, moved: false };
@@ -740,6 +754,7 @@ textarea:focus { border-color: var(--accent); }
     if (atBottom || options.typing !== undefined) body.scrollTop = body.scrollHeight;
     if (panel.classList.contains("open") && chat) markSeen();
     listen();
+    announce(); // signed in, or the key ended
   }
 
   // drawMessages draws a conversation: the person's messages and the
