@@ -2358,6 +2358,13 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   First test and explore everything in the spec's "Verify before
   building" on aiw11 and record it; only then approve and build.
   Spec: [hi_box_desktop.md](specs/ideas/hi_box_desktop.md) (draft).
+- [ ] Explore [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)
+  for `hi agent review` and the deep review before a release: a
+  coverage ledger of what was checked, so later runs target the gaps and
+  changed code; a fresh verifier that tries to disprove each candidate;
+  `confirmed` / `needs_validation` / `rejected` findings checked against
+  a JSON schema; and its attack-class prompts (AI and LLM, supply chain,
+  data isolation, and more). Decide what to take before any spec.
 
 ### Later — `hi data` and `hi server expose`
 
