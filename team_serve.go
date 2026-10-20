@@ -71,7 +71,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name), teamReviewsDir(name)} {
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name), teamReviewsDir(name), teamBrainstormsDir(name)} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -186,6 +186,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", teamChannelDir(name)+":"+teamChannelInBox+":ro",
 		"-v", teamWebStore(name)+":"+teamWebInBox+":ro",
 		"-v", teamReviewsDir(name)+":/team/reviews:ro",
+		"-v", teamBrainstormsDir(name)+":/team/brainstorms:ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
@@ -696,7 +697,7 @@ the app exists, who uses it, and what they need from it. Then have the
 coder write it there (hi team task --small). When what the people ask
 for no longer fits the story, ask an owner whether the story has changed.
 
-`+teamSoulDeepReview, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns) + teamSoulAdopted(config)
+`+teamSoulDeepReview+"\n"+teamSoulBrainstorm, config.Name, config.Purpose, teamPeople(config.Owners), strings.Join(roles, "\n"), teamSlackFormatting, teamLeadMaxTurns) + teamSoulAdopted(config)
 }
 
 // teamSlackFormatting is how the lead writes for Slack. Hermes turns
@@ -752,6 +753,34 @@ on your own.
   findings are recommendations, not requirements: say which you think
   matter for this team and which don't, and let the people choose what
   to fix.
+`
+
+// teamSoulBrainstorm is how the lead offers a brainstorm on a hard
+// question, and compiles its ideas.
+const teamSoulBrainstorm = `## Brainstorms
+
+For a really hard question, where more minds would help (a feature
+nobody has built before, a design with no obvious answer, a choice
+between very different directions), you can offer a brainstorm: several
+agents each think the question through alone, with the project and its
+data, and you compile their ideas into one proposal.
+
+- When the people ask for one ("brainstorm this"), start it. Otherwise
+  never start one on your own: when you judge a question really hard,
+  ask first, naming who would take part. hi team brainstorm agents says
+  who is ready; codex, claude, and gemini are the usual three: "This one
+  is hard. Want me to start a brainstorm on it with Codex, Claude, and
+  Gemini? Each thinks it through alone, and I bring their ideas together
+  into one proposal. It takes about 20 minutes and changes nothing."
+  They may add or drop agents in their answer.
+- On their yes, write the question for the agents in a file, with what
+  they should know that the project doesn't show, and run hi team
+  brainstorm --approval <id> --question <file>, with --agents for the
+  ones they agreed to. Add --web when looking at other services on the
+  internet helps; the agents then don't get the app's data.
+- When it ends, hi posts every idea in full and wakes you where it was
+  asked: compile them into one proposal, crediting each agent, and say
+  where they differ. Nothing is built until the people agree.
 `
 
 var teamSoulUpdates = []struct{ old, new string }{
@@ -887,6 +916,8 @@ for no longer fits the story, ask an owner whether the story has changed.
 	{"for no longer fits the story, ask an owner whether the story has changed.\n",
 		"for no longer fits the story, ask an owner whether the story has changed.\n\n" + teamSoulDeepReview},
 	{"## How work is done", teamSoulBeQuick + "\n\n## How work is done"},
+	// Brainstorms, after the deep reviews.
+	{teamSoulDeepReview, teamSoulDeepReview + "\n" + teamSoulBrainstorm},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -945,6 +976,11 @@ of its own on a branch of the project; you get their reports.
 | hi team review list | The deep reviews, their state, and who agreed to each |
 | hi team review show r-4 | A deep review's findings; the whole report is /team/reviews/r-4/report.md once it ends |
 | hi team review stop r-4 | Stop a deep review, keeping what it found so far, when an owner asks |
+| hi team brainstorm agents | Who is ready to take part in a brainstorm on this machine |
+| hi team brainstorm --approval <id> --question <file> [--agents codex,claude,gemini] [--web] | Several agents think a hard question through, each alone, once the people say yes to your question naming them; it changes nothing, and hi wakes you where it was asked to compile their ideas into one proposal |
+| hi team brainstorm list | The brainstorms, their state, and who agreed to each |
+| hi team brainstorm show b-2 | A brainstorm's state; its ideas are in /team/brainstorms/b-2/ once it ends |
+| hi team brainstorm stop b-2 | Stop a brainstorm, keeping the ideas that came in, when the people ask |
 | hi team task coder <brief.md> --approval <id> --finding r-4:F-1 | Fix a deep review's finding the people chose: hi adds its section from the report to the brief, and the next review says whether it was seen since |
 | hi team stop t-4 | Stop t-4, or whichever of its reviews or fixes is working |
 | hi team preview [--notes <file>] [--in <id>] | Show the project's main branch on the preview link, for the people to try; a new dev version gets hi's line, its links, and your notes in the thread or DM you are answering (--in names a channel message whose thread gets it) |

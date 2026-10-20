@@ -29,6 +29,8 @@
       url: /guide/team/releases/
     - title: A deep review before a release
       url: /guide/team/reviews/
+    - title: Brainstorms on hard questions
+      url: /guide/team/brainstorms/
     - title: When something goes wrong
       url: /guide/team/incidents/
     - title: The folder and backups
@@ -79,6 +81,8 @@
       url: /guide/agent/
     - title: Review a whole repository
       url: /guide/agent/review/
+    - title: Brainstorm with several agents
+      url: /guide/agent/brainstorm/
     - title: Run code in a box
       url: /guide/box/
     - title: Download the team's data

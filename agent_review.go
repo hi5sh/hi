@@ -790,30 +790,7 @@ func reviewProviders(rv review) string {
 // commit.
 func snapshotReview(rv *review) error {
 	if rv.Dirty {
-		index := reviewStateFile(rv.ID, "index")
-		defer os.Remove(index)
-		git := func(args ...string) (string, error) {
-			command := exec.Command("git", append([]string{"-C", rv.Root}, args...)...)
-			command.Env = append(os.Environ(), "GIT_INDEX_FILE="+index)
-			var out, errs bytes.Buffer
-			command.Stdout, command.Stderr = &out, &errs
-			if err := command.Run(); err != nil {
-				return "", fmt.Errorf("git %s: %s", args[0], qFirstLine(errs.String(), err.Error()))
-			}
-			return strings.TrimSpace(out.String()), nil
-		}
-		if _, err := git("read-tree", rv.Head); err != nil {
-			return err
-		}
-		if _, err := git("add", "-A"); err != nil {
-			return err
-		}
-		tree, err := git("write-tree")
-		if err != nil {
-			return err
-		}
-		commit, err := git("-c", "user.name=hi agent review", "-c", "user.email=review@hi5.sh", "commit-tree", tree, "-p", rv.Head,
-			"-m", "hi agent review "+rv.ID+": the working tree")
+		commit, err := snapshotWorkingTree(rv.Root, rv.Head, reviewStateFile(rv.ID, "index"), "hi agent review", "review@hi5.sh", "hi agent review "+rv.ID+": the working tree")
 		if err != nil {
 			return err
 		}
@@ -823,6 +800,33 @@ func snapshotReview(rv *review) error {
 		return fmt.Errorf("couldn't keep the snapshot at refs/hi-review/%s", rv.ID)
 	}
 	return nil
+}
+
+// snapshotWorkingTree commits the working tree on head through a temporary
+// index, so the branch, the index, and the files stay as they were.
+func snapshotWorkingTree(root, head, index, name, email, message string) (string, error) {
+	defer os.Remove(index)
+	git := func(args ...string) (string, error) {
+		command := exec.Command("git", append([]string{"-C", root}, args...)...)
+		command.Env = append(os.Environ(), "GIT_INDEX_FILE="+index)
+		var out, errs bytes.Buffer
+		command.Stdout, command.Stderr = &out, &errs
+		if err := command.Run(); err != nil {
+			return "", fmt.Errorf("git %s: %s", args[0], qFirstLine(errs.String(), err.Error()))
+		}
+		return strings.TrimSpace(out.String()), nil
+	}
+	if _, err := git("read-tree", head); err != nil {
+		return "", err
+	}
+	if _, err := git("add", "-A"); err != nil {
+		return "", err
+	}
+	tree, err := git("write-tree")
+	if err != nil {
+		return "", err
+	}
+	return git("-c", "user.name="+name, "-c", "user.email="+email, "commit-tree", tree, "-p", head, "-m", message)
 }
 
 func reviewDropRef(rv review) {

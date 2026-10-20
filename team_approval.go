@@ -137,6 +137,11 @@ func (b *teamBroker) unusedApproval(approval teamApproval, approving string) (te
 			used[review.Approval.TS] = true
 		}
 	}
+	for _, brainstorm := range loadTeamBrainstorms(b.team) {
+		if brainstorm.Approval != nil {
+			used[brainstorm.Approval.TS] = true
+		}
+	}
 	if versions, err := loadTeamVersions(b.team); err == nil {
 		for _, event := range versions.History {
 			if event.Approval != nil {

@@ -2222,6 +2222,23 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   hi-team skill say so.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v0.100.0 — `hi agent brainstorm`
+
+The best ideas often come when several models trade ideas.
+
+- [x] `hi agent brainstorm "<question>"` asks several agents (codex,
+  claude, and gemini, which is Hermes with Google's Gemini, by default)
+  the same question, each alone in a box on a snapshot of the project,
+  with `--data` folders read-only or `--web` for looking at other
+  services. Each must write its idea and may add artifacts; one more
+  agent compiles them into one proposal, crediting each.
+- [x] In a team, the lead offers a brainstorm on a really hard question,
+  asking first and naming the agents; when the people ask for one, it
+  starts it. On their yes, `hi team brainstorm` runs it on dev with the
+  app's data, and when it ends hi posts every idea in full where it was
+  asked and wakes the lead there to compile the proposal.
+  Approved spec: [hi_agent_brainstorm.md](specs/approved/hi_agent_brainstorm.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool
@@ -2233,33 +2250,9 @@ Convention: [guide-diagrams.md](guide-diagrams.md).
   `hi net expose`, `hi init`, `hi q`, `hi data`, and autoresearch.
   `guideDiagramPages` in `guide_diagrams_test.go` keeps them there.
 
-### Next — `hi agent brainstorm`
-
-The best ideas often come when several models trade ideas.
-
-- [ ] `hi agent brainstorm "<question>"` gathers a list of agents (Claude
-  Code, Codex, Gemini, ... in boxes, as `hi agent best-of` does), each
-  with the same question and access to all the data: the project, its
-  specs and docs, and the data folders. Each must give a response, its
-  idea, and may add artifacts that make it clearer (a sketch, a diagram,
-  a prototype, a small table of numbers).
-- [ ] A lead compiles the responses into one coherent proposal: what
-  most agree on, the best of each idea, and where they differ, with
-  links to each response and artifact. In a team, the tech lead runs it
-  and brings the proposal to the people.
-- [ ] The tech lead offers a brainstorm itself. When the people ask for
-  one ("brainstorm this"), it starts. Otherwise, when the lead judges a
-  question really hard, it asks first, never starting one on its own:
-  "Do you want me to start a brainstorm on this, with Codex, Claude, and
-  Gemini?", naming the agents it suggests. Codex, Claude, and Gemini are
-  the default list; the people can add or drop agents in their answer.
-  The brainstorm starts on their yes.
-  One round: each agent answers once, without seeing the others. Like
-  [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md), but the
-  result is a proposal, not the best branch. Spec first.
-
 ### Later — brainstorm rounds
 
+Spec: [hi_agent_brainstorm.md, Later](specs/approved/hi_agent_brainstorm.md#later).
 Once a single round has been tried on real questions:
 
 - [ ] Rounds: agents see each other's ideas and answer them, building on

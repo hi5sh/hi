@@ -253,6 +253,14 @@ line they quote, and a different agent confirms or rejects each finding.
 The report is recommendations, and nothing is changed. See
 [Review a whole repository](/guide/agent/review/).
 
+## A brainstorm
+
+`hi agent brainstorm "<question>"` asks Codex, Claude Code, and Gemini the
+same question, each alone in a box on a snapshot of the project; each
+writes its idea, with artifacts if it likes, and one more agent compiles
+them into a single proposal. See
+[Brainstorm with several agents](/guide/agent/brainstorm/).
+
 ## The report as JSON
 
 `--json` prints the report on stdout and everything else on stderr, for

@@ -155,6 +155,8 @@ Usage:
   hi agent [claude|codex|hermes] [task]
                                 Hand a task to a coding agent in a box and get its report (hi agent help)
   hi agent best-of <n> <task>   The same task in n boxes, checked and ranked; --score runs rounds that keep only gains
+  hi agent brainstorm <question>
+                                Several agents give ideas alone; one compiles them into a proposal
   hi team new|up|down|ls <name> A virtual team of agents in a Slack channel: a Hermes lead, a coder, a reviewer (hi team help)
   hi bundle ls|show             Bundles for hi agent --bundle: skills and the tools they need
   hi box shell|run              Run a shell or a command in a rootless box with no credentials

@@ -91,6 +91,8 @@ func runAgent(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runBestOf(args[1:], stdin, stdout, stderr)
 	case "review":
 		return runReview(args[1:], stdin, stdout, stderr)
+	case "brainstorm":
+		return runBrainstorm(args[1:], stdin, stdout, stderr)
 	}
 	kind, rest := "", args
 	switch {
@@ -132,6 +134,8 @@ usage:
                                     (hi agent best-of help)
   hi agent review [<folder>]        agents review a whole repository and a second agent checks
                                     each finding; recommendations, never changes (hi agent review help)
+  hi agent brainstorm "<question>"  several agents each give an idea, and one compiles them into a
+                                    proposal (hi agent brainstorm help)
   hi agent token claude             store a long-lived Claude token from claude setup-token
 
 options:

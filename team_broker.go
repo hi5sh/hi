@@ -385,6 +385,7 @@ func (b *teamBroker) resume() {
 		go b.wait(task)
 	}
 	b.resumeDeepReviews()
+	b.resumeBrainstorms()
 }
 
 type teamRequest struct {
@@ -486,6 +487,31 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		text, err := b.stopDeepReview(request.Task)
 		reply(w, map[string]string{"text": text}, err)
+	})
+	mux.HandleFunc("POST /brainstorm", func(w http.ResponseWriter, r *http.Request) {
+		var request teamBrainstormRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, brainstormMaxQuestion+16<<10)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		record, err := b.startBrainstorm(request)
+		reply(w, record, err)
+	})
+	mux.HandleFunc("POST /brainstorm/stop", func(w http.ResponseWriter, r *http.Request) {
+		request, err := read(r)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		text, err := b.stopBrainstorm(request.Task)
+		reply(w, map[string]string{"text": text}, err)
+	})
+	mux.HandleFunc("GET /brainstorm", func(w http.ResponseWriter, r *http.Request) {
+		text, err := b.showBrainstorms(r.URL.Query().Get("id"))
+		reply(w, map[string]string{"text": text}, err)
+	})
+	mux.HandleFunc("GET /brainstorm/agents", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, map[string]string{"text": b.brainstormAgents()}, nil)
 	})
 	mux.HandleFunc("GET /deep-review", func(w http.ResponseWriter, r *http.Request) {
 		text, err := b.showDeepReviews(r.URL.Query().Get("id"))
@@ -1545,7 +1571,7 @@ func teamTitle(brief string) string {
 // the lead's commands, in its box
 
 var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": true, "show": true, "tasks": true, "merge": true, "stop": true, "preview": true,
-	"versions": true, "release": true, "discard": true, "web": true, "propose": true, "alert": true}
+	"brainstorm": true, "versions": true, "release": true, "discard": true, "web": true, "propose": true, "alert": true}
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
@@ -1650,6 +1676,8 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			fmt.Fprintln(stdout, "It has the files from the conversation, and yours, at /box/files; its brief says what each is.")
 		}
 		fmt.Fprintf(stdout, "hi team wait %s waits for its report.\n", task.ID)
+	case "brainstorm":
+		return runTeamBrainstormCommand(args, stdin, stdout, call)
 	case "review":
 		if containsString(args, "--project") || (len(args) > 0 && (args[0] == "stop" || args[0] == "show" || args[0] == "list")) {
 			return runTeamDeepReviewCommand(args, stdin, stdout, call)
