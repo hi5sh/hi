@@ -342,6 +342,12 @@ hi team discard dev --approval <id>              dev's code back to production's
 - hi writes the lead's SOUL.md once; on each start it replaces the
   paragraphs an earlier hi wrote that this hi words differently, where they
   are still word for word hi's.
+- Every conversation the lead has open follows SOUL.md as it is when the
+  team starts. Hermes keeps a session's system prompt from its first
+  turn, so a DM, one long session, would otherwise never see a change.
+  Before the lead starts, hi forgets the stored prompt of each session
+  whose prompt lacks the current SOUL.md; its next turn builds a new one
+  and keeps the conversation. That turn misses the prompt cache once.
 - A review reads the specs on the team's branch, the lead's current ones,
   not the copy on the task's branch, which may be older; a follow-up task
   merges the team's branch first when its specs moved.

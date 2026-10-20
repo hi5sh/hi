@@ -27,7 +27,8 @@ same works for a folder copied from another machine. `secrets.json` is
 listed in the folder's `.gitignore`, in case the folder sits inside a
 repository. `lead/SOUL.md`
 is the lead's identity: edit it to change how the lead works, then
-`hi team up payments` to restart it.
+`hi team up payments` to restart it. Conversations already going, a DM
+with the lead too, follow the new SOUL.md from their next message.
 
 ## Snapshots and restore
 

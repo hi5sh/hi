@@ -1362,3 +1362,49 @@ func TestTeamSoulBeQuick(t *testing.T) {
 		t.Fatalf("%s", data)
 	}
 }
+
+func TestRefreshTeamLeadPrompts(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("no python3")
+	}
+	lead := t.TempDir()
+	if n, err := refreshTeamLeadPrompts(lead); n != 0 || err != nil {
+		t.Fatalf("no state.db: %d %v", n, err)
+	}
+	os.WriteFile(filepath.Join(lead, "SOUL.md"), []byte("# The lead\n\n## Brainstorms\n"), 0o600)
+	script := `
+import sqlite3, sys
+db = sqlite3.connect(sys.argv[1])
+db.executescript("""
+create table system_prompts (hash text primary key, prompt text);
+create table sessions (id text, system_prompt text, system_prompt_hash text);
+insert into system_prompts values ('old', 'You are Hermes.\n# The lead\n');
+insert into system_prompts values ('new', 'You are Hermes.\n# The lead\n\n## Brainstorms\nSkills.');
+insert into sessions values ('dm', null, 'old');
+insert into sessions values ('thread', null, 'new');
+insert into sessions values ('legacy', 'You are Hermes.\n# The lead\n', null);
+insert into sessions values ('unbuilt', null, null);
+""")
+db.commit()
+`
+	db := filepath.Join(lead, "state.db")
+	if out, err := exec.Command("python3", "-c", script, db).CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	n, err := refreshTeamLeadPrompts(lead)
+	if err != nil || n != 2 {
+		t.Fatalf("refreshed %d: %v", n, err)
+	}
+	out, _ := exec.Command("python3", "-c", `
+import sqlite3, sys
+db = sqlite3.connect(sys.argv[1])
+print(",".join(f"{r[0]}={r[1]}" for r in db.execute("select id, coalesce(system_prompt_hash, system_prompt, '-') from sessions order by id")))
+print(",".join(r[0] for r in db.execute("select hash from system_prompts order by hash")))
+`, db).Output()
+	if got := strings.TrimSpace(string(out)); got != "dm=-,legacy=-,thread=new,unbuilt=-\nnew" {
+		t.Fatalf("after:\n%s", got)
+	}
+	if n, err := refreshTeamLeadPrompts(lead); n != 0 || err != nil {
+		t.Fatalf("again: %d %v", n, err)
+	}
+}

@@ -2241,6 +2241,17 @@ often come when several models trade ideas.
   asked and wakes the lead there to compile the proposal.
   Approved spec: [hi_agent_brainstorm.md](specs/approved/hi_agent_brainstorm.md).
 
+### v1.0.1 — A long DM follows SOUL.md
+
+- [x] A conversation already going follows the lead's SOUL.md as it is
+  when the team starts. Hermes kept each session's instructions from its
+  first message, so a DM with the lead, one long session, never saw a
+  change: asked to brainstorm, it brainstormed alone instead of starting
+  `hi team brainstorm`. hi now has each session whose instructions lack
+  the current SOUL.md build them again on its next message, keeping the
+  conversation.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

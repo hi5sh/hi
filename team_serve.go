@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"sort"
@@ -116,6 +117,11 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	if err := writeTeamLead(config, secrets, meta.ProxyIP, memoryIP); err != nil {
 		return err
+	}
+	if n, err := refreshTeamLeadPrompts(filepath.Join(teamDir(name), "lead")); err != nil {
+		fmt.Fprintf(stderr, "hi: the lead's conversations keep their old SOUL.md until they end: %v\n", err)
+	} else if n > 0 {
+		fmt.Fprintf(stderr, "hi: %d of the lead's conversations pick up SOUL.md as it is now on their next message.\n", n)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -938,6 +944,54 @@ func updateTeamSoul(path string) error {
 		return nil
 	}
 	return os.WriteFile(path, []byte(text), 0o600)
+}
+
+// teamLeadPromptsScript forgets the stored system prompt of each of the
+// lead's sessions that lacks the current SOUL.md. Hermes keeps a session's
+// prompt from its first turn, for the prefix cache, so a long DM would
+// never see a SOUL.md change; with the prompt gone, its next turn builds
+// one from the current SOUL.md and keeps that.
+const teamLeadPromptsScript = `
+import json, sqlite3, sys
+try:
+    soul = open(sys.argv[2], encoding="utf-8").read().strip()
+    db = sqlite3.connect(sys.argv[1], timeout=5)
+    stale = [row[0] for row in db.execute(
+        "select s.id, coalesce(p.prompt, s.system_prompt) from sessions s "
+        "left join system_prompts p on p.hash = s.system_prompt_hash "
+        "where coalesce(p.prompt, s.system_prompt) is not null") if soul not in row[1]]
+    for session in stale:
+        db.execute("update sessions set system_prompt_hash = null, system_prompt = null where id = ?", (session,))
+    db.execute("delete from system_prompts where hash not in (select system_prompt_hash from sessions where system_prompt_hash is not null)")
+    db.commit()
+    print(json.dumps({"refreshed": len(stale)}))
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
+`
+
+// refreshTeamLeadPrompts has the lead's sessions pick up SOUL.md as it is
+// now on their next message, keeping their conversation. It runs before
+// the lead's gateway starts, and returns how many sessions it refreshed.
+func refreshTeamLeadPrompts(lead string) (int, error) {
+	db := filepath.Join(lead, "state.db")
+	if !fileExists(db) || !fileExists(filepath.Join(lead, "SOUL.md")) {
+		return 0, nil
+	}
+	out, err := exec.Command("python3", "-I", "-c", teamLeadPromptsScript, db, filepath.Join(lead, "SOUL.md")).Output()
+	if err != nil {
+		return 0, err
+	}
+	var result struct {
+		Refreshed int    `json:"refreshed"`
+		Error     string `json:"error"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return 0, err
+	}
+	if result.Error != "" {
+		return 0, errors.New(result.Error)
+	}
+	return result.Refreshed, nil
 }
 
 // teamSkill teaches the lead the broker's commands. hi rewrites it on
