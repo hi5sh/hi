@@ -2252,6 +2252,14 @@ often come when several models trade ideas.
   conversation.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v1.0.2 — A slow start is waited for
+
+- [x] A new version gets up to 30 minutes to answer while its app still
+  runs, not 3: migrations on a 4 GB database before the app listened
+  took longer, and hi gave up halfway through them. An app that stops
+  fails at once, with its last lines.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
 
 ### Guide — a diagram for every tool

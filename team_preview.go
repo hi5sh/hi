@@ -31,9 +31,14 @@ import (
 // is renewed before it ends, and hi keeps one message in the channel with
 // production's current link.
 
+// teamPreviewReady is how long a new version may take to answer while its
+// app still runs: installing dependencies takes a while, and migrations
+// on a large database before the app listens longer. An app that stops
+// fails at once.
+var teamPreviewReady = 30 * time.Minute
+
 const (
-	teamPreviewPort  = 8080            // the app's port in its box, as $PORT
-	teamPreviewReady = 3 * time.Minute // installing dependencies takes a while
+	teamPreviewPort = 8080 // the app's port in its box, as $PORT
 	// teamLinkKeep is how long a preview's address must have left for a
 	// new preview to keep it; otherwise it gets a new one, for a day.
 	teamLinkKeep = 12 * time.Hour
@@ -491,10 +496,13 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
 	}
-	if err := teamWaitHTTP(fmt.Sprintf("http://127.0.0.1:%d/", hostPort), teamPreviewReady); err != nil {
+	if err := teamWaitApp(fmt.Sprintf("http://127.0.0.1:%d/", hostPort), func() bool { return b.running(next.Container) }, teamPreviewReady); err != nil {
 		logs, _ := b.engineOutput("logs", "--tail", "15", next.Container)
 		discard()
-		return teamPreview{}, fmt.Errorf("the app didn't answer on port %d within %s; it must listen on 0.0.0.0:$PORT.%s Its last lines:\n%s", next.Port, teamPreviewReady, still, strings.TrimSpace(logs))
+		if errors.Is(err, errTeamAppStopped) {
+			return teamPreview{}, fmt.Errorf("the app stopped before it answered on port %d.%s Its last lines:\n%s", next.Port, still, strings.TrimSpace(logs))
+		}
+		return teamPreview{}, fmt.Errorf("the app ran for %s without answering on port %d; it must listen on 0.0.0.0:$PORT.%s Its last lines:\n%s", teamPreviewReady, next.Port, still, strings.TrimSpace(logs))
 	}
 
 	// The address moves to the new box.
@@ -854,16 +862,25 @@ func teamFreePort() (int, error) {
 	return listener.Addr().(*net.TCPAddr).Port, nil
 }
 
-// teamWaitHTTP waits until something answers HTTP at url.
-func teamWaitHTTP(url string, limit time.Duration) error {
+var errTeamAppStopped = errors.New("the app stopped")
+
+// teamWaitApp waits for an app to answer at url, for as long as limit
+// while running says it still runs.
+func teamWaitApp(url string, running func() bool, limit time.Duration) error {
 	client := &http.Client{Timeout: 3 * time.Second}
 	deadline := time.Now().Add(limit)
-	for {
-		if response, err := client.Get(url); err == nil {
+	for checks := 0; ; checks++ {
+		response, err := client.Get(url)
+		if err == nil {
 			response.Body.Close()
 			return nil
-		} else if time.Now().After(deadline) {
+		}
+		if time.Now().After(deadline) {
 			return err
+		}
+		// Asking the engine every 10 seconds is enough.
+		if checks%5 == 4 && !running() {
+			return errTeamAppStopped
 		}
 		time.Sleep(2 * time.Second)
 	}

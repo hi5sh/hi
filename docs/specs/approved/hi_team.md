@@ -312,7 +312,10 @@ hi team discard dev --approval <id>              dev's code back to production's
   (dev or a task's branch) and production. Showing a commit copies it to
   `run/app-<slot>-<port>`, runs `make run` or `npm start` in a new app box
   with `$PORT` (8080) published to 127.0.0.1 only, and waits for it to
-  answer. The address is a `hi net expose --link --follow run/<slot>.port`
+  answer: up to 30 minutes while its box runs, since installs and
+  migrations on a large database may come before it listens, and no
+  longer once the box has stopped. The old version shares the slot's data
+  meanwhile, so an app whose migrations are long should listen first. The address is a `hi net expose --link --follow run/<slot>.port`
   on the host, for a day: the broker writes the new box's port to that
   file, so the address moves to the new version without changing, and
   then removes the old box. A failed start leaves the old version showing.

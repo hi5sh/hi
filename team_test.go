@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1406,5 +1408,24 @@ print(",".join(r[0] for r in db.execute("select hash from system_prompts order b
 	}
 	if n, err := refreshTeamLeadPrompts(lead); n != 0 || err != nil {
 		t.Fatalf("again: %d %v", n, err)
+	}
+}
+
+func TestTeamWaitApp(t *testing.T) {
+	// Nothing listens here.
+	listener, _ := net.Listen("tcp", "127.0.0.1:0")
+	url := "http://" + listener.Addr().String() + "/"
+	listener.Close()
+	start := time.Now()
+	if err := teamWaitApp(url, func() bool { return false }, time.Hour); !errors.Is(err, errTeamAppStopped) || time.Since(start) > 30*time.Second {
+		t.Fatalf("a stopped app: %v after %s", err, time.Since(start))
+	}
+	if err := teamWaitApp(url, func() bool { return true }, time.Millisecond); err == nil || errors.Is(err, errTeamAppStopped) {
+		t.Fatalf("a running app past the limit: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+	if err := teamWaitApp(server.URL, func() bool { return false }, time.Millisecond); err != nil {
+		t.Fatal(err)
 	}
 }
