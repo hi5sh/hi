@@ -2247,10 +2247,17 @@ The best ideas often come when several models trade ideas.
   most agree on, the best of each idea, and where they differ, with
   links to each response and artifact. In a team, the tech lead runs it
   ("brainstorm this") and brings the proposal to the people.
-- [ ] Decide whether agents see each other's ideas and answer them in a
-  second round, as `best-of` rounds do, and how many rounds.
-  Like [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md), but
-  the result is a proposal, not the best branch. Spec first.
+  One round: each agent answers once, without seeing the others. Like
+  [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md), but the
+  result is a proposal, not the best branch. Spec first.
+
+### Later — brainstorm rounds
+
+Once a single round has been tried on real questions:
+
+- [ ] Rounds: agents see each other's ideas and answer them, building on
+  or challenging them, as `best-of` rounds do. Decide how many rounds,
+  and whether the lead or the agents say when it's done.
 
 ### Next — roles that remember
 
