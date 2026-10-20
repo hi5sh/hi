@@ -2264,6 +2264,17 @@ often come when several models trade ideas.
 
 ## Planned
 
+### Next — the lead's step budget
+
+- [ ] Look into leads that end a reply with "Iteration budget exhausted
+  (60/60)": hi caps a lead's turn at 60 steps (Hermes has no cap of its
+  own), and on 2026-10-20 cartman's lead spent two turns in a row
+  reading the app's code, which the coder should read. Find out how often
+  it happens, in which turns, at what cost, and whether the model is the
+  cause, then choose between a nudge in hi's Hermes plugin, Hermes'
+  budget warning, a lower budget, another model, or sharper words.
+  Spec: [hi_team_lead_steps.md](specs/ideas/hi_team_lead_steps.md) (draft).
+
 ### Guide — a diagram for every tool
 
 Convention: [guide-diagrams.md](guide-diagrams.md).
