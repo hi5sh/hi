@@ -2273,6 +2273,26 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
   doesn't cost a new Slack app and channel. Decide whether it's worth
   bending "a new project is a new team". See
   [hi_team_adopt.md](specs/approved/hi_team_adopt.md#decisions).
+- [ ] Adopt from the chat, into a team that already exists: while the
+  project is still the blank app `hi team new` wrote, someone in Slack or
+  the helper's chat gives the lead a repository's link ("adopt <link>",
+  "let's try this <link>"), and the lead runs the adopt workflow on the
+  team's own project, after an owner's yes: copy, survey, run, map, as
+  `hi team adopt` does today. Once the project has work in it, the lead
+  says so and offers a new team instead.
+- [ ] Adopt a service or website, not only code: the people give the
+  lead a link to something they like (example.com), and the lead walks
+  them through it, step by step in the chat, to a foundational spec for
+  itself and the coder:
+  - what about the service they like and want;
+  - what the spec can and should leave out;
+  - who the users are, and their kinds (people using it, admins, ...);
+  - a color theme and design concept, in words for now (web design
+    themes come later).
+  The lead can research the market around it, comparing similar
+  services, or, when the people ask, keep to that one service only. The
+  result is the spec and the user docs' story (docs/user/index.md), with
+  the people's choices, before the coder builds anything.
 
 ### Later — Bun
 
