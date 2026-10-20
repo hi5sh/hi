@@ -2233,6 +2233,25 @@ Convention: [guide-diagrams.md](guide-diagrams.md).
   `hi net expose`, `hi init`, `hi q`, `hi data`, and autoresearch.
   `guideDiagramPages` in `guide_diagrams_test.go` keeps them there.
 
+### Next — `hi agent brainstorm`
+
+The best ideas often come when several models trade ideas.
+
+- [ ] `hi agent brainstorm "<question>"` gathers a list of agents (Claude
+  Code, Codex, Gemini, ... in boxes, as `hi agent best-of` does), each
+  with the same question and access to all the data: the project, its
+  specs and docs, and the data folders. Each must give a response, its
+  idea, and may add artifacts that make it clearer (a sketch, a diagram,
+  a prototype, a small table of numbers).
+- [ ] A lead compiles the responses into one coherent proposal: what
+  most agree on, the best of each idea, and where they differ, with
+  links to each response and artifact. In a team, the tech lead runs it
+  ("brainstorm this") and brings the proposal to the people.
+- [ ] Decide whether agents see each other's ideas and answer them in a
+  second round, as `best-of` rounds do, and how many rounds.
+  Like [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md), but
+  the result is a proposal, not the best branch. Spec first.
+
 ### Next — roles that remember
 
 Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md).
