@@ -2222,9 +2222,11 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   hi-team skill say so.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
-### v0.100.0 — `hi agent brainstorm`
+### v1.0.0 — `hi agent brainstorm`, and the full version
 
-The best ideas often come when several models trade ideas.
+hi is complete enough for 1.0: workstations, boxes, agents, servers and
+teams all ship. This release adds brainstorms, since the best ideas
+often come when several models trade ideas.
 
 - [x] `hi agent brainstorm "<question>"` asks several agents (codex,
   claude, and gemini, which is Hermes with Google's Gemini, by default)

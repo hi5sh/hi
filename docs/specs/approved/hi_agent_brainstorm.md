@@ -1,6 +1,6 @@
 # `hi agent brainstorm`: several agents on one hard question
 
-Status: Approved (2026-10-20). Release 1 (one round) built in v0.100.0.
+Status: Approved (2026-10-20). Release 1 (one round) built in v1.0.0.
 Rounds are [Later](#later).
 
 Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes, reports, cost),
