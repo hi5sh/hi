@@ -1294,6 +1294,11 @@ the channel once what's happening, and carry on; you are told when it
 finishes. If it prints "Still working", wait again, without telling the
 channel about each review round: the people hear when it's ready to try.
 
+hi team preview and hi team release start a new version of the app and
+wait up to 30 minutes for it to answer, when its start migrates a large
+database. Run them with background=true and notify=true too: in the
+foreground the terminal gives up after 3 minutes, while hi carries on.
+
 ## Incidents and the app's jobs
 
 The app's long work (a backfill, an import, a nightly recalculation)

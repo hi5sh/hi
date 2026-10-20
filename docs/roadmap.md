@@ -2257,7 +2257,9 @@ often come when several models trade ideas.
 - [x] A new version gets up to 30 minutes to answer while its app still
   runs, not 3: migrations on a 4 GB database before the app listened
   took longer, and hi gave up halfway through them. An app that stops
-  fails at once, with its last lines.
+  fails at once, with its last lines. The hi-team skill tells the lead to
+  run hi team preview and hi team release in the background, since its
+  terminal gives up on a command after 3 minutes.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ## Planned
