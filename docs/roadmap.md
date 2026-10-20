@@ -2246,7 +2246,14 @@ The best ideas often come when several models trade ideas.
 - [ ] A lead compiles the responses into one coherent proposal: what
   most agree on, the best of each idea, and where they differ, with
   links to each response and artifact. In a team, the tech lead runs it
-  ("brainstorm this") and brings the proposal to the people.
+  and brings the proposal to the people.
+- [ ] The tech lead offers a brainstorm itself. When the people ask for
+  one ("brainstorm this"), it starts. Otherwise, when the lead judges a
+  question really hard, it asks first, never starting one on its own:
+  "Do you want me to start a brainstorm on this, with Codex, Claude, and
+  Gemini?", naming the agents it suggests. Codex, Claude, and Gemini are
+  the default list; the people can add or drop agents in their answer.
+  The brainstorm starts on their yes.
   One round: each agent answers once, without seeing the others. Like
   [hi_agent_best_of.md](specs/approved/hi_agent_best_of.md), but the
   result is a proposal, not the best branch. Spec first.
