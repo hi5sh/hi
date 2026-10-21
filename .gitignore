@@ -5,3 +5,4 @@ templates/*/.venv/
 templates/*/dist/
 /cli
 .tmp/*
+/hi
