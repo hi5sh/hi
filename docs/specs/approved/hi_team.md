@@ -330,8 +330,12 @@ hi team discard dev --approval <id>              dev's code back to production's
   then removes the old box. A failed start leaves the old version showing.
   The lead never joins NetBird.
 - A preview keeps its address while it has 12 hours left; otherwise it
-  gets a new one and the old ends. A preview whose address ended is
-  stopped.
+  gets a new one and the old ends. A preview whose address had its day is
+  stopped. One whose address ended early, stopped from outside hi team
+  (`pkill`, `hi net expose stop --all`), goes back on an address with the
+  same key, so a name that stays keeps the people's links, and hi posts
+  the new link where it told of that version: the thread or DM, and the
+  channel.
 - Production's address follows the production branch: a release, and the
   broker's check each minute, show its latest commit, and the broker gives
   it a new address 30 minutes before the old one ends. hi keeps one
