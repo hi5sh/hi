@@ -2282,7 +2282,38 @@ often come when several models trade ideas.
   set for (gemini-3.8-flash) and are to be checked again on another.
   Approved spec: [hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md).
 
+### v1.0.5 — The lead looks at dev before it proposes
+
+- [x] Before proposing new work, the lead runs `hi team versions` and
+  reads `docs/map.md`, says what dev already has, and proposes only
+  what's missing: in SOUL.md, which every turn sees, and in the hi-team
+  skill's go-ahead section. On team aitools the DM's top level ended at
+  the lead's own Ask / Plan proposal, while the yes, t-87, and its merge
+  were in a thread of the same DM, a Hermes session of its own; nine
+  hours later it proposed the same four steps again.
+  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+
 ## Planned
+
+### Next — a conversation hears what other threads finished
+
+Found on team aitools (v1.0.5 above). Each thread, and a DM's top level,
+is a Hermes session of its own, and Hindsight's recall by meaning didn't
+bring back a merge from another thread. The lead now looks at dev before
+a plan; this makes the fact reach it without looking.
+
+- [ ] When a session's next turn comes after work merged, released, or
+  rolled back since that session's last turn, hi adds a short line to
+  the turn, from its own record: "Since this conversation last spoke:
+  t-87 Ask / Plan switcher merged into dev (approved in another thread
+  of this DM); preview dev, v3 + 2 changes." Only what changed the
+  project, newest first, a few lines at most, with where each was agreed.
+- [ ] The line goes in with the turn's message, from hi's plugin in the
+  lead's Hermes (which hook carries it is to find out), not in the
+  system prompt, so its prompt cache stays as it is.
+- [ ] Goes with carrying a turn's findings over
+  ([hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md)): both
+  are what the next turn needs that its conversation doesn't hold.
 
 ### Guide — a diagram for every tool
 

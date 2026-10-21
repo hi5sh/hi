@@ -84,6 +84,15 @@ bundle, and standing instructions.
   first if the message isn't logged yet. `--small` starts a small fix
   without one, and the broker posts in the channel that it did. The task
   records its approval.
+- **The lead looks at dev before it proposes.** Each Slack thread, and a
+  DM's top level, is a Hermes session of its own, so work agreed and
+  merged in one thread is missing from another's conversation, and
+  memory recall may not bring it back. Before proposing new work, the
+  lead runs `hi team versions` and reads `docs/map.md`, says what dev
+  already has, and proposes only what's missing (SOUL.md and the hi-team
+  skill). On team aitools the DM's top level ended at its own Ask / Plan
+  proposal; the yes, t-87, and its merge were in a thread of that DM,
+  and nine hours later it proposed the same four steps again.
 - **The lead answers when @-mentioned**, then follows that thread, and
   the threads it started, without a fresh @ (Hermes' `require_mention`;
   `strict_mention` is off). A reply that opens by @-mentioning someone

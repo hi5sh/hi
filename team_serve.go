@@ -678,6 +678,8 @@ More of work that isn't merged yet, from the same request, continues it
 (--on) without a new yes; anything new is a new task and waits for one.
 The hi-team skill says how to tell them apart.
 
+`+teamSoulLookFirst+`
+
 ## What you keep
 
 You hold the project's memory. Keep /team/specs current: one file per
@@ -754,6 +756,13 @@ looks: the brief, the spec, or the incident (hi team incidents note <id>
 its notes and the thread. A check hi wakes you for (an incident, a job, a
 finished task) needs hi's commands, not the app's code: hand the code to
 a member.`
+	// Work agreed and merged in another thread or DM is in another
+	// Hermes session, so this conversation may end at its own proposal.
+	teamSoulLookFirst = `Look before you propose. Before you propose new work, run hi team
+versions and read docs/map.md: work may have been agreed and merged in
+another thread or DM since this conversation last spoke, and this
+conversation doesn't show it. Say what dev already has, and propose only
+what's missing.`
 	// teamSoulReading is how the lead works in a turn: the three above.
 	teamSoulReading = teamSoulBeQuick + "\n\n" + teamSoulScout + "\n\n" + teamSoulKeepFindings
 )
@@ -956,6 +965,8 @@ for no longer fits the story, ask an owner whether the story has changed.
 	{"## How work is done", teamSoulReading + "\n\n## How work is done"},
 	// Brainstorms, after the deep reviews.
 	{teamSoulDeepReview, teamSoulDeepReview + "\n" + teamSoulBrainstorm},
+	// Looking at dev before a plan, before what the lead keeps.
+	{"\n## What you keep\n", "\n" + teamSoulLookFirst + "\n\n## What you keep\n"},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -1097,6 +1108,14 @@ of its own on a branch of the project; you get their reports.
 Members: %[2]s.
 
 ## Getting a go-ahead
+
+Before you propose new work, look at what the project has now: run hi
+team versions (what dev has on top of production, and the ideas not
+merged) and read docs/map.md. Work may have been approved and merged in
+another thread or DM since you last spoke here, and that conversation
+isn't in yours. Say in the plan what is already there, by its task, and
+propose only what's missing; when all of it is there, say so and point
+to the preview.
 
 New work starts only after one of the people says yes. Propose the plan
 and the acceptance list, ask whether it's right, and end your reply there:

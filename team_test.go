@@ -134,6 +134,12 @@ func TestTeamManifest(t *testing.T) {
 	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "type /hi-payments in the channel") || strings.Contains(skill, "%!") {
 		t.Fatal("the skill doesn't name the team's command")
 	}
+	// Work merged from another thread isn't in this conversation: the lead
+	// looks at dev before proposing it again.
+	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "Before you propose new work, look at what the project has now: run hi\nteam versions") ||
+		!strings.Contains(skill, "propose only what's missing") {
+		t.Fatal("the skill doesn't send the lead to dev before a plan")
+	}
 	if teamSlashCommand("Team Ab.C") != "/hi-team-ab-c" {
 		t.Fatal(teamSlashCommand("Team Ab.C"))
 	}
@@ -1349,6 +1355,24 @@ func TestTeamConnectGitHub(t *testing.T) {
 }
 
 // v0.86.1's paragraph is replaced, not kept beside the new one.
+// A SOUL.md from before v1.0.5 gets the paragraph on looking at dev before
+// a plan once, before what the lead keeps; a new one has it.
+func TestTeamSoulLookFirst(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SOUL.md")
+	os.WriteFile(path, []byte("x\n\n## What you keep\n\ny\n"), 0o600)
+	for range 2 {
+		if err := updateTeamSoul(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulLookFirst+"\n\n## What you keep\n\ny\n" {
+		t.Fatalf("%s", data)
+	}
+	if soul := teamSoul(testTeamConfig()); strings.Count(soul, teamSoulLookFirst) != 1 || !strings.Contains(soul, teamSoulLookFirst+"\n\n## What you keep") {
+		t.Fatal(soul)
+	}
+}
+
 func TestTeamSoulBeQuick(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "SOUL.md")
 	os.WriteFile(path, []byte("x\n\n"+teamSoulAnswerFirst+"\n\n## How work is done\n"), 0o600)
