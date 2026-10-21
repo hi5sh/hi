@@ -80,8 +80,12 @@
     },
     terminal(sc) {
       // A line is a command (cmd, after the line's or the scene's prompt), a
-      // step, or what a command printed: ok, warn, err, or plain out.
-      const lines = sc.lines.map(l => timed(
+      // step, or what a command printed: ok, warn, err, or plain out. A live
+      // line is hi's progress line: each of its states replaces the one
+      // before, and it clears when the last, empty one comes due.
+      const live = l => el("div", { class: "ln live" }, ...l.live.map(x => timed(
+        el("span", {}, x.text ? el("b", { class: "scan", text: "▬▬▬▬▬▬▬▬▬▬▬▬" }) : null, x.text ? "  " + x.text : null), x)));
+      const lines = sc.lines.map(l => l.live ? live(l) : timed(
         l.cmd ? el("div", { class: "ln cmd" }, el("span", { class: "ps", text: (l.ps ?? sc.prompt ?? "$") + " " }), l.cmd)
           : l.ok ? el("div", { class: "ln ok", text: l.ok })
             : l.warn ? el("div", { class: "ln warn", text: l.warn })

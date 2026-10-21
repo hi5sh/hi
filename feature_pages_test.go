@@ -17,7 +17,8 @@ import (
 // featurePageUsage is each feature page's tool and the usage it prints. A
 // new feature page goes here with its tool's usage.
 var featurePageUsage = map[string]func(io.Writer){
-	"box": printBoxUsage,
+	"box":   printBoxUsage,
+	"agent": printAgentUsage,
 }
 
 var (
@@ -36,6 +37,15 @@ func TestFeaturePagesHaveTheirDemo(t *testing.T) {
 				t.Errorf("%s/index.html: front matter lacks %q", name, want)
 			}
 		}
+		// Jekyll drops a page's front matter, and with it the layout, when
+		// a plain value holds ": ", so such a value must be quoted.
+		front, _, _ := strings.Cut(strings.TrimPrefix(string(page), "---\n"), "\n---\n")
+		for _, line := range strings.Split(front, "\n") {
+			key, value, ok := strings.Cut(line, ": ")
+			if ok && !strings.HasPrefix(key, " ") && !strings.HasPrefix(value, `"`) && strings.Contains(value, ": ") {
+				t.Errorf("%s/index.html: quote the value of %s; it holds \": \"", name, key)
+			}
+		}
 		if _, err := os.Stat(filepath.Join("assets", "demos", name+".js")); err != nil {
 			t.Errorf("feature page %s has no demo: %v", name, err)
 		}
@@ -49,33 +59,37 @@ func TestFeaturePagesHaveTheirDemo(t *testing.T) {
 	}
 }
 
-// TestFeatureDemosUseRealCommands checks every hi command a demo types: its
-// subcommand and its flags must be in the tool's usage.
+// TestFeatureDemosUseRealCommands checks every hi command a demo types, of
+// any tool with a feature page: its subcommand and its flags must be in that
+// tool's usage.
 func TestFeatureDemosUseRealCommands(t *testing.T) {
-	for name, usage := range featurePageUsage {
+	for name := range featurePageUsage {
 		src, err := os.ReadFile(filepath.Join("assets", "demos", name+".js"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		var buf bytes.Buffer
-		usage(&buf)
-		help := buf.String()
 		seen := 0
 		for _, m := range demoCommand.FindAllStringSubmatch(string(src), -1) {
 			words := strings.Fields(m[1])
-			if len(words) < 2 || words[0] != "hi" || words[1] != name {
+			if len(words) < 2 || words[0] != "hi" || featurePageUsage[words[1]] == nil {
 				continue
 			}
-			seen++
-			if len(words) > 2 && !strings.HasPrefix(words[2], "-") {
+			tool := words[1]
+			if tool == name {
+				seen++
+			}
+			var buf bytes.Buffer
+			featurePageUsage[tool](&buf)
+			help := buf.String()
+			if len(words) > 2 && !strings.HasPrefix(words[2], "-") && !strings.HasPrefix(words[2], `\"`) {
 				sub := words[2]
-				if !regexp.MustCompile(`hi ` + name + ` (\S+\|)*` + regexp.QuoteMeta(sub) + `[\s|]`).MatchString(help) {
-					t.Errorf("%s demo: %q uses %q, which hi %s's usage doesn't list", name, m[1], sub, name)
+				if !regexp.MustCompile(`hi ` + tool + ` \[?(\S+\|)*` + regexp.QuoteMeta(sub) + `[\s|\]]`).MatchString(help) {
+					t.Errorf("%s demo: %q uses %q, which hi %s's usage doesn't list", name, m[1], sub, tool)
 				}
 			}
 			for _, f := range demoFlag.FindAllStringSubmatch(m[1], -1) {
 				if !regexp.MustCompile(`(^|[^a-z-])` + f[1] + `([^a-z-]|$)`).MatchString(help) {
-					t.Errorf("%s demo: %q uses %s, which hi %s's usage doesn't list", name, m[1], f[1], name)
+					t.Errorf("%s demo: %q uses %s, which hi %s's usage doesn't list", name, m[1], f[1], tool)
 				}
 			}
 		}

@@ -24,7 +24,10 @@ shows what the tool is and how it works, and links to the guide for the rest.
    do, with the deepest part in a closed "Under the hood".
 6. **Go further:** the guide's pages and the command reference.
 
-`box/index.html` is the example to copy.
+`box/index.html` and `agent/index.html` are the examples to copy. Quote a
+front-matter value that holds `: `, such as a lede with a list after a
+colon; unquoted, Jekyll drops the front matter and the page loses its
+layout. `feature_pages_test.go` checks for it.
 
 ## The demo
 
@@ -53,6 +56,10 @@ window.HI5_STORY = {
 
 - A line is `cmd` (typed after the scene's `prompt`, or the line's own `ps`),
   or what a command printed: `out`, `ok` (green), `warn` (amber), or `err` (red).
+- `live` is hi's progress line, as `hi agent` shows it while an agent works:
+  a list of states, `{ text, at }`, each replacing the one before, with a
+  red scanner. A last state without `text` clears it, as hi does when the
+  report comes.
 - `short` is the scene's length and `at` each line's time, in milliseconds.
   A feature page plays only the loop, so it needs no `dur`.
 - Keep each scene to what fits the window at both sizes; a longer one

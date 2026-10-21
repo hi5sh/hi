@@ -26,6 +26,8 @@ Changed on hi-box/myproject-1:
 Review with hi box diff myproject-1, keep with git merge hi-box/myproject-1, then hi box rm myproject-1.
 ```
 
+[See it in action](/agent/): a short demo, then how it works.
+
 {% include diagram.html name="agent" %}
 
 ## Run a task
