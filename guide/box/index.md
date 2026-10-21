@@ -16,6 +16,8 @@ hi box run -- make test               # one command; exits with its status
 hi box run --gpu -- python train.py   # with the Strix Halo GPU
 ```
 
+[See it in action](/box/): a short demo, then how it works.
+
 Coding agents run in boxes too: [`hi agent`](/guide/agent/) starts Claude
 Code or Codex in one, without permission prompts, and reports what it did.
 

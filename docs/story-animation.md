@@ -50,6 +50,11 @@ A scene in `story-scenes.js` looks like this:
   existing scenes show the shape. A new kind of screen is a new function in
   `screens` in `story.js`, with its items marked by `timed()`.
 
+A terminal scene can also set `window` (the title bar), `prompt`, and
+lines of `out`, `warn`, and `err` for what a command printed; feature pages
+use those for their demos (`docs/feature-pages.md`). The story's scenes can
+use them too.
+
 Keep the story true to what hi does. The scenes show a hi team as it works
 today; a feature that isn't built doesn't go in the story.
 

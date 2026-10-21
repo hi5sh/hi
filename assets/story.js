@@ -2,13 +2,18 @@
 // from the scenes in assets/story-scenes.js. The short loop plays in the
 // box on the page; "Watch the full story" opens every scene in a dialog.
 // Nothing here changes what hi does; the scenes show what a hi team does today.
+// A feature page (_layouts/feature.html) plays its own scenes, from
+// assets/demos/<name>.js, with the same player.
 (() => {
   "use strict";
   const STORY = window.HI5_STORY;
   const mount = document.querySelector("[data-story]");
   if (!STORY || !mount) return;
 
-  const W = 480, H = 560; // the picture's design size; it is scaled to fit
+  // The picture's design size; it is scaled to fit. A feature page's terminal
+  // is wider, with a narrower size for phones so its text stays readable.
+  const size = (STORY.narrow && innerWidth < 600 ? STORY.narrow : STORY.size) || {};
+  const W = size.w || 480, H = size.h || 560;
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
   // ---- small DOM helpers ----------------------------------------------------
@@ -74,15 +79,20 @@
         caption(sc.caption));
     },
     terminal(sc) {
+      // A line is a command (cmd, after the line's or the scene's prompt), a
+      // step, or what a command printed: ok, warn, err, or plain out.
       const lines = sc.lines.map(l => timed(
-        l.cmd ? el("div", { class: "ln cmd" }, el("span", { class: "ps", text: "$ " }), l.cmd)
+        l.cmd ? el("div", { class: "ln cmd" }, el("span", { class: "ps", text: (l.ps ?? sc.prompt ?? "$") + " " }), l.cmd)
           : l.ok ? el("div", { class: "ln ok", text: l.ok })
-            : el("div", { class: "ln" }, el("span", { class: "ln-step", text: l.step }), " " + l.text), l));
+            : l.warn ? el("div", { class: "ln warn", text: l.warn })
+              : l.err ? el("div", { class: "ln err", text: l.err })
+                : l.out != null ? el("div", { class: "ln out", text: l.out })
+                  : el("div", { class: "ln" }, el("span", { class: "ln-step", text: l.step }), " " + l.text), l));
       const t = sc.toast;
       return el("div", { class: "sc" },
-        win(sc.title, "w-term", el("div", { class: "w-term-body scroll" }, ...lines)),
-        timed(el("div", { class: "toast" }, avatar(t.who), el("div", {},
-          el("span", { class: "who", text: person(t.who).name }, el("small", { text: "Slack" })), el("p", { text: t.text }))), t),
+        win(sc.window ?? sc.title, "w-term", el("div", { class: "w-term-body scroll" }, ...lines)),
+        t ? timed(el("div", { class: "toast" }, avatar(t.who), el("div", {},
+          el("span", { class: "who", text: person(t.who).name }, el("small", { text: "Slack" })), el("p", { text: t.text }))), t) : null,
         caption(sc.caption));
     },
     channel(sc) {
@@ -170,8 +180,8 @@
       this.static = reduceMotion.matches;
       this.root = root;
       root.classList.add("st");
-      this.box = el("div", { class: "st-box", "aria-hidden": "true" });
-      this.stage = el("div", { class: "st-stage" });
+      this.box = el("div", { class: "st-box", "aria-hidden": "true", style: `aspect-ratio: ${W} / ${H}` });
+      this.stage = el("div", { class: "st-stage", style: `width: ${W}px; height: ${H}px` });
       this.box.append(this.stage);
       this.cap = el("p", { class: "st-text", "aria-live": "polite" });
       this.dots = el("div", { class: "st-dots", role: "group", "aria-label": "Scenes" });
@@ -206,7 +216,7 @@
     dur(s) { return (this.opts.mode === "full" ? s.dur : s.short) * this.pace(); }
     itemTime(s, node) {
       let t = +node.dataset.at;
-      if (this.opts.mode === "short") t = node.dataset.atShort != null ? +node.dataset.atShort : t * s.short / s.dur;
+      if (this.opts.mode === "short") t = node.dataset.atShort != null ? +node.dataset.atShort : t * s.short / (s.dur || s.short);
       return Math.round(t * this.pace());
     }
     seek(i, t = 0, byUser = false) {

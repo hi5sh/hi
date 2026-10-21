@@ -191,3 +191,6 @@
   .sc-improve .helper { animation: none; }
   .scroll { scroll-behavior: auto; }
 }
+
+/* A feature page's demo (assets/demos/*.js): what a command printed. */
+.ln.out { color: var(--muted); } .ln.warn { color: var(--amber, #f0b45b); } .ln.err { color: var(--red, #f07178); }

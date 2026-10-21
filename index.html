@@ -169,9 +169,9 @@
   .chip:hover { border-color: var(--accent); }
   details.all { margin-top: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
   details.all summary { cursor: pointer; padding: 18px 22px; font: 600 15px var(--mono); list-style-position: inside; }
-  .cmd { display: grid; grid-template-columns: minmax(180px, 290px) minmax(0, 1fr); gap: 18px; padding: 14px 22px; border-top: 1px solid var(--line); align-items: baseline; }
-  .cmd code { font: 600 14px var(--mono); } .cmd code span { color: var(--accent); }
-  .cmd p { margin: 0; color: var(--muted); font-size: 15px; }
+  details.all .cmd { display: grid; grid-template-columns: minmax(180px, 290px) minmax(0, 1fr); gap: 18px; padding: 14px 22px; border-top: 1px solid var(--line); align-items: baseline; }
+  details.all .cmd code { font: 600 14px var(--mono); } details.all .cmd code span { color: var(--accent); }
+  details.all .cmd p { margin: 0; color: var(--muted); font-size: 15px; }
   .strix { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 28px; padding: 28px; border-radius: 16px; border: 1px solid var(--line-strong); background: radial-gradient(circle at 0% 0%, rgba(124,131,255,.10), transparent 60%), var(--bg-raised); }
   .strix h3 { margin: 4px 0 6px; font-size: 22px; } .strix p { margin: 0; color: var(--muted); font-size: 15.5px; }
   .strix ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: grid; gap: 6px; }
@@ -201,7 +201,7 @@
     nav ul a:hover { background: var(--accent-soft); text-decoration: none; }
     .hero { padding-top: 180px; }
     .banner { height: 420px; background-image: linear-gradient(180deg, rgba(10,12,17,.15) 0%, rgba(10,12,17,.08) 25%, rgba(10,12,17,.45) 55%, rgba(10,12,17,.9) 80%, var(--bg) 100%), url("assets/hi5-banner-1000.jpg"); background-size: auto, cover; background-position: center, 45% 30%; }
-    .cmd { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    details.all .cmd { grid-template-columns: minmax(0, 1fr); gap: 4px; }
     .term-body { font-size: 13.5px; padding: 4px 16px; }
     .cmdline { flex-wrap: wrap; } .cmdline code { flex-basis: calc(100% - 30px); }
     section { padding-top: 72px; }
@@ -356,7 +356,7 @@ mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
       <div class="node"><b>allowed hosts</b><span>GitHub and package registries, logged</span></div>
     </div>
     <div class="features">
-      <div class="feature"><span class="name">hi box</span><h3>A room for every agent</h3><p>A rootless container with the project and nothing else: no SSH keys, no tokens, and a network that reaches only what you allow. The GPU too, if you want it.</p><a class="go" href="/guide/box/">Run code in a box →</a></div>
+      <div class="feature"><span class="name">hi box</span><h3>A room for every agent</h3><p>A rootless container with the project and nothing else: no SSH keys, no tokens, and a network that reaches only what you allow. The GPU too, if you want it.</p><a class="go" href="/box/">See hi box in action →</a></div>
       <div class="feature"><span class="name">hi compute</span><h3>GPUs when you need them</h3><p>One set of commands for Colab, Hugging Face, RunPod, and Shadeform: run a job, open a shell, or serve a model. Every machine has a time limit.</p><a class="go" href="/guide/compute/">How hi compute works →</a></div>
       <div class="feature"><span class="name">hi server</span><h3>One place for the team's keys</h3><p>Holds the provider keys, approves GPU starts in Slack, warns on budgets, and serves the team's data, model, and private templates.</p><a class="go" href="/guide/compute/managed/">Managed compute →</a></div>
       <div class="feature"><span class="name">hi net expose</span><h3>Share what you're running</h3><p>Put a web app on your machine on a temporary HTTPS address, behind a password, a PIN, or a key in the link. It ends on its own.</p><a class="go" href="/guide/workstation/expose/">Share a local service →</a></div>

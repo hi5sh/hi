@@ -1,0 +1,141 @@
+---
+layout: feature
+permalink: /box/
+title: hi box
+tool: hi box
+demo: box
+guide: /guide/box/
+headline: Run any code without handing it your machine.
+lede: A box is a rootless container with your project and nothing else from your home folder. No SSH keys, no tokens, and a network that reaches only what you allow.
+description: hi box runs a shell or a command in a rootless container with your project and nothing else, with no credentials and a network that only reaches allowed hosts.
+demo_caption: Real hi box output; only the folder is made up.
+fallback: |
+  $ hi box shell
+  Box myproject-1: shell in /home/you/myproject, network dev.
+  box$ ls ~/.ssh
+  ls: cannot access '/box/home/.ssh': No such file or directory
+  box$ curl -sS https://example.com
+  curl: (56) CONNECT tunnel failed, response 403
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">Code you don't fully trust, somewhere it can't reach.</h2>
+    <p class="sub">A teammate's branch, a repository you just cloned, or an agent that works without asking: each runs in a box, sees the project, and nothing more.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Try someone else's code</h3>
+        <p>Run a downloaded repository's tests without its <code>Makefile</code> reaching your keys.</p>
+        <div class="snip"><span class="c">$ git clone https://github.com/example/tool && cd tool</span>
+<span class="c">$ hi box run -- make test</span></div>
+      </div>
+      <div class="use">
+        <h3>Reproduce a bug from clean</h3>
+        <p>A fresh Ubuntu with git, Python, uv, Node.js, and Bun, and none of your dotfiles to hide the problem.</p>
+        <div class="snip"><span class="c">$ hi box shell</span>
+<span class="d">box$</span> <span class="c">uv run pytest -x</span></div>
+      </div>
+      <div class="use">
+        <h3>Let an agent work unattended</h3>
+        <p><code>hi agent</code> starts Claude Code, Codex, or Hermes in a box, without permission prompts, on a branch of its own.</p>
+        <div class="snip"><span class="c">$ hi agent "make the flaky sync test reliable"</span></div>
+        <a class="go" href="/guide/agent/">hi agent →</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Your first box in a minute.</h2>
+    <p class="sub">On Ubuntu. The first box builds hi's image, which takes a few minutes once.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, if you haven't.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Install rootless Podman.</b> Without it, hi uses Docker, whose daemon runs as root.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi install podman</code><button class="copy" type="button" data-copy="hi install podman">copy</button></div></div></li>
+      <li><div><p><b>Open a box</b> in any project. Look for <code>~/.ssh</code>; it isn't there.</p>
+        <div class="cmdline"><span class="ps">$</span><code>cd ~/projects/myproject &amp;&amp; hi box shell</code><button class="copy" type="button" data-copy="hi box shell">copy</button></div></div></li>
+      <li><div><p><b>Run one command</b> and get its exit status back.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi box run -- make test</code><button class="copy" type="button" data-copy="hi box run -- make test">copy</button></div></div></li>
+      <li><div><p><b>Clean up.</b> hi lists what it will remove and asks once.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi box rm --all</code><button class="copy" type="button" data-copy="hi box rm --all">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">One box, one proxy, one way out.</h2>
+    <p class="sub">The box sits on a private network with no route out and no name lookups. Its only way out is hi's proxy, which lets through the allowed hosts and logs every connection.</p>
+    {% include diagram.html name="box" %}
+    <div class="prose">
+      <p><strong>The project is at the same path</strong> as on your machine, with its <code>.git</code>, so the box can commit. <code>.git/hooks</code> and <code>.git/config</code> are read-only: the box can't plant a hook that runs on your machine later.</p>
+      <p><strong>Add <code>--worktree</code></strong> and the box works on a new git worktree and the branch <code>hi-box/&lt;name&gt;</code>, so its changes stay out of your folder until you merge them. Agents always get one.</p>
+      <p><strong>The box runs as you</strong>, with no extra privileges, a home folder of its own, at most 4,096 processes, and 16 GB of memory (<code>--memory</code>).</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">The network, the project's settings, and the GPU.</h2>
+    <p class="sub">What to change when the defaults don't fit, and what a box does not protect you from.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>Network presets</h3>
+        <table>
+          <thead><tr><th>--network</th><th>Allows</th></tr></thead>
+          <tbody>
+            <tr><td><code>locked</code></td><td>Nothing</td></tr>
+            <tr><td><code>dev</code> (default)</td><td>GitHub, PyPI, npm, Go modules, crates.io, PyTorch, and Hugging Face</td></tr>
+            <tr><td><code>open</code></td><td>Everything, still logged</td></tr>
+          </tbody>
+        </table>
+        <p>Add one host with <code>--allow &lt;domain&gt;</code> when it starts, or with <code>hi box allow &lt;name&gt; &lt;domain&gt;</code> while it runs, with no restart.</p>
+      </div>
+      <div class="detail">
+        <h3>Review what a box changed</h3>
+        <div class="snip"><span class="c">$ hi box ls</span>
+<span class="c">$ hi box diff myproject-2</span>
+Files
+<span class="warn">  M Makefile   ⚠ runs on the host later</span></div>
+        <p><code>diff</code> marks files that run on your machine later, such as a <code>Makefile</code>, <code>package.json</code>, <code>.envrc</code>, CI workflows, and editor tasks. Read those before you run anything from the branch, then <code>git merge hi-box/&lt;name&gt;</code>.</p>
+      </div>
+      <div class="detail">
+        <h3>Per project: devcontainer.json</h3>
+        <div class="snip">{
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "customizations": {
+    "hi": { "network": "dev", "gpu": true, "domains": ["data.example.com"] }
+  }
+}</div>
+        <p>hi box uses the file's <code>image</code> or Dockerfile, <code>containerEnv</code>, and <code>postCreateCommand</code>, and ignores, and says so, the fields that would run on your machine or widen the box, such as <code>runArgs</code> and <code>mounts</code>. It asks once before allowing <code>domains</code>, since the repository wrote them.</p>
+      </div>
+      <div class="detail">
+        <h3>The GPU and your team's data</h3>
+        <p><code>--gpu</code> passes the Strix Halo's GPU into the box; ROCm's <code>rocminfo</code> finds it there. A box with the GPU shares the host's kernel and GPU driver, so it is a weaker boundary than one without.</p>
+        <p><code>--data</code> lets <code>hf</code> and Python in the box download your team's Hugging Face datasets through the hi server. The box gets a placeholder token; the proxy adds the real one, which stays on the host.</p>
+      </div>
+      <div class="detail">
+        <h3>What a box doesn't stop</h3>
+        <p>The allowlist checks host names. It stops accidents and casual leaks, not determined code: that can still send the project to a host it is allowed to reach. Use <code>--network locked</code> when nothing should leave.</p>
+        <p>With Docker instead of rootless Podman, an escape from the box would be root on the machine. hi says so when it falls back.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood</summary>
+      <div class="prose">
+        <p>hi keeps each box's state in <code>~/.local/state/hi/box/&lt;name&gt;/</code>: its settings, its worktree, its home folder, its allowlist, and <code>network.log</code>.</p>
+        <p>It starts two containers: the box, <code>hi-box-&lt;name&gt;</code>, on a private network with no route out and no name lookups, and its proxy, <code>hi-box-&lt;name&gt;-proxy</code>, on both that network and a normal one. The proxy runs your <code>hi</code> binary read-only, allows connections only to the allowlist, and writes every decision to <code>network.log</code>.</p>
+        <p>The box runs as you, with <code>--cap-drop=ALL</code> and <code>no-new-privileges</code>, and gets <code>HTTPS_PROXY</code> pointing at the proxy and your git name and email for its commits.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/box/"><b>Run code in a box</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/agent/"><b>hi agent</b><span>Coding agents in boxes, with one report back.</span></a>
+      <a href="/guide/autoresearch/templates/"><b>Templates with a Dockerfile</b><span>Boxes that start at once, offline, in step with <code>uv.lock</code>.</span></a>
+      <a href="/guide/reference/commands/#hi-box"><b>Every hi box command</b><span>The reference.</span></a>
+    </div>
+  </section>
