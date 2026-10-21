@@ -124,7 +124,8 @@ A fork is made with the broker's locks held, as a copy is now:
 3. Copy the files production changes in place into
    `run/preview-data/`, which starts empty: databases (SQLite and its
    `-wal`, `-shm`, `-journal`; DuckDB; a PostgreSQL data folder) and any
-   file changed in the last 24 hours. These are copied in full, not
+   file changed in the last ten minutes, which production may have been
+   writing as it paused (a day until v1.1.1). These are copied in full, not
    linked, so production writing to them later changes nothing in the
    preview.
 4. Unpause production.
@@ -232,8 +233,8 @@ existed (cartman's first release), stays as it is: `hi team release
 - **Production changes an old file in place.** A file linked into the
   base and later changed in place by production changes under the
   preview too. The preview may read a half-written file; production is
-  never affected. The 24-hour rule catches files production is busy with,
-  so this is rare. A filesystem with reflinks (XFS, Btrfs) avoids it:
+  never affected. Databases are copied, and so is whatever production was
+  writing as it paused, so this is rare: other files are written once. A filesystem with reflinks (XFS, Btrfs) avoids it:
   there hi would reflink every file instead of hardlinking them.
 - **Two preview boxes on one overlay.** A preview deploy starts the new
   box beside the old one. In a test both boxes mounted the same upper
@@ -280,7 +281,8 @@ v1.1.0:
   their first bytes, `-wal`, `-shm`, `-journal`, anything under a folder
   with `PG_VERSION`) before production pauses, then, paused, hardlinks
   every other file into `run/preview-base/` and copies the databases and
-  the last day's files into `run/preview-data/`. `run/preview-fork.json`
+  the files changed in the last ten minutes into `run/preview-data/`.
+  `run/preview-fork.json`
   says when, from which version, and how much.
 - The preview's box mounts `-v run/preview-base:/data:O,upperdir=run/preview-data,workdir=run/preview-work`.
   Production's mount doesn't change.
@@ -311,3 +313,11 @@ v1.1.0:
   `preview_model_usd` in team.json.
 - Cartman's first fork keeps its 47 GB preview folder once, as
   `run/preview-data-before/`, until the next fork replaces it.
+
+v1.1.1:
+
+- The fork copies files changed in the last ten minutes, not the last
+  day. Cartman's first fork, on v1.1.0, copied 124,321 files, 102 GB: a
+  backfill had downloaded that many PDFs that day, each written once. It
+  took three minutes, with production paused, and 102 GB of disk. A file
+  written once is linked however new; databases are found by their bytes.

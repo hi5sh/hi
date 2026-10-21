@@ -41,12 +41,13 @@ treats production's files in two ways:
 | Files | What hi does | Why |
 |---|---|---|
 | Written once: uploads, downloads, PDFs, images, checkpoints | hardlinks them into `run/preview-base/` | a link takes no disk and no time; the preview's box reads them but can't write to them |
-| Changed in place: databases (SQLite, DuckDB, a PostgreSQL folder) and anything changed in the last day | copies them whole into `run/preview-data/` | production keeps writing to them, and the preview needs a copy that holds still |
+| Changed in place: databases (SQLite, DuckDB, a PostgreSQL folder), and whatever production was writing in the last ten minutes | copies them whole into `run/preview-data/` | production keeps writing to them, and the preview needs a copy that holds still |
 
 Production is paused while hi does this, as for a snapshot, so the copies
 are consistent: a few seconds. On team cartman, a news app with 157 GB in
 210,000 files, the links took under five seconds and the database, 3.6 GB,
-about one more.
+about one more. A file is linked however new it is: a download finished an
+hour ago won't change again.
 
 The preview's box mounts the fork read only with its own folder over it,
 an overlay that Podman mounts without root. Inside the box it is one

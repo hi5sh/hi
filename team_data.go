@@ -440,7 +440,7 @@ func teamPreviewDataMode(team, mode string, stdout io.Writer) error {
 
 func printTeamDataCopy(w io.Writer, result teamDataCopy) {
 	if fork := result.Fork; fork != nil && !fork.Full {
-		fmt.Fprintf(w, "The preview runs on a new fork of production's data (%s in %d file(s)); %d file(s), %s, were copied in full (the databases and the last day's files), the rest linked.",
+		fmt.Fprintf(w, "The preview runs on a new fork of production's data (%s in %d file(s)); %d file(s), %s, were copied in full (the databases and the files being written), the rest linked.",
 			teamDataSize(fork.Bytes), fork.Files, fork.Copied, teamDataSize(fork.CopiedBytes))
 		if result.Kept != "" {
 			fmt.Fprintf(w, " What it wrote itself before is in %s.", result.Kept)

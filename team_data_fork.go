@@ -20,16 +20,20 @@ import (
 // above it that takes whatever the preview writes: an overlay, which
 // Podman mounts rootless. The fork hardlinks production's files, which
 // takes seconds and no disk, and copies in full the files production
-// changes in place (databases, and whatever changed in the last day), so
-// production writing to them later changes nothing in the preview.
+// changes in place (databases, and whatever it was writing as it paused),
+// so production writing to them later changes nothing in the preview.
 
 // teamPreviewEmpty is teamConfig.PreviewData for a preview that starts
 // empty at every release.
 const teamPreviewEmpty = "empty"
 
 // teamForkRecent is how recently a file changed for the fork to copy it
-// in full rather than link it: production may still be writing to it.
-const teamForkRecent = 24 * time.Hour
+// in full rather than link it: production may have been writing it as it
+// paused. Only that: files written once and kept are linked however new.
+// A day was too long: on team cartman a backfill had downloaded 124k PDFs
+// that day, and the first fork copied 102 GB of them, with production
+// paused for three minutes.
+const teamForkRecent = 10 * time.Minute
 
 // teamPreviewFork is run/preview-fork.json: what the preview's data is a
 // fork of.
@@ -322,7 +326,7 @@ func (b *teamBroker) forkPreviewLocked() (teamDataCopy, error) {
 	recent := time.Now().Add(-teamForkRecent)
 	databases, copied := teamForkPlan(src, recent)
 	if free := teamFreeBytes(run); free >= 0 && free < copied+teamDataRoom {
-		return result, fmt.Errorf("the disk has %s free, and the fork copies %s in full (the databases and the last day's files) and needs some room to spare", teamDataSize(free), teamDataSize(copied))
+		return result, fmt.Errorf("the disk has %s free, and the fork copies %s in full (the databases and the files being written) and needs some room to spare", teamDataSize(free), teamDataSize(copied))
 	}
 
 	b.previewMu.Lock()

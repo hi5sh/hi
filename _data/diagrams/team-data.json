@@ -1,5 +1,5 @@
 {
-  "caption": "How a hi team keeps its app's data. On the team's machine, production's box runs the released version on app/, the team's data folder, which owns the data and is snapshotted. At every release, and with hi team data fork, hi forks app/ into run/preview-base/: it hardlinks the files, which takes seconds and no disk. The preview's box mounts that fork read only, with run/preview-data/ over it: that folder holds the databases and the last day's files, copied in full, and whatever the preview writes. Nothing the preview does reaches production. The preview's model calls go through a socket of its own and stop for the day at a limit; settings marked production only aren't in the preview.",
+  "caption": "How a hi team keeps its app's data. On the team's machine, production's box runs the released version on app/, the team's data folder, which owns the data and is snapshotted. At every release, and with hi team data fork, hi forks app/ into run/preview-base/: it hardlinks the files, which takes seconds and no disk. The preview's box mounts that fork read only, with run/preview-data/ over it: that folder holds the databases and the files being written, copied in full, and whatever the preview writes. Nothing the preview does reaches production. The preview's model calls go through a socket of its own and stop for the day at a limit; settings marked production only aren't in the preview.",
   "you": "People",
   "via": "the app's two links",
   "frame": "the team's machine",
@@ -54,7 +54,7 @@
         {
           "title": "run/preview-data/",
           "role": "the preview's own",
-          "does": "The databases and the last day's files, copied in full, and everything the preview writes.",
+          "does": "The databases and the files being written, copied in full, and everything the preview writes.",
           "chip": "overlay",
           "tone": "accent"
         },

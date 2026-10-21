@@ -1,5 +1,5 @@
 {
-  "caption": "The app's data, step by step, for a team whose app keeps a database and receipts. Before the first release the preview has a folder of its own. The first release can take the preview's data along. Production then builds up data alone. At every release hi forks production's data for the preview: old files linked, the database and the last day's files copied. In the preview's box, the fork is read only and whatever the preview writes stays in its own folder. At the next release, what the preview wrote is kept once and the preview gets a new fork.",
+  "caption": "The app's data, step by step, for a team whose app keeps a database and receipts. Before the first release the preview has a folder of its own. The first release can take the preview's data along. Production then builds up data alone. At every release hi forks production's data for the preview: files written once linked, the database copied. In the preview's box, the fork is read only and whatever the preview writes stays in its own folder. At the next release, what the preview wrote is kept once and the preview gets a new fork.",
   "steps": [
     {
       "title": "Before the first release",
@@ -137,7 +137,7 @@
     {
       "title": "Every release: a new fork",
       "command": "hi team release …   or, any time:   hi team data fork",
-      "text": "Production pauses for a few seconds. hi hardlinks every file production writes once into the fork, which takes no disk, and copies in full what production changes in place: the databases, and whatever changed in the last day. What the preview wrote itself is kept once.",
+      "text": "Production pauses for a few seconds. hi hardlinks every file production writes once into the fork, however new, which takes no disk, and copies in full what production changes in place: the databases and their journals, and whatever it was writing as it paused. What the preview wrote itself is kept once.",
       "left": {
         "name": "production",
         "folders": [
@@ -150,14 +150,19 @@
                 "tone": "amber"
               },
               {
+                "name": "app.db-wal",
+                "tag": "its journal",
+                "tone": "amber"
+              },
+              {
                 "name": "receipts/2019-03.pdf",
                 "tag": "written once",
                 "tone": "mint"
               },
               {
                 "name": "receipts/2026-10-21.pdf",
-                "tag": "changed today",
-                "tone": "amber"
+                "tag": "written once, today",
+                "tone": "mint"
               }
             ]
           }
@@ -174,6 +179,11 @@
                 "name": "receipts/2019-03.pdf",
                 "tag": "linked",
                 "tone": "mint"
+              },
+              {
+                "name": "receipts/2026-10-21.pdf",
+                "tag": "linked",
+                "tone": "mint"
               }
             ]
           },
@@ -186,7 +196,7 @@
                 "tone": "amber"
               },
               {
-                "name": "receipts/2026-10-21.pdf",
+                "name": "app.db-wal",
                 "tag": "copied",
                 "tone": "amber"
               }

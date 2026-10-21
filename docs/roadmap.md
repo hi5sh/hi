@@ -2301,7 +2301,7 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   further behind each day: its workers run only in production, and
   catching up was a full copy. Now the preview runs on a fork of
   production: hi hardlinks production's files and copies in full only
-  the databases and the last day's files, and the preview's box mounts
+  the databases and the files being written, and the preview's box mounts
   the fork read only with a folder of its own over it (a rootless Podman
   overlay). On cartman's data, 155 GB in 210k files linked in 4.6 s,
   with no disk.
@@ -2318,6 +2318,15 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   every release, for an app whose people's data previews shouldn't show.
 - [x] With Docker, or where hardlinks don't work, the preview gets a
   whole copy, as before, and `hi team data` says why.
+
+### v1.1.1 — A fork links what is new too
+
+- [x] Cartman's first fork copied 102 GB in 124k files, with production
+  paused for three minutes: a backfill had downloaded that many PDFs that
+  day, and v1.1.0 copied every file changed in the last day. It copies
+  what changed in the last ten minutes now, besides the databases, and
+  links the rest however new.
+  Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
 
 ## Planned
 

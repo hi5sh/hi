@@ -79,7 +79,7 @@ func TestTeamForkPreview(t *testing.T) {
 		!teamTestSameFile(filepath.Join(production, "notes/kept.txt"), filepath.Join(base, "notes/kept.txt")) {
 		t.Fatal("the fork copied what it could link")
 	}
-	// The database and the last day's files are copied, into the preview's own.
+	// The database and the file just written are copied, into the preview's own.
 	for _, name := range []string{"app.db", "attachments/new.pdf"} {
 		if fileExists(filepath.Join(base, name)) || !fileExists(filepath.Join(own, name)) || teamTestSameFile(filepath.Join(production, name), filepath.Join(own, name)) {
 			t.Fatal(name, "isn't a copy of its own")
