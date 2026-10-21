@@ -277,7 +277,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the DM's first-reply hook is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.6"} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.75"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}
@@ -1355,12 +1355,18 @@ func TestTeamSoulBeQuick(t *testing.T) {
 	if err := updateTeamSoul(path); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n"+teamSoulKeepFindings+"\n\n## How work is done\n" {
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulReading+"\n\n## How work is done\n" {
 		t.Fatalf("%s", data)
 	}
 	os.WriteFile(path, []byte("x\n\n## How work is done\n"), 0o600)
 	updateTeamSoul(path)
-	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n"+teamSoulKeepFindings+"\n\n## How work is done\n" {
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulReading+"\n\n## How work is done\n" {
+		t.Fatalf("%s", data)
+	}
+	// v1.0.0's "a few files at most" becomes scouting.
+	os.WriteFile(path, []byte("x\n\n"+teamSoulBeQuickFewFiles+"\n\n## How work is done\n"), 0o600)
+	updateTeamSoul(path)
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulReading+"\n\n## How work is done\n" {
 		t.Fatalf("%s", data)
 	}
 }

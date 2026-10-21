@@ -2264,13 +2264,17 @@ often come when several models trade ideas.
 
 ### v1.0.4 — The lead hands code on before its steps run out
 
-- [x] Past a dozen reads and searches of the code in one turn, hi's
-  plugin in the lead's Hermes adds a line to each result: the member
-  reads the code in its task, so write what you found in the brief or
-  the incident and answer. On team cartman 11 of 286 turns used all 60
-  steps, mostly searching /team/repo/src, and the next turn read the
-  same code again.
-- [x] At 36 of the 60 steps Hermes tells the lead once to keep what it
+- [x] The lead's reading of the code is scouting, for the member's head
+  start: SOUL.md says it finds where the answer or the change lives,
+  puts that in the brief under "Where to look", and stops, instead of
+  "a few files at most". On team cartman 11 of 286 turns used all 60
+  steps, mostly searching /team/repo/src to work out the fix itself,
+  and the next turn read the same code again.
+- [x] Past a dozen reads and searches in one turn, hi's plugin in the
+  lead's Hermes adds a line to each result: you have enough pointers,
+  put them in the brief and start the task, or note them on the
+  incident, then answer.
+- [x] At 45 of the 60 steps Hermes tells the lead once to keep what it
   found, and SOUL.md says where: the brief, the spec, or an incident
   note, which the next turn reads before the code. A check hi wakes the
   lead for hands the code to a member.

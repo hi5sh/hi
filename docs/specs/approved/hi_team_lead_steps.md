@@ -100,22 +100,38 @@ From both leads' state.db on 2026-10-21, counting tool calls per turn
 - **The nudge.** hi's plugin in the lead's Hermes (helper/hermes in hi)
   counts search_files and read_file per turn with Hermes'
   transform_tool_result hook. From the 13th, each result ends with:
-  "[hi: that is N reads of the code in this turn. The member reads the
-  code in its task: write what you found where the next turn looks (the
-  brief in hi team task, or hi team incidents note <id> "..."), then
-  answer.]" A Hermes without the hook leaves the results alone; the
-  budget still stops the turn.
-- **Hermes' budget warning** at 0.6 of the budget, so once, at 36 of 60
+  "[hi: that is N reads of the code in this turn. You have enough
+  pointers for the member's head start: put them under Where to look in
+  the brief and start the task (hi team task), or note them on the
+  incident (hi team incidents note <id> "..."), then answer. The member
+  reads the code properly in its task.]" At 12, it reaches the turns that
+  ran out at step 13 to 24, and 18 of the 370 turns that didn't (good
+  turns read 11 to 13 files at the 95th percentile). At 50 it would have
+  come at step 51 to 59 or never: those turns were almost all reads. A
+  Hermes without the hook leaves the results alone; the budget still
+  stops the turn.
+- **Hermes' budget warning** at 0.75 of the budget, so once, at 45 of 60
   steps: Hermes' own words tell the lead to keep its progress somewhere
   that lasts, then go on.
-- **Keep what a turn found**, in SOUL.md, after "Be quick": write it where
+- **Scouting**, in SOUL.md, after "Be quick", in place of "a few files
+  at most", which said how little to read but not what the reading is
+  for, so the lead had no point to stop at: its reading is scouting for
+  the member's head start. It finds where the answer or the change lives
+  (files, functions, spec, decision), puts those in the brief under
+  "Where to look" with what it noticed, and stops; it doesn't work out
+  the fix. The hi-team skill's list of what a brief says has "where to
+  look" in place of "where in the project the work goes".
+- **Keep what a turn found**, in SOUL.md, after scouting: write it where
   the next turn looks (the brief, the spec, an incident note), read an
   incident's notes and the thread before reading the code again, and a
   check hi wakes the lead for hands the code to a member. hi adds the
   paragraph to an existing lead's SOUL.md when the team starts, as it
   does its other paragraphs.
 - **The budget stays at 60.** The 21–40 turns above did real work; a
-  lower cap would cut them.
+  lower cap would cut them. No turn doing real work (hi commands, the
+  terminal) came near 60, so 100 would only give the reading 40 more
+  steps, and a wait of up to 8.5 minutes would grow to about 14. Raise it
+  if turns still run out while running hi commands rather than reading.
 - **Marked with the model.** The budget, the warning, and the nudge note
   in code that they were set for gemini-3.8-flash with the counts above.
   When a team's lead or hi's default lead moves to another model, count

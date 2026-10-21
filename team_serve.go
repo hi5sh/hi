@@ -284,13 +284,13 @@ func teamBrokerDir(name string) string {
 
 // teamLeadMaxTurns caps the model calls in one turn of the lead's; few
 // answers need more than 20. teamLeadBudgetWarning has Hermes tell the
-// lead once, at 36 of them, to keep what it found before the cap. Both
+// lead once, at 45 of them, to keep what it found before the cap. Both
 // were set for google/gemini-3.8-flash: on team cartman, 2026-10-18 to
 // 10-20, 11 of 286 turns hit the cap, mostly reading /team/repo/src.
 // Re-check them on another model (docs/specs/approved/hi_team_lead_steps.md).
 const (
 	teamLeadMaxTurns      = 60
-	teamLeadBudgetWarning = 0.6
+	teamLeadBudgetWarning = 0.75
 )
 
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
@@ -637,14 +637,7 @@ You don't write code yourself. You hand tasks to the members:
 
 The hi-team skill says how: hi team task, wait, and merge.
 
-Be quick. When a message asks for work, start it in the same turn (hi
-team task, with a short brief), then say what you started: your answer
-ends your turn, and nothing happens after it until someone writes. Look
-at the code only as much as you need for the brief, a few files at most;
-the member reads the rest in its task. A turn of yours stops after %[6]d
-steps and answers with what it has.
-
-`+teamSoulKeepFindings+`
+`+teamSoulReading+`
 
 ## How work is done
 
@@ -732,14 +725,28 @@ var (
 	teamSoulAnswerFirst = fmt.Sprintf(`Answer first. Look at the code only as much as you need to answer or to
 write a brief, a few files at most; the member reads the rest in its
 task. A turn of yours stops after %d steps and answers with what it has.`, teamLeadMaxTurns)
-	teamSoulBeQuick = fmt.Sprintf(`Be quick. When a message asks for work, start it in the same turn (hi
+	// v1.0.0's paragraph, which limited the lead's reading without saying
+	// what it is for.
+	teamSoulBeQuickFewFiles = fmt.Sprintf(`Be quick. When a message asks for work, start it in the same turn (hi
 team task, with a short brief), then say what you started: your answer
 ends your turn, and nothing happens after it until someone writes. Look
 at the code only as much as you need for the brief, a few files at most;
 the member reads the rest in its task. A turn of yours stops after %d
 steps and answers with what it has.`, teamLeadMaxTurns)
+	teamSoulBeQuick = fmt.Sprintf(`Be quick. When a message asks for work, start it in the same turn (hi
+team task, with a short brief), then say what you started: your answer
+ends your turn, and nothing happens after it until someone writes. A
+turn of yours stops after %d steps and answers with what it has.`, teamLeadMaxTurns)
+	// The lead reads the code to point the member at it, not to do the
+	// member's reading (docs/specs/approved/hi_team_lead_steps.md).
+	teamSoulScout = `Your reading of the code is scouting, for the member's head start. Find
+where the answer or the change lives (the files, functions, spec, or
+decision), put those in the brief under "Where to look" with what you
+noticed, and stop there: don't work out the fix or read every line, since
+the member reads the code properly in its task. To answer a question,
+read only what the answer needs.`
 	// A turn's findings outlive it, so the next turn doesn't read the
-	// same code again (docs/specs/approved/hi_team_lead_steps.md).
+	// same code again.
 	teamSoulKeepFindings = `Keep what you find. What a turn learns is gone when it ends unless you
 write it down, and the next turn starts over. Put it where the next turn
 looks: the brief, the spec, or the incident (hi team incidents note <id>
@@ -747,6 +754,8 @@ looks: the brief, the spec, or the incident (hi team incidents note <id>
 its notes and the thread. A check hi wakes you for (an incident, a job, a
 finished task) needs hi's commands, not the app's code: hand the code to
 a member.`
+	// teamSoulReading is how the lead works in a turn: the three above.
+	teamSoulReading = teamSoulBeQuick + "\n\n" + teamSoulScout + "\n\n" + teamSoulKeepFindings
 )
 
 // teamSoulDeepReview is how the lead offers a deep review of the whole
@@ -936,13 +945,15 @@ for no longer fits the story, ask an owner whether the story has changed.
 	// The lead starts the work, then answers, before it reads much code;
 	// v0.86.1's paragraph first, so it isn't added beside it.
 	{teamSoulAnswerFirst, teamSoulBeQuick},
+	// v1.0.0's "a few files at most" gives way to scouting, below.
+	{teamSoulBeQuickFewFiles, teamSoulBeQuick},
 	// Deep reviews, after the story's paragraph, which ends SOUL.md.
 	{"for no longer fits the story, ask an owner whether the story has changed.\n",
 		"for no longer fits the story, ask an owner whether the story has changed.\n\n" + teamSoulDeepReview},
-	// Keeping findings, after being quick; before the next, so a SOUL.md
-	// that has neither gets both once.
-	{teamSoulBeQuick, teamSoulBeQuick + "\n\n" + teamSoulKeepFindings},
-	{"## How work is done", teamSoulBeQuick + "\n\n" + teamSoulKeepFindings + "\n\n## How work is done"},
+	// Scouting and keeping findings, after being quick; before the next,
+	// so a SOUL.md that has none of them gets all three once.
+	{teamSoulBeQuick, teamSoulReading},
+	{"## How work is done", teamSoulReading + "\n\n## How work is done"},
 	// Brainstorms, after the deep reviews.
 	{teamSoulDeepReview, teamSoulDeepReview + "\n" + teamSoulBrainstorm},
 }
@@ -1288,7 +1299,9 @@ project's documentation, committed with the code. A brief starts with a one-line
 
 - the goal, in one or two sentences;
 - the acceptance list, and the tests that must cover it;
-- where in the project the work goes, if you know;
+- where to look: the files, functions, specs, or decisions you found,
+  with what you noticed there, so the member starts from them; not the
+  fix, which the member works out;
 - the notes in docs/specs/notes/ that matter for it, by name, and why;
 - what not to change.
 

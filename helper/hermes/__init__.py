@@ -121,9 +121,10 @@ def _answer_in_dms():
 # another model before keeping it.
 READS = {"search_files", "read_file"}
 READS_BEFORE_NOTE = 12
-READS_NOTE = ("\n\n[hi: that is %d reads of the code in this turn. The member reads the code in its task: "
-              "write what you found where the next turn looks (the brief in hi team task, or "
-              "hi team incidents note <id> \"...\"), then answer.]")
+READS_NOTE = ("\n\n[hi: that is %d reads of the code in this turn. You have enough pointers for the "
+              "member's head start: put them under Where to look in the brief and start the task "
+              "(hi team task), or note them on the incident (hi team incidents note <id> \"...\"), "
+              "then answer. The member reads the code properly in its task.]")
 _reads = {}  # turn -> reads so far, for the newest turns only
 
 
