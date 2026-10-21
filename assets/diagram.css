@@ -83,8 +83,59 @@
 .hd-key dd { margin: 2px 0 0 26px; color: var(--muted); line-height: 1.5; }
 @media (max-width: 640px) {
   .hd-cols { flex-direction: column; gap: 0; }
-  .hd-group { flex: none; }
+  .hd-group, .hd-after .hd-group { flex: none; }
   .hd-arrow { width: auto; height: 38px; flex-direction: row; gap: 6px; }
   .hd-arrow::after { content: "↓"; }
   .hd-arrow em { margin: 0; }
+}
+
+/* Steps: a workflow, step by step, two places side by side
+   (_includes/steps.html, docs/guide-diagrams.md). */
+.hs { margin: 30px 0 34px; padding: 0; }
+.hs-list { list-style: none; margin: 0; padding: 0; counter-reset: none; }
+.prose .hs-list li { margin: 0; }
+.hs-step { position: relative; padding: 0 0 26px 38px; }
+.hs-step::before {
+  content: ""; position: absolute; left: 12px; top: 28px; bottom: 4px; width: 1px; background: var(--line-strong);
+}
+.hs-step:last-child::before { display: none; }
+.hs-head { display: flex; align-items: center; gap: 10px; margin-left: -38px; min-height: 26px; }
+.hs-n {
+  flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: var(--bg); font: 700 12.5px var(--mono);
+}
+.hs-title { font: 600 15.5px var(--sans); color: var(--text); }
+.prose .hs-cmd { margin: 10px 0 0; padding: 7px 11px; font-size: 12.5px; overflow-x: auto; }
+.hs-panes { display: flex; align-items: stretch; margin-top: 12px; }
+.hs-pane {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 9px;
+  border: 1px solid var(--line-strong); border-radius: 12px; background: var(--bg-raised);
+}
+.hs-pname { font: 600 12.5px var(--mono); color: var(--accent); }
+.hs-folder { border: 1px solid var(--line); border-radius: 9px; background: var(--bg-card); padding: 6px 8px 7px; }
+.prose .hs-path { display: block; padding: 0 0 4px; margin-bottom: 4px; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.hs-file { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 3px 8px; padding: 3px 0; }
+.prose .hs-file code { padding: 0; background: none; border: 0; font-size: 12px; color: var(--text); overflow-wrap: anywhere; min-width: 0; }
+.prose .hs-empty { margin: 2px 0; font-size: 12.5px; color: var(--dim); font-style: italic; }
+.hs-via {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 78px; padding: 0 4px; font: 10.5px/1.25 var(--mono); color: var(--dim); text-align: center;
+}
+.hs-via em { font-style: normal; margin-bottom: 3px; overflow-wrap: anywhere; }
+.hs-via::after { content: "→"; font-size: 18px; line-height: 1; color: var(--accent); }
+.hs-back::after { content: "←"; }
+.hs-none::after { content: ""; }
+.prose .hs-text { margin: 10px 0 0; font-size: 14.5px; line-height: 1.6; color: var(--muted); }
+.hs-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; }
+@media (max-width: 640px) {
+  .hs-step { padding-left: 0; }
+  .hs-step::before { display: none; }
+  .hs-head { margin-left: 0; }
+  .hs-panes { flex-direction: column; }
+  .hs-pane { flex: none; }
+  .hs-via { width: auto; height: 36px; flex-direction: row; gap: 6px; }
+  .hs-via em { margin: 0; }
+  .hs-via::after { content: "↓"; }
+  .hs-back::after { content: "↑"; }
+  .hs-none::after { content: ""; }
 }

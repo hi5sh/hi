@@ -21,6 +21,7 @@ var guideDiagramPages = map[string][]string{
 	"guide/box/index.md":          {"box"},
 	"guide/agent/index.md":        {"agent"},
 	"guide/team/index.md":         {"team"},
+	"guide/team/data.md":          {"team-data"},
 	"guide/compute/index.md":      {"compute"},
 	"guide/compute/managed.md":    {"managed", "server"},
 	"guide/workstation/expose.md": {"expose"},
@@ -201,6 +202,97 @@ func TestGuidePagesHaveTheirDiagrams(t *testing.T) {
 	for name := range diagrams {
 		if usedBy[name] == "" {
 			t.Errorf("the %s diagram isn't on any page", name)
+		}
+	}
+}
+
+// A workflow drawn step by step (_includes/steps.html): two places side
+// by side and what each step does to them.
+type guideStepsPane struct {
+	Name    string `json:"name"`
+	Folders []struct {
+		Path  string `json:"path"`
+		Empty string `json:"empty"`
+		Files []struct {
+			Name string `json:"name"`
+			Tag  string `json:"tag"`
+			Tone string `json:"tone"`
+		} `json:"files"`
+	} `json:"folders"`
+}
+
+func TestGuideStepsAreWellFormed(t *testing.T) {
+	files, _ := filepath.Glob("_data/steps/*.json")
+	if len(files) == 0 {
+		t.Fatal("no steps in _data/steps")
+	}
+	pages := map[string]bool{}
+	filepath.Walk("guide", func(path string, info os.FileInfo, err error) error {
+		if err == nil && strings.HasSuffix(path, ".md") {
+			data, _ := os.ReadFile(path)
+			for _, match := range regexp.MustCompile(`\{%\s*include steps\.html name="([^"]+)"`).FindAllStringSubmatch(string(data), -1) {
+				pages[match[1]] = true
+			}
+		}
+		return nil
+	})
+	for _, file := range files {
+		name := strings.TrimSuffix(filepath.Base(file), ".json")
+		data, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var d struct {
+			Caption string `json:"caption"`
+			Steps   []struct {
+				Title string          `json:"title"`
+				Text  string          `json:"text"`
+				Left  *guideStepsPane `json:"left"`
+				Right *guideStepsPane `json:"right"`
+			} `json:"steps"`
+			Legend []struct {
+				Tag  string `json:"tag"`
+				Tone string `json:"tone"`
+			} `json:"legend"`
+		}
+		if err := json.Unmarshal(data, &d); err != nil {
+			t.Fatalf("%s: %v", file, err)
+		}
+		problem := func(format string, args ...any) { t.Errorf(name+": "+format, args...) }
+		if len(d.Caption) < 120 || !strings.HasSuffix(d.Caption, ".") {
+			problem("the caption should say in sentences what the steps show")
+		}
+		if !pages[name] {
+			problem("no guide page shows it: {%% include steps.html name=%q %%}", name)
+		}
+		for _, legend := range d.Legend {
+			if !guideDiagramTones[legend.Tone] {
+				problem("legend tone %q isn't one of the diagram's colours", legend.Tone)
+			}
+		}
+		for i, step := range d.Steps {
+			if step.Title == "" || step.Text == "" || step.Left == nil || step.Right == nil {
+				problem("step %d needs a title, a text, and both sides", i+1)
+				continue
+			}
+			if strings.ContainsAny(guideCodeSpan.ReplaceAllString(step.Text, ""), "<>") {
+				problem("step %d: put <placeholders> in backticks", i+1)
+			}
+			for _, pane := range []*guideStepsPane{step.Left, step.Right} {
+				if pane.Name == "" || len(pane.Folders) == 0 {
+					problem("step %d: a side needs a name and a folder", i+1)
+				}
+				for _, folder := range pane.Folders {
+					if folder.Path == "" || len(folder.Files) == 0 && folder.Empty == "" {
+						problem("step %d: a folder needs a path, and files or what it is when empty", i+1)
+					}
+					for _, file := range folder.Files {
+						if file.Name == "" || file.Tag == "" || !guideDiagramTones[file.Tone] {
+							problem("step %d: %q needs a name, a tag, and a tone of the diagram's colours", i+1, file.Name)
+						}
+					}
+				}
+			}
 		}
 	}
 }

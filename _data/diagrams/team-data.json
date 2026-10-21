@@ -1,0 +1,116 @@
+{
+  "caption": "How a hi team keeps its app's data. On the team's machine, production's box runs the released version on app/, the team's data folder, which owns the data and is snapshotted. At every release, and with hi team data fork, hi forks app/ into run/preview-base/: it hardlinks the files, which takes seconds and no disk. The preview's box mounts that fork read only, with run/preview-data/ over it: that folder holds the databases and the last day's files, copied in full, and whatever the preview writes. Nothing the preview does reaches production. The preview's model calls go through a socket of its own and stop for the day at a limit; settings marked production only aren't in the preview.",
+  "you": "People",
+  "via": "the app's two links",
+  "frame": "the team's machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "production",
+      "label": "what people use",
+      "mark": 2,
+      "summary": "Owns the data. Its background work runs in full.",
+      "items": [
+        {
+          "title": "production v4",
+          "role": "app box",
+          "does": "The released version, with `/data` on `app/` and every setting.",
+          "chip": "link",
+          "tone": "mint",
+          "entry": "People use this"
+        },
+        {
+          "title": "app/",
+          "role": "production's data",
+          "does": "Builds up here alone; snapshotted daily and before every release.",
+          "chip": "restic",
+          "tone": "dim"
+        }
+      ]
+    },
+    {
+      "name": "fork",
+      "label": "read only",
+      "mark": 3,
+      "via": "at every release",
+      "summary": "Production's data as of the fork.",
+      "items": [
+        {
+          "title": "run/preview-base/",
+          "role": "hardlinks",
+          "does": "Every file production writes once, linked: seconds and no disk, however big.",
+          "chip": "hi team data fork",
+          "tone": "accent"
+        }
+      ]
+    },
+    {
+      "name": "preview",
+      "label": "what people try",
+      "mark": 4,
+      "via": "mounted under",
+      "summary": "Dev on production's data; what it writes stays its own.",
+      "items": [
+        {
+          "title": "run/preview-data/",
+          "role": "the preview's own",
+          "does": "The databases and the last day's files, copied in full, and everything the preview writes.",
+          "chip": "overlay",
+          "tone": "accent"
+        },
+        {
+          "title": "preview",
+          "role": "app box",
+          "does": "Sees the fork with its own folder over it at `/data`; no production-only settings.",
+          "chip": "link",
+          "tone": "mint",
+          "entry": "People try this"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "the preview's models socket",
+      "label": "OpenRouter, through hi",
+      "mark": 5,
+      "via": "model calls",
+      "items": [
+        {
+          "title": "$5 a day",
+          "role": "the preview's limit",
+          "does": "Its calls stop for the day at the limit (`hi team limit`); production's have none.",
+          "chip": "OpenRouter",
+          "tone": "violet"
+        }
+      ]
+    }
+  ],
+  "key": [
+    {
+      "mark": 1,
+      "term": "The team's machine",
+      "text": "Both boxes, both folders, and the fork are on one disk, so the fork can link rather than copy."
+    },
+    {
+      "mark": 2,
+      "term": "Production",
+      "text": "The one place data builds up. `$HI_SLOT` is `production`, so its workers run in full."
+    },
+    {
+      "mark": 3,
+      "term": "Fork",
+      "text": "A frozen view of production's files from the last release, which the preview reads but never writes."
+    },
+    {
+      "mark": 4,
+      "term": "Preview",
+      "text": "Runs on the fork with a folder of its own over it: an overlay, mounted by Podman."
+    },
+    {
+      "mark": 5,
+      "term": "Limit",
+      "text": "A preview can't act on the world: a daily limit on its model calls, and keys it doesn't get."
+    }
+  ]
+}

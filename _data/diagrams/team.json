@@ -70,7 +70,7 @@
         {
           "title": "preview",
           "role": "dev",
-          "does": "`main` on its own link, for the people to try.",
+          "does": "`main` on its own link, on a fork of production's data, for the people to try.",
           "chip": "link",
           "tone": "mint"
         },

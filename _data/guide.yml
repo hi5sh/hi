@@ -27,6 +27,8 @@
       url: /guide/team/keys/
     - title: Dev and production
       url: /guide/team/releases/
+    - title: Preview and production data
+      url: /guide/team/data/
     - title: A deep review before a release
       url: /guide/team/reviews/
     - title: Brainstorms on hard questions

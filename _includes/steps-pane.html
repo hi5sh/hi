@@ -1,0 +1,11 @@
+{%- assign pane = include.pane -%}
+<div class="hs-pane"><div class="hs-pname">{{ pane.name | escape }}</div>
+{%- for folder in pane.folders -%}
+<div class="hs-folder"><code class="hs-path">{{ folder.path | escape }}</code>
+{%- if folder.empty %}<p class="hs-empty">{{ folder.empty | escape }}</p>{% endif -%}
+{%- for file in folder.files -%}
+<div class="hs-file"><code>{{ file.name | escape }}</code><span class="hd-chip hd-tone-{{ file.tone | default: 'dim' }}"><i></i>{{ file.tag | escape }}</span></div>
+{%- endfor -%}
+</div>
+{%- endfor -%}
+</div>

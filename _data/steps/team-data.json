@@ -1,0 +1,319 @@
+{
+  "caption": "The app's data, step by step, for a team whose app keeps a database and receipts. Before the first release the preview has a folder of its own. The first release can take the preview's data along. Production then builds up data alone. At every release hi forks production's data for the preview: old files linked, the database and the last day's files copied. In the preview's box, the fork is read only and whatever the preview writes stays in its own folder. At the next release, what the preview wrote is kept once and the preview gets a new fork.",
+  "steps": [
+    {
+      "title": "Before the first release",
+      "text": "The team builds in the preview. With nothing released, the preview has a plain data folder of its own, and whatever it gathers stays there.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "empty": "nothing yet: nothing is released"
+          }
+        ]
+      },
+      "right": {
+        "name": "preview",
+        "folders": [
+          {
+            "path": "run/preview-data/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "its own",
+                "tone": "accent"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "its own",
+                "tone": "accent"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "apart",
+      "arrow": false
+    },
+    {
+      "title": "The first release",
+      "command": "hi team release --approval <id> --notes <file> --data preview",
+      "text": "A release moves the code, never the data. When the preview gathered what production needs, an owner's yes can take its data along, once. Without `--data preview`, production starts empty and the preview keeps what it has.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "copied",
+                "tone": "amber"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "copied",
+                "tone": "amber"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "--data preview",
+      "back": true,
+      "right": {
+        "name": "preview",
+        "folders": [
+          {
+            "path": "run/preview-data/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "its own",
+                "tone": "accent"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "its own",
+                "tone": "accent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "Production builds up the data",
+      "text": "From now on data builds up in one place. `$HI_SLOT` is `production`, so production's workers run in full: feeds, model calls, mail. The preview's run on a small sample, with keys marked `--production` missing and its model calls capped.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "written all day",
+                "tone": "mint"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "written once",
+                "tone": "dim"
+              },
+              {
+                "name": "receipts/2026-10-21.pdf",
+                "tag": "new today",
+                "tone": "mint"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "nothing crosses",
+      "right": {
+        "name": "preview",
+        "folders": [
+          {
+            "path": "run/preview-data/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "falls behind",
+                "tone": "dim"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "its own",
+                "tone": "dim"
+              }
+            ]
+          }
+        ]
+      },
+      "arrow": false
+    },
+    {
+      "title": "Every release: a new fork",
+      "command": "hi team release …   or, any time:   hi team data fork",
+      "text": "Production pauses for a few seconds. hi hardlinks every file production writes once into the fork, which takes no disk, and copies in full what production changes in place: the databases, and whatever changed in the last day. What the preview wrote itself is kept once.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "a database",
+                "tone": "amber"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "written once",
+                "tone": "mint"
+              },
+              {
+                "name": "receipts/2026-10-21.pdf",
+                "tag": "changed today",
+                "tone": "amber"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "fork",
+      "right": {
+        "name": "preview",
+        "folders": [
+          {
+            "path": "run/preview-base/",
+            "files": [
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "linked",
+                "tone": "mint"
+              }
+            ]
+          },
+          {
+            "path": "run/preview-data/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "copied",
+                "tone": "amber"
+              },
+              {
+                "name": "receipts/2026-10-21.pdf",
+                "tag": "copied",
+                "tone": "amber"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "title": "People try the preview",
+      "text": "The preview's box sees one folder at `/data`: the fork, read only, with its own folder over it. A change or a new entry goes to its own folder; a file it deletes is only hidden from it. The release's migration has already run here, on a copy of production's real data.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "untouched",
+                "tone": "mint"
+              },
+              {
+                "name": "receipts/…",
+                "tag": "untouched",
+                "tone": "mint"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "nothing goes back",
+      "right": {
+        "name": "the preview's box",
+        "folders": [
+          {
+            "path": "/data",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "its copy, migrated",
+                "tone": "amber"
+              },
+              {
+                "name": "receipts/2019-03.pdf",
+                "tag": "from the fork",
+                "tone": "mint"
+              },
+              {
+                "name": "receipts/test-upload.pdf",
+                "tag": "its own",
+                "tone": "accent"
+              }
+            ]
+          }
+        ]
+      },
+      "arrow": false
+    },
+    {
+      "title": "The next release",
+      "command": "hi team release --approval <id> --notes <file>",
+      "text": "Production moves to the new version, snapshot first, and the preview starts again on a new fork of production. What people tried in the old one is kept once, then dropped at the fork after.",
+      "left": {
+        "name": "production",
+        "folders": [
+          {
+            "path": "app/",
+            "files": [
+              {
+                "name": "app.db",
+                "tag": "v5 runs on it",
+                "tone": "mint"
+              },
+              {
+                "name": "receipts/…",
+                "tag": "kept",
+                "tone": "mint"
+              }
+            ]
+          }
+        ]
+      },
+      "via": "a new fork",
+      "right": {
+        "name": "preview",
+        "folders": [
+          {
+            "path": "run/preview-base/ + run/preview-data/",
+            "files": [
+              {
+                "name": "production's data now",
+                "tag": "fresh",
+                "tone": "mint"
+              }
+            ]
+          },
+          {
+            "path": "run/preview-data-before/",
+            "files": [
+              {
+                "name": "receipts/test-upload.pdf",
+                "tag": "kept once",
+                "tone": "dim"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "legend": [
+    {
+      "tag": "linked, or kept as it is",
+      "tone": "mint"
+    },
+    {
+      "tag": "copied in full",
+      "tone": "amber"
+    },
+    {
+      "tag": "the preview's own",
+      "tone": "accent"
+    },
+    {
+      "tag": "old, or kept once",
+      "tone": "dim"
+    }
+  ]
+}

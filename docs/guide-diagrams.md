@@ -75,6 +75,20 @@ A diagram is a JSON file in `_data/diagrams/`, drawn by
   Codex, `violet` for Hermes and Slack, `red` for danger, `dim` for plain
   things and the outside world.
 
+## Steps
+
+A workflow that changes things over time, rather than a structure, is
+drawn step by step: `_data/steps/<name>.json`, drawn by
+`_includes/steps.html`, with `{% include steps.html name="team-data" %}`.
+Each step has a title, an optional command, the two places it changes side
+by side (`left` and `right`, each a `name` and its `folders` of `files`,
+every file with a `tag` and a tone), a `via` for the arrow between them
+(`back` turns it around; `"arrow": false` leaves only the words, for
+"nothing crosses"), and a sentence or two of `text`. A `legend`
+says what the tones mean. The caption, again, says it all in sentences;
+`go test -run TestGuideSteps` checks the fields and that a page shows it.
+[Preview and production data](/guide/team/data/) is the first.
+
 ## Seeing it
 
 GitHub Pages builds the guide with Jekyll 3.10. To see a diagram before
