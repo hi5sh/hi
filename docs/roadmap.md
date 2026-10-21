@@ -2272,7 +2272,9 @@ often come when several models trade ideas.
   reading the app's code, which the coder should read. Find out how often
   it happens, in which turns, at what cost, and whether the model is the
   cause, then choose between a nudge in hi's Hermes plugin, Hermes'
-  budget warning, a lower budget, another model, or sharper words.
+  budget warning, a lower budget, another model, or sharper words, and
+  whether an exhausted turn's findings should carry to the next. Note
+  which model each limit was written for, and re-check on a new one.
   Spec: [hi_team_lead_steps.md](specs/ideas/hi_team_lead_steps.md) (draft).
 
 ### Guide — a diagram for every tool

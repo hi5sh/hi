@@ -60,6 +60,30 @@ To find out before changing anything:
   (aitools, or a test team).
 - Whether the summary was good enough: did the people get what they asked
   for anyway?
+- What the next turn knew: whether a turn after an exhausted one started
+  from what the first had found, or read the same files again. In cartman
+  the second turn reread much of src/.
+
+## Limits written for one model
+
+The budget and SOUL.md's "a few files at most" are guesses about how a
+model behaves, and a guess made for one model goes stale with the next.
+Anthropic saw this with their own agents: they added context resets
+because one model wrapped up early as its context filled, and on the next
+model the resets were only overhead ("Scaling Managed Agents", 2026).
+Whatever this spec settles on, hi should:
+
+- Note beside each limit and each nudge which model it was written for
+  and what was seen, as the table above does for gemini-3.8-flash.
+- Re-check them when a team's lead model changes, or when hi's default
+  lead model does: the counts above, on the new model, before keeping a
+  nudge that may no longer be needed.
+- Consider a budget per model rather than one `teamLeadMaxTurns`, if the
+  counts differ much between models.
+
+So the model question under "Is it a real problem?" comes before the
+nudges below: if a stronger model doesn't hit the budget, a nudge written
+for a weaker one is a cost for every team.
 
 ## Ways to resolve it, to weigh
 
@@ -81,6 +105,15 @@ To find out before changing anything:
 - **Words.** Sharper SOUL.md or hi-team skill text: scheduled checks
   never read src/; after a rule or decision is recorded, hand the code
   change to the coder. The current words weren't enough for this model.
+- **Keep what a turn found.** When a turn runs out, what it found lives
+  only in its context and the summary, so the next turn starts over. The
+  lead could write its findings somewhere durable as it goes, on the
+  incident with `hi team incidents note`, or in the thread or the brief
+  it is writing, and SOUL.md could say to read those first. hi could also
+  do it itself: when a turn hits the budget, add the turn's summary to
+  the incident as a note, so a scheduled check or the owner's next answer
+  picks up from there instead of rereading the code. This doesn't lower
+  the steps of the first turn but should cut the second.
 - **Hide the warning.** Only if Hermes can leave that line out of Slack;
   cosmetic, the steps are still spent.
 - **Fewer repeat calls.** `hi team channel` five times in one turn
