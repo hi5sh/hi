@@ -1,8 +1,14 @@
 # The feature pages (docs/feature-pages.md), in the order the site menu
 # lists them (_includes/site-menu.html). A new page goes here too.
+- url: /team/
+  name: hi team
+  line: A team of agents in Slack that builds an app
 - url: /agent/
   name: hi agent
   line: Hand a task to a coding agent
 - url: /box/
   name: hi box
   line: Run code with nothing to steal
+- url: /compute/
+  name: hi compute
+  line: GPUs on Colab, Hugging Face, RunPod, Shadeform

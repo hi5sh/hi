@@ -201,3 +201,6 @@
 .ln.live .scan { font-weight: 400; color: transparent; background: linear-gradient(90deg, rgba(240, 113, 120, .2) 30%, var(--red, #f07178) 45%, var(--red, #f07178) 55%, rgba(240, 113, 120, .2) 70%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; animation: st-scan 1.6s ease-in-out infinite alternate; }
 @keyframes st-scan { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) { .ln.live .scan { animation: none; } }
+/* A table's row in a demo (pre: true) stays on one line, smaller, and clipped. */
+.ln.pre { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+.st-narrow .ln.pre { font-size: .78em; }

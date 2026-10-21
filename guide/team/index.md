@@ -22,6 +22,8 @@ whether it works.
 One team has one channel, one Slack app, and one machine. A new project is a
 new team.
 
+[See it in action](/team/): a short demo, then how it works.
+
 {% include diagram.html name="team" %}
 
 The lead and the members can reach any website, so the lead can read the

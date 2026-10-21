@@ -8,6 +8,8 @@ local, and gives it back. It hides each provider's own tool behind one set of
 commands, but it does not pretend they are the same: hardware names and
 prices stay the provider's own.
 
+[See it in action](/compute/): a short demo, then how it works.
+
 {% include diagram.html name="compute" %}
 
 ## Runs and instances

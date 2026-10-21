@@ -1,0 +1,75 @@
+// The demo at the top of hi5.sh/team/, played by assets/story.js. The
+// channel scene is an example. The terminal scenes keep the shape and wording
+// of what hi team printed for a real team; the team, its people, its work,
+// and its folder are made up. docs/feature-pages.md says how to edit it.
+window.HI5_STORY = {
+  size: { w: 600, h: 520 },
+  narrow: { w: 400, h: 720 },
+  pace: { short: 1 },
+  team: "onboarding",
+  channel: "#hr-onboarding",
+  preview: "https://onboarding-preview.apps.example.com",
+  people: {
+    emma: { init: "EM", name: "Emma", role: "HR", tone: "warm" },
+    sarah: { init: "SA", name: "Sarah", role: "HR", tone: "warm" },
+    lead: { init: "LD", name: "onboarding", role: "the team's lead · AI", tone: "violet" },
+    coder: { init: "CO", name: "coder", role: "Claude Code · AI", tone: "amber" },
+    reviewer: { init: "RV", name: "reviewer", role: "Codex · AI", tone: "sky" },
+  },
+  scenes: [
+    {
+      id: "ask", title: "Ask in Slack", caption: "Say what you need. Nothing starts without a yes.",
+      short: 12000, screen: "channel",
+      members: [
+        { who: "emma", kind: "people" }, { who: "sarah", kind: "people" },
+        { who: "lead", kind: "lead" }, { who: "coder", kind: "agents" }, { who: "reviewer", kind: "agents" },
+      ],
+      messages: [
+        { who: "emma", at: 300, mention: true, text: "Late steps get missed. Can they show in red?" },
+        { who: "lead", at: 2200, text: "Here's the change:", list: ["A step past its due date shows in red", "Its owner gets a reminder each morning"], after: "Shall I start?" },
+        { who: "emma", at: 6200, text: "Yes, go." },
+        { who: "lead", at: 9000, text: "It's on the preview, checked by the reviewer:", link: true },
+      ],
+    },
+    {
+      id: "status", title: "Every change reviewed", caption: "A coder builds. A different agent reviews.",
+      short: 13000, screen: "terminal", window: "you@it: ~",
+      lines: [
+        { cmd: "hi team status onboarding", at: 300 },
+        { out: "Team onboarding: up. Channel C0EXAMPLE01. Onboarding", at: 1300 },
+        { out: " ", at: 1300 },
+        { out: "  lead       Hermes, google/gemini-3.8-flash", pre: true, at: 1500 },
+        { out: "  coder      Claude Code, opus", at: 1600 },
+        { out: "  reviewer   Codex", at: 1700 },
+        { out: " ", at: 1700 },
+        { out: "Production: v2, released Oct 20 08:01 UTC, approved by Emma.", at: 2600 },
+        { out: "Dev: v2 + 2 changes.", at: 2900 },
+        { out: "  t-7    Late steps in red", at: 3000 },
+        { out: "  t-9    Fix what review t-8 found in t-7", pre: true, at: 3100 },
+        { out: " ", at: 4400 },
+        { out: "TASK  ROLE      STATUS          STARTED       TITLE", pre: true, at: 4400 },
+        { out: "t-7   coder     merged          Oct 21 09:40  Late steps in red", pre: true, at: 5200 },
+        { warn: "t-8   reviewer  done (changes)  Oct 21 09:46  Review t-7: Late steps in red", pre: true, at: 6200 },
+        { out: "t-9   coder     merged          Oct 21 09:47  Fix what review t-8 found in t-7", pre: true, at: 7200 },
+        { ok: "t-10  reviewer  done (approve)  Oct 21 09:51  Review t-9: Fix what review t-8 found in t-7", pre: true, at: 8200 },
+      ],
+    },
+    {
+      id: "snapshots", title: "Safe to go back", caption: "A snapshot every day, and before every release.",
+      short: 11000, screen: "terminal", window: "you@it: ~",
+      lines: [
+        { cmd: "hi team snapshots onboarding", at: 300 },
+        { out: "Snapshots of team onboarding, in /home/you/.local/share/hi/team-snapshots/onboarding.", at: 1300 },
+        { out: " ", at: 1300 },
+        { out: "ID        TAKEN             WHY         SIZE      NEW", pre: true, at: 1600 },
+        { out: "7a298224  2026-10-19 03:33  daily       12.1 MB   12.1 MB", pre: true, at: 2100 },
+        { out: "6d2fc996  2026-10-19 14:17  before v1   12.6 MB   1.4 MB", pre: true, at: 2500 },
+        { out: "a9773ea6  2026-10-20 08:00  before v2   14.0 MB   2.2 MB", pre: true, at: 2900 },
+        { out: "66947a37  2026-10-21 03:54  daily       14.3 MB   0.9 MB", pre: true, at: 3300 },
+        { cmd: "hi team ls", at: 5200 },
+        { out: "TEAM         STATE   CHANNEL       MEMBERS                 FOLDER", pre: true, at: 6200 },
+        { ok: "onboarding   up      C0EXAMPLE01   lead, coder, reviewer   /home/you/team-onboarding", pre: true, at: 6400 },
+      ],
+    },
+  ],
+};

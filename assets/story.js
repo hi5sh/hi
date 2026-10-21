@@ -85,13 +85,15 @@
       // before, and it clears when the last, empty one comes due.
       const live = l => el("div", { class: "ln live" }, ...l.live.map(x => timed(
         el("span", {}, x.text ? el("b", { class: "scan", text: "▬▬▬▬▬▬▬▬▬▬▬▬" }) : null, x.text ? "  " + x.text : null), x)));
-      const lines = sc.lines.map(l => l.live ? live(l) : timed(
+      // pre keeps a line on one line, for a table's rows: smaller, and clipped.
+      const pre = (node, l) => { if (l.pre) node.classList.add("pre"); return node; };
+      const lines = sc.lines.map(l => l.live ? live(l) : pre(timed(
         l.cmd ? el("div", { class: "ln cmd" }, el("span", { class: "ps", text: (l.ps ?? sc.prompt ?? "$") + " " }), l.cmd)
           : l.ok ? el("div", { class: "ln ok", text: l.ok })
             : l.warn ? el("div", { class: "ln warn", text: l.warn })
               : l.err ? el("div", { class: "ln err", text: l.err })
                 : l.out != null ? el("div", { class: "ln out", text: l.out })
-                  : el("div", { class: "ln" }, el("span", { class: "ln-step", text: l.step }), " " + l.text), l));
+                  : el("div", { class: "ln" }, el("span", { class: "ln-step", text: l.step }), " " + l.text), l), l));
       const t = sc.toast;
       return el("div", { class: "sc" },
         win(sc.window ?? sc.title, "w-term", el("div", { class: "w-term-body scroll" }, ...lines)),
@@ -184,6 +186,7 @@
       this.static = reduceMotion.matches;
       this.root = root;
       root.classList.add("st");
+      root.classList.toggle("st-narrow", size === STORY.narrow);
       this.box = el("div", { class: "st-box", "aria-hidden": "true", style: `aspect-ratio: ${W} / ${H}` });
       this.stage = el("div", { class: "st-stage", style: `width: ${W}px; height: ${H}px` });
       this.box.append(this.stage);

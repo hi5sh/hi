@@ -17,8 +17,10 @@ import (
 // featurePageUsage is each feature page's tool and the usage it prints. A
 // new feature page goes here with its tool's usage.
 var featurePageUsage = map[string]func(io.Writer){
-	"box":   printBoxUsage,
-	"agent": printAgentUsage,
+	"box":     printBoxUsage,
+	"agent":   printAgentUsage,
+	"team":    printTeamUsage,
+	"compute": printComputeUsage,
 }
 
 var (
