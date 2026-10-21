@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="{{ '/assets/feature.css' | relative_url }}">
 <link rel="stylesheet" href="{{ '/assets/story.css' | relative_url }}">
 <link rel="stylesheet" href="{{ '/assets/diagram.css' | relative_url }}">
+<link rel="stylesheet" href="{{ '/assets/site-menu.css' | relative_url }}">
 </head>
 <body>
 {%- comment -%}
@@ -23,7 +24,7 @@ assets/demos/<demo>.js. docs/feature-pages.md says how to write one.
 {%- endcomment %}
 <header class="wrap">
   <nav aria-label="Site">
-    <a class="logo" href="{{ '/' | relative_url }}"><b>hi</b>5.sh<span>/ {{ page.demo }}</span></a>
+    <div class="hm-group"><a class="logo" href="{{ '/' | relative_url }}"><b>hi</b>5.sh<span>/ {{ page.demo }}</span></a>{% include site-menu.html %}</div>
     <ul>
       <li class="wide"><a href="{{ '/#explore' | relative_url }}">Explore</a></li>
       <li><a href="{{ page.guide | relative_url }}">Guide</a></li>

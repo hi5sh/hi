@@ -98,3 +98,27 @@ func TestFeatureDemosUseRealCommands(t *testing.T) {
 		}
 	}
 }
+
+// TestFeaturePagesInTheSiteMenu keeps the site menu (_data/features.yml)
+// and the feature pages in step: each page is listed, and each entry is a page.
+func TestFeaturePagesInTheSiteMenu(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("_data", "features.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed := map[string]bool{}
+	for _, line := range strings.Split(string(data), "\n") {
+		if url, ok := strings.CutPrefix(line, "- url: "); ok {
+			name := strings.Trim(url, "/")
+			listed[name] = true
+			if featurePageUsage[name] == nil {
+				t.Errorf("_data/features.yml lists %s, which isn't a feature page in featurePageUsage", url)
+			}
+		}
+	}
+	for name := range featurePageUsage {
+		if !listed[name] {
+			t.Errorf("feature page %s isn't in _data/features.yml, so the site menu leaves it out", name)
+		}
+	}
+}

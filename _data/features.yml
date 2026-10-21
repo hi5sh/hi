@@ -1,0 +1,8 @@
+# The feature pages (docs/feature-pages.md), in the order the site menu
+# lists them (_includes/site-menu.html). A new page goes here too.
+- url: /agent/
+  name: hi agent
+  line: Hand a task to a coding agent
+- url: /box/
+  name: hi box
+  line: Run code with nothing to steal

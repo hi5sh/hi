@@ -1,0 +1,26 @@
+{%- comment -%}
+The site menu beside the logo: every feature page, from _data/features.yml,
+then the guide and the source. assets/site-menu.css styles it.
+{%- endcomment -%}
+<div class="hm">
+  <button class="hm-btn" type="button" aria-expanded="false" aria-controls="hm-panel" aria-label="All pages"><span aria-hidden="true"></span></button>
+  <div class="hm-panel" id="hm-panel" hidden>
+    <p class="hm-h">Tools</p>
+    {%- for f in site.data.features %}
+    <a href="{{ f.url | relative_url }}"{% if page.url == f.url %} aria-current="page"{% endif %}><b>{{ f.name }}</b><span>{{ f.line }}</span></a>
+    {%- endfor %}
+    <p class="hm-h">More</p>
+    <a href="{{ '/' | relative_url }}"{% if page.url == "/" %} aria-current="page"{% endif %}><b>hi5.sh</b><span>The home page</span></a>
+    <a href="{{ '/guide/' | relative_url }}"><b>Guide</b><span>Step by step, with diagrams</span></a>
+    <a href="https://github.com/hi5sh/hi"><b>GitHub</b><span>The source, roadmap, and specs</span></a>
+  </div>
+</div>
+<script>
+  (() => {
+    const button = document.querySelector(".hm-btn"), panel = document.getElementById("hm-panel");
+    const set = open => { panel.hidden = !open; button.setAttribute("aria-expanded", String(open)); };
+    button.addEventListener("click", () => set(panel.hidden));
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !panel.hidden) { set(false); button.focus(); } });
+    document.addEventListener("click", e => { if (!panel.hidden && !e.target.closest(".hm")) set(false); });
+  })();
+</script>

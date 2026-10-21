@@ -1,3 +1,6 @@
+---
+# Front matter so Jekyll fills in the site menu (_includes/site-menu.html).
+---
 <!doctype html>
 <html lang="en">
 <head>
@@ -79,6 +82,7 @@
   .btn.primary:hover { filter: brightness(1.1); }
   .btn.ghost { background: rgba(10,12,17,.5); }
   .btn.ghost:hover { border-color: var(--accent); }
+  .hero-install { width: fit-content; max-width: 100%; margin: 18px auto 0; padding: 9px 10px 9px 16px; border-radius: 10px; border: 1px solid var(--line-strong); background: rgba(10,12,17,.7); font: 14px var(--mono); text-align: left; }
 
   /* Sections */
   section { padding-block: 92px 0; }
@@ -204,18 +208,20 @@
     details.all .cmd { grid-template-columns: minmax(0, 1fr); gap: 4px; }
     .term-body { font-size: 13.5px; padding: 4px 16px; }
     .cmdline { flex-wrap: wrap; } .cmdline code { flex-basis: calc(100% - 30px); }
+    .hero-install { flex-wrap: nowrap; font-size: 12.5px; gap: 8px; padding-left: 12px; } .hero-install code { flex-basis: auto; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
     section { padding-top: 72px; }
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
 <link rel="stylesheet" href="assets/story.css">
+<link rel="stylesheet" href="assets/site-menu.css">
 </head>
 <body>
 
 <div class="banner" role="img" aria-label="A robot arm and a human arm clasping hands"></div>
 <header class="top wrap">
   <nav aria-label="Site">
-    <a class="logo" href="#top"><b>hi</b>5.sh</a>
+    <div class="hm-group"><a class="logo" href="#top"><b>hi</b>5.sh</a>{% include site-menu.html %}</div>
     <button class="menu-toggle" type="button" id="menu-toggle" aria-controls="site-menu" aria-expanded="false" aria-label="Open the menu"><span></span><span></span><span></span></button>
     <ul id="site-menu">
       <li><a href="#why">Why hi5</a></li>
@@ -237,6 +243,7 @@
       <a class="btn primary" href="#story">Explore hi5 ↓</a>
       <a class="btn ghost" href="https://github.com/hi5sh/hi">View on GitHub ↗</a>
     </div>
+    <div class="hero-install cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div>
   </div>
 
   <section id="why" class="wrap" aria-labelledby="why-h">
