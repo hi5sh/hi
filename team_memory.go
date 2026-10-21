@@ -249,7 +249,7 @@ func teamWaitMemory(engine boxEngine, team string) error {
 			return nil
 		}
 		if time.Now().After(deadline) {
-			logs, _ := engine.output("logs", "--tail", "5", teamMemoryContainer(team))
+			logs := engine.lastLines(teamMemoryContainer(team), 5)
 			return fmt.Errorf("Hindsight didn't answer within %s: %s", teamHindsightReady, qFirstLine(strings.TrimSpace(logs), qFirstLine(out, err.Error())))
 		}
 		time.Sleep(3 * time.Second)

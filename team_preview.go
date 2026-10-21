@@ -497,7 +497,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
 	}
 	if err := teamWaitApp(fmt.Sprintf("http://127.0.0.1:%d/", hostPort), func() bool { return b.running(next.Container) }, teamPreviewReady); err != nil {
-		logs, _ := b.engineOutput("logs", "--tail", "15", next.Container)
+		logs := b.lastLines(next.Container, 15)
 		discard()
 		if errors.Is(err, errTeamAppStopped) {
 			return teamPreview{}, fmt.Errorf("the app stopped before it answered on port %d.%s Its last lines:\n%s", next.Port, still, strings.TrimSpace(logs))
@@ -910,6 +910,15 @@ func (b *teamBroker) engineOutput(args ...string) (string, error) {
 		return "", err
 	}
 	return engine.output(args...)
+}
+
+// lastLines is the last n lines a box printed, on stdout or stderr.
+func (b *teamBroker) lastLines(container string, n int) string {
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return ""
+	}
+	return engine.lastLines(container, n)
 }
 
 type nopWriter struct{}

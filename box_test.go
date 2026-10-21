@@ -464,3 +464,31 @@ func TestProjectImageFollowsItsInputs(t *testing.T) {
 		t.Fatalf("build %s", line)
 	}
 }
+
+// TestBoxEngineLastLines keeps what a box wrote to stderr: the engine's
+// logs replay it on stderr, and an app's crash is usually there.
+func TestBoxEngineLastLines(t *testing.T) {
+	previous := boxCommand
+	t.Cleanup(func() { boxCommand = previous })
+	var got []string
+	boxCommand = func(stdin io.Reader, stdout, stderr io.Writer, name string, args ...string) error {
+		got = args
+		if args[len(args)-1] == "gone" {
+			fmt.Fprintln(stderr, "Error: no container with name or ID \"gone\" found")
+			return fmt.Errorf("exit status 125")
+		}
+		fmt.Fprintln(stdout, "Listening on 0.0.0.0:8080")
+		fmt.Fprintln(stderr, "SQLiteError: database is locked")
+		return nil
+	}
+	engine := boxEngine{name: "podman", bin: "/usr/bin/podman"}
+	if lines := engine.lastLines("app", 15); lines != "Listening on 0.0.0.0:8080\nSQLiteError: database is locked\n" {
+		t.Fatalf("%q", lines)
+	}
+	if strings.Join(got, " ") != "logs --tail 15 app" {
+		t.Fatal(got)
+	}
+	if lines := engine.lastLines("gone", 15); lines != "" {
+		t.Fatalf("%q", lines)
+	}
+}

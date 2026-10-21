@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -51,6 +52,17 @@ func (e boxEngine) output(args ...string) (string, error) {
 		return stdout.String(), fmt.Errorf("%s %s: %s", e.name, strings.Join(args[:min(2, len(args))], " "), qFirstLine(stderr.String(), err.Error()))
 	}
 	return stdout.String(), nil
+}
+
+// lastLines is a box's last n lines of output, or "" when there are
+// none. The engine's logs replay what the box wrote to stderr on stderr,
+// where an app's crash usually is, so both are kept, in their order.
+func (e boxEngine) lastLines(container string, n int) string {
+	var logs bytes.Buffer
+	if boxCommand(nil, &logs, &logs, e.bin, "logs", "--tail", strconv.Itoa(n), container) != nil {
+		return ""
+	}
+	return logs.String()
 }
 
 func (e boxEngine) interactive(stdin io.Reader, stdout, stderr io.Writer, args ...string) error {

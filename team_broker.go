@@ -301,8 +301,7 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b.help = teamHelpModel
 	b.started = time.Now()
 	b.appLogs = func(container string) string {
-		out, _ := b.engineOutput("logs", "--tail", strconv.Itoa(teamIncidentLogLines), container)
-		return out
+		return b.lastLines(container, teamIncidentLogLines)
 	}
 	b.appExit = b.appExitState
 	b.lead = func(context.Context, string, string, []teamLeadPicture, func(string)) (string, error) {
