@@ -176,7 +176,7 @@ else the common licence the `LICENSE` file's text matches.
   "commit": "4f1c2e9…",      // upstream's commit it started from
   "licence": "MIT",
   "at": "2026-10-18T09:12:00Z",
-  "by": "imanhabib"          // who ran hi team adopt, on the machine
+  "by": "alex"               // who ran hi team adopt, on the machine
 }
 ```
 

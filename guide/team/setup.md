@@ -107,7 +107,7 @@ paste `hi team manifest <new name>` into the app's manifest in Slack.
 ## Put the project on GitHub
 
 ```sh
-hi team github payments imanhabib/payments
+hi team github payments example-org/payments
 ```
 
 hi creates a private repository with this machine's GitHub sign-in (`gh`),
