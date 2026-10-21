@@ -1,0 +1,124 @@
+---
+layout: feature
+permalink: /data/
+title: hi data
+tool: hi data
+demo: data
+guide: /guide/data/
+headline: Your team's data, without a token on your machine.
+lede: Download your team's private Hugging Face datasets, models, and buckets through the hi server. It keeps the tokens; your laptop, your boxes, and your rented GPUs never get one.
+description: hi data downloads a team's private Hugging Face datasets, models, and buckets through the hi server, which keeps the tokens, on laptops, in boxes, and on rented GPUs.
+demo_caption: Real hi data output; the server, organization, and datasets are made up.
+fallback: |
+  $ hi data get example-org/prices-1d
+  Downloading dataset example-org/prices-1d at e47e3b0 into data/prices-1d through http://hi.example.com:7373
+  Downloaded example-org/prices-1d into data/prices-1d
+  Recorded in .hi5/data.json; `hi data get` there fetches the same files again.
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">The same data, wherever the work runs.</h2>
+    <p class="sub">On a machine connected to your team's <a href="/server/">hi server</a>, <code>hi data</code> runs the official <code>hf</code> tool, pointed at the server. Nobody needs a Hugging Face account of their own.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Download, and know what you got</h3>
+        <p>In a project, hi records the exact commit it downloaded, so a teammate gets the same files and a result can be traced to its data.</p>
+        <div class="snip"><span class="c">$ hi data get example-org/prices-1d</span>
+<span class="c">$ hi data get</span>      <span class="d"># everything .hi5/data.json records</span></div>
+      </div>
+      <div class="use">
+        <h3>Read it straight from code</h3>
+        <p><code>load_dataset</code>, <code>from_pretrained</code>, and <code>hf://</code> paths work with private repositories, without a download step first.</p>
+        <div class="snip"><span class="c">$ hi data run -- python backtest.py</span></div>
+      </div>
+      <div class="use">
+        <h3>In a box, or on a rented GPU</h3>
+        <p>Boxes and agents get a placeholder token; rented machines get one that reads only the repositories you named.</p>
+        <div class="snip"><span class="c">$ hi agent claude --data "train the ranker on example-org/prices-1d"</span>
+<span class="c">$ hi compute run --gpu a10g-small --data example-org/prices-1d train.py</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Your first download in a minute.</h2>
+    <p class="sub">On a machine connected to your team's server, with an organization your admin has added.</p>
+    <ol class="try">
+      <li><div><p><b>Install <code>hf</code></b>, Hugging Face's own tool.</p>
+        <div class="cmdline"><span class="ps">$</span><code>uv tool install huggingface_hub</code><button class="copy" type="button" data-copy="uv tool install huggingface_hub">copy</button></div></div></li>
+      <li><div><p><b>Join your team's server</b>, if you haven't. An admin approves it.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi connect hi.example.com</code><button class="copy" type="button" data-copy="hi connect hi.example.com">copy</button></div></div></li>
+      <li><div><p><b>Search and pick.</b> Type words in any order; Enter downloads.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi data</code><button class="copy" type="button" data-copy="hi data">copy</button></div></div></li>
+      <li><div><p><b>Or name it</b>, with its size first.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi data info example-org/prices-1d &amp;&amp; hi data get example-org/prices-1d</code><button class="copy" type="button" data-copy="hi data info example-org/prices-1d &amp;&amp; hi data get example-org/prices-1d">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">A short token from the server, the files from Hugging Face.</h2>
+    <p class="sub">hi asks the server for a token that works only against your server, from your machine, for a day. The server swaps in the team's token on the way to Hugging Face.</p>
+    {% include diagram.html name="data" %}
+    <div class="prose">
+      <p><strong>The server passes on only reads</strong> of one repository or bucket: nothing that uploads, deletes, or changes settings. Removing your machine or user ends your token at once.</p>
+      <p><strong>File contents come straight from Hugging Face's storage</strong>, so large downloads don't go through the server. The server records who downloaded what; it never sees the files.</p>
+      <p><strong>Running <code>hi data get</code> again</strong> fetches only what is missing or changed, so an interrupted download continues where it stopped.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Finding, filtering, recording, and running elsewhere.</h2>
+    <p class="sub">What to reach for beyond one download.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>Find what you need</h3>
+        <div class="snip"><span class="c">$ hi data ls</span>                              <span class="d"># kind, name, size, update</span>
+<span class="c">$ hi data ls example-org --kind bucket</span>
+<span class="c">$ hi data ls --json</span>                       <span class="d"># for scripts and agents</span></div>
+        <p>When a dataset, a model, and a bucket share a name, put <code>dataset:</code>, <code>model:</code>, or <code>bucket:</code> in front.</p>
+      </div>
+      <div class="detail">
+        <h3>Part of it, or a version</h3>
+        <div class="snip"><span class="c">$ hi data get example-org/ranker --to models/ranker</span>
+<span class="c">$ hi data get example-org/prices-1d --revision v2</span>
+<span class="c">$ hi data get example-org/fdb --include 'runs/2026-09/*'</span></div>
+        <p>Datasets and models download with <code>hf download</code>, buckets with <code>hf buckets sync</code>. Buckets have no revisions.</p>
+      </div>
+      <div class="detail">
+        <h3>Keep track in a project</h3>
+        <p>In a project made with <code>hi init</code>, <code>hi data get</code> records the repository, the exact commit, the folder, and the filters in <code>.hi5/data.json</code>. Commit it, and <code>hi data get</code> with no name gets a teammate the same files. A branch or tag is pinned to the commit it pointed to; buckets record their file list, and hi warns when one has changed. <code>--no-record</code> skips it.</p>
+      </div>
+      <div class="detail">
+        <h3>A shell, a notebook, a box</h3>
+        <div class="snip"><span class="c">$ eval "$(hi data env)"</span>              <span class="d"># HF_ENDPOINT and HF_TOKEN</span>
+<span class="c">$ hi data run -- jupyter lab</span>
+<span class="c">$ hi box run --data -- python train.py</span></div>
+        <p>In a box, hi's proxy outside adds the real token on the way to the server and allows Hugging Face's download hosts. An open network and <code>--data</code> don't go together.</p>
+      </div>
+      <div class="detail">
+        <h3>On a rented GPU</h3>
+        <div class="snip"><span class="c">$ hi compute up --on runpod --gpu rtx-4090 --name train --max 4h --data example-org/prices-1d</span></div>
+        <p>Before the machine starts, hi asks the server for a token that reads only the repositories you named, so a refusal costs nothing. It writes the token to <code>~/.hi/data.env</code> on the machine over SSH, never into the provider's console. Not on RunPod's Community Cloud.</p>
+      </div>
+      <div class="detail">
+        <h3>For admins</h3>
+        <div class="snip"><span class="c">$ hi server data add example-org</span>   <span class="d"># on the server box</span>
+<span class="c">$ hi server data list</span></div>
+        <p>Use a fine-grained, read-only token limited to the organization. Every group reads everything by default; list patterns in <code>policy.json</code>, such as <code>"data": ["example-org/prices-*"]</code>, to limit one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/data/"><b>Download your team's data</b><span>The guide: every option, step by step.</span></a>
+      <a href="/server/"><b>hi server</b><span>The server that keeps the tokens.</span></a>
+      <a href="/guide/compute/run/#your-teams-data"><b>Data in a cloud run</b><span><code>hi compute run --data</code> on Hugging Face Jobs.</span></a>
+      <a href="/guide/reference/commands/#hi-data"><b>Every hi data command</b><span>The reference.</span></a>
+    </div>
+  </section>

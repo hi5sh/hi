@@ -23,7 +23,14 @@ var featurePageUsage = map[string]func(io.Writer){
 	"compute": printComputeUsage,
 	"q":       printQUsage,
 	"init":    printInitUsage,
+	"net":     func(w io.Writer) { printNetUsage(w); printNetExposeUsage(w) },
+	"server":  func(w io.Writer) { printServerUsage(w); printConnectUsage(w) },
+	"data":    printDataUsage,
 }
+
+// featureCommandPage is a command shown on another tool's page: hi connect
+// is on the server's.
+var featureCommandPage = map[string]string{"connect": "server"}
 
 // featureFreeWords are the tools whose words after the name are free text,
 // such as hi q's question, not a subcommand.
@@ -79,15 +86,21 @@ func TestFeatureDemosUseRealCommands(t *testing.T) {
 		seen := 0
 		for _, m := range demoCommand.FindAllStringSubmatch(string(src), -1) {
 			words := strings.Fields(m[1])
-			if len(words) < 2 || words[0] != "hi" || featurePageUsage[words[1]] == nil {
+			if len(words) < 2 || words[0] != "hi" {
 				continue
 			}
-			tool := words[1]
-			if tool == name {
+			tool, page := words[1], words[1]
+			if featureCommandPage[tool] != "" {
+				page = featureCommandPage[tool]
+			}
+			if featurePageUsage[page] == nil {
+				continue
+			}
+			if page == name {
 				seen++
 			}
 			var buf bytes.Buffer
-			featurePageUsage[tool](&buf)
+			featurePageUsage[page](&buf)
 			help := buf.String()
 			if len(words) > 2 && !featureFreeWords[tool] && !strings.HasPrefix(words[2], "-") && !strings.HasPrefix(words[2], `\"`) {
 				sub := words[2]

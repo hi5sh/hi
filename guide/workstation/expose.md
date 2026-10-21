@@ -23,6 +23,8 @@ It uses NetBird's reverse proxy, so the machine must be on
 [NetBird](/guide/workstation/netbird/), and a NetBird admin must have turned
 on **Peer Expose** once (Settings > Clients in the NetBird dashboard).
 
+[See it in action](/net/): a short demo, then how it works.
+
 {% include diagram.html name="expose" %}
 
 ## Who gets in

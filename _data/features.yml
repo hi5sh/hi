@@ -18,3 +18,12 @@
 - url: /init/
   name: hi init
   line: Start a project agents work well in
+- url: /net/
+  name: hi net
+  line: Share what you're running on a temporary address
+- url: /server/
+  name: hi server
+  line: One place for the team's keys and approvals
+- url: /data/
+  name: hi data
+  line: Your team's datasets, without a token

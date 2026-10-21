@@ -20,6 +20,8 @@ You need a machine connected to your team's server (`hi connect`) and `hf`:
 pip install -U huggingface_hub   # or: uv tool install huggingface_hub
 ```
 
+[See it in action](/data/): a short demo, then how it works.
+
 {% include diagram.html name="data" %}
 
 ## Find what you need

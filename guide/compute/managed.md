@@ -23,6 +23,8 @@ hi manages RunPod and Shadeform. Admins approve from Slack or the server box,
 groups can have budgets, and `hi compute live` and `hi server live` show what
 is running.
 
+[See it in action](/server/): a short demo, then how it works.
+
 {% include diagram.html name="managed" %}
 
 ## For users
