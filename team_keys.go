@@ -127,15 +127,20 @@ func teamAskOpenRouterKey(stdin io.Reader, stdout io.Writer, question string) (s
 // models' relay), so an update reaches the app boxes too.
 func teamSettingsStamp(name string) string {
 	secrets, _ := loadTeamSecrets(name)
-	keys := make([]string, 0, len(secrets.Env))
-	for key := range secrets.Env {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
 	hash := sha256.New()
 	fmt.Fprintf(hash, "hi=%s\n", teamStampVersion)
-	for _, key := range keys {
-		fmt.Fprintf(hash, "%s=%s\n", key, secrets.Env[key])
+	for _, set := range []struct {
+		prefix string
+		env    map[string]string
+	}{{"", secrets.Env}, {"production:", secrets.EnvProduction}, {"preview:", secrets.EnvPreview}} {
+		keys := make([]string, 0, len(set.env))
+		for key := range set.env {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			fmt.Fprintf(hash, "%s%s=%s\n", set.prefix, key, set.env[key])
+		}
 	}
 	return "v1:" + hex.EncodeToString(hash.Sum(nil))[:16]
 }
@@ -143,12 +148,18 @@ func teamSettingsStamp(name string) string {
 // teamAppEnv is what an app's box gets: its port, its address file, its
 // slot ($HI_SLOT, preview or production, so work that costs money runs in
 // production only), the models at an ordinary address with a placeholder
-// key, and the team's settings.
+// key, and the team's settings: those for both slots, and the slot's own.
 func teamAppEnv(name, slot string, port int) map[string]string {
 	env := map[string]string{}
 	if secrets, err := loadTeamSecrets(name); err == nil {
-		for key, value := range secrets.Env {
-			env[key] = value
+		own := secrets.EnvPreview
+		if slot == teamSlotProduction {
+			own = secrets.EnvProduction
+		}
+		for _, set := range []map[string]string{secrets.Env, own} {
+			for key, value := range set {
+				env[key] = value
+			}
 		}
 	}
 	env["HOME"], env["PORT"], env["HOST"] = "/tmp", strconv.Itoa(port), "0.0.0.0"
@@ -191,34 +202,58 @@ func writeTeamAppEnvFile(name string, env map[string]string) (string, error) {
 // ---------------------------------------------------------------------------
 // the models socket
 
-// serveModels answers app boxes' model calls on the socket in the models
-// folder, passing them on to OpenRouter with the team's key.
+// teamSlotModelsDir is the folder of a slot's models socket, which the
+// slot's box mounts: each slot has its own, so the preview's calls are
+// counted against its daily limit and production's aren't.
+func teamSlotModelsDir(name, slot string) string { return filepath.Join(teamModelsDir(name), slot) }
+
+// serveModels answers app boxes' model calls on each slot's socket,
+// passing them on to OpenRouter with the team's key. The socket in the
+// models folder itself is for boxes started by a hi from before the
+// slots had their own, as production, until they start again.
 func (b *teamBroker) serveModels(ctx context.Context) error {
-	dir := teamModelsDir(b.team)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
+	sockets := map[string]string{
+		filepath.Join(teamModelsDir(b.team), teamModelsSocket):                         teamSlotProduction,
+		filepath.Join(teamSlotModelsDir(b.team, teamSlotProduction), teamModelsSocket): teamSlotProduction,
+		filepath.Join(teamSlotModelsDir(b.team, teamSlotPreview), teamModelsSocket):    teamSlotPreview,
 	}
-	socket := filepath.Join(dir, teamModelsSocket)
-	os.Remove(socket)
-	listener, err := net.Listen("unix", socket)
-	if err != nil {
-		return err
+	errs := make(chan error, len(sockets))
+	for socket, slot := range sockets {
+		if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+			return err
+		}
+		os.Remove(socket)
+		listener, err := net.Listen("unix", socket)
+		if err != nil {
+			return err
+		}
+		os.Chmod(socket, 0o600)
+		server := &http.Server{Handler: newTeamModelsProxy(b.team, teamOpenRouterUpstream, slot)}
+		go func() {
+			<-ctx.Done()
+			server.Close()
+		}()
+		go func() {
+			if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				errs <- err
+				return
+			}
+			errs <- nil
+		}()
 	}
-	os.Chmod(socket, 0o600)
-	server := &http.Server{Handler: newTeamModelsProxy(b.team, teamOpenRouterUpstream)}
-	go func() {
-		<-ctx.Done()
-		server.Close()
-	}()
-	if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+	var first error
+	for range sockets {
+		if err := <-errs; err != nil && first == nil {
+			first = err
+		}
 	}
-	return nil
+	return first
 }
 
 // newTeamModelsProxy passes OpenRouter API calls on to upstream with the
-// team's key in place of whatever key the app sent.
-func newTeamModelsProxy(team, upstream string) http.Handler {
+// team's key in place of whatever key the app sent. The preview's calls
+// stop for the day once they cost the team's limit.
+func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 	target, _ := url.Parse(upstream)
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.FlushInterval = -1
@@ -231,10 +266,24 @@ func newTeamModelsProxy(team, upstream string) http.Handler {
 			r.Header.Set("Authorization", "Bearer "+key)
 		}
 	}
+	if slot == teamSlotPreview {
+		proxy.ModifyResponse = func(response *http.Response) error {
+			response.Body = &teamCostReader{body: response.Body, done: func(cost float64) { teamAddPreviewSpend(team, cost) }}
+			return nil
+		}
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/api/v1/") {
 			http.Error(w, "only OpenRouter's API is here: "+fmt.Sprintf("http://127.0.0.1:%d/api/v1/...", teamAppModelsPort), http.StatusNotFound)
 			return
+		}
+		if slot == teamSlotPreview {
+			if limit := teamPreviewModelLimit(team); limit > 0 {
+				if spent := loadTeamPreviewSpend(team); spent.USD >= limit {
+					teamModelsRefuse(w, fmt.Sprintf("hi: the preview's model calls stopped for today: they cost $%.2f, and the team's limit for the preview is $%.2f a day (hi team limit on the machine). Production's calls aren't limited.", spent.USD, limit))
+					return
+				}
+			}
 		}
 		proxy.ServeHTTP(w, r)
 	})
@@ -428,10 +477,13 @@ func teamAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(str
 	}
 }
 
-// teamEnv is hi team env <name> [KEY=VALUE | KEY | --unset KEY]...
+// teamEnv is hi team env <name> [--production | --preview] [KEY=VALUE |
+// KEY | --unset KEY]...: settings for both slots, or with --production
+// for production alone, or with --preview a value of the preview's own.
 func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
+	usage := usageError{"usage: hi team env <name> [--production | --preview] [KEY=VALUE | KEY | --unset KEY]..."}
 	if len(args) == 0 {
-		return usageError{"usage: hi team env <name> [KEY=VALUE | KEY | --unset KEY]..."}
+		return usage
 	}
 	name := args[0]
 	if _, err := loadTeam(name); err != nil {
@@ -441,7 +493,22 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("the team's secrets: %w", err)
 	}
-	if len(args) == 1 {
+	slot := ""
+	var rest []string
+	for _, arg := range args[1:] {
+		switch arg {
+		case "--production":
+			slot = teamSlotProduction
+		case "--preview":
+			slot = teamSlotPreview
+		default:
+			rest = append(rest, arg)
+		}
+	}
+	if len(rest) == 0 {
+		if slot != "" {
+			return usage
+		}
 		names := teamEnvNames(secrets)
 		if len(names) == 0 {
 			fmt.Fprintf(stdout, "Team %s has no settings. Add one: hi team env %s KEY=VALUE\n", name, name)
@@ -450,25 +517,24 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Team %s's app gets: %s\n", name, strings.Join(names, ", "))
 		return nil
 	}
-	if secrets.Env == nil {
-		secrets.Env = map[string]string{}
-	}
 	var set, unset []string
-	for i := 1; i < len(args); i++ {
-		arg := args[i]
+	for i := 0; i < len(rest); i++ {
+		arg := rest[i]
 		if arg == "--unset" {
-			if i+1 >= len(args) {
-				return usageError{"usage: hi team env <name> --unset KEY"}
+			if i+1 >= len(rest) {
+				return usageError{"usage: hi team env <name> [--production | --preview] --unset KEY"}
 			}
 			i++
-			if _, ok := secrets.Env[args[i]]; !ok {
-				return fmt.Errorf("team %s has no setting %s", name, args[i])
+			if !teamEnvUnset(&secrets, slot, rest[i]) {
+				return fmt.Errorf("team %s has no setting %s%s", name, rest[i], teamEnvSlotWords(slot))
 			}
-			delete(secrets.Env, args[i])
-			unset = append(unset, args[i])
+			unset = append(unset, rest[i])
 			continue
 		}
 		key, value, given := strings.Cut(arg, "=")
+		if strings.HasPrefix(key, "-") {
+			return usageError{"unknown option " + key}
+		}
 		if !teamEnvName.MatchString(key) {
 			return fmt.Errorf("%q isn't a variable name: letters, digits, and _, not starting with a digit", key)
 		}
@@ -486,25 +552,116 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		if strings.ContainsAny(value, "\r\n") {
 			return fmt.Errorf("%s's value has a line break; a setting is one line", key)
 		}
-		secrets.Env[key] = value
+		teamEnvSet(&secrets, slot, key, value)
 		set = append(set, key)
 	}
 	if err := saveTeamSecrets(name, secrets); err != nil {
 		return err
 	}
-	if len(set) > 0 {
-		fmt.Fprintf(stdout, "Team %s's app gets %s.\n", name, strings.Join(set, ", "))
+	switch {
+	case len(set) > 0 && slot == teamSlotProduction:
+		fmt.Fprintf(stdout, "Team %s's production gets %s; the preview doesn't, unless it has a value of its own (--preview).\n", name, strings.Join(set, ", "))
+	case len(set) > 0 && slot == teamSlotPreview:
+		fmt.Fprintf(stdout, "Team %s's preview gets its own %s; production keeps what it has.\n", name, strings.Join(set, ", "))
+	case len(set) > 0:
+		fmt.Fprintf(stdout, "Team %s's app gets %s, in the preview and production.\n", name, strings.Join(set, ", "))
 	}
 	if len(unset) > 0 {
-		fmt.Fprintf(stdout, "Team %s's app no longer gets %s.\n", name, strings.Join(unset, ", "))
+		fmt.Fprintf(stdout, "Team %s's %s no longer gets %s.\n", name, map[string]string{"": "app", teamSlotProduction: "production", teamSlotPreview: "preview"}[slot], strings.Join(unset, ", "))
 	}
 	fmt.Fprintln(stdout, "The next preview has it, and hi restarts production on the same link within a minute while the team is up.")
 	return nil
 }
 
+func teamEnvSlotWords(slot string) string {
+	switch slot {
+	case teamSlotProduction:
+		return " for production"
+	case teamSlotPreview:
+		return " for the preview"
+	}
+	return ""
+}
+
+// teamEnvSet sets a setting for both slots (slot ""), or for one. A
+// setting both had becomes the other slot's alone, so --preview gives the
+// preview a value of its own and production keeps its value, and
+// --production takes it away from the preview.
+func teamEnvSet(secrets *teamSecrets, slot, key, value string) {
+	if secrets.Env == nil {
+		secrets.Env = map[string]string{}
+	}
+	if secrets.EnvProduction == nil {
+		secrets.EnvProduction = map[string]string{}
+	}
+	if secrets.EnvPreview == nil {
+		secrets.EnvPreview = map[string]string{}
+	}
+	switch slot {
+	case "":
+		secrets.Env[key] = value
+		delete(secrets.EnvProduction, key)
+		delete(secrets.EnvPreview, key)
+	case teamSlotProduction:
+		secrets.EnvProduction[key] = value
+		delete(secrets.Env, key)
+	case teamSlotPreview:
+		if both, ok := secrets.Env[key]; ok {
+			secrets.EnvProduction[key] = both
+			delete(secrets.Env, key)
+		}
+		secrets.EnvPreview[key] = value
+	}
+}
+
+// teamEnvUnset removes a setting from both slots, or from one, and says
+// whether there was one. A setting both had stays the other slot's.
+func teamEnvUnset(secrets *teamSecrets, slot, key string) bool {
+	_, both := secrets.Env[key]
+	_, production := secrets.EnvProduction[key]
+	_, preview := secrets.EnvPreview[key]
+	switch slot {
+	case "":
+		delete(secrets.Env, key)
+		delete(secrets.EnvProduction, key)
+		delete(secrets.EnvPreview, key)
+		return both || production || preview
+	case teamSlotProduction:
+		if both {
+			teamEnvSet(secrets, teamSlotPreview, key, secrets.Env[key])
+		}
+		delete(secrets.EnvProduction, key)
+		return both || production
+	default:
+		if both {
+			teamEnvSet(secrets, teamSlotProduction, key, secrets.Env[key])
+		}
+		delete(secrets.EnvPreview, key)
+		return both || preview
+	}
+}
+
+// teamEnvNames are the settings' names, each with the slots that get it
+// when that isn't both.
 func teamEnvNames(secrets teamSecrets) []string {
-	names := make([]string, 0, len(secrets.Env))
-	for key := range secrets.Env {
+	seen := map[string]bool{}
+	for _, set := range []map[string]string{secrets.Env, secrets.EnvProduction, secrets.EnvPreview} {
+		for key := range set {
+			seen[key] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for key := range seen {
+		_, production := secrets.EnvProduction[key]
+		_, preview := secrets.EnvPreview[key]
+		switch {
+		case production && preview:
+			key += " (a value of its own in each)"
+		case production:
+			key += " (production only)"
+		case preview:
+			key += " (the preview only)"
+		}
 		names = append(names, key)
 	}
 	sort.Strings(names)

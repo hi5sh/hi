@@ -66,6 +66,11 @@ func setupTeamTest(t *testing.T) string {
 	saved := teamSlack
 	teamSlack = fakeTeamSlack{}
 	t.Cleanup(func() { teamSlack = saved })
+	// Previews fork production's data with an overlay, as with Podman,
+	// whatever engine this machine has.
+	overlay := teamOverlayEngine
+	teamOverlayEngine = func() bool { return true }
+	t.Cleanup(func() { teamOverlayEngine = overlay })
 	return dir
 }
 

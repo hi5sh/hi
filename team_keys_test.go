@@ -173,7 +173,7 @@ func TestTeamModelsProxy(t *testing.T) {
 		io.WriteString(w, "ok")
 	}))
 	defer openrouter.Close()
-	proxy := httptest.NewServer(newTeamModelsProxy("payments", openrouter.URL))
+	proxy := httptest.NewServer(newTeamModelsProxy("payments", openrouter.URL, teamSlotProduction))
 	defer proxy.Close()
 	ask := func(path string) int {
 		request, _ := http.NewRequest("POST", proxy.URL+path, strings.NewReader("{}"))

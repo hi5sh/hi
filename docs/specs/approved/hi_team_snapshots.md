@@ -30,7 +30,7 @@ outlives deploys:
 | Box | Folder | In snapshots |
 |---|---|---|
 | production | `app/` | yes; it is the people's real work |
-| preview | `run/preview-data/` | no; previews may be thrown away |
+| preview | `run/preview-data/`, over a fork of production in `run/preview-base/` ([hi_team_data_fork.md](hi_team_data_fork.md)) | no; previews may be thrown away |
 
 The `hi-team` skill and the project's `AGENTS.md` tell the lead and the
 coder that the app keeps what it must not lose in `$HI_DATA_DIR`, and

@@ -492,6 +492,12 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		discard()
 		return teamPreview{}, err
 	}
+	// Two boxes mustn't write to one overlay: a preview on a fork stops
+	// before its next version starts, a few seconds without a preview.
+	if next.Slot == teamSlotPreview && had && current.Container != "" && teamPreviewOverlay(b.team) {
+		b.removeApp(current.Container)
+		still = " The preview is down until a version of it starts."
+	}
 	if err := b.app(next.Slot, next.Container, next.App, data, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
@@ -860,7 +866,7 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	if err != nil {
 		return err
 	}
-	models := teamModelsDir(b.team)
+	models := teamSlotModelsDir(b.team, slot)
 	if err := os.MkdirAll(models, 0o700); err != nil {
 		return err
 	}
@@ -877,8 +883,9 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 		"-p", fmt.Sprintf("127.0.0.1:%d:%d", hostPort, port)}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
-	run = append(run, "-v", src+":/app", "-w", "/app", "-v", data+":"+teamAppDataDir,
-		"-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
+	run = append(run, "-v", src+":/app", "-w", "/app")
+	run = append(run, teamAppDataMount(b.team, slot, data)...)
+	run = append(run, "-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
 		"-v", models+":"+teamAppModelsDir,
 		"-v", jobs+":"+teamAppJobsDir,
 		"-v", b.hi+":"+teamAppRelay+":ro",

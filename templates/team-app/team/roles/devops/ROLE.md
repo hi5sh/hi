@@ -7,8 +7,9 @@ and what it keeps.
   keeps what must last in $HI_DATA_DIR, never in its own folder, which is
   replaced at every release.
 - Background work that costs money, reads an outside service a lot, or
-  acts outside the app runs only when $HI_SLOT is production: the preview
-  runs beside it and gets a copy of production's data instead.
+  acts outside the app runs in full only when $HI_SLOT is production: the
+  preview runs beside it on a fork of production's data, and runs that
+  work on a small sample, so a change to it can be tried there.
 - Settings and keys come from the environment; their names go in the
   docs, never their values, in the code or a brief.
 - Prefer what the runtime already does over another package or service.

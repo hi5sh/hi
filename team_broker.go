@@ -1765,7 +1765,8 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		} else {
 			fmt.Fprintf(stdout, "The app gets these settings as environment variables: %s\n", strings.Join(names, ", "))
 		}
-		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production. $HI_SLOT says which one the app is (preview or production), and $HI_DATA_DIR is its data folder.\n")
+		fmt.Fprintf(stdout, "A setting marked production only isn't in the preview: there the app must do without it. The people set those on the machine with hi team env <team> --production KEY, for a key that sends, posts, orders, or pays per call.\n")
+		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production; the preview's calls stop for the day at a limit ($5 unless the people set another), and production's have none. $HI_SLOT says which one the app is (preview or production), and $HI_DATA_DIR is its data folder.\n")
 	case "versions":
 		if len(args) != 0 {
 			return usageError{"usage: hi team versions"}
@@ -1838,6 +1839,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				fmt.Fprintf(stdout, "Production started with a copy of the preview's data (%s).\n", teamDataSize(result.PreviewData))
 			}
 		}
+		printTeamReleasePreview(stdout, result.Preview)
 		if result.Warning != "" {
 			fmt.Fprintln(stdout, result.Warning)
 		}
@@ -1873,11 +1875,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				return err
 			}
 			printTeamDataFolders(stdout, folders)
-			fmt.Fprintln(stdout, "The app sees its own as $HI_DATA_DIR, and $HI_SLOT says which it is. hi team data copy production preview gives the preview a copy of production's; the other way needs an owner's yes.")
+			fmt.Fprintln(stdout, "The app sees its own as $HI_DATA_DIR, and $HI_SLOT says which it is. Production owns the data; the preview runs on a fork of it from the last release, and what it writes stays its own. hi team data fork gives the preview a new fork now; hi team data copy preview production needs an owner's yes.")
 			break
 		}
 		var request teamDataCopyRequest
-		usage := usageError{"usage: hi team data  (the data folders)\n       hi team data copy production preview  (the preview gets a copy of production's data)\n       hi team data copy preview production --approval <id>  (production gets a copy of the preview's; an owner's yes)"}
+		usage := usageError{"usage: hi team data  (the data folders)\n       hi team data fork  (the preview gets a new fork of production's data)\n       hi team data copy preview production --approval <id>  (production gets a copy of the preview's; an owner's yes)"}
 		var words []string
 		for i := 0; i < len(args); i++ {
 			if args[i] == "--approval" && i+1 < len(args) {
@@ -1887,10 +1889,14 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 				words = append(words, args[i])
 			}
 		}
-		if len(words) != 3 || words[0] != "copy" {
+		switch {
+		case len(words) == 1 && words[0] == "fork":
+			request.From, request.To = teamSlotProduction, teamSlotPreview
+		case len(words) == 3 && words[0] == "copy":
+			request.From, request.To = words[1], words[2]
+		default:
 			return usage
 		}
-		request.From, request.To = words[1], words[2]
 		if err := teamCheckDataSlots(request.From, request.To); err != nil {
 			return err
 		}
@@ -1902,7 +1908,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		if result.To == teamSlotProduction {
 			fmt.Fprintln(stdout, "hi posted it in the channel.")
 		} else {
-			fmt.Fprintln(stdout, "Tell the people the preview shows production's data now, on the same link.")
+			fmt.Fprintln(stdout, "Tell the people the preview shows production's data now, on the same link, and that what they try there never reaches production.")
 		}
 	case "discard":
 		request := teamRequest{}

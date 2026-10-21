@@ -52,6 +52,13 @@ type teamConfig struct {
 	// Domain puts the team's app on the machine's domain (hi team domain
 	// <team> on): names that stay, rather than ones NetBird makes up.
 	Domain bool `json:"domain,omitempty"`
+	// PreviewData is "empty" for a team whose preview starts empty at every
+	// release; otherwise it starts on a fork of production's data
+	// (team_data_fork.go). PreviewModelUSD is what the preview's model
+	// calls may cost a day: 0 for teamPreviewModelUSD, below 0 for no
+	// limit (team_keys.go).
+	PreviewData     string  `json:"preview_data,omitempty"`
+	PreviewModelUSD float64 `json:"preview_model_usd,omitempty"`
 	// Template is the team template the project and the roles started
 	// from, one that extends team-app, such as one from the hi server's
 	// sources; empty is team-app itself.
@@ -85,6 +92,11 @@ type teamSecrets struct {
 	OpenRouterAPIKey string `json:"openrouter_api_key,omitempty"`
 	// Env is the settings the team's app boxes get (hi team env).
 	Env map[string]string `json:"env,omitempty"`
+	// EnvProduction and EnvPreview are settings one slot gets alone:
+	// production's only (hi team env --production), or a value of the
+	// preview's own (--preview). A name is in Env or in these, never both.
+	EnvProduction map[string]string `json:"env_production,omitempty"`
+	EnvPreview    map[string]string `json:"env_preview,omitempty"`
 	// The bucket snapshots are copied to (hi team backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
@@ -318,6 +330,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamKey(rest, stdin, stdout)
 	case "env":
 		err = teamEnv(rest, stdin, stdout)
+	case "limit":
+		err = teamLimitCommand(rest, stdout)
 	case "__app":
 		return runTeamApp(rest, stderr)
 	case "__leadapi":
@@ -402,6 +416,12 @@ usage:
   hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
                                    boxes only (preview and production); KEY alone asks for the value
       [--unset KEY]                remove one
+      [--production]               production's only: a key that sends, posts, orders, or pays per
+                                   call, which a preview mustn't use
+      [--preview]                  a value of the preview's own, such as a test key; production
+                                   keeps its own
+  hi team limit <name>             what the preview's model calls may cost a day, and spent today
+      [preview <usd> | preview off]  set it ($5 a day unless set); production has no limit from hi
   hi team snapshot <name>          take a snapshot now: the lead's memory, the team's record, and
                                    the app's data; the team keeps running. It takes one daily too
   hi team snapshots <name>         list them
@@ -414,13 +434,15 @@ usage:
                                    way puts it back
       [--code-only]                the code alone; production's data stays as it is
       [--yes]                      don't ask first
-  hi team data <name>              the app's data folders, production's and the preview's: size,
-                                   files, last change
-  hi team data <name> copy <from> <to>  one's data becomes a copy of the other's: preview production
-                                   (production starts from what the preview gathered; its data is
-                                   snapshotted first) or production preview (the preview tries
-                                   production's data)
+  hi team data <name>              the app's data folders: production's, and the preview's fork of
+                                   it with what the preview wrote itself
+  hi team data <name> fork         the preview gets a new fork of production's data now (it gets
+                                   one at every release): all of it, in seconds, with no copy
+  hi team data <name> copy preview production  production starts from what the preview gathered;
+                                   its own data is snapshotted first
       [--yes]                      don't ask first
+  hi team data <name> preview empty  the preview starts empty at every release, for an app whose
+                                   people's data previews shouldn't show; preview fork undoes it
   hi team backups <name>           where snapshots are kept, and for how long
       [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
                                    its keys); --offsite off stops
@@ -1338,9 +1360,12 @@ code, so the code, its tests, and its docs must explain themselves.
 - $HI_SLOT is preview or production. Work in the background that costs
   money (a model call per item), reads an outside service a lot (a
   backfill, a scrape), or does something outside the app (sends mail,
-  posts, places orders) runs only when $HI_SLOT is production; in a
-  preview it does nothing, or a small sample such as the last few days.
-  Preview and production run at the same time, each with its own data.
+  posts, places orders) runs in full only when $HI_SLOT is production; in
+  a preview it runs on a small sample, such as the last few days. Preview
+  and production run at the same time. Production owns the data; the
+  preview runs on a fork of it from the last release, and what it writes
+  stays its own. A setting may be production's only: code that needs it
+  does without it in the preview.
 - The project starts with ` + "`make run`" + `: a Makefile run target that starts the
   app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
   the lead can show the people a preview.
@@ -1596,7 +1621,7 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if folder != "" && !keep {
-		if err := os.RemoveAll(folder); err != nil {
+		if err := teamRemoveAll(folder); err != nil {
 			return fmt.Errorf("the team is off this machine, but not all of its folder is deleted: %w", err)
 		}
 	}

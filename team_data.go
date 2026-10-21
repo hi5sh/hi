@@ -13,11 +13,12 @@ import (
 	"time"
 )
 
-// The app's data across its slots (docs/specs/approved/hi_team_data.md).
-// Each slot has a data folder of its own; production owns the truth and
-// runs the work that costs money, and a preview works on a copy of it. A
-// copy goes the other way once, with an owner's yes: when the preview
-// gathered what production needs before production existed.
+// The app's data across its slots (docs/specs/approved/hi_team_data.md,
+// docs/specs/approved/hi_team_data_fork.md). Each slot has a data folder
+// of its own; production owns the data, and a preview runs on a fork of
+// it (team_data_fork.go). A copy goes the other way once, with an owner's
+// yes: when the preview gathered what production needs before production
+// existed.
 
 // teamDataRoom is what a copy leaves free on the disk, beyond itself.
 const teamDataRoom = 256 << 20
@@ -31,6 +32,10 @@ type teamDataFolder struct {
 	Changed time.Time `json:"changed,omitzero"`
 	// Running says the slot's app box runs.
 	Running bool `json:"running"`
+	// For the preview: the fork it runs on, below what it wrote itself
+	// (Bytes, Files), and whether it starts empty at every release.
+	Fork  *teamPreviewFork `json:"fork,omitempty"`
+	Empty bool             `json:"empty,omitempty"`
 }
 
 // teamDataCopyRequest asks for one slot's data folder to become a copy of
@@ -52,14 +57,16 @@ type teamDataCopy struct {
 	// Snapshot holds production's data from before, for a copy to it.
 	Snapshot string `json:"snapshot,omitempty"`
 	// Kept is where the preview's data from before is, for a copy to it.
-	Kept    string `json:"kept,omitempty"`
-	Warning string `json:"warning,omitempty"`
+	Kept string `json:"kept,omitempty"`
+	// Fork is the preview's new fork, for a fork.
+	Fork    *teamPreviewFork `json:"fork,omitempty"`
+	Warning string           `json:"warning,omitempty"`
 }
 
 // teamDataUsage is a folder's size, its files, and its newest change.
 func teamDataUsage(dir string) (bytes int64, files int, changed time.Time) {
 	filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+		if err != nil || !entry.Type().IsRegular() {
 			return nil
 		}
 		info, err := entry.Info()
@@ -85,6 +92,14 @@ func teamDataFolders(team string, running func(string) bool) []teamDataFolder {
 		if state, ok := loadTeamSlot(team, slot); ok && running != nil {
 			folder.Running = running(state.Container)
 		}
+		if slot == teamSlotPreview {
+			if fork, ok := loadTeamPreviewFork(team); ok {
+				folder.Fork = &fork
+			}
+			if config, err := loadTeam(team); err == nil {
+				folder.Empty = config.PreviewData == teamPreviewEmpty
+			}
+		}
 		folders = append(folders, folder)
 	}
 	return folders
@@ -103,6 +118,17 @@ func printTeamDataFolders(w io.Writer, folders []teamDataFolder) {
 		if folder.Running {
 			state = "its box runs"
 		}
+		if folder.Empty {
+			state += "; it starts empty at every release"
+		}
+		if fork := folder.Fork; fork != nil && !fork.Full {
+			fmt.Fprintf(w, "%-11s %s: a fork of production%s from %s (%s in %d file(s)), and %s of its own in %d file(s); %s\n", folder.Slot, folder.Dir,
+				teamForkVersion(*fork), fork.At.Local().Format("Mon Jan 2 15:04"), teamDataSize(fork.Bytes), fork.Files, teamDataSize(folder.Bytes), folder.Files, state)
+			continue
+		}
+		if fork := folder.Fork; fork != nil && folder.Files > 0 {
+			state += fmt.Sprintf("; a whole copy of production%s from %s, not a fork: %s", teamForkVersion(*fork), fork.At.Local().Format("Mon Jan 2 15:04"), fork.Why)
+		}
 		if folder.Files == 0 {
 			fmt.Fprintf(w, "%-11s %s: empty; %s\n", folder.Slot, folder.Dir, state)
 			continue
@@ -110,6 +136,13 @@ func printTeamDataFolders(w io.Writer, folders []teamDataFolder) {
 		fmt.Fprintf(w, "%-11s %s: %s in %d file(s), last changed %s; %s\n", folder.Slot, folder.Dir,
 			teamDataSize(folder.Bytes), folder.Files, folder.Changed.Local().Format("Mon Jan 2 15:04"), state)
 	}
+}
+
+func teamForkVersion(fork teamPreviewFork) string {
+	if fork.Version == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" v%d", fork.Version)
 }
 
 // teamDataSize is a size as people say it: 1.6 GB, 340 MB, 12 KB.
@@ -157,7 +190,7 @@ func (b *teamBroker) copyData(request teamDataCopyRequest) (teamDataCopy, error)
 	}
 	if request.To == teamSlotPreview {
 		b.mu.Lock()
-		result, err := b.copyDataLocked(request.From, request.To)
+		result, err := b.forkPreviewLocked()
 		b.mu.Unlock()
 		return result, err
 	}
@@ -218,6 +251,14 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 	result := teamDataCopy{From: from, To: to}
 	src, dst := teamSlotDataDir(b.team, from), teamSlotDataDir(b.team, to)
 	result.Bytes, result.Files, _ = teamDataUsage(src)
+	// A preview on a fork is its fork with its own writes over it; the
+	// fork's files are linked, so only its own take room.
+	overlay := from == teamSlotPreview && teamPreviewOverlay(b.team)
+	room := result.Bytes
+	if overlay {
+		base, files, _ := teamDataUsage(teamPreviewBaseDir(b.team))
+		result.Bytes, result.Files = result.Bytes+base, result.Files+files
+	}
 	if result.Files == 0 {
 		return result, fmt.Errorf("%s has no data to copy (%s is empty)", teamSlotName(from), src)
 	}
@@ -225,8 +266,8 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 	if err := os.MkdirAll(parent, 0o700); err != nil {
 		return result, err
 	}
-	if free := teamFreeBytes(parent); free >= 0 && free < result.Bytes+teamDataRoom {
-		return result, fmt.Errorf("the disk has %s free, and the copy needs %s and some room to spare", teamDataSize(free), teamDataSize(result.Bytes))
+	if free := teamFreeBytes(parent); free >= 0 && free < room+teamDataRoom {
+		return result, fmt.Errorf("the disk has %s free, and the copy needs %s and some room to spare", teamDataSize(free), teamDataSize(room))
 	}
 
 	b.previewMu.Lock()
@@ -243,12 +284,17 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 	}
 	// Beside the target, under a name snapshots skip.
 	fresh := filepath.Join(parent, ".restore-copy-"+filepath.Base(dst))
-	os.RemoveAll(fresh)
-	out, err := exec.Command("cp", "-a", src, fresh).CombinedOutput()
+	teamRemoveAll(fresh)
+	var err error
+	if overlay {
+		err = teamMergeOverlay(teamPreviewBaseDir(b.team), src, fresh)
+	} else if out, copyErr := exec.Command("cp", "-a", src, fresh).CombinedOutput(); copyErr != nil {
+		err = fmt.Errorf("copying %s: %s", src, qFirstLine(strings.TrimSpace(string(out)), copyErr.Error()))
+	}
 	unpause()
 	if err != nil {
-		os.RemoveAll(fresh)
-		return result, fmt.Errorf("copying %s: %s", src, qFirstLine(strings.TrimSpace(string(out)), err.Error()))
+		teamRemoveAll(fresh)
+		return result, err
 	}
 	old := fresh + "-old"
 	if to == teamSlotPreview {
@@ -256,9 +302,9 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 		old = filepath.Join(parent, filepath.Base(dst)+"-before")
 		result.Kept = old
 	}
-	os.RemoveAll(old)
+	teamRemoveAll(old)
 	if err := os.Rename(dst, old); err != nil && !errors.Is(err, os.ErrNotExist) {
-		os.RemoveAll(fresh)
+		teamRemoveAll(fresh)
 		return result, err
 	}
 	if err := os.Rename(fresh, dst); err != nil {
@@ -266,9 +312,9 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 		return result, err
 	}
 	if to == teamSlotProduction {
-		os.RemoveAll(old)
+		teamRemoveAll(old)
 	} else if _, files, _ := teamDataUsage(old); files == 0 {
-		os.RemoveAll(old)
+		teamRemoveAll(old)
 		result.Kept = ""
 	}
 	if to == teamSlotPreview && hadTarget {
@@ -283,7 +329,8 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 // ---------------------------------------------------------------------------
 // the command, on the host
 
-// teamDataCommand is hi team data <name> [copy <from> <to> [--yes]].
+// teamDataCommand is hi team data <name> [fork | copy <from> <to> |
+// preview empty|fork] [--yes].
 func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	yes := false
 	var words []string
@@ -297,8 +344,8 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			words = append(words, arg)
 		}
 	}
-	usage := usageError{"usage: hi team data <name> [copy preview production | copy production preview] [--yes]"}
-	if len(words) != 1 && (len(words) != 4 || words[1] != "copy") {
+	usage := usageError{"usage: hi team data <name> [fork | copy preview production | preview empty | preview fork] [--yes]"}
+	if len(words) == 0 {
 		return usage
 	}
 	team := words[0]
@@ -313,15 +360,28 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		out, err := engine.output("inspect", "-f", "{{.State.Running}}", container)
 		return err == nil && strings.TrimSpace(out) == "true"
 	}
-	if len(words) == 1 {
+	var from, to string
+	switch {
+	case len(words) == 1:
 		printTeamDataFolders(stdout, teamDataFolders(team, engineRunning))
 		return nil
+	case len(words) == 3 && words[1] == "preview":
+		return teamPreviewDataMode(team, words[2], stdout)
+	case len(words) == 2 && words[1] == "fork":
+		from, to = teamSlotProduction, teamSlotPreview
+	case len(words) == 4 && words[1] == "copy":
+		from, to = words[2], words[3]
+	default:
+		return usage
 	}
-	from, to := words[2], words[3]
 	if err := teamCheckDataSlots(from, to); err != nil {
 		return err
 	}
 	bytes, files, _ := teamDataUsage(teamSlotDataDir(team, from))
+	if from == teamSlotPreview && teamPreviewOverlay(team) {
+		base, baseFiles, _ := teamDataUsage(teamPreviewBaseDir(team))
+		bytes, files = bytes+base, files+baseFiles
+	}
 	if files == 0 {
 		return fmt.Errorf("%s has no data to copy", teamSlotName(from))
 	}
@@ -329,10 +389,14 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "This replaces team %s's production data with a copy of the preview's (%s). hi snapshots production's data first, and posts it in the channel.\n", team, teamDataSize(bytes))
 		fmt.Fprintln(stdout, "The preview's box pauses while it is copied, and production restarts on the copy.")
 	} else {
-		fmt.Fprintf(stdout, "This replaces team %s's preview data with a copy of production's (%s); the preview's data from before is kept in run/preview-data-before.\n", team, teamDataSize(bytes))
-		fmt.Fprintln(stdout, "Production's box pauses while it is copied, and the preview restarts on the copy.")
+		fmt.Fprintf(stdout, "This gives team %s's preview a new fork of production's data (%s); what the preview wrote itself is kept in run/preview-data-before.\n", team, teamDataSize(bytes))
+		fmt.Fprintln(stdout, "Production's box pauses for a few seconds while it is forked, and the preview restarts on the fork.")
 	}
-	if err := confirm(stdin, stdout, yes, fmt.Sprintf("Copy %s's data to %s?", from, to)); err != nil {
+	question := fmt.Sprintf("Copy %s's data to %s?", from, to)
+	if to == teamSlotPreview {
+		question = "Fork production's data for the preview?"
+	}
+	if err := confirm(stdin, stdout, yes, question); err != nil {
 		return err
 	}
 	var result teamDataCopy
@@ -347,7 +411,49 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	return nil
 }
 
+// teamPreviewDataMode is hi team data <name> preview empty|fork: whether
+// a preview starts on a fork of production's data at every release, or
+// empty, for an app whose people's data previews shouldn't show.
+func teamPreviewDataMode(team, mode string, stdout io.Writer) error {
+	config, err := loadTeam(team)
+	if err != nil {
+		return err
+	}
+	switch mode {
+	case "empty":
+		config.PreviewData = teamPreviewEmpty
+	case "fork":
+		config.PreviewData = ""
+	default:
+		return usageError{"usage: hi team data <name> preview empty | preview fork"}
+	}
+	if err := saveTeam(config); err != nil {
+		return err
+	}
+	if mode == "empty" {
+		fmt.Fprintf(stdout, "Team %s's preview starts on an empty data folder at every release, never on production's data. It keeps what it has until then.\n", team)
+	} else {
+		fmt.Fprintf(stdout, "Team %s's preview starts on a fork of production's data at every release. hi team data %s fork gives it one now.\n", team, team)
+	}
+	return nil
+}
+
 func printTeamDataCopy(w io.Writer, result teamDataCopy) {
+	if fork := result.Fork; fork != nil && !fork.Full {
+		fmt.Fprintf(w, "The preview runs on a new fork of production's data (%s in %d file(s)); %d file(s), %s, were copied in full (the databases and the last day's files), the rest linked.",
+			teamDataSize(fork.Bytes), fork.Files, fork.Copied, teamDataSize(fork.CopiedBytes))
+		if result.Kept != "" {
+			fmt.Fprintf(w, " What it wrote itself before is in %s.", result.Kept)
+		}
+		fmt.Fprintln(w)
+		if result.Warning != "" {
+			fmt.Fprintln(w, result.Warning)
+		}
+		return
+	}
+	if fork := result.Fork; fork != nil {
+		fmt.Fprintf(w, "The preview got a whole copy, not a fork: %s.\n", fork.Why)
+	}
 	fmt.Fprintf(w, "%s has a copy of %s's data now (%s in %d file(s)).", teamCapitalize(teamSlotName(result.To)), result.From, teamDataSize(result.Bytes), result.Files)
 	if result.Snapshot != "" {
 		fmt.Fprintf(w, " Its data from before is in snapshot %s.", result.Snapshot)

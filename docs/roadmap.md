@@ -2293,6 +2293,32 @@ often come when several models trade ideas.
   hours later it proposed the same four steps again.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v1.1.0 — A preview runs on a fork of production
+
+Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
+
+- [x] Team cartman's preview held 47 GB to production's 157 GB and fell
+  further behind each day: its workers run only in production, and
+  catching up was a full copy. Now the preview runs on a fork of
+  production: hi hardlinks production's files and copies in full only
+  the databases and the last day's files, and the preview's box mounts
+  the fork read only with a folder of its own over it (a rootless Podman
+  overlay). On cartman's data, 155 GB in 210k files linked in 4.6 s,
+  with no disk.
+- [x] The preview gets a new fork at every release, so the next
+  migration runs on a copy of production's real data first.
+  `hi team data <name> fork` (and `hi team data fork` in the lead's box)
+  forks now; `copy production preview` is another name for it.
+- [x] `hi team env <name> --production KEY` keeps a key out of the
+  preview; `--preview KEY` gives it a value of its own.
+- [x] Each slot has its own models socket. The preview's model calls stop
+  for the day at $5 (`hi team limit <name> preview <usd|off>`), counted
+  from OpenRouter's `usage.cost`.
+- [x] `hi team data <name> preview empty` starts the preview empty at
+  every release, for an app whose people's data previews shouldn't show.
+- [x] With Docker, or where hardlinks don't work, the preview gets a
+  whole copy, as before, and `hi team data` says why.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

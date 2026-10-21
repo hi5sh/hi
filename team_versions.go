@@ -411,6 +411,9 @@ type teamReleaseResult struct {
 	// PreviewData is how much of the preview's data a release copied to
 	// production (--data preview).
 	PreviewData int64 `json:"preview_data,omitempty"`
+	// Preview is the preview's new fork of production's data after the
+	// release, or its empty folder (previewAfterRelease).
+	Preview *teamDataCopy `json:"preview,omitempty"`
 	// Approval is the yes that moved production this time.
 	Approval *teamApproval `json:"approval,omitempty"`
 	// AskedBy says who asked for the work a release holds.
@@ -443,6 +446,15 @@ func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, err
 	}
 	if configErr == nil {
 		b.announceInThread(config, teamReleaseHeadline(result, app, docs), announcement)
+	}
+	// The preview runs production's code now, and gets its data too.
+	if preview, done, err := b.previewAfterRelease(); err != nil {
+		result.Warning = strings.TrimSpace(result.Warning + "\nThe preview didn't get a new fork of production's data: " + err.Error())
+	} else if done {
+		result.Preview = &preview
+		if preview.Warning != "" {
+			result.Warning = strings.TrimSpace(result.Warning + "\n" + preview.Warning)
+		}
 	}
 	return result, nil
 }

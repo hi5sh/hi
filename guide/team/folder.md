@@ -126,29 +126,53 @@ hi team backups payments --show-key
 
 An app box keeps what it must not lose in
 `$HI_DATA_DIR` (`/data`). Production's is the team's `app/` folder, which
-outlives every release and is in every snapshot. Each preview has a data
-folder of its own, apart from production's. The app's own folder is a
+outlives every release and is in every snapshot. The app's own folder is a
 fresh copy of the code at each release, so anything written there is
 lost. The lead and the coder are told to keep data in `$HI_DATA_DIR`.
 
 The preview and production run at the same time. `$HI_SLOT` tells the app
-which one it is (`preview` or `production`). Work that costs money, such
-as a model call per item, a backfill from an outside service, or mail,
-runs only in production; otherwise it runs twice, on the same keys.
+which one it is (`preview` or `production`). Three rules hold for every
+team's app:
 
-A release moves the code, never the data. To move data between the two:
+1. **Production owns the data.** It builds up in `app/` alone.
+2. **The preview runs on a fork of production.** It sees all of
+   production's data as of the fork, and whatever it writes stays its own,
+   in `run/preview-data/`. Nothing tried in a preview reaches production.
+3. **The preview doesn't act on the world.** Settings marked
+   `--production` aren't in it, and its model calls stop for the day at a
+   limit.
+
+A fork takes seconds and no disk, however big the data is. hi pauses
+production for a moment, hardlinks its files into `run/preview-base/`, and
+copies in full only the files production changes in place: databases
+(SQLite, DuckDB, PostgreSQL) and whatever changed in the last day. The
+preview's box mounts the fork read only, with its own folder over it, as
+an overlay. On team cartman, 155 GB in 210,000 files forked in under five
+seconds.
+
+The preview gets a new fork at every release, so it runs production's code
+on production's data and the next migration is tried on a copy of it
+first. What it wrote itself is kept once, in `run/preview-data-before/`.
+A plain preview deploy keeps the fork it has.
 
 ```sh
-hi team data payments                              # both folders: size, files, last change
-hi team data payments copy production preview      # try a change on production's data
+hi team data payments                              # both folders, and when the preview was forked
+hi team data payments fork                         # the preview gets a new fork now
 hi team data payments copy preview production      # production starts from what the preview gathered
+hi team data payments preview empty                # previews start empty, for an app whose people's data they shouldn't show
+hi team env payments --production MARKET_KEY       # a key the preview doesn't get
+hi team env payments --preview MAIL_URL            # the preview's own value, such as a test key
+hi team limit payments preview 10                  # what the preview's model calls may cost a day ($5 unless set)
 ```
 
-A copy pauses the box it copies from, so the copy is consistent, and
-restarts the other on it. A copy to production snapshots production's data
-first and is posted in the channel. A copy to the preview keeps the
-preview's data from before in `run/preview-data-before/`. The lead can ask
-for either: the preview's copy on its own, production's with an owner's
-yes. For a first release, the lead can take the preview's data along
+The lead can fork for the preview on its own. A copy to production needs
+an owner's yes, snapshots production's data first, and is posted in the
+channel; it is for a preview that gathered data before production
+existed. For a first release, the lead can take the preview's data along
 (`hi team release --data preview`), and the release summary says when
 there is data to take.
+
+A fork needs Podman, which mounts the overlay rootless, and the team's
+folder on one filesystem. With Docker, or where hardlinks don't work, the
+preview gets a whole copy instead, and hi team data says why; a release
+then leaves the preview's data as it is.

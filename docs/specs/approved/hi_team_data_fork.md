@@ -1,13 +1,14 @@
 # `hi team` data: a preview runs on a fork of production
 
-Status: Draft (2026-10-21). Would replace the copy commands and the data
-rules in [hi_team_data.md](../approved/hi_team_data.md).
+Status: Approved (2026-10-21). Built in v1.1.0 (see [As built](#as-built)).
+Replaces the copy to the preview and the data rules in
+[hi_team_data.md](hi_team_data.md).
 
-Dependencies: [hi_team.md](../approved/hi_team.md) (the broker, previews,
-releases), [hi_team_data.md](../approved/hi_team_data.md) (`$HI_SLOT`, the
+Dependencies: [hi_team.md](hi_team.md) (the broker, previews,
+releases), [hi_team_data.md](hi_team_data.md) (`$HI_SLOT`, the
 two data folders, `hi team data`),
-[hi_team_snapshots.md](../approved/hi_team_snapshots.md) (pausing boxes,
-snapshots), [hi_team_keys.md](../approved/hi_team_keys.md) (settings, the
+[hi_team_snapshots.md](hi_team_snapshots.md) (pausing boxes,
+snapshots), [hi_team_keys.md](hi_team_keys.md) (settings, the
 models socket).
 
 ## Goal
@@ -226,7 +227,7 @@ The other way round, a preview that gathered data before production
 existed (cartman's first release), stays as it is: `hi team release
 --data preview` with an owner's yes.
 
-## Risks and open questions
+## Risks
 
 - **Production changes an old file in place.** A file linked into the
   base and later changed in place by production changes under the
@@ -237,19 +238,18 @@ existed (cartman's first release), stays as it is: `hi team release
 - **Two preview boxes on one overlay.** A preview deploy starts the new
   box beside the old one. In a test both boxes mounted the same upper
   folder and saw each other's writes, but the kernel says sharing an
-  upper folder between mounts is unsupported. Proposed: a preview deploy
-  stops the old box first, a few seconds without a preview.
+  upper folder between mounts is unsupported. So a preview deploy on a
+  fork stops the old box first: a few seconds without a preview.
 - **Docker.** hi falls back to Docker when Podman is missing. Docker has
   no overlay volumes, so a fork there is a full copy, as `copy` is today.
 - **A data folder on another filesystem.** Hardlinks need `run/` and
   `app/` on one filesystem; otherwise the fork is a full copy, and `hi
   team data` says so.
 - **The pause.** Production is paused for the links and the copies,
-  about 10 s for cartman. Is that acceptable at every release, or should
-  hi copy SQLite with its backup API instead and pause only for other
-  databases?
-- **The model limit.** Is $5 a day right, and should it apply to a
-  member's box too?
+  under 10 s for cartman. Copying SQLite with its backup API instead, and
+  pausing only for other databases, is for later if the pause shows.
+- **The model limit.** $5 a day, for the preview only; whether members'
+  boxes get one too is for later.
 
 ## Cartman under this
 
@@ -271,3 +271,43 @@ existed (cartman's first release), stays as it is: `hi team release
   up answers. Later, read only, on the same base.
 - **More than one preview,** each on its own fork.
 - **Deploys with no overlap for production.** As in hi_team_data.md.
+
+## As built
+
+v1.1.0:
+
+- `team_data_fork.go` forks: it finds the databases (SQLite and DuckDB by
+  their first bytes, `-wal`, `-shm`, `-journal`, anything under a folder
+  with `PG_VERSION`) before production pauses, then, paused, hardlinks
+  every other file into `run/preview-base/` and copies the databases and
+  the last day's files into `run/preview-data/`. `run/preview-fork.json`
+  says when, from which version, and how much.
+- The preview's box mounts `-v run/preview-base:/data:O,upperdir=run/preview-data,workdir=run/preview-work`.
+  Production's mount doesn't change.
+- Reflinks: the copies use Go's `copy_file_range`, which shares blocks on
+  XFS and Btrfs; the base stays hardlinks everywhere. A reflinked base is
+  for later.
+- `hi team data copy preview production` and `release --data preview`
+  merge a forked preview on the host: the base linked, the preview's own
+  files copied (never written through a link), and its deletions left
+  out, as the overlay marks them: a 0:0 character device for a file,
+  `user.overlay.opaque` (or `trusted.`) for a folder, and the `.wh.`
+  names of fuse-overlayfs.
+- The fork at a release happens after production shows the new version,
+  and only with Podman and production having data. The lead hears it in
+  `hi team release`'s output; the channel doesn't.
+- `hi team data <name> preview empty` sets `preview_data` in team.json;
+  the preview then starts on an empty folder at every release. hi doesn't
+  run a seed target; the app seeds itself if it does.
+- Settings per slot are `env_production` and `env_preview` in
+  secrets.json, beside `env`; a name is in one of them or in `env`.
+- Each slot has its own models socket, `<models>/production/` and
+  `<models>/preview/`, which its box mounts. The socket in the models
+  folder itself stays, as production's, for boxes started by an older hi
+  until they restart. The preview's socket adds up the last `"cost"` in
+  each answer (`usage.cost`, which OpenRouter always sends, last in a
+  streamed one) in `run/models-preview.json`, per UTC day, and answers 429
+  in OpenRouter's error shape at the limit. `hi team limit` sets
+  `preview_model_usd` in team.json.
+- Cartman's first fork keeps its 47 GB preview folder once, as
+  `run/preview-data-before/`, until the next fork replaces it.

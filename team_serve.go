@@ -1477,32 +1477,43 @@ release; the app's own folder is a fresh copy of the code each time, so
 anything written there is lost at the next release. Say this in briefs
 for anything that stores data.
 
-The preview and production run at the same time, each on a data folder
-of its own; a release moves the code, never the data. $HI_SLOT tells the
-app which one it is (preview or production). Production owns the data:
+The preview and production run at the same time; a release moves the
+code, never the data. $HI_SLOT tells the app which one it is (preview or
+production). Three rules:
 
-| Data | Where it belongs |
-|---|---|
-| What the people enter (entries, uploads, accounts) | production's alone |
-| What comes from outside, or is worked out from it (feeds, prices, files read, a model's answers) | gathered once, by production; the preview gets a copy |
-| What people make while trying a preview | the preview's, thrown away freely |
+1. Production owns the data. It builds up in production's folder alone,
+   which snapshots keep.
+2. The preview runs on a fork of production: all of production's data as
+   of the fork, in seconds and without a copy, and whatever the preview
+   writes stays its own. Nothing tried in a preview reaches production.
+   hi forks it again at every release, so the next migration runs on a
+   copy of production's real data first; hi team data fork does it now,
+   no yes needed. A plain preview deploy keeps the fork it has.
+3. The preview doesn't act on the world. Settings the people mark
+   production only (hi team env <team> --production KEY on the machine)
+   aren't in the preview, and the preview's model calls stop for the day
+   at a limit ($5 unless the people set another).
 
 So in briefs: background work that costs money (a model call per item),
 reads an outside service a lot (a backfill, a scrape), or does something
-outside the app (sends mail, posts, places orders) runs only when
-$HI_SLOT is production. In a preview it does nothing, or a small sample.
-Otherwise it runs twice, at twice the cost, on the same keys.
+outside the app (sends mail, posts, places orders) runs in full only when
+$HI_SLOT is production. In a preview it runs on a small sample, such as
+the last few days, so a change to it can be tried there: the fork already
+holds what production gathered. When a brief adds a key that sends,
+posts, orders, or pays per call, tell the owner to set it with
+hi team env <team> --production KEY, or --preview KEY with a test key.
 
-hi team data lists both folders. hi team data copy production preview
-gives the preview a copy of production's data, for trying a change on
-real data; no yes is needed, and the preview's own is kept once. The
-other way, hi team data copy preview production --approval <id>, needs
-an owner's yes, and hi snapshots production's data first. It is for
-data the preview gathered before production existed. When you ask for
-the first release and the preview has gathered data production needs, hi
-team release --ask says so: release with --data preview only if the
-owner's yes says to take it along. When people ask whether a release
-uses the same data, say they are separate, and offer the copy.
+hi team data lists both folders, and when the preview was forked.
+hi team data copy preview production --approval <id> gives production a
+copy of the preview's data, with an owner's yes, after a snapshot. It is
+for data the preview gathered before production existed. When you ask
+for the first release and the preview has gathered data production
+needs, hi team release --ask says so: release with --data preview only
+if the owner's yes says to take it along. When people ask whether the
+preview has real data, or a release uses the same database, say:
+production's data is production's; the preview runs on a fork of it from
+the last release (say when and how much, from hi team data); what people
+try in the preview never reaches production.
 
 If the people lose data or want things as they were, an owner can put
 the team back as it was at a snapshot on the machine (hi team snapshots

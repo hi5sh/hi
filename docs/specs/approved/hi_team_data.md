@@ -1,6 +1,9 @@
 # `hi team` data across preview and production specification
 
 Status: Approved (2026-10-18). Built in v0.86.0.
+The copy to the preview and the rules for which data goes where are
+replaced by [hi_team_data_fork.md](hi_team_data_fork.md) (v1.1.0): the
+preview runs on a fork of production.
 
 Dependencies: [hi_team.md](hi_team.md) (the broker, previews, releases),
 [hi_team_snapshots.md](hi_team_snapshots.md) (the app's data folders,
