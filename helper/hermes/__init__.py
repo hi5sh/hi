@@ -113,9 +113,42 @@ def _answer_in_dms():
         adapter._handle_hermes_command = make(listener)
 
 
+# The lead talks and hands work on; the member reads the code in its task.
+# Past a dozen reads and searches in one turn, each result says so
+# (docs/specs/approved/hi_team_lead_steps.md in hi). Written for
+# google/gemini-3.8-flash, whose leads on 2026-10-20 spent whole 60-step
+# turns mostly in search_files over /team/repo/src: re-check the counts on
+# another model before keeping it.
+READS = {"search_files", "read_file"}
+READS_BEFORE_NOTE = 12
+READS_NOTE = ("\n\n[hi: that is %d reads of the code in this turn. The member reads the code in its task: "
+              "write what you found where the next turn looks (the brief in hi team task, or "
+              "hi team incidents note <id> \"...\"), then answer.]")
+_reads = {}  # turn -> reads so far, for the newest turns only
+
+
+def _note_reads(tool_name="", result=None, turn_id="", session_id="", **_):
+    if tool_name not in READS or not isinstance(result, str):
+        return None
+    turn = turn_id or session_id
+    if not turn:
+        return None
+    count = _reads.pop(turn, 0) + 1
+    _reads[turn] = count
+    while len(_reads) > 64:
+        _reads.pop(next(iter(_reads)))
+    if count <= READS_BEFORE_NOTE:
+        return None
+    return result + READS_NOTE % count
+
+
 def register(ctx):
     for name in COMMANDS:
         ctx.register_command(name, handler=_hi, description=DESCRIPTION)
+    try:
+        ctx.register_hook("transform_tool_result", _note_reads)
+    except Exception:  # a Hermes without the hook: the budget still stops the turn
+        pass
     try:
         from hermes_cli import commands_platforms
         if not getattr(commands_platforms.slack_native_slashes, "hi_team", False):

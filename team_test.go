@@ -277,7 +277,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the DM's first-reply hook is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60"} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.6"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}
@@ -1355,12 +1355,12 @@ func TestTeamSoulBeQuick(t *testing.T) {
 	if err := updateTeamSoul(path); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n## How work is done\n" {
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n"+teamSoulKeepFindings+"\n\n## How work is done\n" {
 		t.Fatalf("%s", data)
 	}
 	os.WriteFile(path, []byte("x\n\n## How work is done\n"), 0o600)
 	updateTeamSoul(path)
-	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n## How work is done\n" {
+	if data, _ := os.ReadFile(path); string(data) != "x\n\n"+teamSoulBeQuick+"\n\n"+teamSoulKeepFindings+"\n\n## How work is done\n" {
 		t.Fatalf("%s", data)
 	}
 }
@@ -1427,5 +1427,36 @@ func TestTeamWaitApp(t *testing.T) {
 	defer server.Close()
 	if err := teamWaitApp(server.URL, func() bool { return false }, time.Millisecond); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Past a dozen reads of the code in a turn, the lead's plugin says to hand
+// them on; other tools, and another turn, are left alone.
+func TestTeamLeadPluginNotesReads(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("no python3")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plugin.py"), teamLeadPluginSource, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("python3", "-I", "-c", `
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("plugin", sys.argv[1])
+plugin = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(plugin)
+hooks = {}
+class Ctx:
+    def register_command(self, *a, **k): pass
+    def register_hook(self, name, callback): hooks[name] = callback
+plugin.register(Ctx())
+note = hooks["transform_tool_result"]
+results = [note(tool_name="search_files", result="r", turn_id="t1") for _ in range(13)]
+print(results[11] is None, results[12].startswith("r\n\n[hi: that is 13 reads"))
+print(note(tool_name="terminal", result="r", turn_id="t1") is None)
+print(note(tool_name="read_file", result="r", turn_id="t2") is None)
+`, filepath.Join(dir, "plugin.py")).CombinedOutput()
+	if err != nil || string(out) != "True True\nTrue\nTrue\n" {
+		t.Fatalf("%s: %v", out, err)
 	}
 }

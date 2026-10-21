@@ -283,8 +283,15 @@ func teamBrokerDir(name string) string {
 }
 
 // teamLeadMaxTurns caps the model calls in one turn of the lead's; few
-// answers need more than 20.
-const teamLeadMaxTurns = 60
+// answers need more than 20. teamLeadBudgetWarning has Hermes tell the
+// lead once, at 36 of them, to keep what it found before the cap. Both
+// were set for google/gemini-3.8-flash: on team cartman, 2026-10-18 to
+// 10-20, 11 of 286 turns hit the cap, mostly reading /team/repo/src.
+// Re-check them on another model (docs/specs/approved/hi_team_lead_steps.md).
+const (
+	teamLeadMaxTurns      = 60
+	teamLeadBudgetWarning = 0.6
+)
 
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
 // start: its settings, its .env, and the hi-team skill. SOUL.md and the
@@ -323,7 +330,7 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.
-	settings += fmt.Sprintf("agent:\n  max_turns: %d\n", teamLeadMaxTurns)
+	settings += fmt.Sprintf("agent:\n  max_turns: %d\n  budget_warning_ratio: %g\n", teamLeadMaxTurns, teamLeadBudgetWarning)
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}
@@ -637,6 +644,8 @@ at the code only as much as you need for the brief, a few files at most;
 the member reads the rest in its task. A turn of yours stops after %[6]d
 steps and answers with what it has.
 
+`+teamSoulKeepFindings+`
+
 ## How work is done
 
 1. Agree with the people what will change and how they will know it works:
@@ -729,6 +738,15 @@ ends your turn, and nothing happens after it until someone writes. Look
 at the code only as much as you need for the brief, a few files at most;
 the member reads the rest in its task. A turn of yours stops after %d
 steps and answers with what it has.`, teamLeadMaxTurns)
+	// A turn's findings outlive it, so the next turn doesn't read the
+	// same code again (docs/specs/approved/hi_team_lead_steps.md).
+	teamSoulKeepFindings = `Keep what you find. What a turn learns is gone when it ends unless you
+write it down, and the next turn starts over. Put it where the next turn
+looks: the brief, the spec, or the incident (hi team incidents note <id>
+"..."). Before you read the code again for an incident or a thread, read
+its notes and the thread. A check hi wakes you for (an incident, a job, a
+finished task) needs hi's commands, not the app's code: hand the code to
+a member.`
 )
 
 // teamSoulDeepReview is how the lead offers a deep review of the whole
@@ -921,7 +939,10 @@ for no longer fits the story, ask an owner whether the story has changed.
 	// Deep reviews, after the story's paragraph, which ends SOUL.md.
 	{"for no longer fits the story, ask an owner whether the story has changed.\n",
 		"for no longer fits the story, ask an owner whether the story has changed.\n\n" + teamSoulDeepReview},
-	{"## How work is done", teamSoulBeQuick + "\n\n## How work is done"},
+	// Keeping findings, after being quick; before the next, so a SOUL.md
+	// that has neither gets both once.
+	{teamSoulBeQuick, teamSoulBeQuick + "\n\n" + teamSoulKeepFindings},
+	{"## How work is done", teamSoulBeQuick + "\n\n" + teamSoulKeepFindings + "\n\n## How work is done"},
 	// Brainstorms, after the deep reviews.
 	{teamSoulDeepReview, teamSoulDeepReview + "\n" + teamSoulBrainstorm},
 }

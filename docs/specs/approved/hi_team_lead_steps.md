@@ -1,6 +1,7 @@
 # The lead's step budget
 
-Status: Draft, to investigate (2026-10-20). Not approved; nothing built.
+Status: Approved and built in v1.0.4 (2026-10-21): the nudge, Hermes'
+budget warning, and the words in SOUL.md ("What hi does" below).
 
 ## The problem
 
@@ -44,7 +45,7 @@ lead's state.db (`messages.tool_calls`).
 
 ## Is it a real problem?
 
-To find out before changing anything:
+What was asked before changing anything (answers in "What was found"):
 
 - How often: count the lead's turns that hit the budget, across teams and
   days, from state.db, against all turns. Two in a row on one incident may
@@ -63,6 +64,68 @@ To find out before changing anything:
 - What the next turn knew: whether a turn after an exhausted one started
   from what the first had found, or read the same files again. In cartman
   the second turn reread much of src/.
+
+## What was found
+
+From both leads' state.db on 2026-10-21, counting tool calls per turn
+(a turn starts at a user message):
+
+| Team | Turns | 1–10 steps | 11–20 | 21–40 | 41+ | All 60 |
+| --- | --- | --- | --- | --- | --- | --- |
+| cartman | 286 | 191 | 35 | 20 | 12 | 11 |
+| aitools | 107 | 74 | 10 | 9 | 1 | 1 |
+
+- How often: about 4% of cartman's turns and 1% of aitools', all from
+  2026-10-18 on. One cartman turn on 10-18 ran 215 steps.
+- Which turns: mostly people's messages and threads ("Yes", "ok do it",
+  "yes go ahead"), plus a background command that ended and a hi-team
+  skill turn. People's yes to work is where the lead plans the coder's
+  change itself instead of starting the task.
+- What the steps were: in every exhausted turn, most calls were
+  search_files and read_file, and most of those under /team/repo/src (21
+  to 48 of 60). Turns that ran many terminal commands (aitools' waits on
+  a background process) stayed under the cap.
+- What it cost: Hermes recorded no prices for this provider
+  (estimated_cost_usd is about 0). In tokens, cartman's lead averaged
+  about 69,000 input tokens a call, most of them cached, so a 60-step turn
+  is about 4 million input tokens.
+- Whether the model matters: both teams' leads run
+  google/gemini-3.8-flash, so the data can't say. That is why the limits
+  below are marked with the model they were set for.
+- What the next turn knew: in cartman the turn after an exhausted one
+  read much of src/ again.
+
+## What hi does
+
+- **The nudge.** hi's plugin in the lead's Hermes (helper/hermes in hi)
+  counts search_files and read_file per turn with Hermes'
+  transform_tool_result hook. From the 13th, each result ends with:
+  "[hi: that is N reads of the code in this turn. The member reads the
+  code in its task: write what you found where the next turn looks (the
+  brief in hi team task, or hi team incidents note <id> "..."), then
+  answer.]" A Hermes without the hook leaves the results alone; the
+  budget still stops the turn.
+- **Hermes' budget warning** at 0.6 of the budget, so once, at 36 of 60
+  steps: Hermes' own words tell the lead to keep its progress somewhere
+  that lasts, then go on.
+- **Keep what a turn found**, in SOUL.md, after "Be quick": write it where
+  the next turn looks (the brief, the spec, an incident note), read an
+  incident's notes and the thread before reading the code again, and a
+  check hi wakes the lead for hands the code to a member. hi adds the
+  paragraph to an existing lead's SOUL.md when the team starts, as it
+  does its other paragraphs.
+- **The budget stays at 60.** The 21–40 turns above did real work; a
+  lower cap would cut them.
+- **Marked with the model.** The budget, the warning, and the nudge note
+  in code that they were set for gemini-3.8-flash with the counts above.
+  When a team's lead or hi's default lead moves to another model, count
+  again as above before keeping them.
+
+Not done: hi writing an exhausted turn's summary into an incident by
+itself (the lead's words and the warning ask for it; a turn isn't always
+about an incident), a budget per model (one model in the data), hiding
+Hermes' warning line, and fewer repeat `hi team channel` calls. Each
+stays below as it was weighed.
 
 ## Limits written for one model
 

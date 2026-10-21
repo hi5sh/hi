@@ -2262,20 +2262,23 @@ often come when several models trade ideas.
   terminal gives up on a command after 3 minutes.
   Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
+### v1.0.4 — The lead hands code on before its steps run out
+
+- [x] Past a dozen reads and searches of the code in one turn, hi's
+  plugin in the lead's Hermes adds a line to each result: the member
+  reads the code in its task, so write what you found in the brief or
+  the incident and answer. On team cartman 11 of 286 turns used all 60
+  steps, mostly searching /team/repo/src, and the next turn read the
+  same code again.
+- [x] At 36 of the 60 steps Hermes tells the lead once to keep what it
+  found, and SOUL.md says where: the brief, the spec, or an incident
+  note, which the next turn reads before the code. A check hi wakes the
+  lead for hands the code to a member.
+- [x] The budget, the warning, and the nudge say which model they were
+  set for (gemini-3.8-flash) and are to be checked again on another.
+  Approved spec: [hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md).
+
 ## Planned
-
-### Next — the lead's step budget
-
-- [ ] Look into leads that end a reply with "Iteration budget exhausted
-  (60/60)": hi caps a lead's turn at 60 steps (Hermes has no cap of its
-  own), and on 2026-10-20 cartman's lead spent two turns in a row
-  reading the app's code, which the coder should read. Find out how often
-  it happens, in which turns, at what cost, and whether the model is the
-  cause, then choose between a nudge in hi's Hermes plugin, Hermes'
-  budget warning, a lower budget, another model, or sharper words, and
-  whether an exhausted turn's findings should carry to the next. Note
-  which model each limit was written for, and re-check on a new one.
-  Spec: [hi_team_lead_steps.md](specs/ideas/hi_team_lead_steps.md) (draft).
 
 ### Guide — a diagram for every tool
 
