@@ -1,0 +1,155 @@
+---
+layout: feature
+permalink: /autoresearch/
+title: Autoresearch with hi
+tool: hi agent best-of
+demo: autoresearch
+guide: /guide/autoresearch/
+headline: Many attempts. hi keeps what works.
+lede: Several agents try the same task in separate boxes. hi runs your check and your score on what each one did, and keeps only the results that pass and score better. For one try or a hundred rounds overnight.
+description: hi agent best-of runs one task in several boxes, checks and ranks every result itself, and with a score runs rounds that commit only gains, checked on data the agents never see.
+demo_caption: Real hi agent best-of output; only the folders are made up, and some lines are left out.
+fallback: |
+  $ hi agent best-of show b-16
+  Best: 44 (validation 151) from round 3, baseline 163 (validation 249) · on best-of/b-16/best
+
+    ROUND  RESULT  SCORE  VALID.  BOX              IDEA
+    1      kept    58     176     packer-b16-r1-1  Replaced the plain UTF-8 encoding with raw deflate (stdlib …
+    2      kept    51     161     packer-b16-r2-2  Expanded the preset dictionary with common English verbs, i…
+    3      kept    44     151     packer-b16-r3-2  Added reversible word tokens before DEFLATE and expanded th…
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">Turn agents' variation into progress.</h2>
+    <p class="sub">Agents vary a lot from one attempt to the next: some are right, some wrong, and some look right without being right. hi checks every one and keeps the best.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Best of n</h3>
+        <p>One task, a few tries, mixing agents, since different agents fail in different ways. You read the ranked table and keep one.</p>
+        <div class="snip"><span class="c">$ hi agent best-of 3 --agents claude,codex \
+    "make the loader 2x faster"</span></div>
+      </div>
+      <div class="use">
+        <h3>Rounds overnight</h3>
+        <p>A number to improve: a loss, a benchmark, a Sharpe ratio. Each round starts from the best so far; hi commits a result only when it beats it.</p>
+        <div class="snip"><span class="c">$ hi agent best-of 4 --rounds 100 --edit train.py \
+    --score "make score" --lower program.md</span></div>
+      </div>
+      <div class="use">
+        <h3>Start from a template</h3>
+        <p>A project already shaped for rounds, with a fixed, tested evaluation, frozen data, and a validation window and holdout outside the repository.</p>
+        <div class="snip"><span class="c">$ hi init autoresearch-ml charlm</span>
+<span class="c">$ cd charlm &amp;&amp; make data &amp;&amp; make loop</span></div>
+        <a class="go" href="/guide/autoresearch/templates/">The templates →</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Best of two, then rounds.</h2>
+    <p class="sub">In a git project with a check (<code>make check</code>) and, for rounds, a command that prints a number. hi shows the plan and asks before it starts: a run costs about n times the tokens of one, times the rounds.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b> and rootless Podman, and sign in to Claude Code or Codex on this machine.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman">copy</button></div></div></li>
+      <li><div><p><b>Run one task twice</b>, by two agents. hi runs <code>make check</code> in each box when its agent ends.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent best-of 2 --agents claude,codex "make make check pass"</code><button class="copy" type="button" data-copy="hi agent best-of 2 --agents claude,codex &quot;make make check pass&quot;">copy</button></div></div></li>
+      <li><div><p><b>Keep the one you want</b>, by rank or by name. The others are removed with their branches.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent best-of keep b-1 1</code><button class="copy" type="button" data-copy="hi agent best-of keep b-1 1">copy</button></div></div></li>
+      <li><div><p><b>Run rounds</b> on a score. <code>--edit</code> is the only part of the project a result may change.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent best-of 2 --rounds 5 --score "make score" --lower --edit src/ "&lt;task&gt;"</code><button class="copy" type="button" data-copy="hi agent best-of 2 --rounds 5 --score &quot;make score&quot; --lower --edit src/ &quot;&lt;task&gt;&quot;">copy</button></div></div></li>
+      <li><div><p><b>Watch it</b>, or close the terminal: the rounds go on. <code>q</code> leaves the view; <code>s</code> stops the run after this round.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent best-of watch b-2</code><button class="copy" type="button" data-copy="hi agent best-of watch b-2">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">The agents work. hi judges.</h2>
+    <p class="sub">Rounds are Karpathy's <a href="https://github.com/karpathy/autoresearch">autoresearch</a> loop (try an idea, measure it, keep it only if it's better, repeat), with the judging moved from the agent to hi.</p>
+    {% include diagram.html name="autoresearch" %}
+    <div class="prose">
+      <p><strong>hi judges, not the agent.</strong> When an agent ends, hi stops whatever it left running, snapshots its files, and runs your check and your score on them. An agent that says its tests pass, or that it improved the number, is checked, not believed.</p>
+      <p><strong>Only hi commits.</strong> In rounds, agents work on scratch branches. hi adds one commit to the run's own branch, <code>best-of/&lt;run&gt;/best</code>, only when a result beats the best so far. Nothing is merged into your branch or pushed; <code>git merge</code> is your step.</p>
+      <p><strong>Every round learns from the last.</strong> The next round's task tells the agents the best score and a table of every earlier attempt, with its score, result, and one-line idea, so they build on what worked and skip what didn't.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Scores, limits, and gains that hold.</h2>
+    <p class="sub">Rounds keep whatever scores best, so the more they run, the more they fit the data the score reads. These are the parts that keep a long run honest.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>The score and the baseline</h3>
+        <p><code>--score "&lt;command&gt;"</code> is any command that prints a number; hi takes the last number it prints. <code>--lower</code> or <code>--higher</code> says which way is better.</p>
+        <p>Before any agent starts, hi measures the baseline on your last commit, in a box with the run's options. A score that fails or prints no number stops the run there, before it costs tokens. <code>--min-gain</code> ignores gains smaller than the score's noise.</p>
+      </div>
+      <div class="detail">
+        <h3>Limits are yours</h3>
+        <table>
+          <thead><tr><th>Option</th><th>Ends the run</th></tr></thead>
+          <tbody>
+            <tr><td><code>--rounds 50</code></td><td>after 50 rounds (default 1; <code>forever</code> has no end)</td></tr>
+            <tr><td><code>--for 8h</code></td><td>no round starts after 8 hours</td></tr>
+            <tr><td><code>--budget 30</code></td><td>no round starts once agents have used $30 at API prices</td></tr>
+            <tr><td><code>--patience 10</code></td><td>after 10 rounds without a gain</td></tr>
+          </tbody>
+        </table>
+        <p><code>--max 30m</code> limits each agent in each round. <code>--then "make report"</code> runs a command on your machine when the rounds end, for any reason.</p>
+      </div>
+      <div class="detail">
+        <h3>Keep only gains that hold</h3>
+        <div class="snip"><span class="c">$ hi agent best-of 3 --rounds 20 \
+    --score "make score" --higher --edit strategy.py \
+    --validate "make validate" \
+    --validate-data ../myproject-validation program.md</span></div>
+        <p>After each round, hi runs <code>--validate</code> on the winner in a container of its own, with no network, no <code>.git</code>, and only the <code>--edit</code> files from the box. The data is read-only at <code>/box/data</code> and never in an agent's box. A gain is kept only if its validation is no worse than the highest so far; <code>--validate-slack</code> allows for noise.</p>
+      </div>
+      <div class="detail">
+        <h3>Keeping agents to the experiment</h3>
+        <p><code>--edit train.py</code> is the only part of the project a result may change. A result that changes anything else, such as the evaluation or its data, is disqualified, whatever its score.</p>
+        <p>The templates go further: their evaluation refuses code that reads files or imports modules outside a short list, so the editable file can't read the data it is scored on. Keep a holdout outside the repository and check the result on it once, at the end.</p>
+      </div>
+      <div class="detail">
+        <h3>The ranked table</h3>
+        <table>
+          <thead><tr><th>Column</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>CHECK</td><td>✓ or ✗, and how long the check took</td></tr>
+            <tr><td>DIFF</td><td>lines added and removed, and files changed</td></tr>
+            <tr><td>FLAGS</td><td>changed files that run on your machine later, such as a <code>Makefile</code></td></tr>
+            <tr><td>SPEND</td><td>dollars at API prices (Claude Code) or tokens (Codex)</td></tr>
+          </tbody>
+        </table>
+        <p>The order is no judgement of quality: passing boxes that changed something come first, then fewer flagged files, then the smaller diff. Read the diff before you keep one.</p>
+      </div>
+      <div class="detail">
+        <h3>One GPU, one score at a time</h3>
+        <p>A score with a time budget, such as the best loss after five minutes of training, means nothing if boxes share the GPU. With <code>--gpu</code>, agents work at once, but hi scores the boxes one at a time, after every agent of the round is done.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood, one round</summary>
+      <div class="prose">
+        <p><strong>1.</strong> hi starts n boxes from the same commit (for rounds: the best so far), each on its own branch, <code>best-of/&lt;run&gt;/&lt;i&gt;</code>, with <code>--agents</code> taken in turn.</p>
+        <p><strong>2.</strong> Each agent works on the task, unattended, without permission prompts.</p>
+        <p><strong>3.</strong> When an agent ends, hi stops whatever it left running, snapshots its files, then runs <code>--check</code> and <code>--score</code> on that snapshot, under a time limit of twice the baseline's time plus a minute.</p>
+        <p><strong>4.</strong> hi ranks the boxes. In best of n, you pick one with <code>keep</code>. In rounds, the best score is committed if it beats the best so far, and holds on validation if there is one, and every box is removed.</p>
+        <p><strong>5.</strong> In rounds, the next round's task tells the agents the best score and what every earlier attempt tried and scored. hi keeps every attempt's files, kept or not, under <code>refs/best-of/&lt;run&gt;/</code>.</p>
+        <p>The rounds run in a process of their own, so they go on when you close the terminal or the SSH session; <code>hi agent best-of resume</code> goes on from the best so far, after a reboot too.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/autoresearch/"><b>Autoresearch with hi</b><span>The guide: best of n and rounds, step by step.</span></a>
+      <a href="/guide/autoresearch/validation/"><b>Keep only gains that hold</b><span>Validation, slack, and folds that walk forward.</span></a>
+      <a href="/guide/autoresearch/templates/"><b>Start from a template</b><span>An evaluation that is fixed, tested, and hard to game.</span></a>
+      <a href="/guide/autoresearch/examples/"><b>Examples</b><span>Simple and advanced runs to copy.</span></a>
+      <a href="/agent/"><b>hi agent</b><span>One task, one agent, one report.</span></a>
+    </div>
+  </section>

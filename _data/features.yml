@@ -6,6 +6,9 @@
 - url: /agent/
   name: hi agent
   line: Hand a task to a coding agent
+- url: /autoresearch/
+  name: hi agent best-of
+  line: Several attempts at once, and rounds that keep only gains
 - url: /box/
   name: hi box
   line: Run code with nothing to steal

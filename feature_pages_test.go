@@ -17,20 +17,21 @@ import (
 // featurePageUsage is each feature page's tool and the usage it prints. A
 // new feature page goes here with its tool's usage.
 var featurePageUsage = map[string]func(io.Writer){
-	"box":     printBoxUsage,
-	"agent":   printAgentUsage,
-	"team":    printTeamUsage,
-	"compute": printComputeUsage,
-	"q":       printQUsage,
-	"init":    printInitUsage,
-	"net":     func(w io.Writer) { printNetUsage(w); printNetExposeUsage(w) },
-	"server":  func(w io.Writer) { printServerUsage(w); printConnectUsage(w) },
-	"data":    printDataUsage,
+	"box":          printBoxUsage,
+	"agent":        printAgentUsage,
+	"team":         printTeamUsage,
+	"compute":      printComputeUsage,
+	"q":            printQUsage,
+	"init":         printInitUsage,
+	"net":          func(w io.Writer) { printNetUsage(w); printNetExposeUsage(w) },
+	"server":       func(w io.Writer) { printServerUsage(w); printConnectUsage(w) },
+	"data":         printDataUsage,
+	"autoresearch": printBestOfUsage,
 }
 
-// featureCommandPage is a command shown on another tool's page: hi connect
-// is on the server's.
-var featureCommandPage = map[string]string{"connect": "server"}
+// featureCommandPage is a command whose page isn't named after it: hi
+// connect is on the server's page, and hi agent best-of has its own.
+var featureCommandPage = map[string]string{"connect": "server", "agent best-of": "autoresearch"}
 
 // featureFreeWords are the tools whose words after the name are free text,
 // such as hi q's question, not a subcommand.
@@ -89,7 +90,10 @@ func TestFeatureDemosUseRealCommands(t *testing.T) {
 			if len(words) < 2 || words[0] != "hi" {
 				continue
 			}
-			tool, page := words[1], words[1]
+			tool, page, rest := words[1], words[1], words[2:]
+			if len(words) > 2 && featureCommandPage[words[1]+" "+words[2]] != "" {
+				tool, rest = words[1]+" "+words[2], words[3:]
+			}
 			if featureCommandPage[tool] != "" {
 				page = featureCommandPage[tool]
 			}
@@ -102,8 +106,9 @@ func TestFeatureDemosUseRealCommands(t *testing.T) {
 			var buf bytes.Buffer
 			featurePageUsage[page](&buf)
 			help := buf.String()
-			if len(words) > 2 && !featureFreeWords[tool] && !strings.HasPrefix(words[2], "-") && !strings.HasPrefix(words[2], `\"`) {
-				sub := words[2]
+			// A number is a count, such as best-of's <n>, not a subcommand.
+			if len(rest) > 0 && !featureFreeWords[tool] && !strings.HasPrefix(rest[0], "-") && !strings.HasPrefix(rest[0], `\"`) && strings.Trim(rest[0], "0123456789") != "" {
+				sub := rest[0]
 				if !regexp.MustCompile(`hi ` + tool + ` \[?(\S+\|)*` + regexp.QuoteMeta(sub) + `[\s|\]]`).MatchString(help) {
 					t.Errorf("%s demo: %q uses %q, which hi %s's usage doesn't list", name, m[1], sub, tool)
 				}

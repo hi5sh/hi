@@ -333,14 +333,14 @@ The test now waits on the thread's event.
         <p>Run one task several ways at once, mixing agents. hi runs your check on each result itself and ranks them; you keep the best.</p>
         <div class="snip"><span class="c">$ hi agent best-of 3 <span class="k">--agents</span> claude,codex \
     "make the loader 2x faster"</span></div>
-        <a class="go" href="/guide/autoresearch/best-of/">Several attempts at once →</a>
+        <a class="go" href="/autoresearch/">See best-of in action →</a>
       </div>
       <div class="feature">
         <span class="name">rounds</span><h3>Improve overnight</h3>
         <p>Give a score to improve and let it run: each round starts from the best so far, and hi commits a result only when its score beats it.</p>
         <div class="snip"><span class="c">$ hi agent best-of 4 <span class="k">--rounds</span> 100 \
     <span class="k">--score</span> "make score" <span class="k">--lower</span></span></div>
-        <a class="go" href="/guide/autoresearch/">Autoresearch with hi →</a>
+        <a class="go" href="/autoresearch/#how">Autoresearch with hi →</a>
       </div>
       <div class="feature">
         <span class="name">hi q</span><h3>Ask for a command</h3>
