@@ -1,0 +1,142 @@
+---
+layout: feature
+permalink: /q/
+title: hi q
+tool: hi q
+demo: q
+guide: /guide/q/
+headline: Say what you want. See the command first.
+lede: Type a request in plain words and get one shell command back. You see it, what it matches, and what it would change before anything runs.
+description: hi q turns a request in plain words into one shell command, shows what it would change, and runs it only when you press Enter; it can also chat, explain, and answer about piped output.
+demo_caption: Real hi q output; only the folders are made up.
+fallback: |
+  $ hi q move all the files in this folder ending with md to a new folder called notes
+  ╭──────────────────────────────────╮
+  │ mkdir -p notes && mv *.md notes/ │
+  ╰──────────────────────────────────╯
+    *.md matches 3 files: README.md, my notes.md, plan.md
+    changes files
+    enter run · e edit · c copy · ? explain · esc cancel
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">The command you'd otherwise look up.</h2>
+    <p class="sub">Ask the way you'd ask a colleague. hi q knows your system, your folder, and your recent commands, and shows the command with its risk before you decide.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Remember a command</h3>
+        <p>The flags for <code>tar</code>, <code>find</code>, or <code>ffmpeg</code>, for the versions installed on this machine.</p>
+        <div class="snip"><span class="c">$ hi q find files over 1 GB in my home folder</span></div>
+      </div>
+      <div class="use">
+        <h3>Ask about output</h3>
+        <p>Pipe in a failing build or a log. The confirmation still comes from the terminal, so Enter runs the fix.</p>
+        <div class="snip"><span class="c">$ make test 2>&amp;1 | hi q why does this fail</span>
+<span class="c">$ journalctl -u docker -n 100 | hi q what is wrong</span></div>
+      </div>
+      <div class="use">
+        <h3>Chat in the folder</h3>
+        <p><code>hi q</code> on its own opens a prompt: ask, run what it proposes, and follow up. It remembers which commands ran and how they ended.</p>
+        <div class="snip"><span class="c">$ hi q</span>
+<span class="d">q›</span> <span class="c">how many md files are here?</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Your first question in a minute.</h2>
+    <p class="sub">With Claude Code installed, hi q needs no key. Otherwise it asks for one model provider once.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, if you haven't.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Choose the model</b>, and let it set up your shell, so questions need no quotes and <code>q</code> is a short name.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi q --setup</code><button class="copy" type="button" data-copy="hi q --setup">copy</button></div></div></li>
+      <li><div><p><b>Ask for something.</b> Enter runs it; Esc cancels.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi q show the five largest folders here</code><button class="copy" type="button" data-copy="hi q show the five largest folders here">copy</button></div></div></li>
+      <li><div><p><b>Have a command explained</b>, without running anything.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi q --explain 'tar -xzvf archive.tar.gz -C /tmp --strip-components=1'</code><button class="copy" type="button" data-copy="hi q --explain 'tar -xzvf archive.tar.gz -C /tmp --strip-components=1'">copy</button></div></div></li>
+      <li><div><p><b>See exactly what it sends</b> with each question.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi q --context</code><button class="copy" type="button" data-copy="hi q --context">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">A little context, read-only looks, and a judgement hi makes itself.</h2>
+    <p class="sub">The model proposes; hi decides how careful to be. Nothing runs until you press Enter.</p>
+    {% include diagram.html name="q" %}
+    <div class="prose">
+      <p><strong>With each question goes a short description of where you are:</strong> your system and shell, the folder's first 50 names and its git state, which useful tools are installed, and your last 20 commands. Values that look like keys, tokens, or passwords are removed first. File contents are never sent.</p>
+      <p><strong>The model can look before it proposes</strong>, with five read-only tools that hi runs itself: list a folder, read a file, read a command's help, check what's installed, and run a read-only command for 10 seconds at most. Anything else is refused, and the model has to propose it to you instead.</p>
+      <p><strong>hi parses every command it shows</strong>, pipes and <code>$(...)</code> included, and sorts it as read-only, changes files, or dangerous. The model's own label can make that stricter, never looser.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Risk, models, privacy, and the shell.</h2>
+    <p class="sub">What hi q checks, where your question goes, and how to use it from scripts.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>How hi judges a command</h3>
+        <table>
+          <thead><tr><th>Class</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>read-only</td><td><code>ls</code>, <code>du -sh *</code>, <code>git log</code>, <code>find</code> without <code>-delete</code></td></tr>
+            <tr><td>changes files</td><td><code>mv</code>, <code>mkdir</code>, <code>sed -i</code>, <code>git commit</code>, a <code>&gt;</code> redirect</td></tr>
+            <tr><td>dangerous</td><td><code>sudo</code>, <code>dd</code>, <code>curl … | sh</code>, <code>git push --force</code>, writes to <code>/etc</code>; Enter, then type <code>yes</code></td></tr>
+          </tbody>
+        </table>
+        <p>For <code>mv</code>, <code>cp</code>, <code>rm</code>, <code>ln</code>, <code>chmod</code>, and <code>chown</code>, every glob shows what it matches. A command hi can't parse counts as dangerous. These checks catch the usual mistakes; they don't make a command safe.</p>
+      </div>
+      <div class="detail">
+        <h3>The model</h3>
+        <p>hi q uses, in order: the model saved by <code>hi q --setup</code>, <code>HI_Q_BASE_URL</code> and <code>HI_Q_MODEL</code>, your team's hi server when it serves a model, an OpenAI, OpenRouter, or Anthropic key in the environment, and Claude Code.</p>
+        <p>Any OpenAI-compatible endpoint works: Ollama, vLLM, LM Studio, or a model you serve with <code>hi compute serve</code>. <code>hi q --status</code> shows which one is in use; <code>--provider</code> and <code>--model</code> change it for one question.</p>
+      </div>
+      <div class="detail">
+        <h3>Shell integration</h3>
+        <div class="snip"><span class="d"># hi q: fresh history, questions without quotes, and cd in this shell.</span>
+command -v hi >/dev/null 2>&amp;1 &amp;&amp; eval "$(hi shell-init bash)"</div>
+        <p><code>hi q --setup</code> offers these lines for <code>~/.bashrc</code> or <code>~/.zshrc</code>. They give hi q your current history and last exit status, questions that start with <code>q </code> without quoting, and <code>cd</code>, <code>export</code>, and <code>source</code> that change your own shell.</p>
+      </div>
+      <div class="detail">
+        <h3>Scripts and pipes</h3>
+        <div class="snip"><span class="c">$ hi q --print find large files over 1 GB in my home folder</span>
+<span class="c">$ hi q --yes how much space is left on this disk</span></div>
+        <p><code>--print</code> prints only the command. <code>--yes</code> runs read-only commands without asking; anything else still waits for Enter. Piped input keeps its start and end, up to 32 KB.</p>
+      </div>
+      <div class="detail">
+        <h3>Project notes</h3>
+        <div class="snip">- Check a change with `make check`; never run `make deploy`.
+- Logs are in `var/log/`, newest last.</div>
+        <p>A repository can tell hi q what the folder listing doesn't show, in <code>.hi5/q.md</code>. The repository writes it, so hi q asks once before using it, and again whenever it changes.</p>
+      </div>
+      <div class="detail">
+        <h3>What stays on your machine</h3>
+        <p><code>--no-context</code> sends only your question. <code>read</code> never opens credential files such as <code>.env</code>, <code>~/.ssh</code>, or <code>.netrc</code>.</p>
+        <p>Every command that runs is logged in <code>~/.local/state/hi/q/log.jsonl</code> with its folder, prompt, class, and exit status, never its output. Commands run as you, with your environment, not in a sandbox.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood</summary>
+      <div class="prose">
+        <p><strong>The context.</strong> hi q sends your system, shell, and whether the core tools are GNU or BSD; the current folder, its first 50 names, and the git branch and state; installed tools such as <code>rg</code>, <code>jq</code>, or <code>docker</code>; the last 20 commands and, with shell integration, the last exit status; inside tmux, the last 100 lines of the pane; and anything piped in. <code>hi q --context</code> prints it.</p>
+        <p><strong>The tools.</strong> <code>list</code> goes two levels deep at most. <code>read</code> returns up to 200 lines of a file in or below the current folder, and asks you first for files elsewhere. <code>run</code> takes only commands hi classes as read-only. A model that can't call tools is asked for its answer as JSON instead.</p>
+        <p><strong>When a command fails</strong>, hi q offers to ask for a fix: the model gets the exit status and the end of the error output, and proposes something else, up to three times.</p>
+        <p><strong>The conversation.</strong> <code>hi q -c</code> reopens the last one, kept in <code>~/.local/state/hi/q/last.json</code>. The key from <code>--setup</code> is in <code>~/.config/hi/q-key</code>, readable only by you.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/q/"><b>Ask for a command</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/compute/managed/#use-your-teams-model-with-hi-q"><b>Your team's model</b><span>hi q through the hi server, with no key on the laptop.</span></a>
+      <a href="/agent/"><b>hi agent</b><span>When the job is a task, not one command.</span></a>
+      <a href="/guide/reference/commands/#hi-q"><b>Every hi q option</b><span>The reference.</span></a>
+    </div>
+  </section>

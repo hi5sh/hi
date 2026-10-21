@@ -1,0 +1,155 @@
+---
+layout: feature
+permalink: /init/
+title: hi init
+tool: hi init
+demo: init
+guide: /guide/projects/
+headline: Start a repository agents work well in.
+lede: One command gives a new project a check agents can run, short rules for them, safe settings, and CI, from the first commit.
+description: hi init creates a repository from a template so coding agents get a check they can run, AGENTS.md, safe settings, the hi skill, and CI, and keeps it up to date as the templates improve.
+demo_caption: Real hi init and make check output, with … where lines are left out; only the folder is made up.
+fallback: |
+  $ hi init python pricing-tools
+  Template  python: base (hi v1.0.5), python (hi v1.0.5)
+  Target    /home/you/projects/pricing-tools (new directory)
+  Create it? [y/N] y
+  Created /home/you/projects/pricing-tools from the python template (21 files).
+  $ cd pricing-tools && make check
+  1 passed in 0.00s
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">A project an agent can check its own work in.</h2>
+    <p class="sub">Agents do their best work when one command tells them whether a change is right. Every template has that command, <code>make check</code>, and tells the agents to run it.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>A new library or script</h3>
+        <p>uv, ruff, pyrefly, and pytest, with the package in <code>src/</code>.</p>
+        <div class="snip"><span class="c">$ hi init python pricing-tools</span></div>
+      </div>
+      <div class="use">
+        <h3>A small app with its own data</h3>
+        <p>Bun alone: <code>Bun.serve</code>, React, SQLite, and one executable from <code>bun run build</code>. Or <code>web</code>, <code>service</code>, <code>pipeline</code>, and <code>ml</code>.</p>
+        <div class="snip"><span class="c">$ hi init app onboarding</span></div>
+      </div>
+      <div class="use">
+        <h3>A repository you already have</h3>
+        <p>Add the agent settings, CI, and the managed blocks without moving or rewriting any of its code.</p>
+        <div class="snip"><span class="c">$ cd legacy-tool &amp;&amp; hi init --adopt python --dry-run</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">A project and a passing check in a minute.</h2>
+    <p class="sub">The Python templates need uv, <code>web</code> needs Bun and Node.js, and <code>app</code> needs only Bun; <code>hi install</code> sets up all three.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, if you haven't.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Create a project.</b> hi shows every file and command, and asks before it writes anything.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi init python pricing-tools</code><button class="copy" type="button" data-copy="hi init python pricing-tools">copy</button></div></div></li>
+      <li><div><p><b>Run the check</b> agents will run: the lockfile, formatting, lint, types, and tests.</p>
+        <div class="cmdline"><span class="ps">$</span><code>cd pricing-tools &amp;&amp; make check</code><button class="copy" type="button" data-copy="cd pricing-tools &amp;&amp; make check">copy</button></div></div></li>
+      <li><div><p><b>Hand it to an agent.</b> It reads <code>AGENTS.md</code> and runs <code>make check</code> before it says it's done.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent "add a total() function with a discount, with tests"</code><button class="copy" type="button" data-copy="hi agent &quot;add a total() function with a discount, with tests&quot;">copy</button></div></div></li>
+      <li><div><p><b>Later, catch up</b> with the templates. Add <code>--dry-run</code> to only see what would change.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi init --update</code><button class="copy" type="button" data-copy="hi init --update">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">Layers in, a plan out, and a record of every file.</h2>
+    <p class="sub">A template is a chain of layers: a base every project shares, then the stack. hi composes them, shows the plan, and writes only after you say yes.</p>
+    {% include diagram.html name="init" %}
+    <div class="prose">
+      <p><strong>Every template gives you</strong> <code>make check</code>; <code>AGENTS.md</code> with a short block of rules, read by Claude Code through <code>CLAUDE.md</code> and by Codex directly; settings that keep Claude Code out of <code>.env</code> and <code>secrets/</code>; the <code>hi</code> skill, so agents know how to rent a GPU; and CI that runs <code>make check</code> on every push.</p>
+      <p><strong>It never overwrites your work.</strong> In a folder that already has files, a file with other content stops hi before it writes anything. Running it again when everything matches does nothing.</p>
+      <p><strong>It remembers what it wrote</strong> in <code>.hi5/template.json</code>: the template, the version of each layer, and a hash of every file. That's how <code>--update</code> knows what it may replace.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Templates, updates, CI, and your team's own.</h2>
+    <p class="sub">What each template adds, and how a project keeps up as they improve.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>The built-in templates</h3>
+        <table>
+          <thead><tr><th>Template</th><th>For</th></tr></thead>
+          <tbody>
+            <tr><td><code>python</code></td><td>Libraries and scripts: uv, ruff, pyrefly, pytest</td></tr>
+            <tr><td><code>web</code></td><td>Web apps and dashboards: React, TypeScript, Vite, Bun, Biome</td></tr>
+            <tr><td><code>app</code></td><td>Small apps with their own data: Bun, React, SQLite</td></tr>
+            <tr><td><code>service</code></td><td>APIs: FastAPI, SQLAlchemy, Alembic, health endpoints</td></tr>
+            <tr><td><code>pipeline</code></td><td>Ingestion: one idempotent <code>run --date</code>, raw files landed first</td></tr>
+            <tr><td><code>ml</code></td><td>Training: PyTorch for CPU, CUDA, or ROCm, a two-step test</td></tr>
+            <tr><td><code>autoresearch-ml</code></td><td>Agents improving training overnight with <code>hi agent best-of</code></td></tr>
+          </tbody>
+        </table>
+        <p>Each adds its own checks to <code>make check</code>: <code>service</code> that the health endpoints answer, <code>pipeline</code> that a rerun loads nothing new, <code>ml</code> that it trains for two steps.</p>
+      </div>
+      <div class="detail">
+        <h3>Keeping up: three kinds of file</h3>
+        <table>
+          <thead><tr><th>Kind</th><th>On update</th></tr></thead>
+          <tbody>
+            <tr><td>Owned: <code>CLAUDE.md</code>, CI, skills</td><td>Replaced, unless someone edited it</td></tr>
+            <tr><td>Managed: <code>AGENTS.md</code>, <code>Makefile</code></td><td>Only the block between <code>hi:begin</code> and <code>hi:end</code></td></tr>
+            <tr><td>Seeded: source, tests, <code>README.md</code></td><td>Never touched</td></tr>
+          </tbody>
+        </table>
+        <p>A file edited by hand is a conflict: hi leaves it alone and says so, or <code>--force</code> overwrites it. When the template changed a seeded file, hi writes the diff to <code>docs/upgrades/&lt;version&gt;.md</code> for an agent to apply.</p>
+      </div>
+      <div class="detail">
+        <h3>Check it in CI</h3>
+        <div class="snip">- run: curl -fsSL https://hi5.sh/install.sh | sh
+- run: ~/.local/bin/hi init --update --check</div>
+        <p><code>--check</code> changes nothing and fails when the project is behind the templates or has conflicts. CI can't reach your team's hi server, so it checks the built-in layers and says which private ones it skipped.</p>
+      </div>
+      <div class="detail">
+        <h3>Your team's templates</h3>
+        <p>On a device connected to your team's hi server, <code>hi init</code> also offers the templates from your team's private repository, marked <code>(private repo)</code>. hi checks they are signed by the server and keeps a copy, so they work when the server can't be reached.</p>
+        <p>The built-in templates are part of <code>hi</code>, so <code>hi update</code> is how you get their newest versions.</p>
+      </div>
+      <div class="detail">
+        <h3>Options</h3>
+        <table>
+          <tbody>
+            <tr><td><code>--dry-run</code></td><td>Print the plan and stop</td></tr>
+            <tr><td><code>--yes</code></td><td>Don't ask, for agents and scripts</td></tr>
+            <tr><td><code>--no-setup</code></td><td>Write the files, run no <code>uv sync</code> or <code>bun install</code></td></tr>
+            <tr><td><code>--github &lt;owner/repo&gt;</code></td><td>Also create a private GitHub repository and push</td></tr>
+            <tr><td><code>--name &lt;name&gt;</code></td><td>The project's name; by default the folder's</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail">
+        <h3>Adopt an existing repository</h3>
+        <p><code>hi init --adopt python</code> adds the files hi owns and puts the managed blocks at the top of <code>AGENTS.md</code>, <code>.gitignore</code>, and <code>Makefile</code>, keeping what was there. It never adds starting files such as <code>pyproject.toml</code>; it lists the missing ones, so you know why <code>make check</code> may not pass yet.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood</summary>
+      <div class="prose">
+        <p><strong><code>.hi5/template.json</code></strong> records the template, the hi version or private commit of each layer, and a hash of every file it wrote with its kind and source. It holds no paths, user names, or secrets. Commit it: <code>--update</code> and <code>--check</code> depend on it.</p>
+        <p><strong>Owned files the template no longer has</strong> are deleted on update, if nobody edited them. When an admin renames a private template source, <code>--update</code> finds the renamed one with the same layers and records its new name.</p>
+        <p><strong>In <code>ml</code></strong>, <code>make</code> picks the PyTorch build for the machine: <code>rocm</code> on a Strix Halo, <code>cuda</code> with an NVIDIA GPU, <code>cpu</code> otherwise. <code>make help</code> shows which, and <code>TORCH = cpu</code> in <code>local.mk</code> overrides it.</p>
+        <p><strong>In a private template repository</strong>, each template is a folder with its <code>layer.json</code> in <code>project_templates/</code>, beside <code>skills/</code>, <code>bundles/</code>, and <code>docs/</code>.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/projects/"><b>Start a project</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/autoresearch/templates/"><b>Autoresearch templates</b><span>Projects shaped for rounds that keep only gains.</span></a>
+      <a href="/agent/"><b>hi agent</b><span>Hand the new project its first task.</span></a>
+      <a href="/guide/reference/commands/#hi-init"><b>Every hi init option</b><span>The reference.</span></a>
+    </div>
+  </section>

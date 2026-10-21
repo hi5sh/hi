@@ -12,3 +12,9 @@
 - url: /compute/
   name: hi compute
   line: GPUs on Colab, Hugging Face, RunPod, Shadeform
+- url: /q/
+  name: hi q
+  line: A shell command from plain words
+- url: /init/
+  name: hi init
+  line: Start a project agents work well in

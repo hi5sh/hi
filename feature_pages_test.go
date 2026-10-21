@@ -21,7 +21,13 @@ var featurePageUsage = map[string]func(io.Writer){
 	"agent":   printAgentUsage,
 	"team":    printTeamUsage,
 	"compute": printComputeUsage,
+	"q":       printQUsage,
+	"init":    printInitUsage,
 }
+
+// featureFreeWords are the tools whose words after the name are free text,
+// such as hi q's question, not a subcommand.
+var featureFreeWords = map[string]bool{"q": true}
 
 var (
 	demoCommand = regexp.MustCompile(`\{ cmd: "((?:[^"\\]|\\.)*)"`)
@@ -83,7 +89,7 @@ func TestFeatureDemosUseRealCommands(t *testing.T) {
 			var buf bytes.Buffer
 			featurePageUsage[tool](&buf)
 			help := buf.String()
-			if len(words) > 2 && !strings.HasPrefix(words[2], "-") && !strings.HasPrefix(words[2], `\"`) {
+			if len(words) > 2 && !featureFreeWords[tool] && !strings.HasPrefix(words[2], "-") && !strings.HasPrefix(words[2], `\"`) {
 				sub := words[2]
 				if !regexp.MustCompile(`hi ` + tool + ` \[?(\S+\|)*` + regexp.QuoteMeta(sub) + `[\s|\]]`).MatchString(help) {
 					t.Errorf("%s demo: %q uses %q, which hi %s's usage doesn't list", name, m[1], sub, tool)

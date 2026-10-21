@@ -1,0 +1,71 @@
+// The demo at the top of hi5.sh/init/, played by assets/story.js. Every line
+// hi init and make check printed is from a real run, with "…" where lines are
+// left out; only the folder (/home/you/projects) is made up.
+// docs/feature-pages.md says how to edit it.
+window.HI5_STORY = {
+  size: { w: 580, h: 440 },
+  narrow: { w: 400, h: 600 },
+  pace: { short: 1 },
+  people: {},
+  scenes: [
+    {
+      id: "plan", title: "See the plan first", caption: "Every file and command, before you say yes.",
+      short: 12000, screen: "terminal", window: "you@laptop: ~/projects",
+      lines: [
+        { cmd: "hi init python pricing-tools", at: 300 },
+        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 1400 },
+        { out: "Target    /home/you/projects/pricing-tools (new directory)", at: 1600 },
+        { out: "Files", at: 2000 },
+        { out: "  write    .claude/settings.json", at: 2200 },
+        { out: "  write    AGENTS.md", at: 2400 },
+        { out: "  write    Makefile", at: 2600 },
+        { out: "  …", at: 2800 },
+        { out: "Commands", at: 3200 },
+        { out: "  git init -q", at: 3350 },
+        { out: "  uv sync", at: 3500 },
+        { out: "Create it? [y/N] y", at: 5000 },
+        { out: "$ git init -q", at: 5600 },
+        { out: "$ uv sync", at: 5900 },
+        { out: "…", at: 6300 },
+        { out: "Installed 8 packages in 62ms", at: 6600 },
+        { ok: "Created /home/you/projects/pricing-tools from the python template (21 files).", at: 7600 },
+      ],
+    },
+    {
+      id: "check", title: "One check for agents", caption: "make check runs it all.",
+      short: 11000, screen: "terminal", window: "you@laptop: ~/projects",
+      lines: [
+        { cmd: "cd pricing-tools && make check", at: 300 },
+        { out: "uv lock --check", at: 1400 },
+        { out: "Resolved 9 packages in 0.80ms", at: 1700 },
+        { out: "uv run --frozen ruff format --check", at: 2400 },
+        { out: "9 files already formatted", at: 2800 },
+        { out: "uv run --frozen ruff check", at: 3500 },
+        { out: "All checks passed!", at: 3900 },
+        { out: "uv run --frozen pyrefly check", at: 4600 },
+        { out: " INFO Checking project configured at `/home/you/projects/pricing-tools/pyproject.toml`", at: 5000 },
+        { out: " INFO 0 errors", at: 5400 },
+        { out: "uv run --frozen pytest -q", at: 6100 },
+        { out: ".                                                    [100%]", at: 6700 },
+        { ok: "1 passed in 0.00s", at: 6900 },
+      ],
+    },
+    {
+      id: "update", title: "Keep up with the template", caption: "Hand edits are left alone.",
+      short: 11000, screen: "terminal", window: "you@laptop: ~/projects/pricing-tools",
+      lines: [
+        { cmd: "hi init --update --dry-run", at: 300 },
+        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 1300 },
+        { out: "Target    /home/you/projects/pricing-tools", at: 1400 },
+        { ok: "Nothing to update; the repository matches the templates.", at: 1700 },
+        { cmd: "echo '# my note' >> CLAUDE.md", at: 3400 },
+        { cmd: "hi init --update --check", at: 4800 },
+        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 5800 },
+        { out: "Target    /home/you/projects/pricing-tools", at: 5900 },
+        { out: "Files", at: 6100 },
+        { warn: "  CONFLICT CLAUDE.md (edited by hand)", at: 6200 },
+        { err: "hi: the repository is behind the templates or has conflicts (1 files); run `hi init --update`", at: 6500 },
+      ],
+    },
+  ],
+};
