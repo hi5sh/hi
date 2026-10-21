@@ -527,13 +527,15 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 			delete(b.exposures, args[3])
 			return nil, nil
 		case args[0] == "net":
-			prefix, domain := "", ""
+			prefix, domain, key := "", "", "k"
 			for i, arg := range args {
 				switch arg {
 				case "--name":
 					prefix = args[i+1]
 				case "--domain":
 					domain = args[i+1]
+				case "--key":
+					key = args[i+1]
 				}
 			}
 			name := fmt.Sprintf("%s-x%d", prefix, len(b.calls))
@@ -544,7 +546,7 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 				}
 				host = domain
 			}
-			state := netExposeState{Name: name, URL: "https://" + host, Link: "https://" + host + "/?hi_key=k", Expires: time.Now().Add(b.lasts)}
+			state := netExposeState{Name: name, URL: "https://" + host, Link: "https://" + host + "/?hi_key=" + key, Expires: time.Now().Add(b.lasts)}
 			b.exposures[name] = state
 			return json.Marshal(state)
 		case args[0] == "agent" && args[1] != "wait":
@@ -1067,10 +1069,12 @@ func TestTeamPreview(t *testing.T) {
 		t.Fatalf("%+v %q", third, exposed())
 	}
 
-	// A preview whose address is gone is stopped.
+	// A preview whose address has had its day is stopped.
 	b.mu.Lock()
 	delete(b.exposures, third.Expose)
 	b.mu.Unlock()
+	third.Expires = time.Now()
+	saveTeamSlot("payments", third)
 	done := make(chan struct{})
 	close(done)
 	b.keepLinks(done, io.Discard)
@@ -1082,6 +1086,60 @@ func TestTeamPreview(t *testing.T) {
 	}
 	if _, err := b.preview(teamPreviewRequest{Stop: true}); err != nil || fileExists(teamPreviewPath("payments")) {
 		t.Fatal(err)
+	}
+}
+
+// TestTeamPreviewLostAddress: a preview's address stopped from outside hi
+// team, such as by hi net expose stop --all, goes back on an address, and
+// the people hear of the new link where hi told them of that version.
+func TestTeamPreviewLostAddress(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "make run").Run()
+	teamTestMerge(t, b, "Suppliers")
+	dm := &teamReleaseDM{User: "U07ANNA", Channel: "D07ANNA", Thread: "1700000100.000001"}
+	first, err := b.preview(teamPreviewRequest{DM: dm})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.preview(teamPreviewRequest{Channel: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	b.mu.Lock()
+	delete(b.exposures, first.Expose)
+	b.mu.Unlock()
+	first.URL = strings.Replace(first.URL, "hi_key=k", "hi_key=the-key-people-have", 1)
+	saveTeamSlot("payments", first)
+	before := len(channel.calls)
+	done := make(chan struct{})
+	close(done)
+	b.keepLinks(done, io.Discard)
+	second, ok := loadTeamSlot("payments", teamSlotPreview)
+	if !ok || second.URL == first.URL || second.Commit != first.Commit || second.Label != first.Label || second.Container == first.Container {
+		t.Fatalf("%+v", second)
+	}
+	if _, exposed := b.exposed(second.Expose); !exposed {
+		t.Fatal("the preview isn't on an address")
+	}
+	// The same key, so a name that stays keeps the people's links.
+	if teamLinkKey(second.URL) != "the-key-people-have" {
+		t.Fatal(second.URL, first.URL)
+	}
+	told := channel.calls[before:]
+	line := "The DEV link stopped working before its time, so " + first.Label + " is on a new link :link: -> App: <" + second.URL + "|link>"
+	if len(told) != 2 || !strings.HasPrefix(told[0], "postIn D07ANNA 1700000100.000001 "+line) || !strings.HasPrefix(told[1], "post C07PAYMENTS "+line) {
+		t.Fatalf("%q", told)
+	}
+
+	// Once is enough: the preview is on its address again.
+	b.keepLinks(done, io.Discard)
+	if len(channel.calls) != before+2 {
+		t.Fatalf("%q", channel.calls[before:])
 	}
 }
 

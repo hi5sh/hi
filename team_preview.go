@@ -521,7 +521,9 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 			name += "-live"
 		}
 		key := ""
-		if outdated {
+		if outdated || had && !exposed && teamAddressLost(current) {
+			// The same key on a name that stays: the links people have
+			// keep working.
 			key = teamLinkKey(current.URL)
 		}
 		exposure, err := b.expose(hostPort, portFile, name, next.Slot, wanted, key)
@@ -698,15 +700,25 @@ func (b *teamBroker) postProductionLink(state *teamPreview) string {
 }
 
 // keepLinks keeps production on its address, and gives it a new one
-// before the old ends; a preview whose address has ended is stopped.
+// before the old ends. A preview whose address has had its day is
+// stopped; one whose address ended early, stopped from outside hi team,
+// goes back on an address, and the people hear of its new link.
 func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 	var failed, previewFailed time.Time
 	for {
 		if preview, ok := loadTeamSlot(b.team, teamSlotPreview); ok {
 			if _, exposed := b.exposed(preview.Expose); !exposed {
-				b.previewMu.Lock()
-				b.stopSlot(teamSlotPreview)
-				b.previewMu.Unlock()
+				switch {
+				case !teamAddressLost(preview):
+					b.previewMu.Lock()
+					b.stopSlot(teamSlotPreview)
+					b.previewMu.Unlock()
+				case time.Since(previewFailed) > 30*time.Minute:
+					if err := b.restorePreview(preview); err != nil {
+						fmt.Fprintf(stderr, "hi: the preview on a new address: %v\n", err)
+						previewFailed = time.Now()
+					}
+				}
 			} else if (preview.Settings != teamSettingsStamp(b.team) || teamRelayOutdated(preview, teamSlotDomain(b.team, teamSlotPreview), teamRelayStamp(b.team, teamSlotPreview))) &&
 				time.Since(previewFailed) > 30*time.Minute {
 				// A new hi, or new settings: the same version in a new box,
@@ -746,6 +758,57 @@ func (b *teamBroker) refreshPreview(current teamPreview) (teamPreview, error) {
 	}
 	next := teamPreview{Slot: teamSlotPreview, Source: current.Source, Label: current.Label, Port: current.Port}
 	return b.show(next, current.Commit, teamLinkRenew)
+}
+
+// teamAddressLost says a slot's address ended before its time: its
+// exposure was stopped from outside, such as by hi net expose stop --all.
+// The exposure's own end is at Expires, give or take a moment.
+func teamAddressLost(state teamPreview) bool {
+	return state.Expose != "" && time.Until(state.Expires) > time.Minute
+}
+
+// restorePreview puts the preview, whose address ended early, on a new
+// one, and gives its new link where hi told of that version.
+func (b *teamBroker) restorePreview(lost teamPreview) error {
+	state, err := b.refreshPreview(lost)
+	if err != nil || state.Container == lost.Container || state.URL == lost.URL {
+		return err
+	}
+	b.tellNewPreviewLink(lost, state)
+	return nil
+}
+
+// tellNewPreviewLink says where hi told of the preview's version, in the
+// thread or DM and in the channel, that it is on a new link: the one the
+// people have shows NetBird's error page. hi tells only of dev; an idea's
+// link is the lead's to give again.
+func (b *teamBroker) tellNewPreviewLink(lost, state teamPreview) {
+	if b.channel == nil {
+		return
+	}
+	docs := ""
+	if state.Relay == teamRelayStamp(b.team, teamSlotPreview) {
+		docs = teamDocsLink(state.URL)
+	}
+	text := fmt.Sprintf("The DEV link stopped working before its time, so %s is on a new link :link:", firstNonEmpty(state.Label, "dev")) + teamSlotLinks(state.URL, docs)
+	if data, err := os.ReadFile(teamDevToldPath(b.team)); err == nil {
+		fields := strings.Fields(string(data))
+		if len(fields) >= 2 && fields[0] == lost.Commit {
+			switch {
+			case len(fields) >= 3:
+				b.channel.postIn(fields[1], fields[2], text)
+			case strings.HasPrefix(fields[1], "U") || strings.HasPrefix(fields[1], "W"):
+				b.channel.dm(fields[1], text)
+			default:
+				b.channel.post(fields[1], text)
+			}
+		}
+	}
+	if data, err := os.ReadFile(teamDevAnnouncedPath(b.team)); err == nil && strings.TrimSpace(string(data)) == lost.Commit {
+		if config, err := loadTeam(b.team); err == nil {
+			b.channel.post(config.Channel, text)
+		}
+	}
 }
 
 // productionNeedsWork says production is released but its address is
