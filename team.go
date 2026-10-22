@@ -462,7 +462,9 @@ usage:
   hi team domain <name> on|off     the team's app at <name>.<domain>, its preview at
                                    <name>-preview.<domain>; off by default
   hi team allow-ip <name>          the only addresses the app's preview and production let in
-      [<ip,cidr> | off]            (NetBird's Access Control; needs hi team domain's token)
+      [<ip,cidr> | off]            (NetBird's Access Control; needs hi team domain's token);
+                                   hi puts back exactly this list every minute, so add an
+                                   address here, not in NetBird's dashboard
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there
