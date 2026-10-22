@@ -1,0 +1,568 @@
+package main
+
+// hi watch, on the team's machine: __serve sends its hi server a heartbeat
+// every minute, signed with this machine's device key (hi connect), with
+// each part's state, the disk, OOM kills, the last snapshot, what model
+// calls cost through hi and what OpenRouter counts on the key, and the
+// network log from where the server has it. The server watches from
+// outside (server_watch.go); what the lead can act on comes back in its
+// answer and opens an incident here.
+//
+// Spec: docs/specs/approved/hi_watch.md (release 1).
+
+import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+)
+
+const (
+	teamWatchEvery = time.Minute
+	// teamWatchCatchUp is how soon the next heartbeat goes while more of
+	// the network log waits than one carries.
+	teamWatchCatchUp = 5 * time.Second
+	teamWatchWindow  = time.Hour
+)
+
+func teamWatchStatePath(team string) string { return filepath.Join(teamDir(team), "run", "watch.json") }
+func teamSpendLogPath(team string) string   { return filepath.Join(teamDir(team), "run", "spend.log") }
+func teamServeStartsPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "serve-starts.log")
+}
+func teamNetworkLogPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "proxy", "network.log")
+}
+
+// teamWatchState is run/watch.json.
+type teamWatchState struct {
+	Server  string    `json:"server,omitempty"`
+	Sent    time.Time `json:"sent,omitzero"`
+	Error   string    `json:"error,omitempty"`
+	ErrorAt time.Time `json:"error_at,omitzero"`
+	Kept    int64     `json:"network_kept"`
+	// Told maps the server's incidents to the ones opened here.
+	Told map[string]string `json:"told,omitempty"`
+	// KeyUsage is what OpenRouter counted on the key, sampled each
+	// heartbeat, for the last two hours.
+	KeyUsage []watchSample `json:"key_usage,omitempty"`
+	// OOM is each box's oom_kill count when last read, and Kills the kills
+	// of the last day.
+	OOM   map[string]int `json:"oom,omitempty"`
+	Kills []time.Time    `json:"kills,omitempty"`
+}
+
+var teamWatchStateMu sync.Mutex
+
+func loadTeamWatchState(team string) teamWatchState {
+	var state teamWatchState
+	if data, err := os.ReadFile(teamWatchStatePath(team)); err == nil {
+		json.Unmarshal(data, &state)
+	}
+	return state
+}
+
+func saveTeamWatchState(team string, state teamWatchState) error {
+	data, _ := json.MarshalIndent(state, "", "  ")
+	return writeFileAtomic(teamWatchStatePath(team), append(data, '\n'), 0o600)
+}
+
+var teamSpendMu sync.Mutex
+
+// teamRecordSpend notes what one model call through the app's proxy cost.
+func teamRecordSpend(team, slot string, cost float64) {
+	if cost <= 0 {
+		return
+	}
+	teamSpendMu.Lock()
+	defer teamSpendMu.Unlock()
+	file, err := os.OpenFile(teamSpendLogPath(team), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	fmt.Fprintf(file, "%s %s %s\n", time.Now().UTC().Format(time.RFC3339), slot, strconv.FormatFloat(cost, 'f', -1, 64))
+}
+
+// teamNoteServeStart notes a start of __serve, for how often systemd
+// starts it again.
+func teamNoteServeStart(team string) {
+	path := teamServeStartsPath(team)
+	var kept []string
+	for _, line := range boxReadLines(path, 200) {
+		if at, err := time.Parse(time.RFC3339, line); err == nil && time.Since(at) < 7*24*time.Hour {
+			kept = append(kept, line)
+		}
+	}
+	kept = append(kept, time.Now().UTC().Format(time.RFC3339))
+	writeFileAtomic(path, []byte(strings.Join(kept, "\n")+"\n"), 0o600)
+}
+
+// teamSpendSince adds up what model calls cost through hi since from: the
+// app's proxy (run/spend.log) and the lead's (spend lines in the network
+// log, which Hindsight's calls go through too).
+func teamSpendSince(team string, from time.Time) float64 {
+	total := 0.0
+	// marker is the second field a line must have: the network log has
+	// every decision, and its spend lines say "spend".
+	add := func(path, marker string) {
+		file, err := os.Open(path)
+		if err != nil {
+			return
+		}
+		defer file.Close()
+		// The network log only grows; its last few megabytes cover an hour.
+		if info, err := file.Stat(); err == nil && info.Size() > 8<<20 {
+			file.Seek(info.Size()-8<<20, io.SeekStart)
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 64<<10), 1<<20)
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+			if len(fields) < 3 || marker != "" && fields[1] != marker {
+				continue
+			}
+			at, err := time.Parse(time.RFC3339, fields[0])
+			if err != nil || at.Before(from) {
+				continue
+			}
+			if cost, err := strconv.ParseFloat(fields[2], 64); err == nil && cost > 0 {
+				total += cost
+			}
+		}
+	}
+	add(teamSpendLogPath(team), "")
+	add(teamNetworkLogPath(team), "spend")
+	return total
+}
+
+// teamReadNetwork reads the network log's whole lines from offset from, at
+// most max of them, and where they end. A log shorter than from was
+// rotated, and starts again from 0.
+func teamReadNetwork(path string, from int64, max int) (apiWatchNetwork, bool) {
+	network := apiWatchNetwork{From: from, To: from, Lines: []string{}}
+	file, err := os.Open(path)
+	if err != nil {
+		return network, false
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return network, false
+	}
+	if info.Size() < from {
+		network.From, network.To, network.Rotated, from = 0, 0, true, 0
+	}
+	if _, err := file.Seek(from, io.SeekStart); err != nil {
+		return network, false
+	}
+	reader := bufio.NewReaderSize(file, 64<<10)
+	for len(network.Lines) < max {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break // a line not finished yet waits for the next heartbeat
+		}
+		network.To += int64(len(line))
+		network.Lines = append(network.Lines, strings.TrimSuffix(line, "\n"))
+	}
+	more := network.To < info.Size()
+	return network, more
+}
+
+// ---------------------------------------------------------------------------
+// what the heartbeat says
+
+// teamWatchProbe reads the machine; tests replace it.
+type teamWatchProbe struct {
+	state    func(container string) string // "running", "exited", or "" when there is none
+	statfs   func(path string) (used, inodes float64, err error)
+	graph    func() string
+	oom      func(team string) map[string]int
+	keyUsage func(team string) (float64, bool)
+}
+
+var teamWatchMachine = teamWatchProbe{
+	state: func(container string) string {
+		out, err := (&teamBroker{}).engineOutput("inspect", "-f", "{{.State.Status}}", container)
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(out)
+	},
+	statfs: teamStatfs,
+	graph: func() string {
+		out, _ := (&teamBroker{}).engineOutput("info", "--format", "{{.Store.GraphRoot}}")
+		return strings.TrimSpace(out)
+	},
+	oom:      teamOOMCounts,
+	keyUsage: teamKeyUsage,
+}
+
+func teamStatfs(path string) (float64, float64, error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return 0, 0, err
+	}
+	used, inodes := 0.0, 0.0
+	if stat.Blocks > 0 {
+		used = 1 - float64(stat.Bavail)/float64(stat.Blocks)
+	}
+	if stat.Files > 0 {
+		inodes = 1 - float64(stat.Ffree)/float64(stat.Files)
+	}
+	return used, inodes, nil
+}
+
+// teamOOMCounts is each of the team's running boxes' oom_kill count, from
+// its cgroup's memory.events.
+func teamOOMCounts(team string) map[string]int {
+	counts := map[string]int{}
+	b := &teamBroker{}
+	out, err := b.engineOutput("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-team-"+team)
+	if err != nil {
+		return counts
+	}
+	for _, name := range strings.Fields(out) {
+		path, err := b.engineOutput("inspect", "-f", "{{.State.CgroupPath}}", name)
+		if err != nil || strings.TrimSpace(path) == "" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/sys/fs/cgroup", strings.TrimSpace(path), "memory.events"))
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			if value, ok := strings.CutPrefix(line, "oom_kill "); ok {
+				counts[name], _ = strconv.Atoi(value)
+			}
+		}
+	}
+	return counts
+}
+
+// teamKeyUsage is what OpenRouter has counted on the team's own key, in
+// dollars, all time. A team on this machine's key shares it with whatever
+// else uses that key, so it has none of its own to compare.
+func teamKeyUsage(team string) (float64, bool) {
+	secrets, err := loadTeamSecrets(team)
+	if err != nil || secrets.OpenRouterAPIKey == "" {
+		return 0, false
+	}
+	request, _ := http.NewRequest("GET", teamOpenRouterUpstream+"/api/v1/key", nil)
+	request.Header.Set("Authorization", "Bearer "+secrets.OpenRouterAPIKey)
+	response, err := (&http.Client{Timeout: 20 * time.Second}).Do(request)
+	if err != nil {
+		return 0, false
+	}
+	defer response.Body.Close()
+	var answer struct {
+		Data struct {
+			Usage *float64 `json:"usage"`
+		} `json:"data"`
+	}
+	if response.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&answer) != nil || answer.Data.Usage == nil {
+		return 0, false
+	}
+	return *answer.Data.Usage, true
+}
+
+// heartbeat is what the team says now. It updates the watch state's
+// samples (key usage, OOM kills), which the caller saves.
+func (b *teamBroker) heartbeat(state *teamWatchState, probe teamWatchProbe, now time.Time) apiHeartbeat {
+	beat := apiHeartbeat{Team: b.team, At: now.UTC(), Hi: version, Parts: map[string]apiWatchPart{}}
+	if versions, err := loadTeamVersions(b.team); err == nil && versions.Production > 0 {
+		beat.Production = fmt.Sprintf("v%d", versions.Production)
+	}
+	part := func(container string) apiWatchPart {
+		switch probe.state(container) {
+		case "running":
+			return apiWatchPart{State: "up"}
+		case "":
+			return apiWatchPart{State: "down", Detail: "no box"}
+		default:
+			return apiWatchPart{State: "down", Detail: "its box isn't running"}
+		}
+	}
+	beat.Parts["broker"] = apiWatchPart{State: "up"}
+	beat.Parts["lead"] = part("hi-box-team-" + b.team)
+	beat.Parts["proxy"] = part("hi-box-team-" + b.team + "-proxy")
+	beat.Parts["gateway"] = teamGatewayPart(b.team, now)
+	if memory := probe.state(teamMemoryContainer(b.team)); memory == "" {
+		beat.Parts["memory"] = apiWatchPart{State: "off"}
+	} else {
+		beat.Parts["memory"] = part(teamMemoryContainer(b.team))
+	}
+	if slot, ok := loadTeamSlot(b.team, teamSlotProduction); ok {
+		production := part(slot.Container)
+		if production.State == "up" {
+			jobs := loadTeamJobsState(b.team)
+			if !jobs.Silent.IsZero() && now.Sub(jobs.Silent) >= teamAppSilentAfter {
+				production = apiWatchPart{State: "down", Detail: "its box runs but hasn't answered since " + jobs.Silent.UTC().Format("15:04 UTC")}
+			}
+		}
+		for _, incident := range loadTeamIncidents(b.team) {
+			if incident.Kind == "app" && strings.HasPrefix(incident.Title, "Production's app stopped") {
+				if now.Sub(incident.Opened) < time.Hour {
+					production.Restarts1h++
+				}
+				if now.Sub(incident.Opened) < 24*time.Hour {
+					production.Restarts24h++
+				}
+			}
+		}
+		beat.Parts["production"] = production
+	}
+	for _, line := range boxReadLines(teamServeStartsPath(b.team), 200) {
+		if at, err := time.Parse(time.RFC3339, line); err == nil && now.Sub(at) < 24*time.Hour {
+			beat.Restarts++
+		}
+	}
+	beat.Restarts = max(beat.Restarts-1, 0) // the start that runs now isn't a restart
+	if used, inodes, err := probe.statfs(teamDir(b.team)); err == nil {
+		beat.Disk.Team, beat.Disk.Inodes = used, inodes
+	}
+	if graph := probe.graph(); graph != "" {
+		if used, _, err := probe.statfs(graph); err == nil {
+			beat.Disk.Containers = used
+		}
+	}
+	// OOM kills: what each box's count went up by since the last look.
+	counts := probe.oom(b.team)
+	if state.OOM == nil {
+		state.OOM = map[string]int{}
+	}
+	for name, count := range counts {
+		if seen, ok := state.OOM[name]; ok && count > seen {
+			for range count - seen {
+				state.Kills = append(state.Kills, now.UTC())
+			}
+		}
+	}
+	state.OOM = map[string]int{}
+	for name, count := range counts {
+		state.OOM[name] = count
+	}
+	var kills []time.Time
+	for _, at := range state.Kills {
+		if now.Sub(at) < 24*time.Hour {
+			kills = append(kills, at)
+		}
+	}
+	state.Kills, beat.OOMKills = kills, len(kills)
+	snapshots := loadTeamSnapshotStatus(b.team)
+	if snapshots.Last != nil {
+		beat.Snapshot.Last = snapshots.Last.Time
+	}
+	if config, err := loadTeam(b.team); err == nil && config.Backups != nil && config.Backups.Offsite != "" {
+		beat.Snapshot.OffsiteSet, beat.Snapshot.Offsite = true, snapshots.Copied
+	}
+	for _, incident := range loadTeamIncidents(b.team) {
+		if incident.Status != "closed" {
+			beat.Incidents++
+		}
+	}
+	// Spend through hi, and on the key, over the same window: up to an
+	// hour, from the oldest sample of the key's usage within it.
+	from := now.Add(-teamWatchWindow)
+	if usage, ok := probe.keyUsage(b.team); ok {
+		state.KeyUsage = append(state.KeyUsage, watchSample{At: now.UTC(), Value: usage})
+		var kept []watchSample
+		for _, sample := range state.KeyUsage {
+			if now.Sub(sample.At) <= 2*teamWatchWindow {
+				kept = append(kept, sample)
+			}
+		}
+		state.KeyUsage = kept
+		first := kept[len(kept)-1]
+		for _, sample := range kept {
+			if now.Sub(sample.At) <= teamWatchWindow {
+				first = sample
+				break
+			}
+		}
+		if first.At.Before(now) {
+			from = first.At
+			spent := usage - first.Value
+			beat.KeyUsage = &spent
+		}
+	} else {
+		state.KeyUsage = nil
+	}
+	beat.Spend = teamSpendSince(b.team, from)
+	beat.Window = int(now.Sub(from).Round(time.Minute) / time.Minute)
+	return beat
+}
+
+// teamGatewayPart is the lead's gateway, from the state Hermes writes every
+// few seconds: running, connected to Slack, and recent.
+func teamGatewayPart(team string, now time.Time) apiWatchPart {
+	var state struct {
+		Gateway   string    `json:"gateway_state"`
+		Updated   time.Time `json:"updated_at"`
+		Platforms map[string]struct {
+			State   string    `json:"state"`
+			Error   string    `json:"error_message"`
+			Updated time.Time `json:"updated_at"`
+		} `json:"platforms"`
+	}
+	data, err := os.ReadFile(filepath.Join(teamDir(team), "lead", "gateway_state.json"))
+	if err != nil || json.Unmarshal(data, &state) != nil {
+		return apiWatchPart{State: "down", Detail: "no gateway state"}
+	}
+	part := apiWatchPart{State: "up", LastEvent: state.Updated}
+	slackState := state.Platforms["slack"]
+	switch {
+	case state.Gateway != "running":
+		part.State, part.Detail = "down", "the gateway is "+firstNonEmpty(state.Gateway, "not running")
+	case now.Sub(state.Updated) > 2*time.Minute:
+		part.State, part.Detail = "down", "the gateway hasn't written its state since "+state.Updated.UTC().Format("15:04 UTC")
+	case slackState.State != "connected":
+		part.State, part.Detail = "down", "Slack is "+firstNonEmpty(slackState.State, "not connected")
+		if slackState.Error != "" {
+			part.Detail += ": " + slackState.Error
+		}
+	}
+	return part
+}
+
+// ---------------------------------------------------------------------------
+// sending
+
+// teamWatchClient is the hi server this machine is connected to, or nil.
+// Tests replace it.
+var teamWatchClient = func() (*serverClient, string) {
+	connection, err := loadServerConnection()
+	if err != nil || connection == nil || connection.URL == "" {
+		return nil, ""
+	}
+	key, err := loadDeviceKey(false)
+	if err != nil {
+		return nil, ""
+	}
+	return newServerClient(connection.URL, key), connection.URL
+}
+
+// sendHeartbeat sends one heartbeat, with the network log from where the
+// server has it, and opens or closes the incidents its answer tells of.
+// It says whether more of the network log waits.
+func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
+	client, server := teamWatchClient()
+	if client == nil {
+		return false, errTeamNotWatched
+	}
+	if stopping != "" {
+		// A last word before a stop doesn't hold the stop up.
+		client.http.Timeout = 5 * time.Second
+	}
+	teamWatchStateMu.Lock()
+	state := loadTeamWatchState(b.team)
+	now := time.Now()
+	beat := b.heartbeat(&state, teamWatchMachine, now)
+	beat.Stopping = stopping
+	network, more := teamReadNetwork(teamNetworkLogPath(b.team), state.Kept, watchNetworkLinesMax)
+	beat.Network = &network
+	saveTeamWatchState(b.team, state)
+	teamWatchStateMu.Unlock()
+
+	var reply apiHeartbeatReply
+	err := client.call(http.MethodPost, "/v1/watch/heartbeat", beat, &reply)
+
+	teamWatchStateMu.Lock()
+	defer teamWatchStateMu.Unlock()
+	state = loadTeamWatchState(b.team)
+	state.Server = server
+	if err != nil {
+		state.Error, state.ErrorAt = err.Error(), now.UTC()
+		saveTeamWatchState(b.team, state)
+		return false, err
+	}
+	state.Sent, state.Error, state.ErrorAt, state.Kept = now.UTC(), "", time.Time{}, reply.NetworkKept
+	if stopping == "" {
+		b.tellWatched(&state, reply.Tell)
+	}
+	saveTeamWatchState(b.team, state)
+	return more && reply.NetworkKept == network.To, nil
+}
+
+var errTeamNotWatched = errors.New("this machine isn't connected to a hi server (hi connect), so nothing watches the team from outside")
+
+// tellWatched opens an incident here for each of the server's the lead can
+// act on, once, and closes it when the server has.
+func (b *teamBroker) tellWatched(state *teamWatchState, tell []apiWatchIncident) {
+	if state.Told == nil {
+		state.Told = map[string]string{}
+	}
+	open := map[string]bool{}
+	for _, incident := range tell {
+		open[incident.ID] = true
+		if _, told := state.Told[incident.ID]; told {
+			continue
+		}
+		local, err := b.openIncident(teamIncident{Kind: "watch", Slot: teamSlotProduction, Title: incident.Title, Detail: incident.Detail, Opened: time.Now().UTC()},
+			incident.Title+".\nThe team's hi server noticed it from outside; the lead looks into it here.", "", teamIncidentPrompt)
+		if err != nil {
+			continue
+		}
+		state.Told[incident.ID] = local.ID
+	}
+	for id, local := range state.Told {
+		if open[id] {
+			continue
+		}
+		if b.incidentOpen(local) {
+			b.recovered(local, "The hi server says it is resolved.")
+		}
+		delete(state.Told, id)
+	}
+}
+
+// keepWatched sends a heartbeat every minute until done, sooner while the
+// network log has more than one carries.
+func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
+	failing := false
+	for {
+		more, err := b.sendHeartbeat("")
+		switch {
+		case errors.Is(err, errTeamNotWatched):
+		case err != nil && !failing:
+			fmt.Fprintf(stderr, "hi: the team's heartbeat to its hi server: %v\n", err)
+			failing = true
+		case err == nil && failing:
+			fmt.Fprintln(stderr, "hi: the team's heartbeat reaches its hi server again")
+			failing = false
+		}
+		wait := teamWatchEvery
+		if more {
+			wait = teamWatchCatchUp
+		}
+		select {
+		case <-done:
+			return
+		case <-time.After(wait):
+		}
+	}
+}
+
+// teamWatchLine is what hi team status says about the watcher.
+func teamWatchLine(team string) string {
+	state := loadTeamWatchState(team)
+	client, server := teamWatchClient()
+	switch {
+	case client == nil:
+		return "Watched from outside: no. This machine isn't connected to a hi server (hi connect), so nothing would notice if it stopped."
+	case state.Error != "" && state.ErrorAt.After(state.Sent):
+		return fmt.Sprintf("Watched by %s: the last heartbeat failed %s ago: %s", server, teamAgo(time.Since(state.ErrorAt)), state.Error)
+	case state.Sent.IsZero():
+		return fmt.Sprintf("Watched by %s: no heartbeat sent yet; the team sends one a minute once it runs.", server)
+	}
+	return fmt.Sprintf("Watched by %s: last heartbeat %s ago.", server, teamAgo(time.Since(state.Sent)))
+}

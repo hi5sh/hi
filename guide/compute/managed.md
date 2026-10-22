@@ -654,6 +654,55 @@ Every 30 seconds the server checks each provider account. It stops machines
 past their `--max`, and it records a machine it didn't start, such as one
 created on the provider's website, as `unleased instance` in the audit log.
 
+### Watch the teams
+
+Every [hi team](/guide/team/) on a connected machine sends the server a
+heartbeat each minute, signed with the machine's device key: whether
+each part of the team is up, the disk, boxes killed for memory, the last
+snapshot, what model calls cost through hi and what OpenRouter counts on
+the team's key, and the lines of its network log the server doesn't have
+yet. The server watches from outside, so it notices what the team can't
+say about itself: a machine that stopped, a broker that keeps
+restarting, a key used outside hi.
+
+```sh
+hi server watch                                   # every team's last heartbeat, and open incidents
+hi server watch --channel C0123456                # a Slack channel for them (default: approvals)
+hi server watch --deadman https://hc-ping.com/…   # an outside check this server pings every minute
+hi server watch --ntfy https://ntfy.example.com --ntfy-token tk_…
+hi server watch subscribe payments                # the link an owner opens for the team's pushes
+hi server watch forget payments                   # let another machine send its heartbeats
+```
+
+`/hi teams` in Slack shows the same as `hi server watch`.
+
+| The server notices | It tells |
+|---|---|
+| no heartbeat for 3 minutes (10 after a restart the team announced; none after `hi team down`) | the watch channel, and the owners by push |
+| a part down for 3 heartbeats (the lead's gateway: 10) | the watch channel; production and memory also the team's channel |
+| production stopping more than 3 times in an hour, the team restarting more than 3 times a day, a box killed for memory | the watch channel and the team's channel |
+| a disk over 85% full, or full in 3 days at the week's rate | the watch channel and the team's channel |
+| no snapshot, or no offsite copy, in 26 hours | the watch channel and the team's channel |
+| model spend in an hour over 3 times the week's hourly average and over $5 | the watch channel and the team's channel |
+| the team's key spending over $1 more in an hour than hi's proxies counted | the watch channel only |
+
+The team's channel hears through the team's own broker, which opens an
+incident there and wakes the lead; it closes when the server's does. A
+key used outside hi isn't told to the team, since its lead could be what
+uses it: rotate the key at openrouter.ai and set it with `hi team key`.
+
+The network lines are kept in the server's `watch/teams/<team>/network.log`,
+off the team's machine. Each team belongs to the first machine that sends
+its heartbeat; another machine is refused until `hi server watch forget`.
+
+Without `--deadman`, nobody would know if the server itself stopped, and
+`hi server watch` says so. [healthchecks.io](https://healthchecks.io)
+checks 20 for free, or runs on your own machine. Pushes go through
+[ntfy](https://ntfy.sh): use a server that needs a token to read, since
+on a public one a topic's name is its only secret. Each team has its own
+topic, and a push says only the team, one line, and the incident's
+number.
+
 ### Remove a user
 
 ```sh

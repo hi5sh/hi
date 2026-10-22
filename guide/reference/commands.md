@@ -122,6 +122,10 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server data list|test|remove [<org>]`          | Show, check, or stop serving organizations           |
 | `hi server expose [stop]`                           | The public address cloud runs reach `hi data` through, and the runs using it; close it |
 | `hi server expose revoke <run>`                     | End one cloud run's token now                                             |
+| `hi server watch [--json]`                          | Every team's last heartbeat, and open watch incidents |
+| `hi server watch --deadman <url>`                   | An outside check the server pings every minute (`off` to stop) |
+| `hi server watch --ntfy <url> --ntfy-token <t>`     | Where owners' pushes go; `--channel <id>` for the Slack channel |
+| `hi server watch subscribe|forget <team>`           | The link for a team's pushes; let another machine send its heartbeats |
 
 ## hi data
 

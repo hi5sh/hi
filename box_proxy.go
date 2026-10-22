@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -299,6 +300,16 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 			r.Header.Set("Authorization", "Bearer "+key)
 		}
 		log.record("openrouter", r.URL.Path)
+	}
+	// What each call cost, as a line of its own, so a team's watcher can
+	// add up what the key spent through hi (team_watch.go).
+	proxy.ModifyResponse = func(response *http.Response) error {
+		response.Body = &teamCostReader{body: response.Body, done: func(cost float64) {
+			if cost > 0 {
+				log.record("spend", strconv.FormatFloat(cost, 'f', -1, 64))
+			}
+		}}
+		return nil
 	}
 	return proxy
 }

@@ -377,9 +377,13 @@ func TestTeamPreviewModelLimit(t *testing.T) {
 	if code != http.StatusTooManyRequests || !strings.Contains(body, "stopped for today") || calls != 2 {
 		t.Fatal(code, body, calls)
 	}
-	// Production's calls aren't limited or counted.
+	// Production's calls aren't limited or counted against the preview.
 	if code, _ := ask(teamSlotProduction); code != 200 || loadTeamPreviewSpend("payments").Calls != 2 {
 		t.Fatal(code)
+	}
+	// Every call's cost is in the team's spend log, for hi watch.
+	if spent := teamSpendSince("payments", time.Now().Add(-time.Minute)); spent != 7.5 {
+		t.Fatal(spent)
 	}
 	// The team sets another limit, or none.
 	var out bytes.Buffer

@@ -228,3 +228,26 @@ func TestHermesWithSlackStatus(t *testing.T) {
 		t.Fatal("changed a command of another shape")
 	}
 }
+
+// What a call through the lead's proxy cost goes in the network log, for
+// hi watch to add up (team_watch.go).
+func TestBoxOpenRouterInjectorNotesTheCost(t *testing.T) {
+	openrouter := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "data: {\"choices\":[]}\n\ndata: {\"usage\":{\"cost\":0.0042}}\n\ndata: [DONE]\n\n")
+	}))
+	defer openrouter.Close()
+	env := filepath.Join(t.TempDir(), ".env")
+	writeSkillTestFile(t, env, "OPENROUTER_API_KEY=sk-or-real\n", 0o600)
+	var logged bytes.Buffer
+	injector := httptest.NewServer(newBoxOpenRouterInjector(env, openrouter.URL, &boxNetworkLog{file: &logged}))
+	defer injector.Close()
+	response, err := http.Post(injector.URL+"/api/v1/chat/completions", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.ReadAll(response.Body)
+	response.Body.Close()
+	if !strings.Contains(logged.String(), " spend 0.0042\n") {
+		t.Fatal(logged.String())
+	}
+}

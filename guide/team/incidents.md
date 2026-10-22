@@ -66,6 +66,19 @@ makes everything after it wrong, and only the people know which kind a
 job is. So a job stops (`blocked`) on an item it can't process, unless
 the people gave a rule for that case.
 
+## Watched from outside
+
+Everything above is noticed by the team itself, on its machine. When
+that machine is connected to a hi server (`hi connect`), the team also
+sends the server a heartbeat every minute, and the server notices what
+the team can't: a machine that stopped, a team that keeps restarting, a
+disk filling up, snapshots that stopped, the team's key used outside hi.
+What the lead can do something about, such as a full disk, comes back
+and opens an incident here, which closes when the server's does.
+`hi team status` says whether the team is watched, and when its last
+heartbeat went. See
+[Watch the teams](/guide/compute/managed/#watch-the-teams).
+
 ## What hi watches
 
 Every minute hi reads production's jobs, and the preview's. It opens an

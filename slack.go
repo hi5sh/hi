@@ -688,6 +688,9 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 		s.audit("slack:"+command.UserID, "refused command", "/hi "+command.Text, "not an approver")
 		return respond("Only approvers can use /hi. An admin adds approvers with `hi server approvers add`.")
 	}
+	if strings.TrimSpace(command.Text) == "teams" {
+		return respond(s.watchSummary(computeNow()))
+	}
 	fields := strings.Fields(command.Text)
 	for i, field := range fields {
 		fields[i] = slackName(field)

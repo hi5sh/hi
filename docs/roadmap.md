@@ -2370,6 +2370,23 @@ Approved spec: [hi_team_workers_handover.md](specs/approved/hi_team_workers_hand
   took the week's first sample. A count that goes down starts the rate
   over from there.
 
+
+### v1.4.0 — A team watched from outside: the heartbeat
+
+Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 1.
+
+- [x] A team on a connected machine sends its hi server a signed
+  heartbeat every minute: each part's state, disk, OOM kills, the last
+  snapshot, open incidents, spend through hi and on the key, and the
+  network log from the offset the server has.
+- [x] The server opens an incident when a team goes quiet (3 minutes, 10
+  after a restart it announced, none after `hi team down`) and pushes
+  the owners through ntfy; it runs the health rules, keeps the network
+  log, pings a dead-man's switch, and tells the team's channel what the
+  lead can act on.
+- [x] `hi server watch` (with `--deadman`, `--ntfy`, `--channel`,
+  `subscribe`, `forget`), `/hi teams`, and a line in `hi team status`.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
@@ -2473,13 +2490,13 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
 
 ### Later — `hi watch`
 
-Spec: [hi_watch.md](specs/ideas/hi_watch.md) (draft). The hi server
+Approved spec: [hi_watch.md](specs/approved/hi_watch.md). The hi server
 watches each team from outside its machine: what the broker can't see
 from inside (a machine that died, its own compromise, advisories for code
 already merged). Goes with the security advisor under `hi team` above,
 which would read the incidents this raises.
 
-- [ ] Release 1, heartbeat: `__serve` sends a signed heartbeat every
+- [x] Release 1, heartbeat (v1.4.0): `__serve` sends a signed heartbeat every
   minute with each part's state, disk, OOM kills, snapshot age, spend
   through the proxy and the key's own usage, and the network log from the
   offset the server has; the server opens an incident and pushes owners
@@ -2496,7 +2513,6 @@ which would read the incidents this raises.
   production runs with its bill.
 - [ ] Release 4, revoke and cut off: once the server makes the teams'
   OpenRouter keys and holds a NetBird API token.
-- [ ] Settle the spec's open questions and move it to `specs/approved/`.
 
 ### Later — Bun
 

@@ -1474,6 +1474,9 @@ func teamUp(name string, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", teamScopesAdvice(missing))
 		}
 	}
+	if client, _ := teamWatchClient(); client == nil {
+		fmt.Fprintf(stdout, "\nWarning: %s.\n", strings.TrimSuffix(teamCapitalize(errTeamNotWatched.Error()), "."))
+	}
 	if !teamResticInstalled() {
 		fmt.Fprintf(stdout, "\nWarning: restic isn't installed, so the team can't take its daily snapshots. hi install restic adds it.\n\n")
 	}
@@ -1526,6 +1529,8 @@ func teamDown(name string, stdout io.Writer) error {
 		return fmt.Errorf("systemctl --user disable --now %s: %s", teamUnitName(name), qFirstLine(out, err.Error()))
 	}
 	teamSystemctl("disable", "--now", teamSnapshotUnitName(name)+".timer")
+	// The hi server stops watching for its heartbeat until hi team up.
+	(&teamBroker{team: name}).sendHeartbeat("down")
 	fmt.Fprintf(stdout, "Team %s is stopped. Its folder stays; hi team up %s starts it again.\n", name, name)
 	return nil
 }
@@ -1762,6 +1767,7 @@ func teamStatus(name string, stdout io.Writer) error {
 	if line := teamSnapshotLine(name); line != "" {
 		fmt.Fprintln(stdout, "\n"+line)
 	}
+	fmt.Fprintln(stdout, teamWatchLine(name))
 	fmt.Fprintln(stdout, "\n"+teamHelperLine(config))
 	tasks := loadTeamTasks(name)
 	if len(tasks) == 0 {

@@ -269,11 +269,16 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 			r.Header.Set("Authorization", "Bearer "+key)
 		}
 	}
-	if slot == teamSlotPreview {
-		proxy.ModifyResponse = func(response *http.Response) error {
-			response.Body = &teamCostReader{body: response.Body, done: func(cost float64) { teamAddPreviewSpend(team, cost) }}
-			return nil
-		}
+	// What each call cost goes in the team's spend log, which hi watch
+	// compares with what OpenRouter counts on the key (team_watch.go).
+	proxy.ModifyResponse = func(response *http.Response) error {
+		response.Body = &teamCostReader{body: response.Body, done: func(cost float64) {
+			teamRecordSpend(team, slot, cost)
+			if slot == teamSlotPreview {
+				teamAddPreviewSpend(team, cost)
+			}
+		}}
+		return nil
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/api/v1/") {

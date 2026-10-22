@@ -1,6 +1,6 @@
 # `hi watch`: a team watched from outside
 
-Status: Draft (2026-10-22).
+Status: Approved (2026-10-22). Release 1 built in v1.4.0.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
@@ -490,3 +490,61 @@ all, after these, and only reads.
 - Intrusion detection inside the boxes (process or system-call tracing).
 - Keeping logs other than the network log off the machine; the snapshots'
   offsite copy covers the rest a day late.
+
+## As built (release 1, v1.4.0)
+
+Code: `team_watch.go` (the team's side), `server_watch.go` (the
+server's).
+
+- **The heartbeat** goes to `POST /v1/watch/heartbeat` on the signed
+  client API, every minute from `__serve`, every 5 seconds while more
+  than 2,000 network lines wait. Each part is an object
+  (`{"state": "up|down|off", "detail", ...}`); production's has
+  `restarts_1h` and `restarts_24h`, counted from the team's "Production's
+  app stopped" incidents. `serve_restarts_24h` comes from
+  `run/serve-starts.log`, which `__serve` appends to when it starts.
+  OOM kills are each team box's `oom_kill` in its cgroup's
+  `memory.events`, as increases since the last heartbeat.
+- **The network log** goes as `{"from", "to", "lines", "rotated"}`, whole
+  lines only, and the answer's `network_kept` is where the next starts.
+  A heartbeat from before the server's offset is skipped, one after it
+  is kept with a line noting the gap. The server keeps it in
+  `watch/teams/<team>/network.log`.
+- **Spend through hi**: the app's models proxy writes each call's cost to
+  `run/spend.log`, and the lead's proxy (which Hindsight's calls go
+  through too) writes a `spend <usd>` line in the network log. The key's
+  usage is `GET /api/v1/key`'s `usage`, sampled each heartbeat; both are
+  summed over the same window, up to an hour from the oldest sample
+  within it (`spend_window_minutes`). A team on this machine's shared
+  key reports no key usage, since others spend on that key too.
+- **The gateway** is read from Hermes' `gateway_state.json`, which it
+  rewrites every few seconds: up when the gateway runs, its Slack
+  platform says `connected`, and the file is under two minutes old. That
+  replaces "every message on the socket, Slack's pings included", which
+  hi can't see: the socket is a tunnel through the proxy. The lead's box
+  can write that file, so a compromised lead could hide a dead gateway;
+  the other parts are read from outside the boxes.
+- **Stops**: a SIGTERM sends `"stopping": "restart"` before the lead
+  stops; `hi team down` then sends `"down"`, which wins. After a restart
+  the server waits 10 minutes, after a down until the next heartbeat,
+  which also closes an incident a silence opened.
+- **Who owns a team**: the first device that sends its heartbeat. A
+  heartbeat for the same team from another device is refused until
+  `hi server watch forget <team>`.
+- **Incidents** are the server's own (`w-1`, `w-2`), in
+  `watch/state.json`, one per rule and team until it clears, posted in
+  `--channel` or else the approvals channel, with the closing in the
+  thread, and in the audit log. Those the lead can act on come back in
+  the heartbeat's answer as `tell`; the team opens a `watch` incident for
+  each once and closes it when the server's is gone from the list. A
+  key used outside hi is never told to the team.
+- **Pushes** go only for a stopped heartbeat in this release, to
+  `<ntfy>/hi-watch-<team>` with the token as a bearer. The spend rule
+  waits for 24 hourly samples before it judges. The new team's first
+  day has no snapshot rule.
+- **The dead-man's switch** is a GET every minute from the server's
+  30-second tick. `hi server watch` warns without one, and without
+  pushes; there is no `hi server status`.
+- `/hi teams` in Slack answers with the same text as `hi server watch`.
+- The proxy's `closed` lines with sizes stay in release 3, with the
+  network rules that read them.

@@ -145,6 +145,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	// workers back.
 	clearWorkersYields(name)
 	broker := newTeamBroker(name, hi)
+	teamNoteServeStart(name)
 	slackChannel := newLiveTeamChannel(secrets.SlackBotToken)
 	broker.channel = slackChannel
 	serveBroker, err := broker.listen(ctx, filepath.Join(brokerDir, teamSocketName))
@@ -188,6 +189,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.startSurvey(stderr)
 	go broker.keepUpstream(ctx.Done(), stderr)
 	go broker.watchJobs(ctx.Done(), stderr)
+	go broker.keepWatched(ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
@@ -276,6 +278,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go func() {
 		if _, ok := <-signals; ok {
 			stopped.Store(true)
+			// The hi server hears this is a stop, not a machine that died:
+			// a restart unless hi team down says otherwise.
+			broker.sendHeartbeat("restart")
 			engine.output("stop", "-t", "20", container)
 		}
 	}()

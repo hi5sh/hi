@@ -187,6 +187,8 @@ type hiServer struct {
 	// dataMu guards the hi data listings and data_usage.jsonl.
 	dataMu    sync.Mutex
 	dataLists map[string]*dataListing
+	// watch is hi watch: the teams' heartbeats (server_watch.go).
+	watch *serverWatch
 }
 
 func serverDirectory(flagValue string) (string, error) {
@@ -292,6 +294,7 @@ func openServer(dir string, log io.Writer) (*hiServer, error) {
 		server.enableProvider(name, key)
 	}
 	server.feed.loadRecentAudit(dir)
+	server.watch = openServerWatch(dir)
 	// A start interrupted by a restart can't be resumed. If the instance was
 	// created, the reconciler reports it as unleased.
 	for _, request := range server.state.Requests {
@@ -546,6 +549,7 @@ func (s *hiServer) clientHandler() http.Handler {
 	mux.HandleFunc("POST /v1/slack-link", s.device(s.handleSlackLink))
 	mux.HandleFunc("GET /v1/templates", s.device(s.handleTemplateCatalog))
 	mux.HandleFunc("GET /v1/templates/{source}/{commit}", s.device(s.handleTemplateBundle))
+	mux.HandleFunc("POST /v1/watch/heartbeat", s.device(s.handleHeartbeat))
 	s.aiRoutes(mux)
 	s.dataRoutes(mux)
 	return mux
@@ -1396,6 +1400,7 @@ func (s *hiServer) adminHandler() http.Handler {
 	s.templateAdminRoutes(mux)
 	s.dataAdminRoutes(mux)
 	s.exposeAdminRoutes(mux)
+	s.watchRoutes(mux)
 	mux.HandleFunc("GET /admin/requests", func(w http.ResponseWriter, r *http.Request) {
 		all := r.URL.Query().Get("all") == "1"
 		s.mu.Lock()
@@ -1767,6 +1772,7 @@ func (s *hiServer) serve(ctx context.Context, listen string) error {
 		case <-ticker.C:
 			s.reconcile()
 			s.reapExposure()
+			s.checkWatch(computeNow())
 		case <-templates.C:
 			s.syncTemplatesInBackground()
 		}
@@ -1845,6 +1851,8 @@ func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitCode(serverDataCommand(rest, stdin, stdout, stderr), stderr)
 	case "expose":
 		return exitCode(serverExposeCommand(rest, stdout, stderr), stderr)
+	case "watch":
+		return exitCode(serverWatchCommand(rest, stdout, stderr), stderr)
 	default:
 		fmt.Fprintf(stderr, "hi: unknown server command %q\n\n", command)
 		printServerUsage(stderr)
@@ -1894,6 +1902,12 @@ Usage:
                                           Serve an organization's datasets, models, and buckets
   hi server data list|test|remove         Show, check, or stop serving organizations
   hi server expose [stop]                 The public URL cloud runs reach hi data through, if any
+  hi server watch                         What every team's heartbeat says, and open watch incidents
+  hi server watch --deadman <url>         An outside check the server pings every minute
+  hi server watch --ntfy <url> --ntfy-token <t>
+                                          Where owners' pushes go; subscribe <team> gives the link
+  hi server watch --channel <id>          The Slack channel for watch incidents (default: approvals)
+  hi server watch forget <team>           Let another machine send a team's heartbeats
 
 Commands other than init and run talk to the running server through its
 admin socket, so they work only on the server box. Decisions are recorded
