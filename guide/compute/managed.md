@@ -764,6 +764,41 @@ unfreeze, or quiet the watcher.
 Freezing works on a box that is compromised, not on a machine that is:
 whoever controls the machine controls what it does with the request.
 
+#### Revoke and cut off
+
+Two steps work without the team's machine, so they hold when the
+machine itself can't be trusted. Both need an admin; nothing does them
+on its own.
+
+```sh
+hi server watch --openrouter          # an OpenRouter provisioning key (openrouter.ai/settings/provisioning-keys)
+hi server watch --netbird             # a NetBird API token of a service user that may manage peers
+hi server watch revoke payments --because "its key is used outside hi"
+hi server watch rekey payments        # a new key, which its machine takes with its next heartbeat
+hi server watch cutoff payments
+hi server watch reconnect payments
+```
+
+**Revoke** disables the team's OpenRouter key at OpenRouter, wherever it
+is used from. The server can only do that for a key it made: on the
+team's machine, `hi team key payments openrouter --from-server` replaces
+a pasted key with one the server makes and keeps the hash of.
+`hi server watch` says which teams' keys can't be revoked from there.
+**Rekey** makes a new key, deletes the old, and hands the new one to the
+machine in its next heartbeat's answer.
+
+**Cut off** takes the machine off the NetBird network. Where the NetBird
+account approves peers (Settings > Authentication), the machine's peer
+needs approval again; otherwise it is taken out of every group it is in
+(not All). A policy that lets the All group in still reaches it then,
+and the server says which: turn on peer approval, or narrow that policy,
+for a cut off that holds. Either way the machine keeps its own internet:
+cut off is about your network, not the world. **Reconnect** undoes it.
+
+The same steps are `/hi team revoke|rekey|cutoff|reconnect <team> <why>`
+in Slack, for approvers. Each is in the audit log, in the watch channel,
+and pushed to the owners.
+
 Once a week the team compares what production's box has with its bill:
 the packages in the app's folder (`node_modules`, a Python `.venv`) and
 the box's OS packages. One the bill doesn't list is an incident in the

@@ -2426,6 +2426,21 @@ Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 3.
 - [x] Once a week the team compares production's box with its bill;
   what the bill doesn't list is an incident.
 
+### v1.7.0 — Revoke and cut off (hi watch release 4)
+
+Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 4.
+
+- [x] With an OpenRouter provisioning key (`hi server watch --openrouter`)
+  the server makes a team's key (`hi team key <name> openrouter
+  --from-server`), and an admin can disable it (`revoke`) or replace it
+  (`rekey`, delivered with the next heartbeat).
+- [x] With a NetBird API token (`hi server watch --netbird`) an admin can
+  take a team's machine off the network (`cutoff`): peer approval again
+  where the account has it, else out of its groups, naming a policy
+  that still lets All in; `reconnect` undoes it.
+- [x] `/hi team revoke|rekey|cutoff|reconnect` in Slack; all four in the
+  audit log, the watch channel, and pushed to the owners.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
@@ -2550,7 +2565,7 @@ which would read the incidents this raises.
   the network and their addresses down) and pause from the server, a
   logging resolver for app boxes, and the weekly comparison of what
   production runs with its bill.
-- [ ] Release 4, revoke and cut off: once the server makes the teams'
+- [x] Release 4, revoke and cut off (v1.7.0): once the server makes the teams'
   OpenRouter keys and holds a NetBird API token.
 
 ### Later — Bun

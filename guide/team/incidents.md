@@ -98,7 +98,10 @@ looks up, and can stop the team: a **freeze** cuts every box off from the
 internet (the lead keeps Slack) and pauses the app; a **pause** stops
 every box. The team says so in its channel, and only an admin of the hi
 server undoes it. A burst of sends to a paste site, or an exploited
-advisory in the app's own packages, freezes it on its own. A
+advisory in the app's own packages, freezes it on its own. An admin of
+the server can also revoke the team's OpenRouter key, when the server
+made it (`hi team key <name> openrouter --from-server`), and take the
+team's machine off the NetBird network. A
 task that brings in a package version with an advisory has it listed in
 the reviewer's brief; one known to be exploited needs an owner's yes to
 merge, like a package that runs its own install script.

@@ -63,6 +63,8 @@ type apiHeartbeat struct {
 	// production's box has that its bill doesn't.
 	Stop       apiWatchStop   `json:"stop"`
 	Undeclared *apiUndeclared `json:"undeclared,omitempty"`
+	// KeyHash is the server-made key the team uses (release 4).
+	KeyHash string `json:"key_hash,omitempty"`
 	// Bom is the digest of production's bill of materials, and BomVersion
 	// the version it is of (team_bom.go); Ignored the advisories an owner
 	// said don't apply.
@@ -113,8 +115,11 @@ type apiHeartbeatReply struct {
 	// NeedBom asks for the bill the heartbeat named; Advisories are what
 	// matches production's; Report is a weekly report for the team's
 	// channel, posted once by its ID (server_advisories.go).
-	LogsKept   map[string]int64   `json:"logs_kept,omitempty"`
-	Do         *apiWatchDo        `json:"do,omitempty"`
+	LogsKept map[string]int64 `json:"logs_kept,omitempty"`
+	Do       *apiWatchDo      `json:"do,omitempty"`
+	// NewKey is a key an admin had the server make the team (rekey),
+	// until the team's heartbeat says it uses it.
+	NewKey     *apiWatchKey       `json:"new_key,omitempty"`
 	NeedBom    bool               `json:"need_bom,omitempty"`
 	Advisories []apiAdvisory      `json:"advisories,omitempty"`
 	Counts     []apiAdvisoryCount `json:"advisory_counts,omitempty"`
@@ -183,6 +188,13 @@ type watchTeam struct {
 	NetReported   time.Time            `json:"net_reported,omitzero"`
 	Want          *apiWatchDo          `json:"want,omitempty"`
 	WantDone      bool                 `json:"want_done,omitempty"`
+	// Release 4: the key the server made the team (its hash at
+	// OpenRouter), whether an admin revoked it, the NetBird address its
+	// heartbeats come from, and how it was cut off.
+	KeyHash    string       `json:"key_hash,omitempty"`
+	KeyRevoked bool         `json:"key_revoked,omitempty"`
+	PeerIP     string       `json:"peer_ip,omitempty"`
+	CutOff     *watchCutOff `json:"cut_off,omitempty"`
 }
 
 type watchSample struct {
@@ -273,7 +285,7 @@ func (c watchConfig) topic(team string) string {
 // ---------------------------------------------------------------------------
 // the heartbeat
 
-func (s *hiServer) handleHeartbeat(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *hiServer) handleHeartbeat(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
 	var beat apiHeartbeat
 	if err := json.Unmarshal(body, &beat); err != nil || !teamNamePattern.MatchString(beat.Team) {
 		writeAPIError(w, http.StatusBadRequest, "malformed heartbeat")
@@ -284,6 +296,7 @@ func (s *hiServer) handleHeartbeat(w http.ResponseWriter, _ *http.Request, devic
 		writeAPIError(w, http.StatusForbidden, err.Error())
 		return
 	}
+	s.watch.notePeer(beat.Team, r.RemoteAddr)
 	writeJSON(w, http.StatusOK, reply)
 }
 
@@ -348,6 +361,17 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 	if team.Want != nil && !team.WantDone {
 		do := *team.Want
 		reply.Do = &do
+	}
+	if beat.Stopping == "" {
+		secrets := w.loadSecretsLocked()
+		if key := secrets.Pending[team.Team]; key != "" {
+			if beat.KeyHash == team.KeyHash {
+				delete(secrets.Pending, team.Team)
+				w.saveSecretsLocked(secrets)
+			} else {
+				reply.NewKey = &apiWatchKey{Key: key, Hash: team.KeyHash}
+			}
+		}
 	}
 	w.saveLocked()
 	w.mu.Unlock()
@@ -748,6 +772,9 @@ type watchTeamView struct {
 	Matched    time.Time               `json:"matched,omitzero"`
 	Stop       apiWatchStop            `json:"stop"`
 	Want       *apiWatchDo             `json:"want,omitempty"` // asked, not done yet
+	KeyMade    bool                    `json:"key_made,omitempty"`
+	KeyRevoked bool                    `json:"key_revoked,omitempty"`
+	CutOff     *watchCutOff            `json:"cut_off,omitempty"`
 }
 
 type watchView struct {
@@ -766,7 +793,7 @@ func (w *serverWatch) view() watchView {
 	for _, team := range w.state.Teams {
 		row := watchTeamView{Team: team.Team, Hostname: team.Hostname, User: team.User, Last: team.Last, Stopping: team.Stopping,
 			Hi: team.Beat.Hi, Production: team.Beat.Production, Parts: team.Beat.Parts, Network: team.NetworkKept, Bom: team.BomVersion, Matched: team.Matched,
-			Stop: team.Beat.Stop}
+			Stop: team.Beat.Stop, KeyMade: team.KeyHash != "", KeyRevoked: team.KeyRevoked, CutOff: team.CutOff}
 		if team.Want != nil && !team.WantDone {
 			want := *team.Want
 			row.Want = &want
@@ -838,6 +865,15 @@ func printWatchView(view watchView, now time.Time, out io.Writer) {
 			fmt.Fprintf(out, "  asked to %s by %s %s ago, not done yet\n", team.Want.Action, team.Want.By, teamAgo(now.Sub(team.Want.At)))
 		}
 		switch {
+		case team.KeyRevoked:
+			fmt.Fprintln(out, "  KEY REVOKED: its OpenRouter key is disabled (hi server watch rekey "+team.Team+")")
+		case !team.KeyMade:
+			fmt.Fprintln(out, "  its OpenRouter key isn't the server's, so it can't be revoked from here (hi team key "+team.Team+" openrouter --from-server on its machine)")
+		}
+		if team.CutOff != nil {
+			fmt.Fprintf(out, "  CUT OFF the NetBird network %s ago (hi server watch reconnect %s)\n", teamAgo(now.Sub(team.CutOff.At)), team.Team)
+		}
+		switch {
 		case team.Bom == "":
 			fmt.Fprintln(out, "  no bill of materials yet")
 		case team.Matched.IsZero():
@@ -865,6 +901,7 @@ func printWatchView(view watchView, now time.Time, out io.Writer) {
 
 func (s *hiServer) watchRoutes(mux *http.ServeMux) {
 	s.watchStopRoutes(mux)
+	s.watchCutoffRoutes(mux)
 	mux.HandleFunc("GET /admin/watch", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, s.watch.view())
 	})
@@ -936,7 +973,10 @@ func serverWatchCommand(args []string, stdout, stderr io.Writer) error {
 	token := flags.String("ntfy-token", "", "a token for the ntfy server")
 	channel := flags.String("channel", "", "the Slack channel watch incidents go to (off: the approvals channel)")
 	autoFreeze := flags.String("auto-freeze", "", "on, or off to have every freeze wait for an admin")
-	because := flags.String("because", "", "why, for freeze, unfreeze, pause, and unpause")
+	because := flags.String("because", "", "why, for freeze, unfreeze, pause, unpause, revoke, rekey, cutoff, and reconnect")
+	openrouter := flags.Bool("openrouter", false, "set the OpenRouter provisioning key the server makes and revokes teams' keys with")
+	netbird := flags.Bool("netbird", false, "set the NetBird API token the server cuts teams' machines off with")
+	netbirdURL := flags.String("netbird-url", "", "the NetBird management API, when it isn't this machine's")
 	asJSON := flags.Bool("json", false, "print JSON")
 	rest, err := flags.parse(args)
 	if err != nil {
@@ -958,8 +998,28 @@ func serverWatchCommand(args []string, stdout, stderr io.Writer) error {
 		return nil
 	case len(rest) == 2 && (rest[0] == "freeze" || rest[0] == "unfreeze" || rest[0] == "pause" || rest[0] == "unpause"):
 		return watchStopCommand(*dirFlag, rest[0], rest[1], *because, stdout)
+	case len(rest) == 2 && (rest[0] == "revoke" || rest[0] == "rekey" || rest[0] == "cutoff" || rest[0] == "reconnect"):
+		if err := adminCall(*dirFlag, http.MethodPost, "/admin/watch/act/"+rest[1]+"/"+rest[0], map[string]string{"because": *because, "as": currentUserName()}, nil); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Done: %s %s. hi server watch shows it, and the watch channel says so.\n", rest[0], rest[1])
+		return nil
 	case len(rest) > 0:
-		return usageError{"usage: hi server watch [--deadman <url>] [--ntfy <url> --ntfy-token <token>] [--channel <id>] [--auto-freeze on|off]\n       hi server watch forget|subscribe <team>\n       hi server watch freeze|unfreeze|pause|unpause <team> [--because \"<why>\"]"}
+		return usageError{"usage: hi server watch [--deadman <url>] [--ntfy <url> --ntfy-token <token>] [--channel <id>] [--auto-freeze on|off] [--openrouter] [--netbird]\n       hi server watch forget|subscribe <team>\n       hi server watch freeze|unfreeze|pause|unpause|revoke|rekey|cutoff|reconnect <team> [--because \"<why>\"]"}
+	}
+	for which, set := range map[string]bool{"openrouter": *openrouter, "netbird": *netbird} {
+		if !set {
+			continue
+		}
+		label := map[string]string{"openrouter": "OpenRouter provisioning", "netbird": "NetBird API"}[which]
+		value, err := readProviderKey(label, os.Stdin, stdout)
+		if err != nil {
+			return err
+		}
+		if err := adminCall(*dirFlag, http.MethodPost, "/admin/watch/secret/"+which, map[string]string{"value": value, "url": *netbirdURL}, nil); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Saved the %s key; it works.\n", label)
 	}
 	if *autoFreeze != "" && *autoFreeze != "on" && *autoFreeze != "off" {
 		return usageError{"--auto-freeze is on or off"}

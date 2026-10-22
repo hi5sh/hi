@@ -376,18 +376,24 @@ func teamRelay(conn net.Conn, socket string) {
 
 // teamKey is hi team key <name> openrouter [--unset], or slack.
 func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team key <name> openrouter [--unset]\n       hi team key <name> slack"}
+	usage := usageError{"usage: hi team key <name> openrouter [--unset | --from-server]\n       hi team key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return teamKeySlack(args[0], stdin, stdout)
 	}
 	var words []string
-	unset := false
+	unset, fromServer := false, false
 	for _, arg := range args {
-		if arg == "--unset" {
+		switch arg {
+		case "--unset":
 			unset = true
-		} else {
+		case "--from-server":
+			fromServer = true
+		default:
 			words = append(words, arg)
 		}
+	}
+	if fromServer && len(words) == 2 && words[1] == "openrouter" {
+		return teamKeyFromServer(words[0], stdout)
 	}
 	if len(words) != 2 || words[1] != "openrouter" {
 		return usage

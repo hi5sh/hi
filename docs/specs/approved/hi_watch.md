@@ -1,6 +1,6 @@
 # `hi watch`: a team watched from outside
 
-Status: Approved (2026-10-22). Release 1 built in v1.4.0, release 2 in v1.5.0, release 3 in v1.6.0.
+Status: Approved (2026-10-22). Built: release 1 in v1.4.0, 2 in v1.5.0, 3 in v1.6.0, 4 in v1.7.0.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
@@ -675,3 +675,43 @@ and the proxy's lines in `box_proxy.go`.
   team's channel while there are any.
 - `/hi team freeze|unfreeze|pause|unpause <team> <why>` in Slack, for
   approvers. Buttons on incidents aren't built.
+
+## As built (release 4, v1.7.0)
+
+Code: `server_watch_cutoff.go`, and `hi team key … --from-server` in
+`team_watch_stop.go`.
+
+- **The server's keys** are in `watch/keys.json` (0600): the OpenRouter
+  provisioning key, the NetBird API token (and the management URL when
+  it isn't the server's own NetBird's), and new team keys until their
+  machine has them. `hi server watch --openrouter` and `--netbird` ask
+  for them and check them before saving.
+- **Keys**: `hi team key <team> openrouter --from-server` asks the server
+  (`POST /v1/watch/key`, signed by the device that sends the team's
+  heartbeats); it makes a key named after the team and machine, deletes
+  the server-made one it replaces, keeps the hash, and returns the key
+  once. The team saves it where it kept a pasted key; its proxies read
+  it again for each call, so nothing restarts. A pasted key can't be
+  revoked from the server, and `hi server watch` says so per team.
+- **Revoke** sets the key `disabled` at OpenRouter. While revoked, the
+  machine can't ask for a new one. **Rekey** makes a new key, deletes the
+  old, and puts it in the next heartbeat's answer (`new_key`) until the
+  team's heartbeat names its hash, then forgets it. An admin decides a
+  machine is fit for a key again; the machine can't.
+- **The team's machine** is the NetBird peer its heartbeats come from:
+  the server notes the address each heartbeat arrives from.
+- **Cut off**: where the account has peer approval
+  (`settings.extra.peer_approval_enabled`), the peer is set
+  `approval_required`; otherwise it leaves each of its groups but All,
+  and the server names every enabled policy whose rules let All in,
+  which still reaches it. On this team's NetBird account, read on
+  2026-10-22, peer approval is off and the Default policy lets All reach
+  All, so a cut off there would leave the machine reachable until one of
+  those changes. **Reconnect** reverses exactly what was done.
+- **No automatic step**: revoke, rekey, cut off, and reconnect are an
+  admin's, from `hi server watch` or `/hi team …` for approvers. Each is
+  in the audit log and the watch channel, and revoke and cut off push
+  the owners.
+- Not built: the server reading the key's usage at OpenRouter itself,
+  which would make the "spent outside hi" rule hold on a compromised
+  machine too; it still compares what the team reports.

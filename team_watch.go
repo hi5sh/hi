@@ -66,6 +66,8 @@ type teamWatchState struct {
 	AdvisoryCounts []apiAdvisoryCount `json:"advisory_counts,omitempty"`
 	AdvisoriesAt   time.Time          `json:"advisories_at,omitzero"`
 	Reported       string             `json:"reported,omitempty"`
+	// KeyHash is the server-made key the team uses (release 4).
+	KeyHash string `json:"key_hash,omitempty"`
 	// Undeclared is the weekly look at production's box against its bill.
 	Undeclared *apiUndeclared `json:"undeclared,omitempty"`
 	// LogsKept is how far the server has each log besides the lead's.
@@ -490,6 +492,7 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 		beat.Ignored = loadTeamAdvisoriesIgnored(b.team)
 		beat.Undeclared = state.Undeclared
+		beat.KeyHash = state.KeyHash
 	}
 	stop := loadTeamWatchStop(b.team)
 	beat.Stop = apiWatchStop{Frozen: stop.Frozen, Paused: stop.Paused, Done: stop.Done}
@@ -544,6 +547,21 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 	}
 	saveTeamWatchState(b.team, state)
+	if reply.NewKey != nil {
+		// An admin had the server make the team a new key.
+		teamWatchStateMu.Unlock()
+		err := teamUseServerKey(b.team, *reply.NewKey)
+		teamWatchStateMu.Lock()
+		if err != nil {
+			return false, fmt.Errorf("saving the new key from the hi server: %w", err)
+		}
+		if b.channel != nil {
+			if config, err := loadTeam(b.team); err == nil {
+				b.channel.post(config.Channel, ":key: The team's hi server gave it a new OpenRouter key; model calls use it from now on.")
+			}
+		}
+		more = true
+	}
 	if reply.Do != nil {
 		// Confirmed in the next heartbeat.
 		if err := b.carryOut(*reply.Do); err != nil {

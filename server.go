@@ -551,6 +551,7 @@ func (s *hiServer) clientHandler() http.Handler {
 	mux.HandleFunc("GET /v1/templates/{source}/{commit}", s.device(s.handleTemplateBundle))
 	mux.HandleFunc("POST /v1/watch/heartbeat", s.device(s.handleHeartbeat))
 	mux.HandleFunc("POST /v1/watch/bom", s.deviceLimited(32<<20, s.handleBom))
+	mux.HandleFunc("POST /v1/watch/key", s.device(s.handleTeamKey))
 	s.aiRoutes(mux)
 	s.dataRoutes(mux)
 	return mux
@@ -1911,6 +1912,11 @@ Usage:
     hi server watch forget <team>           Let another machine send a team's heartbeats
   hi server watch freeze|unfreeze|pause|unpause <team> [--because R]
                                           Stop a team's boxes reaching anything, or pause them all
+    hi server watch revoke|rekey|cutoff|reconnect <team> [--because R]
+                                          Disable a team's OpenRouter key, or give it a new one;
+                                          take its machine off NetBird, or put it back
+  hi server watch --openrouter | --netbird
+                                          The provisioning key and API token those need
   hi server watch --auto-freeze on|off    Whether a burst to paste sites, or an exploited
                                           advisory in an app's packages, freezes on its own
 

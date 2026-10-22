@@ -693,13 +693,12 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 	}
 	if fields := strings.Fields(command.Text); len(fields) >= 3 && fields[0] == "team" {
 		switch fields[1] {
-		case "freeze", "unfreeze", "pause", "unpause":
+		case "freeze", "unfreeze", "pause", "unpause", "revoke", "rekey", "cutoff", "reconnect":
 			who, _ := b.approver(command.UserID)
-			do, err := s.stopTeam(slackName(fields[2]), fields[1], who, strings.Join(fields[3:], " "))
-			if err != nil {
+			if err := s.watchAct(slackName(fields[2]), fields[1], who, strings.Join(fields[3:], " ")); err != nil {
 				return respond(err.Error())
 			}
-			return respond(fmt.Sprintf("Asked team %s to %s (%s); it does within a minute and says so in its channel.", fields[2], fields[1], do.ID))
+			return respond(fmt.Sprintf("Done: %s %s. The watch channel says what happened.", fields[1], fields[2]))
 		}
 	}
 	fields := strings.Fields(command.Text)
