@@ -91,7 +91,14 @@ hi team advisories payments              # what matches production now
 hi team advisory payments ignore GHSA-xxxx-xxxx-xxxx --because "we never parse untrusted YAML"
 ```
 
-An ignored advisory stays quiet until the advisory itself changes. A
+An ignored advisory stays quiet until the advisory itself changes.
+
+The server also reads the team's network logs, and the names the app
+looks up, and can stop the team: a **freeze** cuts every box off from the
+internet (the lead keeps Slack) and pauses the app; a **pause** stops
+every box. The team says so in its channel, and only an admin of the hi
+server undoes it. A burst of sends to a paste site, or an exploited
+advisory in the app's own packages, freezes it on its own. A
 task that brings in a package version with an advisory has it listed in
 the reviewer's brief; one known to be exploited needs an owner's yes to
 merge, like a package that runs its own install script.

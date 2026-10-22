@@ -36,6 +36,9 @@ func teamAppAnswers(hostPort int) bool {
 
 // checkAnswers is one look at whether production's app answers.
 func (b *teamBroker) checkAnswers(now time.Time) error {
+	if b.stopped() {
+		return nil // its box is paused on purpose (team_watch_stop.go)
+	}
 	state, ok := loadTeamSlot(b.team, teamSlotProduction)
 	answered := ok && state.HostPort != 0 && b.answers(state.HostPort)
 

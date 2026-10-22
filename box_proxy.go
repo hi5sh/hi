@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -40,6 +41,9 @@ type boxAllowlist struct {
 	mu      sync.Mutex
 	modTime time.Time
 	hosts   []string
+	// log, when set, hears of each host added after the first read (hi
+	// watch: a box's reach grew).
+	log *boxNetworkLog
 }
 
 func (a *boxAllowlist) reload() {
@@ -56,7 +60,15 @@ func (a *boxAllowlist) reload() {
 	if err != nil {
 		return
 	}
-	a.hosts = parseBoxAllowlist(string(data))
+	hosts := parseBoxAllowlist(string(data))
+	if a.hosts != nil && a.log != nil {
+		for _, host := range hosts {
+			if !slices.Contains(a.hosts, host) {
+				a.log.record("allowlist-added", host)
+			}
+		}
+	}
+	a.hosts = hosts
 	a.modTime = info.ModTime()
 }
 
@@ -107,13 +119,13 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "usage: hi box __proxy <allowlist> <log> <claude credentials, openrouter:<.env>, or -> [<data token> <server's /hf URL>]")
 		return 2
 	}
-	allow := &boxAllowlist{path: args[0]}
 	logFile, err := os.OpenFile(args[1], os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		fmt.Fprintf(stderr, "hi: %v\n", err)
 		return 1
 	}
 	log := &boxNetworkLog{file: logFile}
+	allow := &boxAllowlist{path: args[0], log: log}
 	egress := &boxEgressProxy{allow: allow, log: log}
 	if keys := os.Getenv(boxSlackKeysEnv); keys != "" {
 		// A team's lead: its Slack tokens are swapped in here, if hi put
@@ -192,6 +204,11 @@ func (p *boxEgressProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	transport := &http.Transport{DialContext: p.dialer(), Proxy: nil}
 	r.RequestURI = ""
+	started := time.Now()
+	sent := &boxCounter{Reader: r.Body}
+	if r.Body != nil {
+		r.Body = io.NopCloser(sent)
+	}
 	response, err := transport.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -204,7 +221,26 @@ func (p *boxEgressProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(response.StatusCode)
-	io.Copy(w, response.Body)
+	received, _ := io.Copy(w, response.Body)
+	p.log.closed(host, sent.n, received, time.Since(started))
+}
+
+// boxCounter counts what passes through.
+type boxCounter struct {
+	io.Reader
+	n int64
+}
+
+func (c *boxCounter) Read(p []byte) (int, error) {
+	n, err := c.Reader.Read(p)
+	c.n += int64(n)
+	return n, err
+}
+
+// closed logs what a connection sent and received, after its decision
+// line, for hi watch's rules on how much leaves a box.
+func (l *boxNetworkLog) closed(host string, up, down int64, took time.Duration) {
+	l.record("closed", fmt.Sprintf("%s %d %d %.1f", host, up, down, took.Seconds()))
 }
 
 func (p *boxEgressProxy) tunnel(w http.ResponseWriter, r *http.Request) {
@@ -218,12 +254,17 @@ func (p *boxEgressProxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		upstream.Close()
 		return
 	}
+	started := time.Now()
+	host, _, _ := net.SplitHostPort(r.Host)
+	up := make(chan int64, 1)
 	go func() {
-		io.Copy(upstream, client)
+		n, _ := io.Copy(upstream, client)
 		upstream.Close()
+		up <- n
 	}()
-	io.Copy(client, upstream)
+	down, _ := io.Copy(client, upstream)
 	client.Close()
+	p.log.closed(host, <-up, down, time.Since(started))
 }
 
 // hijack takes the CONNECT's connection and says it's established; nil

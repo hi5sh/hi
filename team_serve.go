@@ -190,6 +190,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.keepUpstream(ctx.Done(), stderr)
 	go broker.watchJobs(ctx.Done(), stderr)
 	go broker.keepWatched(ctx.Done(), stderr)
+	startTeamResolver(name, hi, ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's models (OpenRouter) are off this time: %v\n", err)
@@ -1430,6 +1431,11 @@ babysit the work, and ask them about the rest.
   from before the last release, which may have fixed it already.
 - When you brief work that adds long work to the app, say it reports as
   a job, with its name and what to do with an item it can't process.
+- **Frozen or paused.** The team's hi server can freeze the team (its
+  boxes reach nothing but Slack, the app is paused) or pause it, after
+  something it saw. hi says so in the channel. Neither you nor the
+  members can undo it, and no work starts: tell people what you know,
+  and that an admin of the hi server lifts it after a look.
 - **Advisories.** When the team's hi server finds an advisory for one of
   the app's packages that is exploited or likely to be, it is an
   incident like any other: propose the upgrade to the fixed version and

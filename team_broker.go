@@ -859,6 +859,9 @@ func (b *teamBroker) announceContinuation(task teamTask) {
 
 // newWork saves a member's task, and returns it with what starts its box.
 func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), error) {
+	if err := b.errStopped(); err != nil {
+		return teamTask{}, nil, err
+	}
 	member, err := b.member(request.Role)
 	if err != nil {
 		return teamTask{}, nil, err
@@ -1057,6 +1060,9 @@ func (b *teamBroker) startReview(request teamRequest) (teamTask, error) {
 // newReview saves a review of a finished task's latest commit, and returns
 // it with what starts the reviewer's box.
 func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (teamTask, func(), error) {
+	if err := b.errStopped(); err != nil {
+		return teamTask{}, nil, err
+	}
 	member, err := b.member("reviewer")
 	if err != nil {
 		return teamTask{}, nil, err

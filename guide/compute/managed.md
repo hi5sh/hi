@@ -716,6 +716,59 @@ machine, `podman rmi` the image `hi team bom <team>` names and
 `hi team up <team>`. The agents' and hi's come with `hi install upgrade`
 and `hi update`.
 
+#### Network rules
+
+The heartbeat carries the network log of the lead's box, of each member
+box that ran in the last day, and the names the app's boxes looked up.
+The app keeps its full internet; its lookups go through a resolver of
+the team's, which logs each name. The server raises:
+
+| Rule | Incident |
+|---|---|
+| more than 20 refused connections from one box in 10 minutes | often a member, or the lead, being steered somewhere it shouldn't go |
+| a connection to a raw IP address, or to a host on `watch-hosts.txt` | paste sites, file drops, tunnels, request catchers; the server writes a starter list in its `watch/` folder, one host per line |
+| more than 50 MB sent to one host in an hour | except the model providers, GitHub, and the team's snapshots bucket |
+| a host added to a box's allowlist | someone ran `hi box allow`, or something wrote the file |
+
+A host production looked up that it hadn't in 30 days goes in a weekly
+line, not an incident: apps call new services all the time. Each
+network incident closes after a day without a repeat.
+
+#### Stopping a team
+
+```sh
+hi server watch freeze payments --because "sends to a paste site"
+hi server watch unfreeze payments
+hi server watch pause payments       # every box of the team, kept in memory for a look
+hi server watch unpause payments
+```
+
+`/hi team freeze payments <why>` does the same from Slack, for
+approvers. The team does it with its next heartbeat, within a minute,
+says so in its channel, and `hi server watch` shows it.
+
+| | What it does | Undone by |
+|---|---|---|
+| **freeze** | every box's allowlist is emptied (the lead keeps Slack, to say what happened); the app's boxes are paused, so nothing reaches them and they reach nothing; no task or version starts | `unfreeze`: the allowlists exactly as they were, the app running again on the same links |
+| **pause** | every box of the team, the lead's too, is paused | `unpause` |
+
+Two things freeze a team on their own: a burst of sends to hosts on
+`watch-hosts.txt` (5 connections, or 1 MB, in 10 minutes), and an
+advisory known to be exploited in the app's own packages. An exploited
+advisory in an image or an agent waits for an admin, since the app may
+never touch that package. `hi server watch --auto-freeze off` makes every
+freeze wait for an admin. A freeze takes production's pages down until
+it is undone, so it also pushes the owners. The lead can't freeze,
+unfreeze, or quiet the watcher.
+
+Freezing works on a box that is compromised, not on a machine that is:
+whoever controls the machine controls what it does with the request.
+
+Once a week the team compares what production's box has with its bill:
+the packages in the app's folder (`node_modules`, a Python `.venv`) and
+the box's OS packages. One the bill doesn't list is an incident in the
+team's channel: either the bill missed it, or something installed it.
+
 The network lines are kept in the server's `watch/teams/<team>/network.log`,
 off the team's machine. Each team belongs to the first machine that sends
 its heartbeat; another machine is refused until `hi server watch forget`.

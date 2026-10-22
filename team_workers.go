@@ -287,6 +287,9 @@ func printTeamWorkers(view *teamWorkersView, now time.Time, w io.Writer) {
 // the workers' lock for teamWorkersWaitAlert: something else holds it, so
 // the app's workers don't run. It closes it when the box has them.
 func (b *teamBroker) checkWorkers(now time.Time) error {
+	if b.stopped() {
+		return nil
+	}
 	view := teamWorkersReport(b.team, teamSlotProduction, b.running, now)
 	waits := view != nil && view.State == "waits"
 

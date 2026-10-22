@@ -71,6 +71,12 @@ func setupTeamTest(t *testing.T) string {
 	overlay := teamOverlayEngine
 	teamOverlayEngine = func() bool { return true }
 	t.Cleanup(func() { teamOverlayEngine = overlay })
+	// The app's boxes are fakes, with no resolver; a freeze or pause the
+	// hi server asks for touches no real container.
+	teamResolverOn = false
+	engine := teamWatchEngine
+	teamWatchEngine = func(args ...string) (string, error) { return "", nil }
+	t.Cleanup(func() { teamResolverOn, teamWatchEngine = true, engine })
 	// No advisories from OSV unless a test asks for them.
 	lookup := teamDependencyAdvisories
 	teamDependencyAdvisories = func([]teamDependencyProject) ([]teamDependencyAdvisory, error) { return nil, nil }

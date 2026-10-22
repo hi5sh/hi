@@ -59,9 +59,18 @@ type apiHeartbeat struct {
 	Window     int                     `json:"spend_window_minutes,omitempty"`
 	Network    *apiWatchNetwork        `json:"network,omitempty"`
 	Stopping   string                  `json:"stopping,omitempty"` // "restart" or "down"
+	// Stop is how the team is stopped (release 3), and Undeclared what
+	// production's box has that its bill doesn't.
+	Stop       apiWatchStop   `json:"stop"`
+	Undeclared *apiUndeclared `json:"undeclared,omitempty"`
 	// Bom is the digest of production's bill of materials, and BomVersion
 	// the version it is of (team_bom.go); Ignored the advisories an owner
 	// said don't apply.
+	// Logs are the network logs besides the lead's: the app boxes'
+	// lookups ("apps") and each member box's ("box:<name>"); Exempt the
+	// hosts big uploads may go to, such as the snapshots' bucket.
+	Logs       []apiWatchNetwork    `json:"logs,omitempty"`
+	Exempt     []string             `json:"exempt,omitempty"`
 	Bom        string               `json:"bom,omitempty"`
 	BomVersion string               `json:"bom_version,omitempty"`
 	Ignored    []teamAdvisoryIgnore `json:"ignored,omitempty"`
@@ -89,6 +98,7 @@ type apiWatchSnapshot struct {
 
 // apiWatchNetwork is the team's network log from byte From to To.
 type apiWatchNetwork struct {
+	Log     string   `json:"log,omitempty"` // "" for the lead's
 	From    int64    `json:"from"`
 	To      int64    `json:"to"`
 	Lines   []string `json:"lines"`
@@ -103,6 +113,8 @@ type apiHeartbeatReply struct {
 	// NeedBom asks for the bill the heartbeat named; Advisories are what
 	// matches production's; Report is a weekly report for the team's
 	// channel, posted once by its ID (server_advisories.go).
+	LogsKept   map[string]int64   `json:"logs_kept,omitempty"`
+	Do         *apiWatchDo        `json:"do,omitempty"`
 	NeedBom    bool               `json:"need_bom,omitempty"`
 	Advisories []apiAdvisory      `json:"advisories,omitempty"`
 	Counts     []apiAdvisoryCount `json:"advisory_counts,omitempty"`
@@ -125,12 +137,15 @@ type watchConfig struct {
 	NtfyToken  string `json:"ntfy_token,omitempty"`
 	TopicStart string `json:"topic_start,omitempty"`
 	Channel    string `json:"channel,omitempty"`
+	// AutoFreeze is "off" to have every freeze wait for an admin.
+	AutoFreeze string `json:"auto_freeze,omitempty"`
 }
 
 type watchState struct {
 	Teams     map[string]*watchTeam     `json:"teams"`
 	Incidents map[string]*watchIncident `json:"incidents"`
 	Next      int                       `json:"next"`
+	StopNext  int                       `json:"stop_next,omitempty"`
 }
 
 type watchTeam struct {
@@ -157,6 +172,17 @@ type watchTeam struct {
 	Reported   time.Time       `json:"reported,omitzero"`
 	NoFixTold  map[string]bool `json:"no_fix_told,omitempty"`
 	Report     *apiWatchReport `json:"report,omitempty"`
+	// The network rules' state: how far each log besides the lead's is
+	// kept, when each rule last fired, the hosts production looked up and
+	// those new this week, and what the team was asked to do.
+	LogsKept      map[string]int64     `json:"logs_kept,omitempty"`
+	NetSeen       map[string]time.Time `json:"net_seen,omitempty"`
+	AppHosts      map[string]time.Time `json:"app_hosts,omitempty"`
+	AppHostsSince time.Time            `json:"app_hosts_since,omitzero"`
+	NewHosts      []string             `json:"new_hosts,omitempty"`
+	NetReported   time.Time            `json:"net_reported,omitzero"`
+	Want          *apiWatchDo          `json:"want,omitempty"`
+	WantDone      bool                 `json:"want_done,omitempty"`
 }
 
 type watchSample struct {
@@ -186,6 +212,9 @@ type serverWatch struct {
 	pinged time.Time
 	// matchMu keeps one advisory match at a time; matching says one runs
 	// for the teams that are due.
+	net      map[string]*watchNet
+	hosts    []string
+	hostsAt  time.Time
 	matchMu  sync.Mutex
 	matching atomic.Bool
 	feeds    *advisoryFeeds
@@ -271,8 +300,8 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		s.audit(device.User, "watching", beat.Team, "from "+device.Hostname)
 	}
 	team.User, team.Hostname = device.User, device.Hostname
-	network := beat.Network
-	beat.Network = nil
+	network, logs := beat.Network, beat.Logs
+	beat.Network, beat.Logs = nil, nil
 	if beat.Stopping != "" {
 		// A last word before a stop: kept, but the parts it describes are
 		// the ones that are stopping.
@@ -281,13 +310,22 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		team.Stopping, team.StoppingAt = "", time.Time{}
 		team.Beat, team.Last = beat, now
 	}
-	if network != nil {
-		w.keepNetworkLocked(s, team, *network)
-	}
 	var events []watchEvent
-	reply := apiHeartbeatReply{NetworkKept: team.NetworkKept}
+	if network != nil {
+		events = append(events, w.keepLogLocked(team, *network, beat.Exempt, now)...)
+	}
+	for _, log := range logs {
+		if log.Log != "" {
+			events = append(events, w.keepLogLocked(team, log, beat.Exempt, now)...)
+		}
+	}
+	reply := apiHeartbeatReply{NetworkKept: team.NetworkKept, LogsKept: team.LogsKept}
+	confirmed, weekly := "", ""
 	if beat.Stopping == "" {
-		events = w.rulesLocked(team, now)
+		events = append(events, w.rulesLocked(team, now)...)
+		quiet, text := w.networkQuietLocked(team, now)
+		events, weekly = append(events, quiet...), text
+		confirmed = w.stopConfirmedLocked(s, team, beat.Stop)
 		// Production's bill: the server asks for one it doesn't have.
 		if beat.Bom != "" && beat.Bom != team.Bom {
 			if fileExists(filepath.Join(w.dir, "teams", team.Team, "boms", strings.TrimPrefix(beat.Bom, "sha256:")+".cdx.json")) {
@@ -307,54 +345,21 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		}
 	}
 	sort.Slice(reply.Tell, func(i, j int) bool { return reply.Tell[i].ID < reply.Tell[j].ID })
+	if team.Want != nil && !team.WantDone {
+		do := *team.Want
+		reply.Do = &do
+	}
 	w.saveLocked()
 	w.mu.Unlock()
 	s.watchEvents(events)
+	if confirmed != "" {
+		s.audit("watch", "carried out", beat.Team, confirmed)
+		s.watchPost("", ":white_check_mark: "+confirmed, false)
+	}
+	if weekly != "" {
+		s.watchPost("", weekly, false)
+	}
 	return reply, nil
-}
-
-// keepNetworkLocked appends the lines the team sent that the server
-// doesn't have yet. The team always sends from the offset the server last
-// said it kept, so a heartbeat whose answer was lost sends lines the
-// server has already, which it skips.
-func (w *serverWatch) keepNetworkLocked(s *hiServer, team *watchTeam, network apiWatchNetwork) {
-	if network.To < network.From || len(network.Lines) > watchNetworkLinesMax {
-		return
-	}
-	note := ""
-	switch {
-	case network.Rotated:
-		note = fmt.Sprintf("# %s the team's network log started again from 0 (rotated or shortened)", computeNow().UTC().Format(time.RFC3339))
-		team.NetworkKept = 0
-	case network.To <= team.NetworkKept && network.From < team.NetworkKept:
-		return // kept already
-	case network.From > team.NetworkKept:
-		note = fmt.Sprintf("# %s bytes %d to %d of the team's network log never arrived", computeNow().UTC().Format(time.RFC3339), team.NetworkKept, network.From)
-	}
-	dir := filepath.Join(w.dir, "teams", team.Team)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return
-	}
-	file, err := os.OpenFile(filepath.Join(dir, "network.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return
-	}
-	defer file.Close()
-	var text strings.Builder
-	if note != "" {
-		text.WriteString(note + "\n")
-	}
-	for _, line := range network.Lines {
-		line = strings.ReplaceAll(line, "\n", " ")
-		if len(line) > watchLineMax {
-			line = line[:watchLineMax]
-		}
-		text.WriteString(line + "\n")
-	}
-	if _, err := file.WriteString(text.String()); err != nil {
-		return
-	}
-	team.NetworkKept = network.To
 }
 
 // applyIgnoresLocked marks the advisories an owner said don't apply, as
@@ -438,7 +443,8 @@ func (w *serverWatch) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 	}
 	for _, name := range names {
 		part := beat.Parts[name]
-		if part.State == "up" || part.State == "off" {
+		// A frozen or paused team's parts are down on purpose.
+		if part.State == "up" || part.State == "off" || beat.Stop.Frozen || beat.Stop.Paused {
 			team.Down[name] = 0
 		} else {
 			team.Down[name]++
@@ -509,6 +515,13 @@ func (w *serverWatch) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 	add("key", outside > 1, "The key spends no more than hi counts again.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("%s's OpenRouter key spent $%.2f outside hi in the last %d minutes", team.Team, outside, beat.Window),
 			Detail: fmt.Sprintf("OpenRouter counts $%.2f on the key; hi's proxies counted $%.2f. The key never enters a box, so spend hi didn't see was made elsewhere with it: rotate it at openrouter.ai and set the new one with hi team key %s openrouter.", *beat.KeyUsage, beat.Spend, team.Team)}
+	})
+	// What production's box has that its bill doesn't: the bill missed
+	// it, or something installed it (the team looks once a week).
+	undeclared := beat.Undeclared
+	add("undeclared", undeclared != nil && undeclared.Count > 0, "Production's box has only what its bill says again.", func() watchIncident {
+		return watchIncident{Title: fmt.Sprintf("%s's production box has %d packages its bill of materials doesn't list", team.Team, undeclared.Count),
+			Detail: "Either the bill missed them or something installed them at run time: " + strings.Join(undeclared.Items, ", "), Tell: true}
 	})
 	return events
 }
@@ -733,23 +746,31 @@ type watchTeamView struct {
 	Advisories int                     `json:"advisories"`
 	Loud       int                     `json:"advisories_loud"`
 	Matched    time.Time               `json:"matched,omitzero"`
+	Stop       apiWatchStop            `json:"stop"`
+	Want       *apiWatchDo             `json:"want,omitempty"` // asked, not done yet
 }
 
 type watchView struct {
-	Teams     []watchTeamView `json:"teams"`
-	Incidents []watchIncident `json:"incidents"`
-	Deadman   bool            `json:"deadman"`
-	Ntfy      string          `json:"ntfy,omitempty"`
-	Channel   string          `json:"channel,omitempty"`
+	Teams      []watchTeamView `json:"teams"`
+	Incidents  []watchIncident `json:"incidents"`
+	Deadman    bool            `json:"deadman"`
+	Ntfy       string          `json:"ntfy,omitempty"`
+	Channel    string          `json:"channel,omitempty"`
+	AutoFreeze bool            `json:"auto_freeze"`
 }
 
 func (w *serverWatch) view() watchView {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	view := watchView{Teams: []watchTeamView{}, Incidents: []watchIncident{}, Deadman: w.config.Deadman != "", Ntfy: w.config.Ntfy, Channel: w.config.Channel}
+	view := watchView{Teams: []watchTeamView{}, Incidents: []watchIncident{}, Deadman: w.config.Deadman != "", Ntfy: w.config.Ntfy, Channel: w.config.Channel, AutoFreeze: w.config.AutoFreeze != "off"}
 	for _, team := range w.state.Teams {
 		row := watchTeamView{Team: team.Team, Hostname: team.Hostname, User: team.User, Last: team.Last, Stopping: team.Stopping,
-			Hi: team.Beat.Hi, Production: team.Beat.Production, Parts: team.Beat.Parts, Network: team.NetworkKept, Bom: team.BomVersion, Matched: team.Matched}
+			Hi: team.Beat.Hi, Production: team.Beat.Production, Parts: team.Beat.Parts, Network: team.NetworkKept, Bom: team.BomVersion, Matched: team.Matched,
+			Stop: team.Beat.Stop}
+		if team.Want != nil && !team.WantDone {
+			want := *team.Want
+			row.Want = &want
+		}
 		for _, advisory := range team.Advisories {
 			if advisory.Ignored == "" {
 				row.Advisories++
@@ -808,6 +829,15 @@ func printWatchView(view watchView, now time.Time, out io.Writer) {
 			fmt.Fprintf(out, "  %s\n", strings.Join(parts, " · "))
 		}
 		switch {
+		case team.Stop.Paused:
+			fmt.Fprintln(out, "  PAUSED: every box of the team is paused (hi server watch unpause "+team.Team+")")
+		case team.Stop.Frozen:
+			fmt.Fprintln(out, "  FROZEN: its boxes reach nothing and its app is paused (hi server watch unfreeze "+team.Team+")")
+		}
+		if team.Want != nil {
+			fmt.Fprintf(out, "  asked to %s by %s %s ago, not done yet\n", team.Want.Action, team.Want.By, teamAgo(now.Sub(team.Want.At)))
+		}
+		switch {
 		case team.Bom == "":
 			fmt.Fprintln(out, "  no bill of materials yet")
 		case team.Matched.IsZero():
@@ -825,12 +855,16 @@ func printWatchView(view watchView, now time.Time, out io.Writer) {
 	if !view.Deadman {
 		fmt.Fprintln(out, "\nWarning: nobody would know if this server stopped. hi server watch --deadman <url> pings an outside check (healthchecks.io) every minute.")
 	}
+	if view.AutoFreeze {
+		fmt.Fprintln(out, "\nA burst of sends to paste or tunnel hosts, or an exploited advisory in an app's own packages, freezes the team on its own (--auto-freeze off to wait for an admin).")
+	}
 	if view.Ntfy == "" {
 		fmt.Fprintln(out, "Warning: no pushes. hi server watch --ntfy <url> --ntfy-token <token> pushes a stopped heartbeat to the team's owners.")
 	}
 }
 
 func (s *hiServer) watchRoutes(mux *http.ServeMux) {
+	s.watchStopRoutes(mux)
 	mux.HandleFunc("GET /admin/watch", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, s.watch.view())
 	})
@@ -850,6 +884,13 @@ func (s *hiServer) watchRoutes(mux *http.ServeMux) {
 			default:
 				*set.to = *set.from
 			}
+		}
+		// Auto-freeze is on unless set off.
+		switch change.AutoFreeze {
+		case "on":
+			config.AutoFreeze = ""
+		case "off":
+			config.AutoFreeze = "off"
 		}
 		s.watch.config = config
 		err := s.watch.saveConfigLocked()
@@ -894,6 +935,8 @@ func serverWatchCommand(args []string, stdout, stderr io.Writer) error {
 	ntfy := flags.String("ntfy", "", "the ntfy server owners' pushes go through (off to stop)")
 	token := flags.String("ntfy-token", "", "a token for the ntfy server")
 	channel := flags.String("channel", "", "the Slack channel watch incidents go to (off: the approvals channel)")
+	autoFreeze := flags.String("auto-freeze", "", "on, or off to have every freeze wait for an admin")
+	because := flags.String("because", "", "why, for freeze, unfreeze, pause, and unpause")
 	asJSON := flags.Bool("json", false, "print JSON")
 	rest, err := flags.parse(args)
 	if err != nil {
@@ -913,11 +956,17 @@ func serverWatchCommand(args []string, stdout, stderr io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "Team %s's pushes: %s\nIn the ntfy app, subscribe to topic %s on that server, signed in with an account that may read it.\n", rest[1], link["url"], link["topic"])
 		return nil
+	case len(rest) == 2 && (rest[0] == "freeze" || rest[0] == "unfreeze" || rest[0] == "pause" || rest[0] == "unpause"):
+		return watchStopCommand(*dirFlag, rest[0], rest[1], *because, stdout)
 	case len(rest) > 0:
-		return usageError{"usage: hi server watch [--deadman <url>] [--ntfy <url> --ntfy-token <token>] [--channel <id>] | forget <team> | subscribe <team>"}
+		return usageError{"usage: hi server watch [--deadman <url>] [--ntfy <url> --ntfy-token <token>] [--channel <id>] [--auto-freeze on|off]\n       hi server watch forget|subscribe <team>\n       hi server watch freeze|unfreeze|pause|unpause <team> [--because \"<why>\"]"}
 	}
-	if *deadman != "" || *ntfy != "" || *token != "" || *channel != "" {
-		change := watchConfig{Deadman: *deadman, Ntfy: *ntfy, NtfyToken: *token, Channel: *channel}
+	if *autoFreeze != "" && *autoFreeze != "on" && *autoFreeze != "off" {
+		return usageError{"--auto-freeze is on or off"}
+	}
+
+	if *deadman != "" || *ntfy != "" || *token != "" || *channel != "" || *autoFreeze != "" {
+		change := watchConfig{Deadman: *deadman, Ntfy: *ntfy, NtfyToken: *token, Channel: *channel, AutoFreeze: *autoFreeze}
 		if err := adminCall(*dirFlag, http.MethodPost, "/admin/watch/config", change, nil); err != nil {
 			return err
 		}

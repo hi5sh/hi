@@ -343,6 +343,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamAdvisoryCommand(rest, stdout)
 	case "__app":
 		return runTeamApp(rest, stderr)
+	case "__resolver":
+		return runTeamResolver(rest, stderr)
 	case "__leadapi":
 		return runTeamLeadAPI(rest, stderr)
 	case "helper":
@@ -1567,6 +1569,7 @@ var teamRemoveContainers = func(name string, boxes []string) {
 		}
 	}
 	engine.output("rm", "-f", teamMemoryContainer(name))
+	stopTeamResolver(name)
 	teardownBox(engine, boxMeta{Name: "team-" + name})
 	for _, box := range boxes {
 		if meta, err := loadBoxMeta(box); err == nil {

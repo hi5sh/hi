@@ -1,6 +1,6 @@
 # `hi watch`: a team watched from outside
 
-Status: Approved (2026-10-22). Release 1 built in v1.4.0, release 2 in v1.5.0.
+Status: Approved (2026-10-22). Release 1 built in v1.4.0, release 2 in v1.5.0, release 3 in v1.6.0.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
@@ -609,3 +609,69 @@ dependency review in `team_deps.go`.
   the teams. The reviewer's brief lists the advisories; a KEV one makes
   the merge ask for an owner's yes, recorded as the task's trust
   approval, as for an install script.
+
+## As built (release 3, v1.6.0)
+
+Code: `team_resolver.go`, `team_watch_stop.go`, `server_watch_network.go`,
+and the proxy's lines in `box_proxy.go`.
+
+- **The proxy** logs `closed <host> <bytes up> <bytes down> <seconds>`
+  after a CONNECT tunnel or a plain request ends, and
+  `allowlist-added <host>` when it rereads an allowlist that gained a
+  host. The Slack token swap and the model injectors log no sizes; the
+  model providers are exempt from the upload rule anyway.
+- **The app's resolver** runs as a transient systemd service of its own,
+  `hi-team-<name>-resolver` (Restart=always), started again by each
+  `__serve` so it runs the current hi, and stopped by `hi team rm`. It
+  listens on two ports on 127.0.0.1 chosen once (`run/resolver.json`),
+  one per slot, so each name is logged as `resolve-production` or
+  `resolve-preview` in `run/proxy/resolve.log`, and forwards each query,
+  UDP or TCP, to the machine's first nameserver. An app box started
+  from now on gets `--network pasta:-U,53:<port>,-T,53:<port>` and
+  `--dns 127.0.0.1 --dns 169.254.1.1 --dns-option timeout:2 attempts:1`:
+  pasta carries the box's port 53 to the resolver, and pasta's own DNS
+  answers after two seconds when the resolver doesn't. Measured with
+  hi's base image: a lookup took 55 ms, the published port and HTTPS
+  worked as before; with no resolver, a lookup took 2.0 s. Only Podman
+  has this; with Docker an app box looks up as before, unlogged. Boxes
+  started before v1.6.0 get it at their next deploy.
+- **More logs in the heartbeat**: `logs` beside `network` (the lead's,
+  unchanged for a server from before), each with its name (`apps`,
+  `box:<name>` for a member box that ran in the last day) and its own
+  offset, answered in `logs_kept`; 2,000 lines in all per heartbeat.
+  The server keeps them as `watch/teams/<team>/<name>.log`.
+- **The rules** run as lines arrive, with no model, and each incident
+  closes after a day without a repeat: more than 20 `blocked` lines
+  from one log in 10 minutes; an `allowed` raw IP address; a host on
+  `watch/watch-hosts.txt` (the server writes a starter list of paste,
+  file-drop, tunnel, and request-catcher hosts, and reads it again when
+  it changes), connected to or looked up; more than 50 MB up to one
+  host in an hour, except OpenRouter, Anthropic, GitHub, and the
+  snapshots' bucket (`exempt` in the heartbeat); `allowlist-added`. A
+  host production looks up that it hadn't in 30 days goes in a weekly
+  line in the watch channel, starting a week after its first lookup.
+- **Freeze and pause** go in the heartbeat's answer as `do` (an ID, the
+  action, who, why), until the team's next heartbeat says it did it
+  (`stop.done`). Freeze writes the lead's allowlist down to `slack.com`,
+  so the lead can say what happened (its model calls go through the
+  proxy's injector, which no allowlist governs), empties each member
+  box's, and pauses the app's boxes (`podman pause`), which keeps their
+  links: nothing reaches them and they reach nothing. Pause pauses
+  every container of the team and its member boxes. What was there is
+  kept in `run/watch-stop.json` and put back exactly. While stopped, the
+  broker starts no task, review, or deploy, and its own checks (jobs,
+  answers, stops, workers) wait; the server doesn't count the team's
+  parts as down.
+- **What freezes on its own**: a burst to hosts on `watch-hosts.txt` (5
+  connections or 1 MB in 10 minutes), and an advisory in KEV that
+  matches the app's own packages. A KEV advisory in an image, an agent,
+  or hi is an incident and a push, and waits for an admin: the app may
+  never touch that package, and a freeze takes production's pages down.
+  `hi server watch --auto-freeze off` makes both wait.
+- **The weekly look** at production's box: the `node_modules` and `.venv`
+  in the app's folder on the machine, and `dpkg-query` in the box,
+  against the bill's npm, PyPI, and base image packages; a count and
+  the first 30 go in the heartbeat as `undeclared`, an incident in the
+  team's channel while there are any.
+- `/hi team freeze|unfreeze|pause|unpause <team> <why>` in Slack, for
+  approvers. Buttons on incidents aren't built.

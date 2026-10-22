@@ -682,7 +682,7 @@ func (w *serverWatch) advisoryRulesLocked(team *watchTeam, now time.Time) []watc
 		}
 		rule := "advisory:" + advisory.ID + ":" + advisory.Package
 		current[rule] = true
-		events = append(events, w.ruleLocked(team, rule, true, now, func() watchIncident {
+		opened := w.ruleLocked(team, rule, true, now, func() watchIncident {
 			why := "known to be exploited (CISA KEV)"
 			if tier == "incident" {
 				why = fmt.Sprintf("EPSS %.2f", advisory.EPSS)
@@ -693,7 +693,14 @@ func (w *serverWatch) advisoryRulesLocked(team *watchTeam, now time.Time) []watc
 			return watchIncident{Title: fmt.Sprintf("%s's production runs %s %s, which has %s, %s", team.Team, advisory.Package, advisory.Version, advisory.ID, why),
 				Detail: strings.TrimSpace(advisory.Summary + "\n" + advisoryAction(team.Team, advisory) + "\nhttps://osv.dev/vulnerability/" + advisory.ID),
 				Tell:   advisory.Part == "app", Push: tier == "kev"}
-		}, "")...)
+		}, "")
+		events = append(events, opened...)
+		// Production's own code exploited in the wild: the team freezes
+		// until an admin looks (an image's, the agents', and hi's wait
+		// for one: the app may never touch that package).
+		if len(opened) > 0 && tier == "kev" && advisory.Part == "app" && w.config.AutoFreeze != "off" {
+			w.wantLocked(team, "freeze", "watch", fmt.Sprintf("production runs %s %s, which has %s, known to be exploited", advisory.Package, advisory.Version, advisory.ID), now)
+		}
 	}
 	for rule := range team.Open {
 		if strings.HasPrefix(rule, "advisory:") && !current[rule] {

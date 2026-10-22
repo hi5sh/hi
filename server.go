@@ -1908,7 +1908,12 @@ Usage:
   hi server watch --ntfy <url> --ntfy-token <t>
                                           Where owners' pushes go; subscribe <team> gives the link
   hi server watch --channel <id>          The Slack channel for watch incidents (default: approvals)
-  hi server watch forget <team>           Let another machine send a team's heartbeats
+    hi server watch forget <team>           Let another machine send a team's heartbeats
+  hi server watch freeze|unfreeze|pause|unpause <team> [--because R]
+                                          Stop a team's boxes reaching anything, or pause them all
+  hi server watch --auto-freeze on|off    Whether a burst to paste sites, or an exploited
+                                          advisory in an app's packages, freezes on its own
+
 
 Commands other than init and run talk to the running server through its
 admin socket, so they work only on the server box. Decisions are recorded

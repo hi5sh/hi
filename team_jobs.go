@@ -216,6 +216,9 @@ func teamJobRate(watch *teamJobWatch, now time.Time) (float64, bool) {
 // counts, and opens an incident for a job that went wrong, or closes one
 // for a job that moves again. Nothing here calls a model.
 func (b *teamBroker) checkJobs(now time.Time) error {
+	if b.stopped() {
+		return nil // the app is paused on purpose: its jobs stand still
+	}
 	b.jobsMu.Lock()
 	defer b.jobsMu.Unlock()
 	state := loadTeamJobsState(b.team)

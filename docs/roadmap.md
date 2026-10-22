@@ -2405,6 +2405,27 @@ Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 2.
 - [x] The dependency review lists what OSV knows for the versions a task
   adds; one known to be exploited needs an owner's yes to merge.
 
+### v1.6.0 — Network rules and stopping a team (hi watch release 3)
+
+Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 3.
+
+- [x] The proxy logs a `closed` line with bytes up, bytes down, and
+  seconds, and an `allowlist-added` line when a box may reach more.
+- [x] The app's boxes look names up through a resolver of the team's,
+  which logs each name: Podman's pasta carries the box's port 53 to it,
+  with pasta's own as the second nameserver.
+- [x] The heartbeat carries the lead's, the member boxes', and the app's
+  logs; the server raises refused bursts, raw addresses, paste and
+  tunnel hosts (`watch-hosts.txt`), uploads over 50 MB an hour, and new
+  allowlist hosts, and a weekly line of hosts production hadn't looked
+  up in 30 days.
+- [x] `hi server watch freeze|unfreeze|pause|unpause` and `/hi team
+  freeze …`: done by the team with its next heartbeat. A burst to paste
+  or tunnel hosts, or an exploited advisory in the app's own packages,
+  freezes on its own (`--auto-freeze off`).
+- [x] Once a week the team compares production's box with its bill;
+  what the bill doesn't list is an incident.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
@@ -2524,7 +2545,7 @@ which would read the incidents this raises.
   release (`hi team bom`), a nightly match against OSV with KEV and EPSS
   for ranking, advisory incidents, `hi team advisory … ignore`, and the
   same match in the dependency review.
-- [ ] Release 3, network rules and stopping: the proxy's `closed` lines
+- [x] Release 3, network rules and stopping (v1.6.0): the proxy's `closed` lines
   with sizes, the network rules, freeze (which takes the app boxes off
   the network and their addresses down) and pause from the server, a
   logging resolver for app boxes, and the weekly comparison of what

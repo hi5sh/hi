@@ -369,7 +369,7 @@ func (b *teamBroker) openJobIncident(slot string, job teamJob, condition string,
 // own while the team ran, before hi starts it again. A stop from before
 // the team started (a reboot, hi team down) isn't one.
 func (b *teamBroker) appStopped(state teamPreview) {
-	if b.appExit == nil {
+	if b.appExit == nil || b.stopped() {
 		return
 	}
 	exit, finished, ok := b.appExit(state.Container)

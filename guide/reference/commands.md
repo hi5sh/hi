@@ -126,6 +126,8 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server watch --deadman <url>`                   | An outside check the server pings every minute (`off` to stop) |
 | `hi server watch --ntfy <url> --ntfy-token <t>`     | Where owners' pushes go; `--channel <id>` for the Slack channel |
 | `hi server watch subscribe|forget <team>`           | The link for a team's pushes; let another machine send its heartbeats |
+| `hi server watch freeze|unfreeze|pause|unpause <team> [--because <why>]` | Stop a team's boxes reaching anything and pause its app, or pause every box; done within a minute |
+| `hi server watch --auto-freeze on|off`              | Whether a burst of sends to paste or tunnel hosts, or an exploited advisory in an app's own packages, freezes the team on its own |
 
 ## hi data
 

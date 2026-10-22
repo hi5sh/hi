@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -65,6 +66,10 @@ type teamWatchState struct {
 	AdvisoryCounts []apiAdvisoryCount `json:"advisory_counts,omitempty"`
 	AdvisoriesAt   time.Time          `json:"advisories_at,omitzero"`
 	Reported       string             `json:"reported,omitempty"`
+	// Undeclared is the weekly look at production's box against its bill.
+	Undeclared *apiUndeclared `json:"undeclared,omitempty"`
+	// LogsKept is how far the server has each log besides the lead's.
+	LogsKept map[string]int64 `json:"logs_kept,omitempty"`
 }
 
 var teamWatchStateMu sync.Mutex
@@ -484,9 +489,27 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 			bomPath, beat.Bom, beat.BomVersion = path, teamBomDigest(path), version
 		}
 		beat.Ignored = loadTeamAdvisoriesIgnored(b.team)
+		beat.Undeclared = state.Undeclared
 	}
+	stop := loadTeamWatchStop(b.team)
+	beat.Stop = apiWatchStop{Frozen: stop.Frozen, Paused: stop.Paused, Done: stop.Done}
 	network, more := teamReadNetwork(teamNetworkLogPath(b.team), state.Kept, watchNetworkLinesMax)
 	beat.Network = &network
+	budget := watchNetworkLinesMax - len(network.Lines)
+	for _, log := range teamWatchLogs(b.team) {
+		if budget <= 0 {
+			more = true
+			break
+		}
+		lines, rest := teamReadNetwork(log[1], state.LogsKept[log[0]], budget)
+		lines.Log = log[0]
+		if len(lines.Lines) > 0 || lines.Rotated {
+			beat.Logs = append(beat.Logs, lines)
+			budget -= len(lines.Lines)
+		}
+		more = more || rest
+	}
+	beat.Exempt = teamWatchExempt(b.team)
 	saveTeamWatchState(b.team, state)
 	teamWatchStateMu.Unlock()
 
@@ -503,6 +526,12 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		return false, err
 	}
 	state.Sent, state.Error, state.ErrorAt, state.Kept = now.UTC(), "", time.Time{}, reply.NetworkKept
+	if state.LogsKept == nil {
+		state.LogsKept = map[string]int64{}
+	}
+	for name, kept := range reply.LogsKept {
+		state.LogsKept[name] = kept
+	}
 	if stopping == "" {
 		b.tellWatched(&state, reply.Tell)
 		state.Advisories, state.AdvisoryCounts, state.AdvisoriesAt = reply.Advisories, reply.Counts, now.UTC()
@@ -515,6 +544,13 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 	}
 	saveTeamWatchState(b.team, state)
+	if reply.Do != nil {
+		// Confirmed in the next heartbeat.
+		if err := b.carryOut(*reply.Do); err != nil {
+			return false, fmt.Errorf("doing what the hi server asked (%s): %w", reply.Do.Action, err)
+		}
+		more = true
+	}
 	if reply.NeedBom && bomPath != "" {
 		data, err := os.ReadFile(bomPath)
 		if err == nil {
@@ -525,6 +561,60 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 	}
 	return more && reply.NetworkKept == network.To, nil
+}
+
+// teamWatchLogs are the logs a heartbeat carries besides the lead's: the
+// app boxes' lookups, and the network log of each member box that ran in
+// the last day.
+func teamWatchLogs(team string) [][2]string {
+	logs := [][2]string{}
+	if fileExists(teamResolveLogPath(team)) {
+		logs = append(logs, [2]string{"apps", teamResolveLogPath(team)})
+	}
+	seen := map[string]bool{}
+	for _, task := range loadTeamTasks(team) {
+		if task.Box == "" || seen[task.Box] {
+			continue
+		}
+		recent := task.Status == "running" || task.Status == "starting" || time.Since(task.Finished) < 24*time.Hour
+		if path := boxStateFile(task.Box, "network.log"); recent && fileExists(path) {
+			seen[task.Box] = true
+			logs = append(logs, [2]string{"box:" + task.Box, path})
+		}
+	}
+	return logs
+}
+
+// teamWatchExempt are the hosts big uploads may go to besides the model
+// providers and GitHub: the snapshots' offsite bucket.
+func teamWatchExempt(team string) []string {
+	config, err := loadTeam(team)
+	if err != nil || config.Backups == nil || config.Backups.Offsite == "" {
+		return nil
+	}
+	if parsed, err := url.Parse(strings.TrimPrefix(config.Backups.Offsite, "s3:")); err == nil && parsed.Hostname() != "" {
+		return []string{parsed.Hostname()}
+	}
+	return nil
+}
+
+// lookAtProduction compares production's box with its bill once a week.
+func (b *teamBroker) lookAtProduction() {
+	teamWatchStateMu.Lock()
+	state := loadTeamWatchState(b.team)
+	teamWatchStateMu.Unlock()
+	if state.Undeclared != nil && time.Since(state.Undeclared.Checked) < 7*24*time.Hour {
+		return
+	}
+	undeclared, err := teamUndeclared(b.team)
+	if err != nil {
+		return
+	}
+	teamWatchStateMu.Lock()
+	defer teamWatchStateMu.Unlock()
+	state = loadTeamWatchState(b.team)
+	state.Undeclared = undeclared
+	saveTeamWatchState(b.team, state)
 }
 
 var errTeamNotWatched = errors.New("this machine isn't connected to a hi server (hi connect), so nothing watches the team from outside")
@@ -574,6 +664,7 @@ func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
 			fmt.Fprintln(stderr, "hi: the team's heartbeat reaches its hi server again")
 			failing = false
 		}
+		b.lookAtProduction()
 		wait := teamWatchEvery
 		if more {
 			wait = teamWatchCatchUp

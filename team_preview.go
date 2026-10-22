@@ -429,6 +429,9 @@ func (b *teamBroker) production(port int) (teamPreview, error) {
 // beside the one there, and the address moves to it once it answers. The
 // address stays while it has keep left; otherwise it gets a new one.
 func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (teamPreview, error) {
+	if err := b.errStopped(); err != nil {
+		return teamPreview{}, err
+	}
 	if next.Port == 0 {
 		next.Port = teamPreviewPort
 	}
@@ -932,6 +935,9 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	run := []string{"run", "-d", "--init", "--name", name, "--hostname", b.team + "-app",
 		"-p", fmt.Sprintf("127.0.0.1:%d:%d", hostPort, port)}
 	run = append(run, engine.userArgs()...)
+	// Its lookups go through the team's resolver, which logs them
+	// (team_resolver.go).
+	run = append(run, teamAppNetworkArgs(b.team, slot, engine)...)
 	run = append(run, boxHardening("4g")...)
 	run = append(run, "-v", src+":/app", "-w", "/app")
 	run = append(run, teamAppDataMount(b.team, slot, data)...)

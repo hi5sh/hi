@@ -288,8 +288,12 @@ func TestWatchMatchesProductionsBill(t *testing.T) {
 		return len(pushes) == 1 && strings.Contains(pushes[0], "react 19.3.0")
 	})
 
-	// The next heartbeat: the lead hears of the app's, not the base image's.
+	// The next heartbeat: the lead hears of the app's, not the base image's,
+	// and an exploited one in the app's own packages freezes the team.
 	b.sendHeartbeat("")
+	if stop := loadTeamWatchStop("payments"); !stop.Frozen || stop.By != "watch" || !strings.Contains(stop.Because, "react 19.3.0") {
+		t.Fatalf("%+v", stop)
+	}
 	incidents := loadTeamIncidents("payments")
 	if len(incidents) != 1 || !strings.Contains(incidents[0].Title, "react 19.3.0, which has GHSA-r3ac-t000-0001, known to be exploited") || !strings.Contains(incidents[0].Detail, "The lead proposes the upgrade") {
 		t.Fatalf("%+v", incidents)
