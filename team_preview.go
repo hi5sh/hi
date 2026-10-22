@@ -451,6 +451,24 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		saveTeamSlot(b.team, current)
 		return current, nil // it shows this already
 	}
+	// The box shows this already, and only its address is gone or ending:
+	// the box gets a new address and keeps running. A new box beside it
+	// would start the app a second time on its data while the address
+	// moved, and wait for it to answer.
+	if had && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings &&
+		current.HostPort != 0 && b.running(current.Container) && b.answers(current.HostPort) {
+		current.Label, current.NewLink = next.Label, false
+		if err := b.newAddress(&current, current, exposed, outdated, wanted, relay, keep); err != nil {
+			return teamPreview{}, err
+		}
+		if err := saveTeamSlot(b.team, current); err != nil {
+			return current, err
+		}
+		if current.NewLink {
+			go b.refreshLinks()
+		}
+		return current, nil
+	}
 
 	// The app gets a copy of the commit of its own; its installs and
 	// files stay out of repo/.
@@ -525,50 +543,11 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	next.Domain, next.DomainError, next.DomainChecked = current.Domain, current.DomainError, current.DomainChecked
 	next.Relay, next.AllowIPs = current.Relay, current.AllowIPs
 	if !lasts {
-		name := "team-" + b.team
-		if next.Slot == teamSlotProduction {
-			name += "-live"
-		}
-		key := ""
-		if outdated || had && !exposed && teamAddressLost(current) {
-			// The same key on a name that stays: the links people have
-			// keep working.
-			key = teamLinkKey(current.URL)
-		}
-		exposure, err := b.expose(hostPort, portFile, name, next.Slot, wanted, key)
-		domain := wanted
-		if wanted != "" {
-			next.DomainError, next.DomainChecked = "", time.Now().UTC()
-			if err != nil {
-				// The name that stays doesn't work (yet): an address NetBird
-				// makes up, unless the one the people have still lasts.
-				next.DomainError = err.Error()
-				if exposed && time.Until(current.Expires) > keep {
-					exposure, err = netExposeState{}, errors.New("kept the address")
-				} else {
-					exposure, err = b.expose(hostPort, portFile, name, next.Slot, "", "")
-					domain = ""
-				}
-			}
-		}
-		switch {
-		case err != nil && !exposed:
+		if err := b.newAddress(&next, current, exposed, outdated, wanted, relay, keep); err != nil {
 			discard()
 			os.Remove(portFile)
 			return teamPreview{}, err
-		case err == nil:
-			if exposed {
-				b.run("net", "expose", "stop", current.Expose)
-			}
-			link := firstNonEmpty(exposure.Link, exposure.URL)
-			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = link, exposure.Password, exposure.Name, exposure.Expires, !exposed || link != current.URL
-			next.Relay = relay
-			next.Domain = domain
-			next.AllowIPs = teamAllowIPs(b.team)
-			writeTeamSlotAddress(b.team, next.Slot, next.URL)
 		}
-		// Without a new address, the old one shows the new version for
-		// the time it has left.
 	}
 	if had && current.Container != next.Container {
 		b.engineOutput("rm", "-f", current.Container)
@@ -584,6 +563,54 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		go b.refreshLinks()
 	}
 	return next, nil
+}
+
+// newAddress puts next, the box on next.HostPort, on a new address in
+// place of current's, which doesn't last. With the same key on a name that
+// stays, the links people have keep working. When no new address can be
+// made, current's shows next for the time it has left; the error is for
+// when there is no address at all.
+func (b *teamBroker) newAddress(next *teamPreview, current teamPreview, exposed, outdated bool, wanted, relay string, keep time.Duration) error {
+	portFile := teamSlotPortFile(b.team, next.Slot)
+	name := "team-" + b.team
+	if next.Slot == teamSlotProduction {
+		name += "-live"
+	}
+	key := ""
+	if outdated || !exposed && teamAddressLost(current) {
+		key = teamLinkKey(current.URL)
+	}
+	exposure, err := b.expose(next.HostPort, portFile, name, next.Slot, wanted, key)
+	domain := wanted
+	if wanted != "" {
+		next.DomainError, next.DomainChecked = "", time.Now().UTC()
+		if err != nil {
+			// The name that stays doesn't work (yet): an address NetBird
+			// makes up, unless the one the people have still lasts.
+			next.DomainError = err.Error()
+			if exposed && time.Until(current.Expires) > keep {
+				exposure, err = netExposeState{}, errors.New("kept the address")
+			} else {
+				exposure, err = b.expose(next.HostPort, portFile, name, next.Slot, "", "")
+				domain = ""
+			}
+		}
+	}
+	switch {
+	case err != nil && !exposed:
+		return err
+	case err == nil:
+		if exposed {
+			b.run("net", "expose", "stop", current.Expose)
+		}
+		link := firstNonEmpty(exposure.Link, exposure.URL)
+		next.URL, next.Password, next.Expose, next.Expires, next.NewLink = link, exposure.Password, exposure.Name, exposure.Expires, !exposed || link != current.URL
+		next.Relay = relay
+		next.Domain = domain
+		next.AllowIPs = teamAllowIPs(b.team)
+		writeTeamSlotAddress(b.team, next.Slot, next.URL)
+	}
+	return nil
 }
 
 // expose puts the port in portFile on a new address, for a day, with the
@@ -785,7 +812,7 @@ func teamAddressLost(state teamPreview) bool {
 // one, and gives its new link where hi told of that version.
 func (b *teamBroker) restorePreview(lost teamPreview) error {
 	state, err := b.refreshPreview(lost)
-	if err != nil || state.Container == lost.Container || state.URL == lost.URL {
+	if err != nil || state.URL == lost.URL {
 		return err
 	}
 	b.tellNewPreviewLink(lost, state)

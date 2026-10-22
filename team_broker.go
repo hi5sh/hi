@@ -243,6 +243,9 @@ type teamBroker struct {
 	// app's box runs; tests replace them.
 	exposed func(name string) (netExposeState, bool)
 	running func(container string) bool
+	// answers says the app on a host port answers at all (team_health.go);
+	// tests replace it.
+	answers func(hostPort int) bool
 	// removeApp removes an app's box; tests replace it.
 	removeApp func(container string)
 	// wakeLead adds a job to the lead's Hermes that runs once, soon, with a
@@ -314,6 +317,7 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b.restoreData = func(id string) error { return teamRestoreData(team, id) }
 	b.exposed = teamExposed
 	b.running = b.appRunning
+	b.answers = teamAppAnswers
 	b.removeApp = func(container string) { b.engineOutput("rm", "-f", container) }
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the

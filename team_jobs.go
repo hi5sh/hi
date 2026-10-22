@@ -117,6 +117,10 @@ type teamJobsState struct {
 	Jobs map[string]*teamJobWatch `json:"jobs,omitempty"` // by slot/job
 	// AppStopped is the last stop of production's box that was alerted.
 	AppStopped string `json:"app_stopped,omitempty"`
+	// Silent is since when production's app hasn't answered, and
+	// SilentIncident the incident hi opened for it (team_health.go).
+	Silent         time.Time `json:"app_silent,omitzero"`
+	SilentIncident string    `json:"app_silent_incident,omitempty"`
 }
 
 type teamJobWatch struct {
@@ -280,6 +284,9 @@ func (b *teamBroker) watchJobs(done <-chan struct{}, stderr io.Writer) {
 		}
 		if err := b.checkUnreported(); err != nil {
 			fmt.Fprintf(stderr, "hi: asking the lead about the app's long work: %v\n", err)
+		}
+		if err := b.checkAnswers(time.Now()); err != nil {
+			fmt.Fprintf(stderr, "hi: asking whether production's app answers: %v\n", err)
 		}
 		select {
 		case <-done:

@@ -1125,7 +1125,8 @@ func TestTeamPreviewLostAddress(t *testing.T) {
 	close(done)
 	b.keepLinks(done, io.Discard)
 	second, ok := loadTeamSlot("payments", teamSlotPreview)
-	if !ok || second.URL == first.URL || second.Commit != first.Commit || second.Label != first.Label || second.Container == first.Container {
+	// The box that answers keeps running; only the address is new.
+	if !ok || second.URL == first.URL || second.Commit != first.Commit || second.Label != first.Label || second.Container != first.Container {
 		t.Fatalf("%+v", second)
 	}
 	if _, exposed := b.exposed(second.Expose); !exposed {
@@ -1309,7 +1310,8 @@ func TestTeamProductionLink(t *testing.T) {
 	close(done)
 	b.keepLinks(done, io.Discard)
 	third, _ := loadTeamSlot("payments", teamSlotProduction)
-	if third.URL == second.URL || third.Message != first.Message || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+third.URL+"|this link>") {
+	// The box that runs keeps running; only the address is new.
+	if third.URL == second.URL || third.Container != second.Container || third.Message != first.Message || !strings.Contains(channel.calls[len(channel.calls)-1], "<"+third.URL+"|this link>") {
 		t.Fatalf("%+v %q", third, channel.calls)
 	}
 	if address() != third.URL+"\n" {
