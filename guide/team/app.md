@@ -63,7 +63,19 @@ hi team domain apps.example.com --new-token   # another token; hi also asks when
 ```
 
 A team's production moves within a minute of `on` or `off`, and its
-preview with the next one. A team still running an older hi moves when
+preview with the next one.
+
+To let in only some addresses, such as the office's, with the same token:
+
+```sh
+hi team allow-ip payments 203.0.113.18     # addresses and CIDR blocks, separated by commas
+hi team allow-ip payments                    # what it is now
+hi team allow-ip payments off                # any address with the link
+```
+
+The team's production and preview move to addresses with the rule within
+a minute (`hi net expose --allow-ip`). On a name that stays, the links
+people have keep working; from anywhere else, NetBird turns them away. A team still running an older hi moves when
 it is restarted. If
 the name doesn't work, hi uses an address NetBird makes up, tries the name
 again after half an hour, and keeps why in `hi team preview`'s answer.

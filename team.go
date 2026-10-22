@@ -52,6 +52,9 @@ type teamConfig struct {
 	// Domain puts the team's app on the machine's domain (hi team domain
 	// <team> on): names that stay, rather than ones NetBird makes up.
 	Domain bool `json:"domain,omitempty"`
+	// AllowIPs are the only addresses the team's preview and production
+	// let in (hi team allow-ip <team>; hi net expose --allow-ip).
+	AllowIPs []string `json:"allow_ips,omitempty"`
 	// PreviewData is "empty" for a team whose preview starts empty at every
 	// release; otherwise it starts on a fork of production's data
 	// (team_data_fork.go). PreviewModelUSD is what the preview's model
@@ -342,6 +345,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamProgressCommand(rest, stdout)
 	case "domain":
 		err = teamDomainCommand(rest, stdin, stdout)
+	case "allow-ip":
+		err = teamAllowIPCommand(rest, stdout)
 	case "manifest":
 		err = withTeamName(rest, func(name string) error {
 			config, err := loadTeam(name)
@@ -456,6 +461,8 @@ usage:
   hi team domain [<domain>|off]    a domain verified in NetBird for the apps on this machine
   hi team domain <name> on|off     the team's app at <name>.<domain>, its preview at
                                    <name>-preview.<domain>; off by default
+  hi team allow-ip <name>          the only addresses the app's preview and production let in
+      [<ip,cidr> | off]            (NetBird's Access Control; needs hi team domain's token)
   hi team manifest <name>          the Slack app manifest again
   hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the team pushes every merge there

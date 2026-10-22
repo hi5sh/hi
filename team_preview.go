@@ -90,6 +90,9 @@ type teamPreview struct {
 	Domain        string    `json:"domain,omitempty"`
 	DomainError   string    `json:"domain_error,omitempty"`
 	DomainChecked time.Time `json:"domain_checked,omitzero"`
+	// AllowIPs is the --allow-ip the address got: a change in the team's
+	// setting moves it to a new one.
+	AllowIPs string `json:"allow_ips,omitempty"`
 }
 
 // teamDomainRetry is how long hi waits before trying a name that failed
@@ -440,7 +443,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	// routes now, moves to a new relay with the same key, so the links
 	// people have keep working.
 	relay := teamRelayStamp(b.team, next.Slot)
-	outdated := teamRelayOutdated(current, wanted, relay) && exposed
+	outdated := (teamRelayOutdated(current, wanted, relay) || teamAccessOutdated(b.team, current)) && exposed
 	lasts := exposed && time.Until(current.Expires) > keep && teamDomainSettled(current, wanted) && !outdated
 	next.Settings = teamSettingsStamp(b.team)
 	if lasts && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings && b.running(current.Container) {
@@ -520,7 +523,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 	next.Started = time.Now().UTC()
 	next.URL, next.Password, next.Expose, next.Expires, next.Message = current.URL, current.Password, current.Expose, current.Expires, current.Message
 	next.Domain, next.DomainError, next.DomainChecked = current.Domain, current.DomainError, current.DomainChecked
-	next.Relay = current.Relay
+	next.Relay, next.AllowIPs = current.Relay, current.AllowIPs
 	if !lasts {
 		name := "team-" + b.team
 		if next.Slot == teamSlotProduction {
@@ -561,6 +564,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 			next.URL, next.Password, next.Expose, next.Expires, next.NewLink = link, exposure.Password, exposure.Name, exposure.Expires, !exposed || link != current.URL
 			next.Relay = relay
 			next.Domain = domain
+			next.AllowIPs = teamAllowIPs(b.team)
 			writeTeamSlotAddress(b.team, next.Slot, next.URL)
 		}
 		// Without a new address, the old one shows the new version for
@@ -595,6 +599,9 @@ func (b *teamBroker) expose(hostPort int, portFile, name, slot, domain, key stri
 	}
 	if key != "" {
 		args = append(args, "--key", key)
+	}
+	if allow := teamAllowIPs(b.team); allow != "" {
+		args = append(args, "--allow-ip", allow)
 	}
 	out, err := b.run(append(args, teamExposeHelperArgs(b.team, slot)...)...)
 	if err != nil {
@@ -725,7 +732,8 @@ func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 						previewFailed = time.Now()
 					}
 				}
-			} else if (preview.Settings != teamSettingsStamp(b.team) || teamRelayOutdated(preview, teamSlotDomain(b.team, teamSlotPreview), teamRelayStamp(b.team, teamSlotPreview))) &&
+			} else if (preview.Settings != teamSettingsStamp(b.team) || teamRelayOutdated(preview, teamSlotDomain(b.team, teamSlotPreview), teamRelayStamp(b.team, teamSlotPreview)) ||
+				teamAccessOutdated(b.team, preview)) &&
 				time.Since(previewFailed) > 30*time.Minute {
 				// A new hi, or new settings: the same version in a new box,
 				// on the same address.
@@ -832,7 +840,8 @@ func (b *teamBroker) productionNeedsWork() bool {
 	return !exposed || time.Until(state.Expires) <= teamLinkRenew || state.Settings != teamSettingsStamp(b.team) ||
 		!teamDomainSettled(state, teamSlotDomain(b.team, teamSlotProduction)) ||
 		state.Commit != boxGit(b.repo, "rev-parse", teamProductionBranch) || !b.running(state.Container) ||
-		teamRelayOutdated(state, teamSlotDomain(b.team, teamSlotProduction), teamRelayStamp(b.team, teamSlotProduction))
+		teamRelayOutdated(state, teamSlotDomain(b.team, teamSlotProduction), teamRelayStamp(b.team, teamSlotProduction)) ||
+		teamAccessOutdated(b.team, state)
 }
 
 // teamRelayOutdated says a slot's address is on a name that stays but its

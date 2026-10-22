@@ -686,7 +686,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	}
 	var keep func() error
 	if len(options.AllowIPs) > 0 && !options.VPN {
-		if keep, err = netExposeRestrict(publicURL, options); err != nil {
+		if keep, err = netExposeRestrict(publicURL, relayPort, options); err != nil {
 			return err
 		}
 		open.Store(true)

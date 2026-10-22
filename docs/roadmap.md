@@ -2337,6 +2337,9 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   goes.
 - [x] `hi net expose --vpn`: no public address, only devices on the
   NetBird network, at `http://<NetBird name>:<port>`.
+- [x] `hi team allow-ip <team> <ip,cidr>|off`: a team's preview and
+  production let in only those addresses, moving to addresses with the
+  rule within a minute, with the same key.
   Approved spec: [hi_net_expose.md](specs/approved/hi_net_expose.md).
 
 ## Planned

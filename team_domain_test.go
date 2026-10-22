@@ -216,3 +216,50 @@ func TestTeamAppBoxesFollowHi(t *testing.T) {
 		t.Fatalf("%+v\n%+v", first, after)
 	}
 }
+
+func TestTeamAllowIP(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "app").Run()
+	first, err := b.preview(teamPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	// Without a token there is no way to set the rule.
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("NETBIRD_API_TOKEN", "")
+	if err := teamAllowIPCommand([]string{"payments", "203.0.113.18"}, &out); err == nil || !strings.Contains(err.Error(), "hi team domain") {
+		t.Fatal(err)
+	}
+	t.Setenv("NETBIRD_API_TOKEN", "nbp_test")
+	if err := teamAllowIPCommand([]string{"payments", "nowhere"}, &out); err == nil {
+		t.Fatal("a bad address was saved")
+	}
+	if err := teamAllowIPCommand([]string{"payments", "203.0.113.18"}, &out); err != nil || !strings.Contains(out.String(), "only 203.0.113.18/32") {
+		t.Fatal(err, out.String())
+	}
+	// The address moves to one with the rule, with the same key.
+	saved, _ := loadTeamSlot("payments", teamSlotPreview)
+	if !teamAccessOutdated("payments", saved) {
+		t.Fatal("not outdated")
+	}
+	calls := len(b.calls)
+	second, err := b.preview(teamPreviewRequest{})
+	if err != nil || second.AllowIPs != "203.0.113.18/32" || second.Commit != first.Commit {
+		t.Fatalf("%+v %v", second, err)
+	}
+	if moved := strings.Join(b.calls[calls:], "\n"); !strings.Contains(moved, "--allow-ip 203.0.113.18/32") || !strings.Contains(moved, "--key") {
+		t.Fatal(moved)
+	}
+	if teamAccessOutdated("payments", second) {
+		t.Fatal("still outdated")
+	}
+	// Off: any address again.
+	out.Reset()
+	if err := teamAllowIPCommand([]string{"payments", "off"}, &out); err != nil || !strings.Contains(out.String(), "any address") || !teamAccessOutdated("payments", second) {
+		t.Fatal(err, out.String())
+	}
+}

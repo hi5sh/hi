@@ -283,3 +283,57 @@ func teamWarnOldHi(name string, stdout io.Writer) {
 		fmt.Fprintf(stdout, "Note: %s still runs the hi it started with, from before an update. If that hi is older than this setting, nothing changes until the team restarts (hi update offers to):\n  %s\n", name, restart)
 	}
 }
+
+// teamAllowIPs is the team's --allow-ip, or "" for any address.
+func teamAllowIPs(team string) string {
+	config, err := loadTeam(team)
+	if err != nil {
+		return ""
+	}
+	return strings.Join(config.AllowIPs, ",")
+}
+
+// teamAccessOutdated says a slot's address lets in other addresses than
+// the team's setting says: it moves to a new one, with the same key.
+func teamAccessOutdated(team string, state teamPreview) bool {
+	return state.AllowIPs != teamAllowIPs(team)
+}
+
+// teamAllowIPCommand is hi team allow-ip <team> [<ip,cidr>|off].
+func teamAllowIPCommand(args []string, stdout io.Writer) error {
+	if len(args) != 1 && len(args) != 2 {
+		return usageError{"usage: hi team allow-ip <name> [<ip,cidr> | off]"}
+	}
+	config, err := loadTeam(args[0])
+	if err != nil {
+		return err
+	}
+	if len(args) == 2 {
+		allowed := []string(nil)
+		if args[1] != "off" {
+			if allowed, err = parseNetExposeAllow(args[1]); err != nil {
+				return err
+			}
+			if _, err := netbirdAPIToken(); err != nil {
+				return errors.New("hi sets the rule through NetBird's API, with the token hi team domain <domain> saves; this machine has none yet")
+			}
+		}
+		config.AllowIPs = allowed
+		if err := saveTeam(config); err != nil {
+			return err
+		}
+	}
+	switch {
+	case len(config.AllowIPs) == 0:
+		fmt.Fprintf(stdout, "Team %s's app lets in any address that has its link.\n", config.Name)
+	case len(args) == 2:
+		fmt.Fprintf(stdout, "Team %s's app lets in only %s: production within a minute, the preview with it. Links on a name that stays keep working; others change.\n",
+			config.Name, strings.Join(config.AllowIPs, ", "))
+	default:
+		fmt.Fprintf(stdout, "Team %s's app lets in only %s.\n", config.Name, strings.Join(config.AllowIPs, ", "))
+	}
+	if len(args) == 2 {
+		teamWarnOldHi(config.Name, stdout)
+	}
+	return nil
+}

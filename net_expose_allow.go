@@ -94,10 +94,12 @@ func netExposeGuard(next http.Handler, open func() bool, allowed []netip.Prefix)
 	})
 }
 
-// netExposeRestrict sets --allow-ip on the NetBird service behind address
-// and checks NetBird kept it. keep does the same again: it puts the rule
-// back if it has gone, and says so when it can't.
-func netExposeRestrict(address string, options netExposeOptions) (keep func() error, err error) {
+// netExposeRestrict sets --allow-ip on the NetBird service behind address,
+// the relay at relayPort, and checks NetBird kept it. keep does the same
+// again: it puts the rule back if it has gone, and says so when it can't.
+// Once a service on a name that stays points at another relay, it is that
+// relay's to keep.
+func netExposeRestrict(address string, relayPort int, options netExposeOptions) (keep func() error, err error) {
 	api, err := newNetbirdAPI()
 	if err != nil {
 		return nil, err
@@ -125,7 +127,7 @@ func netExposeRestrict(address string, options netExposeOptions) (keep func() er
 		if err := api.call(http.MethodGet, path, nil, &service); err != nil {
 			return err
 		}
-		if netExposeHasRule(service, options.AllowIPs) {
+		if netExposeHasRule(service, options.AllowIPs) || !netExposeTargets(service, relayPort) {
 			return nil
 		}
 		restrictions, _ := service["access_restrictions"].(map[string]any)
@@ -163,6 +165,19 @@ func netExposeRestrict(address string, options netExposeOptions) (keep func() er
 		return nil, err
 	}
 	return keep, nil
+}
+
+// netExposeTargets says a service points at the relay on port, or says
+// nothing of where it points.
+func netExposeTargets(service map[string]any, port int) bool {
+	targets, _ := service["targets"].([]any)
+	for _, item := range targets {
+		target, _ := item.(map[string]any)
+		if number, ok := target["port"].(float64); !ok || int(number) == port {
+			return true
+		}
+	}
+	return len(targets) == 0
 }
 
 // netExposeHasRule says a service lets in exactly the blocks in cidrs.

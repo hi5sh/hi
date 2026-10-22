@@ -124,7 +124,7 @@ func fakeRawNetbird(t *testing.T, domain string) *rawNetbirdAPI {
 func TestNetExposeRestrict(t *testing.T) {
 	fake := fakeRawNetbird(t, "hi-demo-ab12.eu1.netbird.services")
 	options := netExposeOptions{Protection: "password", Secret: "amber-birch-cedar-07", AllowIPs: []string{"203.0.113.18/32"}}
-	keep, err := netExposeRestrict("https://hi-demo-ab12.eu1.netbird.services", options)
+	keep, err := netExposeRestrict("https://hi-demo-ab12.eu1.netbird.services", 41001, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,16 @@ func TestNetExposeRestrict(t *testing.T) {
 	if err := keep(); err == nil || !strings.Contains(err.Error(), "didn't keep") {
 		t.Fatal(err)
 	}
-	if _, err := netExposeRestrict("https://other.eu1.netbird.services", options); err == nil || !strings.Contains(err.Error(), "no service") {
+	// A service another relay has taken over is left as it is.
+	fake.mu.Lock()
+	fake.dropRule = false
+	fake.service["targets"] = []any{map[string]any{"port": 41002}}
+	fake.mu.Unlock()
+	puts := len(fake.puts)
+	if err := keep(); err != nil || len(fake.puts) != puts {
+		t.Fatal(err, len(fake.puts))
+	}
+	if _, err := netExposeRestrict("https://other.eu1.netbird.services", 41001, options); err == nil || !strings.Contains(err.Error(), "no service") {
 		t.Fatal(err)
 	}
 }
