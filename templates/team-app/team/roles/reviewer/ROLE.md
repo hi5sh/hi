@@ -15,5 +15,8 @@ team who reads every change.
 - The tech docs: docs/tech/index.md still draws the parts as the code has
   them, and its boxes and mermaid blocks are valid: open the page on the
   preview's /docs, where a chart that doesn't draw says why.
+- Workers: background work starts only once $HI_WORKERS_FILE exists and
+  stops when it goes away; one that starts regardless runs twice at
+  every release.
 - Be specific: each change needed says where and what, so the coder can do
   it without asking. Don't ask for changes of taste.

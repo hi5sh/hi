@@ -50,6 +50,10 @@ work reports as a job, and that a job which stops on its own (too many
 failures in a row, a limit) says so first. The reviewer sends back work
 that would stop silently.
 
+A job's workers run in one box at a time: at a release, the old
+version's stop before the new version's start (see
+[The app's workers at a release](/guide/team/releases/#the-apps-workers-at-a-release)).
+
 An app from before hi watched jobs may have long work that doesn't
 report. The first time hi starts a team whose app has merged work and no
 job, it posts in the channel and the lead checks the app, then starts a

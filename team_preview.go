@@ -93,6 +93,10 @@ type teamPreview struct {
 	// AllowIPs is the --allow-ip the address got: a change in the team's
 	// setting moves it to a new one.
 	AllowIPs string `json:"allow_ips,omitempty"`
+	// Workers says the box's relay holds the slot's workers' lock
+	// (team_workers.go): a box from a hi before it has nothing to hand
+	// over.
+	Workers bool `json:"workers,omitempty"`
 }
 
 // teamDomainRetry is how long hi waits before trying a name that failed
@@ -484,7 +488,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		return teamPreview{}, err
 	}
 	discard := func() {
-		b.engineOutput("rm", "-f", next.Container)
+		b.removeApp(next.Container)
 		os.RemoveAll(next.App)
 	}
 	still := ""
@@ -519,6 +523,11 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		b.removeApp(current.Container)
 		still = " The preview is down until a version of it starts."
 	}
+	// The old box's workers stop before the new box opens the data; if
+	// the new box fails, they carry on.
+	endHandover := b.handOverWorkers(next.Slot, current, had)
+	defer endHandover()
+	next.Workers = true
 	if err := b.app(next.Slot, next.Container, next.App, data, teamSlotAddressDir(b.team, next.Slot), next.Command, next.Port, hostPort); err != nil {
 		discard()
 		return teamPreview{}, fmt.Errorf("%w.%s", err, still)
@@ -550,7 +559,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		}
 	}
 	if had && current.Container != next.Container {
-		b.engineOutput("rm", "-f", current.Container)
+		b.removeApp(current.Container)
 		if current.App != "" {
 			os.RemoveAll(current.App)
 		}
@@ -891,8 +900,9 @@ func teamLinkKey(link string) string {
 // startApp runs the project in its box: the hardening every box has, no
 // credentials, its port published to this machine only, its data folder
 // at /data, its address folder read-only at /hi, its slot and the team's
-// settings, and the models socket, which hi team __app relays to an
-// ordinary address in the box.
+// settings, the models socket, which hi team __app relays to an ordinary
+// address in the box, and the slot's workers' lock, which it holds for the
+// box (team_workers.go).
 func (b *teamBroker) startApp(slot, name, src, data, address, command string, port, hostPort int) error {
 	engine, _, err := detectBoxEngine()
 	if err != nil {
@@ -910,6 +920,10 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	if err := os.MkdirAll(jobs, 0o700); err != nil {
 		return err
 	}
+	workers := teamSlotWorkersDir(b.team, slot)
+	if err := os.MkdirAll(workers, 0o700); err != nil {
+		return err
+	}
 	envFile, err := writeTeamAppEnvFile(b.team, teamAppEnv(b.team, slot, port))
 	if err != nil {
 		return err
@@ -924,9 +938,11 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	run = append(run, "-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",
 		"-v", models+":"+teamAppModelsDir,
 		"-v", jobs+":"+teamAppJobsDir,
+		"-v", workers+":"+teamAppWorkersDir,
 		"-v", b.hi+":"+teamAppRelay+":ro",
 		"--env-file", envFile,
-		image, teamAppRelay, "team", "__app", teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
+		image, teamAppRelay, "team", "__app", "--workers", teamAppWorkersDir, "--box", name,
+		teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
 	name, args := teamOutsideService(engine.bin, run)
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {
 		return fmt.Errorf("%s: %s", engine.name, qFirstLine(strings.TrimSpace(string(out)), err.Error()))

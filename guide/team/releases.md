@@ -57,3 +57,38 @@ too, with what was set aside, and it stays in the project's history.
 `hi team status payments` shows production's version and what dev has on
 top of it. When a release goes wrong, see
 [Rollback](/guide/team/folder/#rollback).
+
+## The app's workers at a release
+
+A release, a rollback, or a restart starts the new version in a box
+beside the old one, on the same data, and moves the address to it once
+it answers: the app's pages never go down. An app's background workers
+(a backfill, a queue, a model call per record) must not run in both boxes
+at once. They would do the same work twice, and the new version could
+fail to start because the old one's workers hold the database.
+
+So one box of production, and one of the preview, runs the workers at a
+time. hi holds a lock for that box, and while it does, the file named by
+`$HI_WORKERS_FILE` exists inside it. The app starts its workers once the
+file exists and stops them when it goes away. At each release:
+
+1. hi tells the old box to let go, and its workers file goes away.
+2. The app stops its workers, putting back what it had in hand, and
+   creates `$HI_WORKERS_FILE.stopped`. An app that doesn't say so gets
+   30 seconds (`hi team env <team> HI_WORKERS_GRACE=120` for longer, up
+   to 300).
+3. hi starts the new version. It opens the data with no workers writing,
+   migrates, answers, and takes the workers over.
+4. The address moves, and the old box is removed.
+
+If the new version doesn't start, hi removes it and the old box takes its
+workers back. `hi team jobs <team>` starts with which box runs them, and
+when production's box has waited five minutes for them, hi opens an
+incident.
+
+The members write workers this way: every brief carries the rule, and
+the reviewer sends back a worker that would start regardless. An app
+written before hi handed workers over keeps running them in both boxes
+for that minute, as before; the first time hi starts its team, the lead
+checks the app and starts a small task to change it. The release after
+that change still overlaps; the ones after it don't.

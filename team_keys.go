@@ -49,7 +49,7 @@ var teamEnvName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // teamAppEnvReserved are the variables hi sets in an app's box itself.
 var teamAppEnvReserved = map[string]bool{"HOME": true, "PORT": true, "HOST": true, "PATH": true,
-	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
+	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "HI_WORKERS_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
 
 // teamModelsDir holds the broker's models socket; app boxes mount it.
 func teamModelsDir(name string) string { return teamBrokerDir(name) + "-models" }
@@ -169,6 +169,9 @@ func teamAppEnv(name, slot string, port int) map[string]string {
 	// The app's long work reports here, as files or with "$HI" team job
 	// (team_jobs.go).
 	env["HI_JOBS_DIR"] = teamAppJobsDir
+	// The app's background workers run while this file exists
+	// (team_workers.go).
+	env["HI_WORKERS_FILE"] = teamAppWorkersFile
 	env["HI"] = teamAppRelay
 	env["OPENROUTER_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/api/v1", teamAppModelsPort)
 	env["OPENROUTER_API_KEY"] = boxClaudePlacehold
@@ -290,11 +293,21 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 }
 
 // runTeamApp is hi team __app, an app box's first process: it relays
-// 127.0.0.1:<port> to the models socket, then runs the app's command and
-// ends as it does.
+// 127.0.0.1:<port> to the models socket, holds the slot's workers' lock
+// for the box (--workers, team_workers.go), then runs the app's command
+// and ends as it does.
 func runTeamApp(args []string, stderr io.Writer) int {
+	workers, box := "", ""
+	for len(args) >= 2 && (args[0] == "--workers" || args[0] == "--box") {
+		if args[0] == "--workers" {
+			workers = args[1]
+		} else {
+			box = args[1]
+		}
+		args = args[2:]
+	}
 	if len(args) != 3 {
-		fmt.Fprintln(stderr, "usage: hi team __app <models socket> <port> <command>")
+		fmt.Fprintln(stderr, "usage: hi team __app [--workers <dir> --box <name>] <models socket> <port> <command>")
 		return 2
 	}
 	socket, port, command := args[0], args[1], args[2]
@@ -324,6 +337,11 @@ func runTeamApp(args []string, stderr io.Writer) int {
 			cmd.Process.Signal(sig)
 		}
 	}()
+	if workers != "" && box != "" {
+		done := make(chan struct{})
+		defer close(done)
+		go teamWorkersRelay(workers, box, firstNonEmpty(os.Getenv("HI_WORKERS_FILE"), teamAppWorkersFile), teamWorkersGrace(os.Getenv("HI_WORKERS_GRACE")), done, stderr)
+	}
 	err := cmd.Wait()
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) {

@@ -141,6 +141,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// A deploy the last broker didn't finish gives the old box its
+	// workers back.
+	clearWorkersYields(name)
 	broker := newTeamBroker(name, hi)
 	slackChannel := newLiveTeamChannel(secrets.SlackBotToken)
 	broker.channel = slackChannel
@@ -1124,7 +1127,7 @@ of its own on a branch of the project; you get their reports.
 | hi team web questions | What people asked the app's help lately, and its answers |
 | hi team web link --user U07ANNA | DM someone their private links to the app's chat (what %[4]s does) |
 | hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
-| hi team jobs [--preview] | The app's long work: each job's state, count, rate a day, where it is, and its last error |
+| hi team jobs [--preview] | The app's long work: which box runs its workers, then each job's state, count, rate a day, where it is, and its last error |
 | hi team incidents [<id>] | What went wrong while nobody looked, and each one's timeline; --rules, the people's decisions about the jobs |
 | hi team alert "text" | Raise something you noticed as an incident, such as production broken |
 
@@ -1421,6 +1424,12 @@ babysit the work, and ask them about the rest.
   from before the last release, which may have fixed it already.
 - When you brief work that adds long work to the app, say it reports as
   a job, with its name and what to do with an item it can't process.
+- **One box runs the workers.** At a release, a rollback, or a restart,
+  hi starts the new version beside the old one; the app's background
+  workers run only in the box where $HI_WORKERS_FILE exists, and hi
+  stops the old box's before the new box starts. Briefs for workers say
+  so (the coder's brief carries the rule). hi team jobs says which box
+  has them; a box that waits for them over five minutes is an incident.
 
 ## What needs someone at the machine
 

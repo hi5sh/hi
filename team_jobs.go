@@ -53,6 +53,7 @@ const teamJobsRule = "Long work in the app: work that can outlive a request (a l
 	"When the job meets an item it can't process, it stops with state blocked, the item, and why, unless the job's spec gives a rule for that case: never skip, drop, or make up an item on its own, since later values may depend on it. " +
 	"A job that stops on its own for any other reason (too many failures in a row, a limit it reached) writes failed or blocked with why before it stops: a job that only stops looks to hi like one that is idle. " +
 	"Long work your change touches that doesn't report yet is made to report too. Put the job's name and its rules in its spec.\n" +
+	teamWorkersRule + "\n" +
 	"If you notice something broken outside your work, such as production, add a line to your report's follow_ups starting with \"Alert:\"; hi tells the lead at once."
 
 var teamJobName = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
@@ -121,6 +122,11 @@ type teamJobsState struct {
 	// SilentIncident the incident hi opened for it (team_health.go).
 	Silent         time.Time `json:"app_silent,omitzero"`
 	SilentIncident string    `json:"app_silent_incident,omitempty"`
+	// WorkersWait is since when production's box has waited for its
+	// workers' lock, and WorkersIncident the incident for it
+	// (team_workers.go).
+	WorkersWait     time.Time `json:"workers_wait,omitzero"`
+	WorkersIncident string    `json:"workers_incident,omitempty"`
 }
 
 type teamJobWatch struct {
@@ -287,6 +293,12 @@ func (b *teamBroker) watchJobs(done <-chan struct{}, stderr io.Writer) {
 		}
 		if err := b.checkAnswers(time.Now()); err != nil {
 			fmt.Fprintf(stderr, "hi: asking whether production's app answers: %v\n", err)
+		}
+		if err := b.checkWorkers(time.Now()); err != nil {
+			fmt.Fprintf(stderr, "hi: looking at who runs the app's workers: %v\n", err)
+		}
+		if err := b.checkWorkersRule(); err != nil {
+			fmt.Fprintf(stderr, "hi: asking the lead about the app's workers: %v\n", err)
 		}
 		select {
 		case <-done:
@@ -710,11 +722,13 @@ func teamJobsCommand(args []string, stdout io.Writer) error {
 		return err
 	}
 	views := teamJobsReport(words[0], slot, time.Now())
+	workers := teamWorkersReport(words[0], slot, (&teamBroker{}).appRunning, time.Now())
 	if asJSON {
 		data, _ := json.MarshalIndent(views, "", "  ")
 		fmt.Fprintln(stdout, string(data))
 		return nil
 	}
+	printTeamWorkers(workers, time.Now(), stdout)
 	printTeamJobs(views, slot, time.Now(), stdout)
 	return nil
 }

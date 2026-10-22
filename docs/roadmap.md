@@ -2342,6 +2342,27 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   rule within a minute, with the same key.
   Approved spec: [hi_net_expose.md](specs/approved/hi_net_expose.md).
 
+### v1.3.0 — One box runs the app's workers, handed over at every deploy
+
+Approved spec: [hi_team_workers_handover.md](specs/approved/hi_team_workers_handover.md).
+
+- [x] Team cartman's production failed to start four times on 2026-10-21
+  with "database is locked": at a deploy the new box starts beside the
+  old one, and the old box's workers held the database. Now each slot has
+  a workers' lock that the relay in each box holds for it, and
+  `$HI_WORKERS_FILE` exists in the box that has it. At a release,
+  rollback, or restart, hi tells the old box to let go, waits for its
+  workers to stop (`$HI_WORKERS_FILE.stopped`, or 30 s, `HI_WORKERS_GRACE`
+  up to 300), and only then starts the new box. A new box that fails
+  gives the old one its workers back.
+- [x] `hi team jobs` says which box runs the workers; a production box
+  that waits five minutes for them is an incident.
+- [x] Briefs, the reviewer's checklist, `AGENTS.md`, the lead's skill,
+  and the team-app roles carry the rule; once per team, the lead checks
+  an app that reports jobs and briefs the change.
+- [x] Apps that ignore the rule, and boxes started by an older hi,
+  overlap as before.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

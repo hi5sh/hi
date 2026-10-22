@@ -850,6 +850,13 @@ func (b *teamBroker) incidentRoutes(mux *http.ServeMux, reply func(http.Response
 		}
 		reply(w, teamJobsReport(b.team, slot, time.Now()), nil)
 	})
+	mux.HandleFunc("GET /workers", func(w http.ResponseWriter, r *http.Request) {
+		slot := teamSlotProduction
+		if r.URL.Query().Get("preview") != "" {
+			slot = teamSlotPreview
+		}
+		reply(w, teamWorkersReport(b.team, slot, b.running, time.Now()), nil)
+	})
 	mux.HandleFunc("POST /jobs/{action}", func(w http.ResponseWriter, r *http.Request) {
 		var request teamJobsRequest
 		if err := readJSON(r, &request); err != nil {
@@ -950,6 +957,9 @@ func runTeamIncidentLeadCommand(command string, args []string, stdout io.Writer,
 				printJSON(views)
 				return nil
 			}
+			var workers *teamWorkersView
+			call("GET", strings.Replace(path, "/jobs", "/workers", 1), nil, &workers)
+			printTeamWorkers(workers, time.Now(), stdout)
 			printTeamJobs(views, slot, time.Now(), stdout)
 			return nil
 		}

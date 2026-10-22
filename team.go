@@ -1375,6 +1375,12 @@ code, so the code, its tests, and its docs must explain themselves.
   preview runs on a fork of it from the last release, and what it writes
   stays its own. A setting may be production's only: code that needs it
   does without it in the preview.
+- Background workers start once the file named by $HI_WORKERS_FILE
+  exists and stop when it goes away: at a release hi stops the old
+  version's workers before the new version starts. When the last one has
+  stopped, the app creates $HI_WORKERS_FILE.stopped. Without the
+  variable, as in the tests, they run as before. The database waits for
+  a lock rather than failing (SQLite: a busy timeout of 10 s or more).
 - The project starts with ` + "`make run`" + `: a Makefile run target that starts the
   app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
   the lead can show the people a preview.

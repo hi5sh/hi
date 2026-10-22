@@ -22,6 +22,9 @@ read code, so the code, its tests, and its docs explain themselves.
 - Long work in the app (a backfill, an import, a recalculation) reports
   as a job in `$HI_JOBS_DIR`, and stops on an item it can't process
   unless its spec gives a rule for that case: never skip one on its own.
+- Background workers start once `$HI_WORKERS_FILE` exists and stop when
+  it goes away, then create `$HI_WORKERS_FILE.stopped`: at a release the
+  old version's stop before the new one starts.
 - Do the brief, all of it, and nothing beyond it. Put what else you
   noticed in your report's follow-ups.
 - Say plainly in your report what you didn't do or couldn't check.
