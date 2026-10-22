@@ -1,6 +1,6 @@
 # `hi watch`: a team watched from outside
 
-Status: Idea. Drafted 2026-10-22.
+Status: Draft (2026-10-22).
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
@@ -81,6 +81,23 @@ not on the team's machine:
 - the server already has what this needs: a Slack app separate from the
   teams', approvers, the audit log, the device keys, and `/hi` commands.
 
+### What it can and can't see
+
+Two kinds of compromise, with different answers:
+
+- **A box is compromised**: the lead talked into something, a member
+  steered by a page it read, a package that phones home. The proxy, the
+  broker, `__serve`, and the device key are outside every box, so the
+  heartbeat, its network lines, and the obeying of a freeze stay honest.
+  This is the case the rules are for, and freeze and pause answer it.
+- **The machine is compromised**: whoever controls it holds the device
+  key, so from then on it can send any heartbeat, any network lines, and
+  ignore a freeze while saying it obeyed. What the server already has,
+  the heartbeats and network lines sent before, stays as it was: the copy
+  off the machine is a record of the past, not a guarantee of the future.
+  Only steps that don't need the machine's help answer this: revoke and
+  cut off.
+
 A team whose machine isn't connected to a hi server has no watcher. `hi
 team up` says so once, and `hi team status` says so on every run. (See
 [Open questions](#open-questions).)
@@ -111,26 +128,34 @@ machine's device key (`hi connect`):
   "snapshot": { "last": "2026-10-22T03:00:12Z", "offsite": "2026-10-22T03:01:40Z" },
   "incidents_open": 1,
   "spend_1h_usd": 0.42,
-  "network": ["2026-10-22T09:13:02Z allow api.github.com 1204 88231 3.1", "…"]
+  "key_usage_1h_usd": 0.42,
+  "network": { "from": 1832211, "lines": ["2026-10-22T09:13:02Z allow api.github.com", "…"] }
 }
 ```
 
 | Field | Meaning |
 |---|---|
 | `production`, `bom` | the version production runs, and the digest of its bill of materials |
-| `parts` | each part's state; `gateway.last_event` is the last event from Slack, so a gateway that lost its socket while its process lives is seen |
+| `parts` | each part's state; `gateway.last_event` is the last message of any kind on the gateway's Slack socket, Slack's pings included, so a gateway that lost its socket while its process lives is seen |
 | `serve_restarts_24h` | how often systemd started `__serve` again; a loop shows here and nowhere else |
 | `disk` | the share used of the team's folder's file system, podman's storage, and inodes |
 | `oom_kills_24h` | from the team's cgroups' `memory.events` |
 | `snapshot` | when the last snapshot, and the last offsite copy, finished |
 | `spend_1h_usd` | model spend through the team's proxy in the last hour |
-| `network` | the network log's lines since the last heartbeat, at most 2,000 |
+| `key_usage_1h_usd` | what OpenRouter says the team's key spent in the last hour (`GET /api/v1/key`, which the broker asks with the key it holds) |
+| `network` | the network log's lines from byte offset `from`, at most 2,000 |
 
 The heartbeat carries the network log so the server keeps a copy off the
-team's machine, where the team can't change it. A heartbeat that couldn't
-be sent is retried with the next one, and the lines it carried with it.
+team's machine (see [What it can and can't see](#what-it-can-and-cant-see)
+for how far that goes). The server answers with the offset it has kept up
+to, and the next heartbeat sends on from there: a heartbeat that wasn't
+answered sends the same lines again, and the server keeps each offset
+once. While more than 2,000 lines wait, as after an hour offline,
+`__serve` sends every 5 seconds until it has caught up. A network log
+that was rotated or shortened starts again from 0, and the server notes
+it in the team's record.
 
-The server answers with what it wants done (see
+The server's answer also says what it wants done (see
 [Stopping a team](#stopping-a-team)), usually nothing.
 
 ### A heartbeat that stops
@@ -139,8 +164,14 @@ No heartbeat for 3 minutes is an incident on the server: posted in the
 server's watch channel and pushed to the team's owners (see
 [Who is told](#who-is-told)). The team's channel can't hear it: the team
 is what stopped. When heartbeats come again the thread says for how long
-they stopped and what `serve_restarts_24h` says about why. A `hi team
-down` tells the server first, and isn't an incident.
+they stopped and what `serve_restarts_24h` says about why.
+
+A stop that was meant isn't an incident. When systemd stops `__serve`, it
+sends one last heartbeat with `"stopping": "restart"`, or `"down"` for
+`hi team down`. After a restart (`hi update --restart`, a reboot) the
+server waits 10 minutes instead of 3 for the next one; after a down it
+waits for `hi team up`. A machine that loses its power sends nothing,
+and is an incident after 3 minutes as before.
 
 ### Watching the server
 
@@ -236,16 +267,21 @@ watcher. Each opens at most one incident until it clears.
 **Health**, from the heartbeat:
 
 - a part not `up` for 3 heartbeats in a row;
-- Slack's last event more than 30 minutes old while people are active in
-  the channel (the server's own Slack app sees the channel);
+- nothing from Slack, not even its pings, for 10 minutes
+  (`gateway.last_event` counts every message on the gateway's socket,
+  which Slack pings while it is open): a gateway whose process lives but
+  whose socket is gone. The server doesn't read the team's channel;
 - `serve_restarts_24h` over 3, or production restarting more than 3 times
   in an hour;
 - any OOM kill;
 - disk or inodes over 85%, or full within 3 days at the last week's rate;
 - no snapshot in 26 hours, or no offsite copy in 26 hours when offsite is
   set;
-- model spend in an hour over three times the team's 7-day hourly
-  average and over $5: a loop, or someone using the team's key.
+- model spend through the proxy in an hour over three times the team's
+  7-day hourly average and over $5: a loop;
+- the key spending more than the proxy counted, by over $1 in an hour:
+  someone uses the team's key outside hi. The key never enters a box, so
+  that spend can't show in the proxy, only in OpenRouter's count.
 
 **Network**, from the lead's and members' network logs:
 
@@ -267,11 +303,18 @@ when a tunnel closes, after the decision line, which stays as it is:
 
 (bytes up, bytes down, seconds).
 
-**App boxes.** Production and the preview get a proxy of their own that
-allows everything and logs the same lines: it changes nothing for the
-app, and the server can then see where production connects. A host
-production hasn't used in 30 days is in the weekly report, not an
-incident: apps call new services all the time.
+**App boxes.** Production and the preview keep their full internet: an
+app talks to databases, mail servers, and WebSockets, which a CONNECT
+proxy can't carry, and a proxy set through `HTTP_PROXY` is ignored by
+many libraries, so its log would be both partial and easy to go around.
+Instead they get a resolver of their own (`--dns` to a small resolver in
+the team's proxy box) that answers every name and logs it as
+`<time> resolve <host>`. That changes nothing for any protocol, and shows
+where production connects by name. What it misses: connections to raw IP
+addresses and lookups over DNS-over-HTTPS, so it doesn't stop a
+determined program, and it records no sizes. A host production hasn't
+looked up in 30 days is in the weekly report, not an incident: apps call
+new services all the time.
 
 ## Stopping a team
 
@@ -279,7 +322,7 @@ From the gentlest step to the hardest:
 
 | Step | How | Undo | Works on a compromised machine |
 |---|---|---|---|
-| **Freeze** | every box's allowlist is emptied; the proxies reread it within a second; the broker starts no tasks | `unfreeze` restores the allowlists | no |
+| **Freeze** | every box's allowlist is emptied, and the proxies reread it within a second; the app boxes' public addresses stop and the boxes are disconnected from their network, so nothing reaches them and they reach nothing; the broker starts no tasks | `unfreeze` restores the allowlists, the network, and the addresses, with the same links | no |
 | **Pause** | `podman pause` on every box of the team, which keeps their memory for a look later | `unpause` | no |
 | **Revoke** | the team's OpenRouter key is disabled through OpenRouter's API, when the server made the key | a new key | **yes** |
 | **Cut off** | the machine's peer is disabled in NetBird | enable it again | **yes**, for the mesh |
@@ -289,9 +332,13 @@ Freeze and pause go to the team in the answer to its heartbeat, which
 machine to be on and honest; revoke and cut off don't, which is why they
 exist.
 
-**What happens on its own.** Freeze, for a KEV advisory whose package is
-reached from the network (an `http` or `net` component in the bill), or
-for a burst of sends to a host on `watch-hosts.txt`. Nothing else. Pause,
+Freeze takes production's pages down until it is undone: that is the
+point when production runs something being exploited, and it is why a
+freeze always pushes the owners at once.
+
+**What happens on its own.** Freeze, for a KEV advisory that matches
+production, or for a burst of sends to a host on `watch-hosts.txt`.
+Nothing else. Pause,
 revoke, and cut off need an admin, from the server's watch channel
 (buttons on the incident), `/hi team freeze|pause|revoke|cutoff <team>`,
 or `hi server team … ` on the server box when Slack is down. Every step
@@ -307,17 +354,24 @@ incident and say in the channel what it knows.
   something about (a full disk, an upgrade), as now.
 - **The server's watch channel** (`#hi-watch` by default): everything,
   including what the team's channel hears. The teams' bots aren't in it.
-- **The team's owners, by push** (ntfy, a topic per server, set with
-  `hi server watch --ntfy <topic>`): a stopped heartbeat, a KEV advisory,
-  anything that froze the team. Slack is where the team is; a push reaches
-  a person when the team's Slack is the problem.
+- **The team's owners, by push** (ntfy): a stopped heartbeat, a KEV
+  advisory, anything that froze the team. Slack is where the team is; a
+  push reaches a person when the team's Slack is the problem. Each team
+  has a topic of its own on an ntfy server that needs a token to read
+  (self-hosted, or a paid account), set with `hi server watch --ntfy
+  <url> --ntfy-token <token>`; `hi server watch subscribe <team>` gives an
+  owner the link for their team's topic. On a public ntfy server a
+  topic's name is its only secret, so hi doesn't use one. A push says
+  only the team, what happened in a line, and the incident's link: the
+  detail stays on the server and in Slack.
 
 ## Commands
 
 ```text
 hi server watch                    what every team's heartbeat says now, and open watch incidents
 hi server watch --deadman <url>    the outside dead-man's switch the server pings
-hi server watch --ntfy <topic>     where owners' pushes go
+hi server watch --ntfy <url> --ntfy-token <token>   where owners' pushes go
+hi server watch subscribe <team>   the link an owner opens to get the team's pushes
 /hi teams                          the same in Slack
 /hi team freeze|unfreeze|pause|unpause|revoke|cutoff <team>
 
@@ -330,12 +384,13 @@ hi team advisory <name> ignore <id> --because "<why>"
 
 1. **Heartbeat.** `__serve` sends it; the server shows it, opens
    incidents for a stopped one, pings the dead-man's switch, and pushes
-   owners. The proxy's `closed` lines. Health rules. This closes the
-   largest blind spot by itself.
+   owners. Health rules, including the key's spend outside hi. This
+   closes the largest blind spot by itself.
 2. **Bills and advisories.** Bills at release, the nightly match, KEV and
    EPSS, advisory incidents, `ignore`, the check in the dependency review.
-3. **Network rules and stopping.** The network rules, freeze and pause,
-   the app boxes' logging proxy, the weekly comparison of what runs with
+3. **Network rules and stopping.** The proxy's `closed` lines with
+   sizes, the network rules, freeze and pause (with the app boxes), the
+   app boxes' logging resolver, the weekly comparison of what runs with
    what was declared.
 4. **Revoke and cut off**, once the server makes the teams' OpenRouter
    keys and holds a NetBird API token.
@@ -350,7 +405,11 @@ all, after these, and only reads.
 - Three missed heartbeats open one incident and one push; heartbeats again
   close it with the time they stopped; `hi team down` opens none.
 - The network lines a heartbeat carries are kept once, also when the
-  heartbeat is retried.
+  heartbeat is retried; a backlog of 10,000 lines arrives whole, in
+  order, at 2,000 a heartbeat.
+- A `stopping: restart` heartbeat and 5 minutes of silence open nothing;
+  10 minutes do. A `stopping: down` waits for `hi team up`.
+- Key usage $2 over the proxy's spend in an hour opens one incident.
 - A bill made from a fixture project names its lockfile's packages, the
   images' digests, hi's version, and its skills, and making it runs no
   project code.
@@ -361,8 +420,13 @@ all, after these, and only reads.
   owner's yes.
 - The proxy writes a `closed` line with sizes for a tunnel, and the
   decision line as before.
-- Freeze empties every allowlist and the broker refuses a new task;
-  unfreeze restores the allowlists exactly; both are in the audit log.
+- Freeze empties every allowlist, disconnects the app boxes, stops their
+  addresses, and the broker refuses a new task; unfreeze restores the
+  allowlists, the network, and the same links exactly; both are in the
+  audit log.
+- An app box's lookups are logged as `resolve` lines, and a Postgres or
+  SMTP connection from it works as before.
+- A push carries no more than the team, a line, and a link.
 - The lead's socket has no command that changes the watcher.
 
 ## Decisions
@@ -388,7 +452,14 @@ all, after these, and only reads.
   the host, which the proxy already logs, and the sizes, which it now
   logs too.
 - **The network log leaves the machine.** A copy the team can't change
-  is worth more than one more rule.
+  after the fact is worth more than one more rule. It protects the past,
+  not what a compromised machine sends from then on.
+- **Freeze includes production's app.** The advisory that freezes on its
+  own is about what production runs; a freeze that left the app box
+  reachable would stop everything but the thing at risk.
+- **A resolver, not a proxy, for app boxes.** It breaks no protocol. It
+  misses raw IPs and DNS-over-HTTPS, and the spec says so rather than
+  promise a log it can't keep.
 - **People are told outside the team's channel** for what matters most,
   because the lead posts there.
 
@@ -401,8 +472,9 @@ all, after these, and only reads.
 - **Dependency-Track.** OWASP Dependency-Track does bills, matching,
   policies, and VEX as a service (Java and PostgreSQL). With many teams
   it may be worth running beside the server instead of osv-scanner.
-- **Automatic freeze.** Is freezing on its own, for the two cases above,
-  what owners want, or should every step wait for an admin at first?
+- **Automatic freeze.** Now that freeze takes production's pages down, is
+  freezing on its own, for the two cases above, what owners want, or
+  should every step wait for an admin at first?
 - **The server making OpenRouter keys.** Revoke needs the server to own
   each team's key (OpenRouter's provisioning keys). Today people paste
   a key into `hi team key`.
