@@ -51,7 +51,7 @@ func netbirdAPIToken() (string, error) {
 	if token := strings.TrimSpace(string(data)); err == nil && token != "" {
 		return token, nil
 	}
-	return "", errors.New("--domain needs a NetBird API token, from a service user that may manage the reverse proxy: in $NETBIRD_API_TOKEN, or saved with hi team domain")
+	return "", errors.New("--domain and --allow-ip need a NetBird API token, from a service user that may manage the reverse proxy: in $NETBIRD_API_TOKEN, or saved with hi team domain")
 }
 
 func saveNetbirdAPIToken(token string) error {
@@ -154,6 +154,12 @@ type netbirdService struct {
 	Mode    string          `json:"mode,omitempty"`
 	Enabled bool            `json:"enabled"`
 	Targets []netbirdTarget `json:"targets"`
+	// AccessRestrictions is --allow-ip (net_expose_allow.go).
+	AccessRestrictions *netbirdAccess `json:"access_restrictions,omitempty"`
+}
+
+type netbirdAccess struct {
+	AllowedCIDRs []string `json:"allowed_cidrs"`
 }
 
 type netbirdTarget struct {
@@ -167,9 +173,10 @@ type netbirdTarget struct {
 
 // netExposePublish points the service on domain at this machine's relay,
 // making the service the first time. The protection is the relay's, as
-// with netbird expose. stop switches the service off unless another
-// exposure has taken it over since.
-func netExposePublish(domain, address string, port int) (stop func(), err error) {
+// with netbird expose, and allowed is --allow-ip: none lets in any address.
+// stop switches the service off unless another exposure has taken it over
+// since.
+func netExposePublish(domain, address string, port int, allowed []string) (stop func(), err error) {
 	api, err := newNetbirdAPI()
 	if err != nil {
 		return nil, err
@@ -189,7 +196,8 @@ func netExposePublish(domain, address string, port int) (stop func(), err error)
 		return nil, err
 	}
 	service := netbirdService{Name: domain, Domain: domain, Mode: "http", Enabled: true,
-		Targets: []netbirdTarget{{TargetID: peer, TargetType: "peer", Protocol: "http", Path: "/", Port: port, Enabled: true}}}
+		Targets:            []netbirdTarget{{TargetID: peer, TargetType: "peer", Protocol: "http", Path: "/", Port: port, Enabled: true}},
+		AccessRestrictions: &netbirdAccess{AllowedCIDRs: append([]string{}, allowed...)}}
 	for _, existing := range services {
 		if existing.Domain == domain {
 			service.ID, service.Name = existing.ID, firstNonEmpty(existing.Name, domain)

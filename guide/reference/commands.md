@@ -403,6 +403,8 @@ hi net status | down | reconnect
 | ↳ `--max <duration>`                                | How long; default `1h`, at most `24h` (30 days with `--domain`) |
 | ↳ `--domain <name>`                                 | An address that stays, under a domain verified in NetBird; needs a NetBird API token |
 | ↳ `--link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
+| ↳ `--allow-ip <ip,cidr>`                            | Only from these addresses, through NetBird's Access Control; needs a NetBird API token |
+| ↳ `--vpn`                                           | No public address: only devices on the NetBird network, at `http://<name>:<port>` |
 | ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
 | ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |

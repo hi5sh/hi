@@ -2328,6 +2328,17 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   links the rest however new.
   Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
 
+### v1.2.0 — An exposure only from some addresses, or only on the VPN
+
+- [x] `hi net expose --allow-ip <ip,cidr>`: NetBird's proxy lets in only
+  those addresses, set through NetBird's API as Reverse Proxy > Access
+  Control does, since `netbird expose` has no flag for it. The address
+  lets nobody in until NetBird has the rule, and hi puts it back if it
+  goes.
+- [x] `hi net expose --vpn`: no public address, only devices on the
+  NetBird network, at `http://<NetBird name>:<port>`.
+  Approved spec: [hi_net_expose.md](specs/approved/hi_net_expose.md).
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

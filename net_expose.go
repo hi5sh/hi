@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -22,6 +23,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -51,7 +53,7 @@ type netExposeOptions struct {
 	Port       int           `json:"port"`
 	Host       string        `json:"host"`
 	Max        time.Duration `json:"max"`
-	Protection string        `json:"protection"` // link, password, pin, groups, public
+	Protection string        `json:"protection"` // link, password, pin, groups, public, vpn
 	Secret     string        `json:"secret,omitempty"`
 	Groups     string        `json:"groups,omitempty"`
 	Name       string        `json:"name"`
@@ -59,6 +61,10 @@ type netExposeOptions struct {
 	// Domain is a name that stays, under a domain verified in NetBird
 	// (net_expose_domain.go); "" gets a new address from netbird expose.
 	Domain string `json:"domain,omitempty"`
+	// AllowIPs are the only addresses let in, and VPN is no public address,
+	// only this machine's NetBird one (net_expose_allow.go).
+	AllowIPs []string `json:"allow_ips,omitempty"`
+	VPN      bool     `json:"vpn,omitempty"`
 	// Follow is a file with the port to relay to, read again when it
 	// changes, so the service can move without the address changing.
 	Follow string `json:"follow,omitempty"`
@@ -71,14 +77,16 @@ type netExposeOptions struct {
 
 // netExposeState is a running exposure, in the state folder.
 type netExposeState struct {
-	Name       string `json:"name"`
-	URL        string `json:"url"`
-	Port       int    `json:"port"`
-	Host       string `json:"host"`
-	Protection string `json:"protection"`
-	Password   string `json:"password,omitempty"`
-	PIN        string `json:"pin,omitempty"`
-	Groups     string `json:"groups,omitempty"`
+	Name       string   `json:"name"`
+	URL        string   `json:"url"`
+	Port       int      `json:"port"`
+	Host       string   `json:"host"`
+	Protection string   `json:"protection"`
+	Password   string   `json:"password,omitempty"`
+	PIN        string   `json:"pin,omitempty"`
+	Groups     string   `json:"groups,omitempty"`
+	AllowIPs   []string `json:"allow_ips,omitempty"`
+	VPN        bool     `json:"vpn,omitempty"`
 	// Link is the address with its key, for --link: the one thing to share.
 	Link    string    `json:"link,omitempty"`
 	PID     int       `json:"pid"`
@@ -112,6 +120,13 @@ options:
   --pin <6 digits>     a PIN page instead
   --groups <g1,g2>     NetBird SSO for users in these groups instead
   --public             no protection: anyone with the address (webhooks, API clients)
+  --allow-ip <ip,cidr> only from these addresses, as NetBird's Access Control
+                       sets them, with any of the above; needs a NetBird API
+                       token, as --domain does
+  --vpn                no public address: only devices on the NetBird network
+                       that may reach this machine, at http://<its name>:<port>;
+                       with --link, a key as well; --allow-ip takes NetBird
+                       addresses then
   --name <prefix>      the start of the address (default hi-<host>-<port>)
   --domain <name>      an address that stays, such as app.example.com, under a
                        domain verified in NetBird (Reverse Proxy > Custom Domains);
@@ -178,6 +193,8 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	pin := flags.String("pin", "", "PIN")
 	groups := flags.String("groups", "", "SSO groups")
 	public := flags.Bool("public", false, "no protection")
+	allowIP := flags.String("allow-ip", "", "only from these addresses")
+	vpn := flags.Bool("vpn", false, "only on the NetBird network")
 	link := flags.Bool("link", false, "the key in the link")
 	key := flags.String("key", "", "with --link, this key instead of a new one")
 	name := flags.String("name", "", "address prefix")
@@ -244,10 +261,22 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 	if chosen > 1 {
 		return options, false, errors.New("choose one of --link, --password, --pin, --groups, and --public")
 	}
+	if *allowIP != "" {
+		if options.AllowIPs, err = parseNetExposeAllow(*allowIP); err != nil {
+			return options, false, err
+		}
+	}
+	if *vpn {
+		if *password != "" || *pin != "" || *groups != "" || *public || options.Domain != "" {
+			return options, false, errors.New("--vpn has no login page or name of its own: it goes without --password, --pin, --groups, --public, and --domain")
+		}
+		options.VPN, options.Protection = true, "vpn"
+	}
 	if *key != "" && (!*link || !netExposeLinkKey.MatchString(*key)) {
 		return options, false, errors.New("--key goes with --link, and is 16 to 100 letters, digits, - and _")
 	}
 	switch {
+	case options.VPN && !*link:
 	case *public:
 		options.Protection = "public"
 	case *link:
@@ -583,7 +612,12 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	} else {
 		conn.Close()
 	}
-	listener, err := net.Listen("tcp", net.JoinHostPort(address, "0"))
+	var listener net.Listener
+	if options.VPN {
+		listener, err = netExposeVPNListen(address, options.Port)
+	} else {
+		listener, err = net.Listen("tcp", net.JoinHostPort(address, "0"))
+	}
 	if err != nil {
 		return fmt.Errorf("can't open the relay on the NetBird address: %w", err)
 	}
@@ -601,7 +635,16 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 		defer logMu.Unlock()
 		fmt.Fprintf(stdout, format+"\n", args...)
 	})
-	relay := &http.Server{Handler: newNetExposeRelayTo(current, key, time.Now().Add(options.Max), stdout, helper), ReadHeaderTimeout: 30 * time.Second}
+	// Behind NetBird's proxy, --allow-ip waits for NetBird to have the rule;
+	// on the VPN the relay keeps it itself.
+	var open atomic.Bool
+	open.Store(len(options.AllowIPs) == 0 || options.VPN)
+	var vpnAllowed []netip.Prefix
+	if options.VPN {
+		vpnAllowed = netExposePrefixes(options.AllowIPs)
+	}
+	handler := netExposeGuard(newNetExposeRelayTo(current, key, time.Now().Add(options.Max), stdout, helper), open.Load, vpnAllowed)
+	relay := &http.Server{Handler: handler, ReadHeaderTimeout: 30 * time.Second}
 	go relay.Serve(listener)
 	defer relay.Close()
 	relayPort := listener.Addr().(*net.TCPAddr).Port
@@ -610,15 +653,19 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	var publicURL, name string
 	var stop func()
 	ready := netExposeReadyAfter
-	if options.Domain != "" {
+	switch {
+	case options.VPN:
+		publicURL = "http://" + net.JoinHostPort(netExposeVPNName(address), fmt.Sprint(relayPort))
+		stop = func() {}
+	case options.Domain != "":
 		// A name that stays: a NetBird service, pointed at this relay.
-		if stop, err = netExposePublish(options.Domain, address, relayPort); err != nil {
+		if stop, err = netExposePublish(options.Domain, address, relayPort, options.AllowIPs); err != nil {
 			return err
 		}
 		publicURL, ready = "https://"+options.Domain, netExposeDomainReady
 		// Unique, so a renewal on the same name keeps its own state file.
 		name = fmt.Sprintf("%s-%s", options.Name, netExposeKey()[:6])
-	} else {
+	default:
 		if cmd, publicURL, name, err = startNetbirdExpose(netExposeArgs(options, relayPort), netExposeReadyAfter); err != nil {
 			return err
 		}
@@ -637,7 +684,16 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	if name == "" {
 		name = options.Name
 	}
-	if err := waitForNetExpose(publicURL, ready); err != nil {
+	var keep func() error
+	if len(options.AllowIPs) > 0 && !options.VPN {
+		if keep, err = netExposeRestrict(publicURL, options); err != nil {
+			return err
+		}
+		open.Store(true)
+	}
+	if options.VPN {
+		// Nothing in between to wait for.
+	} else if err := waitForNetExpose(publicURL, ready); err != nil {
 		return err
 	}
 	if options.Domain != "" {
@@ -648,7 +704,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	}
 	started := time.Now()
 	state := netExposeState{Name: name, URL: publicURL, Port: options.Port, Host: options.Host, Protection: options.Protection,
-		Groups: options.Groups, PID: os.Getpid(), Started: started, Expires: started.Add(options.Max)}
+		Groups: options.Groups, AllowIPs: options.AllowIPs, VPN: options.VPN, PID: os.Getpid(), Started: started, Expires: started.Add(options.Max)}
 	switch options.Protection {
 	case "password":
 		state.Password = options.Secret
@@ -685,15 +741,33 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	}
 	timer := time.NewTimer(options.Max)
 	defer timer.Stop()
-	select {
-	case <-signals:
-		fmt.Fprintf(stderr, "Stopped exposing %s.\n", publicURL)
-	case <-timer.C:
-		fmt.Fprintf(stderr, "Stopped exposing %s: its --max of %s is up.\n", publicURL, options.Max)
-	case err := <-exited:
-		return fmt.Errorf("netbird expose stopped on its own (%v); the address is gone", err)
+	var recheck <-chan time.Time
+	if keep != nil {
+		ticker := time.NewTicker(netExposeAllowCheck)
+		defer ticker.Stop()
+		recheck = ticker.C
 	}
-	return nil
+	for {
+		select {
+		case <-signals:
+			fmt.Fprintf(stderr, "Stopped exposing %s.\n", publicURL)
+		case <-timer.C:
+			fmt.Fprintf(stderr, "Stopped exposing %s: its --max of %s is up.\n", publicURL, options.Max)
+		case err := <-exited:
+			return fmt.Errorf("netbird expose stopped on its own (%v); the address is gone", err)
+		case <-recheck:
+			// Without the rule, nobody gets in until it is back.
+			if err := keep(); err != nil {
+				if open.Swap(false) {
+					fmt.Fprintf(stderr, "hi: %v; letting nobody in until NetBird has the --allow-ip rule again\n", err)
+				}
+			} else if !open.Swap(true) {
+				fmt.Fprintln(stderr, "hi: NetBird has the --allow-ip rule again")
+			}
+			continue
+		}
+		return nil
+	}
 }
 
 // netExposeLink is the address with its key.
@@ -742,6 +816,12 @@ func printNetExposeState(state netExposeState, asJSON bool, stdout io.Writer) {
 		fmt.Fprintf(stdout, "  for NetBird users in %s, through SSO\n", state.Groups)
 	case "public":
 		fmt.Fprintln(stdout, "  public: anyone with the address can use it")
+	}
+	if state.VPN {
+		fmt.Fprintln(stdout, "  only on the NetBird network, for devices NetBird lets reach this machine")
+	}
+	if len(state.AllowIPs) > 0 {
+		fmt.Fprintf(stdout, "  only from %s\n", strings.Join(state.AllowIPs, ", "))
 	}
 }
 
@@ -878,6 +958,9 @@ func netExposeList(args []string, stdout io.Writer) error {
 			protection += " " + state.PIN
 		case state.Groups != "":
 			protection += " " + state.Groups
+		}
+		if len(state.AllowIPs) > 0 {
+			protection += " from " + strings.Join(state.AllowIPs, ",")
 		}
 		fmt.Fprintf(table, "%s\t%s\t%d\t%s\t%s\n", name, firstNonEmpty(state.Link, state.URL), state.Port, protection, netExposeUntil(state.Expires))
 	}

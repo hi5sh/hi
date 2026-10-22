@@ -53,6 +53,31 @@ senders, API clients, and scripts can't pass them, so they need `--public`;
 the service should then check its own token or signature, as webhook
 receivers normally do.
 
+## Only from some addresses, or only on the VPN
+
+```sh
+hi net expose 3000 --allow-ip 203.0.113.18          # only from the office
+hi net expose 8080 --public --allow-ip 203.0.113.0/24 # a webhook sender's addresses
+hi net expose 3000 --vpn                              # no public address at all
+```
+
+`--allow-ip` takes addresses and CIDR blocks, separated by commas, and goes
+with any lock above. NetBird's proxy turns every other address away before
+its login page, as a rule under Reverse Proxy > Access Control does.
+`netbird expose` can't set that rule, so hi sets it through NetBird's API,
+with the same token as `--domain` (in `$NETBIRD_API_TOKEN` or saved by
+`hi team domain`). The address lets nobody in until NetBird has the rule,
+and hi checks it every minute: if it has gone, hi puts it back, and lets
+nobody in until it can.
+
+`--vpn` gives no public address. The service is reachable at
+`http://<this machine's NetBird name>:<port>`, only from devices on your
+NetBird network that NetBird's access policies let reach this machine. Add
+`--link` for a key as well, or `--allow-ip` with NetBird addresses
+(`100.x.y.z`) to narrow it to some devices. It needs no API token. A
+visitor's device must be connected to NetBird: a phone without the NetBird
+app gets nothing.
+
 ## How long
 
 ```sh

@@ -102,7 +102,7 @@ func TestNetExposePublish(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fake := fakeNetbird(t)
 	// The first exposure makes the service, pointed at this machine's relay.
-	stopFirst, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001)
+	stopFirst, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestNetExposePublish(t *testing.T) {
 	}
 	// The next takes it over before the first ends: no gap, and the first
 	// leaves it on.
-	stopNext, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41002)
+	stopNext, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41002, nil)
 	if err != nil || len(fake.services) != 1 || fake.services["svc-1"].Targets[0].Port != 41002 {
 		t.Fatal(err, fake.services)
 	}
@@ -127,16 +127,16 @@ func TestNetExposePublish(t *testing.T) {
 	}
 
 	// A domain NetBird doesn't have, and a token it refuses.
-	if _, err := netExposePublish("payments.other.example.com", "100.64.0.7", 41003); err == nil || !strings.Contains(err.Error(), "Custom Domains") {
+	if _, err := netExposePublish("payments.other.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "Custom Domains") {
 		t.Fatal(err)
 	}
 	t.Setenv("NETBIRD_API_TOKEN", "nbp_wrong")
-	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003); !errors.Is(err, errNetbirdToken) {
+	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); !errors.Is(err, errNetbirdToken) {
 		t.Fatal(err)
 	}
 	// Without a token at all.
 	t.Setenv("NETBIRD_API_TOKEN", "")
-	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003); err == nil || !strings.Contains(err.Error(), "hi team domain") {
+	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "hi team domain") {
 		t.Fatal(err)
 	}
 	if err := saveNetbirdAPIToken("nbp_test\n"); err != nil {

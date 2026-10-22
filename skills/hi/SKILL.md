@@ -244,6 +244,10 @@ so:
 4. Use `--detach --json`, give the user the address (and the password),
    and `hi net expose stop <name>` when the task is done; check
    `hi net expose ls` shows nothing you started.
+5. When only colleagues need it, prefer `--vpn` (no public address, only
+   devices on the NetBird network) or `--allow-ip <their address>`.
+   Never stop all exposures (`hi net expose stop --all`) on a shared machine:
+   it also stops teams' addresses.
 
 ```sh
 hi net expose 3000 --max 30m --detach --json

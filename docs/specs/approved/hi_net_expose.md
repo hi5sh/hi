@@ -51,6 +51,8 @@ hi net expose <port> [options]     expose localhost:<port> until --max or Ctrl+C
     --pin <6 digits>               a PIN page instead
     --groups <g1,g2>               NetBird SSO, for users in these groups, instead
     --public                       no protection: anyone with the address
+    --allow-ip <ip,cidr>           only from these addresses (release 4)
+    --vpn                          no public address, only the NetBird network (release 4)
     --name <prefix>                the start of the address (default hi-<host>-<port>)
     --host <addr>                  where the service listens (default localhost)
     --detach                       run in the background; print the address and return
@@ -157,6 +159,31 @@ The skill tells agents to:
    off, not removed, and only while it still points at this relay, so a
    renewal on the same name takes it over without a gap and keeps its
    certificate.
+
+4. `--allow-ip` and `--vpn`, built in v1.2.0: who may reach an exposure,
+   besides its lock.
+   - `--allow-ip <ip,cidr,...>` sets `access_restrictions.allowed_cidrs` on
+     the NetBird service through the management API, as Reverse Proxy >
+     Access Control does; `netbird expose` has no flag for it. An address
+     is a `/32` (`/128`). For a `netbird expose` service, hi finds it by
+     its domain, reads it, and saves it back with the rule, putting the
+     password or PIN back in, since NetBird leaves secrets out of what it
+     returns. With `--domain`, the service is made with the rule. The
+     relay answers 503 until NetBird has the rule, and hi reads the
+     service every minute: a rule gone is put back, and the relay lets
+     nobody in while it can't be. It needs the `--domain` token.
+   - A NetBird-only rule through the proxy (`100.64.0.0/10`) can't work:
+     a peer reaches NetBird's proxy from its public address, not its
+     NetBird one. NetBird's API has private services (`private: true`,
+     `access_groups`) for that, but only on a proxy cluster run by
+     `netbird proxy` on a peer of our own. So `--vpn` runs no `netbird
+     expose`: the relay listens on the NetBird address, on the service's
+     own port when it is free, and the address is
+     `http://<NetBird name>:<port>`. NetBird's access policies decide who
+     reaches it; `--link` adds a key, and `--allow-ip` with NetBird
+     addresses is checked by the relay itself, which sees the device's
+     address. It goes without `--password`, `--pin`, `--groups`,
+     `--public`, and `--domain`, which are the proxy's.
 
 ## Open questions
 
