@@ -175,25 +175,27 @@ type netbirdTarget struct {
 // making the service the first time. The protection is the relay's, as
 // with netbird expose, and allowed is --allow-ip: none lets in any address.
 // stop switches the service off unless another exposure has taken it over
-// since.
-func netExposePublish(domain, address string, port int, allowed []string) (stop func(), err error) {
+// since. ensure makes the service again when it has gone, as when someone
+// deletes it in NetBird's dashboard, and says whether it did; a service
+// another exposure took over is that one's to make again.
+func netExposePublish(domain, address string, port int, allowed []string) (stop func(), ensure func() (bool, error), err error) {
 	api, err := newNetbirdAPI()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var peers []struct {
 		ID string `json:"id"`
 	}
 	if err := api.call(http.MethodGet, "/api/peers?ip="+url.QueryEscape(address), nil, &peers); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(peers) != 1 {
-		return nil, fmt.Errorf("NetBird's API knows no peer at %s, this machine", address)
+		return nil, nil, fmt.Errorf("NetBird's API knows no peer at %s, this machine", address)
 	}
 	peer := peers[0].ID
 	var services []netbirdService
 	if err := api.call(http.MethodGet, "/api/reverse-proxies/services", nil, &services); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	service := netbirdService{Name: domain, Domain: domain, Mode: "http", Enabled: true,
 		Targets:            []netbirdTarget{{TargetID: peer, TargetType: "peer", Protocol: "http", Path: "/", Port: port, Enabled: true}},
@@ -213,20 +215,51 @@ func netExposePublish(domain, address string, port int, allowed []string) (stop 
 		if strings.Contains(err.Error(), "domain") {
 			err = fmt.Errorf("%w; is %s under a custom domain verified in NetBird (Reverse Proxy > Custom Domains)?", err, domain)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	id := firstNonEmpty(saved.ID, service.ID)
-	return func() {
+	here := func(s netbirdService) bool {
+		return s.Enabled && len(s.Targets) == 1 && s.Targets[0].TargetID == peer && s.Targets[0].Port == port
+	}
+	// ours is whether the service pointed here when last seen.
+	ours := true
+	stop = func() {
 		var now netbirdService
 		if api.call(http.MethodGet, "/api/reverse-proxies/services/"+url.PathEscape(id), nil, &now) != nil {
 			return
 		}
-		if !now.Enabled || len(now.Targets) != 1 || now.Targets[0].TargetID != peer || now.Targets[0].Port != port {
+		if !here(now) {
 			return // another exposure has it now
 		}
 		now.Enabled = false
 		api.call(http.MethodPut, "/api/reverse-proxies/services/"+url.PathEscape(id), now, nil)
-	}, nil
+	}
+	ensure = func() (bool, error) {
+		var services []netbirdService
+		if err := api.call(http.MethodGet, "/api/reverse-proxies/services", nil, &services); err != nil {
+			return false, err
+		}
+		for _, existing := range services {
+			if strings.EqualFold(existing.Domain, domain) {
+				if ours = here(existing); ours {
+					id = existing.ID
+				}
+				return false, nil
+			}
+		}
+		if !ours {
+			return false, nil
+		}
+		again := service
+		again.ID, again.Name = "", domain
+		var made netbirdService
+		if err := api.call(http.MethodPost, "/api/reverse-proxies/services", again, &made); err != nil {
+			return false, err
+		}
+		id = made.ID
+		return true, nil
+	}
+	return stop, ensure, nil
 }
 
 // netExposeLookup resolves a name to the proxies that serve it; tests

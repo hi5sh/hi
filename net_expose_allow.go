@@ -98,7 +98,8 @@ func netExposeGuard(next http.Handler, open func() bool, allowed []netip.Prefix)
 // the relay at relayPort, and checks NetBird kept it. keep does the same
 // again: it puts the rule back if it has gone, and says so when it can't.
 // Once a service on a name that stays points at another relay, it is that
-// relay's to keep.
+// relay's to keep. The service is looked up by its name each time, so one
+// made again (netExposePublish) is kept too.
 func netExposeRestrict(address string, relayPort int, options netExposeOptions) (keep func() error, err error) {
 	api, err := newNetbirdAPI()
 	if err != nil {
@@ -108,21 +109,21 @@ func netExposeRestrict(address string, relayPort int, options netExposeOptions) 
 	if err != nil {
 		return nil, err
 	}
-	var services []map[string]any
-	if err := api.call(http.MethodGet, "/api/reverse-proxies/services", nil, &services); err != nil {
-		return nil, err
-	}
-	id := ""
-	for _, service := range services {
-		if domain, _ := service["domain"].(string); strings.EqualFold(domain, parsed.Hostname()) {
-			id, _ = service["id"].(string)
-		}
-	}
-	if id == "" {
-		return nil, fmt.Errorf("NetBird's API has no service for %s, so --allow-ip can't be set", parsed.Hostname())
-	}
-	path := "/api/reverse-proxies/services/" + url.PathEscape(id)
 	keep = func() error {
+		var services []map[string]any
+		if err := api.call(http.MethodGet, "/api/reverse-proxies/services", nil, &services); err != nil {
+			return err
+		}
+		id := ""
+		for _, service := range services {
+			if domain, _ := service["domain"].(string); strings.EqualFold(domain, parsed.Hostname()) {
+				id, _ = service["id"].(string)
+			}
+		}
+		if id == "" {
+			return fmt.Errorf("NetBird's API has no service for %s, so --allow-ip can't be set", parsed.Hostname())
+		}
+		path := "/api/reverse-proxies/services/" + url.PathEscape(id)
 		var service map[string]any
 		if err := api.call(http.MethodGet, path, nil, &service); err != nil {
 			return err

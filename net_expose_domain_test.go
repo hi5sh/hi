@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,6 +24,7 @@ type fakeNetbirdAPI struct {
 	calls    []string
 	domains  func(http.ResponseWriter) // GET /api/reverse-proxies/domains
 	readOnly bool                      // the token may read, not make services
+	made     int                       // services made, for their IDs
 }
 
 func (f *fakeNetbirdAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +70,8 @@ func (f *fakeNetbirdAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"message": "permission denied"})
 			return
 		}
-		service.ID = "svc-1"
+		f.made++
+		service.ID = fmt.Sprintf("svc-%d", f.made)
 		f.services[service.ID] = service
 		json.NewEncoder(w).Encode(service)
 	case r.Method == http.MethodGet:
@@ -102,7 +105,7 @@ func TestNetExposePublish(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	fake := fakeNetbird(t)
 	// The first exposure makes the service, pointed at this machine's relay.
-	stopFirst, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001, nil)
+	stopFirst, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +116,7 @@ func TestNetExposePublish(t *testing.T) {
 	}
 	// The next takes it over before the first ends: no gap, and the first
 	// leaves it on.
-	stopNext, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41002, nil)
+	stopNext, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41002, nil)
 	if err != nil || len(fake.services) != 1 || fake.services["svc-1"].Targets[0].Port != 41002 {
 		t.Fatal(err, fake.services)
 	}
@@ -127,16 +130,16 @@ func TestNetExposePublish(t *testing.T) {
 	}
 
 	// A domain NetBird doesn't have, and a token it refuses.
-	if _, err := netExposePublish("payments.other.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "Custom Domains") {
+	if _, _, err := netExposePublish("payments.other.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "Custom Domains") {
 		t.Fatal(err)
 	}
 	t.Setenv("NETBIRD_API_TOKEN", "nbp_wrong")
-	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); !errors.Is(err, errNetbirdToken) {
+	if _, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); !errors.Is(err, errNetbirdToken) {
 		t.Fatal(err)
 	}
 	// Without a token at all.
 	t.Setenv("NETBIRD_API_TOKEN", "")
-	if _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "hi team domain") {
+	if _, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "hi team domain") {
 		t.Fatal(err)
 	}
 	if err := saveNetbirdAPIToken("nbp_test\n"); err != nil {
@@ -144,6 +147,60 @@ func TestNetExposePublish(t *testing.T) {
 	}
 	if token, err := netbirdAPIToken(); err != nil || token != "nbp_test" {
 		t.Fatal(token, err)
+	}
+}
+
+func TestNetExposePublishMakesADeletedServiceAgain(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	fake := fakeNetbird(t)
+	stop, ensure, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001, []string{"203.0.113.7/32"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if made, err := ensure(); made || err != nil || len(fake.services) != 1 {
+		t.Fatal("made a service that was there", made, err)
+	}
+	// Someone deletes it in NetBird's dashboard: the next check makes it
+	// again, pointed here, with the --allow-ip rule.
+	delete(fake.services, "svc-1")
+	if made, err := ensure(); !made || err != nil {
+		t.Fatal(made, err)
+	}
+	again, ok := fake.services["svc-2"]
+	if !ok || !again.Enabled || again.Domain != "payments.apps.example.com" || again.Targets[0].Port != 41001 ||
+		again.AccessRestrictions == nil || len(again.AccessRestrictions.AllowedCIDRs) != 1 {
+		t.Fatalf("%+v", fake.services)
+	}
+	// stop switches off the service made again, not the deleted one.
+	stop()
+	if fake.services["svc-2"].Enabled {
+		t.Fatal("still on after its exposure ended")
+	}
+}
+
+func TestNetExposePublishLeavesATakenOverServiceAlone(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	fake := fakeNetbird(t)
+	_, ensureOld, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41001, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, ensureNew, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41002, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The old relay sees the new one has it, and doesn't take it back.
+	if made, err := ensureOld(); made || err != nil || fake.services["svc-1"].Targets[0].Port != 41002 {
+		t.Fatal(made, err, fake.services)
+	}
+	// Once it's deleted, the old relay leaves it to the new one, which
+	// makes it again, pointed at itself.
+	delete(fake.services, "svc-1")
+	if made, err := ensureOld(); made || err != nil || len(fake.services) != 0 {
+		t.Fatal("the old relay made the service again", made, err)
+	}
+	if made, err := ensureNew(); !made || err != nil || fake.services["svc-2"].Targets[0].Port != 41002 {
+		t.Fatal(made, err, fake.services)
 	}
 }
 

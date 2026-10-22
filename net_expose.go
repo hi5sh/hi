@@ -652,6 +652,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	var cmd *exec.Cmd
 	var publicURL, name string
 	var stop func()
+	var ensure func() (bool, error)
 	ready := netExposeReadyAfter
 	switch {
 	case options.VPN:
@@ -659,7 +660,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 		stop = func() {}
 	case options.Domain != "":
 		// A name that stays: a NetBird service, pointed at this relay.
-		if stop, err = netExposePublish(options.Domain, address, relayPort, options.AllowIPs); err != nil {
+		if stop, ensure, err = netExposePublish(options.Domain, address, relayPort, options.AllowIPs); err != nil {
 			return err
 		}
 		publicURL, ready = "https://"+options.Domain, netExposeDomainReady
@@ -742,7 +743,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	timer := time.NewTimer(options.Max)
 	defer timer.Stop()
 	var recheck <-chan time.Time
-	if keep != nil {
+	if keep != nil || ensure != nil {
 		ticker := time.NewTicker(netExposeAllowCheck)
 		defer ticker.Stop()
 		recheck = ticker.C
@@ -756,6 +757,18 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 		case err := <-exited:
 			return fmt.Errorf("netbird expose stopped on its own (%v); the address is gone", err)
 		case <-recheck:
+			// A service deleted in NetBird's dashboard is made again, with
+			// its --allow-ip rule, before the rule is checked.
+			if ensure != nil {
+				if made, err := ensure(); err != nil {
+					fmt.Fprintf(stderr, "hi: NetBird's service for %s: %v\n", options.Domain, err)
+				} else if made {
+					fmt.Fprintf(stderr, "hi: NetBird's service for %s was gone; it's back\n", options.Domain)
+				}
+			}
+			if keep == nil {
+				continue
+			}
 			// Without the rule, nobody gets in until it is back.
 			if err := keep(); err != nil {
 				if open.Swap(false) {
