@@ -288,10 +288,10 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team logs <name> [<task>] [-f]`       | The lead's log, or a task's; `-f` follows it |
 | `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
 | `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
-| `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them |
+| `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them; the lead's box gets placeholders, and the team's proxy puts the tokens on its calls to Slack |
 | `hi team env <name> [KEY=VALUE | KEY | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), or remove one |
 | `hi team domain [<domain> [--new-token]|off]` | A domain verified in NetBird for the teams' apps on this machine, with a NetBird Admin service user's token |
-| `hi team allow-ip <name> [<ip,cidr>|off]` | The only addresses the team's preview and production let in, through NetBird's Access Control |
+| `hi team allow-ip <name> [<ip,cidr>|off]` | The only addresses the team's preview and production let in, through NetBird's Access Control; hi puts back exactly this list every minute, so set it here rather than in NetBird's dashboard |
 | `hi team domain <name> on|off` | The team's app at `<name>.<domain>` and its preview at `<name>-preview.<domain>`, names that stay; off by default |
 | `hi team helper <name> [preview|production on|off]` | Whether the app's pages have the helper, a chat with the lead beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |

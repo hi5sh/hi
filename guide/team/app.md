@@ -35,6 +35,11 @@ channel with production's current link, edited whenever the link or the
 version changes. Each release's announcement links to that message, so
 nobody has to hunt for the latest link.
 
+When only an address ends, early or on time, the app keeps running: hi
+puts the box that answers on a new address and leaves it be. A new box
+starts only for a new version, new settings, or a box that doesn't answer,
+so the app's data isn't opened twice for the sake of a link.
+
 ## Addresses that stay
 
 By default NetBird makes up each address, and production's changes every
@@ -69,9 +74,16 @@ To let in only some addresses, such as the office's, with the same token:
 
 ```sh
 hi team allow-ip payments 203.0.113.18     # addresses and CIDR blocks, separated by commas
+hi team allow-ip payments 203.0.113.18,203.0.113.20   # two addresses
 hi team allow-ip payments                    # what it is now
 hi team allow-ip payments off                # any address with the link
 ```
+
+Change the addresses here, not under Access Control in NetBird's
+dashboard: hi checks the rule every minute and puts back exactly its own
+list, so an address added there by hand is gone again within a minute.
+The same goes for the service itself: one deleted in the dashboard is
+made again within a minute, on the same name, with the same key.
 
 The team's production and preview move to addresses with the rule within
 a minute (`hi net expose --allow-ip`). On a name that stays, the links
@@ -80,8 +92,9 @@ it is restarted. If
 the name doesn't work, hi uses an address NetBird makes up, tries the name
 again after half an hour, and keeps why in `hi team preview`'s answer.
 
-The app box holds no credentials: no Slack token and no API keys. The app
-finds its own link in the file named by `$HI_PUBLIC_URL_FILE`, which hi
+The app box holds no Slack token and no OpenRouter key; the only keys in
+it are the settings you give it with `hi team env` ([Keys and
+settings](/guide/team/keys/)). The app finds its own link in the file named by `$HI_PUBLIC_URL_FILE`, which hi
 rewrites whenever the link changes. Anything the people want posted on a
 schedule, such as a morning digest, is the lead's scheduled job: a script
 that makes the message from production's code, and the lead posts what it

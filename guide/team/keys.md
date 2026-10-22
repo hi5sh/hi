@@ -27,6 +27,15 @@ the app token, Enter keeps one, and a running team restarts with them:
 hi team key payments slack
 ```
 
+The lead's box doesn't hold the Slack tokens either. It has placeholders,
+and the team's proxy puts the real tokens on the lead's calls to Slack's
+API. For that, the proxy answers the box's connections to `slack.com` and
+`files.slack.com` itself, with a certificate from a CA of the team's own,
+which the box trusts and which can vouch for `slack.com` only. Every other
+site the lead reaches stays a plain tunnel. On a machine without a bundle
+of public certificates to add the CA to, hi says so when the team starts,
+and the box holds the real tokens, as before v1.2.1.
+
 **Settings.** Other keys and settings the app needs reach its boxes as
 environment variables, and nothing else: not the lead, not the members,
 not briefs. The lead sees their names, so it can tell the coder which
@@ -40,7 +49,7 @@ hi team env payments --unset WEATHER_API_KEY
 
 The next preview has a change, and hi starts production again on the same
 link within a minute. A setting is readable by the app's code, which the
-agents write; only the OpenRouter key never is.
+agents write; the OpenRouter key and the Slack tokens never are.
 
 The lead itself never joins your NetBird network: the machine runs the
 app and the address, and the lead only asks for them.

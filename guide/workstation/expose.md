@@ -67,8 +67,10 @@ its login page, as a rule under Reverse Proxy > Access Control does.
 `netbird expose` can't set that rule, so hi sets it through NetBird's API,
 with the same token as `--domain` (in `$NETBIRD_API_TOKEN` or saved by
 `hi team domain`). The address lets nobody in until NetBird has the rule,
-and hi checks it every minute: if it has gone, hi puts it back, and lets
-nobody in until it can.
+and hi checks it every minute: if it has gone or differs, hi puts back
+exactly the addresses it was given, and lets nobody in until it can. An
+address added under Access Control by hand is taken out again, so give
+every address to `--allow-ip` (or `hi team allow-ip`).
 
 `--vpn` gives no public address. The service is reachable at
 `http://<this machine's NetBird name>:<port>`, only from devices on your
@@ -100,6 +102,12 @@ service user that may manage the reverse proxy, in `$NETBIRD_API_TOKEN` or
 saved by `hi team domain`. When the exposure ends, the service is switched
 off rather than removed, so the next exposure on the name takes it over
 with its certificate.
+
+hi looks for the service every minute while the exposure runs. One deleted
+in NetBird's dashboard is made again, pointed at the same relay, with the
+same lock and `--allow-ip` rule, within a minute; a new certificate may
+take a little longer. A service another exposure has taken over on the
+name is that one's to keep, so an older exposure never takes the name back.
 
 ## In the background
 

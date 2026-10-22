@@ -1,6 +1,6 @@
 ---
 title: When something goes wrong
-description: "A hi team watches the app's long work and its members' tasks without anyone looking: a job that fails or stops moving, production's app that stops, or a task that fails opens an incident, and the lead handles what it can on its own, asks the people about the rest, and logs what it did."
+description: "A hi team watches the app's long work and its members' tasks without anyone looking: a job that fails or stops moving, production's app that stops or stops answering, or a task that fails opens an incident, and the lead handles what it can on its own, asks the people about the rest, and logs what it did."
 ---
 
 An app often does long work of its own: a backfill that downloads and
@@ -73,6 +73,12 @@ Every minute hi reads production's jobs, and the preview's. It opens an
   died without saying so;
 - production's app stopped on its own (hi starts it again, and says how it
   ended and its last lines);
+- production's app hasn't answered for five minutes. hi asks `/` on its
+  box's port every minute, and any answer counts, a `503` while it starts
+  too. An app whose box runs but doesn't answer is often blocked by its own
+  work, such as a job on the thread that serves requests, so hi leaves the
+  box be and says which jobs it was running. The incident closes when the
+  app answers again;
 - a member's task failed;
 - the lead, or a member, raised one.
 
@@ -94,7 +100,9 @@ and stays within the team's budget:
 
 - it waits, or retries, when the cause passes: a network error, a service
   that was down;
-- it restarts the app once per incident (a second time needs a yes);
+- it restarts the app once per incident (a second time needs a yes). For
+  an app that stopped answering while its box runs, it looks first: a
+  restart starts the same work again;
 - it retries a member's task that failed for a reason outside the work;
 - it re-briefs a member whose task failed on the work itself, twice at
   most;

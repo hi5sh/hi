@@ -122,6 +122,8 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `--max is at most 24h`                                      | Exposures always end; start a new one when it does.          |
 | `choose one of --link, --password, --pin, --groups, and --public` | Pass at most one lock.                                       |
 | `nothing named "…" is exposed`                              | `hi net expose ls` shows the names.                          |
+| `NetBird's service for … was gone; it's back`               | The service was deleted in NetBird's dashboard, and hi made it again on the same name and key. Nothing to do; the address may not open for a minute while NetBird sets it up. |
+| An address added under Access Control in NetBird disappears | hi puts back exactly the `--allow-ip` list every minute. Add the address to it: `hi team allow-ip <team> <ip>,<ip>`, or `--allow-ip` for `hi net expose`. |
 
 ## Installing and signing in
 

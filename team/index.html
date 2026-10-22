@@ -91,7 +91,7 @@ Can they show in red?</div>
       </div>
       <div class="detail">
         <h3>Keys never reach the agents</h3>
-        <p>The boxes hold no keys or sign-ins: hi's proxy adds the model keys on the way out. <code>hi team key onboarding openrouter</code> gives the team an OpenRouter key of its own, so its use is billed and limited apart.</p>
+        <p>The boxes hold no keys or sign-ins: hi's proxy adds the model keys, and the lead's Slack tokens, on the way out. <code>hi team key onboarding openrouter</code> gives the team an OpenRouter key of its own, so its use is billed and limited apart.</p>
         <p>The app's settings go in with <code>hi team env onboarding KEY=VALUE</code>, as environment variables in its boxes only: never in Slack, never in the code. The app calls models at <code>$OPENROUTER_BASE_URL</code> without holding a key.</p>
       </div>
       <div class="detail">
@@ -103,7 +103,7 @@ Can they show in red?</div>
       </div>
       <div class="detail">
         <h3>When something goes wrong</h3>
-        <p>The app's long work reports as jobs. A job that fails or stops moving, production's app stopping, or a failed task opens an incident: the lead handles it, or asks the people, in its thread.</p>
+        <p>The app's long work reports as jobs. A job that fails or stops moving, production's app stopping or no longer answering, or a failed task opens an incident: the lead handles it, or asks the people, in its thread.</p>
         <div class="snip"><span class="c">$ hi team jobs onboarding</span>
 <span class="c">$ hi team incidents onboarding</span></div>
       </div>
