@@ -572,3 +572,28 @@ func TestTeamJobsSettleAfterStart(t *testing.T) {
 		t.Fatal(channel.calls, *woken)
 	}
 }
+
+// A count that went down started over: the rate counts from there, never
+// below zero (cartman's volatility-backfill showed -73,826 a day).
+func TestTeamJobRateAfterACountStartsOver(t *testing.T) {
+	now := time.Now()
+	hours := func(n int) time.Time { return now.Add(-time.Duration(n) * time.Hour) }
+	watch := &teamJobWatch{Done: 0, Samples: []teamJobSample{{At: hours(36), Done: 112221}, {At: hours(35), Done: 0}, {At: hours(1), Done: 0}}}
+	if rate, ok := teamJobRate(watch, now); !ok || rate != 0 {
+		t.Fatal(rate, ok)
+	}
+	watch = &teamJobWatch{Done: 1300, Samples: []teamJobSample{{At: hours(30), Done: 9000}, {At: hours(24), Done: 100}, {At: hours(12), Done: 700}}}
+	if rate, ok := teamJobRate(watch, now); !ok || rate != 1200 {
+		t.Fatal(rate, ok)
+	}
+	// Down since the last sample: too soon to say.
+	watch = &teamJobWatch{Done: 50, Samples: []teamJobSample{{At: hours(5), Done: 100}, {At: hours(2), Done: 400}}}
+	if _, ok := teamJobRate(watch, now); ok {
+		t.Fatal("a rate across a count that went down")
+	}
+	// A count that only grows keeps its week.
+	watch = &teamJobWatch{Done: 4800, Samples: []teamJobSample{{At: hours(48), Done: 0}, {At: hours(24), Done: 2400}}}
+	if rate, ok := teamJobRate(watch, now); !ok || rate != 2400 {
+		t.Fatal(rate, ok)
+	}
+}

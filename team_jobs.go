@@ -184,19 +184,25 @@ func teamJobCondition(job teamJob, watch *teamJobWatch, now time.Time) (conditio
 }
 
 // teamJobRate is a job's count per day, from the samples of the last week,
-// and whether there are enough to say.
+// and whether there are enough to say. A count that went down started
+// over (a new run, or a count the app reset), so the rate counts from
+// there: across it, it would come out below zero.
 func teamJobRate(watch *teamJobWatch, now time.Time) (float64, bool) {
 	if watch == nil || len(watch.Samples) == 0 {
 		return 0, false
 	}
-	var first *teamJobSample
+	var first, last *teamJobSample
 	for i := range watch.Samples {
-		if now.Sub(watch.Samples[i].At) <= 7*24*time.Hour {
-			first = &watch.Samples[i]
-			break
+		sample := &watch.Samples[i]
+		if now.Sub(sample.At) > 7*24*time.Hour {
+			continue
 		}
+		if first == nil || sample.Done < last.Done {
+			first = sample
+		}
+		last = sample
 	}
-	if first == nil {
+	if first == nil || watch.Done < last.Done {
 		return 0, false
 	}
 	span := now.Sub(first.At)

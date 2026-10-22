@@ -2363,6 +2363,13 @@ Approved spec: [hi_team_workers_handover.md](specs/approved/hi_team_workers_hand
 - [x] Apps that ignore the rule, and boxes started by an older hi,
   overlap as before.
 
+### v1.3.1 — A job's rate after its count starts over
+
+- [x] `hi team jobs` showed cartman's volatility-backfill at "-73,826 a
+  day": its count went from 112,221 to 0 with a new run, and the rate
+  took the week's first sample. A count that goes down starts the rate
+  over from there.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
