@@ -2471,6 +2471,30 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
   result is the spec and the user docs' story (docs/user/index.md), with
   the people's choices, before the coder builds anything.
 
+### Later — `hi watch`
+
+Spec: [hi_watch.md](specs/ideas/hi_watch.md) (draft). The hi server
+watches each team from outside its machine: what the broker can't see
+from inside (a machine that died, its own compromise, advisories for code
+already merged). Goes with the security advisor under `hi team` above,
+which would read the incidents this raises.
+
+- [ ] Release 1, heartbeat: `__serve` sends a signed heartbeat every
+  minute with each part's state, disk, OOM kills, snapshot age, spend,
+  and the network log's new lines; the server opens an incident and
+  pushes owners when one stops, pings an outside dead-man's switch, and
+  runs the health rules. The proxy logs a `closed` line with sizes.
+- [ ] Release 2, bills and advisories: a CycloneDX bill of materials per
+  release (`hi team bom`), a nightly match against OSV with KEV and EPSS
+  for ranking, advisory incidents, `hi team advisory … ignore`, and the
+  same match in the dependency review.
+- [ ] Release 3, network rules and stopping: the network rules, freeze
+  and pause from the server, a logging proxy for app boxes, and the
+  weekly comparison of what production runs with its bill.
+- [ ] Release 4, revoke and cut off: once the server makes the teams'
+  OpenRouter keys and holds a NetBird API token.
+- [ ] Settle the spec's open questions and move it to `specs/approved/`.
+
 ### Later — Bun
 
 - [ ] A preview check before the lead says a preview is ready, unless
