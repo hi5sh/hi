@@ -79,6 +79,23 @@ and opens an incident here, which closes when the server's does.
 heartbeat went. See
 [Watch the teams](/guide/compute/managed/#watch-the-teams).
 
+The server also matches what production runs against known advisories
+every night. One that is known to be exploited, or likely to be, in the
+app's own packages, is an incident here like any other: the lead
+proposes the upgrade and waits for a yes. The rest come once a week in
+one message.
+
+```sh
+hi team bom payments                     # production's bill of materials (CycloneDX)
+hi team advisories payments              # what matches production now
+hi team advisory payments ignore GHSA-xxxx-xxxx-xxxx --because "we never parse untrusted YAML"
+```
+
+An ignored advisory stays quiet until the advisory itself changes. A
+task that brings in a package version with an advisory has it listed in
+the reviewer's brief; one known to be exploited needs an owner's yes to
+merge, like a package that runs its own install script.
+
 ## What hi watches
 
 Every minute hi reads production's jobs, and the preview's. It opens an

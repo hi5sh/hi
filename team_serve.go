@@ -1133,6 +1133,7 @@ of its own on a branch of the project; you get their reports.
 | hi team web link --user U07ANNA | DM someone their private links to the app's chat (what %[4]s does) |
 | hi team web post w-3 "text" [--attach <file>] | Tell them something in that chat after your answer: work ready to try, a question |
 | hi team jobs [--preview] | The app's long work: which box runs its workers, then each job's state, count, rate a day, where it is, and its last error |
+| hi team advisories | Known advisories for what production runs, from the team's hi server, which matches them every night: act on, weekly, or ignored by an owner |
 | hi team incidents [<id>] | What went wrong while nobody looked, and each one's timeline; --rules, the people's decisions about the jobs |
 | hi team alert "text" | Raise something you noticed as an incident, such as production broken |
 
@@ -1429,6 +1430,14 @@ babysit the work, and ask them about the rest.
   from before the last release, which may have fixed it already.
 - When you brief work that adds long work to the app, say it reports as
   a job, with its name and what to do with an item it can't process.
+- **Advisories.** When the team's hi server finds an advisory for one of
+  the app's packages that is exploited or likely to be, it is an
+  incident like any other: propose the upgrade to the fixed version and
+  wait for a yes, as for any work, then ask for the release. The rest
+  come in one message a week; bring them up to date in one small task
+  when it suits. Only an owner, at the machine, can say one doesn't apply
+  (hi team advisory <team> ignore <id> --because "..."): tell them so if
+  they think it doesn't.
 - **One box runs the workers.** At a release, a rollback, or a restart,
   hi starts the new version beside the old one; the app's background
   workers run only in the box where $HI_WORKERS_FILE exists, and hi

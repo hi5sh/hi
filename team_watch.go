@@ -59,6 +59,12 @@ type teamWatchState struct {
 	// of the last day.
 	OOM   map[string]int `json:"oom,omitempty"`
 	Kills []time.Time    `json:"kills,omitempty"`
+	// Advisories are what the server last matched against production's
+	// bill, and Reported the last weekly report posted.
+	Advisories     []apiAdvisory      `json:"advisories,omitempty"`
+	AdvisoryCounts []apiAdvisoryCount `json:"advisory_counts,omitempty"`
+	AdvisoriesAt   time.Time          `json:"advisories_at,omitzero"`
+	Reported       string             `json:"reported,omitempty"`
 }
 
 var teamWatchStateMu sync.Mutex
@@ -72,6 +78,9 @@ func loadTeamWatchState(team string) teamWatchState {
 }
 
 func saveTeamWatchState(team string, state teamWatchState) error {
+	if err := os.MkdirAll(filepath.Dir(teamWatchStatePath(team)), 0o700); err != nil {
+		return err
+	}
 	data, _ := json.MarshalIndent(state, "", "  ")
 	return writeFileAtomic(teamWatchStatePath(team), append(data, '\n'), 0o600)
 }
@@ -468,6 +477,14 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 	now := time.Now()
 	beat := b.heartbeat(&state, teamWatchMachine, now)
 	beat.Stopping = stopping
+	bomPath := ""
+	if stopping == "" {
+		// Production's bill, made the first time after a release.
+		if path, version, err := teamProductionBom(b.team, teamBomTools); err == nil {
+			bomPath, beat.Bom, beat.BomVersion = path, teamBomDigest(path), version
+		}
+		beat.Ignored = loadTeamAdvisoriesIgnored(b.team)
+	}
 	network, more := teamReadNetwork(teamNetworkLogPath(b.team), state.Kept, watchNetworkLinesMax)
 	beat.Network = &network
 	saveTeamWatchState(b.team, state)
@@ -488,8 +505,25 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 	state.Sent, state.Error, state.ErrorAt, state.Kept = now.UTC(), "", time.Time{}, reply.NetworkKept
 	if stopping == "" {
 		b.tellWatched(&state, reply.Tell)
+		state.Advisories, state.AdvisoryCounts, state.AdvisoriesAt = reply.Advisories, reply.Counts, now.UTC()
+		if reply.Report != nil && reply.Report.ID != state.Reported && b.channel != nil {
+			if config, err := loadTeam(b.team); err == nil {
+				if _, err := b.channel.post(config.Channel, reply.Report.Text); err == nil {
+					state.Reported = reply.Report.ID
+				}
+			}
+		}
 	}
 	saveTeamWatchState(b.team, state)
+	if reply.NeedBom && bomPath != "" {
+		data, err := os.ReadFile(bomPath)
+		if err == nil {
+			err = client.call(http.MethodPost, "/v1/watch/bom", apiBom{Team: b.team, Version: beat.BomVersion, Digest: beat.Bom, Bom: data}, nil)
+		}
+		if err != nil {
+			return false, fmt.Errorf("sending production's bill of materials: %w", err)
+		}
+	}
 	return more && reply.NetworkKept == network.To, nil
 }
 

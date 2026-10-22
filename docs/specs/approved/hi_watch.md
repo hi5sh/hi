@@ -1,6 +1,6 @@
 # `hi watch`: a team watched from outside
 
-Status: Approved (2026-10-22). Release 1 built in v1.4.0.
+Status: Approved (2026-10-22). Release 1 built in v1.4.0, release 2 in v1.5.0.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
@@ -548,3 +548,64 @@ server's).
 - `/hi teams` in Slack answers with the same text as `hi server watch`.
 - The proxy's `closed` lines with sizes stay in release 3, with the
   network rules that read them.
+
+## As built (release 2, v1.5.0)
+
+Code: `team_bom.go` (bills, `hi team bom`, `advisories`, `advisory`),
+`server_advisories.go` (OSV, KEV, EPSS, matching, the report), and the
+dependency review in `team_deps.go`.
+
+- **No Syft.** hi makes the bill itself, as CycloneDX 1.6: the app's
+  `bun.lock`, `package-lock.json`, `uv.lock`, and `go.mod` at the
+  release's commit; each image's OS packages from `dpkg-query`, run in
+  the image with no network (by image ID, cached); the runtimes in it
+  (node, bun, uv, python3); hi; Claude Code and Codex as npm packages,
+  at the machine's versions; Hermes at the lead's version and commit;
+  the lead's skills by name; and OpenRouter (with each role's model),
+  Slack, and the lead's allowlist as services. Each matchable component
+  carries `hi:osv:ecosystem`, `hi:osv:name`, and `hi:osv:version`: for
+  an OS package, its source package, which is what Ubuntu's and
+  Debian's advisories name. Skills record no source or commit yet: hi
+  doesn't keep one for them.
+- **Made after a release, within a minute**: the heartbeat makes the
+  bill for production's version the first time it finds none, so a
+  rollback and a release from before v1.5.0 get one too. It names it by
+  digest, and the server answers `need_bom` until it has it (`POST
+  /v1/watch/bom`, the file's bytes, checked against the digest). A
+  preview's bill is made when asked (`hi team bom <team> preview`) and
+  isn't matched.
+- **OSV's API, not osv-scanner over bulk data.** The server asks
+  `api.osv.dev` (`/v1/querybatch`, then `/v1/vulns/<id>`, 16 at a time,
+  cached until an advisory's `modified` changes). That needs no second
+  binary on the server and no bulk download, and gives the same
+  database; what leaves the server is each package's ecosystem, name,
+  and version. CISA's KEV feed is fetched once a day; FIRST's EPSS for
+  the matched CVEs, once a day each.
+- **Tiers** as specified; "critical" is GitHub's severity, or Ubuntu's or
+  Debian's priority. An advisory incident is told to the team only for
+  the app's own packages; an image's, the agents', and hi's go to the
+  watch channel with what fixes them (for hi's base image: `podman rmi`
+  the image and `hi team up`, which builds it again).
+- **An image's advisories are counted, not listed.** On cartman's
+  production (v17), the bill had 398 components (67 of the app's, 211 of
+  the base image, 101 of the memory image) in 154 KB. OSV matched 3,195
+  advisories: none in the app, 3,120 in the Ubuntu base image and 75 in
+  Hindsight's, none of them exploited, likely, or critical with a fix.
+  The first match took about two minutes, most of it fetching 3,194
+  advisories once; a cached match, about as long, mostly EPSS. So a
+  team's matched advisories are kept in `watch/teams/<team>/advisories.json`,
+  not in `state.json`; the heartbeat's answer lists the team's own and
+  the loud ones, and an image's rest as counts (`advisory_counts`); and
+  the weekly report gives each image one line: how many, how many a
+  newer package fixes, and how to build it again.
+- **Ignoring**: `hi team advisory <team> ignore <id> --because` on the
+  machine, which takes the advisory's `modified` from the server's last
+  answer; kept in `advisories-ignored.json` and as CycloneDX VEX in
+  `boms/vex.cdx.json`, sent with every heartbeat, applied at once, and
+  void when the advisory changes. The lead can list
+  (`hi team advisories`) but not ignore.
+- **The dependency review** asks OSV directly from the team's machine for
+  each package version a task adds or moves to, with KEV cached beside
+  the teams. The reviewer's brief lists the advisories; a KEV one makes
+  the merge ask for an owner's yes, recorded as the task's trust
+  approval, as for an install script.

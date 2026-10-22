@@ -1088,6 +1088,8 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 	}
 	if packages := teamDependencyChanges(b.repo, base, commit); len(packages) > 0 {
 		brief += teamReviewPackages(packages)
+		advisories, err := teamDependencyAdvisories(packages)
+		brief += "\n" + teamDependencyAdvisoriesText(advisories, err) + "\n"
 	}
 	brief += teamRoleBrief(b.team, "reviewer")
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
@@ -1444,6 +1446,24 @@ func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 		}
 		task.TrustApproval = &yes
 	}
+	// A package version with an advisory known to be exploited needs an
+	// owner's yes, like a new install script (hi watch).
+	if advisories, err := teamDependencyAdvisories(packages); err == nil {
+		if exploited := teamDependencyExploited(advisories); len(exploited) > 0 {
+			if approvalRef == "" {
+				return task, fmt.Errorf("%s brings in %s, with an advisory known to be exploited (CISA KEV). "+
+					"Only an owner may allow that: ask the owners in the channel in plain words (which package, that attackers already use this flaw, and why the work can't use a fixed version), end your reply, "+
+					"and once an owner says yes, run hi team merge %s --approval <id>", task.ID, strings.Join(exploited, ", "), id)
+			}
+			if task.TrustApproval == nil {
+				yes, err := b.teamFindApproval(config, approvalRef, "trust")
+				if err != nil {
+					return task, err
+				}
+				task.TrustApproval = &yes
+			}
+		}
+	}
 	task.Packages = teamDependencyText(packages)
 	if err := b.commitSpecsLocked(config); err != nil {
 		return task, fmt.Errorf("committing the specs: %w", err)
@@ -1579,7 +1599,7 @@ var teamLeadCommands = map[string]bool{"task": true, "review": true, "wait": tru
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
-var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true, "upstream": true, "jobs": true, "incidents": true}
+var teamLeadOrHost = map[string]bool{"env": true, "rollback": true, "helper": true, "data": true, "upstream": true, "jobs": true, "incidents": true, "advisories": true}
 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	// --approval dm is a yes in the DM the lead is answering: Hermes says
@@ -2110,6 +2130,13 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		fmt.Fprintf(stdout, "%s is offered to the project it came from, as a draft pull request: %s\nThe owner whose GitHub account opened it marks it ready once they've read it.\n", task.ID, task.Proposed)
 	case "jobs", "incidents", "alert":
 		return runTeamIncidentLeadCommand(command, args, stdout, call)
+	case "advisories":
+		var view teamAdvisoriesView
+		if err := call("GET", "/advisories", nil, &view); err != nil {
+			return err
+		}
+		printTeamAdvisories(view, stdout)
+		return nil
 	case "upstream":
 		if len(args) != 0 {
 			return usageError{"usage: hi team upstream"}

@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 // A task that changes a JavaScript project's packages gets a dependency
@@ -323,4 +326,133 @@ func teamClipList(items []string, limit int) string {
 		return strings.Join(items, ", ")
 	}
 	return strings.Join(items[:limit], ", ") + fmt.Sprintf(", and %d more", len(items)-limit)
+}
+
+// teamDependencyAdvisory is a known advisory for a package a task adds or
+// moves to a new version (hi watch, release 2).
+type teamDependencyAdvisory struct {
+	Package string   `json:"package"`
+	Version string   `json:"version"`
+	ID      string   `json:"id"`
+	Summary string   `json:"summary,omitempty"`
+	Fixed   []string `json:"fixed,omitempty"`
+	KEV     bool     `json:"kev,omitempty"`
+}
+
+var (
+	teamAdvisoryFeedsOnce sync.Once
+	teamAdvisoryFeeds     *advisoryFeeds
+)
+
+// teamAdvisoryCache is where this machine keeps OSV's advisories and
+// CISA's KEV, beside the teams.
+func teamAdvisoryCache() *advisoryFeeds {
+	teamAdvisoryFeedsOnce.Do(func() {
+		teamAdvisoryFeeds = &advisoryFeeds{dir: filepath.Join(filepath.Dir(teamsDir()), "advisories")}
+	})
+	return teamAdvisoryFeeds
+}
+
+// teamDependencyAdvisories asks OSV about every package version the
+// changes add, and KEV which of the advisories are known to be exploited.
+// Tests replace it.
+var teamDependencyAdvisories = teamLookupDependencyAdvisories
+
+func teamLookupDependencyAdvisories(projects []teamDependencyProject) ([]teamDependencyAdvisory, error) {
+	type target struct{ name, version string }
+	var targets []target
+	seen := map[target]bool{}
+	add := func(name, version string) {
+		t := target{name, version}
+		if name != "" && version != "" && !seen[t] {
+			seen[t] = true
+			targets = append(targets, t)
+		}
+	}
+	for _, project := range projects {
+		for _, entry := range project.LockAdded {
+			if at := strings.LastIndex(entry, "@"); at > 0 {
+				add(entry[:at], entry[at+1:])
+			}
+		}
+		for _, entry := range project.LockChanged {
+			if name, versions, ok := strings.Cut(entry, " "); ok {
+				if _, after, ok := strings.Cut(versions, " → "); ok {
+					add(name, after)
+				}
+			}
+		}
+	}
+	if len(targets) == 0 {
+		return nil, nil
+	}
+	queries := make([]osvQuery, len(targets))
+	for i, t := range targets {
+		queries[i] = osvQueryFor("npm", t.name, t.version)
+	}
+	results, err := osvQueryBatch(queries)
+	if err != nil {
+		return nil, err
+	}
+	feeds := teamAdvisoryCache()
+	kev, err := feeds.loadKEV(time.Now())
+	if err != nil {
+		return nil, err
+	}
+	records, err := osvVulns(filepath.Join(feeds.dir, "osv"), results)
+	if err != nil {
+		return nil, err
+	}
+	var advisories []teamDependencyAdvisory
+	for i, refs := range results {
+		for _, ref := range refs {
+			record := records[ref.ID]
+			advisory := teamDependencyAdvisory{Package: targets[i].name, Version: targets[i].version, ID: record.ID,
+				Summary: record.Summary, Fixed: record.fixed("npm", targets[i].name)}
+			for _, cve := range record.cves() {
+				advisory.KEV = advisory.KEV || kev[cve]
+			}
+			advisories = append(advisories, advisory)
+		}
+	}
+	return advisories, nil
+}
+
+// teamDependencyExploited is the packages with an advisory known to be
+// exploited.
+func teamDependencyExploited(advisories []teamDependencyAdvisory) []string {
+	var names []string
+	for _, advisory := range advisories {
+		if advisory.KEV {
+			names = append(names, fmt.Sprintf("%s %s (%s)", advisory.Package, advisory.Version, advisory.ID))
+		}
+	}
+	return names
+}
+
+// teamDependencyAdvisoriesText lists the advisories for the reviewer.
+func teamDependencyAdvisoriesText(advisories []teamDependencyAdvisory, err error) string {
+	if err != nil {
+		return "hi couldn't ask OSV about these packages this time (" + err.Error() + "): run the audit."
+	}
+	if len(advisories) == 0 {
+		return "OSV knows no advisory for the versions this work adds."
+	}
+	var text strings.Builder
+	text.WriteString("OSV knows advisories for versions this work adds:\n")
+	for _, advisory := range advisories {
+		fmt.Fprintf(&text, "- %s %s: %s", advisory.Package, advisory.Version, advisory.ID)
+		if advisory.KEV {
+			text.WriteString(", KNOWN TO BE EXPLOITED (CISA KEV)")
+		}
+		if advisory.Summary != "" {
+			text.WriteString(": " + advisory.Summary)
+		}
+		if len(advisory.Fixed) > 0 {
+			text.WriteString("; fixed in " + strings.Join(advisory.Fixed, ", "))
+		}
+		text.WriteString("\n")
+	}
+	text.WriteString("Each is a change needed unless the work moves to a fixed version, or you say in your summary why it doesn't apply here. One known to be exploited also needs an owner's yes to merge.")
+	return text.String()
 }

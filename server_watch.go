@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slack-go/slack"
@@ -58,6 +59,12 @@ type apiHeartbeat struct {
 	Window     int                     `json:"spend_window_minutes,omitempty"`
 	Network    *apiWatchNetwork        `json:"network,omitempty"`
 	Stopping   string                  `json:"stopping,omitempty"` // "restart" or "down"
+	// Bom is the digest of production's bill of materials, and BomVersion
+	// the version it is of (team_bom.go); Ignored the advisories an owner
+	// said don't apply.
+	Bom        string               `json:"bom,omitempty"`
+	BomVersion string               `json:"bom_version,omitempty"`
+	Ignored    []teamAdvisoryIgnore `json:"ignored,omitempty"`
 }
 
 type apiWatchPart struct {
@@ -93,6 +100,13 @@ type apiWatchNetwork struct {
 type apiHeartbeatReply struct {
 	NetworkKept int64              `json:"network_kept"`
 	Tell        []apiWatchIncident `json:"tell,omitempty"`
+	// NeedBom asks for the bill the heartbeat named; Advisories are what
+	// matches production's; Report is a weekly report for the team's
+	// channel, posted once by its ID (server_advisories.go).
+	NeedBom    bool               `json:"need_bom,omitempty"`
+	Advisories []apiAdvisory      `json:"advisories,omitempty"`
+	Counts     []apiAdvisoryCount `json:"advisory_counts,omitempty"`
+	Report     *apiWatchReport    `json:"report,omitempty"`
 }
 
 type apiWatchIncident struct {
@@ -134,6 +148,15 @@ type watchTeam struct {
 	Spend       []watchSample     `json:"spend,omitempty"` // one an hour, for the week's average
 	Disk        []watchSample     `json:"disk,omitempty"`  // one a day, for the week's rate
 	Open        map[string]string `json:"open,omitempty"`  // rule → incident
+	// Production's bill, what matched it and when, and the weekly report.
+	Bom        string          `json:"bom,omitempty"`
+	BomVersion string          `json:"bom_version,omitempty"`
+	Matched    time.Time       `json:"matched,omitzero"`
+	MatchTried time.Time       `json:"match_tried,omitzero"`
+	Advisories []apiAdvisory   `json:"-"` // in teams/<team>/advisories.json
+	Reported   time.Time       `json:"reported,omitzero"`
+	NoFixTold  map[string]bool `json:"no_fix_told,omitempty"`
+	Report     *apiWatchReport `json:"report,omitempty"`
 }
 
 type watchSample struct {
@@ -161,6 +184,12 @@ type serverWatch struct {
 	config watchConfig
 	state  watchState
 	pinged time.Time
+	// matchMu keeps one advisory match at a time; matching says one runs
+	// for the teams that are due.
+	matchMu  sync.Mutex
+	matching atomic.Bool
+	feeds    *advisoryFeeds
+
 	// push and ping are replaced in tests.
 	push func(config watchConfig, topic, title, text string) error
 	ping func(url string) error
@@ -170,6 +199,7 @@ func watchDir(serverDir string) string { return filepath.Join(serverDir, "watch"
 
 func openServerWatch(serverDir string) *serverWatch {
 	w := &serverWatch{dir: watchDir(serverDir), push: watchPushNtfy, ping: watchPing}
+	w.feeds = &advisoryFeeds{dir: filepath.Join(w.dir, "feeds")}
 	if data, err := os.ReadFile(filepath.Join(w.dir, "config.json")); err == nil {
 		json.Unmarshal(data, &w.config)
 	}
@@ -181,6 +211,11 @@ func openServerWatch(serverDir string) *serverWatch {
 	}
 	if w.state.Incidents == nil {
 		w.state.Incidents = map[string]*watchIncident{}
+	}
+	for name, team := range w.state.Teams {
+		if data, err := os.ReadFile(w.advisoriesPath(name)); err == nil {
+			json.Unmarshal(data, &team.Advisories)
+		}
 	}
 	return w
 }
@@ -250,10 +285,22 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		w.keepNetworkLocked(s, team, *network)
 	}
 	var events []watchEvent
+	reply := apiHeartbeatReply{NetworkKept: team.NetworkKept}
 	if beat.Stopping == "" {
 		events = w.rulesLocked(team, now)
+		// Production's bill: the server asks for one it doesn't have.
+		if beat.Bom != "" && beat.Bom != team.Bom {
+			if fileExists(filepath.Join(w.dir, "teams", team.Team, "boms", strings.TrimPrefix(beat.Bom, "sha256:")+".cdx.json")) {
+				team.Bom, team.BomVersion, team.Matched = beat.Bom, beat.BomVersion, time.Time{}
+			} else {
+				reply.NeedBom = true
+			}
+		}
+		// What owners said doesn't apply takes effect at once.
+		events = append(events, w.applyIgnoresLocked(team, now)...)
+		reply.Advisories, reply.Counts = teamFacingAdvisories(team.Advisories)
+		reply.Report = team.Report
 	}
-	reply := apiHeartbeatReply{NetworkKept: team.NetworkKept}
 	for _, id := range team.Open {
 		if incident := w.state.Incidents[id]; incident != nil && incident.Tell {
 			reply.Tell = append(reply.Tell, apiWatchIncident{ID: id, Rule: incident.Rule, Title: incident.Title, Detail: incident.Detail})
@@ -308,6 +355,24 @@ func (w *serverWatch) keepNetworkLocked(s *hiServer, team *watchTeam, network ap
 		return
 	}
 	team.NetworkKept = network.To
+}
+
+// applyIgnoresLocked marks the advisories an owner said don't apply, as
+// long as the advisory hasn't changed since, and opens or closes their
+// incidents.
+func (w *serverWatch) applyIgnoresLocked(team *watchTeam, now time.Time) []watchEvent {
+	if len(team.Advisories) == 0 {
+		return nil
+	}
+	for i := range team.Advisories {
+		team.Advisories[i].Ignored = ""
+		for _, ignore := range team.Beat.Ignored {
+			if ignore.ID == team.Advisories[i].ID && ignore.Package == team.Advisories[i].Package && ignore.Modified == team.Advisories[i].Modified {
+				team.Advisories[i].Ignored = firstNonEmpty(ignore.Because, "ignored")
+			}
+		}
+	}
+	return w.advisoryRulesLocked(team, now)
 }
 
 // ---------------------------------------------------------------------------
@@ -522,6 +587,13 @@ func (s *hiServer) checkWatch(now time.Time) {
 	if len(events) > 0 {
 		w.saveLocked()
 	}
+	if !w.matching.Load() {
+		w.matching.Store(true)
+		go func() {
+			defer w.matching.Store(false)
+			s.matchAdvisoriesDue(now)
+		}()
+	}
 	deadman := w.config.Deadman
 	ping := deadman != "" && now.Sub(w.pinged) >= watchDeadmanEvery
 	if ping {
@@ -657,6 +729,10 @@ type watchTeamView struct {
 	Production string                  `json:"production,omitempty"`
 	Parts      map[string]apiWatchPart `json:"parts,omitempty"`
 	Network    int64                   `json:"network_kept"`
+	Bom        string                  `json:"bom_version,omitempty"`
+	Advisories int                     `json:"advisories"`
+	Loud       int                     `json:"advisories_loud"`
+	Matched    time.Time               `json:"matched,omitzero"`
 }
 
 type watchView struct {
@@ -672,8 +748,17 @@ func (w *serverWatch) view() watchView {
 	defer w.mu.Unlock()
 	view := watchView{Teams: []watchTeamView{}, Incidents: []watchIncident{}, Deadman: w.config.Deadman != "", Ntfy: w.config.Ntfy, Channel: w.config.Channel}
 	for _, team := range w.state.Teams {
-		view.Teams = append(view.Teams, watchTeamView{Team: team.Team, Hostname: team.Hostname, User: team.User, Last: team.Last, Stopping: team.Stopping,
-			Hi: team.Beat.Hi, Production: team.Beat.Production, Parts: team.Beat.Parts, Network: team.NetworkKept})
+		row := watchTeamView{Team: team.Team, Hostname: team.Hostname, User: team.User, Last: team.Last, Stopping: team.Stopping,
+			Hi: team.Beat.Hi, Production: team.Beat.Production, Parts: team.Beat.Parts, Network: team.NetworkKept, Bom: team.BomVersion, Matched: team.Matched}
+		for _, advisory := range team.Advisories {
+			if advisory.Ignored == "" {
+				row.Advisories++
+				if tier := advisory.tier(); tier == "kev" || tier == "incident" {
+					row.Loud++
+				}
+			}
+		}
+		view.Teams = append(view.Teams, row)
 	}
 	sort.Slice(view.Teams, func(i, j int) bool { return view.Teams[i].Team < view.Teams[j].Team })
 	for _, incident := range w.state.Incidents {
@@ -721,6 +806,14 @@ func printWatchView(view watchView, now time.Time, out io.Writer) {
 		}
 		if len(parts) > 0 {
 			fmt.Fprintf(out, "  %s\n", strings.Join(parts, " · "))
+		}
+		switch {
+		case team.Bom == "":
+			fmt.Fprintln(out, "  no bill of materials yet")
+		case team.Matched.IsZero():
+			fmt.Fprintf(out, "  bill for %s, not matched against advisories yet\n", team.Bom)
+		default:
+			fmt.Fprintf(out, "  bill for %s: %d advisories, %d of them incidents; matched %s ago\n", team.Bom, team.Advisories, team.Loud, teamAgo(now.Sub(team.Matched)))
 		}
 	}
 	if len(view.Incidents) > 0 {

@@ -307,6 +307,9 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer). It is a go-ahead for the work it asks for, but not for a release |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. The lead runs `hi team rollback v3 --approval <id>` with an owner's yes |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
+| `hi team bom <name> [v<n>|preview]`       | Production's bill of materials (CycloneDX), or a release's, or the preview's |
+| `hi team advisories <name>`               | Known advisories for what production runs, as the team's hi server last matched them; the lead has it too |
+| `hi team advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
 | `hi team manifest <name>`                 | The Slack app manifest again |
 | `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
 | `hi team upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the team's, and what it has added since, with its new tags |

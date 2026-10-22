@@ -2387,6 +2387,24 @@ Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 1.
 - [x] `hi server watch` (with `--deadman`, `--ntfy`, `--channel`,
   `subscribe`, `forget`), `/hi teams`, and a line in `hi team status`.
 
+### v1.5.0 — Bills of materials and advisories (hi watch release 2)
+
+Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 2.
+
+- [x] Each release gets a CycloneDX 1.6 bill of what production runs
+  (`hi team bom`): the app's lockfiles, the OS packages in hi's base
+  image and the memory image, the runtimes, hi, the agents, the lead's
+  skills, and the services. The heartbeat names it; the server asks for
+  one it doesn't have.
+- [x] The server matches every production bill against OSV each night,
+  with CISA's KEV and FIRST's EPSS: an exploited advisory is an incident
+  and a push, a likely or critical one with a fix an incident, the rest
+  the weekly report. The app's own go to the team's channel.
+- [x] `hi team advisories`, and `hi team advisory … ignore --because`,
+  kept as VEX, until the advisory changes.
+- [x] The dependency review lists what OSV knows for the versions a task
+  adds; one known to be exploited needs an owner's yes to merge.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
@@ -2502,7 +2520,7 @@ which would read the incidents this raises.
   offset the server has; the server opens an incident and pushes owners
   when one stops (not after a restart it was told of), pings an outside
   dead-man's switch, and runs the health rules.
-- [ ] Release 2, bills and advisories: a CycloneDX bill of materials per
+- [x] Release 2, bills and advisories (v1.5.0): a CycloneDX bill of materials per
   release (`hi team bom`), a nightly match against OSV with KEV and EPSS
   for ranking, advisory incidents, `hi team advisory … ignore`, and the
   same match in the dependency review.

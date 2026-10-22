@@ -335,6 +335,12 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamEnv(rest, stdin, stdout)
 	case "limit":
 		err = teamLimitCommand(rest, stdout)
+	case "bom":
+		err = teamBomCommand(rest, stdout)
+	case "advisories":
+		err = teamAdvisoriesCommand(rest, stdout)
+	case "advisory":
+		err = teamAdvisoryCommand(rest, stdout)
 	case "__app":
 		return runTeamApp(rest, stderr)
 	case "__leadapi":
@@ -427,6 +433,12 @@ usage:
                                    keeps its own
   hi team limit <name>             what the preview's model calls may cost a day, and spent today
       [preview <usd> | preview off]  set it ($5 a day unless set); production has no limit from hi
+    hi team bom <name> [v<n>|preview]  production's bill of materials (CycloneDX), or a release's
+  hi team advisories <name>        known advisories for what production runs, from the team's hi
+                                   server, which matches them every night
+  hi team advisory <name> ignore <id> --because "<why>" [--package <p>]
+                                   an owner's word that one doesn't apply, until it changes;
+                                   unignore <id> takes it back
   hi team snapshot <name>          take a snapshot now: the lead's memory, the team's record, and
                                    the app's data; the team keeps running. It takes one daily too
   hi team snapshots <name>         list them

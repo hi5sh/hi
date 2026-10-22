@@ -71,6 +71,10 @@ func setupTeamTest(t *testing.T) string {
 	overlay := teamOverlayEngine
 	teamOverlayEngine = func() bool { return true }
 	t.Cleanup(func() { teamOverlayEngine = overlay })
+	// No advisories from OSV unless a test asks for them.
+	lookup := teamDependencyAdvisories
+	teamDependencyAdvisories = func([]teamDependencyProject) ([]teamDependencyAdvisory, error) { return nil, nil }
+	t.Cleanup(func() { teamDependencyAdvisories = lookup })
 	return dir
 }
 

@@ -850,6 +850,9 @@ func (b *teamBroker) incidentRoutes(mux *http.ServeMux, reply func(http.Response
 		}
 		reply(w, teamJobsReport(b.team, slot, time.Now()), nil)
 	})
+	mux.HandleFunc("GET /advisories", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, teamAdvisoriesReport(b.team), nil)
+	})
 	mux.HandleFunc("GET /workers", func(w http.ResponseWriter, r *http.Request) {
 		slot := teamSlotProduction
 		if r.URL.Query().Get("preview") != "" {

@@ -550,6 +550,7 @@ func (s *hiServer) clientHandler() http.Handler {
 	mux.HandleFunc("GET /v1/templates", s.device(s.handleTemplateCatalog))
 	mux.HandleFunc("GET /v1/templates/{source}/{commit}", s.device(s.handleTemplateBundle))
 	mux.HandleFunc("POST /v1/watch/heartbeat", s.device(s.handleHeartbeat))
+	mux.HandleFunc("POST /v1/watch/bom", s.deviceLimited(32<<20, s.handleBom))
 	s.aiRoutes(mux)
 	s.dataRoutes(mux)
 	return mux

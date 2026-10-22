@@ -691,6 +691,31 @@ incident there and wakes the lead; it closes when the server's does. A
 key used outside hi isn't told to the team, since its lead could be what
 uses it: rotate the key at openrouter.ai and set it with `hi team key`.
 
+#### Advisories
+
+Each release, the team makes a bill of materials of what production runs
+(CycloneDX): the app's packages from its lockfiles, the OS packages in
+hi's base image and in the lead's memory image, the runtimes, hi, the
+coding agents, the lead's skills, and the services it calls. The server
+gets it with the next heartbeat, and every night asks
+[OSV](https://osv.dev) which advisories name those packages at those
+versions, [CISA's KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+which are known to be exploited, and [FIRST's EPSS](https://www.first.org/epss/)
+how likely each is to be soon. Only the packages' names and versions
+leave the server, to OSV.
+
+| An advisory that matches production | What happens |
+|---|---|
+| known to be exploited (KEV) | an incident, a push to the owners, and for the app's own packages, the team's channel |
+| EPSS 0.1 or more, or critical, with a fixed version | an incident; the team's channel for the app's packages |
+| anything else | the weekly report: in the watch channel, and the app's in the team's channel |
+
+The app's packages are the lead's to upgrade, with a yes as for any
+work. The base image's are fixed by building it again: on the team's
+machine, `podman rmi` the image `hi team bom <team>` names and
+`hi team up <team>`. The agents' and hi's come with `hi install upgrade`
+and `hi update`.
+
 The network lines are kept in the server's `watch/teams/<team>/network.log`,
 off the team's machine. Each team belongs to the first machine that sends
 its heartbeat; another machine is refused until `hi server watch forget`.
