@@ -27,6 +27,9 @@ import (
 // its model calls go through the proxy's token listener.
 var teamLeadHosts = []string{"*"}
 
+// teamTrustInBox is where the lead's box sees the CA bundle it trusts.
+const teamTrustInBox = "/box/trust"
+
 func teamServe(name string, stdout, stderr io.Writer) error {
 	config, err := loadTeam(name)
 	if err != nil {
@@ -94,6 +97,18 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := writeTeamKeys(name, secrets); err != nil {
 		return err
 	}
+	// The lead's box gets placeholders for the Slack tokens, which its
+	// proxy swaps for the real ones (box_slack.go).
+	trustDir, boxSecrets := filepath.Join(dir, "run", "trust"), secrets
+	swapSlack, err := prepareTeamSlackSwap(teamKeysDir(name), trustDir, secrets)
+	if err != nil {
+		return fmt.Errorf("the lead's Slack tokens: %w", err)
+	}
+	if swapSlack {
+		boxSecrets.SlackBotToken, boxSecrets.SlackAppToken = boxSlackBotPlacehold, boxSlackAppPlacehold
+	} else {
+		fmt.Fprintln(stderr, "hi: this machine has no CA bundle, so the lead's box holds the real Slack tokens this time")
+	}
 	if err := startBoxNetwork(engine, &meta, proxyDir, "team:"+teamKeysDir(name), nil); err != nil {
 		teardownBox(engine, meta)
 		return err
@@ -115,7 +130,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 			}
 		}
 	}
-	if err := writeTeamLead(config, secrets, meta.ProxyIP, memoryIP); err != nil {
+	if err := writeTeamLead(config, boxSecrets, meta.ProxyIP, memoryIP); err != nil {
 		return err
 	}
 	if n, err := refreshTeamLeadPrompts(filepath.Join(teamDir(name), "lead")); err != nil {
@@ -219,6 +234,14 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if memorySite != "" {
 		// Hindsight's client, beside Hermes' own packages.
 		env["PYTHONPATH"] = memorySite
+	}
+	if swapSlack {
+		// The public roots and the CA the proxy speaks to Slack with.
+		run = append(run, "-v", trustDir+":"+teamTrustInBox+":ro")
+		bundle := teamTrustInBox + "/" + boxSlackBundle
+		for _, key := range []string{"SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "NODE_EXTRA_CA_CERTS"} {
+			env[key] = bundle
+		}
 	}
 	keys := make([]string, 0, len(env))
 	for key := range env {

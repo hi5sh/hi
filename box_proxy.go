@@ -23,7 +23,8 @@ import (
 // rereads when it changes, and logs every decision. A second listener
 // passes Claude Code's requests to api.anthropic.com and puts the real
 // token in place of the box's placeholder, so the token never enters the
-// box.
+// box. A team lead's Slack tokens are swapped in the same way, inside the
+// CONNECTs to Slack's API (box_slack.go).
 
 const (
 	boxProxyPort       = 3128
@@ -112,9 +113,18 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		return 1
 	}
 	log := &boxNetworkLog{file: logFile}
+	egress := &boxEgressProxy{allow: allow, log: log}
+	if keys := os.Getenv(boxSlackKeysEnv); keys != "" {
+		// A team's lead: its Slack tokens are swapped in here, if hi put
+		// them in its keys.
+		if egress.slack, err = loadBoxSlackSwap(keys, egress.dialer(), log); err != nil {
+			fmt.Fprintf(stderr, "hi: the lead's Slack tokens can't be swapped in: %v\n", err)
+			log.record("slack-problem", err.Error())
+		}
+	}
 	errs := make(chan error, 2)
 	go func() {
-		errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxProxyPort), &boxEgressProxy{allow: allow, log: log})
+		errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxProxyPort), egress)
 	}()
 	if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
 		go func() {
@@ -142,6 +152,8 @@ type boxEgressProxy struct {
 	log   *boxNetworkLog
 	// dial is replaced in tests.
 	dial func(ctx context.Context, network, address string) (net.Conn, error)
+	// slack, for a team's lead, swaps its Slack tokens in (box_slack.go).
+	slack *boxSlackSwap
 }
 
 func (p *boxEgressProxy) dialer() func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -162,6 +174,12 @@ func (p *boxEgressProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.log.record("allowed", host)
+	if r.Method == http.MethodConnect && p.slack.intercepts(r.Host) {
+		if client := p.hijack(w); client != nil {
+			p.slack.serve(client, host)
+		}
+		return
+	}
 	if r.Method == http.MethodConnect {
 		p.tunnel(w, r)
 		return
@@ -194,28 +212,37 @@ func (p *boxEgressProxy) tunnel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	hijacker, ok := w.(http.Hijacker)
-	if !ok {
-		upstream.Close()
-		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
-		return
-	}
-	client, buffered, err := hijacker.Hijack()
-	if err != nil {
+	client := p.hijack(w)
+	if client == nil {
 		upstream.Close()
 		return
 	}
-	client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
 	go func() {
-		// Bytes the client sent after the CONNECT line are already buffered.
-		if buffered.Reader.Buffered() > 0 {
-			io.CopyN(upstream, buffered, int64(buffered.Reader.Buffered()))
-		}
 		io.Copy(upstream, client)
 		upstream.Close()
 	}()
 	io.Copy(client, upstream)
 	client.Close()
+}
+
+// hijack takes the CONNECT's connection and says it's established; nil
+// when it can't.
+func (p *boxEgressProxy) hijack(w http.ResponseWriter) net.Conn {
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
+		return nil
+	}
+	client, buffered, err := hijacker.Hijack()
+	if err != nil {
+		return nil
+	}
+	client.Write([]byte("HTTP/1.1 200 Connection established\r\n\r\n"))
+	// Bytes the client sent after the CONNECT line are already buffered.
+	if buffered.Reader.Buffered() > 0 {
+		return &boxBufferedConn{Conn: client, reader: buffered.Reader}
+	}
+	return client
 }
 
 // newBoxClaudeInjector passes Claude Code's API requests on with the real
