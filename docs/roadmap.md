@@ -2535,6 +2535,16 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
 - [x] The channel's message when a role falls back names the Slack
   command for an owner.
 
+### v1.11.1 — A new team's coder and reviewer have a browser
+
+Found on team cartman: a dark-mode change took a second review because
+the lead's spec asked for the pages to be looked at and the coder's box
+had no browser; the fix built Chromium by hand from downloaded packages,
+and every UI task would again.
+
+- [x] A new team's coder and reviewer get the `web` bundle (a browser and
+  agent-browser) by default. Cartman's got it by hand.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

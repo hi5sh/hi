@@ -165,13 +165,15 @@ func teamUnitName(name string) string { return "hi-team-" + name + ".service" }
 
 // defaultTeamMembers is the roster the wizard offers: the reviewer is a
 // different agent from the coder, so the code is checked by someone other
-// than its author.
+// than its author. Both get the web bundle, a browser: a team builds a web
+// app, and the lead's specs ask for its pages to be looked at (on team
+// cartman, 2026-10-23, a coder without one built Chromium by hand).
 func defaultTeamMembers() map[string]teamMember {
 	lead := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml")).Default
 	return map[string]teamMember{
 		"lead":     {Agent: "hermes", Model: lead},
-		"coder":    {Agent: "claude", Model: "opus"},
-		"reviewer": {Agent: "codex"},
+		"coder":    {Agent: "claude", Model: "opus", Bundle: "web"},
+		"reviewer": {Agent: "codex", Bundle: "web"},
 	}
 }
 

@@ -213,7 +213,8 @@ func TestTeamWizard(t *testing.T) {
 	}
 	if config.Channel != "C07PAYMENTS" || len(config.Owners) != 2 || config.Askers != nil || config.Branch != "main" ||
 		config.Members["reviewer"].Model != "gpt-5.5" || config.Members["coder"].Agent != "claude" || config.Members["lead"].Model != "qwen/qwen3.8-max" ||
-		config.Members["coder"].Effort != "high" || config.Members["lead"].Effort != "" || config.Members["reviewer"].Effort != "" {
+		config.Members["coder"].Effort != "high" || config.Members["lead"].Effort != "" || config.Members["reviewer"].Effort != "" ||
+		config.Members["coder"].Bundle != "web" || config.Members["reviewer"].Bundle != "web" || config.Members["lead"].Bundle != "" {
 		t.Fatalf("%+v", config)
 	}
 	info, err := os.Stat(filepath.Join(teamDir("payments"), "secrets.json"))

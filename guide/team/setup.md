@@ -124,10 +124,12 @@ are the only commits that skip review: documentation, not code.
 
 ## Change a member
 
-Edit `members` in `team.json` and restart the team. A member may have a
-`bundle` (see [bundles](/guide/agent/#bundles-skills-and-the-tools-they-need)),
-and a `network` to narrow what it reaches: `dev` (code hosts and package
-registries, plus any `allow`) or `locked`:
+Edit `members` in `team.json`: a member's next task uses it, and the
+lead's changes take a restart (`hi team member` restarts it for you). A
+member may have a `bundle` (see [bundles](/guide/agent/#bundles-skills-and-the-tools-they-need));
+a new team's coder and reviewer get `web`, a browser, so they can look at
+the app's pages. A `network` narrows what a member reaches: `dev` (code
+hosts and package registries, plus any `allow`) or `locked`:
 
 ```json
 "coder": { "agent": "claude", "model": "opus", "bundle": "web", "network": "dev", "allow": ["cdn.example.com"] }
