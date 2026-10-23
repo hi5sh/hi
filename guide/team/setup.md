@@ -128,7 +128,7 @@ Edit `members` in `team.json`: a member's next task uses it, and the
 lead's changes take a restart (`hi team member` restarts it for you). A
 member may have a `bundle` (see [bundles](/guide/agent/#bundles-skills-and-the-tools-they-need));
 a new team's coder and reviewer get `web`, a browser, so they can look at
-the app's pages. A `network` narrows what a member reaches: `dev` (code
+the app's pages, and `data`, DuckDB and charts for data files. A `network` narrows what a member reaches: `dev` (code
 hosts and package registries, plus any `allow`) or `locked`:
 
 ```json

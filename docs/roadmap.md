@@ -2545,6 +2545,11 @@ and every UI task would again.
 - [x] A new team's coder and reviewer get the `web` bundle (a browser and
   agent-browser) by default. Cartman's got it by hand.
 
+### v1.11.2 — And the data bundle
+
+- [x] A new team's coder and reviewer get the `data` bundle too (DuckDB
+  and charts), beside `web`. Cartman's got it by hand.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

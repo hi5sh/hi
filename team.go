@@ -167,13 +167,14 @@ func teamUnitName(name string) string { return "hi-team-" + name + ".service" }
 // different agent from the coder, so the code is checked by someone other
 // than its author. Both get the web bundle, a browser: a team builds a web
 // app, and the lead's specs ask for its pages to be looked at (on team
-// cartman, 2026-10-23, a coder without one built Chromium by hand).
+// cartman, 2026-10-23, a coder without one built Chromium by hand); and
+// the data bundle, DuckDB and charts, for the files the app works with.
 func defaultTeamMembers() map[string]teamMember {
 	lead := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml")).Default
 	return map[string]teamMember{
 		"lead":     {Agent: "hermes", Model: lead},
-		"coder":    {Agent: "claude", Model: "opus", Bundle: "web"},
-		"reviewer": {Agent: "codex", Bundle: "web"},
+		"coder":    {Agent: "claude", Model: "opus", Bundle: "web,data"},
+		"reviewer": {Agent: "codex", Bundle: "web,data"},
 	}
 }
 
