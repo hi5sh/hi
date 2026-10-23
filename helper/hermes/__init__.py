@@ -14,7 +14,7 @@ import subprocess
 import sys
 import time
 
-DESCRIPTION = "A private link to the app's chat with the lead"
+DESCRIPTION = "A private link to the app's chat with the lead; signin chatgpt|claude signs the team in again (owners)"
 
 # Each team's app has a command of its own, /hi-<team>: Slack gives a
 # command two apps in a workspace share to the one installed last. Plain
@@ -34,20 +34,35 @@ def _hi(raw_args):
     user = get_session_env("HERMES_SESSION_USER_ID")
     if platform != "slack" or not user:
         return TYPE
+    return _answer(user, raw_args)
+
+
+def _answer(user, text):
+    """What /hi-<team> does: the person's links, or, as "signin chatgpt" or
+    "signin claude", an owner's sign-in, sent to them alone in a DM."""
+    words = (text or "").split()
+    if words and words[0] == "signin":
+        if len(words) != 2:
+            return "Sign the team in again with /%s signin chatgpt or /%s signin claude." % (COMMANDS[0], COMMANDS[0]) if COMMANDS else "signin chatgpt or signin claude"
+        return _run(["team", "web", "signin", words[1], "--user", user], "your sign-in")
     return _link(user)
 
 
 def _link(user):
     """The links for a Slack member, by hi; what to tell them."""
+    return _run(["team", "web", "link", "--user", user], "your link")
+
+
+def _run(args, what):
+    """hi in the box, which asks the team's service; what to tell them."""
     try:
-        done = subprocess.run(["/usr/local/bin/hi", "team", "web", "link", "--user", user],
-                              capture_output=True, text=True, timeout=60)
+        done = subprocess.run(["/usr/local/bin/hi"] + args, capture_output=True, text=True, timeout=60)
     except Exception as error:
-        return "hi couldn't make your link: %s" % error
+        return "hi couldn't make %s: %s" % (what, error)
     out = (done.stdout or "").strip() or (done.stderr or "").strip()
     if out.startswith("hi: "):
         out = out[len("hi: "):]
-    return out or "hi couldn't make your link; ask the lead."
+    return out or "hi couldn't make %s; ask the lead." % what
 
 
 _MAY = {}  # member ID -> (may they, until when)
@@ -100,9 +115,9 @@ def _answer_in_dms():
             async def handle(self, ack, command):
                 if (command.get("command") or "").lstrip("/") not in COMMANDS:
                     return await original(self, ack, command)
-                await ack(response_type="ephemeral", text="Making your links…")
+                await ack(response_type="ephemeral", text="One moment…")
                 user = command.get("user_id") or ""
-                text = await asyncio.get_running_loop().run_in_executor(None, _link, user) if user else "Slack didn't say who you are."
+                text = await asyncio.get_running_loop().run_in_executor(None, _answer, user, command.get("text") or "") if user else "Slack didn't say who you are."
                 url = command.get("response_url")
                 if url:
                     import aiohttp

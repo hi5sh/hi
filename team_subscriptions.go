@@ -48,6 +48,9 @@ const (
 var (
 	chatGPTIssuer  = "https://auth.openai.com"
 	chatGPTBackend = "https://chatgpt.com"
+	// chatGPTMinPoll is the least time between asking whether someone
+	// has typed the code.
+	chatGPTMinPoll = 3 * time.Second
 )
 
 // teamChatGPTGrant is a team's own ChatGPT sign-in, in secrets.json. The
@@ -242,7 +245,7 @@ func chatGPTDeviceStart() (chatGPTDevice, error) {
 	}
 	seconds := 5
 	fmt.Sscan(strings.Trim(string(raw.Interval), `"`), &seconds)
-	return chatGPTDevice{ID: raw.ID, Code: raw.Code, Interval: time.Duration(max(seconds, 3)) * time.Second}, nil
+	return chatGPTDevice{ID: raw.ID, Code: raw.Code, Interval: max(time.Duration(seconds)*time.Second, chatGPTMinPoll)}, nil
 }
 
 // chatGPTDeviceWait waits until the person has signed in, up to 15
@@ -788,13 +791,13 @@ func teamFallbackMessage(config teamConfig, secrets teamSecrets, role string, re
 	case refusal.reason == "limit":
 		text += " It goes back to ChatGPT when the plan's limit resets."
 	case refusal.provider == "claude" && secrets.ClaudeToken != "":
-		text += fmt.Sprintf(" To sign it in again, an admin runs `hi team signin %s claude` on %s with a token from `claude setup-token`. Ask your IT team if you can't.", config.Name, host)
+		text += fmt.Sprintf(" An owner gives it a new token with `%s signin claude`.", teamSlashCommand(config.Name))
 	case refusal.provider == "claude":
-		text += fmt.Sprintf(" The team uses %s's Claude sign-in: an admin runs `hi agent token claude` there with a token from `claude setup-token`, or `hi team signin %s claude` for one of the team's own. Ask your IT team if you can't.", host, config.Name)
+		text += fmt.Sprintf(" The team uses %s's Claude sign-in: an owner gives the team a token of its own with `%s signin claude`, or an admin runs `hi agent token claude` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
 	case secrets.ChatGPT != nil:
-		text += fmt.Sprintf(" To sign it in again, an admin runs `hi team signin %s chatgpt` on %s. Ask your IT team if you can't.", config.Name, host)
+		text += fmt.Sprintf(" An owner signs it in again with `%s signin chatgpt`.", teamSlashCommand(config.Name))
 	default:
-		text += fmt.Sprintf(" The team uses %s's ChatGPT sign-in (Codex's): an admin runs `codex login` there, or `hi team signin %s chatgpt` for a sign-in of the team's own. Ask your IT team if you can't.", host, config.Name)
+		text += fmt.Sprintf(" The team uses %s's ChatGPT sign-in (Codex's): an owner signs the team in with `%s signin chatgpt` for one of its own, or an admin runs `codex login` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
 	}
 	return text + " hi won't say this again for the " + role + "."
 }
@@ -806,7 +809,7 @@ func teamFallbackLine(name string) string {
 		return ""
 	}
 	roles := sortedKeys(state.Warned)
-	return fmt.Sprintf("On OpenRouter since their subscription refused them: the %s (hi team signin %s chatgpt|claude signs in again).", strings.Join(roles, ", the "), name)
+	return fmt.Sprintf("On OpenRouter since their subscription refused them: the %s (%s signin chatgpt|claude in Slack, or hi team signin %s here, signs in again).", strings.Join(roles, ", the "), teamSlashCommand(name), name)
 }
 
 // ---------------------------------------------------------------------------

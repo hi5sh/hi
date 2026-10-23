@@ -69,6 +69,20 @@ nothing in the box refreshes a token. When ChatGPT refuses it, the proxy
 sends the call to the same model on OpenRouter and the channel hears it
 once. A machine whose Codex is on an API key keeps it, as before.
 
+**Signing in again from Slack.** When a sign-in stops working, the
+channel hears it once, and an owner signs the team in again from the
+channel or the bot's DM, without the machine:
+
+- `/hi-payments signin chatgpt` sends that owner, and nobody else, a code
+  in a DM to type at OpenAI on any device. The team's service waits for
+  it and keeps the new sign-in; the DM says when it's done.
+- `/hi-payments signin claude` sends a one-time page on the team's app,
+  good for 15 minutes, where the owner pastes a token from
+  `claude setup-token`. The token never goes through Slack.
+
+Only owners may: a sign-in decides whose subscription pays. On the
+machine, `hi team signin payments chatgpt|claude` does the same.
+
 **How hard each member thinks.** Every member thinks at medium effort
 unless team.json says otherwise; hi passes it to Claude Code (`--effort`),
 Codex (`model_reasoning_effort`), and Hermes (`reasoning_effort`), since the

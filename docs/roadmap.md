@@ -2522,17 +2522,20 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
 - [x] Checked end to end on aiw9 with hi's proxy and Codex: a tool call on
   ChatGPT, and with the token gone, the same on OpenRouter.
 
+### v1.11.0 — Signing in again from Slack
+
+Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 4.
+
+- [x] `/hi-<team> signin chatgpt`, owners only: a device code in that
+  owner's DM; the team's service waits for it, keeps the new sign-in, and
+  says so in the DM. One at a time.
+- [x] `/hi-<team> signin claude`, owners only: a one-time page on the
+  team's app, for 15 minutes, where the owner pastes a token from claude
+  setup-token, which never goes through Slack.
+- [x] The channel's message when a role falls back names the Slack
+  command for an owner.
+
 ## Planned
-
-### Next — a team's roles on the subscriptions it pays for
-
-Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md).
-The lead runs on OpenRouter only, now most of a team's model spend, while
-the ChatGPT plan that pays for the reviewer sits under its limits. Spiked
-on aiw9 on 2026-10-23: Hermes made tool calls on a ChatGPT plan through a
-proxy that held the token.
-
-- [ ] Release 4: `/hi-<team> signin chatgpt|claude` in Slack, owners only.
 
 ### Next — a conversation hears what other threads finished
 

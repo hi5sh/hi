@@ -489,6 +489,10 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 	failure := func(w http.ResponseWriter, status int, err error) {
 		reply(w, status, map[string]string{"error": err.Error()})
 	}
+	// An owner's one-time page for the team's Claude token
+	// (team_signin_slack.go).
+	mux.HandleFunc("GET "+teamHelperPrefix+"signin/{id}", b.claudeSigninPage)
+	mux.HandleFunc("POST "+teamHelperPrefix+"signin/{id}", b.claudeSigninPage)
 	mux.HandleFunc("GET "+teamHelperPrefix+"helper.js", func(w http.ResponseWriter, r *http.Request) {
 		etag := `"` + teamHelperVersion() + `"`
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")

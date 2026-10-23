@@ -406,7 +406,7 @@ func TestTeamTellsTheChannelOncePerRole(t *testing.T) {
 	appendLog("chatgpt-refused 401:signin", "openrouter /api/v1/chat/completions")
 	b.tellSubscriptions(config, now)
 	if got := posts(); len(got) != 1 || !strings.Contains(got[0], "The lead's ChatGPT sign-in doesn't work, so it uses OpenRouter (openai/gpt-6.1-sol) now") ||
-		!strings.Contains(got[0], "`hi team signin payments chatgpt`") || !strings.Contains(got[0], "Ask your IT team") {
+		!strings.Contains(got[0], "`/hi-payments signin chatgpt`") {
 		t.Fatal(got)
 	}
 	// Failing again, and back and over again, is not told again.
@@ -417,7 +417,7 @@ func TestTeamTellsTheChannelOncePerRole(t *testing.T) {
 	}
 	var status bytes.Buffer
 	teamStatus("payments", &status)
-	if !strings.Contains(status.String(), "On OpenRouter since their subscription refused them: the lead") {
+	if !strings.Contains(status.String(), "On OpenRouter since their subscription refused them: the lead (/hi-payments signin") {
 		t.Fatal(status.String())
 	}
 	// Signing in again says so, and a later failure is told once more.
@@ -440,7 +440,7 @@ func TestTeamFallbackMessageWithoutAKey(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "hermes", ".env"), nil, 0o600)
 	config := testTeamConfig()
 	config.Members["lead"] = teamMember{Agent: "hermes", Provider: "chatgpt", Model: "gpt-6.1-sol", Fallback: "openai/gpt-6.1"}
-	if text := teamFallbackMessage(config, teamSecrets{}, "lead", teamRefusal{provider: "chatgpt", reason: "expired"}); !strings.Contains(text, "no OpenRouter key to fall back on") || !strings.Contains(text, "codex login") {
+	if text := teamFallbackMessage(config, teamSecrets{}, "lead", teamRefusal{provider: "chatgpt", reason: "expired"}); !strings.Contains(text, "no OpenRouter key to fall back on") || !strings.Contains(text, "codex login") || !strings.Contains(text, "/hi-payments signin chatgpt") {
 		t.Fatal(text)
 	}
 }
@@ -615,7 +615,7 @@ func TestTeamTellsTheChannelAboutTheCoder(t *testing.T) {
 	appendEvents("fallback coder claude signin anthropic/claude-opus-5.5", "spend 0.02")
 	b.tellSubscriptions(config, now)
 	if got := posts(); len(got) != 1 || !strings.Contains(got[0], "The coder's Claude sign-in doesn't work, so it uses OpenRouter (anthropic/claude-opus-5.5) now") ||
-		!strings.Contains(got[0], "`hi team signin payments claude`") || !strings.Contains(got[0], "claude setup-token") {
+		!strings.Contains(got[0], "`/hi-payments signin claude`") {
 		t.Fatal(got)
 	}
 	// A second box failing over isn't told again.

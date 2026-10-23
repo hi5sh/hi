@@ -289,6 +289,9 @@ type teamBroker struct {
 	started    time.Time
 	appLogs    func(container string) string
 	appExit    func(container string) (exit int, finished time.Time, ok bool)
+	// signins are owners' sign-ins under way from Slack
+	// (team_signin_slack.go).
+	signins teamSignins
 	// peopleMu guards people.json, the keys of people signed in with /hi
 	// (team_people.go).
 	peopleMu sync.Mutex
@@ -626,6 +629,18 @@ func (b *teamBroker) handler() http.Handler {
 			return
 		}
 		line, err := b.webLink(request.User)
+		reply(w, line, err)
+	})
+	mux.HandleFunc("POST /web/signin", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			User     string `json:"user"`
+			Provider string `json:"provider"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		line, err := b.webSignin(request.User, request.Provider)
 		reply(w, line, err)
 	})
 	mux.HandleFunc("POST /web/post", func(w http.ResponseWriter, r *http.Request) {
@@ -2059,7 +2074,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		fmt.Fprintln(stdout, line)
 	case "web":
-		usage := usageError{"usage: hi team web  (the chats and feedback in the app, last week)\n       hi team web show <chat|feedback>\n       hi team web post <chat> <text|-> [--attach <file>]...\n       hi team web questions  (what people asked the app's help)\n       hi team web link --user <Slack member ID>  (DM them their private links)"}
+		usage := usageError{"usage: hi team web  (the chats and feedback in the app, last week)\n       hi team web show <chat|feedback>\n       hi team web post <chat> <text|-> [--attach <file>]...\n       hi team web questions  (what people asked the app's help)\n       hi team web link --user <Slack member ID>  (DM them their private links)\n       hi team web signin chatgpt|claude --user <Slack member ID>  (an owner signs the team in again, in a DM)"}
 		var line string
 		switch {
 		case len(args) == 0:
@@ -2077,6 +2092,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		case len(args) == 3 && args[0] == "link" && args[1] == "--user":
 			if err := call("POST", "/web/link", map[string]string{"user": args[2]}, &line); err != nil {
+				return err
+			}
+		case len(args) == 4 && args[0] == "signin" && args[2] == "--user":
+			// For the plugin: /hi-<team> signin chatgpt|claude, owners only.
+			if err := call("POST", "/web/signin", map[string]string{"provider": args[1], "user": args[3]}, &line); err != nil {
 				return err
 			}
 		case len(args) == 2 && args[0] == "show":

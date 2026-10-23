@@ -333,6 +333,16 @@ Release 1, v1.8.0, as above, except:
 - Until release 4, the channel's message names `hi team signin` for an
   admin on the machine.
 
+Release 4, v1.11.0, as above, except:
+
+- Claude's page is on the team's app, under `/__hi/signin/`, where the
+  helper is served: production's address, else the preview's. With
+  neither, the owner is told to have an admin run `hi team signin`.
+- One ChatGPT device code waits at a time; a second asks to wait.
+- The lead can run the plugin's command too (`hi team web signin`); the
+  code or page still goes only to the owner named, in a DM that says to
+  ignore it if they didn't ask.
+
 Release 3, v1.9.0, before release 2, as above, except:
 
 - Every Claude member falls back, whatever its `provider`; `claude` is
