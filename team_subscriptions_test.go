@@ -763,3 +763,62 @@ func TestClaudeTasksAreToldToUseReadAndEdit(t *testing.T) {
 		}
 	}
 }
+
+func TestTeamMemoryModel(t *testing.T) {
+	setupTeamTest(t)
+	config := testTeamConfig()
+	// A lead on ChatGPT: the memory keeps to this machine's Hermes default,
+	// not the lead's fallback.
+	config.Members["lead"] = teamMember{Agent: "hermes", Provider: "chatgpt", Model: "gpt-6.1-sol"}
+	if got := teamMemoryModel(config); got != "qwen/qwen3.8-max" {
+		t.Fatal(got)
+	}
+	config.MemoryModel = "google/gemini-3.8-flash"
+	if got := teamMemoryModel(config); got != "google/gemini-3.8-flash" {
+		t.Fatal(got)
+	}
+	if err := validateTeam(config); err != nil {
+		t.Fatal(err)
+	}
+	config.MemoryModel = "gpt-6.1-sol"
+	if err := validateTeam(config); err == nil || !strings.Contains(err.Error(), "an OpenRouter model") {
+		t.Fatal(err)
+	}
+}
+
+func TestOpenRouterAskCost(t *testing.T) {
+	var got []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := io.ReadAll(r.Body)
+		got = append(got, string(data))
+		io.WriteString(w, `{"choices":[],"usage":{"total_tokens":10,"cost":0.0042}}`)
+	}))
+	defer upstream.Close()
+	dir := t.TempDir()
+	env := filepath.Join(dir, "k.env")
+	os.WriteFile(env, []byte("OPENROUTER_API_KEY=sk-or\n"), 0o600)
+	var logged bytes.Buffer
+	proxy := httptest.NewServer(newBoxOpenRouterInjector(env, upstream.URL, &boxNetworkLog{file: &logged}))
+	defer proxy.Close()
+	post := func(path, body string) {
+		request, _ := http.NewRequest("POST", proxy.URL+path, strings.NewReader(body))
+		request.Header.Set("Authorization", "Bearer "+boxClaudePlacehold)
+		response, err := http.DefaultClient.Do(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.ReadAll(response.Body)
+		response.Body.Close()
+	}
+	post("/api/v1/chat/completions", `{"model":"google/gemini-3.8-flash","messages":[]}`)
+	post("/api/v1/chat/completions", `{"model":"m","usage":{"include":false}}`)
+	post("/api/v1/chat/completions", `not json`)
+	if !strings.Contains(got[0], `"usage":{"include":true}`) || !strings.Contains(got[0], `"model":"google/gemini-3.8-flash"`) ||
+		strings.Contains(got[1], `"include":true`) || got[2] != "not json" {
+		t.Fatal(got)
+	}
+	// And the cost it answers is counted.
+	if !strings.Contains(logged.String(), "spend 0.0042") {
+		t.Fatal(logged.String())
+	}
+}

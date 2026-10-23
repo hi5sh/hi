@@ -42,7 +42,10 @@ type teamConfig struct {
 	Remote  string                `json:"remote,omitempty"` // where repo/ was cloned from
 	Branch  string                `json:"branch"`           // the branch the lead merges into
 	Memory  string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
-	Backups *teamBackups          `json:"backups,omitempty"`
+	// MemoryModel is the OpenRouter model Hindsight keeps the lead's memory
+	// with; this machine's Hermes default unless set (team_memory.go).
+	MemoryModel string       `json:"memory_model,omitempty"`
+	Backups     *teamBackups `json:"backups,omitempty"`
 	// Helper turns the helper, a chat with the lead in the app, off for an
 	// address (preview, production); on unless set (team_helper.go).
 	Helper map[string]bool `json:"helper,omitempty"`
@@ -233,6 +236,9 @@ func validateTeam(config teamConfig) error {
 		if member.Fallback != "" && !agentModelName.MatchString(member.Fallback) {
 			return fmt.Errorf("%s: %q isn't a model name", role, member.Fallback)
 		}
+	}
+	if config.MemoryModel != "" && (!agentModelName.MatchString(config.MemoryModel) || !strings.Contains(config.MemoryModel, "/")) {
+		return fmt.Errorf("the memory model is an OpenRouter model, such as google/gemini-3.8-flash, not %q", config.MemoryModel)
 	}
 	coder, hasCoder := config.Members["coder"]
 	reviewer, hasReviewer := config.Members["reviewer"]

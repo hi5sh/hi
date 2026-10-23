@@ -2570,6 +2570,19 @@ with Edit; of its 101,000 tokens, about 11,000 were the code it wrote.
 - [x] Claude Code's tasks say to read with Read and change files with Edit
   or Write, and to use the shell to run things.
 
+### v1.11.5 — The lead's memory on a cheap model, and its cost counted
+
+Found on team cartman: since v1.8.0 Hindsight kept the lead's memory with
+the lead's fallback, openai/gpt-6.1-sol, about $2 in five hours, and hi
+counted its calls as free because Hindsight never asks OpenRouter for the
+cost.
+
+- [x] Hindsight uses the team's `memory_model`, else this machine's Hermes
+  model, never the lead's fallback by default.
+- [x] The team's proxy and the app's models socket ask OpenRouter for each
+  call's cost when the caller didn't, so every call counts in the team's
+  spend and limits.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

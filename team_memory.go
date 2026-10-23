@@ -208,15 +208,29 @@ func teamPrepareMemory(engine boxEngine, config teamConfig, runtime hermesRuntim
 	return site, true
 }
 
+// teamMemoryModel is the model Hindsight keeps the lead's memory with, by
+// chat completions on OpenRouter: the team's memory_model, else this
+// machine's Hermes default, a cheap one for work that needs no more, else
+// the lead's own model there. Never the lead's fallback by default: on
+// team cartman, 2026-10-23, saving and condensing memories on
+// openai/gpt-6.1-sol cost about $2 in five hours.
+func teamMemoryModel(config teamConfig) string {
+	if config.MemoryModel != "" {
+		return config.MemoryModel
+	}
+	if model := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml")).Default; model != "" && strings.Contains(model, "/") {
+		return model
+	}
+	return teamLeadOpenRouterModel(config)
+}
+
 // startTeamMemory starts the team's Hindsight server on its network.
 func startTeamMemory(engine boxEngine, config teamConfig, proxyIP string) error {
 	data := filepath.Join(teamDir(config.Name), "memory")
 	if err := os.MkdirAll(data, 0o700); err != nil {
 		return err
 	}
-	// Hindsight calls chat completions on OpenRouter: the lead's model
-	// there, or its fallback for a lead on a subscription.
-	model := teamLeadOpenRouterModel(config)
+	model := teamMemoryModel(config)
 	proxy := fmt.Sprintf("http://%s:%d", proxyIP, boxProxyPort)
 	run := []string{"run", "-d", "--rm", "--init", "--name", teamMemoryContainer(config.Name), "--hostname", config.Name + "-memory",
 		"--network", "hi-box-team-" + config.Name, "--ip", teamMemoryIP(proxyIP), "--dns", "127.0.0.1"}

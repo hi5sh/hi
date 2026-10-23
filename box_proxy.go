@@ -365,6 +365,7 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 		if err != nil {
 			log.record("openrouter-key-problem", err.Error())
 		}
+		openRouterAskCost(r)
 		if strings.Contains(r.Header.Get("Authorization"), boxClaudePlacehold) {
 			if key != "" {
 				r.Header.Set("Authorization", "Bearer "+key)
@@ -475,6 +476,30 @@ func boxChatGPTRefusal(response *http.Response) string {
 		return "other"
 	}
 	return "other"
+}
+
+// openRouterAskCost asks OpenRouter to say what a model call cost, in its
+// answer's usage, when the caller didn't: hi adds the cost up from the
+// answers (teamCostReader), and Hindsight, for one, never asks, so its
+// calls counted as free.
+func openRouterAskCost(r *http.Request) {
+	if r.Method != http.MethodPost || r.Body == nil || !strings.HasSuffix(r.URL.Path, "/chat/completions") && !strings.HasSuffix(r.URL.Path, "/responses") {
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 64<<20))
+	r.Body.Close()
+	var fields map[string]json.RawMessage
+	if err == nil && json.Unmarshal(body, &fields) == nil {
+		if _, asked := fields["usage"]; !asked {
+			fields["usage"] = json.RawMessage(`{"include":true}`)
+			if changed, err := json.Marshal(fields); err == nil {
+				body = changed
+			}
+		}
+	}
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	r.ContentLength = int64(len(body))
+	r.Header.Set("Content-Length", strconv.Itoa(len(body)))
 }
 
 // readDotEnvValue reads one KEY=value from a .env file.

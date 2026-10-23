@@ -276,6 +276,7 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 		director(r)
 		r.Host = target.Host
 		r.Header.Del("Authorization")
+		openRouterAskCost(r)
 		if key, err := teamOpenRouterKey(team); err == nil {
 			r.Header.Set("Authorization", "Bearer "+key)
 		}

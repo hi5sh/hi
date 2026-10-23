@@ -42,7 +42,11 @@ OpenRouter, billed per token, and the channel hears it once, with what to
 do. It goes back to ChatGPT on its own when it can. `hi team status` shows
 a role on its fallback. A model the plan has and OpenRouter hasn't gets a
 fallback of your choice: `--fallback <model on OpenRouter>`. The lead's
-memory and the helper chat keep using OpenRouter, with that fallback model.
+memory (Hindsight) keeps using OpenRouter, with this machine's Hermes model,
+a cheap one, unless team.json names one (`"memory_model":
+"google/gemini-3.8-flash"`); the helper chat uses the lead's fallback model.
+hi counts what each of these calls cost from OpenRouter's answer, asking
+for it when the caller didn't.
 
 **The coder on the team's Claude plan.** Claude members run on this
 machine's Claude sign-in unless the team has a token of its own, from
