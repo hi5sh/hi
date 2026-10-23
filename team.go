@@ -90,6 +90,8 @@ type teamMember struct {
 	// (team_subscriptions.go).
 	Provider string `json:"provider,omitempty"`
 	Fallback string `json:"fallback,omitempty"`
+	// Effort is how hard the member thinks; medium unless set.
+	Effort string `json:"effort,omitempty"`
 }
 
 // teamSecrets is secrets.json, readable only by its owner.
@@ -115,6 +117,10 @@ type teamSecrets struct {
 	// ChatGPT is the team's own ChatGPT sign-in; without it, roles on
 	// ChatGPT use this machine's, Codex's (team_subscriptions.go).
 	ChatGPT *teamChatGPTGrant `json:"chatgpt,omitempty"`
+	// ClaudeToken is the team's own, from claude setup-token; without it,
+	// Claude members use this machine's sign-in.
+	ClaudeToken    string    `json:"claude_token,omitempty"`
+	ClaudeSignedIn time.Time `json:"claude_signed_in,omitempty"`
 }
 
 func teamsDir() string {
@@ -201,8 +207,11 @@ func validateTeam(config teamConfig) error {
 			return fmt.Errorf("%s: the network is locked, dev, or open, not %q", role, member.Network)
 		}
 		switch member.Provider {
-		case "", teamProviderOpenRouter:
-			if member.Fallback != "" {
+		case "", teamProviderOpenRouter, "claude":
+			if member.Provider == "claude" && member.Agent != "claude" {
+				return fmt.Errorf("%s: a Claude plan is for Claude Code, not %s", role, agentDisplayName(member.Agent))
+			}
+			if member.Fallback != "" && member.Agent != "claude" {
 				return fmt.Errorf("%s: a fallback is for a member on a subscription; on OpenRouter it has none", role)
 			}
 		case teamProviderChatGPT:
@@ -213,7 +222,10 @@ func validateTeam(config teamConfig) error {
 				return fmt.Errorf("%s: name the ChatGPT model, such as gpt-6.1-sol", role)
 			}
 		default:
-			return fmt.Errorf("%s: the provider is openrouter or chatgpt, not %q", role, member.Provider)
+			return fmt.Errorf("%s: the provider is openrouter, chatgpt, or claude, not %q", role, member.Provider)
+		}
+		if member.Effort != "" && !containsString(agentEfforts, member.Effort) {
+			return fmt.Errorf("%s: the effort is %s, not %q", role, strings.Join(agentEfforts, ", "), member.Effort)
 		}
 		if member.Fallback != "" && !agentModelName.MatchString(member.Fallback) {
 			return fmt.Errorf("%s: %q isn't a model name", role, member.Fallback)
@@ -359,7 +371,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "key":
 		err = teamKey(rest, stdin, stdout)
 	case "signin":
-		err = teamSignin(rest, stdout)
+		err = teamSignin(rest, stdin, stdout)
 	case "member":
 		err = teamMemberCommand(rest, stdin, stdout)
 	case "env":
@@ -424,7 +436,8 @@ usage:
       [--from <file.json>]         the answers from a file; the Slack tokens from
                                    HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, the
                                    team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY, and
-                                   its ChatGPT sign-in from HI_TEAM_CHATGPT_AUTH (an auth.json)
+                                   its ChatGPT sign-in from HI_TEAM_CHATGPT_AUTH (an auth.json), and
+                                   its Claude token from HI_TEAM_CLAUDE_TOKEN
   hi team adopt <name> <source>    the same setup for a project someone else wrote, such as one on
                                    GitHub (github.com/owner/name, owner/name, or a URL): the team keeps
                                    its own copy and never pushes to it; a first task makes it run
@@ -459,9 +472,12 @@ usage:
                                    for and checked; Enter keeps one); a running team restarts
   hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
                                    code to type on any device; only the team's server refreshes it
-      [--machine]                  use this machine's sign-in (Codex's) instead
+  hi team signin <name> claude     the team's own Claude token, from claude setup-token (asked for):
+                                   its Claude members use it before this machine's sign-in
+      [--machine]                  use this machine's sign-in (Codex's, or Claude Code's) instead
   hi team member <name> <role>     a member's agent, model, and who pays for it
       [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>]
+      [--effort low|medium|high|xhigh|max]  how hard it thinks; medium unless set
                                    on ChatGPT, the fallback (the same model on OpenRouter unless
                                    given) takes over when the plan refuses; a running team restarts
   hi team env <name>               the settings the team's app gets, by name
@@ -886,6 +902,64 @@ func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secr
 	return nil
 }
 
+// teamAskClaude asks, once, for the team's own Claude token (Enter: this
+// machine's sign-in), and shows what a Claude member falls back to on
+// OpenRouter, asking for one when OpenRouter has none.
+func teamAskClaude(stdin io.Reader, stdout io.Writer, member *teamMember, secrets *teamSecrets, asked *bool) error {
+	if !*asked {
+		*asked = true
+		fmt.Fprintln(stdout, "         Claude: a token of the team's own, from claude setup-token signed in to the account that pays")
+		fmt.Fprintln(stdout, "         (it lasts a year), or Enter for this machine's sign-in.")
+		var token string
+		for attempt := 1; ; attempt++ {
+			answer, err := teamReadSecret(stdin, stdout, "         Claude token [Enter: this machine's]")
+			if err == nil && answer == "" {
+				_, err = boxClaudeSecret()
+			} else if err == nil {
+				err = teamCheckClaudeToken(answer)
+			}
+			if err == nil {
+				token = answer
+				break
+			}
+			if !isTerminal(stdin) || attempt == 5 || errors.Is(err, io.EOF) {
+				return err
+			}
+			fmt.Fprintf(stdout, "  %v. Try again.\n", err)
+		}
+		if token != "" {
+			secrets.ClaudeToken, secrets.ClaudeSignedIn = token, time.Now().UTC()
+		}
+	}
+	for {
+		fallback, err := teamClaudeFallback(*member)
+		if err != nil {
+			return err
+		}
+		has := false
+		if fallback != "" {
+			if has, err = teamOpenRouterHasModel(fallback); err != nil {
+				return err
+			}
+		}
+		if has {
+			fmt.Fprintf(stdout, "         Fallback: %s on OpenRouter.\n", fallback)
+			return nil
+		}
+		fmt.Fprintf(stdout, "         OpenRouter has no fallback for %s.\n", firstNonEmpty(member.Model, "opus"))
+		answer, err := teamAskUntil(stdin, stdout, "         fallback on OpenRouter", false, func(answer string) error {
+			if !agentModelName.MatchString(answer) {
+				return fmt.Errorf("%q isn't a model name", answer)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		member.Fallback = answer
+	}
+}
+
 func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	var answers teamAnswers
 	data, err := os.ReadFile(path)
@@ -902,6 +976,12 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 		OpenRouterAPIKey: os.Getenv("HI_TEAM_OPENROUTER_API_KEY")}
 	if secrets.SlackBotToken == "" || secrets.SlackAppToken == "" {
 		return answers, secrets, errors.New("set HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN to the Slack app's tokens")
+	}
+	if token := os.Getenv("HI_TEAM_CLAUDE_TOKEN"); token != "" {
+		if err := teamCheckClaudeToken(token); err != nil {
+			return answers, secrets, err
+		}
+		secrets.ClaudeToken, secrets.ClaudeSignedIn = token, time.Now().UTC()
 	}
 	if teamUsesChatGPT(answers.teamConfig) {
 		// The team's own ChatGPT sign-in from a file, else this machine's.
@@ -992,9 +1072,10 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 
 	fmt.Fprintln(stdout, "\n5/7 Members")
 	fmt.Fprintln(stdout, "Each role's agent (claude, codex, or hermes) and model, and for Hermes who pays: OpenRouter, or a")
-	fmt.Fprintln(stdout, "ChatGPT plan (falling back to OpenRouter). Enter keeps what's offered.")
+	fmt.Fprintln(stdout, "ChatGPT plan (falling back to OpenRouter), and how hard it thinks. Enter keeps what's offered.")
 	config.Members = defaultTeamMembers()
 	chatGPTSignIn := "" // team or machine, once asked
+	claudeAsked := false
 	for _, role := range teamRoles(*config) {
 		member := config.Members[role]
 		offered := member.Agent + teamModelSuffix(member.Model)
@@ -1033,6 +1114,23 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 			if err := teamAskProvider(stdin, stdout, &member, &secrets, &chatGPTSignIn); err != nil {
 				return answers, secrets, err
 			}
+		}
+		if member.Agent == "claude" {
+			if err := teamAskClaude(stdin, stdout, &member, &secrets, &claudeAsked); err != nil {
+				return answers, secrets, err
+			}
+		}
+		effort, err := teamAskUntil(stdin, stdout, "         effort ["+teamDefaultEffort+"]", false, func(answer string) error {
+			if answer != "" && !containsString(agentEfforts, answer) {
+				return fmt.Errorf("the effort is %s, not %q", strings.Join(agentEfforts, ", "), answer)
+			}
+			return nil
+		})
+		if err != nil {
+			return answers, secrets, err
+		}
+		if member.Effort = effort; effort == teamDefaultEffort {
+			member.Effort = ""
 		}
 		config.Members[role] = member
 	}
@@ -1234,14 +1332,27 @@ func teamMemberLabel(member teamMember) string {
 	if member.Model != "" {
 		label += ", " + member.Model
 	}
-	if teamProvider(member) == teamProviderChatGPT {
+	switch {
+	case teamProvider(member) == teamProviderChatGPT:
 		label += " on ChatGPT, falling back to " + firstNonEmpty(member.Fallback, teamFallbackModel(member)) + " on OpenRouter"
+	case member.Agent == "claude" && member.Fallback != "":
+		label += " on Claude, falling back to " + member.Fallback + " on OpenRouter"
+	case member.Agent == "claude":
+		label += " on Claude, falling back to OpenRouter"
+	}
+	if effort := teamEffort(member); effort != teamDefaultEffort {
+		label += ", effort " + effort
 	}
 	if member.Bundle != "" {
 		label += ", bundle " + member.Bundle
 	}
 	return label
 }
+
+// teamDefaultEffort is how hard a member thinks unless team.json says.
+const teamDefaultEffort = "medium"
+
+func teamEffort(member teamMember) string { return firstNonEmpty(member.Effort, teamDefaultEffort) }
 
 // teamRoles lists the lead first, then the others by name.
 func teamRoles(config teamConfig) []string {

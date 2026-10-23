@@ -332,3 +332,20 @@ Release 1, v1.8.0, as above, except:
   warnings in Slack too.
 - Until release 4, the channel's message names `hi team signin` for an
   admin on the machine.
+
+Release 3, v1.9.0, before release 2, as above, except:
+
+- Every Claude member falls back, whatever its `provider`; `claude` is
+  accepted as its provider and means the same as empty.
+- The fallback model is each call's own model by its OpenRouter name, so
+  Claude Code's small calls stay small; a member's `fallback` replaces it
+  for every call. The wizard shows the main model's fallback and asks for
+  one when OpenRouter has none.
+- A 429 is the plan's limit when Claude says the plan's window is
+  rejected or asks for more than a minute's wait; a shorter one goes back
+  to Claude Code, which retries.
+- Members' proxies write fallbacks and their spend to the team's
+  `run/events/<box>.log`, mounted into the proxy, which the server reads.
+- Each member's effort (`effort` in team.json, medium unless set) was
+  added: hi passes it as Claude Code's `--effort`, Codex's
+  `model_reasoning_effort`, and Hermes' `reasoning_effort`.

@@ -151,8 +151,14 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), inject)
 		}()
 	} else if args[2] != "-" {
+		var inject http.Handler = newBoxClaudeInjector(args[2], "https://api.anthropic.com", log)
+		if keys := os.Getenv(boxFallbackEnv); keys != "" {
+			// A team's member: OpenRouter takes over when Claude refuses.
+			inject = newBoxClaudeFailover(inject, &boxFallback{keys: keys, model: os.Getenv(boxFallbackModelEnv), role: os.Getenv(boxRoleEnv),
+				events: os.Getenv(boxEventsEnv), upstream: "https://openrouter.ai", log: log})
+		}
 		go func() {
-			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), newBoxClaudeInjector(args[2], "https://api.anthropic.com", log))
+			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), inject)
 		}()
 	}
 	if len(args) == 5 {
@@ -306,7 +312,15 @@ func newBoxClaudeInjector(secret, upstream string, log *boxNetworkLog) http.Hand
 	proxy.Director = func(r *http.Request) {
 		director(r)
 		r.Host = target.Host
-		token, err := readBoxClaudeToken(secret)
+		// secret may name several files, the first that has a token winning:
+		// a team's own token, then this machine's sign-in.
+		var token string
+		var err error
+		for _, file := range strings.Split(secret, ",") {
+			if token, err = readBoxClaudeToken(file); err == nil && token != "" {
+				break
+			}
+		}
 		if err != nil {
 			// The request goes on with the placeholder and fails; the log
 			// says why.

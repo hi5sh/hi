@@ -77,6 +77,15 @@ func setupTeamTest(t *testing.T) string {
 	engine := teamWatchEngine
 	teamWatchEngine = func(args ...string) (string, error) { return "", nil }
 	t.Cleanup(func() { teamResolverOn, teamWatchEngine = true, engine })
+	// OpenRouter's models without the network, and a Claude sign-in that
+	// isn't this machine's.
+	ids := teamOpenRouterModelIDs
+	teamOpenRouterModelIDs = func() ([]string, error) {
+		return []string{"anthropic/claude-opus-5", "anthropic/claude-opus-5.5", "anthropic/claude-opus-5.5:batch", "anthropic/claude-sonnet-5.5", "openai/gpt-6.1-sol"}, nil
+	}
+	t.Cleanup(func() { teamOpenRouterModelIDs = ids })
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(dir, "claude"))
+	writeSkillTestFile(t, filepath.Join(dir, "claude", ".credentials.json"), `{"claudeAiOauth":{"accessToken":"sk-ant-oat-machine"}}`, 0o600)
 	// No advisories from OSV unless a test asks for them.
 	lookup := teamDependencyAdvisories
 	teamDependencyAdvisories = func([]teamDependencyProject) ([]teamDependencyAdvisory, error) { return nil, nil }
@@ -174,8 +183,10 @@ func TestTeamWizard(t *testing.T) {
 		"xoxb-bot", "xapp-app",
 		"\x1b[201~C07PAYMENTS", // the end of a pasted token's marker, left over
 		"U07OWNER1, U07OWNER2",
-		"",                          // everyone in the channel may ask
-		"", "", "", "codex:gpt-5.5", // the lead and its provider, and the coder, as offered, a reviewer model
+		"",         // everyone in the channel may ask
+		"", "", "", // the lead, its provider and effort, as offered
+		"", "", "high", // the coder and its Claude sign-in as offered, thinking harder
+		"codex:gpt-5.5", "", // a reviewer model, its effort as offered
 		"sk-or-wizard", // the team's own OpenRouter key
 		"",             // a new repository
 		"",             // not on GitHub
@@ -192,7 +203,8 @@ func TestTeamWizard(t *testing.T) {
 		t.Fatal(err)
 	}
 	if config.Channel != "C07PAYMENTS" || len(config.Owners) != 2 || config.Askers != nil || config.Branch != "main" ||
-		config.Members["reviewer"].Model != "gpt-5.5" || config.Members["coder"].Agent != "claude" || config.Members["lead"].Model != "qwen/qwen3.8-max" {
+		config.Members["reviewer"].Model != "gpt-5.5" || config.Members["coder"].Agent != "claude" || config.Members["lead"].Model != "qwen/qwen3.8-max" ||
+		config.Members["coder"].Effort != "high" || config.Members["lead"].Effort != "" || config.Members["reviewer"].Effort != "" {
 		t.Fatalf("%+v", config)
 	}
 	info, err := os.Stat(filepath.Join(teamDir("payments"), "secrets.json"))

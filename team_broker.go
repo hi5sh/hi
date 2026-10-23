@@ -1187,9 +1187,15 @@ func (b *teamBroker) launch(task teamTask, member teamMember, brief, from, files
 		return
 	}
 	args := []string{"agent", task.Agent, "--detach", "--json", "--name", task.Box, "--task-file", path}
+	if task.Role != "" {
+		// The box's proxy takes the team's sign-in, and falls back to
+		// OpenRouter as the team's member (team_subscriptions.go).
+		args = append(args, "--team", b.team+":"+task.Role)
+	}
 	if member.Model != "" {
 		args = append(args, "--model", member.Model)
 	}
+	args = append(args, "--effort", teamEffort(member))
 	if member.Bundle != "" {
 		args = append(args, "--bundle", member.Bundle)
 	}

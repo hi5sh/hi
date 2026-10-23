@@ -83,6 +83,13 @@ type boxMeta struct {
 	// for a project someone else wrote (hi team adopt), on the project's
 	// image as usual.
 	NoProjectSettings bool `json:"no_project_settings,omitempty"`
+	// Team is the team and role a member's box works for, as
+	// team:role: its proxy takes the team's sign-in and falls back to
+	// OpenRouter (team_subscriptions.go).
+	Team string `json:"team,omitempty"`
+	// Effort is how hard the agent thinks: low, medium, high, xhigh, or
+	// max; the agent's own default when empty.
+	Effort string `json:"effort,omitempty"`
 }
 
 type boxOptions struct {
@@ -122,6 +129,10 @@ type boxOptions struct {
 	// noProjectSettings is hi agent --no-project-settings: the agent
 	// without the project's hooks, MCP servers, and permissions.
 	noProjectSettings bool
+	// team is hi agent --team <team>:<role>, for a team's member.
+	team string
+	// effort is hi agent --effort: how hard the agent thinks.
+	effort string
 }
 
 func boxStateFile(parts ...string) string {
@@ -260,6 +271,16 @@ func parseBoxOptions(command string, args []string) (boxOptions, error) {
 			options.from, err = value()
 		case command == "agent" && arg == "--no-project-settings":
 			options.noProjectSettings = true
+		case command == "agent" && (arg == "--effort" || strings.HasPrefix(arg, "--effort=")):
+			if options.effort, err = value(); err == nil && !containsString(agentEfforts, options.effort) {
+				err = fmt.Errorf("--effort is %s, not %q", strings.Join(agentEfforts, ", "), options.effort)
+			}
+		case command == "agent" && (arg == "--team" || strings.HasPrefix(arg, "--team=")):
+			if options.team, err = value(); err == nil {
+				if team, role, ok := strings.Cut(options.team, ":"); !ok || !teamNamePattern.MatchString(team) || !teamRolePattern.MatchString(role) {
+					err = fmt.Errorf("--team is <team>:<role>, such as payments:coder, not %q", options.team)
+				}
+			}
 		case command == "agent" && (arg == "--max-budget-usd" || strings.HasPrefix(arg, "--max-budget-usd=")):
 			if text, err = value(); err == nil {
 				if options.budgetUSD, err = strconv.ParseFloat(text, 64); err != nil || options.budgetUSD <= 0 {
@@ -442,7 +463,7 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 		Created: time.Now().UTC(), Background: agent && prompt != "", Prompt: qClip(prompt), TaskFile: options.taskFile}
 	if agent {
 		meta.Model, meta.Untrusted, meta.BudgetUSD = options.model, options.untrusted, options.budgetUSD
-		meta.NoProjectSettings = options.noProjectSettings
+		meta.NoProjectSettings, meta.Team, meta.Effort = options.noProjectSettings, options.team, options.effort
 	}
 	// Agents get a worktree in a git repository, and work in place outside
 	// one.
@@ -727,11 +748,20 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 	switch kind {
 	case "claude":
 		source, err := boxClaudeSecret()
-		if err != nil {
+		if err == nil {
+			args = append(args, "-v", source+":/secrets/claude:ro")
+			secret = "/secrets/claude"
+		}
+		if meta.Team != "" {
+			// A team's member: its own sign-in first, and OpenRouter when
+			// Claude refuses.
+			var teamErr error
+			if args, secret, teamErr = teamMemberProxyArgs(*meta, args, secret); teamErr != nil {
+				return teamErr
+			}
+		} else if err != nil {
 			return err
 		}
-		args = append(args, "-v", source+":/secrets/claude:ro")
-		secret = "/secrets/claude"
 	case "hermes":
 		// Only the proxy sees Hermes' .env, and takes only the OpenRouter
 		// key from it.

@@ -59,10 +59,21 @@ func teamModelsDir(name string) string { return teamBrokerDir(name) + "-models" 
 func teamKeysDir(name string) string { return filepath.Join(teamDir(name), "run", "keys") }
 
 // writeTeamKeys puts the team's OpenRouter key where its proxy reads it,
-// or removes it, so the proxy takes this machine's again.
+// or removes it, so the proxy takes this machine's again; and the same
+// for its Claude token.
 func writeTeamKeys(name string, secrets teamSecrets) error {
 	dir := teamKeysDir(name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	// The team's Claude token, which members' proxies read before this
+	// machine's sign-in (team_subscriptions.go).
+	claude := filepath.Join(dir, teamClaudeKeyFile)
+	if secrets.ClaudeToken == "" {
+		if err := os.Remove(claude); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	} else if err := writeFileAtomic(claude, []byte(secrets.ClaudeToken+"\n"), 0o600); err != nil {
 		return err
 	}
 	file := filepath.Join(dir, "openrouter.env")

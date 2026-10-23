@@ -44,6 +44,32 @@ a role on its fallback. A model the plan has and OpenRouter hasn't gets a
 fallback of your choice: `--fallback <model on OpenRouter>`. The lead's
 memory and the helper chat keep using OpenRouter, with that fallback model.
 
+**The coder on the team's Claude plan.** Claude members run on this
+machine's Claude sign-in unless the team has a token of its own, from
+`claude setup-token` signed in to the account that pays (it lasts a year).
+`hi team new` asks for it; for a team that exists:
+
+```sh
+hi team signin payments claude             # asked for; it shows as *
+hi team signin payments claude --machine   # this machine's sign-in again
+```
+
+When Claude refuses a member (the sign-in stopped working, or the plan
+reached its limit), the member's proxy sends the same call to OpenRouter,
+with the model's name there (`claude-opus-5-5` is `anthropic/claude-opus-5.5`),
+and keeps to OpenRouter for 15 minutes before it tries Claude again. The
+channel hears it once, as for the lead. A short rate limit isn't a
+refusal: Claude Code waits and retries itself.
+
+**How hard each member thinks.** Every member thinks at medium effort
+unless team.json says otherwise; hi passes it to Claude Code (`--effort`),
+Codex (`model_reasoning_effort`), and Hermes (`reasoning_effort`), since the
+machine's own settings don't reach the boxes:
+
+```sh
+hi team member payments reviewer --effort high
+```
+
 **Slack.** When Slack gives the app a new token (after a reinstall, or a
 token you revoked), give it to the team; it asks for the bot token and
 the app token, Enter keeps one, and a running team restarts with them:

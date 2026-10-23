@@ -401,7 +401,7 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.
-	settings += fmt.Sprintf("agent:\n  max_turns: %d\n  budget_warning_ratio: %g\n", teamLeadMaxTurns, teamLeadBudgetWarning)
+	settings += fmt.Sprintf("agent:\n  max_turns: %d\n  budget_warning_ratio: %g\n  reasoning_effort: %s\n", teamLeadMaxTurns, teamLeadBudgetWarning, teamEffort(config.Members["lead"]))
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}

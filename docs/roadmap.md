@@ -2485,6 +2485,26 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
   The fallback entry carries its own address and key: without them Hermes
   looked for an OpenRouter key of its own.
 
+### v1.9.0 — The coder on the team's Claude plan, and each member's effort
+
+Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 3.
+
+- [x] The team's own Claude token (`hi team signin <name> claude`, the
+  wizard, `HI_TEAM_CLAUDE_TOKEN`), which members' proxies read before this
+  machine's sign-in.
+- [x] A Claude member's proxy resends a call Claude refuses (sign-in, or
+  the plan's limit) to OpenRouter's Anthropic endpoint, with each call's
+  model by its OpenRouter name, and keeps to OpenRouter for 15 minutes;
+  the channel hears once per role, and the fallback's spend counts with
+  the team's.
+- [x] Each member's effort, medium unless team.json says (`hi team member
+  --effort`, the wizard): the machine's own settings never reached the
+  boxes, and the reviewer ran `gpt-6.1-sol` at its default, low.
+  `hi agent --effort` for any run.
+- [x] Checked end to end on aiw9 with hi's proxy and Claude Code: Claude
+  answered on the machine's sign-in, and with a token it refused, the
+  proxy fell back to OpenRouter.
+
 ## Planned
 
 ### Next — a team's roles on the subscriptions it pays for
@@ -2497,8 +2517,6 @@ proxy that held the token.
 
 - [ ] Release 2: the reviewer (Codex) through the proxy on the team's
   ChatGPT sign-in, with no `auth.json` in its box, and its failover.
-- [ ] Release 3: the team's own Claude setup token; the coder's failover
-  through OpenRouter's Anthropic endpoint.
 - [ ] Release 4: `/hi-<team> signin chatgpt|claude` in Slack, owners only.
 
 ### Next — a conversation hears what other threads finished

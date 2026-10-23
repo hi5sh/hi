@@ -417,9 +417,9 @@ func chatGPTHeaders(token, account string) map[string]string {
 	return headers
 }
 
-// teamOpenRouterHasModel says whether OpenRouter serves a model; tests
-// replace it.
-var teamOpenRouterHasModel = func(model string) (bool, error) {
+// teamOpenRouterModelIDs lists the models OpenRouter serves, fetched once;
+// tests replace it.
+var teamOpenRouterModelIDs = func() ([]string, error) {
 	openRouterModels.Do(func() {
 		response, err := (&http.Client{Timeout: 20 * time.Second}).Get(teamOpenRouterUpstream + "/api/v1/models")
 		if err != nil {
@@ -436,18 +436,24 @@ var teamOpenRouterHasModel = func(model string) (bool, error) {
 			openRouterModels.err = fmt.Errorf("OpenRouter didn't list its models (%s)", response.Status)
 			return
 		}
-		openRouterModels.ids = map[string]bool{}
 		for _, entry := range list.Data {
-			openRouterModels.ids[entry.ID] = true
+			openRouterModels.ids = append(openRouterModels.ids, entry.ID)
 		}
 	})
-	return openRouterModels.ids[model], openRouterModels.err
+	return openRouterModels.ids, openRouterModels.err
 }
 
 var openRouterModels struct {
 	sync.Once
-	ids map[string]bool
+	ids []string
 	err error
+}
+
+// teamOpenRouterHasModel says whether OpenRouter serves a model; tests
+// replace it.
+var teamOpenRouterHasModel = func(model string) (bool, error) {
+	ids, err := teamOpenRouterModelIDs()
+	return containsString(ids, model), err
 }
 
 // ---------------------------------------------------------------------------
@@ -548,17 +554,23 @@ func prepareTeamChatGPT(name string, now time.Time) error {
 // telling the channel, once
 
 // teamSubscriptionsState is what the server remembers: which roles the
-// channel was told fell back, the sign-in it last saw, and how far it read
-// the proxy's log.
+// channel was told fell back, the sign-ins it last saw, and how far it read
+// the lead's proxy log and the members' events files.
 type teamSubscriptionsState struct {
-	Warned    map[string]time.Time `json:"warned,omitempty"`
-	SignedIn  time.Time            `json:"signed_in,omitempty"`
-	LogOffset int64                `json:"log_offset"`
+	Warned         map[string]time.Time `json:"warned,omitempty"`
+	SignedIn       time.Time            `json:"signed_in,omitempty"`
+	ClaudeSignedIn time.Time            `json:"claude_signed_in,omitempty"`
+	LogOffset      int64                `json:"log_offset"`
+	EventOffsets   map[string]int64     `json:"event_offsets,omitempty"`
 }
 
 func teamSubscriptionsPath(name string) string {
 	return filepath.Join(teamDir(name), "run", "subscriptions.json")
 }
+
+// teamEventsDir is where members' proxies write their fallbacks and what
+// they cost, a file per box.
+func teamEventsDir(name string) string { return filepath.Join(teamDir(name), "run", "events") }
 
 func loadTeamSubscriptions(name string) teamSubscriptionsState {
 	var state teamSubscriptionsState
@@ -592,6 +604,35 @@ func teamChatGPTRefusals(name string, offset int64) (string, int64) {
 	return reason, network.To
 }
 
+// teamRefusal is a role sent to its fallback: by which provider, why, to
+// which model on OpenRouter, and whether there was a key to fall back on.
+type teamRefusal struct {
+	provider, reason, model string
+	noKey                   bool
+}
+
+// teamMemberFallbacks reads the members' events files from where it left
+// off: "<time> fallback <role> <provider> <reason> <model> [nokey]".
+func teamMemberFallbacks(name string, offsets map[string]int64) map[string]teamRefusal {
+	found := map[string]teamRefusal{}
+	entries, _ := os.ReadDir(teamEventsDir(name))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".log") {
+			continue
+		}
+		network, _ := teamReadNetwork(filepath.Join(teamEventsDir(name), entry.Name()), offsets[entry.Name()], 100000)
+		offsets[entry.Name()] = network.To
+		for _, line := range network.Lines {
+			fields := strings.Fields(line)
+			if len(fields) < 6 || fields[1] != "fallback" {
+				continue
+			}
+			found[fields[2]] = teamRefusal{provider: fields[3], reason: fields[4], model: fields[5], noKey: len(fields) > 6 && fields[6] == "nokey"}
+		}
+	}
+	return found
+}
+
 // keepSubscriptions keeps the team's ChatGPT sign-in fresh and tells the
 // channel, once per role, when a role falls back to OpenRouter.
 func (b *teamBroker) keepSubscriptions(done <-chan struct{}, stderr io.Writer) {
@@ -599,9 +640,8 @@ func (b *teamBroker) keepSubscriptions(done <-chan struct{}, stderr io.Writer) {
 	defer ticker.Stop()
 	lastPrepare := time.Time{}
 	for {
-		config, err := loadTeam(b.team)
-		if err == nil && teamUsesChatGPT(config) {
-			if time.Since(lastPrepare) >= 15*time.Minute {
+		if config, err := loadTeam(b.team); err == nil {
+			if teamUsesChatGPT(config) && time.Since(lastPrepare) >= 15*time.Minute {
 				if err := prepareTeamChatGPT(b.team, time.Now()); err != nil {
 					fmt.Fprintf(stderr, "hi: the team's ChatGPT sign-in: %v\n", err)
 				}
@@ -617,50 +657,90 @@ func (b *teamBroker) keepSubscriptions(done <-chan struct{}, stderr io.Writer) {
 	}
 }
 
-// tellSubscriptions posts what the channel should hear about the ChatGPT
-// roles: a role that fell back, once, and a sign-in that works again.
+// teamClaudeRoles are the roles Claude Code plays, on a Claude plan.
+func teamClaudeRoles(config teamConfig) []string {
+	var roles []string
+	for _, role := range teamRoles(config) {
+		if config.Members[role].Agent == "claude" {
+			roles = append(roles, role)
+		}
+	}
+	return roles
+}
+
+// tellSubscriptions posts what the channel should hear about the roles on
+// subscriptions: a role that fell back, once, and a sign-in that works
+// again, after which a later failure is told once more.
 func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 	state := loadTeamSubscriptions(b.team)
 	if state.Warned == nil {
 		state.Warned = map[string]time.Time{}
 	}
+	if state.EventOffsets == nil {
+		state.EventOffsets = map[string]int64{}
+	}
 	changed := false
-	grant, own, grantErr := teamChatGPTGrantFor(b.team)
-	if own && grant.SignedIn.After(state.SignedIn) {
-		// Signed in again: a later failure is told once more.
-		if !state.SignedIn.IsZero() {
+	secrets, _ := loadTeamSecrets(b.team)
+	again := func(roles []string, signedIn time.Time, seen *time.Time, what string) {
+		if signedIn.IsZero() || !signedIn.After(*seen) {
+			return
+		}
+		if !seen.IsZero() {
 			var back []string
-			for _, role := range teamChatGPTRoles(config) {
+			for _, role := range roles {
 				if _, ok := state.Warned[role]; ok {
 					back = append(back, "the "+role)
 					delete(state.Warned, role)
 				}
 			}
 			if len(back) > 0 {
-				b.channel.post(config.Channel, fmt.Sprintf(":white_check_mark: ChatGPT is signed in again (%s); %s %s back on it.",
-					chatGPTPlanName(grant), strings.Join(back, " and "), map[bool]string{true: "are", false: "is"}[len(back) > 1]))
+				b.channel.post(config.Channel, fmt.Sprintf(":white_check_mark: %s is signed in again; %s %s back on it.",
+					what, strings.Join(back, " and "), map[bool]string{true: "are", false: "is"}[len(back) > 1]))
 			}
 		}
-		state.SignedIn, changed = grant.SignedIn, true
+		*seen, changed = signedIn, true
 	}
+	if secrets.ChatGPT != nil {
+		again(teamChatGPTRoles(config), secrets.ChatGPT.SignedIn, &state.SignedIn, "ChatGPT ("+chatGPTPlanName(*secrets.ChatGPT)+")")
+	}
+	again(teamClaudeRoles(config), secrets.ClaudeSignedIn, &state.ClaudeSignedIn, "Claude")
+
+	refusals := map[string]teamRefusal{}
 	reason, offset := teamChatGPTRefusals(b.team, state.LogOffset)
 	if offset != state.LogOffset {
 		state.LogOffset, changed = offset, true
 	}
-	switch {
-	case own && grant.Failed != "":
-		reason = "expired"
-	case !own && grantErr != nil:
-		reason = "signin"
+	if teamUsesChatGPT(config) {
+		switch _, grantErr := readCodexChatGPT(); {
+		case secrets.ChatGPT != nil && secrets.ChatGPT.Failed != "":
+			reason = "expired"
+		case secrets.ChatGPT == nil && grantErr != nil:
+			reason = "signin"
+		}
 	}
 	if reason != "" {
 		for _, role := range teamChatGPTRoles(config) {
-			if _, told := state.Warned[role]; told {
-				continue
+			if config.Members[role].Agent == "hermes" {
+				refusals[role] = teamRefusal{provider: teamProviderChatGPT, reason: reason}
 			}
-			if _, err := b.channel.post(config.Channel, teamFallbackMessage(config, role, reason, own)); err == nil {
-				state.Warned[role], changed = now.UTC(), true
-			}
+		}
+	}
+	before := fmt.Sprint(state.EventOffsets)
+	for role, refusal := range teamMemberFallbacks(b.team, state.EventOffsets) {
+		refusals[role] = refusal
+	}
+	if fmt.Sprint(state.EventOffsets) != before {
+		changed = true
+	}
+	for _, role := range sortedKeys(refusals) {
+		if _, told := state.Warned[role]; told {
+			continue
+		}
+		if _, ok := config.Members[role]; !ok {
+			continue
+		}
+		if _, err := b.channel.post(config.Channel, teamFallbackMessage(config, secrets, role, refusals[role])); err == nil {
+			state.Warned[role], changed = now.UTC(), true
 		}
 	}
 	if changed {
@@ -670,26 +750,36 @@ func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 
 // teamFallbackMessage tells the channel a role is on OpenRouter now, why,
 // and who can fix it.
-func teamFallbackMessage(config teamConfig, role, reason string, own bool) string {
+func teamFallbackMessage(config teamConfig, secrets teamSecrets, role string, refusal teamRefusal) string {
 	member := config.Members[role]
-	fallback := firstNonEmpty(member.Fallback, teamFallbackModel(member))
-	why := "ChatGPT sign-in doesn't work"
-	switch reason {
-	case "expired":
-		why = "ChatGPT sign-in expired"
-	case "limit":
-		why = "ChatGPT plan reached its usage limit"
-	}
 	host, _ := os.Hostname()
 	host = firstNonEmpty(host, "the team's machine")
+	plan := "ChatGPT"
+	if refusal.provider == "claude" {
+		plan = "Claude"
+	}
+	why := plan + " sign-in doesn't work"
+	switch refusal.reason {
+	case "expired":
+		why = plan + " sign-in expired"
+	case "limit":
+		why = plan + " plan reached its usage limit"
+	}
+	fallback := firstNonEmpty(refusal.model, member.Fallback, teamFallbackModel(member))
 	text := fmt.Sprintf(":warning: The %s's %s, so it uses OpenRouter (%s) now, billed per token.", role, why, fallback)
-	if key, err := teamOpenRouterKey(config.Name); err != nil || key == "" {
-		text = fmt.Sprintf(":warning: The %s's %s, and the team has no OpenRouter key to fall back on, so the %s can't answer.", role, why, role)
+	if key, err := teamOpenRouterKey(config.Name); refusal.noKey || err != nil || key == "" {
+		text = fmt.Sprintf(":warning: The %s's %s, and the team has no OpenRouter key to fall back on, so the %s can't work.", role, why, role)
 	}
 	switch {
-	case reason == "limit":
+	case refusal.reason == "limit" && refusal.provider == "claude":
+		text += " It tries Claude again every 15 minutes, and goes back when the plan's limit resets."
+	case refusal.reason == "limit":
 		text += " It goes back to ChatGPT when the plan's limit resets."
-	case own:
+	case refusal.provider == "claude" && secrets.ClaudeToken != "":
+		text += fmt.Sprintf(" To sign it in again, an admin runs `hi team signin %s claude` on %s with a token from `claude setup-token`. Ask your IT team if you can't.", config.Name, host)
+	case refusal.provider == "claude":
+		text += fmt.Sprintf(" The team uses %s's Claude sign-in: an admin runs `hi agent token claude` there with a token from `claude setup-token`, or `hi team signin %s claude` for one of the team's own. Ask your IT team if you can't.", host, config.Name)
+	case secrets.ChatGPT != nil:
 		text += fmt.Sprintf(" To sign it in again, an admin runs `hi team signin %s chatgpt` on %s. Ask your IT team if you can't.", config.Name, host)
 	default:
 		text += fmt.Sprintf(" The team uses %s's ChatGPT sign-in (Codex's): an admin runs `codex login` there, or `hi team signin %s chatgpt` for a sign-in of the team's own. Ask your IT team if you can't.", host, config.Name)
@@ -704,15 +794,120 @@ func teamFallbackLine(name string) string {
 		return ""
 	}
 	roles := sortedKeys(state.Warned)
-	return fmt.Sprintf("On OpenRouter since ChatGPT refused them: the %s (hi team signin %s chatgpt signs in again).", strings.Join(roles, ", the "), name)
+	return fmt.Sprintf("On OpenRouter since their subscription refused them: the %s (hi team signin %s chatgpt|claude signs in again).", strings.Join(roles, ", the "), name)
+}
+
+// ---------------------------------------------------------------------------
+// Claude
+
+// teamClaudeKeyFile is the team's Claude token in its keys folder, which
+// members' proxies read before this machine's sign-in.
+const teamClaudeKeyFile = "claude-token"
+
+// teamMemberProxyArgs gives a team member's proxy what it needs beyond
+// this machine's Claude sign-in: the team's own token first, the team's
+// OpenRouter key to fall back on, the role, and where to write fallbacks.
+func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, string, error) {
+	team, role, _ := strings.Cut(meta.Team, ":")
+	config, err := loadTeam(team)
+	if err != nil {
+		return args, secret, err
+	}
+	keys, events := teamKeysDir(team), teamEventsDir(team)
+	for _, dir := range []string{keys, events} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return args, secret, err
+		}
+	}
+	if secret == "" && !fileExists(filepath.Join(keys, teamClaudeKeyFile)) {
+		return args, secret, fmt.Errorf("Claude Code is signed in neither for team %s nor on this machine; hi team signin %s claude", team, team)
+	}
+	args = append(args, "-v", keys+":/secrets/team:ro", "-v", events+":/events")
+	fallback := "/secrets/team/openrouter.env"
+	if fileExists(hermesEnvPath()) {
+		args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro")
+		fallback += ",/secrets/hermes.env"
+	}
+	args = append(args, "-e", boxFallbackEnv+"="+fallback, "-e", boxRoleEnv+"="+role, "-e", boxEventsEnv+"=/events/"+meta.Name+".log")
+	if model := config.Members[role].Fallback; model != "" {
+		args = append(args, "-e", boxFallbackModelEnv+"="+model)
+	}
+	// Read again for each call: a token given later is used at once.
+	return args, strings.TrimSuffix("/secrets/team/"+teamClaudeKeyFile+","+secret, ","), nil
+}
+
+// teamMemberSignedIn says whether a team's member can sign in without this
+// machine's sign-in: a Claude member of a team with its own token.
+func teamMemberSignedIn(team, kind string) bool {
+	name, _, ok := strings.Cut(team, ":")
+	if !ok || kind != "claude" {
+		return false
+	}
+	secrets, err := loadTeamSecrets(name)
+	return err == nil && secrets.ClaudeToken != ""
+}
+
+// teamCheckClaudeToken checks a token looks like one from claude
+// setup-token.
+func teamCheckClaudeToken(token string) error {
+	if !strings.HasPrefix(token, "sk-ant-") {
+		return errors.New("that isn't a Claude token; claude setup-token prints one starting sk-ant-")
+	}
+	return nil
+}
+
+// teamClaudeFallback is the OpenRouter model a Claude member falls back
+// to for its main model: its own fallback, the newest of an alias's family
+// (opus, sonnet, haiku, fable), or the model's OpenRouter name.
+func teamClaudeFallback(member teamMember) (string, error) {
+	if member.Fallback != "" {
+		return member.Fallback, nil
+	}
+	model := firstNonEmpty(member.Model, "opus")
+	if strings.HasPrefix(model, "claude-") || strings.Contains(model, "/") {
+		return claudeOpenRouterModel(model), nil
+	}
+	ids, err := teamOpenRouterModelIDs()
+	if err != nil {
+		return "", err
+	}
+	best, bestVersion := "", ""
+	for _, id := range ids {
+		version, ok := strings.CutPrefix(id, "anthropic/claude-"+model+"-")
+		if !ok || strings.Contains(version, ":") {
+			continue
+		}
+		if best == "" || versionNewer(version, bestVersion) {
+			best, bestVersion = id, version
+		}
+	}
+	return best, nil
+}
+
+// versionNewer compares versions such as 5.5 and 5 by their numbers.
+func versionNewer(a, b string) bool {
+	as, bs := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(as) || i < len(bs); i++ {
+		var x, y int
+		if i < len(as) {
+			fmt.Sscan(as[i], &x)
+		}
+		if i < len(bs) {
+			fmt.Sscan(bs[i], &y)
+		}
+		if x != y {
+			return x > y
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
 // the commands
 
-// teamSignin is hi team signin <name> chatgpt [--machine].
-func teamSignin(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team signin <name> chatgpt [--machine]"}
+// teamSignin is hi team signin <name> chatgpt|claude [--machine].
+func teamSignin(args []string, stdin io.Reader, stdout io.Writer) error {
+	usage := usageError{"usage: hi team signin <name> chatgpt|claude [--machine]"}
 	machine := false
 	var words []string
 	for _, arg := range args {
@@ -722,13 +917,16 @@ func teamSignin(args []string, stdout io.Writer) error {
 			words = append(words, arg)
 		}
 	}
-	if len(words) != 2 || words[1] != teamProviderChatGPT {
+	if len(words) != 2 || words[1] != teamProviderChatGPT && words[1] != "claude" {
 		return usage
 	}
 	name := words[0]
 	config, err := loadTeam(name)
 	if err != nil {
 		return err
+	}
+	if words[1] == "claude" {
+		return teamSigninClaude(config, machine, stdin, stdout)
 	}
 	var grant *teamChatGPTGrant
 	if machine {
@@ -766,15 +964,47 @@ func teamSignin(args []string, stdout io.Writer) error {
 	return nil
 }
 
+// teamSigninClaude gives the team its own Claude token, from claude
+// setup-token, or with --machine goes back to this machine's sign-in. The
+// members' proxies read it again for each call.
+func teamSigninClaude(config teamConfig, machine bool, stdin io.Reader, stdout io.Writer) error {
+	token := ""
+	if machine {
+		if _, err := boxClaudeSecret(); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Team %s's Claude members use this machine's sign-in from now on.\n", config.Name)
+	} else {
+		fmt.Fprintln(stdout, "Run claude setup-token in another terminal, signed in to the Claude account that pays, and paste the token it prints. It lasts a year; no box holds it.")
+		var err error
+		if token, err = teamAskUntil(stdin, stdout, "Claude token", true, teamCheckClaudeToken); err != nil {
+			return err
+		}
+	}
+	if err := updateTeamSecrets(config.Name, func(secrets *teamSecrets) error {
+		secrets.ClaudeToken, secrets.ClaudeSignedIn = token, time.Time{}
+		if token != "" {
+			secrets.ClaudeSignedIn = time.Now().UTC()
+		}
+		return writeTeamKeys(config.Name, *secrets)
+	}); err != nil {
+		return err
+	}
+	if token != "" {
+		fmt.Fprintf(stdout, "Saved. Team %s's Claude members use it from their next call.\n", config.Name)
+	}
+	return nil
+}
+
 // teamMemberCommand is hi team member <name> <role> [--provider P]
 // [--model M] [--fallback M]: a member's provider and models, checked
 // as the wizard checks them. A running team restarts with them.
 func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team member <name> <role> [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>]"}
+	usage := usageError{"usage: hi team member <name> <role> [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>] [--effort <level>]"}
 	var words []string
 	values := map[string]*string{}
-	var provider, model, fallback string
-	flags := map[string]*string{"--provider": &provider, "--model": &model, "--fallback": &fallback}
+	var provider, model, fallback, effort string
+	flags := map[string]*string{"--provider": &provider, "--model": &model, "--fallback": &fallback, "--effort": &effort}
 	for i := 0; i < len(args); i++ {
 		if target, ok := flags[args[i]]; ok {
 			if i+1 >= len(args) {
@@ -821,6 +1051,11 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if fallback != "" {
 		member.Fallback = fallback
+	}
+	if effort != "" {
+		if member.Effort = effort; effort == teamDefaultEffort {
+			member.Effort = ""
+		}
 	}
 	if teamProvider(member) == teamProviderChatGPT {
 		grant, _, err := teamChatGPTGrantFor(name)

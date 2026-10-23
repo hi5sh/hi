@@ -149,6 +149,8 @@ options:
   --no-project-settings  Claude Code without the project's own hooks, MCP servers, and permissions
                          (.claude/), for a project someone else wrote
   --max-budget-usd <n>   the most Claude Code may spend on the run, in dollars
+  --effort <level>       how hard the agent thinks: low, medium, high, xhigh, or max; without it, the
+                         agent's own default for the model
   --bundle a,b           attach bundles: their skills, and an image with what they need (hi bundle ls)
   --name, --network, --allow, --gpu, --data, --here, --image, --memory
                          the box's options, as for hi box
@@ -181,7 +183,7 @@ func startAgent(kind string, options boxOptions, stdin io.Reader, stdout, stderr
 		if kind, err = chooseAgent(); err != nil {
 			return err
 		}
-	} else if err := agentReady(kind); err != nil {
+	} else if err := agentReady(kind); err != nil && !teamMemberSignedIn(options.team, kind) {
 		return err
 	}
 	if options.model == "" {
@@ -417,10 +419,16 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if meta.BudgetUSD > 0 {
 			model += fmt.Sprintf(" --max-budget-usd %.2f", meta.BudgetUSD)
 		}
+		if meta.Effort != "" {
+			model += " --effort " + meta.Effort
+		}
 		if prompt == "" {
 			command := []string{"claude", "--dangerously-skip-permissions"}
 			if meta.Model != "" {
 				command = append(command, "--model", meta.Model)
+			}
+			if meta.Effort != "" {
+				command = append(command, "--effort", meta.Effort)
 			}
 			return command, nil
 		}
@@ -450,10 +458,18 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if meta.Model != "" {
 			model = " -m " + shellQuote(meta.Model)
 		}
+		// The machine's config.toml stays out of the box, and with it any
+		// effort set there: without this, the model's own default.
+		if meta.Effort != "" {
+			model += " -c model_reasoning_effort=" + meta.Effort
+		}
 		if prompt == "" {
 			command := []string{"codex", "--dangerously-bypass-approvals-and-sandbox"}
 			if meta.Model != "" {
 				command = append(command, "-m", meta.Model)
+			}
+			if meta.Effort != "" {
+				command = append(command, "-c", "model_reasoning_effort="+meta.Effort)
 			}
 			return command, nil
 		}
@@ -1001,6 +1017,10 @@ func containerSeconds(engine boxEngine, container string) int {
 
 // agentModelName is what --model and a brief's model: accept: a name or
 // alias such as opus, claude-opus-5-5, opus[1m], or gpt-6.1-sol.
+// agentEfforts are the effort levels hi passes on: Claude Code's
+// --effort, Codex's model_reasoning_effort, Hermes' reasoning_effort.
+var agentEfforts = []string{"low", "medium", "high", "xhigh", "max"}
+
 var agentModelName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/\[\]-]{0,99}$`)
 
 // defaultAgentModel is the model a box's agent uses without --model: the

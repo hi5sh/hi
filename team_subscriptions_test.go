@@ -49,15 +49,16 @@ func TestTeamWizardPutsTheLeadOnChatGPT(t *testing.T) {
 	saved := teamCheckOpenRouterKey
 	teamCheckOpenRouterKey = func(string) error { return nil }
 	t.Cleanup(func() { teamCheckOpenRouterKey = saved })
-	signIns := fakeChatGPTChoices(t, map[string]bool{"openai/gpt-6.1-sol": true})
+	signIns := fakeChatGPTChoices(t, map[string]bool{"openai/gpt-6.1-sol": true, "anthropic/claude-opus-5.5": true})
 	answers := strings.Join([]string{
 		"Track supplier payments for the finance admins",
 		"xoxb-bot", "xapp-app", "C07PAYMENTS", "U07OWNER1", "",
 		"", // the lead: Hermes, as offered
 		"chatgpt",
-		"",                  // the team's own sign-in
-		"",                  // the plan's first model
-		"", "codex:gpt-5.5", // the coder as offered, a reviewer model
+		"",                              // the team's own sign-in
+		"",                              // the plan's first model
+		"",                              // its effort
+		"", "", "", "codex:gpt-5.5", "", // the coder, its Claude sign-in and effort as offered, a reviewer model
 		"", // this machine's OpenRouter key
 		"", "",
 	}, "\n") + "\n"
@@ -119,11 +120,12 @@ func TestValidateTeamProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]teamMember{
-		"openrouter or chatgpt, not":  {Agent: "hermes", Provider: "bedrock"},
-		"only Hermes runs on ChatGPT": {Agent: "codex", Provider: "chatgpt", Model: "gpt-6-sol"},
-		"name the ChatGPT model":      {Agent: "hermes", Provider: "chatgpt"},
-		"a fallback is for a member":  {Agent: "hermes", Fallback: "openai/gpt-6"},
-		"isn't a model name":          {Agent: "hermes", Provider: "chatgpt", Model: "gpt-6", Fallback: "no spaces please"},
+		"openrouter, chatgpt, or claude, not": {Agent: "hermes", Provider: "bedrock"},
+		"a Claude plan is for Claude Code":    {Agent: "hermes", Provider: "claude"},
+		"only Hermes runs on ChatGPT":         {Agent: "codex", Provider: "chatgpt", Model: "gpt-6-sol"},
+		"name the ChatGPT model":              {Agent: "hermes", Provider: "chatgpt"},
+		"a fallback is for a member":          {Agent: "hermes", Fallback: "openai/gpt-6"},
+		"isn't a model name":                  {Agent: "hermes", Provider: "chatgpt", Model: "gpt-6", Fallback: "no spaces please"},
 	}
 	for want, member := range cases {
 		config := testTeamConfig()
@@ -415,14 +417,14 @@ func TestTeamTellsTheChannelOncePerRole(t *testing.T) {
 	}
 	var status bytes.Buffer
 	teamStatus("payments", &status)
-	if !strings.Contains(status.String(), "On OpenRouter since ChatGPT refused them: the lead") {
+	if !strings.Contains(status.String(), "On OpenRouter since their subscription refused them: the lead") {
 		t.Fatal(status.String())
 	}
 	// Signing in again says so, and a later failure is told once more.
 	grant.SignedIn = now
 	saveTeamSecrets("payments", teamSecrets{ChatGPT: &grant})
 	b.tellSubscriptions(config, now)
-	if got := posts(); len(got) != 2 || !strings.Contains(got[1], "ChatGPT is signed in again (ChatGPT Team plan); the lead is back on it.") {
+	if got := posts(); len(got) != 2 || !strings.Contains(got[1], "ChatGPT (ChatGPT Team plan) is signed in again; the lead is back on it.") {
 		t.Fatal(got)
 	}
 	appendLog("chatgpt-refused 429:limit")
@@ -438,7 +440,7 @@ func TestTeamFallbackMessageWithoutAKey(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "hermes", ".env"), nil, 0o600)
 	config := testTeamConfig()
 	config.Members["lead"] = teamMember{Agent: "hermes", Provider: "chatgpt", Model: "gpt-6.1-sol", Fallback: "openai/gpt-6.1"}
-	if text := teamFallbackMessage(config, "lead", "expired", false); !strings.Contains(text, "no OpenRouter key to fall back on") || !strings.Contains(text, "codex login") {
+	if text := teamFallbackMessage(config, teamSecrets{}, "lead", teamRefusal{provider: "chatgpt", reason: "expired"}); !strings.Contains(text, "no OpenRouter key to fall back on") || !strings.Contains(text, "codex login") {
 		t.Fatal(text)
 	}
 }
@@ -491,5 +493,207 @@ func TestTeamNewFromFileTakesAChatGPTSignIn(t *testing.T) {
 	_, secrets, err := teamAnswersFromFile("payments", answers)
 	if err != nil || secrets.ChatGPT == nil || secrets.ChatGPT.RefreshToken != "rt-file" || secrets.ChatGPT.AccountID != "acct-2" {
 		t.Fatalf("%v %+v", err, secrets.ChatGPT)
+	}
+}
+
+func TestTeamMemberProxyArgs(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	config := testTeamConfig()
+	config.Members["coder"] = teamMember{Agent: "claude", Model: "opus", Fallback: "anthropic/claude-opus-5"}
+	saveTeam(config)
+	args, secret, err := teamMemberProxyArgs(boxMeta{Name: "payments-t-7", Team: "payments:coder"}, nil, "/secrets/claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(args, " ")
+	for _, want := range []string{teamKeysDir("payments") + ":/secrets/team:ro", teamEventsDir("payments") + ":/events",
+		boxFallbackEnv + "=/secrets/team/openrouter.env,/secrets/hermes.env", boxRoleEnv + "=coder",
+		boxEventsEnv + "=/events/payments-t-7.log", boxFallbackModelEnv + "=anthropic/claude-opus-5"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("no %q in %s", want, joined)
+		}
+	}
+	if secret != "/secrets/team/claude-token,/secrets/claude" {
+		t.Fatal(secret)
+	}
+	// Signed in nowhere: refused before a box is made.
+	if _, _, err := teamMemberProxyArgs(boxMeta{Name: "b", Team: "payments:coder"}, nil, ""); err == nil || !strings.Contains(err.Error(), "hi team signin payments claude") {
+		t.Fatal(err)
+	}
+	// With the team's own token, this machine's isn't needed.
+	saveTeamSecrets("payments", teamSecrets{ClaudeToken: "sk-ant-oat-team"})
+	writeTeamKeys("payments", teamSecrets{ClaudeToken: "sk-ant-oat-team"})
+	if _, secret, err := teamMemberProxyArgs(boxMeta{Name: "b", Team: "payments:coder"}, nil, ""); err != nil || secret != "/secrets/team/claude-token" ||
+		!teamMemberSignedIn("payments:coder", "claude") || teamMemberSignedIn("payments:reviewer", "codex") {
+		t.Fatal(secret, err)
+	}
+}
+
+func TestTeamSigninClaude(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	saveTeamSecrets("payments", teamSecrets{SlackBotToken: "xoxb"})
+	var out bytes.Buffer
+	if err := teamSignin([]string{"payments", "claude"}, strings.NewReader("not-a-token\n"), &out); err == nil || !strings.Contains(err.Error(), "sk-ant-") {
+		t.Fatal(err)
+	}
+	if err := teamSignin([]string{"payments", "claude"}, strings.NewReader("sk-ant-oat-team\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	secrets, _ := loadTeamSecrets("payments")
+	if secrets.ClaudeToken != "sk-ant-oat-team" || secrets.ClaudeSignedIn.IsZero() || secrets.SlackBotToken != "xoxb" ||
+		readTestFile(t, filepath.Join(teamKeysDir("payments"), teamClaudeKeyFile)) != "sk-ant-oat-team\n" {
+		t.Fatalf("%+v", secrets)
+	}
+	// Back to this machine's: the token file goes.
+	if err := teamSignin([]string{"payments", "claude", "--machine"}, nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	if secrets, _ := loadTeamSecrets("payments"); secrets.ClaudeToken != "" || fileExists(filepath.Join(teamKeysDir("payments"), teamClaudeKeyFile)) {
+		t.Fatalf("%+v", secrets)
+	}
+}
+
+func TestTeamClaudeFallback(t *testing.T) {
+	setupTeamTest(t)
+	for _, c := range []struct {
+		member teamMember
+		want   string
+	}{
+		{teamMember{Agent: "claude", Model: "opus"}, "anthropic/claude-opus-5.5"},
+		{teamMember{Agent: "claude"}, "anthropic/claude-opus-5.5"},
+		{teamMember{Agent: "claude", Model: "sonnet"}, "anthropic/claude-sonnet-5.5"},
+		{teamMember{Agent: "claude", Model: "claude-opus-5-5"}, "anthropic/claude-opus-5.5"},
+		{teamMember{Agent: "claude", Model: "opus", Fallback: "anthropic/claude-opus-5"}, "anthropic/claude-opus-5"},
+		{teamMember{Agent: "claude", Model: "haiku"}, ""},
+	} {
+		if got, err := teamClaudeFallback(c.member); err != nil || got != c.want {
+			t.Errorf("%+v: %q %v, want %q", c.member, got, err, c.want)
+		}
+	}
+	// The wizard asks for one OpenRouter hasn't.
+	member := teamMember{Agent: "claude", Model: "haiku"}
+	var secrets teamSecrets
+	asked := false
+	var out bytes.Buffer
+	if err := teamAskClaude(strings.NewReader("sk-ant-oat-x\nanthropic/claude-sonnet-5.5\n"), &out, &member, &secrets, &asked); err != nil {
+		t.Fatalf("%v\n%s", err, out.String())
+	}
+	if member.Fallback != "anthropic/claude-sonnet-5.5" || secrets.ClaudeToken != "sk-ant-oat-x" || !strings.Contains(out.String(), "OpenRouter has no fallback for haiku") {
+		t.Fatalf("%+v %+v\n%s", member, secrets, out.String())
+	}
+}
+
+func TestTeamTellsTheChannelAboutTheCoder(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	config := testTeamConfig()
+	now := time.Now().UTC()
+	saveTeamSecrets("payments", teamSecrets{ClaudeToken: "sk-ant-oat-team", ClaudeSignedIn: now.Add(-time.Hour)})
+	os.MkdirAll(teamEventsDir("payments"), 0o700)
+	events := filepath.Join(teamEventsDir("payments"), "payments-t-3.log")
+	appendEvents := func(lines ...string) {
+		file, _ := os.OpenFile(events, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+		for _, line := range lines {
+			file.WriteString(now.Format(time.RFC3339) + " " + line + "\n")
+		}
+		file.Close()
+	}
+	posts := func() []string {
+		var out []string
+		for _, call := range channel.calls {
+			if strings.HasPrefix(call, "post ") {
+				out = append(out, call)
+			}
+		}
+		return out
+	}
+	b.tellSubscriptions(config, now)
+	appendEvents("fallback coder claude signin anthropic/claude-opus-5.5", "spend 0.02")
+	b.tellSubscriptions(config, now)
+	if got := posts(); len(got) != 1 || !strings.Contains(got[0], "The coder's Claude sign-in doesn't work, so it uses OpenRouter (anthropic/claude-opus-5.5) now") ||
+		!strings.Contains(got[0], "`hi team signin payments claude`") || !strings.Contains(got[0], "claude setup-token") {
+		t.Fatal(got)
+	}
+	// A second box failing over isn't told again.
+	other := filepath.Join(teamEventsDir("payments"), "payments-t-4.log")
+	os.WriteFile(other, []byte(now.Format(time.RFC3339)+" fallback coder claude limit anthropic/claude-opus-5.5\n"), 0o600)
+	b.tellSubscriptions(config, now)
+	if len(posts()) != 1 {
+		t.Fatal(posts())
+	}
+	// The fallback's spend counts with the team's.
+	if spent := teamSpendSince("payments", now.Add(-time.Minute)); spent < 0.02 {
+		t.Fatal(spent)
+	}
+	// A new token: told, and a later failure is told once more.
+	saveTeamSecrets("payments", teamSecrets{ClaudeToken: "sk-ant-oat-new", ClaudeSignedIn: now})
+	b.tellSubscriptions(config, now)
+	appendEvents("fallback coder claude limit anthropic/claude-opus-5.5 nokey")
+	b.tellSubscriptions(config, now)
+	if got := posts(); len(got) != 3 || !strings.Contains(got[1], "Claude is signed in again; the coder is back on it.") ||
+		!strings.Contains(got[2], "no OpenRouter key to fall back on") || !strings.Contains(got[2], "tries Claude again every 15 minutes") {
+		t.Fatal(got)
+	}
+}
+
+func TestAgentEffortReachesEachAgent(t *testing.T) {
+	setupTeamTest(t)
+	// The agents' commands, as hi agent builds them in a box.
+	home := t.TempDir()
+	options, err := parseBoxOptions("agent", []string{"--effort", "max", "--team", "payments:coder"})
+	if err != nil || options.effort != "max" || options.team != "payments:coder" {
+		t.Fatal(options, err)
+	}
+	if _, err := parseBoxOptions("agent", []string{"--effort", "ultra"}); err == nil || !strings.Contains(err.Error(), "low, medium, high, xhigh, max") {
+		t.Fatal(err)
+	}
+	if _, err := parseBoxOptions("agent", []string{"--team", "payments"}); err == nil {
+		t.Fatal("a team without a role")
+	}
+	bin := filepath.Join(t.TempDir(), "agents", "bin")
+	writeSkillTestFile(t, filepath.Join(bin, "claude"), "#!/bin/sh\n", 0o755)
+	writeSkillTestFile(t, filepath.Join(bin, "codex"), "#!/bin/sh\n", 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	meta := boxMeta{Name: "b", Workdir: "/w", Model: "opus", Effort: "high", ProxyIP: "10.0.0.2"}
+	var run []string
+	command, err := agentBoxSetup("claude", "do it", meta, home, &run, map[string]string{})
+	if err != nil || !strings.Contains(strings.Join(command, " "), " --effort high <") {
+		t.Fatal(command, err)
+	}
+	if interactive, _ := agentBoxSetup("claude", "", meta, home, &run, map[string]string{}); strings.Join(interactive, " ") != "claude --dangerously-skip-permissions --model opus --effort high" {
+		t.Fatal(interactive)
+	}
+	codexHome := t.TempDir()
+	t.Setenv("CODEX_HOME", codexHome)
+	os.WriteFile(filepath.Join(codexHome, "auth.json"), []byte("{}"), 0o600)
+	if command, err = agentBoxSetup("codex", "do it", meta, home, &run, map[string]string{}); err != nil || !strings.Contains(strings.Join(command, " "), "-c model_reasoning_effort=high") {
+		t.Fatal(command, err)
+	}
+	// A team's members: medium unless team.json says, and the lead too.
+	config := testTeamConfig()
+	if err := validateTeam(config); err != nil {
+		t.Fatal(err)
+	}
+	config.Members["reviewer"] = teamMember{Agent: "codex", Effort: "extreme"}
+	if err := validateTeam(config); err == nil || !strings.Contains(err.Error(), "the effort is") {
+		t.Fatal(err)
+	}
+	if teamEffort(teamMember{}) != "medium" || teamEffort(teamMember{Effort: "high"}) != "high" ||
+		!strings.Contains(teamMemberLabel(teamMember{Agent: "codex", Effort: "high"}), "effort high") ||
+		strings.Contains(teamMemberLabel(teamMember{Agent: "codex"}), "effort") {
+		t.Fatal("labels")
+	}
+	dir := teamDir("payments")
+	os.MkdirAll(filepath.Join(dir, "lead"), 0o700)
+	saveTeam(testTeamConfig())
+	if err := writeTeamLead(testTeamConfig(), teamSecrets{}, "10.234.5.2", ""); err != nil {
+		t.Fatal(err)
+	}
+	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  reasoning_effort: medium\n") {
+		t.Fatal(settings)
 	}
 }

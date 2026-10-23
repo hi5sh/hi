@@ -158,6 +158,12 @@ func teamSpendSince(team string, from time.Time) float64 {
 	}
 	add(teamSpendLogPath(team), "")
 	add(teamNetworkLogPath(team), "spend")
+	// Members' calls that fell back to OpenRouter (box_fallback.go).
+	if entries, err := os.ReadDir(teamEventsDir(team)); err == nil {
+		for _, entry := range entries {
+			add(filepath.Join(teamEventsDir(team), entry.Name()), "spend")
+		}
+	}
 	return total
 }
 
