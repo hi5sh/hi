@@ -2586,6 +2586,42 @@ which would read the incidents this raises.
 - [x] Release 4, revoke and cut off (v1.7.0): once the server makes the teams'
   OpenRouter keys and holds a NetBird API token.
 
+What is built, in one place (details: the v1.4.0–v1.7.0 entries above,
+and the spec's As-built sections):
+
+- **Heartbeat** (team → server, every minute, signed with the device
+  key): each part's state, disk, OOM kills, snapshot age, spend through
+  hi and on the key, open incidents, the network log and the other logs
+  from where the server's copy ends. The first device to send owns the
+  team (`hi server watch forget <team>` to move it).
+- **Server incidents** `w-N` in `watch/state.json`: a team gone quiet (3
+  min, 10 after an announced restart), parts down, restarts, OOM, disk,
+  snapshots, spend spikes, spend outside hi. Posted in the watch channel
+  (`--channel`), the audit log, pushed to owners via ntfy for the urgent
+  ones; those the lead can act on go back in the heartbeat's reply as
+  `tell` and open a local `watch` incident.
+- **Bills and advisories**: a CycloneDX bill per release (`hi team bom`),
+  matched nightly against OSV, ranked with CISA KEV and FIRST EPSS into
+  kev / incident / report tiers; images' advisories counted, not listed;
+  `hi team advisories`, `hi team advisory <id> ignore` (kept as VEX until
+  the advisory changes); the dependency review warns, and a KEV match
+  needs an owner's yes to merge.
+- **Network**: the proxy's `closed` lines with sizes, a logging resolver
+  for app boxes (Podman, unit `hi-team-<name>-resolver`), network rules
+  (denies, raw IPs, `watch-hosts.txt`, uploads, new allowlist hosts,
+  bursts), and a weekly check of what production runs against its bill.
+- **Stopping a team**: freeze, unfreeze, pause, unpause from `hi server
+  watch` or `/hi team …`, delivered in the reply as `do` and confirmed by
+  `stop.done`; auto-freeze on a burst to a watch host or a KEV in the
+  app's own packages (`--auto-freeze off` to stop it).
+- **Revoke and cut off**: with `--openrouter`, the server makes teams'
+  keys (`hi team key <team> openrouter --from-server`), revokes and
+  rekeys them; with `--netbird`, `cutoff` and `reconnect` the team's peer
+  (peer approval, else its groups).
+- **Running**: vmhiserver runs v1.7.0 since 2026-10-22 (backup in
+  `~/hi-server-backup-20261022-202124`); cartman runs v1.7.1 and sends
+  heartbeats since 2026-10-23, with its production lookups logged.
+
 Switching it on, on vmhiserver (an admin's, with credentials only they
 have; cartman sends heartbeats since v1.7.1 on 2026-10-23):
 
