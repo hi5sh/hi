@@ -214,8 +214,9 @@ func startTeamMemory(engine boxEngine, config teamConfig, proxyIP string) error 
 	if err := os.MkdirAll(data, 0o700); err != nil {
 		return err
 	}
-	host := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml"))
-	model := firstNonEmpty(config.Members["lead"].Model, host.Default)
+	// Hindsight calls chat completions on OpenRouter: the lead's model
+	// there, or its fallback for a lead on a subscription.
+	model := teamLeadOpenRouterModel(config)
 	proxy := fmt.Sprintf("http://%s:%d", proxyIP, boxProxyPort)
 	run := []string{"run", "-d", "--rm", "--init", "--name", teamMemoryContainer(config.Name), "--hostname", config.Name + "-memory",
 		"--network", "hi-box-team-" + config.Name, "--ip", teamMemoryIP(proxyIP), "--dns", "127.0.0.1"}

@@ -84,6 +84,12 @@ type teamMember struct {
 	Bundle  string   `json:"bundle,omitempty"`
 	Network string   `json:"network,omitempty"` // a member box's network preset; dev by default
 	Allow   []string `json:"allow,omitempty"`
+	// Provider is who pays for the member's model calls: openrouter
+	// (empty) or chatgpt, the team's ChatGPT plan; Fallback is the same
+	// model on OpenRouter, which takes over when the plan refuses
+	// (team_subscriptions.go).
+	Provider string `json:"provider,omitempty"`
+	Fallback string `json:"fallback,omitempty"`
 }
 
 // teamSecrets is secrets.json, readable only by its owner.
@@ -106,6 +112,9 @@ type teamSecrets struct {
 	// LeadAPIKey opens Hermes' API server in the lead's box to the team's
 	// service, for the helper; made on the first start.
 	LeadAPIKey string `json:"lead_api_key,omitempty"`
+	// ChatGPT is the team's own ChatGPT sign-in; without it, roles on
+	// ChatGPT use this machine's, Codex's (team_subscriptions.go).
+	ChatGPT *teamChatGPTGrant `json:"chatgpt,omitempty"`
 }
 
 func teamsDir() string {
@@ -190,6 +199,24 @@ func validateTeam(config teamConfig) error {
 		}
 		if _, ok := boxPresets[member.Network]; member.Network != "" && !ok {
 			return fmt.Errorf("%s: the network is locked, dev, or open, not %q", role, member.Network)
+		}
+		switch member.Provider {
+		case "", teamProviderOpenRouter:
+			if member.Fallback != "" {
+				return fmt.Errorf("%s: a fallback is for a member on a subscription; on OpenRouter it has none", role)
+			}
+		case teamProviderChatGPT:
+			if member.Agent != "hermes" {
+				return fmt.Errorf("%s: only Hermes runs on ChatGPT for now; %s uses this machine's sign-in", role, agentDisplayName(member.Agent))
+			}
+			if member.Model == "" {
+				return fmt.Errorf("%s: name the ChatGPT model, such as gpt-6.1-sol", role)
+			}
+		default:
+			return fmt.Errorf("%s: the provider is openrouter or chatgpt, not %q", role, member.Provider)
+		}
+		if member.Fallback != "" && !agentModelName.MatchString(member.Fallback) {
+			return fmt.Errorf("%s: %q isn't a model name", role, member.Fallback)
 		}
 	}
 	coder, hasCoder := config.Members["coder"]
@@ -331,6 +358,10 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamBackupsCommand(rest, stdin, stdout)
 	case "key":
 		err = teamKey(rest, stdin, stdout)
+	case "signin":
+		err = teamSignin(rest, stdout)
+	case "member":
+		err = teamMemberCommand(rest, stdin, stdout)
 	case "env":
 		err = teamEnv(rest, stdin, stdout)
 	case "limit":
@@ -391,8 +422,9 @@ usage:
                                    in a new folder ./team-<name>
       [--dir <folder>]             the team's folder somewhere else
       [--from <file.json>]         the answers from a file; the Slack tokens from
-                                   HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, and the
-                                   team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY
+                                   HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, the
+                                   team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY, and
+                                   its ChatGPT sign-in from HI_TEAM_CHATGPT_AUTH (an auth.json)
   hi team adopt <name> <source>    the same setup for a project someone else wrote, such as one on
                                    GitHub (github.com/owner/name, owner/name, or a URL): the team keeps
                                    its own copy and never pushes to it; a first task makes it run
@@ -425,6 +457,13 @@ usage:
                                    the app reaches models at $OPENROUTER_BASE_URL through hi
   hi team key <name> slack         the Slack app's tokens again, when Slack gave new ones (asked
                                    for and checked; Enter keeps one); a running team restarts
+  hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
+                                   code to type on any device; only the team's server refreshes it
+      [--machine]                  use this machine's sign-in (Codex's) instead
+  hi team member <name> <role>     a member's agent, model, and who pays for it
+      [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>]
+                                   on ChatGPT, the fallback (the same model on OpenRouter unless
+                                   given) takes over when the plan refuses; a running team restarts
   hi team env <name>               the settings the team's app gets, by name
   hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
                                    boxes only (preview and production); KEY alone asks for the value
@@ -749,6 +788,104 @@ func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader,
 	return nil
 }
 
+// teamAskProvider asks who pays for a Hermes member: OpenRouter, or the
+// team's ChatGPT plan. On ChatGPT it signs the team in (once, for every
+// role on it), offers the account's models, and checks the fallback, the
+// same model on OpenRouter.
+func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secrets *teamSecrets, signIn *string) error {
+	provider, err := teamAskUntil(stdin, stdout, "         provider [openrouter]", false, func(answer string) error {
+		if answer := firstNonEmpty(answer, teamProviderOpenRouter); answer != teamProviderOpenRouter && answer != teamProviderChatGPT {
+			return fmt.Errorf("the provider is openrouter or chatgpt, not %q", answer)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if firstNonEmpty(provider, teamProviderOpenRouter) == teamProviderOpenRouter {
+		member.Provider, member.Fallback = "", ""
+		return nil
+	}
+	member.Provider = teamProviderChatGPT
+	if *signIn == "" {
+		fmt.Fprintln(stdout, "         The team signs in to ChatGPT once, for every role on it: team signs in with a code on any device")
+		fmt.Fprintln(stdout, "         (only the team's server refreshes it); machine uses this machine's, Codex's, which Codex refreshes.")
+		answer, err := teamAskUntil(stdin, stdout, "         ChatGPT sign-in [team]", false, func(answer string) error {
+			switch firstNonEmpty(answer, "team") {
+			case "team":
+				return nil
+			case "machine":
+				_, err := readCodexChatGPT()
+				return err
+			}
+			return fmt.Errorf("team or machine, not %q", answer)
+		})
+		if err != nil {
+			return err
+		}
+		*signIn = firstNonEmpty(answer, "team")
+		if *signIn == "team" {
+			grant, err := teamChatGPTSignIn(stdout)
+			if err != nil {
+				return err
+			}
+			secrets.ChatGPT = &grant
+			fmt.Fprintf(stdout, "         Signed in: %s.\n", chatGPTPlanName(grant))
+		}
+	}
+	grant := teamChatGPTGrant{}
+	if secrets.ChatGPT != nil {
+		grant = *secrets.ChatGPT
+	} else if grant, err = readCodexChatGPT(); err != nil {
+		return err
+	}
+	models, err := chatGPTModels(grant)
+	if err != nil {
+		return err
+	}
+	offered := member.Model
+	if !containsString(models, offered) && len(models) > 0 {
+		offered = models[0]
+	}
+	if len(models) > 0 {
+		fmt.Fprintf(stdout, "         The plan offers %s.\n", strings.Join(models, ", "))
+	}
+	model, err := teamAskUntil(stdin, stdout, "         model ["+offered+"]", false, func(answer string) error {
+		if answer := firstNonEmpty(answer, offered); answer == "" || len(models) > 0 && !containsString(models, answer) {
+			return fmt.Errorf("the plan doesn't offer %q", answer)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	member.Model, member.Fallback = firstNonEmpty(model, offered), ""
+	fallback := teamFallbackModel(*member)
+	for {
+		has, err := teamOpenRouterHasModel(fallback)
+		if err != nil {
+			return err
+		}
+		if has {
+			break
+		}
+		fmt.Fprintf(stdout, "         OpenRouter has no %s to fall back on.\n", fallback)
+		if fallback, err = teamAskUntil(stdin, stdout, "         fallback on OpenRouter", false, func(answer string) error {
+			if !agentModelName.MatchString(answer) {
+				return fmt.Errorf("%q isn't a model name", answer)
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	if fallback != teamFallbackModel(*member) {
+		member.Fallback = fallback
+	}
+	fmt.Fprintf(stdout, "         Fallback: %s on OpenRouter.\n", fallback)
+	return nil
+}
+
 func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	var answers teamAnswers
 	data, err := os.ReadFile(path)
@@ -765,6 +902,18 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 		OpenRouterAPIKey: os.Getenv("HI_TEAM_OPENROUTER_API_KEY")}
 	if secrets.SlackBotToken == "" || secrets.SlackAppToken == "" {
 		return answers, secrets, errors.New("set HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN to the Slack app's tokens")
+	}
+	if teamUsesChatGPT(answers.teamConfig) {
+		// The team's own ChatGPT sign-in from a file, else this machine's.
+		if path := os.Getenv("HI_TEAM_CHATGPT_AUTH"); path != "" {
+			grant, err := readChatGPTAuthFile(path)
+			if err != nil {
+				return answers, secrets, err
+			}
+			secrets.ChatGPT = &grant
+		} else if _, err := readCodexChatGPT(); err != nil {
+			return answers, secrets, fmt.Errorf("a member is on ChatGPT: set HI_TEAM_CHATGPT_AUTH to a ChatGPT auth.json, or %w", err)
+		}
 	}
 	return answers, secrets, nil
 }
@@ -842,8 +991,10 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	config.Askers = splitList(askers)
 
 	fmt.Fprintln(stdout, "\n5/7 Members")
-	fmt.Fprintln(stdout, "Each role's agent (claude, codex, or hermes) and model. Enter keeps what's offered.")
+	fmt.Fprintln(stdout, "Each role's agent (claude, codex, or hermes) and model, and for Hermes who pays: OpenRouter, or a")
+	fmt.Fprintln(stdout, "ChatGPT plan (falling back to OpenRouter). Enter keeps what's offered.")
 	config.Members = defaultTeamMembers()
+	chatGPTSignIn := "" // team or machine, once asked
 	for _, role := range teamRoles(*config) {
 		member := config.Members[role]
 		offered := member.Agent + teamModelSuffix(member.Model)
@@ -878,11 +1029,21 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		}
 		agent, model, _ := strings.Cut(firstNonEmpty(answer, offered), ":")
 		member.Agent, member.Model = strings.TrimSpace(agent), strings.TrimSpace(model)
+		if member.Agent == "hermes" {
+			if err := teamAskProvider(stdin, stdout, &member, &secrets, &chatGPTSignIn); err != nil {
+				return answers, secrets, err
+			}
+		}
 		config.Members[role] = member
 	}
 
 	fmt.Fprintln(stdout, "\n6/7 Models")
-	fmt.Fprintln(stdout, "The lead, and the app the team builds, use models through OpenRouter. Give the team a key of its")
+	if teamUsesChatGPT(*config) {
+		fmt.Fprintln(stdout, "OpenRouter is what the roles on ChatGPT fall back on, and the lead's memory and the app the team")
+		fmt.Fprintln(stdout, "builds use it. Give the team a key of its")
+	} else {
+		fmt.Fprintln(stdout, "The lead, and the app the team builds, use models through OpenRouter. Give the team a key of its")
+	}
 	fmt.Fprintln(stdout, "own (openrouter.ai/settings/keys), so its use is billed and limited apart, or press Enter for this")
 	fmt.Fprintln(stdout, "machine's (Hermes'). No box ever holds the key; nobody needs to paste one into Slack.")
 	if secrets.OpenRouterAPIKey, err = teamAskOpenRouterKey(stdin, stdout, "OpenRouter key [Enter: this machine's]"); err != nil {
@@ -1072,6 +1233,9 @@ func teamMemberLabel(member teamMember) string {
 	label := agentDisplayName(member.Agent)
 	if member.Model != "" {
 		label += ", " + member.Model
+	}
+	if teamProvider(member) == teamProviderChatGPT {
+		label += " on ChatGPT, falling back to " + firstNonEmpty(member.Fallback, teamFallbackModel(member)) + " on OpenRouter"
 	}
 	if member.Bundle != "" {
 		label += ", bundle " + member.Bundle
@@ -1783,6 +1947,9 @@ func teamStatus(name string, stdout io.Writer) error {
 		fmt.Fprintln(stdout, "\n"+line)
 	}
 	fmt.Fprintln(stdout, teamWatchLine(name))
+	if line := teamFallbackLine(name); line != "" {
+		fmt.Fprintln(stdout, line)
+	}
 	fmt.Fprintln(stdout, "\n"+teamHelperLine(config))
 	tasks := loadTeamTasks(name)
 	if len(tasks) == 0 {

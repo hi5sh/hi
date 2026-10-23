@@ -742,8 +742,9 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		// A team's own OpenRouter key comes first, then this machine's.
 		args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro", "-v", keys+":/secrets/team:ro")
 		secret = "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env"
-		// And the lead's Slack tokens, when hi put them there.
-		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team")
+		// And the lead's Slack tokens, when hi put them there, and the
+		// team's ChatGPT access token, when it has roles on ChatGPT.
+		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile)
 	}
 	if data != nil && data.address != "" {
 		// The server's name may resolve only on the host, through NetBird.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -140,8 +141,14 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxProxyPort), egress)
 	}()
 	if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
+		var inject http.Handler = newBoxOpenRouterInjector(env, "https://openrouter.ai", log)
+		if token := os.Getenv(boxChatGPTEnv); token != "" {
+			// A team's roles on ChatGPT call its Codex endpoint here; the
+			// rest is OpenRouter.
+			inject = boxRouteChatGPT(newBoxChatGPTInjector(token, chatGPTBackend, log), inject)
+		}
 		go func() {
-			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), newBoxOpenRouterInjector(env, "https://openrouter.ai", log))
+			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), inject)
 		}()
 	} else if args[2] != "-" {
 		go func() {
@@ -337,8 +344,14 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 		if err != nil {
 			log.record("openrouter-key-problem", err.Error())
 		}
-		if strings.Contains(r.Header.Get("Authorization"), boxClaudePlacehold) && key != "" {
-			r.Header.Set("Authorization", "Bearer "+key)
+		if strings.Contains(r.Header.Get("Authorization"), boxClaudePlacehold) {
+			if key != "" {
+				r.Header.Set("Authorization", "Bearer "+key)
+			}
+		} else {
+			// The caller sent a key of its own, which goes on as it is:
+			// OpenRouter refusing it is then not hi's key.
+			log.record("openrouter-own-key", r.URL.Path)
 		}
 		log.record("openrouter", r.URL.Path)
 	}
@@ -353,6 +366,87 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 		return nil
 	}
 	return proxy
+}
+
+// boxRouteChatGPT sends calls under chatGPTPath to chatgpt, and the rest
+// to other.
+func boxRouteChatGPT(chatgpt, other http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, chatGPTPath) {
+			chatgpt.ServeHTTP(w, r)
+			return
+		}
+		other.ServeHTTP(w, r)
+	})
+}
+
+// newBoxChatGPTInjector passes calls on to ChatGPT's Codex endpoint with
+// the team's access token in place of the placeholder, and the account
+// headers ChatGPT wants with it. tokenFile is written by the team's
+// server, which alone refreshes the sign-in, and read again for each call;
+// without it the placeholder goes on and ChatGPT refuses the call, so the
+// role falls back. A refusal that sends a role to its fallback is logged
+// as chatgpt-refused <status>:signin or :limit, which the server tells
+// the channel about (team_subscriptions.go).
+func newBoxChatGPTInjector(tokenFile, upstream string, log *boxNetworkLog) http.Handler {
+	target, _ := url.Parse(upstream)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.FlushInterval = -1
+	director := proxy.Director
+	proxy.Director = func(r *http.Request) {
+		director(r)
+		r.Host = target.Host
+		var key struct {
+			AccessToken string `json:"access_token"`
+			AccountID   string `json:"account_id"`
+		}
+		if data, err := os.ReadFile(tokenFile); err != nil || json.Unmarshal(data, &key) != nil || key.AccessToken == "" {
+			log.record("chatgpt-sign-in-problem", "no-token")
+		} else if strings.Contains(r.Header.Get("Authorization"), boxClaudePlacehold) {
+			for name, value := range chatGPTHeaders(key.AccessToken, key.AccountID) {
+				r.Header.Set(name, value)
+			}
+		}
+		// The harness names itself to OpenAI, as Hermes does on its own.
+		r.Header.Set("originator", "hermes-agent")
+		r.Header.Set("User-Agent", "HermesAgent (hi "+version_()+")")
+		log.record("chatgpt", r.URL.Path)
+	}
+	proxy.ModifyResponse = func(response *http.Response) error {
+		// Only model calls count: Hermes also looks for paths ChatGPT
+		// hasn't, such as a model list, which say nothing of the sign-in.
+		if !strings.HasSuffix(response.Request.URL.Path, "/responses") {
+			return nil
+		}
+		if kind := boxChatGPTRefusal(response); kind != "" {
+			log.record("chatgpt-refused", fmt.Sprintf("%d:%s", response.StatusCode, kind))
+		}
+		return nil
+	}
+	return proxy
+}
+
+// boxChatGPTRefusal says what a refused call means for the role: "signin"
+// when the sign-in doesn't work, "limit" when the plan's usage limit is
+// reached, "other" for anything else that failed, and "" for success. A
+// 429 is read for the plan's limit; a short rate limit is retried, not a
+// reason to fall back.
+func boxChatGPTRefusal(response *http.Response) string {
+	switch {
+	case response.StatusCode < 400:
+		return ""
+	case response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden:
+		return "signin"
+	case response.StatusCode == http.StatusTooManyRequests:
+		body, _ := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+		response.Body.Close()
+		response.Body = io.NopCloser(bytes.NewReader(body))
+		if bytes.Contains(body, []byte("usage_limit")) || bytes.Contains(body, []byte("usage_not_included")) {
+			return "limit"
+		}
+		return "other"
+	}
+	return "other"
 }
 
 // readDotEnvValue reads one KEY=value from a .env file.

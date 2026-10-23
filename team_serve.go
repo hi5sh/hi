@@ -97,6 +97,13 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := writeTeamKeys(name, secrets); err != nil {
 		return err
 	}
+	if teamUsesChatGPT(config) {
+		// The lead's first call already has the token; a sign-in that
+		// doesn't work sends it to its fallback, and the channel hears.
+		if err := prepareTeamChatGPT(name, time.Now()); err != nil {
+			fmt.Fprintf(stderr, "hi: the team's ChatGPT sign-in: %v\n", err)
+		}
+	}
 	// The lead's box gets placeholders for the Slack tokens, which its
 	// proxy swaps for the real ones (box_slack.go).
 	trustDir, boxSecrets := filepath.Join(dir, "run", "trust"), secrets
@@ -190,6 +197,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.keepUpstream(ctx.Done(), stderr)
 	go broker.watchJobs(ctx.Done(), stderr)
 	go broker.keepWatched(ctx.Done(), stderr)
+	go broker.keepSubscriptions(ctx.Done(), stderr)
 	startTeamResolver(name, hi, ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
@@ -285,7 +293,8 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 			engine.output("stop", "-t", "20", container)
 		}
 	}()
-	fmt.Fprintf(stdout, "Team %s: the lead is starting in %s, model %s.\n", name, container, firstNonEmpty(config.Members["lead"].Model, "Hermes' default"))
+	fmt.Fprintf(stdout, "Team %s: the lead is starting in %s: %s.\n", name, container, teamMemberLabel(teamMember{Agent: "hermes", Model: firstNonEmpty(config.Members["lead"].Model, "Hermes' default"),
+		Provider: config.Members["lead"].Provider, Fallback: config.Members["lead"].Fallback}))
 	err = engine.interactive(nil, stdout, stderr, run...)
 	cancel()
 	if stopped.Load() {
@@ -325,18 +334,43 @@ const (
 	teamLeadBudgetWarning = 0.75
 )
 
+// teamLeadModelSettings is the model part of the lead's config.yaml. On
+// OpenRouter, a custom provider at the team's proxy, which puts the key in.
+// On ChatGPT, a named provider at the proxy's ChatGPT route, in the
+// Responses API: a plain custom provider would drop codex_responses for
+// any host but OpenAI's (both found on aiw9, 2026-10-23). Hermes falls back to the same model on OpenRouter,
+// through the proxy too, when ChatGPT refuses: at once for a sign-in that
+// doesn't work, after its retries for a limit, back on ChatGPT the next
+// turn, or once the plan's limit resets.
+func teamLeadModelSettings(config teamConfig, proxyIP string) string {
+	host := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml"))
+	lead := config.Members["lead"]
+	openRouter := fmt.Sprintf("http://%s:%d/api/v1", proxyIP, boxInjectPort)
+	apiMode := firstNonEmpty(host.APIMode, "chat_completions")
+	if teamProvider(lead) == teamProviderChatGPT {
+		return "model:\n  default: " + lead.Model + "\n  provider: custom:hi-chatgpt\n" +
+			"providers:\n" +
+			fmt.Sprintf("  hi-chatgpt:\n    api: http://%s:%d%s\n    api_key: %s\n    transport: codex_responses\n    discover_models: false\n",
+				proxyIP, boxInjectPort, strings.TrimSuffix(chatGPTPath, "/"), boxClaudePlacehold) +
+			fmt.Sprintf("  hi-openrouter:\n    api: %s\n    api_key: %s\n    transport: %s\n    discover_models: false\n", openRouter, boxClaudePlacehold, apiMode) +
+			// The entry carries its own address and key: without them Hermes
+			// looks for an OpenRouter key of its own, which the box hasn't.
+			"fallback_providers:\n  - provider: custom:hi-openrouter\n    model: " + teamLeadOpenRouterModel(config) + "\n" +
+			fmt.Sprintf("    base_url: %s\n    api_key: %s\n    api_mode: %s\n", openRouter, boxClaudePlacehold, apiMode)
+	}
+	settings := "model:\n"
+	if model := firstNonEmpty(lead.Model, host.Default); model != "" {
+		settings += "  default: " + model + "\n"
+	}
+	return settings + fmt.Sprintf("  provider: custom\n  base_url: %s\n  api_key: %s\n  api_mode: %s\n", openRouter, boxClaudePlacehold, apiMode)
+}
+
 // writeTeamLead writes what hi owns in the lead's Hermes home on every
 // start: its settings, its .env, and the hi-team skill. SOUL.md and the
 // memories are the lead's own and are left alone.
 func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP string) error {
 	lead := filepath.Join(teamDir(config.Name), "lead")
-	host := readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml"))
-	model := firstNonEmpty(config.Members["lead"].Model, host.Default)
-	settings := "model:\n"
-	if model != "" {
-		settings += "  default: " + model + "\n"
-	}
-	settings += fmt.Sprintf("  provider: custom\n  base_url: http://%s:%d/api/v1\n  api_key: %s\n  api_mode: %s\n", proxyIP, boxInjectPort, boxClaudePlacehold, firstNonEmpty(host.APIMode, "chat_completions"))
+	settings := teamLeadModelSettings(config, proxyIP)
 	settings += "terminal:\n  backend: local\n  cwd: /team\n"
 	settings += "approvals:\n  mode: \"off\"\n"
 	settings += "updates:\n  check: false\n"
@@ -359,6 +393,11 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// Slack's thinking indicator names what the lead does, without the
 	// paths and commands, which the channel has no use for.
 	settings += "display:\n  busy_ack_enabled: false\n  live_status: verb\n"
+	if teamProvider(config.Members["lead"]) != teamProviderOpenRouter {
+		// Hermes would tell the thread each time it falls back; hi tells
+		// the channel once (team_subscriptions.go).
+		settings += "  suppress_warning_notifications: true\n"
+	}
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.

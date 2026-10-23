@@ -2465,6 +2465,26 @@ a task without asking anyone.
   `/hi` as well: a team app whose manifest still had `/hi` would take it
   from the hi server's app when reinstalled.
 
+### v1.8.0 — The lead on a ChatGPT plan
+
+Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 1.
+
+- [x] A member's `provider` (openrouter or chatgpt) and `fallback`; the
+  wizard asks it for Hermes, signs the team in to ChatGPT with a device
+  code, offers the plan's models, and checks the fallback on OpenRouter.
+  `hi team signin <name> chatgpt [--machine]`, `hi team member`.
+- [x] Only the team's service refreshes its ChatGPT sign-in, three days
+  before the token runs out; the proxy puts the token and the account's
+  headers on the lead's calls under `/backend-api/codex/`.
+- [x] The lead on a named provider in the Responses API, with Hermes' own
+  fallback to the same model on OpenRouter through the proxy; Hermes'
+  notice on each switch is off, and the channel hears once per role, and
+  again after a new sign-in.
+- [x] Checked end to end on aiw9 with hi's proxy and Hermes: the lead
+  answered on ChatGPT, and with the token gone fell back to OpenRouter.
+  The fallback entry carries its own address and key: without them Hermes
+  looked for an OpenRouter key of its own.
+
 ## Planned
 
 ### Next — a team's roles on the subscriptions it pays for
@@ -2472,13 +2492,9 @@ a task without asking anyone.
 Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md).
 The lead runs on OpenRouter only, now most of a team's model spend, while
 the ChatGPT plan that pays for the reviewer sits under its limits. Spiked
-on aiw11 on 2026-10-23: Hermes made tool calls on a ChatGPT plan through a
+on aiw9 on 2026-10-23: Hermes made tool calls on a ChatGPT plan through a
 proxy that held the token.
 
-- [ ] Release 1: the lead on ChatGPT. A member's `provider`; the team's own
-  ChatGPT sign-in in the wizard and `hi team signin`, refreshed only by
-  the team's server; the proxy's ChatGPT route; failover to OpenRouter on
-  the same model, told once in the channel; `hi team member`.
 - [ ] Release 2: the reviewer (Codex) through the proxy on the team's
   ChatGPT sign-in, with no `auth.json` in its box, and its failover.
 - [ ] Release 3: the team's own Claude setup token; the coder's failover

@@ -176,7 +176,7 @@ func TestTeamAdoptInTheWizard(t *testing.T) {
 	t.Cleanup(func() { teamCheckOpenRouterKey = saved })
 	upstream := makeTestUpstream(t)
 	fakeAdoptGitHub(t, upstream, teamRepoInfo{Description: "A kanban board for small teams", DefaultBranch: "main"}, false)
-	wizard := []string{"xoxb-bot", "xapp-app", "C07PAYMENTS", "U07OWNER1", "", "", "", "", ""}
+	wizard := []string{"xoxb-bot", "xapp-app", "C07PAYMENTS", "U07OWNER1", "", "", "", "", "", ""} // the lead's provider as offered
 
 	// hi team adopt asks before the wizard, and offers the description as
 	// the purpose.

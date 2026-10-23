@@ -37,7 +37,7 @@ fails should keep working on OpenRouter, with the team told once.
 
 ## The spike (2026-10-23)
 
-Run on aiw11 with Codex's current access token, read and never refreshed:
+Run on aiw9 with Codex's current access token, read and never refreshed:
 
 - A proxy that swaps a placeholder for the access token and adds
   `ChatGPT-Account-ID` (from the token) is accepted by
@@ -312,3 +312,23 @@ helper, and the app, and shows a role on its fallback.
 - The lead and the reviewer share one plan's limits. If the lead's volume
   pushes the reviewer onto OpenRouter, a team may want a second ChatGPT
   sign-in for the lead.
+
+## As built
+
+Release 1, v1.8.0, as above, except:
+
+- The wizard's ChatGPT question offers the team's own sign-in, and Enter
+  takes it; `machine` uses Codex's. The spec offered this machine's on
+  Enter while recommending the team's.
+- The lead uses Hermes' own fallback (`fallback_providers`) rather than
+  the proxy resending its calls: Hermes switches at once on a 401 or 403,
+  after its retries on a limit, waits out a plan limit's reset time, and
+  converts the conversation for OpenRouter's API itself. The proxy logs
+  each refusal of a model call (`chatgpt-refused <status>:signin|limit|other`)
+  and the server tells the channel from that log. Codex and Claude Code
+  have no such fallback; releases 2 and 3 resend in the proxy.
+- Hermes' notice on each switch is turned off with
+  `display.suppress_warning_notifications`, which mutes Hermes' other
+  warnings in Slack too.
+- Until release 4, the channel's message names `hi team signin` for an
+  admin on the machine.

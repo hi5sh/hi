@@ -19,6 +19,31 @@ hi team key payments openrouter            # asked for; it shows as *
 hi team key payments openrouter --unset    # this machine's key again
 ```
 
+**The lead on a ChatGPT plan.** The lead can run on a ChatGPT plan the
+company already pays for, instead of OpenRouter by the token. `hi team new`
+asks who pays for it; for a team that exists:
+
+```sh
+hi team signin payments chatgpt                  # a code to type on any device
+hi team member payments lead --provider chatgpt  # the plan's best model
+hi team member payments lead --provider chatgpt --model gpt-6-luna
+```
+
+The sign-in is the team's own, apart from Codex's on the machine, so
+neither ever spends the other's single-use refresh token. Only the team's
+service refreshes it, and no box holds it: the team's proxy puts the
+token on the lead's calls to ChatGPT. `hi team signin payments chatgpt
+--machine` uses the machine's sign-in (Codex's) instead, which Codex
+keeps fresh.
+
+When ChatGPT refuses the lead (the sign-in stopped working, or the plan
+reached its usage limit), the lead carries on with the same model on
+OpenRouter, billed per token, and the channel hears it once, with what to
+do. It goes back to ChatGPT on its own when it can. `hi team status` shows
+a role on its fallback. A model the plan has and OpenRouter hasn't gets a
+fallback of your choice: `--fallback <model on OpenRouter>`. The lead's
+memory and the helper chat keep using OpenRouter, with that fallback model.
+
 **Slack.** When Slack gives the app a new token (after a reinstall, or a
 token you revoked), give it to the team; it asks for the bot token and
 the app token, Enter keeps one, and a running team restarts with them:

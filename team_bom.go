@@ -459,6 +459,13 @@ func teamMakeBom(team, version, commit string, tools teamBomMachine) (cdxBom, er
 	bom.Services = append(bom.Services, cdxService{Ref: "service:openrouter", Name: "OpenRouter", Endpoints: []string{"https://openrouter.ai/api/v1"}, Properties: models},
 		cdxService{Ref: "service:slack", Name: "Slack", Endpoints: []string{"https://slack.com/api"}},
 		cdxService{Ref: "service:lead-allowlist", Name: "The lead's allowlist", Endpoints: teamLeadHosts})
+	if roles := teamChatGPTRoles(config); len(roles) > 0 {
+		var on []cdxProperty
+		for _, role := range roles {
+			on = append(on, cdxProperty{"hi:model:" + role, config.Members[role].Model})
+		}
+		bom.Services = append(bom.Services, cdxService{Ref: "service:chatgpt", Name: "ChatGPT", Endpoints: []string{chatGPTBackend + strings.TrimSuffix(chatGPTPath, "/")}, Properties: on})
+	}
 	sort.SliceStable(bom.Components, func(i, j int) bool { return bom.Components[i].property(bomPart) < bom.Components[j].property(bomPart) })
 	return bom, nil
 }

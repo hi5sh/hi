@@ -174,8 +174,8 @@ func TestTeamWizard(t *testing.T) {
 		"xoxb-bot", "xapp-app",
 		"\x1b[201~C07PAYMENTS", // the end of a pasted token's marker, left over
 		"U07OWNER1, U07OWNER2",
-		"",                      // everyone in the channel may ask
-		"", "", "codex:gpt-5.5", // lead and coder as offered, a reviewer model
+		"",                          // everyone in the channel may ask
+		"", "", "", "codex:gpt-5.5", // the lead and its provider, and the coder, as offered, a reviewer model
 		"sk-or-wizard", // the team's own OpenRouter key
 		"",             // a new repository
 		"",             // not on GitHub

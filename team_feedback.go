@@ -315,7 +315,7 @@ func teamHelpModel(ctx context.Context, team string, messages []teamHelpTurn, de
 	if err != nil || key == "" {
 		return "", errors.New("the team has no OpenRouter key")
 	}
-	model := firstNonEmpty(config.Members["lead"].Model, readHermesModelConfig(filepath.Join(hermesHome(), "config.yaml")).Default)
+	model := teamLeadOpenRouterModel(config)
 	body, _ := json.Marshal(map[string]any{"model": model, "messages": messages, "stream": true, "max_tokens": 1000})
 	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, teamOpenRouterUpstream+"/api/v1/chat/completions", strings.NewReader(string(body)))
 	request.Header.Set("Content-Type", "application/json")
