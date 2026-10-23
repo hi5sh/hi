@@ -88,7 +88,7 @@ cost nothing.
 | Command | Answers |
 |---|---|
 | `/status` | Production's version, the preview's, and what is in dev but not released |
-| `/preview` | The preview's link for this person, as `/hi` gives it |
+| `/preview` | The preview's link for this person, as `/hi-<team>` gives it |
 | `/tasks` | The team's tasks that are running or waiting, with who asked |
 | `/jobs` | The app's long work, as `hi team jobs` |
 | `/incidents` | Open incidents, as `hi team incidents` |
@@ -188,7 +188,8 @@ skill as work, like any other change to the project.
 The same skills in Slack are later work. Slack registers each slash
 command in the app's manifest, so `/accessibility` there would mean a
 manifest change and a reinstall for every new team skill. The likely way
-is one command, `/hi <skill> ...` (the team's `/hi` already exists), with
+is the team's own command, `/hi-<team> <skill> ...` (it already exists; plain
+`/hi` is the hi server's), with
 Slack's own autocomplete for its first word. Not in this spec's slices.
 
 ## Not in scope

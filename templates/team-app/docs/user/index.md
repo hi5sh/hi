@@ -29,4 +29,4 @@ words, such as a page to keep a list, a form, or a report. The team's lead
 asks what it needs to know, then shows you a version to try.
 
 If the button says Help rather than chat, ask the team in its Slack channel
-for your own link: type the team's /hi command there.
+for your own link: type /hi- and the team's name there, such as /hi-cartman.

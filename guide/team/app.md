@@ -22,10 +22,10 @@ own key, so there is no password to copy:
    new version doesn't start, the link keeps showing the old one.
 
 A new team's app is on the preview as soon as `hi team up` starts the
-team, so the links people get from `/hi` work before anything is built.
+team, so the links people get from `/hi-<team>` work before anything is built.
 It is a welcome page that asks "What should your app do?" with a message
 box in the middle: what you type there opens the chat with the lead beside
-the page and goes to it. Before you sign in with `/hi`, it points at the
+the page and goes to it. Before you sign in with `/hi-<team>`, it points at the
 chat button instead. The first feature replaces it. After the first
 merge, the lead makes the previews.
 

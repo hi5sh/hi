@@ -78,7 +78,7 @@ saves on the machine (mode 600), as `hi team domain` saves NetBird's token.
 - **The helper's chat through the same sign-in.** The Google email finds
   the person's Slack account (`users.lookupByEmail`, which needs the
   `users:read.email` scope), so people on the domain who may ask the team
-  for work get the chat with the lead without `/hi`.
+  for work get the chat with the lead without `/hi-<team>`.
 - **One return address for every team** (such as
   `login.app.hi5.sh/callback`, which hands a short-lived signed code to the
   team's address), so a new team needs no change in Google.

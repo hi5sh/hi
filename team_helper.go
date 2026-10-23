@@ -1074,7 +1074,7 @@ func teamCheckWebApproval(config teamConfig, ref string, owners bool, now time.T
 	}
 	message := conversation.Messages[n-1]
 	if !conversation.Verified {
-		return teamApproval{}, fmt.Errorf("%s is from a chat where %s only said who they are, from before people signed in with /hi; ask them to say yes in Slack, or again in the app after /hi", ref, message.Name)
+		return teamApproval{}, fmt.Errorf("%s is from a chat where %s only said who they are, from before people signed in with %s; ask them to say yes in Slack, or again in the app after %s", ref, message.Name, teamSlashCommand(config.Name), teamSlashCommand(config.Name))
 	}
 	if message.From != "person" {
 		return teamApproval{}, fmt.Errorf("message %s is yours; the approval must come from one of the people", ref)
