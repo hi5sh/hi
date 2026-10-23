@@ -2459,6 +2459,12 @@ a task without asking anyone.
 - [x] A production incident about a job, the app, or its workers that has
   stood 4 hours with nobody asked tells the owners in its thread, once.
 
+### v1.7.2 — Plain /hi is the hi server's
+
+- [x] The lead's plugin answers only the team's own `/hi-<team>`, not plain
+  `/hi` as well: a team app whose manifest still had `/hi` would take it
+  from the hi server's app when reinstalled.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

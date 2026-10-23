@@ -92,8 +92,8 @@ The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
 Since v0.61.1 the command is the team's own, `/hi-<team>` (`/hi-timmai`), written `/hi`
 below. Slack gives a command that two apps in a workspace share to the
 one installed last, so a shared `/hi` reached whichever team was
-reinstalled last (and hi server's app has `/hi` too). The plugin answers
-plain `/hi` as well, for an app whose manifest still has it. Hermes drops
+reinstalled last (and hi server's app has `/hi` too). Since v1.7.2 the
+plugin answers only `/hi-<team>`: plain `/hi` is the hi server's. Hermes drops
 a slash command typed in a DM before any plugin runs, when DMs are off,
 and the bot's DM is where people type it; so the plugin answers its
 commands in the Slack adapter's listener itself, wherever they are typed

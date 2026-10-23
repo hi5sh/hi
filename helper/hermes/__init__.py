@@ -17,21 +17,23 @@ import time
 DESCRIPTION = "A private link to the app's chat with the lead"
 
 # Each team's app has a command of its own, /hi-<team>: Slack gives a
-# command two apps in a workspace share to the one installed last. /hi
-# stays as well, for an app whose manifest still has it.
+# command two apps in a workspace share to the one installed last. Plain
+# /hi is the hi server's: answering it too would let a team app whose
+# manifest still has it take /hi from the server when reinstalled.
 TEAM = re.sub(r"[^a-z0-9_-]+", "-", os.environ.get("HI_TEAM", "").lower()).strip("-")
-COMMANDS = (["hi-" + TEAM] if TEAM else []) + ["hi"]
+COMMANDS = ["hi-" + TEAM] if TEAM else []
+TYPE = "Type /%s in the team's Slack channel." % (COMMANDS[0] if COMMANDS else "hi-<team>")
 
 
 def _hi(raw_args):
     try:
         from gateway.session_context import get_session_env
     except Exception:  # not the gateway: nobody to send a link to
-        return "Type /%s in the team's Slack channel." % COMMANDS[0]
+        return TYPE
     platform = get_session_env("HERMES_SESSION_PLATFORM")
     user = get_session_env("HERMES_SESSION_USER_ID")
     if platform != "slack" or not user:
-        return "Type /%s in the team's Slack channel." % COMMANDS[0]
+        return TYPE
     return _link(user)
 
 
