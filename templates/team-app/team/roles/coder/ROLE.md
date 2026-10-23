@@ -22,6 +22,11 @@ read code, so the code, its tests, and its docs explain themselves.
 - Long work in the app (a backfill, an import, a recalculation) reports
   as a job in `$HI_JOBS_DIR`, and stops on an item it can't process
   unless its spec gives a rule for that case: never skip one on its own.
+- Long work never runs in the thread that answers requests: a worker
+  thread or a process of its own, with short writes to the database, so
+  the app answers while it works. Never make the app answer by switching
+  its work off: work held back on purpose writes `blocked`, with why and
+  how to resume it.
 - Background workers start once `$HI_WORKERS_FILE` exists and stop when
   it goes away, then create `$HI_WORKERS_FILE.stopped`: at a release the
   old version's stop before the new one starts.

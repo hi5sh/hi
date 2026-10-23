@@ -18,5 +18,8 @@ team who reads every change.
 - Workers: background work starts only once $HI_WORKERS_FILE exists and
   stops when it goes away; one that starts regardless runs twice at
   every release.
+- Long work: it runs off the thread that answers requests, with short
+  writes to the database. A fix that makes the app answer by switching
+  work off is a workaround: say so, and what would fix the cause.
 - Be specific: each change needed says where and what, so the coder can do
   it without asking. Don't ask for changes of taste.

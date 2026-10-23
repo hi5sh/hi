@@ -2441,6 +2441,24 @@ Approved spec: [hi_watch.md](specs/approved/hi_watch.md), release 4.
 - [x] `/hi team revoke|rekey|cutoff|reconnect` in Slack; all four in the
   audit log, the watch channel, and pushed to the owners.
 
+### v1.7.1 — Production must answer and its work must move
+
+Found on team cartman: production stopped answering at boot because its
+backfills held the app's only thread, and the fix switched them off by
+default. After a release the history analysis then stood for 12 hours,
+59,477 releases left: hi's incident opened, and the lead chose to wait for
+a task without asking anyone.
+
+- [x] Every brief, and the coder's and reviewer's roles: long work runs off
+  the thread that answers requests, with short writes to the database;
+  never make the app answer by switching its work off; work held back on
+  purpose writes `blocked` with how to resume it.
+- [x] The lead: waiting with production's work stopped is the owners'
+  choice, asked with what it costs; a fix a member calls a workaround
+  gets a task for the cause before the incident closes.
+- [x] A production incident about a job, the app, or its workers that has
+  stood 4 hours with nobody asked tells the owners in its thread, once.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

@@ -1153,6 +1153,7 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	text.WriteString("- it doesn't break what worked before, leak secrets, or leave debugging behind;\n")
 	text.WriteString("- long work it adds or changes (a loop over many records, a queue, a backfill, an import, a scheduled recalculation) reports as a job, as the coder's brief says, and writes blocked or failed with why wherever it stops on its own (too many failures, a limit, an item it can't process): one that would stop without saying so is a change needed;\n")
 	text.WriteString("- background workers it adds or changes start only once $HI_WORKERS_FILE exists and stop when it goes away, as the coder's brief says: one that starts regardless would run twice at every release, a change needed;\n")
+	text.WriteString("- long work it adds or changes runs off the thread that answers requests, with short writes to the database; a change that makes the app answer by switching work off is a workaround: say so, and what would fix the cause;\n")
 	text.WriteString("- the README still says how to run and test the project;\n")
 	text.WriteString("- its diagrams in the docs are boxes or mermaid blocks, never drawings in ASCII or box-drawing characters, which /docs shows as text: one is a change needed.\n\n")
 	text.WriteString("Don't fix anything yourself and don't commit: say what must change.\n\n")

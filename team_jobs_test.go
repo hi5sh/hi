@@ -597,3 +597,47 @@ func TestTeamJobRateAfterACountStartsOver(t *testing.T) {
 		t.Fatal(rate, ok)
 	}
 }
+
+func TestTeamIncidentStandingTellsTheOwners(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	teamTestWakes(b.teamBroker)
+	stands, err := b.openIncident(teamIncident{Kind: "job", Slot: teamSlotProduction, Job: "analysis", Title: "analysis went silent", Opened: time.Now().UTC()}, "analysis went silent.", "", teamIncidentPrompt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, _ := b.openIncident(teamIncident{Kind: "job", Slot: teamSlotPreview, Job: "analysis", Title: "the preview's analysis went silent", Opened: time.Now().UTC()}, "x", "", teamIncidentPrompt)
+	asked, _ := b.openIncident(teamIncident{Kind: "app", Slot: teamSlotProduction, Title: "the app doesn't answer", Opened: time.Now().UTC()}, "x", "", teamIncidentPrompt)
+	if _, err := b.incidentAction("ask", teamIncidentRequest{ID: asked.ID, Text: "Restart it again?"}); err != nil {
+		t.Fatal(err)
+	}
+	if stands.Thread == "" || preview.Thread == "" {
+		t.Fatal("no threads")
+	}
+	count := func() int {
+		n := 0
+		for _, call := range channel.calls {
+			if strings.Contains(call, "has stood for") {
+				n++
+			}
+		}
+		return n
+	}
+	b.remindIncidents(stands.Opened.Add(3 * time.Hour))
+	if count() != 0 {
+		t.Fatal(channel.calls)
+	}
+	b.remindIncidents(stands.Opened.Add(5 * time.Hour))
+	b.remindIncidents(stands.Opened.Add(12 * time.Hour))
+	if count() != 1 || !strings.Contains(strings.Join(channel.calls, "\n"), "<@U07OWNER1>, "+stands.ID+" (production's job analysis) has stood for 5h, and nobody was asked") {
+		t.Fatal(channel.calls)
+	}
+	if after, _ := loadTeamIncident("payments", stands.ID); after.Events[len(after.Events)-1].Action != "reminder" {
+		t.Fatalf("%+v", after.Events)
+	}
+	if !strings.Contains(teamIncidentPrompt(testTeamConfig(), stands), "Waiting is a choice too") {
+		t.Fatal("the lead isn't told")
+	}
+}

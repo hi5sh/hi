@@ -50,6 +50,15 @@ work reports as a job, and that a job which stops on its own (too many
 failures in a row, a limit) says so first. The reviewer sends back work
 that would stop silently.
 
+Long work runs off the thread that answers requests, in a worker thread
+or a process of its own, with short writes to the database: a backfill
+that holds the app's only thread makes production stop answering. The
+briefs say so, and the reviewer sends back the workaround of switching
+the work off so the app answers: production must answer *and* its work
+must move. Work the app holds back on purpose (off by a setting, or
+paused until someone says) writes `blocked`, with how to resume it, so
+the lead asks you rather than taking it for dead.
+
 A job's workers run in one box at a time: at a release, the old
 version's stop before the new version's start (see
 [The app's workers at a release](/guide/team/releases/#the-apps-workers-at-a-release)).
@@ -175,6 +184,13 @@ Your answer becomes the job's rule, kept with your message, so next time
 the lead handles the case without asking. If nobody answers in a day, hi
 reminds the owners once in the thread; nothing happens to the job
 meanwhile.
+
+Waiting is a choice too. When the lead would leave production's work
+stopped beyond the incident's own cause, such as until a fix is merged
+and released, it says what waiting costs and asks, rather than waiting on
+its own. A production incident about a job, the app, or its workers that
+has stood for 4 hours with nobody asked gets a line to the owners in its
+thread, once, so a stopped backlog never sits overnight unseen.
 
 ## What the lead did, and why
 

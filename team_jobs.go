@@ -52,6 +52,8 @@ const teamJobsRule = "Long work in the app: work that can outlive a request (a l
 	"stall_after is how long its count may stay the same before hi alerts: set it to what is normal for the job. Without $HI_JOBS_DIR, as in your box and the tests, it writes nothing. " +
 	"When the job meets an item it can't process, it stops with state blocked, the item, and why, unless the job's spec gives a rule for that case: never skip, drop, or make up an item on its own, since later values may depend on it. " +
 	"A job that stops on its own for any other reason (too many failures in a row, a limit it reached) writes failed or blocked with why before it stops: a job that only stops looks to hi like one that is idle. " +
+	"Long work never runs in the thread that answers requests: give it a worker thread or a process of its own, and keep each write to the database short (commit in batches), so a request never waits on it. " +
+	"Production must answer and its work must move: never meet one by switching the other off. Work the app holds back on purpose (off by a setting, or paused until a person says) writes blocked, with why and how to resume it, so hi asks the people instead of taking it for dead. " +
 	"Long work your change touches that doesn't report yet is made to report too. Put the job's name and its rules in its spec.\n" +
 	teamWorkersRule + "\n" +
 	"If you notice something broken outside your work, such as production, add a line to your report's follow_ups starting with \"Alert:\"; hi tells the lead at once."

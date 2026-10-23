@@ -30,6 +30,11 @@ const (
 	// teamIncidentRemindAfter is how long a question to the people waits
 	// before hi reminds the owners, once.
 	teamIncidentRemindAfter = 24 * time.Hour
+	// teamIncidentStandsAfter is how long a production incident hi closes
+	// on its own (a job, the app, the workers) may stay open, with nobody
+	// asked, before hi tells the owners, once: the lead may have chosen to
+	// wait, and waiting with production's work stopped is theirs to choose.
+	teamIncidentStandsAfter = 4 * time.Hour
 	// teamAlertsPerDay and teamAlertGap limit hi team alert.
 	teamAlertsPerDay = 10
 	teamAlertGap     = time.Minute
@@ -217,6 +222,8 @@ func teamIncidentWhere(incident teamIncident) string {
 		return teamSlotName(incident.Slot) + "'s app"
 	case "task":
 		return "task " + incident.Task
+	case "workers":
+		return teamSlotName(incident.Slot) + "'s workers"
 	}
 	return "alert"
 }
@@ -508,7 +515,8 @@ func (b *teamBroker) alert(text, who string) (teamIncident, error) {
 }
 
 // remindIncidents reminds the owners, once, of a question the lead asked
-// that nobody answered in a day.
+// that nobody answered in a day, and of a production incident that has
+// stood for hours with nobody asked.
 func (b *teamBroker) remindIncidents(now time.Time) error {
 	if b.channel == nil {
 		return nil
@@ -517,7 +525,20 @@ func (b *teamBroker) remindIncidents(now time.Time) error {
 	if err != nil {
 		return err
 	}
+	var owners []string
+	for _, owner := range config.Owners {
+		owners = append(owners, "<@"+owner+">")
+	}
 	for _, incident := range loadTeamIncidents(b.team) {
+		if teamIncidentStands(incident, now) {
+			b.updateIncident(incident.ID, func(i *teamIncident) {
+				i.Reminded = now.UTC()
+				i.Events = append(i.Events, teamIncidentEvent{At: now.UTC(), Who: "hi", Action: "reminder", Result: "told the owners it still stands"})
+			})
+			b.channel.postIn(config.Channel, incident.Thread, fmt.Sprintf(":hourglass: %s, %s (%s) has stood for %s, and nobody was asked. The lead's account is above: if what it waits for isn't what you want, say so here.",
+				strings.Join(owners, " "), incident.ID, teamIncidentWhere(incident), teamJobDuration(now.Sub(incident.Opened).Truncate(time.Hour))))
+			continue
+		}
 		if incident.Status != "waiting" || !incident.Reminded.IsZero() || incident.Thread == "" || now.Sub(incident.Asked) < teamIncidentRemindAfter {
 			continue
 		}
@@ -537,14 +558,23 @@ func (b *teamBroker) remindIncidents(now time.Time) error {
 		if answered {
 			continue
 		}
-		var owners []string
-		for _, owner := range config.Owners {
-			owners = append(owners, "<@"+owner+">")
-		}
 		b.channel.postIn(config.Channel, incident.Thread, fmt.Sprintf(":hourglass: %s, the lead's question above has waited a day. Nothing happens to %s until one of you answers.",
 			strings.Join(owners, " "), teamIncidentWhere(incident)))
 	}
 	return nil
+}
+
+// teamIncidentStands is whether an incident is one of production's that hi
+// closes on its own, open for teamIncidentStandsAfter with nobody asked
+// and the owners not yet told.
+func teamIncidentStands(incident teamIncident, now time.Time) bool {
+	switch incident.Kind {
+	case "job", "app", "workers":
+	default:
+		return false
+	}
+	return incident.Status == "open" && incident.Slot == teamSlotProduction && incident.Thread != "" &&
+		incident.Reminded.IsZero() && now.Sub(incident.Opened) >= teamIncidentStandsAfter
 }
 
 // ---------------------------------------------------------------------------
@@ -656,6 +686,8 @@ On your own, when it can be undone, changes no result nobody has ruled on, and s
 - Apply a rule the people gave (listed below, and in hi team incidents --rules). When the job's code doesn't follow it yet, start the fix as a small task, then ask an owner for the release in this thread.
 
 Ask a person when no rule covers a choice that changes results, when a step can't be undone (deleting or rewriting data, a rollback), when it would cost more than the budget leaves, when your own attempts ran out, or when you aren't sure what happened. Never skip, drop, or invent an item a job couldn't process unless a rule says so: in some jobs every later value depends on the one before, and a silent gap makes them all wrong. Say what you found, what depends on it, and the choices, each with what it would do to the results, and which you'd take. Then run hi team incidents ask <id> "<your question in a line>", so hi reminds the owners if nobody answers in a day. When they decide, keep their decision as the job's rule: hi team incidents rule <job> "<the rule, in their words>" --approval <their message id> --incident <id>, and in the job's spec in /team/specs. Say there too whether later values in the job depend on earlier ones.
+
+Waiting is a choice too. When what you'd do leaves production's work stopped beyond the incident's own cause (until a task is merged and released, or with the work switched off), don't wait on your own: say how much is left and what waiting costs at the work's usual rate, give the choices (resuming it through the app's own controls now is one, and isn't a restart), and ask. When a member or a review says a fix only works around the cause, start the fix of the cause as a task before you close the incident, and say its number in the thread.
 
 Log everything you do: pass --incident <id> --because "<why>" to hi team task and hi team jobs restart, and hi posts each in this thread and keeps it in the incident's record. When it is resolved and hi hasn't closed it, run hi team incidents close <id> --because "<what resolved it>".`
 
