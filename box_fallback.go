@@ -40,6 +40,9 @@ const (
 )
 
 type boxFallback struct {
+	// kind is the subscription: claude (Anthropic's Messages API) or
+	// chatgpt (the Responses API).
+	kind                                string
 	keys, model, role, events, upstream string
 	log                                 *boxNetworkLog
 
@@ -131,12 +134,34 @@ func claudeRefusal(status int, header http.Header) string {
 	return ""
 }
 
-// boxHeldResponse lets a response through as it comes unless it is a
-// refusal that sends the role to its fallback; that one is held back.
+// chatGPTRefusal is claudeRefusal for ChatGPT, which says a plan's limit
+// in the body of a 429.
+func chatGPTRefusal(status int, header http.Header, body []byte) string {
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden:
+		return "signin"
+	case status == http.StatusTooManyRequests && (bytes.Contains(body, []byte("usage_limit")) || bytes.Contains(body, []byte("usage_not_included"))):
+		return "limit"
+	}
+	return ""
+}
+
+// refusal says what a held response means for the role, or "".
+func (f *boxFallback) refusal(status int, header http.Header, body []byte) string {
+	if f.kind == teamProviderChatGPT {
+		return chatGPTRefusal(status, header, body)
+	}
+	return claudeRefusal(status, header)
+}
+
+// boxHeldResponse lets a response through as it comes unless it may be a
+// refusal that sends the role to its fallback (a 401, 403, or 429); that
+// one is held back until it can be read.
 type boxHeldResponse struct {
 	w      http.ResponseWriter
 	header http.Header
 	status int
+	hold   bool
 	reason string
 	held   bytes.Buffer
 }
@@ -148,7 +173,7 @@ func (h *boxHeldResponse) WriteHeader(status int) {
 		return
 	}
 	h.status = status
-	if h.reason = claudeRefusal(status, h.header); h.reason != "" {
+	if h.hold = status == http.StatusUnauthorized || status == http.StatusForbidden || status == http.StatusTooManyRequests; h.hold {
 		return
 	}
 	for key, values := range h.header {
@@ -161,14 +186,14 @@ func (h *boxHeldResponse) Write(data []byte) (int, error) {
 	if h.status == 0 {
 		h.WriteHeader(http.StatusOK)
 	}
-	if h.reason != "" {
+	if h.hold {
 		return h.held.Write(data)
 	}
 	return h.w.Write(data)
 }
 
 func (h *boxHeldResponse) Flush() {
-	if flusher, ok := h.w.(http.Flusher); ok && h.reason == "" && h.status != 0 {
+	if flusher, ok := h.w.(http.Flusher); ok && !h.hold && h.status != 0 {
 		flusher.Flush()
 	}
 }
@@ -182,9 +207,9 @@ func (h *boxHeldResponse) release() {
 	h.w.Write(h.held.Bytes())
 }
 
-// newBoxClaudeFailover tries primary, the subscription, and on a refusal
-// sends the same call to OpenRouter.
-func newBoxClaudeFailover(primary http.Handler, fallback *boxFallback) http.Handler {
+// newBoxFailover tries primary, the subscription, and on a refusal sends
+// the same call to OpenRouter.
+func newBoxFailover(primary http.Handler, fallback *boxFallback) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(io.LimitReader(r.Body, 256<<20))
 		r.Body.Close()
@@ -200,13 +225,53 @@ func newBoxClaudeFailover(primary http.Handler, fallback *boxFallback) http.Hand
 		r.ContentLength = int64(len(body))
 		held := &boxHeldResponse{w: w, header: http.Header{}}
 		primary.ServeHTTP(held, r)
-		if held.reason == "" {
+		if !held.hold {
 			return
 		}
-		fallback.log.record("claude-refused", fmt.Sprintf("%d:%s", held.status, held.reason))
+		if held.reason = fallback.refusal(held.status, held.header, held.held.Bytes()); held.reason == "" {
+			held.release()
+			return
+		}
+		if fallback.kind != teamProviderChatGPT {
+			// The ChatGPT injector logs its own refusals.
+			fallback.log.record("claude-refused", fmt.Sprintf("%d:%s", held.status, held.reason))
+		}
 		fallback.activate()
 		fallback.serve(w, r, body, held)
 	})
+}
+
+// chatGPTForOpenRouter makes a Responses call ChatGPT's Codex endpoint
+// took into one OpenRouter takes: the reasoning ChatGPT encrypted for its
+// own account means nothing elsewhere, so earlier reasoning items and the
+// request for them go; the model carries on from the conversation.
+func chatGPTForOpenRouter(fields map[string]json.RawMessage) {
+	var input []map[string]json.RawMessage
+	if json.Unmarshal(fields["input"], &input) == nil {
+		kept := input[:0]
+		for _, item := range input {
+			var kind string
+			json.Unmarshal(item["type"], &kind)
+			if kind != "reasoning" {
+				kept = append(kept, item)
+			}
+		}
+		fields["input"], _ = json.Marshal(kept)
+	}
+	var include []string
+	if json.Unmarshal(fields["include"], &include) == nil {
+		kept := include[:0]
+		for _, what := range include {
+			if what != "reasoning.encrypted_content" {
+				kept = append(kept, what)
+			}
+		}
+		if len(kept) == 0 {
+			delete(fields, "include")
+		} else {
+			fields["include"], _ = json.Marshal(kept)
+		}
+	}
 }
 
 // serve sends the call to OpenRouter. refused is the subscription's
@@ -218,10 +283,22 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 	if json.Unmarshal(body, &fields) == nil {
 		json.Unmarshal(fields["model"], &model)
 	}
+	path := "/api" + r.URL.Path
 	target := firstNonEmpty(f.model, claudeOpenRouterModel(model))
+	if f.kind == teamProviderChatGPT {
+		if !strings.HasSuffix(r.URL.Path, "/responses") {
+			// Only model calls go to OpenRouter; Codex can do without the rest.
+			http.NotFound(w, r)
+			return
+		}
+		path, target = "/api/v1/responses", firstNonEmpty(f.model, teamFallbackModel(teamMember{Provider: teamProviderChatGPT, Model: model}))
+		if fields != nil {
+			chatGPTForOpenRouter(fields)
+		}
+	}
 	key := f.key()
 	if refused != nil {
-		event := []string{"fallback", firstNonEmpty(f.role, "member"), "claude", refused.reason, firstNonEmpty(target, "-")}
+		event := []string{"fallback", firstNonEmpty(f.role, "member"), firstNonEmpty(f.kind, "claude"), refused.reason, firstNonEmpty(target, "-")}
 		if key == "" {
 			event = append(event, "nokey")
 		}
@@ -240,11 +317,13 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 		fields["model"], _ = json.Marshal(target)
 		body, _ = json.Marshal(fields)
 	}
-	request, _ := http.NewRequestWithContext(r.Context(), r.Method, f.upstream+"/api"+r.URL.Path, bytes.NewReader(body))
+	request, _ := http.NewRequestWithContext(r.Context(), r.Method, f.upstream+path, bytes.NewReader(body))
 	request.URL.RawQuery = r.URL.RawQuery
 	for name, values := range r.Header {
 		switch strings.ToLower(name) {
-		case "authorization", "x-api-key", "host", "content-length", "accept-encoding", "connection":
+		case "authorization", "x-api-key", "host", "content-length", "accept-encoding", "connection",
+			// ChatGPT's own account and identity headers.
+			"chatgpt-account-id", "originator", "x-openai-internal-codex-residency":
 		case "anthropic-beta":
 			// The subscription's own beta flag means nothing to OpenRouter.
 			var kept []string

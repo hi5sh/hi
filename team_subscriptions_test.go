@@ -49,7 +49,7 @@ func TestTeamWizardPutsTheLeadOnChatGPT(t *testing.T) {
 	saved := teamCheckOpenRouterKey
 	teamCheckOpenRouterKey = func(string) error { return nil }
 	t.Cleanup(func() { teamCheckOpenRouterKey = saved })
-	signIns := fakeChatGPTChoices(t, map[string]bool{"openai/gpt-6.1-sol": true, "anthropic/claude-opus-5.5": true})
+	signIns := fakeChatGPTChoices(t, map[string]bool{"openai/gpt-6.1-sol": true, "anthropic/claude-opus-5.5": true, "openai/gpt-5.5": true})
 	answers := strings.Join([]string{
 		"Track supplier payments for the finance admins",
 		"xoxb-bot", "xapp-app", "C07PAYMENTS", "U07OWNER1", "",
@@ -120,12 +120,12 @@ func TestValidateTeamProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]teamMember{
-		"openrouter, chatgpt, or claude, not": {Agent: "hermes", Provider: "bedrock"},
-		"a Claude plan is for Claude Code":    {Agent: "hermes", Provider: "claude"},
-		"only Hermes runs on ChatGPT":         {Agent: "codex", Provider: "chatgpt", Model: "gpt-6-sol"},
-		"name the ChatGPT model":              {Agent: "hermes", Provider: "chatgpt"},
-		"a fallback is for a member":          {Agent: "hermes", Fallback: "openai/gpt-6"},
-		"isn't a model name":                  {Agent: "hermes", Provider: "chatgpt", Model: "gpt-6", Fallback: "no spaces please"},
+		"openrouter, chatgpt, or claude, not":   {Agent: "hermes", Provider: "bedrock"},
+		"a Claude plan is for Claude Code":      {Agent: "hermes", Provider: "claude"},
+		"a ChatGPT plan is for Hermes or Codex": {Agent: "claude", Provider: "chatgpt", Model: "opus"},
+		"name the ChatGPT model":                {Agent: "hermes", Provider: "chatgpt"},
+		"a fallback is for a member":            {Agent: "hermes", Fallback: "openai/gpt-6"},
+		"isn't a model name":                    {Agent: "hermes", Provider: "chatgpt", Model: "gpt-6", Fallback: "no spaces please"},
 	}
 	for want, member := range cases {
 		config := testTeamConfig()
@@ -185,7 +185,7 @@ func TestBoxChatGPTInjector(t *testing.T) {
 	var logged bytes.Buffer
 	log := &boxNetworkLog{file: &logged}
 	openRouter := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "openrouter "+r.URL.Path) })
-	proxy := httptest.NewServer(boxRouteChatGPT(newBoxChatGPTInjector(tokenFile, upstream.URL, log), openRouter))
+	proxy := httptest.NewServer(boxRouteChatGPT(newBoxChatGPTInjector(tokenFile, upstream.URL, "hermes-agent", log), openRouter))
 	defer proxy.Close()
 	call := func(path string) string {
 		request, _ := http.NewRequest("POST", proxy.URL+path, strings.NewReader(`{"model":"gpt-6.1-sol"}`))
@@ -502,7 +502,7 @@ func TestTeamMemberProxyArgs(t *testing.T) {
 	config := testTeamConfig()
 	config.Members["coder"] = teamMember{Agent: "claude", Model: "opus", Fallback: "anthropic/claude-opus-5"}
 	saveTeam(config)
-	args, secret, err := teamMemberProxyArgs(boxMeta{Name: "payments-t-7", Team: "payments:coder"}, nil, "/secrets/claude")
+	args, secret, err := teamMemberProxyArgs(boxMeta{Name: "payments-t-7", Agent: "claude", Team: "payments:coder"}, nil, "/secrets/claude")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -518,13 +518,13 @@ func TestTeamMemberProxyArgs(t *testing.T) {
 		t.Fatal(secret)
 	}
 	// Signed in nowhere: refused before a box is made.
-	if _, _, err := teamMemberProxyArgs(boxMeta{Name: "b", Team: "payments:coder"}, nil, ""); err == nil || !strings.Contains(err.Error(), "hi team signin payments claude") {
+	if _, _, err := teamMemberProxyArgs(boxMeta{Name: "b", Agent: "claude", Team: "payments:coder"}, nil, ""); err == nil || !strings.Contains(err.Error(), "hi team signin payments claude") {
 		t.Fatal(err)
 	}
 	// With the team's own token, this machine's isn't needed.
 	saveTeamSecrets("payments", teamSecrets{ClaudeToken: "sk-ant-oat-team"})
 	writeTeamKeys("payments", teamSecrets{ClaudeToken: "sk-ant-oat-team"})
-	if _, secret, err := teamMemberProxyArgs(boxMeta{Name: "b", Team: "payments:coder"}, nil, ""); err != nil || secret != "/secrets/team/claude-token" ||
+	if _, secret, err := teamMemberProxyArgs(boxMeta{Name: "b", Agent: "claude", Team: "payments:coder"}, nil, ""); err != nil || secret != "/secrets/team/claude-token" ||
 		!teamMemberSignedIn("payments:coder", "claude") || teamMemberSignedIn("payments:reviewer", "codex") {
 		t.Fatal(secret, err)
 	}
@@ -695,5 +695,52 @@ func TestAgentEffortReachesEachAgent(t *testing.T) {
 	}
 	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  reasoning_effort: medium\n") {
 		t.Fatal(settings)
+	}
+}
+
+func TestTeamCodexMemberThroughTheProxy(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	config := testTeamConfig()
+	// This machine's Codex is on an API key and the team has no ChatGPT
+	// sign-in: the reviewer keeps auth.json in its box, as before.
+	if teamCodexViaProxy("payments") || teamUsesChatGPT(config) {
+		t.Fatal("on an API key")
+	}
+	now := time.Now().UTC()
+	grant := teamChatGPTGrant{AccessToken: testChatGPTToken(now.Add(240*time.Hour), "acct-1", "team"), RefreshToken: "rt", SignedIn: now}
+	saveTeamSecrets("payments", teamSecrets{ChatGPT: &grant})
+	if !teamCodexViaProxy("payments:reviewer") || strings.Join(teamChatGPTRoles(config), ",") != "reviewer" {
+		t.Fatal(teamChatGPTRoles(config))
+	}
+	args, secret, err := teamMemberProxyArgs(boxMeta{Name: "payments-t-9", Agent: "codex", Team: "payments:reviewer"}, nil, "")
+	if err != nil || secret != "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env" ||
+		!strings.Contains(strings.Join(args, " "), boxChatGPTEnv+"=/secrets/team/chatgpt.json") || !strings.Contains(strings.Join(args, " "), boxRoleEnv+"=reviewer") {
+		t.Fatal(args, secret, err)
+	}
+	if !fileExists(filepath.Join(teamKeysDir("payments"), teamChatGPTKeyFile)) {
+		t.Fatal("no token for the proxy")
+	}
+	// The box gets Codex's config at its proxy and a placeholder, and no
+	// sign-in.
+	bin := filepath.Join(t.TempDir(), "agents", "bin")
+	writeSkillTestFile(t, filepath.Join(bin, "codex"), "#!/bin/sh\n", 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	home := t.TempDir()
+	env := map[string]string{}
+	var run []string
+	if _, err := agentBoxSetup("codex", "review it", boxMeta{Name: "payments-t-9", Team: "payments:reviewer", ProxyIP: "10.234.9.2", Model: "gpt-6.1-sol"}, home, &run, env); err != nil {
+		t.Fatal(err)
+	}
+	configText := readTestFile(t, filepath.Join(home, ".codex", "config.toml"))
+	if !strings.Contains(configText, `base_url = "http://10.234.9.2:`+strconv.Itoa(boxInjectPort)+`/backend-api/codex"`) || !strings.Contains(configText, `wire_api = "responses"`) ||
+		env[codexBoxKeyEnv] != boxClaudePlacehold || fileExists(filepath.Join(home, ".codex", "auth.json")) {
+		t.Fatal(configText, env)
+	}
+	if !teamMemberSignedIn("payments:reviewer", "codex") {
+		t.Fatal("the team's sign-in is enough")
+	}
+	if label := teamMemberLabel(teamMember{Agent: "codex", Model: "gpt-6.1-sol"}); !strings.Contains(label, "on ChatGPT, falling back to openai/gpt-6.1-sol on OpenRouter") {
+		t.Fatal(label)
 	}
 }

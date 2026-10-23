@@ -61,6 +61,14 @@ and keeps to OpenRouter for 15 minutes before it tries Claude again. The
 channel hears it once, as for the lead. A short rate limit isn't a
 refusal: Claude Code waits and retries itself.
 
+**The reviewer on the team's ChatGPT plan.** A Codex member uses the
+team's ChatGPT sign-in (`hi team signin <name> chatgpt`), or this machine's
+Codex sign-in when the team has none, and its box holds neither: Codex
+there calls ChatGPT through its proxy with a placeholder for a key, and
+nothing in the box refreshes a token. When ChatGPT refuses it, the proxy
+sends the call to the same model on OpenRouter and the channel hears it
+once. A machine whose Codex is on an API key keeps it, as before.
+
 **How hard each member thinks.** Every member thinks at medium effort
 unless team.json says otherwise; hi passes it to Claude Code (`--effort`),
 Codex (`model_reasoning_effort`), and Hermes (`reasoning_effort`), since the

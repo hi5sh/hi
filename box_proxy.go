@@ -144,8 +144,15 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		var inject http.Handler = newBoxOpenRouterInjector(env, "https://openrouter.ai", log)
 		if token := os.Getenv(boxChatGPTEnv); token != "" {
 			// A team's roles on ChatGPT call its Codex endpoint here; the
-			// rest is OpenRouter.
-			inject = boxRouteChatGPT(newBoxChatGPTInjector(token, chatGPTBackend, log), inject)
+			// rest is OpenRouter. The lead's calls name Hermes; a member's
+			// name its own agent.
+			var chatgpt http.Handler = newBoxChatGPTInjector(token, chatGPTBackend, os.Getenv(boxOriginatorEnv), log)
+			if keys := os.Getenv(boxFallbackEnv); keys != "" {
+				// A member (Codex): OpenRouter takes over when ChatGPT refuses.
+				chatgpt = newBoxFailover(chatgpt, &boxFallback{kind: teamProviderChatGPT, keys: keys, model: os.Getenv(boxFallbackModelEnv),
+					role: os.Getenv(boxRoleEnv), events: os.Getenv(boxEventsEnv), upstream: "https://openrouter.ai", log: log})
+			}
+			inject = boxRouteChatGPT(chatgpt, inject)
 		}
 		go func() {
 			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), inject)
@@ -154,7 +161,7 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		var inject http.Handler = newBoxClaudeInjector(args[2], "https://api.anthropic.com", log)
 		if keys := os.Getenv(boxFallbackEnv); keys != "" {
 			// A team's member: OpenRouter takes over when Claude refuses.
-			inject = newBoxClaudeFailover(inject, &boxFallback{keys: keys, model: os.Getenv(boxFallbackModelEnv), role: os.Getenv(boxRoleEnv),
+			inject = newBoxFailover(inject, &boxFallback{kind: "claude", keys: keys, model: os.Getenv(boxFallbackModelEnv), role: os.Getenv(boxRoleEnv),
 				events: os.Getenv(boxEventsEnv), upstream: "https://openrouter.ai", log: log})
 		}
 		go func() {
@@ -394,6 +401,10 @@ func boxRouteChatGPT(chatgpt, other http.Handler) http.Handler {
 	})
 }
 
+// boxOriginatorEnv names the harness on ChatGPT calls that don't name
+// it themselves: Hermes, for a team's lead.
+const boxOriginatorEnv = "HI_BOX_ORIGINATOR"
+
 // newBoxChatGPTInjector passes calls on to ChatGPT's Codex endpoint with
 // the team's access token in place of the placeholder, and the account
 // headers ChatGPT wants with it. tokenFile is written by the team's
@@ -402,7 +413,7 @@ func boxRouteChatGPT(chatgpt, other http.Handler) http.Handler {
 // role falls back. A refusal that sends a role to its fallback is logged
 // as chatgpt-refused <status>:signin or :limit, which the server tells
 // the channel about (team_subscriptions.go).
-func newBoxChatGPTInjector(tokenFile, upstream string, log *boxNetworkLog) http.Handler {
+func newBoxChatGPTInjector(tokenFile, upstream, originator string, log *boxNetworkLog) http.Handler {
 	target, _ := url.Parse(upstream)
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.FlushInterval = -1
@@ -421,9 +432,12 @@ func newBoxChatGPTInjector(tokenFile, upstream string, log *boxNetworkLog) http.
 				r.Header.Set(name, value)
 			}
 		}
-		// The harness names itself to OpenAI, as Hermes does on its own.
-		r.Header.Set("originator", "hermes-agent")
-		r.Header.Set("User-Agent", "HermesAgent (hi "+version_()+")")
+		// The harness names itself to OpenAI: the lead as Hermes does on
+		// its own; Codex already does.
+		if originator != "" {
+			r.Header.Set("originator", originator)
+			r.Header.Set("User-Agent", "HermesAgent (hi "+version_()+")")
+		}
 		log.record("chatgpt", r.URL.Path)
 	}
 	proxy.ModifyResponse = func(response *http.Response) error {

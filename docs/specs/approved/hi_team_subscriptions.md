@@ -346,6 +346,15 @@ Release 3, v1.9.0, before release 2, as above, except:
   to Claude Code, which retries.
 - Members' proxies write fallbacks and their spend to the team's
   `run/events/<box>.log`, mounted into the proxy, which the server reads.
+Release 2, v1.10.0, as above, except:
+
+- Every Codex member goes through the proxy when the team has a ChatGPT
+  sign-in or this machine's Codex is signed in to ChatGPT, whatever its
+  `provider`; on an API key it keeps `auth.json` in the box.
+- On fallback the proxy drops earlier reasoning items and the request
+  for encrypted reasoning: ChatGPT encrypts them for its own account.
+- The proxy names Hermes only on the lead's calls; Codex names itself.
+
 - Each member's effort (`effort` in team.json, medium unless set) was
   added: hi passes it as Claude Code's `--effort`, Codex's
   `model_reasoning_effort`, and Hermes' `reasoning_effort`.

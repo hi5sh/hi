@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -84,9 +85,9 @@ func TestBoxClaudeFailover(t *testing.T) {
 	var logged bytes.Buffer
 	log := &boxNetworkLog{file: &logged}
 	now := time.Date(2026, 10, 23, 12, 0, 0, 0, time.UTC)
-	fallback := &boxFallback{keys: filepath.Join(dir, "missing.env") + "," + keys, role: "coder", events: events, upstream: openRouter.URL, log: log,
+	fallback := &boxFallback{kind: "claude", keys: filepath.Join(dir, "missing.env") + "," + keys, role: "coder", events: events, upstream: openRouter.URL, log: log,
 		now: func() time.Time { return now }}
-	proxy := httptest.NewServer(newBoxClaudeFailover(newBoxClaudeInjector(filepath.Join(dir, "none")+","+token, claude.URL, log), fallback))
+	proxy := httptest.NewServer(newBoxFailover(newBoxClaudeInjector(filepath.Join(dir, "none")+","+token, claude.URL, log), fallback))
 	defer proxy.Close()
 	call := func(model string) (int, string) {
 		request, _ := http.NewRequest("POST", proxy.URL+"/v1/messages?beta=true", strings.NewReader(`{"model":"`+model+`","max_tokens":10,"messages":[]}`))
@@ -146,8 +147,8 @@ func TestBoxClaudeFailoverWithoutAKey(t *testing.T) {
 	os.WriteFile(token, []byte("sk-ant-oat-team\n"), 0o600)
 	events := filepath.Join(dir, "box.log")
 	log := &boxNetworkLog{file: io.Discard}
-	fallback := &boxFallback{keys: filepath.Join(dir, "none.env"), role: "coder", events: events, upstream: "http://127.0.0.1:1", log: log}
-	proxy := httptest.NewServer(newBoxClaudeFailover(newBoxClaudeInjector(token, claude.URL, log), fallback))
+	fallback := &boxFallback{kind: "claude", keys: filepath.Join(dir, "none.env"), role: "coder", events: events, upstream: "http://127.0.0.1:1", log: log}
+	proxy := httptest.NewServer(newBoxFailover(newBoxClaudeInjector(token, claude.URL, log), fallback))
 	defer proxy.Close()
 	request, _ := http.NewRequest("POST", proxy.URL+"/v1/messages", strings.NewReader(`{"model":"claude-opus-5-5"}`))
 	request.Header.Set("Authorization", "Bearer "+boxClaudePlacehold)
@@ -181,7 +182,7 @@ func TestBoxClaudeFailoverPassesAShortRateLimit(t *testing.T) {
 	keys := filepath.Join(dir, "k.env")
 	os.WriteFile(keys, []byte("OPENROUTER_API_KEY=sk-or\n"), 0o600)
 	log := &boxNetworkLog{file: io.Discard}
-	proxy := httptest.NewServer(newBoxClaudeFailover(newBoxClaudeInjector(token, claude.URL, log), &boxFallback{keys: keys, upstream: openRouter.URL, log: log}))
+	proxy := httptest.NewServer(newBoxFailover(newBoxClaudeInjector(token, claude.URL, log), &boxFallback{kind: "claude", keys: keys, upstream: openRouter.URL, log: log}))
 	defer proxy.Close()
 	response, err := http.Post(proxy.URL+"/v1/messages", "application/json", strings.NewReader(`{}`))
 	if err != nil {
@@ -191,5 +192,71 @@ func TestBoxClaudeFailoverPassesAShortRateLimit(t *testing.T) {
 	response.Body.Close()
 	if response.StatusCode != 429 || string(data) != "slow down" || response.Header.Get("retry-after") != "10" || openRouterCalled {
 		t.Fatal(response.StatusCode, string(data), openRouterCalled)
+	}
+}
+
+func TestBoxChatGPTFailover(t *testing.T) {
+	chatGPT := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		io.WriteString(w, `{"detail":"token expired"}`)
+	}))
+	defer chatGPT.Close()
+	var got struct {
+		path, auth, account, originator string
+		body                            map[string]any
+	}
+	openRouter := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.path, got.auth, got.account, got.originator = r.URL.Path, r.Header.Get("Authorization"), r.Header.Get("ChatGPT-Account-ID"), r.Header.Get("originator")
+		json.NewDecoder(r.Body).Decode(&got.body)
+		io.WriteString(w, `{"output":[{"type":"message","content":[{"type":"output_text","text":"from openrouter"}]}],"usage":{"cost":0.003}}`)
+	}))
+	defer openRouter.Close()
+	dir := t.TempDir()
+	token := filepath.Join(dir, "chatgpt.json")
+	os.WriteFile(token, []byte(`{"access_token":"`+testChatGPTToken(time.Now().Add(time.Hour), "acct-1", "team")+`"}`), 0o600)
+	keys := filepath.Join(dir, "openrouter.env")
+	os.WriteFile(keys, []byte("OPENROUTER_API_KEY=sk-or-team\n"), 0o600)
+	events := filepath.Join(dir, "box.log")
+	var logged bytes.Buffer
+	log := &boxNetworkLog{file: &logged}
+	fallback := &boxFallback{kind: teamProviderChatGPT, keys: keys, role: "reviewer", events: events, upstream: openRouter.URL, log: log}
+	// Codex names itself: the proxy leaves its originator alone.
+	proxy := httptest.NewServer(boxRouteChatGPT(newBoxFailover(newBoxChatGPTInjector(token, chatGPT.URL, "", log), fallback), http.NotFoundHandler()))
+	defer proxy.Close()
+	body := `{"model":"gpt-6.1-sol","store":false,"include":["reasoning.encrypted_content"],"input":[` +
+		`{"type":"message","role":"user","content":[{"type":"input_text","text":"review it"}]},` +
+		`{"type":"reasoning","encrypted_content":"gAAAA-chatgpt-only"},` +
+		`{"type":"function_call","call_id":"c1","name":"shell","arguments":"{}"}]}`
+	request, _ := http.NewRequest("POST", proxy.URL+"/backend-api/codex/responses", strings.NewReader(body))
+	request.Header.Set("Authorization", "Bearer "+boxClaudePlacehold)
+	request.Header.Set("originator", "codex_exec")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _ := io.ReadAll(response.Body)
+	response.Body.Close()
+	if response.StatusCode != 200 || !strings.Contains(string(data), "from openrouter") {
+		t.Fatal(response.StatusCode, string(data))
+	}
+	input, _ := got.body["input"].([]any)
+	if got.path != "/api/v1/responses" || got.auth != "Bearer sk-or-team" || got.account != "" || got.originator != "" ||
+		got.body["model"] != "openai/gpt-6.1-sol" || got.body["include"] != nil || len(input) != 2 || strings.Contains(fmt.Sprint(input), "reasoning") {
+		t.Fatalf("%+v", got)
+	}
+	if text := readTestFile(t, events); !strings.Contains(text, "fallback reviewer chatgpt signin openai/gpt-6.1-sol\n") || !strings.Contains(text, "spend 0.003") {
+		t.Fatal(text)
+	}
+	if !strings.Contains(logged.String(), "chatgpt-refused 401:signin") || strings.Contains(logged.String(), "claude-refused") {
+		t.Fatal(logged.String())
+	}
+	// While on OpenRouter, Codex's other calls aren't model calls: not found.
+	response, _ = http.Get(proxy.URL + "/backend-api/codex/models")
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatal(response.StatusCode)
+	}
+	// A short rate limit goes back to Codex, which retries.
+	if chatGPTRefusal(429, nil, []byte(`{"error":{"type":"rate_limit_exceeded"}}`)) != "" || chatGPTRefusal(429, nil, []byte(`{"error":{"type":"usage_limit_reached"}}`)) != "limit" {
+		t.Fatal("429s")
 	}
 }

@@ -2505,6 +2505,23 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
   answered on the machine's sign-in, and with a token it refused, the
   proxy fell back to OpenRouter.
 
+### v1.10.0 — The reviewer through the proxy
+
+Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 2.
+
+- [x] A team's Codex member calls ChatGPT through its proxy on a custom
+  provider with a placeholder key: no `auth.json` in the box, and no box
+  spending the team's single-use refresh token. The team's ChatGPT
+  sign-in, else this machine's; a machine whose Codex is on an API key
+  keeps it in the box, as before.
+- [x] When ChatGPT refuses it, the proxy resends the call to OpenRouter's
+  Responses API on the same model, without the reasoning ChatGPT
+  encrypted for its own account; the channel hears once per role.
+- [x] The wizard signs the team in to ChatGPT for a Codex member too, once
+  for every role, and checks its fallback.
+- [x] Checked end to end on aiw9 with hi's proxy and Codex: a tool call on
+  ChatGPT, and with the token gone, the same on OpenRouter.
+
 ## Planned
 
 ### Next — a team's roles on the subscriptions it pays for
@@ -2515,8 +2532,6 @@ the ChatGPT plan that pays for the reviewer sits under its limits. Spiked
 on aiw9 on 2026-10-23: Hermes made tool calls on a ChatGPT plan through a
 proxy that held the token.
 
-- [ ] Release 2: the reviewer (Codex) through the proxy on the team's
-  ChatGPT sign-in, with no `auth.json` in its box, and its failover.
 - [ ] Release 4: `/hi-<team> signin chatgpt|claude` in Slack, owners only.
 
 ### Next — a conversation hears what other threads finished

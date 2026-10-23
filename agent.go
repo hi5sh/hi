@@ -444,15 +444,25 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 			return nil, errors.New("Codex is not installed on this machine; install it with hi install codex")
 		}
 		*run = append(*run, "-v", filepath.Dir(filepath.Dir(binary))+":/opt/codex:ro")
-		auth, err := os.ReadFile(codexAuthPath())
-		if err != nil {
-			return nil, errors.New("Codex is not signed in on this machine; run codex once and sign in")
-		}
 		if err := os.MkdirAll(filepath.Join(homeDir, ".codex"), 0o700); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(homeDir, ".codex", "auth.json"), auth, 0o600); err != nil {
-			return nil, err
+		if meta.Team != "" && teamCodexViaProxy(meta.Team) {
+			// A team's member reaches ChatGPT through its proxy, which puts
+			// the team's token on its calls: no sign-in in the box, and
+			// nothing for the box to refresh (team_subscriptions.go).
+			if err := os.WriteFile(filepath.Join(homeDir, ".codex", "config.toml"), []byte(codexBoxConfig(meta.ProxyIP)), 0o600); err != nil {
+				return nil, err
+			}
+			env[codexBoxKeyEnv] = boxClaudePlacehold
+		} else {
+			auth, err := os.ReadFile(codexAuthPath())
+			if err != nil {
+				return nil, errors.New("Codex is not signed in on this machine; run codex once and sign in")
+			}
+			if err := os.WriteFile(filepath.Join(homeDir, ".codex", "auth.json"), auth, 0o600); err != nil {
+				return nil, err
+			}
 		}
 		model := ""
 		if meta.Model != "" {

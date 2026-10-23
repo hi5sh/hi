@@ -65,26 +65,34 @@ type teamChatGPTGrant struct {
 }
 
 // teamProvider is who pays for a member's model calls: OpenRouter unless
-// it says otherwise.
+// it says otherwise; a ChatGPT plan for Codex, a Claude plan for Claude
+// Code.
 func teamProvider(member teamMember) string {
+	switch member.Agent {
+	case "codex":
+		return teamProviderChatGPT
+	case "claude":
+		return "claude"
+	}
 	return firstNonEmpty(member.Provider, teamProviderOpenRouter)
 }
 
-// teamUsesChatGPT says whether any of the team's members runs on ChatGPT.
-func teamUsesChatGPT(config teamConfig) bool {
-	for _, member := range config.Members {
-		if teamProvider(member) == teamProviderChatGPT {
-			return true
-		}
-	}
-	return false
-}
+// teamUsesChatGPT says whether any of the team's members runs on the
+// team's ChatGPT sign-in, through hi.
+func teamUsesChatGPT(config teamConfig) bool { return len(teamChatGPTRoles(config)) > 0 }
 
-// teamChatGPTRoles are the roles on ChatGPT, in teamRoles' order.
+// teamChatGPTRoles are the roles on ChatGPT through hi, in teamRoles'
+// order: Hermes members on chatgpt, and Codex members unless this machine's
+// Codex is on an API key and the team has no sign-in of its own.
 func teamChatGPTRoles(config teamConfig) []string {
 	var roles []string
+	codex := -1 // not looked at yet
 	for _, role := range teamRoles(config) {
-		if teamProvider(config.Members[role]) == teamProviderChatGPT {
+		member := config.Members[role]
+		if member.Agent == "codex" && codex == -1 {
+			codex = map[bool]int{true: 1, false: 0}[teamCodexViaProxy(config.Name)]
+		}
+		if member.Agent == "hermes" && teamProvider(member) == teamProviderChatGPT || member.Agent == "codex" && codex == 1 {
 			roles = append(roles, role)
 		}
 	}
@@ -710,19 +718,23 @@ func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 	if offset != state.LogOffset {
 		state.LogOffset, changed = offset, true
 	}
+	// The lead's proxy log speaks for the lead; a sign-in that doesn't
+	// work speaks for every role on it.
+	proactive := ""
 	if teamUsesChatGPT(config) {
 		switch _, grantErr := readCodexChatGPT(); {
 		case secrets.ChatGPT != nil && secrets.ChatGPT.Failed != "":
-			reason = "expired"
+			proactive = "expired"
 		case secrets.ChatGPT == nil && grantErr != nil:
-			reason = "signin"
+			proactive = "signin"
 		}
 	}
-	if reason != "" {
-		for _, role := range teamChatGPTRoles(config) {
-			if config.Members[role].Agent == "hermes" {
-				refusals[role] = teamRefusal{provider: teamProviderChatGPT, reason: reason}
-			}
+	for _, role := range teamChatGPTRoles(config) {
+		switch {
+		case proactive != "":
+			refusals[role] = teamRefusal{provider: teamProviderChatGPT, reason: proactive}
+		case reason != "" && config.Members[role].Agent == "hermes":
+			refusals[role] = teamRefusal{provider: teamProviderChatGPT, reason: reason}
 		}
 	}
 	before := fmt.Sprint(state.EventOffsets)
@@ -805,8 +817,11 @@ func teamFallbackLine(name string) string {
 const teamClaudeKeyFile = "claude-token"
 
 // teamMemberProxyArgs gives a team member's proxy what it needs beyond
-// this machine's Claude sign-in: the team's own token first, the team's
-// OpenRouter key to fall back on, the role, and where to write fallbacks.
+// this machine's sign-in: the team's own first, the team's OpenRouter key
+// to fall back on, the role, and where to write fallbacks. A Claude
+// member's proxy reads the team's token, then secret, this machine's; a
+// Codex member's routes its calls to ChatGPT with the team's token, which
+// the team's server keeps fresh, and the rest to OpenRouter.
 func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, string, error) {
 	team, role, _ := strings.Cut(meta.Team, ":")
 	config, err := loadTeam(team)
@@ -819,7 +834,7 @@ func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, 
 			return args, secret, err
 		}
 	}
-	if secret == "" && !fileExists(filepath.Join(keys, teamClaudeKeyFile)) {
+	if meta.Agent == "claude" && secret == "" && !fileExists(filepath.Join(keys, teamClaudeKeyFile)) {
 		return args, secret, fmt.Errorf("Claude Code is signed in neither for team %s nor on this machine; hi team signin %s claude", team, team)
 	}
 	args = append(args, "-v", keys+":/secrets/team:ro", "-v", events+":/events")
@@ -832,19 +847,52 @@ func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, 
 	if model := config.Members[role].Fallback; model != "" {
 		args = append(args, "-e", boxFallbackModelEnv+"="+model)
 	}
+	if meta.Agent == "codex" {
+		// Written by the team's server before the box starts; read again
+		// for each call.
+		if err := prepareTeamChatGPT(team, time.Now()); err != nil && !fileExists(filepath.Join(keys, teamChatGPTKeyFile)) {
+			return args, secret, fmt.Errorf("the team's ChatGPT sign-in: %w", err)
+		}
+		args = append(args, "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile)
+		return args, "openrouter:" + fallback, nil
+	}
 	// Read again for each call: a token given later is used at once.
 	return args, strings.TrimSuffix("/secrets/team/"+teamClaudeKeyFile+","+secret, ","), nil
 }
 
+// teamCodexViaProxy says whether a team's Codex members reach ChatGPT
+// through their proxy, with no sign-in in the box: when the team has its
+// own ChatGPT sign-in, or this machine's Codex is signed in to ChatGPT.
+// Codex on an API key keeps its auth.json in the box, as before.
+func teamCodexViaProxy(team string) bool {
+	name, _, _ := strings.Cut(team, ":")
+	if secrets, err := loadTeamSecrets(name); err == nil && secrets.ChatGPT != nil {
+		return true
+	}
+	_, err := readCodexChatGPT()
+	return err == nil
+}
+
+// codexBoxConfig is a team's Codex member's config.toml: ChatGPT's Codex
+// endpoint at the box's proxy, with the placeholder for a key.
+func codexBoxConfig(proxyIP string) string {
+	return fmt.Sprintf("model_provider = \"hi\"\n\n[model_providers.hi]\nname = \"hi\"\nbase_url = \"http://%s:%d%s\"\nwire_api = \"responses\"\nenv_key = \"%s\"\n",
+		proxyIP, boxInjectPort, strings.TrimSuffix(chatGPTPath, "/"), codexBoxKeyEnv)
+}
+
+// codexBoxKeyEnv holds the placeholder Codex sends as its key.
+const codexBoxKeyEnv = "HI_BOX_KEY"
+
 // teamMemberSignedIn says whether a team's member can sign in without this
-// machine's sign-in: a Claude member of a team with its own token.
+// machine's sign-in: a Claude member of a team with its own token, or a
+// Codex member of one with its own ChatGPT sign-in.
 func teamMemberSignedIn(team, kind string) bool {
 	name, _, ok := strings.Cut(team, ":")
-	if !ok || kind != "claude" {
+	if !ok {
 		return false
 	}
 	secrets, err := loadTeamSecrets(name)
-	return err == nil && secrets.ClaudeToken != ""
+	return err == nil && (kind == "claude" && secrets.ClaudeToken != "" || kind == "codex" && secrets.ChatGPT != nil)
 }
 
 // teamCheckClaudeToken checks a token looks like one from claude
@@ -1057,7 +1105,7 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			member.Effort = ""
 		}
 	}
-	if teamProvider(member) == teamProviderChatGPT {
+	if teamProvider(member) == teamProviderChatGPT && (provider != "" || model != "" || fallback != "") {
 		grant, _, err := teamChatGPTGrantFor(name)
 		if err != nil {
 			return fmt.Errorf("%w; or sign the team in: hi team signin %s chatgpt", err, name)
@@ -1066,17 +1114,21 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if member.Model == "" && len(models) > 0 {
+		if member.Model == "" && len(models) > 0 && member.Agent == "hermes" {
 			member.Model = models[0]
 		}
-		if len(models) > 0 && !containsString(models, member.Model) {
+		if member.Model != "" && len(models) > 0 && !containsString(models, member.Model) {
 			return fmt.Errorf("the account's ChatGPT plan doesn't offer %q; it offers %s", member.Model, strings.Join(models, ", "))
 		}
-		member.Fallback = firstNonEmpty(member.Fallback, teamFallbackModel(member))
-		if has, err := teamOpenRouterHasModel(member.Fallback); err != nil {
-			return err
-		} else if !has {
-			return fmt.Errorf("OpenRouter has no %s to fall back on; give one with --fallback <model on OpenRouter>", member.Fallback)
+		if fallback := firstNonEmpty(member.Fallback, teamFallbackModel(member)); fallback != "" {
+			if has, err := teamOpenRouterHasModel(fallback); err != nil {
+				return err
+			} else if !has {
+				return fmt.Errorf("OpenRouter has no %s to fall back on; give one with --fallback <model on OpenRouter>", fallback)
+			}
+			if member.Agent == "hermes" {
+				member.Fallback = fallback
+			}
 		}
 	}
 	config.Members[role] = member

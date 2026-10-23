@@ -211,14 +211,14 @@ func validateTeam(config teamConfig) error {
 			if member.Provider == "claude" && member.Agent != "claude" {
 				return fmt.Errorf("%s: a Claude plan is for Claude Code, not %s", role, agentDisplayName(member.Agent))
 			}
-			if member.Fallback != "" && member.Agent != "claude" {
+			if member.Fallback != "" && member.Agent == "hermes" {
 				return fmt.Errorf("%s: a fallback is for a member on a subscription; on OpenRouter it has none", role)
 			}
 		case teamProviderChatGPT:
-			if member.Agent != "hermes" {
-				return fmt.Errorf("%s: only Hermes runs on ChatGPT for now; %s uses this machine's sign-in", role, agentDisplayName(member.Agent))
+			if member.Agent != "hermes" && member.Agent != "codex" {
+				return fmt.Errorf("%s: a ChatGPT plan is for Hermes or Codex, not %s", role, agentDisplayName(member.Agent))
 			}
-			if member.Model == "" {
+			if member.Model == "" && member.Agent == "hermes" {
 				return fmt.Errorf("%s: name the ChatGPT model, such as gpt-6.1-sol", role)
 			}
 		default:
@@ -823,6 +823,43 @@ func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secr
 		return nil
 	}
 	member.Provider = teamProviderChatGPT
+	if err := teamAskChatGPTSignIn(stdin, stdout, secrets, signIn); err != nil {
+		return err
+	}
+	grant := teamChatGPTGrant{}
+	if secrets.ChatGPT != nil {
+		grant = *secrets.ChatGPT
+	} else if grant, err = readCodexChatGPT(); err != nil {
+		return err
+	}
+	models, err := chatGPTModels(grant)
+	if err != nil {
+		return err
+	}
+	return teamAskChatGPTModel(stdin, stdout, member, models)
+}
+
+// teamAskCodex signs the team in to ChatGPT for a Codex member, unless a
+// role on it did already, and shows what it falls back to on OpenRouter.
+// A machine whose Codex is on an API key keeps it, as before.
+func teamAskCodex(stdin io.Reader, stdout io.Writer, member *teamMember, secrets *teamSecrets, signIn *string) error {
+	if _, err := readCodexChatGPT(); err != nil && *signIn == "" && fileExists(codexAuthPath()) {
+		fmt.Fprintln(stdout, "         Codex here is on an API key; the reviewer keeps it.")
+		return nil
+	}
+	if err := teamAskChatGPTSignIn(stdin, stdout, secrets, signIn); err != nil {
+		return err
+	}
+	model := firstNonEmpty(member.Model, defaultAgentModel("codex"))
+	if model == "" {
+		return nil
+	}
+	return teamAskFallback(stdin, stdout, member, teamFallbackModel(teamMember{Agent: "codex", Model: model}))
+}
+
+// teamAskChatGPTSignIn asks, once for the whole team, whose ChatGPT sign-in
+// its roles on ChatGPT use, and signs the team in when it's its own.
+func teamAskChatGPTSignIn(stdin io.Reader, stdout io.Writer, secrets *teamSecrets, signIn *string) error {
 	if *signIn == "" {
 		fmt.Fprintln(stdout, "         The team signs in to ChatGPT once, for every role on it: team signs in with a code on any device")
 		fmt.Fprintln(stdout, "         (only the team's server refreshes it); machine uses this machine's, Codex's, which Codex refreshes.")
@@ -849,16 +886,12 @@ func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secr
 			fmt.Fprintf(stdout, "         Signed in: %s.\n", chatGPTPlanName(grant))
 		}
 	}
-	grant := teamChatGPTGrant{}
-	if secrets.ChatGPT != nil {
-		grant = *secrets.ChatGPT
-	} else if grant, err = readCodexChatGPT(); err != nil {
-		return err
-	}
-	models, err := chatGPTModels(grant)
-	if err != nil {
-		return err
-	}
+	return nil
+}
+
+// teamAskChatGPTModel asks a Hermes member's model from the plan's, and
+// checks its fallback.
+func teamAskChatGPTModel(stdin io.Reader, stdout io.Writer, member *teamMember, models []string) error {
 	offered := member.Model
 	if !containsString(models, offered) && len(models) > 0 {
 		offered = models[0]
@@ -876,7 +909,13 @@ func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secr
 		return err
 	}
 	member.Model, member.Fallback = firstNonEmpty(model, offered), ""
-	fallback := teamFallbackModel(*member)
+	return teamAskFallback(stdin, stdout, member, teamFallbackModel(*member))
+}
+
+// teamAskFallback checks a member's usual fallback is on OpenRouter, and
+// asks for one that is when it isn't.
+func teamAskFallback(stdin io.Reader, stdout io.Writer, member *teamMember, usual string) error {
+	fallback := usual
 	for {
 		has, err := teamOpenRouterHasModel(fallback)
 		if err != nil {
@@ -895,7 +934,7 @@ func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secr
 			return err
 		}
 	}
-	if fallback != teamFallbackModel(*member) {
+	if fallback != usual {
 		member.Fallback = fallback
 	}
 	fmt.Fprintf(stdout, "         Fallback: %s on OpenRouter.\n", fallback)
@@ -1120,6 +1159,11 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 				return answers, secrets, err
 			}
 		}
+		if member.Agent == "codex" {
+			if err := teamAskCodex(stdin, stdout, &member, &secrets, &chatGPTSignIn); err != nil {
+				return answers, secrets, err
+			}
+		}
 		effort, err := teamAskUntil(stdin, stdout, "         effort ["+teamDefaultEffort+"]", false, func(answer string) error {
 			if answer != "" && !containsString(agentEfforts, answer) {
 				return fmt.Errorf("the effort is %s, not %q", strings.Join(agentEfforts, ", "), answer)
@@ -1333,6 +1377,8 @@ func teamMemberLabel(member teamMember) string {
 		label += ", " + member.Model
 	}
 	switch {
+	case teamProvider(member) == teamProviderChatGPT && firstNonEmpty(member.Fallback, teamFallbackModel(member)) == "":
+		label += " on ChatGPT, falling back to OpenRouter"
 	case teamProvider(member) == teamProviderChatGPT:
 		label += " on ChatGPT, falling back to " + firstNonEmpty(member.Fallback, teamFallbackModel(member)) + " on OpenRouter"
 	case member.Agent == "claude" && member.Fallback != "":

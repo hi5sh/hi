@@ -762,6 +762,15 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		} else if err != nil {
 			return err
 		}
+	case "codex":
+		if meta.Team != "" && teamCodexViaProxy(meta.Team) {
+			// A team's member: ChatGPT through its proxy, with no sign-in
+			// in the box, and OpenRouter when ChatGPT refuses.
+			var err error
+			if args, secret, err = teamMemberProxyArgs(*meta, args, ""); err != nil {
+				return err
+			}
+		}
 	case "hermes":
 		// Only the proxy sees Hermes' .env, and takes only the OpenRouter
 		// key from it.
@@ -774,7 +783,7 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		secret = "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env"
 		// And the lead's Slack tokens, when hi put them there, and the
 		// team's ChatGPT access token, when it has roles on ChatGPT.
-		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile)
+		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent")
 	}
 	if data != nil && data.address != "" {
 		// The server's name may resolve only on the host, through NetBird.

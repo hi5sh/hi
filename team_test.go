@@ -84,6 +84,15 @@ func setupTeamTest(t *testing.T) string {
 		return []string{"anthropic/claude-opus-5", "anthropic/claude-opus-5.5", "anthropic/claude-opus-5.5:batch", "anthropic/claude-sonnet-5.5", "openai/gpt-6.1-sol"}, nil
 	}
 	t.Cleanup(func() { teamOpenRouterModelIDs = ids })
+	// Codex on an API key, so a reviewer keeps it, and never a real ChatGPT
+	// sign-in, which would wait 15 minutes for someone to type a code.
+	t.Setenv("CODEX_HOME", filepath.Join(dir, "codex"))
+	writeSkillTestFile(t, filepath.Join(dir, "codex", "auth.json"), `{"auth_mode":"apikey","OPENAI_API_KEY":"sk-test"}`, 0o600)
+	signIn := teamChatGPTSignIn
+	teamChatGPTSignIn = func(io.Writer) (teamChatGPTGrant, error) {
+		return teamChatGPTGrant{}, errors.New("no real ChatGPT sign-in in tests")
+	}
+	t.Cleanup(func() { teamChatGPTSignIn = signIn })
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(dir, "claude"))
 	writeSkillTestFile(t, filepath.Join(dir, "claude", ".credentials.json"), `{"claudeAiOauth":{"accessToken":"sk-ant-oat-machine"}}`, 0o600)
 	// No advisories from OSV unless a test asks for them.
