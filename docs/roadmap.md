@@ -2467,6 +2467,24 @@ a task without asking anyone.
 
 ## Planned
 
+### Next — a team's roles on the subscriptions it pays for
+
+Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md).
+The lead runs on OpenRouter only, now most of a team's model spend, while
+the ChatGPT plan that pays for the reviewer sits under its limits. Spiked
+on aiw11 on 2026-10-23: Hermes made tool calls on a ChatGPT plan through a
+proxy that held the token.
+
+- [ ] Release 1: the lead on ChatGPT. A member's `provider`; the team's own
+  ChatGPT sign-in in the wizard and `hi team signin`, refreshed only by
+  the team's server; the proxy's ChatGPT route; failover to OpenRouter on
+  the same model, told once in the channel; `hi team member`.
+- [ ] Release 2: the reviewer (Codex) through the proxy on the team's
+  ChatGPT sign-in, with no `auth.json` in its box, and its failover.
+- [ ] Release 3: the team's own Claude setup token; the coder's failover
+  through OpenRouter's Anthropic endpoint.
+- [ ] Release 4: `/hi-<team> signin chatgpt|claude` in Slack, owners only.
+
 ### Next — a conversation hears what other threads finished
 
 Found on team aitools (v1.0.5 above). Each thread, and a DM's top level,
