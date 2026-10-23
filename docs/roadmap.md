@@ -2586,6 +2586,50 @@ which would read the incidents this raises.
 - [x] Release 4, revoke and cut off (v1.7.0): once the server makes the teams'
   OpenRouter keys and holds a NetBird API token.
 
+Switching it on, on vmhiserver (an admin's, with credentials only they
+have; cartman sends heartbeats since v1.7.1 on 2026-10-23):
+
+- [ ] The dead-man's switch: a healthchecks.io check (1 minute, a few
+  minutes' grace) and `hi server watch --deadman <url>`. Until then
+  nobody hears if the server stops.
+- [ ] Pushes: an ntfy server that needs a login to read, not on
+  vmhiserver, then `hi server watch --ntfy <url> --ntfy-token <token>`,
+  and each team's owners subscribed (`hi server watch subscribe <team>`).
+- [ ] Revoke and rekey: an OpenRouter provisioning key (`hi server watch
+  --openrouter`), then each team moved to a key of the server's making
+  (`hi team key <team> openrouter --from-server`).
+- [ ] Cut off: a NetBird API token (`hi server watch --netbird`), and
+  peer approval turned on or the Default policy narrowed: as it is, All
+  reaches All and a cut off doesn't hold.
+- [ ] After a few weeks of cartman's heartbeats: look at what the network
+  rules, the spend rule, and auto-freeze raised, and tune the thresholds
+  and `watch-hosts.txt` on what was noise.
+
+What release 1–4 left out:
+
+- [ ] The server reads each team key's usage at OpenRouter itself, so the
+  "spent outside hi" rule holds on a compromised machine too; today it
+  compares what the team reports.
+- [ ] The logging resolver for Docker app boxes; only Podman's pasta has
+  it, so a Docker team's production lookups go unlogged.
+- [ ] Skills in the bill with their source and commit; hi keeps neither
+  for them yet.
+- [ ] A preview's bill matched too (made on `hi team bom <team> preview`,
+  not matched), so a release's advisories show before it goes out.
+
+The spec's open questions, to decide once it has run a while:
+
+- [ ] Teams on a machine with no hi server: a watcher in a separate user
+  on the same machine (advisories and network rules, not a dead machine),
+  or a team needs a server.
+- [ ] Auto-freeze: keep it on, or have every freeze wait for an admin
+  (`--auto-freeze off`), from what owners say after the first freezes.
+- [ ] One watch channel per server, or per group of teams.
+- [ ] OWASP Dependency-Track beside the server instead of OSV's API, once
+  there are many teams.
+- [ ] Watching what runs no team: `hi compute` instances and workstations
+  (left out of the spec).
+
 ### Later — Bun
 
 - [ ] A preview check before the lead says a preview is ready, unless
