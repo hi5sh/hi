@@ -248,11 +248,11 @@ func TestAgentTaskFiles(t *testing.T) {
 		args                    []string
 	}{
 		// A single word ending in .md, in any case, is a file; it needn't be committed.
-		{"f1", "", filepath.Join(project, "briefs", "Prices.MD"), "# GPU prices\n\nCollect them into prices.csv.\n\nWhen you are finished", []string{"briefs/Prices.MD"}},
-		{"f2", "", filepath.Join(project, "brief.txt"), "from a txt file\n\nWhen", []string{"--task-file", "brief.txt"}},
-		{"f3", "from stdin\n", "", "from stdin\n\nWhen", []string{"-"}},
+		{"f1", "", filepath.Join(project, "briefs", "Prices.MD"), "# GPU prices\n\nCollect them into prices.csv.\n\nRead files with your Read tool", []string{"briefs/Prices.MD"}},
+		{"f2", "", filepath.Join(project, "brief.txt"), "from a txt file\n\nRead files with your Read tool", []string{"--task-file", "brief.txt"}},
+		{"f3", "from stdin\n", "", "from stdin\n\nRead files with your Read tool", []string{"-"}},
 		// Two words are a plain task, even with a .md in them.
-		{"f4", "", "", "fix the typo in README.md\n\nWhen", []string{"fix", "the typo in README.md"}},
+		{"f4", "", "", "fix the typo in README.md\n\nRead files with your Read tool", []string{"fix", "the typo in README.md"}},
 	} {
 		var stdout, stderr bytes.Buffer
 		args := append([]string{"claude", "--detach", "--json", "--name", test.name}, test.args...)

@@ -269,7 +269,7 @@ func TestBoxStartArguments(t *testing.T) {
 	}
 	// The task goes on stdin from a file in the box's home, not on the
 	// command line.
-	if task, _ := os.ReadFile(boxStateFile("t1", "home", agentResultDir, "task.md")); !strings.HasPrefix(string(task), "fix it\n\nWhen you are finished") ||
+	if task, _ := os.ReadFile(boxStateFile("t1", "home", agentResultDir, "task.md")); !strings.HasPrefix(string(task), "fix it\n\n"+agentClaudeTools+"\n\nWhen you are finished") ||
 		!strings.Contains(string(task), "<<<REPORT") || strings.Contains(joined, "fix it") {
 		t.Errorf("task file %q; run %s", task, joined)
 	}

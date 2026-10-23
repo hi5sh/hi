@@ -49,6 +49,13 @@ const agentContract = `When you are finished, end your final message with exactl
 {"status": "complete|partial|blocked", "summary": "2-4 sentences on what you did", "tests": "pass|fail|not_run", "follow_ups": ["anything the caller should know or do next"]}
 REPORT>>>`
 
+// agentClaudeTools is added to Claude Code's tasks. On team cartman,
+// 2026-10-23, a coder read files with sed and cat 44 times and changed them
+// with 31 Python scripts in the shell, never with Edit, which needs the
+// file read with Read first: a script sends the old text and the new, so
+// about 90,000 of its 101,000 tokens weren't the code it wrote.
+const agentClaudeTools = `Read files with your Read tool, and change them with Edit (or Write for a new file), not with sed, cat, or scripts in the shell: Edit sends only what changes and checks it applies, and it needs the file read with Read first. Use the shell to run things: tests, builds, git.`
+
 var agentReportBlock = regexp.MustCompile(`(?s)<<<REPORT\s*(.*?)\s*REPORT>>>`)
 
 // agentReport is what a run with a task ends with.
@@ -377,7 +384,11 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if err := os.MkdirAll(filepath.Join(homeDir, agentResultDir), 0o700); err != nil {
 			return nil, err
 		}
-		if err := os.WriteFile(filepath.Join(homeDir, agentResultDir, "task.md"), []byte(prompt+"\n\n"+agentContract+"\n"), 0o600); err != nil {
+		contract := agentContract
+		if kind == "claude" {
+			contract = agentClaudeTools + "\n\n" + agentContract
+		}
+		if err := os.WriteFile(filepath.Join(homeDir, agentResultDir, "task.md"), []byte(prompt+"\n\n"+contract+"\n"), 0o600); err != nil {
 			return nil, err
 		}
 	}

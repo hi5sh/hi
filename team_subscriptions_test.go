@@ -744,3 +744,22 @@ func TestTeamCodexMemberThroughTheProxy(t *testing.T) {
 		t.Fatal(label)
 	}
 }
+
+func TestClaudeTasksAreToldToUseReadAndEdit(t *testing.T) {
+	setupTeamTest(t)
+	bin := filepath.Join(t.TempDir(), "agents", "bin")
+	writeSkillTestFile(t, filepath.Join(bin, "claude"), "#!/bin/sh\n", 0o755)
+	writeSkillTestFile(t, filepath.Join(bin, "codex"), "#!/bin/sh\n", 0o755)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for kind, told := range map[string]bool{"claude": true, "codex": false} {
+		home := t.TempDir()
+		var run []string
+		if _, err := agentBoxSetup(kind, "Fix it", boxMeta{Name: "b", Workdir: "/w", ProxyIP: "10.0.0.2"}, home, &run, map[string]string{}); err != nil {
+			t.Fatal(err)
+		}
+		task := readTestFile(t, filepath.Join(home, agentResultDir, "task.md"))
+		if strings.Contains(task, "change them with Edit") != told || !strings.Contains(task, "<<<REPORT") || !strings.HasPrefix(task, "Fix it\n\n") {
+			t.Errorf("%s: %s", kind, task)
+		}
+	}
+}

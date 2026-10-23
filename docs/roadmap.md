@@ -2561,6 +2561,15 @@ model on the machine because its address is private, would have waited
   call's first word (`agent.local_stream_stale_timeout`), then retry or
   fall back to OpenRouter.
 
+### v1.11.4 — Claude Code edits with Edit
+
+Found on team cartman: a coder's 24-minute task read files with sed and
+cat 44 times and changed them with 31 Python scripts in the shell, never
+with Edit; of its 101,000 tokens, about 11,000 were the code it wrote.
+
+- [x] Claude Code's tasks say to read with Read and change files with Edit
+  or Write, and to use the shell to run things.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
