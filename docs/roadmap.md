@@ -2653,6 +2653,26 @@ What release 1–4 left out:
 - [ ] A preview's bill matched too (made on `hi team bom <team> preview`,
   not matched), so a release's advisories show before it goes out.
 
+An optional add-on, if advisories without a severity turn out to matter:
+
+- [ ] NVD's scores for advisories OSV has none for. For each matched
+  advisory with a CVE ID and no severity from GitHub, Ubuntu, or Debian,
+  the server asks NVD's CVE API (`services.nvd.nist.gov/rest/json/cves/2.0`,
+  with an API key: about 5 requests per 30 seconds without one, 50 with)
+  for its CVSS score, including CISA's added scores, cached like the OSV
+  records. A score of 9.0 or more counts as critical for the incident
+  tier. Off unless the server has a key (`hi server watch --nvd`).
+
+  Why only as an add-on: NVD names products by CPE
+  (`cpe:2.3:a:vendor:product:version`), not by ecosystem and package, so
+  matching an npm package or a Debian source package against it is
+  guesswork, and it doesn't know a distro's backported fixes, so every
+  patched Ubuntu package would match. NVD has also fallen behind adding
+  CPEs and scores since 2024, and its API is slow. OSV stays what
+  matches; NVD would only fill in a score, keyed by CVE ID as KEV and
+  EPSS already are, so a CVE whose only severity is NVD's can still
+  reach the incident tier.
+
 The spec's open questions, to decide once it has run a while:
 
 - [ ] Teams on a machine with no hi server: a watcher in a separate user
