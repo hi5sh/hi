@@ -2550,6 +2550,17 @@ and every UI task would again.
 - [x] A new team's coder and reviewer get the `data` bundle too (DuckDB
   and charts), beside `web`. Cartman's got it by hand.
 
+### v1.11.3 — The lead gives up on a silent call after 2 minutes
+
+Found on team cartman: an owner's yes to a release went unanswered. A
+ChatGPT call sent nothing back, and Hermes, taking the team's proxy for a
+model on the machine because its address is private, would have waited
+15 minutes before retrying or falling back.
+
+- [x] The lead, and Hermes in a member's box, wait 2 minutes for a model
+  call's first word (`agent.local_stream_stale_timeout`), then retry or
+  fall back to OpenRouter.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

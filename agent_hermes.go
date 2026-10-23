@@ -310,8 +310,11 @@ func hermesBoxSetup(prompt string, meta boxMeta, homeDir, results string, run *[
 		config = "model:\n  default: " + model + "\n" + strings.TrimPrefix(config, "model:\n")
 	}
 	config += "terminal:\n  backend: local\n  cwd: .\n"
+	// The proxy is no model on this machine: give up on a silent call
+	// after the usual 2 minutes, not a local server's 15.
+	config += fmt.Sprintf("agent:\n  local_stream_stale_timeout: %d\n", teamLeadSilentCall)
 	if meta.Effort != "" {
-		config += "agent:\n  reasoning_effort: " + meta.Effort + "\n"
+		config += "  reasoning_effort: " + meta.Effort + "\n"
 	}
 	if err := os.WriteFile(filepath.Join(hermesDir, "config.yaml"), []byte(config), 0o600); err != nil {
 		return nil, err

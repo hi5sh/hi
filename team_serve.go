@@ -332,6 +332,9 @@ func teamBrokerDir(name string) string {
 const (
 	teamLeadMaxTurns      = 60
 	teamLeadBudgetWarning = 0.75
+	// teamLeadSilentCall is how many seconds the lead waits for a model
+	// call's first word before it retries or falls back.
+	teamLeadSilentCall = 120
 )
 
 // teamLeadModelSettings is the model part of the lead's config.yaml. On
@@ -401,7 +404,13 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// A turn that keeps calling tools stops and answers with what it has:
 	// the lead talks and hands work to members, and a lead stuck searching
 	// the code ran 200 calls in 13 minutes before anyone saw a word.
-	settings += fmt.Sprintf("agent:\n  max_turns: %d\n  budget_warning_ratio: %g\n  reasoning_effort: %s\n", teamLeadMaxTurns, teamLeadBudgetWarning, teamEffort(config.Members["lead"]))
+	// The proxy's address is private, so Hermes takes it for a model on
+	// this machine and waits 15 minutes for a call that sends nothing; the
+	// models are ChatGPT's and OpenRouter's, so it gives up after the
+	// usual 2, and retries or falls back (team cartman, 2026-10-23: a
+	// release waited on a ChatGPT call that never answered).
+	settings += fmt.Sprintf("agent:\n  max_turns: %d\n  budget_warning_ratio: %g\n  reasoning_effort: %s\n  local_stream_stale_timeout: %d\n",
+		teamLeadMaxTurns, teamLeadBudgetWarning, teamEffort(config.Members["lead"]), teamLeadSilentCall)
 	if err := os.WriteFile(filepath.Join(lead, "config.yaml"), []byte(settings), 0o600); err != nil {
 		return err
 	}

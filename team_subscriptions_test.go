@@ -693,7 +693,7 @@ func TestAgentEffortReachesEachAgent(t *testing.T) {
 	if err := writeTeamLead(testTeamConfig(), teamSecrets{}, "10.234.5.2", ""); err != nil {
 		t.Fatal(err)
 	}
-	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  reasoning_effort: medium\n") {
+	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  reasoning_effort: medium\n  local_stream_stale_timeout: 120\n") {
 		t.Fatal(settings)
 	}
 }
