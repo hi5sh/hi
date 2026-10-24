@@ -1076,7 +1076,7 @@ func printTeamPreview(w io.Writer, preview teamPreview) {
 	}
 	switch preview.Told {
 	case "thread", "dm":
-		fmt.Fprintf(w, "hi posted the new DEV line, with its links and what's new, in this %s; don't post the links again. The channel hears of it only when the people ask: then run hi team preview --channel.\n", preview.Told)
+		fmt.Fprintf(w, "hi posted the new DEV line, with its links, what's new, and your notes, in this %s: that is your message to the people. Don't post the links again or say what it says in other words; end your turn with a line at most, for what it lacks, such as a question for them. The channel hears of it only when the people ask: then run hi team preview --channel.\n", preview.Told)
 	case "channel":
 		fmt.Fprintln(w, "hi posted the DEV line in the channel, with what's new in its thread.")
 	default:

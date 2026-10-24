@@ -2670,6 +2670,12 @@ only checked it on the preview.
   lead, its memory, and production only for what changed since. On
   cartman, v21's release had paused them for about 4 minutes.
 
+### v1.14.5 — One message for a new dev version
+
+- [x] When hi posts the DEV line in the thread or DM, the lead doesn't post
+  the same again in its own words, before or after it. On cartman it had
+  posted three messages within 15 seconds.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

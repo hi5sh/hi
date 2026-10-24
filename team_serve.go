@@ -1632,6 +1632,12 @@ team's preview link, and says whether that link is new:
   open it, on their phones too, and try the acceptance list. There is no
   password.
 
+When hi posts the DEV line in the thread or DM you are answering (hi team
+preview says so), that line, with your notes, is the message to the people.
+Don't post another that says the same, before it or after: merging and the
+preview starting aren't news for them, the DEV line is. Add a line only for
+what it lacks, such as a question for them.
+
 A preview link stays the same for up to a day: a new preview gets a new
 link only when the old one has less than 12 hours left. Never tell the
 people to run commands or start the app themselves.
