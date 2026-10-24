@@ -36,6 +36,8 @@ type agentProgressReader struct {
 	// Claude Code writes one line per content block, each with its
 	// message's usage, so usage is kept per message.
 	usage map[string][3]int
+	// base is Codex's token totals before a resumed session's run.
+	base agentTokens
 	agentProgress
 }
 
@@ -70,6 +72,10 @@ func (r *agentProgressReader) poll() agentProgress {
 	}
 	if newest != r.path {
 		*r = agentProgressReader{kind: r.kind, home: r.home, path: newest, usage: map[string][3]int{}}
+		// A resumed session's file begins with its earlier runs.
+		if resumed, ok := loadAgentResumed(r.home); ok && filepath.Join(r.home, resumed.File) == newest {
+			r.offset, r.base = resumed.Offset, agentTokens{Input: resumed.Input, Cached: resumed.Cached, Output: resumed.Output}
+		}
 	}
 	file, err := os.Open(r.path)
 	if err != nil {
@@ -196,7 +202,7 @@ func (r *agentProgressReader) codexLine(line []byte) {
 	case entry.Type == "turn_context" && payload.Model != "":
 		r.model = payload.Model
 	case entry.Type == "event_msg" && payload.Type == "token_count" && payload.Info != nil:
-		r.in, r.out, r.cached = payload.Info.Total.Input, payload.Info.Total.Output, payload.Info.Total.Cached
+		r.in, r.out, r.cached = payload.Info.Total.Input-r.base.Input, payload.Info.Total.Output-r.base.Output, payload.Info.Total.Cached-r.base.Cached
 	case entry.Type == "response_item" && payload.Type == "function_call":
 		r.steps++
 		var arguments map[string]any

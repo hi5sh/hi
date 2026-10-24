@@ -1,8 +1,8 @@
 # `hi team`: one session per member for each piece of work
 
-Status: Draft (2026-10-24)
+Status: Approved (2026-10-24). Release 1 built in v1.13.0.
 
-Dependencies: [hi_team_rounds.md](../approved/hi_team_rounds.md) (two review rounds,
+Dependencies: [hi_team_rounds.md](hi_team_rounds.md) (two review rounds,
 keywords once, shorter briefs), [hi_team.md](../approved/hi_team.md) (the
 broker's review loop, `--on`), [hi_agent.md](../approved/hi_agent.md)
 (the member's box, `claude -p` and `codex exec`, the report),
@@ -23,7 +23,7 @@ before.
 Today every task and every review is a new box and a new session. All
 the member knows is its brief, so hi puts everything into each brief, and
 the member reads it and the code again. On cartman's OMXS30 work (see
-[hi_team_rounds.md](../approved/hi_team_rounds.md#what-happened)) each fix round spent
+[hi_team_rounds.md](hi_team_rounds.md#what-happened)) each fix round spent
 its first minutes re-reading, and each review read the whole work again
 and found something new in it, instead of checking what it asked for.
 Notes, LEARNED.md, and memory are how the team copes with that loss; they
@@ -70,7 +70,7 @@ turn of its session:
 
 The broker stays in the middle, though the members speak to each other.
 It counts the rounds and stops at two
-([hi_team_rounds.md](../approved/hi_team_rounds.md#4-two-rounds-then-the-people-decide)),
+([hi_team_rounds.md](hi_team_rounds.md#4-two-rounds-then-the-people-decide)),
 keeps each turn in the task's files, and the lead sees every handover in
 hi team show and hi team wait. Two agents in a loop with no one counting
 is what went wrong on OMXS30; the broker is the one counting.
@@ -157,3 +157,32 @@ On cartman, against the OMXS30 rounds: a fix round's first commit within
 3 minutes of its start, against about 5 today; a second review that
 checks the first review's changes and adds nothing outside the four
 reasons; fewer Claude calls a round.
+
+## As built
+
+### Release 1 (v1.13.0): hi agent --session
+
+- `agent_session.go`. The folder holds `hi-session.json` (agent, model,
+  ID, and the session file's path in the agent's home) and a copy of that
+  file under `files/`. The folder isn't mounted in the box: hi copies the
+  file into the new box's home before it starts, and back when it ends
+  (`hi agent wait`, or any report), so the box's home stays its own.
+- Claude Code finds a session under its working folder, which is new for
+  each box: hi puts the copy under the new box's folder
+  (`~/.claude/projects/<working folder, non-alphanumerics as ->`), with the
+  folder of large tool results beside it.
+- Codex resumes by ID wherever it was: `codex exec <options> resume <id>
+  -`. Claude Code: `claude -p ... --resume <id>`. Both keep the session's
+  ID and add to its file.
+- The window: the latest call's input from the session's file, against
+  200,000 tokens for Claude Code and Codex's own `model_context_window`.
+  Past half, the run starts a new session.
+- A resumed run's steps and tokens count from where it began: the box's
+  `.hi-agent/resumed.json` holds the file's size then, and Codex's totals.
+  The report says `resumed: <id>`.
+- Measured on aiw9: a Claude Code session (sonnet) and a Codex session
+  (gpt-6.1-sol, signed in on the machine) each recalled a code word from
+  the box before, in a new box, with the same session ID. Not measured:
+  a resume after a failover to OpenRouter, which can't be caused on
+  purpose; release 2 starts the round again without the session when a
+  resumed run fails.

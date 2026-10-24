@@ -90,6 +90,9 @@ type boxMeta struct {
 	// Effort is how hard the agent thinks: low, medium, high, xhigh, or
 	// max; the agent's own default when empty.
 	Effort string `json:"effort,omitempty"`
+	// Session is hi agent --session: the folder that keeps the agent's
+	// conversation across boxes (agent_session.go).
+	Session string `json:"session,omitempty"`
 }
 
 type boxOptions struct {
@@ -133,6 +136,7 @@ type boxOptions struct {
 	team string
 	// effort is hi agent --effort: how hard the agent thinks.
 	effort string
+	session string
 }
 
 func boxStateFile(parts ...string) string {
@@ -285,6 +289,16 @@ func parseBoxOptions(command string, args []string) (boxOptions, error) {
 			if text, err = value(); err == nil {
 				if options.budgetUSD, err = strconv.ParseFloat(text, 64); err != nil || options.budgetUSD <= 0 {
 					err = fmt.Errorf("--max-budget-usd is dollars, such as 10, not %q", text)
+				}
+			}
+		case command == "agent" && (arg == "--session" || strings.HasPrefix(arg, "--session=")):
+			if text, err = value(); err == nil {
+				if options.session, err = filepath.Abs(text); err == nil {
+					if strings.Contains(options.session, ":") {
+						err = fmt.Errorf("--session can't have a colon in its path: %s", options.session)
+					} else {
+						err = os.MkdirAll(options.session, 0o700)
+					}
 				}
 			}
 		case command == "agent" && (arg == "--files" || strings.HasPrefix(arg, "--files=")):
@@ -463,7 +477,7 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 		Created: time.Now().UTC(), Background: agent && prompt != "", Prompt: qClip(prompt), TaskFile: options.taskFile}
 	if agent {
 		meta.Model, meta.Untrusted, meta.BudgetUSD = options.model, options.untrusted, options.budgetUSD
-		meta.NoProjectSettings, meta.Team, meta.Effort = options.noProjectSettings, options.team, options.effort
+		meta.NoProjectSettings, meta.Team, meta.Effort, meta.Session = options.noProjectSettings, options.team, options.effort, options.session
 	}
 	// Agents get a worktree in a git repository, and work in place outside
 	// one.

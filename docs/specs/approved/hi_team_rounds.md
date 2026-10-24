@@ -111,7 +111,7 @@ reviewer's notes, the project's rules, ROLE.md, and LEARNED.md stay in the
 brief, as now.
 
 For t-176 that is about 2,100 words instead of 4,031, and when the
-handover of [hi_team_threads.md](../ideas/hi_team_threads.md) lands, the role and
+handover of [hi_team_threads.md](hi_team_threads.md) lands, the role and
 rules go too.
 
 **The lead's briefs.** The soul's step 3 and the hi-team skill say: a
@@ -199,7 +199,7 @@ or now with a yes.
 ## Not in this
 
 - Sessions that last across rounds, with the handover going straight to
-  the other member: [hi_team_threads.md](../ideas/hi_team_threads.md).
+  the other member: [hi_team_threads.md](hi_team_threads.md).
 - The coder and the reviewer in one box.
 
 ## Releases

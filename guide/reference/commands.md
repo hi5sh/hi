@@ -244,6 +244,8 @@ stdout, `--task-file <path>` for a task file whose name doesn't end in
 own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
 `--from <commit>` to start the worktree from a commit or branch instead of
 `HEAD`, `--files <folder>` for files the agent may read at `/box/files`,
+`--session <folder>` to keep Claude Code's or Codex's conversation in a
+folder and go on with it in the next box given the same folder,
 `--bundle a,b` for bundles of skills and the tools they need,
 `--no-project-settings` for Claude Code without the project's own hooks,
 MCP servers, and permissions, `--max-budget-usd <n>` for the most Claude

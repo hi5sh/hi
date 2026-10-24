@@ -79,6 +79,8 @@ type agentReport struct {
 	Steps        int             `json:"steps,omitempty"`
 	Model        string          `json:"model,omitempty"`
 	CostUSD      float64         `json:"cost_usd,omitempty"` // Claude Code's figure at API prices
+	// Resumed is the session this run went on with (hi agent --session).
+	Resumed string `json:"resumed,omitempty"`
 	Warnings     []string        `json:"warnings"`
 }
 
@@ -153,6 +155,8 @@ options:
                          own Claude Code or Codex settings, else opus for Claude Code
   --from <commit>        start the worktree from this commit or branch instead of HEAD
   --files <folder>       files the agent may read, such as images or documents, at /box/files (read-only)
+  --session <folder>     keep the agent's conversation in the folder, and go on with it in the next
+                         box given the same folder (Claude Code and Codex)
   --no-project-settings  Claude Code without the project's own hooks, MCP servers, and permissions
                          (.claude/), for a project someone else wrote
   --max-budget-usd <n>   the most Claude Code may spend on the run, in dollars
@@ -392,6 +396,13 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 			return nil, err
 		}
 	}
+	resume := ""
+	if meta.Session != "" && prompt != "" && (kind == "claude" || kind == "codex") {
+		var err error
+		if resume, err = prepareAgentSession(kind, meta, homeDir); err != nil {
+			return nil, fmt.Errorf("the session to resume: %w", err)
+		}
+	}
 	switch kind {
 	case "claude":
 		binary, err := boxHostBinary("claude")
@@ -432,6 +443,9 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		}
 		if meta.Effort != "" {
 			model += " --effort " + meta.Effort
+		}
+		if resume != "" {
+			model += " --resume " + resume
 		}
 		if prompt == "" {
 			command := []string{"claude", "--dangerously-skip-permissions"}
@@ -494,8 +508,12 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 			}
 			return command, nil
 		}
+		resumeArgs := ""
+		if resume != "" {
+			resumeArgs = " resume " + resume
+		}
 		return []string{"sh", "-c", "exec codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check" + model + " -o " +
-			results + "/last.txt - < " + results + "/task.md"}, nil
+			results + "/last.txt" + resumeArgs + " - < " + results + "/task.md"}, nil
 	case "hermes":
 		// Hermes would otherwise install its dependencies again for each
 		// new home folder, and write bytecode into its read-only source.
@@ -712,8 +730,14 @@ func collectAgentReport(engine boxEngine, meta boxMeta) agentReport {
 	if report.Tokens == nil && progress.in+progress.out > 0 {
 		report.Tokens = &agentTokens{Input: progress.in, Cached: progress.cached, Output: progress.out}
 	}
+	if resumed, ok := loadAgentResumed(boxStateFile(meta.Name, "home")); ok {
+		report.Resumed = resumed.ID
+	}
 	if report.Status == "running" {
 		return report
+	}
+	if err := keepAgentSession(meta, report.SessionID); err != nil {
+		report.Warnings = append(report.Warnings, "the session wasn't kept for the next run: "+err.Error())
 	}
 	report.Seconds = containerSeconds(engine, container)
 	if report.ExitCode != 0 || failed || strings.TrimSpace(report.Text) == "" && string(report.Report) == "null" {

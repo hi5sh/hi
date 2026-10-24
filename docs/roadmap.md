@@ -2612,6 +2612,18 @@ minutes, unfinished, with "ultrathink" in every coder brief.
 - [x] A check that fails without the work too, such as a new advisory, is
   an alert for the lead, not the work's change needed.
 
+### v1.13.0 — An agent's conversation outlives its box
+
+Approved spec: [hi_team_threads.md](specs/approved/hi_team_threads.md),
+release 1.
+
+- [x] `hi agent --session <folder>` keeps Claude Code's or Codex's session
+  in a folder, and the next box given the folder resumes it.
+- [x] A session isn't resumed for another agent or model, when its file is
+  gone, or past half the model's window.
+- [x] A resumed run's report counts its own steps and tokens, and says
+  which session it went on with.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
