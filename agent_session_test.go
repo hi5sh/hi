@@ -32,12 +32,19 @@ func TestAgentSessionClaude(t *testing.T) {
 	home := boxStateFile(first.Name, "home")
 	writeAgentSessionTestFile(t, filepath.Join(home, ".claude", "projects", agentClaudeProject(first.Workdir), id+".jsonl"), claudeSessionTestLine("m1", 40_000))
 	writeAgentSessionTestFile(t, filepath.Join(home, ".claude", "projects", agentClaudeProject(first.Workdir), id, "tool-results", "a.txt"), "big")
+	writeAgentSessionTestFile(t, filepath.Join(home, agentResultDir, "result.json"), `{"modelUsage":{"claude-opus-5-5":{"contextWindow":1000000}}}`)
 	if err := keepAgentSession(first, id); err != nil {
 		t.Fatal(err)
 	}
-	if state, err := agentSessionResumable(session, "claude", "opus"); err != nil || state.ID != id {
+	if state, err := agentSessionResumable(session, "claude", "opus"); err != nil || state.ID != id || state.Window != 1_000_000 {
 		t.Fatal(state, err)
 	}
+	// Measured against the window Claude Code said: 215,000 tokens goes on.
+	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, ".claude", "projects", agentClaudeProject(first.Workdir), id+".jsonl"), claudeSessionTestLine("m1", 215_000))
+	if _, err := agentSessionResumable(session, "claude", "opus"); err != nil {
+		t.Fatal(err)
+	}
+	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, ".claude", "projects", agentClaudeProject(first.Workdir), id+".jsonl"), claudeSessionTestLine("m1", 40_000))
 
 	second := boxMeta{Name: "payments-t-3", Agent: "claude", Model: "opus", Session: session, Workdir: "/home/hi/.local/state/hi/box/payments-t-3/work"}
 	home2 := boxStateFile(second.Name, "home")

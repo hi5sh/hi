@@ -214,9 +214,14 @@ reasons; fewer Claude calls a round.
 - Sessions are removed an hour's check after a week past the chain's
   merge or discard.
 
-### v1.14.7
+### v1.14.7 and v1.14.8
 
 - The limit is 75% of the window, not half. On cartman, a first build
   (t-201, about 116,000 tokens) and an investigation (t-212, about
   105,000) each passed half of Claude Code's 200,000 alone, so the first
   follow-up never went on with the conversation.
+- The window is the one the agent reports, when it does: Claude Code's
+  result has `modelUsage.contextWindow`, which hi keeps in
+  `hi-session.json`. Opus 5.5's is 1,000,000 tokens; hi had assumed
+  200,000 for every Claude model, so t-215 on cartman started a new
+  conversation at 215,000 tokens, a fifth of its window.

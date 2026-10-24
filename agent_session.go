@@ -35,8 +35,8 @@ const (
 	// agentResumedFile, in the box's results, says what the run resumed:
 	// the session's file and how much of it came before.
 	agentResumedFile = "resumed.json"
-	// agentClaudeWindow is the window a Claude session is measured against;
-	// Codex says its own.
+	// agentClaudeWindow is the window a Claude session is measured against
+	// when Claude Code didn't say its own; Codex always says it.
 	agentClaudeWindow = 200_000
 	// agentSessionShare is how much of the window, in percent, a session
 	// may hold and still be resumed. Half was too little on team cartman:
@@ -52,6 +52,9 @@ type agentSessionState struct {
 	ID    string `json:"id"`
 	// File is the session's file, relative to the agent's home.
 	File string `json:"file"`
+	// Window is the model's context window as the agent reported it, when
+	// it did: Claude Code's result says it (modelUsage.contextWindow).
+	Window int `json:"window,omitempty"`
 }
 
 // agentResumed is resumed.json: the session file in the box's home, its
@@ -94,6 +97,9 @@ func agentSessionResumable(dir, kind, model string) (agentSessionState, error) {
 		return state, errors.New("the session's file is gone")
 	}
 	context, window, _ := agentSessionContext(kind, path)
+	if state.Window > 0 {
+		window = state.Window
+	}
 	if window > 0 && context > window*agentSessionShare/100 {
 		return state, fmt.Errorf("the conversation holds %d tokens, more than %d%% of the model's window", context, agentSessionShare)
 	}
@@ -270,8 +276,28 @@ func keepAgentSession(meta boxMeta, id string) error {
 			return err
 		}
 	}
-	data, _ := json.MarshalIndent(agentSessionState{Agent: meta.Agent, Model: meta.Model, ID: id, File: file}, "", "  ")
+	data, _ := json.MarshalIndent(agentSessionState{Agent: meta.Agent, Model: meta.Model, ID: id, File: file, Window: agentReportedWindow(homeDir)}, "", "  ")
 	return os.WriteFile(filepath.Join(meta.Session, agentSessionStateFile), append(data, '\n'), 0o600)
+}
+
+// agentReportedWindow is the context window Claude Code's result says
+// its model has, or 0. Opus 5.5's is 1,000,000 tokens, not the 200,000
+// hi assumed before.
+func agentReportedWindow(homeDir string) int {
+	var result struct {
+		ModelUsage map[string]struct {
+			ContextWindow int `json:"contextWindow"`
+		} `json:"modelUsage"`
+	}
+	data, err := os.ReadFile(filepath.Join(homeDir, agentResultDir, "result.json"))
+	if err != nil || json.Unmarshal(data, &result) != nil {
+		return 0
+	}
+	window := 0
+	for _, usage := range result.ModelUsage {
+		window = max(window, usage.ContextWindow)
+	}
+	return window
 }
 
 // agentCopyTree copies a folder's regular files, keeping its layout.

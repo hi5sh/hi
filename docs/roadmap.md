@@ -2683,10 +2683,12 @@ only checked it on the preview.
   waiting for another. On cartman an owner had to say it twice, for v21
   and v22.
 
-### v1.14.7 — A member's conversation goes on to 75% of its window
+### v1.14.7 and v1.14.8 — A member's conversation goes on to 75% of its window
 
 - [x] A session is resumed until it holds 75% of the model's window, not
   half: on cartman a first build or an investigation passed half alone.
+- [x] The window is the one Claude Code reports (1,000,000 tokens for
+  Opus 5.5), not an assumed 200,000.
 
 ## Planned
 
