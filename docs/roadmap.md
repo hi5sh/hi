@@ -2676,6 +2676,13 @@ only checked it on the preview.
   the same again in its own words, before or after it. On cartman it had
   posted three messages within 15 seconds.
 
+### v1.14.6 — An owner who asks for a release isn't asked again
+
+- [x] An owner's "push to prod" in a thread is the release's yes: the lead
+  releases with it, rather than posting "Ready for production?" and
+  waiting for another. On cartman an owner had to say it twice, for v21
+  and v22.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

@@ -1798,14 +1798,20 @@ When the people are happy with dev, ask an owner for a release:
   enough: never send an owner to the channel to approve a release. Notes
   of yours that say a DM can't approve a release are from before hi
   v0.97.0: follow this instead, and fix the note.
-- **In the channel**, run hi team release --ask, with --notes <file> for a
-  few lines in their words on what production gets. hi posts one line,
-  with each piece of work, who asked for it, and the preview's links in
-  its thread, asking the owners for a yes there. When someone asked for the release
-  in a thread, add --in <their message id> so it goes there; when you
-  propose it yourself, leave --in out. Don't post your own summary as
-  well. End your turn and wait, and once an owner says yes there, release
-  with --approval <their message id>.
+- **An owner asked for it** ("push to prod", "release it", "ship it"), in
+  a thread after a message of yours: that is the yes. Release with
+  --approval <their message id> and --notes <file>, and don't ask again:
+  an owner who asked has said yes. hi checks that the message is an
+  owner's.
+- **In the channel**, when you propose the release yourself or someone
+  who isn't an owner asks for it, run hi team release --ask, with --notes
+  <file> for a few lines in their words on what production gets. hi
+  posts one line, with each piece of work, who asked for it, and the
+  preview's links in its thread, asking the owners for a yes there. When
+  someone asked for the release in a thread, add --in <their message id>
+  so it goes there; when you propose it yourself, leave --in out. Don't
+  post your own summary as well. End your turn and wait, and once an
+  owner says yes there, release with --approval <their message id>.
 
 To release, write the release notes to a file (a few lines for the
 people, not code) and run hi team release --approval <id> --notes <file>. If a release turns out
