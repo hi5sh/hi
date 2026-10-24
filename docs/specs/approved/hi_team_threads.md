@@ -1,6 +1,6 @@
 # `hi team`: one session per member for each piece of work
 
-Status: Approved (2026-10-24). Built in v1.13.0 and v1.14.0.
+Status: Approved (2026-10-24). Built in v1.13.0 and v1.14.1.
 
 Dependencies: [hi_team_rounds.md](hi_team_rounds.md) (two review rounds,
 keywords once, shorter briefs), [hi_team.md](../approved/hi_team.md) (the
@@ -187,7 +187,7 @@ reasons; fewer Claude calls a round.
   purpose; release 2 starts the round again without the session when a
   resumed run fails.
 
-### Release 2 (v1.14.0): the review loop
+### Release 2 (v1.14.1): the review loop
 
 - `team_threads.go`. A task's `session` is its chain's folder for its
   role; `resumes` says the step goes on with it, both in the task's file.

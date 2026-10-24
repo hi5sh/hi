@@ -2624,7 +2624,10 @@ release 1.
 - [x] A resumed run's report counts its own steps and tokens, and says
   which session it went on with.
 
-### v1.14.0 — The coder and the reviewer keep their conversation
+### v1.14.1 — The coder and the reviewer keep their conversation
+
+(v1.14.0 was tagged by mistake on v1.13.0's commit, and is the same as
+v1.13.0.)
 
 Approved spec: [hi_team_threads.md](specs/approved/hi_team_threads.md),
 release 2.
