@@ -320,7 +320,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the DM's first-reply hook is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.75"} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "display:\n  busy_ack_enabled: false\n  live_status: verb\n  memory_notifications: \"off\"", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.75"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}

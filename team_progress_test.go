@@ -17,7 +17,7 @@ func TestTeamProgressCard(t *testing.T) {
 	config := testTeamConfig()
 	saveTeam(config)
 	os.MkdirAll(teamTaskDir("payments"), 0o700)
-	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	start := time.Now().UTC().Truncate(time.Hour).Add(-24 * time.Hour) // the record forgets closed cards a week old
 	save := func(task teamTask) {
 		if err := saveTeamTask("payments", task); err != nil {
 			t.Fatal(err)
@@ -153,7 +153,7 @@ func TestTeamProgressSmallFix(t *testing.T) {
 		t.Fatal(thread, err)
 	}
 
-	start := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	start := time.Now().UTC().Truncate(time.Hour).Add(-24 * time.Hour) // the record forgets closed cards a week old
 	saveTeamTask("payments", teamTask{ID: "t-1", Role: "coder", Agent: "claude", Kind: "task", Title: "Fix the model", Status: "running", Created: start, Small: true, Thread: thread})
 	// A small fix without a thread has no card.
 	saveTeamTask("payments", teamTask{ID: "t-2", Role: "coder", Agent: "claude", Kind: "task", Title: "Typo", Status: "running", Created: start, Small: true})

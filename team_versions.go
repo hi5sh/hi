@@ -423,6 +423,7 @@ type teamReleaseResult struct {
 // release moves production: to dev's latest commit as the next version, or
 // to an earlier release. An owner's yes is required either way.
 func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, error) {
+	defer teamMarkBusy(b.team, teamBusyReleasing)()
 	result, announcement, err := b.moveProduction(request)
 	if err != nil {
 		return result, err

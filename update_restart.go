@@ -136,6 +136,10 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 				continue
 			}
 		}
+		if server.team != "" && !teamWaitIdle(server.team, server.pid, stdout) {
+			fmt.Fprintf(stdout, "Team %s is still busy, so it isn't restarted. When it is done:\n  %s\n", server.team, line)
+			continue
+		}
 		fmt.Fprintf(stdout, "$ %s\n", line)
 		if err := updateRun(stdin, stdout, stderr, command[0], command[1:]...); err != nil {
 			return fmt.Errorf("%s failed: %w", line, err)

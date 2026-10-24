@@ -80,8 +80,8 @@ type agentReport struct {
 	Model        string          `json:"model,omitempty"`
 	CostUSD      float64         `json:"cost_usd,omitempty"` // Claude Code's figure at API prices
 	// Resumed is the session this run went on with (hi agent --session).
-	Resumed string `json:"resumed,omitempty"`
-	Warnings     []string        `json:"warnings"`
+	Resumed  string   `json:"resumed,omitempty"`
+	Warnings []string `json:"warnings"`
 }
 
 type agentTokens struct {

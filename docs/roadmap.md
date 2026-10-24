@@ -2690,6 +2690,20 @@ only checked it on the preview.
 - [x] The window is the one Claude Code reports (1,000,000 tokens for
   Opus 5.5), not an assumed 200,000.
 
+### v1.14.9 — A team restarts safely, and the lead's notices stay out of Slack
+
+- [x] `hi update --restart` waits while a team releases or holds its boxes
+  paused for a snapshot, says so, and restarts it once that is done (up to
+  30 minutes; after that it prints the command). A restart in the middle
+  left production paused, with nothing left to unpause it.
+- [x] A team's service unpauses, as it starts, what the one before left
+  paused: production, the preview, and what its pause note names. That
+  covers a crash or a reboot in the pause.
+- [x] No "💾 Self-improvement review: Skill … patched" in the threads after
+  the lead's turns: hi sets Hermes' `display.memory_notifications: off`.
+  The review still runs and saves what the lead learned. Found on team
+  cartman (2026-10-24), twice in a morning.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished
@@ -2711,20 +2725,6 @@ a plan; this makes the fact reach it without looking.
 - [ ] Goes with carrying a turn's findings over
   ([hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md)): both
   are what the next turn needs that its conversation doesn't hold.
-
-### Next — the lead's self-improvement notices stay out of Slack
-
-Found on team cartman (2026-10-24): after a turn, Hermes posts
-"💾 Self-improvement review: Skill 'hi-team-notes' patched" in the thread
-it answered. It means nothing to the people there, and came twice in a
-morning. `display.suppress_warning_notifications` (v1.8.0) doesn't cover
-it, and earlier Hermes versions had no setting for it.
-
-- [ ] Find whether the Hermes hi installs now has a setting that keeps the
-  review's notice out of the chat while it still saves the skill. If it
-  has, hi sets it in the lead's config.yaml.
-- [ ] If it hasn't, find whether hi's plugin can drop the notice before
-  it is sent, or ask upstream for the setting.
 
 ### Guide — a diagram for every tool
 

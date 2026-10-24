@@ -163,7 +163,7 @@ func TestTeamLeadModelSettings(t *testing.T) {
 	if err := writeTeamLead(config, teamSecrets{}, "10.234.5.2", ""); err != nil {
 		t.Fatal(err)
 	}
-	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  live_status: verb\n  suppress_warning_notifications: true\n") {
+	if settings := readTestFile(t, filepath.Join(dir, "lead", "config.yaml")); !strings.Contains(settings, "  live_status: verb\n  memory_notifications: \"off\"\n  suppress_warning_notifications: true\n") {
 		t.Fatal(settings)
 	}
 }

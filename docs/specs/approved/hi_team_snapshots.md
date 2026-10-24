@@ -238,3 +238,13 @@ checked against an S3 server (`rclone serve s3`).
   morning, because a backfill had grown the app's attachments to 266 GB
   and its database to 5.6 GB in between, and restic read all of it with
   the boxes frozen.
+
+## As built (v1.14.9)
+
+- **A restart doesn't leave the team paused.** While the boxes are paused
+  the service keeps a note, `run/paused`, with its process id and the
+  containers, and while it releases, `run/releasing`. `hi update
+  --restart` waits for both to go before restarting a team (up to 30
+  minutes; a note of a process that has stopped doesn't count). As it
+  starts, the service unpauses what was left paused, production, the
+  preview, and the containers the note names, and logs each.

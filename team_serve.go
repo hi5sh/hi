@@ -87,6 +87,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	// network it is on.
 	engine.output("rm", "-f", teamMemoryContainer(name))
 	teardownBox(engine, meta)
+	teamUnpauseLeftovers(engine, name, stderr)
 	memorySite := ""
 	if err := os.WriteFile(filepath.Join(proxyDir, "allow"), []byte(strings.Join(teamLeadHosts, "\n")+"\n"), 0o600); err != nil {
 		return err
@@ -396,7 +397,10 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// writes while the lead is working: the lead still takes the message.
 	// Slack's thinking indicator names what the lead does, without the
 	// paths and commands, which the channel has no use for.
-	settings += "display:\n  busy_ack_enabled: false\n  live_status: verb\n"
+	// No "💾 Self-improvement review: Skill … patched" after a turn: the
+	// review still runs and saves what it learned, but the people in the
+	// thread have no use for the notice (team cartman, 2026-10-24).
+	settings += "display:\n  busy_ack_enabled: false\n  live_status: verb\n  memory_notifications: \"off\"\n"
 	if teamProvider(config.Members["lead"]) != teamProviderOpenRouter {
 		// Hermes would tell the thread each time it falls back; hi tells
 		// the channel once (team_subscriptions.go).

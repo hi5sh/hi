@@ -135,7 +135,7 @@ type boxOptions struct {
 	// team is hi agent --team <team>:<role>, for a team's member.
 	team string
 	// effort is hi agent --effort: how hard the agent thinks.
-	effort string
+	effort  string
 	session string
 }
 

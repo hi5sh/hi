@@ -379,6 +379,9 @@ var teamPause = func(team string) (func(), string) {
 	if slot, ok := loadTeamSlot(team, teamSlotProduction); ok && slot.Container != "" {
 		containers = append(containers, slot.Container)
 	}
+	// A restart now would leave them paused: hi update waits for the note
+	// to go, and the next start unpauses what it names.
+	done := teamMarkBusy(team, teamBusyPaused, containers...)
 	var paused, failed []string
 	for _, container := range containers {
 		if state, _ := engine.output("container", "inspect", "--format", "{{.State.Status}}", container); strings.TrimSpace(state) != "running" {
@@ -398,6 +401,7 @@ var teamPause = func(team string) (func(), string) {
 		for _, container := range paused {
 			engine.output("unpause", container)
 		}
+		done()
 	}, warning
 }
 
