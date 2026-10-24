@@ -60,8 +60,15 @@ func TestTeamTaskFiles(t *testing.T) {
 		t.Fatal("the follow-up lacks the mockup")
 	}
 	followBrief := b.brief(more)
-	if !strings.Contains(followBrief, "## How this work started (t-1)\n\nAdd a supplier page\n") || strings.Count(followBrief, "# Task ") != 1 {
+	// How it started is in the files, not pasted again.
+	if !strings.Contains(followBrief, "## How this work started\n\nThe brief this work started with (t-1) is /box/files/t-1-brief.md.") || strings.Contains(followBrief, "**Anna**") || strings.Count(followBrief, "# Task ") != 1 {
 		t.Fatal(followBrief)
+	}
+	if data, _ := os.ReadFile(filepath.Join(more.Files, "t-1-brief.md")); !strings.HasPrefix(string(data), "Add a supplier page\n") {
+		t.Fatal(string(data))
+	}
+	if data, _ := os.ReadFile(filepath.Join(more.Files, "t-1-thread.md")); !strings.Contains(string(data), "**Anna**") {
+		t.Fatal(string(data))
 	}
 	review, err := b.startReview(teamRequest{Task: more.ID})
 	if err != nil {

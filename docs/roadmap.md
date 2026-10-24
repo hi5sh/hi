@@ -2583,6 +2583,27 @@ cost.
   call's cost when the caller didn't, so every call counts in the team's
   spend and limits.
 
+### v1.12.0 — Review rounds that end, and briefs that say what's new
+
+Approved spec: [hi_team_rounds.md](specs/approved/hi_team_rounds.md). Found
+on team cartman: downloading one index's prices took 7 tasks and 68
+minutes, unfinished, with "ultrathink" in every coder brief.
+
+- [x] A person's thinking keyword reaches the first task started on their
+  message, once; hi replaces it in every other brief and tells the lead.
+- [x] A continuation's brief no longer repeats the first brief and the
+  thread: they are files, and the brief says where.
+- [x] The lead hears when its brief is over 800 words; its skill and soul
+  ask for a few hundred.
+- [x] The reviewer lists what only the running app can show as "Verify on
+  the preview:", and edge cases outside the acceptance list as "Later:";
+  a second review checks the first one's changes.
+- [x] An approval with preview checks tells the lead to check them on the
+  preview before merging.
+- [x] Two review rounds, then the people decide: going on needs their yes.
+- [x] A small fix doesn't start while other work is under way, without a
+  yes.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

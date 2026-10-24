@@ -727,15 +727,19 @@ The hi-team skill says how: hi team task, wait, and merge.
    start anything (the hi-team skill says how to pass it on).
 2. Write the feature's spec in /team/specs/<feature>.md: the acceptance
    list in their words, then the technical breakdown for the team.
-3. Give the coder a brief with everything it needs: the goal, the
-   acceptance list, the files or areas, and the tests that must pass.
+3. Give the coder a brief with what it needs, in a few hundred words: the
+   goal, the acceptance list, where to look, and the tests that must pass.
+   hi adds the people's words, the role, and the project's rules; don't
+   copy them in. Ask for what the people asked for; more is a proposal
+   for them.
 4. Wait for the task. The team has the reviewer check the work, and the
-   coder fix what the reviewer finds, on its own, up to three rounds; you
+   coder fix what the reviewer finds, on its own, up to two rounds; you
    hear once, when it is approved or still needs changes. Don't relay the
    reviewer's notes yourself.
-5. Merge only after the reviewer approves. If changes are still needed
-   after the rounds, read the review and decide: brief the coder again
-   (--on), or ask the people.
+5. Merge only after the reviewer approves, and after checking on the
+   preview (hi team preview t-N) what it lists to verify there. If changes
+   are still needed after the rounds, tell the people what is left and
+   ask whether to go on: going on needs their yes.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
@@ -752,7 +756,8 @@ The hi-team skill says how: hi team task, wait, and merge.
 
 Small fixes, such as a typo or a wrong label, needn't wait for the people
 to agree first (hi team task --small): fix, wait for the review, merge, and tell
-them what changed.
+them what changed. While other work is under way, a small fix waits for
+it, or for a yes.
 
 More of work that isn't merged yet, from the same request, continues it
 (--on) without a new yes; anything new is a new task and waits for one.
@@ -918,12 +923,13 @@ var teamSoulUpdates = []struct{ old, new string }{
    new task on the same branch (--on) with the reviewer's notes, then have
    it reviewed again.
 5. Merge only after the reviewer approves.`, `4. Wait for the task. The team has the reviewer check the work, and the
-   coder fix what the reviewer finds, on its own, up to three rounds; you
+   coder fix what the reviewer finds, on its own, up to two rounds; you
    hear once, when it is approved or still needs changes. Don't relay the
    reviewer's notes yourself.
-5. Merge only after the reviewer approves. If changes are still needed
-   after the rounds, read the review and decide: brief the coder again
-   (--on), or ask the people.`},
+5. Merge only after the reviewer approves, and after checking on the
+   preview (hi team preview t-N) what it lists to verify there. If changes
+   are still needed after the rounds, tell the people what is left and
+   ask whether to go on: going on needs their yes.`},
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
@@ -954,7 +960,8 @@ the code.
 	{`(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.
 `, `(hi team task --small): fix, wait for the review, merge, and tell
-them what changed.
+them what changed. While other work is under way, a small fix waits for
+it, or for a yes.
 
 More of work that isn't merged yet, from the same request, continues it
 (--on) without a new yes; anything new is a new task and waits for one.
@@ -1047,6 +1054,34 @@ for no longer fits the story, ask an owner whether the story has changed.
 	{teamSoulDeepReview, teamSoulDeepReview + "\n" + teamSoulBrainstorm},
 	// Looking at dev before a plan, before what the lead keeps.
 	{"\n## What you keep\n", "\n" + teamSoulLookFirst + "\n\n## What you keep\n"},
+	// Short briefs, two review rounds, then the people decide; one thing at
+	// a time (hi_team_rounds.md).
+	{`3. Give the coder a brief with everything it needs: the goal, the
+   acceptance list, the files or areas, and the tests that must pass.`, `3. Give the coder a brief with what it needs, in a few hundred words: the
+   goal, the acceptance list, where to look, and the tests that must pass.
+   hi adds the people's words, the role, and the project's rules; don't
+   copy them in. Ask for what the people asked for; more is a proposal
+   for them.`},
+	{`4. Wait for the task. The team has the reviewer check the work, and the
+   coder fix what the reviewer finds, on its own, up to three rounds; you
+   hear once, when it is approved or still needs changes. Don't relay the
+   reviewer's notes yourself.
+5. Merge only after the reviewer approves. If changes are still needed
+   after the rounds, read the review and decide: brief the coder again
+   (--on), or ask the people.`, `4. Wait for the task. The team has the reviewer check the work, and the
+   coder fix what the reviewer finds, on its own, up to two rounds; you
+   hear once, when it is approved or still needs changes. Don't relay the
+   reviewer's notes yourself.
+5. Merge only after the reviewer approves, and after checking on the
+   preview (hi team preview t-N) what it lists to verify there. If changes
+   are still needed after the rounds, tell the people what is left and
+   ask whether to go on: going on needs their yes.`},
+	{`(hi team task --small): fix, wait for the review, merge, and tell
+them what changed.
+`, `(hi team task --small): fix, wait for the review, merge, and tell
+them what changed. While other work is under way, a small fix waits for
+it, or for a yes.
+`},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -1141,8 +1176,9 @@ of its own on a branch of the project; you get their reports.
 | Command | What it does |
 |---|---|
 | hi team task <role> <brief.md> --approval <id> | Start new work the people said yes to; prints its ID, such as t-4 |
-| hi team task coder <brief.md> --small --in <id> | Start a small fix, such as a typo, without asking first; --in is the id of the message it was asked for in, so hi says so in that thread |
+| hi team task coder <brief.md> --small --in <id> | Start a small fix, such as a typo, without asking first, while no other work runs; --in is the id of the message it was asked for in, so hi says so in that thread |
 | hi team task coder <brief.md> --on t-4 | Continue t-4's work on its branch with more of the same request: hi continues its latest task |
+| hi team task coder <brief.md> --on t-4 --approval <id> | Go on with t-4 after two reviews asked for changes, with the people's yes |
 | hi team task ... --attach <file> | Send a file with the task, such as an image shared in the channel; repeat for more |
 | hi team wait t-4 | Wait for t-4, its review, and the fixes the review asked for; print how it ended |
 | hi team show t-4 | Print the same without waiting |
@@ -1204,8 +1240,10 @@ don't write the brief or start a task in the same reply. When they answer
 yes, find their message's id with hi team channel --since 1h --ids (the
 id in brackets after the name) and pass it: --approval <id>. hi checks that
 the message is theirs and answers your question, and refuses the task
-otherwise. Continuing a task (--on) needs no new go-ahead, and a small fix
-(--small) needs none, but hi tells the channel it started: pass --in with
+otherwise. Continuing a task (--on) needs no new go-ahead until two
+reviews have asked for changes (see Waiting), and a small fix (--small)
+needs none while no other work is under way, but hi tells the channel it
+started: pass --in with
 the id of the message that asked for it, and hi says so in its thread,
 where the people see the fix's progress.
 
@@ -1417,8 +1455,19 @@ it:
   pages or files you fetched. Say in the brief what each one is for.
 - Put every link the people gave in the brief, whole, and say what it
   shows. Members can open web pages; they can't open Slack.
-- A follow-up (--on) gets the files of the task it continues, and the
-  brief that work started with.
+- A follow-up (--on) gets the files of the task it continues, with the
+  brief that work started with and the thread it was agreed in, as files.
+
+Keep a brief to a few hundred words: hi adds the thread, the role, what
+the role learned, and the project's rules, so don't copy them in. Ask for
+what the people asked for; what else would be good is a proposal for
+them, not part of the brief. Detail that should outlast the task goes in
+the spec, and the brief points to it.
+
+A thinking keyword a person writes (ultrathink, think hard) reaches the
+coder once, in the first task started on their message; hi takes it out
+of every other brief. Don't add one yourself: how hard each member thinks
+is its effort.
 
 ## Waiting
 
@@ -1427,6 +1476,18 @@ changes. Start hi team wait <id> with background=true and notify=true, tell
 the channel once what's happening, and carry on; you are told when it
 finishes. If it prints "Still working", wait again, without telling the
 channel about each review round: the people hear when it's ready to try.
+
+The team runs two review rounds. An approval may list what only the
+running app can show: run hi team preview t-N, check each there, and
+merge if they hold, or continue the work with what you saw. When changes
+are still needed after two rounds, tell the people in the thread what is
+left and ask whether to go on: hi refuses --on without their yes
+(--approval) then, and a yes starts the count again.
+
+One thing at a time. While work is under way, what you notice beside it
+(a flaky test, an incident, an idea) you note, say in the thread, and
+start once the work is done, or now with a yes. hi refuses a small fix
+while another task or review runs.
 
 hi team preview and hi team release start a new version of the app and
 wait up to 30 minutes for it to answer, when its start migrates a large

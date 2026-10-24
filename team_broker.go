@@ -40,8 +40,12 @@ const (
 	// teamMaxBrief is the largest brief the broker takes.
 	teamMaxBrief = 256 << 10
 	// teamReviewRounds is how many reviews a task's work gets before the
-	// broker hands it back to the lead with changes still needed.
-	teamReviewRounds = 3
+	// broker hands it back to the lead with changes still needed; going
+	// on after them needs the people's yes (team_rounds.go).
+	teamReviewRounds = 2
+	// teamMaxSteps is the most steps of a review loop shown, as loops from
+	// before ran three rounds.
+	teamMaxSteps = 7
 )
 
 // teamTask is tasks/<id>.json.
@@ -723,7 +727,7 @@ func teamSteps(team, id string) ([]teamTask, error) {
 		return nil, err
 	}
 	steps := []teamTask{task}
-	for task.Next != "" && len(steps) <= 2*teamReviewRounds+1 {
+	for task.Next != "" && len(steps) < teamMaxSteps {
 		if task, err = loadTeamTask(team, task.Next); err != nil {
 			break
 		}
@@ -915,10 +919,35 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		if task.ForIncident == "" && on.ForIncident != "" && b.incidentOpen(on.ForIncident) {
 			task.ForIncident = on.ForIncident // a fix after a review, say
 		}
+		// After the rounds, the people decide whether the work goes on.
+		tasks := loadTeamTasks(b.team)
+		if request.Approval != "" {
+			config, err := loadTeam(b.team)
+			if err != nil {
+				return teamTask{}, nil, err
+			}
+			approval, err := b.teamFindApproval(config, request.Approval, "task")
+			if err != nil {
+				return teamTask{}, nil, err
+			}
+			for _, other := range tasks {
+				if other.Approval != nil && other.Approval.TS == approval.TS {
+					return teamTask{}, nil, fmt.Errorf("message %s already started %s; going on needs a new yes, given since", approval.TS, other.ID)
+				}
+			}
+			task.Approval = &approval
+		} else if changes := teamChangesSinceYes(tasks, on.ID); changes >= teamReviewRounds {
+			return teamTask{}, nil, fmt.Errorf("%d reviews of this work asked for changes since the people's yes, the most the team goes on without asking. Tell them in the thread what is left and ask whether to go on; with their yes, continue with --on %s --approval <id>", changes, on.ID)
+		}
 	} else if request.survey {
 		task.Survey = true
 		task.Approval = &teamApproval{TS: "adopt", Name: "the owner who adopted the project, on the machine", Text: "hi team adopt"}
 	} else if request.Small {
+		// One thing at a time: work beside work under way needs a yes.
+		if busy := teamBusyWork(loadTeamTasks(b.team)); busy != nil {
+			return teamTask{}, nil, fmt.Errorf("%s (%s) is under way. A small fix beside it needs a yes: say in the thread what you'd start and why, and with their yes start it with --approval <id> instead of --small; or start it once %s is done",
+				busy.ID, busy.Title, busy.ID)
+		}
 		task.Small = true
 		if request.In != "" {
 			config, err := loadTeam(b.team)
@@ -993,8 +1022,17 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	text += extra + teamRoleBrief(b.team, task.Role)
 	if files != "" {
 		task.Files = files
-		saveTeamTask(b.team, task)
 	}
+	if !b.keepsThinking(task) {
+		var found []string
+		if text, found = teamDropThinking(text); len(found) > 0 {
+			task.Hints = append(task.Hints, teamThinkingHint(found))
+		}
+	}
+	if words := len(strings.Fields(brief)); round == 0 && words > teamLongBrief {
+		task.Hints = append(task.Hints, fmt.Sprintf("Your brief was %d words. A brief is the goal, the acceptance list, where to look, and the tests that must pass, in a few hundred words: hi adds the people's words, the role, what it learned, and the project's rules. Detail that should last goes in the spec; point to it.", words))
+	}
+	saveTeamTask(b.team, task)
 	// The channel isn't told of each piece of work for dev: a small fix
 	// says so in the thread it was asked in, and work from elsewhere goes
 	// to the owners in a DM. The channel hears of it all at once, in the
@@ -1113,6 +1151,7 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		brief += "\n" + teamDependencyAdvisoriesText(advisories, err) + "\n"
 	}
 	brief += teamRoleBrief(b.team, "reviewer")
+	brief, _ = teamDropThinking(brief)
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
 
@@ -1163,7 +1202,7 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	fmt.Fprintf(&text, "The work is the commits since %s:\n\n    git log --oneline %s..HEAD\n    git diff %s...HEAD\n\n", base[:min(len(base), 12)], base, base)
 	fmt.Fprintf(&text, "The current specs are the ones on %[1]s: this branch's docs/specs/ may be older, from when the work started. Read them with git show %[1]s:docs/specs/<file>, and see what changed with git diff HEAD %[1]s -- docs/specs/. Judge the work against those, not against an older copy on the branch.\n\n", branch)
 	text.WriteString("Check that:\n\n")
-	text.WriteString("- it does what the brief asks, and nothing beyond it or beyond what the people approved (their words are in the brief below, or in how the work started): work they didn't ask for is a change needed, \"outside what was approved\", however useful;\n")
+	text.WriteString("- it does what the brief asks, and nothing beyond it or beyond what the people approved (their words are in the brief below, or in /box/files when the work continues another task): work they didn't ask for is a change needed, \"outside what was approved\", however useful;\n")
 	text.WriteString("- it has tests for what the brief says must work, and the tests pass when you run them;\n")
 	text.WriteString("- it doesn't break what worked before, leak secrets, or leave debugging behind;\n")
 	text.WriteString("- long work it adds or changes (a loop over many records, a queue, a backfill, an import, a scheduled recalculation) reports as a job, as the coder's brief says, and writes blocked or failed with why wherever it stops on its own (too many failures, a limit, an item it can't process): one that would stop without saying so is a change needed;\n")
@@ -1171,6 +1210,7 @@ func teamReviewBrief(team, branch string, task, reviewed teamTask, base, brief, 
 	text.WriteString("- long work it adds or changes runs off the thread that answers requests, with short writes to the database; a change that makes the app answer by switching work off is a workaround: say so, and what would fix the cause;\n")
 	text.WriteString("- the README still says how to run and test the project;\n")
 	text.WriteString("- its diagrams in the docs are boxes or mermaid blocks, never drawings in ASCII or box-drawing characters, which /docs shows as text: one is a change needed.\n\n")
+	text.WriteString(teamReviewRules(task.Round))
 	text.WriteString("Don't fix anything yourself and don't commit: say what must change.\n\n")
 	text.WriteString("In your report, start the summary with \"Approve:\" if it can be merged as it is, or with \"Changes needed:\" and put each change in follow_ups.\n\n")
 	if notes = strings.TrimSpace(notes); notes != "" {
@@ -1710,7 +1750,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			}
 		}
 		if len(words) != 2 {
-			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task>] [--upstream[=<tag>]] [--attach <file>]... [--finding r-4:F-1]... [--incident <id> --because <why>]"}
+			return usageError{"usage: hi team task <role> <brief.md|-> [--approval <message id> [--new] | --small | --on <task> [--approval <message id>]] [--upstream[=<tag>]] [--attach <file>]... [--finding r-4:F-1]... [--incident <id> --because <why>]"}
 		}
 		brief, err := teamReadBrief(words[1], stdin)
 		if err != nil {
@@ -2257,9 +2297,17 @@ func printTeamTaskView(view teamTaskView, w io.Writer) {
 		fmt.Fprintf(w, "Still working: %s, the %s. The team fixes what the reviewer finds on its own; hi team wait %s waits again.\n", last.ID, last.Role, first.ID)
 		return
 	case last.Kind == "review" && last.Verdict == "approve":
+		if checks := teamPreviewChecks(last); len(checks) > 0 {
+			fmt.Fprintf(w, "Approved, with what only the running app can show. Run hi team preview %s and check each there:\n", work.ID)
+			for _, check := range checks {
+				fmt.Fprintf(w, "  - %s\n", check)
+			}
+			fmt.Fprintf(w, "If they hold, hi team merge %s merges it; if not, continue with hi team task coder <brief.md> --on %s, saying what you saw.\n", first.ID, first.ID)
+			break
+		}
 		fmt.Fprintf(w, "Approved: the reviewer approved %s's latest commit. hi team merge %s merges it.\n", work.ID, first.ID)
 	case last.Kind == "review" && last.Status == "done":
-		fmt.Fprintf(w, "Changes still needed after %d reviews. Read the review below, then decide: continue with hi team task coder <brief.md> --on %s, or ask the people.\n", last.Round, first.ID)
+		fmt.Fprintf(w, "Changes still needed after %d reviews. Read the review below, then tell the people in the thread what is left and ask whether to go on: with their yes, continue with hi team task coder <brief.md> --on %s --approval <id>.\n", last.Round, first.ID)
 	default:
 		fmt.Fprintf(w, "%s %s; its report is below.\n", last.ID, last.Status)
 	}

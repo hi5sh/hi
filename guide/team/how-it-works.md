@@ -9,10 +9,15 @@ Someone in the channel asks for something. The lead agrees with them what
 will change and a short list of things they can try, writes it down in
 `docs/specs/`, and briefs the coder. When the coder finishes, the broker has
 the reviewer check the work; if it needs changes, the broker gives the coder
-the reviewer's notes on the same branch, up to three reviews, without the
+the reviewer's notes on the same branch, up to two reviews, without the
 lead in between. The lead hears once: approved, or changes still needed.
-Once the reviewer approves, the lead merges and tells the people what
-changed and how to try it. A feature is done when they agree it works.
+After two reviews that still ask for changes, the people decide whether
+the work goes on: the broker refuses to continue it without their yes.
+What only the running app can show, such as data from a service whose key
+only the app has, the reviewer leaves for the lead to check on the
+preview. Once the reviewer approves, the lead merges and tells the people
+what changed and how to try it. A feature is done when they agree it
+works.
 
 The lead puts members to work with `hi team task`, `review`, `wait`,
 `merge`, `release`, and `discard` in its box. These go to a broker that `hi team` runs on the
@@ -27,8 +32,9 @@ Work starts only after someone says yes. The lead proposes the plan and
 the list of things to try, and waits; the broker refuses a new task unless
 the lead names the message that approved it, a reply from one of the
 team's people after the lead asked, in the same thread. Small fixes, such
-as a typo, may start without asking, and the channel is told when one
-does.
+as a typo, may start without asking while no other work is under way, and
+the channel is told when one does; beside other work, they wait for a
+yes too.
 
 ## What a member gets
 
@@ -37,7 +43,14 @@ the people gave along with it: the thread the work was agreed in, in their
 words with their links, and the files shared there (screenshots,
 mockups, documents), in a read-only folder in the member's box. The lead
 attaches anything else, such as a file shared earlier in the channel. A
-follow-up and its review get the same files.
+follow-up and its review get the same files, with the brief the work
+started with and the thread it was agreed in as files, rather than pasted
+into every brief again.
+
+When someone asks for the coder to think hard ("ultrathink", "think
+hard"), the word reaches the first task started on their message, once.
+The broker takes it out of every other brief, fix rounds and reviews
+included; how hard each member thinks on every task is its effort.
 
 ## Packages
 

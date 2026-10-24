@@ -388,7 +388,8 @@ hi team discard dev --approval <id>              dev's code back to production's
   task finishes with commits, the broker starts its review; when the
   review asks for changes, it starts the coder on the same branch (`--on`)
   with the reviewer's summary and follow_ups, then reviews again, up to
-  three reviews. Each step names the next (`next` in its task file), saved
+  two reviews (three before v1.12.0; see
+  [hi_team_rounds.md](hi_team_rounds.md)). Each step names the next (`next` in its task file), saved
   before the step shows as finished. `hi team wait <task>` follows the
   steps to the end and prints them, how it ended, the latest work's report,
   and the last review. `merge`, `stop`, `preview`, and `--on` given the

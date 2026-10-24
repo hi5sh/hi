@@ -805,7 +805,7 @@ func TestTeamBrokerReviewLoop(t *testing.T) {
 		t.Fatal(review)
 	}
 	fixBrief := b.brief(steps[2])
-	for _, want := range []string{"Fix what review t-2 found in t-1", "review 1 of 3", "Changes needed: no tests.", "- Test the empty list.", "You continue task t-1", "Add a supplier list", "run git merge main first"} {
+	for _, want := range []string{"Fix what review t-2 found in t-1", "review 1 of 2", "Changes needed: no tests.", "- Test the empty list.", "You continue task t-1", "/box/files/t-1-brief.md", "run git merge main first"} {
 		if !strings.Contains(fixBrief, want) {
 			t.Fatalf("the fix's brief has no %q:\n%s", want, fixBrief)
 		}
@@ -823,33 +823,50 @@ func TestTeamBrokerReviewLoop(t *testing.T) {
 		t.Fatal(merged.ID, merged.Status, err)
 	}
 
-	// After three reviews that ask for changes, the loop hands the work
+	// After two reviews that ask for changes, the loop hands the work
 	// back to the lead.
 	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Add a payment form", Small: true}); err != nil {
 		t.Fatal(err)
 	}
 	steps = waitTeamSteps(t, "t-5")
-	if len(steps) != 6 || steps[5].Kind != "review" || steps[5].Round != 3 || steps[5].Verdict != "changes" || steps[5].Next != "" {
+	if len(steps) != 4 || steps[3].Kind != "review" || steps[3].Round != 2 || steps[3].Verdict != "changes" || steps[3].Next != "" {
 		t.Fatalf("%+v", steps)
 	}
 	// Without follow_ups, the fix gets the reviewer's text.
 	if !strings.Contains(b.brief(steps[2]), "All done.") {
 		t.Fatal(b.brief(steps[2]))
 	}
-	if _, err := b.merge("t-5", ""); err == nil || !strings.Contains(err.Error(), "no review approved t-9") {
+	if _, err := b.merge("t-5", ""); err == nil || !strings.Contains(err.Error(), "no review approved t-7") {
 		t.Fatal(err)
 	}
 	out.Reset()
 	printTeamTaskView(teamTaskView{teamTask: steps[0], Steps: steps}, &out)
-	if !strings.Contains(out.String(), "Changes still needed after 3 reviews") || !strings.Contains(out.String(), "--on t-5") {
+	if !strings.Contains(out.String(), "Changes still needed after 2 reviews") || !strings.Contains(out.String(), "--on t-5 --approval <id>") {
 		t.Fatal(out.String())
 	}
-	// The lead continues the task: on its latest fix, with new rounds.
-	more, err := b.startTask(teamRequest{Role: "coder", Brief: "Try another way", On: "t-5"})
-	if err != nil || more.On != "t-9" || more.Round != 0 {
+	// Going on now needs the people's yes.
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Try another way", On: "t-5"}); err == nil || !strings.Contains(err.Error(), "2 reviews of this work asked for changes") || !strings.Contains(err.Error(), "--approval") {
+		t.Fatal(err)
+	}
+	// With it, the work goes on from its latest fix, with new rounds; the
+	// same yes doesn't start it again.
+	b.channel = &fakeTeamChannel{}
+	now := time.Now()
+	ts := func(minutes int) string { return teamSlackTS(now.Add(-time.Duration(minutes) * time.Minute)) }
+	os.MkdirAll(teamChannelDir("payments"), 0o700)
+	teamAppendChannel(teamChannelDir("payments"), []teamChannelMessage{
+		{TS: ts(3), User: "U07OWNER1", Name: "Owner", Text: "How is the payment form?"},
+		{TS: ts(2), Thread: ts(3), Name: "team-payments", Bot: true, Text: "Two reviews still ask for changes. Shall the coder go on?"},
+		{TS: ts(1), Thread: ts(3), User: "U07OWNER1", Name: "Owner", Text: "Yes, go on"},
+	})
+	more, err := b.startTask(teamRequest{Role: "coder", Brief: "Try another way", On: "t-5", Approval: ts(1)})
+	if err != nil || more.On != "t-7" || more.Round != 0 || more.Approval == nil {
 		t.Fatal(more, err)
 	}
-	waitTeamSteps(t, more.ID)
+	last := waitTeamSteps(t, more.ID)
+	if _, err := b.startTask(teamRequest{Role: "coder", Brief: "Once more", On: last[len(last)-2].ID, Approval: ts(1)}); err == nil || !strings.Contains(err.Error(), "already started "+more.ID) {
+		t.Fatal(err)
+	}
 }
 
 func TestTeamBrokerSocket(t *testing.T) {

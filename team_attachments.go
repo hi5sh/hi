@@ -60,10 +60,15 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 		return inBox, nil
 	}
 	if task.On != "" {
+		// How the work started is in the files, not pasted again into
+		// every round (hi_team_rounds.md): the member reads it when the
+		// change needs it.
+		root := teamChainRoot(loadTeamTasks(b.team), task.On)
+		started, agreed := root+"-brief.md", root+"-thread.md"
 		if from := teamTaskFilesDir(b.team, task.On); fileExists(from) {
 			entries, _ := os.ReadDir(from)
 			for _, entry := range entries {
-				if entry.Type().IsRegular() {
+				if entry.Type().IsRegular() && entry.Name() != started && entry.Name() != agreed {
 					source := filepath.Join(from, entry.Name())
 					if _, err := add(entry.Name(), "from "+task.On, func(path string) error { return teamCopyFile(source, path) }); err != nil {
 						return "", "", err
@@ -71,20 +76,39 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 				}
 			}
 		}
-		if root := teamChainRoot(loadTeamTasks(b.team), task.On); root != "" {
+		if root != "" {
 			saved := b.brief(teamTask{ID: root})
+			var where []string
 			if brief := teamBriefBody(saved); brief != "" {
-				fmt.Fprintf(&text, "\n## How this work started (%s)\n\n%s\n", root, teamClipText(brief, teamMaxConversation))
+				inBox, err := add(started, root+"'s brief, as the lead wrote it", func(path string) error { return os.WriteFile(path, []byte(brief+"\n"), 0o600) })
+				if err != nil {
+					return "", "", err
+				}
+				where = append(where, fmt.Sprintf("The brief this work started with (%s) is %s.", root, inBox))
 			}
-			// What the people said when they agreed to it, so this work
-			// stays within it.
 			if _, said, ok := strings.Cut(saved, "\n## What the people said\n"); ok {
 				said, _, _ = strings.Cut(said, "\n## ")
-				fmt.Fprintf(&text, "\n### What the people agreed to (%s)\n%s\n", root, strings.TrimRight(said, "\n"))
+				inBox, err := add(agreed, "what the people said when they agreed to "+root, func(path string) error { return os.WriteFile(path, []byte(strings.TrimSpace(said)+"\n"), 0o600) })
+				if err != nil {
+					return "", "", err
+				}
+				where = append(where, "What the people said when they agreed to it is "+inBox+".")
+			}
+			if len(where) > 0 {
+				them := "it"
+				if len(where) > 1 {
+					them = "them"
+				}
+				fmt.Fprintf(&text, "\n## How this work started\n\n%s Read %s when the change needs %s: the work stays within what the people agreed to.\n", strings.Join(where, " "), them, them)
 			}
 		}
+		if task.Approval != nil {
+			fmt.Fprintf(&text, "\n## Going on was agreed\n\n**%s**: %s\n", task.Approval.Name, teamClipText(strings.TrimSpace(task.Approval.Text), 4<<10))
+		}
 	}
-	if task.Approval != nil && teamWebMessageID.MatchString(task.Approval.TS) {
+	if task.On != "" {
+		// The thread is in the files already.
+	} else if task.Approval != nil && teamWebMessageID.MatchString(task.Approval.TS) {
 		said, err := teamWebApprovalChat(b.team, *task.Approval, func(source, from string) (string, error) {
 			_, name, _ := strings.Cut(filepath.Base(source), "-")
 			return add(firstNonEmpty(name, filepath.Base(source)), from, func(path string) error { return teamCopyFile(source, path) })

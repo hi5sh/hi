@@ -150,8 +150,11 @@ func TestTeamNewWorkInTheThreadOfOpenWork(t *testing.T) {
 		t.Fatal(channel.calls)
 	}
 	brief, _ := os.ReadFile(filepath.Join(teamTaskDir("payments"), more.ID+".md"))
-	if !strings.Contains(string(brief), "### What the people agreed to ("+first.ID+")") || !strings.Contains(string(brief), "A supplier list, please") {
+	if !strings.Contains(string(brief), "What the people said when they agreed to it is /box/files/"+first.ID+"-thread.md.") {
 		t.Fatal(string(brief))
+	}
+	if said, _ := os.ReadFile(filepath.Join(more.Files, first.ID+"-thread.md")); !strings.Contains(string(said), "A supplier list, please") {
+		t.Fatal(string(said))
 	}
 }
 
