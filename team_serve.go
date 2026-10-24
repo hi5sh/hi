@@ -737,10 +737,13 @@ The hi-team skill says how: hi team task, wait, and merge.
    coder fix what the reviewer finds, on its own, up to two rounds; you
    hear once, when it is approved or still needs changes. Don't relay the
    reviewer's notes yourself.
-5. Merge only after the reviewer approves, and after checking on the
-   preview (hi team preview t-N) what it lists to verify there. If changes
-   are still needed after the rounds, tell the people what is left and
-   ask whether to go on: going on needs their yes.
+5. Merge once the reviewer approves; quick work, a small fix or a few
+   lines, you may merge while its review runs (hi team wait says when).
+   What the review lists to verify on the preview goes to the people with
+   the preview, as what to try: don't start a task to check it. Start more
+   work only when they find something wrong. If changes are still needed
+   after the rounds, tell the people what is left and ask whether to go
+   on: going on needs their yes.
 6. Run hi team preview, post its link, tell the people
    what changed and what to try, and ask them to confirm it works. A feature is done when they agree it does. A bug
    they report becomes a new task for that feature.
@@ -927,10 +930,13 @@ var teamSoulUpdates = []struct{ old, new string }{
    coder fix what the reviewer finds, on its own, up to two rounds; you
    hear once, when it is approved or still needs changes. Don't relay the
    reviewer's notes yourself.
-5. Merge only after the reviewer approves, and after checking on the
-   preview (hi team preview t-N) what it lists to verify there. If changes
-   are still needed after the rounds, tell the people what is left and
-   ask whether to go on: going on needs their yes.`},
+5. Merge once the reviewer approves; quick work, a small fix or a few
+   lines, you may merge while its review runs (hi team wait says when).
+   What the review lists to verify on the preview goes to the people with
+   the preview, as what to try: don't start a task to check it. Start more
+   work only when they find something wrong. If changes are still needed
+   after the rounds, tell the people what is left and ask whether to go
+   on: going on needs their yes.`},
 	{`(hi team task --small): fix, review, merge, and tell them
 what changed.`, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.`},
@@ -1073,16 +1079,31 @@ for no longer fits the story, ask an owner whether the story has changed.
    coder fix what the reviewer finds, on its own, up to two rounds; you
    hear once, when it is approved or still needs changes. Don't relay the
    reviewer's notes yourself.
-5. Merge only after the reviewer approves, and after checking on the
-   preview (hi team preview t-N) what it lists to verify there. If changes
-   are still needed after the rounds, tell the people what is left and
-   ask whether to go on: going on needs their yes.`},
+5. Merge once the reviewer approves; quick work, a small fix or a few
+   lines, you may merge while its review runs (hi team wait says when).
+   What the review lists to verify on the preview goes to the people with
+   the preview, as what to try: don't start a task to check it. Start more
+   work only when they find something wrong. If changes are still needed
+   after the rounds, tell the people what is left and ask whether to go
+   on: going on needs their yes.`},
 	{`(hi team task --small): fix, wait for the review, merge, and tell
 them what changed.
 `, `(hi team task --small): fix, wait for the review, merge, and tell
 them what changed. While other work is under way, a small fix waits for
 it, or for a yes.
 `},
+	// Preview checks go to the people; quick work merges before its review
+	// (team_quick.go).
+	{`5. Merge only after the reviewer approves, and after checking on the
+   preview (hi team preview t-N) what it lists to verify there. If changes
+   are still needed after the rounds, tell the people what is left and
+   ask whether to go on: going on needs their yes.`, `5. Merge once the reviewer approves; quick work, a small fix or a few
+   lines, you may merge while its review runs (hi team wait says when).
+   What the review lists to verify on the preview goes to the people with
+   the preview, as what to try: don't start a task to check it. Start more
+   work only when they find something wrong. If changes are still needed
+   after the rounds, tell the people what is left and ask whether to go
+   on: going on needs their yes.`},
 }
 
 // updateTeamSoul brings an existing SOUL.md's words about how the team
@@ -1485,8 +1506,13 @@ finishes. If it prints "Still working", wait again, without telling the
 channel about each review round: the people hear when it's ready to try.
 
 The team runs two review rounds. An approval may list what only the
-running app can show: run hi team preview t-N, check each there, and
-merge if they hold, or continue the work with what you saw. When changes
+running app can show: merge, put it on the preview, and pass those to the
+people with its link, as what to try. Don't start a task to check them;
+start one when they find something wrong. Quick work (a small fix, or a
+change of a few lines) you may merge as soon as the coder is done: hi team
+wait says so, the review runs after, and hi tells you if it asks for
+changes, to fix in dev with a small fix. A task that only adds to docs/
+after an approval, such as notes, needs no review again. When changes
 are still needed after two rounds, tell the people in the thread what is
 left and ask whether to go on: hi refuses --on without their yes
 (--approval) then, and a yes starts the count again.

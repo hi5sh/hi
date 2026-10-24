@@ -691,12 +691,26 @@ func (b *teamBroker) handler() http.Handler {
 		}
 		for {
 			steps, err := teamSteps(b.team, id)
-			if err != nil || !teamTaskActive(steps[len(steps)-1]) || time.Now().After(deadline) {
+			// Quick work's wait ends when the coder is done: it merges
+			// while its review runs (team_quick.go).
+			quick := false
+			if err == nil && len(steps) > 1 {
+				if last := steps[len(steps)-1]; teamTaskActive(last) && last.Kind == "review" {
+					quick = b.quickWork(steps[len(steps)-2])
+				}
+			}
+			if err != nil || quick || !teamTaskActive(steps[len(steps)-1]) || time.Now().After(deadline) {
 				var view teamTaskView
 				if err == nil {
 					view.teamTask = steps[0]
 					if len(steps) > 1 {
 						view.Steps = steps
+					}
+					view.Quick = quick
+					if last := steps[len(steps)-1]; last.Kind == "task" && last.Status == "done" {
+						if earlier, ok := b.approvedDocsOnly(last); ok {
+							view.DocsApproved = earlier.ID
+						}
 					}
 					if last := steps[len(steps)-1]; !teamTaskActive(last) {
 						b.heard(last.ID) // the lead reads how the work ended
@@ -722,6 +736,11 @@ func teamTaskActive(task teamTask) bool { return task.Status == "starting" || ta
 type teamTaskView struct {
 	teamTask
 	Steps []teamTask `json:"steps,omitempty"`
+	// Quick says the work may merge now, while its review runs;
+	// DocsApproved is the review that approved it before it changed only
+	// docs/, so it needs none again (team_quick.go).
+	Quick        bool   `json:"quick,omitempty"`
+	DocsApproved string `json:"docs_approved,omitempty"`
 }
 
 // teamSteps is a task and the reviews and fixes the broker started after
@@ -1377,6 +1396,7 @@ func (b *teamBroker) wait(task teamTask) {
 	task.Next = next
 	saveTeamTask(b.team, task)
 	b.taskEnded(task)
+	b.reviewedAfterMerge(task)
 	if start != nil {
 		start()
 		return
@@ -1394,6 +1414,11 @@ func (b *teamBroker) nextStep(task teamTask) (string, func()) {
 	}
 	if task.Kind == "task" {
 		if task.Role == "reviewer" || task.Branch == "" {
+			return "", nil
+		}
+		// Work that changed only docs/ since a review approved it, such as
+		// a verification record, needs no review again (team_quick.go).
+		if _, ok := b.approvedDocsOnly(task); ok {
 			return "", nil
 		}
 		// A member that committed nothing, or a team without a reviewer,
@@ -1542,7 +1567,9 @@ func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 	if err != nil {
 		return task, err
 	}
-	if busy != nil {
+	// Quick work merges while its review runs (team_quick.go).
+	quick := busy != nil && busy.Kind == "review" && b.quickWork(task)
+	if busy != nil && !quick {
 		return task, fmt.Errorf("%s's work is still in review (%s is working on it); hi team wait %s waits for the outcome", id, busy.ID, id)
 	}
 	if task.Kind != "task" || task.Status != "done" || task.Branch == "" {
@@ -1562,7 +1589,18 @@ func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 			approval = &review
 		}
 	}
-	if approval == nil {
+	approvedBy := ""
+	switch {
+	case approval != nil:
+		approvedBy = "approved in review " + approval.ID + " by the reviewer"
+	case quick:
+		approvedBy = "merged as quick work while review " + busy.ID + " runs"
+	default:
+		if earlier, ok := b.approvedDocsOnly(task); ok {
+			approvedBy = "approved in review " + earlier.ID + ", with only docs changed since"
+		}
+	}
+	if approvedBy == "" {
 		return task, fmt.Errorf("no review approved %s's latest commit; run hi team review %s", task.ID, task.ID)
 	}
 	var packages []teamDependencyProject
@@ -1606,7 +1644,7 @@ func (b *teamBroker) mergeWork(id, approvalRef string) (teamTask, error) {
 	if err := b.onTeamBranch(config); err != nil {
 		return task, err
 	}
-	message := fmt.Sprintf("%s\n\nTask %s by the %s, approved in review %s by the reviewer.", task.Title, task.ID, task.Role, approval.ID)
+	message := fmt.Sprintf("%s\n\nTask %s by the %s, %s.", task.Title, task.ID, task.Role, approvedBy)
 	if out, err := teamGit(b.repo, "merge", "--no-ff", "-m", message, task.Branch); err != nil {
 		conflicted := boxGit(b.repo, "diff", "--name-only", "--diff-filter=U")
 		teamGit(b.repo, "merge", "--abort")
@@ -2331,6 +2369,9 @@ func teamReadBrief(path string, stdin io.Reader) (string, error) {
 // printTeamTaskView is what the lead reads about a task: with its review
 // loop, the steps, how it ended, the latest work and the last review.
 func printTeamTaskView(view teamTaskView, w io.Writer) {
+	if view.DocsApproved != "" {
+		defer fmt.Fprintf(w, "\nIt changed only docs/ since review %s approved the work, so it gets no review again: hi team merge %s merges it.\n", view.DocsApproved, view.ID)
+	}
 	if len(view.Steps) < 2 {
 		printTeamTask(view.teamTask, w)
 		return
@@ -2360,16 +2401,18 @@ func printTeamTaskView(view teamTaskView, w io.Writer) {
 	table.Flush()
 	fmt.Fprintln(w)
 	switch {
+	case teamTaskActive(last) && view.Quick:
+		fmt.Fprintf(w, "Quick work: the %s is done, and the review (%s) runs after. Merge it now with hi team merge %s and put it on the preview for the people to try; if the review asks for changes, hi tells you, and you fix them in dev with a small fix.\n", work.Role, last.ID, first.ID)
 	case teamTaskActive(last):
 		fmt.Fprintf(w, "Still working: %s, the %s. The team fixes what the reviewer finds on its own; hi team wait %s waits again.\n", last.ID, last.Role, first.ID)
 		return
 	case last.Kind == "review" && last.Verdict == "approve":
 		if checks := teamPreviewChecks(last); len(checks) > 0 {
-			fmt.Fprintf(w, "Approved, with what only the running app can show. Run hi team preview %s and check each there:\n", work.ID)
+			fmt.Fprintf(w, "Approved. Merge it with hi team merge %s and put it on the preview (hi team preview). What only the running app can show goes to the people with the preview's link, as what to try; don't start a task to check it:\n", first.ID)
 			for _, check := range checks {
 				fmt.Fprintf(w, "  - %s\n", check)
 			}
-			fmt.Fprintf(w, "If they hold, hi team merge %s merges it; if not, continue with hi team task coder <brief.md> --on %s, saying what you saw.\n", first.ID, first.ID)
+			fmt.Fprintln(w, "Start more work only when they find something wrong.")
 			break
 		}
 		fmt.Fprintf(w, "Approved: the reviewer approved %s's latest commit. hi team merge %s merges it.\n", work.ID, first.ID)

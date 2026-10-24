@@ -14,8 +14,11 @@ lead in between. The lead hears once: approved, or changes still needed.
 After two reviews that still ask for changes, the people decide whether
 the work goes on: the broker refuses to continue it without their yes.
 What only the running app can show, such as data from a service whose key
-only the app has, the reviewer leaves for the lead to check on the
-preview. Once the reviewer approves, the lead merges and tells the people
+only the app has, the reviewer leaves for the people to try on the
+preview once it is merged. Quick work, a small fix or a change of a few
+lines, merges while its review runs; if the review then asks for
+changes, the lead fixes them in dev. A task that only adds to the docs
+after an approval needs no review again. Once the reviewer approves, the lead merges and tells the people
 what changed and how to try it. A feature is done when they agree it
 works.
 

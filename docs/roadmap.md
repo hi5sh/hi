@@ -2650,6 +2650,20 @@ release 2.
   production's data first, when its fork is over an hour old; a fix or
   follow-up of the work on the preview keeps its fork.
 
+### v1.14.3 — Checks go to the people, and quick work doesn't wait on review
+
+Found on team cartman: a chart was done and approved 15 minutes after it
+was asked for; the next 22 went on three coder tasks, each reviewed, that
+only checked it on the preview.
+
+- [x] What a review lists to verify on the preview goes to the people with
+  the preview, as what to try, not into a task.
+- [x] A task that changes only docs/ since an approval gets no review, and
+  merges on that approval.
+- [x] Quick work (a small fix, or at most 100 changed lines outside docs/)
+  merges while its review runs; a review that then asks for changes wakes
+  the lead to fix them in dev.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

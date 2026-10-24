@@ -110,7 +110,7 @@ func TestTeamPreviewChecks(t *testing.T) {
 	steps := []teamTask{{ID: "t-3", Kind: "task", Role: "coder", Status: "done", Next: "t-4"}, review}
 	var out strings.Builder
 	printTeamTaskView(teamTaskView{teamTask: steps[0], Steps: steps}, &out)
-	for _, want := range []string{"Run hi team preview t-3 and check each there:", "  - the real download fills 20 years", "hi team merge t-3 merges it"} {
+	for _, want := range []string{"Merge it with hi team merge t-3 and put it on the preview", "don't start a task to check it", "  - the real download fills 20 years"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("no %q in:\n%s", want, out.String())
 		}

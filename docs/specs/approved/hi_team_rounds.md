@@ -238,3 +238,26 @@ Found on cartman's first task under v1.12.0 (t-194, a title fix):
   (a new advisory for a package the work didn't touch, a flaky test) is an
   "Alert:" line, not this work's change needed. A happy-dom advisory
   published that morning had blocked the title fix.
+
+## As built (v1.14.3)
+
+Found on cartman (2026-10-24): a chart plotting OMXS30 beside the
+portfolio was done and approved at 07:54, 15 minutes after it was asked
+for. The lead then sent the review's "Verify on the preview:" lines to the
+coder as three more tasks (t-203, t-205, t-207), each with a review, until
+08:16: 22 minutes of checking work that was finished.
+
+- **Preview checks go to the people.** hi team wait, the soul's step 5,
+  the skill, and the reviewer's rules say: merge, put it on the preview,
+  and pass what the review lists to verify to the people, as what to try.
+  A task starts when they find something wrong.
+- **Docs only, no review again** (`team_quick.go`). A task whose commits
+  since an approving review in its chain change only `docs/` starts no
+  review, and merges on that approval; the merge commit names it.
+- **Quick work merges before its review.** Work whose first task was a
+  small fix, or whose change outside `docs/` since the team's branch is
+  at most 100 lines added and removed, may merge while its review runs.
+  hi team wait ends when the coder is done, and says so. When that review
+  then asks for changes, hi wakes the lead in the work's thread to fix
+  them in dev with a small fix. Dev isn't production: a release still
+  needs an owner's yes.
