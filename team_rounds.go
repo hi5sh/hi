@@ -146,9 +146,31 @@ func teamReviewRules(round int) string {
 	text.WriteString("What a review may ask for:\n\n")
 	fmt.Fprintf(&text, "- What only the running app can show isn't yours to check: the real service behind a key only the app has, the app's own data, the deployed app. It isn't a change needed. List each as a line starting %q in follow_ups, and approve if the rest is right: the lead checks those on the preview before merging.\n", teamPreviewCheck)
 	text.WriteString("- An edge case the acceptance list doesn't ask for is for later: a line starting \"Later:\" in follow_ups, not a change needed, unless it loses data, leaks a secret, breaks what worked, or fails the acceptance list.\n")
+	text.WriteString("- A check that fails without this work too (a new advisory for a package the work didn't touch, a test that fails now and then on the team's branch) isn't this work's change needed: say so in a line starting \"Alert:\" in follow_ups, which reaches the lead, and judge the work on the rest.\n")
 	if round > 1 {
 		fmt.Fprintf(&text, "- This is review %d. The brief below is the fix of what the earlier review asked for: check that those changes were made and broke nothing. Something new is a change needed only if it loses data, leaks a secret, breaks what worked, or fails the acceptance list; anything else is \"Later:\".\n", round)
 	}
 	text.WriteString("\n")
 	return text.String()
+}
+
+// teamMustChange are a review's follow_ups that are changes for the coder:
+// not what the lead checks on the preview, what is for later, an alert, or
+// what the reviewer learned.
+func teamMustChange(followUps []string) []string {
+	var must []string
+	for _, line := range followUps {
+		line = strings.TrimSpace(line)
+		lower := strings.ToLower(line)
+		switch {
+		case line == "",
+			strings.HasPrefix(lower, strings.ToLower(teamPreviewCheck)),
+			strings.HasPrefix(lower, "later:"),
+			strings.HasPrefix(lower, strings.ToLower(teamAlertPrefix)),
+			strings.HasPrefix(lower, strings.ToLower(teamLearnedPrefix)):
+			continue
+		}
+		must = append(must, line)
+	}
+	return must
 }

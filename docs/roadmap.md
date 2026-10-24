@@ -2604,6 +2604,14 @@ minutes, unfinished, with "ultrathink" in every coder brief.
 - [x] A small fix doesn't start while other work is under way, without a
   yes.
 
+### v1.12.1 — Review notes for the lead stay the lead's
+
+- [x] A fix round's brief lists only the coder's changes, not what the lead
+  checks on the preview, what is for later, alerts, or lessons.
+- [x] A review whose notes are all for the lead starts no fix round.
+- [x] A check that fails without the work too, such as a new advisory, is
+  an alert for the lead, not the work's change needed.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

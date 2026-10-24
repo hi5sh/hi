@@ -1351,6 +1351,11 @@ func (b *teamBroker) nextStep(task teamTask) (string, func()) {
 	if err != nil || reviewed.Next != task.ID || reviewed.Status != "done" || task.Verdict == "approve" || task.Round >= b.reviewRounds {
 		return "", nil
 	}
+	// A review whose notes are all for the lead (the preview, later, an
+	// alert) leaves the coder nothing to change: the lead takes over.
+	if review := teamReviewBlock(task); len(review.FollowUps) > 0 && len(teamMustChange(review.FollowUps)) == 0 {
+		return "", nil
+	}
 	fix, start, err := b.newWork(teamRequest{Role: reviewed.Role, Brief: teamFixBrief(task, reviewed, b.reviewRounds), On: reviewed.ID}, task.Round)
 	if err != nil {
 		return "", nil
@@ -1360,20 +1365,14 @@ func (b *teamBroker) nextStep(task teamTask) (string, func()) {
 
 // teamFixBrief gives the coder a review's notes on its work.
 func teamFixBrief(review, reviewed teamTask, rounds int) string {
-	var block struct {
-		Summary   string   `json:"summary"`
-		FollowUps []string `json:"follow_ups"`
-	}
-	if review.Report != nil {
-		json.Unmarshal(review.Report.Report, &block)
-	}
+	block := teamReviewBlock(review)
 	var text strings.Builder
 	fmt.Fprintf(&text, "Fix what review %s found in %s\n\n", review.ID, reviewed.ID)
 	fmt.Fprintf(&text, "The reviewer checked your work on this branch (review %d of %d) and asks for changes before it is merged. Make them, with tests where they apply, and commit. Change nothing else; if you disagree with a note, say why in your report.\n\n", review.Round, rounds)
 	fmt.Fprintf(&text, "## The reviewer's summary\n\n%s\n", firstNonEmpty(strings.TrimSpace(block.Summary), "(none)"))
-	if len(block.FollowUps) > 0 {
+	if must := teamMustChange(block.FollowUps); len(must) > 0 {
 		text.WriteString("\n## What must change\n\n")
-		for _, change := range block.FollowUps {
+		for _, change := range must {
 			fmt.Fprintf(&text, "- %s\n", strings.TrimSpace(change))
 		}
 	} else if review.Report != nil {
@@ -1382,6 +1381,17 @@ func teamFixBrief(review, reviewed teamTask, rounds int) string {
 		}
 	}
 	return text.String()
+}
+
+// teamReviewBlock is a review's report block: its summary and follow_ups.
+func teamReviewBlock(review teamTask) (block struct {
+	Summary   string   `json:"summary"`
+	FollowUps []string `json:"follow_ups"`
+}) {
+	if review.Report != nil {
+		json.Unmarshal(review.Report.Report, &block)
+	}
+	return block
 }
 
 func (b *teamBroker) fail(task teamTask, err error) {
@@ -2306,6 +2316,8 @@ func printTeamTaskView(view teamTaskView, w io.Writer) {
 			break
 		}
 		fmt.Fprintf(w, "Approved: the reviewer approved %s's latest commit. hi team merge %s merges it.\n", work.ID, first.ID)
+	case last.Kind == "review" && last.Status == "done" && len(teamReviewBlock(last).FollowUps) > 0 && len(teamMustChange(teamReviewBlock(last).FollowUps)) == 0:
+		fmt.Fprintf(w, "The reviewer asks nothing of the coder: its notes are for you (what to check on the preview, what fails without this work too, what is for later). Read them below and deal with each; then merge %s, or continue it with what you found.\n", first.ID)
 	case last.Kind == "review" && last.Status == "done":
 		fmt.Fprintf(w, "Changes still needed after %d reviews. Read the review below, then tell the people in the thread what is left and ask whether to go on: with their yes, continue with hi team task coder <brief.md> --on %s --approval <id>.\n", last.Round, first.ID)
 	default:

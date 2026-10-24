@@ -223,3 +223,18 @@ started beside it without a yes.
   brief, under "Going on was agreed", not the thread again.
 - The soul's steps 3, 4, and 5 and the small-fix paragraph change in an
   existing SOUL.md too, as other updates do.
+
+## As built (v1.12.1)
+
+Found on cartman's first task under v1.12.0 (t-194, a title fix):
+
+- The fix brief listed every follow_up under "What must change",
+  "Verify on the preview:" lines too. It now lists only the coder's
+  changes: not "Verify on the preview:", "Later:", "Alert:", or
+  "Learned:" lines.
+- A review whose notes are all for the lead starts no fix round; hi team
+  wait says the notes are the lead's.
+- The reviewer's rules gain one: a check that fails without this work too
+  (a new advisory for a package the work didn't touch, a flaky test) is an
+  "Alert:" line, not this work's change needed. A happy-dom advisory
+  published that morning had blocked the title fix.

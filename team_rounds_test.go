@@ -119,3 +119,26 @@ func TestTeamPreviewChecks(t *testing.T) {
 		t.Fatal(rules)
 	}
 }
+
+// Notes for the lead don't become the coder's changes, and a review with
+// only those starts no fix round.
+func TestTeamMustChange(t *testing.T) {
+	must := teamMustChange([]string{"Test the empty list.", "Verify on the preview: the tab title", "Later: a retry", "Alert: happy-dom's advisory fails make check on main too", "Learned: bun audit runs in make check", " "})
+	if len(must) != 1 || must[0] != "Test the empty list." {
+		t.Fatal(must)
+	}
+	review := teamTask{ID: "t-2", Kind: "review", Review: "t-1", Round: 1, Status: "done", Verdict: "changes",
+		Report: &agentReport{Status: "done", Report: []byte(`{"status":"complete","summary":"Changes needed: make check fails.","follow_ups":["Alert: happy-dom's advisory fails make check on main too","Verify on the preview: the tab title"]}`)}}
+	if brief := teamFixBrief(review, teamTask{ID: "t-1"}, 2); strings.Contains(brief, "Verify on the preview") || strings.Contains(brief, "## What must change") {
+		t.Fatal(brief)
+	}
+	steps := []teamTask{{ID: "t-1", Kind: "task", Role: "coder", Status: "done", Next: "t-2"}, review}
+	var out strings.Builder
+	printTeamTaskView(teamTaskView{teamTask: steps[0], Steps: steps}, &out)
+	if !strings.Contains(out.String(), "The reviewer asks nothing of the coder") {
+		t.Fatal(out.String())
+	}
+	if rules := teamReviewRules(1); !strings.Contains(rules, `"Alert:"`) {
+		t.Fatal(rules)
+	}
+}
