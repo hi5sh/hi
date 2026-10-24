@@ -50,6 +50,17 @@ func (f *fakeTeamRestic) install(t *testing.T) {
 	t.Cleanup(func() { teamRestic = saved })
 }
 
+// snapshotBackup is the backup that took the snapshot: not the first
+// pass before the boxes pause.
+func (f *fakeTeamRestic) snapshotBackup() []string {
+	for _, call := range f.calls {
+		if call[0] == "backup" && !slices.Contains(call, teamSnapshotTag+",kind:"+teamSnapshotWarmup) {
+			return call
+		}
+	}
+	return nil
+}
+
 func (f *fakeTeamRestic) find(command string) []string {
 	for _, call := range f.calls {
 		if call[0] == command {
@@ -106,16 +117,26 @@ func TestTeamTakeSnapshot(t *testing.T) {
 	if restic.calls[0][0] != "init" || len(strings.TrimSpace(string(key))) < 40 || strings.HasPrefix(teamSnapshotsDir("payments"), teamDir("payments")) {
 		t.Fatal(restic.calls, string(key))
 	}
-	backup := strings.Join(restic.find("backup"), " ")
+	// A first pass while the boxes run, then the snapshot while they're
+	// paused; the first pass's snapshot is forgotten.
+	if warm := strings.Join(restic.calls[1], " "); !strings.HasPrefix(warm, "backup") || !strings.Contains(warm, "--tag hi-team,kind:warmup") {
+		t.Fatal(restic.calls)
+	}
+	if forget := strings.Join(restic.calls[3], " "); forget != "forget --quiet 00000002abcdef" {
+		t.Fatal(restic.calls)
+	}
+	backup := strings.Join(restic.calls[2], " ")
 	if !strings.Contains(backup, "--tag hi-team,kind:release,label:v3") || !strings.Contains(backup, "--host hi-team-payments") ||
 		!strings.Contains(backup, "--exclude *.sock") || !strings.Contains(backup, "--exclude postmaster.pid") || strings.Contains(backup, "secrets.json") || !strings.HasSuffix(backup, " run/proxy/network.log") {
 		t.Fatal(backup)
 	}
-	if paused != 1 || thawed != 1 || snapshot.ID != "00000002" || snapshot.Added != 2048 || snapshot.why() != "before v3" || !strings.Contains(snapshot.Warning, "didn't pause") {
+	if paused != 1 || thawed != 1 || snapshot.ID != "00000003" || snapshot.Added != 2048 || snapshot.why() != "before v3" || !strings.Contains(snapshot.Warning, "didn't pause") {
 		t.Fatal(paused, thawed, snapshot)
 	}
-	if restic.find("forget") != nil {
-		t.Fatal("only a daily snapshot forgets old ones")
+	for _, call := range restic.calls {
+		if call[0] == "forget" && slices.Contains(call, "--prune") {
+			t.Fatal("only a daily snapshot forgets old ones")
+		}
 	}
 	if status := loadTeamSnapshotStatus("payments"); status.Last == nil || status.Last.ID != snapshot.ID {
 		t.Fatal(status)
@@ -126,9 +147,11 @@ func TestTeamTakeSnapshot(t *testing.T) {
 	config := testTeamConfig()
 	config.Backups = &teamBackups{Daily: 3, Weekly: 2, Monthly: 1}
 	saveTeam(config)
-	if _, err := teamTakeSnapshot("payments", teamSnapshotDaily, "", teamNoPause); err != nil || restic.find("forget") != nil {
+	restic.calls = nil
+	if _, err := teamTakeSnapshot("payments", teamSnapshotDaily, "", teamNoPause); err != nil {
 		t.Fatal(err, restic.calls)
 	}
+	restic.calls = nil
 	if err := teamAfterSnapshot("payments", teamSnapshotDaily); err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +311,7 @@ func TestTeamSnapshotWithTeamDown(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Production's box may still run while the team is down.
-	if paused != 1 || !strings.Contains(strings.Join(restic.find("backup"), " "), "kind:manual") || !strings.Contains(out.String(), "4.0 KB, 2.0 KB new") {
+	if paused != 1 || !strings.Contains(strings.Join(restic.calls[2], " "), "kind:manual") || !strings.Contains(out.String(), "4.0 KB, 2.0 KB new") {
 		t.Fatal(paused, restic.calls, out.String())
 	}
 }
@@ -372,7 +395,7 @@ func TestTeamRestore(t *testing.T) {
 		t.Fatal(matches)
 	}
 	// A snapshot of how things were comes first, with the team stopped.
-	backup := strings.Join(restic.find("backup"), " ")
+	backup := strings.Join(restic.snapshotBackup(), " ")
 	restore := strings.Join(restic.find("restore"), " ")
 	if !strings.Contains(backup, "kind:restore,label:1a2b3c4d") || !strings.Contains(restore, "--exclude /repo") || !strings.Contains(restore, "--exclude /run") || !strings.Contains(restore, "--exclude /team.json") {
 		t.Fatal(backup, restore)

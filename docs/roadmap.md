@@ -2664,6 +2664,12 @@ only checked it on the preview.
   merges while its review runs; a review that then asks for changes wakes
   the lead to fix them in dev.
 
+### v1.14.4 — A snapshot pauses the team for seconds, not minutes
+
+- [x] A snapshot reads what is new while everything runs, then pauses the
+  lead, its memory, and production only for what changed since. On
+  cartman, v21's release had paused them for about 4 minutes.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

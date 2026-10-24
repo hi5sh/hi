@@ -226,3 +226,15 @@ Hindsight's PostgreSQL ran crash recovery ("not properly shut down;
 automatic recovery in progress") and accepted connections. Offsite copies,
 `--keep`, `status`, and a restore that keeps the bucket's settings were
 checked against an S3 server (`rclone serve s3`).
+
+## As built (v1.14.4)
+
+- **A first pass before the pause.** A snapshot now runs restic once
+  while everything runs, tagged `kind:warmup`, then pauses the boxes and
+  runs it again: the paused pass reads only what changed since the first,
+  and the first pass's snapshot is forgotten. Found on cartman
+  (2026-10-24): v21's release snapshot paused the lead, its memory, and
+  production for about 4 minutes, against 17 seconds at v20's that
+  morning, because a backfill had grown the app's attachments to 266 GB
+  and its database to 5.6 GB in between, and restic read all of it with
+  the boxes frozen.

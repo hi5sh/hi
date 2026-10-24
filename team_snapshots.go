@@ -27,7 +27,8 @@ import (
 // repository per team outside the team's folder, so they outlast it, and
 // copies them to an S3-compatible bucket when the team has one. The team's
 // service takes them without stopping: the broker's locks, then a pause of
-// the boxes that write, about a second. See
+// the boxes that write, for a pass that reads only what changed since a
+// first pass taken while they ran. See
 // docs/specs/approved/hi_team_snapshots.md.
 
 const (
@@ -35,6 +36,9 @@ const (
 	teamSnapshotRelease = "release" // before a release; its label is the version
 	teamSnapshotManual  = "manual"
 	teamSnapshotRestore = "restore" // before a restore; its label is the snapshot restored
+	// teamSnapshotWarmup is the pass before the boxes pause, forgotten
+	// once the snapshot is taken.
+	teamSnapshotWarmup = "warmup"
 
 	teamSnapshotTag = "hi-team"
 	// teamSnapshotKeepWithin keeps everything this recent, whatever the
@@ -277,9 +281,21 @@ func teamTakeSnapshot(team, kind, label string, pause func(team string) (func(),
 	}
 	// Sockets and PostgreSQL's pid file mean nothing in a restored copy, and
 	// a stale pid file can stop the memory server from starting.
-	args := append([]string{"backup", "--json", "--quiet", "--host", teamSnapshotHost(team), "--tag", tags, "--exclude", "*.sock", "--exclude", "postmaster.pid"}, paths...)
+	backup := func(tags string) []string {
+		return append([]string{"backup", "--json", "--quiet", "--host", teamSnapshotHost(team), "--tag", tags, "--exclude", "*.sock", "--exclude", "postmaster.pid"}, paths...)
+	}
+	// A first pass while everything runs reads what is new since the last
+	// snapshot, however much: on cartman, gigabytes a day of downloads. The
+	// pass while the boxes are paused then reads only what changed since,
+	// in seconds, not the minutes the whole of it took with production
+	// frozen. The first pass's snapshot isn't kept.
+	if out, err := teamRestic(teamResticEnv(team), dir, backup(teamSnapshotTag+",kind:"+teamSnapshotWarmup)...); err == nil {
+		if id := teamResticSnapshotID(out); id != "" {
+			defer teamRestic(teamResticEnv(team), dir, "forget", "--quiet", id)
+		}
+	}
 	thaw, warning := pause(team)
-	out, err := teamRestic(teamResticEnv(team), dir, args...)
+	out, err := teamRestic(teamResticEnv(team), dir, backup(tags)...)
 	thaw()
 	if err != nil {
 		return snapshot, err
@@ -305,6 +321,20 @@ func teamTakeSnapshot(team, kind, label string, pause func(team string) (func(),
 		Added: summary.DataAdded, Size: summary.Total, Warning: warning}
 	updateTeamSnapshotStatus(team, func(s *teamSnapshotStatus) { s.Last, s.Failed, s.FailedAt = &snapshot, "", time.Time{} })
 	return snapshot, nil
+}
+
+// teamResticSnapshotID is the snapshot a backup's JSON output took.
+func teamResticSnapshotID(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		var summary struct {
+			MessageType string `json:"message_type"`
+			SnapshotID  string `json:"snapshot_id"`
+		}
+		if json.Unmarshal([]byte(line), &summary) == nil && summary.MessageType == "summary" {
+			return summary.SnapshotID
+		}
+	}
+	return ""
 }
 
 // teamAfterSnapshot forgets old snapshots after a daily one, then copies
