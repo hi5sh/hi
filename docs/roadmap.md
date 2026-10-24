@@ -2666,6 +2666,20 @@ a plan; this makes the fact reach it without looking.
   ([hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md)): both
   are what the next turn needs that its conversation doesn't hold.
 
+### Next — the lead's self-improvement notices stay out of Slack
+
+Found on team cartman (2026-10-24): after a turn, Hermes posts
+"💾 Self-improvement review: Skill 'hi-team-notes' patched" in the thread
+it answered. It means nothing to the people there, and came twice in a
+morning. `display.suppress_warning_notifications` (v1.8.0) doesn't cover
+it, and earlier Hermes versions had no setting for it.
+
+- [ ] Find whether the Hermes hi installs now has a setting that keeps the
+  review's notice out of the chat while it still saves the skill. If it
+  has, hi sets it in the lead's config.yaml.
+- [ ] If it hasn't, find whether hi's plugin can drop the notice before
+  it is sent, or ask upstream for the setting.
+
 ### Guide — a diagram for every tool
 
 Convention: [guide-diagrams.md](guide-diagrams.md).
