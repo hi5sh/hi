@@ -2620,7 +2620,7 @@ release 1.
 - [x] `hi agent --session <folder>` keeps Claude Code's or Codex's session
   in a folder, and the next box given the folder resumes it.
 - [x] A session isn't resumed for another agent or model, when its file is
-  gone, or past half the model's window.
+  gone, or past three quarters of the model's window (half until v1.14.7).
 - [x] A resumed run's report counts its own steps and tokens, and says
   which session it went on with.
 
@@ -2682,6 +2682,11 @@ only checked it on the preview.
   releases with it, rather than posting "Ready for production?" and
   waiting for another. On cartman an owner had to say it twice, for v21
   and v22.
+
+### v1.14.7 — A member's conversation goes on to 75% of its window
+
+- [x] A session is resumed until it holds 75% of the model's window, not
+  half: on cartman a first build or an investigation passed half alone.
 
 ## Planned
 

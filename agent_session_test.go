@@ -83,17 +83,17 @@ func TestAgentSessionNotResumed(t *testing.T) {
 	}
 	file := ".claude/projects/-w/abcdef12-0000.jsonl"
 	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionStateFile), `{"agent":"claude","model":"opus","id":"abcdef12-0000","file":"`+file+`"}`)
-	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, file), claudeSessionTestLine("m1", 120_000))
+	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, file), claudeSessionTestLine("m1", 160_000))
 	for _, c := range []struct{ kind, model, want string }{
 		{"codex", "opus", "Claude Code's"},
 		{"claude", "sonnet", "ran on opus"},
-		{"claude", "opus", "more than half the model's window"},
+		{"claude", "opus", "more than 75% of the model's window"},
 	} {
 		if _, err := agentSessionResumable(session, c.kind, c.model); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s %s: %v", c.kind, c.model, err)
 		}
 	}
-	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, file), claudeSessionTestLine("m1", 90_000))
+	writeAgentSessionTestFile(t, filepath.Join(session, agentSessionFiles, file), claudeSessionTestLine("m1", 140_000))
 	if _, err := agentSessionResumable(session, "claude", "opus"); err != nil {
 		t.Fatal(err)
 	}
@@ -129,9 +129,9 @@ func TestAgentSessionCodex(t *testing.T) {
 	if progress := newAgentProgressReader("codex", home2).poll(); progress.in != 60_000 || progress.cached != 50_000 || progress.out != 1_000 {
 		t.Fatalf("%+v", progress)
 	}
-	// Over half the window, the next run starts a new session.
+	// Over three quarters of the window, the next run starts a new session.
 	f, _ = os.OpenFile(filepath.Join(session, agentSessionFiles, file), os.O_APPEND|os.O_WRONLY, 0o600)
-	f.WriteString(token(400_000, 300_000, 9_000, 140_000))
+	f.WriteString(token(400_000, 300_000, 9_000, 200_000))
 	f.Close()
 	if _, err := agentSessionResumable(session, "codex", "gpt-6.1-sol"); err == nil {
 		t.Fatal("a full session resumed")

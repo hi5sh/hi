@@ -10,7 +10,8 @@ package main
 //
 // A session isn't resumed, and the run starts a new one, when the folder
 // holds another agent's or another model's session, when its file is gone,
-// or when its conversation has grown past half the model's window.
+// or when its conversation has grown past three quarters of the model's
+// window.
 
 import (
 	"bufio"
@@ -37,6 +38,11 @@ const (
 	// agentClaudeWindow is the window a Claude session is measured against;
 	// Codex says its own.
 	agentClaudeWindow = 200_000
+	// agentSessionShare is how much of the window, in percent, a session
+	// may hold and still be resumed. Half was too little on team cartman:
+	// a first build or an investigation alone reached it, so no follow-up
+	// went on with the conversation.
+	agentSessionShare = 75
 )
 
 // agentSessionState is hi-session.json.
@@ -88,8 +94,8 @@ func agentSessionResumable(dir, kind, model string) (agentSessionState, error) {
 		return state, errors.New("the session's file is gone")
 	}
 	context, window, _ := agentSessionContext(kind, path)
-	if window > 0 && context > window/2 {
-		return state, fmt.Errorf("the conversation holds %d tokens, more than half the model's window", context)
+	if window > 0 && context > window*agentSessionShare/100 {
+		return state, fmt.Errorf("the conversation holds %d tokens, more than %d%% of the model's window", context, agentSessionShare)
 	}
 	return state, nil
 }

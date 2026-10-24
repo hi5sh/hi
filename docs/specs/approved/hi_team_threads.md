@@ -83,7 +83,7 @@ member starts changes.
 
 Both tools compact a conversation when it fills their window, and keep
 working. On top of that, hi starts a new session for a role when its
-conversation has grown past a limit (about half its window, measured by
+conversation has grown past a limit (three quarters of its window, measured by
 the last turn's input tokens), with a handover from the old one: its last
 turn asks the member for what the next session needs (what was done, what
 is left, decisions and traps), and the new session's first turn is the
@@ -176,7 +176,7 @@ reasons; fewer Claude calls a round.
   ID and add to its file.
 - The window: the latest call's input from the session's file, against
   200,000 tokens for Claude Code and Codex's own `model_context_window`.
-  Past half, the run starts a new session.
+  Past half (75% from v1.14.7), the run starts a new session.
 - A resumed run's steps and tokens count from where it began: the box's
   `.hi-agent/resumed.json` holds the file's size then, and Codex's totals.
   The report says `resumed: <id>`.
@@ -203,7 +203,7 @@ reasons; fewer Claude calls a round.
   (`git diff <commit>..HEAD`), the reviewer's rules for that round, the
   brief of the work it reviews, and the coder's report. The first review
   of a chain is the whole brief, as before.
-- **Long conversations, simpler than designed.** Past half the window, a
+- **Long conversations, simpler than designed.** Past half the window (75% from v1.14.7), a
   member starts a new session with the whole brief and "Where the work
   stands": its last report, rather than a summary the old session writes.
   The report already says what was done and what is left.
@@ -213,3 +213,10 @@ reasons; fewer Claude calls a round.
   Retrying in the same task was left out.
 - Sessions are removed an hour's check after a week past the chain's
   merge or discard.
+
+### v1.14.7
+
+- The limit is 75% of the window, not half. On cartman, a first build
+  (t-201, about 116,000 tokens) and an investigation (t-212, about
+  105,000) each passed half of Claude Code's 200,000 alone, so the first
+  follow-up never went on with the conversation.
