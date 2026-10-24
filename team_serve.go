@@ -1655,8 +1655,12 @@ production). Three rules:
    of the fork, in seconds and without a copy, and whatever the preview
    writes stays its own. Nothing tried in a preview reaches production.
    hi forks it again at every release, so the next migration runs on a
-   copy of production's real data first; hi team data fork does it now,
-   no yes needed. A plain preview deploy keeps the fork it has.
+   copy of production's real data first, and when new work goes on the
+   preview (hi team preview t-N for work that isn't on it yet) and the
+   fork is over an hour old, so the work is tried on what production has
+   now. hi team data fork does it any time, no yes needed: do it before
+   checking something that needs production's latest data. A fix or
+   follow-up of the work already on the preview keeps its fork.
 3. The preview doesn't act on the world. Settings the people mark
    production only (hi team env <team> --production KEY on the machine)
    aren't in the preview, and the preview's model calls stop for the day

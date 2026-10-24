@@ -2644,6 +2644,12 @@ release 2.
   session aside.
 - [x] Sessions go a week after the work is merged or discarded.
 
+### v1.14.2 — New work is tried on production's data of now
+
+- [x] `hi team preview t-N` for new work gives the preview a fresh fork of
+  production's data first, when its fork is over an hour old; a fix or
+  follow-up of the work on the preview keeps its fork.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

@@ -387,6 +387,47 @@ func (b *teamBroker) forkPreviewLocked() (teamDataCopy, error) {
 	return result, nil
 }
 
+// teamForkStale is how old the preview's fork may be when new work goes
+// on the preview: older, it gets a fresh one first.
+const teamForkStale = time.Hour
+
+// freshDataForWork gives the preview a fresh fork of production's data
+// before new work goes on it, so the work is tried on what production
+// has now, not on what it had at the last release. A fix or a follow-up
+// of the work already on the preview keeps its data, and so does a fork
+// younger than an hour. It returns what to tell the lead, or "".
+func (b *teamBroker) freshDataForWork(id string) string {
+	config, err := loadTeam(b.team)
+	if err != nil || config.PreviewData == teamPreviewEmpty || !teamOverlayEngine() {
+		return ""
+	}
+	tasks := loadTeamTasks(b.team)
+	root := teamChainRoot(tasks, id)
+	if root == "" {
+		return ""
+	}
+	if current, ok := loadTeamSlot(b.team, teamSlotPreview); ok && teamChainRoot(tasks, current.Source) == root {
+		return "" // the same work: what people tried in it stays
+	}
+	if fork, ok := loadTeamPreviewFork(b.team); ok && time.Since(fork.At) < teamForkStale {
+		return ""
+	}
+	b.mu.Lock()
+	result, err := b.forkPreviewLocked()
+	b.mu.Unlock()
+	if err != nil {
+		if result.Files == 0 {
+			return "" // production has no data yet
+		}
+		return "The preview kept its data from before: refreshing it from production's failed (" + err.Error() + ")."
+	}
+	text := fmt.Sprintf("Before showing this new work, hi gave the preview a fresh copy of production's data (%s), so it is tried on what production has now.", teamDataSize(result.Bytes))
+	if result.Kept != "" {
+		text += " What people tried in the preview before is kept once, apart."
+	}
+	return text
+}
+
 // copyWholeLocked gives the preview a whole copy of production's data,
 // for where an overlay can't be had, and records why.
 func (b *teamBroker) copyWholeLocked(result teamDataCopy, why string) (teamDataCopy, error) {

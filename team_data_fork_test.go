@@ -466,3 +466,57 @@ func TestTeamForkInPodman(t *testing.T) {
 		}
 	}
 }
+
+// New work on the preview gets production's data of now; the same work
+// keeps what people tried in it, and a fresh fork stays.
+func TestTeamPreviewNewWorkForks(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	b.takeSnapshot = func(kind, label string) (teamSnapshot, error) {
+		return teamSnapshot{ID: "snap0001", Kind: kind, Label: label}, nil
+	}
+	teamTestRunnable(b)
+	teamTestMerge(t, b, "Add a news feed")
+	writeTeamTestData(t, teamSlotProduction, map[string]string{"app.db": "SQLite format 3\x00 at the release"})
+	if _, err := b.release(teamReleaseRequest{Approval: teamTestYes(t, "U07OWNER1", 30), Notes: "News."}); err != nil {
+		t.Fatal(err)
+	}
+	fork, ok := loadTeamPreviewFork("payments")
+	if !ok {
+		t.Fatal("no fork at the release")
+	}
+	// Production gathers more after the release.
+	writeTeamTestData(t, teamSlotProduction, map[string]string{"app.db": "SQLite format 3\x00 entered since"})
+
+	// A fork under an hour old stays.
+	work := teamTestSmall(t, b, teamRequest{Brief: "Plot the index"})
+	state, err := b.preview(teamPreviewRequest{Task: work.ID})
+	if err != nil || state.Data != "" {
+		t.Fatal(state.Data, err)
+	}
+	// An older one is forked again for new work: dev was on the preview.
+	b.preview(teamPreviewRequest{})
+	fork.At = time.Now().Add(-2 * time.Hour)
+	saveTeamPreviewFork("payments", fork)
+	state, err = b.preview(teamPreviewRequest{Task: work.ID})
+	if err != nil || !strings.Contains(state.Data, "fresh copy of production's data") {
+		t.Fatal(state.Data, err)
+	}
+	if readTeamTestPreview("app.db") != "SQLite format 3\x00 entered since" {
+		t.Fatal(readTeamTestPreview("app.db"))
+	}
+	var out bytes.Buffer
+	printTeamPreview(&out, state)
+	if !strings.Contains(out.String(), "fresh copy of production's data") {
+		t.Fatal(out.String())
+	}
+	// More of the same work keeps its fork, however old.
+	writeTeamTestData(t, teamSlotPreview, map[string]string{"tried.txt": "tried in the preview"})
+	fork, _ = loadTeamPreviewFork("payments")
+	fork.At = time.Now().Add(-2 * time.Hour)
+	saveTeamPreviewFork("payments", fork)
+	more := teamTestSmall(t, b, teamRequest{Brief: "Label the index", On: work.ID})
+	if state, err := b.preview(teamPreviewRequest{Task: more.ID}); err != nil || state.Data != "" || readTeamTestPreview("tried.txt") != "tried in the preview" {
+		t.Fatal(state.Data, err)
+	}
+}

@@ -321,3 +321,17 @@ v1.1.1:
   backfill had downloaded that many PDFs that day, each written once. It
   took three minutes, with production paused, and 102 GB of disk. A file
   written once is linked however new; databases are found by their bytes.
+
+v1.14.2:
+
+- **When new work goes on the preview.** `hi team preview t-N` for work
+  whose chain isn't the one on the preview (dev, or another piece of
+  work) forks production again first, when the fork is over an hour old.
+  A fix or follow-up of the work on the preview keeps its fork, and what
+  people tried in it. The preview's writes from before are kept once, as
+  at a release. `hi team preview` says so to the lead.
+- Found on cartman (2026-10-24): the preview was forked at v20's release,
+  and the runs and OMXS30 history checked that morning came after it, so
+  the coder found an empty preview. An owner asked for the copy by hand.
+- Not on every task, as asked first: a fork pauses production for a few
+  seconds, and a piece of work has many tasks.

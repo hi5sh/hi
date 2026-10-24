@@ -71,6 +71,9 @@ type teamPreview struct {
 	// Settings is teamSettingsStamp when the box started; a change starts
 	// the app again.
 	Settings string `json:"settings,omitempty"`
+	// Data says what hi did with the preview's data first: a fresh copy of
+	// production's for new work (team_data_fork.go).
+	Data string `json:"data,omitempty"`
 	// Relay is teamRelayStamp when the address's relay started: what it
 	// routes to hi, such as /docs/.
 	Relay string `json:"relay,omitempty"`
@@ -222,6 +225,10 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 	if request.Production {
 		return b.production(request.Port)
 	}
+	data := ""
+	if request.Task != "" && !request.Stop {
+		data = b.freshDataForWork(request.Task)
+	}
 	b.previewMu.Lock()
 	defer b.previewMu.Unlock()
 	if request.Stop {
@@ -250,7 +257,9 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 			return teamPreview{}, fmt.Errorf("%s has no branch of its own (%s); preview %s instead", task.ID, task.Status, config.Branch)
 		}
 		next.Source, next.Label, ref = task.ID, fmt.Sprintf("idea %s, not in dev yet", task.ID), task.Branch
-		return b.show(next, ref, teamLinkKeep)
+		state, err := b.show(next, ref, teamLinkKeep)
+		state.Data = data
+		return state, err
 	}
 	state, err := b.show(next, ref, teamLinkKeep)
 	if err != nil {
@@ -1057,6 +1066,9 @@ func printTeamPreview(w io.Writer, preview teamPreview) {
 	}
 	if preview.Password != "" {
 		fmt.Fprintf(w, "  password: %s\n", preview.Password)
+	}
+	if preview.Data != "" {
+		fmt.Fprintln(w, preview.Data)
 	}
 	fmt.Fprintln(w, "It works on phones too. A new preview shows on the same link while it has 12 hours left; hi team preview stop ends it.")
 	if preview.Docs != "" {
