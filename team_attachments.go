@@ -76,7 +76,7 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 				}
 			}
 		}
-		if root != "" {
+		if root != "" && !task.Resumes {
 			saved := b.brief(teamTask{ID: root})
 			var where []string
 			if brief := teamBriefBody(saved); brief != "" {
@@ -161,6 +161,19 @@ func (b *teamBroker) teamTaskFiles(task teamTask, attachments []teamAttachment) 
 	if len(listed) == 0 {
 		os.Remove(dir)
 		return "", text.String(), nil
+	}
+	if task.Resumes {
+		// The member saw the work's files in its first turn.
+		var added []string
+		for _, line := range listed {
+			if strings.HasSuffix(line, ": from the lead") {
+				added = append(added, line)
+			}
+		}
+		if len(added) > 0 {
+			fmt.Fprintf(&text, "\n## Files\n\nNew in %s with this turn, read-only:\n\n%s\n", agentFilesInBox, strings.Join(added, "\n"))
+		}
+		return dir, text.String(), nil
 	}
 	fmt.Fprintf(&text, "\n## Files\n\nThese are in %s, read-only. Look at each one: images show what the people want. Copy what the project needs into it; %s isn't part of the project.\n\n%s\n",
 		agentFilesInBox, agentFilesInBox, strings.Join(listed, "\n"))

@@ -75,6 +75,11 @@ type teamTask struct {
 	SpecsKept []string `json:"specs_kept,omitempty"`
 	// Files is the folder of files the member gets at /box/files.
 	Files string `json:"files,omitempty"`
+	// Session is the folder that keeps the member's conversation for the
+	// piece of work (hi agent --session), and Resumes says this step goes
+	// on with it (team_threads.go).
+	Session string `json:"session,omitempty"`
+	Resumes bool   `json:"resumes,omitempty"`
 	// Approval is the message the work started on; Small, a fix started
 	// without one.
 	Approval *teamApproval `json:"approval,omitempty"`
@@ -1004,7 +1009,25 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 	// A heading first, so the brief can't carry front matter that would
 	// widen the box.
 	text := fmt.Sprintf("# Task %s for the %s of the %s team\n\n%s%s%s\n", task.ID, task.Role, b.team, brief, upstreamText, findingsText)
-	text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n\n" + teamJobsRule + "\n"
+	// The member keeps one conversation for the piece of work: going on
+	// with it, the brief is only what's new (team_threads.go).
+	if teamSessionAgent(member.Agent) && !task.Survey {
+		root := task.ID
+		if task.On != "" {
+			root = teamChainRoot(loadTeamTasks(b.team), task.On)
+		}
+		task.Session = teamSessionDir(b.team, firstNonEmpty(root, task.ID), task.Role)
+		if task.On != "" {
+			_, err := agentSessionResumable(task.Session, member.Agent, teamSessionModel(member))
+			task.Resumes = err == nil
+			if err == nil || fileExists(task.Session) {
+				task.Hints = append(task.Hints, teamSessionHint(task, task.On, err))
+			}
+		}
+	}
+	if !task.Resumes {
+		text += "\n" + teamSpecsRule + "\n\n" + teamMapRule + "\n\n" + teamDrawRule + "\n\n" + teamJobsRule + "\n"
+	}
 	if task.On != "" {
 		text += fmt.Sprintf("\nYou continue task %s: its commits are already on your branch.\n", task.On)
 		if config, err := loadTeam(b.team); err == nil {
@@ -1019,7 +1042,15 @@ func (b *teamBroker) newWork(request teamRequest, round int) (teamTask, func(), 
 		b.fail(task, err)
 		return task, nil, fmt.Errorf("the task's files: %w", err)
 	}
-	text += extra + teamRoleBrief(b.team, task.Role)
+	text += extra
+	if !task.Resumes {
+		if task.Session != "" && fileExists(task.Session) && task.On != "" {
+			if on, err := loadTeamTask(b.team, task.On); err == nil {
+				text += teamWhereWorkStands(on)
+			}
+		}
+		text += teamRoleBrief(b.team, task.Role)
+	}
 	if files != "" {
 		task.Files = files
 	}
@@ -1141,7 +1172,25 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		task.Files = reviewed.Files
 		saveTeamTask(b.team, task)
 	}
-	brief := teamReviewBrief(b.team, config.Branch, task, reviewed, base, b.brief(reviewed), notes)
+	// The reviewer keeps one conversation for the piece of work: after its
+	// first review, the next is what changed since (team_threads.go).
+	var brief string
+	if teamSessionAgent(member.Agent) && !reviewed.Survey {
+		tasks := loadTeamTasks(b.team)
+		root := firstNonEmpty(teamChainRoot(tasks, reviewed.ID), reviewed.ID)
+		task.Session = teamSessionDir(b.team, root, "reviewer")
+		if last, ok := teamLastReview(tasks, root); ok {
+			_, err := agentSessionResumable(task.Session, member.Agent, teamSessionModel(member))
+			if task.Resumes = err == nil; task.Resumes {
+				brief = teamReviewHandover(b.team, config.Branch, task, reviewed, last, b.brief(reviewed), notes)
+			}
+			task.Hints = append(task.Hints, teamSessionHint(task, last.ID, err))
+		}
+		saveTeamTask(b.team, task)
+	}
+	if brief == "" {
+		brief = teamReviewBrief(b.team, config.Branch, task, reviewed, base, b.brief(reviewed), notes)
+	}
 	if work, ok := teamUpstreamWorkOf(loadTeamTasks(b.team), reviewed); ok && config.Adopted != nil {
 		brief += teamUpstreamReviewNote(config.Adopted, work, boxGit(b.repo, "merge-base", config.Branch, work.UpstreamCommit))
 	}
@@ -1150,7 +1199,9 @@ func (b *teamBroker) newReview(reviewed teamTask, notes string, round int) (team
 		advisories, err := teamDependencyAdvisories(packages)
 		brief += "\n" + teamDependencyAdvisoriesText(advisories, err) + "\n"
 	}
-	brief += teamRoleBrief(b.team, "reviewer")
+	if !task.Resumes {
+		brief += teamRoleBrief(b.team, "reviewer")
+	}
 	brief, _ = teamDropThinking(brief)
 	return task, func() { b.launch(task, member, brief, reviewed.Branch, task.Files) }, nil
 }
@@ -1274,6 +1325,9 @@ func (b *teamBroker) launch(task teamTask, member teamMember, brief, from, files
 	if files != "" {
 		args = append(args, "--files", files)
 	}
+	if task.Session != "" {
+		args = append(args, "--session", task.Session)
+	}
 	out, err := b.run(args...)
 	if err != nil {
 		b.fail(task, err)
@@ -1311,6 +1365,9 @@ func (b *teamBroker) wait(task teamTask) {
 	task.Report, task.Finished = &report, time.Now().UTC()
 	if task.Kind == "review" {
 		task.Verdict = teamVerdict(report)
+	}
+	if task.Status == "failed" {
+		b.sessionFailed(task)
 	}
 	task = b.taskFailed(task)
 	b.memberAlerts(task)

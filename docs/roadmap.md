@@ -2624,6 +2624,23 @@ release 1.
 - [x] A resumed run's report counts its own steps and tokens, and says
   which session it went on with.
 
+### v1.14.0 — The coder and the reviewer keep their conversation
+
+Approved spec: [hi_team_threads.md](specs/approved/hi_team_threads.md),
+release 2.
+
+- [x] Each piece of work keeps one session per role, in
+  `tasks/<first task>-sessions/<role>`.
+- [x] A fix round, or the lead's continuation, is the next turn in the
+  coder's conversation: only what's new, without the rules, role, and
+  how the work started again.
+- [x] A second review is the next turn in the reviewer's: what changed
+  since it last looked, and whether its changes were made.
+- [x] A member whose conversation can't go on starts a new one with the
+  whole brief and the last report; a resumed run that fails sets its
+  session aside.
+- [x] Sessions go a week after the work is merged or discarded.
+
 ## Planned
 
 ### Next — a conversation hears what other threads finished

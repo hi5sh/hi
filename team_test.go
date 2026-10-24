@@ -485,6 +485,8 @@ type teamTestBroker struct {
 	reports map[string]string // box → the report block's JSON
 	// files are more files a box commits, by box and path.
 	files map[string]map[string]string
+	// sessions has hi agent --session keep a session, as a real run does.
+	sessions bool
 	// exposures are the addresses hi net expose gave, by name; lasts is
 	// how long the next one lasts.
 	exposures map[string]netExposeState
@@ -597,6 +599,22 @@ func newTeamTestBroker(t *testing.T) *teamTestBroker {
 			}
 			repo := b.repo
 			exec.Command("git", "-C", repo, "branch", branch, from).Run()
+			// hi agent --session keeps the member's session in the folder.
+			for i, arg := range args {
+				if arg == "--session" && b.sessions {
+					model := ""
+					for j, arg := range args {
+						if arg == "--model" {
+							model = args[j+1]
+						}
+					}
+					dir := args[i+1]
+					os.MkdirAll(filepath.Join(dir, agentSessionFiles), 0o700)
+					os.WriteFile(filepath.Join(dir, agentSessionFiles, "s.jsonl"), []byte("{}\n"), 0o600)
+					state, _ := json.Marshal(agentSessionState{Agent: args[1], Model: model, ID: "session-" + args[1], File: "s.jsonl"})
+					os.WriteFile(filepath.Join(dir, agentSessionStateFile), state, 0o600)
+				}
+			}
 			if args[1] != "codex" { // the reviewer commits nothing
 				work := filepath.Join(t.TempDir(), "w")
 				exec.Command("git", "-C", repo, "worktree", "add", "-q", work, branch).Run()

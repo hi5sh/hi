@@ -198,6 +198,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go broker.watchJobs(ctx.Done(), stderr)
 	go broker.keepWatched(ctx.Done(), stderr)
 	go broker.keepSubscriptions(ctx.Done(), stderr)
+	go broker.keepSessions(ctx.Done(), stderr)
 	startTeamResolver(name, hi, ctx.Done(), stderr)
 	go func() {
 		if err := broker.serveModels(ctx); err != nil {
@@ -1463,6 +1464,12 @@ the role learned, and the project's rules, so don't copy them in. Ask for
 what the people asked for; what else would be good is a proposal for
 them, not part of the brief. Detail that should outlast the task goes in
 the spec, and the brief points to it.
+
+Members keep their conversation for a piece of work. A follow-up (--on)
+goes on in the coder's conversation from its last task, so write only
+what's new: what the people want changed, and why. hi says in the task's
+hints when a member starts a new conversation instead (its first, or one
+grown too long), and then gives it the whole brief again.
 
 A thinking keyword a person writes (ultrathink, think hard) reaches the
 coder once, in the first task started on their message; hi takes it out

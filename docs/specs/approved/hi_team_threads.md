@@ -1,6 +1,6 @@
 # `hi team`: one session per member for each piece of work
 
-Status: Approved (2026-10-24). Release 1 built in v1.13.0.
+Status: Approved (2026-10-24). Built in v1.13.0 and v1.14.0.
 
 Dependencies: [hi_team_rounds.md](hi_team_rounds.md) (two review rounds,
 keywords once, shorter briefs), [hi_team.md](../approved/hi_team.md) (the
@@ -186,3 +186,30 @@ reasons; fewer Claude calls a round.
   a resume after a failover to OpenRouter, which can't be caused on
   purpose; release 2 starts the round again without the session when a
   resumed run fails.
+
+### Release 2 (v1.14.0): the review loop
+
+- `team_threads.go`. A task's `session` is its chain's folder for its
+  role; `resumes` says the step goes on with it, both in the task's file.
+- The broker decides whether a step resumes with the same check hi agent
+  makes (`agentSessionResumable`), on the model hi agent records (the
+  member's, else the agent's default here), so the brief it writes
+  matches what the box does.
+- A resumed coder's turn: the lead's brief or the fix brief, the
+  continuation and merge notes, the lead's new attachments. Not the
+  project's rules, ROLE.md, LEARNED.md, or how the work started: the
+  first turn had them.
+- A resumed reviewer's turn: what changed since its last review's commit
+  (`git diff <commit>..HEAD`), the reviewer's rules for that round, the
+  brief of the work it reviews, and the coder's report. The first review
+  of a chain is the whole brief, as before.
+- **Long conversations, simpler than designed.** Past half the window, a
+  member starts a new session with the whole brief and "Where the work
+  stands": its last report, rather than a summary the old session writes.
+  The report already says what was done and what is left.
+- **A resumed run that fails** sets its session aside
+  (`hi-session.failed.json`); the task fails as any task does, and the
+  lead's retry (`--on`) starts a new conversation with the whole brief.
+  Retrying in the same task was left out.
+- Sessions are removed an hour's check after a week past the chain's
+  merge or discard.

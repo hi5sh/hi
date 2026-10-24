@@ -47,6 +47,13 @@ follow-up and its review get the same files, with the brief the work
 started with and the thread it was agreed in as files, rather than pasted
 into every brief again.
 
+The coder and the reviewer each keep one conversation for a piece of
+work, from its first task to its merge. A fix round is the next turn in
+the coder's conversation, with the reviewer's notes; a second review is
+the next turn in the reviewer's, with what changed since it last looked.
+Each round is still a new box from the branch; only the conversation
+carries over, in the team's folder on the machine.
+
 When someone asks for the coder to think hard ("ultrathink", "think
 hard"), the word reaches the first task started on their message, once.
 The broker takes it out of every other brief, fix rounds and reviews
