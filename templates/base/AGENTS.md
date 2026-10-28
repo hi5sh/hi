@@ -10,8 +10,9 @@
   purpose.
 - Features are specified in `docs/specs/` and planned in `docs/roadmap.md`.
   Record a decision that others should not relitigate in `docs/decisions/`.
-- The Claude Code settings deny reading `.env*` and `secrets/` to Claude's own
-  tools only. They are not a boundary against scripts you run.
+- The Claude Code settings deny reading `.env`, its usual variants, and
+  `secrets/` to Claude's own tools only, so `.env.example` stays readable.
+  They are not a boundary against scripts you run.
 <!-- hi:end -->
 
 # This project

@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.26 — Agents read .env.example
+
+- [x] New projects' Claude Code settings denied reading `.env.*`, which
+  took `.env.example` too, the file the rules tell agents to add a
+  setting's name to. They deny `.env`, `.env.local`, `.env.*.local`, and
+  the development, production, staging, and test variants instead;
+  `hi init --update` brings a project's unedited settings up to them.
+
 ### v2.6.25 — Allowing a site from the machine
 
 - [x] `hi team dev <team> allow <site> [--why <what for>]` allows a site
