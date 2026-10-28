@@ -867,7 +867,7 @@ func init() {
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
 		"POST api/start", "POST api/start-adhoc", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev",
-		"GET api/term", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume",
+		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
 		"POST api/code/start", "POST api/sshkey",
 	} {
@@ -887,7 +887,7 @@ func init() {
 var teamDevShellRoutes = map[string]bool{}
 
 func init() {
-	for _, route := range []string{"GET api/term", "POST api/code/start", "POST api/sshkey"} {
+	for _, route := range []string{"GET api/term", "POST api/term/files", "POST api/code/start", "POST api/sshkey"} {
 		method, path, _ := strings.Cut(route, " ")
 		teamDevShellRoutes[method+" "+teamDevPagePrefix+path] = true
 	}

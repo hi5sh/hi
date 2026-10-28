@@ -79,6 +79,31 @@ func teamTestDevPageCall(t *testing.T, handler http.Handler, key, method, path s
 	return recorder.Code, recorder.Body.String()
 }
 
+// A picture pasted into the terminal goes into the box, and the page gets
+// its path to paste.
+func TestTeamDevTermFiles(t *testing.T) {
+	b, _ := teamTestDevPage(t)
+	handler := b.devPageHandler()
+	picture := base64.StdEncoding.EncodeToString([]byte("\x89PNG"))
+	code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/term/files", map[string]any{"files": []map[string]string{{"name": "pasted-1a2b3c.png", "data": picture}}})
+	var result struct{ Paths []string }
+	json.Unmarshal([]byte(body), &result)
+	if code != 200 || len(result.Paths) != 1 || result.Paths[0] != "/box/home/hi/chat/terminal/pasted-1a2b3c.png" {
+		t.Fatalf("%d %s", code, body)
+	}
+	if data, _ := os.ReadFile(filepath.Join(teamDevResultsDir("payments", "chat", "terminal"), "pasted-1a2b3c.png")); string(data) != "\x89PNG" {
+		t.Fatalf("%q", data)
+	}
+	for _, bad := range []map[string]any{{}, {"files": []map[string]string{{"name": "x.png", "data": "not base64!"}}}} {
+		if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/term/files", bad); code == 200 {
+			t.Errorf("%v was taken", bad)
+		}
+	}
+	if code, _ := teamTestDevPageCall(t, handler, teamTestAskerKey, "POST", "api/term/files", map[string]any{"files": []map[string]string{{"name": "x.png", "data": picture}}}); code == 200 {
+		t.Fatal("someone who isn't a builder put a file in the box")
+	}
+}
+
 // Only owners get past the page; the page itself and its scripts load for
 // anyone with the address's key, and say so.
 func TestTeamDevPageOwnersOnly(t *testing.T) {

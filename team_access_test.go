@@ -323,7 +323,7 @@ func TestTeamVibeDev(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 		return recorder.Code
 	}
-	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/code/start"}, {"GET", "code/"}, {"POST", "api/sshkey"}, {"POST", "api/release"}} {
+	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/code/start"}, {"GET", "code/"}, {"POST", "api/sshkey"}, {"POST", "api/release"}} {
 		if code := call(shell[0], shell[1]); code != http.StatusForbidden {
 			t.Errorf("%v for a Vibe Dev: %d", shell, code)
 		}

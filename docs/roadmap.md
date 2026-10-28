@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.28 — Pictures in the terminal
+
+- [x] A picture pasted into the dev page's terminal went nowhere: Ctrl+V
+  reached the box as `^V`, and Claude Code looked for a picture in the
+  box's clipboard, which is empty. Ctrl+V is the browser's paste now; a
+  picture goes into the box (`~/hi/chat/terminal/`) and its path is
+  pasted, which Claude Code takes as the picture. Text pastes as before.
+
 ### v2.6.27 — Opus in the dev box
 
 - [x] Claude Code in the dev box ran on Sonnet unless someone picked a

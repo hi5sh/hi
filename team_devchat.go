@@ -639,6 +639,32 @@ func (b *teamBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Respons
 			return teamDevHerdrDo(b.team, "agent", "prompt", agent.Pane, text)
 		})
 	})
+	// A picture pasted into the terminal: the box's clipboard is empty, so
+	// the page puts the picture in the box and pastes its path, which
+	// Claude Code takes as the picture.
+	mux.HandleFunc("POST "+teamDevPagePrefix+"api/term/files", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		var body map[string]any
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamDevChatFilesMax/3*4+64<<10)).Decode(&body); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		files, err := teamDevChatFiles(body)
+		if err == nil && len(files) == 0 {
+			err = errors.New("no file to put in the box")
+		}
+		var paths []string
+		if err == nil {
+			paths, err = teamDevSaveChatFiles(b.team, "terminal", files)
+		}
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]any{"paths": paths})
+	})
 	mux.HandleFunc("POST "+teamDevPagePrefix+"api/chat/keys", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent teamDevChatAgent, _ string, body map[string]any) error {
 			list, _ := body["keys"].([]any)

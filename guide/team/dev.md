@@ -216,7 +216,9 @@ Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
   the task closes. A closed task's ⋯ has **Reopen**.
 - **Code:** herdr, the dev box's workspaces and agents, in the
   browser, the same ones as over SSH, with the workspaces beside it.
-  Closing the tab leaves the agents working. **Chat** shows a
+  Closing the tab leaves the agents working. Ctrl+V pastes there as in
+  a desktop terminal, a picture too: the page puts it in the box and
+  pastes its path, which Claude Code shows as `[Image #1]`. **Chat** shows a
   workspace's Claude Code session as a conversation instead, as Claude
   Code's web view does: its answers as Markdown, each run of tool calls
   folded into a line ("Ran 3 commands, read 2 files") that opens to the

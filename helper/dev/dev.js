@@ -121,7 +121,7 @@
       $("term-ended").hidden = false;
     };
   }
-  function sendText(data) { if (socket && socket.readyState === 1) socket.send(encoder.encode(data)); }
+  function sendText(data) { if (data && socket && socket.readyState === 1) socket.send(encoder.encode(data)); }
 
   // ---- the keys a phone's keyboard lacks
   var ctrl = false;
@@ -176,6 +176,37 @@
     }
     term.focus();
   });
+
+  // Ctrl+V pastes, as in a desktop terminal: the browser's paste, which
+  // can carry a picture, not ^V for the box, whose clipboard is empty.
+  term.attachCustomKeyEventHandler(function (event) {
+    var v = event.key === "v" || event.key === "V";
+    return !(event.type === "keydown" && v && event.ctrlKey && !event.altKey && !event.metaKey);
+  });
+  // A pasted picture goes into the box, and its path is pasted, which
+  // Claude Code takes as the picture. Text pastes as before.
+  $("term").addEventListener("paste", function (event) {
+    var images = Array.prototype.filter.call((event.clipboardData && event.clipboardData.files) || [], function (file) {
+      return /^image\//.test(file.type);
+    });
+    if (!images.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    Promise.all(images.map(function (file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve({ name: "pasted-" + Math.random().toString(16).slice(2, 8) + "." + (file.type.split("/")[1] || "png").replace("jpeg", "jpg"), data: String(reader.result).replace(/^[^,]*,/, "") }); };
+        reader.onerror = function () { reject(new Error("couldn't read the picture")); };
+        reader.readAsDataURL(file);
+      });
+    })).then(function (files) {
+      return api("POST", "term/files", { files: files });
+    }).then(function (result) {
+      var text = result.paths.join(" ") + " ";
+      sendText(term.modes && term.modes.bracketedPasteMode ? "\x1b[200~" + text + "\x1b[201~" : text);
+      term.focus();
+    }).catch(function (error) { toast(error.message); });
+  }, true);
 
   term.onData(function (data) { sendText(withCtrl(data)); });
   term.onBinary(function (data) {
