@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.25 — Allowing a site from the machine
+
+- [x] `hi team dev <team> allow <site> [--why <what for>]` allows a site
+  or a database's name for the dev box as the owners do on the dev page,
+  `--remove` takes one off, and with no site it lists them and the asks
+  waiting. The guide had pointed admins at `hi box allow
+  team-<team>-dev`, which never named the dev box.
+
 ### v2.6.24 — A database from the dev box
 
 - [x] The dev box reaches a database on the internet that speaks TLS on

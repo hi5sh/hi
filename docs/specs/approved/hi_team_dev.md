@@ -641,4 +641,8 @@ one, which a database's driver doesn't speak, and the box had no DNS for
 - A dev box started before v2.6.24 keeps no DNS until it starts again
   (`hi team dev <team> restart`), which an owner does when the agents are
   idle.
+- v2.6.25: `hi team dev <team> allow [<site> [--why …] | --remove <site>]`
+  on the machine does what the dev page's **Allow** and **Remove** do,
+  with the same refusals for names inside the network; the allow is the
+  admin's (`$USER on the machine`).
 

@@ -747,6 +747,8 @@ func teamDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		fmt.Fprintln(stdout, text)
 		return nil
+	case action == "allow":
+		return teamDevAllowAdmin(config.Name, args[2:], stdout)
 	case action == "restart" && len(args) == 2:
 		engine, _, err := detectBoxEngine()
 		if err != nil {

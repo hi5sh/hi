@@ -174,9 +174,16 @@ A site inside the network is never allowed, from the page or by an
 agent: names under `.local`, `.internal` and the like, and any name that
 resolves to the machine, its LAN, NetBird's peers (100.64.0.0/10) or a
 cloud's metadata address. The proxy checks the address it connects to as
-well, so a name allowed once can't later be pointed inside. An admin can
-still allow a site from the machine with `hi box allow team-<team>-dev
-<host>`.
+well, so a name allowed once can't later be pointed inside.
+
+On the machine, an admin allows sites as the page does, a database's name
+too, and the box reaches them at once:
+
+```sh
+hi team dev payments allow cluster0.abcd.mongodb.net --why "the test database"
+hi team dev payments allow                       # what's allowed, and asks waiting
+hi team dev payments allow --remove cluster0.abcd.mongodb.net
+```
 
 The list is about accidents and casual leaks, not a wall: an agent can
 send what it reads to any site it may reach, GitHub included. Allow a

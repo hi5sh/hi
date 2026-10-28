@@ -139,6 +139,41 @@ func TestTeamDevSiteAsk(t *testing.T) {
 }
 
 // --wait waits for the owners, and hears their answer.
+// An admin on the machine allows a site as the owners do on the page,
+// with what for, and takes it off again; the box's list has it at once.
+func TestTeamDevAllowAdmin(t *testing.T) {
+	teamTestDevPage(t)
+	teamTestLookup(t)
+	os.MkdirAll(filepath.Join(teamDevDir("payments"), "net"), 0o700)
+	var out bytes.Buffer
+	if err := teamDevAllowAdmin("payments", nil, &out); err != nil || !strings.Contains(out.String(), "allowed no sites") {
+		t.Fatal(err, out.String())
+	}
+	out.Reset()
+	if err := teamDevAllowAdmin("payments", []string{"https://api.example.com/v1", "--why", "the test database"}, &out); err != nil || !strings.Contains(out.String(), "reaches api.example.com") {
+		t.Fatal(err, out.String())
+	}
+	if data, _ := os.ReadFile(teamDevAllowFile("payments")); !strings.Contains(string(data), "api.example.com\n") {
+		t.Fatal(string(data))
+	}
+	out.Reset()
+	teamDevAllowAdmin("payments", nil, &out)
+	if !strings.Contains(out.String(), "api.example.com  ") || !strings.Contains(out.String(), "on the machine") || !strings.Contains(out.String(), ": the test database") {
+		t.Fatal(out.String())
+	}
+	for _, bad := range [][]string{{"vmserver.corp.example"}, {"api.example.com", "--why"}, {"--why", "x"}, {"--remove", "docs.example.org"}} {
+		if err := teamDevAllowAdmin("payments", bad, &out); err == nil {
+			t.Errorf("%q was taken", bad)
+		}
+	}
+	if err := teamDevAllowAdmin("payments", []string{"--remove", "api.example.com"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(teamDevAllowFile("payments")); strings.Contains(string(data), "api.example.com") {
+		t.Fatal(string(data))
+	}
+}
+
 func TestTeamDevSiteWait(t *testing.T) {
 	b, _ := teamTestDevPage(t)
 	teamTestLookup(t)

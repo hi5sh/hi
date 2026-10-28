@@ -384,6 +384,63 @@ func (b *teamBroker) devSiteRemove(host string) error {
 	return writeTeamDevAllow(b.team, host)
 }
 
+// teamDevAllowAdmin is hi team dev <team> allow, on the machine: the
+// sites the owners allowed, or one allowed or removed as the dev page
+// does, which the box's proxy takes at once.
+func teamDevAllowAdmin(team string, args []string, stdout io.Writer) error {
+	usage := usageError{"usage: hi team dev <team> allow [<site> [--why <what for>] | --remove <site>]"}
+	b := &teamBroker{team: team}
+	switch {
+	case len(args) == 0:
+		access := loadTeamDevAccess(team)
+		if len(access.Allowed) == 0 {
+			fmt.Fprintf(stdout, "The owners allowed no sites beyond hi's own. Allow one: hi team dev %s allow <site> --why \"<what for>\"\n", team)
+		}
+		for _, site := range access.Allowed {
+			fmt.Fprintf(stdout, "%s  %s, %s", site.Host, site.By, site.At.Local().Format("2006-01-02"))
+			if site.Why != "" {
+				fmt.Fprintf(stdout, ": %s", site.Why)
+			}
+			fmt.Fprintln(stdout)
+		}
+		for _, ask := range access.Requests {
+			if ask.State == teamDevSiteAsked {
+				fmt.Fprintf(stdout, "%s  asked for: %s (hi team dev %s allow %s)\n", ask.Host, ask.Why, team, ask.Host)
+			}
+		}
+		return nil
+	case len(args) == 2 && args[0] == "--remove":
+		if err := b.devSiteRemove(args[1]); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "The dev box no longer reaches %s.\n", teamDevSiteHost(args[1]))
+		return nil
+	case len(args) != 1 && !(len(args) == 3 && args[1] == "--why"), strings.HasPrefix(args[0], "-"):
+		return usage
+	}
+	host := teamDevSiteHost(args[0])
+	person := teamPersonKey{Name: firstNonEmpty(os.Getenv("USER"), "an admin") + " on the machine"}
+	if err := b.devSiteDecide(person, host, true); err != nil {
+		return err
+	}
+	if len(args) == 3 {
+		teamDevAccessMu.Lock()
+		access := loadTeamDevAccess(team)
+		for i := range access.Allowed {
+			if access.Allowed[i].Host == host {
+				access.Allowed[i].Why = args[2]
+			}
+		}
+		err := saveTeamDevAccess(team, access)
+		teamDevAccessMu.Unlock()
+		if err != nil {
+			return err
+		}
+	}
+	fmt.Fprintf(stdout, "The dev box reaches %s and its subdomains now, and a database's shards by that name too.\n", host)
+	return nil
+}
+
 // teamDevAllowWait is how long hi dev allow --wait waits, and how often it
 // looks; tests shorten them.
 var (

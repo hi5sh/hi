@@ -324,6 +324,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
 | `"$HI" team job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
 | `hi team dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The team's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
+| `hi team dev <name> allow [<site> [--why <what for>] \| --remove <site>]` | The sites the dev box reaches, a database's name too, as the owners allow them on the dev page; with no site, the list and the asks waiting |
 | `hi team owners <name> [add\|remove <member ID>]` | The team's owners, who build in the dev box; removing one ends their SSH key and links |
 | `hi team owners <name> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
 | `hi team access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |

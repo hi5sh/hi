@@ -562,6 +562,8 @@ usage:
       [restart | netbird [<key file>] | new-host-key]  a new box; join NetBird; a new host key
       [start <task> [--agent claude|codex]]  a task's branch, worktree, and herdr workspace
       [finish <branch> [--discard]]  once it's shipped: its worktree, workspace, branch, and task
+      [allow [<site> [--why <what for>] | --remove <site>]]  the sites the dev box reaches, as
+                                   owners allow them on the dev page; a database's name too
   hi team owners <name>            the team's owners, who build in the dev box, and their SSH keys
       [add|remove <member ID> | key <member ID> <public key>|--remove]
   hi team access <name>            who reaches what: owners, Pro Devs and Vibe Devs (who build but
