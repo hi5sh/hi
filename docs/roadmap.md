@@ -2713,6 +2713,12 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.22 — Background tasks as notes
+
+- [x] When a command Claude Code left running finishes, Claude Code puts
+  a `<task-notification>` in the person's turn, and the chat showed its
+  raw tags as a message from them. It shows a note with its summary.
+
 ### v2.6.21 — Submit from the chat
 
 - [x] Claude Code's review of a question's answers ("Ready to submit your

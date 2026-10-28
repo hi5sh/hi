@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"os"
@@ -187,6 +188,7 @@ func teamDevLatestSession(team, cwd string) string {
 var (
 	teamDevReminder     = regexp.MustCompile(`(?s)<system-reminder>.*?</system-reminder>`)
 	teamDevSlashCommand = regexp.MustCompile(`(?s)<command-name>(.*?)</command-name>.*?(?:<command-args>(.*?)</command-args>)?`)
+	teamDevTaskSummary  = regexp.MustCompile(`(?s)<summary>(.*?)</summary>`)
 	teamDevLocalTags    = regexp.MustCompile(`(?s)</?(local-command-stdout|local-command-stderr|local-command-caveat|command-message|command-name|command-args|bash-input|bash-stdout|bash-stderr)>`)
 )
 
@@ -202,6 +204,14 @@ func teamDevChatText(text string) (string, string) {
 	}
 	if strings.HasPrefix(text, "<local-command-std") || strings.HasPrefix(text, "<bash-") {
 		return "note", strings.TrimSpace(teamDevLocalTags.ReplaceAllString(text, ""))
+	}
+	if strings.HasPrefix(text, "<task-notification>") {
+		// Claude Code's word that a command it left running is done, in the
+		// person's turn: a note, by what its summary says.
+		if m := teamDevTaskSummary.FindStringSubmatch(text); m != nil {
+			return "note", html.UnescapeString(strings.TrimSpace(m[1]))
+		}
+		return "note", "A background task finished"
 	}
 	if strings.HasPrefix(text, "[Request interrupted by user") {
 		return "note", "Interrupted"

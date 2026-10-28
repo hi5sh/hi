@@ -588,6 +588,7 @@ func TestTeamDevChat(t *testing.T) {
 		`{"type":"assistant","cwd":"/box/home/.herdr/worktrees/repo/1-chart","message":{"role":"assistant","content":[{"type":"thinking","thinking":"Look first."},{"type":"text","text":"I'll **look**."},{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/box/home/.herdr/worktrees/repo/1-chart/src/App.tsx"}}]}}`,
 		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"export default App"}]}}`,
 		`{"type":"assistant","isSidechain":true,"message":{"role":"assistant","content":[{"type":"text","text":"a subagent's"}]}}`,
+		`{"type":"user","message":{"role":"user","content":"<task-notification>\n<task-id>b1</task-id>\n<status>completed</status>\n<summary>Background command \"npm test 2&gt;&amp;1\" completed (exit code 0)</summary>\n</task-notification>"}}`,
 		`{"type":"ai-title","aiTitle":"Fix the chart"}`,
 	}
 	os.WriteFile(host, []byte(strings.Join(lines, "\n")+"\n"+`{"type":"assistant","message":`), 0o600) // the last line is still being written
@@ -598,7 +599,7 @@ func TestTeamDevChat(t *testing.T) {
 	for _, e := range view.Entries {
 		got = append(got, e.T+":"+firstNonEmpty(e.Summary, e.Text))
 	}
-	if code != 200 || strings.Join(got, " | ") != "user:Fix the chart | thinking:Look first. | text:I'll **look**. | tool:src/App.tsx | result:export default App | title:Fix the chart" {
+	if code != 200 || strings.Join(got, " | ") != "user:Fix the chart | thinking:Look first. | text:I'll **look**. | tool:src/App.tsx | result:export default App | note:Background command \"npm test 2>&1\" completed (exit code 0) | title:Fix the chart" {
 		t.Fatalf("%d %s", code, strings.Join(got, " | "))
 	}
 	if view.Session != session || !view.Reset || !view.Agent.Running || view.Agent.Status != "blocked" || !strings.Contains(view.Screen, "1. Yes") {
@@ -652,7 +653,7 @@ func TestTeamDevChat(t *testing.T) {
 	_, body = teamTestDevPageCall(t, handler, teamTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
 	view = teamDevChatView{}
 	json.Unmarshal([]byte(body), &view)
-	if view.Session != session || view.Agent.Running || len(view.Entries) != 7 {
+	if view.Session != session || view.Agent.Running || len(view.Entries) != 8 {
 		t.Fatalf("%s", body)
 	}
 	if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/chat/send", map[string]any{"workspace": "w2", "text": "hello"}); code == 200 {
