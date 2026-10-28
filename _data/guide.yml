@@ -1,0 +1,135 @@
+# The guide's sidebar, in reading order. Previous/next links follow it.
+- section: Get started
+  pages:
+    - title: Overview
+      url: /guide/
+    - title: Install hi
+      url: /guide/install/
+    - title: Your first remote GPU
+      url: /guide/quickstart/
+- section: Agent teams
+  pages:
+    - title: What a hi team is
+      url: /guide/team/
+    - title: Set up a team
+      url: /guide/team/setup/
+    - title: Start from someone else's project
+      url: /guide/team/adopt/
+    - title: How the team works
+      url: /guide/team/how-it-works/
+    - title: Build in the dev box
+      url: /guide/team/dev/
+    - title: Try what the team built
+      url: /guide/team/app/
+    - title: Help and feedback in the app
+      url: /guide/team/helper/
+    - title: The app's docs
+      url: /guide/team/docs/
+    - title: Apps agents can use
+      url: /guide/team/agents/
+    - title: Keys and settings
+      url: /guide/team/keys/
+    - title: Dev and production
+      url: /guide/team/releases/
+    - title: Preview and production data
+      url: /guide/team/data/
+    - title: Reviews from the dev box
+      url: /guide/team/reviews/
+    - title: Brainstorms on hard questions
+      url: /guide/team/brainstorms/
+    - title: When something goes wrong
+      url: /guide/team/incidents/
+    - title: The folder and backups
+      url: /guide/team/folder/
+- section: Remote compute
+  pages:
+    - title: How hi compute works
+      url: /guide/compute/
+    - title: Run a job to completion
+      url: /guide/compute/run/
+    - title: Interactive machines
+      url: /guide/compute/instances/
+    - title: Serve a model
+      url: /guide/compute/serve/
+    - title: Costs, limits, and billing
+      url: /guide/compute/billing/
+    - title: Managed compute for a team
+      url: /guide/compute/managed/
+- section: Providers
+  pages:
+    - title: Google Colab
+      url: /guide/compute/colab/
+    - title: Hugging Face Jobs
+      url: /guide/compute/hugging-face/
+    - title: RunPod
+      url: /guide/compute/runpod/
+    - title: Shadeform
+      url: /guide/compute/shadeform/
+- section: Tutorials
+  pages:
+    - title: All tutorials
+      url: /guide/tutorials/
+    - title: Try a 125B model on a 96 GB GPU
+      url: /guide/tutorials/big-model/
+    - title: Train with uv scripts
+      url: /guide/tutorials/train/
+    - title: Run a parameter sweep
+      url: /guide/tutorials/sweep/
+    - title: JupyterLab on a rented GPU
+      url: /guide/tutorials/jupyter/
+    - title: Let your coding agent use a GPU
+      url: /guide/tutorials/agent/
+- section: Terminal
+  pages:
+    - title: Ask for a command
+      url: /guide/q/
+    - title: Hand tasks to agents
+      url: /guide/agent/
+    - title: Review a whole repository
+      url: /guide/agent/review/
+    - title: Brainstorm with several agents
+      url: /guide/agent/brainstorm/
+    - title: Run code in a box
+      url: /guide/box/
+    - title: Download the team's data
+      url: /guide/data/
+- section: Autoresearch
+  pages:
+    - title: How it works
+      url: /guide/autoresearch/
+    - title: Several attempts at once
+      url: /guide/autoresearch/best-of/
+    - title: Rounds that keep only gains
+      url: /guide/autoresearch/rounds/
+    - title: Keep only gains that hold
+      url: /guide/autoresearch/validation/
+    - title: Start from a template
+      url: /guide/autoresearch/templates/
+    - title: Simple examples
+      url: /guide/autoresearch/examples/
+    - title: Advanced examples
+      url: /guide/autoresearch/advanced/
+- section: Projects
+  pages:
+    - title: Start a project
+      url: /guide/projects/
+- section: Workstation
+  pages:
+    - title: Set up a workstation
+      url: /guide/workstation/
+    - title: NetBird network
+      url: /guide/workstation/netbird/
+    - title: Share a local service
+      url: /guide/workstation/expose/
+    - title: Users
+      url: /guide/workstation/users/
+- section: Reference
+  pages:
+    - title: Skills
+      url: /guide/reference/skill/
+    - title: All commands
+      url: /guide/reference/commands/
+    - title: Troubleshooting
+      url: /guide/reference/troubleshooting/
+    - title: Environment and files
+      url: /guide/reference/environment/

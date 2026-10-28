@@ -1,0 +1,12 @@
+# Hifin Template Name
+
+> A place to keep notes.
+
+The app serves this file at /llms.txt, for agents (llmstxt.org). Keep it
+in step with the app: what it is, and what an agent can do in it.
+
+## Use it with an agent
+
+- [MCP server](/mcp): the app's features as tools, over Streamable HTTP.
+  list_notes reads the notes; add_note adds one.
+

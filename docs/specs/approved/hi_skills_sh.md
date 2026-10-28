@@ -1,0 +1,437 @@
+# `hi skill` with skills.sh
+
+Status: Approved (2026-10-07). Release 1 built and tested on 2026-10-07
+(v0.30.0); release 2 built on 2026-10-08.
+
+Dependencies: `hi skill` (v0.7.1, which this replaces and keeps working),
+`hi init` (layers name skills), `hi agent` bundles
+([hi_agent_bundles.md](../ideas/hi_agent_bundles.md), which this changes), `hi server`
+template sources (team skills, release 3), [skills.sh](https://skills.sh),
+and `git`.
+
+## Goal
+
+Get skills the way most agent users already do, from
+[skills.sh](https://skills.sh), and keep them up to date, without hi writing
+and maintaining generic skills itself.
+
+```sh
+hi skills                                     # search, browse, and pick, in a terminal
+hi skill add anthropics/skills --skill xlsx   # the same without a menu
+hi skill update
+```
+
+Today `hi skill` writes one skill, `hi`, embedded in the binary. For
+bundles, ten more skills were written by hand (browse, Word, Excel, PDF,
+charts, and others), each pinned to package versions. Keeping those current
+is work that thousands of people already do on skills.sh, often by the
+makers of the tools themselves (Anthropic for documents, DuckDB, Hugging
+Face, Vercel's browser). hi should use their skills and keep only what is
+about hi.
+
+What hi keeps maintaining is small: the `hi` skill, and for bundles, a list
+of which skills to use at which commit and what each needs installed.
+
+## What skills.sh offers
+
+skills.sh is an index of skills that live in git repositories, mostly on
+GitHub, ranked by installs, with security audits from five partners. Its own
+CLI, `npx skills` ([vercel-labs/skills](https://github.com/vercel-labs/skills),
+read at commit `48dc9e8`), installs them for 78 agents.
+
+| Endpoint | Auth | What it gives | Used by |
+|---|---|---|---|
+| `GET https://skills.sh/api/search?q=&limit=&owner=` | none | `skills: [{id, source, skillId, name, installs}]` | `npx skills find` |
+| `GET https://www.skills.sh/tele/audit?source=&skills=a,b` | none | per skill, per partner (`ath`, `socket`, `snyk`, …): `risk` (`safe` to `critical`), `alerts`, `analyzedAt` | `npx skills add` |
+| `GET https://skills.sh/api/v1/skills/…` (search, leaderboard, files, hash, audits) | Vercel OIDC token of a Vercel project | the documented API | Vercel projects |
+
+The documented API isn't usable by a CLI: its token only exists inside a
+Vercel project. The two open endpoints are undocumented; an open issue asks
+for a documented credential-free search
+([#1825](https://github.com/vercel-labs/skills/issues/1825), no reply). So:
+
+- **skills.sh is used only for finding skills and for audits.** The skill
+  itself always comes from its git repository, at a commit hi records. If
+  skills.sh changes or is down, `hi skill add owner/repo` and
+  `hi skill update` still work; `find` and audits say they're unavailable.
+- **hi sends no install telemetry.** `npx skills` reports every install to
+  skills.sh; hi doesn't. A search sends the query, and an audit lookup sends
+  public repository and skill names. `DO_NOT_TRACK=1` turns both lookups
+  off, as it does for `npx skills`.
+
+## Commands
+
+`hi skill` stays singular, like `hi box`, `hi agent`, and `hi data`; `hi
+skills` is accepted as the same command, since `npx skills` users will type
+it.
+
+```text
+hi skill                         in a terminal: the selector (below); otherwise
+                                 write or update the hi skill here, as today
+hi skill find [query]            search skills.sh: name, source, installs, audits
+hi skill add <source>            install skills from a repository at its current commit
+    [--skill a,b] [--global] [--yes] [--accept-risk] [--ref <branch|tag>]
+hi skill ls [--global] [--json]  installed skills: source, commit, audits, changes
+hi skill show <name|source>      files, license, commit, audits, what it runs
+hi skill update [name...]        move skills to their source's newest commit
+    [--check] [--global] [--yes]
+hi skill rm <name>... [--global]
+```
+
+`hi skill --global`, `--print`, and `--force` keep writing the `hi` skill.
+`hi skill` without arguments opens the selector in a terminal, like
+`hi compute` opens its menu; without a terminal (agents, scripts, CI) it
+still writes the `hi` skill, which is what the guide, the templates, and
+agents already run.
+
+## The selector
+
+`hi skills` (or `hi skill`) in a terminal is one screen to search, browse,
+and pick:
+
+```text
+ Skills for ~/projects/pricing                       here · g: everywhere
+ Search skills.sh › excel▏
+
+ Installed
+   ✓ hi              built in                         up to date
+   ✓ xlsx            anthropics/skills        3f9c2e1  newer commit ↑
+ Results
+ › ◻ xlsx            anthropics/skills   ✓    211k    safe safe medium
+   ◻ excel-analysis  davila7/claude-code-templates  2.6k  safe low safe
+   ◻ minimax-xlsx    minimax-ai/skills          3.7k  no audit yet
+
+ ── xlsx · anthropics/skills ─────────────────────────────────────────
+ Spreadsheets: open, edit, create, and convert .xlsx, .csv, and .tsv.
+ License: Proprietary · 4 scripts (Python) · mentions openpyxl, pandas,
+ LibreOffice · audited 2026-09-15
+
+ type: search · ↑↓: move · space: pick · enter: install picked
+ u: update · x: remove · tab: installed / results / suggested · esc: quit
+```
+
+- **Search as you type**, after two characters (skills.sh's minimum),
+  waiting a moment after the last key so each word doesn't send a request.
+  Results are sorted by installs, verified owners marked, with each
+  partner's audit.
+- **Browse without typing.** skills.sh's open search can't list without a
+  query, and its leaderboard needs the Vercel token, so an empty search
+  shows hi's suggestions instead: the skills the built-in bundles use, and
+  popular skills from verified owners, a short list kept in this
+  repository.
+- **Details for the highlighted skill**: its description, license, scripts,
+  the tools it mentions, and its audits. Search results have no
+  description, so hi reads the skill's `SKILL.md` from GitHub when it's
+  highlighted, at the usual paths, and caches it.
+- **Install several at once**: pick with space, then enter shows the list
+  with licenses and any `high` or `critical` audit, and asks once.
+- **Installed skills** are listed first, with newer commits marked; `u`
+  shows the change and updates, `x` removes.
+- **`g`** switches between this project and every project (`--global`).
+- `DO_NOT_TRACK=1`, or skills.sh unreachable: the selector shows installed
+  skills and the suggestions, and says search is off.
+
+It's a Bubble Tea screen, like `hi compute live`; every action in it is also
+a command above, so nothing needs the selector.
+
+## Sources
+
+The same forms `npx skills add` accepts, minus npm packages:
+
+| Form | Example |
+|---|---|
+| `owner/repo` (GitHub) | `anthropics/skills` |
+| `owner/repo/skill` (as skills.sh shows it) | `anthropics/skills/xlsx` |
+| A repository URL, GitHub, GitLab, or any git | `https://gitlab.com/org/skills`, `git@github.com:org/skills.git` |
+| A folder in a repository | `https://github.com/owner/repo/tree/main/skills/web` |
+| A local folder | `./my-skills` |
+| A built-in skill | `hi` |
+
+A repository with several skills asks which to install, in a terminal; with
+`--skill a,b`, or `--yes` for all of them, it doesn't ask. Skills are found
+as `npx skills` finds them: `SKILL.md` at the root, or under `skills/`,
+`.agents/skills/`, `.claude/skills/`, and the other agents' folders.
+
+## Installing
+
+`hi skill add anthropics/skills --skill xlsx`:
+
+1. **Resolve the commit.** `git ls-remote` gives the commit of the default
+   branch (or `--ref`). git uses the person's own credentials, so private
+   repositories work as they do for `git clone`.
+2. **Fetch that commit.** A shallow clone into a temporary folder; nothing
+   in it runs.
+3. **Find the skill** and read its `SKILL.md` frontmatter: `name`,
+   `description`, `license`, `allowed-tools`.
+4. **Show what is about to be installed**, and ask in a terminal:
+
+   ```text
+   xlsx from anthropics/skills at 3f9c2e1 (2026-10-02)
+     Spreadsheets: open, edit, create, and convert .xlsx, .csv, and .tsv files.
+     License: Proprietary (LICENSE.txt): for use with Anthropic's services
+     Files: SKILL.md, 4 scripts (Python), 1 reference
+     Audits: Agent Trust Hub safe · Socket safe · Snyk medium (2026-09-15)
+     Mentions: openpyxl, pandas, markitdown, LibreOffice
+   Install into .agents/skills/xlsx, linked from .claude/skills/xlsx? [Y/n]
+   ```
+
+   "Mentions" lists tools the skill text expects, from a fixed list hi
+   knows (Python packages, `npx`, browsers, LibreOffice, pandoc, API keys),
+   so a missing one doesn't come as a surprise; hi installs nothing for it.
+5. **Write the skill** to `.agents/skills/<name>/`, which Codex and other
+   agents read, and link `.claude/skills/<name>` to it, as `hi skill` and
+   `npx skills` do today. With `--global`, the same under the home folder
+   (`~/.agents/skills`, `~/.claude/skills`).
+6. **Record it** in the lock file.
+
+A skill whose name is taken by one hi didn't install (no lock entry) is
+left alone unless `--force`.
+
+## The lock file
+
+In a project, hi uses the lock file `npx skills` writes, `skills-lock.json`
+at the project's root, so a team using either tool sees the same skills,
+and commits it. hi adds the commit, which `npx skills` doesn't record:
+
+```json
+{
+  "version": 1,
+  "skills": {
+    "xlsx": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/xlsx/SKILL.md",
+      "computedHash": "9b1e…",
+      "commit": "3f9c2e1d…",
+      "license": "Proprietary"
+    }
+  }
+}
+```
+
+- `computedHash` is SHA-256 over the skill's files, sorted by path, each
+  path followed by its contents, as `npx skills` computes it. `npx skills`
+  sorts with JavaScript's `localeCompare`, hi by bytes; for the rare skill
+  whose file names differ only in case the two disagree, and the other tool
+  reinstalls the same files once.
+- Entries without `commit`, from `npx skills`, are shown as unpinned, and
+  `hi skill update` pins them.
+- If `npx skills update` moves a skill, the files no longer match the
+  commit; `hi skill ls` says so, and `hi skill update` records the new
+  commit after showing the change.
+
+Globally, hi keeps its own list in `~/.config/hi/skills.json` with the same
+entries, and leaves `npx skills`' global lock alone.
+
+## Updating
+
+`hi skill update` checks each skill's source for a newer commit
+(`git ls-remote`), and for each one that changed:
+
+```text
+xlsx (anthropics/skills) 3f9c2e1 → 8a0d417, 12 days newer
+  SKILL.md +14 −3, scripts/recalc.py +40 −12
+  Audits: Agent Trust Hub safe · Socket safe · Snyk low
+Update? [Y/n/d (show the diff)]
+```
+
+- `--check` only lists what would change, and exits with 1 if anything
+  would; for CI and agents.
+- Skills from a local folder are copied again; the built-in `hi` skill
+  follows the `hi` binary, as it does today.
+- An update never runs anything from the skill.
+
+## Trust
+
+A skill is instructions an agent follows without asking, often with
+scripts it runs. A bad one is a prompt injection that stays in the project.
+So:
+
+- **Pinned.** Every skill is installed and updated at a recorded commit;
+  nothing changes until `hi skill update`, and the change is shown first.
+- **Audits shown, risk asked.** skills.sh's partner audits are shown on
+  `find`, `add`, `show`, and `update`. When any partner says `high` or
+  `critical`, hi asks with "no" as the default; without a terminal it
+  refuses unless `--accept-risk`. A skill with no audit yet says so. On
+  2026-10-07 even Anthropic's `docx` had a Socket `critical` (two alerts),
+  so this is a question, never a silent block.
+- **What it runs.** `show` lists scripts by language, `allowed-tools` from
+  the frontmatter, and the tools the text mentions.
+- **Licenses shown.** Anthropic's document skills (`docx`, `xlsx`, `pptx`,
+  `pdf`) are proprietary, for use with Anthropic's services; hi never ships
+  them, it downloads them from their repository when the person asks, like
+  `npx skills` does, and shows the license first.
+- **Popularity isn't trust.** Many repositories on skills.sh are copies of
+  others with large install counts (`101-skills/superpowers`,
+  `qu-skills/superpowers`, and more on 2026-10-07). `find` marks a skill's
+  owner as verified (✓) when it's the owner of the tool or company it's
+  about, from a short list hi keeps (`anthropics`, `vercel-labs`, `duckdb`,
+  `huggingface`, `openai`, …), and the GitHub owner of each template
+  source the connected hi server serves, which the server sends with its
+  catalog and the device caches with the templates; no team's own
+  organization is written into hi. Results stay in order of installs: listing
+  verified owners first put unrelated skills at the top (an Azure skill for
+  "excel").
+- **Agents ask.** The `hi` skill tells agents to ask the person before
+  `hi skill add` or `update`, like other commands that change the project.
+
+## Built-in skills
+
+The only built-in skill is `hi`: it's about hi and changes with it, so it
+stays embedded in the binary. The ten hand-written skills for bundles
+(`browse`, `web-extract`, `cite-sources`, `word-docs`, `spreadsheets`,
+`pdf-read`, `convert-docs`, `tables`, `charts`, `hi-data`) were removed
+in release 2, when the bundles moved to skills.sh; what `hi-data` said
+that the `hi` skill didn't (what to do in a box without `--data`, 401 and
+403, keeping downloads out of git) moved into its "Team data" section.
+
+`hi5sh/hi` is public and keeps the skill at `skills/hi/SKILL.md`, so
+`npx skills add hi5sh/hi` already installs it; skills.sh lists it once
+someone does. That covered the first item of the roadmap's skills.sh entry.
+
+## Bundles
+
+Bundles stay hi's own, but they list skills by source and commit instead
+of holding skill files, and they keep what the skills don't say: what
+each needs installed. External skills have no machine-readable
+requirements (`agent-browser` installs itself with `npm i -g` at run time;
+Anthropic's `xlsx` expects openpyxl, pandas, markitdown, and LibreOffice to
+be there), so the requirements stay with hi:
+
+```json
+{
+  "name": "office",
+  "description": "Read, create, and edit Word documents, Excel workbooks, PowerPoint decks, and PDFs.",
+  "note": "Anthropic's docx, xlsx, pptx, and pdf skills are proprietary …",
+  "skills": [
+    {
+      "source": "anthropics/skills",
+      "skill": "xlsx",
+      "commit": "683bc88e56f3e09ba94f7055977f3d3aa499f202",
+      "needs": {
+        "layer": "heavy",
+        "apt": ["libreoffice-calc-nogui"],
+        "pip": ["openpyxl==3.1.5", "pandas==3.0.6", "markitdown==0.1.8", "defusedxml==0.7.1", "lxml==6.1.3"]
+      }
+    }
+  ]
+}
+```
+
+`needs` has the closed keys of
+[hi_agent_bundles.md](../ideas/hi_agent_bundles.md#needs): `layer`, `apt`,
+`pip` (`name==version`, extras allowed), `npm` (`name@version`),
+`browsers` (`chromium` from Playwright, `chrome` from
+`agent-browser install`), `env`, `network` (`mode`, `hosts`, `reason`), and
+`gpu`. hi refuses a bundle file with an unknown key, an unpinned package, a
+short commit, a one-skill source (`owner/repo/skill`), or the `hi` skill,
+which every bundle gets anyway.
+
+In the box, hi fetches each skill at its commit into the box's home, as
+`hi skill add` does, cached by commit under `~/.cache/hi/skills/`. A
+maintainer moves the commits with `hi skill update --bundles` in this
+repository (or a team source with `bundles/`), which shows each change and
+audit, like `update`, and rewrites the bundle files. `--check` lists what
+would change and exits 1, and a bundle or skill name limits it. A skill
+not pinned yet shows its license, files, and the tools it mentions. The
+`needs` follow the skill by hand, which is the remaining upkeep; a changed
+skill that mentions a tool it didn't before shows "New mentions" and asks
+to check the needs.
+
+The built-in bundles, pinned on 2026-10-08:
+
+| Bundle | Skills | Needs |
+|---|---|---|
+| `web` | `vercel-labs/agent-browser` | `agent-browser` from npm and its Chrome; network `open`. Its skill loads instructions from the installed CLI, so they match its version. |
+| `office` | `anthropics/skills`: `docx`, `xlsx`, `pptx`, `pdf` (proprietary; see Trust) | LibreOffice (writer, calc, impress), pandoc, Poppler, qpdf, Tesseract; openpyxl, pandas, markitdown, pypdf, pdfplumber, reportlab, and others; `docx` and `pptxgenjs` from npm |
+| `data` | `duckdb/duckdb-skills`: `query`, `read-file`, `convert-file`; `anthropics/knowledge-work-plugins`: `data-visualization` | the DuckDB CLI (`duckdb-cli` from PyPI) and `extensions.duckdb.org`; matplotlib, seaborn, plotly, pandas |
+
+The needs come from each skill's "Dependencies" section and the imports
+in its scripts. The `docx`, `xlsx`, and `pptx` skills are rated critical
+by Socket (1–2 alerts, about their bundled Office scripts); pinning them
+needed `--accept-risk` or a yes. `cite-sources` has no first-party
+counterpart yet; it stays a question below. Pinned with the real
+repositories on 2026-10-08, including moving `query` and `read-file` from
+an older commit to see the diff.
+
+## Inside a box
+
+`hi skill` works in a box like anywhere else, through the proxy: GitHub
+is in the `dev` preset, and skills.sh would be added to it. Skills that
+a box's agent needs come from bundles, which hi installs before the box
+starts, so an agent never needs `hi skill add` mid-task.
+
+## With `hi server` (release 3)
+
+- **Team skills** from the template sources the server already mirrors and
+  signs: `hi skill add team/<name>` (or `<source>/<name>` when two sources
+  clash), recorded with the source's commit.
+- **Allowed sources** per group in `policy.json` (`skill_sources`), so a
+  group can be limited to the team's sources and a list of owners. An agent
+  enrolled with `hi connect --agent` then can't add a skill from anywhere.
+
+## Releases
+
+1. **`hi skill` with sources.** `find`, `add`, `ls`, `show`, `update`
+   (with `--check`), `rm`; GitHub, git, and local sources; the shared
+   `skills-lock.json`; audits and the risk question; `hi skills` as an
+   alias; the selector in a terminal. Without a terminal, `hi skill` alone
+   is unchanged.
+2. **Bundles from skills.sh.** Bundle files list skills by source, commit,
+   and needs; `hi skill update --bundles`; the hand-written skills removed,
+   and `hi-data` folded into `hi`. Built on 2026-10-08.
+3. **Team skills and policy** through `hi server`.
+
+## Risks
+
+- **Undocumented endpoints.** Search and audits can change without notice.
+  Both are optional: installing and updating need only git.
+- **A trusted skill turns bad.** A repository can be sold, hijacked, or
+  changed. Pins, shown diffs, and audits on update limit this; nothing
+  updates by itself.
+- **Proprietary skills.** Anthropic's document skills are licensed for use
+  with Anthropic's services. Using them with Codex in a bundle may not be
+  allowed; bundles that include them should say so, and could pick Claude
+  Code when attached.
+- **Two tools, one lock file.** If `npx skills` changes its format, hi
+  might misread it. hi reads only the fields above, and keeps entries it
+  doesn't understand.
+
+## Open questions
+
+- [ ] Should `find` and the selector show only verified owners by default,
+  with `--all` (or a key) for the rest?
+- [ ] Is a `cite-sources`-style skill worth keeping built in, or is there a
+  good first-party research skill (Tavily's needs an API key)?
+- [ ] Should `layer.json`'s `skills` in templates accept `owner/repo/skill`
+  with a commit, so templates get skills.sh skills too?
+- [ ] Do we publish more of hi's knowledge as skills, for example a
+  separate `hi-compute` skill, to keep the `hi` skill short?
+
+## Findings
+
+From 2026-10-07:
+
+- The open search needs a query of at least two characters, returns no
+  descriptions, and has no leaderboard; browsing without a query has to
+  come from hi.
+- skills.sh's documented API needs a Vercel OIDC token
+  ([API reference](https://www.skills.sh/docs/api),
+  [changelog](https://vercel.com/changelog/the-skills-sh-api-is-now-available)).
+  `npx skills` uses `/api/search` and `/tele/audit` without one; both
+  answered from this machine.
+- `npx skills` keeps a project lock, `skills-lock.json`, with `source`,
+  `sourceType`, `ref`, `skillPath`, and `computedHash`, but no commit; its
+  global lock is `~/.agents/.skill-lock.json` with GitHub tree hashes.
+  Project installs go to `.agents/skills` with links from
+  `.claude/skills`, the same as `hi skill`.
+- `npx skills` sends install, update, remove, and search events to
+  `skills.sh/tele/t` unless `DISABLE_TELEMETRY` or `DO_NOT_TRACK` is set.
+- Searches for each bundle's area found first-party skills from Anthropic,
+  Vercel, DuckDB, and Hugging Face, and many copied repositories with high
+  install counts.
+- Anthropic's `docx`, `xlsx`, `pptx`, and `pdf` carry a proprietary license;
+  most of `anthropics/skills` (for example `webapp-testing`) is Apache 2.0.
+- `hi5sh/hi` is public, so its `skills/` folder is visible to
+  `npx skills add hi5sh/hi` today, including the ten hand-written
+  bundle skills.

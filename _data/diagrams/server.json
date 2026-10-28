@@ -1,0 +1,117 @@
+{
+  "caption": "How the hi server is laid out. Admins set it up on a small always-on machine in the team's NetBird network. It listens only on its NetBird address and answers only requests signed by connected devices. It alone holds the team's keys: provider keys, Hugging Face tokens, the model key, and template tokens, with the devices, groups, and audit log. Its policy says per group what may be started, downloaded, or used, approves small requests on its own up to a price and time, and warns when a budget is crossed. It asks for approvals and reports through the team's Slack app, and serves connected devices managed machines, the team's model, its data, and private templates. Teams on connected machines send it a heartbeat, so it notices what they can't say about themselves.",
+  "you": "Admins",
+  "via": "hi server init · provider add · run",
+  "frame": "the server's machine, on NetBird",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "hi server",
+      "label": "always on",
+      "mark": 2,
+      "items": [
+        {
+          "title": "compute.internal:7373",
+          "role": "listens",
+          "does": "Only on its NetBird address; a request without a connected device's signature is refused.",
+          "chip": "systemd",
+          "tone": "accent"
+        }
+      ]
+    },
+    {
+      "name": "keys and state",
+      "label": "only here",
+      "mark": 3,
+      "via": "keeps",
+      "items": [
+        {
+          "title": "~/.local/state/hi/server",
+          "role": "what it holds",
+          "does": "Provider keys, Hugging Face tokens, the model key, template tokens, devices, groups, and the audit log.",
+          "chip": "owner only",
+          "tone": "red"
+        }
+      ]
+    },
+    {
+      "name": "policy",
+      "label": "per group",
+      "mark": 4,
+      "via": "decides by",
+      "items": [
+        {
+          "title": "policy.json",
+          "role": "who may do what",
+          "does": "Hardware, hours, data, and templates per group; it approves up to a price and time on its own, and budgets warn.",
+          "chip": "hi server policy edit",
+          "tone": "accent"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "Slack",
+      "label": "the team's Slack app",
+      "mark": 5,
+      "via": "asks and reports",
+      "items": [
+        {
+          "title": "the Slack app",
+          "role": "approvals and reports",
+          "does": "Approve and deny buttons, the Home tab, and reports on spend.",
+          "chip": "Slack",
+          "tone": "violet"
+        }
+      ]
+    },
+    {
+      "name": "connected devices",
+      "label": "joined with hi connect",
+      "mark": 6,
+      "via": "serves",
+      "items": [
+        {
+          "title": "hi compute · hi q · hi data · hi init",
+          "role": "what users get",
+          "does": "Managed machines, the team's model, its Hugging Face data, and private templates; `hi net expose` and hi teams report in.",
+          "chip": "device keys",
+          "tone": "mint"
+        }
+      ]
+    }
+  ],
+  "key": [
+    {
+      "mark": 1,
+      "term": "Server's machine",
+      "text": "A small always-on Linux machine in the team's NetBird network."
+    },
+    {
+      "mark": 2,
+      "term": "hi server",
+      "text": "The service the team's devices talk to, and nothing else can."
+    },
+    {
+      "mark": 3,
+      "term": "Keys and state",
+      "text": "Readable only by the account the server runs as; no user ever holds these keys."
+    },
+    {
+      "mark": 4,
+      "term": "Policy",
+      "text": "Limits per group, so a student and an admin can share one server."
+    },
+    {
+      "mark": 5,
+      "term": "Slack",
+      "text": "Where people approve, see their requests, and get reports."
+    },
+    {
+      "mark": 6,
+      "term": "Devices",
+      "text": "People's machines and their agents, each known by its key; removing one ends its access."
+    }
+  ]
+}

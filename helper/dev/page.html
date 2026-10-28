@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Dev page</title>
+<link rel="stylesheet" href="xterm.css">
+<link rel="stylesheet" href="dev.css">
+</head>
+<body>
+<header class="bar">
+  <strong id="team">hi team</strong>
+  <span id="links" class="links"></span>
+  <span class="grow"></span>
+  <span id="you" class="muted"></span>
+</header>
+<nav class="tabs" role="tablist">
+  <button data-tab="tasks" role="tab" aria-selected="true">Tasks <span id="tasks-count" class="count"></span></button>
+  <button data-tab="terminal" role="tab">Code</button>
+  <button data-tab="files" role="tab">Files</button>
+  <button data-tab="release" role="tab">Release <span id="release-count" class="count"></span></button>
+  <button data-tab="data" role="tab" class="owners-only">Data</button>
+  <button data-tab="system" role="tab">System</button>
+  <button data-tab="security" role="tab">Security <span id="security-count" class="count"></span></button>
+</nav>
+<main id="page">
+  <section id="tab-tasks" class="panel tasks-panel">
+    <div class="tasks-box">
+      <div class="tasks-tools">
+        <div class="chips" role="group" aria-label="Which tasks">
+          <button data-show="open" aria-pressed="true">Open</button>
+          <button data-show="closed" aria-pressed="false">Closed</button>
+          <button data-show="all" aria-pressed="false">All</button>
+        </div>
+        <label class="search"><span aria-hidden="true">⌕</span><input id="tasks-search" type="search" placeholder="Search tasks: words, #number, who filed it" autocomplete="off"></label>
+        <button id="ticket-new" class="icon" title="New task" aria-label="New task">+</button>
+        <button id="tickets-refresh" class="icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
+      </div>
+      <p id="tickets-where" class="muted small where"></p>
+      <div class="table" role="table" aria-label="Tasks">
+        <div class="row head" role="row">
+          <span role="columnheader">ID</span>
+          <span role="columnheader">Title / context</span>
+          <span role="columnheader">Status</span>
+          <span role="columnheader">Updated</span>
+          <span role="columnheader"><span class="sr">Actions</span></span>
+        </div>
+        <div id="tickets" role="rowgroup"></div>
+      </div>
+    </div>
+  </section>
+  <section id="tab-terminal" class="panel terminal-panel" hidden>
+    <aside class="spaces">
+      <div id="preview-line" class="preview-line small" hidden></div>
+      <details id="spaces-box" open>
+        <summary>Workspaces <span id="spaces-count" class="count"></span></summary>
+        <ul id="workspaces" class="list"></ul>
+        <p id="box" class="muted small"></p>
+      </details>
+    </aside>
+    <div class="code-main">
+    <div class="code-bar">
+      <div id="code-view" class="chips" role="group" aria-label="How to show the session">
+        <button data-view="chat" aria-pressed="true">Chat</button>
+        <button data-view="terminal" aria-pressed="false">Terminal</button>
+        <button data-view="code" aria-pressed="false" class="wide-only" title="VS Code on the workspace's files, in the dev box">VS Code</button>
+      </div>
+      <select id="chat-space" aria-label="Which workspace's session"></select>
+      <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
+      <span id="chat-title" class="chat-title"></span>
+      <span class="grow"></span>
+      <span id="chat-status" class="muted small chat-status"></span>
+    </div>
+    <div id="chat" class="chat" hidden>
+      <div id="chat-start" class="chat-start" hidden>
+        <form id="adhoc-form" class="start-card">
+          <h2>Start something new</h2>
+          <p class="muted small">Say what to do. hi gives it a branch and a worktree of its own, from dev, named after your words, and starts the agent with them. When it's done: Ship to Dev, then Done ✓, as with a task. To track it as a task, file it in Tasks and start it there.</p>
+          <textarea id="adhoc-text" rows="4" placeholder="Make the price chart green when it's up…" required></textarea>
+          <div class="agents-inline" role="radiogroup" aria-label="Agent">
+            <label><input type="radio" name="adhoc-agent" value="claude" checked> Claude Code</label>
+            <label><input type="radio" name="adhoc-agent" value="codex"> Codex</label>
+          </div>
+          <p id="adhoc-error" class="error"></p>
+          <div class="buttons">
+            <button type="button" id="adhoc-cancel">Cancel</button>
+            <button id="adhoc-go" class="primary">Start →</button>
+          </div>
+        </form>
+      </div>
+      <div id="chat-log" class="chat-log"><div id="chat-entries" class="chat-entries"></div><div id="chat-sites" class="chat-ask" hidden></div><div id="chat-ask" class="chat-ask" hidden></div></div>
+      <div class="chat-bottom">
+        <div id="chat-waiting" class="chat-waiting" hidden>
+          <p class="small"><strong>It's asking, in the terminal:</strong></p>
+          <pre id="chat-screen"></pre>
+          <div class="chat-keys">
+            <button data-chat-key="1">1</button><button data-chat-key="2">2</button><button data-chat-key="3">3</button><button data-chat-key="4">4</button>
+            <button data-chat-key="up" aria-label="Up">↑</button><button data-chat-key="down" aria-label="Down">↓</button>
+            <button data-chat-key="enter">Enter</button><button data-chat-key="esc">Esc</button>
+          </div>
+        </div>
+        <div id="chat-stopped" class="chat-stopped" hidden>
+          <span id="chat-stopped-why">Claude isn't running in this workspace.</span>
+          <button id="chat-resume" hidden>Resume this session</button>
+        </div>
+        <div id="chat-attached" class="chat-attached" hidden></div>
+        <form id="chat-form" class="chat-form">
+          <label class="chat-attach" title="Attach pictures or files (or paste or drop them)"><input type="file" id="chat-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg></label>
+          <textarea id="chat-input" rows="1" placeholder="Message Claude…" autocomplete="off"></textarea>
+          <button type="button" id="chat-stop" hidden title="Stop what it's doing (Esc)">Stop</button>
+          <button id="chat-send" class="primary">Send</button>
+        </form>
+      </div>
+    </div>
+    <div class="term-panel">
+      <div id="term"></div>
+      <div id="keys" class="keys" role="toolbar" aria-label="Keys a phone's keyboard lacks">
+        <button data-key="keyboard" aria-label="Show the keyboard" title="Show the keyboard">⌨</button>
+        <button data-key="paste">Paste</button>
+        <button data-key="esc">Esc</button>
+        <button data-key="tab">Tab</button>
+        <button data-key="shifttab">Shift+Tab</button>
+        <button data-key="enter">Enter</button>
+        <button data-key="ctrl" aria-pressed="false" title="Ctrl with the next key">Ctrl</button>
+        <button data-key="up" aria-label="Up">↑</button>
+        <button data-key="down" aria-label="Down">↓</button>
+        <button data-key="left" aria-label="Left">←</button>
+        <button data-key="right" aria-label="Right">→</button>
+        <button data-key="space">Space</button>
+        <button data-key="backspace" aria-label="Backspace">⌫</button>
+        <button data-key="del">Del</button>
+        <button data-key="ctrlc">Ctrl+C</button>
+        <button data-key="ctrld">Ctrl+D</button>
+      </div>
+      <div id="term-ended" class="ended" hidden>
+        <p id="term-why">The terminal closed.</p>
+        <button id="term-again">Connect again</button>
+      </div>
+    </div>
+    <div id="vscode" class="vscode" hidden>
+      <div class="vscode-bar muted small">
+        <span id="vscode-status"></span>
+        <span class="grow"></span>
+        <span>Claude sees what you edit after <code>/ide</code> in its chat.</span>
+        <a id="vscode-open" href="code/" target="_blank" rel="noopener">Open in a new tab</a>
+      </div>
+      <iframe id="vscode-frame" title="VS Code" allow="clipboard-read; clipboard-write"></iframe>
+    </div>
+    </div>
+  </section>
+  <section id="tab-files" class="panel files-panel" hidden>
+    <div id="files-box" class="files-box">
+      <div class="files-tools">
+        <select id="files-root" aria-label="Which tree"></select>
+        <nav id="files-crumbs" class="crumbs" aria-label="Folder"></nav>
+        <span class="grow"></span>
+        <label class="button-like" title="Upload files into this folder; or drop them here">Upload<input type="file" id="files-upload" multiple hidden></label>
+        <button id="files-refresh" class="icon" title="List the folder again" aria-label="List the folder again">↻</button>
+      </div>
+      <div id="files-main" class="files-main">
+        <div id="files-list" class="file-browser" role="list" aria-label="Files"></div>
+        <div id="files-preview" class="files-preview"><p class="muted empty-preview">Pick a file to preview it: Markdown, text and code, and pictures. Anything else, download.</p></div>
+      </div>
+      <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
+    </div>
+  </section>
+  <section id="tab-release" class="panel release-panel" hidden>
+    <div class="release-wrap">
+      <section class="where-card">
+        <h2>Where things run</h2>
+        <p class="muted small">Each address and what it shows now. On the team's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
+        <ul id="addresses" class="where"></ul>
+      </section>
+      <div class="release-cols">
+        <div class="release-col">
+          <h2>Release</h2>
+        <p class="developers-only muted small">The owners release dev to production, and roll it back. Ship your work into dev; they release it.</p>
+        <div id="release-box" class="owners-only">
+          <button id="release" class="primary" hidden></button>
+          <p id="release-note" class="muted small"></p>
+          <button id="dev-reset" class="link danger small" hidden>Set dev back to production</button>
+        </div>
+        </div>
+        <div class="release-col">
+        <h2>Releases</h2>
+        <ul id="releases" class="list"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="tab-data" class="panel system-panel" hidden>
+    <div class="system-box">
+      <div class="system-col">
+        <h2>Production's data</h2>
+        <p class="muted small">What everyone's use of the app has written. Copying Stage's here replaces it, with a snapshot of production's first.</p>
+        <dl id="data-production" class="facts"></dl>
+        <div class="data-actions">
+          <button id="data-snapshot">Take a snapshot now</button>
+          <button id="data-copy">Copy Stage's data to production</button>
+        </div>
+        <h2>Snapshots</h2>
+        <p class="muted small">The team as it was: production's data, the code, the lead's memory, and the team's record. Daily, before every release, and before data is copied to production.</p>
+        <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
+        <p class="muted small">To put the team back as it was in one, an admin runs <code id="data-restore">hi team restore</code> on the machine; hi takes a snapshot of how it is first.</p>
+      </div>
+      <div class="system-col">
+        <h2>Stage's data</h2>
+        <p class="muted small">Stage works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old.</p>
+        <dl id="data-preview" class="facts"></dl>
+        <div class="data-actions">
+          <button id="data-fork">Copy production's data to Stage</button>
+        </div>
+        <label class="check"><input type="checkbox" id="data-empty"> Start Stage empty at every release, for an app whose people's data Stage shouldn't show</label>
+      </div>
+    </div>
+  </section>
+  <section id="tab-system" class="panel system-panel" hidden>
+    <div class="system-box">
+      <div class="system-col">
+        <h2>System</h2>
+        <dl id="system" class="facts"></dl>
+        <section id="incidents-box" hidden>
+          <h2>Incidents</h2>
+          <ul id="incidents" class="list"></ul>
+        </section>
+      </div>
+      <div class="system-col">
+        <h2>The helper</h2>
+        <p class="muted small">Help and feedback on the app's pages. Feedback reaches the channel for people to handle; someone signed in with their link reports a bug, which hi files as a task.</p>
+        <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On Stage</label>
+        <label class="check"><input type="checkbox" id="helper-production" class="owners-control"> In production</label>
+        <h2>Rules for the app's jobs</h2>
+        <p class="muted small">Decisions the lead follows when a job fails, in the people's words.</p>
+        <ul id="rules" class="list"></ul>
+        <form id="rule-form" class="setting-form owners-only">
+          <input id="rule-job" placeholder="job" autocomplete="off" spellcheck="false" required>
+          <input id="rule-text" placeholder="the rule" autocomplete="off" required>
+          <button type="submit">Add the rule</button>
+        </form>
+      </div>
+    </div>
+  </section>
+  <section id="tab-security" class="panel system-panel" hidden>
+    <div class="system-box">
+      <div class="system-col">
+        <section id="people-box" class="owners-only">
+          <h2>People</h2>
+          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Developers</strong> build as owners do, but don't release or roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+          <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
+          <div class="people-wrap">
+            <table id="people-table" class="people-table">
+              <thead><tr>
+                <th scope="col">Person</th>
+                <th scope="col" title="An admin of the machine changes owners: hi team owners">Owner</th>
+                <th scope="col" title="Builds in the dev box; doesn't release">Developer</th>
+                <th scope="col" title="Reports bugs as tasks">Contributor</th>
+                <th scope="col" title="Uses the app, asks the lead questions">None</th>
+              </tr></thead>
+              <tbody id="people"><tr><td colspan="5" class="muted small">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <p class="muted small">Owners are set by an admin of the machine (<code>hi team owners</code>). The channel hears every change made here.</p>
+          <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (the Data tab).</p>
+        </section>
+        <section id="sshkey-box">
+          <h2>Your SSH key</h2>
+          <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the team's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
+          <p id="sshkey-now" class="small"></p>
+          <form id="sshkey-form" class="setting-form">
+            <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
+            <button type="submit">Save the key</button>
+          </form>
+        </section>
+        <section id="sites-box">
+          <h2>Sites the dev box reaches</h2>
+          <p class="muted small">Besides what development needs (GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, the agents' services). Agents ask with <code>hi dev allow</code>; the box never reaches the machine or the network it's on.</p>
+          <ul id="sites" class="list"></ul>
+        </section>
+      </div>
+      <div class="system-col">
+        <h2>The app's settings</h2>
+        <p class="muted small">API keys and other settings the app reads as environment variables. Names only: values are never shown. A change reaches the next preview, and production within a minute.</p>
+        <ul id="settings" class="list"></ul>
+        <form id="setting-form" class="setting-form owners-only">
+          <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
+          <input id="setting-value" type="password" placeholder="value" autocomplete="new-password" required>
+          <select id="setting-slot">
+            <option value="">preview and production</option>
+            <option value="preview">Stage only</option>
+            <option value="production">production only</option>
+          </select>
+          <button type="submit">Set</button>
+        </form>
+        <div class="owners-only">
+        <h2>The team's keys and sign-ins</h2>
+        <p class="muted small">What the team's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
+        <ul id="team-keys" class="list"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<dialog id="release-dialog">
+  <form method="dialog" id="release-form">
+    <h2 id="release-title">Release</h2>
+    <p class="muted">What changes for the people, in their words. hi posts it in the team's channel with the release.</p>
+    <textarea id="release-notes" rows="8" required></textarea>
+    <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of Stage's data</label>
+    <p id="release-error" class="error"></p>
+    <div class="buttons">
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button id="release-go" value="go" class="primary">Release</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="ticket-dialog">
+  <form method="dialog" id="ticket-form">
+    <h2>New task</h2>
+    <input id="ticket-title" placeholder="What should change: The chart misses the last day" autocomplete="off" required>
+    <textarea id="ticket-body" rows="7" placeholder="What you expected, what happened, how to see it, why it matters. Paste a picture here to attach it."></textarea>
+    <label class="files">Files <input type="file" id="ticket-files" multiple></label>
+    <ul id="ticket-attached" class="attached muted small"></ul>
+    <p id="ticket-error" class="error"></p>
+    <div class="buttons">
+      <button type="button" id="ticket-cancel">Cancel</button>
+      <button id="ticket-go" value="go" class="primary">File the task</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="start-dialog">
+  <form method="dialog" id="start-form">
+    <h2>Start task</h2>
+    <p id="start-task" class="start-task"></p>
+    <fieldset class="agents">
+      <legend class="muted small">Agent</legend>
+      <label><input type="radio" name="agent" value="claude" checked> <strong>Claude Code</strong> <span class="muted small">reads the task and its files, then asks what isn't clear</span></label>
+      <label><input type="radio" name="agent" value="codex"> <strong>Codex</strong> <span class="muted small">the same, with Codex</span></label>
+      <label><input type="radio" name="agent" value=""> <strong>Shell</strong> <span class="muted small">a branch and a worktree, with a shell</span></label>
+    </fieldset>
+    <p class="muted small">A branch from dev, its own worktree, and a workspace in herdr.</p>
+    <p id="start-error" class="error"></p>
+    <div class="buttons">
+      <button type="button" id="start-cancel">Cancel</button>
+      <button id="start-go" class="primary">Start →</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="view-dialog" class="wide">
+  <h2 id="view-title"></h2>
+  <p id="view-meta" class="muted small"></p>
+  <div id="view-body"></div>
+  <section id="view-files-box" hidden>
+    <h3>Files</h3>
+    <ul id="view-files" class="files-list"></ul>
+  </section>
+  <h3>Comments</h3>
+  <ul id="view-comments" class="comments"></ul>
+  <form id="note-form">
+    <textarea id="note-body" rows="3" placeholder="Add a note to the task. Paste a picture here to attach it."></textarea>
+    <label class="files">Files <input type="file" id="note-files" multiple></label>
+    <ul id="note-attached" class="attached muted small"></ul>
+    <p id="note-error" class="error"></p>
+    <div class="buttons">
+      <button type="button" id="view-close">Close</button>
+      <button id="note-go" class="primary">Add the note</button>
+    </div>
+  </form>
+</dialog>
+<dialog id="ask-dialog">
+  <form method="dialog" id="ask-form">
+    <p id="ask-question"></p>
+    <input id="ask-input" autocomplete="off" hidden>
+    <div class="buttons">
+      <button type="button" id="ask-cancel">Cancel</button>
+      <button value="ok" class="primary" id="ask-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+<div id="locked" class="locked" hidden><p id="locked-why"></p></div>
+<div id="toast" class="toast" hidden></div>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
+<script src="dev.js"></script>
+</body>
+</html>

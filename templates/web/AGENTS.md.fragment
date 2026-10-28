@@ -1,0 +1,13 @@
+
+## Web
+
+- Use Bun: `bun add <package>` (`--dev` for tools), and commit `bun.lock`;
+  never npm, which would add a `package-lock.json`. `bun run dev` starts
+  the dev server. A version must be 3 days old before Bun installs it
+  (`bunfig.toml`), and packages' install scripts don't run unless the
+  package is in `trustedDependencies` or on Bun's own vetted list; add a
+  package there only when it can't work without its script. `make check`
+  fails on a high or critical advisory (`bun audit`); `bun audit fix`
+  updates to a safe version.
+- Code lives in `src/`, with tests next to the code as `*.test.tsx`.
+- Keep quant and data logic in a Python service, not in the browser.

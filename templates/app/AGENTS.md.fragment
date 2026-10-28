@@ -1,0 +1,35 @@
+
+## App
+
+- Bun is the runtime, package manager, bundler, and test runner; there is
+  no Node.js, Vite, or Vitest here. `bun add <package>` (`--dev` for
+  tools), and commit `bun.lock`; never npm.
+- Before adding a package, check whether Bun already does it: `Bun.serve`
+  (routes, static files, WebSockets), `bun:sqlite`, `Bun.password`,
+  `Bun.file`, `Bun.cron`, `fetch`. Fewer packages are fewer to review.
+- `src/server.ts` is the server and its API routes; `src/index.html` and
+  `src/App.tsx` are the pages, bundled by Bun when the server starts.
+  Tests sit next to the code as `*.test.ts(x)`; page tests get a document
+  from happy-dom (`src/test-dom.ts`).
+- Keep what must last in the database, in `$HI_DATA_DIR`: the app's own
+  folder is replaced at every release. Change the tables only by adding a
+  line to `migrations` in `src/db.ts`, never by editing an old one.
+- In a hi team, `$HI_SLOT` is `preview` or `production`, and both run at
+  once. Background work that costs money (a model call per item), reads an
+  outside service a lot, or acts outside the app (mail, posts, orders)
+  runs only in production.
+- Listen on `0.0.0.0` at `$PORT`; `make run` is how previews and
+  production start the app.
+- Agents use the app too, through its MCP server at `/mcp`: the protocol
+  is `src/mcp.ts`, the tools `src/tools.ts`. A feature people use gets a
+  tool in the same work, where an agent would want it: a clear name and
+  description, its arguments' schema, and `readOnly: true` only when it
+  changes nothing (an agent may be allowed only those). The tool calls the
+  same code as the page's API route, never a copy of it. Then say what it
+  does where agents read: in a hi team `docs/user/mcp.md`, which hi lists
+  in `/llms.txt`; otherwise `llms.txt`.
+- A version must be 3 days old before Bun installs it (`bunfig.toml`), and
+  packages' install scripts don't run unless the package is in
+  `trustedDependencies` or on Bun's own vetted list; add a package there
+  only when it can't work without its script. `make check` fails on a high
+  or critical advisory (`bun audit`).

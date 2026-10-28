@@ -1,0 +1,98 @@
+{
+  "caption": "How managed compute works. You and your agents run the same hi compute commands. On a device that joined with hi connect, each start goes to the team's hi server, signed with the device's key, instead of to the provider. The server checks the group's policy, and when a person must say yes it asks an approver in Slack, never the requester. Then it starts the machine with the provider key only it holds, and stops it at its limit even when your laptop is off. Every call is in its audit log.",
+  "you": "You, or your agent",
+  "via": "hi compute up --gpu rtx-4090",
+  "frame": "the team's NetBird network",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "device",
+      "label": "joined with hi connect",
+      "mark": 2,
+      "items": [
+        {
+          "title": "laptop-alice",
+          "role": "your machine",
+          "does": "Its device key signs every request. No provider key on it.",
+          "chip": "hi",
+          "tone": "accent",
+          "entry": "You work here"
+        }
+      ]
+    },
+    {
+      "name": "hi server",
+      "label": "policy and keys",
+      "mark": 3,
+      "via": "signed request",
+      "items": [
+        {
+          "title": "compute.internal",
+          "role": "decides and calls",
+          "does": "Checks the group's policy, holds the provider keys, makes every provider call, and keeps the audit log.",
+          "chip": "hi server",
+          "tone": "accent"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "approver",
+      "label": "not the requester",
+      "mark": 4,
+      "via": "asks a person",
+      "items": [
+        {
+          "title": "Slack",
+          "role": "approve or deny",
+          "does": "A button in Slack, or `hi server approve` on the server; a policy can approve small requests on its own.",
+          "chip": "Slack",
+          "tone": "violet"
+        }
+      ]
+    },
+    {
+      "name": "provider",
+      "label": "the server's key",
+      "mark": 5,
+      "via": "starts it, stops it at --max",
+      "items": [
+        {
+          "title": "RunPod or Shadeform",
+          "role": "the machine",
+          "does": "Started with the server's key; stopped at its limit even when your laptop is off.",
+          "chip": "GPU",
+          "tone": "mint"
+        }
+      ]
+    }
+  ],
+  "key": [
+    {
+      "mark": 1,
+      "term": "NetBird network",
+      "text": "The team's private network; the server is reachable only inside it."
+    },
+    {
+      "mark": 2,
+      "term": "Device",
+      "text": "Your machine, known to the server by its key, in a group with its own limits."
+    },
+    {
+      "mark": 3,
+      "term": "hi server",
+      "text": "The one place with provider keys, so nobody spends outside hi."
+    },
+    {
+      "mark": 4,
+      "term": "Approver",
+      "text": "A person who isn't the requester says yes to every paid start, unless a policy already did."
+    },
+    {
+      "mark": 5,
+      "term": "Provider",
+      "text": "Where the machine runs; it only ever hears from the server."
+    }
+  ]
+}

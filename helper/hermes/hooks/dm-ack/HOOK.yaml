@@ -1,0 +1,4 @@
+# Written by hi on every start of the team; changes are overwritten.
+name: hi-dm-ack
+description: "A first reply in the thread of a new DM message, so Slack shows the lead's status while it works."
+events: ["agent:start", "agent:end"]

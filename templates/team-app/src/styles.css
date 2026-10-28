@@ -1,0 +1,165 @@
+/* The app's styles. The welcome part goes with the welcome page. */
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #1d1d1f;
+  font:
+    17px / 1.5 system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+/* the welcome page: a soft light on the page, the text in a column */
+
+.welcome {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 18vh 24px 24px;
+  background:
+    radial-gradient(70% 45% at 50% 0%, #fbfaf7 0%, transparent 100%),
+    radial-gradient(45% 55% at 0% 100%, #f2a7e4 0%, transparent 100%),
+    radial-gradient(55% 60% at 100% 100%, #a99bf7 0%, transparent 100%),
+    linear-gradient(180deg, #f4f6ff 0%, #b9cbff 55%, #7ea6ff 100%);
+}
+
+.welcome .column {
+  max-width: 36rem;
+  margin: 0 auto;
+}
+
+.welcome h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0 0 16px;
+}
+
+.welcome .example {
+  border-left: 3px solid #2f5bea;
+  padding-left: 12px;
+}
+
+.welcome .quiet {
+  color: #6e6e73;
+  font-size: 15px;
+}
+
+/* The text beside the helper's panel comes in as the panel opens. */
+@media (prefers-reduced-motion: no-preference) {
+  .welcome.open .column {
+    animation: settle 0.5s ease-out;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+/* With the helper's panel open on its side, as wide as the person made
+   it; on a phone it covers the bottom of the screen, so only the heading
+   shows above it. */
+@media (min-width: 641px) {
+  .welcome.beside-right {
+    padding-right: calc(var(--helper-width, 400px) + 24px);
+  }
+
+  .welcome.beside-left {
+    padding-left: calc(var(--helper-width, 400px) + 24px);
+  }
+}
+
+@media (max-width: 640px) {
+  .welcome.open {
+    padding-top: 16px;
+  }
+
+  .welcome.open h1 {
+    font-size: 1.25rem;
+  }
+
+  .welcome.open p {
+    display: none;
+  }
+}
+
+/* Beside the helper's button, which sits 16px from its corner. */
+.pointer {
+  position: fixed;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  color: #2f5bea;
+  font-weight: 600;
+  animation: nudge 1.4s ease-in-out infinite;
+}
+
+.pointer svg {
+  width: 48px;
+  height: 48px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pointer.br {
+  right: 72px;
+  bottom: 72px;
+  --dx: 8px;
+  --dy: 8px;
+}
+
+.pointer.bl {
+  left: 72px;
+  bottom: 72px;
+  flex-direction: row-reverse;
+  --dx: -8px;
+  --dy: 8px;
+}
+
+.pointer.bl svg {
+  transform: scaleX(-1);
+}
+
+.pointer.tr {
+  right: 72px;
+  top: 72px;
+  align-items: flex-start;
+  --dx: 8px;
+  --dy: -8px;
+}
+
+.pointer.tr svg {
+  transform: scaleY(-1);
+}
+
+.pointer.tl {
+  left: 72px;
+  top: 72px;
+  align-items: flex-start;
+  flex-direction: row-reverse;
+  --dx: -8px;
+  --dy: -8px;
+}
+
+.pointer.tl svg {
+  transform: scale(-1);
+}
+
+@keyframes nudge {
+  50% {
+    translate: var(--dx) var(--dy);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pointer {
+    animation: none;
+  }
+}

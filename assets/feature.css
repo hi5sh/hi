@@ -1,0 +1,122 @@
+/* A feature page (_layouts/feature.html): one tool, from a demo at the top
+   to how it works underneath. The tokens are the homepage's (index.html). */
+:root {
+  color-scheme: dark;
+  --bg: #0a0c11;
+  --bg-raised: #10131a;
+  --bg-card: #11141c;
+  --bg-code: #0d1016;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #eef0f5;
+  --muted: #9aa1b2;
+  --dim: #687084;
+  --accent: #7c83ff;
+  --accent-soft: rgba(124, 131, 255, 0.12);
+  --mint: #4fd1a5;
+  --mint-soft: rgba(79, 209, 165, 0.10);
+  --warm: #ffb46b;
+  --warm-soft: rgba(255, 180, 107, 0.12);
+  --violet: #c3a6e0;
+  --sky: #8fb8d8;
+  --amber: #f0b45b;
+  --red: #f07178;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: inherit; }
+::selection { background: var(--accent); color: var(--text); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+code { font-family: var(--mono); }
+h1, h2, h3 { text-wrap: balance; }
+p code, li code, td code, dd code, .sub code { font-size: .88em; color: var(--text); background: rgba(255,255,255,.06); padding: 1px 6px; border-radius: 5px; }
+
+/* Header */
+nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; }
+.logo { font: 700 21px var(--mono); text-decoration: none; letter-spacing: -0.02em; color: var(--text); }
+.logo b { color: var(--accent); }
+.logo span { color: var(--dim); font-weight: 400; margin-left: 6px; }
+nav ul { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; font-size: 15px; }
+nav ul a { color: var(--text); text-decoration: none; text-underline-offset: 4px; }
+nav ul a:hover, nav ul a[aria-current="page"] { text-decoration: underline; }
+
+/* Hero: what it is on the left, the demo on the right */
+.hero { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 40px; align-items: center; padding-block: 40px 20px; }
+.hero .name { font: 700 15px var(--mono); color: var(--accent); }
+h1 { font-size: clamp(36px, 5.4vw, 56px); line-height: 1.06; letter-spacing: -0.035em; margin: 10px 0 16px; }
+.lede { margin: 0; color: var(--muted); font-size: 19px; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font: 600 15.5px var(--sans); text-decoration: none; border: 1px solid var(--line-strong); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn.ghost:hover { border-color: var(--accent); }
+.demo { margin: 0; }
+.demo .caption { margin: 10px 2px 0; color: var(--dim); font-size: 13px; }
+
+/* Sections get more technical as they go down */
+section { padding-block: 84px 0; }
+.eyebrow { font: 600 12.5px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.eyebrow .lvl { color: var(--dim); margin-right: 8px; }
+h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; line-height: 1.1; margin: 10px 0 14px; }
+h3 { font-size: 19px; letter-spacing: -0.01em; margin: 0 0 6px; }
+.sub { color: var(--muted); max-width: 680px; margin: 0 0 32px; font-size: 18px; }
+.prose { max-width: 760px; color: var(--muted); font-size: 16.5px; }
+.prose p { margin: 0 0 14px; } .prose strong { color: var(--text); }
+
+/* What it's for */
+.uses { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.use { display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); min-width: 0; }
+.use p { margin: 0; color: var(--muted); font-size: 15.5px; }
+.use a.go { margin-top: auto; padding-top: 6px; color: var(--accent); text-decoration: none; font-size: 15px; }
+.use a.go:hover { text-decoration: underline; }
+.snip { margin: 4px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--bg-code); border: 1px solid var(--line); font: 13px/1.6 var(--mono); color: var(--muted); overflow-x: auto; white-space: pre; }
+.snip .c { color: var(--text); } .snip .ok { color: var(--mint); } .snip .warn { color: var(--amber); } .snip .err { color: var(--red); } .snip .d { color: var(--dim); }
+
+/* Try it: numbered steps, each a command to copy */
+.try { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: step; max-width: 820px; }
+.try li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 16px 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+.try li::before { content: counter(step); width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 700 14px var(--mono); color: var(--accent); background: var(--accent-soft); }
+.try p { margin: 2px 0 8px; color: var(--muted); font-size: 15.5px; } .try p b { color: var(--text); }
+.cmdline { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 9px; background: var(--bg-code); border: 1px solid var(--line); font: 14px var(--mono); }
+.cmdline code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cmdline .ps { color: var(--dim); user-select: none; }
+.copy { flex: none; font: 600 12px var(--mono); color: var(--bg); background: var(--accent); border: 0; border-radius: 7px; padding: 6px 11px; cursor: pointer; }
+
+/* The details */
+.details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+.detail { padding: 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); min-width: 0; }
+.detail p { margin: 0 0 10px; color: var(--muted); font-size: 15.5px; } .detail p:last-child { margin-bottom: 0; }
+.detail .snip { margin: 0 0 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 0 10px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12.5px var(--mono); color: var(--dim); }
+td { color: var(--muted); } td:first-child { white-space: nowrap; }
+details.deep { margin-top: 16px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); }
+details.deep summary { cursor: pointer; padding: 18px 22px; font: 600 15px var(--mono); }
+details.deep .prose { padding: 0 22px 8px; max-width: none; }
+
+/* Where next */
+.next { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.next a { display: block; padding: 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); text-decoration: none; }
+.next a:hover { border-color: rgba(124,131,255,.45); }
+.next b { display: block; font-size: 17px; margin-bottom: 4px; } .next span { color: var(--muted); font-size: 15px; }
+
+footer { margin-top: 90px; border-top: 1px solid var(--line); padding-block: 28px; color: var(--dim); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+footer a { color: var(--muted); text-decoration: none; margin-left: 16px; } footer a:first-child { margin-left: 0; }
+footer a:hover { color: var(--text); }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding-top: 16px; }
+}
+@media (max-width: 640px) {
+  nav ul { gap: 16px; font-size: 14px; }
+  nav ul li.wide { display: none; }
+  section { padding-top: 64px; }
+  td:first-child { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }

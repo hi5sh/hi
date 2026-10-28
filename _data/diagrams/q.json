@@ -1,0 +1,53 @@
+{
+  "caption": "How hi q works. You ask in plain words. hi gathers a short, redacted description of where you are, such as the system, the folder, the git state, and recent commands, and sends it with the question to the model you chose: your team's hi server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API. The model may look first with read-only tools that hi runs itself. It answers with one command, which hi shows with its risk; nothing runs until you press Enter.",
+  "you": "You",
+  "via": "hi q \"move the md files into notes\"",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "context",
+      "label": "what is sent",
+      "mark": 2,
+      "items": [
+        {"title": "hi q --context", "role": "where you are", "does": "System, shell, folder names, git state, recent commands; keys and secrets removed, no file contents.", "chip": "redacted", "tone": "mint"}
+      ]
+    },
+    {
+      "name": "looks",
+      "label": "read-only tools",
+      "mark": 3,
+      "via": "the model asks",
+      "items": [
+        {"title": "list · read · help · which · run", "role": "it looks first", "does": "hi runs them itself; `run` takes only read-only commands, for 10 seconds at most.", "chip": "read-only", "tone": "mint"}
+      ]
+    },
+    {
+      "name": "proposal",
+      "label": "one command",
+      "mark": 4,
+      "via": "proposes",
+      "items": [
+        {"title": "mkdir -p notes && mv -- *.md notes/", "role": "you decide", "does": "Shown with what it changes. Enter runs it, `e` edits, `c` copies, `?` explains, Esc cancels.", "chip": "nothing runs yet", "tone": "amber", "entry": "You decide here"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "model",
+      "label": "your choice",
+      "mark": 5,
+      "via": "the question and context go to",
+      "items": [
+        {"title": "hi q --status", "role": "the model", "does": "Your team's hi server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API, chosen with `hi q --setup`.", "chip": "--setup", "tone": "violet"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Where the command will run, so the answer fits it."},
+    {"mark": 2, "term": "Context", "text": "A short description of where you are; `--no-context` sends only the question."},
+    {"mark": 3, "term": "Looks", "text": "The model asks, hi looks: nothing it does from here changes anything."},
+    {"mark": 4, "term": "Proposal", "text": "One command for you to run, edit, copy, or ask about."},
+    {"mark": 5, "term": "Model", "text": "Wherever you chose, often your team's server, with no key on your machine."}
+  ]
+}

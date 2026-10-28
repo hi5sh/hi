@@ -1,0 +1,162 @@
+---
+layout: feature
+permalink: /agent/
+title: hi agent
+tool: hi agent
+demo: agent
+guide: /guide/agent/
+headline: Hand off the task. Get one report back.
+lede: "Claude Code, Codex, or Hermes works without permission prompts, in a box, on a branch of its own. Every agent gives you the same report back: what it said, what it changed, and what it cost."
+description: hi agent hands a task to Claude Code, Codex, or Hermes. The agent works without permission prompts in a box, on its own branch, and you get back one report, the same for every agent.
+demo_caption: Real hi agent output; only the folder is made up.
+fallback: |
+  $ hi agent claude --model sonnet "make make check pass, and commit the fix"
+  Box pricing-1: claude in /home/you/.local/state/hi/box/pricing-1/work (branch hi-box/pricing-1), model sonnet, network dev.
+  `make check` now passes (2 tests) and the fix is committed as c34ea4f.
+  Took 10s · 3 steps · 67k tokens in (62k cached) · 527 out · claude-sonnet-5-5 · $0.03 at API prices
+  Changed on hi-box/pricing-1:
+    pricing.py
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">Work that runs while you do something else.</h2>
+    <p class="sub">The agent works unattended, so give it a task it can finish and check on its own. You read the report and the branch, and keep what's right.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>A task you can check</h3>
+        <p>"Make <code>make check</code> pass", "add tests for <code>parse_config</code> and fix what they find", or "upgrade FastAPI and fix what breaks".</p>
+        <div class="snip"><span class="c">$ hi agent codex --detach "upgrade FastAPI and fix what breaks"</span>
+<span class="d"># … later</span>
+<span class="c">$ hi agent wait myproject-2</span></div>
+      </div>
+      <div class="use">
+        <h3>A second opinion</h3>
+        <p>Codex reviews what Claude Code wrote, from its branch, without changing a file.</p>
+        <div class="snip"><span class="c">$ hi agent codex --from hi-box/myproject-1 \
+    "review the last commit; don't edit files"</span></div>
+      </div>
+      <div class="use">
+        <h3>Work that isn't code</h3>
+        <p>In a folder without git, the agent works in place. Bundles add skills and the tools they need, such as a browser or LibreOffice.</p>
+        <div class="snip"><span class="c">$ mkdir gpu-prices &amp;&amp; cd gpu-prices</span>
+<span class="c">$ hi agent --bundle web,office "compare the five largest Nordic GPU clouds in a Word document"</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Your first task in a few minutes.</h2>
+    <p class="sub">On Ubuntu, with Claude Code, Codex, or Hermes installed and signed in on this machine. The first box builds hi's image, which takes a few minutes once.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b> and rootless Podman, if you haven't.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman">copy</button></div></div></li>
+      <li><div><p><b>Hand it a task</b> in a git project. Without a name, hi takes Claude Code, then Codex, then Hermes, whichever is signed in.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi agent "make make check pass, and commit the fix"</code><button class="copy" type="button" data-copy="hi agent &quot;make make check pass, and commit the fix&quot;">copy</button></div></div></li>
+      <li><div><p><b>Follow it</b> from another terminal if you like. In the first, Ctrl+C stops waiting, not the agent.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi box attach myproject-1</code><button class="copy" type="button" data-copy="hi box attach myproject-1">copy</button></div></div></li>
+      <li><div><p><b>Read what it changed.</b> Files that run on your machine later are marked.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi box diff myproject-1</code><button class="copy" type="button" data-copy="hi box diff myproject-1">copy</button></div></div></li>
+      <li><div><p><b>Keep it</b>, and remove the box. Its branch is kept.</p>
+        <div class="cmdline"><span class="ps">$</span><code>git merge hi-box/myproject-1 &amp;&amp; hi box rm myproject-1</code><button class="copy" type="button" data-copy="git merge hi-box/myproject-1 &amp;&amp; hi box rm myproject-1">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">A box, a branch, and a proxy that holds the sign-in.</h2>
+    <p class="sub">The agent starts from your last commit, on a new worktree and the branch <code>hi-box/&lt;name&gt;</code>, in a <a href="/box/">box</a> with the project and nothing else from your home folder.</p>
+    {% include diagram.html name="agent" %}
+    <div class="prose">
+      <p><strong>The agent never sees your token.</strong> Claude Code in the box holds the word <code>hi-box-placeholder</code>; hi's proxy outside the box swaps in your Claude sign-in on the way to Anthropic. Hermes' OpenRouter key stays outside the same way. Codex gets a copy of its sign-in for now, and hi copies a refreshed one back when the run ends.</p>
+      <p><strong>The changed files come from git</strong>, not from the agent, so they are right even when the agent is wrong about what it did. hi asks every agent to end with a short summary, and the report has the same shape whichever agent did the work.</p>
+      <p><strong>Uncommitted changes aren't in the box</strong>, since it starts from your last commit; hi says so when there are some. <code>--from</code> starts from another commit or branch instead.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Agents, models, briefs, bundles, and the report.</h2>
+    <p class="sub">What to reach for when the one-line task isn't enough.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>The agent and its model</h3>
+        <div class="snip"><span class="c">$ hi agent claude "&lt;task&gt;"</span>    <span class="d"># Claude Code</span>
+<span class="c">$ hi agent codex "&lt;task&gt;"</span>     <span class="d"># Codex</span>
+<span class="c">$ hi agent hermes "&lt;task&gt;"</span>    <span class="d"># Hermes, on OpenRouter</span>
+<span class="c">$ hi agent claude</span>             <span class="d"># interactive, in a box</span></div>
+        <p><code>--model</code> picks the model, such as <code>--model sonnet</code>. Without it, the box uses the model in your own settings, so it behaves like the agent on this machine; Claude Code gets <code>opus</code> if your settings name none.</p>
+      </div>
+      <div class="detail">
+        <h3>A long task as a brief</h3>
+        <div class="snip">---
+agent: claude
+bundles: [web, office]
+network: open
+---
+# Nordic GPU providers
+
+Find the five largest GPU cloud providers in the Nordics…</div>
+        <p><code>hi agent briefs/gpu-prices.md</code> reads the task from the file; <code>-</code> reads it from stdin. A brief can come from anyone, so what would widen the box (<code>network</code>, <code>allow</code>, <code>data</code>, <code>gpu</code>) is asked about first.</p>
+      </div>
+      <div class="detail">
+        <h3>Bundles: skills and their tools</h3>
+        <table>
+          <thead><tr><th>Bundle</th><th>Gives the box</th></tr></thead>
+          <tbody>
+            <tr><td><code>web</code></td><td>agent-browser and its Chrome; needs an open network, which hi asks about</td></tr>
+            <tr><td><code>office</code></td><td>Anthropic's docx, xlsx, pptx, and pdf skills, LibreOffice, pandoc, and Tesseract</td></tr>
+            <tr><td><code>data</code></td><td>DuckDB's skills and CLI, pandas, matplotlib, seaborn, and plotly</td></tr>
+          </tbody>
+        </table>
+        <p>The image is built once for each set of skills and reused. The skills go in the box's home folder, never in your project. <code>hi bundle ls</code> lists your team's bundles too.</p>
+      </div>
+      <div class="detail">
+        <h3>The report, for scripts and other agents</h3>
+        <div class="snip"><span class="c">$ hi agent codex --json "review the change on this branch; don't edit files"</span>
+{
+  "agent": "codex",
+  "status": "done",
+  "text": "The change looks right, but parse_date drops the time zone…",
+  "report": {"status": "complete", "tests": "pass", "follow_ups": ["…"]},
+  "branch": "hi-box/myproject-3",
+  "changed_files": []
+}</div>
+        <p>With <code>--json</code>, the report is on stdout and everything else on stderr. It also has the tokens, steps, model, time, and Claude Code's cost at API prices. <code>hi agent</code> exits with 1 when the agent failed.</p>
+      </div>
+      <div class="detail">
+        <h3>The box's options work here</h3>
+        <p><code>--network</code>, <code>--allow</code>, <code>--gpu</code>, <code>--data</code>, <code>--here</code>, <code>--image</code>, and <code>--memory</code> do what they do for <a href="/box/"><code>hi box</code></a>. <code>--files &lt;folder&gt;</code> gives the agent files to read, such as images or documents, read-only at <code>/box/files</code>.</p>
+        <p>For a project someone else wrote, <code>--no-project-settings</code> runs Claude Code without the project's own hooks, MCP servers, and permissions, and <code>--max-budget-usd</code> caps what it may spend.</p>
+      </div>
+      <div class="detail">
+        <h3>When to hand it off</h3>
+        <p>Hand a task to another agent for a second opinion from another vendor, a long or risky task that should run in a box while you carry on, or when one agent is out of quota.</p>
+        <p>Don't use it to split one task into pieces: the agents' own subagents do that better, because they share what they already know.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood, step by step</summary>
+      <div class="prose">
+        <p><strong>1. It checks the agent.</strong> Claude Code must be installed and signed in on this machine; hi says what is missing before it makes anything.</p>
+        <p><strong>2. It makes a box</strong>, as <code>hi box</code> does: rootless Podman (or Docker, with a warning), <code>devcontainer.json</code>, the name <code>myproject-1</code>, and your last commit in a new worktree on <code>hi-box/myproject-1</code>.</p>
+        <p><strong>3. It writes the allowlist</strong> from the network preset, the agent's own hosts, <code>--allow</code>, and the project's domains if you allowed them.</p>
+        <p><strong>4. It starts the proxy</strong>, the box's only way out, on a private network with no route out. It is the only container that can read your Claude sign-in.</p>
+        <p><strong>5. It starts the agent in the box.</strong> The agent sees the worktree, the repository's <code>.git</code> with <code>hooks</code> and <code>config</code> read-only, an empty home folder, and its own binary from your machine, read-only. <code>ANTHROPIC_BASE_URL</code> points at the proxy. The task goes to the agent on stdin, so a task of any length fits: <code>claude -p --output-format json --dangerously-skip-permissions</code>, or <code>codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check -o &lt;file&gt; -</code>.</p>
+        <p><strong>6. It waits</strong> for the box to stop, showing the agent's progress from its own session log, then stops the proxy.</p>
+        <p><strong>7. It writes the report</strong> from the agent's result file, the box's exit status, and <code>git diff</code> against the commit it started from.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/agent/"><b>Hand tasks to agents</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/autoresearch/best-of/"><b>Several attempts at once</b><span><code>hi agent best-of</code> runs one task in several boxes and ranks them.</span></a>
+      <a href="/guide/agent/review/"><b>Review a whole repository</b><span>Agents look for problems; a different agent checks each one.</span></a>
+      <a href="/guide/agent/brainstorm/"><b>Brainstorm</b><span>Several agents each give an idea; one compiles a proposal.</span></a>
+      <a href="/box/"><b>hi box</b><span>The room every agent works in.</span></a>
+    </div>
+  </section>

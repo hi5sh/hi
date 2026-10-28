@@ -1,0 +1,143 @@
+---
+layout: feature
+permalink: /compute/
+title: hi compute
+tool: hi compute
+demo: compute
+guide: /guide/compute/
+headline: A GPU when you need one, and never longer.
+lede: "One set of commands for Google Colab, Hugging Face, RunPod, and Shadeform: run a job, open a shell, or serve a model. Every machine has a time limit, and paid hardware asks first."
+description: hi compute rents GPUs from Colab, Hugging Face, RunPod, and Shadeform with one set of commands. Every run and instance stops by itself, and paid hardware asks before it starts.
+demo_caption: Real hi compute output, with --dry-run so nothing starts; the account, server, and person are made up.
+fallback: |
+  $ hi compute run --dry-run --gpu t4-small --max 30m train.py
+  Run train.py on hf t4-small ($0.40/h, billed to example-org), stopping after 30m at 15:29.
+  $ hi compute ls
+  No instances are running.
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">Rent the machine, use it like it's local, give it back.</h2>
+    <p class="sub">hi hides each provider's own tool behind one set of commands, but it doesn't pretend they're the same: hardware names and prices stay the provider's own.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>A script that runs to the end</h3>
+        <p>A Python script with its dependencies in it runs on the GPU you name, streams its logs, and stops when it's done.</p>
+        <div class="snip"><span class="c">$ hi compute run --gpu a10g-small train.py</span></div>
+      </div>
+      <div class="use">
+        <h3>A machine for a while</h3>
+        <p>A shell, a notebook, or a web app, with a port forwarded to your laptop, until you stop it or its time is up.</p>
+        <div class="snip"><span class="c">$ hi compute up --gpu G4 --max 2h</span>
+<span class="c">$ hi compute ssh g4-3fa1</span></div>
+      </div>
+      <div class="use">
+        <h3>A model behind an API</h3>
+        <p>llama.cpp on the GPU, with its OpenAI-compatible API tunnelled to <code>localhost</code>.</p>
+        <div class="snip"><span class="c">$ hi compute serve qwen3.8-flash-next</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">A GPU in a few minutes.</h2>
+    <p class="sub">With a Colab Pro+ or Hugging Face account. <code>--dry-run</code> on any start shows the exact request without sending it.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, and the providers' command-line tools from its menu.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Sign in</b> and see which providers are ready.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi login hf &amp;&amp; hi compute providers</code><button class="copy" type="button" data-copy="hi login hf &amp;&amp; hi compute providers">copy</button></div></div></li>
+      <li><div><p><b>Pick the hardware</b> by the memory you need, with its price.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi compute hardware</code><button class="copy" type="button" data-copy="hi compute hardware">copy</button></div></div></li>
+      <li><div><p><b>Run a script</b> for at most 30 minutes. hi says the price and asks first.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi compute run --gpu t4-small --max 30m train.py</code><button class="copy" type="button" data-copy="hi compute run --gpu t4-small --max 30m train.py">copy</button></div></div></li>
+      <li><div><p><b>Or let the menu ask.</b> Every step prints the command it runs, so you learn the flags as you go.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi compute</code><button class="copy" type="button" data-copy="hi compute">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">Runs, instances, and a limit on both.</h2>
+    <p class="sub">A run ends when its script does. An instance ends when you stop it, or when it reaches <code>--max</code>. They share <code>ls</code>, <code>status</code>, <code>logs</code>, <code>stop</code>, and the same limits.</p>
+    {% include diagram.html name="compute" %}
+    <div class="prose">
+      <p><strong>Every machine stops by itself.</strong> Instances default to 4 hours and runs to 1 hour. Hugging Face stops the job itself; on Colab, a small process on your laptop stops it, and every <code>hi compute ls</code> also stops machines past their limit; on RunPod, a watchdog on the pod terminates it; Shadeform deletes the machine itself.</p>
+      <p><strong>Paid hardware asks first</strong>, with the price, the limit, and on Hugging Face the account that pays. The default answer is no. In scripts, hi stops until you add <code>--yes</code>.</p>
+      <p><strong>Hardware names are checked</strong> before hi calls the provider, because an unknown name can fall back to other hardware: the Colab CLI once turned an unknown GPU into an A100.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Providers, hardware, money, and a team's server.</h2>
+    <p class="sub">Which provider hi picks, what to ask for, and how a team shares one set of keys.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>The providers</h3>
+        <table>
+          <thead><tr><th>Provider</th><th>Good for</th></tr></thead>
+          <tbody>
+            <tr><td><code>colab</code></td><td>Prepaid compute units on Pro+, 96 GB G4 GPUs, 176 GB RAM</td></tr>
+            <tr><td><code>hf</code></td><td>Pay per minute, any container image, detached runs, secrets</td></tr>
+            <tr><td><code>runpod</code></td><td>A wide range of GPUs, SSH straight into the pod</td></tr>
+            <tr><td><code>shadeform</code></td><td>GPUs from many clouds on one bill, each at its cheapest offer</td></tr>
+          </tbody>
+        </table>
+        <p>hi picks <code>--on</code>, then <code>$HI_COMPUTE_PROVIDER</code>, then the provider the hardware name belongs to, then the only one you're signed in to.</p>
+      </div>
+      <div class="detail">
+        <h3>Hardware by memory</h3>
+        <table>
+          <thead><tr><th>You need</th><th>Colab</th><th>Hugging Face</th></tr></thead>
+          <tbody>
+            <tr><td>16 GB</td><td><code>T4</code></td><td><code>t4-small</code></td></tr>
+            <tr><td>24 GB</td><td><code>L4</code></td><td><code>a10g-small</code>, <code>l4x1</code></td></tr>
+            <tr><td>40–80 GB</td><td><code>A100</code>, <code>H100</code></td><td><code>l40sx1</code>, <code>a100-large</code></td></tr>
+            <tr><td>96 GB</td><td><code>G4</code></td><td><code>rtx-pro-6000</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail">
+        <h3>Shells, ports, and logs</h3>
+        <div class="snip"><span class="c">$ hi compute ssh g4-3fa1</span>             <span class="d"># a shell</span>
+<span class="c">$ hi compute tunnel g4-3fa1 8888</span>     <span class="d"># a port, here</span>
+<span class="c">$ hi compute logs hf/6ab97cba6b030d633f69a5ea</span> <span class="d"># setup and server logs</span>
+<span class="c">$ hi compute stop --all</span></div>
+        <p>Refer to a machine by its name, or <code>provider/name</code>. <code>--max none</code> starts one with no limit, after a warning you must confirm.</p>
+      </div>
+      <div class="detail">
+        <h3>A team's GPUs, through a hi server</h3>
+        <p>Connected to a <a href="/server/">hi server</a> (<code>hi connect</code>), the providers it manages go through it: the server holds the keys, an approver says yes in Slack, and budgets are per person and per group. A reason and a time limit are required.</p>
+        <div class="snip"><span class="c">$ hi compute up --on runpod --gpu rtx-4090 --max 2h --reason "LoRA sweep"</span>
+<span class="c">$ hi compute requests</span>             <span class="d"># what's waiting</span>
+<span class="c">$ hi compute extend rtx-4090-1c2d 1h</span></div>
+      </div>
+      <div class="detail">
+        <h3>Your team's data in a run</h3>
+        <p><code>--data ORG/NAME</code> downloads your team's Hugging Face dataset into <code>data/NAME</code> before the script starts, through the hi server, so the machine never holds a token of yours. On RunPod and Shadeform, <code>hi compute up --data ORG/NAME</code> lets the machine's shells read it until <code>--max</code>.</p>
+        <p><code>--env KEY=VALUE</code> sets a variable; <code>--secret KEY</code> passes <code>$KEY</code> as an encrypted secret on Hugging Face.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood</summary>
+      <div class="prose">
+        <p>hi talks to Colab through the Colab CLI, and to Hugging Face Jobs, RunPod, and Shadeform through their REST APIs. <code>--dry-run</code> prints the exact command or request, as in the demo above.</p>
+        <p>A Python script goes to the machine as a base64 environment variable and runs with <code>uv run</code>, so the dependencies in its header install there. On Hugging Face the job runs in <code>ghcr.io/astral-sh/uv:python3.12-bookworm</code>, and <code>--max</code> becomes its <code>timeoutSeconds</code>.</p>
+        <p>For a managed provider, the start is a signed request to the hi server, with the device key in <code>~/.config/hi/device_key</code>, your SSH public key, and the time limit. The server holds the provider key and starts the machine after an approval.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/compute/"><b>How hi compute works</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/compute/serve/"><b>Serve a model</b><span>Recipes, any GGUF, and the API.</span></a>
+      <a href="/guide/compute/billing/"><b>Costs, limits, and billing</b><span>How each provider enforces the limit.</span></a>
+      <a href="/guide/tutorials/big-model/"><b>Try a 125B model</b><span>On a 96 GB GPU, as a tutorial.</span></a>
+      <a href="/guide/reference/commands/#hi-compute"><b>Every hi compute command</b><span>The reference.</span></a>
+    </div>
+  </section>

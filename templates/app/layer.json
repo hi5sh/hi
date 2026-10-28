@@ -1,0 +1,10 @@
+{
+  "name": "app",
+  "summary": "Web app on Bun alone (Bun.serve, React, SQLite, bun test)",
+  "extends": "base",
+  "schema": 1,
+  "commands": {
+    "setup": [["bun", "install", "--frozen-lockfile"]],
+    "check": [["make", "check"]]
+  }
+}

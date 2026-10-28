@@ -1,0 +1,32 @@
+# The feature pages (docs/feature-pages.md), in the order the site menu
+# lists them (_includes/site-menu.html). A new page goes here too.
+- url: /team/
+  name: hi team
+  line: An app in Slack, built by its owners in a dev box
+- url: /agent/
+  name: hi agent
+  line: Hand a task to a coding agent
+- url: /autoresearch/
+  name: hi agent best-of
+  line: Several attempts at once, and rounds that keep only gains
+- url: /box/
+  name: hi box
+  line: Run code with nothing to steal
+- url: /compute/
+  name: hi compute
+  line: GPUs on Colab, Hugging Face, RunPod, Shadeform
+- url: /q/
+  name: hi q
+  line: A shell command from plain words
+- url: /init/
+  name: hi init
+  line: Start a project agents work well in
+- url: /net/
+  name: hi net
+  line: Share what you're running on a temporary address
+- url: /server/
+  name: hi server
+  line: One place for the team's keys and approvals
+- url: /data/
+  name: hi data
+  line: Your team's datasets, without a token

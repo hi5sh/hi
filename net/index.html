@@ -1,0 +1,139 @@
+---
+layout: feature
+permalink: /net/
+title: hi net
+tool: hi net expose
+demo: net
+guide: /guide/workstation/expose/
+headline: Show what's running here, on a link that ends.
+lede: Put a web app, a webhook receiver, or an API on your machine on a temporary public HTTPS address, behind a password, a PIN, or a key in the link. It ends on its own.
+description: hi net expose puts a service running on your machine on a temporary public HTTPS address through NetBird, protected by a password, a PIN, or a key in the link, and ending on its own.
+demo_caption: Real hi net expose output; the address, password, and key are made up.
+fallback: |
+  $ hi net expose 3000 --detach
+  Exposing localhost:3000 at https://hi-laptop-3000-k2x7.eu1.netbird.services
+    password: plum-otter-raven-42 (a login page asks for it)
+    until 15:02, in the background; stop it with: hi net expose stop hi-laptop-3000-k2x7
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">A link for a colleague, a phone, or a webhook.</h2>
+    <p class="sub">Most of what you build runs on <code>localhost</code>, where nobody else can see it. <code>hi net expose</code> gives it an HTTPS address for an hour, or as long as you say.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Show a colleague</h3>
+        <p>A web app to try, behind a password hi makes up and prints. The login page asks for it.</p>
+        <div class="snip"><span class="c">$ hi net expose 3000</span></div>
+      </div>
+      <div class="use">
+        <h3>Open it on your phone</h3>
+        <p>One link with the key in it: no login page and no password to type. Treat the link like a password.</p>
+        <div class="snip"><span class="c">$ hi net expose 5173 --link</span></div>
+      </div>
+      <div class="use">
+        <h3>Receive a webhook</h3>
+        <p>Webhook senders can't pass a login page, so the address is open; your service checks the signature, as webhook receivers do.</p>
+        <div class="snip"><span class="c">$ hi net expose 8080 --public --max 30m</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">Your first address in a minute.</h2>
+    <p class="sub">On a machine in your NetBird network, with <strong>Peer Expose</strong> turned on once by a NetBird admin (Settings &gt; Clients in the NetBird dashboard).</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, if you haven't. <code>hi install</code> installs NetBird.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Join the network.</b> Paste the setup key when asked; nothing is shown as you type, and it never lands in your shell history.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi net</code><button class="copy" type="button" data-copy="hi net">copy</button></div></div></li>
+      <li><div><p><b>Start something</b> on a port, such as a folder of files.</p>
+        <div class="cmdline"><span class="ps">$</span><code>python3 -m http.server 3000</code><button class="copy" type="button" data-copy="python3 -m http.server 3000">copy</button></div></div></li>
+      <li><div><p><b>Expose it</b> from another terminal. hi prints the address and the password.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi net expose 3000</code><button class="copy" type="button" data-copy="hi net expose 3000">copy</button></div></div></li>
+      <li><div><p><b>End it</b> with Ctrl+C, or let <code>--max</code> do it; the address stops working within seconds. <code>hi net expose ls</code> lists what runs in the background, and <code>stop</code> ends one by name.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi net expose ls</code><button class="copy" type="button" data-copy="hi net expose ls">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">NetBird's proxy in front, a small relay behind.</h2>
+    <p class="sub">hi asks NetBird's reverse proxy for a public HTTPS address that leads through your NetBird network to the port, with a lock in front.</p>
+    {% include diagram.html name="expose" %}
+    <div class="prose">
+      <p><strong>Services on <code>localhost</code> work.</strong> NetBird's proxy comes in over the VPN, at the machine's NetBird address, which most development servers don't listen on. hi runs a small relay there that passes requests on to <code>localhost:&lt;port&gt;</code>, keeping the <code>Host</code> header and WebSockets.</p>
+      <p><strong>The lock is a login page</strong> for people in a browser: a password by default, a PIN, NetBird SSO for groups, or the key in the link. With <code>--link</code>, hi's relay keeps the key in a browser cookie until the address ends; scripts send it as an <code>Authorization: Bearer</code> header.</p>
+      <p><strong>Every request is logged</strong>, in the terminal or, with <code>--detach</code>, in a file hi names, with the requests the lock turned away.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Locks, time, names that stay, and the network.</h2>
+    <p class="sub">What to change when the defaults don't fit, and what to keep in mind.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>Who gets in</h3>
+        <table>
+          <thead><tr><th>Option</th><th>Who</th></tr></thead>
+          <tbody>
+            <tr><td>(none)</td><td>Whoever has the password hi made up</td></tr>
+            <tr><td><code>--password &lt;text&gt;</code></td><td>Whoever has your password</td></tr>
+            <tr><td><code>--pin 482913</code></td><td>Whoever has the 6-digit PIN</td></tr>
+            <tr><td><code>--link</code></td><td>Whoever has the whole link</td></tr>
+            <tr><td><code>--groups devops</code></td><td>NetBird users in those groups, through SSO</td></tr>
+            <tr><td><code>--public</code></td><td>Anyone with the address</td></tr>
+            <tr><td><code>--allow-ip 203.0.113.18</code></td><td>Only from these addresses, with any lock above</td></tr>
+            <tr><td><code>--vpn</code></td><td>No public address: devices on your NetBird network</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="detail">
+        <h3>How long, and in the background</h3>
+        <div class="snip"><span class="c">$ hi net expose 3000 --max 30m</span>     <span class="d"># default 1h, at most 24h</span>
+<span class="c">$ hi net expose 3000 --detach</span>      <span class="d"># prints the address, returns</span>
+<span class="c">$ hi net expose ls</span>                 <span class="d"># with passwords and end times</span>
+<span class="c">$ hi net expose stop &lt;name&gt;</span></div>
+        <p><code>--json</code> prints the address, the protection, and the end time for scripts and agents.</p>
+      </div>
+      <div class="detail">
+        <h3>An address that stays</h3>
+        <div class="snip"><span class="c">$ hi net expose 3000 --link --domain app.apps.example.com --max 720h</span></div>
+        <p><code>--domain</code> puts the service on a name you choose, under a domain verified in NetBird (Reverse Proxy &gt; Custom Domains), for up to 30 days. It needs a NetBird API token from a service user, in <code>$NETBIRD_API_TOKEN</code> or saved with <code>hi team domain</code>.</p>
+      </div>
+      <div class="detail">
+        <h3>A service that moves</h3>
+        <p><code>--host</code> points the relay at another address, such as a container's. <code>--follow &lt;file&gt;</code> relays to the port written in a file, read again whenever it changes, so a service can move to a new port without the address changing. hi teams put their apps on their addresses this way.</p>
+      </div>
+      <div class="detail">
+        <h3>Joining the network</h3>
+        <div class="snip"><span class="c">$ hi net</span>                                 <span class="d"># paste the setup key</span>
+<span class="c">$ hi net --setup-key-file netbird-key.txt</span>  <span class="d"># from a script</span>
+<span class="c">$ hi net status</span>
+<span class="c">$ hi net reconnect</span></div>
+        <p>hi writes the key to a file only you can read, runs <code>netbird up</code>, and deletes the file whatever happens. <code>hi net &lt;setup-key&gt;</code> is refused, since it would put the key in your shell history.</p>
+      </div>
+      <div class="detail">
+        <h3>https for the teams</h3>
+        <div class="snip"><span class="c">$ hi net domain dev.example.com --dns gandi</span></div>
+        <p>On a machine that runs <a href="/guide/team/">hi teams</a>, <code>hi net domain</code> puts their production, preview, and dev page on https names under a domain of yours, reachable only over NetBird, with one wildcard certificate from Let's Encrypt.</p>
+      </div>
+      <div class="detail">
+        <h3>What to keep in mind</h3>
+        <p>Whatever the service lets people do, anyone past the lock can do; development servers often have debug pages and no sign-in. NetBird's proxy sees the traffic, since it handles the HTTPS, and other machines in the NetBird network can reach the service through the relay while it runs.</p>
+        <p>On a machine connected to a <a href="/server/">hi server</a>, each exposure is in the server's audit log. NetBird's reverse proxy is in beta.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/workstation/expose/"><b>Share a local service</b><span>The guide: every option, step by step.</span></a>
+      <a href="/guide/workstation/netbird/"><b>NetBird network</b><span>Enroll a machine without exposing the setup key.</span></a>
+      <a href="/guide/team/app/"><b>Try what the team built</b><span>How a hi team puts its app on an address.</span></a>
+      <a href="/guide/reference/commands/#hi-net"><b>Every hi net command</b><span>The reference.</span></a>
+    </div>
+  </section>

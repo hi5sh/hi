@@ -1,0 +1,144 @@
+---
+layout: feature
+permalink: /server/
+title: hi server
+tool: hi server
+demo: server
+guide: /guide/compute/managed/
+headline: One place for the team's keys.
+lede: A small always-on machine holds the provider keys, approves every GPU start, warns on budgets, and serves the team's data and private templates. Nobody else holds a key.
+description: hi server holds a team's provider keys, approves every GPU start in Slack or on the server, warns on budgets, and serves the team's Hugging Face data and private project templates to connected devices.
+demo_caption: Real output on a connected device; the server, people, and names are made up.
+fallback: |
+  $ hi connect status
+  Connected to http://hi.example.com:7373 as sam (staff).
+  Managed by the server: runpod, shadeform. Starting there needs an approval.
+  Colab and any other provider still use your own sign-in.
+  This month: $0.01 of sam's $300.00 · staff $0.01 of $2000.00
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">GPUs for everyone, keys for nobody.</h2>
+    <p class="sub">People join with <code>hi connect</code> and use the same <code>hi compute</code> commands as before. The server makes every provider call itself, and starts nothing until a person says yes.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>Approve every start</h3>
+        <p>Each paid start goes to a person who isn't the requester, in Slack or on the server box, with its reason, price, and time limit.</p>
+        <div class="snip"><span class="c">$ hi compute up --on runpod --gpu rtx-4090 --max 2h \
+    --reason "LoRA sweep for my thesis"</span></div>
+      </div>
+      <div class="use">
+        <h3>Know what it costs</h3>
+        <p>Monthly budgets per user and group, a report in Slack every morning, and a live dashboard. Budgets warn; they never block.</p>
+        <div class="snip"><span class="c">$ hi server spend --since 7d</span></div>
+      </div>
+      <div class="use">
+        <h3>Share data and templates</h3>
+        <p>The team's private Hugging Face data and project templates, to every connected device, with no token or GitHub access of their own.</p>
+        <div class="snip"><span class="c">$ hi data get example-org/prices-1d</span>
+<span class="c">$ hi init analysis my-study</span></div>
+        <a class="go" href="/data/">hi data →</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">A server and its first user.</h2>
+    <p class="sub">On a small always-on Linux machine in your NetBird network (see <a href="/net/">hi net</a>), then on each person's machine.</p>
+    <ol class="try">
+      <li><div><p><b>On the server box: create its state.</b> It listens on the machine's NetBird address, port 7373, and prints a systemd unit to run it as a service.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi server init</code><button class="copy" type="button" data-copy="hi server init">copy</button></div></div></li>
+      <li><div><p><b>Store a provider key</b>, for RunPod or Shadeform. hi asks for it without echoing it.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi server provider add runpod</code><button class="copy" type="button" data-copy="hi server provider add runpod">copy</button></div></div></li>
+      <li><div><p><b>On a person's machine: join.</b> hi makes a key for this device and waits for an admin.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi connect hi.example.com</code><button class="copy" type="button" data-copy="hi connect hi.example.com">copy</button></div></div></li>
+      <li><div><p><b>On the server box: let them in</b>, into a group.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi server approve e-3f09a1 --group staff</code><button class="copy" type="button" data-copy="hi server approve e-3f09a1 --group staff">copy</button></div></div></li>
+      <li><div><p><b>Check it</b> from the person's machine.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi connect status</code><button class="copy" type="button" data-copy="hi connect status">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">Signed requests in, provider calls out.</h2>
+    <p class="sub">Devices sign every request with a key of their own. The server checks it, asks a person when the policy says so, and only then calls the provider with the team's key.</p>
+    {% include diagram.html name="managed" %}
+    <div class="prose">
+      <p><strong>It listens only on its NetBird address.</strong> A forged, altered, or replayed request is refused, even from inside the VPN. Taking someone's access away is one command: <code>hi server user remove</code>.</p>
+      <p><strong>The server stops every machine at its <code>--max</code></strong>, even when the laptop that asked for it is off. Stopping never needs approval, and people can stop only their own machines.</p>
+      <p><strong>Connections to a machine go straight to it</strong>, with the SSH key from the person's own <code>~/.ssh</code>, not through the server. Colab is never managed: it always runs under your own Google sign-in.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Approvals, policy, budgets, data, and templates.</h2>
+    <p class="sub">What an admin sets up, and what people see.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>Approve and deny</h3>
+        <div class="snip"><span class="c">$ hi server requests</span>                        <span class="d"># what is waiting</span>
+<span class="c">$ hi server approve r-9b41e0</span>
+<span class="c">$ hi server deny r-9b41e0 --reason "use a 4090, not an H100"</span></div>
+        <p>Admin commands talk to the running server through a socket only the server's user can open, so they work on the server box. With <code>hi server slack setup</code>, every request goes to a private Slack channel with buttons to approve, deny, and stop. Nobody can decide their own request.</p>
+      </div>
+      <div class="detail">
+        <h3>Policy and budgets</h3>
+        <table>
+          <thead><tr><th>Setting</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_hours</code></td><td>Refuse starts and extensions that would run longer</td></tr>
+            <tr><td><code>hardware</code></td><td>Refuse other hardware</td></tr>
+            <tr><td><code>auto_approve</code></td><td>Approve without a person up to this price and total time</td></tr>
+            <tr><td><code>user_monthly_budget_usd</code></td><td>Warn when a user in the group goes over</td></tr>
+            <tr><td><code>group_monthly_budget_usd</code></td><td>Warn when the whole group goes over</td></tr>
+          </tbody>
+        </table>
+        <p><code>hi server policy edit</code> opens it in your editor and checks it. An over-budget request always waits for a person.</p>
+      </div>
+      <div class="detail">
+        <h3>Your team's data</h3>
+        <div class="snip"><span class="c">$ hi server data add example-org</span>   <span class="d"># asks for a read token</span>
+<span class="c">$ hi server data test</span></div>
+        <p>One read-only Hugging Face token per organization stays on the server. Devices get a token that lasts a day and works only from that device, the server passes on only reads, and file contents come straight from Hugging Face's storage. See <a href="/data/">hi data</a>.</p>
+      </div>
+      <div class="detail">
+        <h3>Private project templates</h3>
+        <div class="snip"><span class="c">$ hi server templates add private https://github.com/example-org/templates</span>
+<span class="c">$ hi server templates list</span></div>
+        <p><code>hi init</code> then offers the team's templates and agent skills next to the built-in ones. The server checks every new commit before devices get it, and devices check each bundle's signature.</p>
+      </div>
+      <div class="detail">
+        <h3>Watch it</h3>
+        <div class="snip"><span class="c">$ hi server ls</span>              <span class="d"># everything running, for every user</span>
+<span class="c">$ hi server audit --since 7d</span>
+<span class="c">$ hi server live --wall</span>       <span class="d"># read-only, for a shared screen</span></div>
+        <p>People see their own machines and budget with <code>hi compute live</code>.</p>
+      </div>
+      <div class="detail">
+        <h3>Agents and the team's model</h3>
+        <p><code>hi connect &lt;server&gt; --agent NAME --owner PERSON</code> enrolls an agent that runs on its own, such as a build bot, with a person responsible for it. <code>hi server ai set</code> passes <code>hi q</code>'s model requests to OpenRouter with the team's key.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood</summary>
+      <div class="prose">
+        <p>The server keeps its state, audit log, and provider keys in <code>~/.local/state/hi/server</code>, readable only by the user it runs as; <code>--dir</code> or <code>HI_SERVER_DIR</code> moves it.</p>
+        <p><code>hi connect</code> creates a key for the device in <code>~/.config/hi/device_key</code>, readable only by you, and signs every request with it. A request with no decision expires after 30 minutes.</p>
+        <p>If approved hardware is sold out by the time it starts, the server starts the cheapest free hardware with at least as much memory, at most twice the approved price or the approved price plus $1.00/h, whichever is higher, and says so.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/compute/managed/"><b>Managed compute for your team</b><span>The guide: users and admins, step by step.</span></a>
+      <a href="/data/"><b>hi data</b><span>Your team's datasets and models, without a token.</span></a>
+      <a href="/guide/compute/"><b>How hi compute works</b><span>Remote GPUs with time limits.</span></a>
+      <a href="/guide/reference/commands/#hi-connect-and-hi-server"><b>Every hi server command</b><span>The reference.</span></a>
+    </div>
+  </section>

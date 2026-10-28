@@ -1,0 +1,55 @@
+{
+  "caption": "How autoresearch works with hi agent best-of. You give a task and, for rounds, a score command. Each round, hi starts several boxes from the same commit, the best so far, each with its own agent and branch. When an agent ends, hi itself runs your check and your score on the files it left, and discards results that changed files outside --edit. Only hi commits: a result goes on the run's own branch only when it beats the best so far. The next round's task tells the agents the best score and what every earlier attempt tried, until a limit you set.",
+  "you": "You",
+  "via": "hi agent best-of 3 --rounds 50 --score \"make score\"",
+  "frame": "your machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "attempts",
+      "label": "one round",
+      "mark": 2,
+      "summary": "n boxes from the best so far, each on its own branch.",
+      "items": [
+        {"title": "box 1", "role": "attempt", "does": "An agent working unattended, without permission prompts.", "chip": "Claude Code", "tone": "amber"},
+        {"title": "box 2", "role": "attempt", "does": "`--agents` are taken in turn.", "chip": "Codex", "tone": "sky"}
+      ]
+    },
+    {
+      "name": "hi judges",
+      "label": "not the agent",
+      "mark": 3,
+      "via": "when each ends",
+      "items": [
+        {"title": "--check · --score", "role": "checks and scores", "does": "Runs your check and score on each box's files itself, and discards results that touch files outside `--edit`.", "chip": "make score", "tone": "accent"}
+      ]
+    },
+    {
+      "name": "best so far",
+      "label": "only gains",
+      "mark": 4,
+      "via": "if it beats the best",
+      "items": [
+        {"title": "best-of/<run>/best", "role": "the run's branch", "does": "Only hi commits here; nothing is merged into your branch or pushed. `git merge` is yours.", "chip": "git", "tone": "dim"}
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "next round",
+      "label": "what was tried",
+      "mark": 5,
+      "via": "until --rounds, --for, --budget, or --patience",
+      "items": [
+        {"title": "the next task", "role": "what agents learn", "does": "The best score, and what every earlier attempt tried and scored. `watch` follows it; `stop` ends it.", "chip": "watch · stop", "tone": "mint"}
+      ]
+    }
+  ],
+  "key": [
+    {"mark": 1, "term": "Your machine", "text": "Where the boxes run, overnight if you let them."},
+    {"mark": 2, "term": "Attempts", "text": "The same task tried several ways at once, in boxes that hold no credentials."},
+    {"mark": 3, "term": "hi judges", "text": "An agent saying its tests pass is checked, not believed."},
+    {"mark": 4, "term": "Best so far", "text": "The only place results are kept, one commit per gain."},
+    {"mark": 5, "term": "Next round", "text": "Starts from the best, knowing what was tried; ends at the limits you set."}
+  ]
+}

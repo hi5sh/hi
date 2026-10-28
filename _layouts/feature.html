@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }} · hi5</title>
+<meta name="description" content="{{ page.description | escape }}">
+<meta name="theme-color" content="#0a0c11">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%239aa0ff'/><stop offset='1' stop-color='%236fd9b8'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='%230a0c11'/><text x='32' y='44' font-family='monospace' font-size='26' font-weight='700' text-anchor='middle' fill='url(%23g)'>hi5</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ '/assets/feature.css' | relative_url }}">
+<link rel="stylesheet" href="{{ '/assets/story.css' | relative_url }}">
+<link rel="stylesheet" href="{{ '/assets/diagram.css' | relative_url }}">
+<link rel="stylesheet" href="{{ '/assets/site-menu.css' | relative_url }}">
+</head>
+<body>
+{%- comment -%}
+A feature page: one tool, easy at the top and deeper as it goes down. The
+page gives the hero's words in its front matter (tool, headline, lede,
+guide) and the sections below it as its content; the demo plays
+assets/demos/<demo>.js. docs/feature-pages.md says how to write one.
+{%- endcomment %}
+<header class="wrap">
+  <nav aria-label="Site">
+    <div class="hm-group"><a class="logo" href="{{ '/' | relative_url }}"><b>hi</b>5.sh<span>/ {{ page.demo }}</span></a>{% include site-menu.html %}</div>
+    <ul>
+      <li class="wide"><a href="{{ '/#explore' | relative_url }}">Explore</a></li>
+      <li><a href="{{ page.guide | relative_url }}">Guide</a></li>
+      <li><a href="https://github.com/hi5sh/hi">GitHub</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <span class="name">{{ page.tool }}</span>
+      <h1>{{ page.headline }}</h1>
+      <p class="lede">{{ page.lede }}</p>
+      <div class="ctas">
+        <a class="btn primary" href="#try">Try it in a minute ↓</a>
+        <a class="btn ghost" href="{{ page.guide | relative_url }}">Read the guide</a>
+      </div>
+    </div>
+    <figure class="demo">
+      <div data-story>
+        <pre class="snip" data-story-fallback>{{ page.fallback | strip }}</pre>
+      </div>
+      <figcaption class="caption">{{ page.demo_caption }}</figcaption>
+    </figure>
+  </div>
+{{ content }}
+</main>
+
+<footer><div class="wrap">
+  <span>hi5 · humans and AI building together · Apache-2.0</span>
+  <span><a href="https://github.com/hi5sh/hi">Source</a><a href="https://github.com/hi5sh/hi/releases">Releases</a><a href="{{ '/guide/' | relative_url }}">Guide</a><a href="{{ '/install.sh' | relative_url }}">install.sh</a></span>
+</div></footer>
+
+<script>
+  document.querySelectorAll(".copy[data-copy]").forEach(button => {
+    button.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(button.dataset.copy); button.textContent = "copied ✓"; }
+      catch { button.textContent = "select + copy"; }
+      setTimeout(() => (button.textContent = "copy"), 1600);
+    });
+  });
+</script>
+<script src="{{ '/assets/demos/' | append: page.demo | append: '.js' | relative_url }}" defer></script>
+<script src="{{ '/assets/story.js' | relative_url }}" defer></script>
+</body>
+</html>

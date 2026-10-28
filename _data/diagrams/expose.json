@@ -1,0 +1,78 @@
+{
+  "caption": "How hi net expose works. A service runs on your machine, such as a web app on port 3000. hi net expose asks NetBird's reverse proxy for a public HTTPS address that leads through the NetBird network to that port, with a lock in front: a generated password by default, or a PIN, the key in the link, NetBird SSO groups, or none. The address ends on its own after a while, or when you stop it.",
+  "you": "You",
+  "via": "hi net expose 3000",
+  "frame": "your machine, on NetBird",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "service",
+      "label": "on localhost",
+      "mark": 2,
+      "items": [
+        {
+          "title": "localhost:3000",
+          "role": "your app",
+          "does": "A web app, a webhook receiver, a notebook, or an API. It needs no changes.",
+          "chip": "any port",
+          "tone": "dim",
+          "entry": "Yours, unchanged"
+        }
+      ]
+    },
+    {
+      "name": "hi net expose",
+      "label": "for a while",
+      "mark": 3,
+      "via": "shared by",
+      "items": [
+        {
+          "title": "hi-gpu1-3000-k2x7",
+          "role": "the address and its lock",
+          "does": "Prints the address and its password, logs each request, and ends at `--max` or Ctrl+C.",
+          "chip": "hi",
+          "tone": "accent"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "NetBird reverse proxy",
+      "label": "public HTTPS",
+      "mark": 4,
+      "via": "a public address from",
+      "items": [
+        {
+          "title": "https://hi-gpu1-3000-k2x7.eu1.netbird.services",
+          "role": "the public address",
+          "does": "Visitors arrive here, pass the lock (a password, a PIN, the key in the link, SSO groups, or `--public`), and reach your service through NetBird.",
+          "chip": "HTTPS",
+          "tone": "mint"
+        }
+      ]
+    }
+  ],
+  "key": [
+    {
+      "mark": 1,
+      "term": "Your machine",
+      "text": "On NetBird; nothing on it opens a port to the internet."
+    },
+    {
+      "mark": 2,
+      "term": "Service",
+      "text": "What you share, as it already runs."
+    },
+    {
+      "mark": 3,
+      "term": "hi net expose",
+      "text": "Asks for the address, keeps it while it lasts, and shows who comes in."
+    },
+    {
+      "mark": 4,
+      "term": "Reverse proxy",
+      "text": "NetBird's, with the lock in front, so visitors never reach your machine directly."
+    }
+  ]
+}

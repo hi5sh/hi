@@ -1,0 +1,708 @@
+package main
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+// fakeColab installs fake `colab` and `ssh` binaries that append their
+// arguments to calls.log and replay canned output.
+type fakeColab struct {
+	t         *testing.T
+	directory string
+}
+
+const fakeColabScript = `#!/bin/sh
+printf 'colab %s\n' "$*" >> "$FAKE_DIR/calls.log"
+case "$1" in
+sessions) cat "$FAKE_DIR/sessions" 2>/dev/null || echo "[colab] No active sessions found on server." ;;
+usage) printf 'Current balance: 1234.50 compute units\nUsage rate: 8.90/hr\nActive assignments: 1\n' ;;
+new)
+	name="$3"; hardware="CPU"; variant="DEFAULT"
+	[ "$4" = "--gpu" ] && hardware="$5" && variant="GPU"
+	printf '[%s] ep-%s | Hardware: %s | Shape: Standard | Variant: %s\n' "$name" "$name" "$hardware" "$variant" >> "$FAKE_DIR/sessions"
+	echo "[colab] Session READY." ;;
+stop)
+	if grep -q "^\[$3\]" "$FAKE_DIR/sessions" 2>/dev/null; then
+		grep -v "^\[$3\]" "$FAKE_DIR/sessions" > "$FAKE_DIR/sessions.new"; mv "$FAKE_DIR/sessions.new" "$FAKE_DIR/sessions"
+		echo "[colab] Session terminated."
+	else
+		echo "[colab] Session '$3' not found."
+	fi ;;
+run) echo "script output"; exit "${FAKE_RUN_EXIT:-0}" ;;
+esac
+`
+
+func newFakeColab(t *testing.T) *fakeColab {
+	t.Helper()
+	requireLinux(t)
+	directory := t.TempDir()
+	home := filepath.Join(directory, "home")
+	for _, path := range []string{
+		filepath.Join(home, ".config", "colab-cli"),
+		filepath.Join(home, ".ssh"),
+		filepath.Join(directory, "bin"),
+	} {
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(home, ".config", "colab-cli", "token.json"), "{}", 0o600)
+	writeTestFile(t, filepath.Join(home, ".ssh", "id_ed25519"), "key", 0o600)
+	writeTestFile(t, filepath.Join(directory, "bin", "colab"), fakeColabScript, 0o755)
+	writeTestFile(t, filepath.Join(directory, "bin", "ssh"),
+		"#!/bin/sh\nprintf 'ssh %s\\n' \"$*\" >> \"$FAKE_DIR/calls.log\"\n", 0o755)
+
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_STATE_HOME", filepath.Join(directory, "state"))
+	t.Setenv("FAKE_DIR", directory)
+	t.Setenv("PATH", filepath.Join(directory, "bin")+":/usr/bin:/bin")
+	t.Setenv("HF_TOKEN", "")
+	t.Setenv("HF_HOME", filepath.Join(directory, "hf"))
+	t.Setenv("HI_COMPUTE_PROVIDER", "")
+	previousProviders := computeProviders
+	computeProviders = []computeProvider{colabProvider{}, newHFProvider(), newRunpodProvider()}
+	t.Setenv("RUNPOD_API_KEY", "")
+	t.Cleanup(func() { computeProviders = previousProviders })
+
+	previous := startComputeWatcher
+	startComputeWatcher = func(string) (int, error) { return 0, nil }
+	t.Cleanup(func() { startComputeWatcher = previous })
+	return &fakeColab{t: t, directory: directory}
+}
+
+func (f *fakeColab) calls() string {
+	data, err := os.ReadFile(filepath.Join(f.directory, "calls.log"))
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func (f *fakeColab) setSessions(lines ...string) {
+	writeTestFile(f.t, filepath.Join(f.directory, "sessions"), strings.Join(lines, "\n")+"\n", 0o600)
+}
+
+func writeTestFile(t *testing.T, path, content string, mode os.FileMode) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), mode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runComputeTest(args ...string) (int, string, string) {
+	var stdout, stderr bytes.Buffer
+	code := run(append([]string{"compute"}, args...), strings.NewReader(""), &stdout, &stderr)
+	return code, stdout.String(), stderr.String()
+}
+
+func TestComputeUpRejectsUnknownHardwareBeforeCallingColab(t *testing.T) {
+	fake := newFakeColab(t)
+	code, _, stderr := runComputeTest("up", "--gpu", "B200", "--yes")
+	if code != 2 {
+		t.Fatalf("exit code = %d, want 2; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stderr, `unknown colab hardware "B200"`) || !strings.Contains(stderr, "G4") {
+		t.Fatalf("error did not name the hardware and the choices: %s", stderr)
+	}
+	if strings.Contains(fake.calls(), "colab new") {
+		t.Fatal("colab new ran for unknown hardware")
+	}
+}
+
+func TestComputeUpStartsColabSessionAndRecordsDeadline(t *testing.T) {
+	fake := newFakeColab(t)
+	code, stdout, stderr := runComputeTest("up", "--gpu", "g4", "--name", "qwen", "--max", "2h", "--yes")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(fake.calls(), "colab new -s qwen --gpu G4\n") {
+		t.Fatalf("colab new was not called with the normalized GPU:\n%s", fake.calls())
+	}
+	if !strings.Contains(stdout, "hi compute tunnel qwen 8000") {
+		t.Fatalf("next steps missing from output:\n%s", stdout)
+	}
+	records, err := loadComputeRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, ok := records["qwen"]
+	if !ok || record.Provider != "colab" || record.Hardware != "G4" {
+		t.Fatalf("record = %+v", records)
+	}
+	if lifetime := record.Deadline.Sub(record.Created); lifetime < 119*time.Minute || lifetime > 121*time.Minute {
+		t.Fatalf("recorded lifetime = %s, want 2h", lifetime)
+	}
+}
+
+func TestComputeUpNeedsYesWithoutTerminalForPaidHardware(t *testing.T) {
+	fake := newFakeColab(t)
+	code, _, stderr := runComputeTest("up", "--gpu", "T4", "--name", "t4")
+	if code != 1 || !strings.Contains(stderr, "--yes") {
+		t.Fatalf("exit code = %d, stderr = %s; want a --yes requirement", code, stderr)
+	}
+	if strings.Contains(fake.calls(), "colab new") {
+		t.Fatal("colab new ran without confirmation")
+	}
+}
+
+func TestComputeUpDryRunStartsNothing(t *testing.T) {
+	fake := newFakeColab(t)
+	code, stdout, stderr := runComputeTest("up", "--gpu", "A100", "--high-mem", "--name", "big", "--dry-run")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "Would run: colab new -s big --gpu A100 --high-mem") {
+		t.Fatalf("dry run did not show the command:\n%s", stdout)
+	}
+	if fake.calls() != "" {
+		t.Fatalf("dry run called colab:\n%s", fake.calls())
+	}
+}
+
+func TestComputeUpRejectsLifetimeBeyondColabLimit(t *testing.T) {
+	newFakeColab(t)
+	code, _, stderr := runComputeTest("up", "--max", "30h", "--yes")
+	if code != 2 || !strings.Contains(stderr, "limit of 24h") {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+}
+
+func TestComputeListParsesSessionsAndMarksExternalOnes(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions(
+		"[colab] Syncing...",
+		"[mine] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU",
+		"[other] ep2 | Hardware: CPU | Shape: High-RAM | Variant: DEFAULT",
+		"[?] ep3 | Hardware: T4 | Shape: Standard | Variant: GPU",
+	)
+	now := time.Now()
+	if err := saveComputeRecord(computeRecord{
+		Name: "mine", Provider: "colab", Hardware: "G4", Created: now.Add(-time.Hour), Deadline: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := runComputeTest("ls")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	for _, want := range []string{"mine", "G4", "other (not started by hi)", "cpu High-RAM", "? (not started by hi)", "Colab balance: 1234.50 compute units"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("ls output missing %q:\n%s", want, stdout)
+		}
+	}
+}
+
+func TestComputeListStopsInstancesPastTheirDeadline(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[old] ep1 | Hardware: T4 | Shape: Standard | Variant: GPU")
+	past := time.Now().Add(-time.Minute)
+	if err := saveComputeRecord(computeRecord{
+		Name: "old", Provider: "colab", Hardware: "T4", Created: past.Add(-time.Hour), Deadline: past,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := runComputeTest("ls")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(fake.calls(), "colab stop -s old") {
+		t.Fatalf("expired instance was not stopped:\n%s", fake.calls())
+	}
+	if !strings.Contains(stdout, "No instances are running.") {
+		t.Fatalf("stopped instance still listed:\n%s", stdout)
+	}
+	if records, _ := loadComputeRecords(); len(records) != 0 {
+		t.Fatalf("record kept after stop: %+v", records)
+	}
+}
+
+func TestComputeListForgetsRecordsOfVanishedInstances(t *testing.T) {
+	newFakeColab(t)
+	now := time.Now()
+	if err := saveComputeRecord(computeRecord{
+		Name: "gone", Provider: "colab", Hardware: "T4", Created: now, Deadline: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, stderr := runComputeTest("ls"); code != 0 {
+		t.Fatalf("ls failed: %s", stderr)
+	}
+	if records, _ := loadComputeRecords(); len(records) != 0 {
+		t.Fatalf("record of a vanished instance was kept: %+v", records)
+	}
+}
+
+func TestComputeStopReportsUnknownSession(t *testing.T) {
+	newFakeColab(t)
+	code, _, stderr := runComputeTest("stop", "colab/nope")
+	if code != 1 || !strings.Contains(stderr, `no session named "nope"`) {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+}
+
+func TestComputeStopAllNeedsYesWithoutTerminal(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions(
+		"[a] ep1 | Hardware: T4 | Shape: Standard | Variant: GPU",
+		"[b] ep2 | Hardware: G4 | Shape: Standard | Variant: GPU",
+	)
+	if code, _, _ := runComputeTest("stop", "--all"); code != 1 {
+		t.Fatalf("stop --all without --yes returned %d, want 1", code)
+	}
+	if strings.Contains(fake.calls(), "colab stop") {
+		t.Fatal("sessions were stopped without confirmation")
+	}
+	code, _, stderr := runComputeTest("stop", "--all", "--yes")
+	if code != 0 {
+		t.Fatalf("stop --all --yes failed: %s", stderr)
+	}
+	calls := fake.calls()
+	if !strings.Contains(calls, "colab stop -s a") || !strings.Contains(calls, "colab stop -s b") {
+		t.Fatalf("not every session was stopped:\n%s", calls)
+	}
+}
+
+func TestComputeSSHUsesColabProxy(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+	code, _, stderr := runComputeTest("ssh", "qwen", "--", "nvidia-smi")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	calls := fake.calls()
+	if !strings.Contains(calls, "ProxyCommand="+filepath.Join(fake.directory, "bin", "colab")+" ssh --proxy-mode -s qwen") {
+		t.Fatalf("ssh did not use the colab proxy:\n%s", calls)
+	}
+	if !strings.Contains(calls, "root@colab nvidia-smi") {
+		t.Fatalf("ssh did not run the remote command:\n%s", calls)
+	}
+}
+
+func TestComputeTunnelBindsLocalhostAndRejectsReservedPort(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+
+	code, _, stderr := runComputeTest("tunnel", "qwen", "8080")
+	if code != 1 || !strings.Contains(stderr, "Colab's own proxy") {
+		t.Fatalf("reserved port: exit code = %d, stderr = %s", code, stderr)
+	}
+
+	code, _, stderr = runComputeTest("tunnel", "qwen", "8000:9000")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(fake.calls(), "-L 127.0.0.1:9000:127.0.0.1:8000 root@colab") {
+		t.Fatalf("tunnel did not forward to localhost only:\n%s", fake.calls())
+	}
+}
+
+func TestComputeRunPassesTimeoutEnvAndExitCode(t *testing.T) {
+	fake := newFakeColab(t)
+	script := filepath.Join(fake.directory, "train.py")
+	writeTestFile(t, script, "print(1)\n", 0o644)
+	t.Setenv("FAKE_RUN_EXIT", "3")
+
+	code, stdout, stderr := runComputeTest("run", "--gpu", "T4", "--max", "90m", "--env", "A=1", "--yes", script, "--", "--epochs", "2")
+	if code != 3 {
+		t.Fatalf("exit code = %d, want the script's 3; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "script output") {
+		t.Fatalf("script output was not streamed:\n%s", stdout)
+	}
+	want := "colab run --gpu T4 --timeout 5400 --env A=1 " + script + " --epochs 2\n"
+	if !strings.Contains(fake.calls(), want) {
+		t.Fatalf("colab run call = %q, want %q", fake.calls(), want)
+	}
+}
+
+func TestComputeRunRejectsSecretsOnColab(t *testing.T) {
+	fake := newFakeColab(t)
+	script := filepath.Join(fake.directory, "train.py")
+	writeTestFile(t, script, "print(1)\n", 0o644)
+	t.Setenv("MY_SECRET", "secret_value_123")
+	code, stdout, stderr := runComputeTest("run", "--secret", "MY_SECRET", "--yes", script)
+	if code != 2 || !strings.Contains(stderr, "no secret store") {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+	if strings.Contains(stdout+stderr+fake.calls(), "secret_value_123") {
+		t.Fatal("secret value leaked")
+	}
+}
+
+func TestComputeProvidersExplainsMissingSignIn(t *testing.T) {
+	newFakeColab(t)
+	if err := os.Remove(filepath.Join(os.Getenv("HOME"), ".config", "colab-cli", "token.json")); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, _ := runComputeTest("providers")
+	if code != 0 || !strings.Contains(stdout, "colab    not signed in") || !strings.Contains(stdout, "colab usage") {
+		t.Fatalf("exit code = %d, output:\n%s", code, stdout)
+	}
+}
+
+func TestComputeMenuStartsInstanceFromAnswers(t *testing.T) {
+	fake := newFakeColab(t)
+	// Start, provider 1 (colab), hardware 1 (cpu), name "play", 1h lifetime, no high-RAM, then quit.
+	answers := strings.NewReader("1\n1\n1\nplay\n1h\nn\n8\n")
+	var stdout, stderr bytes.Buffer
+	if err := computeMenu(answers, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(fake.calls(), "colab new -s play\n") {
+		t.Fatalf("menu did not start the instance:\ncalls:\n%s\nstdout:\n%s\nstderr:\n%s", fake.calls(), stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "$ hi compute up --on colab --gpu cpu --name play --max 1h") {
+		t.Fatalf("menu did not show the equivalent command:\n%s", stdout.String())
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	for duration, want := range map[time.Duration]string{
+		4 * time.Hour:                   "4h",
+		90 * time.Minute:                "1h30m",
+		5 * time.Minute:                 "5m",
+		-time.Minute:                    "0s",
+		5 * time.Second:                 "5s",
+		2*time.Hour + 29*time.Second:    "2h",
+		59*time.Minute + 45*time.Second: "1h",
+	} {
+		if got := formatDuration(duration); got != want {
+			t.Errorf("formatDuration(%s) = %q, want %q", duration, got, want)
+		}
+	}
+}
+
+// fakeRemoteSSH replaces the fake ssh with one that plays a remote instance
+// for `serve`: it stores the uploaded script and reports the given state.
+func (f *fakeColab) fakeRemoteSSH(state string) {
+	writeTestFile(f.t, filepath.Join(f.directory, "bin", "ssh"), `#!/bin/sh
+printf 'ssh %s\n' "$*" >> "$FAKE_DIR/calls.log"
+for last in "$@"; do :; done
+case "$last" in
+*"cat > ~/.hi/serve-llama-cpp.sh"*) cat > "$FAKE_DIR/uploaded.sh" ;;
+*"cat ~/.hi/state"*) printf '%s\n' "$FAKE_STATE" ;;
+esac
+exit 0
+`, 0o755)
+	f.t.Setenv("FAKE_STATE", state)
+}
+
+func TestComputeServeRecipeStartsUploadsPollsAndTunnels(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.fakeRemoteSSH("ready")
+	previous := servePollEvery
+	servePollEvery = time.Millisecond
+	t.Cleanup(func() { servePollEvery = previous })
+
+	code, stdout, stderr := runComputeTest("serve", "--name", "qwen", "--yes", "qwen3.8-flash-next")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s\nstdout: %s", code, stderr, stdout)
+	}
+	calls := fake.calls()
+	if !strings.Contains(calls, "colab new -s qwen --gpu G4\n") {
+		t.Fatalf("serve did not start a G4 for the recipe:\n%s", calls)
+	}
+	uploaded := readTestFile(t, filepath.Join(fake.directory, "uploaded.sh"))
+	if uploaded != string(serveLlamaCppScript) {
+		t.Fatal("the uploaded script differs from the embedded serve script")
+	}
+	for _, want := range []string{
+		"REPO=unsloth/Qwen3.8-Flash-Next-GGUF",
+		"QUANT=UD-Q3_K_XL",
+		"CTX=131072",
+		`EXTRA_ARGS='-ot per_layer_token_embd\.weight=CPU --lazy-mode off`,
+		"setsid nohup bash ~/.hi/serve-llama-cpp.sh",
+		"-L 127.0.0.1:8080:127.0.0.1:8000 root@colab",
+	} {
+		if !strings.Contains(calls, want) {
+			t.Fatalf("calls missing %q:\n%s", want, calls)
+		}
+	}
+	if !strings.Contains(stdout, "http://127.0.0.1:8080/v1   model: qwen3.8-flash-next") {
+		t.Fatalf("serve did not print the API URL:\n%s", stdout)
+	}
+}
+
+func TestComputeServeReportsRemoteFailure(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.fakeRemoteSSH("failed: download (see logs)")
+	previous := servePollEvery
+	servePollEvery = time.Millisecond
+	t.Cleanup(func() { servePollEvery = previous })
+
+	code, _, stderr := runComputeTest("serve", "--gpu", "T4", "--name", "small", "--quant", "Q4_K_M", "--yes", "unsloth/Qwen3-8B-GGUF")
+	if code != 1 || !strings.Contains(stderr, "failed: download") || !strings.Contains(stderr, "hi compute logs small") {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+	if strings.Contains(fake.calls(), "-L 127.0.0.1") {
+		t.Fatal("a tunnel was opened for a failed server")
+	}
+}
+
+func TestComputeServeValidatesModelAndHardware(t *testing.T) {
+	fake := newFakeColab(t)
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"serve", "--gpu", "T4", "not-a-repo"}, "neither a recipe"},
+		{[]string{"serve", "--gpu", "T4", "owner/Model-GGUF"}, "--quant"},
+		{[]string{"serve", "--gpu", "cpu", "--quant", "Q4_K_M", "owner/Model-GGUF"}, "serving needs a GPU"},
+		{[]string{"serve", "--gpu", "T4", "--quant", "Q4 K", "owner/Model-GGUF"}, "invalid characters"},
+	} {
+		code, _, stderr := runComputeTest(test.args...)
+		if code != 2 || !strings.Contains(stderr, test.want) {
+			t.Errorf("%v: exit code = %d, stderr = %s; want %q", test.args, code, stderr, test.want)
+		}
+	}
+	if strings.Contains(fake.calls(), "colab new") {
+		t.Fatal("an instance started despite invalid input")
+	}
+}
+
+func TestComputeLogsAcceptsFlagsAfterTheName(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+	code, _, stderr := runComputeTest("logs", "qwen", "-n", "3")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(fake.calls(), "tail -n 3 ~/.hi/logs/*.log") {
+		t.Fatalf("logs did not use -n 3:\n%s", fake.calls())
+	}
+}
+
+func TestServeScriptFindsColabDriverLibraries(t *testing.T) {
+	// SSH sessions on Colab lack the kernel's LD_LIBRARY_PATH (found live).
+	if !strings.Contains(string(serveLlamaCppScript), "/usr/lib64-nvidia") {
+		t.Fatal("serve script does not add Colab's NVIDIA library directory")
+	}
+}
+
+func TestComputeTunnelEndsQuietlyWhenInstanceWasStopped(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+	// The fake ssh "stops" the instance, then fails like a dropped tunnel.
+	writeTestFile(t, filepath.Join(fake.directory, "bin", "ssh"), `#!/bin/sh
+printf 'ssh %s\n' "$*" >> "$FAKE_DIR/calls.log"
+: > "$FAKE_DIR/sessions"
+exit 255
+`, 0o755)
+	code, stdout, stderr := runComputeTest("tunnel", "qwen", "8000")
+	if code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(stdout, "Tunnel closed: qwen is no longer running.") || strings.Contains(stderr, "255") {
+		t.Fatalf("stdout = %s\nstderr = %s", stdout, stderr)
+	}
+}
+
+func TestComputeTunnelReportsDroppedConnectionToRunningInstance(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+	writeTestFile(t, filepath.Join(fake.directory, "bin", "ssh"), "#!/bin/sh\nexit 255\n", 0o755)
+	if code, _, stderr := runComputeTest("tunnel", "qwen", "8000"); code != 1 || !strings.Contains(stderr, "255") {
+		t.Fatalf("exit code = %d, stderr = %s; want the ssh failure", code, stderr)
+	}
+}
+
+func TestComputeTunnelClosesWhenTheInstanceStopsButSSHStaysUp(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions("[qwen] ep1 | Hardware: G4 | Shape: Standard | Variant: GPU")
+	// This ssh never exits on its own, like a gateway that outlives the job.
+	writeTestFile(t, filepath.Join(fake.directory, "bin", "ssh"), "#!/bin/sh\nexec sleep 30\n", 0o755)
+	previous := tunnelCheckEvery
+	tunnelCheckEvery = 20 * time.Millisecond
+	t.Cleanup(func() { tunnelCheckEvery = previous })
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		fake.setSessions("[colab] No active sessions found on server.")
+	}()
+
+	start := time.Now()
+	code, stdout, stderr := runComputeTest("tunnel", "qwen", "8000")
+	if code != 0 || !strings.Contains(stdout, "Tunnel closed: qwen is no longer running.") {
+		t.Fatalf("exit code = %d, stdout = %s, stderr = %s", code, stdout, stderr)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("the tunnel took %s to close", elapsed)
+	}
+}
+
+func TestParseLifetime(t *testing.T) {
+	for input, want := range map[string]time.Duration{
+		"1": time.Hour, "1.5": 90 * time.Minute, "0.25": 15 * time.Minute, "30m": 30 * time.Minute,
+		"1h30m": 90 * time.Minute, "2d": 48 * time.Hour, "none": noLimit, " NONE ": noLimit,
+	} {
+		if got, err := parseLifetime(input); err != nil || got != want {
+			t.Errorf("parseLifetime(%q) = %v, %v; want %v", input, got, err, want)
+		}
+	}
+	for _, input := range []string{"0", "-1", "abc", "", "1x", "0d"} {
+		if _, err := parseLifetime(input); err == nil {
+			t.Errorf("parseLifetime(%q) accepted an invalid lifetime", input)
+		}
+	}
+}
+
+func TestComputeUpTakesBareHours(t *testing.T) {
+	newFakeColab(t)
+	if code, _, stderr := runComputeTest("up", "--name", "twohours", "--max", "2"); code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	records, _ := loadComputeRecords()
+	if lifetime := records["twohours"].Deadline.Sub(records["twohours"].Created); lifetime < 119*time.Minute || lifetime > 121*time.Minute {
+		t.Fatalf("--max 2 gave a lifetime of %s, want 2h", lifetime)
+	}
+	code, _, stderr := runComputeTest("up", "--name", "bad", "--max", "soon")
+	if code != 2 || !strings.Contains(stderr, "invalid lifetime") || strings.Contains(stderr, "Usage of") {
+		t.Fatalf("bad --max: exit code = %d, stderr = %s", code, stderr)
+	}
+}
+
+func TestComputeUpWithNoLimitIsConfirmedAndNeverExpires(t *testing.T) {
+	fake := newFakeColab(t)
+	watchers := 0
+	startComputeWatcher = func(string) (int, error) { watchers++; return 0, nil }
+
+	code, stdout, stderr := runComputeTest("up", "--name", "forever", "--max", "none")
+	if code != 1 || !strings.Contains(stdout, "no time limit") || !strings.Contains(stderr, "--yes") {
+		t.Fatalf("unconfirmed no limit: exit code = %d, stdout = %s, stderr = %s", code, stdout, stderr)
+	}
+	if strings.Contains(fake.calls(), "colab new") {
+		t.Fatal("an unlimited instance started without confirmation")
+	}
+
+	code, stdout, stderr = runComputeTest("up", "--name", "forever", "--max", "none", "--yes")
+	if code != 0 || !strings.Contains(stdout, "with no time limit") || !strings.Contains(stdout, "colab still ends it after 24h") {
+		t.Fatalf("confirmed no limit: exit code = %d, stdout = %s, stderr = %s", code, stdout, stderr)
+	}
+	if watchers != 0 {
+		t.Fatal("a lifetime watcher started for an unlimited instance")
+	}
+	if record := mustRecord(t, "forever"); !record.Deadline.IsZero() {
+		t.Fatalf("deadline = %v, want none", record.Deadline)
+	}
+	code, stdout, _ = runComputeTest("ls")
+	if code != 0 || !strings.Contains(stdout, "no limit") || strings.Contains(fake.calls(), "colab stop") {
+		t.Fatalf("ls stopped or mislabelled an unlimited instance:\n%s\ncalls:\n%s", stdout, fake.calls())
+	}
+	if _, stdout, _ = runComputeTest("status", "forever"); !strings.Contains(stdout, "Stops at:  never") {
+		t.Fatalf("status:\n%s", stdout)
+	}
+}
+
+func TestComputeRunWithNoLimitOnColabUsesItsDayLimit(t *testing.T) {
+	fake := newFakeColab(t)
+	script := filepath.Join(fake.directory, "long.py")
+	writeTestFile(t, script, "print(1)\n", 0o644)
+	if code, _, stderr := runComputeTest("run", "--max", "none", "--yes", script); code != 0 {
+		t.Fatalf("exit code = %d; stderr: %s", code, stderr)
+	}
+	if !strings.Contains(fake.calls(), "--timeout 86400") {
+		t.Fatalf("colab run did not get Colab's 24h limit:\n%s", fake.calls())
+	}
+}
+
+func TestComputeMenuAcceptsHoursAndRetriesBadLifetimes(t *testing.T) {
+	fake := newFakeColab(t)
+	// Start, hardware 1 (cpu), name "menu1", a bad lifetime, then 1 hour, no high-RAM, quit.
+	answers := strings.NewReader("1\n1\n1\nmenu1\nsoon\n1\nn\n8\n")
+	var stdout, stderr bytes.Buffer
+	if err := computeMenu(answers, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "invalid lifetime") ||
+		!strings.Contains(stdout.String(), "$ hi compute up --on colab --gpu cpu --name menu1 --max 1\n") {
+		t.Fatalf("menu output:\n%s\nstderr:\n%s", stdout.String(), stderr.String())
+	}
+	if !strings.Contains(fake.calls(), "colab new -s menu1") {
+		t.Fatal("the instance did not start")
+	}
+	if strings.Contains(stderr.String(), "Usage of") {
+		t.Fatal("the menu printed flag usage")
+	}
+}
+
+func TestComputeMenuEmptyLifetimeMeansNoLimit(t *testing.T) {
+	fake := newFakeColab(t)
+	// An empty lifetime asks for confirmation, which needs a terminal, so
+	// without one the start is refused and nothing runs.
+	answers := strings.NewReader("1\n1\n1\nmenu2\n\nn\n8\n")
+	var stdout, stderr bytes.Buffer
+	if err := computeMenu(answers, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "--max none") || !strings.Contains(stdout.String(), "no time limit") {
+		t.Fatalf("menu output:\n%s", stdout.String())
+	}
+	if strings.Contains(fake.calls(), "colab new") {
+		t.Fatal("an unlimited instance started without a confirmation")
+	}
+}
+
+func mustRecord(t *testing.T, name string) computeRecord {
+	t.Helper()
+	records, err := loadComputeRecords()
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, ok := records[name]
+	if !ok {
+		t.Fatalf("no record for %s", name)
+	}
+	return record
+}
+
+func TestComputeStopWithoutANameListsWhatIsRunning(t *testing.T) {
+	fake := newFakeColab(t)
+	fake.setSessions(
+		"[a] ep1 | Hardware: T4 | Shape: Standard | Variant: GPU",
+		"[b] ep2 | Hardware: G4 | Shape: Standard | Variant: GPU",
+	)
+	// Without a terminal, it names the choices instead of guessing.
+	code, _, stderr := runComputeTest("stop")
+	if code != 2 || !strings.Contains(stderr, "colab/a, colab/b") {
+		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
+	}
+	if strings.Contains(fake.calls(), "colab stop") {
+		t.Fatal("something was stopped without a choice")
+	}
+
+	// The picker: choose b, then confirm.
+	var stdout, stderr2 bytes.Buffer
+	ui := lineUI{in: strings.NewReader("2\ny\n"), out: &stdout}
+	if err := pickAndStop(ui, &stdout, &stderr2); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"colab/a  T4", "colab/b  G4", "Stop all 2 of them", "Stop b?"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("picker output missing %q:\n%s", want, stdout.String())
+		}
+	}
+	calls := fake.calls()
+	if !strings.Contains(calls, "colab stop -s b") || strings.Contains(calls, "colab stop -s a") {
+		t.Fatalf("the wrong instance was stopped:\n%s", calls)
+	}
+
+	// Choosing "all", then declining, stops nothing.
+	stdout.Reset()
+	fake.setSessions(
+		"[a] ep1 | Hardware: T4 | Shape: Standard | Variant: GPU",
+		"[c] ep3 | Hardware: L4 | Shape: Standard | Variant: GPU",
+	)
+	before := fake.calls()
+	if err := pickAndStop(lineUI{in: strings.NewReader("3\nn\n"), out: &stdout}, &stdout, &stderr2); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(fake.calls(), "colab stop") != strings.Count(before, "colab stop") || !strings.Contains(stdout.String(), "Nothing was stopped.") {
+		t.Fatalf("declining stopped something:\n%s", stdout.String())
+	}
+}

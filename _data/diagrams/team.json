@@ -1,0 +1,130 @@
+{
+  "caption": "How a hi team works. People talk to the lead in the team's Slack channel or a DM, and send feedback from the helper on the app's pages; the lead, Hermes, helps them and files what they ask for as tasks. The owners build in the dev box, a long-lived box with the project, Claude Code, Codex, and herdr, reached over SSH or from the dev page in a browser. Work leaves the box through the team's service, part of hi on the machine: hi dev preview puts a branch on the preview, and hi dev ship merges it into dev. Production moves only when an owner releases dev from the dev page, with a snapshot first. Everything lives in the team's folder.",
+  "you": "People and owners",
+  "via": "the Slack channel · the helper · the dev page",
+  "frame": "the team's machine",
+  "frame_mark": 1,
+  "groups": [
+    {
+      "name": "lead",
+      "label": "always on",
+      "mark": 2,
+      "summary": "Helps the people, files their ideas and bug reports as tasks, and watches the app.",
+      "items": [
+        {
+          "title": "@payments",
+          "role": "lead",
+          "does": "Hermes, with its SOUL.md, long-term memory, and a channel watch every 15 minutes. It never writes code.",
+          "chip": "Hermes",
+          "tone": "violet",
+          "entry": "People talk here"
+        }
+      ]
+    },
+    {
+      "name": "dev box",
+      "label": "the owners build here",
+      "mark": 3,
+      "via": "SSH · the dev page",
+      "summary": "One per team: the project's clone, the agents, and herdr, which keeps them working.",
+      "items": [
+        {
+          "title": "herdr",
+          "role": "workspaces",
+          "does": "A branch, a worktree, and an agent per piece of work; owners attach from any terminal or the browser.",
+          "chip": "Claude Code · Codex",
+          "tone": "amber",
+          "entry": "Owners build here"
+        }
+      ]
+    },
+    {
+      "name": "service",
+      "label": "hi, on the host",
+      "mark": 4,
+      "via": "hi dev",
+      "summary": "The dev box's only way out: preview and ship, never production.",
+      "items": [
+        {
+          "title": "hi team __serve",
+          "role": "the team's service",
+          "does": "Puts a branch on the preview with production's data, merges shipped work into dev, keeps tasks, snapshots, and incidents.",
+          "chip": "hi team",
+          "tone": "accent"
+        }
+      ]
+    },
+    {
+      "name": "app",
+      "label": "what people try",
+      "mark": 5,
+      "via": "shipped",
+      "summary": "Dev is `main`; production moves only by a release.",
+      "items": [
+        {
+          "title": "preview",
+          "role": "dev",
+          "does": "Dev, or a branch of the box, on its own link, on a fork of production's data.",
+          "chip": "link",
+          "tone": "mint"
+        },
+        {
+          "title": "v3",
+          "role": "production",
+          "does": "Released by an owner's click on the dev page, snapshot first.",
+          "chip": "link",
+          "tone": "mint"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "name": "team-payments/",
+      "label": "the team is a folder",
+      "mark": 6,
+      "via": "everything lives in",
+      "items": [
+        {
+          "title": "team.json · repo/ · dev/ · tickets/ · memory/ · app/",
+          "role": "on disk",
+          "does": "Containers are rebuilt from it; a copy of the folder is a copy of the team, snapshotted daily.",
+          "chip": "restic",
+          "tone": "dim"
+        }
+      ]
+    }
+  ],
+  "key": [
+    {
+      "mark": 1,
+      "term": "The team's machine",
+      "text": "One team, one Slack channel, one machine. People reach the app through its links; owners reach the dev box over NetBird or the dev page."
+    },
+    {
+      "mark": 2,
+      "term": "Lead",
+      "text": "The one agent that runs all the time; it talks with the people and files what they ask for, and never writes code."
+    },
+    {
+      "mark": 3,
+      "term": "Dev box",
+      "text": "Where the owners and their agents build; the agents ask no permissions, since the box is the boundary."
+    },
+    {
+      "mark": 4,
+      "term": "The team's service",
+      "text": "Part of hi, outside every box: the dev box can preview and ship through it, but nothing it offers moves production."
+    },
+    {
+      "mark": 5,
+      "term": "Dev and production",
+      "text": "What the people try, and what they use. Only an owner's click moves production."
+    },
+    {
+      "mark": 6,
+      "term": "Team folder",
+      "text": "Everything the team knows and has made, to back up, restore, or move."
+    }
+  ]
+}

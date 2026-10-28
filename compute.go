@@ -1,0 +1,1849 @@
+package main
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"syscall"
+	"text/tabwriter"
+	"time"
+
+	"golang.org/x/term"
+)
+
+const (
+	defaultInstanceMax = 4 * time.Hour
+	defaultRunMax      = time.Hour
+	watchInterval      = 30 * time.Second
+)
+
+// computeProvider is the provider-specific part of `hi compute`. Everything
+// else (limits, state, confirmation, SSH, tunnels) is shared.
+type computeProvider interface {
+	name() string
+	check() providerStatus
+	hardware() ([]computeHardware, error)
+	// maxLifetime is the provider's own limit, or zero for none.
+	maxLifetime() time.Duration
+	// enforcesLifetime reports whether the provider stops instances at --max
+	// itself; otherwise hi runs a local watcher.
+	enforcesLifetime() bool
+	reservedPorts() map[int]string
+	account() (string, error)
+	validateRun(request runRequest) error
+	create(request upRequest, stdout, stderr io.Writer) error
+	list() ([]computeInstance, error)
+	stop(name string, stdout, stderr io.Writer) error
+	ssh(name string) (sshTarget, error)
+	runJob(request runRequest, stdin io.Reader, stdout, stderr io.Writer) (int, error)
+	logs(name string, follow bool, lines int, stdin io.Reader, stdout, stderr io.Writer) error
+	wait(name string, stdout, stderr io.Writer) (int, error)
+	upCommand(request upRequest) []string
+	runCommand(request runRequest) []string
+}
+
+type providerStatus struct {
+	installed bool
+	signedIn  bool
+	hints     []string
+}
+
+type computeHardware struct {
+	name   string
+	kind   string
+	memory string
+	rate   string
+	paid   bool
+	// note is extra information such as "none free right now".
+	note string
+}
+
+type computeInstance struct {
+	name     string
+	hardware string
+	shape    string
+	detail   string
+	state    string
+	// managed, created, and deadline come from the provider when it records
+	// them itself, such as Hugging Face job labels and timeouts.
+	managed  bool
+	created  time.Time
+	deadline time.Time
+}
+
+// historyProvider can also find instances that have finished, for logs,
+// wait, and status after the fact.
+type historyProvider interface {
+	lookup(name string) (computeInstance, error)
+}
+
+type upRequest struct {
+	name      string
+	hardware  computeHardware
+	highMem   bool
+	max       time.Duration
+	image     string
+	namespace string
+	// serve, when set, makes the instance run this model server itself.
+	serve *serveRecipe
+	// reason, noWait, and publicKey are for managed providers: the reason
+	// approvers see, returning while approval is pending, and the SSH key
+	// the instance should accept.
+	reason    string
+	noWait    bool
+	publicKey string
+	// brokered means a hi server starts this for a connected device; the
+	// server has no SSH access to the instance.
+	brokered bool
+	// data are the team's repositories the machine may read through the
+	// hi server (--data).
+	data []dataRunRef
+}
+
+// runRequest is either a Python script (script, args) or a container image
+// with a command (image, command).
+type runRequest struct {
+	name      string
+	hardware  computeHardware
+	highMem   bool
+	max       time.Duration
+	env       []string
+	secrets   []string
+	detach    bool
+	namespace string
+	script    string
+	args      []string
+	image     string
+	command   []string
+}
+
+type sshTarget struct {
+	options     []string
+	destination string
+	// hint explains the most likely cause when ssh fails, such as a key
+	// that is not registered with the provider.
+	hint string
+	// warning is shown before every connection, such as the Community
+	// Cloud warning about secrets.
+	warning string
+}
+
+// reach finds how to SSH to an instance and shows its warning, if any.
+func reach(provider computeProvider, name string, stderr io.Writer) (sshTarget, error) {
+	target, err := provider.ssh(name)
+	if err == nil && target.warning != "" {
+		fmt.Fprintf(stderr, "%s\n\n", target.warning)
+	}
+	return target, err
+}
+
+func withSSHHint(target sshTarget, err error) error {
+	if err != nil && target.hint != "" {
+		return fmt.Errorf("%w\n%s", err, target.hint)
+	}
+	return err
+}
+
+// computeRecord is what hi remembers locally about instances it started.
+type computeRecord struct {
+	Name       string    `json:"name"`
+	Provider   string    `json:"provider"`
+	Hardware   string    `json:"hardware"`
+	Created    time.Time `json:"created"`
+	Deadline   time.Time `json:"deadline"`
+	WatcherPID int       `json:"watcher_pid,omitempty"`
+	Namespace  string    `json:"namespace,omitempty"`
+}
+
+var (
+	computeProviders = []computeProvider{colabProvider{}, newHFProvider(), newRunpodProvider(), newShadeformProvider()}
+	computeNow       = time.Now
+	// startComputeWatcher is replaced in tests so no background process starts.
+	startComputeWatcher = spawnComputeWatcher
+)
+
+func runCompute(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	restore, err := withManagedProviders()
+	if err != nil {
+		return exitCode(err, stderr)
+	}
+	defer restore()
+	if len(args) == 0 {
+		if !isTerminal(stdin) {
+			printComputeUsage(stdout)
+			return 0
+		}
+		return exitCode(computeMenu(stdin, stdout, stderr), stderr)
+	}
+
+	command, rest := args[0], args[1:]
+	// hi compute <command> --help: some commands read a machine's name
+	// before any flag, and asked every provider for one called --help. An
+	// instance's name starts with a letter, and what follows -- (a run's own
+	// arguments) is never looked at here.
+	if len(rest) > 0 && (rest[0] == "-h" || rest[0] == "--help") && !strings.HasPrefix(command, "__") {
+		printComputeUsage(stdout)
+		return 0
+	}
+	switch command {
+	case "help", "-h", "--help":
+		printComputeUsage(stdout)
+		return 0
+	case "providers":
+		return exitCode(computeProvidersCommand(stdout), stderr)
+	case "hardware":
+		return exitCode(computeHardwareCommand(rest, stdout, stderr), stderr)
+	case "up":
+		return exitCode(computeUpCommand(rest, stdin, stdout, stderr), stderr)
+	case "ls":
+		return exitCode(computeListCommand(rest, stdin, stdout, stderr), stderr)
+	case "status":
+		return exitCode(computeStatusCommand(rest, stdout, stderr), stderr)
+	case "ssh":
+		return exitCode(computeSSHCommand(rest, stdin, stdout, stderr), stderr)
+	case "tunnel":
+		return exitCode(computeTunnelCommand(rest, stdin, stdout, stderr), stderr)
+	case "stop":
+		return exitCode(computeStopCommand(rest, stdin, stdout, stderr), stderr)
+	case "run":
+		code, err := computeRunCommand(rest, stdin, stdout, stderr)
+		if err != nil {
+			return exitCode(err, stderr)
+		}
+		return code
+	case "serve":
+		return exitCode(computeServeCommand(rest, stdin, stdout, stderr), stderr)
+	case "logs":
+		return exitCode(computeLogsCommand(rest, stdin, stdout, stderr), stderr)
+	case "billing":
+		return exitCode(computeBillingCommand(rest, stdout, stderr), stderr)
+	case "requests":
+		return exitCode(computeRequestsCommand(rest, stdout, stderr), stderr)
+	case "extend":
+		return exitCode(computeExtendCommand(rest, stdin, stdout, stderr), stderr)
+	case "live":
+		return exitCode(computeLiveCommand(rest, stdin, stdout, stderr), stderr)
+	case "wait":
+		code, err := computeWaitCommand(rest, stdout, stderr)
+		if err != nil {
+			return exitCode(err, stderr)
+		}
+		return code
+	case "proxy":
+		return exitCode(computeProxyCommand(rest, stdin, stdout, stderr), stderr)
+	case "__watch":
+		if len(rest) != 1 {
+			return 2
+		}
+		return exitCode(watchComputeInstance(rest[0], stdout, stderr), stderr)
+	default:
+		fmt.Fprintf(stderr, "hi: unknown compute command %q\n\n", command)
+		printComputeUsage(stderr)
+		return 2
+	}
+}
+
+// noCapacityError means the provider has none of the chosen hardware free.
+type noCapacityError struct{ error }
+
+func (e noCapacityError) Unwrap() error { return e.error }
+
+type usageError struct{ message string }
+
+func (e usageError) Error() string { return e.message }
+
+// helpRequested is --help on a command that shares compute's flag parsing:
+// it says where the help is, and a command with its own usage, such as hi
+// init, finds flag.ErrHelp in it and prints that instead.
+type helpRequested struct{ usageError }
+
+func (helpRequested) Unwrap() error { return flag.ErrHelp }
+
+func exitCode(err error, stderr io.Writer) int {
+	if err == nil {
+		return 0
+	}
+	fmt.Fprintf(stderr, "hi: %v\n", err)
+	var usage usageError
+	if errors.As(err, &usage) || errors.Is(err, flag.ErrHelp) {
+		return 2
+	}
+	var status exitStatusError
+	if errors.As(err, &status) {
+		return status.code
+	}
+	return 1
+}
+
+func printComputeUsage(w io.Writer) {
+	fmt.Fprintln(w, `hi compute runs work on rented remote machines.
+
+Usage:
+  hi compute                          Guided menu (in a terminal)
+  hi compute providers                Show configured providers
+  hi compute hardware [--on P]        List hardware and prices
+  hi compute up [options]             Start an instance
+  hi compute ls                       List instances
+  hi compute status <name>            Show one instance
+  hi compute ssh <name> [-- cmd...]   Open a shell or run one command
+  hi compute tunnel <name> <port>[:<local>]
+                                      Forward a remote port to localhost
+  hi compute logs <name> [--follow]   Show setup and server logs
+  hi compute stop [<name> | --all]    Stop instances; without a name, pick from a list
+  hi compute serve <recipe | owner/repo-GGUF --quant Q> [options]
+                                      Serve a model with llama.cpp and tunnel
+                                      its OpenAI-compatible API here
+  hi compute run [options] <script.py> [-- args...]
+  hi compute run [options] <image> -- <command...>
+                                      Run to completion, streaming logs
+  hi compute wait <name>...           Wait for detached runs to finish
+  hi compute billing [ACCOUNT]        Show or choose who pays (Hugging Face)
+  hi compute requests [<id> [--wait]] Your requests to the hi server (when connected)
+  hi compute extend <name> <duration> Ask the hi server for more time
+  hi compute live                     Live view of your managed machines and budget
+
+Options for up and run:
+  --on <provider>    colab, hf, runpod, or shadeform (default: inferred from --gpu, or
+                     $HI_COMPUTE_PROVIDER, or the only signed-in provider)
+  --gpu <hardware>   Hardware name from hi compute hardware (default: CPU)
+  --name <name>      Instance name (default: generated)
+  --max <duration>   Stop after this long, e.g. 30m or 4h
+  --high-mem         Request a high-RAM machine (Colab)
+  --env KEY=VALUE    Environment variable for run; repeatable
+  --secret KEY       Pass $KEY as an encrypted secret (Hugging Face)
+  --data ORG/NAME[/PATTERN]
+                     run: download your team's data into data/NAME before the script
+                     starts, through the hi server (hi data). up (RunPod, Shadeform):
+                     the machine's shells get HF_ENDPOINT and HF_TOKEN to read
+                     ORG/NAME through the hi server until --max
+  --detach           run: return after starting (Hugging Face)
+  --image <image>    Container image (Hugging Face, RunPod)
+  --namespace <ns>   Account to bill this once (Hugging Face; see billing)
+  --yes              Skip the cost confirmation
+  --dry-run          Show what would happen without starting anything
+  --reason <text>    Why you need it; approvers see it (managed providers)
+  --no-wait          up: return while approval is pending, exit status 3
+
+Connected to a hi server (hi connect), the providers it manages go through
+it and need an approval; a denied request exits with status 4. Colab and
+providers it doesn't manage use your own keys as before.
+
+Options for serve (plus --on, --gpu, --name, --max, --yes, --dry-run):
+  --quant <quant>    GGUF quant, e.g. Q4_K_M (recipes have a default)
+  --ctx <tokens>     Context length
+  --port <port>      Local port for the API (default 8080)
+  --args "<args>"    Extra llama-server arguments
+
+Providers: colab, hf, runpod, shadeform (h100 picks the cheapest free H100;
+           h100@lambdalabs picks a cloud)
+Recipes:   qwen3.8-flash-next (Colab G4, Hugging Face rtx-pro-6000)`)
+}
+
+// ---------------------------------------------------------------------------
+// providers and hardware
+
+func computeProvidersCommand(stdout io.Writer) error {
+	for _, provider := range computeProviders {
+		status := provider.check()
+		state := "ready"
+		switch {
+		case !status.installed:
+			state = "not installed"
+		case !status.signedIn:
+			state = "not signed in"
+		}
+		if isManaged(provider) && state == "ready" {
+			state = "managed by " + provider.(*managedProvider).url
+		} else if isManaged(provider) {
+			state = "managed, but " + state
+		}
+		fmt.Fprintf(stdout, "%-8s %s\n", provider.name(), state)
+		for _, hint := range status.hints {
+			fmt.Fprintf(stdout, "         %s\n", hint)
+		}
+	}
+	return nil
+}
+
+func computeHardwareCommand(args []string, stdout, stderr io.Writer) error {
+	flags := newComputeFlags("hardware", stderr)
+	on := flags.String("on", "", "provider")
+	community := flags.Bool("community", false, "RunPod Community Cloud")
+	if err := parseComputeFlags(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return usageError{"usage: hi compute hardware [--on <provider>] [--community]"}
+	}
+	if *community {
+		return communityHardwareCommand(*on, stdout)
+	}
+	providers := computeProviders
+	if *on != "" {
+		provider, err := providerByName(*on)
+		if err != nil {
+			return err
+		}
+		providers = []computeProvider{provider}
+	}
+	for _, provider := range providers {
+		table := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+		options, err := provider.hardware()
+		if err != nil {
+			fmt.Fprintf(stderr, "hi: %s hardware: %v\n", provider.name(), err)
+			continue
+		}
+		notes := false
+		for _, hardware := range options {
+			notes = notes || hardware.note != ""
+		}
+		header := "PROVIDER\tHARDWARE\tKIND\tMEMORY\tRATE"
+		if notes {
+			header += "\tNOW"
+		}
+		fmt.Fprintln(table, header)
+		for _, hardware := range options {
+			row := fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
+				provider.name(), hardware.name, hardware.kind, hardware.memory, hardware.rate)
+			if notes {
+				row += "\t" + hardware.note
+			}
+			fmt.Fprintln(table, row)
+		}
+		table.Flush()
+		if account, err := provider.account(); err == nil && account != "" {
+			fmt.Fprintf(stdout, "\n%s\n", account)
+		}
+	}
+	return nil
+}
+
+// communityHardwareCommand lists RunPod Community Cloud GPUs, with the
+// warning about secrets.
+func communityHardwareCommand(on string, stdout io.Writer) error {
+	if on != "" && on != "runpod" {
+		return usageError{"--community applies to RunPod only"}
+	}
+	provider, err := providerByName("runpod")
+	if err != nil {
+		return err
+	}
+	lister, ok := provider.(interface {
+		communityHardware() ([]computeHardware, error)
+	})
+	if !ok {
+		return usageError{"--community is not available for the managed RunPod yet"}
+	}
+	options, err := lister.communityHardware()
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s\n\n", communityWarning)
+	table := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(table, "PROVIDER\tHARDWARE\tKIND\tMEMORY\tRATE\tNOW")
+	for _, hardware := range options {
+		fmt.Fprintf(table, "runpod\t%s\t%s\t%s\t%s\t%s\n", hardware.name, hardware.kind, hardware.memory, hardware.rate, hardware.note)
+	}
+	return table.Flush()
+}
+
+func providerByName(name string) (computeProvider, error) {
+	for _, provider := range computeProviders {
+		if provider.name() == strings.ToLower(name) {
+			return provider, nil
+		}
+	}
+	return nil, usageError{fmt.Sprintf("unknown provider %q; available: %s", name, providerNames())}
+}
+
+func providerNames() string {
+	names := make([]string, 0, len(computeProviders))
+	for _, provider := range computeProviders {
+		names = append(names, provider.name())
+	}
+	return strings.Join(names, ", ")
+}
+
+// resolveProvider picks --on, then $HI_COMPUTE_PROVIDER, then the only ready
+// provider that offers the requested hardware.
+func resolveProvider(on, hardware string) (computeProvider, error) {
+	if on == "" {
+		on = os.Getenv("HI_COMPUTE_PROVIDER")
+	}
+	if on != "" {
+		return providerByName(on)
+	}
+	var ready []computeProvider
+	for _, provider := range computeProviders {
+		if status := provider.check(); status.installed && status.signedIn {
+			ready = append(ready, provider)
+		}
+	}
+	if len(ready) > 1 && hardware != "" {
+		var offering []computeProvider
+		for _, provider := range ready {
+			if _, err := resolveHardware(provider, hardware); err == nil {
+				offering = append(offering, provider)
+			}
+		}
+		if len(offering) == 1 {
+			return offering[0], nil
+		}
+	}
+	switch len(ready) {
+	case 1:
+		return ready[0], nil
+	case 0:
+		return nil, usageError{"no provider is ready; run `hi compute providers`"}
+	default:
+		return nil, usageError{fmt.Sprintf(
+			"several providers are ready (%s); choose one with --on or set HI_COMPUTE_PROVIDER", providerNames())}
+	}
+}
+
+// resolveHardware finds a hardware name; without one it picks the provider's
+// first, cheapest CPU option.
+func resolveHardware(provider computeProvider, name string) (computeHardware, error) {
+	options, err := provider.hardware()
+	if err != nil {
+		return computeHardware{}, err
+	}
+	if name == "" && len(options) > 0 {
+		return options[0], nil
+	}
+	var names []string
+	for _, hardware := range options {
+		if strings.EqualFold(hardware.name, name) {
+			return hardware, nil
+		}
+		names = append(names, hardware.name)
+	}
+	if lookup, ok := provider.(interface {
+		lookupHardware(string) (computeHardware, error)
+	}); ok {
+		if hardware, err := lookup.lookupHardware(name); err == nil {
+			return hardware, nil
+		}
+	}
+	return computeHardware{}, usageError{fmt.Sprintf(
+		"unknown %s hardware %q; choose one of: %s", provider.name(), name, strings.Join(names, ", "))}
+}
+
+// ---------------------------------------------------------------------------
+// up
+
+func computeUpCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags := newComputeFlags("up", stderr)
+	on := flags.String("on", "", "provider")
+	gpu := flags.String("gpu", "", "hardware")
+	name := flags.String("name", "", "instance name")
+	maxLifetime := &lifetimeFlag{value: defaultInstanceMax}
+	flags.Var(maxLifetime, "max", "maximum lifetime: hours (2), 30m, 2d, or none")
+	highMem := flags.Bool("high-mem", false, "high-RAM machine")
+	yes := flags.Bool("yes", false, "skip confirmation")
+	dryRun := flags.Bool("dry-run", false, "show without starting")
+	image := flags.String("image", "", "container image")
+	namespace := flags.String("namespace", "", "account or organization to bill")
+	reason := flags.String("reason", "", "why you need it (managed providers)")
+	noWait := flags.Bool("no-wait", false, "return while approval is pending (managed providers)")
+	var data repeatedFlag
+	flags.Var(&data, "data", "your team's data the machine may read: <org>/<name>")
+	if err := parseComputeFlags(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 {
+		return usageError{"usage: hi compute up [--on P] [--gpu HW] [--name N] [--max D] [--image I] [--namespace NS] [--high-mem] [--data ORG/NAME] [--reason R] [--no-wait] [--yes] [--dry-run]"}
+	}
+
+	provider, err := resolveProvider(*on, *gpu)
+	if err != nil {
+		return err
+	}
+	if *noWait && !isManaged(provider) {
+		return usageError{"--no-wait applies only to providers managed by a hi server"}
+	}
+	request := upRequest{highMem: *highMem, max: maxLifetime.value, image: *image, namespace: *namespace,
+		reason: *reason, noWait: *noWait}
+	if request.hardware, err = resolveHardware(provider, *gpu); err != nil {
+		return err
+	}
+	if err := validateLifetime(provider, request.max); err != nil {
+		return err
+	}
+	if request.name, err = chooseInstanceName(*name, request.hardware.name); err != nil {
+		return err
+	}
+	if request.data, err = checkDataUp(provider, request, data); err != nil {
+		return err
+	}
+	return startInstance(provider, request, *yes, *dryRun, stdin, stdout, stderr)
+}
+
+func startInstance(
+	provider computeProvider,
+	request upRequest,
+	yes, dryRun bool,
+	stdin io.Reader,
+	stdout, stderr io.Writer,
+) error {
+	switch {
+	case provider.name() == "colab" && (request.image != "" || request.namespace != ""):
+		return usageError{"--image and --namespace do not apply to Colab"}
+	case provider.name() != "colab" && request.highMem:
+		return usageError{"--high-mem applies to Colab only; choose larger --gpu hardware instead"}
+	case provider.name() != "hf" && request.namespace != "":
+		return usageError{"--namespace applies to Hugging Face only"}
+	}
+	records, err := loadComputeRecords()
+	if err != nil {
+		return err
+	}
+	if _, exists := records[request.name]; exists {
+		return fmt.Errorf("an instance named %q already exists; choose another --name", request.name)
+	}
+
+	var deadline time.Time
+	if request.max != noLimit {
+		deadline = computeNow().Add(request.max)
+	}
+	fmt.Fprintf(stdout, "Start %s/%s on %s (%s%s), %s.\n",
+		provider.name(), request.name, request.hardware.name, request.hardware.rate,
+		billedSuffix(provider, request.namespace), describeLifetime(request.max))
+
+	if dryRun {
+		fmt.Fprintf(stdout, "Would run: %s\n", strings.Join(provider.upCommand(request), " "))
+		if len(request.data) > 0 {
+			fmt.Fprintf(stdout, "Would give it a token to read %s through the hi server.\n", dataRefIDs(request.data))
+		}
+		return nil
+	}
+	if err := requireStatus(provider); err != nil {
+		return err
+	}
+	if isCommunityHardware(request.hardware.name) {
+		fmt.Fprintf(stdout, "\n%s\n\n", communityWarning)
+	}
+	if isManaged(provider) {
+		if err := prepareManagedStart(&request, stdin, stdout); err != nil {
+			return err
+		}
+	}
+	if request.max == noLimit {
+		if err := confirmNoLimit(provider, request.name, stdin, stdout, yes); err != nil {
+			return err
+		}
+	} else if request.hardware.paid {
+		if err := confirm(stdin, stdout, yes, "Start it?"); err != nil {
+			return err
+		}
+	}
+
+	// The data token comes first: a refusal costs nothing yet.
+	var access apiRunAccess
+	if len(request.data) > 0 {
+		if access, err = requestDataUp(request); err != nil {
+			return err
+		}
+	}
+	// installData hands the machine its data token once it is up.
+	installData := func() error {
+		if len(request.data) == 0 {
+			return nil
+		}
+		if err := installDataUp(provider, request, access, stdout); err != nil {
+			return fmt.Errorf("%s is up, but hi could not give it your team's data: %w\nIt still bills; stop it with hi compute stop %s", request.name, err, request.name)
+		}
+		return nil
+	}
+
+	// Billing starts when the machine is created, not when it is ready.
+	created := computeNow()
+	if err := provider.create(request, stdout, stderr); err != nil {
+		return err
+	}
+	if isManaged(provider) {
+		// The server keeps the record and enforces the limit.
+		if err := installData(); err != nil {
+			return err
+		}
+		printNextSteps(request.name, stdout)
+		return nil
+	}
+
+	record := computeRecord{
+		Name:      request.name,
+		Provider:  provider.name(),
+		Hardware:  request.hardware.name,
+		Created:   created,
+		Deadline:  deadline,
+		Namespace: request.namespace,
+	}
+	if err := saveComputeRecord(record); err != nil {
+		return err
+	}
+	if provider.enforcesLifetime() || deadline.IsZero() {
+		// The provider stops the instance itself, or there is no deadline.
+	} else if pid, err := startComputeWatcher(request.name); err != nil {
+		fmt.Fprintf(stderr, "hi: warning: could not start the lifetime watcher: %v\n", err)
+		fmt.Fprintf(stderr, "hi: stop the instance yourself with `hi compute stop %s`\n", request.name)
+	} else if pid > 0 {
+		record.WatcherPID = pid
+		if err := saveComputeRecord(record); err != nil {
+			return err
+		}
+	}
+	if err := installData(); err != nil {
+		return err
+	}
+
+	printNextSteps(request.name, stdout)
+	return nil
+}
+
+func printNextSteps(name string, stdout io.Writer) {
+	fmt.Fprintf(stdout, "\n%s is up. Next:\n", name)
+	fmt.Fprintf(stdout, "  hi compute ssh %s\n", name)
+	fmt.Fprintf(stdout, "  hi compute tunnel %s 8000\n", name)
+	fmt.Fprintf(stdout, "  hi compute stop %s\n", name)
+}
+
+// noLimit is the lifetime that means "run until stopped".
+const noLimit time.Duration = 0
+
+// parseLifetime reads a --max value: a number of hours ("2", "1.5"), a Go
+// duration ("30m", "1h30m"), days ("2d"), or "none" for no limit.
+func parseLifetime(value string) (time.Duration, error) {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "none", "never", "unlimited", "no-limit":
+		return noLimit, nil
+	}
+	invalid := fmt.Errorf("invalid lifetime %q; use hours such as 2 or 1.5, or 30m, 1h30m, 2d, or none", value)
+	if hours, err := strconv.ParseFloat(value, 64); err == nil {
+		if hours <= 0 {
+			return 0, invalid
+		}
+		return time.Duration(hours * float64(time.Hour)).Round(time.Second), nil
+	}
+	if days, ok := strings.CutSuffix(value, "d"); ok {
+		count, err := strconv.ParseFloat(days, 64)
+		if err != nil || count <= 0 {
+			return 0, invalid
+		}
+		return time.Duration(count * 24 * float64(time.Hour)).Round(time.Second), nil
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 {
+		return 0, invalid
+	}
+	return duration, nil
+}
+
+// lifetimeFlag is --max as a flag.Value.
+type lifetimeFlag struct{ value time.Duration }
+
+func (l *lifetimeFlag) String() string {
+	if l == nil || l.value == noLimit {
+		return "none"
+	}
+	return formatDuration(l.value)
+}
+
+func (l *lifetimeFlag) Set(value string) error {
+	duration, err := parseLifetime(value)
+	if err != nil {
+		return err
+	}
+	l.value = duration
+	return nil
+}
+
+func describeLifetime(lifetime time.Duration) string {
+	if lifetime == noLimit {
+		return "with no time limit"
+	}
+	return "stopping after " + formatDuration(lifetime) + " at " + computeNow().Add(lifetime).Format("15:04")
+}
+
+// confirmNoLimit makes sure an unlimited machine is intended; it keeps
+// billing until someone stops it.
+func confirmNoLimit(provider computeProvider, name string, stdin io.Reader, stdout io.Writer, yes bool) error {
+	fmt.Fprintf(stdout, "\nWarning: %s has no time limit. It keeps running, and costing money, until you stop it\n", name)
+	fmt.Fprintf(stdout, "with `hi compute stop %s`, even if you close this terminal or forget about it.\n", name)
+	if limit := provider.maxLifetime(); limit > 0 {
+		fmt.Fprintf(stdout, "(%s still ends it after %s.)\n", provider.name(), formatDuration(limit))
+	}
+	return confirm(stdin, stdout, yes, "Are you sure you want no time limit?")
+}
+
+func validateLifetime(provider computeProvider, lifetime time.Duration) error {
+	if lifetime < 0 {
+		return usageError{"--max must be greater than zero"}
+	}
+	if limit := provider.maxLifetime(); limit > 0 && lifetime > limit {
+		return usageError{fmt.Sprintf("--max %s exceeds the %s limit of %s",
+			formatDuration(lifetime), provider.name(), formatDuration(limit))}
+	}
+	return nil
+}
+
+func chooseInstanceName(name, hardware string) (string, error) {
+	if name == "" {
+		suffix := make([]byte, 2)
+		if _, err := rand.Read(suffix); err != nil {
+			return "", err
+		}
+		return strings.ToLower(hardware) + "-" + hex.EncodeToString(suffix), nil
+	}
+	if !validInstanceName(name) {
+		return "", usageError{fmt.Sprintf(
+			"invalid name %q; use 1-32 lowercase letters, digits, or hyphens, starting with a letter", name)}
+	}
+	return name, nil
+}
+
+func validInstanceName(name string) bool {
+	if len(name) == 0 || len(name) > 32 || name[0] < 'a' || name[0] > 'z' || name[len(name)-1] == '-' {
+		return false
+	}
+	for _, char := range name {
+		if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+// validLookupName also accepts provider IDs such as Hugging Face job IDs,
+// which may start with a digit.
+func validLookupName(name string) bool {
+	if len(name) == 0 || len(name) > 64 {
+		return false
+	}
+	for _, char := range name {
+		if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func requireStatus(provider computeProvider) error {
+	status := provider.check()
+	if status.installed && status.signedIn {
+		return nil
+	}
+	message := provider.name() + " is not ready"
+	if len(status.hints) > 0 {
+		message += "; " + strings.Join(status.hints, "; ")
+	}
+	return errors.New(message)
+}
+
+// ---------------------------------------------------------------------------
+// ls, status
+
+type listedInstance struct {
+	provider string
+	instance computeInstance
+	record   *computeRecord
+}
+
+func computeListCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) != 0 {
+		return usageError{"usage: hi compute ls"}
+	}
+	listed, err := listInstances(stdout, stderr)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		for _, provider := range computeProviders {
+			if account, err := provider.account(); err == nil && account != "" {
+				fmt.Fprintf(stdout, "\n%s\n", account)
+			}
+		}
+	}()
+	if len(listed) == 0 {
+		fmt.Fprintln(stdout, "No instances are running.")
+		return nil
+	}
+
+	now := computeNow()
+	table := tabwriter.NewWriter(stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(table, "NAME\tPROVIDER\tHARDWARE\tUP\tSTOPS IN")
+	for _, item := range listed {
+		up, stopsIn := "-", "-"
+		name := item.instance.name
+		switch {
+		case item.record != nil:
+			up = formatDuration(now.Sub(item.record.Created))
+			stopsIn = stopsInText(item.record.Deadline, now)
+		case item.instance.managed && !item.instance.created.IsZero():
+			up = formatDuration(now.Sub(item.instance.created))
+			stopsIn = stopsInText(item.instance.deadline, now)
+		case !item.instance.managed:
+			name += " (not started by hi)"
+		}
+		hardware := item.instance.hardware
+		if item.instance.shape != "" && item.instance.shape != "Standard" {
+			hardware += " " + item.instance.shape
+		}
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", name, item.provider, hardware, up, stopsIn)
+	}
+	table.Flush()
+	return nil
+}
+
+func stopsInText(deadline, now time.Time) string {
+	if deadline.IsZero() {
+		return "no limit"
+	}
+	return formatDuration(deadline.Sub(now))
+}
+
+// listInstances reconciles provider listings with local records. It forgets
+// records whose instance is gone and stops instances past their deadline.
+func listInstances(stdout, stderr io.Writer) ([]listedInstance, error) {
+	records, err := loadComputeRecords()
+	if err != nil {
+		return nil, err
+	}
+	now := computeNow()
+	var listed []listedInstance
+	for _, provider := range computeProviders {
+		if status := provider.check(); !status.installed || !status.signedIn {
+			continue
+		}
+		instances, err := provider.list()
+		if err != nil {
+			return nil, fmt.Errorf("list %s instances: %w", provider.name(), err)
+		}
+		seen := map[string]bool{}
+		for _, instance := range instances {
+			item := listedInstance{provider: provider.name(), instance: instance}
+			if record, ok := records[instance.name]; ok && record.Provider == provider.name() {
+				seen[instance.name] = true
+				if !record.Deadline.IsZero() && !now.Before(record.Deadline) {
+					fmt.Fprintf(stdout, "%s passed its maximum lifetime; stopping it.\n", instance.name)
+					if err := stopInstance(provider, instance.name, stdout, stderr); err != nil {
+						fmt.Fprintf(stderr, "hi: %v\n", err)
+					} else {
+						continue
+					}
+				}
+				item.record = &record
+			}
+			listed = append(listed, item)
+		}
+		for name, record := range records {
+			if record.Provider == provider.name() && !seen[name] {
+				if err := removeComputeRecord(name); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	sort.Slice(listed, func(i, j int) bool { return listed[i].instance.name < listed[j].instance.name })
+	return listed, nil
+}
+
+func computeStatusCommand(args []string, stdout, stderr io.Writer) error {
+	if len(args) != 1 {
+		return usageError{"usage: hi compute status <name>"}
+	}
+	name := instanceName(args[0])
+	listed, err := listInstances(stdout, stderr)
+	if err != nil {
+		return err
+	}
+	for _, item := range listed {
+		if item.instance.name == name {
+			printInstanceStatus(item.provider, item.instance, item.record, stdout)
+			return nil
+		}
+	}
+	provider, _, err := findInstance(args[0])
+	if err != nil {
+		return err
+	}
+	if history, ok := provider.(historyProvider); ok {
+		if instance, err := history.lookup(name); err == nil {
+			printInstanceStatus(provider.name(), instance, nil, stdout)
+			return nil
+		}
+	}
+	return fmt.Errorf("no instance named %q", name)
+}
+
+func printInstanceStatus(provider string, instance computeInstance, record *computeRecord, stdout io.Writer) {
+	now := computeNow()
+	fmt.Fprintf(stdout, "Name:      %s\n", instance.name)
+	fmt.Fprintf(stdout, "Provider:  %s\n", provider)
+	fmt.Fprintf(stdout, "Hardware:  %s\n", instance.hardware)
+	if instance.state != "" {
+		fmt.Fprintf(stdout, "State:     %s\n", instance.state)
+	}
+	if instance.shape != "" {
+		fmt.Fprintf(stdout, "Shape:     %s\n", instance.shape)
+	}
+	if instance.detail != "" {
+		fmt.Fprintf(stdout, "Details:   %s\n", instance.detail)
+	}
+	created, deadline := instance.created, instance.deadline
+	if record != nil {
+		created, deadline = record.Created, record.Deadline
+	}
+	switch {
+	case !created.IsZero():
+		fmt.Fprintf(stdout, "Started:   %s (%s ago)\n",
+			created.Local().Format("2006-01-02 15:04"), formatDuration(now.Sub(created)))
+		if deadline.IsZero() {
+			fmt.Fprintln(stdout, "Stops at:  never; no time limit")
+		} else {
+			fmt.Fprintf(stdout, "Stops at:  %s (in %s)\n",
+				deadline.Local().Format("2006-01-02 15:04"), formatDuration(deadline.Sub(now)))
+		}
+	case !instance.managed:
+		fmt.Fprintln(stdout, "Limits:    none; not started by hi")
+	}
+}
+
+// instanceName accepts both `qwen` and `colab/qwen`.
+func instanceName(argument string) string {
+	if _, name, found := strings.Cut(argument, "/"); found {
+		return name
+	}
+	return argument
+}
+
+// findInstance returns the provider running the named instance.
+func findInstance(argument string) (computeProvider, string, error) {
+	name := instanceName(argument)
+	if !validLookupName(name) {
+		return nil, "", usageError{fmt.Sprintf("invalid instance name %q", argument)}
+	}
+	if prefix, _, found := strings.Cut(argument, "/"); found {
+		provider, err := providerByName(prefix)
+		return provider, name, err
+	}
+	records, err := loadComputeRecords()
+	if err != nil {
+		return nil, "", err
+	}
+	if record, ok := records[name]; ok {
+		provider, err := providerByName(record.Provider)
+		return provider, name, err
+	}
+	for _, provider := range computeProviders {
+		if status := provider.check(); !status.installed || !status.signedIn {
+			continue
+		}
+		instances, err := provider.list()
+		if err != nil {
+			return nil, "", err
+		}
+		for _, instance := range instances {
+			if instance.name == name {
+				return provider, name, nil
+			}
+		}
+	}
+	for _, provider := range computeProviders {
+		history, ok := provider.(historyProvider)
+		if !ok {
+			continue
+		}
+		if status := provider.check(); !status.installed || !status.signedIn {
+			continue
+		}
+		if _, err := history.lookup(name); err == nil {
+			return provider, name, nil
+		}
+	}
+	return nil, "", fmt.Errorf("no instance named %q; see `hi compute ls`", name)
+}
+
+// ---------------------------------------------------------------------------
+// ssh, tunnel, proxy
+
+func computeSSHCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) == 0 {
+		return usageError{"usage: hi compute ssh <name> [-- command...]"}
+	}
+	remote := args[1:]
+	if len(remote) > 0 {
+		if remote[0] != "--" {
+			return usageError{"usage: hi compute ssh <name> [-- command...]"}
+		}
+		remote = remote[1:]
+	}
+	provider, name, err := findInstance(args[0])
+	if err != nil {
+		return err
+	}
+	target, err := reach(provider, name, stderr)
+	if err != nil {
+		return err
+	}
+	defer reportActivity(provider, name, "ssh")()
+	sshArgs := append([]string{}, target.options...)
+	if len(remote) == 0 {
+		sshArgs = append(sshArgs, "-t")
+	}
+	sshArgs = append(sshArgs, target.destination)
+	sshArgs = append(sshArgs, remote...)
+	return withSSHHint(target, runSSH(sshArgs, stdin, stdout, stderr))
+}
+
+func computeTunnelCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) != 2 {
+		return usageError{"usage: hi compute tunnel <name> <port>[:<local-port>]"}
+	}
+	remotePort, localPort, err := parsePortPair(args[1])
+	if err != nil {
+		return err
+	}
+	provider, name, err := findInstance(args[0])
+	if err != nil {
+		return err
+	}
+	if reason, reserved := provider.reservedPorts()[remotePort]; reserved {
+		return fmt.Errorf("port %d on %s is %s; serve on another port such as 8000", remotePort, provider.name(), reason)
+	}
+	target, err := reach(provider, name, stderr)
+	if err != nil {
+		return err
+	}
+	defer reportActivity(provider, name, "tunnel")()
+	sshArgs := append([]string{"-N", "-o", "ExitOnForwardFailure=yes"}, target.options...)
+	sshArgs = append(sshArgs,
+		"-L", fmt.Sprintf("127.0.0.1:%d:127.0.0.1:%d", localPort, remotePort),
+		target.destination)
+
+	fmt.Fprintf(stdout, "Forwarding http://127.0.0.1:%d to %s port %d. Press Ctrl+C to close.\n",
+		localPort, name, remotePort)
+
+	// Catch Ctrl+C here so ssh ends but hi can still offer to stop the instance.
+	interrupts := make(chan os.Signal, 1)
+	signal.Notify(interrupts, os.Interrupt)
+	tunnelErr := runTunnel(provider, name, sshArgs, stdin, stdout, stderr)
+	signal.Stop(interrupts)
+	fmt.Fprintln(stdout)
+
+	// A tunnel also ends when its instance is stopped, from another terminal
+	// or by the lifetime watcher; that is not an error.
+	if running, err := instanceRunning(provider, name); err == nil && !running {
+		fmt.Fprintf(stdout, "Tunnel closed: %s is no longer running.\n", name)
+		return nil
+	}
+
+	if isTerminal(stdin) {
+		if confirm(stdin, stdout, false, fmt.Sprintf("Stop %s now?", name)) == nil {
+			return stopInstance(provider, name, stdout, stderr)
+		}
+		fmt.Fprintf(stdout, "%s is still running. Reconnect with: hi compute tunnel %s %s\n", name, name, args[1])
+		return nil
+	}
+	var exitErr *exec.ExitError
+	if errors.As(tunnelErr, &exitErr) && len(interrupts) > 0 {
+		return nil
+	}
+	return withSSHHint(target, tunnelErr)
+}
+
+func instanceRunning(provider computeProvider, name string) (bool, error) {
+	instances, err := provider.list()
+	if err != nil {
+		return false, err
+	}
+	for _, instance := range instances {
+		if instance.name == name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func parsePortPair(value string) (int, int, error) {
+	remoteText, localText, hasLocal := strings.Cut(value, ":")
+	remote, err := parsePort(remoteText)
+	if err != nil {
+		return 0, 0, err
+	}
+	local := remote
+	if hasLocal {
+		if local, err = parsePort(localText); err != nil {
+			return 0, 0, err
+		}
+	}
+	return remote, local, nil
+}
+
+func parsePort(value string) (int, error) {
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, usageError{fmt.Sprintf("invalid port %q", value)}
+	}
+	return port, nil
+}
+
+func computeProxyCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	if len(args) != 1 {
+		return usageError{"usage: hi compute proxy <name>"}
+	}
+	provider, name, err := findInstance(args[0])
+	if err != nil {
+		return err
+	}
+	target, err := provider.ssh(name)
+	if err != nil {
+		return err
+	}
+	for i := 0; i+1 < len(target.options); i++ {
+		if value, ok := strings.CutPrefix(target.options[i+1], "ProxyCommand="); ok {
+			return runInteractive(stdin, stdout, stderr, "sh", "-c", value)
+		}
+	}
+	return fmt.Errorf("%s instances are reached directly; no proxy is needed", provider.name())
+}
+
+// tunnelCheckEvery is shortened in tests.
+var tunnelCheckEvery = 30 * time.Second
+
+// runTunnel runs ssh and ends it when the instance stops. Some gateways,
+// such as Hugging Face's, keep answering keep-alives after the job is gone,
+// so ssh alone would never notice.
+func runTunnel(provider computeProvider, name string, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	ssh, err := exec.LookPath("ssh")
+	if err != nil {
+		return errors.New("ssh is not installed; install openssh-client")
+	}
+	command := exec.Command(ssh, args...)
+	command.Stdin = stdin
+	command.Stdout = stdout
+	command.Stderr = stderr
+	if err := command.Start(); err != nil {
+		return err
+	}
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	ticker := time.NewTicker(tunnelCheckEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case err := <-done:
+			return err
+		case <-ticker.C:
+			if running, err := instanceRunning(provider, name); err == nil && !running {
+				_ = command.Process.Signal(syscall.SIGTERM)
+				<-done
+				return nil
+			}
+		}
+	}
+}
+
+func runSSH(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	ssh, err := exec.LookPath("ssh")
+	if err != nil {
+		return errors.New("ssh is not installed; install openssh-client")
+	}
+	return runInteractive(stdin, stdout, stderr, ssh, args...)
+}
+
+// ---------------------------------------------------------------------------
+// stop
+
+func computeStopCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags := newComputeFlags("stop", stderr)
+	all := flags.Bool("all", false, "stop every instance")
+	yes := flags.Bool("yes", false, "skip confirmation")
+	positional, err := parseInterspersedFlags(flags, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) > 1 || (*all && len(positional) == 1) {
+		return usageError{"usage: hi compute stop [<name> | --all] [--yes]"}
+	}
+	if !*all && len(positional) == 0 {
+		// Without a name, pick from what is running.
+		if !isTerminal(stdin) {
+			return stopNeedsName(stdout, stderr)
+		}
+		return pickAndStop(newMenuUI(stdin, stdout), stdout, stderr)
+	}
+
+	if !*all {
+		provider, name, err := findInstance(positional[0])
+		if err != nil {
+			return err
+		}
+		return stopInstance(provider, name, stdout, stderr)
+	}
+
+	listed, err := listInstances(stdout, stderr)
+	if err != nil {
+		return err
+	}
+	if len(listed) == 0 {
+		fmt.Fprintln(stdout, "No instances are running.")
+		return nil
+	}
+	fmt.Fprintln(stdout, "This stops:")
+	for _, item := range listed {
+		fmt.Fprintf(stdout, "  %s/%s (%s)\n", item.provider, item.instance.name, item.instance.hardware)
+	}
+	if err := confirm(stdin, stdout, *yes, "Stop all of them?"); err != nil {
+		return err
+	}
+	var failed []string
+	for _, item := range listed {
+		provider, _ := providerByName(item.provider)
+		if err := stopInstance(provider, item.instance.name, stdout, stderr); err != nil {
+			fmt.Fprintf(stderr, "hi: %v\n", err)
+			failed = append(failed, item.instance.name)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("could not stop: %s", strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+// stopNeedsName explains a bare stop without a terminal, listing the names.
+func stopNeedsName(stdout, stderr io.Writer) error {
+	listed, err := listInstances(stdout, stderr)
+	if err != nil {
+		return err
+	}
+	if len(listed) == 0 {
+		fmt.Fprintln(stdout, "No instances are running.")
+		return nil
+	}
+	names := make([]string, len(listed))
+	for i, item := range listed {
+		names[i] = item.provider + "/" + item.instance.name
+	}
+	return usageError{"name what to stop, or use --all: " + strings.Join(names, ", ")}
+}
+
+// pickAndStop lists what is running and stops the chosen instance, or all of
+// them, after confirming.
+func pickAndStop(ui menuUI, stdout, stderr io.Writer) error {
+	var listed []listedInstance
+	var err error
+	ui.busy("Checking what is running…", func() { listed, err = listInstances(stdout, stderr) })
+	if err != nil {
+		return err
+	}
+	if len(listed) == 0 {
+		fmt.Fprintln(stdout, "No instances are running.")
+		return nil
+	}
+	labels := make([]string, 0, len(listed)+1)
+	for _, item := range listed {
+		labels = append(labels, fmt.Sprintf("%s/%s  %s  %s",
+			item.provider, item.instance.name, item.instance.hardware, limitText(item)))
+	}
+	if len(listed) > 1 {
+		labels = append(labels, fmt.Sprintf("Stop all %d of them", len(listed)))
+	}
+	choice, err := ui.choose("Which instance do you want to stop?", labels, false)
+	if err != nil {
+		return nil
+	}
+	chosen := listed
+	question := fmt.Sprintf("Stop all %d instances?", len(listed))
+	if choice < len(listed) {
+		chosen = listed[choice : choice+1]
+		question = fmt.Sprintf("Stop %s? It is released along with everything on its disk.", listed[choice].instance.name)
+	}
+	if yes, err := ui.confirm(question, "", false); err != nil || !yes {
+		fmt.Fprintln(stdout, "Nothing was stopped.")
+		return nil
+	}
+	var failed []string
+	for _, item := range chosen {
+		provider, err := providerByName(item.provider)
+		if err == nil {
+			err = stopInstance(provider, item.instance.name, stdout, stderr)
+		}
+		if err != nil {
+			ui.failure(err)
+			failed = append(failed, item.instance.name)
+		}
+	}
+	if len(failed) > 0 {
+		return fmt.Errorf("could not stop: %s", strings.Join(failed, ", "))
+	}
+	return nil
+}
+
+func stopInstance(provider computeProvider, name string, stdout, stderr io.Writer) error {
+	if err := provider.stop(name, stdout, stderr); err != nil {
+		return fmt.Errorf("stop %s/%s: %w", provider.name(), name, err)
+	}
+	records, err := loadComputeRecords()
+	if err != nil {
+		return err
+	}
+	if record, ok := records[name]; ok && record.WatcherPID > 0 && record.WatcherPID != os.Getpid() {
+		if process, err := os.FindProcess(record.WatcherPID); err == nil {
+			_ = process.Signal(syscall.SIGTERM)
+		}
+	}
+	return removeComputeRecord(name)
+}
+
+// ---------------------------------------------------------------------------
+// run
+
+func computeRunCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
+	flags := newComputeFlags("run", stderr)
+	on := flags.String("on", "", "provider")
+	gpu := flags.String("gpu", "", "hardware")
+	name := flags.String("name", "", "run name")
+	maxLifetime := &lifetimeFlag{value: defaultRunMax}
+	flags.Var(maxLifetime, "max", "maximum run time: hours (2), 30m, 2d, or none")
+	highMem := flags.Bool("high-mem", false, "high-RAM machine")
+	yes := flags.Bool("yes", false, "skip confirmation")
+	dryRun := flags.Bool("dry-run", false, "show without starting")
+	detach := flags.Bool("detach", false, "return after submission")
+	namespace := flags.String("namespace", "", "account or organization to bill")
+	var env repeatedFlag
+	var secrets repeatedFlag
+	var data repeatedFlag
+	flags.Var(&env, "env", "KEY=VALUE")
+	flags.Var(&secrets, "secret", "secret name")
+	flags.Var(&data, "data", "your team's data to download first: <org>/<name>[/<folder or pattern>]")
+	if err := parseComputeFlags(flags, args); err != nil {
+		return 0, err
+	}
+	if flags.NArg() == 0 {
+		return 0, usageError{"usage: hi compute run [options] <script.py> [-- args...]\n" +
+			"       hi compute run [options] <image> -- <command> [args...]"}
+	}
+
+	request := runRequest{
+		highMem:   *highMem,
+		max:       maxLifetime.value,
+		detach:    *detach,
+		namespace: *namespace,
+		secrets:   secrets,
+	}
+	target, rest := flags.Arg(0), flags.Args()[1:]
+	if len(rest) > 0 && rest[0] == "--" {
+		rest = rest[1:]
+	}
+	if strings.HasSuffix(target, ".py") {
+		if _, err := os.Stat(target); err != nil {
+			return 0, fmt.Errorf("script %s: %w", target, err)
+		}
+		request.script, request.args = target, rest
+	} else {
+		if len(rest) == 0 {
+			return 0, usageError{"give the command to run in the image after --, e.g. `hi compute run python:3.12 -- python -c 'print(1)'`"}
+		}
+		request.image, request.command = target, rest
+	}
+	for _, entry := range env {
+		if key, _, ok := strings.Cut(entry, "="); !ok || key == "" {
+			return 0, usageError{fmt.Sprintf("invalid --env %q; use KEY=VALUE", entry)}
+		}
+	}
+	request.env = env
+
+	provider, err := resolveProvider(*on, *gpu)
+	if err != nil {
+		return 0, err
+	}
+	if err := provider.validateRun(request); err != nil {
+		return 0, err
+	}
+	if request.hardware, err = resolveHardware(provider, *gpu); err != nil {
+		return 0, err
+	}
+	if err := validateLifetime(provider, request.max); err != nil {
+		return 0, err
+	}
+	if *name != "" {
+		if request.name, err = chooseInstanceName(*name, request.hardware.name); err != nil {
+			return 0, err
+		}
+	}
+
+	what := request.script
+	if what == "" {
+		what = request.image
+	}
+	fmt.Fprintf(stdout, "Run %s on %s %s (%s%s), %s.\n",
+		what, provider.name(), request.hardware.name, request.hardware.rate,
+		billedSuffix(provider, request.namespace), describeLifetime(request.max))
+	if len(data) > 0 {
+		if request.script == "" {
+			return 0, usageError{"--data works with script runs (hi compute run --data <org>/<name> script.py)"}
+		}
+		for _, value := range data {
+			ref, err := parseDataRunRef(value)
+			if err != nil {
+				return 0, err
+			}
+			fmt.Fprintf(stdout, "First downloads %s into %s on the instance, through the hi server.\n",
+				value, defaultDataFolder(dataItem{ID: ref.id}))
+		}
+	}
+	if *dryRun {
+		fmt.Fprintf(stdout, "Would run: %s\n", strings.Join(provider.runCommand(request), " "))
+		return 0, nil
+	}
+	if err := requireStatus(provider); err != nil {
+		return 0, err
+	}
+	if request.max == noLimit {
+		name := request.name
+		if name == "" {
+			name = "this run"
+		}
+		if err := confirmNoLimit(provider, name, stdin, stdout, *yes); err != nil {
+			return 0, err
+		}
+	} else if request.hardware.paid {
+		if err := confirm(stdin, stdout, *yes, "Start it?"); err != nil {
+			return 0, err
+		}
+	}
+	if len(data) > 0 {
+		// The links last about an hour, so they are asked for only now.
+		cleanup, err := prepareDataRun(&request, data, provider.name(), stderr)
+		if err != nil {
+			return 0, err
+		}
+		defer cleanup()
+	}
+	return provider.runJob(request, stdin, stdout, stderr)
+}
+
+// billedSuffix names the paying account for providers that bill one.
+func billedSuffix(provider computeProvider, namespace string) string {
+	biller, ok := provider.(interface{ billedTo(string) string })
+	if !ok {
+		return ""
+	}
+	if account := biller.billedTo(namespace); account != "" {
+		return ", billed to " + account
+	}
+	return ""
+}
+
+func computeBillingCommand(args []string, stdout, stderr io.Writer) error {
+	flags := newComputeFlags("billing", stderr)
+	clear := flags.Bool("clear", false, "choose the account automatically again")
+	positional, err := parseInterspersedFlags(flags, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) > 1 || (*clear && len(positional) == 1) {
+		return usageError{"usage: hi compute billing [ACCOUNT | --clear]"}
+	}
+	choice := ""
+	if len(positional) == 1 {
+		choice = positional[0]
+	}
+	for _, provider := range computeProviders {
+		if status := provider.check(); !status.installed || !status.signedIn {
+			continue
+		}
+		if hf, ok := provider.(*hfProvider); ok {
+			fmt.Fprintln(stdout, "Hugging Face:")
+			if err := hf.billing(choice, *clear, stdout); err != nil {
+				return err
+			}
+			if choice != "" || *clear {
+				return nil
+			}
+			fmt.Fprintln(stdout)
+			continue
+		}
+		if choice == "" && !*clear {
+			if account, err := provider.account(); err == nil && account != "" {
+				fmt.Fprintf(stdout, "%s\n\n", account)
+			}
+		}
+	}
+	if choice != "" || *clear {
+		return errors.New("choosing an account applies to Hugging Face; sign in with `hi login hf`")
+	}
+	return nil
+}
+
+func computeWaitCommand(args []string, stdout, stderr io.Writer) (int, error) {
+	if len(args) == 0 {
+		return 0, usageError{"usage: hi compute wait <name>..."}
+	}
+	worst := 0
+	for _, argument := range args {
+		provider, name, err := findInstance(argument)
+		if err != nil {
+			return 0, err
+		}
+		code, err := provider.wait(name, stdout, stderr)
+		if err != nil {
+			return 0, err
+		}
+		if code != 0 {
+			worst = code
+		}
+	}
+	return worst, nil
+}
+
+type repeatedFlag []string
+
+func (r *repeatedFlag) String() string     { return strings.Join(*r, ",") }
+func (r *repeatedFlag) Set(v string) error { *r = append(*r, v); return nil }
+
+// ---------------------------------------------------------------------------
+// lifetime watcher
+
+func spawnComputeWatcher(name string) (int, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return 0, err
+	}
+	directory, err := computeStateDirectory()
+	if err != nil {
+		return 0, err
+	}
+	logFile, err := os.OpenFile(filepath.Join(directory, name+".watch.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return 0, err
+	}
+	defer logFile.Close()
+
+	command := exec.Command(executable, "compute", "__watch", name)
+	command.Stdout = logFile
+	command.Stderr = logFile
+	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := command.Start(); err != nil {
+		return 0, err
+	}
+	pid := command.Process.Pid
+	return pid, command.Process.Release()
+}
+
+// watchComputeInstance stops an instance at its deadline. It compares wall
+// clock time on every tick so a suspended laptop still stops it on resume.
+func watchComputeInstance(name string, stdout, stderr io.Writer) error {
+	for {
+		records, err := loadComputeRecords()
+		if err != nil {
+			return err
+		}
+		record, ok := records[name]
+		if !ok || record.Deadline.IsZero() {
+			return nil
+		}
+		if !computeNow().Before(record.Deadline) {
+			provider, err := providerByName(record.Provider)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "%s: %s reached its maximum lifetime; stopping it\n",
+				computeNow().Format(time.RFC3339), name)
+			return stopInstance(provider, name, stdout, stderr)
+		}
+		time.Sleep(watchInterval)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// local state
+
+func computeStateDirectory() (string, error) {
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		base = filepath.Join(home, ".local", "state")
+	}
+	directory := filepath.Join(base, "hi", "compute")
+	return directory, os.MkdirAll(directory, 0o700)
+}
+
+func computeStatePath() (string, error) {
+	directory, err := computeStateDirectory()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(directory, "instances.json"), nil
+}
+
+func loadComputeRecords() (map[string]computeRecord, error) {
+	path, err := computeStatePath()
+	if err != nil {
+		return nil, err
+	}
+	records := map[string]computeRecord{}
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return records, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(data, &records); err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return records, nil
+}
+
+func writeComputeRecords(records map[string]computeRecord) error {
+	path, err := computeStatePath()
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(records, "", "  ")
+	if err != nil {
+		return err
+	}
+	temporary := path + ".tmp"
+	if err := os.WriteFile(temporary, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(temporary, path)
+}
+
+func saveComputeRecord(record computeRecord) error {
+	records, err := loadComputeRecords()
+	if err != nil {
+		return err
+	}
+	records[record.Name] = record
+	return writeComputeRecords(records)
+}
+
+func removeComputeRecord(name string) error {
+	records, err := loadComputeRecords()
+	if err != nil {
+		return err
+	}
+	if _, ok := records[name]; !ok {
+		return nil
+	}
+	delete(records, name)
+	return writeComputeRecords(records)
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+
+func newComputeFlags(name string, stderr io.Writer) *flag.FlagSet {
+	flags := flag.NewFlagSet("hi compute "+name, flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	return flags
+}
+
+// parseInterspersedFlags accepts flags before and after positional
+// arguments, as in `hi compute logs qwen -n 100`.
+func parseInterspersedFlags(flags *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for {
+		if err := parseComputeFlags(flags, args); err != nil {
+			return nil, err
+		}
+		args = flags.Args()
+		if len(args) == 0 {
+			return positional, nil
+		}
+		if args[0] == "--" {
+			return append(positional, args[1:]...), nil
+		}
+		positional = append(positional, args[0])
+		args = args[1:]
+	}
+}
+
+// helpCommand is where a command that shares compute's flag parsing has
+// its help: newComputeFlags names them all "hi compute <command>".
+func helpCommand(name string) string {
+	words := strings.Fields(strings.TrimPrefix(name, "hi compute "))
+	switch {
+	case len(words) >= 2 && words[0] == "net" && words[1] == "expose":
+		return "hi net expose help"
+	case len(words) >= 1 && (words[0] == "data" || words[0] == "server"):
+		return "hi " + words[0] + " help"
+	case len(words) >= 1 && words[0] == "connect":
+		return "hi connect --help"
+	}
+	return "hi compute help"
+}
+
+func parseComputeFlags(flags *flag.FlagSet, args []string) error {
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return helpRequested{usageError{"see `" + helpCommand(flags.Name()) + "`"}}
+		}
+		return usageError{err.Error()}
+	}
+	return nil
+}
+
+func isTerminal(r io.Reader) bool {
+	file, ok := r.(*os.File)
+	return ok && term.IsTerminal(int(file.Fd()))
+}
+
+// confirm asks a yes/no question. Without a terminal it never prompts and
+// requires --yes instead.
+func confirm(stdin io.Reader, stdout io.Writer, yes bool, question string) error {
+	if yes {
+		return nil
+	}
+	if !isTerminal(stdin) {
+		return errors.New("confirmation needed; rerun with --yes")
+	}
+	fmt.Fprintf(stdout, "%s [y/N] ", question)
+	answer, err := readLine(stdin)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	if answer = strings.ToLower(strings.TrimSpace(answer)); answer == "y" || answer == "yes" {
+		return nil
+	}
+	return errors.New("cancelled")
+}
+
+func formatDuration(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%ds", int(d.Round(time.Second)/time.Second))
+	}
+	d = d.Round(time.Minute)
+	hours := int(d / time.Hour)
+	minutes := int((d % time.Hour) / time.Minute)
+	switch {
+	case hours > 0 && minutes > 0:
+		return fmt.Sprintf("%dh%02dm", hours, minutes)
+	case hours > 0:
+		return fmt.Sprintf("%dh", hours)
+	default:
+		return fmt.Sprintf("%dm", minutes)
+	}
+}

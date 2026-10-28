@@ -1,0 +1,24 @@
+{
+  "name": "ml",
+  "summary": "Model training (PyTorch on CPU, CUDA, or ROCm)",
+  "extends": "python",
+  "schema": 1,
+  "requires_hi": ">=0.18.0",
+  "remove": [
+    "tests/test_greet.py"
+  ],
+  "commands": {
+    "setup": [
+      [
+        "make",
+        "sync"
+      ]
+    ],
+    "check": [
+      [
+        "make",
+        "check"
+      ]
+    ]
+  }
+}

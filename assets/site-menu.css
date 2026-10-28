@@ -1,0 +1,15 @@
+/* The site menu beside the logo (_includes/site-menu.html), on the home
+   page, the feature pages, and the guide. Colours are each page's tokens. */
+.hm-group { display: inline-flex; align-items: center; gap: 4px; position: relative; }
+.hm { position: static; }
+.hm-btn { width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border-radius: 8px; border: 1px solid var(--line-strong, rgba(255,255,255,.13)); background: rgba(10, 12, 17, .55); color: var(--text, #eef0f5); cursor: pointer; }
+.hm-btn:hover, .hm-btn[aria-expanded="true"] { border-color: var(--accent, #7c83ff); }
+.hm-btn span { width: 8px; height: 8px; margin-top: -4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform .15s ease; }
+.hm-btn[aria-expanded="true"] span { transform: rotate(-135deg); margin-top: 4px; }
+.hm-panel { position: absolute; left: 0; top: calc(100% + 10px); z-index: 50; width: min(320px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow-y: auto; padding: 8px; border-radius: 14px; border: 1px solid var(--line-strong, rgba(255,255,255,.13)); background: rgba(16, 19, 26, .98); box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .85); text-align: left; }
+.hm-panel[hidden] { display: none; }
+.hm-h { margin: 6px 10px 4px; font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim, #687084); }
+.hm-panel a { display: block; padding: 8px 10px; border-radius: 9px; text-decoration: none; color: var(--text, #eef0f5); text-shadow: none; }
+.hm-panel a:hover, .hm-panel a[aria-current="page"] { background: var(--accent-soft, rgba(124,131,255,.12)); text-decoration: none; }
+.hm-panel b { display: block; font: 600 14px var(--mono); }
+.hm-panel span { display: block; font: 13px/1.4 var(--sans); color: var(--muted, #9aa1b2); }

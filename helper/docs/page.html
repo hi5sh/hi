@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · {{.App}}</title>
+<style>{{.Style}}</style>
+{{if .Helper}}<script src="/__hi/helper.js" defer></script>{{end}}
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/docs/">{{.App}}<span>docs</span></a>
+  {{- if .Area}}
+  <nav class="switch" aria-label="Docs">
+    <a href="/docs/user/"{{if eq .Area "user"}} aria-current="page"{{end}}>User docs</a>
+    <a href="/docs/tech/"{{if eq .Area "tech"}} aria-current="page"{{end}}>Tech docs</a>
+  </nav>
+  {{- end}}
+  <a class="back" href="/">Open the app</a>
+</header>
+{{- if not .Area}}
+<main class="home">
+  <h1>{{.App}}</h1>
+  {{- if .Purpose}}
+  <p class="purpose">{{.Purpose}}</p>
+  {{- end}}
+  <div class="choices">
+    <a class="choice" href="/docs/user/">
+      <span class="kicker">For the people who use the app</span>
+      <strong>User docs</strong>
+      <span>Why the app exists, who it's for, what its parts do, and how to get things done.</span>
+      <span class="count">{{if .Users}}{{.Users}} page{{if ne .Users 1}}s{{end}}{{else}}Not written yet{{end}}</span>
+    </a>
+    <a class="choice" href="/docs/tech/">
+      <span class="kicker">For developers and agents</span>
+      <strong>Tech docs</strong>
+      <span>How it's built and why: its structure, the decisions behind it, the specs, and what changed.</span>
+      <span class="count">{{.Techs}} page{{if ne .Techs 1}}s{{end}} and the changelog</span>
+    </a>
+  </div>
+  {{- if .Version}}
+  <p class="version">{{.Version}}</p>
+  {{- end}}
+</main>
+{{- else}}
+<div class="layout">
+  {{- if .Menu}}
+  <details class="menu" open>
+    <summary>Pages</summary>
+    <nav aria-label="Pages">
+      {{- range .Menu}}
+      {{- if .Name}}<p class="menu-group">{{.Name}}</p>{{end}}
+      <ul>
+        {{- range .Pages}}
+        <li><a href="{{.URL}}"{{if eq .Path $.Current}} aria-current="page"{{end}}>{{.Title}}</a></li>
+        {{- end}}
+      </ul>
+      {{- end}}
+    </nav>
+  </details>
+  {{- end}}
+  <main class="prose">
+    {{- if .Empty}}
+    <h1>{{.Title}}</h1>
+    <p>Nothing here yet. The team writes the user docs in <code>docs/user/</code> in the project: why the app exists, who it's for, what its parts do, and how to get things done.</p>
+    <p>To ask for them, press the button in the corner of the page.</p>
+    {{- else}}
+    {{.Body}}
+    {{- end}}
+    {{- if .Source}}
+    <p class="source">From <a href="/docs/raw/{{.Source}}">{{.Source}}</a>{{if .Version}} · {{.Version}}{{end}}</p>
+    {{- end}}
+  </main>
+</div>
+{{- end}}
+{{- if .Charts}}
+<script type="module">
+import { render } from {{.Charts}};
+// Each mermaid block becomes its chart, drawn to the column's width; the
+// colors come from the page's own, so dark mode needs no second drawing.
+for (const block of document.querySelectorAll("pre.mermaid")) {
+  const chart = document.createElement("figure");
+  chart.className = "chart";
+  try {
+    chart.innerHTML = render(block.textContent, { maxWidth: block.clientWidth }).svg;
+  } catch (err) {
+    chart.className = "chart broken";
+    chart.append(block.cloneNode(true));
+    const why = document.createElement("figcaption");
+    why.textContent = "This chart doesn't draw: " + (err.message || err);
+    chart.append(why);
+  }
+  block.replaceWith(chart);
+}
+</script>
+{{- end}}
+</body>
+</html>

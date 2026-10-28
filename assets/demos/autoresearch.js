@@ -1,0 +1,81 @@
+// The demo at the top of hi5.sh/autoresearch/, played by assets/story.js.
+// Every line a command prints is what hi agent best-of printed in a real
+// run; only the folders (/home/you) are made up, and some of a run's lines
+// are left out. docs/feature-pages.md says how to edit it.
+window.HI5_STORY = {
+  size: { w: 640, h: 510 },
+  narrow: { w: 440, h: 720 },
+  pace: { short: 1 },
+  people: {},
+  scenes: [
+    {
+      id: "start", title: "Several attempts at once", caption: "Two agents, one task.",
+      short: 12000, screen: "terminal", window: "you@laptop: ~/packer",
+      lines: [
+        { cmd: "hi agent best-of 2 --agents claude:sonnet,codex --max 10m --yes \"make pack() output shorter for English text; keep make check passing; standard library only\"", at: 300 },
+        { out: "Best-of b-14: 2 boxes on the same task, from 499d1fc5dcc4.", at: 1600 },
+        { out: "  agents  claude, codex", at: 1800 },
+        { out: "  check   make check, run by hi in each box when its agent ends", pre: true, at: 1900 },
+        { out: "  limit   10m for each agent", at: 2000 },
+        { out: "  cost    about 2 times the tokens of one run", pre: true, at: 2100 },
+        { out: "Waiting for 2 boxes. hi box attach <box> follows one; Ctrl+C stops waiting, not the boxes.", at: 3200 },
+        { ok: "  packer-b14-1 (claude) finished after 13s; check passed in 0s", at: 5600 },
+        { ok: "  packer-b14-2 (codex) finished after 37s; check passed in 0s", at: 8000 },
+      ],
+    },
+    {
+      id: "table", title: "hi checks, you keep one", caption: "Checked by hi, not by the agent.",
+      short: 13000, screen: "terminal", window: "you@laptop: ~/packer",
+      lines: [
+        { out: "Best-of b-14 · \"make pack() output shorter for English text; keep…\" · 2 boxes · 38s", at: 300 },
+        { out: "Check: make check", at: 400 },
+        { out: " ", at: 400 },
+        { out: "  #  BOX           AGENT   CHECK  DIFF       FLAGS  TIME  SPEND    NOTE", pre: true, at: 900 },
+        { out: "  1  packer-b14-1  claude  ✓ 0s   +18 −2 1f  –      13s   $0.05", pre: true, at: 1300 },
+        { out: "  2  packer-b14-2  codex   ✓ 0s   +23 −3 2f  –      37s   75k tok", pre: true, at: 1500 },
+        { out: " ", at: 2400 },
+        { out: "Ranked by the check, then fewer flagged files and a smaller diff: read the diff before you keep one.", at: 2400 },
+        { cmd: "hi agent best-of keep b-14 1 --yes", at: 5000 },
+        { out: "Keep packer-b14-1 on best-of/b-14/1, and remove these boxes with their branches and work:", at: 6000 },
+        { out: "  packer-b14-2 (best-of/b-14/2)", at: 6100 },
+        { out: "Committed the work packer-b14-1 left uncommitted as 0e77b316f2de.", at: 6600 },
+        { ok: "Kept packer-b14-1. Its work is on best-of/b-14/1:", at: 7200 },
+        { out: "  git merge best-of/b-14/1   merge it, then hi box rm packer-b14-1", pre: true, at: 7300 },
+      ],
+    },
+    {
+      id: "rounds", title: "Rounds that keep only gains", caption: "A score, and text the agents never see.",
+      short: 13000, screen: "terminal", window: "you@laptop: ~/packer",
+      lines: [
+        { cmd: "hi agent best-of 2 --agents claude:sonnet,codex --rounds 3 --score 'make score' --lower --edit pack.py --validate 'make validate' --validate-data ../packer-validation --max 10m --yes \"make pack() output shorter for English text; standard library only\"", at: 300 },
+        { out: "Best-of b-16: 2 boxes a round, up to 3 rounds, from fae5403dcd09.", at: 1800 },
+        { out: "  score   make score (lower is better), run by hi after each agent ends", pre: true, at: 2000 },
+        { out: "  edit    only pack.py", at: 2100 },
+        { out: "  gate    make validate, run by hi after each round in a container without network (/home/you/packer-validation at /box/data)", pre: true, at: 2200 },
+        { out: "  keeps   a result only if it beats the best so far and its validation is no worse than the highest so far; hi commits it to best-of/b-16/best", pre: true, at: 2300 },
+        { out: "Measuring the baseline on fae5403dcd09.", at: 3800 },
+        { out: "Baseline: 163, in 0s.", at: 4800 },
+        { out: "Validating the baseline: make validate, in a container without network.", at: 5400 },
+        { out: "Baseline validation: 249, in 0s.", at: 6200 },
+      ],
+    },
+    {
+      id: "gains", title: "Gains that hold", caption: "Only hi commits, one gain at a time.",
+      short: 13000, screen: "terminal", window: "you@laptop: ~/packer",
+      lines: [
+        { cmd: "hi agent best-of show b-16", at: 300 },
+        { out: "Best-of b-16 · \"make pack() output shorter for English …\" · 2 boxes a round · round 3 of 3 · 7m · $0.16 at API prices", at: 1300 },
+        { out: "Score: make score (lower is better) · validated by: make validate", at: 1400 },
+        { ok: "Best: 44 (validation 151) from round 3, baseline 163 (validation 249) · on best-of/b-16/best", at: 1500 },
+        { out: " ", at: 1500 },
+        { out: "  ROUND  RESULT  SCORE  VALID.  BOX              IDEA", pre: true, at: 2200 },
+        { out: "  1      kept    58     176     packer-b16-r1-1  Replaced the plain UTF-8 encoding with raw deflate (stdlib …", pre: true, at: 2800 },
+        { out: "  2      kept    51     161     packer-b16-r2-2  Expanded the preset dictionary with common English verbs, i…", pre: true, at: 3600 },
+        { out: "  3      kept    44     151     packer-b16-r3-2  Added reversible word tokens before DEFLATE and expanded th…", pre: true, at: 4400 },
+        { out: " ", at: 5400 },
+        { out: "Done: finished 3 rounds.", at: 5400 },
+        { out: "The gains are on best-of/b-16/best: git log -p fae5403dcd09..best-of/b-16/best shows them; git merge best-of/b-16/best takes them.", at: 6000 },
+      ],
+    },
+  ],
+};

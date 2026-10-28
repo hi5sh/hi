@@ -1,0 +1,23 @@
+{%- comment -%}
+A workflow, step by step, for the guide: what each step does to two
+places side by side, drawn from _data/steps/<name>.json. Use it as
+  {% include steps.html name="team-data" %}
+docs/guide-diagrams.md says how to write one.
+{%- endcomment -%}
+{%- assign d = site.data.steps[include.name] -%}
+<figure class="hs">
+<figcaption class="hd-sr">{{ d.caption | escape }}</figcaption>
+<ol class="hs-list" aria-hidden="true">
+{%- for step in d.steps -%}
+<li class="hs-step"><div class="hs-head"><span class="hs-n">{{ forloop.index }}</span><span class="hs-title">{{ step.title | escape }}</span></div>
+{%- if step.command %}<pre class="hs-cmd"><code>{{ step.command | escape }}</code></pre>{% endif -%}
+<div class="hs-panes">
+{%- include steps-pane.html pane=step.left -%}
+<span class="hs-via{% if step.back %} hs-back{% endif %}{% if step.arrow == false %} hs-none{% endif %}">{% if step.via %}<em>{{ step.via | escape }}</em>{% endif %}</span>
+{%- include steps-pane.html pane=step.right -%}
+</div>
+<p class="hs-text">{{ step.text | markdownify | remove: "<p>" | remove: "</p>" | strip }}</p></li>
+{%- endfor -%}
+</ol>
+{%- if d.legend %}<p class="hs-legend" aria-hidden="true">{% for item in d.legend %}<span class="hd-chip hd-tone-{{ item.tone | default: 'dim' }}"><i></i>{{ item.tag | escape }}</span> {% endfor %}</p>{% endif -%}
+</figure>

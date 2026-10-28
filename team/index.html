@@ -1,0 +1,143 @@
+---
+layout: feature
+permalink: /team/
+title: hi team
+tool: hi team
+demo: team
+guide: /guide/team/
+headline: An app, its builders, and the people it's for.
+lede: "People say what they need in Slack; the lead, an AI, files it for the owners. The owners build it with Claude Code and Codex in the team's dev box, and production changes only when one of them clicks Release."
+description: hi team runs one app for the people in one Slack channel. Its owners build it with coding agents in a dev box they reach over SSH or in a browser; a Hermes lead helps the people, files their ideas and bug reports as tasks, and watches the app.
+demo_caption: The Slack scene is an example. The terminal scenes keep hi team's own output; the team, its people, and its work are made up.
+fallback: |
+  $ hi team status onboarding
+  Team onboarding: up. Channel C0EXAMPLE01. Onboarding
+
+    lead       Hermes, google/gemini-3.8-flash
+    coder      Claude Code, opus
+    reviewer   Codex
+
+  Production: v2, released Oct 20 08:01 UTC, approved by Tom on the dev page.
+  Dev: v2 + 2 changes.
+---
+  <section id="uses" class="wrap" aria-labelledby="uses-h">
+    <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
+    <h2 id="uses-h">An app for the people who know the problem.</h2>
+    <p class="sub">One team lives in one Slack channel and runs one project for the people in it. They don't need to read code: they ask, try the preview, and say whether it works. The owners build it.</p>
+    <div class="uses">
+      <div class="use">
+        <h3>A tool nobody would build for you</h3>
+        <p>HR's onboarding checklist, a sales team's price calculator, the report someone makes by hand every Monday. Ask for it in the channel.</p>
+        <div class="snip"><span class="c">@onboarding</span> Late steps get missed.
+Can they show in red?</div>
+      </div>
+      <div class="use">
+        <h3>Start from someone else's project</h3>
+        <p>Adopt a project from GitHub. The team works on its own copy and never pushes to the original; an owner's agent surveys it first.</p>
+        <div class="snip"><span class="c">$ hi team adopt notes github.com/example/notes</span></div>
+        <a class="go" href="/guide/team/adopt/">Adopt a project →</a>
+      </div>
+      <div class="use">
+        <h3>Keep improving it, from inside the app</h3>
+        <p>Every page of the app has a helper: help from its docs, and feedback the lead files as a task, pointing at the part of the page you mean.</p>
+        <div class="snip"><span class="c">$ hi team helper onboarding production on</span></div>
+        <a class="go" href="/guide/team/helper/">The helper →</a>
+      </div>
+    </div>
+  </section>
+
+  <section id="try" class="wrap" aria-labelledby="try-h">
+    <div class="eyebrow"><span class="lvl">2</span>Try it</div>
+    <h2 id="try-h">A team of your own, one question at a time.</h2>
+    <p class="sub">On the Ubuntu machine that will run the team, with a Slack workspace where you may create an app. The keys stay on that machine.</p>
+    <ol class="try">
+      <li><div><p><b>Install hi</b>, if you haven't.</p>
+        <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
+      <li><div><p><b>Install what a team needs.</b> Then give Hermes an OpenRouter key with <code>hermes setup</code>, and sign in to Claude Code and Codex.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi install hermes claude codex podman restic</code><button class="copy" type="button" data-copy="hi install hermes claude codex podman restic">copy</button></div></div></li>
+      <li><div><p><b>Set it up.</b> Seven questions, one at a time: purpose, the Slack app (from a manifest hi prints), channel, owners, the agents and their sign-ins, and code; then the dev box's NetBird key.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi team new onboarding</code><button class="copy" type="button" data-copy="hi team new onboarding">copy</button></div></div></li>
+      <li><div><p><b>Start it</b>, now and at every boot. It answers in its channel in a minute or so.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi team up onboarding</code><button class="copy" type="button" data-copy="hi team up onboarding">copy</button></div></div></li>
+      <li><div><p><b>Keep it running</b> while you're logged out. Once per machine.</p>
+        <div class="cmdline"><span class="ps">$</span><code>sudo loginctl enable-linger $USER</code><button class="copy" type="button" data-copy="sudo loginctl enable-linger $USER">copy</button></div></div></li>
+    </ol>
+  </section>
+
+  <section id="how" class="wrap" aria-labelledby="how-h">
+    <div class="eyebrow"><span class="lvl">3</span>How it works</div>
+    <h2 id="how-h">A lead that helps, owners who build, and hi in between.</h2>
+    <p class="sub">The lead is the only agent that runs all the time, in the channel. The owners build in the dev box, whose only way out is hi's service on the machine, which never moves production.</p>
+    {% include diagram.html name="team" %}
+    <div class="prose">
+      <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what they ask for, in the channel, a DM, or feedback from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
+      <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and VS Code beside it. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on the preview with production's data, and ship it into dev.</p>
+      <p><strong>Dev and production.</strong> People try dev on a preview link that opens on their phones. Production moves only when an owner clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and each one can be rolled back.</p>
+    </div>
+  </section>
+
+  <section id="details" class="wrap" aria-labelledby="details-h">
+    <div class="eyebrow"><span class="lvl">4</span>The details</div>
+    <h2 id="details-h">Keys, releases, the folder, and when things go wrong.</h2>
+    <p class="sub">What the person running the team's machine looks after.</p>
+    <div class="details">
+      <div class="detail">
+        <h3>Watch it from the machine</h3>
+        <div class="snip"><span class="c">$ hi team status onboarding</span>   <span class="d"># up, members</span>
+<span class="c">$ hi team logs onboarding -f</span>    <span class="d"># the lead's log</span>
+<span class="c">$ hi team channel onboarding</span>    <span class="d"># what was said</span>
+<span class="c">$ hi team say onboarding "…"</span>    <span class="d"># tell the lead</span></div>
+        <p><code>hi team say</code> posts in the channel and the lead answers in its thread; what it asks to change, the lead files as a task.</p>
+      </div>
+      <div class="detail">
+        <h3>Keys never reach the agents</h3>
+        <p>The boxes hold no keys or sign-ins: hi's proxy adds the model keys, and the lead's Slack tokens, on the way out. <code>hi team key onboarding openrouter</code> gives the team an OpenRouter key of its own, so its use is billed and limited apart.</p>
+        <p>The app's settings go in with <code>hi team env onboarding KEY=VALUE</code>, as environment variables in its boxes only: never in Slack, never in the code. The app calls models at <code>$OPENROUTER_BASE_URL</code> without holding a key.</p>
+      </div>
+      <div class="detail">
+        <h3>Releases you can undo</h3>
+        <div class="snip"><span class="c">$ hi team snapshots onboarding</span>
+<span class="c">$ hi team restore onboarding v3</span>     <span class="d"># as it was before v3</span>
+<span class="c">$ hi team rollback onboarding v2</span>    <span class="d"># production back on v2</span></div>
+        <p>A rollback puts production back with its data as v2 left it; what was entered since is kept in a snapshot. Snapshots are taken daily and before every release, with restic, and <code>hi team backups onboarding --offsite</code> copies them to an S3 bucket.</p>
+      </div>
+      <div class="detail">
+        <h3>When something goes wrong</h3>
+        <p>The app's long work reports as jobs. A job that fails or stops moving, or production's app stopping or no longer answering, opens an incident: the lead restarts the app once, or asks the owners, who restart and close it on the dev page.</p>
+        <div class="snip"><span class="c">$ hi team jobs onboarding</span>
+<span class="c">$ hi team incidents onboarding</span></div>
+      </div>
+      <div class="detail">
+        <h3>Owners and their keys</h3>
+        <div class="snip"><span class="c">$ hi team owners onboarding add U07ANNA</span>
+<span class="c">$ hi team owners onboarding key U07ANNA ~/anna.pub</span></div>
+        <p>Owners are the team's developers: they get into the dev box over SSH with their own key, and its dev page with their link from <code>/hi-onboarding dev</code>. An admin of the machine adds and removes them.</p>
+      </div>
+      <div class="detail">
+        <h3>What the box can't do</h3>
+        <p>The dev box's agents work without asking, but its connection to hi offers only preview, ship, tasks, and the like: no release, rollback, restore, or production setting is there to refuse. No GitHub credential enters it: hi pushes from the machine.</p>
+      </div>
+    </div>
+    <details class="deep">
+      <summary>Under the hood: the team's folder</summary>
+      <div class="prose">
+        <p>Everything a team knows and has made is in one folder, <code>team-&lt;name&gt;</code>. The containers are rebuilt from it on every start, so a copy of the folder is a copy of the team: stop it, move the folder, and <code>hi team up ~/team-onboarding</code>.</p>
+        <p><code>team.json</code> holds the purpose, channel, owners, and members; <code>secrets.json</code> the Slack tokens, readable only by you. <code>lead/</code> is the lead's Hermes home, with <code>SOUL.md</code>, its identity: edit it to change how the lead works. <code>repo/</code> is the project's git repository, with its specs in <code>docs/specs/</code>, and <code>dev/</code> the dev box's home and clone.</p>
+        <p><code>tasks/</code> has a record of each piece of work shipped into dev, <code>tickets/</code> hi's own tasks, <code>incidents/</code> what went wrong and what the lead did, <code>channel/</code> the channel's log and the files people shared, <code>memory/</code> the lead's long-term memory, and <code>app/</code> production's data.</p>
+        <p><code>hi team up</code> installs a systemd user service, <code>hi-team-&lt;name&gt;</code>, which restarts the team if it stops.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="next" class="wrap" aria-labelledby="next-h">
+    <div class="eyebrow"><span class="lvl">5</span>Go further</div>
+    <h2 id="next-h">Where next.</h2>
+    <div class="next">
+      <a href="/guide/team/setup/"><b>Set up a team</b><span>The guide: the seven questions, starting and stopping, GitHub.</span></a>
+      <a href="/guide/team/dev/"><b>Build in the dev box</b><span>SSH and the dev page, herdr, preview and ship, the agents' skills.</span></a>
+      <a href="/guide/team/how-it-works/"><b>How the team works</b><span>From a request to a task to production, and the lead's memory.</span></a>
+      <a href="/guide/team/releases/"><b>Dev and production</b><span>Versions, releases, and going back.</span></a>
+      <a href="/guide/team/folder/"><b>The folder and backups</b><span>Snapshots, restore, rollback, and offsite copies.</span></a>
+      <a href="/agent/"><b>hi agent</b><span>Agents in boxes, deep reviews, and brainstorms on the machine.</span></a>
+    </div>
+  </section>
