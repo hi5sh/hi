@@ -2713,6 +2713,17 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.20 — Pro Devs and Vibe Devs
+
+- [x] A developer is a **Pro Dev** (the agents' Chat, the terminal, VS
+  Code, and SSH into the dev box) or a **Vibe Dev** (the agents' Chat
+  only), set on the dev page's People table or with `hi team access
+  <team> <ID> pro|vibe`. A Vibe Dev's page has no terminal or VS Code and
+  opens no terminal; the gate refuses them those routes and an SSH key,
+  and a Pro Dev moved to Vibe Dev loses their open terminal and their
+  key. The agents still run commands for a Vibe Dev: it's a simpler
+  view, not a wall.
+
 ### v2.6.19 — Room for real loads
 
 - [x] A team's dev box ran its app's tests on real data and had a

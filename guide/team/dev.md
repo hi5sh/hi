@@ -448,7 +448,8 @@ get its new link.
 | Who | Set by | What they do |
 |---|---|---|
 | **Owners** | An admin of the machine (`hi team owners`) | Everything on the dev page and in the dev box, and production: releases, rollbacks, its data and settings, keys, sites, addresses, and who is a developer |
-| **Developers** | An owner, on the dev page's Security tab, or `hi team access` | Build as owners do: the dev box, its agents, terminal, VS Code, files, SSH, previews, and shipping into dev. Production stays the owners' |
+| **Pro Devs** | An owner, on the dev page's People table, or `hi team access <team> <ID> pro` | Build as owners do: the dev box, its agents' Chat, the terminal, VS Code, files, SSH, Stage, and shipping into dev. Production stays the owners' |
+| **Vibe Devs** | An owner, the same way (`vibe`) | Build with the agents in Chat, as Pro Devs do, without the terminal, VS Code, or SSH. The agents still run commands in the dev box for them, so it's a simpler view, not a wall |
 | **Contributors** | An owner, on the dev page's People table, or `hi team access` | Report bugs as tasks: to the lead in Slack, or from the app's [helper](/guide/team/helper/) signed in with their own link. They never reach the dev page or the dev box |
 | **Viewers** | Whoever can open the app | Use it, with the helper's Ask and Feedback |
 
@@ -470,7 +471,8 @@ the lead files no tasks for them, doesn't answer their DMs, and
 
 ```bash
 hi team access orbit                            # who is which, and their SSH keys
-hi team access orbit U083YSQFD0B developer      # also on the dev page: Security, People
+hi team access orbit U083YSQFD0B pro            # a Pro Dev; also on the dev page: Security, People
+hi team access orbit U083YSQFD0B vibe           # a Vibe Dev: Chat only
 hi team access orbit U083YSQFD0B contributor    # no longer a developer: key and links end
 hi team access orbit U07CLEO001 contributor     # may report bugs as tasks
 hi team access orbit U07CLEO001 none            # no level: their links end

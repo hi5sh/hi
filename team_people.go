@@ -145,7 +145,7 @@ func (b *teamBroker) webLink(user string, dev bool) (string, error) {
 	// whose helper has help and feedback.
 	level := b.level(config, user)
 	switch {
-	case dev && level != teamLevelOwner && level != teamLevelDeveloper:
+	case dev && !teamBuilds(config, user):
 		return "", fmt.Errorf("the dev page is for the %s team's owners and developers; an owner makes someone a developer", teamBotName(b.team))
 	case level == teamLevelNone:
 		return fmt.Sprintf("Private links are for the %s team's contributors, developers, and owners; an owner adds contributors on the dev page. The app's own link works for everyone, with help and feedback in its helper.", teamBotName(b.team)), nil

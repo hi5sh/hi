@@ -248,6 +248,13 @@ asks for.
   channel to handle; nothing files it as a task.
 - **People outside Slack** (2026-10-28) are added by email, as
   contributors or viewers, once the address has sign-in.
+- **Pro Dev and Vibe Dev** (2026-10-28, v2.6.20). A developer is a Pro Dev
+  (Chat, terminal, VS Code, SSH) or a Vibe Dev (Chat only), as the user
+  asked. Running code in the dev box is still one power: a Vibe Dev's
+  agents run commands for them, so the line is a simpler view and no SSH,
+  not a wall. The gate refuses a Vibe Dev the terminal, VS Code, and an
+  SSH key (`teamDevShellRoutes`), and an open terminal closes when a Pro
+  Dev becomes a Vibe Dev.
 - **No level by default** (2026-10-28, v2.6.15). Being in the team's
   channel gave everyone Report and the lead's ear; now an owner ticks
   Contributor for each person, on a table of everyone.

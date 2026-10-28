@@ -864,7 +864,10 @@
   });
 
   // ---- People (the owners'), and everyone's own SSH key
-  function developer() { return !!state && state.level === "developer"; }
+  // A Pro Dev or a Vibe Dev: no owners' buttons. A Vibe Dev also has the
+  // agents' Chat only, without the terminal, VS Code, or SSH.
+  function developer() { return !!state && (state.level === "developer" || state.level === "vibe"); }
+  function vibe() { return !!state && state.level === "vibe"; }
   function renderSSHKey() {
     $("sshkey-now").textContent = state.ssh_key ? "Now: " + state.ssh_key + ". A new one replaces it." : "You have no key in the dev box yet.";
   }
@@ -886,9 +889,11 @@
   function setLevel(person, level, row) {
     var question = "";
     var data = $("people-warn").hidden ? "" : " Stage runs on a copy of production's data, which they can read through Stage.";
-    if (level === "developer") question = "Make " + person.name + " a developer? They work in the dev box as you do, except releases, production's data and settings, keys, sites, addresses, and who is who." + data;
+    var words = { owner: "an owner", developer: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" };
+    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, VS Code, and SSH, except releases, production's data and settings, keys, sites, addresses, and who is who." + data;
+    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal, VS Code, or SSH; the agents still run commands in the dev box for them." + data;
     else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
-    else if (person.level === "developer") question = "Make " + person.name + " a contributor? Their dev page link and SSH key end, and an open terminal or VS Code closes.";
+    else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal or VS Code closes." : " ends.");
     (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
       if (answer === null) { renderPeople(people); return; }
       row.classList.add("busy");
@@ -903,7 +908,7 @@
     var body = $("people");
     body.textContent = "";
     var find = $("people-search").value.trim().toLowerCase();
-    var levels = ["owner", "developer", "contributor", "none"];
+    var levels = ["owner", "developer", "vibe", "contributor", "none"];
     (view.people || []).forEach(function (person) {
       if (find && person.name.toLowerCase().indexOf(find) < 0 && person.id.toLowerCase().indexOf(find) < 0) return;
       var notes = [];
@@ -921,8 +926,8 @@
       });
       body.appendChild(row);
     });
-    if (!body.childNodes.length) body.appendChild(el("tr", {}, [el("td", { colspan: "5", class: "muted small", text: find ? "Nobody by that name." : "Nobody yet." })]));
-    if (view.channel_error) body.appendChild(el("tr", {}, [el("td", { colspan: "5", class: "muted small", text: view.channel_error })]));
+    if (!body.childNodes.length) body.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "muted small", text: find ? "Nobody by that name." : "Nobody yet." })]));
+    if (view.channel_error) body.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "muted small", text: view.channel_error })]));
     $("people-warn").hidden = !view.preview_data;
   }
   $("people-search").addEventListener("input", function () { if (people) renderPeople(people); });
@@ -970,6 +975,8 @@
       // A developer's page: the owners' buttons go (the server refuses
       // them anyway), and so does the Data tab.
       document.body.classList.toggle("developer", developer());
+      document.body.classList.toggle("vibe", vibe());
+      if (vibe() && chat.view !== "chat") setCodeView("chat");
       document.querySelectorAll(".owners-control").forEach(function (control) { control.disabled = developer(); });
       if (developer() && !$("tab-data").hidden) show("tasks");
       renderSSHKey();
@@ -1136,7 +1143,7 @@
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
         // The chat shows Claude Code's sessions; Codex's is in the terminal.
-        if (agent === "codex") setCodeView("terminal");
+        if (agent === "codex" && !vibe()) setCodeView("terminal");
       });
     }).catch(function (error) {
       $("adhoc-error").textContent = error.message;
@@ -2137,7 +2144,7 @@
   try { tab = localStorage.getItem("hi-dev-tab") || "tasks"; } catch (e) { /* private window */ }
   show(["tasks", "terminal", "files", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
   refresh().then(function () {
-    if ($("locked").hidden) connect();
+    if ($("locked").hidden && !vibe()) connect();
   });
   refreshTickets(false);
   setInterval(function () { if (!document.hidden) refresh(); }, 5000);

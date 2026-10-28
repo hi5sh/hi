@@ -42,12 +42,15 @@ type teamConfig struct {
 	// except what reaches production; Contributors report bugs as tasks.
 	// Owners set both; being in the channel gives nobody a level
 	// (team_access.go).
-	Developers   []string              `json:"developers,omitempty"`
-	Contributors []string              `json:"contributors,omitempty"`
-	Members      map[string]teamMember `json:"members"`
-	Remote       string                `json:"remote,omitempty"` // where repo/ was cloned from
-	Branch       string                `json:"branch"`           // the branch the lead merges into
-	Memory       string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
+	Developers []string `json:"developers,omitempty"`
+	// VibeDevelopers work in the dev page's Chat only: no terminal, VS
+	// Code, or SSH.
+	VibeDevelopers []string              `json:"vibe_developers,omitempty"`
+	Contributors   []string              `json:"contributors,omitempty"`
+	Members        map[string]teamMember `json:"members"`
+	Remote         string                `json:"remote,omitempty"` // where repo/ was cloned from
+	Branch         string                `json:"branch"`           // the branch the lead merges into
+	Memory         string                `json:"memory,omitempty"` // "off": Hermes' built-in memory only, no Hindsight
 	// MemoryModel is the OpenRouter model Hindsight keeps the lead's memory
 	// with; this machine's Hermes default unless set (team_memory.go).
 	MemoryModel string       `json:"memory_model,omitempty"`
@@ -215,7 +218,7 @@ func validateTeam(config teamConfig) error {
 	if len(config.Owners) == 0 {
 		return errors.New("a team needs at least one owner")
 	}
-	for _, id := range slices.Concat(config.Owners, config.Developers, config.Contributors) {
+	for _, id := range slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors) {
 		if !slackIDPattern.MatchString(id) {
 			return fmt.Errorf("people are Slack member IDs, such as U07ABC123, not %q", id)
 		}
@@ -549,11 +552,12 @@ usage:
       [finish <branch> [--discard]]  once it's shipped: its worktree, workspace, branch, and task
   hi team owners <name>            the team's owners, who build in the dev box, and their SSH keys
       [add|remove <member ID> | key <member ID> <public key>|--remove]
-  hi team access <name>            who reaches what: owners, developers (who build like owners,
-                                   but don't release), and contributors (the channel, who report bugs)
-      [<member ID> developer|contributor|none]  an owner's change, also on the dev page; none
-                                   stops someone's reports
-      [key <member ID> <public key>|--remove]  a developer's or owner's SSH key for the dev box
+  hi team access <name>            who reaches what: owners, Pro Devs and Vibe Devs (who build but
+                                   don't release), and contributors (who report bugs); nobody else
+      [<member ID> pro|vibe|contributor|none]  an owner's change, also on the dev page: a Pro
+                                   Dev has Chat, terminal, VS Code, and SSH, a Vibe Dev Chat; none
+                                   takes the level away
+      [key <member ID> <public key>|--remove]  a Pro Dev's or owner's SSH key for the dev box
   hi team task <name>              the team's tasks: GitHub Issues (gh) or GitLab issues (glab),
                                    where its repository is, or hi's own
       [list [--closed] | show <n> | add <title> [<body|->] | comment <n> <text|-> | close <n> [<comment>]]

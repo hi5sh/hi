@@ -863,6 +863,23 @@ func init() {
 	}
 }
 
+// teamDevShellRoutes are the developer's routes a Vibe Dev doesn't get:
+// the terminal, VS Code, and an SSH key for the dev box. A Vibe Dev works
+// in the agents' Chat.
+var teamDevShellRoutes = map[string]bool{}
+
+func init() {
+	for _, route := range []string{"GET api/term", "POST api/code/start", "POST api/sshkey"} {
+		method, path, _ := strings.Cut(route, " ")
+		teamDevShellRoutes[method+" "+teamDevPagePrefix+path] = true
+	}
+	code := strings.TrimSuffix(teamDevPagePrefix, "/") + "/code"
+	teamDevShellRoutes["GET "+code] = true
+	for _, method := range []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"} {
+		teamDevShellRoutes[method+" "+code+"/"] = true
+	}
+}
+
 // teamDevAccessCheck is how often an open terminal or VS Code asks
 // whether its person may still have it; tests shorten it.
 var teamDevAccessCheck = 15 * time.Second
@@ -1562,6 +1579,8 @@ func (b *teamBroker) devPageHandler() http.Handler {
 			return http.StatusUnauthorized, err
 		case level != teamLevelOwner && !teamDevDeveloperRoutes[pattern]:
 			return http.StatusForbidden, errors.New("only the team's owners do that; developers build, and owners release and look after production")
+		case level == teamLevelVibe && teamDevShellRoutes[pattern]:
+			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal and VS Code are for Pro Devs and owners")
 		}
 		return http.StatusOK, nil
 	}

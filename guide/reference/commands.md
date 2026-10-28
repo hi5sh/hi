@@ -327,7 +327,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team owners <name> [add\|remove <member ID>]` | The team's owners, who build in the dev box; removing one ends their SSH key and links |
 | `hi team owners <name> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
 | `hi team access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |
-| `hi team access <name> <member ID> developer\|contributor\|none` | An owner's change, also on the dev page's People table: a developer builds but doesn't release, a contributor reports bugs as tasks, none takes the level away |
+| `hi team access <name> <member ID> pro\|vibe\|contributor\|none` | An owner's change, also on the dev page's People table: a Pro Dev builds with Chat, terminal, VS Code, and SSH but doesn't release; a Vibe Dev builds in Chat only; a contributor reports bugs as tasks; none takes the level away |
 | `hi team access <name> key <member ID> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
 | `hi team task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]]` | The team's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
 | `hi dev preview\|ship\|status\|say\|task\|allow` | In a team's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/team/dev/) |

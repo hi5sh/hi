@@ -22,15 +22,33 @@ import (
 
 const (
 	teamLevelOwner       = "owner"
-	teamLevelDeveloper   = "developer"
+	teamLevelDeveloper   = "developer" // a Pro Dev
+	teamLevelVibe        = "vibe"      // a Vibe Dev
 	teamLevelContributor = "contributor"
 	teamLevelNone        = "none"
 )
 
-// teamBuilds says someone works in the development environment: an owner
-// or a developer.
+// teamBuilds says someone works in the development environment: an owner,
+// a Pro Dev, or a Vibe Dev.
 func teamBuilds(config teamConfig, user string) bool {
+	return containsString(config.Owners, user) || containsString(config.Developers, user) || containsString(config.VibeDevelopers, user)
+}
+
+// teamHasShell says someone gets the dev box's terminal, VS Code, and SSH:
+// an owner or a Pro Dev, not a Vibe Dev, who has the agents' Chat.
+func teamHasShell(config teamConfig, user string) bool {
 	return containsString(config.Owners, user) || containsString(config.Developers, user)
+}
+
+// teamParseLevel reads a level as people write it: pro or developer, vibe.
+func teamParseLevel(level string) string {
+	switch strings.ToLower(strings.ReplaceAll(level, " ", "")) {
+	case "pro", "prodev", teamLevelDeveloper:
+		return teamLevelDeveloper
+	case teamLevelVibe, "vibedev":
+		return teamLevelVibe
+	}
+	return strings.ToLower(level)
 }
 
 // teamLevel is someone's level: owner, developer, contributor, or none.
@@ -40,6 +58,8 @@ func teamLevel(config teamConfig, user string) string {
 		return teamLevelOwner
 	case containsString(config.Developers, user):
 		return teamLevelDeveloper
+	case containsString(config.VibeDevelopers, user):
+		return teamLevelVibe
 	case containsString(config.Contributors, user):
 		return teamLevelContributor
 	}
@@ -57,8 +77,9 @@ func teamSetLevel(config *teamConfig, user, level string) (string, error) {
 	if containsString(config.Owners, user) {
 		return "", fmt.Errorf("%s is an owner of team %s; an admin of the machine changes owners (hi team owners %s remove %s)", user, config.Name, config.Name, user)
 	}
-	if level != teamLevelDeveloper && level != teamLevelContributor && level != teamLevelNone {
-		return "", fmt.Errorf("the level is developer, contributor, or none, not %q", level)
+	level = teamParseLevel(level)
+	if level != teamLevelDeveloper && level != teamLevelVibe && level != teamLevelContributor && level != teamLevelNone {
+		return "", fmt.Errorf("the level is pro (a Pro Dev), vibe (a Vibe Dev), contributor, or none, not %q", level)
 	}
 	was := teamLevel(*config, user)
 	if was == level {
@@ -67,10 +88,12 @@ func teamSetLevel(config *teamConfig, user, level string) (string, error) {
 	without := func(list []string) []string {
 		return slices.DeleteFunc(slices.Clone(list), func(id string) bool { return id == user })
 	}
-	config.Developers, config.Contributors = without(config.Developers), without(config.Contributors)
+	config.Developers, config.VibeDevelopers, config.Contributors = without(config.Developers), without(config.VibeDevelopers), without(config.Contributors)
 	switch level {
 	case teamLevelDeveloper:
 		config.Developers = append(config.Developers, user)
+	case teamLevelVibe:
+		config.VibeDevelopers = append(config.VibeDevelopers, user)
 	case teamLevelContributor:
 		config.Contributors = append(config.Contributors, user)
 	}
@@ -97,7 +120,7 @@ func teamSetLevel(config *teamConfig, user, level string) (string, error) {
 
 // teamLevelRank orders the levels, none lowest.
 func teamLevelRank(level string) int {
-	return slices.Index([]string{teamLevelNone, teamLevelContributor, teamLevelDeveloper, teamLevelOwner}, level)
+	return slices.Index([]string{teamLevelNone, teamLevelContributor, teamLevelVibe, teamLevelDeveloper, teamLevelOwner}, level)
 }
 
 // teamLevelSentence says someone's level: "U07ANNA is a developer of team
@@ -118,7 +141,9 @@ func teamLevelWords(level string) string {
 	case teamLevelOwner:
 		return "an owner"
 	case teamLevelDeveloper:
-		return "a developer"
+		return "a Pro Dev"
+	case teamLevelVibe:
+		return "a Vibe Dev"
 	case teamLevelContributor:
 		return "a contributor"
 	}
@@ -132,8 +157,8 @@ func teamSetDevKey(config teamConfig, user, key string) error {
 		os.Remove(teamDevKeyPath(config.Name, user))
 		return writeTeamDevSSH(config)
 	}
-	if !teamBuilds(config, user) {
-		return fmt.Errorf("%s isn't an owner or a developer of team %s; an owner makes them a developer first", user, config.Name)
+	if !teamHasShell(config, user) {
+		return fmt.Errorf("%s isn't an owner or a Pro Dev of team %s, who get SSH into the dev box; an owner makes them a Pro Dev first", user, config.Name)
 	}
 	key = strings.TrimSpace(key)
 	if strings.Contains(key, "PRIVATE KEY") {
@@ -161,7 +186,7 @@ func teamDevKeyLabel(team, user string) string {
 
 // teamAccessCommand is hi team access.
 func teamAccessCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team access <team> [<member ID> developer|contributor|none | key <member ID> <public key>|--remove]"}
+	usage := usageError{"usage: hi team access <team> [<member ID> pro|vibe|contributor|none | key <member ID> <public key>|--remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -200,8 +225,8 @@ func teamAccessCommand(args []string, stdout io.Writer) error {
 			return err
 		}
 		fmt.Fprintln(stdout, text)
-		if args[2] == teamLevelDeveloper {
-			fmt.Fprint(stdout, teamDeveloperNote(config))
+		if level := teamParseLevel(args[2]); level == teamLevelDeveloper || level == teamLevelVibe {
+			fmt.Fprint(stdout, teamDeveloperNote(config, level))
 		}
 		return nil
 	}
@@ -209,12 +234,17 @@ func teamAccessCommand(args []string, stdout io.Writer) error {
 }
 
 // teamDeveloperNote is what an owner should know about a new developer.
-func teamDeveloperNote(config teamConfig) string {
-	note := "A developer works in the dev box like an owner, except releases, rollbacks, production's data and settings, keys, and who is a developer.\n"
+func teamDeveloperNote(config teamConfig, level string) string {
+	note := "A Pro Dev works in the dev box like an owner, except releases, rollbacks, production's data and settings, keys, and who is who.\n"
+	if level == teamLevelVibe {
+		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, but has no terminal, VS Code, or SSH. The agents still run commands in the dev box for them.\n"
+	}
 	if config.PreviewData != teamPreviewEmpty {
 		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi team data " + config.Name + " preview empty starts the preview empty instead.\n"
 	}
-	note += "For SSH into the dev box, they give a public key (hi team access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
+	if level == teamLevelDeveloper {
+		note += "For SSH into the dev box, they give a public key (hi team access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
+	}
 	return note
 }
 
@@ -223,12 +253,19 @@ func printTeamAccess(config teamConfig, stdout io.Writer) {
 	for _, owner := range config.Owners {
 		fmt.Fprintf(stdout, "  %-12s %s\n", owner, teamDevKeyLabel(config.Name, owner))
 	}
-	fmt.Fprintln(stdout, "Developers (owners change them, on the dev page or here):")
+	fmt.Fprintln(stdout, "Pro Devs, with Chat, terminal, VS Code, and SSH (owners change them, on the dev page or here):")
 	if len(config.Developers) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}
 	for _, developer := range config.Developers {
 		fmt.Fprintf(stdout, "  %-12s %s\n", developer, teamDevKeyLabel(config.Name, developer))
+	}
+	fmt.Fprintln(stdout, "Vibe Devs, who work in the agents' Chat only:")
+	if len(config.VibeDevelopers) == 0 {
+		fmt.Fprintln(stdout, "  none")
+	}
+	for _, vibe := range config.VibeDevelopers {
+		fmt.Fprintf(stdout, "  %s\n", vibe)
 	}
 	fmt.Fprintln(stdout, "Contributors, who report bugs as tasks (owners change them too):")
 	if len(config.Contributors) == 0 {

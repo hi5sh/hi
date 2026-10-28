@@ -64,8 +64,8 @@
     <div class="code-bar">
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
-        <button data-view="terminal" aria-pressed="false">Terminal</button>
-        <button data-view="code" aria-pressed="false" class="wide-only" title="VS Code on the workspace's files, in the dev box">VS Code</button>
+        <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
+        <button data-view="code" aria-pressed="false" class="wide-only pro-only" title="VS Code on the workspace's files, in the dev box">VS Code</button>
       </div>
       <select id="chat-space" aria-label="Which workspace's session"></select>
       <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
@@ -247,24 +247,25 @@
       <div class="system-col">
         <section id="people-box" class="owners-only">
           <h2>People</h2>
-          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Developers</strong> build as owners do, but don't release or roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Pro Devs</strong> build as owners do, with Chat, terminal, VS Code, and SSH, but don't release or roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
           <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
           <div class="people-wrap">
             <table id="people-table" class="people-table">
               <thead><tr>
                 <th scope="col">Person</th>
                 <th scope="col" title="An admin of the machine changes owners: hi team owners">Owner</th>
-                <th scope="col" title="Builds in the dev box; doesn't release">Developer</th>
+                <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; doesn't release">Pro Dev</th>
+                <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH">Vibe Dev</th>
                 <th scope="col" title="Reports bugs as tasks">Contributor</th>
                 <th scope="col" title="Uses the app, asks the lead questions">None</th>
               </tr></thead>
-              <tbody id="people"><tr><td colspan="5" class="muted small">Loading…</td></tr></tbody>
+              <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
             </table>
           </div>
           <p class="muted small">Owners are set by an admin of the machine (<code>hi team owners</code>). The channel hears every change made here.</p>
           <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (the Data tab).</p>
         </section>
-        <section id="sshkey-box">
+        <section id="sshkey-box" class="pro-only">
           <h2>Your SSH key</h2>
           <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the team's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
           <p id="sshkey-now" class="small"></p>

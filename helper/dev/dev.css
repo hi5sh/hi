@@ -43,6 +43,7 @@
 /* A developer's page has no owners' buttons; the server refuses them anyway. */
 body.developer .owners-only { display: none !important; }
 body:not(.developer) .developers-only { display: none !important; }
+body.vibe .pro-only { display: none !important; }
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--shell);
