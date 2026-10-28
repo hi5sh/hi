@@ -231,6 +231,43 @@ Enter to select · Tab/Arrow keys to navigate · Esc to cancel`
 	}
 }
 
+// Claude Code's review of its answers has no "Esc to cancel" under it, so
+// herdr doesn't call it blocked; the chat asks it all the same.
+func TestTeamDevChatReview(t *testing.T) {
+	b, ran := teamTestDevPage(t)
+	handler := b.devPageHandler()
+	status, screen := "working", "● I've read the task.\n\n"+teamTestAskClaudeReview
+	previous := teamDevBoxExec
+	teamDevBoxExec = func(team string, command ...string) (string, error) {
+		switch strings.Join(command[:min(3, len(command))], " ") {
+		case "herdr pane list":
+			return `{"result":{"panes":[{"pane_id":"w2:p1","agent":"claude","agent_status":"` + status + `","cwd":"/box/home/.herdr/worktrees/repo/1-chart"}]}}`, nil
+		case "herdr pane read":
+			return screen, nil
+		}
+		return previous(team, command...)
+	}
+	var view teamDevChatView
+	_, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	json.Unmarshal([]byte(body), &view)
+	if view.Agent.Status != "blocked" || view.Ask == nil || len(view.Ask.Options) != 2 || view.Ask.Options[0].Label != "Submit answers" {
+		t.Fatalf("%s", body)
+	}
+	*ran = nil
+	code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/chat/answer", map[string]any{"workspace": "w2", "text": view.Ask.Text, "option": 0, "label": "Submit answers"})
+	if code != 200 || strings.Join(*ran, "\n") != "herdr agent send-keys w2:p1 1" {
+		t.Fatal(code, *ran)
+	}
+	// Idle at its prompt, Claude isn't asking anything.
+	status, screen = "idle", "● Done.\n\n────────\n❯ \n────────"
+	view = teamDevChatView{}
+	_, body = teamTestDevPageCall(t, handler, teamTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	json.Unmarshal([]byte(body), &view)
+	if view.Agent.Status != "idle" || view.Ask != nil {
+		t.Fatalf("%s", body)
+	}
+}
+
 // The tab Claude Code is on has a background; the screen's text doesn't say.
 func TestTeamDevReadAskTab(t *testing.T) {
 	ansi := "←  \x1b[38;2;0;0;0m☒ MA type \x1b[0m\x1b[38;2;0;0;0m\x1b[48;2;177;185;249m ☐ Sizing  \x1b[0m☐ Round  ✔ Submit  →\r\n\nSize?\n\n❯ 1. A\n  2. B"

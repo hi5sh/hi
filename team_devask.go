@@ -134,6 +134,12 @@ func teamDevParseAsk(screen string) *teamDevAsk {
 	return ask
 }
 
+// teamDevAskTabbed is Claude Code's AskUserQuestion, with its tabs and
+// Submit: a question even when herdr doesn't see one.
+func teamDevAskTabbed(ask *teamDevAsk) bool {
+	return ask != nil && len(ask.Tabs) > 0
+}
+
 // teamDevReadAsk is the question on a screen, with the tab it's on from
 // the screen's colors: Claude Code marks it with a background.
 func teamDevReadAsk(text, ansi string) *teamDevAsk {
@@ -314,7 +320,7 @@ var teamDevAskPause = 400 * time.Millisecond
 // answerDevAsk answers the question on an agent's screen with an option,
 // when it's still the one the page shows.
 func (b *teamBroker) answerDevAsk(agent teamDevChatAgent, text []string, index int, label, typed string) error {
-	if !agent.Running || agent.Status != "blocked" {
+	if !agent.Running || agent.Status != "blocked" && agent.Agent != "claude" {
 		return errors.New("the agent isn't asking anything now")
 	}
 	screen, _, err := devChatScreen(b.team, agent.Pane)
@@ -322,6 +328,9 @@ func (b *teamBroker) answerDevAsk(agent teamDevChatAgent, text []string, index i
 		return err
 	}
 	ask := teamDevParseAsk(screen)
+	if agent.Status != "blocked" && !teamDevAskTabbed(ask) {
+		return errors.New("the agent isn't asking anything now")
+	}
 	if ask == nil || strings.Join(ask.Text, "\n") != strings.Join(text, "\n") || index < 0 || index >= len(ask.Options) || ask.Options[index].Label != label {
 		return errors.New("the question changed; look at it again")
 	}

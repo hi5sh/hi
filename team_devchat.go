@@ -433,12 +433,18 @@ func (b *teamBroker) devChat(workspace, known string, offset int64) (teamDevChat
 	// A question in the terminal isn't in the transcript until it's
 	// answered, nor is what Claude is doing right now; a question comes
 	// before a session, too, and from Codex.
-	if agent := view.Agent; agent.Running && (agent.Status == "blocked" || agent.Status == "working") {
+	// herdr misses Claude Code's review of its answers, which has no "Esc
+	// to cancel" under it, so Claude's screen is read whatever herdr says.
+	if agent := view.Agent; agent.Running && (agent.Status == "blocked" || agent.Status == "working" || agent.Agent == "claude") {
 		if text, ansi, err := devChatScreen(b.team, agent.Pane); err == nil {
-			if agent.Status == "blocked" {
+			ask := teamDevReadAsk(text, ansi)
+			if agent.Status != "blocked" && teamDevAskTabbed(ask) {
+				view.Agent.Status = "blocked"
+			}
+			if view.Agent.Status == "blocked" {
 				view.Screen = text
-				view.Ask = teamDevReadAsk(text, ansi)
-			} else if agent.Agent == "claude" {
+				view.Ask = ask
+			} else if agent.Status == "working" && agent.Agent == "claude" {
 				view.Activity = teamDevActivity(text)
 			}
 		}

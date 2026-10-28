@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.21 — Submit from the chat
+
+- [x] Claude Code's review of a question's answers ("Ready to submit your
+  answers?") has no "Esc to cancel" under it, so herdr didn't call the
+  agent blocked and the chat showed nothing while it waited. The chat
+  reads Claude's screen whatever herdr says, and shows its questions,
+  the review too, whenever their tabs are on it.
+
 ### v2.6.20 — Pro Devs and Vibe Devs
 
 - [x] A developer is a **Pro Dev** (the agents' Chat, the terminal, VS
