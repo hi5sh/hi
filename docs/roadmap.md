@@ -2713,6 +2713,16 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.23 — Files as settings
+
+- [x] `hi team env <team> --file KEY=<path>` gives the app a file, such
+  as a MongoDB Atlas X.509 certificate with its private key: hi keeps it
+  with the team's settings, the preview's and production's boxes get it
+  read-only at `/hi-files/KEY`, and `$KEY` holds that path. `--preview`
+  and `--production` work as for values; the dev box, the repository,
+  and snapshots never get it. The dev page's settings form takes a file
+  too.
+
 ### v2.6.22 — Background tasks as notes
 
 - [x] When a command Claude Code left running finishes, Claude Code puts

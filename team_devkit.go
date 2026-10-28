@@ -137,6 +137,9 @@ func (b *teamBroker) devSetting(request teamDevSettingRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if err := teamSettingCheck(secrets, key, false); err != nil {
+		return "", err
+	}
 	text := fmt.Sprintf("The preview gets its own %s; production keeps what it has.", key)
 	if request.Unset {
 		if !teamEnvUnset(&secrets, teamSlotPreview, key) {

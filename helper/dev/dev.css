@@ -407,7 +407,7 @@ button.danger { color: var(--bad); }
 .warn { color: var(--warn); }
 #release { width: 100%; padding: 7px; }
 .setting-form { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-.setting-form select { grid-column: 1 / -1; }
+.setting-form select, .setting-form .setting-file { grid-column: 1 / -1; }
 .setting-form button { grid-column: 1 / -1; }
 .ended {
   position: absolute; inset: 0;

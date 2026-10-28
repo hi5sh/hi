@@ -125,12 +125,27 @@ hi team env payments                       # their names
 hi team env payments --unset WEATHER_API_KEY
 ```
 
+Some services take a file instead: a certificate with its private key,
+such as a MongoDB Atlas X.509 user's `.pem`. Give it as a file; hi keeps
+it, and the app's boxes get it read-only, with its path in the variable:
+
+```sh
+hi team env payments --file MONGODB_CERT=~/Downloads/X509-cert-123.pem
+```
+
+In the app, `$MONGODB_CERT` is `/hi-files/MONGODB_CERT`; hand that path to
+the driver (`tlsCertificateKeyFile` for MongoDB). The file you gave isn't
+needed on the machine afterwards: keep the original in a password manager
+or vault. Like a value, it can be for the preview or production only
+(`--preview`, `--production`), and `--unset` removes it. It never reaches
+the dev box or the repository, and snapshots don't copy it.
+
 The next preview has a change, and hi starts production again on the same
 link within a minute. A setting is readable by the app's code, which the
 agents write; the OpenRouter key and the Slack tokens never are.
 
 Owners set them on the [dev page](/guide/team/dev/#the-dev-page) too,
-under Security, **The app's settings**: a name, a value that is never shown again, and whether it
+under Security, **The app's settings**: a name, a value that is never shown again (or a file), and whether it
 is for both, the preview only, or production only. In the dev box,
 `hi dev settings KEY=VALUE` sets only the preview's own value.
 

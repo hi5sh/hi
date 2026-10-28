@@ -244,6 +244,19 @@ func TestTeamDevPageSettingsAndRelease(t *testing.T) {
 	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/settings", teamDevPageSetting{Key: "QUOTES_KEY", Value: "live", Slot: teamSlotProduction}); code != 200 {
 		t.Fatal(code, body)
 	}
+	// A file, from the page: the box gets it, and the list says so.
+	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/settings", teamDevPageSetting{Key: "DB_CERT", File: base64.StdEncoding.EncodeToString([]byte("-----BEGIN CERTIFICATE-----\n"))}); code != 200 {
+		t.Fatalf("%d %s", code, body)
+	}
+	if secrets, _ := loadTeamSecrets("payments"); !strings.Contains(strings.Join(teamEnvNames(secrets), ","), "DB_CERT (a file)") {
+		t.Fatal(teamEnvNames(secrets))
+	}
+	if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/settings", teamDevPageSetting{Key: "DB_CERT", Value: "x"}); code != http.StatusBadRequest {
+		t.Fatal("a file became a value")
+	}
+	if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/settings", teamDevPageSetting{Key: "DB_CERT", Unset: true}); code != 200 {
+		t.Fatal("removing a file")
+	}
 	if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/settings", teamDevPageSetting{Key: "PORT", Value: "1"}); code != http.StatusBadRequest {
 		t.Fatal("a reserved name was set")
 	}

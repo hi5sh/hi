@@ -117,3 +117,38 @@ v0.53.0, as above, except where the idea differed:
   differs. The stamp also changed for every box started by an older hi, so
   production restarts once after the update and gets the models and its
   address file.
+
+## File settings (v2.6.23)
+
+Some services take a file, not a value: MongoDB Atlas's X.509 users sign
+in with a PEM that holds the certificate and its private key, and the
+drivers want its path (`tlsCertificateKeyFile`). A setting is one line, so
+such a file had nowhere to go but the repository or the dev box, where
+the agents read it.
+
+```sh
+hi team env <name> --file KEY=<path>       # both slots
+hi team env <name> --preview --file KEY=<path>
+hi team env <name> --production --file KEY=<path>
+hi team env <name> --unset KEY             # a value or a file
+```
+
+- hi reads the file once (a regular file, not empty, at most 32 KB: a
+  certificate or a key, not data) and keeps it, base64, in the team's
+  `secrets.json` (`files`, `files_production`, `files_preview`), with the
+  same slot rules as values. The file given isn't needed afterwards.
+- When an app box starts, hi writes its slot's files to
+  `run/<slot>-files/` (0700, each file 0600, in place, so a box still
+  running reads the new one; files no longer given are removed) and
+  mounts that folder read-only at `/hi-files`. `$KEY` is
+  `/hi-files/KEY`; the content is never in the environment.
+- A name is a value or a file, never both: changing one into the other
+  takes `--unset` first. The agents' `hi dev settings` can't replace an
+  owner's file with a preview value.
+- The stamp covers the files, so a new or changed file starts production
+  again on the same link, as a value does.
+- The dev box never gets them. Snapshots skip `secrets.json` and `run/`,
+  so no copy of the key is in a snapshot.
+- The dev page's settings form takes a file instead of a value; the list
+  says `(a file)`.
+

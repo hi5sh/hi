@@ -16,6 +16,7 @@ import (
 	"cmp"
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -788,6 +789,7 @@ func teamDevStartAdhoc(config teamConfig, text, agent string) (string, string, e
 type teamDevPageSetting struct {
 	Key   string `json:"key"`
 	Value string `json:"value,omitempty"`
+	File  string `json:"file,omitempty"` // a file setting's content, base64
 	Slot  string `json:"slot,omitempty"` // "", preview, or production
 	Unset bool   `json:"unset,omitempty"`
 }
@@ -800,20 +802,36 @@ func (b *teamBroker) devPageSetting(request teamDevPageSetting) error {
 		return fmt.Errorf("%q isn't a variable name: letters, digits, and _, not starting with a digit", request.Key)
 	case teamAppEnvReserved[request.Key]:
 		return fmt.Errorf("hi sets %s in the app's box itself", request.Key)
-	case !request.Unset && request.Value == "":
+	case !request.Unset && request.Value == "" && request.File == "":
 		return fmt.Errorf("no value for %s", request.Key)
 	case strings.ContainsAny(request.Value, "\r\n"):
-		return fmt.Errorf("%s's value has a line break; a setting is one line", request.Key)
+		return fmt.Errorf("%s's value has a line break; a setting is one line, or a file", request.Key)
 	}
 	secrets, err := loadTeamSecrets(b.team)
 	if err != nil {
 		return err
 	}
-	if request.Unset {
-		if !teamEnvUnset(&secrets, request.Slot, request.Key) {
+	switch {
+	case request.Unset:
+		if !teamEnvUnset(&secrets, request.Slot, request.Key) && !teamFileUnset(&secrets, request.Slot, request.Key) {
 			return fmt.Errorf("there's no setting %s%s", request.Key, teamEnvSlotWords(request.Slot))
 		}
-	} else {
+	case request.File != "":
+		data, err := base64.StdEncoding.DecodeString(request.File)
+		switch {
+		case err != nil:
+			return fmt.Errorf("the file for %s: %w", request.Key, err)
+		case len(data) > teamFileSettingMax:
+			return fmt.Errorf("the file for %s is larger than %s; a file setting is for a certificate or a key", request.Key, formatDataSize(teamFileSettingMax))
+		}
+		if err := teamSettingCheck(secrets, request.Key, true); err != nil {
+			return err
+		}
+		teamFileSet(&secrets, request.Slot, request.Key, data)
+	default:
+		if err := teamSettingCheck(secrets, request.Key, false); err != nil {
+			return err
+		}
 		teamEnvSet(&secrets, request.Slot, request.Key, request.Value)
 	}
 	return saveTeamSecrets(b.team, secrets)

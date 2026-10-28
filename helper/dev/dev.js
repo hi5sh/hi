@@ -852,14 +852,40 @@
     });
   }
 
+  // A file instead of a value: the box gets it, and the variable its path.
+  $("setting-file").addEventListener("change", function () {
+    var file = !!$("setting-file").files.length;
+    $("setting-value").required = !file;
+    $("setting-value").disabled = file;
+  });
+
+  function settingFile() {
+    var file = $("setting-file").files[0];
+    if (!file) return Promise.resolve("");
+    if (file.size > 32 << 10) return Promise.reject(new Error(file.name + " is larger than 32 KB; a file setting is for a certificate or a key"));
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result).replace(/^[^,]*,/, "")); };
+      reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+      reader.readAsDataURL(file);
+    });
+  }
+
   $("setting-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var key = $("setting-key").value.trim();
-    api("POST", "settings", { key: key, value: $("setting-value").value, slot: $("setting-slot").value }).then(function () {
-      $("setting-value").value = "";
-      $("setting-key").value = "";
-      toast(key + " is set.");
-      refresh();
+    settingFile().then(function (file) {
+      var request = { key: key, slot: $("setting-slot").value };
+      if (file) request.file = file; else request.value = $("setting-value").value;
+      return api("POST", "settings", request).then(function () {
+        $("setting-value").value = "";
+        $("setting-key").value = "";
+        $("setting-file").value = "";
+        $("setting-value").required = true;
+        $("setting-value").disabled = false;
+        toast(file ? key + " is set: the app finds the file at $" + key + "." : key + " is set.");
+        refresh();
+      });
     }).catch(function (error) { toast(error.message); });
   });
 

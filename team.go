@@ -138,6 +138,13 @@ type teamSecrets struct {
 	// preview's own (--preview). A name is in Env or in these, never both.
 	EnvProduction map[string]string `json:"env_production,omitempty"`
 	EnvPreview    map[string]string `json:"env_preview,omitempty"`
+	// Files are settings the app's boxes get as files (hi team env
+	// --file), base64, by the name of the variable that holds the file's
+	// path; FilesProduction and FilesPreview are one slot's alone, as with
+	// Env. A name is a value or a file, never both.
+	Files           map[string]string `json:"files,omitempty"`
+	FilesProduction map[string]string `json:"files_production,omitempty"`
+	FilesPreview    map[string]string `json:"files_preview,omitempty"`
 	// The bucket snapshots are copied to (hi team backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
@@ -580,6 +587,8 @@ usage:
   hi team env <name>               the settings the team's app gets, by name
   hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
                                    boxes only (Stage and production); KEY alone asks for the value
+      [--file KEY=<path>]          a file, such as a certificate with its key: the app's boxes
+                                   get it read-only, and $KEY holds its path there
       [--unset KEY]                remove one
       [--production]               production's only: a key that sends, posts, orders, or pays per
                                    call, which Stage mustn't use

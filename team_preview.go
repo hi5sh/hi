@@ -780,7 +780,7 @@ func teamLinkKey(link string) string {
 // startApp runs the project in its box: the hardening every box has, no
 // credentials, its port published to this machine only, its data folder
 // at /data, its address folder read-only at /hi, its slot and the team's
-// settings, the models socket, which hi team __app relays to an ordinary
+// settings, its file settings read-only at /hi-files, the models socket, which hi team __app relays to an ordinary
 // address in the box, and the slot's workers' lock, which it holds for the
 // box (team_workers.go).
 func (b *teamBroker) startApp(slot, name, src, data, address, command string, port, hostPort int) error {
@@ -809,6 +809,10 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 		return err
 	}
 	defer os.Remove(envFile)
+	files, err := writeTeamAppFiles(b.team, slot)
+	if err != nil {
+		return err
+	}
 	run := []string{"run", "-d", "--init", "--name", name, "--hostname", b.team + "-app",
 		"-p", fmt.Sprintf("127.0.0.1:%d:%d", hostPort, port)}
 	run = append(run, engine.userArgs()...)
@@ -823,6 +827,7 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 		"-v", models+":"+teamAppModelsDir,
 		"-v", jobs+":"+teamAppJobsDir,
 		"-v", workers+":"+teamAppWorkersDir,
+		"-v", files+":"+teamAppFilesDir+":ro",
 		"-v", b.hi+":"+teamAppRelay+":ro",
 		"--env-file", envFile,
 		image, teamAppRelay, "team", "__app", "--workers", teamAppWorkersDir, "--box", name,

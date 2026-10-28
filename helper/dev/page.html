@@ -282,11 +282,12 @@
       </div>
       <div class="system-col">
         <h2>The app's settings</h2>
-        <p class="muted small">API keys and other settings the app reads as environment variables. Names only: values are never shown. A change reaches the next preview, and production within a minute.</p>
+        <p class="muted small">API keys and other settings the app reads as environment variables. A file's variable holds its path in the app's box. Names only: values are never shown. A change reaches the next preview, and production within a minute.</p>
         <ul id="settings" class="list"></ul>
         <form id="setting-form" class="setting-form owners-only">
           <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
           <input id="setting-value" type="password" placeholder="value" autocomplete="new-password" required>
+          <label class="setting-file muted small">or a file, such as a certificate with its key: <input id="setting-file" type="file"></label>
           <select id="setting-slot">
             <option value="">preview and production</option>
             <option value="preview">Stage only</option>

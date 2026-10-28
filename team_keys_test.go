@@ -165,6 +165,83 @@ func TestTeamEnv(t *testing.T) {
 	}
 }
 
+// A file setting, such as a certificate with its key: hi keeps it, and
+// the app's box gets it read-only, with its path in the variable.
+func TestTeamEnvFile(t *testing.T) {
+	newTeamKeysTest(t)
+	pem := "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----\n"
+	cert := filepath.Join(t.TempDir(), "user-X509-cert.pem")
+	os.WriteFile(cert, []byte(pem), 0o600)
+	var out bytes.Buffer
+	before := teamSettingsStamp("payments")
+	if err := teamEnv([]string{"payments", "--file", "MONGODB_CERT=" + cert, "MONGODB_URI=mongodb+srv://db.example.com/"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "$MONGODB_CERT is /hi-files/MONGODB_CERT") || strings.Contains(out.String(), "MIIB") {
+		t.Fatal(out.String())
+	}
+	if teamSettingsStamp("payments") == before {
+		t.Fatal("a new file doesn't change the stamp, so production wouldn't get it")
+	}
+	out.Reset()
+	teamEnv([]string{"payments"}, strings.NewReader(""), &out)
+	if !strings.Contains(out.String(), "MONGODB_CERT (a file), MONGODB_URI") {
+		t.Fatal(out.String())
+	}
+	// A name is a value or a file; the file must be one, and small.
+	big := filepath.Join(t.TempDir(), "big")
+	os.WriteFile(big, make([]byte, teamFileSettingMax+1), 0o600)
+	for _, bad := range [][]string{{"MONGODB_CERT=x"}, {"--file", "MONGODB_URI=" + cert}, {"--file", "PORT=" + cert},
+		{"--file", "X=" + big}, {"--file", "X=" + filepath.Dir(cert)}, {"--file", "X"}, {"--file"}} {
+		if err := teamEnv(append([]string{"payments"}, bad...), strings.NewReader(""), &out); err == nil {
+			t.Errorf("%q was taken", bad)
+		}
+	}
+	// The preview gets its own, a test database's; production keeps it.
+	test := filepath.Join(t.TempDir(), "test.pem")
+	os.WriteFile(test, []byte("the preview's"), 0o600)
+	if err := teamEnv([]string{"payments", "--preview", "--file", "MONGODB_CERT=" + test}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	for slot, want := range map[string]string{teamSlotPreview: "the preview's", teamSlotProduction: pem} {
+		env := teamAppEnv("payments", slot, 8080)
+		if env["MONGODB_CERT"] != "/hi-files/MONGODB_CERT" {
+			t.Fatalf("%s: %v", slot, env)
+		}
+		dir, err := writeTeamAppFiles("payments", slot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := os.ReadFile(filepath.Join(dir, "MONGODB_CERT"))
+		info, _ := os.Stat(filepath.Join(dir, "MONGODB_CERT"))
+		if string(data) != want || info.Mode().Perm() != 0o600 {
+			t.Fatalf("%s: %q %v", slot, data, info.Mode())
+		}
+		file, _ := writeTeamAppEnvFile("payments", env)
+		envText, _ := os.ReadFile(file)
+		os.Remove(file)
+		if strings.Contains(string(envText), "MIIB") || strings.Contains(string(envText), "the preview's") {
+			t.Fatal("a file's content is in the environment")
+		}
+	}
+	// The agents' preview values don't overwrite an owner's file.
+	b := &teamBroker{team: "payments"}
+	if _, err := b.devSetting(teamDevSettingRequest{Key: "MONGODB_CERT", Value: "x"}); err == nil {
+		t.Fatal("an agent replaced a file with a value")
+	}
+	// Removed, it's gone from the box's folder at its next start.
+	if err := teamEnv([]string{"payments", "--unset", "MONGODB_CERT"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := writeTeamAppFiles("payments", teamSlotProduction)
+	if _, err := os.Stat(filepath.Join(dir, "MONGODB_CERT")); err == nil {
+		t.Fatal("a removed file is still there")
+	}
+	if env := teamAppEnv("payments", teamSlotProduction, 8080); env["MONGODB_CERT"] != "" {
+		t.Fatal(env)
+	}
+}
+
 func TestTeamModelsProxy(t *testing.T) {
 	newTeamKeysTest(t)
 	var seen []string
