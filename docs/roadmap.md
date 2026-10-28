@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.27 — Opus in the dev box
+
+- [x] Claude Code in the dev box ran on Sonnet unless someone picked a
+  model: it sees a placeholder for the team's sign-in, not its plan, so
+  it took the API's default. hi sets Opus in the box's settings when
+  nobody chose one, at each start of the team; an owner's `/model`
+  choice stays.
+
 ### v2.6.26 — Agents read .env.example
 
 - [x] New projects' Claude Code settings denied reading `.env.*`, which

@@ -13,7 +13,8 @@ The dev box is one long-lived [box](/guide/box/) per team:
 - **The agents:** Claude Code and Codex, on the team's sign-ins. As in any
   box, the sign-ins stay outside: the box's proxy puts them on the
   agents' calls. The agents don't ask before commands; the box is the
-  boundary.
+  boundary. Claude Code runs on Opus unless an owner picks another
+  model with `/model` in the box, which stays its default.
 - **The internet:** the box's proxy lets it reach what development needs
   (GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, the agents'
   services), and nothing else until an owner allows it. See

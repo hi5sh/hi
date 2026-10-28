@@ -323,6 +323,13 @@ func teamDevClaudeSettings(home string) error {
 		permissions["additionalDirectories"] = append(extra, teamDevHiDir)
 		changed = true
 	}
+	// Opus, unless an owner chose another with /model. Claude Code in the
+	// box sees a placeholder for the team's sign-in, not its plan, so it
+	// takes the API's default, Sonnet.
+	if _, set := settings["model"]; !set {
+		settings["model"] = "opus"
+		changed = true
+	}
 	if changed {
 		settings["permissions"] = permissions
 		data, _ := json.MarshalIndent(settings, "", "  ")

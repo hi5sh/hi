@@ -254,6 +254,20 @@ func TestTeamDevHomeKeepsOwnersSettings(t *testing.T) {
 		!strings.Contains(string(data), `"/data"`) || strings.Count(string(data), `"/box/home/hi"`) != 1 {
 		t.Fatal(string(data))
 	}
+	// Opus when nobody chose; an owner's choice stays.
+	fresh := t.TempDir()
+	os.MkdirAll(filepath.Join(fresh, ".claude"), 0o700)
+	if err := teamDevClaudeSettings(fresh); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(fresh, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "opus"`) {
+		t.Fatal(string(data))
+	}
+	os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(`{"model":"sonnet"}`), 0o600)
+	teamDevClaudeSettings(home)
+	if data, _ := os.ReadFile(filepath.Join(home, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "sonnet"`) {
+		t.Fatal(string(data))
+	}
 	if data, _ := os.ReadFile(filepath.Join(home, ".claude.json")); !strings.Contains(string(data), `"theme": "dark"`) || !strings.Contains(string(data), "hasCompletedOnboarding") {
 		t.Fatal(string(data))
 	}
