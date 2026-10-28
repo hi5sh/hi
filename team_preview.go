@@ -815,7 +815,8 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 	// Its lookups go through the team's resolver, which logs them
 	// (team_resolver.go).
 	run = append(run, teamAppNetworkArgs(b.team, slot, engine)...)
-	run = append(run, boxHardening("4g")...)
+	config, _ := loadTeam(b.team)
+	run = append(run, boxHardening(teamBoxMemory(config, teamBoxApp))...)
 	run = append(run, "-v", src+":/app", "-w", "/app")
 	run = append(run, teamAppDataMount(b.team, slot, data)...)
 	run = append(run, "-v", address+":"+filepath.Dir(teamAppAddressFile)+":ro",

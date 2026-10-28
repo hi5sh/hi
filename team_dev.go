@@ -46,8 +46,9 @@ const (
 	// teamDevSetupKey is the NetBird setup key the dev box joins with
 	// once, in the team's dev folder; hi removes it once the peer exists.
 	teamDevSetupKey = "netbird-setup-key"
-	// teamDevMemory is the dev box's memory: agents, builds, and tests.
-	teamDevMemory = "8g"
+	// teamDevMemory is the dev box's memory unless the team has its own:
+	// agents, builds, and tests, which may load real data.
+	teamDevMemory = "16g"
 )
 
 func teamDevDir(team string) string { return filepath.Join(teamDir(team), "dev") }
@@ -463,7 +464,7 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 	run := []string{"run", "-d", "--init", "--name", teamDevContainer(name), "--hostname", teamDevHost(name),
 		"--network", "hi-box-" + meta.Name, "--ip", teamDevBoxIP(meta.ProxyIP, 3), "--dns", "127.0.0.1"}
 	run = append(run, engine.userArgs()...)
-	run = append(run, boxHardening(teamDevMemory)...)
+	run = append(run, boxHardening(teamBoxMemory(config, teamBoxDev))...)
 	run = append(run,
 		"-v", filepath.Join(dev, "home")+":/box/home",
 		"-v", filepath.Join(dev, "repo")+":/box/repo",

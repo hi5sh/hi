@@ -337,6 +337,7 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer); a change it asks for, the lead files as a task |
 | `hi team data <name> [fork \| copy preview production [--yes] \| preview empty]` | The app's data folders, production's and the preview's fork of it; a new fork now; production from the preview, snapshotted first; or a preview that starts empty at every release |
 | `hi team limit <name> [preview <usd> \| preview off]` | What the preview's model calls may cost a day ($5 unless set), and spent today |
+| `hi team limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the team has its own; running boxes get a new limit at once, without a restart |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi team key <name> openrouter --from-server` | The team's OpenRouter key, made by its hi server, which an admin there can revoke |

@@ -69,6 +69,10 @@ type teamConfig struct {
 	// a host name an IT team keeps in its DNS by hand; or "names", each
 	// address at a name of its own (Names).
 	Addresses string `json:"addresses,omitempty"`
+	// BoxMemory is the memory limit of the team's dev box ("dev") and of
+	// its app's boxes, Stage's and production's ("app"), when it isn't
+	// hi's (hi team limit <team> memory).
+	BoxMemory map[string]string `json:"box_memory,omitempty"`
 	// Names are each address's own name, which an IT team keeps
 	// (docs/specs/approved/hi_team_addresses.md).
 	Names *teamNames `json:"names,omitempty"`
@@ -579,6 +583,8 @@ usage:
                                    keeps its own
   hi team limit <name>             what Stage's model calls may cost a day, and spent today
       [stage <usd> | stage off]      set it ($5 a day unless set); production has no limit from hi
+  hi team limit <name> memory      the boxes' memory: the dev box 16g, Stage's and production's 4g
+      [dev|app <size>|default]     the team's own, such as dev 24g; running boxes get it at once
     hi team bom <name> [v<n>|stage]    production's bill of materials (CycloneDX), or a release's
   hi team advisories <name>        known advisories for what production runs, from the team's hi
                                    server, which matches them every night

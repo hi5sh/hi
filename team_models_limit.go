@@ -133,10 +133,136 @@ func teamAnswerCost(answer []byte) float64 {
 	return cost
 }
 
-// teamLimitCommand is hi team limit <name> [preview <usd> | preview off]:
-// what the preview's model calls may cost a day.
+// The boxes whose memory a team may set: the dev box, and the app's
+// boxes, Stage's and production's.
+const (
+	teamBoxDev = "dev"
+	teamBoxApp = "app"
+	// teamAppMemory is the app's boxes' memory unless the team has its own.
+	teamAppMemory = "4g"
+)
+
+var teamMemoryPattern = regexp.MustCompile(`^([1-9][0-9]*)([mg])$`)
+
+// teamBoxMemory is a box's memory limit: the team's own, or hi's.
+func teamBoxMemory(config teamConfig, box string) string {
+	if size := config.BoxMemory[box]; size != "" {
+		return size
+	}
+	if box == teamBoxDev {
+		return teamDevMemory
+	}
+	return teamAppMemory
+}
+
+// teamMemoryBytes is a limit such as 24g in bytes.
+func teamMemoryBytes(size string) int64 {
+	match := teamMemoryPattern.FindStringSubmatch(size)
+	if match == nil {
+		return 0
+	}
+	n, _ := strconv.ParseInt(match[1], 10, 64)
+	if match[2] == "g" {
+		return n << 30
+	}
+	return n << 20
+}
+
+// teamUpdateMemory gives a team's running boxes of a kind their limit now,
+// without a restart, and says which; tests replace it.
+var teamUpdateMemory = func(team, box, size string) ([]string, error) {
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return nil, err
+	}
+	out, err := engine.output("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-team-"+team+"-")
+	if err != nil {
+		return nil, err
+	}
+	var updated []string
+	for _, name := range strings.Fields(out) {
+		mine := name == teamDevContainer(team)
+		if box == teamBoxApp {
+			mine = strings.HasPrefix(name, teamPreviewContainer(team)+"-")
+		}
+		if !mine {
+			continue
+		}
+		if _, err := engine.output("update", "--memory", size, "--memory-swap", fmt.Sprintf("%dm", 2*teamMemoryBytes(size)>>20), name); err != nil {
+			return updated, fmt.Errorf("%s: %w", name, err)
+		}
+		updated = append(updated, name)
+	}
+	return updated, nil
+}
+
+// teamMemoryCommand is hi team limit <name> memory [dev|app <size>|default]:
+// the boxes' memory, which a box that runs out of it is killed for.
+func teamMemoryCommand(config teamConfig, args []string, stdout io.Writer) error {
+	if len(args) == 2 {
+		box, size := args[0], strings.ToLower(args[1])
+		if box != teamBoxDev && box != teamBoxApp {
+			return fmt.Errorf("the boxes are dev (the dev box) and app (Stage's and production's), not %q", box)
+		}
+		if size == "default" {
+			delete(config.BoxMemory, box)
+		} else {
+			bytes := teamMemoryBytes(size)
+			if bytes < 1<<30 {
+				return fmt.Errorf("%q isn't a memory size of 1g or more, such as 24g or 2048m", args[1])
+			}
+			if total := teamMachineMemory(); total > 0 && bytes > total*3/4 {
+				return fmt.Errorf("%s is more than three quarters of this machine's %d GB; leave room for the other boxes and the machine", size, total>>30)
+			}
+			if config.BoxMemory == nil {
+				config.BoxMemory = map[string]string{}
+			}
+			config.BoxMemory[box] = size
+		}
+		if err := saveTeam(config); err != nil {
+			return err
+		}
+		updated, err := teamUpdateMemory(config.Name, box, teamBoxMemory(config, box))
+		if err != nil {
+			fmt.Fprintf(stdout, "hi couldn't change a running box's limit (%v); it gets it when it starts again.\n", err)
+		} else if len(updated) > 0 {
+			fmt.Fprintf(stdout, "Running now with it, without a restart: %s.\n", strings.Join(updated, ", "))
+		}
+	} else if len(args) != 0 {
+		return usageError{"usage: hi team limit <name> memory [dev|app <size>|default]"}
+	}
+	fmt.Fprintf(stdout, "Team %s's dev box may use %s of memory, and each of its app's boxes, Stage's and production's, %s; a box that needs more has a process killed (an incident says so).\n",
+		config.Name, teamBoxMemory(config, teamBoxDev), teamBoxMemory(config, teamBoxApp))
+	return nil
+}
+
+// teamMachineMemory is this machine's memory, in bytes, or 0.
+var teamMachineMemory = func() int64 {
+	data, err := os.ReadFile("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(line, "MemTotal:"); ok {
+			kb, _ := strconv.ParseInt(strings.TrimSuffix(strings.TrimSpace(value), " kB"), 10, 64)
+			return kb << 10
+		}
+	}
+	return 0
+}
+
+// teamLimitCommand is hi team limit <name> [preview <usd> | preview off],
+// what Stage's model calls may cost a day, and hi team limit <name> memory,
+// the boxes' memory.
 func teamLimitCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team limit <name> [preview <dollars a day> | preview off]"}
+	usage := usageError{"usage: hi team limit <name> [stage <dollars a day> | stage off | memory [dev|app <size>|default]]"}
+	if len(args) >= 2 && args[1] == "memory" {
+		config, err := loadTeam(args[0])
+		if err != nil {
+			return err
+		}
+		return teamMemoryCommand(config, args[2:], stdout)
+	}
 	if len(args) != 1 && (len(args) != 3 || args[1] != "preview") {
 		return usage
 	}

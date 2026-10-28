@@ -104,3 +104,43 @@ func TestTeamStageIsThePreview(t *testing.T) {
 		t.Fatal(teamAddressLabel(teamSlotPreview))
 	}
 }
+
+// hi team limit <team> memory: the dev box's and the app's boxes' memory,
+// hi's unless the team sets its own, given to running boxes at once, and
+// never most of the machine.
+func TestTeamBoxMemory(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	savedUpdate, savedMachine := teamUpdateMemory, teamMachineMemory
+	t.Cleanup(func() { teamUpdateMemory, teamMachineMemory = savedUpdate, savedMachine })
+	var updates []string
+	teamUpdateMemory = func(team, box, size string) ([]string, error) {
+		updates = append(updates, box+"="+size)
+		return []string{"hi-box-team-" + team + "-" + box}, nil
+	}
+	teamMachineMemory = func() int64 { return 64 << 30 }
+	config, _ := loadTeam("payments")
+	if teamBoxMemory(config, teamBoxDev) != "16g" || teamBoxMemory(config, teamBoxApp) != "4g" {
+		t.Fatal("hi's limits")
+	}
+	var out strings.Builder
+	if err := teamLimitCommand([]string{"payments", "memory", "dev", "24g"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	config, _ = loadTeam("payments")
+	if teamBoxMemory(config, teamBoxDev) != "24g" || strings.Join(updates, " ") != "dev=24g" || !strings.Contains(out.String(), "Running now with it, without a restart: hi-box-team-payments-dev") ||
+		!strings.Contains(out.String(), "dev box may use 24g") {
+		t.Fatal(out.String(), updates)
+	}
+	for _, bad := range [][]string{{"memory", "dev", "512m"}, {"memory", "dev", "60g"}, {"memory", "lead", "8g"}, {"memory", "dev", "lots"}} {
+		if err := teamLimitCommand(append([]string{"payments"}, bad...), io.Discard); err == nil {
+			t.Errorf("took %v", bad)
+		}
+	}
+	if err := teamLimitCommand([]string{"payments", "memory", "dev", "default"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ = loadTeam("payments"); teamBoxMemory(config, teamBoxDev) != "16g" || updates[len(updates)-1] != "dev=16g" {
+		t.Fatal(config.BoxMemory, updates)
+	}
+}

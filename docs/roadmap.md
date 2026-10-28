@@ -2713,6 +2713,16 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.19 — Room for real loads
+
+- [x] A team's dev box ran its app's tests on real data and had a
+  process killed for memory three times in two minutes, at the dev box's
+  8 GB. The dev box has 16 GB unless the team sets its own, and
+  `hi team limit <team> memory dev|app <size>` sets the dev box's, or
+  Stage's and production's boxes', for one team, up to three quarters
+  of the machine. Running boxes get the new limit at once (`podman
+  update`), so an agent at work isn't stopped.
+
 ### v2.6.18 — A fresh start
 
 - [x] hi's repository starts over from this version, with no history
