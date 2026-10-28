@@ -160,6 +160,16 @@ allowed (**Remove** takes one off) and the ones the box was refused in
 the last week that nobody asked for, to allow or dismiss. Each site added
 is also reported to the hi server's admins when the machine is [watched](/guide/compute/managed/#watch-the-teams).
 
+A database on the internet that speaks TLS on MongoDB's port, 27017,
+such as MongoDB Atlas, is allowed the same way, by the name in its
+`mongodb+srv://` address. The box's DNS then gives that name, and the
+shards its SRV record names, and the proxy joins the driver's connection
+to the database with TLS end to end, so a certificate signs in as it
+would anywhere. Give the dev box its own database user, not
+production's: `hi team env <team> --dev` ([Keys and
+settings](/guide/team/keys/)). A dev box started before hi v2.6.24 gets
+its DNS when it starts again (`hi team dev <team> restart`).
+
 A site inside the network is never allowed, from the page or by an
 agent: names under `.local`, `.internal` and the like, and any name that
 resolves to the machine, its LAN, NetBird's peers (100.64.0.0/10) or a

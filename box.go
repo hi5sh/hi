@@ -808,6 +808,9 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		if args, secret, err = teamDevProxyArgs(team, args); err != nil {
 			return err
 		}
+		// Its DNS, on port 53, and MongoDB's port (box_proxy_tls.go).
+		args = append(args, "--sysctl", "net.ipv4.ip_unprivileged_port_start=53",
+			"-e", boxSelfEnv+"="+meta.ProxyIP, "-e", boxTLSPortsEnv+"="+boxDatabasePorts)
 	}
 	if data != nil && data.address != "" {
 		// The server's name may resolve only on the host, through NetBird.

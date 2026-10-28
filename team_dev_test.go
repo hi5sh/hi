@@ -167,12 +167,17 @@ func TestTeamDevStart(t *testing.T) {
 	}
 	box := find("run -d --init --name hi-box-team-payments-dev ")
 	for _, want := range []string{"--ip " + ip, "--userns=keep-id", "--cap-drop=ALL", "/dev/ssh:/box/dev/ssh:ro", "/dev/bin:/box/bin:ro", "/repo:/team/origin:ro", "/dev/repo:/box/repo",
-		"-e CLAUDE_CODE_OAUTH_TOKEN=" + boxClaudePlacehold, "-e ANTHROPIC_BASE_URL=http://" + state.ProxyIP, "herdr server", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config"} {
+		"-e CLAUDE_CODE_OAUTH_TOKEN=" + boxClaudePlacehold, "-e ANTHROPIC_BASE_URL=http://" + state.ProxyIP, "herdr server", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config",
+		// Its DNS is the proxy's; its own settings come from a file.
+		"--dns " + state.ProxyIP + " ", "/run/dev-files:/hi-files:ro", "--env-file "} {
 		if !strings.Contains(box, want) {
 			t.Errorf("the box lacks %q: %s", want, box)
 		}
 	}
 	proxy := find("create --name hi-box-team-payments-dev-proxy ")
+	if !strings.Contains(proxy, "--sysctl net.ipv4.ip_unprivileged_port_start=53") || !strings.Contains(proxy, boxSelfEnv+"="+state.ProxyIP) || !strings.Contains(proxy, boxTLSPortsEnv+"=27017") {
+		t.Errorf("the proxy doesn't answer the box's DNS and MongoDB's port: %s", proxy)
+	}
 	if !strings.Contains(proxy, "/secrets/team:ro") || !strings.Contains(proxy, "__proxy /state/allow /state/network.log /secrets/team/"+teamClaudeKeyFile) {
 		t.Errorf("the proxy hasn't the team's Claude sign-in: %s", proxy)
 	}

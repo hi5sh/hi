@@ -608,3 +608,37 @@ with the lead. The helper is help and feedback for everyone; `/hi-<team>`
 sends only owners a link, to the dev page; the app's chat routes, its
 copies in DMs, and `hi team web post` are gone (old chats still show with
 `hi team web show w-3`). A new app's welcome page points at Feedback.
+
+### v2.6.24: a database from the dev box
+
+A team's app used MongoDB Atlas, and its agents couldn't test against a
+database from the dev box: the box's only way out is its proxy, an HTTP
+one, which a database's driver doesn't speak, and the box had no DNS for
+`mongodb+srv://` to look up.
+
+- The dev box's proxy answers the box's DNS (the box's `--dns` is the
+  proxy). A name the owners allowed is the proxy's address; an allowed
+  name's SRV and TXT records are looked up for it, and the SRV targets
+  (Atlas's shards, under another name) become reachable for a day; any
+  other name doesn't resolve, so DNS carries nothing out. IPv6 has no
+  answers.
+- On MongoDB's port, 27017, the proxy reads the name a connection's TLS
+  hello asks for (SNI), and joins it to that name on the same port, when
+  it's allowed or an SRV target, through the dialer that reaches public
+  addresses only. TLS runs end to end: an X.509 client certificate signs
+  in as it would directly. A connection without a name is closed. Every
+  join and refusal is in the box's network log.
+- The proxy binds 53 with `net.ipv4.ip_unprivileged_port_start=53` in its
+  own network namespace, with every capability still dropped.
+- The agents ask for the database's name with `hi dev allow`, as for a
+  site.
+- The dev box gets its own settings, never the app's
+  (`hi team env <team> --dev KEY=VALUE` or `--dev --file KEY=<path>`), so
+  production's keys stay out of the agents' reach: owners give it a test
+  database's user. Files are read-only at `/hi-files`. The environment
+  reaches the box from a 0600 file, no longer on the engine's command
+  line.
+- A dev box started before v2.6.24 keeps no DNS until it starts again
+  (`hi team dev <team> restart`), which an owner does when the agents are
+  idle.
+

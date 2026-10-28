@@ -145,6 +145,11 @@ type teamSecrets struct {
 	Files           map[string]string `json:"files,omitempty"`
 	FilesProduction map[string]string `json:"files_production,omitempty"`
 	FilesPreview    map[string]string `json:"files_preview,omitempty"`
+	// EnvDev and FilesDev are the dev box's own (hi team env --dev), such
+	// as a test database's: it gets no others, so production's keys stay
+	// out of reach of its agents.
+	EnvDev   map[string]string `json:"env_dev,omitempty"`
+	FilesDev map[string]string `json:"files_dev,omitempty"`
 	// The bucket snapshots are copied to (hi team backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
@@ -594,6 +599,8 @@ usage:
                                    call, which Stage mustn't use
       [--stage]                    a value of Stage's own, such as a test key; production
                                    keeps its own
+      [--dev]                      the dev box's own, such as a test database's certificate; it
+                                   gets no others, from its next start (hi team dev <name> restart)
   hi team limit <name>             what Stage's model calls may cost a day, and spent today
       [stage <usd> | stage off]      set it ($5 a day unless set); production has no limit from hi
   hi team limit <name> memory      the boxes' memory: the dev box 16g, Stage's and production's 4g

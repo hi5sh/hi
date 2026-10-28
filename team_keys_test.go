@@ -242,6 +242,70 @@ func TestTeamEnvFile(t *testing.T) {
 	}
 }
 
+// The dev box gets its own settings and none of the app's, so its agents
+// never hold production's keys.
+func TestTeamEnvDev(t *testing.T) {
+	newTeamKeysTest(t)
+	prod := filepath.Join(t.TempDir(), "prod.pem")
+	dev := filepath.Join(t.TempDir(), "dev.pem")
+	os.WriteFile(prod, []byte("production's key"), 0o600)
+	os.WriteFile(dev, []byte("the test database's key"), 0o600)
+	var out bytes.Buffer
+	before := teamSettingsStamp("payments")
+	for _, args := range [][]string{
+		{"--file", "MONGODB_CERT=" + prod, "MONGODB_URI=mongodb+srv://prod.example.com/"},
+		{"--dev", "--file", "MONGODB_CERT=" + dev, "MONGODB_URI=mongodb+srv://test.example.com/"},
+		{"--dev", "DEBUG=1"},
+	} {
+		out.Reset()
+		if err := teamEnv(append([]string{"payments"}, args...), strings.NewReader(""), &out); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !strings.Contains(out.String(), "dev box gets its own DEBUG") || !strings.Contains(out.String(), "hi team dev payments restart") {
+		t.Fatal(out.String())
+	}
+	got := teamDevSettings("payments")
+	if got["MONGODB_CERT"] != "/hi-files/MONGODB_CERT" || got["MONGODB_URI"] != "mongodb+srv://test.example.com/" || got["DEBUG"] != "1" || len(got) != 3 {
+		t.Fatal(got)
+	}
+	dir, err := writeTeamAppFiles("payments", teamSlotDev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "MONGODB_CERT")); string(data) != "the test database's key" {
+		t.Fatalf("%q", data)
+	}
+	// The app's boxes keep their own; the dev box's don't restart them.
+	if env := teamAppEnv("payments", teamSlotProduction, 8080); env["MONGODB_URI"] != "mongodb+srv://prod.example.com/" || env["DEBUG"] != "" {
+		t.Fatal(env)
+	}
+	secrets, _ := loadTeamSecrets("payments")
+	secrets.EnvDev, secrets.FilesDev = nil, nil
+	saveTeamSecrets("payments", secrets)
+	afterApp := teamSettingsStamp("payments")
+	teamEnv([]string{"payments", "--dev", "DEBUG=2"}, strings.NewReader(""), &out)
+	if teamSettingsStamp("payments") != afterApp || afterApp == before {
+		t.Fatal("the dev box's settings restart production, or the app's don't")
+	}
+	teamEnv([]string{"payments", "--dev", "--file", "MONGODB_CERT=" + dev}, strings.NewReader(""), &out)
+	out.Reset()
+	teamEnv([]string{"payments"}, strings.NewReader(""), &out)
+	if !strings.Contains(out.String(), "DEBUG (the dev box only)") || !strings.Contains(out.String(), "MONGODB_CERT (a file, the dev box has its own)") {
+		t.Fatal(out.String())
+	}
+	// --dev --unset takes the dev box's alone; --unset takes it everywhere.
+	teamEnv([]string{"payments", "--dev", "--unset", "MONGODB_CERT"}, strings.NewReader(""), &out)
+	if s, _ := loadTeamSecrets("payments"); s.FilesDev["MONGODB_CERT"] != "" || s.Files["MONGODB_CERT"] == "" {
+		t.Fatal(s.FilesDev, s.Files)
+	}
+	teamEnv([]string{"payments", "--dev", "--file", "MONGODB_CERT=" + dev}, strings.NewReader(""), &out)
+	teamEnv([]string{"payments", "--unset", "MONGODB_CERT"}, strings.NewReader(""), &out)
+	if s, _ := loadTeamSecrets("payments"); len(s.FilesDev)+len(s.Files) != 0 {
+		t.Fatal(s.FilesDev, s.Files)
+	}
+}
+
 func TestTeamModelsProxy(t *testing.T) {
 	newTeamKeysTest(t)
 	var seen []string

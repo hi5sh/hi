@@ -151,4 +151,9 @@ hi team env <name> --unset KEY             # a value or a file
   so no copy of the key is in a snapshot.
 - The dev page's settings form takes a file instead of a value; the list
   says `(a file)`.
+- v2.6.24: `--dev` gives the dev box a value or file of its own; it gets
+  no others (hi_team_dev.md, "a database from the dev box"). Its settings
+  don't change the app's stamp, and reach it at its next start.
+  `--unset KEY` removes a name everywhere, `--dev --unset KEY` from the
+  dev box alone.
 

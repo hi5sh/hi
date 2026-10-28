@@ -845,7 +845,7 @@
         el("div", { class: "what" }, [el("code", { text: name }), el("span", { class: "muted small", text: label.slice(name.length) })]),
         el("div", { class: "actions owners-only" }, [el("button", {
           text: "Remove", onclick: function () {
-            act("Remove " + name + " from Stage and production?", "settings", { key: name, unset: true }, name + " is removed.");
+            act("Remove " + name + " from Stage, production, and the dev box?", "settings", { key: name, unset: true }, name + " is removed.");
           },
         })]),
       ]));

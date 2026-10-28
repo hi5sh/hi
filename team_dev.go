@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net"
 	"os"
 	"os/exec"
@@ -198,6 +199,23 @@ func teamDevEnv(team, proxyIP string) map[string]string {
 		// Codex, on the team's ChatGPT sign-in through the proxy.
 		codexBoxKeyEnv: boxClaudePlacehold,
 	}
+}
+
+// teamDevSettings are the dev box's own settings, values and files, as
+// its environment: a file's variable holds its path in the box.
+func teamDevSettings(team string) map[string]string {
+	secrets, err := loadTeamSecrets(team)
+	if err != nil {
+		return nil
+	}
+	env := maps.Clone(secrets.EnvDev)
+	if env == nil {
+		env = map[string]string{}
+	}
+	for key := range secrets.FilesDev {
+		env[key] = teamAppFilesDir + "/" + key
+	}
+	return env
 }
 
 // teamDevEnvFile is ~/.hi-env, which an SSH login's shell reads.
@@ -453,7 +471,21 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 		return err
 	}
 	env := teamDevEnv(name, meta.ProxyIP)
-	if err := prepareTeamDevHome(name, meta.ProxyIP, env); err != nil {
+	// The dev box's own settings (hi team env --dev); hi's own come first.
+	settings := teamDevSettings(name)
+	for key := range settings {
+		if _, ok := env[key]; ok {
+			delete(settings, key)
+		}
+	}
+	files, err := writeTeamAppFiles(name, teamSlotDev)
+	if err != nil {
+		teardownBox(engine, meta)
+		return err
+	}
+	login := maps.Clone(env)
+	maps.Copy(login, settings)
+	if err := prepareTeamDevHome(name, meta.ProxyIP, login); err != nil {
 		teardownBox(engine, meta)
 		return err
 	}
@@ -462,7 +494,7 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 		return fmt.Errorf("the dev box's skills: %w", err)
 	}
 	run := []string{"run", "-d", "--init", "--name", teamDevContainer(name), "--hostname", teamDevHost(name),
-		"--network", "hi-box-" + meta.Name, "--ip", teamDevBoxIP(meta.ProxyIP, 3), "--dns", "127.0.0.1"}
+		"--network", "hi-box-" + meta.Name, "--ip", teamDevBoxIP(meta.ProxyIP, 3), "--dns", meta.ProxyIP}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening(teamBoxMemory(config, teamBoxDev))...)
 	run = append(run,
@@ -474,6 +506,7 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 		"-v", claude+":/usr/local/bin/claude:ro",
 		"-v", herdr+":/usr/local/bin/herdr:ro",
 		"-v", filepath.Join(dev, "bin")+":/box/bin:ro",
+		"-v", files+":"+teamAppFilesDir+":ro",
 		"-w", "/box/repo")
 	if codex, err := boxHostBinary("codex"); err == nil {
 		run = append(run, "-v", filepath.Dir(filepath.Dir(codex))+":/opt/codex:ro")
@@ -486,6 +519,15 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 	for _, key := range keys {
 		run = append(run, "-e", key+"="+env[key])
 	}
+	// The owners' settings from a file, off the engine's command line,
+	// where anyone on the machine can see them.
+	envFile, err := writeTeamAppEnvFile(name, settings)
+	if err != nil {
+		teardownBox(engine, meta)
+		return err
+	}
+	defer os.Remove(envFile)
+	run = append(run, "--env-file", envFile)
 	// sshd for the owners, then herdr's server, which keeps the agents.
 	run = append(run, image, "sh", "-c", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config -E /box/home/.sshd.log && exec herdr server")
 	if out, err := engine.output(run...); err != nil {

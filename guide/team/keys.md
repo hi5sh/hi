@@ -140,6 +140,16 @@ or vault. Like a value, it can be for the preview or production only
 (`--preview`, `--production`), and `--unset` removes it. It never reaches
 the dev box or the repository, and snapshots don't copy it.
 
+The dev box gets none of these: its agents could read them. It gets
+settings of its own, such as a test database's address and certificate,
+from its next start:
+
+```sh
+hi team env payments --dev MONGODB_URI=mongodb+srv://test-cluster.abcd.mongodb.net/
+hi team env payments --dev --file MONGODB_CERT=~/Downloads/test-user.pem
+hi team dev payments restart        # when the agents are idle
+```
+
 The next preview has a change, and hi starts production again on the same
 link within a minute. A setting is readable by the app's code, which the
 agents write; the OpenRouter key and the Slack tokens never are.

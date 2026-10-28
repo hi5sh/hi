@@ -790,14 +790,14 @@ type teamDevPageSetting struct {
 	Key   string `json:"key"`
 	Value string `json:"value,omitempty"`
 	File  string `json:"file,omitempty"` // a file setting's content, base64
-	Slot  string `json:"slot,omitempty"` // "", preview, or production
+	Slot  string `json:"slot,omitempty"` // "", preview, production, or dev
 	Unset bool   `json:"unset,omitempty"`
 }
 
 func (b *teamBroker) devPageSetting(request teamDevPageSetting) error {
 	switch {
-	case request.Slot != "" && request.Slot != teamSlotPreview && request.Slot != teamSlotProduction:
-		return fmt.Errorf("a setting is for both, the preview, or production, not %q", request.Slot)
+	case request.Slot != "" && request.Slot != teamSlotPreview && request.Slot != teamSlotProduction && request.Slot != teamSlotDev:
+		return fmt.Errorf("a setting is for both, the preview, production, or the dev box, not %q", request.Slot)
 	case !teamEnvName.MatchString(request.Key):
 		return fmt.Errorf("%q isn't a variable name: letters, digits, and _, not starting with a digit", request.Key)
 	case teamAppEnvReserved[request.Key]:

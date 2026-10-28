@@ -149,6 +149,8 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 	go func() {
 		errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxProxyPort), egress)
 	}()
+	// A team's dev box: its DNS and the databases' TLS (box_proxy_tls.go).
+	startBoxDatabases(egress)
 	if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
 		var inject http.Handler = newBoxOpenRouterInjector(env, "https://openrouter.ai", log)
 		if token := os.Getenv(boxChatGPTEnv); token != "" {

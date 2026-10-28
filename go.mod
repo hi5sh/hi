@@ -17,6 +17,7 @@ require (
 	github.com/libdns/libdns v1.1.1
 	github.com/libdns/rfc2136 v1.0.1
 	github.com/libdns/route53 v1.6.2
+	github.com/miekg/dns v1.1.73
 	github.com/slack-go/slack v0.17.3
 	github.com/yuin/goldmark v1.8.6
 	go.uber.org/zap v1.28.0
@@ -65,7 +66,6 @@ require (
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mholt/acmez/v3 v3.1.7 // indirect
-	github.com/miekg/dns v1.1.73 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect

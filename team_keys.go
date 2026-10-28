@@ -16,6 +16,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -54,6 +56,9 @@ const (
 	teamAppFilesDir    = "/hi-files"
 	teamFileSettingMax = 32 << 10
 )
+
+// teamSlotDev is the dev box, for its own settings (hi team env --dev).
+const teamSlotDev = "dev"
 
 // teamSlotFilesDir is a slot's file settings on the machine, written as
 // its box starts.
@@ -218,6 +223,9 @@ func teamAppEnv(name, slot string, port int) map[string]string {
 // teamAppFiles are a slot's file settings, by name: those for both slots,
 // and the slot's own.
 func teamAppFiles(secrets teamSecrets, slot string) map[string]string {
+	if slot == teamSlotDev {
+		return maps.Clone(secrets.FilesDev)
+	}
 	own := secrets.FilesPreview
 	if slot == teamSlotProduction {
 		own = secrets.FilesProduction
@@ -240,7 +248,7 @@ func writeTeamAppFiles(team, slot string) (string, error) {
 		return "", err
 	}
 	secrets, err := loadTeamSecrets(team)
-	if err != nil {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
 	files := teamAppFiles(secrets, slot)
@@ -599,7 +607,7 @@ func teamAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(str
 // with --production for production alone, or with --preview a value of
 // the preview's own.
 func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team env <name> [--production | --preview] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]..."}
+	usage := usageError{"usage: hi team env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]..."}
 	if len(args) == 0 {
 		return usage
 	}
@@ -619,6 +627,8 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 			slot = teamSlotProduction
 		case "--preview":
 			slot = teamSlotPreview
+		case "--dev":
+			slot = teamSlotDev
 		default:
 			rest = append(rest, arg)
 		}
@@ -694,6 +704,8 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	switch {
+	case len(set) > 0 && slot == teamSlotDev:
+		fmt.Fprintf(stdout, "Team %s's dev box gets its own %s; the app's boxes don't.\n", name, strings.Join(set, ", "))
 	case len(set) > 0 && slot == teamSlotProduction:
 		fmt.Fprintf(stdout, "Team %s's production gets %s; the preview doesn't, unless it has a value of its own (--preview).\n", name, strings.Join(set, ", "))
 	case len(set) > 0 && slot == teamSlotPreview:
@@ -702,10 +714,18 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Team %s's app gets %s, in the preview and production.\n", name, strings.Join(set, ", "))
 	}
 	if len(unset) > 0 {
-		fmt.Fprintf(stdout, "Team %s's %s no longer gets %s.\n", name, map[string]string{"": "app", teamSlotProduction: "production", teamSlotPreview: "preview"}[slot], strings.Join(unset, ", "))
+		fmt.Fprintf(stdout, "Team %s's %s no longer gets %s.\n", name, map[string]string{"": "app or dev box", teamSlotProduction: "production", teamSlotPreview: "preview", teamSlotDev: "dev box"}[slot], strings.Join(unset, ", "))
+	}
+	where := "the app's boxes"
+	if slot == teamSlotDev {
+		where = "the dev box"
 	}
 	for _, key := range files {
-		fmt.Fprintf(stdout, "In the app's boxes, $%s is %s/%s, read-only. hi keeps it; the file you gave isn't needed on this machine any more.\n", key, teamAppFilesDir, key)
+		fmt.Fprintf(stdout, "In %s, $%s is %s/%s, read-only. hi keeps it; the file you gave isn't needed on this machine any more.\n", where, key, teamAppFilesDir, key)
+	}
+	if slot == teamSlotDev {
+		fmt.Fprintf(stdout, "The dev box has it from its next start: hi team dev %s restart, when the agents are idle.\n", name)
+		return nil
 	}
 	fmt.Fprintln(stdout, "The next preview has it, and hi restarts production on the same link within a minute while the team is up.")
 	return nil
@@ -717,27 +737,31 @@ func teamEnvSlotWords(slot string) string {
 		return " for production"
 	case teamSlotPreview:
 		return " for the preview"
+	case teamSlotDev:
+		return " for the dev box"
 	}
 	return ""
 }
 
 // teamSettingMaps are one kind of setting: both slots', production's
-// own, and the preview's own.
-type teamSettingMaps struct{ both, production, preview *map[string]string }
+// own, the preview's own, and the dev box's.
+type teamSettingMaps struct{ both, production, preview, dev *map[string]string }
 
 func teamEnvMaps(secrets *teamSecrets) teamSettingMaps {
-	return teamSettingMaps{&secrets.Env, &secrets.EnvProduction, &secrets.EnvPreview}
+	return teamSettingMaps{&secrets.Env, &secrets.EnvProduction, &secrets.EnvPreview, &secrets.EnvDev}
 }
 
 func teamFileMaps(secrets *teamSecrets) teamSettingMaps {
-	return teamSettingMaps{&secrets.Files, &secrets.FilesProduction, &secrets.FilesPreview}
+	return teamSettingMaps{&secrets.Files, &secrets.FilesProduction, &secrets.FilesPreview, &secrets.FilesDev}
 }
 
 func (m teamSettingMaps) has(key string) bool {
-	_, both := (*m.both)[key]
-	_, production := (*m.production)[key]
-	_, preview := (*m.preview)[key]
-	return both || production || preview
+	for _, set := range []*map[string]string{m.both, m.production, m.preview, m.dev} {
+		if _, ok := (*set)[key]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // set sets a setting for both slots (slot ""), or for one. A setting
@@ -745,13 +769,15 @@ func (m teamSettingMaps) has(key string) bool {
 // a value of its own and production keeps its value, and --production
 // takes it away from the preview.
 func (m teamSettingMaps) set(slot, key, value string) {
-	for _, set := range []*map[string]string{m.both, m.production, m.preview} {
+	for _, set := range []*map[string]string{m.both, m.production, m.preview, m.dev} {
 		if *set == nil {
 			*set = map[string]string{}
 		}
 	}
 	both, production, preview := *m.both, *m.production, *m.preview
 	switch slot {
+	case teamSlotDev:
+		(*m.dev)[key] = value
 	case "":
 		both[key] = value
 		delete(production, key)
@@ -760,27 +786,33 @@ func (m teamSettingMaps) set(slot, key, value string) {
 		production[key] = value
 		delete(both, key)
 	case teamSlotPreview:
-		if value, ok := both[key]; ok {
-			production[key] = value
+		if kept, ok := both[key]; ok {
+			production[key] = kept
 			delete(both, key)
 		}
 		preview[key] = value
 	}
 }
 
-// unset removes a setting from both slots, or from one, and says whether
-// there was one. A setting both had stays the other slot's.
+// unset removes a setting from everywhere (slot ""), or from one slot,
+// and says whether there was one. A setting both had stays the other
+// slot's.
 func (m teamSettingMaps) unset(slot, key string) bool {
-	both, production, preview := *m.both, *m.production, *m.preview
+	both, production, preview, dev := *m.both, *m.production, *m.preview, *m.dev
 	_, inBoth := both[key]
 	_, inProduction := production[key]
 	_, inPreview := preview[key]
+	_, inDev := dev[key]
 	switch slot {
 	case "":
 		delete(both, key)
 		delete(production, key)
 		delete(preview, key)
-		return inBoth || inProduction || inPreview
+		delete(dev, key)
+		return inBoth || inProduction || inPreview || inDev
+	case teamSlotDev:
+		delete(dev, key)
+		return inDev
 	case teamSlotProduction:
 		if inBoth {
 			m.set(teamSlotPreview, key, both[key])
@@ -859,14 +891,16 @@ func teamEnvNames(secrets teamSecrets) []string {
 		file bool
 	}{{teamEnvMaps(&secrets), false}, {teamFileMaps(&secrets), true}} {
 		seen := map[string]bool{}
-		for _, set := range []*map[string]string{kind.maps.both, kind.maps.production, kind.maps.preview} {
+		for _, set := range []*map[string]string{kind.maps.both, kind.maps.production, kind.maps.preview, kind.maps.dev} {
 			for key := range *set {
 				seen[key] = true
 			}
 		}
 		for key := range seen {
+			_, both := (*kind.maps.both)[key]
 			_, production := (*kind.maps.production)[key]
 			_, preview := (*kind.maps.preview)[key]
+			_, dev := (*kind.maps.dev)[key]
 			var about []string
 			if kind.file {
 				about = append(about, "a file")
@@ -878,6 +912,12 @@ func teamEnvNames(secrets teamSecrets) []string {
 				about = append(about, "production only")
 			case preview:
 				about = append(about, "the preview only")
+			}
+			switch {
+			case dev && !both && !production && !preview:
+				about = append(about, "the dev box only")
+			case dev:
+				about = append(about, "the dev box has its own")
 			}
 			if len(about) > 0 {
 				key += " (" + strings.Join(about, ", ") + ")"

@@ -2713,6 +2713,19 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.24 — A database from the dev box
+
+- [x] The dev box reaches a database on the internet that speaks TLS on
+  MongoDB's port, such as MongoDB Atlas, once the owners allow its name
+  (`hi dev allow`): its proxy answers the box's DNS for allowed names and
+  their SRV records' shards, and joins the driver's TLS connection to the
+  name it asks for, end to end, so an X.509 certificate signs in. Other
+  names don't resolve.
+- [x] `hi team env <team> --dev` gives the dev box settings and files of
+  its own, such as a test database's user; it never gets the app's.
+- [x] A dev box started before this version gets its DNS from its next
+  start (`hi team dev <team> restart`).
+
 ### v2.6.23 — Files as settings
 
 - [x] `hi team env <team> --file KEY=<path>` gives the app a file, such
