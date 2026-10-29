@@ -2713,6 +2713,17 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.35 — One Release button, and buttons that spin
+
+- [x] The dev page's Release tab has one Release button, in Production's
+  row with Set dev back to production beside it, owners only; the card
+  below lists the releases alone. Releasing shows "Releasing v5…" there
+  with a spinner until production runs it.
+- [x] A button that asks hi for something (Open, Done, Ship to Dev, Try
+  on Stage, Show dev, roll back, Make public, an incident's Restart and
+  Close) spins and waits until hi answers, even when the page refreshes
+  meanwhile.
+
 ### v2.6.34 — The server watches nothing
 
 - [x] The hi server's watch is gone (hi_team_ops.md, release 4): its

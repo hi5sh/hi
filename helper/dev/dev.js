@@ -5,6 +5,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var state = null;
   var releasing = 0; // the version being released, while it is
+  var pending = {}; // what's being done, by its button's busy key
   var tickets = null;
 
   function el(tag, attrs, children) {
@@ -12,10 +13,27 @@
     for (var key in attrs || {}) {
       if (key === "text") node.textContent = attrs[key];
       else if (key.slice(0, 2) === "on") node.addEventListener(key.slice(2), attrs[key]);
+      else if (key === "busy") { node.dataset.busy = attrs[key]; if (pending[attrs[key]]) { node.disabled = true; node.classList.add("busy"); } }
       else node.setAttribute(key, attrs[key]);
     }
     (children || []).forEach(function (child) { if (child) node.appendChild(child); });
     return node;
+  }
+
+  // working spins the buttons that started something until it's done; a
+  // button drawn again meanwhile, as the page refreshes, spins too.
+  function working(busy, promise) {
+    if (!busy) return promise;
+    function mark(on) {
+      document.querySelectorAll("[data-busy]").forEach(function (button) {
+        if (button.dataset.busy !== busy) return;
+        button.disabled = on;
+        button.classList.toggle("busy", on);
+      });
+    }
+    pending[busy] = true;
+    mark(true);
+    return promise.finally(function () { delete pending[busy]; mark(false); });
   }
 
   // toast says something for a few seconds; stay keeps it until the next.
@@ -233,7 +251,7 @@
   function focus(space) {
     // The chat follows the workspace you open, as the terminal does.
     chooseChatSpace(space.id);
-    api("POST", "focus", { workspace: space.id }).then(function () {
+    working("focus:" + space.id, api("POST", "focus", { workspace: space.id })).then(function () {
       show("terminal");
       if (chat.view === "terminal") term.focus();
     }).catch(function (error) { toast(error.message); });
@@ -282,7 +300,7 @@
       // Its work is in dev: Finish, which closes the task too.
       ask("Done with " + name + "? Its work is in dev: its worktree, workspace, agent, and branch go, and the task closes.").then(function (answer) {
         if (answer === null) return;
-        api("POST", "finish", { workspace: space.id, discard: false }).then(function (r) { toast(r.text); refresh(); refreshTickets(true); }).catch(function (error) { toast(error.message); });
+        working("finish:" + space.id, api("POST", "finish", { workspace: space.id, discard: false })).then(function (r) { toast(r.text); refresh(); refreshTickets(true); }).catch(function (error) { toast(error.message); });
       });
       return;
     }
@@ -361,7 +379,7 @@
       if (ticket.url) items.push(["Open where it's kept", function () { window.open(ticket.url, "_blank", "noopener"); }]);
       if (space) items.push(["Show its workspace", function () { focus(space); }]);
       if (ticket.state === "closed") items.push(["Reopen", function () { setTaskState(ticket, false); }]);
-      var doneButton = ticket.state === "closed" ? null : el("button", { class: "done", text: "Done ✓", title: space ? "Finish its work and close the task" : "Close the task", onclick: function () { taskDone(ticket, space); } });
+      var doneButton = ticket.state === "closed" ? null : el("button", { class: "done", text: "Done ✓", busy: space ? "finish:" + space.id : "", title: space ? "Finish its work and close the task" : "Close the task", onclick: function () { taskDone(ticket, space); } });
       var action = ticket.state === "closed" ? el("span") : space
         ? el("button", { class: "go", text: "Open →", title: "Show its workspace in the terminal", onclick: function () { focus(space); } })
         : el("button", { class: "go", text: "Start →", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } });
@@ -400,19 +418,19 @@
         space.title ? el("div", { class: "muted small", text: space.title }) : null,
         where ? el("div", { class: "small " + (unshipped ? "warn" : "muted"), text: where }) : null,
       ]);
-      var actions = [el("button", { text: "Open", onclick: function () { focus(space); } })];
+      var actions = [el("button", { text: "Open", busy: "focus:" + space.id, onclick: function () { focus(space); } })];
       if (space.path && space.checked && space.ahead > 0) {
         // What hi dev preview and hi dev ship do in the box, by a click.
-        actions.push(el("button", { text: "Try on Stage", title: "Show this branch on Stage, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
+        actions.push(el("button", { text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
           toast("Putting " + space.branch + " on Stage…", true);
-          act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; });
+          act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
         } }));
-        actions.push(el("button", { class: "primary", text: "Ship to Dev", title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
+        actions.push(el("button", { class: "primary", text: "Ship to Dev", busy: "ship:" + space.id, title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
           ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves only when an owner releases." +
             (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the release notes:", "the last commit's title").then(function (title) {
             if (title === null) return;
             toast("Shipping " + space.branch + " into dev…", true);
-            act("", "ship", { workspace: space.id, title: title }, function (r) { return r.text; });
+            act("", "ship", { workspace: space.id, title: title }, function (r) { return r.text; }, "ship:" + space.id);
           });
         } }));
       }
@@ -420,12 +438,13 @@
         actions.push(el("button", {
           class: unshipped ? "danger" : "",
           text: unshipped ? "Discard…" : "Done ✓",
+          busy: "finish:" + space.id,
           title: unshipped ? "Remove it without shipping what dev hasn't" : "Remove its worktree, workspace, and branch, and close its task",
           onclick: function () {
             var question = unshipped
               ? "Discard " + space.branch + "? " + where + " will be lost: its worktree, workspace, agent, and branch go."
               : "Done with " + space.branch + "? Its work is in dev. Its worktree, workspace, agent, and branch go, and its task closes.";
-            act(question, "finish", { workspace: space.id, discard: unshipped }, function (r) { return r.text; });
+            act(question, "finish", { workspace: space.id, discard: unshipped }, function (r) { return r.text; }, "finish:" + space.id);
           },
         }));
       }
@@ -446,9 +465,9 @@
     var nodes = [link(what, s.preview_url)];
     if (s.preview_branch || s.preview_old) {
       nodes.push(el("div", { class: "muted small", text: s.preview_branch ? "a branch being tried, not dev" : "dev as it was, before what was shipped since" }));
-      nodes.push(el("button", { class: "small show-dev", text: "Show dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
+      nodes.push(el("button", { class: "small show-dev", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
         toast("Putting dev on Stage…", true);
-        act("", "preview-dev", {}, function (r) { return r.text; });
+        act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
       } }));
     }
     return el("div", { class: "preview-what" }, nodes);
@@ -487,25 +506,6 @@
     links.textContent = "";
     if (s.production_url) links.appendChild(link("Production", s.production_url));
     if (s.preview_url) links.appendChild(link("Stage", s.preview_url));
-
-    var release = $("release");
-    var next = (s.production || 0) + 1;
-    var changes = state.changes || [];
-    $("dev-reset").hidden = changes.length === 0 || !s.production;
-    if (releasing) {
-      release.hidden = false;
-      release.disabled = true;
-      release.textContent = "Releasing v" + releasing + "…";
-      $("release-note").textContent = "A snapshot of production first, then v" + releasing + " in a new box: a minute or two.";
-      return;
-    }
-    // A team that starts from code it already had has no tasks of its own
-    // yet, and dev is still its first release.
-    var releasable = changes.length > 0 || !s.production;
-    release.hidden = !releasable;
-    release.disabled = false;
-    release.textContent = "Release v" + next;
-    $("release-note").textContent = releasable ? "Dev goes to production as v" + next + ", with a snapshot first. Your click is the yes, logged with your name." : "Dev is what production runs: nothing to release.";
   }
 
   // ask asks in the page's own dialog, not the browser's confirm(), which
@@ -529,11 +529,11 @@
   }
 
   // Asks, then does an owner's action, and says how it went.
-  function act(question, path, body, done) {
+  function act(question, path, body, done, busy) {
     (question ? ask(question) : Promise.resolve("")).then(function (answer) {
       if (answer === null) return;
       // An action may change the tickets too, as Finish closes one.
-      api("POST", path, body).then(function (result) {
+      working(busy, api("POST", path, body)).then(function (result) {
         toast(typeof done === "function" ? done(result) : done);
         refresh();
         refreshTickets(false);
@@ -555,13 +555,13 @@
         incident.detail ? el("details", {}, [el("summary", { class: "small", text: "What hi recorded" }), el("pre", { text: incident.detail })]) : null,
       ]);
       incidents.appendChild(el("li", { class: "ticket" }, [el("span", { class: "dot blocked" }), what, el("div", { class: "actions owners-only" }, [
-        el("button", { text: preview ? "Restart Stage" : "Restart production", onclick: function () {
-          act("Give " + (preview ? "Stage" : "production") + "'s app a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.");
+        el("button", { text: preview ? "Restart Stage" : "Restart production", busy: "incident:" + incident.id, onclick: function () {
+          act("Give " + (preview ? "Stage" : "production") + "'s app a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.", "incident:" + incident.id);
         } }),
-        el("button", { text: "Close", onclick: function () {
+        el("button", { text: "Close", busy: "incident:" + incident.id, onclick: function () {
           ask("Close " + incident.id + "? What resolved it?", "what resolved it").then(function (because) {
             if (because === null) return;
-            act("", "incident", { id: incident.id, action: "close", because: because }, incident.id + " is closed.");
+            act("", "incident", { id: incident.id, action: "close", because: because }, incident.id + " is closed.", "incident:" + incident.id);
           });
         } }),
       ])]));
@@ -576,12 +576,12 @@
       if (release.version === production) {
         actions.push(el("span", { class: "muted small", text: "in production" }));
       } else {
-        actions.push(el("button", { class: "owners-only", text: "Roll back to v" + release.version, onclick: function () {
-          act("Put production back on v" + release.version + "'s code? Its data stays as it is; hi snapshots it first.", "rollback", { version: release.version }, function (r) { return "Production runs v" + r.release.version + " now."; });
+        actions.push(el("button", { class: "owners-only", text: "Roll back to v" + release.version, busy: "rollback:" + release.version, onclick: function () {
+          act("Put production back on v" + release.version + "'s code? Its data stays as it is; hi snapshots it first.", "rollback", { version: release.version }, function (r) { return "Production runs v" + r.release.version + " now."; }, "rollback:" + release.version);
         } }));
         if (release.data) {
-          actions.push(el("button", { class: "danger owners-only", text: "…and its data", onclick: function () {
-            act("Put production back on v" + release.version + ", code and data? What was entered since v" + release.version + " left is lost from production (hi snapshots it first).", "rollback", { version: release.version, data: true }, function (r) { return "Production runs v" + r.release.version + ", with its data, now."; });
+          actions.push(el("button", { class: "danger owners-only", text: "…and its data", busy: "rollback:" + release.version, onclick: function () {
+            act("Put production back on v" + release.version + ", code and data? What was entered since v" + release.version + " left is lost from production (hi snapshots it first).", "rollback", { version: release.version, data: true }, function (r) { return "Production runs v" + r.release.version + ", with its data, now."; }, "rollback:" + release.version);
           } }));
         }
       }
@@ -611,10 +611,25 @@
         if (changes.length) {
           lines.push(el("div", { class: "where-what" }, [
             el("span", {}, [el("span", { class: "arrow", text: "↑ " }), document.createTextNode("dev has " + plural(changes.length, "change", "changes") + " waiting: " + changes.map(function (c) { return c.title; }).slice(0, 3).join("; ") + (changes.length > 3 ? "; …" : ""))]),
-            el("button", { class: "primary small", text: "Release v" + ((s.production || 0) + 1), onclick: function () { $("release").click(); } }),
           ]));
         } else if (s.production) {
           lines.push(el("div", { class: "muted small", text: "Dev is the same: nothing to release." }));
+        }
+        // A team that starts from code it already had has no tasks of its
+        // own yet, and dev is still its first release.
+        if (releasing) {
+          lines.push(el("div", { class: "where-what owners-only" }, [
+            el("button", { class: "primary small busy", disabled: "", text: "Releasing v" + releasing + "…" }),
+            el("span", { class: "muted small", text: "A snapshot of production first, then v" + releasing + " in a new box: a minute or two." }),
+          ]));
+        } else if (changes.length || !s.production) {
+          var release = [el("button", { class: "primary small", text: "Release v" + ((s.production || 0) + 1), title: "Dev goes to production, with a snapshot first. Your click is the yes, logged with your name.", onclick: openRelease })];
+          if (changes.length && s.production) {
+            release.push(el("button", { class: "link danger small", text: "Set dev back to production", busy: "dev-reset", onclick: function () {
+              act("Set dev's code back to what production runs? What dev has on top of it stays in its history, and Stage shows production's code.", "dev/reset", {}, "Dev is the same as production now.", "dev-reset");
+            } }));
+          }
+          lines.push(el("div", { class: "where-what owners-only" }, release));
         }
       } else if (a.address === "preview") {
         var showing = [el("span", { class: "muted", text: "showing " })];
@@ -628,9 +643,9 @@
           showing.push(el("span", { class: "tag", text: "nothing" }));
         }
         if (s.preview_branch || s.preview_old) {
-          showing.push(el("button", { class: "small", text: "Show dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
+          showing.push(el("button", { class: "small", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
             toast("Putting dev on Stage…", true);
-            act("", "preview-dev", {}, function (r) { return r.text; });
+            act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
           } }));
         }
         lines.push(el("div", { class: "where-what" }, showing));
@@ -643,9 +658,9 @@
             if (space.dirty) left.push("changes not committed");
             var on = space.branch === s.preview_branch;
             var end = on ? el("span", { class: "on-preview", text: "← on Stage now" })
-              : space.ahead > 0 ? el("button", { class: "small", text: "Try on Stage", title: "Show this branch on Stage, alone; dev doesn't change", onclick: function () {
+              : space.ahead > 0 ? el("button", { class: "small", text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone; dev doesn't change", onclick: function () {
                   toast("Putting " + space.branch + " on Stage…", true);
-                  act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; });
+                  act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
                 } })
               : el("span", { class: "muted small", text: "commit it to try it" });
             return el("li", { class: on ? "on" : "" }, [el("span", { class: "dot " + (on ? "working" : "") }), el("span", { class: "work-info" }, [el("span", { class: "work-name", text: space.branch }), el("span", { class: "muted small", text: left.join(", ") })]), end]);
@@ -670,11 +685,11 @@
         lines.push(el("div", { class: "muted small", text: "Internal only" }));
       }
       var button = a.public
-        ? el("button", { class: "small owners-only", text: "Internal only", onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the team's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.");
+        ? el("button", { class: "small owners-only", text: "Internal only", busy: "public:" + a.address, onclick: function () {
+            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the team's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
           } })
-        : el("button", { class: "small danger owners-only", text: "Make public", onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and releases the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.");
+        : el("button", { class: "small danger owners-only", text: "Make public", busy: "public:" + a.address, onclick: function () {
+            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and releases the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
           } });
       addresses.appendChild(el("li", { class: "where-row " + a.address }, [el("div", { class: "what" }, lines), el("div", { class: "actions" }, [button])]));
     });
@@ -784,9 +799,6 @@
     });
   }
 
-  $("dev-reset").addEventListener("click", function () {
-    act("Set dev's code back to what production runs? What dev has on top of it stays in its history, and Stage shows production's code.", "dev/reset", {}, "Dev is the same as production now.");
-  });
   // ---- the Data tab: production's and Stage's data, and the
   // snapshots; asked for when the tab opens, as sizing a folder takes a
   // moment.
@@ -989,7 +1001,7 @@
   }
   $("people-search").addEventListener("input", function () { if (people) renderPeople(people); });
 
-  $("release").addEventListener("click", function () {
+  function openRelease() {
     var next = ((state.status || {}).production || 0) + 1;
     $("release-title").textContent = "Release v" + next;
     $("release-notes").value = (state.changes || []).map(function (task) { return "- " + task.title; }).join("\n");
@@ -999,7 +1011,7 @@
     $("release-data").checked = false;
     $("release-data-box").hidden = !!((state.status || {}).production) || !state.preview_data;
     $("release-dialog").showModal();
-  });
+  }
   $("release-form").addEventListener("submit", function (event) {
     if (event.submitter && event.submitter.value !== "go") return;
     event.preventDefault();
@@ -1009,7 +1021,7 @@
     $("release-dialog").close();
     $("release-error").textContent = "";
     toast("Releasing v" + releasing + ": a snapshot of production first, then the new box…", true);
-    if (state.status) renderSystem();
+    if (state.status) renderOwnerActions();
     api("POST", "release", { notes: $("release-notes").value, preview_data: $("release-data").checked }).then(function (result) {
       releasing = 0;
       toast("Production runs v" + result.release.version + " now." + (result.warning ? " " + result.warning : ""));
@@ -1018,7 +1030,7 @@
       // Back in the dialog, with the notes as they were.
       releasing = 0;
       $("toast").hidden = true;
-      if (state.status) renderSystem();
+      if (state.status) renderOwnerActions();
       $("release-error").textContent = error.message;
       $("release-go").disabled = false;
       $("release-dialog").showModal();

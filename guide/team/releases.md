@@ -15,8 +15,8 @@ The project has two versions:
 
 ## Release
 
-On the dev page, **Release v4** shows when dev has work production
-hasn't. It opens the release notes, drafted from dev's changes; edit them
+On the dev page's Release tab, **Release v4** shows in Production's row
+when dev has work production hasn't. It opens the release notes, drafted from dev's changes; edit them
 in the people's words and click Release. hi takes a snapshot, moves
 production, gives the preview a new fork of production's data, and posts
 one line in the channel, with the notes, who released it, and the work it
@@ -38,7 +38,7 @@ channel gets "PROD back on v3". See [Rollback](/guide/team/folder/#rollback)
 for which to choose.
 
 When the owners want everything in dev since the last release gone,
-**Set dev back to production** sets dev's code back to what production
+**Set dev back to production**, beside Release, sets dev's code back to what production
 runs. What dev had stays in the project's history, and the preview shows
 production's code.
 

@@ -173,21 +173,11 @@
         <p class="muted small">Each address and what it shows now. On the team's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
         <ul id="addresses" class="where"></ul>
       </section>
-      <div class="release-cols">
-        <div class="release-col">
-          <h2>Release</h2>
-        <p class="developers-only muted small">The owners release dev to production, and roll it back. Ship your work into dev; they release it.</p>
-        <div id="release-box" class="owners-only">
-          <button id="release" class="primary" hidden></button>
-          <p id="release-note" class="muted small"></p>
-          <button id="dev-reset" class="link danger small" hidden>Set dev back to production</button>
-        </div>
-        </div>
-        <div class="release-col">
+      <section class="releases-card">
         <h2>Releases</h2>
+        <p class="developers-only muted small">The owners release dev to production, and roll it back. Ship your work into dev; they release it.</p>
         <ul id="releases" class="list"></ul>
-        </div>
-      </div>
+      </section>
     </div>
   </section>
   <section id="tab-data" class="panel system-panel" hidden>
