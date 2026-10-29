@@ -104,11 +104,44 @@
   var socket = null;
   var encoder = new TextEncoder();
 
+  // fitTerminal sizes the terminal to its panel, and herdr's panes with it.
+  // Hidden, behind the chat, VS Code or another tab, it takes the size the
+  // panel would have, not xterm's 80×24: Claude Code draws a question to its
+  // pane, and one too small to hold it can't be read for the chat.
   function fitTerminal() {
-    try { fit.fit(); } catch (e) { return; }
+    if (document.querySelector(".term-panel").offsetParent) {
+      try { fit.fit(); } catch (e) { return; }
+    } else {
+      var size = hiddenTermSize();
+      if (size && (size.cols !== term.cols || size.rows !== term.rows)) term.resize(size.cols, size.rows);
+    }
     if (socket && socket.readyState === 1) socket.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
   }
-  new ResizeObserver(fitTerminal).observe(document.querySelector(".term-panel"));
+  function hiddenTermSize() {
+    var shown = [$("chat"), $("vscode")].filter(function (other) { return other.offsetParent; })[0];
+    // Another tab: the window, less the page's tabs, the bar and the workspaces.
+    var width = shown ? shown.clientWidth : window.innerWidth - (window.innerWidth < 760 ? 24 : 310);
+    var height = shown ? shown.clientHeight : window.innerHeight - 110;
+    var style = getComputedStyle($("term"));
+    width -= (parseFloat(style.left) || 0) + (parseFloat(style.right) || 0) + ((term._core.viewport || {}).scrollBarWidth || 15);
+    height -= (parseFloat(style.top) || 0) + (parseFloat(style.bottom) || 0);
+    var cell = termCell();
+    if (!cell.width || !cell.height) return null;
+    return { cols: Math.max(40, Math.floor(width / cell.width)), rows: Math.max(16, Math.floor(height / cell.height)) };
+  }
+  // termCell is a character's size: xterm's, once it has drawn, else measured.
+  function termCell() {
+    var dims = term._core && term._core._renderService && term._core._renderService.dimensions;
+    if (dims && dims.css.cell.width) return dims.css.cell;
+    var probe = el("span", { text: "W".repeat(40) });
+    probe.style.cssText = "position:absolute;visibility:hidden;white-space:pre;line-height:normal;font-family:" + term.options.fontFamily.replace(/"/g, "'") + ";font-size:" + term.options.fontSize + "px";
+    document.body.appendChild(probe);
+    var rect = probe.getBoundingClientRect();
+    probe.remove();
+    return { width: rect.width / 40, height: Math.ceil(rect.height) };
+  }
+  [".term-panel", "#chat", "#vscode"].forEach(function (panel) { new ResizeObserver(fitTerminal).observe(document.querySelector(panel)); });
+  window.addEventListener("resize", fitTerminal);
   // An on-screen keyboard covers the page's bottom on iOS: the page keeps
   // to what is visible, so the keys and the terminal's last line sit just
   // above the keyboard.

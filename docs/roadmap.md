@@ -2713,6 +2713,13 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.37 — The chat sees a question at once
+
+- [x] Behind the chat, VS Code, or another tab, the dev page's terminal
+  takes the size its panel would have, not xterm's 80×24: Claude Code
+  drew a question into a pane too small to hold it, which the chat
+  couldn't read until the Terminal view had been opened once.
+
 ### v2.6.36 — Templates pass their own check again
 
 - [x] The templates' `.claude/settings.json` lists what agents may not
