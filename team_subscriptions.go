@@ -705,7 +705,7 @@ func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 				}
 			}
 			if len(back) > 0 {
-				b.channel.post(config.Channel, fmt.Sprintf(":white_check_mark: %s is signed in again; %s %s back on it.",
+				b.channel.post(config.opsChannel(), fmt.Sprintf(":white_check_mark: %s is signed in again; %s %s back on it.",
 					what, strings.Join(back, " and "), map[bool]string{true: "are", false: "is"}[len(back) > 1]))
 			}
 		}
@@ -754,7 +754,7 @@ func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 		if _, ok := config.Members[role]; !ok {
 			continue
 		}
-		if _, err := b.channel.post(config.Channel, teamFallbackMessage(config, secrets, role, refusals[role])); err == nil {
+		if _, err := b.channel.post(config.opsChannel(), teamFallbackMessage(config, secrets, role, refusals[role])); err == nil {
 			state.Warned[role], changed = now.UTC(), true
 		}
 	}

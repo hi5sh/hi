@@ -248,7 +248,7 @@ func (b *teamBroker) devSiteTell(host, why, work string) {
 	} else {
 		text += " An owner can allow it on the dev page."
 	}
-	if _, err := b.devSay(teamDevSayRequest{Text: text}); err != nil {
+	if _, err := b.devSay(teamDevSayRequest{Text: text, Ops: true}); err != nil {
 		fmt.Fprintf(os.Stderr, "hi: telling the channel the dev box asks for %s: %v\n", host, err)
 	}
 }

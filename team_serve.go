@@ -195,8 +195,19 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err := broker.commitSpecs(); err != nil {
 		fmt.Fprintf(stderr, "hi: committing the specs: %v\n", err)
 	}
-	go teamWatchChannel(ctx.Done(), name, config.Channel, slackChannel, stderr)
-	broker.pollChannel = func() error { return teamPollChannel(name, config.Channel, slackChannel, time.Now()) }
+	// Both channels' logs: the ops channel's in channel/ops (team_ops.go).
+	for _, channel := range config.teamChannels() {
+		go teamWatchChannel(ctx.Done(), name, channel, slackChannel, stderr)
+	}
+	broker.pollChannel = func() error {
+		var failed error
+		for _, channel := range config.teamChannels() {
+			if err := teamPollChannel(name, channel, slackChannel, time.Now()); err != nil {
+				failed = err
+			}
+		}
+		return failed
+	}
 	go broker.keepLinks(ctx.Done(), stderr)
 	go broker.keepDevPage(ctx.Done(), stderr)
 	go broker.keepHTTPS(ctx.Done(), stderr)
@@ -464,9 +475,10 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 		"OPENROUTER_API_KEY=" + boxClaudePlacehold,
 		"SLACK_BOT_TOKEN=" + secrets.SlackBotToken,
 		"SLACK_APP_TOKEN=" + secrets.SlackAppToken,
-		// One channel, and DMs with the people who may ask for work: the
-		// plugin drops anyone else's (team_people.go).
-		"SLACK_ALLOWED_CHANNELS=" + config.Channel,
+		// Its channels, the main one and the ops one (team_ops.go), and DMs
+		// with the people who may ask for work: the plugin drops anyone
+		// else's (team_people.go).
+		"SLACK_ALLOWED_CHANNELS=" + strings.Join(config.teamChannels(), ","),
 		"SLACK_HOME_CHANNEL=" + config.Channel,
 		"SLACK_DISABLE_DMS=false",
 		// It answers when @-mentioned, and then follows that thread without
@@ -1208,7 +1220,7 @@ there.
 
 hi replaces this skill when it updates. Keep what you learn in the
 %[2]s skill instead: hi never rewrites it.
-`, config.Name, teamNotesSkill, teamSlashCommand(config.Name))+teamSkillAdopted(config), "<team>", config.Name)
+`, config.Name, teamNotesSkill, teamSlashCommand(config.Name))+teamSkillAdopted(config)+teamSkillOps(config), "<team>", config.Name)
 }
 
 // teamSpecsPath is where the lead's specs live in the project: versioned

@@ -183,6 +183,9 @@ func (b *teamBroker) mergeDevBranch(request teamDevShipRequest, head string) (te
 type teamDevSayRequest struct {
 	Text   string `json:"text"`
 	Thread string `json:"thread,omitempty"`
+	// Ops is hi's own post about the box's reach, for the ops channel;
+	// the box can't set it.
+	Ops bool `json:"-"`
 }
 
 func (b *teamBroker) devSay(request teamDevSayRequest) (string, error) {
@@ -198,10 +201,14 @@ func (b *teamBroker) devSay(request teamDevSayRequest) (string, error) {
 		return "", err
 	}
 	text = ":computer: " + text
-	if request.Thread != "" {
-		return b.channel.postIn(config.Channel, request.Thread, text)
+	channel := config.Channel
+	if request.Ops {
+		channel = config.opsChannel()
 	}
-	return b.channel.post(config.Channel, text)
+	if request.Thread != "" {
+		return b.channel.postIn(channel, request.Thread, text)
+	}
+	return b.channel.post(channel, text)
 }
 
 // teamDevStatusView is the team's state, for the dev box.

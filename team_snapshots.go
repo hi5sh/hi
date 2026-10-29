@@ -885,7 +885,7 @@ var (
 		if err != nil {
 			return err
 		}
-		_, err = newLiveTeamChannel(secrets.SlackBotToken).post(config.Channel, text)
+		_, err = newLiveTeamChannel(secrets.SlackBotToken).post(config.opsChannel(), text)
 		return err
 	}
 )

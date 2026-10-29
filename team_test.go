@@ -202,6 +202,7 @@ func TestTeamWizard(t *testing.T) {
 		"Track supplier payments for the finance admins",
 		"xoxb-bot", "xapp-app",
 		"\x1b[201~C07PAYMENTS", // the end of a pasted token's marker, left over
+		"C07PAYOPS",            // the ops channel
 		"U07OWNER1, U07OWNER2",
 		"", "", "", // the lead, its provider and effort, as offered
 		"", "", "high", // the coder and its Claude sign-in as offered, thinking harder
@@ -225,7 +226,7 @@ func TestTeamWizard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Channel != "C07PAYMENTS" || len(config.Owners) != 2 || config.Branch != "main" || config.Members["lead"].Name != "Åsa Berg" || config.Addresses != "payments.corp.example" ||
+	if config.Channel != "C07PAYMENTS" || config.OpsChannel != "C07PAYOPS" || len(config.Owners) != 2 || config.Branch != "main" || config.Members["lead"].Name != "Åsa Berg" || config.Addresses != "payments.corp.example" ||
 		config.Members["reviewer"].Model != "gpt-5.5" || config.Members["coder"].Agent != "claude" || config.Members["lead"].Model != "qwen/qwen3.8-max" ||
 		config.Members["coder"].Effort != "high" || config.Members["lead"].Effort != "" || config.Members["reviewer"].Effort != "" ||
 		config.Members["coder"].Bundle != "web,data" || config.Members["reviewer"].Bundle != "web,data" || config.Members["lead"].Bundle != "" {

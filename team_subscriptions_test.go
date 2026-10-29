@@ -53,7 +53,7 @@ func TestTeamWizardPutsTheLeadOnChatGPT(t *testing.T) {
 	answers := strings.Join([]string{
 		"", // the lead's name: the team's
 		"Track supplier payments for the finance admins",
-		"xoxb-bot", "xapp-app", "C07PAYMENTS", "U07OWNER1",
+		"xoxb-bot", "xapp-app", "C07PAYMENTS", "", "U07OWNER1",
 		"", // the lead: Hermes, as offered
 		"chatgpt",
 		"",                              // the team's own sign-in

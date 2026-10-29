@@ -2,6 +2,11 @@
 
 Status: Approved (2026-10-22). Built: release 1 in v1.4.0, 2 in v1.5.0, 3 in v1.6.0, 4 in v1.7.0.
 
+Being replaced (2026-10-29) by [hi_team_ops.md](hi_team_ops.md): the
+rules move to the team's own machine, a dead machine is an outside
+heartbeat service's to notice, and the server stops watching. This spec
+stays the record of what was built, until those releases land.
+
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
 [hi_team.md](../approved/hi_team.md) (the broker, `__serve` under systemd),

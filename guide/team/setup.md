@@ -40,7 +40,13 @@ things, one at a time:
    with `connections:write` (`xapp-…`, under Basic Information). Neither
    shows as you paste it.
 4. **Channel.** Invite the app to the channel (`/invite @payments`, or the
-   lead's handle) and paste the channel's ID (`C…`).
+   lead's handle) and paste the channel's ID (`C…`). Then, optionally, a
+   second channel for operations and security: incidents, warnings,
+   downtime, advisories, keys, access, and the dev box's site asks, which
+   need technical know-how. Make it private, for owners and Pro Devs, and
+   invite the app there too. Without it, all of that goes to the main
+   channel. `hi team ops <team> <channel ID>` adds it later, and
+   `hi team ops <team> off` takes it away.
 5. **People.** The owners' Slack member IDs (`U…`): the team's
    developers, who build in the dev box and release from the dev page.
    Everyone in the channel may talk with the lead.

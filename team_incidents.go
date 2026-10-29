@@ -54,14 +54,22 @@ type teamIncident struct {
 	Detail string `json:"detail,omitempty"`
 	// Thread is the Slack thread it is discussed in; empty when hi had no
 	// Slack.
-	Thread string    `json:"thread,omitempty"`
-	Opened time.Time `json:"opened"`
+	Thread string `json:"thread,omitempty"`
+	// Channel is where Thread is; empty is the main channel, where every
+	// incident was before the ops channel (team_ops.go).
+	Channel string    `json:"channel,omitempty"`
+	Opened  time.Time `json:"opened"`
 	// Status is open, waiting (the lead asked the people), or closed.
 	Status   string              `json:"status"`
 	Asked    time.Time           `json:"asked,omitzero"`
 	Reminded time.Time           `json:"reminded,omitzero"`
 	Closed   time.Time           `json:"closed,omitzero"`
 	Events   []teamIncidentEvent `json:"events"`
+}
+
+// channelIn is the channel the incident's thread is in.
+func (i teamIncident) channelIn(config teamConfig) string {
+	return firstNonEmpty(i.Channel, config.Channel)
 }
 
 // teamIncidentEvent is one line of an incident's timeline.
@@ -193,21 +201,28 @@ func (b *teamBroker) openIncident(incident teamIncident, alert, thread string, p
 	text := fmt.Sprintf(":rotating_light: *Incident %s · %s*\n%s", incident.ID, teamIncidentWhere(incident), teamSlackEscape(alert))
 	// A task's incident is told only in its work's thread; without one, the
 	// lead's wait says it.
+	// In a work's thread, in the main channel where that thread is; on its
+	// own, in the ops channel.
 	if b.channel != nil && (thread != "" || incident.Kind != "task") {
 		var ts string
+		channel := config.Channel
 		if thread != "" {
-			ts, err = b.channel.postIn(config.Channel, thread, text)
+			ts, err = b.channel.postIn(channel, thread, text)
 		} else {
-			ts, err = b.channel.post(config.Channel, text)
+			channel = config.opsChannel()
+			ts, err = b.channel.post(channel, text)
 			thread = ts
 		}
 		if err == nil {
-			b.updateIncident(incident.ID, func(i *teamIncident) { i.Thread = thread })
-			incident.Thread = thread
+			if channel == config.Channel {
+				channel = ""
+			}
+			b.updateIncident(incident.ID, func(i *teamIncident) { i.Thread, i.Channel = thread, channel })
+			incident.Thread, incident.Channel = thread, channel
 		}
 	}
 	if prompt != nil && b.wakeLead != nil && incident.Thread != "" {
-		if err := b.wakeLead("hi-incident-"+incident.ID, prompt(config, incident), "slack:"+config.Channel+":"+incident.Thread); err != nil {
+		if err := b.wakeLead("hi-incident-"+incident.ID, prompt(config, incident), "slack:"+incident.channelIn(config)+":"+incident.Thread); err != nil {
 			b.addIncidentEvent(incident.ID, teamIncidentEvent{Who: "hi", Action: "note", Result: "couldn't wake the lead: " + err.Error()})
 		}
 	}
@@ -264,7 +279,7 @@ func (b *teamBroker) logIncidentAction(incident teamIncident, event teamIncident
 		return
 	}
 	text := fmt.Sprintf(":gear: *%s, %s:* %s", teamCapitalize(teamIncidentWho(event.Who)), incident.ID, teamSlackEscape(teamIncidentActionText(event)))
-	b.channel.postIn(config.Channel, incident.Thread, text)
+	b.channel.postIn(incident.channelIn(config), incident.Thread, text)
 }
 
 func teamIncidentWho(who string) string {
@@ -308,7 +323,7 @@ func (b *teamBroker) recovered(id, text string) {
 		return
 	}
 	if config, err := loadTeam(b.team); err == nil {
-		b.channel.postIn(config.Channel, incident.Thread, fmt.Sprintf(":white_check_mark: %s Incident %s is closed.", teamSlackEscape(text), incident.ID))
+		b.channel.postIn(incident.channelIn(config), incident.Thread, fmt.Sprintf(":white_check_mark: %s Incident %s is closed.", teamSlackEscape(text), incident.ID))
 	}
 }
 
@@ -454,14 +469,14 @@ func (b *teamBroker) remindIncidents(now time.Time) error {
 				i.Reminded = now.UTC()
 				i.Events = append(i.Events, teamIncidentEvent{At: now.UTC(), Who: "hi", Action: "reminder", Result: "told the owners it still stands"})
 			})
-			b.channel.postIn(config.Channel, incident.Thread, fmt.Sprintf(":hourglass: %s, %s (%s) has stood for %s, and nobody was asked. The lead's account is above: if what it waits for isn't what you want, say so here.",
+			b.channel.postIn(incident.channelIn(config), incident.Thread, fmt.Sprintf(":hourglass: %s, %s (%s) has stood for %s, and nobody was asked. The lead's account is above: if what it waits for isn't what you want, say so here.",
 				strings.Join(owners, " "), incident.ID, teamIncidentWhere(incident), teamJobDuration(now.Sub(incident.Opened).Truncate(time.Hour))))
 			continue
 		}
 		if incident.Status != "waiting" || !incident.Reminded.IsZero() || incident.Thread == "" || now.Sub(incident.Asked) < teamIncidentRemindAfter {
 			continue
 		}
-		messages, _ := readTeamChannel(teamChannelDir(b.team), teamSlackTS(incident.Asked))
+		messages, _ := readTeamChannel(teamChannelLogDir(b.team, config, incident.channelIn(config)), teamSlackTS(incident.Asked))
 		answered := false
 		for _, message := range messages {
 			if message.Thread == incident.Thread && !teamChannelFromBot(config, message) {
@@ -477,7 +492,7 @@ func (b *teamBroker) remindIncidents(now time.Time) error {
 		if answered {
 			continue
 		}
-		b.channel.postIn(config.Channel, incident.Thread, fmt.Sprintf(":hourglass: %s, the lead's question above has waited a day. Nothing happens to %s until one of you answers.",
+		b.channel.postIn(incident.channelIn(config), incident.Thread, fmt.Sprintf(":hourglass: %s, the lead's question above has waited a day. Nothing happens to %s until one of you answers.",
 			strings.Join(owners, " "), teamIncidentWhere(incident)))
 	}
 	return nil

@@ -906,10 +906,10 @@ func teamSaveFetchedTicketFiles(number int, result teamTicketResult, stdout io.W
 // channel's log, which hi then reads first.
 func (b *teamBroker) threadFiles(request teamTicketRequest) []teamAttachment {
 	config, err := loadTeam(b.team)
-	if err != nil || request.Thread == "" || request.Chat != config.Channel {
+	if err != nil || request.Thread == "" || !slices.Contains(config.teamChannels(), request.Chat) {
 		return nil
 	}
-	dir := teamChannelDir(b.team)
+	dir := teamChannelLogDir(b.team, config, request.Chat)
 	shared := func() ([]teamChannelMessage, bool) {
 		// The day before the thread's first message, as readTeamChannel reads.
 		messages, _ := readTeamChannel(dir, teamSlackTS(teamTSTime(request.Thread).Add(-time.Second)))

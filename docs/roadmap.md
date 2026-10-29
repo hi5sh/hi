@@ -2713,6 +2713,16 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.29 — An ops channel
+
+- [x] A team can have a second Slack channel for operations and
+  security (hi_team_ops.md, release 1): incidents and everything in their
+  threads, jobs' and workers' notices, sign-ins that stopped, snapshots'
+  warnings, access changes, and the dev box's site asks go there, and the
+  main channel keeps releases, Stage, tasks, ideas, and the app. The
+  wizard asks for it; `hi team ops <team> <ID>|off` sets it later. The
+  lead talks in both, plainly in main and technically in ops.
+
 ### v2.6.28 — Pictures in the terminal
 
 - [x] A picture pasted into the dev page's terminal went nowhere: Ctrl+V
@@ -3794,6 +3804,21 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
+
+### Next — the team watches itself (hi_team_ops.md, releases 2 to 4)
+
+- [ ] **Heartbeats**: a team's (the wizard asks for a URL and an
+  interval; `__serve` sends it; `hi team heartbeat`), and the machine's
+  for machines that run hi's services (`hi heartbeat`, a systemd user
+  timer; the first `hi team new` and `hi server` setup ask for it). The
+  IT admins set at the service who hears a stop.
+- [ ] **The watcher on the machine**: the hi server's health and network
+  rules, advisory matching, and freeze and pause move into the team's
+  broker and post in the ops channel; teams stop sending heartbeats to
+  the server.
+- [ ] **The server without watch**: its watch code, commands, ntfy, and
+  the OpenRouter keys it made, removed; a team's key is only the one
+  entered in the wizard or with `hi team key`.
 
 ### Next — a box's escape reaches only its own team
 

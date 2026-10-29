@@ -319,7 +319,7 @@ func (b *teamBroker) devPagePublic(address string, on bool, by string) error {
 			what = "public too"
 		}
 		name := map[string]string{teamSlotProduction: "Production", teamSlotPreview: "The preview", teamAddressDev: "The dev page"}[address]
-		b.channel.post(config.Channel, fmt.Sprintf(":lock: %s is %s now, as %s chose.", name, what, teamSlackEscape(by)))
+		b.channel.post(config.opsChannel(), fmt.Sprintf(":lock: %s is %s now, as %s chose.", name, what, teamSlackEscape(by)))
 	}
 	switch address {
 	case teamAddressDev:

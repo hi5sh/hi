@@ -266,7 +266,8 @@ func teamWatchChannel(done <-chan struct{}, team, channel string, source teamCha
 func teamPollChannel(team, channel string, source teamChannelSource, now time.Time) error {
 	teamChannelMu.Lock()
 	defer teamChannelMu.Unlock()
-	dir := teamChannelDir(team)
+	config, _ := loadTeam(team)
+	dir := teamChannelLogDir(team, config, channel)
 	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o700); err != nil {
 		return err
 	}

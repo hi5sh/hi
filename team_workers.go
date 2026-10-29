@@ -369,9 +369,9 @@ func (b *teamBroker) checkWorkersRule() error {
 		if b.wakeLead == nil {
 			return nil // asked once the lead is there
 		}
-		deliver := "slack:" + config.Channel
+		deliver := "slack:" + config.opsChannel()
 		if b.channel != nil {
-			ts, err := b.channel.post(config.Channel, ":handshake: *hi now hands the app's background work over at every release*: the old version's workers stop before the new one starts, so they never run twice and the new version doesn't find the database busy. This app's workers don't take part yet: the lead checks what needs changing and says here.")
+			ts, err := b.channel.post(config.opsChannel(), ":handshake: *hi now hands the app's background work over at every release*: the old version's workers stop before the new one starts, so they never run twice and the new version doesn't find the database busy. This app's workers don't take part yet: the lead checks what needs changing and says here.")
 			if err != nil {
 				return err
 			}

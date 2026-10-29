@@ -546,7 +546,7 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		state.Advisories, state.AdvisoryCounts, state.AdvisoriesAt = reply.Advisories, reply.Counts, now.UTC()
 		if reply.Report != nil && reply.Report.ID != state.Reported && b.channel != nil {
 			if config, err := loadTeam(b.team); err == nil {
-				if _, err := b.channel.post(config.Channel, reply.Report.Text); err == nil {
+				if _, err := b.channel.post(config.opsChannel(), reply.Report.Text); err == nil {
 					state.Reported = reply.Report.ID
 				}
 			}
@@ -563,7 +563,7 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 		if b.channel != nil {
 			if config, err := loadTeam(b.team); err == nil {
-				b.channel.post(config.Channel, ":key: The team's hi server gave it a new OpenRouter key; model calls use it from now on.")
+				b.channel.post(config.opsChannel(), ":key: The team's hi server gave it a new OpenRouter key; model calls use it from now on.")
 			}
 		}
 		more = true

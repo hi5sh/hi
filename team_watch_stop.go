@@ -211,7 +211,7 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 	}
 	if b.channel != nil {
 		if config, err := loadTeam(b.team); err == nil {
-			b.channel.post(config.Channel, text)
+			b.channel.post(config.opsChannel(), text)
 		}
 	}
 	return nil

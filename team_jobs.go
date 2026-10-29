@@ -348,9 +348,9 @@ func (b *teamBroker) checkUnreported() error {
 		if err != nil {
 			return err
 		}
-		deliver := "slack:" + config.Channel
+		deliver := "slack:" + config.opsChannel()
 		if b.channel != nil {
-			ts, err := b.channel.post(config.Channel, ":mag: *hi now watches the app's long work*, such as a backfill or an import, and says when it stops. Work written before can't be seen yet: the lead checks this app's and says here what needs changing.")
+			ts, err := b.channel.post(config.opsChannel(), ":mag: *hi now watches the app's long work*, such as a backfill or an import, and says when it stops. Work written before can't be seen yet: the lead checks this app's and says here what needs changing.")
 			if err != nil {
 				return err
 			}

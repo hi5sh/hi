@@ -34,10 +34,13 @@ var (
 
 // teamConfig is team.json. It holds no secrets.
 type teamConfig struct {
-	Name    string   `json:"name"`
-	Purpose string   `json:"purpose"`
-	Channel string   `json:"channel"`
-	Owners  []string `json:"owners"`
+	Name    string `json:"name"`
+	Purpose string `json:"purpose"`
+	Channel string `json:"channel"`
+	// OpsChannel is where incidents, warnings, security, keys, and access
+	// go (team_ops.go); empty, they go to Channel.
+	OpsChannel string   `json:"ops_channel,omitempty"`
+	Owners     []string `json:"owners"`
 	// Developers work in the dev box and on the dev page like the owners,
 	// except what reaches production; Contributors report bugs as tasks.
 	// Owners set both; being in the channel gives nobody a level
@@ -226,6 +229,9 @@ func validateTeam(config teamConfig) error {
 	}
 	if !slackIDPattern.MatchString(config.Channel) {
 		return fmt.Errorf("the channel is a Slack channel ID, such as C07ABC123, not %q", config.Channel)
+	}
+	if config.OpsChannel != "" && !slackIDPattern.MatchString(config.OpsChannel) {
+		return fmt.Errorf("the ops channel is a Slack channel ID, such as C07ABC123, not %q", config.OpsChannel)
 	}
 	if len(config.Owners) == 0 {
 		return errors.New("a team needs at least one owner")
@@ -463,6 +469,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamMemberCommand(rest, stdin, stdout)
 	case "env":
 		err = teamEnv(rest, stdin, stdout)
+	case "ops":
+		err = teamOpsCommand(rest, stdout)
 	case "limit":
 		err = teamLimitCommand(rest, stdout)
 	case "bom":
@@ -581,6 +589,8 @@ usage:
                                    the app reaches models at $OPENROUTER_BASE_URL through hi
   hi team key <name> slack         the Slack app's tokens again, when Slack gave new ones (asked
                                    for and checked; Enter keeps one); a running team restarts
+  hi team ops <name> [<channel ID>|off]  a second channel for incidents, warnings, security, keys,
+                                   and access; without one they go to the main channel
   hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
                                    code to type on any device; only the team's server refreshes it
   hi team signin <name> claude     the team's own Claude token, from claude setup-token (asked for):
@@ -1273,6 +1283,24 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		return answers, secrets, err
 	}
 	teamSay(stdout, styled, fmt.Sprintf("Slack: the app is in #%s.", channel))
+	teamSay(stdout, styled, "A second channel for operations and security, optional: incidents, warnings, downtime,",
+		"advisories, keys, and access, for the people with the know-how. A private one, for owners and Pro Devs.",
+		"Without it, all of that goes to the main channel. Invite the app there too.")
+	if config.OpsChannel, err = teamAskUntil(stdin, stdout, "Ops channel ID [Enter: none]", false, func(id string) error {
+		if id == "" {
+			return nil
+		}
+		if id == config.Channel {
+			return errors.New("that's the main channel; the ops channel is a second one")
+		}
+		channel, err = teamCheckChannel(handle, secrets.SlackBotToken, id)
+		return err
+	}); err != nil {
+		return answers, secrets, err
+	}
+	if config.OpsChannel != "" {
+		teamSay(stdout, styled, fmt.Sprintf("Slack: the app is in #%s, for operations.", channel))
+	}
 
 	teamStep(stdout, styled, "5/9 People")
 	teamSay(stdout, styled, "Owners build the app in the dev box and release it from the dev page. Give Slack member IDs,",
@@ -1790,6 +1818,13 @@ func teamCheckSlack(config teamConfig, secrets teamSecrets, stdout io.Writer) er
 		return err
 	}
 	fmt.Fprintf(stdout, "Slack: workspace %s, channel #%s.\n", workspace, channel)
+	if config.OpsChannel != "" {
+		ops, err := teamCheckChannel(teamBotHandle(config), secrets.SlackBotToken, config.OpsChannel)
+		if err != nil {
+			return fmt.Errorf("the ops channel: %w", err)
+		}
+		fmt.Fprintf(stdout, "Slack: ops channel #%s.\n", ops)
+	}
 	return nil
 }
 
@@ -2446,7 +2481,11 @@ func teamStatus(name string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Team %s: %s. Channel %s. %s\n\n", name, teamState(name), config.Channel, config.Purpose)
+	channels := "Channel " + config.Channel
+	if config.OpsChannel != "" {
+		channels += ", ops " + config.OpsChannel
+	}
+	fmt.Fprintf(stdout, "Team %s: %s. %s. %s\n\n", name, teamState(name), channels, config.Purpose)
 	for _, role := range teamRoles(config) {
 		fmt.Fprintf(stdout, "  %-10s %s\n", role, teamMemberLabel(config.Members[role]))
 	}

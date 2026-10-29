@@ -383,7 +383,7 @@ func (b *teamBroker) devPeopleRoutes(mux *http.ServeMux, builder func(http.Respo
 			if now == teamLevelNone {
 				text = fmt.Sprintf(":busts_in_silhouette: <@%s> took away <@%s>'s level: no reports, and the lead doesn't take their requests.", person.User, request.User)
 			}
-			b.channel.post(config.Channel, text)
+			b.channel.post(config.opsChannel(), text)
 		}
 		reply(w, http.StatusOK, map[string]string{"message": text})
 	})
