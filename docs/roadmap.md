@@ -2713,6 +2713,13 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.33 — Only unplanned restarts
+
+- [x] The watcher's restart rule counts only the starts nobody asked for
+  (a crash, a kill, a lost machine): a stop systemd asks for, for an
+  update, `hi team up`, or `hi team down`, marks the next start as
+  planned. A day of releases no longer opens an incident.
+
 ### v2.6.32 — The team watches itself
 
 - [x] The hi server's health, network, and advisory rules run in each

@@ -108,18 +108,51 @@ func teamRecordSpend(team, slot string, cost float64) {
 	fmt.Fprintf(file, "%s %s %s\n", time.Now().UTC().Format(time.RFC3339), slot, strconv.FormatFloat(cost, 'f', -1, 64))
 }
 
-// teamNoteServeStart notes a start of __serve, for how often systemd
-// starts it again.
+// teamServeStoppedPath marks a stop __serve was asked for: systemd's
+// SIGTERM, for an update, hi team up, or hi team down.
+func teamServeStoppedPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "serve-stopped")
+}
+
+// teamNoteServeStop marks the stop as planned, for the next start.
+func teamNoteServeStop(team string) {
+	writeFileAtomic(teamServeStoppedPath(team), []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o600)
+}
+
+// teamNoteServeStart notes a start of __serve that nobody asked for: one
+// after a crash, a kill, or a machine that lost its power, when the last
+// stop left no mark. Only those count as restarts; a team's first start,
+// and the starts of the days before hi 2.6.33, whose lines say neither,
+// don't.
 func teamNoteServeStart(team string) {
 	path := teamServeStartsPath(team)
+	planned := fileExists(teamServeStoppedPath(team)) || !fileExists(path)
+	os.Remove(teamServeStoppedPath(team))
 	var kept []string
 	for _, line := range boxReadLines(path, 200) {
-		if at, err := time.Parse(time.RFC3339, line); err == nil && time.Since(at) < 7*24*time.Hour {
+		_, at, _ := strings.Cut(line, " ")
+		if when, err := time.Parse(time.RFC3339, at); err == nil && time.Since(when) < 7*24*time.Hour {
 			kept = append(kept, line)
 		}
 	}
-	kept = append(kept, time.Now().UTC().Format(time.RFC3339))
+	kind := "unplanned"
+	if planned {
+		kind = "planned"
+	}
+	kept = append(kept, kind+" "+time.Now().UTC().Format(time.RFC3339))
 	writeFileAtomic(path, []byte(strings.Join(kept, "\n")+"\n"), 0o600)
+}
+
+// teamUnplannedStarts counts the starts nobody asked for since from.
+func teamUnplannedStarts(team string, from time.Time) int {
+	count := 0
+	for _, line := range boxReadLines(teamServeStartsPath(team), 200) {
+		at, ok := strings.CutPrefix(line, "unplanned ")
+		if when, err := time.Parse(time.RFC3339, at); ok && err == nil && when.After(from) {
+			count++
+		}
+	}
+	return count
 }
 
 // teamSpendSince adds up what model calls cost through hi since from: the
@@ -342,12 +375,9 @@ func (b *teamBroker) heartbeat(state *teamWatchState, probe teamWatchProbe, now 
 		}
 		beat.Parts["production"] = production
 	}
-	for _, line := range boxReadLines(teamServeStartsPath(b.team), 200) {
-		if at, err := time.Parse(time.RFC3339, line); err == nil && now.Sub(at) < 24*time.Hour {
-			beat.Restarts++
-		}
-	}
-	beat.Restarts = max(beat.Restarts-1, 0) // the start that runs now isn't a restart
+	// Only the starts nobody asked for: updates and hi team up restart on
+	// purpose.
+	beat.Restarts = teamUnplannedStarts(b.team, now.Add(-24*time.Hour))
 	if used, inodes, err := probe.statfs(teamDir(b.team)); err == nil {
 		beat.Disk.Team, beat.Disk.Inodes = used, inodes
 	}

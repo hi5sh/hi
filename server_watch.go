@@ -523,9 +523,9 @@ func (w *serverWatch) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 			return watchIncident{Title: fmt.Sprintf("%s's production stopped %d times in the last hour", team.Team, production.Restarts1h), Tell: true}
 		})
 	}
-	add("serve-restarts", beat.Restarts > 3, "The team has stopped restarting.", func() watchIncident {
-		return watchIncident{Title: fmt.Sprintf("%s started %d times in a day", team.Team, beat.Restarts+1),
-			Detail: "systemd starts hi team __serve again when it stops; this many means it keeps stopping. journalctl --user -u hi-team-" + team.Team + " on the team's machine says why."}
+	add("serve-restarts", beat.Restarts > 3, "The team has stopped restarting on its own.", func() watchIncident {
+		return watchIncident{Title: fmt.Sprintf("%s restarted on its own %d times in a day", team.Team, beat.Restarts),
+			Detail: "systemd starts hi team __serve again when it stops without being asked (a crash, a kill); updates and hi team up don't count. This many means it keeps stopping: journalctl --user -u hi-team-" + team.Team + " on the team's machine says why."}
 	})
 	add("oom", beat.OOMKills > 0, "No box was killed for memory in the last day.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("A box of %s was killed for memory (%d in a day)", team.Team, beat.OOMKills), Tell: true}

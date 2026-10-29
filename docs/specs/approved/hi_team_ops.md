@@ -1,7 +1,7 @@
 # `hi team ops`: a team that watches itself, and a channel for its operations
 
 Status: Approved (2026-10-29), the first draft's open questions answered
-the same day. Release 1 built in v2.6.29, release 2 in v2.6.31, release 3 in v2.6.32. Replaces most of
+the same day. Release 1 built in v2.6.29, release 2 in v2.6.31, release 3 in v2.6.32 and v2.6.33. Replaces most of
 [hi_watch.md](hi_watch.md) as releases 3 and 4 land.
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the broker,
@@ -440,4 +440,11 @@ split likewise).
   makes keys; revoke, rekey, and cut off can no longer reach a team, and
   their code goes in release 4. `hi team up` warns about a team with no
   heartbeat instead of one with no hi server.
+- v2.6.33: **only unplanned restarts count.** A stop systemd asks for
+  (SIGTERM: an update, `hi team up`, `hi team ops`, `hi team down`, a
+  clean reboot) leaves `run/serve-stopped`; the next start reads and
+  removes it and is noted `planned` in `run/serve-starts.log`, otherwise
+  `unplanned` (a crash, a kill, a lost machine). The rule counts the
+  unplanned starts of the last day ("restarted on its own"); a team's
+  first start, and the lines from before, which say neither, don't count.
 

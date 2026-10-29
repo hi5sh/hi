@@ -56,7 +56,7 @@ func TestTeamHeartbeatSays(t *testing.T) {
 	saveTeamVersions("payments", teamVersions{Production: 3})
 	os.WriteFile(filepath.Join(teamDir("payments"), "lead", "gateway_state.json"),
 		[]byte(`{"gateway_state":"running","updated_at":"`+now.UTC().Format(time.RFC3339)+`","platforms":{"slack":{"state":"connected"}}}`), 0o600)
-	os.WriteFile(teamServeStartsPath("payments"), []byte(now.Add(-2*time.Hour).UTC().Format(time.RFC3339)+"\n"+now.Add(-time.Minute).UTC().Format(time.RFC3339)+"\n"), 0o600)
+	os.WriteFile(teamServeStartsPath("payments"), []byte("unplanned "+now.Add(-2*time.Hour).UTC().Format(time.RFC3339)+"\nplanned "+now.Add(-time.Minute).UTC().Format(time.RFC3339)+"\n"), 0o600)
 	// Spend through hi: the app's calls, and the lead's in the network log.
 	os.WriteFile(teamSpendLogPath("payments"), []byte(now.Add(-10*time.Minute).UTC().Format(time.RFC3339)+" production 0.5\n"+now.Add(-3*time.Hour).UTC().Format(time.RFC3339)+" production 9\n"), 0o600)
 	os.WriteFile(teamNetworkLogPath("payments"), []byte(now.Add(-5*time.Minute).UTC().Format(time.RFC3339)+" spend 0.25\n"+now.UTC().Format(time.RFC3339)+" openrouter /api/v1/chat\n"), 0o600)
@@ -186,5 +186,34 @@ func TestServerTurnsHeartbeatsAway(t *testing.T) {
 	}
 	if incident := ts.server.watch.state.Incidents["w-1"]; incident.Closed.IsZero() || !strings.Contains(incident.Cleared, "watches itself") {
 		t.Fatalf("%+v", incident)
+	}
+}
+
+// Only the starts nobody asked for count: a stop systemd asked for (an
+// update, hi team up, hi team down) leaves a mark the next start reads.
+func TestTeamUnplannedRestarts(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
+	// The days before: lines that say neither don't count.
+	os.WriteFile(teamServeStartsPath("payments"), []byte(time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)+"\n"), 0o600)
+	teamNoteServeStart("payments") // no mark: it crashed
+	teamNoteServeStop("payments")
+	teamNoteServeStart("payments") // an update
+	teamNoteServeStop("payments")
+	teamNoteServeStart("payments") // hi team up
+	teamNoteServeStart("payments") // killed, no mark
+	if n := teamUnplannedStarts("payments", time.Now().Add(-24*time.Hour)); n != 2 {
+		data, _ := os.ReadFile(teamServeStartsPath("payments"))
+		t.Fatalf("%d:\n%s", n, data)
+	}
+	if fileExists(teamServeStoppedPath("payments")) {
+		t.Fatal("the mark stays after the start that read it")
+	}
+	// A team's very first start isn't a restart.
+	os.Remove(teamServeStartsPath("payments"))
+	teamNoteServeStart("payments")
+	if n := teamUnplannedStarts("payments", time.Now().Add(-time.Hour)); n != 0 {
+		t.Fatal(n)
 	}
 }

@@ -329,9 +329,9 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	go func() {
 		if _, ok := <-signals; ok {
 			stopped.Store(true)
-			// The hi server hears this is a stop, not a machine that died:
-			// a restart unless hi team down says otherwise.
-			broker.sendHeartbeat("restart")
+			// A stop that was asked for: the next start isn't a restart
+			// for the watcher (team_watch.go).
+			teamNoteServeStop(name)
 			engine.output("stop", "-t", "20", container)
 		}
 	}()
