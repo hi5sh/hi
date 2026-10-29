@@ -1,14 +1,13 @@
 package main
 
-// hi watch, on the team's machine: __serve sends its hi server a heartbeat
-// every minute, signed with this machine's device key (hi connect), with
-// each part's state, the disk, OOM kills, the last snapshot, what model
-// calls cost through hi and what OpenRouter counts on the key, and the
-// network log from where the server has it. The server watches from
-// outside (server_watch.go); what the lead can act on comes back in its
-// answer and opens an incident here.
+// hi watch, on the team's machine: every minute __serve makes a heartbeat,
+// with each part's state, the disk, OOM kills, the last snapshot, what
+// model calls cost through hi and what OpenRouter counts on the key, and
+// the network logs from where the watcher left off, and its own watcher
+// runs the rules on it (team_watch_local.go). Until hi 2.6.32 it went to
+// the team's hi server, which watched from outside.
 //
-// Spec: docs/specs/approved/hi_watch.md (release 1).
+// Spec: docs/specs/approved/hi_watch.md, and hi_team_ops.md (release 3).
 
 import (
 	"bufio"
@@ -477,13 +476,10 @@ var teamWatchClient = func() (*serverClient, string) {
 // server has it, and opens or closes the incidents its answer tells of.
 // It says whether more of the network log waits.
 func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
-	client, server := teamWatchClient()
-	if client == nil {
-		return false, errTeamNotWatched
-	}
 	if stopping != "" {
-		// A last word before a stop doesn't hold the stop up.
-		client.http.Timeout = 5 * time.Second
+		// Nothing outside waits for a last word: a stopped team is the
+		// outside heartbeat's to notice (team_heartbeat.go).
+		return false, nil
 	}
 	teamWatchStateMu.Lock()
 	state := loadTeamWatchState(b.team)
@@ -522,18 +518,22 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 	saveTeamWatchState(b.team, state)
 	teamWatchStateMu.Unlock()
 
-	var reply apiHeartbeatReply
-	err := client.call(http.MethodPost, "/v1/watch/heartbeat", beat, &reply)
+	reply, events, posts := b.localBeat(beat, bomPath, now)
 
 	teamWatchStateMu.Lock()
 	defer teamWatchStateMu.Unlock()
 	state = loadTeamWatchState(b.team)
-	state.Server = server
-	if err != nil {
-		state.Error, state.ErrorAt = err.Error(), now.UTC()
-		saveTeamWatchState(b.team, state)
-		return false, err
+	if state.Server != "" {
+		// The first check here after the hi server watched: what it told is
+		// checked here now, and opens again if it still holds.
+		for _, local := range state.Told {
+			if b.incidentOpen(local) {
+				b.recovered(local, "The team watches itself now, on its own machine; this opens again here if it still holds.")
+			}
+		}
+		state.Told = nil
 	}
+	state.Server = ""
 	state.Sent, state.Error, state.ErrorAt, state.Kept = now.UTC(), "", time.Time{}, reply.NetworkKept
 	if state.LogsKept == nil {
 		state.LogsKept = map[string]int64{}
@@ -542,7 +542,14 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		state.LogsKept[name] = kept
 	}
 	if stopping == "" {
-		b.tellWatched(&state, reply.Tell)
+		b.tellLocal(&state, events)
+		if b.channel != nil && len(posts) > 0 {
+			if config, err := loadTeam(b.team); err == nil {
+				for _, text := range posts {
+					b.channel.post(config.opsChannel(), text)
+				}
+			}
+		}
 		state.Advisories, state.AdvisoryCounts, state.AdvisoriesAt = reply.Advisories, reply.Counts, now.UTC()
 		if reply.Report != nil && reply.Report.ID != state.Reported && b.channel != nil {
 			if config, err := loadTeam(b.team); err == nil {
@@ -553,36 +560,12 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 	}
 	saveTeamWatchState(b.team, state)
-	if reply.NewKey != nil {
-		// An admin had the server make the team a new key.
-		teamWatchStateMu.Unlock()
-		err := teamUseServerKey(b.team, *reply.NewKey)
-		teamWatchStateMu.Lock()
-		if err != nil {
-			return false, fmt.Errorf("saving the new key from the hi server: %w", err)
-		}
-		if b.channel != nil {
-			if config, err := loadTeam(b.team); err == nil {
-				b.channel.post(config.opsChannel(), ":key: The team's hi server gave it a new OpenRouter key; model calls use it from now on.")
-			}
-		}
-		more = true
-	}
 	if reply.Do != nil {
 		// Confirmed in the next heartbeat.
 		if err := b.carryOut(*reply.Do); err != nil {
-			return false, fmt.Errorf("doing what the hi server asked (%s): %w", reply.Do.Action, err)
+			return false, fmt.Errorf("doing what was asked (%s): %w", reply.Do.Action, err)
 		}
 		more = true
-	}
-	if reply.NeedBom && bomPath != "" {
-		data, err := os.ReadFile(bomPath)
-		if err == nil {
-			err = client.call(http.MethodPost, "/v1/watch/bom", apiBom{Team: b.team, Version: beat.BomVersion, Digest: beat.Bom, Bom: data}, nil)
-		}
-		if err != nil {
-			return false, fmt.Errorf("sending production's bill of materials: %w", err)
-		}
 	}
 	return more && reply.NetworkKept == network.To, nil
 }
@@ -647,7 +630,7 @@ func (b *teamBroker) tellWatched(state *teamWatchState, tell []apiWatchIncident)
 			continue
 		}
 		local, err := b.openIncident(teamIncident{Kind: "watch", Slot: teamSlotProduction, Title: incident.Title, Detail: incident.Detail, Opened: time.Now().UTC()},
-			incident.Title+".\nThe team's hi server noticed it from outside; the lead looks into it here.", "", teamIncidentPrompt)
+			incident.Title+".\nThe team's watcher noticed it; the lead looks into it here.", "", teamIncidentPrompt)
 		if err != nil {
 			continue
 		}
@@ -695,14 +678,8 @@ func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
 // teamWatchLine is what hi team status says about the watcher.
 func teamWatchLine(team string) string {
 	state := loadTeamWatchState(team)
-	client, server := teamWatchClient()
-	switch {
-	case client == nil:
-		return "Watched from outside: no. This machine isn't connected to a hi server (hi connect), so nothing would notice if it stopped."
-	case state.Error != "" && state.ErrorAt.After(state.Sent):
-		return fmt.Sprintf("Watched by %s: the last heartbeat failed %s ago: %s", server, teamAgo(time.Since(state.ErrorAt)), state.Error)
-	case state.Sent.IsZero():
-		return fmt.Sprintf("Watched by %s: no heartbeat sent yet; the team sends one a minute once it runs.", server)
+	if state.Sent.IsZero() {
+		return "Watcher: on this machine, from the team's next start; it checks every minute."
 	}
-	return fmt.Sprintf("Watched by %s: last heartbeat %s ago.", server, teamAgo(time.Since(state.Sent)))
+	return fmt.Sprintf("Watcher: on this machine, last checked %s ago.", teamAgo(time.Since(state.Sent)))
 }

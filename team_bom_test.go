@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -199,36 +200,20 @@ func testOSVRecord(id, ecosystem, name, fixed, cve, severity, modified string) o
 // hears of what the lead can act on; an owner's ignore closes it until the
 // advisory changes.
 func TestWatchMatchesProductionsBill(t *testing.T) {
-	ts := newTestServer(t)
-	ts.connectAs(t, "anna", "staff")
-	key, err := loadDeviceKey(false)
-	if err != nil {
-		t.Fatal(err)
-	}
 	fake := &fakeAdvisories{vulns: map[string]osvRecord{
 		"npm react 19.3.0":                           testOSVRecord("GHSA-r3ac-t000-0001", "npm", "react", "19.3.1", "CVE-2026-2222", "HIGH", "2026-10-01T00:00:00Z"),
 		"Ubuntu:24.04:LTS openssl 3.0.13-0ubuntu3.5": testOSVRecord("UBUNTU-CVE-2026-3333", "Ubuntu:24.04:LTS", "openssl", "3.0.13-0ubuntu3.6", "CVE-2026-3333", "", "2026-10-02T00:00:00Z"),
 		"npm @biomejs/biome 2.5.15":                  testOSVRecord("GHSA-b10m-e000-0001", "npm", "@biomejs/biome", "2.5.16", "CVE-2026-4444", "LOW", "2026-10-03T00:00:00Z"),
 	}, kev: []string{"CVE-2026-2222"}, epss: map[string]string{"CVE-2026-3333": "0.42", "CVE-2026-4444": "0.001"}}
 	fake.start(t)
-	var pushes []string
-	var pushMu sync.Mutex
-	ts.server.watch.config.Ntfy = "https://ntfy.example"
-	ts.server.watch.push = func(config watchConfig, topic, title, text string) error {
-		pushMu.Lock()
-		defer pushMu.Unlock()
-		pushes = append(pushes, text)
-		return nil
-	}
 
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
 	teamTestWakes(b.teamBroker)
 	channel := &fakeTeamChannel{}
 	b.channel = channel
-	saved, savedMachine, savedTools := teamWatchClient, teamWatchMachine, teamBomTools
-	t.Cleanup(func() { teamWatchClient, teamWatchMachine, teamBomTools = saved, savedMachine, savedTools })
-	teamWatchClient = func() (*serverClient, string) { return newServerClient(ts.url, key), ts.url }
+	savedMachine, savedTools := teamWatchMachine, teamBomTools
+	t.Cleanup(func() { teamWatchMachine, teamBomTools = savedMachine, savedTools })
 	teamWatchMachine = (&teamTestProbe{states: map[string]string{}, disk: 0.3}).probe()
 	teamBomTools = teamTestBomTools()
 	os.WriteFile(filepath.Join(b.repo, "bun.lock"), []byte(`{"packages": {"react": ["react@19.3.0", "", {}, "sha512-a"], "@biomejs/biome": ["@biomejs/biome@2.5.15", "", {}, "sha512-b"],},}`), 0o644)
@@ -236,41 +221,43 @@ func TestWatchMatchesProductionsBill(t *testing.T) {
 	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "lockfile").Run()
 	saveTeamVersions("payments", teamVersions{Production: 2, Releases: []teamRelease{{Version: 2, Commit: boxGit(b.repo, "rev-parse", "HEAD")}}})
 
-	// The first heartbeat names a bill the server doesn't have: it's sent,
-	// and matched.
+	// The first check hands the watcher production's bill, and it is
+	// matched apart; every advisory loud enough is an incident here, in
+	// ops, the owners named for the exploited one.
 	if _, err := b.sendHeartbeat(""); err != nil {
 		t.Fatal(err)
 	}
+	w := teamLocalWatcher("payments")
 	teamTestEventually(t, "never matched", func() bool {
-		view := ts.server.watch.view()
-		return len(view.Teams) == 1 && !view.Teams[0].Matched.IsZero()
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		team := w.state.Teams["payments"]
+		return team != nil && !team.Matched.IsZero() && !w.matching.Load()
 	})
-	view := ts.server.watch.view()
-	if view.Teams[0].Advisories != 3 || view.Teams[0].Loud != 2 {
-		t.Fatalf("%+v", view.Teams[0])
-	}
+	w.mu.Lock()
 	var rules []string
-	for _, incident := range view.Incidents {
-		rules = append(rules, incident.Rule)
+	for rule := range w.state.Teams["payments"].Open {
+		rules = append(rules, rule)
 	}
+	w.mu.Unlock()
+	sort.Strings(rules)
 	if strings.Join(rules, " ") != "advisory:GHSA-r3ac-t000-0001:react advisory:UBUNTU-CVE-2026-3333:openssl" {
 		t.Fatal(rules)
 	}
-	teamTestEventually(t, "no push for the exploited one", func() bool {
-		pushMu.Lock()
-		defer pushMu.Unlock()
-		return len(pushes) == 1 && strings.Contains(pushes[0], "react 19.3.0")
-	})
+	incidents := loadTeamIncidents("payments")
+	sort.Slice(incidents, func(i, j int) bool { return strings.Contains(incidents[i].Title, "react") })
+	if len(incidents) != 2 || !strings.Contains(incidents[0].Title, "react 19.3.0, which has GHSA-r3ac-t000-0001, known to be exploited") || !strings.Contains(incidents[0].Detail, "The lead proposes the upgrade") {
+		t.Fatalf("%+v", incidents)
+	}
+	if !strings.Contains(strings.Join(channel.calls, "\n"), "<@U07OWNER1>, this one needs you.") {
+		t.Fatal(channel.calls)
+	}
 
-	// The next heartbeat: the lead hears of the app's, not the base image's,
-	// and an exploited one in the app's own packages freezes the team.
+	// The next check: an exploited one in the app's own packages freezes
+	// the team.
 	b.sendHeartbeat("")
 	if stop := loadTeamWatchStop("payments"); !stop.Frozen || stop.By != "watch" || !strings.Contains(stop.Because, "react 19.3.0") {
 		t.Fatalf("%+v", stop)
-	}
-	incidents := loadTeamIncidents("payments")
-	if len(incidents) != 1 || !strings.Contains(incidents[0].Title, "react 19.3.0, which has GHSA-r3ac-t000-0001, known to be exploited") || !strings.Contains(incidents[0].Detail, "The lead proposes the upgrade") {
-		t.Fatalf("%+v", incidents)
 	}
 	var out strings.Builder
 	teamAdvisoriesCommand([]string{"payments"}, &out)
@@ -309,14 +296,13 @@ func TestWatchMatchesProductionsBill(t *testing.T) {
 	record.Modified = "2026-10-20T00:00:00Z"
 	fake.vulns["npm react 19.3.0"] = record
 	fake.mu.Unlock()
-	ts.server.matchTeam("payments")
-	open := 0
-	for _, incident := range ts.server.watch.view().Incidents {
-		if incident.Rule == "advisory:GHSA-r3ac-t000-0001:react" {
-			open++
-		}
+	if _, _, err := w.matchTeam("payments", time.Now()); err != nil {
+		t.Fatal(err)
 	}
-	if open != 1 {
+	w.mu.Lock()
+	_, open := w.state.Teams["payments"].Open["advisory:GHSA-r3ac-t000-0001:react"]
+	w.mu.Unlock()
+	if !open {
 		t.Fatal("a changed advisory stayed ignored")
 	}
 	_ = io.Discard

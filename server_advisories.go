@@ -686,15 +686,27 @@ func (s *hiServer) matchAdvisoriesDue(now time.Time) {
 // matchTeam matches one team's production bill, opens and closes its
 // advisory incidents, and writes its weekly report when one is due.
 func (s *hiServer) matchTeam(name string) {
-	w := s.watch
+	events, report, err := s.watch.matchTeam(name, computeNow())
+	if err != nil {
+		fmt.Fprintf(s.log, "watch: matching %s's bill: %v\n", name, err)
+		return
+	}
+	s.watchEvents(events)
+	if report != "" {
+		s.watchPost("", report, false)
+	}
+}
+
+// matchTeam matches a team's bill and says what opened, closed, and the
+// weekly report: the server's for every team, and a team's own watcher's.
+func (w *serverWatch) matchTeam(name string, now time.Time) ([]watchEvent, string, error) {
 	w.matchMu.Lock()
 	defer w.matchMu.Unlock()
-	now := computeNow()
 	w.mu.Lock()
 	team := w.state.Teams[name]
 	if team == nil || team.Bom == "" {
 		w.mu.Unlock()
-		return
+		return nil, "", nil
 	}
 	team.MatchTried = now
 	path := filepath.Join(w.dir, "teams", name, "boms", strings.TrimPrefix(team.Bom, "sha256:")+".cdx.json")
@@ -709,14 +721,13 @@ func (s *hiServer) matchTeam(name string) {
 		advisories, err = advisoryMatch(bom, w.dir, w.feeds, now)
 	}
 	if err != nil {
-		fmt.Fprintf(s.log, "watch: matching %s's bill: %v\n", name, err)
-		return
+		return nil, "", err
 	}
 	w.mu.Lock()
 	team = w.state.Teams[name]
 	if team == nil {
 		w.mu.Unlock()
-		return
+		return nil, "", nil
 	}
 	for i := range advisories {
 		for _, ignore := range team.Beat.Ignored {
@@ -733,10 +744,7 @@ func (s *hiServer) matchTeam(name string) {
 	report := w.reportLocked(team, now)
 	w.saveLocked()
 	w.mu.Unlock()
-	s.watchEvents(events)
-	if report != "" {
-		s.watchPost("", report, false)
-	}
+	return events, report, nil
 }
 
 // advisoryRulesLocked opens an incident for each advisory loud enough,

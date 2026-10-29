@@ -290,17 +290,14 @@ func TestWatchNetworkRules(t *testing.T) {
 // An admin freezes a team: on its next heartbeat it empties the
 // allowlists (the lead keeps Slack), pauses the app, and starts nothing;
 // unfreezing puts back exactly what was there.
-func TestTeamFreezeAndPauseFromTheServer(t *testing.T) {
-	ts := newTestServer(t)
-	ts.connectAs(t, "anna", "staff")
-	key, _ := loadDeviceKey(false)
+func TestTeamFreezeAndPause(t *testing.T) {
 	setupTeamTest(t)
+	t.Setenv("USER", "bob")
 	b := newTeamTestBroker(t)
 	channel := &fakeTeamChannel{}
 	b.channel = channel
-	saved, savedMachine, savedEngine := teamWatchClient, teamWatchMachine, teamWatchEngine
-	t.Cleanup(func() { teamWatchClient, teamWatchMachine, teamWatchEngine = saved, savedMachine, savedEngine })
-	teamWatchClient = func() (*serverClient, string) { return newServerClient(ts.url, key), ts.url }
+	savedMachine, savedEngine := teamWatchMachine, teamWatchEngine
+	t.Cleanup(func() { teamWatchMachine, teamWatchEngine = savedMachine, savedEngine })
 	teamWatchMachine = (&teamTestProbe{states: map[string]string{}, disk: 0.3}).probe()
 	var mu sync.Mutex
 	var engine []string
@@ -320,10 +317,17 @@ func TestTeamFreezeAndPauseFromTheServer(t *testing.T) {
 	os.MkdirAll(boxStateFile("payments-t-1"), 0o700)
 	os.WriteFile(boxStateFile("payments-t-1", "allow"), []byte("registry.npmjs.org\n"), 0o600)
 
-	b.sendHeartbeat("")
-	if _, err := ts.server.stopTeam("payments", "freeze", "bob", "looking into a paste site"); err != nil {
-		t.Fatal(err)
+	stop := func(action, why string) {
+		t.Helper()
+		if err := teamStopCommand(action, []string{"payments", "--why", why}, io.Discard); err != nil {
+			t.Fatal(err)
+		}
 	}
+	if err := teamStopCommand("freeze", []string{"payments"}, io.Discard); err == nil {
+		t.Fatal("a freeze without why")
+	}
+	b.sendHeartbeat("")
+	stop("freeze", "looking into a paste site")
 	b.sendHeartbeat("")
 	if data, _ := os.ReadFile(lead); string(data) != "slack.com\n" {
 		t.Fatalf("%q", data)
@@ -334,20 +338,24 @@ func TestTeamFreezeAndPauseFromTheServer(t *testing.T) {
 	if strings.Join(engine, "; ") != "pause hi-box-team-payments-app-production-4100" {
 		t.Fatal(engine)
 	}
-	if len(channel.calls) == 0 || !strings.Contains(channel.calls[len(channel.calls)-1], "froze the team* (bob: looking into a paste site)") {
+	if len(channel.calls) == 0 || !strings.Contains(strings.Join(channel.calls, "\n"), "froze the team* (bob on the machine: looking into a paste site)") {
 		t.Fatal(channel.calls)
 	}
 	b.sendHeartbeat("")
-	if view := ts.server.watch.view(); !view.Teams[0].Stop.Frozen || view.Teams[0].Want != nil {
-		t.Fatalf("%+v", view.Teams[0])
+	w := teamLocalWatcher("payments")
+	w.mu.Lock()
+	watched := *w.state.Teams["payments"]
+	w.mu.Unlock()
+	if !watched.Beat.Stop.Frozen || !watched.WantDone {
+		t.Fatalf("%+v", watched)
 	}
 
 	// Pause, then unpause: every box of the team, and only the team's.
-	ts.server.stopTeam("payments", "pause", "bob", "")
+	stop("pause", "a look at memory")
 	b.sendHeartbeat("")
-	ts.server.stopTeam("payments", "unpause", "bob", "")
+	stop("unpause", "")
 	b.sendHeartbeat("")
-	ts.server.stopTeam("payments", "unfreeze", "bob", "it was a test")
+	stop("unfreeze", "it was a test")
 	b.sendHeartbeat("")
 	if data, _ := os.ReadFile(lead); string(data) != "*\n" {
 		t.Fatalf("%q", data)

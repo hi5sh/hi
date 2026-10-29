@@ -1192,9 +1192,10 @@ channel, and wakes you there once, with what it knows.
 - **Status questions** about the app's work ("how many a day?", "is it
   stuck?"): hi team jobs answers from hi's own hourly counts. Look there,
   and at hi team versions, before you say something is broken.
-- **Frozen or paused.** The team's hi server can freeze or pause the team
-  after something it saw; hi says so in the channel. Tell people what you
-  know, and that an admin of the hi server lifts it.
+- **Frozen or paused.** The team's watcher can freeze the team on its own
+  after something it saw, and the owners can freeze or pause it from the
+  machine; hi says so in the ops channel. Tell people what you know, and
+  that an owner at the machine lifts it.
 - **Advisories.** An exploited advisory for one of the app's packages is
   an incident: file a task for the upgrade, and tell the owners.
 

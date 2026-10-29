@@ -478,6 +478,10 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamOpsCommand(rest, stdout)
 	case "heartbeat":
 		err = teamHeartbeatCommand(rest, stdout)
+	case "watch":
+		err = teamWatchCommand(rest, stdout)
+	case "freeze", "unfreeze", "pause", "unpause":
+		err = teamStopCommand(command, rest, stdout)
 	case "limit":
 		err = teamLimitCommand(rest, stdout)
 	case "bom":
@@ -600,6 +604,10 @@ usage:
                                    and access; without one they go to the main channel
   hi team heartbeat <name> [<url> [--every 1m] | off | test]  a GET to an outside service, such as
                                    healthchecks.io, while the team runs: it alerts when they stop
+  hi team watch <name>             the team's watcher, on its machine: health, network, advisories
+      [--auto-freeze on|off]       whether it freezes the team on its own for the worst of them
+  hi team freeze|unfreeze|pause|unpause <name> --why "…"  stop the team's boxes reaching anything,
+                                   or pause them, within a minute, and undo it
   hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
                                    code to type on any device; only the team's server refreshes it
   hi team signin <name> claude     the team's own Claude token, from claude setup-token (asked for):
@@ -2162,8 +2170,8 @@ func teamUp(name string, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", teamScopesAdvice(missing))
 		}
 	}
-	if client, _ := teamWatchClient(); client == nil {
-		fmt.Fprintf(stdout, "\nWarning: %s.\n", strings.TrimSuffix(teamCapitalize(errTeamNotWatched.Error()), "."))
+	if secrets, err := loadTeamSecrets(name); err == nil && secrets.HeartbeatURL == "" {
+		fmt.Fprintf(stdout, "\nWarning: the team sends no heartbeat, so nobody would hear that it stopped: hi team heartbeat %s <url>.\n", name)
 	}
 	if warning := boxRootGroupsWarning(); warning != "" {
 		fmt.Fprintf(stdout, "\nWarning: %s\n", warning)

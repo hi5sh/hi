@@ -658,8 +658,8 @@ type teamAdvisoriesView struct {
 
 func teamAdvisoriesReport(team string) teamAdvisoriesView {
 	state := loadTeamWatchState(team)
-	client, _ := teamWatchClient()
-	view := teamAdvisoriesView{Watched: client != nil, At: state.AdvisoriesAt, Advisories: state.Advisories, Counts: state.AdvisoryCounts}
+	// The team's own watcher matches them (team_watch_local.go).
+	view := teamAdvisoriesView{Watched: true, At: state.AdvisoriesAt, Advisories: state.Advisories, Counts: state.AdvisoryCounts}
 	if view.Advisories == nil {
 		view.Advisories = []apiAdvisory{}
 	}
@@ -678,7 +678,7 @@ func printTeamAdvisories(view teamAdvisoriesView, w io.Writer) {
 		fmt.Fprintln(w, "Nothing is released, so production runs no packages to match.")
 		return
 	case view.At.IsZero():
-		fmt.Fprintln(w, "The hi server hasn't matched production's packages yet; it does within a day of a release.")
+		fmt.Fprintln(w, "The team's watcher hasn't matched production's packages yet; it does within a day of a release.")
 		return
 	}
 	loud, report, ignored := 0, 0, 0

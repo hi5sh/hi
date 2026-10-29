@@ -1,7 +1,7 @@
 # `hi team ops`: a team that watches itself, and a channel for its operations
 
 Status: Approved (2026-10-29), the first draft's open questions answered
-the same day. Release 1 built in v2.6.29, release 2 in v2.6.31. Replaces most of
+the same day. Release 1 built in v2.6.29, release 2 in v2.6.31, release 3 in v2.6.32. Replaces most of
 [hi_watch.md](hi_watch.md) as releases 3 and 4 land.
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the broker,
@@ -403,4 +403,41 @@ team's, the wizard's step).
   replaced from there.
 - Not built: `hi server` setup asking for the machine's heartbeat; the
   server keeps its own dead-man's switch until release 4.
+
+## As built (release 3, v2.6.32)
+
+Code: `team_watch_local.go`; the server's rules, unchanged, in
+`server_watch.go` (`beatLocked`, split from the server's heartbeat),
+`server_watch_network.go`, and `server_advisories.go` (`matchTeam`,
+split likewise).
+
+- **The same rules, run in the broker.** Each minute `__serve` makes the
+  heartbeat it made before and hands it to the team's own copy of the
+  server's watcher, in the team's folder (`watch/`: `state.json`,
+  `config.json`, `watch-hosts.txt`, the bills it matched, the advisory
+  caches). Nothing goes to a hi server. The watcher keeps no copy of the
+  logs it reads (`local`), only how far it has read them.
+- **Every incident is told**, not only those the server told the team:
+  each opens a team incident (`watch`) in the ops channel, and closes
+  with the watcher's. A key used outside hi doesn't wake the lead; an
+  exploited advisory calls the owners by name in its thread.
+- **Advisories** are matched in the background once a day and after a
+  release, from the team's machine (OSV's API, KEV, EPSS, as the server
+  did), with their caches per team.
+- **Freeze and pause** from the machine: `hi team freeze|unfreeze|pause|
+  unpause <team> --why "…"` writes `run/watch-want.json`, which the
+  broker takes at its next beat and carries out as before. Freeze and
+  pause need a why. `hi team watch <team> --auto-freeze on|off` writes
+  the watcher's `config.json`, read at each beat. Their messages and the
+  lead's skill name the machine, not the server. `/hi-<team> freeze` in
+  Slack isn't built.
+- **Taking over**: the first check after an update closes the incidents
+  the server had told the team ("this opens again here if it still
+  holds"), and the watcher opens what still holds. The network logs are
+  read from where the server had them.
+- **The server** answers a heartbeat with 410 and closes what it had open
+  for that team. `hi team key … --from-server` says the server no longer
+  makes keys; revoke, rekey, and cut off can no longer reach a team, and
+  their code goes in release 4. `hi team up` warns about a team with no
+  heartbeat instead of one with no hi server.
 

@@ -196,15 +196,6 @@ func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, ex
 	case network.From > kept:
 		note = fmt.Sprintf("# %s bytes %d to %d of the log never arrived", now.UTC().Format(time.RFC3339), kept, network.From)
 	}
-	dir := filepath.Join(w.dir, "teams", team.Team)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil
-	}
-	out, err := os.OpenFile(filepath.Join(dir, file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
-		return nil
-	}
-	defer out.Close()
 	var text strings.Builder
 	if note != "" {
 		text.WriteString(note + "\n")
@@ -217,8 +208,22 @@ func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, ex
 		network.Lines[i] = line
 		text.WriteString(line + "\n")
 	}
-	if _, err := out.WriteString(text.String()); err != nil {
-		return nil
+	// The server keeps a copy off the team's machine; a team's own watcher
+	// reads the logs where they are (team_watch_local.go).
+	if !w.local {
+		dir := filepath.Join(w.dir, "teams", team.Team)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil
+		}
+		out, err := os.OpenFile(filepath.Join(dir, file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+		if err != nil {
+			return nil
+		}
+		_, err = out.WriteString(text.String())
+		out.Close()
+		if err != nil {
+			return nil
+		}
 	}
 	if network.Log == "" {
 		team.NetworkKept = network.To
@@ -434,7 +439,7 @@ func (s *hiServer) stopTeam(name, action, by, because string) (apiWatchDo, error
 }
 
 // stopConfirmedLocked notes a team that carried out what was asked.
-func (w *serverWatch) stopConfirmedLocked(s *hiServer, team *watchTeam, stop apiWatchStop) string {
+func (w *serverWatch) stopConfirmedLocked(team *watchTeam, stop apiWatchStop) string {
 	if team.Want == nil || team.WantDone || stop.Done != team.Want.ID {
 		return ""
 	}

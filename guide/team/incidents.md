@@ -74,24 +74,22 @@ makes everything after it wrong, and only the people know which kind a
 job is. So a job stops (`blocked`) on an item it can't process, unless
 the people gave a rule for that case.
 
-## Watched from outside
+## The team's watcher
 
-Everything above is noticed by the team itself, on its machine. When
-that machine is connected to a hi server (`hi connect`), the team also
-sends the server a heartbeat every minute, and the server notices what
-the team can't: a machine that stopped, a team that keeps restarting, a
-disk filling up, snapshots that stopped, the team's key used outside hi.
-What the lead can do something about, such as a full disk, comes back
-and opens an incident here, which closes when the server's does.
-`hi team status` says whether the team is watched, and when its last
-heartbeat went. See
-[Watch the teams](/guide/compute/managed/#watch-the-teams).
+Besides its jobs, the team watches itself, on its machine, every minute,
+with plain rules and no model: parts that are down, a team that keeps
+restarting, boxes killed for memory, a disk filling up, snapshots that
+stopped, model spend that runs away, the team's key used outside hi.
+Each is an incident in the ops channel (or the main one, without it),
+which closes when it clears. `hi team watch payments` shows the watcher
+and what it has open.
 
-The server also matches what production runs against known advisories
-every night. One that is known to be exploited, or likely to be, in the
-app's own packages, is an incident here like any other: the lead files a
-task for the upgrade, which the owners make in the dev box. The rest come once a week in
-one message.
+It also matches what production runs against known advisories once a
+day. One that is known to be exploited, or likely to be, is an incident
+like any other, and an exploited one calls the owners by name: the lead
+files a task for the upgrade, which the owners make in the dev box. An
+advisory in hi's base image is fixed with `hi team rebuild`. The rest
+come once a week in one message.
 
 ```sh
 hi team bom payments                     # production's bill of materials (CycloneDX)
@@ -101,17 +99,29 @@ hi team advisory payments ignore GHSA-xxxx-xxxx-xxxx --because "we never parse u
 
 An ignored advisory stays quiet until the advisory itself changes.
 
-The server also reads the team's network logs, and the names the app
-looks up, and can stop the team: a **freeze** cuts every box off from the
-internet (the lead keeps Slack) and pauses the app; a **pause** stops
-every box. The team says so in its channel, and only an admin of the hi
-server undoes it. A burst of sends to a paste site, or an exploited
-advisory in the app's own packages, freezes it on its own. An admin of
-the server can also revoke the team's OpenRouter key, when the server
-made it (`hi team key <name> openrouter --from-server`), and take the
-team's machine off the NetBird network. `hi dev ship` refuses work that
+The watcher also reads the team's network logs, and the names the app
+looks up: bursts of refused sites, raw addresses, paste and tunnel sites
+(`watch/watch-hosts.txt` in the team's folder), large uploads, and a site
+added to a box's list. It can stop the team: a **freeze** cuts every box
+off from the internet (the lead keeps Slack) and pauses the app; a
+**pause** stops every box. A burst of sends to a paste site, or an
+exploited advisory in the app's own packages, freezes it on its own
+(`hi team watch payments --auto-freeze off` makes both wait for an
+owner). Owners do it from the machine, and undo it there:
+
+```sh
+hi team freeze payments --why "looking into the paste site"
+hi team unfreeze payments --why "it was the test suite"
+hi team pause|unpause payments --why "…"
+```
+
+The team says so in the ops channel. `hi dev ship` refuses work that
 brings in a package with an advisory known to be exploited, or that
 trusts a new package's install script.
+
+A team can't say that it stopped, or that its machine did: its
+**heartbeat** does, to an outside service (see
+[Set up a team](/guide/team/setup/), step 10).
 
 ## What hi watches
 

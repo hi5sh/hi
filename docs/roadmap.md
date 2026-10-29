@@ -2713,6 +2713,15 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.32 — The team watches itself
+
+- [x] The hi server's health, network, and advisory rules run in each
+  team's broker, on its own machine (hi_team_ops.md, release 3), and
+  every incident they open is the team's, in the ops channel. Teams send
+  the server nothing; it answers an old team's heartbeat with 410 and
+  closes what it had open for it. `hi team watch`, `hi team freeze`,
+  `unfreeze`, `pause`, and `unpause` work from the machine.
+
 ### v2.6.31 — Heartbeats
 
 - [x] A team's heartbeat and the machine's (hi_team_ops.md, release 2):
@@ -3828,10 +3837,6 @@ development loop is frozen and goes in release 4.
 ### Next — the team watches itself (hi_team_ops.md, releases 2 to 4)
 
 - [ ] `hi server` setup asks for the machine's heartbeat.
-- [ ] **The watcher on the machine**: the hi server's health and network
-  rules, advisory matching, and freeze and pause move into the team's
-  broker and post in the ops channel; teams stop sending heartbeats to
-  the server.
 - [ ] **The server without watch**: its watch code, commands, ntfy, and
   the OpenRouter keys it made, removed; a team's key is only the one
   entered in the wizard or with `hi team key`.

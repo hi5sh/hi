@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,23 +93,17 @@ func TestTeamHeartbeatSays(t *testing.T) {
 	}
 }
 
-// A team sends signed heartbeats to its hi server; what the server says the
-// lead can act on opens an incident in the team, and closes with it.
-func TestTeamHeartbeatReachesTheServer(t *testing.T) {
-	ts := newTestServer(t)
-	ts.connectAs(t, "anna", "staff")
-	key, err := loadDeviceKey(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+// A team watches itself: the rules run on its heartbeat in its own
+// broker, and what they open is an incident in the team, closed with it.
+func TestTeamWatchesItself(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
 	teamTestWakes(b.teamBroker)
-	b.channel = &fakeTeamChannel{}
-	saved, savedMachine := teamWatchClient, teamWatchMachine
-	t.Cleanup(func() { teamWatchClient, teamWatchMachine = saved, savedMachine })
-	teamWatchClient = func() (*serverClient, string) { return newServerClient(ts.url, key), ts.url }
-	probe := &teamTestProbe{states: map[string]string{"hi-box-team-payments": "running"}, disk: 0.5}
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	savedMachine := teamWatchMachine
+	t.Cleanup(func() { teamWatchMachine = savedMachine })
+	probe := &teamTestProbe{states: map[string]string{"hi-box-team-payments": "running", "hi-box-team-payments-proxy": "running"}, disk: 0.5}
 	teamWatchMachine = probe.probe()
 	os.MkdirAll(filepath.Dir(teamNetworkLogPath("payments")), 0o700)
 	os.WriteFile(teamNetworkLogPath("payments"), []byte("2026-10-22T09:13:02Z allowed api.github.com\n"), 0o600)
@@ -120,11 +115,15 @@ func TestTeamHeartbeatReachesTheServer(t *testing.T) {
 	if state.Kept != 44 || state.Sent.IsZero() {
 		t.Fatalf("%+v", state)
 	}
-	if line := teamWatchLine("payments"); !strings.HasPrefix(line, "Watched by "+ts.url+": last heartbeat") {
+	if line := teamWatchLine("payments"); !strings.HasPrefix(line, "Watcher: on this machine, last checked") {
 		t.Fatal(line)
 	}
+	if fileExists(filepath.Join(teamDir("payments"), "watch", "teams", "payments", "network.log")) {
+		t.Fatal("the watcher copied the log it reads")
+	}
 
-	// A disk the server finds too full is the lead's to deal with.
+	// A disk too full is an incident here, once, and closes when it has
+	// room again.
 	probe.disk = 0.95
 	b.sendHeartbeat("")
 	incidents := loadTeamIncidents("payments")
@@ -133,18 +132,59 @@ func TestTeamHeartbeatReachesTheServer(t *testing.T) {
 	}
 	b.sendHeartbeat("")
 	if len(loadTeamIncidents("payments")) != 1 {
-		t.Fatal("told twice")
+		t.Fatalf("told twice: %+v", loadTeamIncidents("payments"))
 	}
 	probe.disk = 0.5
 	b.sendHeartbeat("")
 	if incident, _ := loadTeamIncident("payments", incidents[0].ID); incident.Status != "closed" {
 		t.Fatalf("%+v", incident)
 	}
+	// hi team down sends nothing anywhere.
+	if _, err := b.sendHeartbeat("down"); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	// hi team down: the server stops waiting for it.
-	b.sendHeartbeat("down")
-	view := ts.server.watch.view()
-	if len(view.Teams) != 1 || view.Teams[0].Stopping != "down" || view.Teams[0].Hostname == "" {
-		t.Fatalf("%+v", view.Teams)
+// What the hi server told a team before it watched itself is closed at
+// the team's first check, and opens again here if it still holds.
+func TestTeamWatchTakesOverFromTheServer(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	teamTestWakes(b.teamBroker)
+	b.channel = &fakeTeamChannel{}
+	savedMachine := teamWatchMachine
+	t.Cleanup(func() { teamWatchMachine = savedMachine })
+	teamWatchMachine = (&teamTestProbe{states: map[string]string{"hi-box-team-payments": "running"}, disk: 0.95}).probe()
+	told, _ := b.openIncident(teamIncident{Kind: "watch", Slot: teamSlotProduction, Title: "payments's disk is 95% full"}, "x", "", nil)
+	saveTeamWatchState("payments", teamWatchState{Server: "https://hi.example", Told: map[string]string{"w-1": told.ID}})
+	b.sendHeartbeat("")
+	if incident, _ := loadTeamIncident("payments", told.ID); incident.Status != "closed" {
+		t.Fatalf("%+v", incident)
+	}
+	open := 0
+	for _, incident := range loadTeamIncidents("payments") {
+		if incident.Status != "closed" && strings.Contains(incident.Title, "disk is 95% full") {
+			open++
+		}
+	}
+	if state := loadTeamWatchState("payments"); open != 1 || state.Server != "" || len(state.Told) != 1 {
+		t.Fatal(open, state)
+	}
+}
+
+// A hi server turns a heartbeat away, and closes what it had open for
+// the team.
+func TestServerTurnsHeartbeatsAway(t *testing.T) {
+	ts := newTestServer(t)
+	ts.connectAs(t, "anna", "staff")
+	key, _ := loadDeviceKey(false)
+	ts.server.watch.state.Teams["payments"] = &watchTeam{Team: "payments", Open: map[string]string{"disk": "w-1"}}
+	ts.server.watch.state.Incidents["w-1"] = &watchIncident{ID: "w-1", Team: "payments", Rule: "disk", Title: "full"}
+	err := newServerClient(ts.url, key).call(http.MethodPost, "/v1/watch/heartbeat", apiHeartbeat{Team: "payments"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "watch themselves") {
+		t.Fatal(err)
+	}
+	if incident := ts.server.watch.state.Incidents["w-1"]; incident.Closed.IsZero() || !strings.Contains(incident.Cleared, "watches itself") {
+		t.Fatalf("%+v", incident)
 	}
 }

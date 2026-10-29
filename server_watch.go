@@ -233,6 +233,10 @@ type serverWatch struct {
 	matching atomic.Bool
 	feeds    *advisoryFeeds
 
+	// local is a team's own watcher, on its machine: it keeps no copy of
+	// the logs it reads (team_watch_local.go).
+	local bool
+
 	// push and ping are replaced in tests.
 	push func(config watchConfig, topic, title, text string) error
 	ping func(url string) error
@@ -298,14 +302,31 @@ func (s *hiServer) handleHeartbeat(w http.ResponseWriter, r *http.Request, devic
 		writeAPIError(w, http.StatusBadRequest, "malformed heartbeat")
 		return
 	}
-	reply, err := s.watch.heartbeat(s, device, beat, computeNow())
-	if err != nil {
-		writeAPIError(w, http.StatusForbidden, err.Error())
-		return
-	}
-	s.watch.notePeer(beat.Team, r.RemoteAddr)
-	writeJSON(w, http.StatusOK, reply)
+	// From hi 2.6.32 a team watches itself on its own machine
+	// (hi_team_ops.md, release 3): a heartbeat from an older one closes
+	// what the server had open for it, and is turned away.
+	s.watchEvents(s.watch.retire(beat.Team, computeNow()))
+	writeAPIError(w, http.StatusGone, "teams watch themselves on their own machine from hi v2.6.32 (hi team watch); update hi on the team's machine")
 }
+
+// retire closes a team's open watch incidents, once: the team watches
+// itself now.
+func (w *serverWatch) retire(name string, now time.Time) []watchEvent {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	team := w.state.Teams[name]
+	if team == nil || len(team.Open) == 0 {
+		return nil
+	}
+	var events []watchEvent
+	for rule := range team.Open {
+		events = append(events, w.ruleLocked(team, rule, false, now, nil, "The team watches itself now, on its own machine (hi team watch).")...)
+	}
+	w.saveLocked()
+	return events
+}
+
+var _ = (*serverWatch).heartbeat
 
 func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartbeat, now time.Time) (apiHeartbeatReply, error) {
 	w.mu.Lock()
@@ -320,6 +341,35 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		s.audit(device.User, "watching", beat.Team, "from "+device.Hostname)
 	}
 	team.User, team.Hostname = device.User, device.Hostname
+	reply, events, confirmed, weekly := w.beatLocked(team, beat, now)
+	if beat.Stopping == "" {
+		secrets := w.loadSecretsLocked()
+		if key := secrets.Pending[team.Team]; key != "" {
+			if beat.KeyHash == team.KeyHash {
+				delete(secrets.Pending, team.Team)
+				w.saveSecretsLocked(secrets)
+			} else {
+				reply.NewKey = &apiWatchKey{Key: key, Hash: team.KeyHash}
+			}
+		}
+	}
+	w.saveLocked()
+	w.mu.Unlock()
+	s.watchEvents(events)
+	if confirmed != "" {
+		s.audit("watch", "carried out", beat.Team, confirmed)
+		s.watchPost("", ":white_check_mark: "+confirmed, false)
+	}
+	if weekly != "" {
+		s.watchPost("", weekly, false)
+	}
+	return reply, nil
+}
+
+// beatLocked keeps a heartbeat's logs, runs the rules on it, and answers:
+// the server's for every team, and a team's own watcher for itself
+// (team_watch_local.go).
+func (w *serverWatch) beatLocked(team *watchTeam, beat apiHeartbeat, now time.Time) (apiHeartbeatReply, []watchEvent, string, string) {
 	network, logs := beat.Network, beat.Logs
 	beat.Network, beat.Logs = nil, nil
 	if beat.Stopping != "" {
@@ -345,7 +395,7 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		events = append(events, w.rulesLocked(team, now)...)
 		quiet, text := w.networkQuietLocked(team, now)
 		events, weekly = append(events, quiet...), text
-		confirmed = w.stopConfirmedLocked(s, team, beat.Stop)
+		confirmed = w.stopConfirmedLocked(team, beat.Stop)
 		// Production's bill: the server asks for one it doesn't have.
 		if beat.Bom != "" && beat.Bom != team.Bom {
 			if fileExists(filepath.Join(w.dir, "teams", team.Team, "boms", strings.TrimPrefix(beat.Bom, "sha256:")+".cdx.json")) {
@@ -369,28 +419,7 @@ func (w *serverWatch) heartbeat(s *hiServer, device serverDevice, beat apiHeartb
 		do := *team.Want
 		reply.Do = &do
 	}
-	if beat.Stopping == "" {
-		secrets := w.loadSecretsLocked()
-		if key := secrets.Pending[team.Team]; key != "" {
-			if beat.KeyHash == team.KeyHash {
-				delete(secrets.Pending, team.Team)
-				w.saveSecretsLocked(secrets)
-			} else {
-				reply.NewKey = &apiWatchKey{Key: key, Hash: team.KeyHash}
-			}
-		}
-	}
-	w.saveLocked()
-	w.mu.Unlock()
-	s.watchEvents(events)
-	if confirmed != "" {
-		s.audit("watch", "carried out", beat.Team, confirmed)
-		s.watchPost("", ":white_check_mark: "+confirmed, false)
-	}
-	if weekly != "" {
-		s.watchPost("", weekly, false)
-	}
-	return reply, nil
+	return reply, events, confirmed, weekly
 }
 
 // applyIgnoresLocked marks the advisories an owner said don't apply, as
