@@ -254,18 +254,18 @@ func TestTeamDevHomeKeepsOwnersSettings(t *testing.T) {
 		!strings.Contains(string(data), `"/data"`) || strings.Count(string(data), `"/box/home/hi"`) != 1 {
 		t.Fatal(string(data))
 	}
-	// Opus when nobody chose; an owner's choice stays.
+	// Opus and no session recap when nobody chose; an owner's choice stays.
 	fresh := t.TempDir()
 	os.MkdirAll(filepath.Join(fresh, ".claude"), 0o700)
 	if err := teamDevClaudeSettings(fresh); err != nil {
 		t.Fatal(err)
 	}
-	if data, _ := os.ReadFile(filepath.Join(fresh, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "opus"`) {
+	if data, _ := os.ReadFile(filepath.Join(fresh, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "opus"`) || !strings.Contains(string(data), `"awaySummaryEnabled": false`) {
 		t.Fatal(string(data))
 	}
-	os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(`{"model":"sonnet"}`), 0o600)
+	os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(`{"model":"sonnet","awaySummaryEnabled":true}`), 0o600)
 	teamDevClaudeSettings(home)
-	if data, _ := os.ReadFile(filepath.Join(home, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "sonnet"`) {
+	if data, _ := os.ReadFile(filepath.Join(home, ".claude", "settings.json")); !strings.Contains(string(data), `"model": "sonnet"`) || !strings.Contains(string(data), `"awaySummaryEnabled": true`) {
 		t.Fatal(string(data))
 	}
 	if data, _ := os.ReadFile(filepath.Join(home, ".claude.json")); !strings.Contains(string(data), `"theme": "dark"`) || !strings.Contains(string(data), "hasCompletedOnboarding") {

@@ -2713,6 +2713,13 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.38 — No session recap in the dev box
+
+- [x] Claude Code in the dev box starts with its session recap off
+  (`awaySummaryEnabled: false`), as it starts on Opus: the chat and the
+  channel say what happened while you were away. An owner who turns it
+  on in `/config` keeps it on.
+
 ### v2.6.37 — The chat sees a question at once
 
 - [x] Behind the chat, VS Code, or another tab, the dev page's terminal

@@ -330,6 +330,12 @@ func teamDevClaudeSettings(home string) error {
 		settings["model"] = "opus"
 		changed = true
 	}
+	// No session recap, unless an owner turned it back on in /config: the
+	// chat and the channel say what happened while you were away.
+	if _, set := settings["awaySummaryEnabled"]; !set {
+		settings["awaySummaryEnabled"] = false
+		changed = true
+	}
 	if changed {
 		settings["permissions"] = permissions
 		data, _ := json.MarshalIndent(settings, "", "  ")
