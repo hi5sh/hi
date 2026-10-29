@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.30 — Permissions in ops only
+
+- [x] Changes to permissions are said only in the ops channel: hi's posts
+  about levels, access, addresses, sites, and keys go nowhere else, and
+  the lead's skill says it discusses them only there or in a DM. The
+  snapshots' warnings and production getting a copy of the preview's
+  data move to ops too.
+
 ### v2.6.29 — An ops channel
 
 - [x] A team can have a second Slack channel for operations and

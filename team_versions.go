@@ -590,6 +590,13 @@ func (b *teamBroker) announce(config teamConfig, text string) {
 	}
 }
 
+// announceOps posts in the ops channel, or the main one without it.
+func (b *teamBroker) announceOps(config teamConfig, text string) {
+	if b.channel != nil {
+		b.channel.post(config.opsChannel(), text)
+	}
+}
+
 // announceInThread posts one line in the channel, and the rest in its
 // thread, where people who want it read it and talk to the lead about it.
 func (b *teamBroker) announceInThread(config teamConfig, headline, details string) string {

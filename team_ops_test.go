@@ -126,3 +126,32 @@ func TestTeamOpsCommand(t *testing.T) {
 		t.Fatal(config.OpsChannel)
 	}
 }
+
+// Permissions and the snapshots' warnings are said only in ops.
+func TestTeamOpsPermissions(t *testing.T) {
+	b, _ := teamTestDevPage(t)
+	config, _ := loadTeam("payments")
+	config.OpsChannel = "C07PAYOPS"
+	saveTeam(config)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	handler := b.devPageHandler()
+	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/people", map[string]string{"user": "U07ASKER1", "level": "contributor"}); code != 200 {
+		t.Fatalf("%d %s", code, body)
+	}
+	b.announceOps(config, ":warning: a snapshot's problem")
+	if len(channel.calls) != 2 {
+		t.Fatal(channel.calls)
+	}
+	for _, call := range channel.calls {
+		if !strings.HasPrefix(call, "post C07PAYOPS ") {
+			t.Fatal(channel.calls)
+		}
+	}
+	if !strings.Contains(channel.calls[0], "made <@U07ASKER1>") {
+		t.Fatal(channel.calls)
+	}
+	if !strings.Contains(teamSkill(config), "Changes to permissions are said only in the ops channel") {
+		t.Fatal("the lead isn't told")
+	}
+}

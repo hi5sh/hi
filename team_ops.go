@@ -114,5 +114,11 @@ Asked in the main channel about something that's in ops (the app is
 down, a job stopped), say what it means for the people in plain words,
 and that the owners have it in the ops channel. Don't copy technical
 detail, keys, hosts, or logs into the main channel.
+
+Changes to permissions are said only in the ops channel: who is an
+owner, a Pro Dev, a Vibe Dev, or a contributor, who may use the dev
+page, the addresses' privacy and sign-in, the sites the dev box may
+reach, the team's keys and sign-ins. Asked about them in the main
+channel, answer the person in a DM or point them to an owner.
 `, config.Channel, config.OpsChannel)
 }

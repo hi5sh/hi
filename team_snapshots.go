@@ -579,15 +579,15 @@ func (b *teamBroker) snapshotLocked(kind, label string) (teamSnapshot, error) {
 	b.previewMu.Unlock()
 	config, _ := loadTeam(b.team)
 	if err != nil {
-		b.announce(config, fmt.Sprintf(":warning: %s hi couldn't take the team's snapshot (%s): %s", teamPeople(config.Owners), teamSnapshot{Kind: kind, Label: label}.why(), err))
+		b.announceOps(config, fmt.Sprintf(":warning: %s hi couldn't take the team's snapshot (%s): %s", teamPeople(config.Owners), teamSnapshot{Kind: kind, Label: label}.why(), err))
 		return snapshot, err
 	}
 	if snapshot.Warning != "" {
-		b.announce(config, fmt.Sprintf(":warning: %s The team's snapshot %s (%s) has a problem: %s", teamPeople(config.Owners), snapshot.ID, snapshot.why(), snapshot.Warning))
+		b.announceOps(config, fmt.Sprintf(":warning: %s The team's snapshot %s (%s) has a problem: %s", teamPeople(config.Owners), snapshot.ID, snapshot.why(), snapshot.Warning))
 	}
 	go func() {
 		if err := teamAfterSnapshot(b.team, kind); err != nil {
-			b.announce(config, fmt.Sprintf(":warning: %s The team's snapshot %s is taken, but: %s", teamPeople(config.Owners), snapshot.ID, err))
+			b.announceOps(config, fmt.Sprintf(":warning: %s The team's snapshot %s is taken, but: %s", teamPeople(config.Owners), snapshot.ID, err))
 		}
 	}()
 	return snapshot, nil

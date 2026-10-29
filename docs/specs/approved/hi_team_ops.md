@@ -83,6 +83,11 @@ channel takes everything, as today.
 | **Main** | releases and their notes; Stage (a preview is up, what's on it); tasks: filed, started, shipped; the helper's feedback and contributors' bug reports; deep reviews and brainstorms; a template's new version (upstream); the lead's ideas and questions about the app; anything people ask the lead there |
 | **Ops** | every incident: jobs, workers, production's app stopped and back, OOM kills, disk, snapshots, spend loops, a key used outside hi; sign-ins that stopped working and fallbacks to OpenRouter; key changes; access changes (who is an owner, Pro Dev, Vibe Dev); the dev box's site asks; trust approvals (install scripts, KEV packages); advisories; network rules; freeze and pause; hi's own notices (a new hi feature, a handover); the weekly ops report |
 
+- **Permissions are ops' alone**: who is an owner, Pro Dev, Vibe Dev, or
+  contributor, who may use the dev page, the addresses' privacy and
+  sign-in (SSO, allowed IPs), the dev box's sites, keys and sign-ins. hi
+  posts them only there, and the lead discusses them only there (or in a
+  DM), never in main.
 - **Downtime is ops'**, like every incident: production stopping, a
   freeze that takes the pages down. Without an ops channel it goes to
   main, as everything does.
@@ -343,8 +348,13 @@ Code: `team_ops.go`, and the posts it moved.
   threads), hi's notices about jobs and workers, sign-ins that stopped
   and came back, the snapshots' warnings, access changes, the addresses'
   privacy changes from the dev page, the watch's reports, key and freeze
-  notices from the server, and the dev box's site asks. Everything else
-  stays in main.
+  notices from the server, the dev box's site asks, the snapshots'
+  warnings, and production getting a copy of the preview's data.
+  Everything else stays in main; dev set back to an earlier version stays
+  there, as part of releasing.
+- **Permissions only in ops** (added the same day): no post of hi's about
+  levels, access, addresses, sites, or keys goes to main, and the lead's
+  skill says it discusses them only in ops or a DM.
 - **An incident remembers its channel** (`channel`, empty for main): one
   opened in a work's thread stays in that thread, in main, and incidents
   from before the ops channel stay where they were posted.

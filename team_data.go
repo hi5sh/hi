@@ -240,7 +240,7 @@ func (b *teamBroker) copyData(request teamDataCopyRequest) (teamDataCopy, error)
 	if _, err := b.production(0); err != nil {
 		result.Warning = strings.TrimSpace(result.Warning + "\nProduction didn't start again yet (hi tries again within a minute): " + err.Error())
 	}
-	b.announce(config, teamDataCopyAnnouncement(result, approval))
+	b.announceOps(config, teamDataCopyAnnouncement(result, approval))
 	return result, nil
 }
 
