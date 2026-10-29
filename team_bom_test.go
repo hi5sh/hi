@@ -327,7 +327,7 @@ func TestWatchSumsUpAnImagesAdvisories(t *testing.T) {
 	if len(listed) != 2 || len(counts) != 1 || counts[0].Total != 3000 || counts[0].Fixable != 1000 {
 		t.Fatalf("%d listed, %+v", len(listed), counts)
 	}
-	w := &serverWatch{state: watchState{Teams: map[string]*watchTeam{}, Incidents: map[string]*watchIncident{}}}
+	w := &teamWatcher{state: watchState{Teams: map[string]*watchTeam{}, Incidents: map[string]*watchIncident{}}}
 	team := &watchTeam{Team: "payments", BomVersion: "v4", Advisories: advisories}
 	report := w.reportLocked(team, time.Now())
 	if strings.Count(report, "\n") > 5 || !strings.Contains(report, "1 open as incidents; besides those, 1 with a fix") ||
@@ -372,14 +372,14 @@ func TestAdvisoryMerge(t *testing.T) {
 func TestWatchRetriesAnUnfinishedMatch(t *testing.T) {
 	dir := t.TempDir()
 	tried := time.Now().Add(-time.Minute)
-	w := &serverWatch{dir: watchDir(dir), state: watchState{Teams: map[string]*watchTeam{
+	w := &teamWatcher{dir: filepath.Join(dir, "watch"), state: watchState{Teams: map[string]*watchTeam{
 		"demo":    {Team: "demo", Bom: "sha256:new", MatchTried: tried},
 		"billing": {Team: "billing", Bom: "sha256:a", Matched: tried, MatchTried: tried},
 	}}}
 	if err := w.saveLocked(); err != nil {
 		t.Fatal(err)
 	}
-	opened := openServerWatch(dir)
+	opened := openTeamWatcher(dir)
 	if !opened.state.Teams["demo"].MatchTried.IsZero() || !opened.state.Teams["billing"].MatchTried.Equal(tried) {
 		t.Fatalf("%+v %+v", opened.state.Teams["demo"], opened.state.Teams["billing"])
 	}

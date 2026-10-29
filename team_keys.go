@@ -469,7 +469,7 @@ func teamRelay(conn net.Conn, socket string) {
 
 // teamKey is hi team key <name> openrouter [--unset], or slack.
 func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team key <name> openrouter [--unset | --from-server]\n       hi team key <name> slack"}
+	usage := usageError{"usage: hi team key <name> openrouter [--unset]\n       hi team key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return teamKeySlack(args[0], stdin, stdout)
 	}
@@ -485,8 +485,9 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 			words = append(words, arg)
 		}
 	}
-	if fromServer && len(words) == 2 && words[1] == "openrouter" {
-		return teamKeyFromServer(words[0], stdout)
+	if fromServer {
+		// The hi server made teams' keys until hi 2.6.34 (hi_team_ops.md).
+		return errors.New("the hi server no longer makes teams' keys; give the team its own: hi team key <name> openrouter")
 	}
 	if len(words) != 2 || words[1] != "openrouter" {
 		return usage

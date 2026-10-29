@@ -159,7 +159,8 @@ its subdomains at once, and on its next start; **Say no** tells the
 agent, which carries on without it. **Security** lists the sites the owners
 allowed (**Remove** takes one off) and the ones the box was refused in
 the last week that nobody asked for, to allow or dismiss. Each site added
-is also reported to the hi server's admins when the machine is [watched](/guide/compute/managed/#watch-the-teams).
+is also an incident in the ops channel, from the team's
+[watcher](/guide/team/incidents/#the-teams-watcher).
 
 A database on the internet that speaks TLS on MongoDB's port, 27017,
 such as MongoDB Atlas, is allowed the same way, by the name in its

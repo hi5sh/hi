@@ -189,8 +189,7 @@ func testWatchLines(at time.Time, lines ...string) []string {
 }
 
 func TestWatchNetworkRules(t *testing.T) {
-	server, pushes := newTestWatch(t)
-	server.watch.config.Ntfy = "https://ntfy.example"
+	rig := newTestWatch(t)
 	now := time.Now()
 	send := func(at time.Time, logs ...apiWatchNetwork) apiHeartbeatReply {
 		t.Helper()
@@ -204,11 +203,7 @@ func TestWatchNetworkRules(t *testing.T) {
 				beat.Logs = append(beat.Logs, log)
 			}
 		}
-		reply, err := server.watch.heartbeat(server, testWatchDevice, beat, at)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return reply
+		return rig.beat(beat, at)
 	}
 	network := func(log string, from int64, lines []string) apiWatchNetwork {
 		size := int64(0)
@@ -236,34 +231,28 @@ func TestWatchNetworkRules(t *testing.T) {
 	if reply.NetworkKept != lead.To || reply.LogsKept["box:payments-t-3"] != box.To {
 		t.Fatalf("%+v", reply)
 	}
-	rules := strings.Join(openWatchRules(server), " ")
-	server.watch.mu.Lock()
-	server.watch.mu.Unlock()
+	rules := strings.Join(openWatchRules(rig), " ")
 	if rules != "denies: raw-ip::203.0.113.9 upload:api.example.net allowlist:box:payments-t-3:pastebin.com" {
 		t.Fatal(rules)
 	}
-	if lines := readWatchLines(filepath.Join(server.watch.dir, "teams", "payments", "box-payments-t-3.log")); len(lines) != 31 {
-		t.Fatal(lines)
-	}
-	if reply.Do != nil || len(*pushes) != 0 {
+	if reply.Do != nil {
 		t.Fatal("a freeze for what isn't a burst")
 	}
 
-	// A burst of sends to a paste site: incident, push, and the team is
-	// asked to freeze.
+	// A burst of sends to a paste site: an incident, and the team freezes.
 	burst := network("", lead.To, testWatchLines(now.Add(time.Minute), "allowed pastebin.com", "closed pastebin.com 2000000 100 1.0"))
 	reply = send(now.Add(time.Minute), burst)
 	if reply.Do == nil || reply.Do.Action != "freeze" || reply.Do.By != "watch" || !strings.Contains(reply.Do.Because, "paste, file-drop, or tunnel hosts") {
 		t.Fatalf("%+v", reply.Do)
 	}
-	if !strings.Contains(strings.Join(openWatchRules(server), " "), "burst") {
-		t.Fatal(openWatchRules(server))
+	if !strings.Contains(strings.Join(openWatchRules(rig), " "), "burst") {
+		t.Fatal(openWatchRules(rig))
 	}
-	// It does, and says so: the server stops asking.
+	// It does, and says so: no more asking.
 	beat := testBeat(now.Add(2 * time.Minute))
 	beat.Stop = apiWatchStop{Frozen: true, Done: reply.Do.ID}
-	reply, _ = server.watch.heartbeat(server, testWatchDevice, beat, now.Add(2*time.Minute))
-	if reply.Do != nil || server.watch.view().Teams[0].Stop.Frozen != true {
+	reply = rig.beat(beat, now.Add(2*time.Minute))
+	if reply.Do != nil || !rig.team().Beat.Stop.Frozen {
 		t.Fatalf("%+v", reply.Do)
 	}
 
@@ -273,16 +262,14 @@ func TestWatchNetworkRules(t *testing.T) {
 	send(now.Add(-48*time.Hour), apps)
 	apps = network("apps", apps.To, testWatchLines(now.Add(3*time.Minute), "resolve-production api.stripe.com", "resolve-production cdn.new.example", "resolve-preview other.example"))
 	send(now.Add(3*time.Minute), apps)
-	server.watch.mu.Lock()
-	newHosts := strings.Join(server.watch.state.Teams["payments"].NewHosts, " ")
-	server.watch.mu.Unlock()
+	newHosts := strings.Join(rig.team().NewHosts, " ")
 	if newHosts != "cdn.new.example" {
 		t.Fatal(newHosts)
 	}
 
 	// A day later, what didn't happen again is closed.
 	send(now.Add(26 * time.Hour))
-	if rules := openWatchRules(server); len(rules) != 0 {
+	if rules := openWatchRules(rig); len(rules) != 0 {
 		t.Fatal(rules)
 	}
 }

@@ -668,165 +668,23 @@ created on the provider's website, as `unleased instance` in the audit log.
 
 ### Watch the teams
 
-Every [hi team](/guide/team/) on a connected machine sends the server a
-heartbeat each minute, signed with the machine's device key: whether
-each part of the team is up, the disk, boxes killed for memory, the last
-snapshot, what model calls cost through hi and what OpenRouter counts on
-the team's key, and the lines of its network log the server doesn't have
-yet. The server watches from outside, so it notices what the team can't
-say about itself: a machine that stopped, a broker that keeps
-restarting, a key used outside hi.
+Teams watch themselves, on their own machine, since hi 2.6.32: each
+team's watcher runs the health, network, and advisory rules every minute
+and posts what it finds in the team's ops channel (see
+[When something goes wrong](/guide/team/incidents/#the-teams-watcher)).
+The server watches nothing, and keeps no team's logs or keys.
+
+What a machine can't say is that it stopped. Give the server's machine,
+and each machine that runs teams, a heartbeat to an outside service such
+as healthchecks.io, which alerts when it stops:
 
 ```sh
-hi server watch                                   # every team's last heartbeat, and open incidents
-hi server watch --channel C0123456                # a Slack channel for them (default: approvals)
-hi server watch --deadman https://hc-ping.com/…   # an outside check this server pings every minute
-hi server watch --ntfy https://ntfy.example.com --ntfy-token tk_…
-hi server watch subscribe payments                # the link an owner opens for the team's pushes
-hi server watch forget payments                   # let another machine send its heartbeats
+hi heartbeat https://hc-ping.com/<uuid>     # this machine, every 5 minutes
 ```
 
-`/hi teams` in Slack shows the same as `hi server watch`.
-
-| The server notices | It tells |
-|---|---|
-| no heartbeat for 3 minutes (10 after a restart the team announced; none after `hi team down`) | the watch channel, and the owners by push |
-| a part down for 3 heartbeats (the lead's gateway: 10) | the watch channel; production and memory also the team's channel |
-| production stopping more than 3 times in an hour, the team restarting more than 3 times a day, a box killed for memory | the watch channel and the team's channel |
-| a disk over 85% full, or full in 3 days at the week's rate | the watch channel and the team's channel |
-| no snapshot, or no offsite copy, in 26 hours | the watch channel and the team's channel |
-| model spend in an hour over 3 times the week's hourly average and over $5 | the watch channel and the team's channel |
-| the team's key spending over $1 more in an hour than hi's proxies counted | the watch channel only |
-
-The team's channel hears through the team's own broker, which opens an
-incident there and wakes the lead; it closes when the server's does. A
-key used outside hi isn't told to the team, since its lead could be what
-uses it: rotate the key at openrouter.ai and set it with `hi team key`.
-
-#### Advisories
-
-Each release, the team makes a bill of materials of what production runs
-(CycloneDX): the app's packages from its lockfiles, the OS packages in
-hi's base image and in the lead's memory image, the runtimes, hi, the
-coding agents, the lead's skills, and the services it calls. The server
-gets it with the next heartbeat, and every night asks
-[OSV](https://osv.dev) which advisories name those packages at those
-versions, [CISA's KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
-which are known to be exploited, and [FIRST's EPSS](https://www.first.org/epss/)
-how likely each is to be soon. Only the packages' names and versions
-leave the server, to OSV.
-
-| An advisory that matches production | What happens |
-|---|---|
-| known to be exploited (KEV) | an incident, a push to the owners, and for the app's own packages, the team's channel |
-| EPSS 0.1 or more, or critical, with a fixed version | an incident; the team's channel for the app's packages |
-| anything else | the weekly report: in the watch channel, and the app's in the team's channel |
-
-The app's packages are the owners' to upgrade, in the team's dev box;
-the lead files a task. The base image's are fixed by building it again: on the team's
-machine, `podman rmi` the image `hi team bom <team>` names and
-`hi team up <team>`. The agents' and hi's come with `hi install upgrade`
-and `hi update`.
-
-#### Network rules
-
-The heartbeat carries the network log of the lead's box and the names
-the app's boxes looked up.
-The app keeps its full internet; its lookups go through a resolver of
-the team's, which logs each name. The server raises:
-
-| Rule | Incident |
-|---|---|
-| more than 20 refused connections from one box in 10 minutes | often the lead being steered somewhere it shouldn't go |
-| a connection to a raw IP address, or to a host on `watch-hosts.txt` | paste sites, file drops, tunnels, request catchers; the server writes a starter list in its `watch/` folder, one host per line |
-| more than 50 MB sent to one host in an hour | except the model providers, GitHub, and the team's snapshots bucket |
-| a host added to a box's allowlist | someone ran `hi box allow`, or something wrote the file |
-
-A host production looked up that it hadn't in 30 days goes in a weekly
-line, not an incident: apps call new services all the time. Each
-network incident closes after a day without a repeat.
-
-#### Stopping a team
-
-```sh
-hi server watch freeze payments --because "sends to a paste site"
-hi server watch unfreeze payments
-hi server watch pause payments       # every box of the team, kept in memory for a look
-hi server watch unpause payments
-```
-
-`/hi team freeze payments <why>` does the same from Slack, for
-approvers. The team does it with its next heartbeat, within a minute,
-says so in its channel, and `hi server watch` shows it.
-
-| | What it does | Undone by |
-|---|---|---|
-| **freeze** | every box's allowlist is emptied (the lead keeps Slack, to say what happened); the app's boxes are paused, so nothing reaches them and they reach nothing; no new version starts | `unfreeze`: the allowlists exactly as they were, the app running again on the same links |
-| **pause** | every box of the team, the lead's too, is paused | `unpause` |
-
-Two things freeze a team on their own: a burst of sends to hosts on
-`watch-hosts.txt` (5 connections, or 1 MB, in 10 minutes), and an
-advisory known to be exploited in the app's own packages. An exploited
-advisory in an image or an agent waits for an admin, since the app may
-never touch that package. `hi server watch --auto-freeze off` makes every
-freeze wait for an admin. A freeze takes production's pages down until
-it is undone, so it also pushes the owners. The lead can't freeze,
-unfreeze, or quiet the watcher.
-
-Freezing works on a box that is compromised, not on a machine that is:
-whoever controls the machine controls what it does with the request.
-
-#### Revoke and cut off
-
-Two steps work without the team's machine, so they hold when the
-machine itself can't be trusted. Both need an admin; nothing does them
-on its own.
-
-```sh
-hi server watch --openrouter          # an OpenRouter provisioning key (openrouter.ai/settings/provisioning-keys)
-hi server watch --netbird             # a NetBird API token of a service user that may manage peers
-hi server watch revoke payments --because "its key is used outside hi"
-hi server watch rekey payments        # a new key, which its machine takes with its next heartbeat
-hi server watch cutoff payments
-hi server watch reconnect payments
-```
-
-**Revoke** disables the team's OpenRouter key at OpenRouter, wherever it
-is used from. The server can only do that for a key it made: on the
-team's machine, `hi team key payments openrouter --from-server` replaces
-a pasted key with one the server makes and keeps the hash of.
-`hi server watch` says which teams' keys can't be revoked from there.
-**Rekey** makes a new key, deletes the old, and hands the new one to the
-machine in its next heartbeat's answer.
-
-**Cut off** takes the machine off the NetBird network. Where the NetBird
-account approves peers (Settings > Authentication), the machine's peer
-needs approval again; otherwise it is taken out of every group it is in
-(not All). A policy that lets the All group in still reaches it then,
-and the server says which: turn on peer approval, or narrow that policy,
-for a cut off that holds. Either way the machine keeps its own internet:
-cut off is about your network, not the world. **Reconnect** undoes it.
-
-The same steps are `/hi team revoke|rekey|cutoff|reconnect <team> <why>`
-in Slack, for approvers. Each is in the audit log, in the watch channel,
-and pushed to the owners.
-
-Once a week the team compares what production's box has with its bill:
-the packages in the app's folder (`node_modules`, a Python `.venv`) and
-the box's OS packages. One the bill doesn't list is an incident in the
-team's channel: either the bill missed it, or something installed it.
-
-The network lines are kept in the server's `watch/teams/<team>/network.log`,
-off the team's machine. Each team belongs to the first machine that sends
-its heartbeat; another machine is refused until `hi server watch forget`.
-
-Without `--deadman`, nobody would know if the server itself stopped, and
-`hi server watch` says so. [healthchecks.io](https://healthchecks.io)
-checks 20 for free, or runs on your own machine. Pushes go through
-[ntfy](https://ntfy.sh): use a server that needs a token to read, since
-on a public one a topic's name is its only secret. Each team has its own
-topic, and a push says only the team, one line, and the incident's
-number.
+A server that watched teams before keeps its `watch/` folder, read by
+nothing: delete it when you like. Its dead-man's switch is this
+heartbeat now.
 
 ### Remove a user
 

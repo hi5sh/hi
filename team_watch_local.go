@@ -21,19 +21,18 @@ import (
 
 var (
 	teamLocalWatchersMu sync.Mutex
-	teamLocalWatchers   = map[string]*serverWatch{}
+	teamLocalWatchers   = map[string]*teamWatcher{}
 )
 
 // teamLocalWatcher is the team's watcher, opened once per process.
-func teamLocalWatcher(team string) *serverWatch {
+func teamLocalWatcher(team string) *teamWatcher {
 	teamLocalWatchersMu.Lock()
 	defer teamLocalWatchersMu.Unlock()
 	dir := teamDir(team)
 	if w := teamLocalWatchers[dir]; w != nil {
 		return w
 	}
-	w := openServerWatch(dir)
-	w.local = true
+	w := openTeamWatcher(dir)
 	teamLocalWatchers[dir] = w
 	return w
 }

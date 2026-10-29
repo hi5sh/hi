@@ -1,8 +1,7 @@
 package main
 
-// hi watch, release 2, on the server: each team's production bill of
-// materials (team_bom.go) is matched against advisories every night and
-// when a new bill arrives. OSV says which advisories name a package at a
+// The team's watcher matches production's bill of materials (team_bom.go)
+// against advisories once a day and after a release. OSV says which advisories name a package at a
 // version; CISA's KEV says which are known to be exploited; FIRST's EPSS
 // how likely each is to be in the next 30 days. A match that is exploited,
 // likely to be, or critical with a fix is an incident; the rest go in the
@@ -12,8 +11,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -415,7 +412,7 @@ type apiAdvisoryCount struct {
 
 // advisoriesPath keeps a team's matched advisories out of state.json,
 // which is written at every heartbeat: an image's can be thousands.
-func (w *serverWatch) advisoriesPath(team string) string {
+func (w *teamWatcher) advisoriesPath(team string) string {
 	return filepath.Join(w.dir, "teams", team, "advisories.json")
 }
 
@@ -615,91 +612,15 @@ func advisoryAction(team string, advisory apiAdvisory) string {
 // ---------------------------------------------------------------------------
 // the server's side
 
-// apiBom is a bill a team sends when the server asks for it.
-type apiBom struct {
-	Team    string `json:"team"`
-	Version string `json:"version"`
-	Digest  string `json:"digest"`
-	Bom     []byte `json:"bom"`
-}
-
 // apiWatchReport is a weekly report for the team's channel.
 type apiWatchReport struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
 }
 
-func (s *hiServer) handleBom(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
-	var input apiBom
-	if err := json.Unmarshal(body, &input); err != nil || !teamNamePattern.MatchString(input.Team) || len(input.Bom) == 0 {
-		writeAPIError(w, http.StatusBadRequest, "malformed bill of materials")
-		return
-	}
-	sum := sha256.Sum256(input.Bom)
-	digest := "sha256:" + hex.EncodeToString(sum[:])
-	var bom cdxBom
-	if digest != input.Digest || json.Unmarshal(input.Bom, &bom) != nil || bom.Format != "CycloneDX" {
-		writeAPIError(w, http.StatusBadRequest, "the bill isn't CycloneDX, or doesn't match its digest")
-		return
-	}
-	w2 := s.watch
-	w2.mu.Lock()
-	team := w2.state.Teams[input.Team]
-	if team == nil || team.Device != device.Fingerprint {
-		w2.mu.Unlock()
-		writeAPIError(w, http.StatusForbidden, "send a heartbeat for team "+input.Team+" from its machine first")
-		return
-	}
-	dir := filepath.Join(w2.dir, "teams", input.Team, "boms")
-	os.MkdirAll(dir, 0o700)
-	if err := writeFileAtomic(filepath.Join(dir, strings.TrimPrefix(digest, "sha256:")+".cdx.json"), input.Bom, 0o600); err != nil {
-		w2.mu.Unlock()
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	team.Bom, team.BomVersion, team.Matched = digest, input.Version, time.Time{}
-	w2.saveLocked()
-	w2.mu.Unlock()
-	s.audit(device.User, "bill of materials", input.Team, input.Version+" "+digest[:19])
-	go s.matchTeam(input.Team)
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-}
-
-// matchAdvisoriesDue matches every team's bill that wasn't matched in the
-// last day.
-func (s *hiServer) matchAdvisoriesDue(now time.Time) {
-	w := s.watch
-	w.mu.Lock()
-	var due []string
-	for name, team := range w.state.Teams {
-		if team.Bom != "" && now.Sub(team.Matched) >= advisoryMatchEvery && now.Sub(team.MatchTried) >= time.Hour {
-			due = append(due, name)
-		}
-	}
-	w.mu.Unlock()
-	sort.Strings(due)
-	for _, name := range due {
-		s.matchTeam(name)
-	}
-}
-
-// matchTeam matches one team's production bill, opens and closes its
-// advisory incidents, and writes its weekly report when one is due.
-func (s *hiServer) matchTeam(name string) {
-	events, report, err := s.watch.matchTeam(name, computeNow())
-	if err != nil {
-		fmt.Fprintf(s.log, "watch: matching %s's bill: %v\n", name, err)
-		return
-	}
-	s.watchEvents(events)
-	if report != "" {
-		s.watchPost("", report, false)
-	}
-}
-
 // matchTeam matches a team's bill and says what opened, closed, and the
 // weekly report: the server's for every team, and a team's own watcher's.
-func (w *serverWatch) matchTeam(name string, now time.Time) ([]watchEvent, string, error) {
+func (w *teamWatcher) matchTeam(name string, now time.Time) ([]watchEvent, string, error) {
 	w.matchMu.Lock()
 	defer w.matchMu.Unlock()
 	w.mu.Lock()
@@ -749,7 +670,7 @@ func (w *serverWatch) matchTeam(name string, now time.Time) ([]watchEvent, strin
 
 // advisoryRulesLocked opens an incident for each advisory loud enough,
 // and closes those no longer matched or now ignored.
-func (w *serverWatch) advisoryRulesLocked(team *watchTeam, now time.Time) []watchEvent {
+func (w *teamWatcher) advisoryRulesLocked(team *watchTeam, now time.Time) []watchEvent {
 	var events []watchEvent
 	current := map[string]bool{}
 	for _, advisory := range team.Advisories {
@@ -820,7 +741,7 @@ func advisoryTitle(team string, advisory apiAdvisory, why string) string {
 // advisories not loud enough for an incident that have a fix, and once,
 // the ones without. It is posted in the watch channel, and the team's
 // channel hears of its app's.
-func (w *serverWatch) reportLocked(team *watchTeam, now time.Time) string {
+func (w *teamWatcher) reportLocked(team *watchTeam, now time.Time) string {
 	if now.Sub(team.Reported) < advisoryReportEvery {
 		return ""
 	}

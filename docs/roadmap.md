@@ -2713,6 +2713,15 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.34 — The server watches nothing
+
+- [x] The hi server's watch is gone (hi_team_ops.md, release 4): its
+  endpoints answer 410, and `hi server watch`, `/hi teams`, ntfy pushes,
+  the dead-man's switch, and the OpenRouter keys it made, with revoke,
+  rekey, and cut off, are removed. The rules live on as each team's
+  watcher. `hi server init` suggests `hi heartbeat`, and `hi server run`
+  says what replaced an old watch.
+
 ### v2.6.33 — Only unplanned restarts
 
 - [x] The watcher's restart rule counts only the starts nobody asked for
@@ -3840,13 +3849,6 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
-
-### Next — the team watches itself (hi_team_ops.md, releases 2 to 4)
-
-- [ ] `hi server` setup asks for the machine's heartbeat.
-- [ ] **The server without watch**: its watch code, commands, ntfy, and
-  the OpenRouter keys it made, removed; a team's key is only the one
-  entered in the wizard or with `hi team key`.
 
 ### Next — a box's escape reaches only its own team
 

@@ -688,18 +688,8 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 		s.audit("slack:"+command.UserID, "refused command", "/hi "+command.Text, "not an approver")
 		return respond("Only approvers can use /hi. An admin adds approvers with `hi server approvers add`.")
 	}
-	if strings.TrimSpace(command.Text) == "teams" {
-		return respond(s.watchSummary(computeNow()))
-	}
-	if fields := strings.Fields(command.Text); len(fields) >= 3 && fields[0] == "team" {
-		switch fields[1] {
-		case "freeze", "unfreeze", "pause", "unpause", "revoke", "rekey", "cutoff", "reconnect":
-			who, _ := b.approver(command.UserID)
-			if err := s.watchAct(slackName(fields[2]), fields[1], who, strings.Join(fields[3:], " ")); err != nil {
-				return respond(err.Error())
-			}
-			return respond(fmt.Sprintf("Done: %s %s. The watch channel says what happened.", fields[1], fields[2]))
-		}
+	if text := strings.TrimSpace(command.Text); text == "teams" || strings.HasPrefix(text, "team ") {
+		return respond("Teams watch themselves now, on their own machine: their incidents are in each team's ops channel, and its owners freeze or pause it there with hi team freeze.")
 	}
 	fields := strings.Fields(command.Text)
 	for i, field := range fields {

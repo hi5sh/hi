@@ -12,7 +12,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -65,8 +64,6 @@ type teamWatchState struct {
 	AdvisoryCounts []apiAdvisoryCount `json:"advisory_counts,omitempty"`
 	AdvisoriesAt   time.Time          `json:"advisories_at,omitzero"`
 	Reported       string             `json:"reported,omitempty"`
-	// KeyHash is the server-made key the team uses (release 4).
-	KeyHash string `json:"key_hash,omitempty"`
 	// Undeclared is the weekly look at production's box against its bill.
 	Undeclared *apiUndeclared `json:"undeclared,omitempty"`
 	// LogsKept is how far the server has each log besides the lead's.
@@ -488,20 +485,6 @@ func teamGatewayPart(team string, now time.Time) apiWatchPart {
 // ---------------------------------------------------------------------------
 // sending
 
-// teamWatchClient is the hi server this machine is connected to, or nil.
-// Tests replace it.
-var teamWatchClient = func() (*serverClient, string) {
-	connection, err := loadServerConnection()
-	if err != nil || connection == nil || connection.URL == "" {
-		return nil, ""
-	}
-	key, err := loadDeviceKey(false)
-	if err != nil {
-		return nil, ""
-	}
-	return newServerClient(connection.URL, key), connection.URL
-}
-
 // sendHeartbeat sends one heartbeat, with the network log from where the
 // server has it, and opens or closes the incidents its answer tells of.
 // It says whether more of the network log waits.
@@ -524,7 +507,6 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		}
 		beat.Ignored = loadTeamAdvisoriesIgnored(b.team)
 		beat.Undeclared = state.Undeclared
-		beat.KeyHash = state.KeyHash
 	}
 	stop := loadTeamWatchStop(b.team)
 	beat.Stop = apiWatchStop{Frozen: stop.Frozen, Paused: stop.Paused, Done: stop.Done}
@@ -645,51 +627,18 @@ func (b *teamBroker) lookAtProduction() {
 	saveTeamWatchState(b.team, state)
 }
 
-var errTeamNotWatched = errors.New("this machine isn't connected to a hi server (hi connect), so nothing watches the team from outside")
-
-// tellWatched opens an incident here for each of the server's the lead can
-// act on, once, and closes it when the server has.
-func (b *teamBroker) tellWatched(state *teamWatchState, tell []apiWatchIncident) {
-	if state.Told == nil {
-		state.Told = map[string]string{}
-	}
-	open := map[string]bool{}
-	for _, incident := range tell {
-		open[incident.ID] = true
-		if _, told := state.Told[incident.ID]; told {
-			continue
-		}
-		local, err := b.openIncident(teamIncident{Kind: "watch", Slot: teamSlotProduction, Title: incident.Title, Detail: incident.Detail, Opened: time.Now().UTC()},
-			incident.Title+".\nThe team's watcher noticed it; the lead looks into it here.", "", teamIncidentPrompt)
-		if err != nil {
-			continue
-		}
-		state.Told[incident.ID] = local.ID
-	}
-	for id, local := range state.Told {
-		if open[id] {
-			continue
-		}
-		if b.incidentOpen(local) {
-			b.recovered(local, "The hi server says it is resolved.")
-		}
-		delete(state.Told, id)
-	}
-}
-
-// keepWatched sends a heartbeat every minute until done, sooner while the
-// network log has more than one carries.
+// keepWatched runs the team's watcher every minute until done, sooner
+// while the network logs have more than one check reads.
 func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
 	failing := false
 	for {
 		more, err := b.sendHeartbeat("")
 		switch {
-		case errors.Is(err, errTeamNotWatched):
 		case err != nil && !failing:
-			fmt.Fprintf(stderr, "hi: the team's heartbeat to its hi server: %v\n", err)
+			fmt.Fprintf(stderr, "hi: the team's watcher: %v\n", err)
 			failing = true
 		case err == nil && failing:
-			fmt.Fprintln(stderr, "hi: the team's heartbeat reaches its hi server again")
+			fmt.Fprintln(stderr, "hi: the team's watcher runs again")
 			failing = false
 		}
 		b.lookAtProduction()

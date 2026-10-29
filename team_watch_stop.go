@@ -16,9 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -319,59 +317,4 @@ func teamSitePackages(dir string) []string {
 // teamPyName is a Python package's name as PyPI compares them.
 func teamPyName(name string) string {
 	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(name))
-}
-
-// teamKeyFromServer is hi team key <name> openrouter --from-server: the
-// team's hi server makes it a key of its own, which an admin can revoke
-// there, even when this machine can't be trusted to.
-// teamKeysFromServer is off from release 3 of hi_team_ops.md; its code goes
-// in release 4.
-var teamKeysFromServer = false
-
-func teamKeyFromServer(name string, stdout io.Writer) error {
-	if _, err := loadTeam(name); err != nil {
-		return err
-	}
-	// From hi 2.6.32 a team watches itself, and the hi server makes no
-	// team's key (hi_team_ops.md).
-	if !teamKeysFromServer {
-		return fmt.Errorf("the hi server no longer makes teams' keys; give the team its own: hi team key %s openrouter", name)
-	}
-	client, server := teamWatchClient()
-	if client == nil {
-		return errTeamNotWatched
-	}
-	var answer apiWatchKey
-	if err := client.call(http.MethodPost, "/v1/watch/key", map[string]string{"team": name}, &answer); err != nil {
-		return err
-	}
-	if err := teamUseServerKey(name, answer); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Team %s's model calls use a key %s made for it: an admin there can revoke it (hi server watch revoke %s).\n", name, server, name)
-	return nil
-}
-
-// teamUseServerKey saves a key the server made as the team's own; the
-// proxies read it again for each call, so nothing restarts.
-func teamUseServerKey(name string, key apiWatchKey) error {
-	if key.Key == "" {
-		return errors.New("the hi server sent no key")
-	}
-	secrets, err := loadTeamSecrets(name)
-	if err != nil {
-		return err
-	}
-	secrets.OpenRouterAPIKey = key.Key
-	if err := saveTeamSecrets(name, secrets); err != nil {
-		return err
-	}
-	if err := writeTeamKeys(name, secrets); err != nil {
-		return err
-	}
-	teamWatchStateMu.Lock()
-	defer teamWatchStateMu.Unlock()
-	state := loadTeamWatchState(name)
-	state.KeyHash = key.Hash
-	return saveTeamWatchState(name, state)
 }

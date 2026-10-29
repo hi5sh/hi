@@ -123,14 +123,6 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server data list|test|remove [<org>]`          | Show, check, or stop serving organizations           |
 | `hi server expose [stop]`                           | The public address cloud runs reach `hi data` through, and the runs using it; close it |
 | `hi server expose revoke <run>`                     | End one cloud run's token now                                             |
-| `hi server watch [--json]`                          | Every team's last heartbeat, and open watch incidents |
-| `hi server watch --deadman <url>`                   | An outside check the server pings every minute (`off` to stop) |
-| `hi server watch --ntfy <url> --ntfy-token <t>`     | Where owners' pushes go; `--channel <id>` for the Slack channel |
-| `hi server watch subscribe|forget <team>`           | The link for a team's pushes; let another machine send its heartbeats |
-| `hi server watch freeze|unfreeze|pause|unpause <team> [--because <why>]` | Stop a team's boxes reaching anything and pause its app, or pause every box; done within a minute |
-| `hi server watch revoke|rekey|cutoff|reconnect <team> [--because <why>]` | Disable a team's OpenRouter key or give it a new one; take its machine off the NetBird network or put it back |
-| `hi server watch --openrouter` / `--netbird [--netbird-url <url>]` | The OpenRouter provisioning key and NetBird API token those steps use |
-| `hi server watch --auto-freeze on|off`              | Whether a burst of sends to paste or tunnel hosts, or an exploited advisory in an app's own packages, freezes the team on its own |
 
 ## hi data
 
@@ -346,7 +338,6 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the team has its own; running boxes get a new limit at once, without a restart |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
-| `hi team key <name> openrouter --from-server` | The team's OpenRouter key, made by its hi server, which an admin there can revoke |
 | `hi team bom <name> [v<n>|preview]`       | Production's bill of materials (CycloneDX), or a release's, or the preview's |
 | `hi team advisories <name>`               | Known advisories for what production runs, as the team's hi server last matched them; the lead has it too |
 | `hi team advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |

@@ -1,8 +1,8 @@
 # `hi team ops`: a team that watches itself, and a channel for its operations
 
 Status: Approved (2026-10-29), the first draft's open questions answered
-the same day. Release 1 built in v2.6.29, release 2 in v2.6.31, release 3 in v2.6.32 and v2.6.33. Replaces most of
-[hi_watch.md](hi_watch.md) as releases 3 and 4 land.
+the same day. Release 1 built in v2.6.29, release 2 in v2.6.31, release 3 in v2.6.32 and v2.6.33, release 4 in v2.6.34. Replaces most of
+[hi_watch.md](hi_watch.md).
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the broker,
 `__serve`, the lead), [hi_team_jobs.md](../approved/hi_team_jobs.md)
@@ -447,4 +447,24 @@ split likewise).
   `unplanned` (a crash, a kill, a lost machine). The rule counts the
   unplanned starts of the last day ("restarted on its own"); a team's
   first start, and the lines from before, which say neither, don't count.
+
+## As built (release 4, v2.6.34)
+
+- **The rules are the team's.** The watcher is `teamWatcher`
+  (`team_watch_rules.go`, `team_watch_network.go`, `team_advisories.go`),
+  opened in the team's folder; what only served the server is gone: the
+  server's heartbeat, bill, and key endpoints (one handler now answers
+  `/v1/watch/` with 410 for a team from before 2.6.32), its minute's check
+  for silent teams, its Slack posts and views, ntfy pushes, the dead-man's
+  switch, `hi server watch`, `/hi teams` and `/hi team …` (which now say
+  where things went), and `server_watch_cutoff.go`: the OpenRouter keys
+  the server made, revoke, rekey, cut off, and the NetBird token.
+  `hi team key … --from-server` says the server makes no keys.
+- **Its tests** drive the watcher directly, as a team's broker does: the
+  health, network, and advisory rules as before, and that it keeps its
+  place in the logs without copying them.
+- **The server's old `watch/` folder** is read by nothing; `hi server
+  run` says once that it can be deleted, and, when it had a dead-man's
+  switch and the machine has no heartbeat, to send it with
+  `hi heartbeat`. `hi server init` suggests `hi heartbeat`.
 

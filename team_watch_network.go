@@ -1,21 +1,17 @@
 package main
 
-// hi watch, release 3, on the server: rules on the network lines the
-// teams send, and stopping a team. Every rule is plain code, with no
-// model. A network rule opens its incident once and closes it after a day
-// without a repeat. A burst of sends to a host on watch-hosts.txt freezes
-// the team on its own, as does an advisory known to be exploited in the
-// app's own packages; everything else that stops a team is an admin's.
+// The team's watcher: rules on the network logs it reads, and stopping a
+// team. Every rule is plain code, with no model. A network rule opens its
+// incident once and closes it after a day without a repeat. A burst of
+// sends to a host on watch-hosts.txt freezes the team on its own, as does
+// an advisory known to be exploited in the app's own packages; everything
+// else that stops a team is an owner's (hi team freeze).
 //
 // Spec: docs/specs/approved/hi_watch.md (release 3).
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -116,7 +112,7 @@ type watchNet struct {
 	burst   []watchSample
 }
 
-func (w *serverWatch) netState(team string) *watchNet {
+func (w *teamWatcher) netState(team string) *watchNet {
 	if w.net == nil {
 		w.net = map[string]*watchNet{}
 	}
@@ -127,7 +123,7 @@ func (w *serverWatch) netState(team string) *watchNet {
 }
 
 // watchHosts are the hosts in watch-hosts.txt, read again when it changes.
-func (w *serverWatch) watchHosts() []string {
+func (w *teamWatcher) watchHosts() []string {
 	path := filepath.Join(w.dir, "watch-hosts.txt")
 	info, err := os.Stat(path)
 	if err != nil {
@@ -170,7 +166,7 @@ func watchWho(log string) string {
 
 // keepLogLocked appends a log's new lines, as keepNetworkLocked does for
 // the lead's, and runs the network rules on them.
-func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, exempt []string, now time.Time) []watchEvent {
+func (w *teamWatcher) keepLogLocked(team *watchTeam, network apiWatchNetwork, exempt []string, now time.Time) []watchEvent {
 	if network.Log != "" && !watchLogName.MatchString(network.Log) {
 		return nil
 	}
@@ -178,10 +174,8 @@ func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, ex
 		team.LogsKept = map[string]int64{}
 	}
 	kept := team.NetworkKept
-	file := "network.log"
 	if network.Log != "" {
 		kept = team.LogsKept[network.Log]
-		file = strings.ReplaceAll(network.Log, ":", "-") + ".log"
 	}
 	if network.To < network.From || len(network.Lines) > watchNetworkLinesMax {
 		return nil
@@ -208,23 +202,6 @@ func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, ex
 		network.Lines[i] = line
 		text.WriteString(line + "\n")
 	}
-	// The server keeps a copy off the team's machine; a team's own watcher
-	// reads the logs where they are (team_watch_local.go).
-	if !w.local {
-		dir := filepath.Join(w.dir, "teams", team.Team)
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return nil
-		}
-		out, err := os.OpenFile(filepath.Join(dir, file), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-		if err != nil {
-			return nil
-		}
-		_, err = out.WriteString(text.String())
-		out.Close()
-		if err != nil {
-			return nil
-		}
-	}
 	if network.Log == "" {
 		team.NetworkKept = network.To
 	} else {
@@ -234,7 +211,7 @@ func (w *serverWatch) keepLogLocked(team *watchTeam, network apiWatchNetwork, ex
 }
 
 // networkRulesLocked runs the network rules on a log's new lines.
-func (w *serverWatch) networkRulesLocked(team *watchTeam, log string, lines []string, exempt []string, now time.Time) []watchEvent {
+func (w *teamWatcher) networkRulesLocked(team *watchTeam, log string, lines []string, exempt []string, now time.Time) []watchEvent {
 	state := w.netState(team.Team)
 	hosts := w.watchHosts()
 	who := watchWho(log)
@@ -360,7 +337,7 @@ func (w *serverWatch) networkRulesLocked(team *watchTeam, log string, lines []st
 
 // noteAppHostLocked keeps when production last looked each host up; one
 // it hasn't in 30 days goes in the next weekly line.
-func (w *serverWatch) noteAppHostLocked(team *watchTeam, host string, at time.Time) []watchEvent {
+func (w *teamWatcher) noteAppHostLocked(team *watchTeam, host string, at time.Time) []watchEvent {
 	if team.AppHosts == nil {
 		team.AppHosts = map[string]time.Time{}
 		team.AppHostsSince, team.NetReported = at, at
@@ -384,7 +361,7 @@ func slicesContains(list []string, value string) bool {
 
 // networkQuietLocked closes network incidents not seen again in a day, and
 // posts the week's new hosts.
-func (w *serverWatch) networkQuietLocked(team *watchTeam, now time.Time) ([]watchEvent, string) {
+func (w *teamWatcher) networkQuietLocked(team *watchTeam, now time.Time) ([]watchEvent, string) {
 	var events []watchEvent
 	for rule, seen := range team.NetSeen {
 		if now.Sub(seen) > watchNetworkQuiet {
@@ -406,7 +383,7 @@ func (w *serverWatch) networkQuietLocked(team *watchTeam, now time.Time) ([]watc
 
 // wantLocked asks the team to freeze, unfreeze, pause, or unpause, in the
 // answer to its next heartbeat, until it says it has.
-func (w *serverWatch) wantLocked(team *watchTeam, action, by, because string, now time.Time) apiWatchDo {
+func (w *teamWatcher) wantLocked(team *watchTeam, action, by, because string, now time.Time) apiWatchDo {
 	if team.Want != nil && team.Want.Action == action && !team.WantDone {
 		return *team.Want
 	}
@@ -416,74 +393,11 @@ func (w *serverWatch) wantLocked(team *watchTeam, action, by, because string, no
 	return do
 }
 
-// stopTeam is an admin's freeze, unfreeze, pause, or unpause.
-func (s *hiServer) stopTeam(name, action, by, because string) (apiWatchDo, error) {
-	switch action {
-	case "freeze", "unfreeze", "pause", "unpause":
-	default:
-		return apiWatchDo{}, fmt.Errorf("%q isn't freeze, unfreeze, pause, or unpause", action)
-	}
-	w := s.watch
-	w.mu.Lock()
-	team := w.state.Teams[name]
-	if team == nil {
-		w.mu.Unlock()
-		return apiWatchDo{}, fmt.Errorf("no team %s sends heartbeats", name)
-	}
-	do := w.wantLocked(team, action, by, because, computeNow())
-	w.saveLocked()
-	w.mu.Unlock()
-	s.audit(by, "asked to "+action, name, because)
-	s.watchPost("", fmt.Sprintf(":octagonal_sign: %s asked team %s to %s%s. It does with its next heartbeat, within a minute, and says so in its channel.", by, name, action, map[bool]string{true: ": " + because, false: ""}[because != ""]), false)
-	return do, nil
-}
-
 // stopConfirmedLocked notes a team that carried out what was asked.
-func (w *serverWatch) stopConfirmedLocked(team *watchTeam, stop apiWatchStop) string {
+func (w *teamWatcher) stopConfirmedLocked(team *watchTeam, stop apiWatchStop) string {
 	if team.Want == nil || team.WantDone || stop.Done != team.Want.ID {
 		return ""
 	}
 	team.WantDone = true
 	return fmt.Sprintf("Team %s did %s (%s).", team.Team, team.Want.Action, team.Want.ID)
-}
-
-func (s *hiServer) watchStopRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /admin/watch/stop/{team}/{action}", func(w http.ResponseWriter, r *http.Request) {
-		var input struct {
-			Because string `json:"because"`
-			As      string `json:"as"`
-		}
-		json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&input)
-		do, err := s.stopTeam(r.PathValue("team"), r.PathValue("action"), firstNonEmpty(input.As, currentUserName()), input.Because)
-		if err != nil {
-			writeAPIError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, do)
-	})
-}
-
-// watchStopCommand is hi server watch freeze|unfreeze|pause|unpause <team>.
-func watchStopCommand(dirFlag, action, team, because string, stdout io.Writer) error {
-	var do apiWatchDo
-	if err := adminCall(dirFlag, http.MethodPost, "/admin/watch/stop/"+team+"/"+action, map[string]string{"because": because, "as": currentUserName()}, &do); err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "Asked team %s to %s (%s). It does with its next heartbeat, within a minute; hi server watch shows when it has.\n", team, action, do.ID)
-	return nil
-}
-
-// readWatchLines is a team's kept log, for tests and the admins.
-func readWatchLines(path string) []string {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines
 }

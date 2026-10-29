@@ -172,20 +172,16 @@ func TestTeamWatchTakesOverFromTheServer(t *testing.T) {
 	}
 }
 
-// A hi server turns a heartbeat away, and closes what it had open for
-// the team.
+// A hi server turns away what a team from before hi 2.6.32 sends.
 func TestServerTurnsHeartbeatsAway(t *testing.T) {
 	ts := newTestServer(t)
 	ts.connectAs(t, "anna", "staff")
 	key, _ := loadDeviceKey(false)
-	ts.server.watch.state.Teams["payments"] = &watchTeam{Team: "payments", Open: map[string]string{"disk": "w-1"}}
-	ts.server.watch.state.Incidents["w-1"] = &watchIncident{ID: "w-1", Team: "payments", Rule: "disk", Title: "full"}
-	err := newServerClient(ts.url, key).call(http.MethodPost, "/v1/watch/heartbeat", apiHeartbeat{Team: "payments"}, nil)
-	if err == nil || !strings.Contains(err.Error(), "watch themselves") {
-		t.Fatal(err)
-	}
-	if incident := ts.server.watch.state.Incidents["w-1"]; incident.Closed.IsZero() || !strings.Contains(incident.Cleared, "watches itself") {
-		t.Fatalf("%+v", incident)
+	for _, path := range []string{"/v1/watch/heartbeat", "/v1/watch/bom", "/v1/watch/key"} {
+		err := newServerClient(ts.url, key).call(http.MethodPost, path, apiHeartbeat{Team: "payments"}, nil)
+		if err == nil || !strings.Contains(err.Error(), "watch themselves") {
+			t.Fatal(path, err)
+		}
 	}
 }
 

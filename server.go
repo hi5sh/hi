@@ -188,7 +188,6 @@ type hiServer struct {
 	dataMu    sync.Mutex
 	dataLists map[string]*dataListing
 	// watch is hi watch: the teams' heartbeats (server_watch.go).
-	watch *serverWatch
 }
 
 func serverDirectory(flagValue string) (string, error) {
@@ -294,7 +293,7 @@ func openServer(dir string, log io.Writer) (*hiServer, error) {
 		server.enableProvider(name, key)
 	}
 	server.feed.loadRecentAudit(dir)
-	server.watch = openServerWatch(dir)
+	serverWatchRetiredNote(dir, server.log)
 	// A start interrupted by a restart can't be resumed. If the instance was
 	// created, the reconciler reports it as unleased.
 	for _, request := range server.state.Requests {
@@ -549,9 +548,9 @@ func (s *hiServer) clientHandler() http.Handler {
 	mux.HandleFunc("POST /v1/slack-link", s.device(s.handleSlackLink))
 	mux.HandleFunc("GET /v1/templates", s.device(s.handleTemplateCatalog))
 	mux.HandleFunc("GET /v1/templates/{source}/{commit}", s.device(s.handleTemplateBundle))
-	mux.HandleFunc("POST /v1/watch/heartbeat", s.device(s.handleHeartbeat))
-	mux.HandleFunc("POST /v1/watch/bom", s.deviceLimited(32<<20, s.handleBom))
-	mux.HandleFunc("POST /v1/watch/key", s.device(s.handleTeamKey))
+	// Teams watch themselves from hi 2.6.32 (hi_team_ops.md): an older
+	// team's heartbeat, bill, or key is turned away.
+	mux.HandleFunc("POST /v1/watch/", s.deviceLimited(32<<20, s.handleWatchGone))
 	s.aiRoutes(mux)
 	s.dataRoutes(mux)
 	return mux
@@ -1402,7 +1401,6 @@ func (s *hiServer) adminHandler() http.Handler {
 	s.templateAdminRoutes(mux)
 	s.dataAdminRoutes(mux)
 	s.exposeAdminRoutes(mux)
-	s.watchRoutes(mux)
 	mux.HandleFunc("GET /admin/requests", func(w http.ResponseWriter, r *http.Request) {
 		all := r.URL.Query().Get("all") == "1"
 		s.mu.Lock()
@@ -1774,7 +1772,6 @@ func (s *hiServer) serve(ctx context.Context, listen string) error {
 		case <-ticker.C:
 			s.reconcile()
 			s.reapExposure()
-			s.checkWatch(computeNow())
 		case <-templates.C:
 			s.syncTemplatesInBackground()
 		}
@@ -1854,7 +1851,8 @@ func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "expose":
 		return exitCode(serverExposeCommand(rest, stdout, stderr), stderr)
 	case "watch":
-		return exitCode(serverWatchCommand(rest, stdout, stderr), stderr)
+		fmt.Fprintln(stderr, "hi: hi server watch is gone: teams watch themselves on their own machine (hi team watch), and this machine's heartbeat is hi heartbeat <url>.")
+		return 1
 	default:
 		fmt.Fprintf(stderr, "hi: unknown server command %q\n\n", command)
 		printServerUsage(stderr)
@@ -1904,21 +1902,6 @@ Usage:
                                           Serve an organization's datasets, models, and buckets
   hi server data list|test|remove         Show, check, or stop serving organizations
   hi server expose [stop]                 The public URL cloud runs reach hi data through, if any
-  hi server watch                         What every team's heartbeat says, and open watch incidents
-  hi server watch --deadman <url>         An outside check the server pings every minute
-  hi server watch --ntfy <url> --ntfy-token <t>
-                                          Where owners' pushes go; subscribe <team> gives the link
-  hi server watch --channel <id>          The Slack channel for watch incidents (default: approvals)
-    hi server watch forget <team>           Let another machine send a team's heartbeats
-  hi server watch freeze|unfreeze|pause|unpause <team> [--because R]
-                                          Stop a team's boxes reaching anything, or pause them all
-    hi server watch revoke|rekey|cutoff|reconnect <team> [--because R]
-                                          Disable a team's OpenRouter key, or give it a new one;
-                                          take its machine off NetBird, or put it back
-  hi server watch --openrouter | --netbird
-                                          The provisioning key and API token those need
-  hi server watch --auto-freeze on|off    Whether a burst to paste sites, or an exploited
-                                          advisory in an app's packages, freezes on its own
 
 
 Commands other than init and run talk to the running server through its
@@ -1977,6 +1960,9 @@ func serverInitCommand(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintln(stdout, "Next:")
 	fmt.Fprintln(stdout, "  hi server provider add runpod    (or shadeform)")
 	fmt.Fprintln(stdout, "  hi server run          (or as a service, below)")
+	if _, set := loadMachineHeartbeat(); !set {
+		fmt.Fprintln(stdout, "  hi heartbeat <url>     so someone hears if this machine stops: a check at a service such as healthchecks.io")
+	}
 	fmt.Fprintf(stdout, "\nA systemd unit, for /etc/systemd/system/hi-server.service:\n\n")
 	fmt.Fprintf(stdout, "[Unit]\nDescription=hi compute server\nAfter=network-online.target netbird.service\nWants=network-online.target\n\n")
 	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_SERVER_DIR=%s\nExecStart=%s server run\nRestart=always\n\n", currentUserName(), dir, executable)
@@ -2433,4 +2419,26 @@ func serverAuditCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintln(stdout, text)
 	}
 	return nil
+}
+
+// handleWatchGone answers a team from before hi 2.6.32, which still sends
+// the server its heartbeat, bill, or key request: teams watch themselves.
+func (s *hiServer) handleWatchGone(w http.ResponseWriter, _ *http.Request, _ serverDevice, _ []byte) {
+	writeAPIError(w, http.StatusGone, "teams watch themselves on their own machine from hi v2.6.32 (hi team watch); update hi on the team's machine")
+}
+
+// serverWatchRetiredNote says, when the server watched teams before, what
+// replaced it: its watch/ folder is read by nothing now, and its dead-man's
+// switch is this machine's heartbeat.
+func serverWatchRetiredNote(dir string, log io.Writer) {
+	data, err := os.ReadFile(filepath.Join(dir, "watch", "config.json"))
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(log, "hi server: teams watch themselves now; %s is read by nothing and can be deleted.\n", filepath.Join(dir, "watch"))
+	if strings.Contains(string(data), `"deadman"`) {
+		if _, set := loadMachineHeartbeat(); !set {
+			fmt.Fprintln(log, "hi server: its dead-man's switch is gone: send this machine's heartbeat to the same check with hi heartbeat <url>.")
+		}
+	}
 }
