@@ -2713,6 +2713,18 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.31 — Heartbeats
+
+- [x] A team's heartbeat and the machine's (hi_team_ops.md, release 2):
+  a GET to a service such as healthchecks.io, which alerts when they
+  stop. The wizard's last step asks for both; `hi team heartbeat <team>
+  <url> [--every 1m]` sends the team's from its service while it runs,
+  and `hi heartbeat <url> [--every 5m]` the machine's from a systemd user
+  timer. Only the URL's host is ever shown. `hi team status` says when a
+  team has none.
+- [x] An owner's answer to a dev box's site ask is said in the ask's
+  thread.
+
 ### v2.6.30 — Permissions in ops only
 
 - [x] Changes to permissions are said only in the ops channel: hi's posts
@@ -3815,11 +3827,7 @@ development loop is frozen and goes in release 4.
 
 ### Next — the team watches itself (hi_team_ops.md, releases 2 to 4)
 
-- [ ] **Heartbeats**: a team's (the wizard asks for a URL and an
-  interval; `__serve` sends it; `hi team heartbeat`), and the machine's
-  for machines that run hi's services (`hi heartbeat`, a systemd user
-  timer; the first `hi team new` and `hi server` setup ask for it). The
-  IT admins set at the service who hears a stop.
+- [ ] `hi server` setup asks for the machine's heartbeat.
 - [ ] **The watcher on the machine**: the hi server's health and network
   rules, advisory matching, and freeze and pause move into the team's
   broker and post in the ops channel; teams stop sending heartbeats to

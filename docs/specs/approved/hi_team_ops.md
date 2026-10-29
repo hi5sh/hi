@@ -1,7 +1,7 @@
 # `hi team ops`: a team that watches itself, and a channel for its operations
 
 Status: Approved (2026-10-29), the first draft's open questions answered
-the same day. Release 1 built in v2.6.29. Replaces most of
+the same day. Release 1 built in v2.6.29, release 2 in v2.6.31. Replaces most of
 [hi_watch.md](hi_watch.md) as releases 3 and 4 land.
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (the wizard, the broker,
@@ -368,4 +368,39 @@ Code: `team_ops.go`, and the posts it moved.
   job still reads only the main channel's log.
 - Not built yet: `hi team status` warning about members below Pro Dev in
   the ops channel.
+- v2.6.31: an owner's answer to a site ask (from the dev page or
+  `hi team dev <team> allow`) is said in the ask's thread, where hi posted
+  it: the ask keeps its channel and thread.
+
+## As built (release 2, v2.6.31)
+
+Code: `heartbeat.go` (the ping, the machine's), `team_heartbeat.go` (the
+team's, the wizard's step).
+
+- **The ping** is a GET with a 10-second timeout; a 2xx is a success. Its
+  errors name the service's host and never the URL, which is the secret,
+  and nothing prints or logs the URL.
+- **A team's**: the URL in `secrets.json` (`heartbeat_url`), the interval
+  in `team.json` (`heartbeat_every`, 30s to 1h, empty for 1m). The
+  broker's loop reads both before each beat, so `hi team heartbeat`
+  changes a running team without a restart. The last beat and its error
+  are in `run/heartbeat.json`, and `hi team status` shows the host, the
+  interval, and the last beat, or that there is none. `hi team down`
+  says on the command line and in the ops channel that the check will
+  alert. Setting one pings once first, and refuses a URL whose first
+  ping fails.
+- **The machine's**: `~/.config/hi/heartbeat.json` (0600) with the URL,
+  the interval (1m to 1h, 5m by default), and the last ping;
+  `hi-heartbeat.timer` and `.service` in the user's systemd units, the
+  timer with `OnActiveSec=1min` and `OnUnitActiveSec=<interval>`
+  (measured on aiw9: the first ping at set, then one a minute). It warns
+  without lingering, and says it means little on a machine with no team
+  or hi server. `hi heartbeat off` removes the units and the file.
+- **The wizard** has a tenth step, Heartbeats: the team's URL (checked
+  with a ping) and interval, then the machine's when it has none. The
+  answers file takes `heartbeat_url`, `heartbeat_every`, and
+  `machine_heartbeat_url`; a machine's existing heartbeat is never
+  replaced from there.
+- Not built: `hi server` setup asking for the machine's heartbeat; the
+  server keeps its own dead-man's switch until release 4.
 

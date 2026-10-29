@@ -103,6 +103,10 @@ func TestTeamDevSiteAsk(t *testing.T) {
 	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/site", map[string]any{"host": "query1.finance.yahoo.com", "allow": true}); code != 200 {
 		t.Fatal(code, body)
 	}
+	// The answer is in the ask's thread.
+	if last := channel.calls[len(channel.calls)-1]; !strings.HasPrefix(last, "postIn C07PAYMENTS 1700000000.000001 :white_check_mark: Olga allowed *query1.finance.yahoo.com*") {
+		t.Fatalf("%q", channel.calls)
+	}
 	allow, _ := os.ReadFile(teamDevAllowFile("payments"))
 	if !strings.Contains(string(allow), "\nquery1.finance.yahoo.com\n") || !strings.Contains(string(allow), "files.example.net") || !boxHostAllowed(teamDevAllowHosts("payments"), "query1.finance.yahoo.com") {
 		t.Fatal(string(allow))

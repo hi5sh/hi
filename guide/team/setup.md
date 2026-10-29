@@ -95,6 +95,20 @@ things, one at a time:
 
    `hi team addresses <team> [domain|netbird|<host>|names ...]` changes it
    later, and restarts the team to move them.
+10. **Heartbeats.** Optional: so someone hears when the team, or the
+    machine, stops. hi sends a GET to a URL at an interval, and an outside
+    service such as [healthchecks.io](https://healthchecks.io) (free for
+    20 checks, or self-hosted), Better Stack, Cronitor, or Uptime Kuma
+    alerts when they stop. Make a check there with the same period, and
+    set there who it alerts, by email, SMS, or into the ops channel
+    through its own Slack integration, which works when the team's Slack
+    app is what stopped. First the team's (every minute unless you say,
+    from 30 seconds to an hour), then, when the machine has none, the
+    machine's, which says the machine is up whichever teams run.
+    `hi team heartbeat <team> <url> [--every 1m]` and
+    `hi heartbeat <url> [--every 5m]` set them later; `off` stops one,
+    `test` sends one now. Only the URL's host is ever shown: the URL is
+    the secret.
 
 hi checks both tokens, that the app is in the channel, and that the bot
 token has every scope the lead needs, before it writes anything. An app

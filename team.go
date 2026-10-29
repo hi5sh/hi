@@ -39,8 +39,11 @@ type teamConfig struct {
 	Channel string `json:"channel"`
 	// OpsChannel is where incidents, warnings, security, keys, and access
 	// go (team_ops.go); empty, they go to Channel.
-	OpsChannel string   `json:"ops_channel,omitempty"`
-	Owners     []string `json:"owners"`
+	OpsChannel string `json:"ops_channel,omitempty"`
+	// HeartbeatEvery is how often the team's heartbeat goes, such as 5m;
+	// empty is every minute. Its URL is a secret (team_heartbeat.go).
+	HeartbeatEvery string   `json:"heartbeat_every,omitempty"`
+	Owners         []string `json:"owners"`
 	// Developers work in the dev box and on the dev page like the owners,
 	// except what reaches production; Contributors report bugs as tasks.
 	// Owners set both; being in the channel gives nobody a level
@@ -153,6 +156,8 @@ type teamSecrets struct {
 	// out of reach of its agents.
 	EnvDev   map[string]string `json:"env_dev,omitempty"`
 	FilesDev map[string]string `json:"files_dev,omitempty"`
+	// HeartbeatURL is where the team's heartbeat goes (team_heartbeat.go).
+	HeartbeatURL string `json:"heartbeat_url,omitempty"`
 	// The bucket snapshots are copied to (hi team backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
@@ -471,6 +476,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamEnv(rest, stdin, stdout)
 	case "ops":
 		err = teamOpsCommand(rest, stdout)
+	case "heartbeat":
+		err = teamHeartbeatCommand(rest, stdout)
 	case "limit":
 		err = teamLimitCommand(rest, stdout)
 	case "bom":
@@ -591,6 +598,8 @@ usage:
                                    for and checked; Enter keeps one); a running team restarts
   hi team ops <name> [<channel ID>|off]  a second channel for incidents, warnings, security, keys,
                                    and access; without one they go to the main channel
+  hi team heartbeat <name> [<url> [--every 1m] | off | test]  a GET to an outside service, such as
+                                   healthchecks.io, while the team runs: it alerts when they stop
   hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
                                    code to type on any device; only the team's server refreshes it
   hi team signin <name> claude     the team's own Claude token, from claude setup-token (asked for):
@@ -799,6 +808,11 @@ type teamAnswers struct {
 	// NetBirdKey is the setup key the dev box joins the team's NetBird
 	// network with, once (team_dev.go).
 	NetBirdKey string `json:"netbird_key,omitempty"`
+	// HeartbeatURL is the team's heartbeat, kept in its secrets, and
+	// MachineHeartbeatURL this machine's, when it has none yet
+	// (team_heartbeat.go).
+	HeartbeatURL        string `json:"heartbeat_url,omitempty"`
+	MachineHeartbeatURL string `json:"machine_heartbeat_url,omitempty"`
 	// adoption is the adoption the wizard or the answers prepared.
 	adoption *teamAdoption
 	// checked: the wizard checked Slack as it went.
@@ -945,6 +959,7 @@ func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader,
 			fmt.Fprintf(stdout, "The team is set up, but not on GitHub: %v\nTry again with: hi team github %s %s\n", err, name, answers.GitHub)
 		}
 	}
+	applyTeamHeartbeats(name, answers, stdout)
 	if answers.NetBirdKey != "" {
 		if err := setTeamDevNetBird(name, answers.NetBirdKey); err != nil {
 			fmt.Fprintf(stdout, "The dev box isn't on NetBird: %v\nTry again with: hi team dev %s netbird\n", err, name)
@@ -1226,7 +1241,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 
 	teamSetupBanner(stdout, styled, name, dir)
 
-	teamStep(stdout, styled, "1/9 Lead")
+	teamStep(stdout, styled, "1/10 Lead")
 	teamSay(stdout, styled, "The lead talks with the people in the team's Slack channel. Give it a name of its own, such as a",
 		"person's, or press Enter to call it "+name+".")
 	leadName, err := teamAskUntil(stdin, stdout, "Lead's name ["+name+"]", false, teamCheckLeadName)
@@ -1241,7 +1256,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	handle := teamBotHandle(*config)
 	teamSay(stdout, styled, "In Slack it's @"+handle+".")
 
-	teamStep(stdout, styled, "2/9 Purpose")
+	teamStep(stdout, styled, "2/10 Purpose")
 	teamSay(stdout, styled, "In one sentence, what is this team for? The lead starts from it.")
 	offered := ""
 	if adopt != nil {
@@ -1251,7 +1266,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		return answers, secrets, err
 	}
 
-	teamStep(stdout, styled, "3/9 Slack app")
+	teamStep(stdout, styled, "3/10 Slack app")
 	teamSay(stdout, styled, "Each team has a Slack app of its own. Create it from this manifest:",
 		"  api.slack.com/apps → Create New App → From a manifest → YAML → paste it → Create,",
 		"  then Install to Workspace.")
@@ -1272,7 +1287,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	}
 	teamSay(stdout, styled, fmt.Sprintf("Slack: both tokens work, in workspace %s.", workspace))
 
-	teamStep(stdout, styled, "4/9 Channel")
+	teamStep(stdout, styled, "4/10 Channel")
 	teamSay(stdout, styled, "Invite the app to the team's channel first: /invite @"+handle,
 		"Then copy the channel's ID: click the channel's name; the ID is at the bottom (C…).")
 	channel := ""
@@ -1302,7 +1317,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		teamSay(stdout, styled, fmt.Sprintf("Slack: the app is in #%s, for operations.", channel))
 	}
 
-	teamStep(stdout, styled, "5/9 People")
+	teamStep(stdout, styled, "5/10 People")
 	teamSay(stdout, styled, "Owners build the app in the dev box and release it from the dev page. Give Slack member IDs,",
 		"separated by commas: a person's profile → ⋯ → Copy member ID (U…).")
 	owners, err := teamAskUntil(stdin, stdout, "Owners", false, teamCheckPeople)
@@ -1311,7 +1326,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	}
 	config.Owners = splitList(owners)
 
-	teamStep(stdout, styled, "6/9 Members")
+	teamStep(stdout, styled, "6/10 Members")
 	if styled {
 		teamSay(stdout, styled, "Each role's agent and model, and for Hermes who pays: OpenRouter, or a ChatGPT plan (falling",
 			"back to OpenRouter), and how hard it thinks. Enter keeps what's offered.")
@@ -1360,7 +1375,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		config.Members[role] = member
 	}
 
-	teamStep(stdout, styled, "7/9 Models")
+	teamStep(stdout, styled, "7/10 Models")
 	if teamUsesChatGPT(*config) {
 		teamSay(stdout, styled, "OpenRouter is what the roles on ChatGPT fall back on, and the lead's memory and the app the team",
 			"builds use it. Give the team a key of its")
@@ -1373,7 +1388,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		return answers, secrets, err
 	}
 
-	teamStep(stdout, styled, "8/9 Code")
+	teamStep(stdout, styled, "8/10 Code")
 	teamSay(stdout, styled, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
 	if adopt != nil {
 		if adopt.local != "" {
@@ -1409,7 +1424,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		}
 	}
 
-	teamStep(stdout, styled, "9/9 Network")
+	teamStep(stdout, styled, "9/10 Network")
 	teamSay(stdout, styled, "The team's addresses are on your NetBird network, and the owners build in its dev box over SSH there.")
 	if styled {
 		teamSay(stdout, styled, strings.Split(strings.TrimRight(teamDevNetBirdHelp(name), "\n"), "\n")...)
@@ -1423,6 +1438,11 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	answers.NetBirdKey = strings.TrimSpace(key)
 	// Without a terminal, answers that end before it keep the default.
 	if err := teamAskAddresses(stdin, stdout, styled, config); err != nil && !errors.Is(err, io.EOF) {
+		return answers, secrets, err
+	}
+
+	teamStep(stdout, styled, "10/10 Heartbeats")
+	if err := teamAskHeartbeats(stdin, stdout, styled, &answers); err != nil && !errors.Is(err, io.EOF) {
 		return answers, secrets, err
 	}
 	answers.checked = true
@@ -2205,6 +2225,9 @@ func teamDown(name string, stdout io.Writer) error {
 	teamStopDevBox(name)
 	// The hi server stops watching for its heartbeat until hi team up.
 	(&teamBroker{team: name}).sendHeartbeat("down")
+	if config, err := loadTeam(name); err == nil {
+		teamHeartbeatDown(config, stdout)
+	}
 	fmt.Fprintf(stdout, "Team %s is stopped. Its folder stays; hi team up %s starts it again.\n", name, name)
 	return nil
 }
@@ -2485,7 +2508,7 @@ func teamStatus(name string, stdout io.Writer) error {
 	if config.OpsChannel != "" {
 		channels += ", ops " + config.OpsChannel
 	}
-	fmt.Fprintf(stdout, "Team %s: %s. %s. %s\n\n", name, teamState(name), channels, config.Purpose)
+	fmt.Fprintf(stdout, "Team %s: %s. %s. %s\n%s\n\n", name, teamState(name), channels, config.Purpose, teamHeartbeatLine(config))
 	for _, role := range teamRoles(config) {
 		fmt.Fprintf(stdout, "  %-10s %s\n", role, teamMemberLabel(config.Members[role]))
 	}

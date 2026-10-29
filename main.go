@@ -116,6 +116,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runData(args[1:], stdin, stdout, stderr)
 	case "connect":
 		return runConnect(args[1:], stdin, stdout, stderr)
+	case "heartbeat":
+		return runHeartbeat(args[1:], stdout, stderr)
 	case "disconnect":
 		return runDisconnect(args[1:], stdout, stderr)
 	case "server":
@@ -172,6 +174,7 @@ Usage:
   hi skills                     Find, install, and update agent skills from skills.sh (hi skill help);
                                 hi skill add hi teaches agents to use hi
   hi verify strix               Check an installed Strix Halo workstation
+  hi heartbeat [<url>|off|test] This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
   hi update [--check]           Update hi to the latest release, and restart a hi server or team running the old one
   hi version                    Print the installed version
   hi help                       Show this help`)

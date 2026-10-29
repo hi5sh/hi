@@ -209,6 +209,8 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		return failed
 	}
 	go broker.keepLinks(ctx.Done(), stderr)
+	// The team's heartbeat, while it runs (team_heartbeat.go).
+	go broker.keepHeartbeat(ctx.Done())
 	go broker.keepDevPage(ctx.Done(), stderr)
 	go broker.keepHTTPS(ctx.Done(), stderr)
 	broker.wakeLead = func(name, prompt, deliver string) error {
