@@ -2,8 +2,14 @@
   "permissions": {
     "allow": ["Bash(make check)", "Bash(make fix)", "Bash(make test)"],
     "deny": [
-      "Read(./.env)", "Read(./.env.local)", "Read(./.env.*.local)", "Read(./.env.development)",
-      "Read(./.env.production)", "Read(./.env.staging)", "Read(./.env.test)", "Read(./secrets/**)"
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.development)",
+      "Read(./.env.production)",
+      "Read(./.env.staging)",
+      "Read(./.env.test)",
+      "Read(./secrets/**)"
     ]
   }
 }

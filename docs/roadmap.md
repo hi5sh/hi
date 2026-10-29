@@ -2713,6 +2713,12 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.36 — Templates pass their own check again
+
+- [x] The templates' `.claude/settings.json` lists what agents may not
+  read one per line, as biome formats it: since v2.6.26, a new web, app,
+  or team app project failed its own `make check` until `make fix`.
+
 ### v2.6.35 — One Release button, and buttons that spin
 
 - [x] The dev page's Release tab has one Release button, in Production's
