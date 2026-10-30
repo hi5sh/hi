@@ -241,10 +241,10 @@ func TestTeamDevPageStart(t *testing.T) {
 	_, ran := teamTestDevPage(t)
 	teamTicketDo("payments", teamTicketRequest{Action: "add", Title: "Chart misses the last day!", Author: "Olga"})
 	config, _ := loadTeam("payments")
-	if _, err := teamDevStart(config, 1, "gemini"); err == nil {
+	if _, err := teamDevStart(config, 1, "gemini", "Olga"); err == nil {
 		t.Fatal("an unknown agent")
 	}
-	branch, err := teamDevStart(config, 1, "claude")
+	branch, err := teamDevStart(config, 1, "claude", "Olga")
 	if err != nil || branch != "1-chart-misses-the-last-day" {
 		t.Fatalf("%q %v", branch, err)
 	}
@@ -255,7 +255,10 @@ func TestTeamDevPageStart(t *testing.T) {
 			t.Errorf("no %q in\n%s", want, all)
 		}
 	}
-	if _, err := teamDevStart(config, 9, ""); err == nil {
+	if by := teamDevStarters("payments")["1-chart-misses-the-last-day"]; by != "Olga" {
+		t.Fatalf("started by %q", by)
+	}
+	if _, err := teamDevStart(config, 9, "", "Olga"); err == nil {
 		t.Fatal("a task that isn't there")
 	}
 }
@@ -787,6 +790,12 @@ func TestTeamDevStartNew(t *testing.T) {
 	if shown.Ticket.Title != "20 companies in the card!" || !strings.Contains(shown.Ticket.Body, "And sorted by size.") || strings.Join(shown.Ticket.Files, ",") != "image-1.png" {
 		t.Fatalf("%+v", shown.Ticket)
 	}
+	if last := shown.Ticket.Comments[len(shown.Ticket.Comments)-1]; !strings.Contains(last.Body, "Started in the dev box by ") || !strings.Contains(last.Body, "branch 1-20-companies-in-the-card, with Claude Code.") {
+		t.Fatalf("%+v", shown.Ticket.Comments)
+	}
+	if by := teamDevStarters("payments")["1-20-companies-in-the-card"]; by == "" {
+		t.Fatal("no one started it")
+	}
 	if all := strings.Join(*ran, "\n"); !strings.Contains(all, "herdr worktree create --cwd /box/repo --branch 1-20-companies-in-the-card --base origin/main --focus") ||
 		!strings.Contains(all, "herdr pane run w3:p1 claude 'Work on task #1: 20 companies in the card!.") {
 		t.Fatal(all)
@@ -798,6 +807,21 @@ func TestTeamDevStartNew(t *testing.T) {
 	}
 	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/focus", map[string]any{"workspace": "wC"}); code != 200 {
 		t.Fatalf("Open on herdr's wC: %d %s", code, body)
+	}
+}
+
+// Who asked: the last "Asked by … in the channel" or "Filed by … on the
+// dev page" in a ticket's text, not the forge's account that filed it.
+func TestTeamTicketAsker(t *testing.T) {
+	for body, want := range map[string]string{
+		"Bots are too good.\n\nAsked by Mark Villarosa in the channel: https://slack/x": "Mark Villarosa",
+		"Fix it\n\nFiled by Olga on the dev page.":                                      "Olga",
+		"Someone said Asked by Bob in the channel, inline":                              "",
+		"": "",
+	} {
+		if got := teamTicketAsker(body); got != want {
+			t.Errorf("%q: %q, want %q", body, got, want)
+		}
 	}
 }
 

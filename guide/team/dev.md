@@ -203,14 +203,17 @@ Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
 **System**, and **Security**; the page remembers the last one.
 
 - **Tasks:** the team's tasks as a table: each one's number, title,
-  who filed it and its labels, whether it's open, in progress (it has a
-  workspace, with its agent's state), or closed, and when it last
+  who asked for it (the one who asked the lead in the channel, or filed
+  it on the page, not the account the forge shows) and its labels,
+  whether it's open, in progress (it has a workspace, with its agent's
+  state, and who started it), or closed, and when it last
   changed; **Open**, **Closed**, and **All**, and a search. **Start →**
   asks which agent (Claude Code, Codex, or a shell; it remembers your
   last) and gives the task its branch (its number and a few words of its
   title), a worktree, and a herdr workspace, with the agent told to read
-  it. `hi team dev <team> start <task> --agent claude` does the same on
-  the machine. A task that has a workspace has **Open →** instead.
+  it, and a note on the task saying who started it. Each workspace in
+  **Code** says who started it too. `hi team dev <team> start <task>
+  --agent claude` does the same on the machine. A task that has a workspace has **Open →** instead.
   **Done ✓** closes a task once it's done: when its work is all in dev,
   it finishes the workspace too (worktree, workspace, branch); when the
   workspace still has work dev hasn't got, that stays there, and only

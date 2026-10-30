@@ -748,7 +748,7 @@ func teamDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if len(args) == 5 {
 			agent = args[4]
 		}
-		branch, err := teamDevStart(config, number, agent)
+		branch, err := teamDevStart(config, number, agent, firstNonEmpty(os.Getenv("USER"), "an admin")+" on the machine")
 		if branch != "" {
 			fmt.Fprintf(stdout, "Task %d has its branch, worktree, and herdr workspace in the dev box: %s.\n", number, branch)
 		}

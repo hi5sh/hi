@@ -81,7 +81,11 @@ func (b *teamBroker) leadStart(number int, user string) (string, error) {
 			return "", fmt.Errorf("task #%d is in progress in the dev box (%s), and work starts from the channel one task at a time: an owner finishes it first, with Done ✓ on the dev page", other, space.Branch)
 		}
 	}
-	branch, err := teamDevStart(config, number, "claude")
+	name := user
+	if b.channel != nil {
+		name = firstNonEmpty(b.channel.userName(user), user)
+	}
+	branch, err := teamDevStart(config, number, "claude", name)
 	if branch == "" {
 		if err == nil {
 			err = errors.New("the dev box made no branch")
@@ -91,10 +95,6 @@ func (b *teamBroker) leadStart(number int, user string) (string, error) {
 	teamDevSpacesCache.Lock()
 	teamDevSpacesCache.team = ""
 	teamDevSpacesCache.Unlock()
-	name := user
-	if b.channel != nil {
-		name = firstNonEmpty(b.channel.userName(user), user)
-	}
 	teamTicketDo(b.team, teamTicketRequest{Action: "comment", Number: number, Author: "the lead",
 		Body: fmt.Sprintf("Started in the dev box by the lead, as %s asked in Slack: branch %s, with Claude Code.", name, branch)})
 	fmt.Fprintf(os.Stderr, "team %s: the lead started task %d for %s (%s)\n", b.team, number, name, branch)

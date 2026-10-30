@@ -2713,6 +2713,18 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.41 — Who asked, and who started it
+
+- [x] Tasks shows who asked for a task, from its "Asked by … in the
+  channel" or "Filed by … on the dev page", not the forge's account the
+  lead files it as; the task's page says both, and the search finds
+  either. `hi team tickets <team> show` says it too.
+- [x] hi keeps who started each task's work (the owner or developer on
+  the dev page, the one who asked the lead, or the machine's admin), and
+  the Code tab's workspace says "Started by …"; Tasks says so when it
+  isn't who asked. A start on the dev page leaves a note on the task, as
+  the lead's does.
+
 ### v2.6.40 — Start something new is a task, with pictures
 
 - [x] Start something new files what you wrote as a task, its first line

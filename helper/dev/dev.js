@@ -395,7 +395,7 @@
     $("tasks-count").textContent = showing === "open" ? String(all.length || "") : "";
     var words = $("tasks-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     var shown = all.filter(function (ticket) {
-      var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
+      var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.asked || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
       return words.every(function (word) { return hay.indexOf(word) >= 0; });
     });
     if (!shown.length) {
@@ -405,7 +405,11 @@
     shown.forEach(function (ticket) {
       var space = ticket.state === "closed" ? null : spaceFor(ticket);
       var status = ticket.state === "closed" ? ["closed", "Closed"] : space ? ["working", "In progress"] : ["open", "Open"];
-      var context = [ticket.author ? el("span", { text: ticket.author }) : null].concat((ticket.labels || []).map(function (label) {
+      // Who asked for it, not the forge's account the lead filed it as;
+      // and who started its work.
+      var who = ticket.asked || ticket.author;
+      var context = [who ? el("span", { text: who, title: ticket.asked && ticket.author && ticket.asked !== ticket.author ? "Filed as " + ticket.author : "" }) : null,
+        space && space.by && space.by !== who ? el("span", { text: "· started by " + space.by }) : null].concat((ticket.labels || []).map(function (label) {
         return el("span", { class: "label", text: label });
       }));
       var items = [["View", function () { openTicket(ticket.number); }]];
@@ -449,6 +453,7 @@
       var what = el("div", { class: "what" }, [
         el("div", { text: space.label + (space.agent ? " · " + space.agent : "") }),
         space.title ? el("div", { class: "muted small", text: space.title }) : null,
+        space.by ? el("div", { class: "muted small", text: "Started by " + space.by }) : null,
         where ? el("div", { class: "small " + (unshipped ? "warn" : "muted"), text: where }) : null,
       ]);
       var actions = [el("button", { text: "Open", busy: "focus:" + space.id, onclick: function () { focus(space); } })];
@@ -2178,7 +2183,7 @@
   function renderTicket(ticket) {
     $("view-title").textContent = "#" + ticket.number + " " + ticket.title;
     var meta = $("view-meta");
-    meta.textContent = [ticket.state, ticket.author, when(ticket.created), ticket.edited ? "edited " + when(ticket.edited) : ""].filter(Boolean).join(" · ");
+    meta.textContent = [ticket.state, ticket.asked && ticket.asked !== ticket.author ? "asked by " + ticket.asked + (ticket.author ? " (filed as " + ticket.author + ")" : "") : ticket.author, when(ticket.created), ticket.edited ? "edited " + when(ticket.edited) : ""].filter(Boolean).join(" · ");
     if (ticket.url) meta.appendChild(el("span", {}, [document.createTextNode(" · "), el("a", { href: ticket.url, target: "_blank", rel: "noopener", text: "Open where it's kept" })]));
     var body = $("view-body");
     body.textContent = "";

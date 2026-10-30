@@ -363,6 +363,7 @@ type teamDevSpace struct {
 	Agent  string `json:"agent,omitempty"`  // claude, codex, ...
 	Status string `json:"status,omitempty"` // working, idle, blocked, ...
 	Title  string `json:"title,omitempty"`
+	By     string `json:"by,omitempty"` // who started it, when hi started it
 	// For a worktree of its own: where it is, how many of its commits dev
 	// hasn't, and whether it has changes not committed.
 	Path    string `json:"path,omitempty"`
@@ -432,8 +433,43 @@ func teamDevSpaces(team string) ([]teamDevSpace, error) {
 		}
 		spaces = append(spaces, space)
 	}
+	starters := teamDevStarters(team)
+	for i := range spaces {
+		spaces[i].By = starters[spaces[i].Branch]
+	}
 	teamDevWorktreeStates(team, spaces)
 	return spaces, nil
+}
+
+func teamDevStartersPath(team string) string {
+	return filepath.Join(teamDir(team), "run", "dev-starts.json")
+}
+
+// teamDevStarters is who started each branch's work in the dev box: an
+// owner or developer on the dev page, the one who asked the lead, or the
+// machine's admin.
+func teamDevStarters(team string) map[string]string {
+	starters := map[string]string{}
+	if data, err := os.ReadFile(teamDevStartersPath(team)); err == nil {
+		json.Unmarshal(data, &starters)
+	}
+	return starters
+}
+
+var teamDevStartersMu sync.Mutex
+
+func teamDevStarted(team, branch, by string) {
+	if by == "" {
+		return
+	}
+	teamDevStartersMu.Lock()
+	defer teamDevStartersMu.Unlock()
+	starters := teamDevStarters(team)
+	starters[branch] = by
+	if data, err := json.Marshal(starters); err == nil {
+		os.MkdirAll(filepath.Dir(teamDevStartersPath(team)), 0o700)
+		writeFileAtomic(teamDevStartersPath(team), data, 0o600)
+	}
 }
 
 // teamDevWorktreeStates says, for each worktree, how much of it dev
@@ -700,14 +736,15 @@ func teamDevTicketBranch(ticket teamTicket) string {
 
 // teamDevStart starts work on a ticket in the dev box: its branch, from
 // dev, a worktree and a herdr workspace, and the agent in it when one is
-// named, told to read the ticket. It returns the branch.
-func teamDevStart(config teamConfig, number int, agent string) (string, error) {
-	branch, _, err := teamDevStartIn(config, number, agent)
+// named, told to read the ticket; by is who started it, which the dev
+// page shows. It returns the branch.
+func teamDevStart(config teamConfig, number int, agent, by string) (string, error) {
+	branch, _, err := teamDevStartIn(config, number, agent, by)
 	return branch, err
 }
 
 // teamDevStartIn is teamDevStart, and says the herdr workspace too.
-func teamDevStartIn(config teamConfig, number int, agent string) (string, string, error) {
+func teamDevStartIn(config teamConfig, number int, agent, by string) (string, string, error) {
 	if agent != "" && agent != "claude" && agent != "codex" {
 		return "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
 	}
@@ -729,6 +766,7 @@ func teamDevStartIn(config teamConfig, number int, agent string) (string, string
 	if err := teamDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", branch, "--base", "origin/"+config.Branch, "--focus"); err != nil {
 		return "", "", err
 	}
+	teamDevStarted(config.Name, branch, by)
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
 	if agent != "" && created.Pane.ID != "" {
 		prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)
@@ -760,11 +798,26 @@ func teamDevStartNew(config teamConfig, by, text, agent string, files []teamAtta
 	if err != nil {
 		return teamTicket{}, "", "", err
 	}
-	branch, workspace, err := teamDevStartIn(config, ticket.Number, agent)
+	branch, workspace, err := teamDevStartPage(config, ticket.Number, agent, by)
 	if err != nil && branch == "" {
 		err = fmt.Errorf("task #%d is filed, but it didn't start: %w", ticket.Number, err)
 	}
 	return ticket, branch, workspace, err
+}
+
+// teamDevStartPage starts a task from the dev page, and says so on the
+// task, as the lead does for the channel: who started it, and where.
+func teamDevStartPage(config teamConfig, number int, agent, by string) (string, string, error) {
+	branch, workspace, err := teamDevStartIn(config, number, agent, by)
+	if branch != "" {
+		with := ""
+		if agent != "" {
+			with = ", with " + map[string]string{"claude": "Claude Code", "codex": "Codex"}[agent]
+		}
+		teamTicketDo(config.Name, teamTicketRequest{Action: "comment", Number: number, Author: by,
+			Body: fmt.Sprintf("Started in the dev box by %s on the dev page: branch %s%s.", by, branch, with)})
+	}
+	return branch, workspace, err
 }
 
 var teamDevPictureRef = regexp.MustCompile(`\[(?:image|file): [^\]]*\]`)
@@ -1162,7 +1215,8 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		reply(w, http.StatusOK, map[string]string{})
 	})
 	mux.HandleFunc("POST "+teamDevPagePrefix+"api/start", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := builder(w, r); !ok {
+		person, ok := builder(w, r)
+		if !ok {
 			return
 		}
 		var request struct {
@@ -1177,7 +1231,7 @@ func (b *teamBroker) devPageHandler() http.Handler {
 			failure(w, http.StatusInternalServerError, err)
 			return
 		}
-		branch, err := teamDevStart(config, request.Ticket, request.Agent)
+		branch, _, err := teamDevStartPage(config, request.Ticket, request.Agent, person.Name)
 		if err != nil && branch == "" {
 			failure(w, http.StatusBadRequest, err)
 			return

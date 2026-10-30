@@ -26,11 +26,14 @@ import (
 )
 
 type teamTicket struct {
-	Number  int       `json:"number"`
-	Title   string    `json:"title"`
-	State   string    `json:"state"` // open or closed
-	Body    string    `json:"body,omitempty"`
-	Author  string    `json:"author,omitempty"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	State  string `json:"state"` // open or closed
+	Body   string `json:"body,omitempty"`
+	Author string `json:"author,omitempty"`
+	// Asked is who asked for it, when its text says: the lead files a
+	// channel's asks, and the dev page an owner's, as the forge's account.
+	Asked   string    `json:"asked,omitempty"`
 	URL     string    `json:"url,omitempty"`
 	Labels  []string  `json:"labels,omitempty"`
 	Created time.Time `json:"created,omitzero"`
@@ -176,6 +179,12 @@ func teamSaveTicketFiles(team string, number int, files []teamAttachment) (strin
 // keeps their attachments on the machine.
 func teamTicketDo(team string, request teamTicketRequest) (teamTicketResult, error) {
 	result, err := teamTicketDoOnce(team, request)
+	for i := range result.Tickets {
+		result.Tickets[i].Asked = teamTicketAsker(result.Tickets[i].Body)
+	}
+	if result.Ticket != nil {
+		result.Ticket.Asked = teamTicketAsker(result.Ticket.Body)
+	}
 	if err == nil && request.Action != "list" && request.Action != "show" && request.Action != "files" {
 		// The dev page's list shows a change at once, whoever made it.
 		teamDevTicketsCache.Lock()
@@ -183,6 +192,19 @@ func teamTicketDo(team string, request teamTicketRequest) (teamTicketResult, err
 		teamDevTicketsCache.Unlock()
 	}
 	return result, err
+}
+
+var teamTicketAskerLine = regexp.MustCompile(`(?m)^(?:Asked by (.+?) in the channel|Filed by (.+?) on the dev page)\b`)
+
+// teamTicketAsker is who a ticket's text says asked for it: the last
+// "Asked by Anna in the channel" or "Filed by Anna on the dev page".
+func teamTicketAsker(body string) string {
+	found := teamTicketAskerLine.FindAllStringSubmatch(body, -1)
+	if len(found) == 0 {
+		return ""
+	}
+	last := found[len(found)-1]
+	return strings.TrimSpace(last[1] + last[2])
 }
 
 func teamTicketDoOnce(team string, request teamTicketRequest) (teamTicketResult, error) {
@@ -814,6 +836,9 @@ func printTeamTicketResult(request teamTicketRequest, result teamTicketResult, w
 			return
 		}
 		fmt.Fprintf(w, "#%d %s (%s)\n", ticket.Number, ticket.Title, ticket.State)
+		if ticket.Asked != "" && ticket.Asked != ticket.Author {
+			fmt.Fprintf(w, "asked by %s, ", ticket.Asked)
+		}
 		if ticket.Author != "" {
 			fmt.Fprintf(w, "by %s", ticket.Author)
 			if !ticket.Created.IsZero() {
