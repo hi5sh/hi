@@ -77,16 +77,17 @@
       <div id="chat-start" class="chat-start" hidden>
         <form id="adhoc-form" class="start-card">
           <h2>Start something new</h2>
-          <p class="muted small">Say what to do. hi gives it a branch and a worktree of its own, from dev, named after your words, and starts the agent with them. When it's done: Ship to Dev, then Done ✓, as with a task. To track it as a task, file it in Tasks and start it there.</p>
           <textarea id="adhoc-text" rows="4" placeholder="Make the price chart green when it's up…" required></textarea>
-          <div class="agents-inline" role="radiogroup" aria-label="Agent">
-            <label><input type="radio" name="adhoc-agent" value="claude" checked> Claude Code</label>
-            <label><input type="radio" name="adhoc-agent" value="codex"> Codex</label>
-          </div>
           <p id="adhoc-error" class="error"></p>
-          <div class="buttons">
-            <button type="button" id="adhoc-cancel">Cancel</button>
-            <button id="adhoc-go" class="primary">Start →</button>
+          <div class="start-foot">
+            <div class="agents-inline" role="radiogroup" aria-label="Agent">
+              <label><input type="radio" name="adhoc-agent" value="claude" checked> Claude Code</label>
+              <label><input type="radio" name="adhoc-agent" value="codex"> Codex</label>
+            </div>
+            <div class="buttons">
+              <button type="button" id="adhoc-cancel">Cancel</button>
+              <button id="adhoc-go" class="primary">Start →</button>
+            </div>
           </div>
         </form>
       </div>

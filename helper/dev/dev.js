@@ -1229,6 +1229,12 @@
     showChatStart();
     pollChat();
   });
+  function fitAdhocText() {
+    var text = $("adhoc-text");
+    text.style.height = "";
+    if (text.scrollHeight > text.clientHeight) text.style.height = text.scrollHeight + text.offsetHeight - text.clientHeight + "px";
+  }
+  $("adhoc-text").addEventListener("input", fitAdhocText);
   $("adhoc-text").addEventListener("keydown", function (event) {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); $("adhoc-form").requestSubmit(); }
   });
@@ -1241,6 +1247,7 @@
     api("POST", "start-adhoc", { text: $("adhoc-text").value, agent: agent }).then(function (answer) {
       chat.composing = false;
       $("adhoc-text").value = "";
+      fitAdhocText();
       toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + " with " + agent + ".");
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);

@@ -2713,6 +2713,13 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.39 — Room to write in Start something new
+
+- [x] The dev page's Start something new box starts small, grows tall
+  when you click into it, and grows with what you write, up to most of
+  the window. The explainer is gone, and the agent choice and Start
+  share a row.
+
 ### v2.6.38 — No session recap in the dev box
 
 - [x] Claude Code in the dev box starts with its session recap off

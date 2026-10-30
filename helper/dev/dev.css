@@ -191,8 +191,13 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
 .start-card h2 { font-size: 17px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0; }
 .start-card p { margin: 0; }
-.start-card textarea { width: 100%; resize: vertical; padding: 10px 12px; border-radius: 6px; line-height: 1.45; }
-.start-card .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+/* Small until you write; then tall, and it grows with the words. */
+.start-card textarea { width: 100%; resize: none; padding: 10px 12px; border-radius: 6px; line-height: 1.45; min-height: 96px; max-height: 70vh; transition: min-height .2s ease; }
+.start-card textarea:focus, .start-card textarea:not(:placeholder-shown) { min-height: min(320px, 45vh); }
+@media (prefers-reduced-motion: reduce) { .start-card textarea { transition: none; } }
+.start-card .error:empty { display: none; }
+.start-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.start-card .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-left: auto; }
 .agents-inline { display: flex; gap: 16px; flex-wrap: wrap; }
 .agents-inline label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .chat-entries { max-width: 860px; margin: 0 auto; padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 12px; }
