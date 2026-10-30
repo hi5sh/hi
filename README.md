@@ -1,8 +1,12 @@
 # hi
 
-`hi` prepares hi5 Linux machines and project folders, runs coding agents in
-boxes, rents remote GPUs, and runs teams that build an app in Slack. It is a
-small, static Go binary so installation does not require a language runtime.
+`hi` is the CLI behind hi5, an open-source app factory for businesses:
+colleagues turn their ideas into internal apps with coding agents, in a
+team in Slack, on your machines and network, from the templates and rules
+your developers set, and ready for IT to take over when an app becomes
+critical. It also prepares Linux machines and project folders, runs coding
+agents in boxes, and rents remote GPUs. It is a small, static Go binary so
+installation does not require a language runtime.
 
 **Guide:** step-by-step instructions, examples, and every option at
 <https://hi5.sh/guide/>.
@@ -304,8 +308,8 @@ their output.
 
 ## Teams
 
-`hi team` runs one app for the people in one Slack channel, on a machine
-of yours:
+`hi team` is the app factory: one team runs one internal app for the
+people in one Slack channel, on a machine of yours:
 
 - **The lead**, Hermes Agent, is in the channel. It helps people use the
   app, shapes what they ask for into tasks (GitHub Issues, GitLab issues,
@@ -317,8 +321,15 @@ of yours:
   network or from the **dev page** in a browser, with the tasks, a chat
   with each agent, VS Code, and the system's state. `hi dev preview` and
   `hi dev ship` put work on the preview and into dev.
+- **Pro Devs and Vibe Devs**, whom the owners pick on the dev page, build
+  there too (Vibe Devs through the chat only); production stays the owners'.
 - **Production** moves only when an owner clicks Release on the dev page,
   with a snapshot first; each release can be rolled back.
+- **Templates** set how every project starts: hi's blank app, or your
+  developers' own from a private repository through `hi server templates`,
+  with your stack, toolchain, `make check`, and agent rules.
+- **Handing over** is changing owners: the project is an ordinary git
+  repository from your template, and the team is one folder.
 
 ```sh
 hi team new onboarding          # seven questions: Slack app, channel, owners, members, code

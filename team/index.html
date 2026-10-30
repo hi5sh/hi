@@ -5,9 +5,9 @@ title: hi team
 tool: hi team
 demo: team
 guide: /guide/team/
-headline: An app, its builders, and the people it's for.
-lede: "People say what they need in Slack; the lead, an AI, files it for the owners. The owners build it with Claude Code and Codex in the team's dev box, and production changes only when one of them clicks Release."
-description: hi team runs one app for the people in one Slack channel. Its owners build it with coding agents in a dev box they reach over SSH or in a browser; a Hermes lead helps the people, files their ideas and bug reports as tasks, and watches the app.
+headline: Your business's app factory, one Slack channel at a time.
+lede: "Colleagues say what they need in Slack; the lead, an AI, files it as a task. Developers build it with Claude Code and Codex from your template, in the team's dev box, and production changes only when an owner clicks Release. When the app becomes critical, IT takes it over as it is."
+description: hi team is hi5's app factory for businesses. One team runs one internal app for the people in one Slack channel, started from your developers' template. Its developers build it with coding agents in a dev box they reach over SSH or in a browser; a Hermes lead helps the people, files their ideas and bug reports as tasks, and watches the app.
 demo_caption: The Slack scene is an example. The terminal scenes keep hi team's own output; the team, its people, and its work are made up.
 fallback: |
   $ hi team status onboarding
@@ -23,8 +23,8 @@ fallback: |
   <section id="uses" class="wrap" aria-labelledby="uses-h">
     <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
     <h2 id="uses-h">An app for the people who know the problem.</h2>
-    <p class="sub">One team lives in one Slack channel and runs one project for the people in it. They don't need to read code: they ask, try the preview, and say whether it works. The owners build it.</p>
-    <div class="uses">
+    <p class="sub">One team lives in one Slack channel and runs one project for the people in it. They don't need to read code: they ask, try the preview, and say whether it works. The developers build it, on your stack, inside your network.</p>
+    <div class="uses" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr))">
       <div class="use">
         <h3>A tool nobody would build for you</h3>
         <p>HR's onboarding checklist, a sales team's price calculator, the report someone makes by hand every Monday. Ask for it in the channel.</p>
@@ -32,8 +32,15 @@ fallback: |
 Can they show in red?</div>
       </div>
       <div class="use">
-        <h3>Start from someone else's project</h3>
-        <p>Adopt a project from GitHub. The team works on its own copy and never pushes to the original; an owner's agent surveys it first.</p>
+        <h3>Start on your stack</h3>
+        <p>A team starts from a template: hi's blank app, or your developers' own, which extends it with your database, toolchain, checks, and the rules agents follow. Your hi server hands it to every machine.</p>
+        <div class="snip"><span class="c">$ hi server templates add acme \
+    https://git.example.com/platform/templates</span></div>
+        <a class="go" href="/init/">How templates work →</a>
+      </div>
+      <div class="use">
+        <h3>Bring a prototype home</h3>
+        <p>Adopt a project from GitHub, or a folder someone built elsewhere. The team works on its own copy and never pushes to the original; an owner's agent surveys it first.</p>
         <div class="snip"><span class="c">$ hi team adopt notes github.com/example/notes</span></div>
         <a class="go" href="/guide/team/adopt/">Adopt a project →</a>
       </div>
@@ -55,7 +62,7 @@ Can they show in red?</div>
         <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
       <li><div><p><b>Install what a team needs.</b> Then give Hermes an OpenRouter key with <code>hermes setup</code>, and sign in to Claude Code and Codex.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi install hermes claude codex podman restic</code><button class="copy" type="button" data-copy="hi install hermes claude codex podman restic">copy</button></div></div></li>
-      <li><div><p><b>Set it up.</b> Seven questions, one at a time: purpose, the Slack app (from a manifest hi prints), channel, owners, the agents and their sign-ins, and code; then the dev box's NetBird key.</p>
+      <li><div><p><b>Set it up.</b> Seven questions, one at a time: purpose, the Slack app (from a manifest hi prints), channel, owners, the agents and their sign-ins, and code, from a blank app or one of your templates; then the dev box's NetBird key.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi team new onboarding</code><button class="copy" type="button" data-copy="hi team new onboarding">copy</button></div></div></li>
       <li><div><p><b>Start it</b>, now and at every boot. It answers in its channel in a minute or so.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi team up onboarding</code><button class="copy" type="button" data-copy="hi team up onboarding">copy</button></div></div></li>
@@ -73,6 +80,7 @@ Can they show in red?</div>
       <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what they ask for, in the channel, a DM, or feedback from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
       <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and VS Code beside it. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on the preview with production's data, and ship it into dev.</p>
       <p><strong>Dev and production.</strong> People try dev on a preview link that opens on their phones. Production moves only when an owner clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and each one can be rolled back.</p>
+      <p><strong>Handing it over.</strong> An app that becomes critical changes hands, not code. An admin of the machine makes IT's people its owners, and the people who built it stay on as developers or step back. The project is an ordinary git repository from your template, with its history, its specs in <code>docs/specs/</code>, and its tasks in GitHub, GitLab, or hi's own; the whole team is one folder that moves to another machine.</p>
     </div>
   </section>
 
@@ -108,10 +116,10 @@ Can they show in red?</div>
 <span class="c">$ hi team incidents onboarding</span></div>
       </div>
       <div class="detail">
-        <h3>Owners and their keys</h3>
+        <h3>Who does what</h3>
         <div class="snip"><span class="c">$ hi team owners onboarding add U07ANNA</span>
 <span class="c">$ hi team owners onboarding key U07ANNA ~/anna.pub</span></div>
-        <p>Owners are the team's developers: they get into the dev box over SSH with their own key, and its dev page with their link from <code>/hi-onboarding dev</code>. An admin of the machine adds and removes them.</p>
+        <p>Owners, whom an admin of the machine adds, decide what reaches production. On the dev page's People table they make others Pro Devs (Chat, terminal, VS Code, and SSH) or Vibe Devs (Chat only), who build without touching production, and contributors, who file bugs as tasks with their name on them.</p>
       </div>
       <div class="detail">
         <h3>What the box can't do</h3>
