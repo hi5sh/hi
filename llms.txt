@@ -7,7 +7,7 @@
 > downloads your team's private Hugging Face data through a hi server with
 > `hi data`, puts a local service on a temporary public address with
 > `hi net expose`, and runs a team's app in Slack with `hi team`, whose owners
-> build it in a dev box with `hi dev`. `hi team` is hi5's app factory for
+> build it in a dev box with `hi dev`. `hi team` is hi5's software factory for
 > businesses: internal apps built with coding agents inside the company, from
 > the templates and rules its developers set, ready for IT to take over.
 > These notes are for coding agents such as Codex and Claude Code.

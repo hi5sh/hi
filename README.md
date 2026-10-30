@@ -1,6 +1,6 @@
 # hi
 
-`hi` is the CLI behind hi5, an open-source app factory for businesses:
+`hi` is the CLI behind hi5, an open-source software factory for businesses:
 colleagues turn their ideas into internal apps with coding agents, in a
 team in Slack, on your machines and network, from the templates and rules
 your developers set, and ready for IT to take over when an app becomes
@@ -308,7 +308,7 @@ their output.
 
 ## Teams
 
-`hi team` is the app factory: one team runs one internal app for the
+`hi team` is the software factory: one team runs one internal app for the
 people in one Slack channel, on a machine of yours:
 
 - **The lead**, Hermes Agent, is in the channel. It helps people use the
