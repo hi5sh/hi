@@ -322,6 +322,13 @@ func teamDevChatEntries(line []byte) []teamDevChatEntry {
 		Title     string          `json:"aiTitle"`
 		Message   json.RawMessage `json:"message"`
 		UUID      string          `json:"uuid"`
+		// A message sent while Claude works is an attachment: a queued
+		// command, which Claude reads with its next tool's result.
+		Attachment struct {
+			Type   string `json:"type"`
+			Prompt string `json:"prompt"`
+			Mode   string `json:"commandMode"`
+		} `json:"attachment"`
 	}
 	if json.Unmarshal(line, &record) != nil || record.Sidechain {
 		return nil
@@ -331,6 +338,13 @@ func teamDevChatEntries(line []byte) []teamDevChatEntry {
 	case "ai-title":
 		if record.Title != "" {
 			return []teamDevChatEntry{{T: "title", Text: record.Title}}
+		}
+		return nil
+	case "attachment":
+		if a := record.Attachment; a.Type == "queued_command" && (a.Mode == "" || a.Mode == "prompt") {
+			if kind, said := teamDevChatText(a.Prompt); kind != "" && said != "" {
+				return []teamDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID}}
+			}
 		}
 		return nil
 	case "user", "assistant":

@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.46 — A message sent while Claude works stays in the chat
+
+- [x] A message sent from the chat while Claude is at work is in the
+  transcript as a queued command (an attachment Claude reads with its
+  next tool's result), not a message of its own, so the chat dropped it
+  once its "sending" bubble went. The chat shows it where Claude read
+  it, with its pictures' paths.
+
 ### v2.6.45 — Rewind, as a timeline beside the chat
 
 - [x] Beside a Claude Code conversation in the Chat view (on a wide
