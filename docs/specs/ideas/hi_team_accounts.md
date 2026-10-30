@@ -1,6 +1,6 @@
 # A Linux account for each team
 
-Status: Draft (2026-10-28)
+Status: Draft (2026-10-28), deferred on 2026-10-30; see the roadmap
 
 Dependencies: [hi_team.md](../approved/hi_team.md) (teams, their service,
 the lead's box, the broker), [hi_box.md](../approved/hi_box.md) (boxes,

@@ -4075,45 +4075,6 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
-### Next — a box's escape reaches only its own team
-
-Found when colleagues pentested a team (v2.6.10 to v2.6.12 above). Boxes
-run as the account that runs hi: Podman's `--userns=keep-id` maps the
-box's `box` to that account on purpose, so the files an agent writes are
-the account's. An escape from any box is therefore that account, which
-holds every team's folder (the real Slack tokens, the OpenRouter keys),
-hi's config and device key, the machine's sign-ins, every team's
-containers, and whatever else the admin keeps there. v2.6.12 took away
-the root-equivalent groups on gpu1; this takes away the rest.
-
-How: each team runs as a Linux account of its own, `hi-demo`, which owns
-the team's folder. keep-id stays and maps the box to that account, so
-nothing about mounts changes, and an escape holds what that team holds
-and nothing else. Draft spec: [hi_team_accounts.md](specs/ideas/hi_team_accounts.md).
-
-Giving each box a user of its own while the service stays hi's was tried
-first, on gpu1 on 2026-10-28, and doesn't work rootless:
-`--userns=auto` finds no free sub-ids, rootless Podman may not make
-`:idmap` mounts, and without them hi can't read a file the box made 0600
-(ACLs don't help: a 0600 file's mask shuts them out).
-
-- [ ] Approve the spec; settle its questions first: whether a read-only
-  shared image store saves building the base image per account, and how
-  the machine's sign-ins reach a team without being in its folder.
-- [ ] `hi team new` makes the account (no login, no groups, sub-ids of
-  its own, lingering), its folder in `/var/lib/hi/teams/<team>`, and runs
-  the team's service and boxes as it. hi moves to `/usr/local/bin`.
-- [ ] The team's keys in its folder; the machine's sign-ins served from
-  the admin's side; a device key per team for the hi server.
-- [ ] The admin's `hi team` commands run as the team's account
-  (`sudo -u`), from the admin's account, as now.
-- [ ] `hi team up` moves an existing team, behind a snapshot, keeping its
-  addresses, links, data, memory, and dev box; teams not moved keep
-  working, with a warning.
-- [ ] A test that plays the escape: as the team's account on the host, no
-  other team's folder, broker, or containers, no admin home, no hi
-  config, and the hi server refuses the team's key for another team.
-
 ### Next — sign-in with a real provider, before v2.7.0 is tagged
 
 v2.7.0 (`hi team sso`) is on main but untagged: its tests use a fake
@@ -4597,3 +4558,50 @@ scheduled to a version yet.
 
 Waiting until Modal's Go SDK leaves beta and its package path settles. Not
 scheduled to a version yet.
+
+### Deferred — a box's escape reaches only its own team
+
+Found when colleagues pentested a team (v2.6.10 to v2.6.12 above). Boxes
+run as the account that runs hi: Podman's `--userns=keep-id` maps the
+box's `box` to that account on purpose, so the files an agent writes are
+the account's. An escape from any box is therefore that account, which
+holds every team's folder (the real Slack tokens, the OpenRouter keys),
+hi's config and device key, the machine's sign-ins, every team's
+containers, and whatever else the admin keeps there. v2.6.12 took away
+the root-equivalent groups on gpu1; this takes away the rest.
+
+How: each team runs as a Linux account of its own, `hi-demo`, which owns
+the team's folder. keep-id stays and maps the box to that account, so
+nothing about mounts changes, and an escape holds what that team holds
+and nothing else. Draft spec: [hi_team_accounts.md](specs/ideas/hi_team_accounts.md).
+
+Giving each box a user of its own while the service stays hi's was tried
+first, on gpu1 on 2026-10-28, and doesn't work rootless:
+`--userns=auto` finds no free sub-ids, rootless Podman may not make
+`:idmap` mounts, and without them hi can't read a file the box made 0600
+(ACLs don't help: a 0600 file's mask shuts them out).
+
+- [ ] Approve the spec; settle its questions first: whether a read-only
+  shared image store saves building the base image per account, and how
+  the machine's sign-ins reach a team without being in its folder.
+- [ ] `hi team new` makes the account (no login, no groups, sub-ids of
+  its own, lingering), its folder in `/var/lib/hi/teams/<team>`, and runs
+  the team's service and boxes as it. hi moves to `/usr/local/bin`.
+- [ ] The team's keys in its folder; the machine's sign-ins served from
+  the admin's side; a device key per team for the hi server.
+- [ ] The admin's `hi team` commands run as the team's account
+  (`sudo -u`), from the admin's account, as now.
+- [ ] `hi team up` moves an existing team, behind a snapshot, keeping its
+  addresses, links, data, memory, and dev box; teams not moved keep
+  working, with a warning.
+- [ ] A test that plays the escape: as the team's account on the host, no
+  other team's folder, broker, or containers, no admin home, no hi
+  config, and the hi server refuses the team's key for another team.
+
+Deferred on 2026-10-30: the per-account design touches most of `hi team`
+(sudo for the admin's commands, a broker for the machine's sign-ins, a
+Podman store per team, moving live teams) for an attack that already needs
+a way into the VPN or past sign-in, and then a box escape. To pick up
+again before hi runs teams for people outside the VPN. Also unsolved:
+separate accounts still share the host's loopback, where each team's
+preview and production listen, so the spec needs a network answer too.
