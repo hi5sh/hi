@@ -396,6 +396,9 @@ const teamDevUsage = `hi dev is how the dev box works with its team. In the box:
   hi dev brainstorm [--agents a,b] [--web] <question file|->
                                     several agents' ideas, into ~/hi/brainstorms/<id>/ (up to $10);
                                     list, show <id>, stop <id>
+  hi dev agy "<task>" [--file <path>]...
+                                    Google's Antigravity makes images, media, or research on the
+                                    machine, into ~/hi/agy/<id>/; ask the user first; show [<id>]
   hi dev data [fork]                production's and the preview's data; a new fork for the preview
   hi dev settings [KEY=VALUE | KEY | --unset KEY]
                                     the app's settings' names; the preview's own values

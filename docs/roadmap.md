@@ -2713,6 +2713,25 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.53 — The team's agents ask Antigravity for assets and research
+
+- [x] `hi dev agy "<task>" [--file <path>]...` in the dev box: the
+  broker runs `hi agent agy` on the machine, in a folder of its own with
+  copies of the files (read through `os.Root`, so a link in the box can't
+  reach the machine's files), waits, removes the box, and puts what it
+  made in the box's `~/hi/agy/<id>/`. The command waits and prints what
+  it made.
+- [x] `hi team agy "<task>"` for the lead: for someone with a level in the
+  team, with the thread's files; hi posts what it made in the thread and
+  wakes the lead there. The lead reads it all in `/team/agy/`.
+- [x] The `hi-dev-agy` skill for Claude Code and Codex, a section in the
+  lead's skill, and one in the workstation `hi` skill: what it can make
+  (game assets, logos, speech, music, video, PDFs, research), to ask the
+  person first (it's the machine's Google plan and Gemini key), and that
+  an app's own features call models at run time instead.
+- [x] One run at a time per team; a run going when the team restarts is
+  waited for again. Tried for real: a coin icon for a game, from a brief.
+
 ### v2.6.52 — hi update sees a new release right away
 
 - [x] `hi update` said v2.6.50 was up to date minutes after v2.6.51 was

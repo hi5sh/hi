@@ -217,6 +217,19 @@ func (b *teamBroker) devKitRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 		value, err := b.stopBrainstorm(request.ID)
 		text(w, value, err)
 	})
+	mux.HandleFunc("GET /agy", func(w http.ResponseWriter, r *http.Request) {
+		value, err := b.showAgy(r.URL.Query().Get("id"), true)
+		text(w, value, err)
+	})
+	mux.HandleFunc("POST /agy", func(w http.ResponseWriter, r *http.Request) {
+		var request teamAgyRequest
+		if err := decode(r, &request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		record, err := b.devAgy(request)
+		reply(w, record, err)
+	})
 	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
 		folders := teamDataFolders(b.team, teamContainerRunning)
 		for i := range folders {
@@ -285,6 +298,8 @@ func teamDevKitClient(command string, args []string, stdin io.Reader, stdout io.
 	switch command {
 	case "review":
 		return true, teamDevReview(args, stdin, stdout)
+	case "agy":
+		return true, teamAgyClient(args, stdin, stdout, call, true, teamAgyRequest{})
 	case "deep-review":
 		const usage = "usage: hi dev deep-review --budget <usd> [--area a,b] [--since v2] [--version v3] [--context <file|->]; hi dev deep-review list|show <id>|stop <id>"
 		if done, err := teamDevListShowStop("/deep-review", usage, args, call, show, stdout); done {

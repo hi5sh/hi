@@ -289,6 +289,30 @@ list bundles under `customizations.hi.bundles`; `--bundle` adds to them.
 In a `web` box, before a full-page screenshot scroll to the bottom and
 back so lazy images load, then open the PNG to check it.
 
+### Images, media, documents, and research (hi agent agy)
+
+`hi agent agy` is Google's Antigravity, on the user's Google AI plan. Use it
+when the work needs something you can't make yourself, such as images and
+game assets, a logo or icons, speech, music, or a short video, what a PDF,
+recording, or video says, a transcript, or a question researched on the
+web. It makes the files in the folder it runs in; you put them into the
+project. Images and web search are on the plan; speech, music, video,
+transcripts, and deep research use `gemini-api` in its box, billed per call
+to the user's Gemini API key when they stored one (`hi agent token
+gemini`). Ask the user before each run, with what it may cost: video,
+music, and deep research cost the most.
+
+```sh
+mkdir -p /tmp/assets && cd /tmp/assets     # outside git it works in place
+hi agent agy --json "12 card images, 512x512, transparent PNG, named <suit>-<rank>.png"
+```
+
+Say exactly what you want (how many, sizes, formats, style, names), and
+copy in the files it needs. It's for building: when the app itself should
+read PDFs or make pictures for its users, the app calls a model at run time.
+If agy isn't installed or signed in, tell the user: `hi install agy`, then
+`agy` once to sign in.
+
 For a task where attempts vary and a check can tell them apart, `hi agent
 best-of` runs it in several boxes at once and ranks them. It costs n times
 the tokens, so start with 3 and only after the user agreed to the cost:

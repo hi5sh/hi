@@ -75,7 +75,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name), teamReviewsDir(name), teamBrainstormsDir(name)} {
+	for _, sub := range []string{proxyDir, brokerDir, home, filepath.Join(dir, "lead"), teamTaskDir(name), filepath.Join(teamChannelDir(name), "files"), teamWebStore(name), teamReviewsDir(name), teamBrainstormsDir(name), teamAgyDir(name)} {
 		if err := os.MkdirAll(sub, 0o700); err != nil {
 			return err
 		}
@@ -264,6 +264,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		"-v", teamWebStore(name)+":"+teamWebInBox+":ro",
 		"-v", teamReviewsDir(name)+":/team/reviews:ro",
 		"-v", teamBrainstormsDir(name)+":/team/brainstorms:ro",
+		"-v", teamAgyDir(name)+":/team/agy:ro",
 		"-v", brokerDir+":/team/run",
 		"-v", hi+":/usr/local/bin/hi:ro",
 		"-w", "/team")
@@ -991,6 +992,8 @@ watch the system.
 | hi team incidents note\|ask i-3 "<text>" | Keep a note of your own, or ask the owners (hi reminds them in a day) |
 | hi team incidents close i-3 --because "<what resolved it>" | Close an incident hi hasn't closed |
 | hi team alert "text" | Raise something you noticed as an incident, such as production broken |
+| hi team agy "<what to make or find>" | Once the person agreed: Antigravity makes pictures, speech, music, or a short video, reads the thread's files, or researches on the web; hi posts what it made in the thread |
+| hi team agy show [a-3] | The latest Antigravity runs, or one: what it made and its summary |
 
 **Stage** is what people call the preview, the address where dev is tried
 before a release: say Stage to them. Some of hi's commands still say
@@ -1156,6 +1159,34 @@ on Stage. The app's docs say what each does (docs/user/mcp.md in
   any feature.
 - What a tool changes on Stage is gone at the next fork of the
   data; say so when you show someone a result there.
+
+## Pictures, media, and research: Antigravity
+
+hi team agy hands a task to Google's Antigravity agent on the team's
+machine. It makes and finds things, for the people in the thread:
+
+- **Pictures:** a logo idea, an illustration, a mock-up of a screen, an
+  edit of a picture someone shared.
+- **The web:** a question researched, with sources.
+- **Speech, music, video:** a voice line, a jingle, a short clip.
+- **Files in the thread:** what a PDF, a recording, or a video says, or a
+  transcript. The thread's files go with the run.
+
+It runs on the Google plan and the Gemini key of whoever set the machine
+up, not the team's budget, so **ask first**: say what you'd ask it for and
+that video, music, and deep research cost the most, and run it only once
+the person says yes, and only for someone who may ask the team for work
+(hi checks). One run at a time; it takes a minute or two, longer for a
+video. When it ends, hi posts what it made in the thread and wakes you
+there; everything is in /team/agy/<id>/.
+
+Say exactly what's wanted: how many, sizes, style, file names. When what
+they want is a change to the app (the app should read PDFs, or make
+pictures for its users), that's a task for the owners, not a run.
+
+When hi says Antigravity isn't set up on the machine, tell them an admin
+of the machine runs hi install agy and signs in with agy: "ask your IT
+team".
 
 ## DMs
 

@@ -95,6 +95,14 @@ and is logged with their name.
 
 On the machine, `hi team task <team> ...` does the same.
 
+### Images, media, and research
+
+`hi dev agy "<task>"` has Google's Antigravity make what the app needs
+and the agent can't: images and game assets, speech, music, video, a PDF
+read, a question researched. It runs on the machine's Google plan and
+Gemini key, so the agent asks first; see
+[Images, media, and research](/guide/team/agy/).
+
 ### Reviews and brainstorms
 
 ```bash
@@ -564,6 +572,7 @@ ssh then warns once that it changed.
 | `hi dev review [--with claude\|codex] [<notes>]` | In the box: a second opinion on the branch from the other agent |
 | `hi dev deep-review --budget <usd>` | In the box: a multi-agent review of the project (also `list`, `show`, `stop`) |
 | `hi dev brainstorm <question file\|->` | In the box: several agents' ideas (also `list`, `show`, `stop`) |
+| `hi dev agy "<task>" [--file <path>]...` | In the box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/` (also `show`) |
 | `hi dev data [fork]` | In the box: the app's data; a new fork for the preview |
 | `hi dev settings [KEY=VALUE\|--unset KEY]` | In the box: the settings' names; the preview's own values |
 | `hi dev incidents [<id>]` | In the box: incidents and what hi recorded |

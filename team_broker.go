@@ -203,6 +203,9 @@ type teamBroker struct {
 	// run starts hi with arguments in repo/ and returns its stdout; tests
 	// replace it.
 	run func(args ...string) ([]byte, error)
+	// agyRun starts hi with arguments in a folder, for Antigravity's runs
+	// (team_agy.go); tests replace it.
+	agyRun func(dir string, args ...string) ([]byte, error)
 	// takeSnapshot backs up the team's folder, with the boxes paused; tests
 	// replace it.
 	takeSnapshot func(kind, label string) (teamSnapshot, error)
@@ -270,6 +273,7 @@ func newTeamBroker(team, hi string) *teamBroker {
 	b.oldImage = b.appOnOldImage
 	b.answers = teamAppAnswers
 	b.removeApp = func(container string) { b.engineOutput("rm", "-f", container) }
+	b.agyRun = teamAgyRunIn(hi)
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the
 		// team; only the waiters belong to it, and resume starts them again.
@@ -337,6 +341,11 @@ func (b *teamBroker) resume() {
 	}
 	b.resumeDeepReviews()
 	b.resumeBrainstorms()
+	for _, record := range loadTeamAgys(b.team) {
+		if record.Status == "running" {
+			go b.watchAgy(record.ID)
+		}
+	}
 }
 
 func (b *teamBroker) handler() http.Handler {
@@ -374,6 +383,20 @@ func (b *teamBroker) handler() http.Handler {
 	})
 	mux.HandleFunc("GET /data", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, teamDataFolders(b.team, b.running), nil)
+	})
+	// Antigravity, for someone in a thread who may ask the team for work.
+	mux.HandleFunc("GET /agy", func(w http.ResponseWriter, r *http.Request) {
+		text, err := b.showAgy(r.URL.Query().Get("id"), false)
+		reply(w, map[string]string{"text": text}, err)
+	})
+	mux.HandleFunc("POST /agy", func(w http.ResponseWriter, r *http.Request) {
+		var request teamAgyRequest
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		record, err := b.leadAgy(request)
+		reply(w, record, err)
 	})
 	mux.HandleFunc("GET /helper", func(w http.ResponseWriter, r *http.Request) {
 		config, err := loadTeam(b.team)
@@ -537,7 +560,7 @@ func teamLeadUsage() string {
 	return text.String()
 }
 
-var teamLeadCommands = map[string]bool{"versions": true, "web": true, "alert": true, "mcp": true}
+var teamLeadCommands = map[string]bool{"versions": true, "web": true, "alert": true, "mcp": true, "agy": true}
 
 // teamLeadOrHost are commands both the lead and the people on the machine
 // have; in the lead's box they go to its socket.
@@ -623,6 +646,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		fmt.Fprintf(stdout, "A setting marked production only isn't in the preview: there the app must do without it. The people set those on the machine with hi team env <team> --production KEY, for a key that sends, posts, orders, or pays per call.\n")
 		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production; the preview's calls stop for the day at a limit ($5 unless the people set another), and production's have none. $HI_SLOT says which one the app is (preview or production), and $HI_DATA_DIR is its data folder.\n")
+	case "agy":
+		// Hermes tells its commands who wrote, and where: the thread's
+		// files go with the run, and what it makes comes back there.
+		return teamAgyClient(args, stdin, stdout, call, false, teamAgyRequest{User: os.Getenv("HERMES_SESSION_USER_ID"),
+			Chat: os.Getenv("HERMES_SESSION_CHAT_ID"), Thread: firstNonEmpty(os.Getenv("HERMES_SESSION_THREAD_ID"), os.Getenv("HERMES_SESSION_MESSAGE_ID"))})
 	case "versions":
 		if len(args) != 0 {
 			return usageError{"usage: hi team versions"}
