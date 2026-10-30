@@ -191,20 +191,24 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
 .start-card h2 { font-size: 17px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0; }
 .start-card p { margin: 0; }
-/* Small until you write; then tall, and it grows with the words. A
-   pasted picture is a pill in the text, its preview along the bottom. */
-.adhoc-box { display: flex; flex-direction: column; min-height: 96px; border: 1px solid var(--input-line); background: var(--input); border-radius: 6px; transition: min-height .2s ease; cursor: text; }
-.adhoc-box:focus-within { border-color: var(--focus); }
-.adhoc-box:focus-within, .adhoc-box.filled { min-height: min(320px, 45vh); }
-@media (prefers-reduced-motion: reduce) { .adhoc-box { transition: none; } }
-.adhoc-edit { flex: 1; max-height: 60vh; overflow: auto; padding: 10px 12px; line-height: 1.45; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; }
-.adhoc-edit:empty::before { content: attr(data-placeholder); color: var(--dim); pointer-events: none; }
-.adhoc-pill { display: inline-flex; align-items: center; gap: 2px; margin: 0 1px; padding: 0 2px 0 7px; border-radius: 10px; background: var(--active); color: var(--bright); font-size: 12px; line-height: 18px; white-space: nowrap; user-select: all; vertical-align: 1px; }
-.adhoc-pill button { height: auto; padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 11px; line-height: 18px; cursor: pointer; }
-.adhoc-pill button:hover { color: var(--text); }
-.adhoc-pictures { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; cursor: default; }
-.adhoc-pictures[hidden] { display: none; }
-.adhoc-pictures .chip span { color: var(--muted); }
+/* A text box with pictures in it (pictureBox): each a pill in the words,
+   its preview along the bottom. Start something new's is small until you
+   write; then tall, and it grows with the words. */
+.pic-box { display: flex; flex-direction: column; min-height: 96px; border: 1px solid var(--input-line); background: var(--input); border-radius: 6px; transition: min-height .2s ease; cursor: text; }
+.pic-box:focus-within { border-color: var(--focus); }
+.start-card .pic-box:focus-within, .start-card .pic-box.filled { min-height: min(320px, 45vh); }
+.ticket-box { min-height: 150px; }
+.note-box { min-height: 72px; }
+@media (prefers-reduced-motion: reduce) { .pic-box { transition: none; } }
+.pic-edit { flex: 1; max-height: 60vh; overflow: auto; padding: 10px 12px; line-height: 1.45; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; }
+dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
+.pic-edit:empty::before { content: attr(data-placeholder); color: var(--dim); pointer-events: none; }
+.pic-pill { display: inline-flex; align-items: center; gap: 2px; margin: 0 1px; padding: 0 2px 0 7px; border-radius: 10px; background: var(--active); color: var(--bright); font-size: 12px; line-height: 18px; white-space: nowrap; user-select: all; vertical-align: 1px; }
+.pic-pill button { height: auto; padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 11px; line-height: 18px; cursor: pointer; }
+.pic-pill button:hover { color: var(--text); }
+.pic-previews { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; cursor: default; }
+.pic-previews[hidden] { display: none; }
+.pic-previews .chip span { color: var(--muted); }
 .start-card .error:empty { display: none; }
 .start-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
 .start-card .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-left: auto; }

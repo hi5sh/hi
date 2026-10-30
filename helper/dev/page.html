@@ -77,9 +77,9 @@
       <div id="chat-start" class="chat-start" hidden>
         <form id="adhoc-form" class="start-card">
           <h2>Start something new</h2>
-          <div class="adhoc-box">
-            <div id="adhoc-text" class="adhoc-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste pictures too."></div>
-            <div id="adhoc-pictures" class="adhoc-pictures" hidden></div>
+          <div class="pic-box">
+            <div id="adhoc-text" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste pictures too."></div>
+            <div id="adhoc-pictures" class="pic-previews" hidden></div>
           </div>
           <p id="adhoc-error" class="error"></p>
           <div class="start-foot">
@@ -316,9 +316,11 @@
   <form method="dialog" id="ticket-form">
     <h2>New task</h2>
     <input id="ticket-title" placeholder="What should change: The chart misses the last day" autocomplete="off" required>
-    <textarea id="ticket-body" rows="7" placeholder="What you expected, what happened, how to see it, why it matters. Paste a picture here to attach it."></textarea>
+    <div class="pic-box ticket-box">
+      <div id="ticket-body" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="What it's about" data-placeholder="What you expected, what happened, how to see it, why it matters. Paste or drop pictures here."></div>
+      <div id="ticket-attached" class="pic-previews" hidden></div>
+    </div>
     <label class="files">Files <input type="file" id="ticket-files" multiple></label>
-    <ul id="ticket-attached" class="attached muted small"></ul>
     <p id="ticket-error" class="error"></p>
     <div class="buttons">
       <button type="button" id="ticket-cancel">Cancel</button>
@@ -355,9 +357,11 @@
   <h3>Comments</h3>
   <ul id="view-comments" class="comments"></ul>
   <form id="note-form">
-    <textarea id="note-body" rows="3" placeholder="Add a note to the task. Paste a picture here to attach it."></textarea>
+    <div class="pic-box note-box">
+      <div id="note-body" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="A note" data-placeholder="Add a note to the task. Paste or drop pictures here."></div>
+      <div id="note-attached" class="pic-previews" hidden></div>
+    </div>
     <label class="files">Files <input type="file" id="note-files" multiple></label>
-    <ul id="note-attached" class="attached muted small"></ul>
     <p id="note-error" class="error"></p>
     <div class="buttons">
       <button type="button" id="view-close">Close</button>

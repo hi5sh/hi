@@ -1234,118 +1234,152 @@
     showChatStart();
     pollChat();
   });
-  // The start card's box: words, and pictures pasted in them, each a pill,
-  // Image #1, that ✕, Backspace, or Delete takes out. It goes as a task's
-  // text, a pill as [image: image-1.png], with the pictures as its files.
-  var adhoc = { pictures: {}, n: 0 };
-  function adhocPills() { return [].slice.call($("adhoc-text").querySelectorAll(".adhoc-pill")); }
-  function adhocValue(node) {
-    var out = "";
-    [].forEach.call(node.childNodes, function (child) {
-      if (child.nodeType === 3) out += child.nodeValue.replace(/ /g, " ");
-      else if (child.nodeName === "BR") out += "\n";
-      else if (child.classList.contains("adhoc-pill")) out += reference(adhoc.pictures[child.dataset.n].file.name);
-      else out += (out && !/\n$/.test(out) ? "\n" : "") + adhocValue(child);
+  // pictureBox makes a text box where a pasted, dropped, or picked file is
+  // a pill in the words, Image #1 (File #2 for another kind), that ✕,
+  // Backspace, or Delete takes out, with previews along the bottom. Its
+  // value has each pill as [image: image-1.png], the name the task's file
+  // gets, so whoever reads it (an agent too) knows which is meant. Used
+  // by Start something new, New task, and a task's notes.
+  function pictureBox(edit, shown, picker) {
+    var files = {}, n = 0;
+    function pills() { return [].slice.call(edit.querySelectorAll(".pic-pill")); }
+    function value(node) {
+      var out = "";
+      [].forEach.call(node.childNodes, function (child) {
+        if (child.nodeType === 3) out += child.nodeValue.replace(/ /g, " ");
+        else if (child.nodeName === "BR") out += "\n";
+        else if (child.classList.contains("pic-pill")) out += reference(files[child.dataset.n].file.name);
+        else out += (out && !/\n$/.test(out) ? "\n" : "") + value(child);
+      });
+      return out;
+    }
+    function changed() {
+      var all = pills();
+      if (!all.length && !edit.textContent.trim() && edit.childNodes.length) edit.textContent = "";
+      edit.parentNode.classList.toggle("filled", !!edit.childNodes.length);
+      shown.textContent = "";
+      shown.hidden = !all.length;
+      all.forEach(function (pill) {
+        var item = files[pill.dataset.n];
+        shown.appendChild(el("div", { class: "chip", title: item.file.name + " (" + Math.max(1, Math.round(item.file.size / 1024)) + " KB)" }, [
+          item.url ? el("img", { src: item.url, alt: pill.firstChild.nodeValue }) : el("span", { class: "chip-text", text: item.file.name }),
+          el("span", { text: "#" + pill.dataset.n }),
+          el("button", { type: "button", class: "link", text: "✕", title: "Leave it out", onclick: function () { pill.remove(); changed(); } })]));
+      });
+    }
+    // put puts nodes where the cursor is, or at the end, and the cursor
+    // after them.
+    function put(nodes) {
+      var selection = window.getSelection();
+      var range = selection.rangeCount && edit.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.getRangeAt(0) : null;
+      if (!range) { range = document.createRange(); range.selectNodeContents(edit); range.collapse(false); }
+      range.deleteContents();
+      nodes.forEach(function (node) { range.insertNode(node); range.setStartAfter(node); range.collapse(true); });
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    function add(list) {
+      var nodes = [];
+      [].slice.call(list || []).forEach(function (file) {
+        var k = ++n, picture = /^image\//.test(file.type);
+        var ext = (file.name.match(/\.[a-z0-9]+$/i) || [file.type === "image/jpeg" ? ".jpg" : ".png"])[0].toLowerCase();
+        var named = picture && /^image(\.[a-z]+)?$/i.test(file.name.replace(/\.[a-z0-9]+$/i, "")) ? new File([file], "image-" + k + ext, { type: file.type }) : file;
+        files[k] = { file: named, url: picture ? URL.createObjectURL(file) : "" };
+        nodes.push(document.createTextNode(" "), el("span", { class: "pic-pill", contenteditable: "false", "data-n": k }, [
+          document.createTextNode((picture ? "Image #" : "File #") + k), el("button", { type: "button", tabindex: "-1", text: "✕", title: "Leave it out" })]), document.createTextNode(" "));
+      });
+      if (!nodes.length) return false;
+      put(nodes);
+      changed();
+      return true;
+    }
+    edit.addEventListener("input", changed);
+    // A pill's ✕ (one put back by Undo too), without taking the cursor.
+    edit.addEventListener("mousedown", function (event) {
+      if (event.target.closest(".pic-pill button")) event.preventDefault();
     });
-    return out;
-  }
-  function adhocChanged() {
-    var edit = $("adhoc-text"), pills = adhocPills();
-    if (!pills.length && !edit.textContent.trim() && edit.childNodes.length) edit.textContent = "";
-    edit.parentNode.classList.toggle("filled", !!edit.childNodes.length);
-    var shown = $("adhoc-pictures");
-    shown.textContent = "";
-    shown.hidden = !pills.length;
-    pills.forEach(function (pill) {
-      var picture = adhoc.pictures[pill.dataset.n];
-      shown.appendChild(el("div", { class: "chip", title: picture.file.name }, [
-        el("img", { src: picture.url, alt: "Image #" + pill.dataset.n }), el("span", { text: "#" + pill.dataset.n }),
-        el("button", { type: "button", class: "link", text: "✕", title: "Leave it out", onclick: function () { pill.remove(); adhocChanged(); } })]));
+    edit.addEventListener("click", function (event) {
+      var out = event.target.closest(".pic-pill button");
+      if (out) { out.parentNode.remove(); changed(); }
     });
-  }
-  // put puts nodes where the cursor is, and the cursor after them.
-  function adhocPut(nodes) {
-    var edit = $("adhoc-text"), selection = window.getSelection();
-    var range = selection.rangeCount && edit.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.getRangeAt(0) : null;
-    if (!range) { range = document.createRange(); range.selectNodeContents(edit); range.collapse(false); }
-    range.deleteContents();
-    nodes.forEach(function (node) { range.insertNode(node); range.setStartAfter(node); range.collapse(true); });
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-  function adhocPictures(list) {
-    var pictures = [].slice.call(list || []).filter(function (file) { return /^image\//.test(file.type); });
-    if (!pictures.length) return false;
-    var nodes = [];
-    pictures.forEach(function (file) {
-      var n = ++adhoc.n;
-      var ext = (file.name.match(/\.[a-z0-9]+$/i) || [file.type === "image/jpeg" ? ".jpg" : ".png"])[0].toLowerCase();
-      adhoc.pictures[n] = { file: new File([file], "image-" + n + ext, { type: file.type }), url: URL.createObjectURL(file) };
-      var pill = el("span", { class: "adhoc-pill", contenteditable: "false", "data-n": n }, [document.createTextNode("Image #" + n),
-        el("button", { type: "button", tabindex: "-1", text: "✕", title: "Leave it out" })]);
-      nodes.push(document.createTextNode(" "), pill, document.createTextNode(" "));
+    // Pasted text goes in as text, never as another page's markup.
+    edit.addEventListener("paste", function (event) {
+      var clip = event.clipboardData || {};
+      event.preventDefault();
+      if (add(clip.files)) return;
+      document.execCommand("insertText", false, (clip.getData ? clip.getData("text/plain") : "").replace(/\r\n/g, "\n"));
     });
-    adhocPut(nodes);
-    adhocChanged();
-    return true;
+    edit.addEventListener("dragover", function (event) {
+      if (event.dataTransfer && [].indexOf.call(event.dataTransfer.types, "Files") >= 0) event.preventDefault();
+    });
+    edit.addEventListener("drop", function (event) {
+      if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+      event.preventDefault();
+      add(event.dataTransfer.files);
+    });
+    edit.parentNode.addEventListener("click", function (event) {
+      if (event.target === this) edit.focus();
+    });
+    // Enter is a new line; Ctrl+Enter sends.
+    edit.addEventListener("keydown", function (event) {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (event.ctrlKey || event.metaKey) edit.closest("form").requestSubmit();
+      else document.execCommand("insertLineBreak");
+    });
+    if (picker) picker.addEventListener("change", function () {
+      edit.focus();
+      add(picker.files);
+      picker.value = "";
+    });
+    return {
+      value: function () { return value(edit).replace(/ +(\[(?:image|file): [^\]]+\]) +/g, " $1 ").trim(); },
+      read: function () {
+        return Promise.all(pills().map(function (pill) {
+          var file = files[pill.dataset.n].file;
+          return new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function () { resolve({ name: file.name, data: String(reader.result).split(",")[1] || "" }); };
+            reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+            reader.readAsDataURL(file);
+          });
+        }));
+      },
+      // append adds text at the end, on a line of its own.
+      append: function (text) {
+        var now = value(edit).replace(/\s*$/, "");
+        edit.focus();
+        var range = document.createRange();
+        range.selectNodeContents(edit);
+        range.collapse(false);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand("insertText", false, (now ? "\n\n" : "") + text);
+      },
+      clear: function () {
+        Object.keys(files).forEach(function (k) { if (files[k].url) URL.revokeObjectURL(files[k].url); });
+        files = {};
+        n = 0;
+        edit.textContent = "";
+        changed();
+      },
+    };
   }
-  $("adhoc-text").addEventListener("input", adhocChanged);
-  // A pill's ✕ (one put back by Undo too), without taking the cursor.
-  $("adhoc-text").addEventListener("mousedown", function (event) {
-    if (event.target.closest(".adhoc-pill button")) event.preventDefault();
-  });
-  $("adhoc-text").addEventListener("click", function (event) {
-    var out = event.target.closest(".adhoc-pill button");
-    if (out) { out.parentNode.remove(); adhocChanged(); }
-  });
-  // Pasted text goes in as text, never as another page's markup.
-  $("adhoc-text").addEventListener("paste", function (event) {
-    var clip = event.clipboardData || {};
-    event.preventDefault();
-    if (adhocPictures(clip.files)) return;
-    document.execCommand("insertText", false, (clip.getData ? clip.getData("text/plain") : "").replace(/\r\n/g, "\n"));
-  });
-  $("adhoc-text").addEventListener("dragover", function (event) {
-    if (event.dataTransfer && [].indexOf.call(event.dataTransfer.types, "Files") >= 0) event.preventDefault();
-  });
-  $("adhoc-text").addEventListener("drop", function (event) {
-    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
-    event.preventDefault();
-    adhocPictures(event.dataTransfer.files);
-  });
-  $("adhoc-text").parentNode.addEventListener("click", function (event) {
-    if (event.target === this) $("adhoc-text").focus();
-  });
-  $("adhoc-text").addEventListener("keydown", function (event) {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    if (event.ctrlKey || event.metaKey) $("adhoc-form").requestSubmit();
-    else document.execCommand("insertLineBreak");
-  });
+  // The start card's box.
+  var adhoc = pictureBox($("adhoc-text"), $("adhoc-pictures"));
   $("adhoc-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var agent = (document.querySelector("input[name=adhoc-agent]:checked") || {}).value || "claude";
-    var text = adhocValue($("adhoc-text")).replace(/ +(\[image: [^\]]+\]) +/g, " $1 ").trim();
+    var text = adhoc.value();
     if (!text) { $("adhoc-error").textContent = "Say what to do."; $("adhoc-text").focus(); return; }
     $("adhoc-go").disabled = true;
     $("adhoc-go").textContent = "Creating the worktree…";
     $("adhoc-error").textContent = "";
-    Promise.all(adhocPills().map(function (pill) {
-      var file = adhoc.pictures[pill.dataset.n].file;
-      return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function () { resolve({ name: file.name, data: String(reader.result).split(",")[1] || "" }); };
-        reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
-        reader.readAsDataURL(file);
-      });
-    })).then(function (files) {
+    adhoc.read().then(function (files) {
       return api("POST", "start-new", { text: text, agent: agent, files: files });
     }).then(function (answer) {
       chat.composing = false;
-      $("adhoc-text").textContent = "";
-      Object.keys(adhoc.pictures).forEach(function (n) { URL.revokeObjectURL(adhoc.pictures[n].url); });
-      adhoc = { pictures: {}, n: 0 };
-      adhocChanged();
+      adhoc.clear();
       toast((answer.warning ? answer.warning + " " : "") + "Filed task #" + answer.ticket + " and started " + answer.branch + " with " + agent + ".");
       refreshTickets(true);
       return refresh().then(function () {
@@ -2135,7 +2169,7 @@
   }
 
   // ---- a new ticket
-  var newFiles = attacher($("ticket-files"), $("ticket-body"), $("ticket-attached"));
+  var newFiles = pictureBox($("ticket-body"), $("ticket-attached"), $("ticket-files"));
   $("ticket-new").addEventListener("click", function () {
     $("ticket-error").textContent = "";
     $("ticket-go").disabled = false;
@@ -2149,11 +2183,10 @@
     $("ticket-go").disabled = true;
     $("ticket-error").textContent = "";
     newFiles.read().then(function (files) {
-      return api("POST", "ticket", { title: $("ticket-title").value, body: $("ticket-body").value, files: files });
+      return api("POST", "ticket", { title: $("ticket-title").value, body: newFiles.value(), files: files });
     }).then(function (ticket) {
       $("ticket-dialog").close();
       $("ticket-title").value = "";
-      $("ticket-body").value = "";
       newFiles.clear();
       toast("Filed task #" + ticket.number + ".");
       refreshTickets(true);
@@ -2165,7 +2198,7 @@
 
   // ---- a ticket, opened: its text, files, and comments, and a note to add
   var viewing = 0;
-  var noteFiles = attacher($("note-files"), $("note-body"), $("note-attached"));
+  var noteFiles = pictureBox($("note-body"), $("note-attached"), $("note-files"));
   // linked puts text on the page with its addresses as links.
   function linked(text) {
     var box = el("div", { class: "text" });
@@ -2261,9 +2294,7 @@
     document.querySelectorAll(".menu").forEach(function (list) { list.hidden = true; });
   });
   function quote(text) {
-    var note = $("note-body");
-    note.value = (note.value ? note.value.replace(/\s*$/, "\n\n") : "") + text.split("\n").map(function (line) { return "> " + line; }).join("\n") + "\n\n";
-    note.focus();
+    noteFiles.append(text.split("\n").map(function (line) { return "> " + line; }).join("\n") + "\n\n");
   }
   // editInPlace puts a text box (and fields before it, such as the title)
   // where the text was, with Save and Cancel; Save sends what request makes
@@ -2335,9 +2366,8 @@
     $("note-go").disabled = true;
     $("note-error").textContent = "";
     noteFiles.read().then(function (files) {
-      return api("POST", "ticket/note", { number: number, body: $("note-body").value, files: files });
+      return api("POST", "ticket/note", { number: number, body: noteFiles.value(), files: files });
     }).then(function () {
-      $("note-body").value = "";
       noteFiles.clear();
       toast("Added to #" + number + ".");
       return openTicket(number);

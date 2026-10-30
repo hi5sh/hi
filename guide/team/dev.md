@@ -80,9 +80,11 @@ whichever forge has the task. `hi dev task show` lists the files, and
 **Start** on the dev page tells the agent to fetch them.
 
 On the dev page, **+** beside the search files one with a title,
-what it's about, and files: pick them, or paste a picture into the text,
-where it leaves a reference to it, such as `[image: image-3fa9c1.png]`,
-the name it has in the task's files.
+what it's about, and files: paste or drop a picture into the text, or
+pick files, and each is a pill where it went, **Image #1**, with a
+preview along the box's bottom; ✕, Backspace, or Delete takes it out.
+The task's text says `[image: image-1.png]` there, the name it has in
+the task's files. A note on a task takes pictures the same way.
 The task says which owner filed it. A task's title opens it: its
 whole text with its links, its files (pictures shown, the rest to open or
 download), its comments, and a note to add, with files of its own. The

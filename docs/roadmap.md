@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.43 — Pictures as pills in tasks too
+
+- [x] New task and a task's notes take pictures as Start something new
+  does: pasted, dropped, or picked, each is an **Image #1** pill where it
+  went (**File #2** for another kind), with previews along the box's
+  bottom; ✕, Backspace, or Delete takes one out. The text says
+  `[image: image-1.png]` where each was, and the files go with it.
+
 ### v2.6.42 — Names beside member IDs
 
 - [x] `hi team access` and `hi team owners` say each member's name
