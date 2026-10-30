@@ -17,6 +17,7 @@ shell, or serve a model on hardware you don't have.
 <div class="cards">
   <a href="{{ '/guide/team/' | relative_url }}"><strong>A team of agents in Slack</strong><span>A lead you talk to, a dev box where owners build with agents, and an app people try on their phones.</span></a>
   <a href="{{ '/guide/install/' | relative_url }}"><strong>Install hi</strong><span>One command on Linux, then sign in to a provider.</span></a>
+  <a href="{{ '/guide/components/' | relative_url }}"><strong>The components</strong><span>The box, agents, compute, server, and network the factory is built from, each usable on its own.</span></a>
   <a href="{{ '/guide/quickstart/' | relative_url }}"><strong>Your first remote GPU</strong><span>Five minutes from install to a shell on a rented GPU.</span></a>
   <a href="{{ '/guide/compute/' | relative_url }}"><strong>How hi compute works</strong><span>Providers, runs and instances, hardware names, and limits.</span></a>
   <a href="{{ '/guide/tutorials/' | relative_url }}"><strong>Tutorials</strong><span>A 125B model, training, sweeps, JupyterLab, and agents.</span></a>
@@ -47,6 +48,7 @@ shell, or serve a model on hardware you don't have.
 | Turn "move the md files to notes" into a command   | [Ask for a command]({{ '/guide/q/' | relative_url }})              |
 | Start a new repository that agents work well in   | [Start a project]({{ '/guide/projects/' | relative_url }})          |
 | Set up a new hi5 machine                         | [Set up a workstation]({{ '/guide/workstation/' | relative_url }}) |
+| See every component and command on one page | [The components]({{ '/guide/components/' | relative_url }}) |
 | Fix an error message                               | [Troubleshooting]({{ '/guide/reference/troubleshooting/' | relative_url }}) |
 
 ## Conventions

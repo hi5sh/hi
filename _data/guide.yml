@@ -5,6 +5,8 @@
       url: /guide/
     - title: Install hi
       url: /guide/install/
+    - title: The components
+      url: /guide/components/
     - title: Your first remote GPU
       url: /guide/quickstart/
 - section: Agent teams
