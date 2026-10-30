@@ -1331,7 +1331,11 @@
     edit.addEventListener("keydown", function (event) {
       if (event.key !== "Enter") return;
       event.preventDefault();
-      if (event.ctrlKey || event.metaKey) edit.closest("form").requestSubmit();
+      if (event.ctrlKey || event.metaKey) {
+        var form = edit.closest("form");
+        if (form) form.requestSubmit();
+        else edit.closest(".start-card").querySelector(".primary").click();
+      }
       else document.execCommand("insertLineBreak");
     });
     if (picker) picker.addEventListener("change", function () {
@@ -1374,8 +1378,9 @@
   }
   // The start card's box.
   var adhoc = pictureBox($("adhoc-text"), $("adhoc-pictures"));
-  $("adhoc-form").addEventListener("submit", function (event) {
-    event.preventDefault();
+  // Not a form: Safari on an iPad puts its AutoFill bar (passwords,
+  // cards, addresses) over the keyboard for a box in a form with inputs.
+  $("adhoc-go").addEventListener("click", function () {
     var agent = (document.querySelector("input[name=adhoc-agent]:checked") || {}).value || "claude";
     var text = adhoc.value();
     if (!text) { $("adhoc-error").textContent = "Say what to do."; $("adhoc-text").focus(); return; }

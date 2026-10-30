@@ -2713,6 +2713,15 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.47 — No AutoFill bar over an iPad's keyboard
+
+- [x] Safari on an iPad put its AutoFill bar (passwords, cards,
+  addresses) over the keyboard while typing in Start something new, a
+  box inside a form with the agent's radio buttons. The start card is no
+  longer a form (Start and Ctrl+Enter still send), and the boxes for
+  Start something new, New task, a task's notes, and the chat ask for no
+  AutoFill.
+
 ### v2.6.46 — A message sent while Claude works stays in the chat
 
 - [x] A message sent from the chat while Claude is at work is in the
