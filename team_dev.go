@@ -920,12 +920,13 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if len(args) == 1 {
 		fmt.Fprintf(stdout, "Owners of team %s, who build in its dev box:\n", config.Name)
+		names := teamPeopleNames(config, config.Owners)
 		for _, owner := range config.Owners {
 			key := "no SSH key"
 			if data, err := os.ReadFile(teamDevKeyPath(config.Name, owner)); err == nil {
 				key = teamSSHKeyLabel(string(data))
 			}
-			fmt.Fprintf(stdout, "  %-12s %s\n", owner, key)
+			fmt.Fprintf(stdout, "  %s %s\n", teamPersonColumn(owner, names), key)
 		}
 		return nil
 	}
@@ -942,11 +943,20 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "%s is an owner of team %s already.\n", user, config.Name)
 			return nil
 		}
+		// An owner is an owner only: a level they had goes.
+		without := func(list []string) []string {
+			return slices.DeleteFunc(slices.Clone(list), func(id string) bool { return id == user })
+		}
 		config.Owners = append(config.Owners, user)
+		config.Developers, config.VibeDevelopers, config.Contributors = without(config.Developers), without(config.VibeDevelopers), without(config.Contributors)
 		if err := saveTeam(config); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s is an owner of team %s. For the dev box they give a public SSH key:\n  hi team owners %s key %s \"$(cat ~/.ssh/id_ed25519.pub)\"\n", user, config.Name, config.Name, user)
+		who := user
+		if name := teamPeopleNames(config, []string{user})[user]; name != "" {
+			who += " (" + name + ")"
+		}
+		fmt.Fprintf(stdout, "%s is an owner of team %s. For the dev box they give a public SSH key:\n  hi team owners %s key %s \"$(cat ~/.ssh/id_ed25519.pub)\"\n", who, config.Name, config.Name, user)
 	case action == "remove" && len(args) == 3:
 		if !containsString(config.Owners, user) {
 			return fmt.Errorf("%s isn't an owner of team %s", user, config.Name)

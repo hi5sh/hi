@@ -2713,6 +2713,16 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.42 — Names beside member IDs
+
+- [x] `hi team access` and `hi team owners` say each member's name
+  beside their Slack member ID: the name hi has from the links it sent
+  them, else Slack's. An admin, or an agent, sees who is who without
+  looking IDs up.
+- [x] `hi team owners <team> add` makes someone an owner only: a Pro
+  Dev, Vibe Dev, or contributor level they had goes, so they aren't
+  listed twice.
+
 ### v2.6.41 — Who asked, and who started it
 
 - [x] Tasks shows who asked for a task, from its "Asked by … in the

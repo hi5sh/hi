@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -335,5 +336,46 @@ func TestTeamVibeDev(t *testing.T) {
 	}
 	if _, body := teamTestDevPageCall(t, handler, "vibe-key-0123456789abcdefgh", "GET", "api/state", nil); !strings.Contains(body, `"level":"vibe"`) {
 		t.Fatal(body)
+	}
+}
+
+// No test asks Slack for a name.
+func init() { teamSlackUserName = func(string, string) string { return "" } }
+
+// The listings say each member's name beside their ID: the one their
+// link has, else Slack's; and a new owner is an owner only.
+func TestTeamPeopleNames(t *testing.T) {
+	setupTeamDevTest(t)
+	saveTeamPeople("payments", teamPeopleFile{Keys: []teamPersonKey{{Key: "k", User: "U07OWNER1", Name: "Olga Owner", Ends: farFuture()}}})
+	secrets, _ := loadTeamSecrets("payments")
+	secrets.SlackBotToken = "xoxb-test"
+	saveTeamSecrets("payments", secrets)
+	previous := teamSlackUserName
+	defer func() { teamSlackUserName = previous }()
+	teamSlackUserName = func(token, id string) string {
+		if token == "xoxb-test" && id == "U07DEV1" {
+			return "Mark Dev"
+		}
+		return ""
+	}
+	config, _ := loadTeam("payments")
+	config.Developers = []string{"U07DEV1"}
+	saveTeam(config)
+	var out bytes.Buffer
+	printTeamAccess(config, &out)
+	if text := out.String(); !strings.Contains(text, "U07OWNER1    Olga Owner") || !strings.Contains(text, "U07DEV1      Mark Dev") {
+		t.Fatal(text)
+	}
+	out.Reset()
+	if err := teamOwnersCommand([]string{"payments", "add", "U07DEV1"}, strings.NewReader(""), &out); err != nil || !strings.Contains(out.String(), "U07DEV1 (Mark Dev) is an owner") {
+		t.Fatal(out.String(), err)
+	}
+	if config, _ := loadTeam("payments"); len(config.Developers) != 0 {
+		t.Fatal("still a Pro Dev:", config.Developers)
+	}
+	out.Reset()
+	teamOwnersCommand([]string{"payments"}, strings.NewReader(""), &out)
+	if !strings.Contains(out.String(), "Olga Owner") || !strings.Contains(out.String(), "Mark Dev") {
+		t.Fatal(out.String())
 	}
 }

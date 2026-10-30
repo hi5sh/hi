@@ -249,32 +249,69 @@ func teamDeveloperNote(config teamConfig, level string) string {
 }
 
 func printTeamAccess(config teamConfig, stdout io.Writer) {
+	names := teamPeopleNames(config, slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors))
 	fmt.Fprintf(stdout, "Owners of team %s (an admin changes them: hi team owners):\n", config.Name)
 	for _, owner := range config.Owners {
-		fmt.Fprintf(stdout, "  %-12s %s\n", owner, teamDevKeyLabel(config.Name, owner))
+		fmt.Fprintf(stdout, "  %s %s\n", teamPersonColumn(owner, names), teamDevKeyLabel(config.Name, owner))
 	}
 	fmt.Fprintln(stdout, "Pro Devs, with Chat, terminal, VS Code, and SSH (owners change them, on the dev page or here):")
 	if len(config.Developers) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}
 	for _, developer := range config.Developers {
-		fmt.Fprintf(stdout, "  %-12s %s\n", developer, teamDevKeyLabel(config.Name, developer))
+		fmt.Fprintf(stdout, "  %s %s\n", teamPersonColumn(developer, names), teamDevKeyLabel(config.Name, developer))
 	}
 	fmt.Fprintln(stdout, "Vibe Devs, who work in the agents' Chat only:")
 	if len(config.VibeDevelopers) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}
 	for _, vibe := range config.VibeDevelopers {
-		fmt.Fprintf(stdout, "  %s\n", vibe)
+		fmt.Fprintf(stdout, "  %s\n", strings.TrimRight(teamPersonColumn(vibe, names), " "))
 	}
 	fmt.Fprintln(stdout, "Contributors, who report bugs as tasks (owners change them too):")
 	if len(config.Contributors) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}
 	for _, contributor := range config.Contributors {
-		fmt.Fprintf(stdout, "  %s\n", contributor)
+		fmt.Fprintf(stdout, "  %s\n", strings.TrimRight(teamPersonColumn(contributor, names), " "))
 	}
 	fmt.Fprintln(stdout, "Anyone else, in the channel or not, has no level.")
+}
+
+// teamSlackUserName asks Slack for a member's name; tests replace it.
+var teamSlackUserName = func(botToken, id string) string {
+	name := newLiveTeamChannel(botToken).userName(id)
+	if name == id {
+		return ""
+	}
+	return name
+}
+
+// teamPeopleNames is the names of a team's members by Slack member ID,
+// for listings an admin or an agent reads: those hi already knows, from
+// the links it sent them, and Slack's for the rest. A name it can't find
+// is left out, and the ID stands alone.
+func teamPeopleNames(config teamConfig, ids []string) map[string]string {
+	names := map[string]string{}
+	for _, key := range loadTeamPeople(config.Name).Keys {
+		if key.Name != "" && key.Name != key.User {
+			names[key.User] = key.Name
+		}
+	}
+	secrets, _ := loadTeamSecrets(config.Name)
+	for _, id := range ids {
+		if names[id] == "" && secrets.SlackBotToken != "" {
+			if name := teamSlackUserName(secrets.SlackBotToken, id); name != "" {
+				names[id] = name
+			}
+		}
+	}
+	return names
+}
+
+// teamPersonColumn is a member's ID and name, padded to line up.
+func teamPersonColumn(id string, names map[string]string) string {
+	return fmt.Sprintf("%-12s %-22s", id, names[id])
 }
 
 // level is someone's level in the team.
