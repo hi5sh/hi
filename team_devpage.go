@@ -925,7 +925,7 @@ func init() {
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
 		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev",
-		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume",
+		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
 		"POST api/code/start", "POST api/sshkey",
 	} {

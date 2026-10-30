@@ -37,6 +37,7 @@ type teamDevChatEntry struct {
 	Detail  string    `json:"detail,omitempty"`  // the tool call's input
 	Error   bool      `json:"error,omitempty"`   // a result that failed
 	At      time.Time `json:"at,omitzero"`
+	UUID    string    `json:"uuid,omitempty"` // a message's, which the rewind timeline names
 }
 
 // teamDevChatAgent is the agent in a workspace, as herdr sees it.
@@ -63,6 +64,9 @@ type teamDevChatView struct {
 	// terminal: "Crafting… (7s · ↓ 556 tokens · thought for 4s)".
 	Activity string `json:"activity,omitempty"`
 	Note     string `json:"note,omitempty"`
+	// Turns are the conversation's messages the page has (teamDevTurns):
+	// after a rewind, a branch they aren't the start of is drawn again.
+	Turns string `json:"turns,omitempty"`
 }
 
 const (
@@ -317,6 +321,7 @@ func teamDevChatEntries(line []byte) []teamDevChatEntry {
 		Timestamp time.Time       `json:"timestamp"`
 		Title     string          `json:"aiTitle"`
 		Message   json.RawMessage `json:"message"`
+		UUID      string          `json:"uuid"`
 	}
 	if json.Unmarshal(line, &record) != nil || record.Sidechain {
 		return nil
@@ -351,7 +356,7 @@ func teamDevChatEntries(line []byte) []teamDevChatEntry {
 			if kind == "" || said == "" {
 				return nil
 			}
-			return []teamDevChatEntry{{T: kind, Text: said, At: at}}
+			return []teamDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID}}
 		}
 		return []teamDevChatEntry{{T: "text", Text: text, At: at}}
 	}
@@ -396,15 +401,16 @@ func teamDevChatEntries(line []byte) []teamDevChatEntry {
 	}
 	if len(said) > 0 {
 		if kind, text := teamDevChatText(strings.Join(said, "\n")); kind != "" && text != "" {
-			entries = append([]teamDevChatEntry{{T: kind, Text: text, At: at}}, entries...)
+			entries = append([]teamDevChatEntry{{T: kind, Text: text, At: at, UUID: record.UUID}}, entries...)
 		}
 	}
 	return entries
 }
 
 // readDevChat reads a transcript's entries from offset to its last whole
-// line, and where to read from next.
-func readDevChat(file string, offset int64) ([]teamDevChatEntry, int64, bool, error) {
+// line, and where to read from next; shown, when not nil, says which
+// records (by where they start) are the conversation's.
+func readDevChat(file string, offset int64, shown func(int64) bool) ([]teamDevChatEntry, int64, bool, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, offset, false, err
@@ -428,15 +434,17 @@ func readDevChat(file string, offset int64) ([]teamDevChatEntry, int64, bool, er
 		if err != nil {
 			break // a line still being written waits for the next read
 		}
+		if shown == nil || shown(offset) {
+			entries = append(entries, teamDevChatEntries(bytes.TrimSpace(line))...)
+		}
 		offset += int64(len(line))
-		entries = append(entries, teamDevChatEntries(bytes.TrimSpace(line))...)
 	}
 	return entries, offset, reset, nil
 }
 
 // devChat is the page's view of a workspace's session, from offset on.
-func (b *teamBroker) devChat(workspace, known string, offset int64) (teamDevChatView, error) {
-	view, err := b.devChatLog(workspace, known, offset)
+func (b *teamBroker) devChat(workspace, known, turns string, offset int64) (teamDevChatView, error) {
+	view, err := b.devChatLog(workspace, known, turns, offset)
 	if err != nil {
 		return view, err
 	}
@@ -463,7 +471,7 @@ func (b *teamBroker) devChat(workspace, known string, offset int64) (teamDevChat
 }
 
 // devChatLog is the session's entries, from its transcript.
-func (b *teamBroker) devChatLog(workspace, known string, offset int64) (teamDevChatView, error) {
+func (b *teamBroker) devChatLog(workspace, known, turns string, offset int64) (teamDevChatView, error) {
 	agent, session, err := devChatAgent(b.team, workspace)
 	if err != nil {
 		return teamDevChatView{}, err
@@ -496,7 +504,12 @@ func (b *teamBroker) devChatLog(workspace, known string, offset int64) (teamDevC
 	if session != known {
 		offset, view.Reset = 0, true
 	}
-	entries, next, shrank, err := readDevChat(host, offset)
+	shown, now, follows := teamDevChatBranch(host, turns)
+	if !follows {
+		offset, view.Reset = 0, true // a rewind: the conversation's branch again
+	}
+	view.Turns = now
+	entries, next, shrank, err := readDevChat(host, offset, shown)
 	if err != nil {
 		return view, err
 	}
@@ -583,7 +596,7 @@ func (b *teamBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Respons
 			return
 		}
 		offset, _ := strconv.ParseInt(r.URL.Query().Get("offset"), 10, 64)
-		view, err := b.devChat(workspace, r.URL.Query().Get("session"), offset)
+		view, err := b.devChat(workspace, r.URL.Query().Get("session"), r.URL.Query().Get("turns"), offset)
 		if err != nil {
 			failure(w, http.StatusBadGateway, err)
 			return
@@ -695,6 +708,42 @@ func (b *teamBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Respons
 			typed, _ := body["typed"].(string)
 			return b.answerDevAsk(agent, text, int(index), label, typed)
 		})
+	})
+	mux.HandleFunc("GET "+teamDevPagePrefix+"api/chat/points", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		workspace := r.URL.Query().Get("workspace")
+		if !workspaceOK.MatchString(workspace) {
+			failure(w, http.StatusBadRequest, fmt.Errorf("%q isn't a workspace", workspace))
+			return
+		}
+		view, err := b.devChatPoints(workspace)
+		if err != nil {
+			failure(w, http.StatusBadGateway, err)
+			return
+		}
+		reply(w, http.StatusOK, view)
+	})
+	mux.HandleFunc("POST "+teamDevPagePrefix+"api/chat/rewind", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		var body struct{ Workspace, UUID, Mode string }
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		if !workspaceOK.MatchString(body.Workspace) {
+			failure(w, http.StatusBadRequest, fmt.Errorf("%q isn't a workspace", body.Workspace))
+			return
+		}
+		text, err := b.devChatRewind(body.Workspace, body.UUID, body.Mode)
+		if err != nil {
+			failure(w, http.StatusConflict, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{"text": text})
 	})
 	mux.HandleFunc("POST "+teamDevPagePrefix+"api/chat/resume", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent teamDevChatAgent, _ string, body map[string]any) error {

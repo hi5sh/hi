@@ -1130,6 +1130,8 @@
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: null, turn: 0, spin: 0, composing: false, askSig: "" };
+  // The rewind timeline's messages, what the page last saw, and the one open.
+  var rewind = { points: [], seen: "", open: "" };
   try {
     // Chat is the default since hi 2.5.24; the choice before it isn't kept.
     chat.view = localStorage.getItem("hi-dev-code-view-2") || chat.view;
@@ -1208,6 +1210,11 @@
     $("chat-space").value = id;
     chat.session = "";
     chat.offset = 0;
+    chat.turns = "";
+    rewind.points = [];
+    rewind.seen = "";
+    rewind.open = "";
+    renderPoints();
     clearChat();
     showChatStart();
     if (chat.view === "code") openVSCode();
@@ -1217,7 +1224,7 @@
   function showChatStart() {
     var starting = chat.composing || (!!state && !chat.space); // not before the workspaces are known
     $("chat-start").hidden = !starting;
-    $("chat-log").hidden = starting;
+    document.querySelector(".chat-main").hidden = starting;
     document.querySelector(".chat-bottom").hidden = starting;
     $("chat-new").hidden = starting || chat.view !== "chat";
     $("chat-space").hidden = chat.view !== "chat" || !workSpaces().length;
@@ -1450,7 +1457,7 @@
     if (entry.t === "user") {
       if (entry.at) chat.turn = Date.parse(entry.at);
       if (chat.pending) { chat.pending.remove(); chat.pending = null; }
-      box.appendChild(el("div", { class: "msg-user" }, [linked(entry.text)]));
+      box.appendChild(el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [linked(entry.text)]));
     } else if (entry.t === "text") {
       box.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
     } else if (entry.t === "thinking") {
@@ -1499,6 +1506,112 @@
     var seconds = Math.round((Date.now() - (chat.turn || Date.now())) / 1000);
     line.lastChild.textContent = text || (seconds >= 0 && seconds < 3600 ? "Working… (" + seconds + "s)" : "Working…");
   }
+  // ---- Rewind: Claude Code's /rewind as a timeline beside the chat: its
+  // messages, newest last, each with what the code did after it. One opens
+  // to go back to before it: the code and the chat, the chat, or the code.
+  // Codex keeps no checkpoints of the code, so it's Claude Code's only.
+  function loadPoints() {
+    var asked = chat.space;
+    if (!asked) return;
+    api("GET", "chat/points?workspace=" + encodeURIComponent(asked)).then(function (view) {
+      if (asked !== chat.space) return;
+      rewind.points = view.points || [];
+      renderPoints();
+    }).catch(function () {
+      rewind.points = [];
+      renderPoints();
+    });
+  }
+  function changeLine(list) {
+    var added = 0, removed = 0;
+    list.forEach(function (change) { added += change.added; removed += change.removed; });
+    return [
+      el("span", { text: list.length === 1 ? list[0].path.split("/").pop() : list.length + " files" }),
+      added ? el("span", { class: "plus", text: " +" + added }) : null,
+      removed ? el("span", { class: "minus", text: " −" + removed }) : null,
+    ];
+  }
+  function changeWords(list) {
+    return list.map(function (change) {
+      return change.path + (change.added ? " +" + change.added : "") + (change.removed ? " −" + change.removed : "");
+    }).join(", ");
+  }
+  function renderPoints() {
+    var rail = $("chat-rewind"), list = $("rewind-points");
+    var agent = chat.agent || {};
+    rail.hidden = !(agent.running && agent.agent === "claude" && rewind.points.length);
+    list.textContent = "";
+    if (rail.hidden) return;
+    var busy = agent.status === "working" || agent.status === "blocked";
+    rewind.points.forEach(function (point) { list.appendChild(pointItem(point, busy)); });
+    list.appendChild(el("li", { class: "rp now" }, [el("span", { class: "rp-dot", "aria-hidden": "true" }), el("div", { class: "rp-now", text: "Now" })]));
+  }
+  function pointItem(point, busy) {
+    var open = rewind.open === point.uuid;
+    var changes = point.changes || [];
+    var meta = [el("span", { text: point.at ? ago(point.at) : "" })];
+    meta.push(el("span", { class: "rp-sep", text: " · " }));
+    meta = meta.concat(changes.length ? changeLine(changes) : [el("span", { text: "No code changes" })]);
+    var card = el("button", { type: "button", class: "rp-card", "aria-expanded": String(open),
+      title: changes.length ? "After it: " + changeWords(changes) : "No code changes after it",
+      onclick: function () {
+        rewind.open = open ? "" : point.uuid;
+        renderPoints();
+        if (!open) showMessage(point.uuid);
+      } }, [el("div", { class: "rp-text", text: point.text }), el("div", { class: "rp-meta" }, meta)]);
+    var item = el("li", { class: "rp" + (changes.length ? " changed" : "") + (open ? " open" : "") }, [el("span", { class: "rp-dot", "aria-hidden": "true" }), card]);
+    if (!open) return item;
+    var actions = el("div", { class: "rp-actions" });
+    [["both", "Code and chat", "primary"], ["conversation", "Chat only", ""], ["code", "Code only", ""]].forEach(function (choice) {
+      var attrs = { type: "button", class: "small " + choice[2], text: choice[1], onclick: function () { rewindTo(point, choice[0]); } };
+      if (busy || (choice[0] !== "conversation" && !point.code)) attrs.disabled = "";
+      actions.appendChild(el("button", attrs));
+    });
+    item.appendChild(actions);
+    item.appendChild(el("p", { class: "rp-note", text: busy ? "Claude is at work: Stop it first, then rewind."
+      : !point.code ? "Claude Code has no checkpoint of the code here, so only the chat goes back."
+      : "Back to before this message: the chat, the code Claude edited, or both." }));
+    return item;
+  }
+  // showMessage scrolls the chat to a message the timeline names.
+  function showMessage(uuid) {
+    var message = uuid && document.querySelector('.msg-user[data-uuid="' + uuid + '"]');
+    if (!message) return;
+    message.scrollIntoView({ block: "center", behavior: "smooth" });
+    message.classList.add("flash");
+    setTimeout(function () { message.classList.remove("flash"); }, 1600);
+  }
+  function rewindTo(point, mode) {
+    var restore = point.restore || [];
+    var words = "Rewind to before “" + (point.text.length > 90 ? point.text.slice(0, 90) + "…" : point.text) + "”?";
+    if (mode !== "code") words += " This message and everything after it leave the conversation; the message comes back in the box, to change and send again.";
+    if (mode !== "conversation") {
+      words += restore.length ? " The code goes back: " + changeWords(restore) + "." : " The code Claude edited is as it was then already.";
+      words += " Restored files go back whole, losing later changes by anyone; what shell commands changed stays.";
+    }
+    ask(words).then(function (answer) {
+      if (answer === null) return;
+      toast("Rewinding…", true);
+      api("POST", "chat/rewind", { workspace: chat.space, uuid: point.uuid, mode: mode }).then(function (result) {
+        rewind.open = "";
+        var input = $("chat-input");
+        if (result.text && !input.value.trim()) {
+          input.value = result.text;
+          input.dispatchEvent(new Event("input"));
+          input.focus();
+        }
+        toast(mode === "code" ? "The code is back to before that message." : "Rewound. The message is in the box, to change and send again.");
+        chat.offset = 0;
+        chat.session = "";
+        chat.turns = "";
+        pollChat();
+        loadPoints();
+      }).catch(function (error) {
+        toast(error.message);
+        loadPoints();
+      });
+    });
+  }
   function pollChat() {
     clearTimeout(chat.timer);
     var visible = !$("tab-terminal").hidden && chat.view === "chat" && !document.hidden && !chat.composing;
@@ -1507,7 +1620,7 @@
     var log = $("chat-log");
     var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
     var asked = chat.space;
-    api("GET", "chat?workspace=" + encodeURIComponent(chat.space) + "&offset=" + chat.offset + "&session=" + encodeURIComponent(chat.session)).then(function (view) {
+    api("GET", "chat?workspace=" + encodeURIComponent(chat.space) + "&offset=" + chat.offset + "&session=" + encodeURIComponent(chat.session) + "&turns=" + encodeURIComponent(chat.turns || "")).then(function (view) {
       if (asked !== chat.space) return;
       if (view.reset) {
         clearChat();
@@ -1516,9 +1629,14 @@
       }
       chat.session = view.session || "";
       chat.offset = view.offset || 0;
+      chat.turns = view.turns || "";
       (view.entries || []).forEach(chatEntry);
       if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No Claude Code session in this workspace yet. Start one from a task, or in the terminal." }));
       chatState(view);
+      // The timeline again when its messages, or what Claude is doing, change.
+      var agent = view.agent || {};
+      var seen = [agent.running, agent.agent, agent.status, view.turns, view.session].join("/");
+      if (view.reset || seen !== rewind.seen) { rewind.seen = seen; loadPoints(); }
       if (atBottom) log.scrollTop = log.scrollHeight;
     }).catch(function (error) {
       $("chat-status").textContent = error.message;

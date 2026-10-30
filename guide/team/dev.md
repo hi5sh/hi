@@ -249,7 +249,17 @@ Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
   your own words, and hi presses the keys for you. It works for Codex's
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
-  shows its last session, with **Resume this session**. The workspaces
+  shows its last session, with **Resume this session**. On a wide
+  screen, **Rewind** beside a Claude Code conversation is its messages
+  as a timeline, newest last: each with when, and what the code did
+  after it (green when it changed: `sand.ts +20`). A message opens to go
+  back to before it, as Claude Code's `/rewind` does: **Code and chat**,
+  **Chat only**, or **Code only**. hi presses `/rewind`'s keys in the
+  terminal for you, checking at each step that Claude Code shows what
+  the chat does, and backs out if not; the message comes back in the
+  chat's box, to change and send again. Restored files go back whole,
+  and what shell commands changed stays, as with `/rewind`. Codex keeps
+  no checkpoints of the code, so it has no timeline. The workspaces
   listed are pieces of work: a task's, or one with an agent at work
   (herdr's home and the project's own clone stay in the terminal). With
   none, or with **+ New**, the chat has **Start something new**: say

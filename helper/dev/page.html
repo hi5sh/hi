@@ -94,7 +94,13 @@
           </div>
         </form>
       </div>
-      <div id="chat-log" class="chat-log"><div id="chat-entries" class="chat-entries"></div><div id="chat-sites" class="chat-ask" hidden></div><div id="chat-ask" class="chat-ask" hidden></div></div>
+      <div class="chat-main">
+        <div id="chat-log" class="chat-log"><div id="chat-entries" class="chat-entries"></div><div id="chat-sites" class="chat-ask" hidden></div><div id="chat-ask" class="chat-ask" hidden></div></div>
+        <aside id="chat-rewind" class="rewind" aria-label="Rewind" hidden>
+          <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>
+          <ol id="rewind-points" class="rewind-points"></ol>
+        </aside>
+      </div>
       <div class="chat-bottom">
         <div id="chat-waiting" class="chat-waiting" hidden>
           <p class="small"><strong>It's asking, in the terminal:</strong></p>

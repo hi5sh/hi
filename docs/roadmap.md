@@ -2713,6 +2713,28 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.45 — Rewind, as a timeline beside the chat
+
+- [x] Beside a Claude Code conversation in the Chat view (on a wide
+  screen), **Rewind** lists its messages as a vertical timeline: each
+  with when, and what the code did after it, counted from Claude Code's
+  checkpoints (`~/.claude/file-history`) as its `/rewind` counts them.
+  A message opens to **Code and chat**, **Chat only**, or **Code only**;
+  the confirmation says what the code goes back by.
+- [x] hi drives `/rewind` in the terminal: Esc Esc opens it (clearing
+  what's typed first), the message is as many up from "(current)", and
+  hi checks the one chosen is the chat's, picks the option by its name,
+  and clears the message Claude Code puts back in its prompt. It goes
+  to the chat's box instead. Anything unexpected, and it backs out with
+  Esc, having changed nothing.
+- [x] The chat shows the conversation's branch: a transcript keeps what
+  a rewind took out, and a message after it follows an earlier one. hi
+  walks the newest record's parents (across compactions), and until the
+  next message, remembers the rewind itself.
+- [x] Codex 0.164 can edit a previous message (a fork of the
+  conversation) but keeps no checkpoints of the code, so the timeline is
+  Claude Code's only.
+
 ### v2.6.44 — Allow a site from Slack, and the agent hears it
 
 - [x] The dev box's ask for a site has **Allow** and **Say no** buttons
