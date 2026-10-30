@@ -2713,6 +2713,15 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.50 — The terminal connects again by itself
+
+- [x] When the dev page's terminal closes (the box restarted, the
+  network dropped), it says why and connects again every second until a
+  try works, then the notice goes. Connect again still tries at once. A
+  locked page, or a Vibe Dev's, doesn't retry. The chat already polls
+  every 1.5 seconds and carries on after a failed poll, so it needed
+  nothing.
+
 ### v2.6.49 — hi agent agy: Antigravity, on a Google AI plan
 
 - [x] `hi agent agy` runs Google's Antigravity CLI in a box, as the

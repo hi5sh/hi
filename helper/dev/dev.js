@@ -156,20 +156,27 @@
     fitView();
   }
 
+  // A terminal that closes connects again every second by itself, until a
+  // try works; Connect again tries at once. A locked page, or a Vibe Dev's,
+  // has no terminal to go back to.
+  var termRetry = 0;
   function connect() {
-    $("term-ended").hidden = true;
+    clearTimeout(termRetry);
+    if (socket && socket.readyState <= 1) return;
     fitTerminal();
     var url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + location.pathname.replace(/[^/]*$/, "") +
       "api/term?cols=" + term.cols + "&rows=" + term.rows;
-    socket = new WebSocket(url);
+    var opened = socket = new WebSocket(url);
     socket.binaryType = "arraybuffer";
-    socket.onopen = function () { term.focus(); fitTerminal(); };
+    socket.onopen = function () { $("term-ended").hidden = true; term.focus(); fitTerminal(); };
     socket.onmessage = function (event) {
       term.write(typeof event.data === "string" ? event.data : new Uint8Array(event.data));
     };
     socket.onclose = function (event) {
-      $("term-why").textContent = event.reason ? "The terminal closed: " + event.reason + "." : "The terminal closed.";
+      if (opened !== socket) return;
+      $("term-why").textContent = (event.reason ? "The terminal closed: " + event.reason + "." : "The terminal closed.") + " Connecting again…";
       $("term-ended").hidden = false;
+      if ($("locked").hidden && !vibe()) termRetry = setTimeout(connect, 1000);
     };
   }
   function sendText(data) { if (data && socket && socket.readyState === 1) socket.send(encoder.encode(data)); }
