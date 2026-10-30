@@ -38,6 +38,33 @@ const (
 // changed (a release, a branch on the preview); tests shorten it.
 var teamMCPPoll = time.Minute
 
+// An app that is starting answers 503. The bridge asks again every
+// teamMCPStartRetry, for up to teamMCPStartWait, before it answers: Hermes
+// waits 60 seconds for a server's first connection, but gives up after
+// three quick errors and tries a parked server only every five minutes,
+// so a team's restart left its lead without the app's tools that long
+// (team cartman, 2026-10-30). Tests shorten both.
+var (
+	teamMCPStartWait  = 45 * time.Second
+	teamMCPStartRetry = 2 * time.Second
+)
+
+// teamMCPAppStarting says an answer is the app's while it starts: the
+// broker passes its 503 on as the error of a tools/list or a call, and in
+// the instructions of an initialize.
+func teamMCPAppStarting(method string, answer *teamMCPMessage, err error) bool {
+	const starting = " answered 503 "
+	switch {
+	case err != nil:
+		return strings.Contains(err.Error(), starting)
+	case answer == nil:
+		return false
+	case answer.Error != nil:
+		return strings.Contains(answer.Error.Message, starting)
+	}
+	return method == "initialize" && bytes.Contains(answer.Result, []byte(starting))
+}
+
 // errTeamNoMCP says the app serves no MCP: no /mcp, or no app running.
 var errTeamNoMCP = errors.New("the app has no MCP server at " + teamMCPPath)
 
@@ -486,6 +513,14 @@ func runTeamMCPBridge(args []string, stdin io.Reader, stdout io.Writer, client *
 		go func() {
 			defer wait.Done()
 			answer, err := post(ctx, message)
+			for start := time.Now(); teamMCPAppStarting(message.Method, answer, err) && time.Since(start) < teamMCPStartWait; {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(teamMCPStartRetry):
+				}
+				answer, err = post(ctx, message)
+			}
 			if err != nil {
 				answer = &teamMCPMessage{JSONRPC: "2.0", ID: message.ID, Error: &teamMCPError{Code: -32603, Message: err.Error()}}
 			}

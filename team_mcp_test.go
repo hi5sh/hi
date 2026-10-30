@@ -25,6 +25,9 @@ type teamMCPTestApp struct {
 	session string
 	calls   []string
 	extra   string // a third tool, once the app has it
+	// starting is how many more requests it answers 503, as an app does
+	// while it starts.
+	starting int
 }
 
 func (a *teamMCPTestApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +39,11 @@ func (a *teamMCPTestApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&message)
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if a.starting > 0 {
+		a.starting--
+		http.Error(w, "The app is starting.", http.StatusServiceUnavailable)
+		return
+	}
 	if message.Method == "initialize" {
 		a.session = fmt.Sprintf("s%d", len(a.calls))
 		w.Header().Set("Mcp-Session-Id", a.session)
@@ -211,6 +219,54 @@ func TestTeamMCPBridge(t *testing.T) {
 	}
 	if text := out.String(); !strings.Contains(text, `"id":1,"result":{`) || strings.Count(text, "\n") < 4 {
 		t.Fatal(text)
+	}
+}
+
+// A lead that connects while the app starts gets its tools once the app
+// is up, rather than an error that makes Hermes park the server; an app
+// that doesn't come up is reported once the wait is over.
+func TestTeamMCPBridgeWaitsForTheApp(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t).teamBroker
+	app := &teamMCPTestApp{starting: 1000}
+	teamMCPTestServe(t, teamSlotPreview, app)
+	broker := httptest.NewServer(b.handler())
+	defer broker.Close()
+	target, _ := url.Parse(broker.URL)
+	client := &http.Client{Transport: teamMCPTestTransport{target}}
+	defer func(wait, retry time.Duration) { teamMCPStartWait, teamMCPStartRetry = wait, retry }(teamMCPStartWait, teamMCPStartRetry)
+	teamMCPStartRetry = 10 * time.Millisecond
+	bridge := func(input string) string {
+		t.Helper()
+		out := &teamMCPTestLines{}
+		if err := runTeamMCPBridge([]string{teamSlotPreview}, strings.NewReader(input), out, client); err != nil {
+			t.Fatal(err)
+		}
+		return out.String()
+	}
+	starting := func(n int) {
+		app.mu.Lock()
+		app.starting = n
+		app.mu.Unlock()
+	}
+	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}` + "\n"
+
+	// An app that doesn't come up is reported once the wait is over.
+	teamMCPStartWait = 50 * time.Millisecond
+	if text := bridge(initialize); !strings.Contains(text, "isn't answering now") || !strings.Contains(text, "503") {
+		t.Fatalf("an app that doesn't start: %s", text)
+	}
+	// One that does is waited for.
+	teamMCPStartWait = time.Second
+	starting(3)
+	if text := bridge(initialize); !strings.Contains(text, `"id":1,"result":{`) || strings.Contains(text, "isn't answering") {
+		t.Fatalf("while the app started: %s", text)
+	}
+	// tools/list too: the broker answers it with the app's 503 as an error.
+	starting(2)
+	list := initialize + `{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n" + `{"jsonrpc":"2.0","id":2,"method":"tools/list"}` + "\n"
+	if text := bridge(list); !strings.Contains(text, `"id":2,"result":{"tools":[`) {
+		t.Fatalf("tools/list: %s", text)
 	}
 }
 

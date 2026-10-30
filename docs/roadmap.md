@@ -2713,6 +2713,16 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.54 — The lead gets the app's tools while the app starts
+
+- [x] On a team's restart, a lead whose app was still starting got the
+  app's 503 for its tools three times in a few seconds; Hermes parked
+  the server and tried again only five minutes later, so the lead was
+  without the app's tools that long (team cartman, 2026-10-30). The
+  bridge now asks again every 2 seconds, for up to 45, while the app
+  answers 503, inside Hermes' 60 seconds for a first connection. An app
+  that doesn't come up is reported as before, after the wait.
+
 ### v2.6.53 — The team's agents ask Antigravity for assets and research
 
 - [x] `hi dev agy "<task>" [--file <path>]...` in the dev box: the
