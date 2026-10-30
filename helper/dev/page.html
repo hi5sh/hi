@@ -185,7 +185,7 @@
       </section>
       <section class="releases-card">
         <h2>Releases</h2>
-        <p class="developers-only muted small">The owners release dev to production, and roll it back. Ship your work into dev; they release it.</p>
+        <p class="developers-only muted small">Ship your work into dev, then release it to production. The owners roll it back.</p>
         <ul id="releases" class="list"></ul>
       </section>
     </div>
@@ -247,15 +247,15 @@
       <div class="system-col">
         <section id="people-box" class="owners-only">
           <h2>People</h2>
-          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Pro Devs</strong> build as owners do, with Chat, terminal, VS Code, and SSH, but don't release or roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
           <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
           <div class="people-wrap">
             <table id="people-table" class="people-table">
               <thead><tr>
                 <th scope="col">Person</th>
                 <th scope="col" title="An admin of the machine changes owners: hi team owners">Owner</th>
-                <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; doesn't release">Pro Dev</th>
-                <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH">Vibe Dev</th>
+                <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; releases">Pro Dev</th>
+                <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH; releases">Vibe Dev</th>
                 <th scope="col" title="Reports bugs as tasks">Contributor</th>
                 <th scope="col" title="Uses the app, asks the lead questions">None</th>
               </tr></thead>

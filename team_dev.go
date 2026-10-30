@@ -1045,7 +1045,7 @@ The people who use you are the team's owners: its developers.
   push; work leaves the box with hi dev (the hi-dev-ship skill).
 - **Dev and production:** hi dev preview puts a branch on the team's
   preview, with production's data; hi dev ship merges it into dev (%[2]s).
-  Only an owner releases dev to production.
+  An owner or a developer releases dev to production, from the dev page.
 - **The team:** hi dev status (what runs where), hi dev task (the team's
   tasks), hi dev say (its Slack channel), hi dev incidents (what failed).
   Their skills say more.

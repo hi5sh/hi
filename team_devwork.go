@@ -376,7 +376,7 @@ const teamDevUsage = `hi dev is how the dev box works with its team. In the box:
                                     with a fresh copy of production's data when it is new work there
   hi dev preview --dev              dev on the preview again, after a branch was tried there
   hi dev ship [<branch>] [-m <title>]  merge the branch into dev, and put dev on the preview;
-                                    production moves only when an owner releases
+                                    production moves only when someone releases it
   hi dev say [--thread <ts>] <text|->  post in the team's Slack channel
   hi dev allow <site> --why <what for> [--wait]
                                     ask the team's owners to let the box reach a site its proxy
@@ -512,7 +512,7 @@ func teamDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 				fmt.Fprintln(stdout, line)
 			}
 		}
-		fmt.Fprintln(stdout, "Production moves when an owner releases dev. In the box, git fetch origin brings dev into the clone.")
+		fmt.Fprintln(stdout, "Production moves when an owner or a developer releases dev. In the box, git fetch origin brings dev into the clone.")
 		fmt.Fprintln(stdout, "Done with this branch? Done ✓ beside its workspace on the dev page (the Code tab) removes its worktree, workspace, and branch, and closes its task.")
 		return nil
 	case "say":

@@ -65,10 +65,11 @@ owner asks it to. It:
 | Who | What they do |
 |---|---|
 | Anyone in the channel | Talk with the lead in the channel or a DM; anyone with the app's link sends feedback from its helper |
-| Owners | All of that, and build in the dev box and use the dev page: Release, Roll back, set dev back to production, the preview's data to production, the helper, incidents, jobs' rules, and settings |
+| Pro Devs and Vibe Devs | All of that, and build in the dev box and Release from the dev page (Vibe Devs through the chat only) |
+| Owners | All of that, and the rest of the dev page: Roll back, set dev back to production, the preview's data to production, the helper, incidents, jobs' rules, and settings |
 | An admin on the machine | Change the owners, and roll back, copy data, turn the helper on or off, and set settings with `hi team`, without anyone's yes |
 
-Each action on the dev page is an owner's click, logged with their name
+Each action on the dev page is a click by an owner or a developer, logged with their name
 ("Anna on the dev page") in the versions and the channel. Nothing in
 Slack moves production: the lead has no command that can.
 

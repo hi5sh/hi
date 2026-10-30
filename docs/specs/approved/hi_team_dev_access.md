@@ -93,8 +93,13 @@ makes someone a developer.
   developer, taking a developer's level down, or taking anyone's level
   away asks first. People who aren't in the channel say so.
 
-- **Owners can't make owners.** Owners release to production, so the
-  machine's admin keeps that one (`hi team owners`, as now).
+- **Owners can't make owners.** Owners roll production back and change
+  its data and settings, so the machine's admin keeps that one
+  (`hi team owners`, as now).
+- **Developers release** (since v2.6.48): Pro Devs and Vibe Devs click
+  Release on the dev page as owners do. Starting production with Stage's
+  data at the first release, rollbacks, and setting dev back to
+  production stay the owners'.
 - **The channel hears it** when an owner changes it on the page: "Anna
   made Bo a developer." `hi team access` on the machine prints it instead.
 - **Getting in** is as for owners: `/hi-<team> dev` DMs a private link,
@@ -225,7 +230,7 @@ asks for.
 - Every dev page route found in hi's source, at every level (owner,
   developer, a contributor's key, no key), against the real mux: 401, 403
   for a developer on an owners' route, and past the gate otherwise.
-- A developer's release, rollback, data copy, setting, key, site, and
+- A developer's release with Stage's data, rollback, data copy, setting, key, site, and
   People change each get 403 from the page, and the broker still refuses
   the box the same.
 - A developer removed: their next request is refused, their terminal

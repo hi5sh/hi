@@ -2713,6 +2713,17 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.48 — Vibe Devs and Pro Devs release
+
+- [x] Release on the dev page is for every builder: owners, Pro Devs,
+  and Vibe Devs. The click is their yes, logged with their name, as an
+  owner's was. Starting production with Stage's data at the first
+  release, rollbacks, and setting dev back to production stay the
+  owners'; the server refuses them for a developer, and the page hides
+  them.
+- [x] The dev box's skills, `hi dev`, the lead, the guide, and the site
+  say who releases now.
+
 ### v2.6.47 — No AutoFill bar over an iPad's keyboard
 
 - [x] Safari on an iPad put its AutoFill bar (passwords, cards,

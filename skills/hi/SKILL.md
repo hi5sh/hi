@@ -420,8 +420,8 @@ it only when the user asks, and say what it changes first.
 Inside a team's dev box, use `hi dev` instead (`hi dev help`), and the
 box's own `hi-dev-*` skills: `hi dev preview`, `hi dev ship`, `hi dev
 task`, and `hi dev allow <site> --why "<what for>"` for a site the proxy
-refuses. Production moves only when an owner clicks Release on the dev
-page; tell the owner that, rather than looking for another way.
+refuses. Production moves only when an owner or a developer clicks Release on
+the dev page; tell them that, rather than looking for another way.
 
 ## Workstation and network
 

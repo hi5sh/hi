@@ -464,7 +464,7 @@
           act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
         } }));
         actions.push(el("button", { class: "primary", text: "Ship to Dev", busy: "ship:" + space.id, title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
-          ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves only when an owner releases." +
+          ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves when someone releases it." +
             (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the release notes:", "the last commit's title").then(function (title) {
             if (title === null) return;
             toast("Shipping " + space.branch + " into dev…", true);
@@ -656,18 +656,18 @@
         // A team that starts from code it already had has no tasks of its
         // own yet, and dev is still its first release.
         if (releasing) {
-          lines.push(el("div", { class: "where-what owners-only" }, [
+          lines.push(el("div", { class: "where-what" }, [
             el("button", { class: "primary small busy", disabled: "", text: "Releasing v" + releasing + "…" }),
             el("span", { class: "muted small", text: "A snapshot of production first, then v" + releasing + " in a new box: a minute or two." }),
           ]));
         } else if (changes.length || !s.production) {
           var release = [el("button", { class: "primary small", text: "Release v" + ((s.production || 0) + 1), title: "Dev goes to production, with a snapshot first. Your click is the yes, logged with your name.", onclick: openRelease })];
           if (changes.length && s.production) {
-            release.push(el("button", { class: "link danger small", text: "Set dev back to production", busy: "dev-reset", onclick: function () {
+            release.push(el("button", { class: "link danger small owners-only", text: "Set dev back to production", busy: "dev-reset", onclick: function () {
               act("Set dev's code back to what production runs? What dev has on top of it stays in its history, and Stage shows production's code.", "dev/reset", {}, "Dev is the same as production now.", "dev-reset");
             } }));
           }
-          lines.push(el("div", { class: "where-what owners-only" }, release));
+          lines.push(el("div", { class: "where-what" }, release));
         }
       } else if (a.address === "preview") {
         var showing = [el("span", { class: "muted", text: "showing " })];
@@ -997,8 +997,8 @@
     var question = "";
     var data = $("people-warn").hidden ? "" : " Stage runs on a copy of production's data, which they can read through Stage.";
     var words = { owner: "an owner", developer: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" };
-    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, VS Code, and SSH, except releases, production's data and settings, keys, sites, addresses, and who is who." + data;
-    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal, VS Code, or SSH; the agents still run commands in the dev box for them." + data;
+    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, VS Code, and SSH, and release, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
+    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal, VS Code, or SSH; the agents still run commands in the dev box for them. They release too." + data;
     else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
     else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal or VS Code closes." : " ends.");
     (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
@@ -1047,7 +1047,8 @@
     $("release-go").disabled = false;
     // The first release may take what Stage gathered along, once.
     $("release-data").checked = false;
-    $("release-data-box").hidden = !!((state.status || {}).production) || !state.preview_data;
+    // Production's data is the owners'.
+    $("release-data-box").hidden = developer() || !!((state.status || {}).production) || !state.preview_data;
     $("release-dialog").showModal();
   }
   $("release-form").addEventListener("submit", function (event) {

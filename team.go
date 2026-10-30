@@ -2082,7 +2082,7 @@ read code, so the code, its tests, and its docs must explain themselves.
   hi can put it on the team's preview.
 - Commit your work on your branch with a message that says what changed and
   why. There is no push: hi dev ship merges the branch into dev, and an
-  owner releases dev to production.
+  owner or a developer releases dev to production.
 - Keep README.md current: what the project does, how to run it, how to
   test it.
 `

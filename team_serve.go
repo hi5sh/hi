@@ -1213,7 +1213,7 @@ they don't run hi on the machine themselves, they ask their IT team.
 | hi team manifest <team> | the Slack app's settings again, when the bot needs a new permission |
 | hi team domain <team> on | the app on an address that stays |
 | hi team owners <team> add <member ID> | a new owner, who builds in the dev box |
-| hi team access <team> <member ID> developer\|contributor | a developer, who builds in the dev box but doesn't release, or a contributor, who reports bugs (an owner can also do it on the dev page's Security tab) |
+| hi team access <team> <member ID> developer\|contributor | a developer, who builds in the dev box and releases, or a contributor, who reports bugs (an owner can also do it on the dev page's Security tab) |
 | hi team rebuild <team> | hi's base image again, with Ubuntu's fixes, when an advisory names one of its packages |
 
 Never ask for a key in the channel, and don't use one that someone posts

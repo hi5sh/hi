@@ -156,9 +156,9 @@ func TestTeamDevPageRoutesByLevel(t *testing.T) {
 			t.Errorf("%s %s for an owner: %d", method, path, code)
 		}
 	}
-	// Releases, data, settings, keys, sites, addresses, and People are
+	// Rollbacks, data, settings, keys, sites, addresses, and People are
 	// the owners'; the rest is a developer's.
-	for _, owners := range []string{"POST api/release", "POST api/rollback", "POST api/dev/reset", "GET api/data", "POST api/data/copy", "POST api/settings", "POST api/site", "POST api/public", "POST api/helper", "POST api/incident", "POST api/rule", "GET api/people", "POST api/people"} {
+	for _, owners := range []string{"POST api/rollback", "POST api/dev/reset", "GET api/data", "POST api/data/copy", "POST api/settings", "POST api/site", "POST api/public", "POST api/helper", "POST api/incident", "POST api/rule", "GET api/people", "POST api/people"} {
 		method, path, _ := strings.Cut(owners, " ")
 		if teamDevDeveloperRoutes[method+" "+teamDevPagePrefix+path] {
 			t.Errorf("%s is a developer's", owners)
@@ -324,12 +324,12 @@ func TestTeamVibeDev(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 		return recorder.Code
 	}
-	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/code/start"}, {"GET", "code/"}, {"POST", "api/sshkey"}, {"POST", "api/release"}} {
+	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/code/start"}, {"GET", "code/"}, {"POST", "api/sshkey"}, {"POST", "api/rollback"}} {
 		if code := call(shell[0], shell[1]); code != http.StatusForbidden {
 			t.Errorf("%v for a Vibe Dev: %d", shell, code)
 		}
 	}
-	for _, chat := range [][2]string{{"GET", "api/state"}, {"GET", "api/chat"}, {"POST", "api/chat/send"}, {"POST", "api/start-new"}, {"GET", "api/tickets"}} {
+	for _, chat := range [][2]string{{"GET", "api/state"}, {"GET", "api/chat"}, {"POST", "api/chat/send"}, {"POST", "api/start-new"}, {"GET", "api/tickets"}, {"POST", "api/release"}} {
 		if code := call(chat[0], chat[1]); code == http.StatusForbidden || code == http.StatusUnauthorized {
 			t.Errorf("%v for a Vibe Dev: %d", chat, code)
 		}
@@ -377,5 +377,41 @@ func TestTeamPeopleNames(t *testing.T) {
 	teamOwnersCommand([]string{"payments"}, strings.NewReader(""), &out)
 	if !strings.Contains(out.String(), "Olga Owner") || !strings.Contains(out.String(), "Mark Dev") {
 		t.Fatal(out.String())
+	}
+}
+
+// Pro Devs and Vibe Devs release dev, logged with their name; production's
+// data and going back stay the owners'.
+func TestTeamDevPageDeveloperReleases(t *testing.T) {
+	b := teamTestDevPageWithDeveloper(t)
+	handler := b.devPageHandler()
+	call := func(path string, body any) (int, string) {
+		return teamTestDevPageCall(t, handler, teamTestDeveloperKey, "POST", path, body)
+	}
+	os.WriteFile(b.repo+"/Makefile", []byte("run:\n\t./serve\n"), 0o644)
+	teamGit(b.repo, "add", "-A")
+	teamGit(b.repo, "commit", "-q", "-m", "make run")
+	teamTestMerge(t, b, "Suppliers")
+	if code, body := call("api/release", map[string]any{"notes": "Suppliers", "preview_data": true}); code != http.StatusForbidden || !strings.Contains(body, "owners") {
+		t.Fatal("a developer started production with Stage's data:", code, body)
+	}
+	if code, body := call("api/release", map[string]string{"notes": "Suppliers"}); code != 200 {
+		t.Fatal(code, body)
+	}
+	// A Vibe Dev, the same.
+	config, _ := loadTeam("payments")
+	config.Developers, config.VibeDevelopers = nil, []string{"U07DEV001"}
+	saveTeam(config)
+	teamTestMerge(t, b, "Search")
+	if code, body := call("api/release", map[string]string{"notes": "Search"}); code != 200 {
+		t.Fatal(code, body)
+	}
+	if code, _ := call("api/rollback", map[string]int{"version": 1}); code != http.StatusForbidden {
+		t.Fatal("a developer rolled back")
+	}
+	versions, _ := loadTeamVersions("payments")
+	last := versions.History[len(versions.History)-1]
+	if versions.Production != 2 || last.Approval == nil || last.Approval.Name != "Dev on the dev page" {
+		t.Fatalf("%+v", versions)
 	}
 }

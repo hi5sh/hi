@@ -11,8 +11,8 @@ hi dev status
 
 It prints:
 
-- **Production:** its version and address. Owners release dev to
-  production; the box can't.
+- **Production:** its version and address. Owners and developers release dev
+  to production from the dev page; the box can't.
 - **Dev:** production's version plus the changes since, each with who or
   what built it.
 - **Preview:** what is on it (dev, or a branch of the box) and its address.

@@ -235,9 +235,9 @@ func teamAccessCommand(args []string, stdout io.Writer) error {
 
 // teamDeveloperNote is what an owner should know about a new developer.
 func teamDeveloperNote(config teamConfig, level string) string {
-	note := "A Pro Dev works in the dev box like an owner, except releases, rollbacks, production's data and settings, keys, and who is who.\n"
+	note := "A Pro Dev works in the dev box and releases like an owner, except rollbacks, production's data and settings, keys, and who is who.\n"
 	if level == teamLevelVibe {
-		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, but has no terminal, VS Code, or SSH. The agents still run commands in the dev box for them.\n"
+		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, and releases, but has no terminal, VS Code, or SSH. The agents still run commands in the dev box for them.\n"
 	}
 	if config.PreviewData != teamPreviewEmpty {
 		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi team data " + config.Name + " preview empty starts the preview empty instead.\n"

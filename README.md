@@ -322,9 +322,11 @@ people in one Slack channel, on a machine of yours:
   with each agent, VS Code, and the system's state. `hi dev preview` and
   `hi dev ship` put work on the preview and into dev.
 - **Pro Devs and Vibe Devs**, whom the owners pick on the dev page, build
-  there too (Vibe Devs through the chat only); production stays the owners'.
-- **Production** moves only when an owner clicks Release on the dev page,
-  with a snapshot first; each release can be rolled back.
+  there too (Vibe Devs through the chat only), and release; rollbacks and
+  production's data and settings stay the owners'.
+- **Production** moves only when an owner, a Pro Dev, or a Vibe Dev clicks
+  Release on the dev page, with a snapshot first; an owner can roll each
+  release back.
 - **Templates** set how every project starts: hi's blank app, or your
   developers' own from a private repository through `hi server templates`,
   with your stack, toolchain, `make check`, and agent rules.

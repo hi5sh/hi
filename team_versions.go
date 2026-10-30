@@ -16,7 +16,7 @@ import (
 // Dev and production. Everything the lead merges goes to dev, the team's
 // branch (main): the people try it in previews, and what doesn't work out
 // can be thrown away. Production is a branch of its own that moves only
-// when an owner says yes: a release puts dev's latest commit there as the
+// when an owner or a developer says yes: a release puts dev's latest commit there as the
 // next version (v1, v2, ...), tagged release-<n>, and releasing an earlier
 // version puts production back on it. Every move of production, and every
 // time dev is set back to it, is posted in the channel itself, not in a
@@ -280,7 +280,8 @@ type teamReleaseResult struct {
 }
 
 // release moves production: to dev's latest commit as the next version, or
-// to an earlier release. An owner's yes is required either way.
+// to an earlier release. A yes is required either way: an owner's or a
+// developer's for a release, an owner's for a rollback.
 func (b *teamBroker) release(request teamReleaseRequest) (teamReleaseResult, error) {
 	defer teamMarkBusy(b.team, teamBusyReleasing)()
 	result, announcement, err := b.moveProduction(request)
@@ -390,7 +391,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	if request.host != "" {
 		approval = teamApproval{Name: request.host}
 	} else {
-		return teamReleaseResult{}, errors.New("production moves on an owner's click on the dev page; on the machine, hi team rollback puts it back on an earlier release")
+		return teamReleaseResult{}, errors.New("production moves on a click on the dev page; on the machine, hi team rollback puts it back on an earlier release")
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()

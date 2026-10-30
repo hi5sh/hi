@@ -1,6 +1,6 @@
 ---
 title: Dev and production
-description: "A hi team's project has two versions: dev, where the owners ship work from the dev box and people try it on the preview, and production, which moves only on an owner's click on the dev page, as numbered releases that can be undone."
+description: "A hi team's project has two versions: dev, where the owners ship work from the dev box and people try it on the preview, and production, which moves only on a click on the dev page by an owner, a Pro Dev, or a Vibe Dev, as numbered releases an owner can undo."
 ---
 
 The project has two versions:
@@ -9,8 +9,8 @@ The project has two versions:
   [dev box](/guide/team/dev/). The preview shows it, on a fork of
   production's data, for the people to try.
 - **Production** is the version people rely on, on a `production` branch
-  of its own, with a link of its own. It changes only when an owner
-  releases it from the dev page. Each release gets the next number: v1,
+  of its own, with a link of its own. It changes only when an owner, a
+  Pro Dev, or a Vibe Dev releases it from the dev page. Each release gets the next number: v1,
   v2, and so on, tagged `release-1`, `release-2`.
 
 ## Release
@@ -24,9 +24,12 @@ brings in its thread:
 
 > **orbit** New PROD version (v16) :rocket: -> App: link - Docs: link
 
-The click is the owner's yes, logged as "Anna on the dev page" in the
-versions and the announcement. Work shipped into dev doesn't reach the
-channel; the owner's agent says what it wants to with `hi dev say`.
+Owners, Pro Devs, and Vibe Devs release. The click is their yes, logged
+as "Anna on the dev page" in the versions and the announcement. Work
+shipped into dev doesn't reach the channel; their agent says what it wants
+to with `hi dev say`. At the first release, only an owner can start
+production with a copy of Stage's data; a developer's first release
+starts it empty. Going back is the owners'.
 
 ## Going back
 

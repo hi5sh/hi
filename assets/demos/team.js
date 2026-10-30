@@ -36,7 +36,7 @@ window.HI5_STORY = {
         { cmd: "hi dev ship -m \"Late steps in red\"", at: 300 },
         { out: "12-late-steps is in dev as t-7: Late steps in red.", at: 1400 },
         { out: "Dev is on the preview: https://onboarding-preview.apps.example.com", at: 1700 },
-        { out: "Production moves when an owner releases dev. In the box, git fetch origin brings dev into the clone.", at: 2000 },
+        { out: "Production moves when an owner or a developer releases dev. In the box, git fetch origin brings dev into the clone.", at: 2000 },
         { cmd: "hi dev status", at: 4200 },
         { out: "Production: v2 https://onboarding.apps.example.com", at: 5200 },
         { out: "Dev: v2 + 1 change", at: 5400 },

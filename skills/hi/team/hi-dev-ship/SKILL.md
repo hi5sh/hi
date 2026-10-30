@@ -25,7 +25,8 @@ repository is `origin`, read-only.
 3. **Ship:** `hi dev ship -m "<what it does, in a line the team understands>"`.
    It merges the branch into dev, records it as work, and puts dev on the
    preview. Ship only when the user says so.
-4. **Production** moves only when an owner releases dev. You can't release,
+4. **Production** moves only when an owner or a developer releases dev,
+   on the dev page. You can't release,
    roll back, or restore from here, and shouldn't try another way.
 
 After a ship, `git fetch origin` brings dev into the clone; start the next

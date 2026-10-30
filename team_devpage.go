@@ -5,7 +5,8 @@ package main
 // The middle is herdr in the dev box, in a terminal (xterm.js over a
 // WebSocket to a herdr client the service runs in the box); on the left,
 // the team's tickets and the box's workspaces; on the right, what runs
-// where, the settings, and Release, where an owner's click is the yes.
+// where, the settings, and Release, where an owner's or a developer's
+// click is the yes.
 //
 // Everything is under /__hi/dev/, which the relay routes to a socket of
 // the service's with the person's key from their link, as it does the
@@ -924,7 +925,7 @@ func init() {
 	for _, route := range []string{
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
-		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev",
+		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev", "POST api/release",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
 		"POST api/code/start", "POST api/sshkey",
@@ -1445,8 +1446,9 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		reply(w, http.StatusOK, map[string]string{})
 	})
 	mux.HandleFunc("POST "+teamDevPagePrefix+"api/release", func(w http.ResponseWriter, r *http.Request) {
-		person, ok := builder(w, r)
-		if !ok {
+		person, level, err := b.devPagePerson(r)
+		if err != nil {
+			failure(w, http.StatusUnauthorized, err)
 			return
 		}
 		var request struct {
@@ -1458,7 +1460,12 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		if !decode(w, r, &request) {
 			return
 		}
-		// The owner's click is the yes, logged with their name.
+		// Production's data is the owners': a developer releases the code.
+		if request.PreviewData && level != teamLevelOwner {
+			failure(w, http.StatusForbidden, errors.New("only the team's owners start production with Stage's data; release without it, or ask an owner to release"))
+			return
+		}
+		// The builder's click is the yes, logged with their name.
 		release := teamReleaseRequest{Notes: request.Notes, host: person.Name + " on the dev page"}
 		if request.PreviewData {
 			release.DataFrom = teamSlotPreview
@@ -1658,7 +1665,7 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		case err != nil:
 			return http.StatusUnauthorized, err
 		case level != teamLevelOwner && !teamDevDeveloperRoutes[pattern]:
-			return http.StatusForbidden, errors.New("only the team's owners do that; developers build, and owners release and look after production")
+			return http.StatusForbidden, errors.New("only the team's owners do that; developers build and release, and owners look after production")
 		case level == teamLevelVibe && teamDevShellRoutes[pattern]:
 			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal and VS Code are for Pro Devs and owners")
 		}
