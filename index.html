@@ -6,17 +6,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>hi5 — where humans and AI build together</title>
-<meta name="description" content="hi5 is an open-source ecosystem where people and AI agents build software together: a team in Slack whose owners build its app with coding agents in a dev box, coding agents in safe boxes, remote GPUs, and one command that turns Ubuntu into an AI workstation.">
+<title>hi5 — the app factory for businesses</title>
+<meta name="description" content="hi5 is an open-source app factory for businesses: colleagues turn ideas into internal apps with AI agents, inside your network, on your stack, under the templates and rules your developers set, ready to hand over to IT when a tool becomes critical.">
 <meta name="theme-color" content="#0a0c11">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%239aa0ff'/><stop offset='1' stop-color='%236fd9b8'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='%230a0c11'/><text x='32' y='44' font-family='monospace' font-size='26' font-weight='700' text-anchor='middle' fill='url(%23g)'>hi5</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  /* One long scroll that gets more technical as it goes: the promise, a
-     team's story, hi team, the agents, the infrastructure, the building
-     blocks, and the open-source project. */
+  /* One long scroll that gets more technical as it goes: the app factory,
+     why inside, the lifecycle, templates, the organisation's roles, then
+     the agents, the infrastructure, the building blocks, and the
+     open-source project. */
   :root {
     color-scheme: dark;
     --bg: #0a0c11;
@@ -94,8 +95,112 @@
   .more a { color: var(--accent); text-decoration: none; }
   .more a:hover { text-decoration: underline; }
 
+  /* Steps */
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; counter-reset: step; }
+  .steps li { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 18px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  .steps li::before { content: counter(step); width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font: 700 14px var(--mono); color: var(--accent); background: var(--accent-soft); }
+  .steps h3 { margin: 2px 0 4px; font-size: 18px; }
+  .steps p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+  /* The team */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+  .role { display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  .role .tag { align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-strong); font: 12px var(--mono); color: var(--muted); }
+  .role .tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--tone); }
+  .role h3 { margin: 4px 0 0; font-size: 20px; }
+  .role p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .role.people { border-color: rgba(255,180,107,.35); background: linear-gradient(var(--warm-soft), transparent 70%), var(--bg-card); }
+  .t-warm { --tone: var(--warm); } .t-violet { --tone: var(--violet); } .t-amber { --tone: #f0b45b; } .t-sky { --tone: var(--sky); } .t-dim { --tone: var(--dim); }
+  .promises { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 26px; margin: 30px 0 0; padding: 22px 24px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); list-style: none; }
+  .promises li { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; font-size: 15.5px; color: var(--muted); }
+  .promises li::before { content: "✓"; color: var(--mint); font-weight: 700; }
+  .promises b { color: var(--text); font-weight: 600; }
+
+  /* Capabilities and infrastructure */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
+  .feature { display: flex; flex-direction: column; gap: 10px; padding: 24px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); min-width: 0; }
+  .feature .name { font: 700 15px var(--mono); color: var(--accent); }
+  .feature h3 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+  .feature p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .feature a.go { margin-top: auto; padding-top: 6px; color: var(--accent); text-decoration: none; font-size: 15px; }
+  .feature a.go:hover { text-decoration: underline; }
+  .snip { margin: 4px 0 0; padding: 12px 14px; border-radius: 10px; background: var(--bg-code); border: 1px solid var(--line); font: 13px/1.6 var(--mono); color: var(--muted); overflow-x: auto; white-space: pre; }
+  .snip .c { color: var(--text); } .snip .k { color: var(--accent); } .snip .ok { color: var(--mint); }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 0 0 26px; padding: 18px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); overflow-x: auto; }
+  .node { flex: 1 1 140px; min-width: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--bg-card); }
+  .node b { display: block; font: 600 13px var(--mono); color: var(--accent); }
+  .node span { font-size: 13.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+  .arrow { flex: 0 0 auto; align-self: center; font: 600 18px var(--mono); color: var(--accent); }
+
+  /* Building blocks */
+  .term { border-radius: 14px; background: var(--bg-code); border: 1px solid var(--line-strong); overflow: hidden; }
+  .term-bar { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .dots { display: flex; gap: 7px; margin-right: 8px; } .dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.14); }
+  .term-title { font: 500 13px var(--mono); color: var(--dim); }
+  .term-body { padding: 4px 20px; font: 15px/1.7 var(--mono); }
+  .option { padding: 16px 0; } .option + .option { border-top: 1px solid var(--line); }
+  .option-label { margin: 0 0 8px; display: flex; align-items: center; gap: 10px; font: 600 12.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .pill-tag { font: 500 11px var(--mono); letter-spacing: 0; text-transform: none; color: var(--mint); border: 1px solid rgba(79,209,165,.35); border-radius: 999px; padding: 1px 8px; }
+  .cmdline { display: flex; align-items: center; gap: 12px; }
+  .cmdline code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .cmdline .ps { color: var(--dim); user-select: none; } .cmdline .arg { color: var(--accent); }
+  .copy { flex: none; font: 600 12px var(--mono); color: var(--bg); background: var(--accent); border: 0; border-radius: 7px; padding: 7px 12px; cursor: pointer; }
+  .note { color: var(--dim); margin: 8px 0 0; font-size: 13.5px; } .note code { color: var(--text); }
+  .blocks { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .block h3 { margin: 0 0 6px; font-size: 21px; }
+  .block > p { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; }
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tool { display: block; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-card); text-decoration: none; }
+  .tool:hover { border-color: rgba(124,131,255,.45); }
+  .tool b { display: block; font-size: 15px; } .tool span { font: 12px var(--mono); color: var(--dim); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { padding: 6px 12px; border-radius: 999px; font: 500 13px var(--mono); text-decoration: none; border: 1px solid var(--line-strong); }
+  .chip:hover { border-color: var(--accent); }
+  details.all { margin-top: 28px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  details.all summary { cursor: pointer; padding: 18px 22px; font: 600 15px var(--mono); list-style-position: inside; }
+  details.all .cmd { display: grid; grid-template-columns: minmax(180px, 290px) minmax(0, 1fr); gap: 18px; padding: 14px 22px; border-top: 1px solid var(--line); align-items: baseline; }
+  details.all .cmd code { font: 600 14px var(--mono); } details.all .cmd code span { color: var(--accent); }
+  details.all .cmd p { margin: 0; color: var(--muted); font-size: 15px; }
+  .strix { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: center; margin-top: 28px; padding: 28px; border-radius: 16px; border: 1px solid var(--line-strong); background: radial-gradient(circle at 0% 0%, rgba(124,131,255,.10), transparent 60%), var(--bg-raised); }
+  .strix h3 { margin: 4px 0 6px; font-size: 22px; } .strix p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .strix ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 15px; display: grid; gap: 6px; }
+
+  /* Community */
+  .community { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .community a { display: block; padding: 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); text-decoration: none; }
+  .community a:hover { border-color: rgba(124,131,255,.45); }
+  .community b { display: block; font-size: 17px; margin-bottom: 4px; } .community span { color: var(--muted); font-size: 15px; }
+  .closing { margin-top: 40px; padding: 40px 24px; text-align: center; border-radius: 18px; border: 1px solid var(--line-strong); background: radial-gradient(ellipse 50% 120% at 20% 0%, var(--warm-soft), transparent 70%), radial-gradient(ellipse 50% 120% at 80% 0%, var(--mint-soft), transparent 70%), var(--bg-raised); }
+  .closing h2 { margin-top: 0; }
+  footer { margin-top: 90px; border-top: 1px solid var(--line); padding-block: 28px; color: var(--dim); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+  footer a { color: var(--muted); text-decoration: none; margin-left: 16px; } footer a:first-child { margin-left: 0; }
+  footer a:hover { color: var(--text); }
+
+  /* Elsewhere, and with hi5 */
+  .contrast { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 16px; }
+  .side-card { padding: 24px; border-radius: 14px; border: 1px solid var(--line); background: var(--bg-card); }
+  .side-card h3 { margin: 0 0 14px; font-size: 19px; }
+  .side-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .side-card li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; font-size: 15.5px; color: var(--muted); }
+  .side-card li::before { font-weight: 700; }
+  .side-card.out li::before { content: "✗"; color: #f07178; }
+  .side-card.in { border-color: rgba(79,209,165,.35); background: linear-gradient(var(--mint-soft), transparent 70%), var(--bg-card); }
+  .side-card.in li::before { content: "✓"; color: var(--mint); }
+  .side-card b { color: var(--text); font-weight: 600; }
+  /* The lifecycle: steps, three to a row */
+  .life { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+  .life li:last-child { border-color: rgba(79,209,165,.35); background: linear-gradient(var(--mint-soft), transparent 70%), var(--bg-card); }
+  /* Templates */
+  .rules { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 28px; align-items: start; }
+  .rules ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .rules li b { display: block; font-size: 17px; margin-bottom: 2px; }
+  .rules li span { color: var(--muted); font-size: 15.5px; }
+  .tree { margin: 0; padding: 18px 20px; font: 13.5px/1.75 var(--mono); color: var(--text); white-space: pre; overflow-x: auto; }
+  .tree .d { color: var(--dim); } .tree .k { color: var(--accent); } .tree .m { color: var(--mint); }
+
   @media (max-width: 860px) {
-    .story, .blocks, .strix { grid-template-columns: minmax(0, 1fr); }
+    .blocks, .strix, .rules { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 760px) {
     .menu-toggle { display: flex; }
@@ -113,7 +218,6 @@
   }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
-<link rel="stylesheet" href="assets/story.css">
 <link rel="stylesheet" href="assets/site-menu.css">
 </head>
 <body>
@@ -124,7 +228,8 @@
     <div class="hm-group"><a class="logo" href="#top"><b>hi</b>5.sh</a>{% include site-menu.html %}</div>
     <button class="menu-toggle" type="button" id="menu-toggle" aria-controls="site-menu" aria-expanded="false" aria-label="Open the menu"><span></span><span></span><span></span></button>
     <ul id="site-menu">
-      <li><a href="#team">Teams</a></li>
+      <li><a href="#lifecycle">How it works</a></li>
+      <li><a href="#templates">Templates</a></li>
       <li><a href="#explore">Explore</a></li>
       <li><a href="/guide/">Docs</a></li>
       <li><a href="https://github.com/hi5sh/hi">GitHub</a></li>
@@ -136,64 +241,105 @@
   <div class="wrap hero">
     <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
     <p class="kicker"><span class="h">HI</span> + <span class="a">AI</span> = hi5</p>
-    <h1>Where humans and AI <em>build together.</em></h1>
-    <p class="lede">Great ideas can come from anyone. hi5 brings people and AI agents together to turn them into working software, on machines you run yourself. Open source.</p>
+    <h1>The app factory <em>for your business.</em></h1>
+    <p class="lede">Colleagues turn their ideas into working internal apps with AI agents, inside your company: on your network, on your stack, under the rules your developers set. Ready to hand over the day a tool becomes critical. Open source, on machines you run.</p>
     <div class="ctas">
-      <a class="btn primary" href="#story">Explore hi5 ↓</a>
+      <a class="btn primary" href="#lifecycle">How it works ↓</a>
       <a class="btn ghost" href="https://github.com/hi5sh/hi">View on GitHub ↗</a>
     </div>
     <div class="hero-install cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div>
   </div>
 
-  <section id="story" class="wrap" aria-labelledby="story-h">
-    <div class="eyebrow">From idea to application</div>
-    <h2 id="story-h">From idea to application. Together.</h2>
-    <p class="sub">Someone in HR has an idea. With a hi team, her colleague in IT builds it with coding agents, and everyone keeps improving it.</p>
-    <div class="story">
-      <figure style="margin:0">
-        <div data-story>
-          <div class="thread" data-story-fallback role="img" aria-label="An example Slack thread: an HR employee, the team's AI lead, and the owner who builds it, from the request to a working link.">
-            <div class="thread-bar"><span># hr-onboarding</span><small>Slack · an example</small></div>
-            <div class="msgs">
-              <div class="msg"><span class="av t-warm">EM</span><div class="mbody"><span class="who">Emma <small>HR</small></span><p><b>@onboarding</b> An app to manage onboarding for new hires. Steps get missed when it's all by email.</p></div></div>
-              <div class="msg"><span class="av t-violet">LD</span><div class="mbody"><span class="who">onboarding <small>the team's lead · AI</small></span><p>Here's the task I'd file for Alex:</p><ol><li>Add a new hire with a start date</li><li>Their steps, each with an owner</li><li>Late steps in red</li></ol><p>Shall I file it?</p></div></div>
-              <div class="msg"><span class="av t-warm">EM</span><div class="mbody"><span class="who">Emma</span><p>Yes, file it.</p></div></div>
-              <div class="msg"><span class="av t-sky">AL</span><div class="mbody"><span class="who">Alex <small>IT · owner</small></span><p>The first version is on the preview:</p><span class="link">https://onboarding-preview.apps.example.com</span></div></div>
-            </div>
-          </div>
-        </div>
-        <figcaption class="caption">An example. The steps are what a hi team does today; Emma, Alex, Sarah, and the app are made up. <button class="st-open" type="button" data-story-open>Watch the full story (2:23) ▶</button></figcaption>
-      </figure>
-      <ol class="steps">
-        <li><div><h3>The idea</h3><p>Say what you need in Slack, in your own words. IT sets up a team for you with one command.</p></div></li>
-        <li><div><h3>The conversation</h3><p>The team's lead, an AI, looks at the app and asks what it needs to know, then writes it up as a task when you agree.</p></div></li>
-        <li><div><h3>The build</h3><p>The team's owner starts the task on the dev page and builds it with Claude Code or Codex, in a box of its own, answering the agent's questions with a tap.</p></div></li>
-        <li><div><h3>The result</h3><p>A preview link that opens on your phone. Send feedback from inside the app, and it becomes the next task. It goes live when the owner clicks Release.</p></div></li>
-      </ol>
+  <section id="why" class="wrap" aria-labelledby="why-h">
+    <div class="eyebrow">Why inside</div>
+    <h2 id="why-h">Ideas will get built. The question is where.</h2>
+    <p class="sub">People already build their own tools with AI. On a public vibe-coding platform, that tool lives outside everything IT runs. hi5 gives them the same zero-friction start, inside.</p>
+    <div class="contrast">
+      <div class="side-card out">
+        <h3>On a vibe-coding platform</h3>
+        <ul>
+          <li><span>Company data on <b>someone else's servers</b>.</span></li>
+          <li><span>A sign-in of its own, <b>outside your SSO</b>.</span></li>
+          <li><span>Whatever stack <b>the platform picked</b>.</span></li>
+          <li><span>IT finds out <b>when it breaks</b>.</span></li>
+          <li><span>No clean way to <b>take it over</b>.</span></li>
+        </ul>
+      </div>
+      <div class="side-card in">
+        <h3>In the hi5 app factory</h3>
+        <ul>
+          <li><span>On <b>your machines</b>, at internal addresses by default.</span></li>
+          <li><span>Your <b>organisation's sign-in</b>.</span></li>
+          <li><span><b>Your stack</b>, from your developers' templates.</span></li>
+          <li><span>A Slack channel, tasks, and <b>an owner from day one</b>.</span></li>
+          <li><span>An ordinary git repository, <b>ready for its custodians</b>.</span></li>
+        </ul>
+      </div>
     </div>
-    <dialog class="st-dialog" data-story-dialog aria-labelledby="story-dialog-h">
-      <div class="st-dialog-head"><h2 id="story-dialog-h">From idea to application</h2><button class="st-close" type="button" data-story-close aria-label="Close">✕</button></div>
-      <div data-story-full></div>
-      <p class="st-note">Ten scenes, about 2:23. Emma, Alex, Sarah, and the onboarding app are an example; what the team does is what a hi team does today.</p>
-    </dialog>
+  </section>
+
+  <section id="lifecycle" class="wrap" aria-labelledby="lifecycle-h">
+    <div class="eyebrow">The whole lifecycle</div>
+    <h2 id="lifecycle-h">One path, from idea to mission-critical.</h2>
+    <p class="sub">One hi team carries an app the whole way, so nothing has to be rebuilt when it starts to matter.</p>
+    <ol class="steps life">
+      <li><div><h3>Ask</h3><p>Anyone says what they need in the team's Slack channel. The lead, an AI, asks what it needs to know and files a task when they agree.</p></div></li>
+      <li><div><h3>Start right</h3><p>The project starts from your template: your stack, toolchain, and rules, not whatever an agent guesses. Already have a prototype? <code>hi team adopt</code> brings it in.</p></div></li>
+      <li><div><h3>Build</h3><p>Vibe Devs build by chatting with Claude Code or Codex in the browser; Pro Devs get the terminal, VS Code, and SSH. The agents work in a box with no credentials.</p></div></li>
+      <li><div><h3>Try</h3><p>Each change lands on a preview at an internal address. People try it on their phone and send feedback from inside the app; it becomes the next task.</p></div></li>
+      <li><div><h3>Release and run</h3><p>Production changes only when an owner clicks Release, after a snapshot. Daily snapshots, watches, incidents, and a monthly budget keep it running.</p></div></li>
+      <li><div><h3>Hand over</h3><p>When a tool becomes critical, its custodians take it as it is: an ordinary repository from your template, with its history and tasks. Make IT the owners, or move it into your own pipeline.</p></div></li>
+    </ol>
+  </section>
+
+  <section id="templates" class="wrap" aria-labelledby="templates-h">
+    <div class="eyebrow">Templates</div>
+    <h2 id="templates-h">Your developers set the rules. Everyone builds within them.</h2>
+    <p class="sub">A template is the mould every project is pressed from. Your developers keep them in a private repository, and your hi server hands them to every machine. Prefer MongoDB, or Postgres? That's a line in how projects start.</p>
+    <div class="rules">
+      <ul>
+        <li><b>The stack</b><span>Your database of choice, your frameworks, your UI kit, and the way your apps connect to them.</span></li>
+        <li><b>The toolchain</b><span>Setup commands, CI, and one <code>make check</code> every agent must pass before its work counts.</span></li>
+        <li><b>The rules</b><span>What agents are told in <code>AGENTS.md</code>, and the files and commands they may not touch.</span></li>
+        <li><b>Skills and roles</b><span>Agent skills and team roles that already know your systems.</span></li>
+        <li><b>Kept current</b><span><code>hi init --update</code> brings a project up to the latest template, so apps don't drift apart.</span></li>
+      </ul>
+      <div class="term" role="region" aria-label="An example template">
+        <div class="term-bar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="term-title">your templates repository · an example</span></div>
+<pre class="tree">project_templates/
+└─ <span class="k">acme-app/</span>
+   ├─ layer.json             <span class="d"># extends team-app</span>
+   ├─ AGENTS.md              <span class="d"># the rules agents follow</span>
+   ├─ .claude/settings.json  <span class="d"># what they may not touch</span>
+   ├─ Makefile               <span class="d"># make check: lint, tests</span>
+   ├─ src/db.ts              <span class="d"># MongoDB, your way</span>
+   └─ team/roles/            <span class="d"># roles that know it</span>
+
+<span class="m">$</span> hi server templates add acme \
+    https://git.example.com/platform/templates
+<span class="m">$</span> hi team new expenses  <span class="d"># offers acme-app</span></pre>
+      </div>
+    </div>
+    <div class="more"><a href="/init/">How templates work →</a><a href="/server/">hi server →</a></div>
   </section>
 
   <section id="team" class="wrap" aria-labelledby="team-h">
-    <div class="eyebrow">hi team</div>
-    <h2 id="team-h">Meet your new team.</h2>
-    <p class="sub">A hi team lives in one Slack channel and runs one app for the people in it. The people bring the ideas, the owners build with coding agents, and the lead keeps it all in order.</p>
+    <div class="eyebrow">Fits your organisation</div>
+    <h2 id="team-h">Every role gets what it needs. Nothing more.</h2>
+    <p class="sub">A hi team lives in one Slack channel and runs one app. People bring the ideas, developers build with coding agents, and IT, DevOps, and security keep the controls they already have.</p>
     <div class="roles">
-      <div class="role people"><span class="tag t-warm"><i></i>people</span><h3>You and your colleagues</h3><p>Ask in plain words, try the preview on your phone, and send feedback from inside the app. Nobody needs to read code.</p></div>
-      <div class="role"><span class="tag t-violet"><i></i>Hermes</span><h3>The lead</h3><p>Helps people use the app, shapes what they ask for into tasks, answers how far something is, and watches the app. It never writes code.</p></div>
-      <div class="role"><span class="tag t-sky"><i></i>owners</span><h3>The owners</h3><p>The team's developers. They pick up tasks, build with their agents, and decide what reaches production, from the dev page or a terminal.</p></div>
-      <div class="role"><span class="tag t-amber"><i></i>agents</span><h3>The dev box</h3><p>The owners' agents, in a long-lived box with the project and herdr: a branch and a workspace per task, a chat in the browser, VS Code beside it.</p></div>
-      <div class="role"><span class="tag t-dim"><i></i>git</span><h3>An ordinary repository</h3><p>Tasks in GitHub, GitLab, or hi's own, and the code on GitHub if you like, so every change can be followed.</p></div>
+      <div class="role people"><span class="tag t-warm"><i></i>colleagues</span><h3>The people with the ideas</h3><p>Ask in Slack, use the app, and send feedback from inside it. Contributors file bugs as tasks with their name on them. Nobody needs to read code.</p></div>
+      <div class="role"><span class="tag t-violet"><i></i>Vibe Devs</span><h3>Builders without code</h3><p>Build by chatting with coding agents in the browser, on a task of their own. Production stays with the owners.</p></div>
+      <div class="role"><span class="tag t-sky"><i></i>Pro Devs</span><h3>Web developers</h3><p>The terminal, VS Code, and SSH into the dev box, on the same tasks, branches, and previews as everyone else.</p></div>
+      <div class="role"><span class="tag t-amber"><i></i>owners</span><h3>IT</h3><p>Decide who builds, what reaches production, and which sites the dev box may reach. Release with a click; roll back with one.</p></div>
+      <div class="role"><span class="tag t-dim"><i></i>platform</span><h3>DevOps</h3><p>Define the templates, toolchains, and checks. hi server holds the model keys, the budgets, and the private templates.</p></div>
+      <div class="role"><span class="tag t-dim"><i></i>security</span><h3>SecOps</h3><p>Internal addresses by default and your organisation's sign-in. Agents in rootless boxes without credentials, every request out through a proxy, logged.</p></div>
     </div>
     <ul class="promises">
       <li><span><b>Ideas become tasks</b> only when the person asking agrees.</span></li>
       <li><span><b>Production changes only</b> on an owner's click.</span></li>
       <li><span><b>Snapshots every day</b> and before every release.</span></li>
-      <li><span><b>Runs on your machine</b>, on your own network. Keys never reach the agents.</span></li>
+      <li><span><b>Keys never reach the agents</b>, and the dev box reaches only allowed sites.</span></li>
     </ul>
     <div class="ctas" style="justify-content:flex-start">
       <a class="btn primary" href="/team/">Explore hi team</a>
@@ -204,7 +350,7 @@
   <section id="explore" class="wrap" aria-labelledby="agents-h">
     <div class="eyebrow">Agents</div>
     <h2 id="agents-h">Different agents. Different strengths. One team.</h2>
-    <p class="sub">The same tools a hi team uses, in your terminal. Hand work to Claude Code, Codex, or Hermes, try ideas several ways at once, and keep only what works.</p>
+    <p class="sub">Under the factory, the same tools a hi team uses, in your terminal. Hand work to Claude Code, Codex, or Hermes, try ideas several ways at once, and keep only what works.</p>
     <div class="features">
       <div class="feature">
         <span class="name">hi agent</span><h3>Delegate a task</h3>
@@ -340,7 +486,7 @@ mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
       <a href="/guide/"><b>Guide</b><span>Step by step, with diagrams of how the parts fit.</span></a>
     </div>
     <div class="closing">
-      <h2>Bring an idea. Build it together.</h2>
+      <h2>Bring the ideas inside. Build them together.</h2>
       <div class="ctas">
         <a class="btn primary" href="/guide/install/">Get started</a>
         <a class="btn ghost" href="https://github.com/hi5sh/hi">Contribute on GitHub ↗</a>
@@ -350,7 +496,7 @@ mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
 </main>
 
 <footer><div class="wrap">
-  <span>hi5 · humans and AI building together · Apache-2.0</span>
+  <span>hi5 · the app factory for businesses · Apache-2.0</span>
   <span><a href="https://github.com/hi5sh/hi">Source</a><a href="https://github.com/hi5sh/hi/releases">Releases</a><a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a><a href="/install.sh">install.sh</a><a href="/llms.txt">llms.txt</a></span>
 </div></footer>
 
@@ -379,7 +525,5 @@ mkdir -p notes &amp;&amp; mv -- *.md notes/</div>
     .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
     .catch(() => {});
 </script>
-<script src="assets/story-scenes.js" defer></script>
-<script src="assets/story.js" defer></script>
 </body>
 </html>

@@ -1,12 +1,15 @@
-# The story animation on the homepage
+# The story animation
 
-The "From idea to application" box on hi5.sh plays a story: an HR employee's
-idea becomes an app, with a hi team. It is drawn in HTML and CSS from scene
-definitions, with no video and no library, in three files:
+The feature pages' demos (`docs/feature-pages.md`) play scenes drawn in
+HTML and CSS from scene definitions, with no video and no library. Until
+2026-10-30 the homepage played a story with it too: an HR employee's idea
+becoming an app, with a hi team, in `assets/story-scenes.js`. The homepage
+now explains the app factory without an animation, and that file is gone;
+git has it. The player is three files:
 
 | File | What it is |
 |---|---|
-| `assets/story-scenes.js` | The scenes: dialogue, timing, and what each shows. Edit this to change the story. |
+| `assets/demos/<name>.js` | The scenes: dialogue, timing, and what each shows. Edit this to change a demo. |
 | `assets/story.js` | The player: draws each kind of screen, keeps time, loops, opens the dialog. |
 | `assets/story.css` | How the scenes look, in the page's own colours. |
 
@@ -17,7 +20,7 @@ with play, pause, previous, next, and a dot per scene.
 
 ## Changing the story
 
-A scene in `story-scenes.js` looks like this:
+A scene in a demo looks like this:
 
 ```js
 {

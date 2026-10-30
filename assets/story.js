@@ -1,9 +1,8 @@
-// The story on the homepage: a scene-based animation, drawn in HTML and CSS
-// from the scenes in assets/story-scenes.js. The short loop plays in the
-// box on the page; "Watch the full story" opens every scene in a dialog.
-// Nothing here changes what hi does; the scenes show what a hi team does today.
-// A feature page (_layouts/feature.html) plays its own scenes, from
-// assets/demos/<name>.js, with the same player.
+// A scene-based animation, drawn in HTML and CSS: a feature page's demo
+// (_layouts/feature.html), from the scenes in assets/demos/<name>.js. The
+// short loop plays in the box on the page; a "Watch the full story" button,
+// where a page has one, opens every scene in a dialog. The homepage played a
+// story with it until 2026-10-30.
 (() => {
   "use strict";
   const STORY = window.HI5_STORY;

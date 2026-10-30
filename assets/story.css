@@ -1,4 +1,4 @@
-/* The story animation on the homepage (assets/story.js, assets/story-scenes.js).
+/* The feature pages' demos (assets/story.js, assets/demos/*.js); the homepage's story until 2026-10-30.
    The picture is drawn at 480 by 560 and scaled to its box, so every size in
    the scenes is in those pixels. Colours come from the page's own tokens. */
 .st { display: flex; flex-direction: column; gap: 12px; min-width: 0; --st-hands: url("hi5-banner-1000.jpg"); }
