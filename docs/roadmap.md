@@ -2713,6 +2713,14 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.52 — hi update sees a new release right away
+
+- [x] `hi update` said v2.6.50 was up to date minutes after v2.6.51 was
+  out: GitHub caches its latest-release redirect for each Accept header,
+  and `*/*` was stale while `text/html` wasn't. It asks with three, takes
+  the newest, and when that is no newer than itself, GitHub's API has the
+  last word (one call, only then).
+
 ### v2.6.51 — gemini-api in Antigravity's boxes
 
 - [x] An agy box gets Google's Gemini API CLI (`gemini-api`) when this

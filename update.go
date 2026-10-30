@@ -121,12 +121,27 @@ func update(requested string, check bool, stdout io.Writer) error {
 
 // latestRelease finds the newest release. GitHub redirects
 // /releases/latest to the release's tag page, which is not rate-limited like
-// the API (60 unauthenticated calls an hour per address); the API is the
-// fallback.
+// the API (60 unauthenticated calls an hour per address). The redirect can
+// be stale, so when it says nothing is newer than this hi, the API has the
+// last word; it's also the fallback.
 func latestRelease() (string, error) {
-	if tag, err := latestReleaseFromRedirect(30 * time.Second); err == nil {
+	tag, err := latestReleaseFromRedirect(30 * time.Second)
+	if err == nil && olderRelease(version, tag) {
 		return tag, nil
 	}
+	api, apiErr := latestReleaseFromAPI()
+	switch {
+	case apiErr != nil && err != nil:
+		return "", apiErr
+	case apiErr != nil:
+		return tag, nil
+	case err == nil && olderRelease(api, tag):
+		return tag, nil
+	}
+	return api, nil
+}
+
+func latestReleaseFromAPI() (string, error) {
 	var release struct {
 		TagName string `json:"tag_name"`
 	}
@@ -141,7 +156,29 @@ func latestRelease() (string, error) {
 	return release.TagName, nil
 }
 
+// latestReleaseFromRedirect asks the redirect with several Accept headers,
+// each of which GitHub caches on its own, and takes the newest answer: on
+// 2026-10-30, */* still gave v2.6.50 minutes after text/html gave v2.6.51,
+// and on 2026-10-14 a request without Accept gave v2.6.1 after v2.6.2.
 func latestReleaseFromRedirect(timeout time.Duration) (string, error) {
+	newest, err := "", error(nil)
+	for _, accept := range []string{"*/*", "text/html", "application/json"} {
+		tag, askErr := latestReleaseRedirect(timeout, accept)
+		if askErr != nil {
+			err = askErr
+			continue
+		}
+		if newest == "" || olderRelease(newest, tag) {
+			newest = tag
+		}
+	}
+	if newest == "" {
+		return "", err
+	}
+	return newest, nil
+}
+
+func latestReleaseRedirect(timeout time.Duration, accept string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	url := fmt.Sprintf("%s/%s/releases/latest", updateDownloadBase, updateRepository)
@@ -150,9 +187,7 @@ func latestReleaseFromRedirect(timeout time.Duration) (string, error) {
 		return "", err
 	}
 	request.Header.Set("User-Agent", "hi/"+version)
-	// Without Accept, GitHub answered from a stale cache: v2.6.1 a quarter
-	// of an hour after v2.6.2 was out, while browsers and curl had v2.6.2.
-	request.Header.Set("Accept", "*/*")
+	request.Header.Set("Accept", accept)
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}

@@ -33,9 +33,9 @@ func fakeReleasesWith(t *testing.T, latest string, tamper, redirect bool, apiCal
 			}
 			fmt.Fprintf(w, `{"tag_name": %q}`, latest)
 		case r.URL.Path == "/hi5sh/hi/releases/latest" && redirect:
-			// GitHub answered a request without Accept from a stale cache:
-			// v2.6.1 a quarter of an hour after v2.6.2 was out.
-			if r.Header.Get("Accept") == "" {
+			// GitHub answers some Accept headers from a stale cache: */*
+			// gave v2.6.50 minutes after text/html gave v2.6.51.
+			if accept := r.Header.Get("Accept"); accept == "" || accept == "*/*" {
 				http.Redirect(w, r, "/hi5sh/hi/releases/tag/v0.0.1", http.StatusFound)
 				return
 			}
@@ -231,6 +231,17 @@ func TestUpdateFallsBackToTheAPI(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("API calls = %d, want the fallback to be used once", calls)
+	}
+}
+
+// A redirect that says this hi is the newest is checked with the API.
+func TestUpdateChecksUpToDateWithTheAPI(t *testing.T) {
+	requireLinux(t)
+	calls := 0
+	fakeReleasesWith(t, "v0.9.0", false, true, &calls)
+	installedBinary(t, "v0.9.0")
+	if code, stdout, _ := runUpdateTest("--check"); code != 0 || !strings.Contains(stdout, "v0.9.0 is up to date") || calls != 1 {
+		t.Fatalf("exit code = %d, API calls = %d, stdout = %s", code, calls, stdout)
 	}
 }
 
