@@ -1,4 +1,5 @@
-"""/hi-<team> for a hi team's lead (written by hi on every start of the team).
+"""/hi-<team> for a hi team's lead (written by hi on every start of the team),
+and Allow and Say no on hi's posts that the dev box asks for a site.
 
 /hi-<team> in the team's Slack channel has hi send an owner who typed it their
 private link to the team's dev page (docs/specs/approved/hi_team_dev.md in
@@ -65,6 +66,29 @@ def _run(args, what):
     if out.startswith("hi: "):
         out = out[len("hi: "):]
     return out or "hi couldn't make %s; ask the lead." % what
+
+
+def _site_button(allow):
+    """Allow or Say no on hi's post that the dev box asks for a site, in the
+    ops channel: hi checks the one who clicked (the user Slack gives the
+    click) is an owner, and the button's value carries the ask's key. hi
+    then puts the answer in place of the buttons; anything else, such as
+    someone who isn't an owner, hears why, alone."""
+    async def handle(ack, body, action):
+        await ack()
+        user = ((body or {}).get("user") or {}).get("id") or ""
+        value = (action or {}).get("value") or ""
+        if not user or not value:
+            return
+        args = ["team", "web", "site", value, "allow" if allow else "no", "--user", user]
+        text = await asyncio.get_running_loop().run_in_executor(None, _run, args, "the answer")
+        url = (body or {}).get("response_url")
+        if url and not text.startswith(("Allowed ", "Said no ")):
+            import aiohttp
+            async with aiohttp.ClientSession(trust_env=True) as session:  # the box's proxy
+                await session.post(url, json={"response_type": "ephemeral", "replace_original": False, "text": text},
+                                   timeout=aiohttp.ClientTimeout(total=15))
+    return handle
 
 
 _MAY = {}  # member ID -> (may they, until when)
@@ -165,6 +189,10 @@ def _note_reads(tool_name="", result=None, turn_id="", session_id="", **_):
 def register(ctx):
     for name in COMMANDS:
         ctx.register_command(name, handler=_hi, description=DESCRIPTION)
+    register_action = getattr(ctx, "register_slack_action_handler", None)
+    if register_action:  # a Hermes without it: the dev page's buttons still answer
+        register_action("hi_site_allow", _site_button(True))
+        register_action("hi_site_deny", _site_button(False))
     try:
         ctx.register_hook("transform_tool_result", _note_reads)
     except Exception:  # a Hermes without the hook: the budget still stops the turn

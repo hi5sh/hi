@@ -351,6 +351,7 @@ func (b *teamBroker) devHandler() http.Handler {
 	})
 	mux.HandleFunc("GET /allow", func(w http.ResponseWriter, r *http.Request) {
 		if host := r.URL.Query().Get("host"); host != "" {
+			teamDevSiteWaiting(b.team, host)
 			reply(w, b.devSiteState(host), nil)
 			return
 		}

@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,6 +55,9 @@ type teamDevSiteAsk struct {
 	// in its thread.
 	Channel string `json:"channel,omitempty"`
 	Thread  string `json:"thread,omitempty"`
+	// Key is in the ask's buttons alone, and an answer from the channel
+	// has to bring it: the lead, which hears the click, can't make one up.
+	Key string `json:"key,omitempty"`
 }
 
 // teamDevRefused is a site the box was refused without asking.
@@ -229,13 +233,14 @@ func (b *teamBroker) devSiteAsk(host, why, work string) (teamDevSiteAnswer, erro
 			return teamDevSiteAnswer{Host: host, State: teamDevSiteAsked, Message: "The owners were asked for " + host + " already; they see it on the dev page. hi dev allow " + host + " --wait waits for their answer."}, err
 		}
 	}
-	access.Requests = append(access.Requests, teamDevSiteAsk{Host: host, Why: why, Work: work, At: time.Now().UTC(), State: teamDevSiteAsked})
+	key := rand.Text()
+	access.Requests = append(access.Requests, teamDevSiteAsk{Host: host, Why: why, Work: work, At: time.Now().UTC(), State: teamDevSiteAsked, Key: key})
 	err := saveTeamDevAccess(b.team, access)
 	teamDevAccessMu.Unlock()
 	if err != nil {
 		return teamDevSiteAnswer{}, err
 	}
-	if channel, thread := b.devSiteTell(host, why, work); thread != "" {
+	if channel, thread := b.devSiteTell(host, why, work, key); thread != "" {
 		teamDevAccessMu.Lock()
 		access := loadTeamDevAccess(b.team)
 		for i := range access.Requests {
@@ -252,26 +257,38 @@ func (b *teamBroker) devSiteAsk(host, why, work string) (teamDevSiteAnswer, erro
 
 // devSiteTell posts an ask in the channel, with the dev page's link, and
 // says where.
-func (b *teamBroker) devSiteTell(host, why, work string) (channel, thread string) {
-	text := "The dev box asks to reach *" + host + "*"
-	if work != "" {
-		text += " (for " + work + ")"
-	}
-	text += ": " + why + "."
+func (b *teamBroker) devSiteTell(host, why, work, key string) (channel, thread string) {
+	text := teamDevSiteAskText(host, why, work)
 	if link := teamDevPageAt(b.team, "sites"); link != "" {
-		text += " An owner can allow it on the dev page: " + link
+		text += " An owner allows it here, or on the dev page: " + link
 	} else {
-		text += " An owner can allow it on the dev page."
+		text += " An owner allows it here, or on the dev page."
 	}
-	thread, err := b.devSay(teamDevSayRequest{Text: text, Ops: true})
+	config, err := loadTeam(b.team)
+	if err == nil && b.channel == nil {
+		err = errors.New("hi isn't connected to Slack")
+	}
+	if err == nil {
+		channel = config.opsChannel()
+		thread, err = b.channel.postButtons(channel, text, []teamSlackButton{
+			{Action: "hi_site_allow", Value: host + " " + key, Label: "Allow", Primary: true},
+			{Action: "hi_site_deny", Value: host + " " + key, Label: "Say no"},
+		})
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "hi: telling the channel the dev box asks for %s: %v\n", host, err)
 		return "", ""
 	}
-	if config, err := loadTeam(b.team); err == nil {
-		channel = config.opsChannel()
-	}
 	return channel, thread
+}
+
+// teamDevSiteAskText is how the channel hears an ask for a site.
+func teamDevSiteAskText(host, why, work string) string {
+	text := ":computer: The dev box asks to reach *" + host + "*"
+	if work != "" {
+		text += " (for " + work + ")"
+	}
+	return text + ": " + why + "."
 }
 
 // teamDevPageAt is the dev page's address, without its key, at fragment.
@@ -313,6 +330,7 @@ func (b *teamBroker) devAccessView() teamDevAccessView {
 	for _, ask := range access.Requests {
 		known[ask.Host] = true
 		if ask.State == teamDevSiteAsked {
+			ask.Key = "" // the buttons' alone
 			view.Asks = append(view.Asks, ask)
 		}
 	}
@@ -346,24 +364,113 @@ func (b *teamBroker) devAccessView() teamDevAccessView {
 }
 
 // devSiteDecide is an owner's answer: allow a site (asked for or not), or
-// say no to it.
+// say no to it. The agent that asked hears it, unless its hi dev allow
+// --wait is still waiting, and hears it there.
 func (b *teamBroker) devSiteDecide(person teamPersonKey, host string, allow bool) error {
 	host = teamDevSiteHost(host)
+	work, err := b.devSiteDecideLocked(person, host, allow)
+	if err == nil && work != "" && !teamDevSiteWaited(b.team, host) {
+		if err := b.devSiteTellAgent(work, host, person.Name, allow); err != nil {
+			fmt.Fprintf(os.Stderr, "hi: telling %s's agent about %s: %v\n", work, host, err)
+		}
+	}
+	return err
+}
+
+// webSite is an owner's Allow or Say no on the ask in the channel, which
+// the lead's plugin hears: user is the member ID Slack gave the click.
+func (b *teamBroker) webSite(user, value string, allow bool) (string, error) {
+	if !slackIDPattern.MatchString(user) {
+		return "", fmt.Errorf("%q isn't a Slack member ID", user)
+	}
+	host, key, _ := strings.Cut(value, " ")
+	host = teamDevSiteHost(host)
+	if !slices.ContainsFunc(loadTeamDevAccess(b.team).Requests, func(ask teamDevSiteAsk) bool {
+		return ask.Host == host && ask.State == teamDevSiteAsked && ask.Key != "" && ask.Key == key
+	}) {
+		return "", fmt.Errorf("the ask for %s was answered already, or isn't this one; the dev page's Security says where it stands", host)
+	}
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return "", err
+	}
+	if !containsString(config.Owners, user) {
+		return "", errors.New("only the team's owners allow sites for the dev box; ask one of them")
+	}
+	name := user
+	if b.channel != nil {
+		name = firstNonEmpty(b.channel.userName(user), user)
+	}
+	if err := b.devSiteDecide(teamPersonKey{User: user, Name: name}, host, allow); err != nil {
+		return "", err
+	}
 	if allow {
-		if err := teamDevSiteRefusal(host); err != nil {
+		return "Allowed " + host + " for the dev box.", nil
+	}
+	return "Said no to " + host + ".", nil
+}
+
+// teamDevSiteWaits is when hi dev allow --wait last looked for a site's
+// answer, by team and site.
+var teamDevSiteWaits sync.Map
+
+func teamDevSiteWaiting(team, host string) {
+	teamDevSiteWaits.Store(team+" "+teamDevSiteHost(host), time.Now())
+}
+
+// teamDevSiteWaited says an agent's hi dev allow --wait still waits for
+// the site: it looked a moment ago.
+func teamDevSiteWaited(team, host string) bool {
+	at, ok := teamDevSiteWaits.Load(team + " " + host)
+	return ok && time.Since(at.(time.Time)) < 3*teamDevAllowEvery+time.Second
+}
+
+// devSiteTellAgent tells the agent at work on a branch the owners'
+// answer for a site it asked for, as if typed in its chat, so it needn't
+// be told by hand when it stopped waiting.
+func (b *teamBroker) devSiteTellAgent(work, host, by string, allow bool) error {
+	spaces, err := teamDevSpaces(b.team)
+	if err != nil {
+		return err
+	}
+	for _, space := range spaces {
+		if space.Branch != work {
+			continue
+		}
+		agent, _, err := devChatAgent(b.team, space.ID)
+		if err != nil || !agent.Running {
 			return err
 		}
+		text := fmt.Sprintf("%s allowed %s: the dev box reaches it now, and its subdomains. Carry on with what needed it.", by, host)
+		if !allow {
+			text = fmt.Sprintf("%s said no to %s: do without it, or tell me what you need it for.", by, host)
+		}
+		return teamDevHerdrDo(b.team, "agent", "prompt", agent.Pane, text)
+	}
+	return nil
+}
+
+// devSiteDecideLocked records the answer, and says the branch the ask
+// was for.
+func (b *teamBroker) devSiteDecideLocked(person teamPersonKey, host string, allow bool) (string, error) {
+	if allow {
+		if err := teamDevSiteRefusal(host); err != nil {
+			return "", err
+		}
 	} else if !boxDomainPattern.MatchString(host) {
-		return fmt.Errorf("%q isn't a site's name", host)
+		return "", fmt.Errorf("%q isn't a site's name", host)
 	}
 	teamDevAccessMu.Lock()
 	defer teamDevAccessMu.Unlock()
 	access := loadTeamDevAccess(b.team)
 	now := time.Now().UTC()
-	why, found := "", false
+	why, work, found := "", "", false
 	for i := range access.Requests {
 		if ask := &access.Requests[i]; ask.Host == host {
 			found, why = true, ask.Why
+			if ask.State == teamDevSiteAsked {
+				work = ask.Work
+			}
 			ask.State, ask.By, ask.Decided = teamDevSiteDenied, person.Name, now
 			if allow {
 				ask.State = teamDevSiteAllowed
@@ -378,13 +485,13 @@ func (b *teamBroker) devSiteDecide(person teamPersonKey, host string, allow bool
 		access.Allowed = append(access.Allowed, teamDevSite{Host: host, Why: why, By: person.Name, At: now})
 	}
 	if err := saveTeamDevAccess(b.team, access); err != nil {
-		return err
+		return "", err
 	}
 	b.devSiteAnswered(access, host, person.Name, allow)
 	if !allow {
-		return nil
+		return work, nil
 	}
-	return writeTeamDevAllow(b.team, "")
+	return work, writeTeamDevAllow(b.team, "")
 }
 
 // devSiteAnswered says the owners' answer in the ask's thread.
@@ -399,6 +506,10 @@ func (b *teamBroker) devSiteAnswered(access teamDevAccess, host, by string, allo
 		text := fmt.Sprintf(":white_check_mark: %s allowed *%s*: the dev box reaches it now.", teamSlackEscape(by), host)
 		if !allow {
 			text = fmt.Sprintf(":no_entry: %s said no to *%s*.", teamSlackEscape(by), host)
+		}
+		// The ask's buttons go: what was answered stays, with who.
+		if err := b.channel.settle(ask.Channel, ask.Thread, teamDevSiteAskText(host, ask.Why, ask.Work)+"\n"+text); err != nil {
+			fmt.Fprintf(os.Stderr, "hi: settling the ask for %s: %v\n", host, err)
 		}
 		if _, err := b.channel.postIn(ask.Channel, ask.Thread, text); err != nil {
 			fmt.Fprintf(os.Stderr, "hi: telling the channel about %s: %v\n", host, err)

@@ -63,6 +63,20 @@ func (f *fakeTeamChannel) update(channel, ts, text string) error {
 	return nil
 }
 
+func (f *fakeTeamChannel) postButtons(channel, text string, buttons []teamSlackButton) (string, error) {
+	var labels []string
+	for _, b := range buttons {
+		labels = append(labels, "["+b.Label+" "+b.Action+"="+b.Value+"]")
+	}
+	f.calls = append(f.calls, "postButtons "+channel+" "+text+" "+strings.Join(labels, " "))
+	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+}
+
+func (f *fakeTeamChannel) settle(channel, ts, text string) error {
+	f.calls = append(f.calls, "settle "+channel+" "+ts+" "+text)
+	return nil
+}
+
 func (f *fakeTeamChannel) permalink(channel, ts string) (string, error) {
 	return "https://slack.example.com/archives/" + channel + "/p" + strings.ReplaceAll(ts, ".", ""), nil
 }

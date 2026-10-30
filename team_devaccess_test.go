@@ -205,6 +205,90 @@ func TestTeamDevSiteWait(t *testing.T) {
 	}
 }
 
+// An agent that stopped waiting for a site hears the owners' answer in
+// its workspace; one whose hi dev allow --wait still waits hears it there.
+func TestTeamDevSiteTellsAgent(t *testing.T) {
+	b, ran := teamTestDevPage(t)
+	teamTestLookup(t)
+	teamDevSiteWaits.Clear() // other tests' waits
+	b.channel = &fakeTeamChannel{}
+	os.MkdirAll(filepath.Join(teamDevDir("payments"), "net"), 0o700)
+	previous := teamDevBoxExec
+	teamDevBoxExec = func(team string, command ...string) (string, error) {
+		if strings.Join(command, " ") == "herdr pane list --workspace w2" {
+			return `{"result":{"panes":[{"pane_id":"w2:p1","agent":"claude","agent_status":"working"}]}}`, nil
+		}
+		return previous(team, command...)
+	}
+	prompted := func() string {
+		for _, command := range *ran {
+			if strings.HasPrefix(command, "herdr agent prompt") {
+				return command
+			}
+		}
+		return ""
+	}
+	if _, err := b.devSiteAsk("api.example.com", "the API", "1-chart"); err != nil {
+		t.Fatal(err)
+	}
+	b.devSiteAsk("docs.example.org", "the pictures", "1-chart")
+	teamDevSiteWaiting("payments", "docs.example.org") // its --wait looks
+	if err := b.devSiteDecide(teamPersonKey{Name: "Olga"}, "docs.example.org", true); err != nil || prompted() != "" {
+		t.Fatal("told an agent that waits:", err, prompted())
+	}
+	if err := b.devSiteDecide(teamPersonKey{Name: "Olga"}, "api.example.com", true); err != nil {
+		t.Fatal(err)
+	}
+	if got := prompted(); !strings.Contains(got, "herdr agent prompt w2:p1 Olga allowed api.example.com: the dev box reaches it now") {
+		t.Fatal(got, *ran)
+	}
+}
+
+// An owner answers an ask in the channel with its buttons, which bring the
+// ask's key: someone else's click, or a made-up one, answers nothing.
+func TestTeamDevSiteFromSlack(t *testing.T) {
+	b, _ := teamTestDevPage(t)
+	teamTestLookup(t)
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	os.MkdirAll(filepath.Join(teamDevDir("payments"), "net"), 0o700)
+	b.devSiteAsk("api.example.com", "the API", "")
+	var post string
+	for _, call := range channel.calls {
+		if strings.HasPrefix(call, "postButtons ") {
+			post = call
+		}
+	}
+	key := loadTeamDevAccess("payments").Requests[0].Key
+	if key == "" || !strings.Contains(post, "[Allow hi_site_allow=api.example.com "+key+"]") || !strings.Contains(post, "[Say no hi_site_deny=api.example.com "+key+"]") {
+		t.Fatal(key, post)
+	}
+	if view := b.devAccessView(); len(view.Asks) != 1 || view.Asks[0].Key != "" {
+		t.Fatal("the key shows:", view.Asks)
+	}
+	if _, err := b.webSite("U07ASKER1", "api.example.com "+key, true); err == nil || !strings.Contains(err.Error(), "only the team's owners") {
+		t.Fatal("someone else allowed it:", err)
+	}
+	if _, err := b.webSite("U07OWNER1", "api.example.com made-up", true); err == nil {
+		t.Fatal("a made-up key allowed it")
+	}
+	if _, err := b.webSite("U07OWNER1", "other.example.com "+key, true); err == nil {
+		t.Fatal("the key allowed another site")
+	}
+	if line, err := b.webSite("U07OWNER1", "api.example.com "+key, true); err != nil || line != "Allowed api.example.com for the dev box." {
+		t.Fatal(line, err)
+	}
+	if !boxHostAllowed(teamDevAllowHosts("payments"), "api.example.com") {
+		t.Fatal("not allowed")
+	}
+	if last := channel.calls[len(channel.calls)-2]; !strings.HasPrefix(last, "settle ") || !strings.Contains(last, "allowed *api.example.com*") {
+		t.Fatal(channel.calls)
+	}
+	if _, err := b.webSite("U07OWNER1", "api.example.com "+key, false); err == nil {
+		t.Fatal("answered twice")
+	}
+}
+
 // The dev box's proxy connects only to public addresses, whatever a name
 // says, and tells its agents how to ask for a site.
 func TestBoxPublicDialer(t *testing.T) {

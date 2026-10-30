@@ -2713,6 +2713,18 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.44 — Allow a site from Slack, and the agent hears it
+
+- [x] The dev box's ask for a site has **Allow** and **Say no** buttons
+  in the ops channel; an owner's click answers it as on the dev page.
+  hi's plugin for the lead hears the click and asks hi, which checks the
+  one who clicked is an owner, and that the button brings the ask's key,
+  which only the buttons carry: the lead can't answer one by itself.
+  Then the post says who answered, in place of the buttons.
+- [x] An agent whose `hi dev allow --wait` stopped waiting hears the
+  owners' answer in its session, as if typed in its chat; one that still
+  waits hears it there, and nothing else.
+
 ### v2.6.43 — Pictures as pills in tasks too
 
 - [x] New task and a task's notes take pictures as Start something new

@@ -50,9 +50,10 @@ func TestTeamOpsChannelRouting(t *testing.T) {
 
 	// The box's site ask goes to ops; what an agent says, to main.
 	channel.calls = nil
-	b.devSiteTell("api.example.com", "the quotes", "4-quotes")
+	b.devSiteTell("api.example.com", "the quotes", "4-quotes", "k1")
 	b.devSay(teamDevSayRequest{Text: "shipped 4-quotes"})
-	if len(channel.calls) != 2 || !strings.HasPrefix(channel.calls[0], "post C07PAYOPS :computer: The dev box asks to reach *api.example.com*") ||
+	if len(channel.calls) != 2 || !strings.HasPrefix(channel.calls[0], "postButtons C07PAYOPS :computer: The dev box asks to reach *api.example.com*") ||
+		!strings.HasSuffix(channel.calls[0], "[Allow hi_site_allow=api.example.com k1] [Say no hi_site_deny=api.example.com k1]") ||
 		!strings.HasPrefix(channel.calls[1], "post C07PAYMENTS :computer: shipped") {
 		t.Fatal(channel.calls)
 	}
@@ -62,9 +63,9 @@ func TestTeamOpsChannelRouting(t *testing.T) {
 	saveTeam(config)
 	channel.calls = nil
 	b.openIncident(teamIncident{Kind: "job", Slot: teamSlotProduction, Job: "import", Title: "import stopped"}, "import stopped.", "", nil)
-	b.devSiteTell("api.example.com", "the quotes", "")
+	b.devSiteTell("api.example.com", "the quotes", "", "k1")
 	for _, call := range channel.calls {
-		if !strings.HasPrefix(call, "post C07PAYMENTS ") {
+		if !strings.HasPrefix(call, "post C07PAYMENTS ") && !strings.HasPrefix(call, "postButtons C07PAYMENTS ") {
 			t.Fatal(channel.calls)
 		}
 	}

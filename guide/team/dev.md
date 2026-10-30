@@ -156,9 +156,13 @@ hi dev allow query1.finance.yahoo.com --why "daily price history for the game" -
 
 The ask shows as a card in the chat of the work that asked (in every
 chat, for work without a workspace), with a count on **Security**, and in
-the team's channel with a link: **Allow** lets the box reach the site and
-its subdomains at once, and on its next start; **Say no** tells the
-agent, which carries on without it. **Security** lists the sites the owners
+the ops channel (the team's channel, without one) with **Allow** and
+**Say no** buttons that answer for an owner who clicks them, and a link.
+**Allow** lets the box reach the site and its subdomains at once, and on
+its next start; **Say no** tells the agent, which carries on without it.
+Whichever answers, the channel's post then says who did, and an agent
+that stopped waiting hears the answer in its session, so nobody has to
+tell it. **Security** lists the sites the owners
 allowed (**Remove** takes one off) and the ones the box was refused in
 the last week that nobody asked for, to allow or dismiss. Each site added
 is also an incident in the ops channel, from the team's

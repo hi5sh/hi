@@ -427,6 +427,20 @@ func (b *teamBroker) handler() http.Handler {
 		line, err := b.webSignin(request.User, request.Provider)
 		reply(w, line, err)
 	})
+	// An owner's Allow or Say no on a site the dev box asked for, in Slack.
+	mux.HandleFunc("POST /web/site", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			User  string `json:"user"`
+			Value string `json:"value"`
+			Allow bool   `json:"allow"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		line, err := b.webSite(request.User, request.Value, request.Allow)
+		reply(w, line, err)
+	})
 	b.incidentRoutes(mux, reply)
 	mux.HandleFunc("GET /upstream", func(w http.ResponseWriter, r *http.Request) {
 		view, err := b.upstream()
@@ -666,6 +680,12 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		case len(args) == 4 && args[0] == "signin" && args[2] == "--user":
 			// For the plugin: /hi-<team> signin chatgpt|claude, owners only.
 			if err := call("POST", "/web/signin", map[string]string{"provider": args[1], "user": args[3]}, &line); err != nil {
+				return err
+			}
+		case len(args) == 5 && args[0] == "site" && (args[2] == "allow" || args[2] == "no") && args[3] == "--user":
+			// For the plugin: an owner's Allow or Say no in the channel,
+			// with the button's value (the site and the ask's key).
+			if err := call("POST", "/web/site", map[string]any{"user": args[4], "value": args[1], "allow": args[2] == "allow"}, &line); err != nil {
 				return err
 			}
 		case len(args) == 2 && args[0] == "show":

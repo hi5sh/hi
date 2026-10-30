@@ -86,6 +86,11 @@ type teamChannelSource interface {
 	// upload shares a file in a thread, titled title.
 	upload(channel, thread, path, title string) error
 	update(channel, ts, text string) error
+	// postButtons posts text with buttons under it, which the team's lead
+	// hears clicked (hi's plugin for it, helper/hermes); settle puts text
+	// in their place.
+	postButtons(channel, text string, buttons []teamSlackButton) (string, error)
+	settle(channel, ts, text string) error
 	permalink(channel, ts string) (string, error)
 	// dm sends a person a direct message from the team's bot; update
 	// changes it later, with the channel it returns.
@@ -180,6 +185,32 @@ func (l *liveTeamChannel) upload(channel, thread, path, title string) error {
 
 func (l *liveTeamChannel) update(channel, ts, text string) error {
 	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false))
+	return err
+}
+
+// teamSlackButton is a button on a message: what the lead's plugin hears
+// (its action ID and value), and what it says.
+type teamSlackButton struct {
+	Action, Value, Label string
+	Primary              bool
+}
+
+func (l *liveTeamChannel) postButtons(channel, text string, buttons []teamSlackButton) (string, error) {
+	var elements []slack.BlockElement
+	for _, b := range buttons {
+		style := slack.Style("")
+		if b.Primary {
+			style = slack.StylePrimary
+		}
+		elements = append(elements, slackButton(b.Action, b.Value, b.Label, style))
+	}
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl(),
+		slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil), slack.NewActionBlock("", elements...)))
+	return ts, err
+}
+
+func (l *liveTeamChannel) settle(channel, ts, text string) error {
+	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false), slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil)))
 	return err
 }
 
