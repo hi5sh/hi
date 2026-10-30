@@ -1229,26 +1229,120 @@
     showChatStart();
     pollChat();
   });
-  function fitAdhocText() {
-    var text = $("adhoc-text");
-    text.style.height = "";
-    if (text.scrollHeight > text.clientHeight) text.style.height = text.scrollHeight + text.offsetHeight - text.clientHeight + "px";
+  // The start card's box: words, and pictures pasted in them, each a pill,
+  // Image #1, that ✕, Backspace, or Delete takes out. It goes as a task's
+  // text, a pill as [image: image-1.png], with the pictures as its files.
+  var adhoc = { pictures: {}, n: 0 };
+  function adhocPills() { return [].slice.call($("adhoc-text").querySelectorAll(".adhoc-pill")); }
+  function adhocValue(node) {
+    var out = "";
+    [].forEach.call(node.childNodes, function (child) {
+      if (child.nodeType === 3) out += child.nodeValue.replace(/ /g, " ");
+      else if (child.nodeName === "BR") out += "\n";
+      else if (child.classList.contains("adhoc-pill")) out += reference(adhoc.pictures[child.dataset.n].file.name);
+      else out += (out && !/\n$/.test(out) ? "\n" : "") + adhocValue(child);
+    });
+    return out;
   }
-  $("adhoc-text").addEventListener("input", fitAdhocText);
+  function adhocChanged() {
+    var edit = $("adhoc-text"), pills = adhocPills();
+    if (!pills.length && !edit.textContent.trim() && edit.childNodes.length) edit.textContent = "";
+    edit.parentNode.classList.toggle("filled", !!edit.childNodes.length);
+    var shown = $("adhoc-pictures");
+    shown.textContent = "";
+    shown.hidden = !pills.length;
+    pills.forEach(function (pill) {
+      var picture = adhoc.pictures[pill.dataset.n];
+      shown.appendChild(el("div", { class: "chip", title: picture.file.name }, [
+        el("img", { src: picture.url, alt: "Image #" + pill.dataset.n }), el("span", { text: "#" + pill.dataset.n }),
+        el("button", { type: "button", class: "link", text: "✕", title: "Leave it out", onclick: function () { pill.remove(); adhocChanged(); } })]));
+    });
+  }
+  // put puts nodes where the cursor is, and the cursor after them.
+  function adhocPut(nodes) {
+    var edit = $("adhoc-text"), selection = window.getSelection();
+    var range = selection.rangeCount && edit.contains(selection.getRangeAt(0).commonAncestorContainer) ? selection.getRangeAt(0) : null;
+    if (!range) { range = document.createRange(); range.selectNodeContents(edit); range.collapse(false); }
+    range.deleteContents();
+    nodes.forEach(function (node) { range.insertNode(node); range.setStartAfter(node); range.collapse(true); });
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function adhocPictures(list) {
+    var pictures = [].slice.call(list || []).filter(function (file) { return /^image\//.test(file.type); });
+    if (!pictures.length) return false;
+    var nodes = [];
+    pictures.forEach(function (file) {
+      var n = ++adhoc.n;
+      var ext = (file.name.match(/\.[a-z0-9]+$/i) || [file.type === "image/jpeg" ? ".jpg" : ".png"])[0].toLowerCase();
+      adhoc.pictures[n] = { file: new File([file], "image-" + n + ext, { type: file.type }), url: URL.createObjectURL(file) };
+      var pill = el("span", { class: "adhoc-pill", contenteditable: "false", "data-n": n }, [document.createTextNode("Image #" + n),
+        el("button", { type: "button", tabindex: "-1", text: "✕", title: "Leave it out" })]);
+      nodes.push(document.createTextNode(" "), pill, document.createTextNode(" "));
+    });
+    adhocPut(nodes);
+    adhocChanged();
+    return true;
+  }
+  $("adhoc-text").addEventListener("input", adhocChanged);
+  // A pill's ✕ (one put back by Undo too), without taking the cursor.
+  $("adhoc-text").addEventListener("mousedown", function (event) {
+    if (event.target.closest(".adhoc-pill button")) event.preventDefault();
+  });
+  $("adhoc-text").addEventListener("click", function (event) {
+    var out = event.target.closest(".adhoc-pill button");
+    if (out) { out.parentNode.remove(); adhocChanged(); }
+  });
+  // Pasted text goes in as text, never as another page's markup.
+  $("adhoc-text").addEventListener("paste", function (event) {
+    var clip = event.clipboardData || {};
+    event.preventDefault();
+    if (adhocPictures(clip.files)) return;
+    document.execCommand("insertText", false, (clip.getData ? clip.getData("text/plain") : "").replace(/\r\n/g, "\n"));
+  });
+  $("adhoc-text").addEventListener("dragover", function (event) {
+    if (event.dataTransfer && [].indexOf.call(event.dataTransfer.types, "Files") >= 0) event.preventDefault();
+  });
+  $("adhoc-text").addEventListener("drop", function (event) {
+    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+    event.preventDefault();
+    adhocPictures(event.dataTransfer.files);
+  });
+  $("adhoc-text").parentNode.addEventListener("click", function (event) {
+    if (event.target === this) $("adhoc-text").focus();
+  });
   $("adhoc-text").addEventListener("keydown", function (event) {
-    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); $("adhoc-form").requestSubmit(); }
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) $("adhoc-form").requestSubmit();
+    else document.execCommand("insertLineBreak");
   });
   $("adhoc-form").addEventListener("submit", function (event) {
     event.preventDefault();
     var agent = (document.querySelector("input[name=adhoc-agent]:checked") || {}).value || "claude";
+    var text = adhocValue($("adhoc-text")).replace(/ +(\[image: [^\]]+\]) +/g, " $1 ").trim();
+    if (!text) { $("adhoc-error").textContent = "Say what to do."; $("adhoc-text").focus(); return; }
     $("adhoc-go").disabled = true;
     $("adhoc-go").textContent = "Creating the worktree…";
     $("adhoc-error").textContent = "";
-    api("POST", "start-adhoc", { text: $("adhoc-text").value, agent: agent }).then(function (answer) {
+    Promise.all(adhocPills().map(function (pill) {
+      var file = adhoc.pictures[pill.dataset.n].file;
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve({ name: file.name, data: String(reader.result).split(",")[1] || "" }); };
+        reader.onerror = function () { reject(new Error("couldn't read " + file.name)); };
+        reader.readAsDataURL(file);
+      });
+    })).then(function (files) {
+      return api("POST", "start-new", { text: text, agent: agent, files: files });
+    }).then(function (answer) {
       chat.composing = false;
-      $("adhoc-text").value = "";
-      fitAdhocText();
-      toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + " with " + agent + ".");
+      $("adhoc-text").textContent = "";
+      Object.keys(adhoc.pictures).forEach(function (n) { URL.revokeObjectURL(adhoc.pictures[n].url); });
+      adhoc = { pictures: {}, n: 0 };
+      adhocChanged();
+      toast((answer.warning ? answer.warning + " " : "") + "Filed task #" + answer.ticket + " and started " + answer.branch + " with " + agent + ".");
+      refreshTickets(true);
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
         // The chat shows Claude Code's sessions; Codex's is in the terminal.

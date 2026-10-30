@@ -77,7 +77,10 @@
       <div id="chat-start" class="chat-start" hidden>
         <form id="adhoc-form" class="start-card">
           <h2>Start something new</h2>
-          <textarea id="adhoc-text" rows="4" placeholder="Make the price chart green when it's up…" required></textarea>
+          <div class="adhoc-box">
+            <div id="adhoc-text" class="adhoc-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste pictures too."></div>
+            <div id="adhoc-pictures" class="adhoc-pictures" hidden></div>
+          </div>
           <p id="adhoc-error" class="error"></p>
           <div class="start-foot">
             <div class="agents-inline" role="radiogroup" aria-label="Agent">

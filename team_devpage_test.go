@@ -771,33 +771,46 @@ func TestTeamDevTaskState(t *testing.T) {
 	}
 }
 
-// Ad hoc work: a branch named after the words, never a task's number, its
-// worktree, and the agent with the words; Open takes herdr's new names.
-func TestTeamDevStartAdhoc(t *testing.T) {
+// Start something new files the words, and their pictures, as a task, and
+// starts it like a task: its branch, worktree, and the agent told to read
+// it; Open takes herdr's new names.
+func TestTeamDevStartNew(t *testing.T) {
 	b, ran := teamTestDevPage(t)
 	handler := b.devPageHandler()
-	previous := teamDevBoxExec
-	teamDevBoxExec = func(team string, command ...string) (string, error) {
-		if strings.Join(command[:min(4, len(command))], " ") == "git -C /box/repo branch" {
-			return "main\nadhoc-20-companies-in-the-card\n", nil
-		}
-		return previous(team, command...)
-	}
-	code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/start-adhoc", map[string]any{"text": "20 companies in the card!", "agent": "claude"})
-	if code != 200 || !strings.Contains(body, `"branch":"adhoc-20-companies-in-the-card-2"`) || !strings.Contains(body, `"workspace":"w3"`) {
+	text := "20 companies in the card! [image: image-1.png]\nAnd sorted by size."
+	code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/start-new", map[string]any{"text": text, "agent": "claude",
+		"files": []map[string]any{{"name": "image-1.png", "data": []byte("png")}}})
+	if code != 200 || !strings.Contains(body, `"branch":"1-20-companies-in-the-card"`) || !strings.Contains(body, `"workspace":"w3"`) || !strings.Contains(body, `"ticket":1`) {
 		t.Fatalf("%d %s", code, body)
 	}
-	if all := strings.Join(*ran, "\n"); !strings.Contains(all, "herdr worktree create --cwd /box/repo --branch adhoc-20-companies-in-the-card-2 --base origin/main --focus") ||
-		!strings.Contains(all, "herdr pane run w3:p1 claude '20 companies in the card!'") {
+	shown, _ := teamTicketDo("payments", teamTicketRequest{Action: "show", Number: 1})
+	if shown.Ticket.Title != "20 companies in the card!" || !strings.Contains(shown.Ticket.Body, "And sorted by size.") || strings.Join(shown.Ticket.Files, ",") != "image-1.png" {
+		t.Fatalf("%+v", shown.Ticket)
+	}
+	if all := strings.Join(*ran, "\n"); !strings.Contains(all, "herdr worktree create --cwd /box/repo --branch 1-20-companies-in-the-card --base origin/main --focus") ||
+		!strings.Contains(all, "herdr pane run w3:p1 claude 'Work on task #1: 20 companies in the card!.") {
 		t.Fatal(all)
 	}
 	for _, bad := range []map[string]any{{"text": " ", "agent": "claude"}, {"text": "x", "agent": "gemini"}} {
-		if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/start-adhoc", bad); code == 200 {
+		if code, _ := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/start-new", bad); code == 200 {
 			t.Fatalf("%v started", bad)
 		}
 	}
 	if code, body := teamTestDevPageCall(t, handler, teamTestOwnerKey, "POST", "api/focus", map[string]any{"workspace": "wC"}); code != 200 {
 		t.Fatalf("Open on herdr's wC: %d %s", code, body)
+	}
+}
+
+func TestTeamDevNewTitle(t *testing.T) {
+	for text, want := range map[string]string{
+		"Fix the chart\nmore":                          "Fix the chart",
+		"[image: a.png]\n\nLook  here [image: b.png] ": "Look here",
+		"[image: a.png]":                               "Pictures from the dev page",
+		"Now that we have the base of the original game in place, let's make the twist that makes it fun": "Now that we have the base of the original game in place, let's make…",
+	} {
+		if got := teamDevNewTitle(text); got != want {
+			t.Errorf("%q: %q, want %q", text, got, want)
+		}
 	}
 }
 

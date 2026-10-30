@@ -702,15 +702,21 @@ func teamDevTicketBranch(ticket teamTicket) string {
 // dev, a worktree and a herdr workspace, and the agent in it when one is
 // named, told to read the ticket. It returns the branch.
 func teamDevStart(config teamConfig, number int, agent string) (string, error) {
+	branch, _, err := teamDevStartIn(config, number, agent)
+	return branch, err
+}
+
+// teamDevStartIn is teamDevStart, and says the herdr workspace too.
+func teamDevStartIn(config teamConfig, number int, agent string) (string, string, error) {
 	if agent != "" && agent != "claude" && agent != "codex" {
-		return "", fmt.Errorf("the agent is claude or codex, not %q", agent)
+		return "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
 	}
 	result, err := teamTicketDo(config.Name, teamTicketRequest{Action: "show", Number: number})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if result.Ticket == nil {
-		return "", fmt.Errorf("there is no task %d", number)
+		return "", "", fmt.Errorf("there is no task %d", number)
 	}
 	branch := teamDevTicketBranch(*result.Ticket)
 	// From dev as it is now: the box's clone fetches from the team's repository.
@@ -721,67 +727,66 @@ func teamDevStart(config teamConfig, number int, agent string) (string, error) {
 		} `json:"root_pane"`
 	}
 	if err := teamDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", branch, "--base", "origin/"+config.Branch, "--focus"); err != nil {
-		return "", err
+		return "", "", err
 	}
+	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
 	if agent != "" && created.Pane.ID != "" {
 		prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)
 		if len(result.Ticket.Files) > 0 {
 			prompt += fmt.Sprintf(" It has files (%s): hi dev task files %d puts them in ~/hi/tasks/%d/.", strings.Join(result.Ticket.Files, ", "), number, number)
 		}
 		if err := teamDevHerdrDo(config.Name, "pane", "run", created.Pane.ID, agent+" "+shellQuote(prompt)); err != nil {
-			return branch, fmt.Errorf("the workspace is there, but %s didn't start: %w", agent, err)
-		}
-	}
-	return branch, nil
-}
-
-// teamDevStartAdhoc starts work without a task: a branch named after what
-// it's for (adhoc-..., never a task's number, so Done closes no task), its
-// worktree and workspace, and the agent with the words as its first
-// message. It says the branch and the workspace.
-func teamDevStartAdhoc(config teamConfig, text, agent string) (string, string, error) {
-	text = strings.TrimSpace(text)
-	switch {
-	case text == "":
-		return "", "", errors.New("say what it's for")
-	case len(text) > teamDevChatTextMax:
-		return "", "", fmt.Errorf("that's longer than %s", formatDataSize(teamDevChatTextMax))
-	case agent != "claude" && agent != "codex":
-		return "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
-	}
-	words := strings.Fields(strings.Trim(teamDevSlugPart.ReplaceAllString(strings.ToLower(text), " "), " "))
-	if len(words) > 6 {
-		words = words[:6]
-	}
-	slug := strings.Join(words, "-")
-	if len(slug) > 40 {
-		slug = strings.TrimRight(slug[:40], "-")
-	}
-	branch := "adhoc-" + firstNonEmpty(slug, "work")
-	existing, _ := teamDevBoxExec(config.Name, "git", "-C", "/box/repo", "branch", "--format=%(refname:short)")
-	taken := map[string]bool{}
-	for _, name := range strings.Fields(existing) {
-		taken[name] = true
-	}
-	for n, base := 2, branch; taken[branch]; n++ {
-		branch = fmt.Sprintf("%s-%d", base, n)
-	}
-	teamDevBoxExec(config.Name, "git", "-C", "/box/repo", "fetch", "-q", "origin")
-	var created struct {
-		Pane struct {
-			ID string `json:"pane_id"`
-		} `json:"root_pane"`
-	}
-	if err := teamDevHerdr(config.Name, &created, "worktree", "create", "--cwd", "/box/repo", "--branch", branch, "--base", "origin/"+config.Branch, "--focus"); err != nil {
-		return "", "", err
-	}
-	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
-	if created.Pane.ID != "" {
-		if err := teamDevHerdrDo(config.Name, "pane", "run", created.Pane.ID, agent+" "+shellQuote(text)); err != nil {
 			return branch, workspace, fmt.Errorf("the workspace is there, but %s didn't start: %w", agent, err)
 		}
 	}
 	return branch, workspace, nil
+}
+
+// teamDevStartNew is Start something new: the words, and the pictures
+// pasted in them, filed as a task, which starts at once, so work from the
+// chat is a task, its branch, and its worktree like any other. It says
+// the task, the branch, and the workspace.
+func teamDevStartNew(config teamConfig, by, text, agent string, files []teamAttachment) (teamTicket, string, string, error) {
+	text = strings.TrimSpace(text)
+	switch {
+	case text == "":
+		return teamTicket{}, "", "", errors.New("say what it's for")
+	case len(text) > teamDevChatTextMax:
+		return teamTicket{}, "", "", fmt.Errorf("that's longer than %s", formatDataSize(teamDevChatTextMax))
+	case agent != "claude" && agent != "codex":
+		return teamTicket{}, "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
+	}
+	ticket, err := teamDevAddTicket(config.Name, by, teamDevNewTitle(text), text, files)
+	if err != nil {
+		return teamTicket{}, "", "", err
+	}
+	branch, workspace, err := teamDevStartIn(config, ticket.Number, agent)
+	if err != nil && branch == "" {
+		err = fmt.Errorf("task #%d is filed, but it didn't start: %w", ticket.Number, err)
+	}
+	return ticket, branch, workspace, err
+}
+
+var teamDevPictureRef = regexp.MustCompile(`\[(?:image|file): [^\]]*\]`)
+
+// teamDevNewTitle is a task's title from what someone wrote: its first
+// line, without the pictures' references, cut at a word near 70.
+func teamDevNewTitle(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.Join(strings.Fields(teamDevPictureRef.ReplaceAllString(line, " ")), " ")
+		if line == "" {
+			continue
+		}
+		if len([]rune(line)) <= 70 {
+			return line
+		}
+		cut := string([]rune(line)[:70])
+		if at := strings.LastIndex(cut, " "); at > 30 {
+			cut = cut[:at]
+		}
+		return strings.TrimRight(cut, " ,.;:-") + "…"
+	}
+	return "Pictures from the dev page"
 }
 
 // teamDevPageSetting is a setting an owner changes on the page: both
@@ -866,7 +871,7 @@ func init() {
 	for _, route := range []string{
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
-		"POST api/start", "POST api/start-adhoc", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev",
+		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
 		"POST api/code/start", "POST api/sshkey",
@@ -1183,15 +1188,18 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		}
 		reply(w, http.StatusOK, answer)
 	})
-	mux.HandleFunc("POST "+teamDevPagePrefix+"api/start-adhoc", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := builder(w, r); !ok {
+	mux.HandleFunc("POST "+teamDevPagePrefix+"api/start-new", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := builder(w, r)
+		if !ok {
 			return
 		}
 		var request struct {
-			Text  string `json:"text"`
-			Agent string `json:"agent"`
+			Text  string           `json:"text"`
+			Agent string           `json:"agent"`
+			Files []teamAttachment `json:"files,omitempty"`
 		}
-		if !decode(w, r, &request) {
+		if err := json.NewDecoder(io.LimitReader(r.Body, teamMaxAttachments/3*4+64<<10)).Decode(&request); err != nil {
+			failure(w, http.StatusBadRequest, err)
 			return
 		}
 		config, err := loadTeam(b.team)
@@ -1199,12 +1207,12 @@ func (b *teamBroker) devPageHandler() http.Handler {
 			failure(w, http.StatusInternalServerError, err)
 			return
 		}
-		branch, workspace, err := teamDevStartAdhoc(config, request.Text, request.Agent)
+		ticket, branch, workspace, err := teamDevStartNew(config, person.Name, request.Text, request.Agent, request.Files)
 		if err != nil && branch == "" {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		answer := map[string]string{"branch": branch, "workspace": workspace}
+		answer := map[string]any{"ticket": ticket.Number, "branch": branch, "workspace": workspace}
 		if err != nil {
 			answer["warning"] = err.Error()
 		}

@@ -2713,6 +2713,17 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.40 — Start something new is a task, with pictures
+
+- [x] Start something new files what you wrote as a task, its first line
+  the title, and starts it like one: the task's branch (`12-…`, no more
+  `adhoc-…`), its worktree, and the agent told to read it. Done ✓ closes
+  it.
+- [x] Pictures paste (or drop) into its box as **Image #1** pills, with
+  previews along the box's bottom; ✕, Backspace, or Delete takes one
+  out. They go with the task as its files, `[image: image-1.png]` in its
+  text where each was.
+
 ### v2.6.39 — Room to write in Start something new
 
 - [x] The dev page's Start something new box starts small, grows tall

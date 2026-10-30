@@ -191,10 +191,20 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .start-card { width: min(640px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
 .start-card h2 { font-size: 17px; text-transform: none; letter-spacing: 0; color: var(--text); margin: 0; }
 .start-card p { margin: 0; }
-/* Small until you write; then tall, and it grows with the words. */
-.start-card textarea { width: 100%; resize: none; padding: 10px 12px; border-radius: 6px; line-height: 1.45; min-height: 96px; max-height: 70vh; transition: min-height .2s ease; }
-.start-card textarea:focus, .start-card textarea:not(:placeholder-shown) { min-height: min(320px, 45vh); }
-@media (prefers-reduced-motion: reduce) { .start-card textarea { transition: none; } }
+/* Small until you write; then tall, and it grows with the words. A
+   pasted picture is a pill in the text, its preview along the bottom. */
+.adhoc-box { display: flex; flex-direction: column; min-height: 96px; border: 1px solid var(--input-line); background: var(--input); border-radius: 6px; transition: min-height .2s ease; cursor: text; }
+.adhoc-box:focus-within { border-color: var(--focus); }
+.adhoc-box:focus-within, .adhoc-box.filled { min-height: min(320px, 45vh); }
+@media (prefers-reduced-motion: reduce) { .adhoc-box { transition: none; } }
+.adhoc-edit { flex: 1; max-height: 60vh; overflow: auto; padding: 10px 12px; line-height: 1.45; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; }
+.adhoc-edit:empty::before { content: attr(data-placeholder); color: var(--dim); pointer-events: none; }
+.adhoc-pill { display: inline-flex; align-items: center; gap: 2px; margin: 0 1px; padding: 0 2px 0 7px; border-radius: 10px; background: var(--active); color: var(--bright); font-size: 12px; line-height: 18px; white-space: nowrap; user-select: all; vertical-align: 1px; }
+.adhoc-pill button { height: auto; padding: 0 4px; border: 0; background: none; color: var(--muted); font-size: 11px; line-height: 18px; cursor: pointer; }
+.adhoc-pill button:hover { color: var(--text); }
+.adhoc-pictures { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; cursor: default; }
+.adhoc-pictures[hidden] { display: none; }
+.adhoc-pictures .chip span { color: var(--muted); }
 .start-card .error:empty { display: none; }
 .start-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
 .start-card .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-left: auto; }

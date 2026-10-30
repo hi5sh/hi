@@ -328,7 +328,7 @@ func TestTeamVibeDev(t *testing.T) {
 			t.Errorf("%v for a Vibe Dev: %d", shell, code)
 		}
 	}
-	for _, chat := range [][2]string{{"GET", "api/state"}, {"GET", "api/chat"}, {"POST", "api/chat/send"}, {"POST", "api/start-adhoc"}, {"GET", "api/tickets"}} {
+	for _, chat := range [][2]string{{"GET", "api/state"}, {"GET", "api/chat"}, {"POST", "api/chat/send"}, {"POST", "api/start-new"}, {"GET", "api/tickets"}} {
 		if code := call(chat[0], chat[1]); code == http.StatusForbidden || code == http.StatusUnauthorized {
 			t.Errorf("%v for a Vibe Dev: %d", chat, code)
 		}

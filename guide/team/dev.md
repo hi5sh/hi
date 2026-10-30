@@ -244,9 +244,10 @@ Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
   listed are pieces of work: a task's, or one with an agent at work
   (herdr's home and the project's own clone stay in the terminal). With
   none, or with **+ New**, the chat has **Start something new**: say
-  what to do, and hi gives it a branch and worktree from dev named after
-  your words (`adhoc-…`, no task) and starts the agent with them. It
-  ships, and is done, like a task's. The chat is the
+  what to do, pasting pictures in as you go (each an **Image #1** pill
+  that ✕, Backspace, or Delete takes out), and hi files it in Tasks,
+  pictures and all, gives it the task's branch and worktree from dev,
+  and starts the agent on it. It ships, and is done, like any task. The chat is the
   default; the page remembers your choice. Codex's sessions
   are in the terminal.
 - **VS Code**, the third view on a wide screen, is VS Code in the
