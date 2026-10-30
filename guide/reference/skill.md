@@ -235,7 +235,7 @@ What agents learn:
 - **Your team's data:** get your team's datasets and models with `hi data`, never
   with a Hugging Face token of their own; check sizes first; use
   `hi data run` for code that reads them, and `--data` on cloud runs.
-- **Other agents:** hand a task to Claude Code, Codex, or Hermes in a box
+- **Other agents:** hand a task to Claude Code, Codex, Hermes, or Antigravity in a box
   with `hi agent` when another agent adds something, such as a second
   opinion, and ask first, since it costs that agent's tokens.
 - **Projects and skills:** show the `hi init` plan with `--dry-run` before

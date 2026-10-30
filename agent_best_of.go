@@ -564,7 +564,7 @@ func parseBestOfAgents(list string) ([]string, []string, error) {
 			continue
 		}
 		if !agentKinds[name] {
-			return nil, nil, fmt.Errorf("--agents takes claude, codex, and hermes, not %q", name)
+			return nil, nil, fmt.Errorf("--agents takes claude, codex, hermes, and agy, not %q", name)
 		}
 		if model != "" && !agentModelName.MatchString(model) {
 			return nil, nil, fmt.Errorf("%q isn't a model name", model)

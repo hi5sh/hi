@@ -58,6 +58,8 @@ var installItems = []installItem{
 		commands: []string{"claude"}, keeps: "Claude Code keeps its settings in ~/.claude."},
 	{id: "codex", title: "Codex CLI", description: "OpenAI's coding agent (codex)",
 		commands: []string{"codex"}, keeps: "Codex keeps its settings and sign-in in ~/.codex."},
+	{id: "agy", title: "Antigravity CLI", description: "Google's coding agent (agy), on a Google AI Pro or Ultra plan",
+		commands: []string{"agy"}, keeps: "Antigravity keeps its settings, sign-in, and conversations in ~/.gemini."},
 	{id: "omp", title: "omp", description: "oh-my-pi, a terminal coding agent",
 		commands: []string{"omp"}, keeps: "omp keeps its settings in ~/.omp."},
 	{id: "hermes", title: "Hermes Agent", description: "Nous Research's agent, with tools, memory, and gateways (hermes)",

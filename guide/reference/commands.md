@@ -16,7 +16,7 @@ description: Every hi command and option in one place.
 | `hi init [<template> <dir>]`     | Start a project from a template; `--update`, `--adopt` |
 | `hi q [<what you want>]`         | Ask for a shell command, or chat; see below            |
 | `hi shell-init bash|zsh`        | Shell integration for `hi q`                           |
-| `hi agent …`                     | Hand a task to Claude Code, Codex, or Hermes in a box; see below |
+| `hi agent …`                     | Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box; see below |
 | `hi team …`                      | A team's app in a Slack channel, built by its owners in a dev box; see below |
 | `hi box …`                       | Run a shell or a command in a rootless box; see below  |
 | `hi bundle …`                    | Bundles of skills for `hi agent --bundle`; see below   |
@@ -210,9 +210,9 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 
 | Command                                  | Does                                                     |
 |------------------------------------------|----------------------------------------------------------|
-| `hi agent [claude|codex|hermes] "<task>"` | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
-| `hi agent [claude|codex|hermes] <brief.md>` | The task is the file's contents; `-` reads it from stdin |
-| `hi agent claude|codex|hermes`          | An interactive session in a box, without permission prompts |
+| `hi agent [claude|codex|hermes|agy] "<task>"` | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
+| `hi agent [claude|codex|hermes|agy] <brief.md>` | The task is the file's contents; `-` reads it from stdin |
+| `hi agent claude|codex|hermes|agy`        | An interactive session in a box, without permission prompts |
 | `hi agent wait <name> [--json]`          | Wait for a run and print its report                      |
 | `hi agent best-of <n> "<task>"`          | The same task in n boxes (2 to 8) at once; hi checks each and ranks them |
 | `hi agent best-of ls [--json]`           | Best-of runs and their state                             |
@@ -234,7 +234,7 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 Options: `--detach` to start and return, `--json` for the report as JSON on
 stdout, `--task-file <path>` for a task file whose name doesn't end in
 `.md`, `--model <model>` for the agent's model (without it, the one in your
-own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
+own Claude Code, Codex, Hermes, or Antigravity settings, else `opus` for Claude Code),
 `--from <commit>` to start the worktree from a commit or branch instead of
 `HEAD`, `--files <folder>` for files the agent may read at `/box/files`,
 `--session <folder>` to keep Claude Code's or Codex's conversation in a

@@ -298,7 +298,7 @@ func parseBrainstormAgents(list string) (names, kinds, models []string, left []s
 			kind, model = "hermes", firstNonEmpty(model, brainstormGeminiModel)
 		}
 		if !agentKinds[kind] {
-			return nil, nil, nil, nil, fmt.Errorf("--agents takes claude, codex, gemini, and hermes, not %q", name)
+			return nil, nil, nil, nil, fmt.Errorf("--agents takes claude, codex, gemini, hermes, and agy, not %q", name)
 		}
 		if model != "" && !agentModelName.MatchString(model) {
 			return nil, nil, nil, nil, fmt.Errorf("%q isn't a model name", model)

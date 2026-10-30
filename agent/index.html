@@ -6,8 +6,8 @@ tool: hi agent
 demo: agent
 guide: /guide/agent/
 headline: Hand off the task. Get one report back.
-lede: "Claude Code, Codex, or Hermes works without permission prompts, in a box, on a branch of its own. Every agent gives you the same report back: what it said, what it changed, and what it cost."
-description: hi agent hands a task to Claude Code, Codex, or Hermes. The agent works without permission prompts in a box, on its own branch, and you get back one report, the same for every agent.
+lede: "Claude Code, Codex, Hermes, or Antigravity works without permission prompts, in a box, on a branch of its own. Every agent gives you the same report back: what it said, what it changed, and what it cost."
+description: hi agent hands a task to Claude Code, Codex, Hermes, or Antigravity. The agent works without permission prompts in a box, on its own branch, and you get back one report, the same for every agent.
 demo_caption: Real hi agent output; only the folder is made up.
 fallback: |
   $ hi agent claude --model sonnet "make make check pass, and commit the fix"
@@ -47,7 +47,7 @@ fallback: |
   <section id="try" class="wrap" aria-labelledby="try-h">
     <div class="eyebrow"><span class="lvl">2</span>Try it</div>
     <h2 id="try-h">Your first task in a few minutes.</h2>
-    <p class="sub">On Ubuntu, with Claude Code, Codex, or Hermes installed and signed in on this machine. The first box builds hi's image, which takes a few minutes once.</p>
+    <p class="sub">On Ubuntu, with Claude Code, Codex, Hermes, or Antigravity installed and signed in on this machine. The first box builds hi's image, which takes a few minutes once.</p>
     <ol class="try">
       <li><div><p><b>Install hi</b> and rootless Podman, if you haven't.</p>
         <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman">copy</button></div></div></li>
@@ -84,6 +84,7 @@ fallback: |
         <div class="snip"><span class="c">$ hi agent claude "&lt;task&gt;"</span>    <span class="d"># Claude Code</span>
 <span class="c">$ hi agent codex "&lt;task&gt;"</span>     <span class="d"># Codex</span>
 <span class="c">$ hi agent hermes "&lt;task&gt;"</span>    <span class="d"># Hermes, on OpenRouter</span>
+<span class="c">$ hi agent agy "&lt;task&gt;"</span>       <span class="d"># Antigravity, on your Google AI plan</span>
 <span class="c">$ hi agent claude</span>             <span class="d"># interactive, in a box</span></div>
         <p><code>--model</code> picks the model, such as <code>--model sonnet</code>. Without it, the box uses the model in your own settings, so it behaves like the agent on this machine; Claude Code gets <code>opus</code> if your settings name none.</p>
       </div>

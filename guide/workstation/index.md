@@ -87,6 +87,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | Podman             | `podman`   | Rootless Podman with `crun`, `uidmap`, and `passt`; a subordinate ID range if the user has none |
 | Claude Code        | `claude`   | `claude`                                                  |
 | Codex CLI          | `codex`    | `codex`                                                   |
+| Antigravity CLI    | `agy`      | `agy`, Google's coding agent (sign in with `agy`)         |
 | omp                | `omp`      | `omp`                                                     |
 | Hermes Agent       | `hermes`   | `hermes`, from Nous Research's installer (setup later with `hermes setup`) |
 | herdr              | `herdr`    | `herdr`                                                   |

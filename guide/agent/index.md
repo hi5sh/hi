@@ -1,6 +1,6 @@
 ---
 title: Hand tasks to agents
-description: Hand a task to Claude Code, Codex, or Hermes with hi agent. The agent works without permission prompts in a box, on its own branch, and you get back one report, the same for every agent.
+description: Hand a task to Claude Code, Codex, Hermes, or Antigravity with hi agent. The agent works without permission prompts in a box, on its own branch, and you get back one report, the same for every agent.
 ---
 
 `hi agent` hands a task to a coding agent and waits for it. The agent works
@@ -37,10 +37,11 @@ hi agent "<task>"              # the first agent installed and signed in
 hi agent claude "<task>"       # Claude Code
 hi agent codex "<task>"        # Codex
 hi agent hermes "<task>"       # Hermes Agent
+hi agent agy "<task>"          # Antigravity CLI
 ```
 
 Without an agent's name, `hi agent` takes Claude Code if it is installed and
-signed in on this machine, then Codex, then Hermes. The agent starts from your
+signed in on this machine, then Codex, then Hermes, then Antigravity. The agent starts from your
 last commit, on a new worktree and the branch `hi-box/<name>`; uncommitted
 changes in the project aren't in it, and hi says so when there are some.
 
@@ -60,6 +61,21 @@ your install, so the box runs the version you have.
   keys.
 - Hermes doesn't know OpenRouter's prices through hi's proxy, so its
   report has no cost.
+
+### Antigravity
+
+[Antigravity CLI](https://antigravity.google) (`agy`, `hi install agy`) is
+Google's coding agent, on your Google AI Pro or Ultra plan: run `agy` once
+and sign in with Google. Its models are Gemini, and Claude through
+Google, as `agy models` lists them; pick one with `--model`, such as
+`--model gemini-4-argon-high`.
+
+- The box gets a copy of your sign-in (see [Sign-ins](#sign-ins)) and
+  reaches only Google's Antigravity hosts on top of the network preset.
+  Its telemetry is refused.
+- The report has the conversation, its tokens, and no cost: the plan pays.
+- A task longer than 100 KB goes to it as a file it reads, since `agy`
+  takes the task on its command line.
 
 ### The model
 
@@ -360,6 +376,11 @@ of the box's network preset. A refresh token works only once, so when
 Codex refreshes its sign-in in the box, hi copies the new one back to
 `~/.codex/auth.json` when the run ends or the box is removed. Otherwise
 Codex on your machine would stop working.
+
+**Antigravity** gets a copy of its Google sign-in
+(`~/.gemini/antigravity-cli/antigravity-oauth-token`) in the box's home
+folder, like Codex. Google's refresh token keeps working after a refresh,
+so nothing needs copying back.
 
 ## Review and clean up
 

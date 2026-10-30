@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -212,6 +213,70 @@ func TestAgentCodex(t *testing.T) {
 	syncCodexAuth(boxMeta{Name: "c1", Agent: "codex"})
 	if host, _ := os.ReadFile(codexAuthPath()); string(host) != refreshed {
 		t.Fatalf("an older sign-in replaced the machine's: %s", host)
+	}
+}
+
+// Antigravity: its Google sign-in is copied into the box, the task goes to
+// it as -p's value, and its JSON result is the report.
+func TestAgentAgy(t *testing.T) {
+	_, calls, exited := agentTestSetup(t)
+	var stdout, stderr bytes.Buffer
+	if status := runAgent([]string{"agy", "--detach", "--name", "g1", "fix", "it"}, strings.NewReader(""), &stdout, &stderr); status == 0 {
+		t.Fatal("ran without Antigravity's sign-in")
+	}
+	home, _ := os.UserHomeDir()
+	os.WriteFile(filepath.Join(home, ".local", "bin", "agy"), []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", filepath.Join(home, ".local", "bin")+":/usr/bin:/bin")
+	token := `{"token":{"access_token":"a","refresh_token":"r"},"auth_method":"consumer"}`
+	os.MkdirAll(filepath.Dir(agyTokenPath()), 0o700)
+	os.WriteFile(agyTokenPath(), []byte(token), 0o600)
+	if plan, metered := agentBilling("agy"); plan != "Google AI subscription (Antigravity)" || metered {
+		t.Fatal(plan, metered)
+	}
+	stderr.Reset()
+	if status := runAgent([]string{"agy", "--detach", "--model", "gemini-4-argon-high", "--name", "g1", "fix", "it"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
+		t.Fatalf("status %d: %s", status, stderr.String())
+	}
+	if boxed, _ := os.ReadFile(boxStateFile("g1", "home", ".gemini", "antigravity-cli", "antigravity-oauth-token")); string(boxed) != token {
+		t.Fatalf("the box's sign-in = %s", boxed)
+	}
+	allow, _ := os.ReadFile(boxStateFile("g1", "allow"))
+	if !strings.Contains(string(allow), "daily-cloudcode-pa.googleapis.com") || !strings.Contains(string(allow), "oauth2.googleapis.com") {
+		t.Fatalf("agy allowlist: %q", allow)
+	}
+	var run string
+	for _, call := range *calls {
+		if call[0] == "run" {
+			run = strings.Join(call, " ")
+		}
+	}
+	if !strings.Contains(run, `agy --output-format json --dangerously-skip-permissions --model gemini-4-argon-high -p="$(cat /box/home/.hi-agent/task.md)" > /box/home/.hi-agent/result.json`) ||
+		!strings.Contains(run, ":/usr/local/bin/agy:ro") {
+		t.Fatalf("agy command: %s", run)
+	}
+
+	result := `{"conversation_id":"c-1","status":"SUCCESS","response":"Fixed it.\n<<<REPORT\n{\"status\": \"complete\", \"summary\": \"Fixed.\", \"tests\": \"pass\", \"follow_ups\": []}\nREPORT>>>\n","usage":{"input_tokens":900,"output_tokens":40,"thinking_tokens":10,"cache_read_tokens":100}}`
+	os.WriteFile(boxStateFile("g1", "home", agentResultDir, "result.json"), []byte(result), 0o600)
+	*exited = "0"
+	stdout.Reset()
+	if status := runAgent([]string{"wait", "g1", "--json"}, strings.NewReader(""), &stdout, &stderr); status != 0 {
+		t.Fatalf("wait: %d %s", status, stderr.String())
+	}
+	var report agentReport
+	json.Unmarshal(stdout.Bytes(), &report)
+	if report.Status != "done" || report.Text != "Fixed it." || report.SessionID != "c-1" || !strings.Contains(string(report.Report), `"complete"`) ||
+		report.Tokens == nil || report.Tokens.Input != 1000 || report.Tokens.Cached != 100 || report.Tokens.Output != 50 {
+		t.Fatalf("report = %+v", report)
+	}
+
+	// A turn that ended in an error is the agent's failure, with why.
+	os.WriteFile(boxStateFile("g1", "home", agentResultDir, "result.json"), []byte(`{"status":"ERROR","response":"","error":"The stream was interrupted."}`), 0o600)
+	stdout.Reset()
+	runAgent([]string{"wait", "g1", "--json"}, strings.NewReader(""), &stdout, &stderr)
+	report = agentReport{}
+	json.Unmarshal(stdout.Bytes(), &report)
+	if report.Status != "failed" || !slices.Contains(report.Warnings, "Antigravity: The stream was interrupted.") {
+		t.Fatalf("report = %+v", report)
 	}
 }
 

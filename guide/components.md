@@ -24,7 +24,7 @@ share what you're running.
 ## Agents
 
 Different agents have different strengths. The same tools a hi team uses
-work in your terminal: hand work to Claude Code, Codex, or Hermes, try ideas
+work in your terminal: hand work to Claude Code, Codex, Hermes, or Antigravity, try ideas
 several ways at once, and keep only what works.
 
 ### Delegate a task
@@ -107,6 +107,7 @@ Every workstation gets the same coding agents and GPU tooling at first login:
 |------|---------|
 | [Claude Code](https://code.claude.com/docs) | `claude` |
 | [Codex CLI](https://developers.openai.com/codex/cli) | `codex` |
+| [Antigravity CLI](https://antigravity.google) | `agy` |
 | [Hermes Agent](https://github.com/NousResearch/hermes-agent) | `hermes` |
 | [omp](https://omp.sh) | `omp` |
 | [herdr](https://herdr.dev) | `herdr` |
@@ -160,7 +161,7 @@ cd pricing-tools && make check
 | `hi net expose <port>` | A local service on a temporary public HTTPS address, password-protected by default. |
 | `hi init <template> <dir>` | Start a project agents work well in; `--update` keeps it current. |
 | `hi q <what you want>` | A shell command from plain words, or a chat. |
-| `hi agent <task>` | A task for Claude Code, Codex, or Hermes, in a box, with one report. |
+| `hi agent <task>` | A task for Claude Code, Codex, Hermes, or Antigravity, in a box, with one report. |
 | `hi agent best-of <n> <task>` | One task in n boxes, checked and ranked; with `--score`, rounds that keep only gains. |
 | `hi agent brainstorm <question>` | Several agents think it through alone; one compiles a proposal. |
 | `hi team new <name>` | A team in one Slack channel that runs an app: a lead for the people, a dev box for its owners. |

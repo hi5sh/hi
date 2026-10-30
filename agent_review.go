@@ -773,7 +773,7 @@ func reviewJudgeText(rv review) string {
 }
 
 func reviewProviders(rv review) string {
-	names := map[string]string{"claude": "Anthropic", "codex": "OpenAI", "hermes": "OpenRouter"}
+	names := map[string]string{"claude": "Anthropic", "codex": "OpenAI", "hermes": "OpenRouter", "agy": "Google"}
 	var providers []string
 	for _, kind := range append(reviewRunAgents(rv), rv.Judges...) {
 		if name := names[kind]; !containsString(providers, name) {

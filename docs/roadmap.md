@@ -2713,6 +2713,23 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.49 — hi agent agy: Antigravity, on a Google AI plan
+
+- [x] `hi agent agy` runs Google's Antigravity CLI in a box, as the
+  fourth agent after Claude Code, Codex, and Hermes, on the Google AI
+  Pro or Ultra plan it's signed in with. `hi install agy` installs it;
+  `agy` once signs in.
+- [x] The box gets a copy of the Google sign-in
+  (`~/.gemini/antigravity-cli/antigravity-oauth-token`), a trusted
+  folder, and the hosts agy needs (`daily-cloudcode-pa.googleapis.com`
+  and the token's refresh). Its telemetry (`play.googleapis.com`) is
+  refused; measured on agy 1.4.11, 2026-10-30.
+- [x] The task goes as `-p`'s value (agy can't read it from stdin), or as
+  a file it reads past 100 KB. The JSON result is the report: the answer,
+  the conversation, tokens, and an ERROR turn as a failure with why.
+- [x] `--model` (such as `gemini-4-argon-high`) and `--effort` pass
+  through; best-of, review, and brainstorm take `agy` in `--agents`.
+
 ### v2.6.48 — Vibe Devs and Pro Devs release
 
 - [x] Release on the dev page is for every builder: owners, Pro Devs,

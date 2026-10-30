@@ -197,6 +197,10 @@ remove_tool() {
       rm -rf "${CODEX_HOME:-$HOME/.codex}/packages/standalone" \
         "${CODEX_HOME:-$HOME/.codex}/packages/app-server-daemon"
       ;;
+    agy)
+      rm -f "$HOME/.local/bin/agy"
+      rm -rf "$HOME/.cache/antigravity"
+      ;;
     omp) rm -f "$HOME/.local/bin/omp" ;;
     herdr) rm -f "$HOME/.local/bin/herdr" ;;
     hermes)
@@ -373,6 +377,11 @@ fi
 if installing codex; then
   log "Installing Codex CLI"
   curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
+fi
+if installing agy; then
+  # Signing in with Google is agy's first run, in a terminal.
+  log "Installing Antigravity CLI"
+  curl -fsSL https://antigravity.google/cli/install.sh | bash
 fi
 if installing herdr; then
   log "Installing herdr"

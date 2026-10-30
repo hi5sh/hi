@@ -58,6 +58,14 @@ func agentBilling(kind string) (plan string, metered bool) {
 		return "ChatGPT plan", false
 	case "hermes":
 		return "OpenRouter, billed per token", true
+	case "agy":
+		var token struct {
+			Method string `json:"auth_method"`
+		}
+		if data, err := os.ReadFile(agyTokenPath()); err == nil && json.Unmarshal(data, &token) == nil && token.Method != "consumer" {
+			return "Google Cloud, through Antigravity", true
+		}
+		return "Google AI subscription (Antigravity)", false
 	}
 	return "", false
 }

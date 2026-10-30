@@ -53,7 +53,7 @@ hi connect <server>         Join your team's hi server, which approves and pays 
 hi disconnect               Leave it; hi compute uses your own keys again
 hi data            Download your team's Hugging Face datasets, models, and buckets through it (hi data help)
 hi server          Run the server that brokers compute and serves templates for your team (hi server help)
-hi agent [task]    Hand a task to Claude Code, Codex, or Hermes in a box and get its report (hi agent help)
+hi agent [task]    Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box and get its report (hi agent help)
 hi agent brainstorm <question>  Several agents give ideas alone; one compiles them into a proposal
 hi box shell       Run a shell or a command in a rootless box (hi box help)
 hi team new <name> Set up a team's app in a Slack channel, with a lead and a dev box; hi team up starts it (hi team help)
@@ -348,7 +348,7 @@ addresses are on its NetBird network unless an owner makes one public, and
 
 ## Agents and boxes
 
-`hi agent` hands a task to Claude Code, Codex, or Hermes, which works without
+`hi agent` hands a task to Claude Code, Codex, Hermes, or Antigravity, which works without
 permission prompts in a box, and waits for one report, the same for every
 agent: its final message, whether it worked, and the files changed.
 `hi box` is the box itself, for any code: a rootless Podman container that

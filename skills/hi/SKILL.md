@@ -11,7 +11,7 @@ on all of them, and give them back. `hi init` starts new projects from
 templates. On a machine connected to your team's hi server, `hi data` gets the
 team's private Hugging Face data without a token of your own. `hi net expose`
 puts a service on this machine on a temporary public address. `hi agent`
-hands a task to Claude Code, Codex, or Hermes in a box and returns its report. Run
+hands a task to Claude Code, Codex, Hermes, or Antigravity in a box and returns its report. Run
 `hi compute help`, `hi data help`, `hi net expose help`, or `hi agent help`
 for the full reference; the user-facing guide is at https://hi5.sh/guide/
 if the user needs step-by-step instructions.
@@ -260,7 +260,7 @@ the NetBird dashboard (Settings > Clients); tell the user.
 
 ## Hand a task to another agent (hi agent)
 
-`hi agent` runs Claude Code, Codex, or Hermes on a task in a box, without permission
+`hi agent` runs Claude Code, Codex, Hermes, or Antigravity on a task in a box, without permission
 prompts, on a new branch, and waits for one report with the same fields for
 every agent. Use it when another agent adds something you can't: a second
 opinion from another vendor (for example Codex reviewing your change), or a

@@ -22,8 +22,8 @@ import (
 
 // agentKinds are the agents hi agent runs, in the order it picks them.
 var (
-	agentKinds = map[string]bool{"claude": true, "codex": true, "hermes": true}
-	agentOrder = []string{"claude", "codex", "hermes"}
+	agentKinds = map[string]bool{"claude": true, "codex": true, "hermes": true, "agy": true}
+	agentOrder = []string{"claude", "codex", "hermes", "agy"}
 )
 
 // agentHosts are the hosts an agent needs beyond its box's network preset.
@@ -35,6 +35,9 @@ var agentHosts = map[string][]string{
 	// Hermes' model calls go through the token listener; it also reads
 	// OpenRouter's public model list directly.
 	"hermes": {"openrouter.ai"},
+	// Antigravity with a Google sign-in: its model calls, and the token's
+	// refresh.
+	"agy": {"daily-cloudcode-pa.googleapis.com", "cloudcode-pa.googleapis.com", "oauth2.googleapis.com", "www.googleapis.com"},
 }
 
 // agentResultDir is where the agent leaves its result, in the box's home
@@ -133,11 +136,12 @@ func printAgentUsage(w io.Writer) {
 waits for its report: what it said, whether it worked, and what changed.
 
 usage:
-  hi agent [claude|codex|hermes] "<task>"  run a task on a new git worktree (outside git, in the folder) and wait for the report;
+  hi agent [claude|codex|hermes|agy] "<task>"
+                                    run a task on a new git worktree (outside git, in the folder) and wait for the report;
                                     without an agent, the first one installed and signed in
-  hi agent [claude|codex|hermes] <brief.md>
+  hi agent [claude|codex|hermes|agy] <brief.md>
                                     the task is the file's contents; - reads it from stdin
-  hi agent claude|codex|hermes      an interactive session in a box
+  hi agent claude|codex|hermes|agy  an interactive session in a box
   hi agent wait <name> [--json]     wait for a run and print its report
   hi agent best-of <n> "<task>"     the same task in n boxes at once, checked and ranked
                                     (hi agent best-of help)
@@ -177,7 +181,7 @@ func startAgent(kind string, options boxOptions, stdin io.Reader, stdout, stderr
 		return err
 	}
 	if task == "" && (options.detach || options.json) {
-		return usageError{"--detach and --json need a task: hi agent [claude|codex|hermes] \"<task>\""}
+		return usageError{"--detach and --json need a task: hi agent [claude|codex|hermes|agy] \"<task>\""}
 	}
 	// With --json, stdout holds only the report.
 	info := stdout
@@ -189,7 +193,7 @@ func startAgent(kind string, options boxOptions, stdin io.Reader, stdout, stderr
 	}
 	if kind == "" {
 		if task == "" {
-			return usageError{"name the agent for an interactive session: hi agent claude, hi agent codex, or hi agent hermes"}
+			return usageError{"name the agent for an interactive session: hi agent claude, hi agent codex, hi agent hermes, or hi agent agy"}
 		}
 		if kind, err = chooseAgent(); err != nil {
 			return err
@@ -339,9 +343,30 @@ func agentReady(kind string) error {
 			return errors.New("Codex is not signed in on this machine; run codex once and sign in")
 		}
 		return nil
+	case "agy":
+		if _, err := boxHostBinary("agy"); err != nil {
+			return errors.New("Antigravity is not installed on this machine; install it with hi install agy")
+		}
+		if !fileExists(agyTokenPath()) {
+			return errors.New("Antigravity is not signed in on this machine; run agy once and sign in with Google")
+		}
+		return nil
 	}
 	return fmt.Errorf("unknown agent %q", kind)
 }
+
+// agyTokenPath is Antigravity's Google sign-in: an access token and the
+// refresh token that renews it. Google's refresh token stays good after a
+// refresh, so a box's copy needs no syncing back, as Codex's does.
+func agyTokenPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".gemini", "antigravity-cli", "antigravity-oauth-token")
+}
+
+// agyPromptLimit is how long a task goes to agy as -p's value, which
+// can't read stdin; one argument is limited to 128 KiB. A longer task is
+// read from its file.
+const agyPromptLimit = 100_000
 
 func codexAuthPath() string {
 	home, _ := os.UserHomeDir()
@@ -514,6 +539,51 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		}
 		return []string{"sh", "-c", "exec codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check" + model + " -o " +
 			results + "/last.txt" + resumeArgs + " - < " + results + "/task.md"}, nil
+	case "agy":
+		binary, err := boxHostBinary("agy")
+		if err != nil {
+			return nil, errors.New("Antigravity is not installed on this machine; install it with hi install agy")
+		}
+		*run = append(*run, "-v", binary+":/usr/local/bin/agy:ro")
+		token, err := os.ReadFile(agyTokenPath())
+		if err != nil {
+			return nil, errors.New("Antigravity is not signed in on this machine; run agy once and sign in with Google")
+		}
+		state := filepath.Join(homeDir, ".gemini", "antigravity-cli")
+		if err := os.MkdirAll(state, 0o700); err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(filepath.Join(state, "antigravity-oauth-token"), token, 0o600); err != nil {
+			return nil, err
+		}
+		// The box's folder is trusted, so agy doesn't ask about it.
+		settings, _ := json.Marshal(map[string]any{"trustedWorkspaces": []string{meta.Workdir}})
+		if err := os.WriteFile(filepath.Join(state, "settings.json"), settings, 0o600); err != nil {
+			return nil, err
+		}
+		flags := []string{"--dangerously-skip-permissions"}
+		if meta.Model != "" {
+			flags = append(flags, "--model", meta.Model)
+		}
+		if meta.Effort != "" {
+			flags = append(flags, "--effort", meta.Effort)
+		}
+		if prompt == "" {
+			return append([]string{"agy"}, flags...), nil
+		}
+		task := `"$(cat ` + results + `/task.md)"`
+		if len(prompt) > agyPromptLimit {
+			task = shellQuote("Your task is in " + results + "/task.md. Read all of it, then do it.")
+		}
+		var quoted []string
+		for _, flag := range flags {
+			quoted = append(quoted, shellQuote(flag))
+		}
+		// The JSON result goes to a file, and its answer to the log, as
+		// for Claude Code.
+		script := `agy --output-format json ` + strings.Join(quoted, " ") + ` -p=` + task + ` > ` + results + `/result.json; status=$?; ` +
+			`if command -v jq >/dev/null 2>&1; then jq -r '.response // .error // empty' ` + results + `/result.json; else cat ` + results + `/result.json; fi; exit $status`
+		return []string{"sh", "-c", script}, nil
 	case "hermes":
 		// Hermes would otherwise install its dependencies again for each
 		// new home folder, and write bytecode into its read-only source.
@@ -648,6 +718,8 @@ func agentDisplayName(kind string) string {
 		return "Claude Code"
 	case "hermes":
 		return "Hermes"
+	case "agy":
+		return "Antigravity"
 	}
 	return "Codex"
 }
@@ -712,6 +784,29 @@ func collectAgentReport(engine boxEngine, meta boxMeta) agentReport {
 		}
 		if session, ok := readHermesSession(boxStateFile(meta.Name, "home")); ok && session.Cost != nil {
 			report.CostUSD = *session.Cost
+		}
+	case "agy":
+		var result struct {
+			ConversationID string `json:"conversation_id"`
+			Status         string `json:"status"`
+			Response       string `json:"response"`
+			Error          string `json:"error"`
+			Usage          struct {
+				Input     int `json:"input_tokens"`
+				Output    int `json:"output_tokens"`
+				Thinking  int `json:"thinking_tokens"`
+				CacheRead int `json:"cache_read_tokens"`
+			} `json:"usage"`
+		}
+		if data, err := os.ReadFile(filepath.Join(results, "result.json")); err == nil && json.Unmarshal(data, &result) == nil {
+			report.Text, report.SessionID = result.Response, result.ConversationID
+			if result.Status != "" && result.Status != "SUCCESS" {
+				failed = true
+				report.Warnings = append(report.Warnings, "Antigravity: "+firstNonEmpty(result.Error, strings.ToLower(result.Status)))
+			}
+			if usage := result.Usage; usage.Input+usage.Output > 0 {
+				report.Tokens = &agentTokens{Input: usage.Input + usage.CacheRead, Cached: usage.CacheRead, Output: usage.Output + usage.Thinking}
+			}
 		}
 	case "codex":
 		if data, err := os.ReadFile(filepath.Join(results, "last.txt")); err == nil {
@@ -917,7 +1012,7 @@ func splitFrontMatter(task, source string) (*agentFrontMatter, string, error) {
 		case "agent":
 			front.Agent = strings.Trim(value, `"'`)
 			if !agentKinds[front.Agent] {
-				return nil, "", fmt.Errorf("%s: agent is claude, codex, or hermes, not %q", source, front.Agent)
+				return nil, "", fmt.Errorf("%s: agent is claude, codex, hermes, or agy, not %q", source, front.Agent)
 			}
 		case "model":
 			front.Model = strings.Trim(value, `"'`)

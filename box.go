@@ -53,7 +53,7 @@ var boxNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
 // boxMeta is box.json in the box's state folder.
 type boxMeta struct {
 	Name       string    `json:"name"`
-	Agent      string    `json:"agent"` // claude, codex, hermes, shell, or run
+	Agent      string    `json:"agent"` // claude, codex, hermes, agy, shell, or run
 	Root       string    `json:"root"`
 	Workdir    string    `json:"workdir"`
 	Worktree   bool      `json:"worktree"`
