@@ -122,7 +122,7 @@ func (l *boxNetworkLog) record(decision, host string) {
 // runBoxProxy is `hi box __proxy`, run inside the proxy container.
 func runBoxProxy(args []string, stderr io.Writer) int {
 	if len(args) != 3 && len(args) != 5 {
-		fmt.Fprintln(stderr, "usage: hi box __proxy <allowlist> <log> <claude credentials, openrouter:<.env>, or -> [<data token> <server's /hf URL>]")
+		fmt.Fprintln(stderr, "usage: hi box __proxy <allowlist> <log> <claude credentials, openrouter:<.env>, gemini:<key>, or -> [<data token> <server's /hf URL>]")
 		return 2
 	}
 	logFile, err := os.OpenFile(args[1], os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
@@ -151,7 +151,12 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 	}()
 	// A team's dev box: its DNS and the databases' TLS (box_proxy_tls.go).
 	startBoxDatabases(egress)
-	if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
+	if keyFile, ok := strings.CutPrefix(args[2], "gemini:"); ok {
+		// An Antigravity box's gemini-api (box_gemini.go).
+		go func() {
+			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), newBoxGeminiInjector(keyFile, geminiAPIUpstream, log))
+		}()
+	} else if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
 		var inject http.Handler = newBoxOpenRouterInjector(env, "https://openrouter.ai", log)
 		if token := os.Getenv(boxChatGPTEnv); token != "" {
 			// A team's roles on ChatGPT call its Codex endpoint here; the

@@ -60,6 +60,8 @@ var installItems = []installItem{
 		commands: []string{"codex"}, keeps: "Codex keeps its settings and sign-in in ~/.codex."},
 	{id: "agy", title: "Antigravity CLI", description: "Google's coding agent (agy), on a Google AI Pro or Ultra plan",
 		commands: []string{"agy"}, keeps: "Antigravity keeps its settings, sign-in, and conversations in ~/.gemini."},
+	{id: "gemini-api", title: "Gemini API CLI", description: "Google's gemini-api: video, speech, music, transcripts, and research, for agy's boxes",
+		commands: []string{"gemini-api"}, keeps: "gemini-api keeps its settings in ~/.config/gemini-api."},
 	{id: "omp", title: "omp", description: "oh-my-pi, a terminal coding agent",
 		commands: []string{"omp"}, keeps: "omp keeps its settings in ~/.omp."},
 	{id: "hermes", title: "Hermes Agent", description: "Nous Research's agent, with tools, memory, and gateways (hermes)",

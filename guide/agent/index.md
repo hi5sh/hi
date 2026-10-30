@@ -77,6 +77,31 @@ Google, as `agy models` lists them; pick one with `--model`, such as
 - A task longer than 100 KB goes to it as a file it reads, since `agy`
   takes the task on its command line.
 
+Antigravity makes images, searches the web, and reads pages on its own,
+on the plan. For video, speech, music, transcripts, and Google's deep
+research agent, its box also gets Google's
+[Gemini API CLI](https://aistudio.google.com/docs/cli) (`gemini-api`) once
+this machine has it and a key:
+
+```sh
+hi install gemini-api
+hi agent token gemini        # paste a key from aistudio.google.com/apikey
+hi agent agy "make a 10-second video of the logo turning, as logo.mp4"
+```
+
+- The key is billed per call, and never enters the box: the box's
+  `gemini-api` sends its calls to hi's proxy, which adds the key. A Google
+  AI Pro or Ultra plan's monthly Cloud credits can pay for it
+  ([developers.google.com/program/my-benefits](https://developers.google.com/program/my-benefits)).
+  Antigravity's own sign-in doesn't work for the Gemini API: Google
+  refuses its token there.
+- A skill in the box tells Antigravity what `gemini-api` is for and when
+  to use it, so a task just says what it wants made.
+- The proxy passes on what makes and reads things (generation, agents'
+  runs, files, models) and refuses webhooks, triggers, credentials,
+  environments, and agent definitions, so nothing stays running at Google
+  after the box. Each call is in the box's network log.
+
 ### The model
 
 `--model` picks the agent's model, for example `--model sonnet` or

@@ -2713,6 +2713,27 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.51 — gemini-api in Antigravity's boxes
+
+- [x] An agy box gets Google's Gemini API CLI (`gemini-api`) when this
+  machine has it (`hi install gemini-api`, the release checked against its
+  sums) and a key (`hi agent token gemini`): video, speech, music,
+  transcripts, analysis, and deep research, beside agy's own images and
+  web search on the plan.
+- [x] The key stays outside the box: the box's `gemini-api` is a wrapper
+  with the proxy as its `--server-url` and a placeholder key, and the
+  proxy puts the key on each call and sends an upload's session address
+  back through itself. Webhooks, triggers, credentials, environments, and
+  agent definitions are refused.
+- [x] A `gemini-api` skill in the box (Google's agent instructions, what
+  each command is for, and that calls are billed) tells agy when to use
+  it, so a task only says what it wants.
+- [x] agy's own Google sign-in doesn't reach the Gemini API: Google
+  answers ACCESS_TOKEN_SCOPE_INSUFFICIENT to its token (tried
+  2026-10-30). Tried end to end with a placeholder key: agy saw the skill,
+  its call went through the proxy, and Google answered for the key the
+  proxy put on.
+
 ### v2.6.50 — The terminal connects again by itself
 
 - [x] When the dev page's terminal closes (the box restarted, the

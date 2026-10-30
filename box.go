@@ -788,6 +788,12 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 				return err
 			}
 		}
+	case "agy":
+		// Only the proxy sees the Gemini API key, for gemini-api.
+		if _, ok := geminiReady(); ok {
+			args = append(args, "-v", geminiKeyPath()+":/secrets/gemini:ro")
+			secret = "gemini:/secrets/gemini"
+		}
 	case "hermes":
 		// Only the proxy sees Hermes' .env, and takes only the OpenRouter
 		// key from it.

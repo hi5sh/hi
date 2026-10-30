@@ -213,6 +213,7 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 | `hi agent [claude|codex|hermes|agy] "<task>"` | Run a task in a box on a new worktree (outside git, in the folder itself) and wait for the report; without a name, the first agent installed and signed in |
 | `hi agent [claude|codex|hermes|agy] <brief.md>` | The task is the file's contents; `-` reads it from stdin |
 | `hi agent claude|codex|hermes|agy`        | An interactive session in a box, without permission prompts |
+| `hi agent token gemini` | Store a Gemini API key for `gemini-api` in Antigravity's boxes; it never enters a box |
 | `hi agent wait <name> [--json]`          | Wait for a run and print its report                      |
 | `hi agent best-of <n> "<task>"`          | The same task in n boxes (2 to 8) at once; hi checks each and ranks them |
 | `hi agent best-of ls [--json]`           | Best-of runs and their state                             |

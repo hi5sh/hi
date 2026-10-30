@@ -201,6 +201,7 @@ remove_tool() {
       rm -f "$HOME/.local/bin/agy"
       rm -rf "$HOME/.cache/antigravity"
       ;;
+    gemini-api) rm -f "$HOME/.local/bin/gemini-api" ;;
     omp) rm -f "$HOME/.local/bin/omp" ;;
     herdr) rm -f "$HOME/.local/bin/herdr" ;;
     hermes)
@@ -382,6 +383,23 @@ if installing agy; then
   # Signing in with Google is agy's first run, in a terminal.
   log "Installing Antigravity CLI"
   curl -fsSL https://antigravity.google/cli/install.sh | bash
+fi
+# Google's installer doesn't check what it downloads; the release archive,
+# checked against the release's sums, goes where hi's other tools are.
+if installing gemini-api; then
+  log "Installing the Gemini API CLI"
+  case "$(dpkg --print-architecture)" in
+    amd64) gemini_arch=x86_64 ;;
+    arm64) gemini_arch=arm64 ;;
+    *) fail "gemini-api has no build for $(dpkg --print-architecture)" ;;
+  esac
+  gemini_release=https://github.com/google-gemini/gemini-api-cli/releases/latest/download
+  curl -fsSLo "$tmp_dir/gemini-api_Linux_$gemini_arch.tar.gz" "$gemini_release/gemini-api_Linux_$gemini_arch.tar.gz"
+  curl -fsSL "$gemini_release/checksums.txt" | grep " gemini-api_Linux_$gemini_arch.tar.gz\$" |
+    (cd "$tmp_dir" && sha256sum -c -)
+  install -d "$HOME/.local/bin"
+  tar -xzf "$tmp_dir/gemini-api_Linux_$gemini_arch.tar.gz" -C "$tmp_dir" gemini-api
+  install -m 0755 "$tmp_dir/gemini-api" "$HOME/.local/bin/gemini-api"
 fi
 if installing herdr; then
   log "Installing herdr"

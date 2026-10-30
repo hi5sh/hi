@@ -150,6 +150,7 @@ usage:
   hi agent brainstorm "<question>"  several agents each give an idea, and one compiles them into a
                                     proposal (hi agent brainstorm help)
   hi agent token claude             store a long-lived Claude token from claude setup-token
+  hi agent token gemini             store a Gemini API key for gemini-api in Antigravity's boxes
 
 options:
   --detach               start the run and return; hi agent wait <name> gets the report
@@ -568,6 +569,9 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if meta.Effort != "" {
 			flags = append(flags, "--effort", meta.Effort)
 		}
+		if _, err := geminiBoxSetup(meta, homeDir, run, env); err != nil {
+			return nil, err
+		}
 		if prompt == "" {
 			return append([]string{"agy"}, flags...), nil
 		}
@@ -622,8 +626,11 @@ func boxTokenPath() string { return filepath.Join(qConfigDirectory(), "box-claud
 // agentTokenCommand stores a long-lived token from claude setup-token,
 // which the proxy prefers to the host's own sign-in, since that expires.
 func agentTokenCommand(options boxOptions, stdin io.Reader, stdout io.Writer) error {
+	if len(options.words) == 1 && options.words[0] == "gemini" {
+		return geminiTokenCommand(stdin, stdout)
+	}
 	if len(options.words) != 1 || options.words[0] != "claude" {
-		return usageError{"usage: hi agent token claude"}
+		return usageError{"usage: hi agent token claude|gemini"}
 	}
 	fmt.Fprintln(stdout, "Run claude setup-token in another terminal and paste the token it prints.")
 	token, err := readOptionalKey("Claude", stdin, stdout, false)

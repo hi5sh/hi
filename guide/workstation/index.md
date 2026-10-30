@@ -88,6 +88,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | Claude Code        | `claude`   | `claude`                                                  |
 | Codex CLI          | `codex`    | `codex`                                                   |
 | Antigravity CLI    | `agy`      | `agy`, Google's coding agent (sign in with `agy`)         |
+| Gemini API CLI     | `gemini-api` | `gemini-api`, checked against the release's sums; Antigravity's boxes use it |
 | omp                | `omp`      | `omp`                                                     |
 | Hermes Agent       | `hermes`   | `hermes`, from Nous Research's installer (setup later with `hermes setup`) |
 | herdr              | `herdr`    | `herdr`                                                   |
