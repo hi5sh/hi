@@ -1,8 +1,8 @@
 # `hi serve llm --on local`: a model on this machine
 
-Status: Draft (2026-11-02), parked: the questions below, and how `hi serve`
-and `hi model` become one command, are to be discussed before it is
-approved.
+Status: Draft (2026-11-02), parked: how `hi serve` and `hi model` become
+one command is to be discussed before it is approved. Questions 1, 2, and
+4 were decided on 2026-11-02 (see Decisions).
 
 Dependencies: [hi_org.md](../approved/hi_org.md) (`hi serve llm`, `ls`,
 `logs`, `stop`, and what `--on` means), [hi_compute.md](../approved/hi_compute.md)
@@ -43,7 +43,7 @@ hi serve llm <recipe | owner/repo-GGUF --quant Q> --on local [options]
     --port <port>          API port on 127.0.0.1 (default: 8080, or the next free one)
     --ctx <tokens>         context length (recipes set their own)
     --memory <size>        the box's memory limit (default: the recipe's need plus headroom)
-    --backend vulkan|rocm  default: the recipe's tested one for this machine
+    --backend rocm|vulkan  default: rocm on Strix Halo
     --max <duration>       stop after this long (default: none; it's your machine)
     --share                also listen on this machine's NetBird address, with a key
     --name, --alias, --args, --yes, --dry-run   as on rented hardware
@@ -62,7 +62,7 @@ rented ones, with `local` in the `PROVIDER` column and
 
 ```text
  hi serve llm qwen3.8-flash-next --on local
-   1. detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Vulkan; 104 GB free, teams use 18 GB
+   1. detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, ROCm; 104 GB free, teams use 18 GB
    2. check      the recipe needs ~95 GB with its context: fits, 9 GB left
    3. download   unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL into ~/.local/share/hi/models, verified
    4. start      hi-serve-qwen3-8-flash-next.service: a box with the GPU, no network, the model read-only
@@ -72,9 +72,10 @@ rented ones, with `local` in the `PROVIDER` column and
 
 1. **Detect.** As hi_model.md asked: evidence, not names. A Strix Halo is
    `gfx1151` with `/dev/kfd`, `/dev/dri`, and the render and video groups
-   (what `hi verify strix` checks), and a Vulkan device that `vulkaninfo`
-   lists. Anything missing is reported with the `hi install` command that
-   fixes it; nothing is guessed.
+   (what `hi verify strix` checks), and a ROCm device that `rocminfo`
+   lists (or, for `--backend vulkan`, one that `vulkaninfo` lists).
+   Anything missing is reported with the `hi install` command that fixes
+   it; nothing is guessed.
 2. **Check memory.** On Strix Halo the GPU's memory is system RAM, so the
    need is the model file plus the context's cache, from the recipe, and
    the room is `MemAvailable` less what the teams on the machine reserve
@@ -118,8 +119,8 @@ interrupted.
 
 One llama.cpp build per recipe, pinned by image digest
 (hi_compute_serve_pinning.md), with one image per backend:
-`ghcr.io/ggml-org/llama.cpp:server-vulkan-<build>@sha256:…` and
-`server-rocm-<build>@sha256:…`. A recipe gains a `local` entry per
+`ghcr.io/ggml-org/llama.cpp:server-rocm-<build>@sha256:…` and
+`server-vulkan-<build>@sha256:…`. A recipe gains a `local` entry per
 backend, with its own flags and its own tested line:
 
 ```go
@@ -127,7 +128,7 @@ backend, with its own flags and its own tested line:
     ...
     hardware: map[string]string{"colab": "G4", "hf": "rtx-pro-6000"},
     local: map[string]serveLocal{
-        "vulkan": {memory: 95 << 30, args: "…", tested: "gpu2 (Strix Halo), 2026-11-…: … tokens/s, ready in … min"},
+        "rocm": {memory: 95 << 30, args: "…", tested: "gpu2 (Strix Halo), 2026-11-…: … tokens/s, ready in … min"},
     },
 },
 ```
@@ -144,7 +145,9 @@ teammate's device on the VPN can use it. A shared server always has a key:
 hi makes one, keeps it at `~/.config/hi/serve/<name>.key` (0600), passes it
 to llama.cpp from a file, never as an argument, and prints it once; `hi
 serve key <name>` prints it again. The address and the key are what `hi q
---setup` or any OpenAI-compatible client needs. Public addresses are not
+--setup` or any OpenAI-compatible client needs. The key is the only
+check hi makes: who may reach the machine over NetBird is set by the IT
+admins in NetBird's access control, not by hi. Public addresses are not
 offered; `hi net expose` stays the tool for that, with its own rules.
 
 ## The org knows (release 3)
@@ -163,14 +166,14 @@ cost. `hi serve stop` removes it from the org.
 
 ## Releases
 
-1. **Local on Strix Halo.** `--on local` with the Vulkan backend, `hi serve
+1. **Local on Strix Halo.** `--on local` with the ROCm backend, `hi serve
    detect`, the host download into the models folder, the box and its unit,
    the memory check, `ls`, `logs`, `stop`, and `hi serve models`. The
    qwen3.8-flash-next recipe tested on a Strix Halo that runs no production
    teams, against halogen's numbers on gpu2.
 2. **Sharing.** `--share` and `hi serve key`.
 3. **The org knows.** `--org`, with hi_llm.md's named upstreams.
-4. **More backends.** ROCm on Strix Halo, then NVIDIA through Podman's CDI
+4. **More backends.** Vulkan on Strix Halo, then NVIDIA through Podman's CDI
    devices, each with its own tested line.
 5. **On the org's machines.** `--on <machine>` and `--on auto` through `hi
    org machines` (hi_cluster.md, release 3); the same box and unit, placed
@@ -199,19 +202,23 @@ cost. `hi serve stop` removes it from the org.
 9. Deleting a model with `hi serve models rm` is refused while a server
    uses it.
 
+## Decisions
+
+Taken on 2026-11-02:
+
+1. **ROCm is the default backend on Strix Halo**, with Vulkan as
+   `--backend vulkan`.
+2. **A local server comes back after a reboot** by default; `--max` is for
+   one that should end.
+3. **A shared server's key is enough.** Who may connect over the VPN is for
+   the IT admins to set in NetBird's access control.
+
 ## Open questions
 
-1. Vulkan or ROCm as the default on Strix Halo? Proposed: Vulkan, which is
-   what llama.cpp users report as faster and steadier on gfx1151 today;
-   release 1 measures both on one recipe before deciding.
-2. Should a local server survive a reboot by default, or only with a flag
-   such as `--keep`? Proposed: by default, since a model on the team's
-   machine is usually meant to stay; `--max` is there for the rest.
-3. Should hi adopt the model halogen already serves on gpu2, or leave it
-   until someone moves it to `hi serve` by hand?
-4. Is a shared server's key enough on the VPN, or should `--share` also
-   limit who may connect through NetBird's access control?
-5. How do `hi serve` and `hi model` (hi_model.md: `detect`, `list`,
+1. Should hi take over the model already served by hand on gpu2
+   (`halogen-qwen3.8-flash-next`), or leave it until someone moves it to
+   `hi serve`?
+2. How do `hi serve` and `hi model` (hi_model.md: `detect`, `list`,
    `pull`, `serve`, `status`, `logs`, `stop`) collapse into `hi serve`
    alone? This draft folds hi_model.md in only loosely (`hi serve detect`,
    `hi serve models`); the merge needs its own, deeper pass first.
