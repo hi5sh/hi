@@ -168,7 +168,7 @@ func (b *slackBridge) publishHome(slackUser string) {
 		blocks = renderUserHome(s.liveSnapshot(user), user, computeNow())
 	default:
 		blocks = []slack.Block{
-			slack.NewHeaderBlock(slackPlain("hi compute")),
+			slack.NewHeaderBlock(slackPlain("hi org")),
 			slack.NewSectionBlock(slackText("This Slack account isn't linked to a hi user yet. Type `/hi link <your hi user name>` "+
 				"anywhere, then run the command it gives you on your own device."), nil, nil),
 		}
@@ -244,7 +244,7 @@ func homeBudgets(budgets []liveBudget) []slack.Block {
 
 func renderApproverHome(snapshot liveSnapshot, devices []deviceRow, now time.Time) []slack.Block {
 	blocks := []slack.Block{
-		homeHeader("hi compute"),
+		homeHeader("hi org"),
 		homeContext(fmt.Sprintf("%d running · %s/h now · %s today · %s this month · updated %s",
 			len(snapshot.Running), formatDollars(snapshot.RatePerHour), formatDollars(snapshot.Today),
 			formatDollars(snapshot.Month), now.Local().Format("15:04"))),

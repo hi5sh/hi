@@ -211,7 +211,7 @@ Everything from the first word that doesn't start with `-` is the
 question, so `hi q status of the log file` asks the model. hi's own options
 go before it; put `--` before a question that starts with a dash.
 
-Options: `--provider server|openai|openrouter|anthropic|claude` and `--model <name>`
+Options: `--provider org|openai|openrouter|anthropic|claude` and `--model <name>`
 for one question or chat, `--no-context` to send only the question, and
 `--yes` to run read-only commands without asking. Dangerous commands always
 need `yes` typed. See [Ask for a command](/guide/q/).

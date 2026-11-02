@@ -37,10 +37,10 @@ func wallUnit(session, size string) string {
 		create += fmt.Sprintf(" -x %s -y %s", width, height)
 		post += fmt.Sprintf("ExecStartPost=/usr/bin/tmux -L wall-%s set-option -t %s window-size manual\n", session, session)
 	}
-	create += " " + wallBinary + " server live --wall"
+	create += " " + wallBinary + " org live --wall"
 	return fmt.Sprintf(`[Unit]
-Description=hi compute wall dashboard (%[1]s)
-After=network-online.target hi-server.service
+Description=hi org wall dashboard (%[1]s)
+After=network-online.target hi-org.service hi-server.service
 Wants=network-online.target
 
 [Service]
@@ -117,7 +117,7 @@ func wallServerDir(dirFlag string) (string, error) {
 	if dirFlag != "" {
 		return dirFlag, nil
 	}
-	if dir := os.Getenv("HI_SERVER_DIR"); dir != "" {
+	if dir := firstNonEmpty(os.Getenv("HI_ORG_DIR"), os.Getenv("HI_SERVER_DIR")); dir != "" {
 		return dir, nil
 	}
 	name := os.Getenv("SUDO_USER")
@@ -128,7 +128,7 @@ func wallServerDir(dirFlag string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(account.HomeDir, ".local", "state", "hi", "server"), nil
+	return orgDirectoryIn(filepath.Join(account.HomeDir, ".local", "state", "hi")), nil
 }
 
 func wallSetup(dirFlag, session, size string, stdout io.Writer) error {

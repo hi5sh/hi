@@ -190,22 +190,21 @@ type hiServer struct {
 	// watch is hi watch: the teams' heartbeats (server_watch.go).
 }
 
+// serverDirectory is the org server's state: --dir, then HI_ORG_DIR, then
+// HI_SERVER_DIR (its name until hi 2.6.57), then ~/.local/state/hi/org, or
+// the old ~/.local/state/hi/server until hi org run has moved it.
 func serverDirectory(flagValue string) (string, error) {
 	if flagValue != "" {
 		return flagValue, nil
 	}
-	if dir := os.Getenv("HI_SERVER_DIR"); dir != "" {
+	if dir := firstNonEmpty(os.Getenv("HI_ORG_DIR"), os.Getenv("HI_SERVER_DIR")); dir != "" {
 		return dir, nil
 	}
-	base := os.Getenv("XDG_STATE_HOME")
-	if base == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		base = filepath.Join(home, ".local", "state")
+	parent, err := orgStateParent()
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(base, "hi", "server"), nil
+	return orgDirectoryIn(parent), nil
 }
 
 type serverConfig struct {
@@ -1911,9 +1910,9 @@ func serverInitCommand(args []string, stdout, stderr io.Writer) error {
 	if _, set := loadMachineHeartbeat(); !set {
 		fmt.Fprintln(stdout, "  hi heartbeat <url>     so someone hears if this machine stops: a check at a service such as healthchecks.io")
 	}
-	fmt.Fprintf(stdout, "\nA systemd unit, for /etc/systemd/system/hi-server.service:\n\n")
+	fmt.Fprintf(stdout, "\nA systemd unit, for /etc/systemd/system/%s:\n\n", orgUnit)
 	fmt.Fprintf(stdout, "[Unit]\nDescription=hi org server\nAfter=network-online.target netbird.service\nWants=network-online.target\n\n")
-	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_SERVER_DIR=%s\nExecStart=%s org run\nRestart=always\n\n", currentUserName(), dir, executable)
+	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_ORG_DIR=%s\nExecStart=%s org run\nRestart=always\n\n", currentUserName(), dir, executable)
 	fmt.Fprintf(stdout, "[Install]\nWantedBy=multi-user.target\n")
 	return nil
 }
@@ -1926,6 +1925,11 @@ func serverRunCommand(args []string, stdout, stderr io.Writer) error {
 	dir, err := serverDirectory(*dirFlag)
 	if err != nil {
 		return err
+	}
+	if *dirFlag == "" {
+		if err := moveOrgDirectory(dir, stdout); err != nil {
+			return err
+		}
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {
@@ -1979,7 +1983,7 @@ func adminCall(dirFlag, method, path string, body, result any) error {
 	if err != nil {
 		return err
 	}
-	return doJSON(client, method, "http://hi-server"+path, body, result, nil)
+	return doJSON(client, method, "http://hi-org"+path, body, result, nil)
 }
 
 // doJSON sends a JSON request, optionally signed, and decodes the reply or

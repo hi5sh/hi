@@ -39,7 +39,7 @@ func hiConfigDirectory() string {
 }
 
 func serverConnectionPath() string {
-	return filepath.Join(hiConfigDirectory(), "server.json")
+	return filepath.Join(hiConfigDirectory(), "org.json")
 }
 
 func deviceKeyPath() string {
@@ -48,6 +48,7 @@ func deviceKeyPath() string {
 
 // loadServerConnection returns nil when this device has never connected.
 func loadServerConnection() (*serverConnection, error) {
+	moveOrgConnection()
 	data, err := os.ReadFile(serverConnectionPath())
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -246,6 +247,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 					continue
 				}
 				os.Remove(serverConnectionPath())
+				os.Remove(legacyConnectionPath())
 				return exitStatusError{code: exitDenied, message: "the server did not approve this device"}
 			}
 			return err
@@ -348,7 +350,7 @@ func runDisconnect(args []string, stdout, stderr io.Writer) int {
 	// Server templates go with the connection; repositories made from them
 	// keep their files.
 	os.RemoveAll(templateCacheDirectory())
-	for _, path := range []string{serverConnectionPath(), deviceKeyPath()} {
+	for _, path := range []string{serverConnectionPath(), legacyConnectionPath(), deviceKeyPath()} {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return exitCode(err, stderr)
 		}

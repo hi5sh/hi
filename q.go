@@ -214,7 +214,7 @@ func printQUsage(w io.Writer) {
   hi q --context                 show what is sent with each question
 
 options:
-  --provider server|openai|openrouter|anthropic|claude
+  --provider org|openai|openrouter|anthropic|claude
                                        use this provider once
   --model <name>                       use this model once
   --no-context                         send only the question

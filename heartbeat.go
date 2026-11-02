@@ -234,12 +234,12 @@ func machineHeartbeatNote(stdout io.Writer) {
 	}
 }
 
-// machineRunsHiServices is whether this machine has a team or a hi server.
+// machineRunsHiServices is whether this machine has a team or an org server.
 func machineRunsHiServices() bool {
 	if entries, err := os.ReadDir(teamsDir()); err == nil && len(entries) > 0 {
 		return true
 	}
-	return fileExists("/etc/systemd/system/hi-server.service")
+	return fileExists(filepath.Join(systemdUnitDir, orgUnit)) || fileExists(filepath.Join(systemdUnitDir, oldOrgUnit))
 }
 
 // installMachineHeartbeatTimer writes and starts the timer and its

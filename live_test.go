@@ -224,7 +224,7 @@ func TestServerLiveOnTheServerBoxUsesTheAdminSocket(t *testing.T) {
 
 func TestWallUnitAndKeysLockScreensDown(t *testing.T) {
 	unit := wallUnit("live", "")
-	for _, want := range []string{"User=hi-wall", "tmux -L wall-live new-session -d -s live", "server live --wall", "Restart=always"} {
+	for _, want := range []string{"User=hi-wall", "tmux -L wall-live new-session -d -s live", "org live --wall", "Restart=always"} {
 		if !strings.Contains(unit, want) {
 			t.Fatalf("unit is missing %q:\n%s", want, unit)
 		}

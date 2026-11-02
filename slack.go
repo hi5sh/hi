@@ -26,10 +26,10 @@ import (
 // approvers list when it happens.
 
 const slackManifest = `{
-  "display_information": { "name": "hi compute", "description": "Approve and control GPU compute started with hi" },
+  "display_information": { "name": "hi org", "description": "Approve and control GPU compute and teams started with hi" },
   "features": {
     "app_home": { "home_tab_enabled": true, "messages_tab_enabled": true, "messages_tab_read_only_enabled": true },
-    "bot_user": { "display_name": "hi compute", "always_online": true },
+    "bot_user": { "display_name": "hi org", "always_online": true },
     "slash_commands": [
       { "command": "/hi", "description": "GPU compute and teams: status, stop, spend, budgets, teams", "usage_hint": "status | stop <name|@user|all> | spend | users | audit | budget <group> <usd> | link <user> | teams | team <action> <team>", "should_escape": false }
     ]
@@ -946,7 +946,7 @@ func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 	if len(config.Approvers) == 0 {
 		fmt.Fprintln(stdout, "Add approvers: hi org approvers add <Slack member ID> --name <hi user name>")
 	}
-	fmt.Fprintln(stdout, "Restart the server to connect: sudo systemctl restart hi-server (or restart `hi org run`)")
+	fmt.Fprintf(stdout, "Restart the server to connect: sudo systemctl restart %s (or restart `hi org run`)\n", strings.TrimSuffix(installedOrgUnit(), ".service"))
 	return nil
 }
 

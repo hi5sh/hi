@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // hi org is the organization: devices join and leave it, and its server
 // runs on one box. The commands that join (once hi connect and hi
 // disconnect) are handled here; everything else is the server's, in
-// runServer. hi server, hi connect, and hi disconnect still run these.
+// runServer. hi server, hi connect, and hi disconnect still run these, and
+// are never removed: old units and scripts keep running.
 
 func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -110,4 +112,33 @@ socket. Decisions are recorded under your login name; change it with --as.
 
 Options:
   --dir <dir>    State directory (default: $HI_SERVER_DIR or ~/.local/state/hi/server)`)
+}
+
+// oldNameIsTerminal is replaced in tests.
+var oldNameIsTerminal = func(w io.Writer) bool {
+	r, ok := w.(io.Reader)
+	return ok && isTerminal(r)
+}
+
+// oldNameHint tells a person at a terminal the new name of hi server, hi
+// connect, or hi disconnect. Scripts and units see nothing new.
+func oldNameHint(stderr io.Writer, args []string) {
+	if args[0] == "org" || !oldNameIsTerminal(stderr) {
+		return
+	}
+	fmt.Fprintf(stderr, "hi: %s is now %s\n", "hi "+strings.Join(args, " "), orgFormOf(args))
+}
+
+// orgFormOf is the hi org command an old command runs.
+func orgFormOf(args []string) string {
+	rest := args[1:]
+	switch args[0] {
+	case "disconnect":
+		return "hi org leave"
+	case "connect":
+		if len(rest) == 0 || (rest[0] != "status" && rest[0] != "key" && rest[0] != "slack" && rest[0] != "help") {
+			rest = append([]string{"join"}, rest...)
+		}
+	}
+	return strings.TrimSpace("hi org " + strings.Join(rest, " "))
 }

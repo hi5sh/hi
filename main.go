@@ -115,14 +115,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "data":
 		return runData(args[1:], stdin, stdout, stderr)
 	case "connect":
+		oldNameHint(stderr, args)
 		return runConnect(args[1:], stdin, stdout, stderr)
 	case "heartbeat":
 		return runHeartbeat(args[1:], stdout, stderr)
 	case "disconnect":
+		oldNameHint(stderr, args)
 		return runDisconnect(args[1:], stdout, stderr)
 	case "serve":
 		return runServe(args[1:], stdin, stdout, stderr)
 	case "org", "server":
+		oldNameHint(stderr, args)
 		return runOrg(args[1:], stdin, stdout, stderr)
 	case "verify":
 		if len(args) != 2 || args[1] != "strix" {

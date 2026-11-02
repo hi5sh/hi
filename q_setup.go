@@ -92,7 +92,7 @@ func runQSetup(ui menuUI) (qChoice, error) {
 					base := connection.URL + "/v1/ai"
 					var models []string
 					ui.busy("Listing models…", func() { models = qListModels(base, "", deviceKey) })
-					current := firstNonEmpty(savedModel("server"), info.Model)
+					current := firstNonEmpty(savedModel("org"), info.Model)
 					model := current
 					if len(models) > 0 {
 						models = qSuggestedFirst(models, current)
@@ -102,7 +102,7 @@ func runQSetup(ui menuUI) (qChoice, error) {
 						}
 						model = models[index]
 					}
-					return qServerProvider(connection, deviceKey, model), qConfig{Provider: "server", Model: model}, "", nil
+					return qServerProvider(connection, deviceKey, model), qConfig{Provider: "org", Model: model}, "", nil
 				}})
 			}
 		}

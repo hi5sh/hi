@@ -23,9 +23,9 @@ func fakeProc(t *testing.T, processes map[string][3]string) {
 		os.WriteFile(filepath.Join(dir, "cmdline"), []byte(process[1]), 0o644)
 		os.WriteFile(filepath.Join(dir, "cgroup"), []byte(process[2]), 0o644)
 	}
-	previous := updateProcRoot
-	updateProcRoot = root
-	t.Cleanup(func() { updateProcRoot = previous })
+	previous, previousUnits := updateProcRoot, systemdUnitDir
+	updateProcRoot, systemdUnitDir = root, t.TempDir()
+	t.Cleanup(func() { updateProcRoot, systemdUnitDir = previous, previousUnits })
 }
 
 func recordUpdateRuns(t *testing.T) *[]string {

@@ -123,7 +123,7 @@ kept in `~/.config/hi/q-key`, readable only by you. When you run
 `hi q --setup` again for the same provider, Enter at the key prompt keeps
 the saved key, and the model in use is first in the list. `hi q --status` shows
 which model is in use and where it came from. Use
-`--provider server|openai|openrouter|anthropic|claude`
+`--provider org|openai|openrouter|anthropic|claude`
 or `--model <name>` to change them for one question.
 
 A model that can't call tools, such as some small local ones, is asked for

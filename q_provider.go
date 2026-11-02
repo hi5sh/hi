@@ -699,6 +699,9 @@ func loadQConfig() (qConfig, string, error) {
 	if err := json.Unmarshal(data, &config); err != nil {
 		return config, "", fmt.Errorf("%s: %w", filepath.Join(directory, "q.json"), err)
 	}
+	if config.Provider == "server" {
+		config.Provider = "org" // its name until hi 2.6.57; saved as org next time
+	}
 	key, err := os.ReadFile(filepath.Join(directory, "q-key"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return config, "", err
@@ -827,9 +830,9 @@ func qProviderByName(name, model string, config qConfig, key string) (qChoice, e
 			return qChoice{}, errors.New("no Anthropic key; run hi q --setup or set ANTHROPIC_API_KEY")
 		}
 		return qChoice{provider: qAnthropic{baseURL: base, key: key, model: firstNonEmpty(model, config.Model, qAnthropicModel)}, source: "--provider anthropic"}, nil
-	case "server":
+	case "org", "server":
 		saved := ""
-		if config.Provider == "server" {
+		if config.Provider == "org" {
 			saved = config.Model
 		}
 		if choice, ok := qConnectedServerChoice(firstNonEmpty(model, saved), true); ok {
@@ -847,7 +850,7 @@ func qProviderByName(name, model string, config qConfig, key string) (qChoice, e
 		}
 		return qChoice{provider: qClaudeCode{binary: binary, model: firstNonEmpty(model, chosen)}, source: "--provider claude"}, nil
 	}
-	return qChoice{}, fmt.Errorf("unknown provider %q; use server, openai, openrouter, anthropic, or claude", name)
+	return qChoice{}, fmt.Errorf("unknown provider %q; use org, openai, openrouter, anthropic, or claude", name)
 }
 
 func firstNonEmpty(values ...string) string {

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi org run` (or `hi server run`) or team (`hi team __serve`)
+// After an update, a running `hi org run` (or the older `hi server run`) or team (`hi team __serve`)
 // still runs the old binary until it restarts. hi update finds them, and
 // the systemd unit that runs them, and offers to restart them.
 
@@ -29,7 +29,7 @@ var (
 // been replaced.
 type staleServer struct {
 	pid  int
-	unit string // such as hi-server.service, or "" when systemd doesn't run it
+	unit string // such as hi-org.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
 	team string // the team's name; "" for a hi server
 }
@@ -80,7 +80,7 @@ func staleServers(path string) []staleServer {
 }
 
 // systemdUnit reads the service a process belongs to from its cgroup, such
-// as 0::/system.slice/hi-server.service.
+// as 0::/system.slice/hi-org.service.
 func systemdUnit(cgroupPath string) (string, bool) {
 	data, err := os.ReadFile(cgroupPath)
 	if err != nil {
@@ -107,7 +107,18 @@ func systemdUnit(cgroupPath string) (string, bool) {
 // restartStaleServers offers to restart servers that run an old binary.
 // mode is "ask", "yes", or "no".
 func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout, stderr io.Writer) error {
+	offered := false
 	for _, server := range staleServers(path) {
+		if server.team == "" && !server.user && server.unit == oldOrgUnit && installedOrgUnit() == oldOrgUnit {
+			offered = true
+			moved, err := offerOrgUnitMove(mode, stdin, stdout, stderr)
+			if err != nil || moved {
+				if err == nil {
+					fmt.Fprintf(stdout, "%s runs %s.\n", orgUnit, newVersion)
+				}
+				return err
+			}
+		}
 		if server.unit == "" {
 			fmt.Fprintf(stdout, "%s (process %d) still runs the old version; restart it to run %s.\n", server.what(), server.pid, newVersion)
 			continue
@@ -157,5 +168,28 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 		fmt.Fprintf(stdout, "%s runs %s.\n", server.unit, newVersion)
 	}
+	if !offered && installedOrgUnit() == oldOrgUnit {
+		_, err := offerOrgUnitMove(mode, stdin, stdout, stderr)
+		return err
+	}
 	return nil
+}
+
+// offerOrgUnitMove offers to replace hi-server.service with hi-org.service
+// (org_migrate.go), which restarts the server. It says how, rather than
+// asking, without a terminal or with --no-restart.
+func offerOrgUnitMove(mode string, stdin io.Reader, stdout, stderr io.Writer) (bool, error) {
+	if mode == "no" || (mode == "ask" && !updateIsTerminal(stdin)) {
+		fmt.Fprintf(stdout, "%s is now called %s; run `hi update` on a terminal to move it. The old name keeps working until then.\n", oldOrgUnit, orgUnit)
+		return false, nil
+	}
+	if mode == "ask" {
+		fmt.Fprintf(stdout, "%s is now called %s. Move it now? This restarts the org server, which is down for about a second, and moves its state to ~/.local/state/hi/org. [Y/n] ", oldOrgUnit, orgUnit)
+		answer, _ := readLine(stdin)
+		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "" && answer != "y" && answer != "yes" {
+			fmt.Fprintln(stdout, "Not moved; hi update asks again next time.")
+			return false, nil
+		}
+	}
+	return true, moveOrgUnit(stdin, stdout, stderr)
 }

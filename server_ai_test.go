@@ -187,7 +187,7 @@ func TestHiQSetupOffersTheServerFirst(t *testing.T) {
 		t.Fatalf("menu:\n%s", out.String())
 	}
 	config, key, _ := loadQConfig()
-	if config.Provider != "server" || config.Model != "anthropic/claude-haiku-4.5" || key != "" {
+	if config.Provider != "org" || config.Model != "anthropic/claude-haiku-4.5" || key != "" {
 		t.Fatalf("config %+v key %q", config, key)
 	}
 	if !strings.Contains(choice.provider.label(), "anthropic/claude-haiku-4.5 via 127.0.0.1") {
