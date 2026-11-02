@@ -438,7 +438,7 @@ func TestComputeServeReportsRemoteFailure(t *testing.T) {
 	t.Cleanup(func() { servePollEvery = previous })
 
 	code, _, stderr := runComputeTest("serve", "--gpu", "T4", "--name", "small", "--quant", "Q4_K_M", "--yes", "unsloth/Qwen3-8B-GGUF")
-	if code != 1 || !strings.Contains(stderr, "failed: download") || !strings.Contains(stderr, "hi compute logs small") {
+	if code != 1 || !strings.Contains(stderr, "failed: download") || !strings.Contains(stderr, "hi serve logs small") {
 		t.Fatalf("exit code = %d, stderr = %s", code, stderr)
 	}
 	if strings.Contains(fake.calls(), "-L 127.0.0.1") {

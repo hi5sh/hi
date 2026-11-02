@@ -10,6 +10,7 @@ description: Every hi command and option in one place.
 | `hi compute …`                   | Rent and use remote machines; see below                |
 | `hi login <hf|colab|runpod|shadeform>` | Sign in to a compute provider               |
 | `hi data …`                      | Download your team's Hugging Face datasets, models, and buckets; see below |
+| `hi serve …`                     | Serve a model with an OpenAI-compatible API; see below |
 | `hi org …`                       | Your organization: join it, or run its server, which approves and pays for compute; see below |
 | `hi init [<template> <dir>]`     | Start a project from a template; `--update`, `--adopt` |
 | `hi q [<what you want>]`         | Ask for a shell command, or chat; see below            |
@@ -40,7 +41,7 @@ description: Every hi command and option in one place.
 | `hi compute up [options]`                            | Start an instance                                      |
 | `hi compute run [options] <script.py> [-- args]`     | Run a Python script to completion                      |
 | `hi compute run [options] <image> -- <command>`      | Run a container command to completion (Hugging Face)   |
-| `hi compute serve [options] <recipe | owner/repo-GGUF>` | Serve a GGUF model with an OpenAI-compatible API   |
+| `hi compute serve [options] <recipe | owner/repo-GGUF>` | Serve a GGUF model with an OpenAI-compatible API; also `hi serve llm` |
 | `hi compute ls`                                      | Everything running, with limits                        |
 | `hi compute status <name>`                           | One run or instance in detail                          |
 | `hi compute ssh <name> [-- <command>]`               | Shell, or one command                                  |
@@ -81,6 +82,17 @@ description: Every hi command and option in one place.
 Defaults: `--gpu` is the provider's cheapest CPU; `--max` is `4h` for `up` and
 `serve` and `1h` for `run`, at most `24h` on Colab. Flags may come before or
 after names for `logs`, `serve`, `stop`, and `billing`.
+
+## hi serve
+
+See [Serve a model](/guide/compute/serve/).
+
+| Command                           | Does                                                                                   |
+|-----------------------------------|----------------------------------------------------------------------------------------|
+| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`; the options are `hi compute serve`'s |
+| `hi serve ls [--json]`            | The models you serve: where, their API, and until when                                 |
+| `hi serve logs <name> [--follow]` | The server's setup and logs                                                            |
+| `hi serve stop <name>`            | Stop a model server and its machine                                                    |
 
 ## hi org
 

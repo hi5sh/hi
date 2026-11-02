@@ -14,7 +14,7 @@ settings that make it fit.
 ## 1. Preview
 
 ```sh
-hi compute serve qwen3.8-flash-next --on colab --name qwen --max 1h --dry-run
+hi serve llm qwen3.8-flash-next --on colab --name qwen --max 1h --dry-run
 ```
 
 ```text
@@ -27,7 +27,7 @@ Would serve unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL on port 8000.
 ## 2. Serve
 
 ```sh
-hi compute serve qwen3.8-flash-next --on colab --name qwen --max 1h
+hi serve llm qwen3.8-flash-next --on colab --name qwen --max 1h
 ```
 
 The machine builds llama.cpp and downloads the 90 GB model at the same time:
@@ -69,7 +69,7 @@ Press Ctrl+C in the serving terminal and answer `y` to stop the machine, or
 from anywhere:
 
 ```sh
-hi compute stop qwen
+hi serve stop qwen
 ```
 
 ## Why the recipe works
@@ -87,7 +87,7 @@ The recipe passes these `llama-server` flags:
 The same recipe runs on an `rtx-pro-6000`, which also has 96 GB:
 
 ```sh
-hi compute serve qwen3.8-flash-next --on hf --name qwen --max 1h
+hi serve llm qwen3.8-flash-next --on hf --name qwen --max 1h
 ```
 
 There, `llama-server` downloads the model itself, and `hi` prints an HTTPS URL

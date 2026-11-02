@@ -164,8 +164,8 @@ Serve a model with llama.cpp and get an OpenAI-compatible API on
 `http://127.0.0.1:8080/v1`:
 
 ```sh
-hi compute serve qwen3.8-flash-next --on colab          # tested recipe, Colab G4
-hi compute serve unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4
+hi serve llm qwen3.8-flash-next --on colab              # tested recipe, Colab G4
+hi serve llm unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4
 hi compute logs <name> --follow                         # build, download, server
 ```
 
@@ -194,7 +194,7 @@ hi compute run --gpu a10g-small --detach --secret WANDB_API_KEY train.py
 hi compute logs <name> --follow
 hi compute wait <name>
 hi compute up --gpu a10g-small --name box                # SSH-able GPU box
-hi compute serve qwen3.8-flash-next --on hf              # RTX PRO 6000, HTTPS URL
+hi serve llm qwen3.8-flash-next --on hf                  # RTX PRO 6000, HTTPS URL
 ```
 
 Jobs need pre-paid credits on the account that pays. `hi` bills your own
@@ -295,7 +295,7 @@ dangerous ones, such as `sudo`, `rm -r` outside the current folder, or
 they match first.
 
 `hi q --setup` chooses the model (the connected org server's, Claude Code, OpenRouter, any
-OpenAI-compatible endpoint including Ollama and `hi compute serve`, or an
+OpenAI-compatible endpoint including Ollama and `hi serve llm`, or an
 Anthropic key) and offers to add shell integration to `~/.bashrc` or
 `~/.zshrc`. With it, `hi q` sees the shell's current history and last exit
 status, `q count lines (and subfolders)` works without quotes, commands it

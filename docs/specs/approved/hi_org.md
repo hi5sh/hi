@@ -1,6 +1,7 @@
 # `hi org` and `hi serve`: renaming `hi server`
 
-Status: Approved (2026-11-02). Release 1 built in v2.6.55.
+Status: Approved (2026-11-02). Releases 1 to 3 built in v2.6.55 and v2.6.56
+(release 2 is the guide).
 
 Dependencies: [hi_server.md](hi_server.md) (every command being
 renamed), [hi_server_ai.md](hi_server_ai.md),

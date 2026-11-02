@@ -2713,6 +2713,21 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.56 — hi serve llm: serving a model has its own command
+
+- [x] `hi serve llm <recipe | owner/repo-GGUF --quant Q>` serves a model,
+  with every option `hi compute serve` had; `hi compute serve` is another
+  name for it. `--on local` and `--on auto` say they aren't built yet.
+- [x] `hi serve ls [--json]` lists the models you serve: the machine, the
+  model's id, its API (an `hf.jobs` URL, or a tunnel and the command that
+  opens it again), and when it stops. A model is recorded when it starts,
+  so one that failed still has `hi serve logs`; machines that are gone
+  are forgotten.
+- [x] `hi serve logs` and `hi serve stop` take only a model hi serve
+  started, so `stop` never takes another machine; the guide, the
+  reference, and the `hi` skill use the new commands.
+  Approved spec: [hi_org.md](specs/approved/hi_org.md), release 3.
+
 ### v2.6.55 — hi org: one name for the organization
 
 - [x] `hi org` replaces `hi server`, `hi connect`, and `hi disconnect`:
@@ -4101,7 +4116,7 @@ Spec: [hi_org.md](specs/approved/hi_org.md), releases 2, 3, and 5.
 
 - [x] The guide, `/org/` with `/server/` sending visitors there,
   `llms.txt`, the README, the diagrams, and a note on hi_server.md.
-- [ ] `hi serve llm`: `hi compute serve` under its new name, with `hi
+- [x] `hi serve llm`: `hi compute serve` under its new name, with `hi
   serve ls`, `stop`, and `logs`.
 - [ ] Last, after the machines (hi_cluster.md): rename what was kept so
   nothing broke, with a migration each: the state directory,

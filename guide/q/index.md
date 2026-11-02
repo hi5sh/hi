@@ -113,7 +113,7 @@ If none of these are there, a menu opens. Run `hi q --setup` to choose again:
   `/` to filter.
 - **An OpenAI-compatible endpoint**: OpenAI, Groq, Ollama
   (`http://localhost:11434/v1`), vLLM, llama.cpp, LM Studio, or a model you
-  serve with `hi compute serve`. Give the base URL, the key (not asked for
+  serve with `hi serve llm`. Give the base URL, the key (not asked for
   local addresses), and the model, chosen from the endpoint's list when it
   has one.
 - **An Anthropic API key**.

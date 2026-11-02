@@ -3,10 +3,11 @@ title: Serve a model
 description: Start a GPU, run a GGUF model with llama.cpp, and use it through an OpenAI-compatible API from curl, Python, or any OpenAI-compatible tool.
 ---
 
-`hi compute serve` rents a GPU, starts [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
+`hi serve llm` rents a GPU, starts [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
 server with a GGUF model, waits until it answers, and gives you an
 OpenAI-compatible URL. It takes a tested recipe or any GGUF repository on the
-Hugging Face Hub.
+Hugging Face Hub. `hi compute serve` is another name for it, with the same
+options.
 
 ## With a recipe
 
@@ -14,7 +15,7 @@ Recipes pick the model file, hardware, context length, and server flags that
 have been tested together:
 
 ```sh
-hi compute serve qwen3.8-flash-next --on colab --max 1h
+hi serve llm qwen3.8-flash-next --on colab --max 1h
 ```
 
 | Recipe               | Model                                      | Hardware                             | Measured                     |
@@ -30,8 +31,8 @@ Name a Hugging Face repository that contains GGUF files, a quantization that
 exists in it, and hardware with enough memory:
 
 ```sh
-hi compute serve unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4 --max 1h
-hi compute serve unsloth/Qwen3-0.6B-GGUF --quant Q4_K_M --gpu t4-small --max 30m
+hi serve llm unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4 --max 1h
+hi serve llm unsloth/Qwen3-0.6B-GGUF --quant Q4_K_M --gpu t4-small --max 30m
 ```
 
 Choose hardware whose GPU memory is at least the model file's size plus a few
@@ -70,8 +71,8 @@ Shadeform, add `--gpu`.
    foreground. Press Ctrl+C to close the tunnel; `hi` asks whether to stop the
    machine.
 
-If setup fails or you close the terminal, run the same `serve` command with
-the same `--name` again: the script skips what is already done.
+If setup fails or you close the terminal, run the same `hi serve llm` command
+with the same `--name` again: the script skips what is already done.
 
 ### Hugging Face
 
@@ -84,7 +85,7 @@ the same `--name` again: the script skips what is already done.
    OpenAI-compatible API: https://6ab97de2…--8000.hf.jobs/v1   model: qwen3-0.6b-gguf
    It needs your hf token as the API key. It stops after 30m at 21:05.
    Local tunnel instead: hi compute tunnel t4-small-3fa1 8000:8080
-   Stop it:              hi compute stop t4-small-3fa1
+   Stop it:              hi serve stop t4-small-3fa1
    ```
 3. The URL works from anywhere, but only with a Hugging Face token that can
    read the account that pays; without one, it answers `401`. Use your token
@@ -140,11 +141,28 @@ export OPENAI_API_KEY=unused      # or your Hugging Face token for an hf.jobs UR
 > (for example `"max_tokens": 2000`) or the answer may be empty.
 {: .tip}
 
+## See what you serve
+
+```sh
+hi serve ls
+```
+
+```text
+NAME           PROVIDER  MODEL               API                                  STOPS IN
+t4-small-3fa1  hf        qwen3-0.6b-gguf     https://6ab97de2…--8000.hf.jobs/v1   27m
+qwen           colab     qwen3.8-flash-next  tunnel                               52m
+```
+
+A model on Colab, RunPod, or Shadeform is reached through its tunnel, so
+its API works while the tunnel runs; `hi compute tunnel <name> 8000:8080`
+opens it again. `hi serve ls --json` gives the same list, with the
+repository and quant of each.
+
 ## Watch and troubleshoot
 
 ```sh
-hi compute logs <name>            # setup, download, and server logs
-hi compute logs <name> --follow
+hi serve logs <name>              # setup, download, and server logs
+hi serve logs <name> --follow
 hi compute status <name>
 ```
 
@@ -162,5 +180,8 @@ hi compute status <name>
 A model server keeps costing money until it stops:
 
 ```sh
-hi compute stop <name>
+hi serve stop <name>
 ```
+
+`hi serve stop` stops only machines that serve a model; `hi compute stop`
+stops any.

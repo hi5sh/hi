@@ -85,10 +85,13 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{"usage: hi compute serve [options] <recipe | owner/repo-GGUF --quant Q>\n" +
+		return usageError{"usage: hi serve llm [options] <recipe | owner/repo-GGUF --quant Q>\n" +
 			"recipes: " + strings.Join(serveRecipeNames(), ", ")}
 	}
 
+	if *on == "local" || *on == "auto" {
+		return usageError{fmt.Sprintf("--on %s isn't built yet; serve on colab, hf, runpod, or shadeform", *on)}
+	}
 	recipe, err := resolveServeRecipe(positional[0], *quant, *contextSize, *alias, *extra)
 	if err != nil {
 		return err
@@ -165,6 +168,9 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		fmt.Fprintf(stdout, "Would serve %s:%s on port %d.\n", recipe.repo, recipe.quant, serveRemotePort)
 		return nil
 	}
+	served := servedModel{Name: instance, Provider: provider.name(), Model: recipe.alias, Repo: recipe.repo,
+		Quant: recipe.quant, Port: *localPort, Started: computeNow()}
+	recordServed(served, stderr)
 
 	if apiServed {
 		fmt.Fprintf(stdout, "Serving %s:%s on %s; the model downloads while the server starts.\n",
@@ -176,6 +182,8 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		if err != nil {
 			return err
 		}
+		served.URL, served.Port = url, 0
+		recordServed(served, stderr)
 		fmt.Fprintf(stdout, "\nOpenAI-compatible API: %s/v1   model: %s\n", url, recipe.alias)
 		lifetime := "It has no time limit."
 		if maxLifetime.value != noLimit {
@@ -183,7 +191,7 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		}
 		fmt.Fprintf(stdout, "It needs your %s token as the API key. %s\n", provider.name(), lifetime)
 		fmt.Fprintf(stdout, "Local tunnel instead: hi compute tunnel %s %d:%d\n", instance, serveRemotePort, *localPort)
-		fmt.Fprintf(stdout, "Stop it:              hi compute stop %s\n", instance)
+		fmt.Fprintf(stdout, "Stop it:              hi serve stop %s\n", instance)
 		return nil
 	}
 
@@ -308,10 +316,10 @@ func waitForServer(instance string, stdout io.Writer, state func() (string, erro
 			return nil
 		}
 		if strings.HasPrefix(progress, "failed") {
-			return fmt.Errorf("%s; see `hi compute logs %s`", progress, instance)
+			return fmt.Errorf("%s; see `hi serve logs %s`", progress, instance)
 		}
 	}
-	return fmt.Errorf("the server was not ready after %s; see `hi compute logs %s`",
+	return fmt.Errorf("the server was not ready after %s; see `hi serve logs %s`",
 		formatDuration(serveReadyWithin), instance)
 }
 

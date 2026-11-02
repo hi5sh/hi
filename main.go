@@ -120,6 +120,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runHeartbeat(args[1:], stdout, stderr)
 	case "disconnect":
 		return runDisconnect(args[1:], stdout, stderr)
+	case "serve":
+		return runServe(args[1:], stdin, stdout, stderr)
 	case "org", "server":
 		return runOrg(args[1:], stdin, stdout, stderr)
 	case "verify":
@@ -157,6 +159,7 @@ Usage:
   hi login <hf|colab|runpod|shadeform>
                                 Sign in to a compute provider
   hi data                       Download your team's Hugging Face datasets, models, and buckets
+  hi serve llm <recipe>         Serve a model with an OpenAI-compatible API on rented hardware (hi serve help)
   hi org                        Your organization: join it, or run its server, which approves and pays for compute
                                 and serves your team's templates and data (hi org help)
   hi init [<template> <dir>]    Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml)

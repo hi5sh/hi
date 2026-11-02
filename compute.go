@@ -226,6 +226,8 @@ func runCompute(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitCode(computeServeCommand(rest, stdin, stdout, stderr), stderr)
 	case "logs":
 		return exitCode(computeLogsCommand(rest, stdin, stdout, stderr), stderr)
+	case "__serve-ls":
+		return exitCode(serveListCommand(rest, stdout, stderr), stderr)
 	case "billing":
 		return exitCode(computeBillingCommand(rest, stdout, stderr), stderr)
 	case "requests":
@@ -303,7 +305,7 @@ Usage:
   hi compute stop [<name> | --all]    Stop instances; without a name, pick from a list
   hi compute serve <recipe | owner/repo-GGUF --quant Q> [options]
                                       Serve a model with llama.cpp and tunnel
-                                      its OpenAI-compatible API here
+                                      its OpenAI-compatible API here (hi serve llm)
   hi compute run [options] <script.py> [-- args...]
   hi compute run [options] <image> -- <command...>
                                       Run to completion, streaming logs
@@ -1785,6 +1787,8 @@ func helpCommand(name string) string {
 	switch {
 	case len(words) >= 2 && words[0] == "net" && words[1] == "expose":
 		return "hi net expose help"
+	case len(words) >= 1 && words[0] == "serve":
+		return "hi serve help"
 	case len(words) >= 1 && words[0] == "data":
 		return "hi data help"
 	case len(words) >= 1 && words[0] == "org":

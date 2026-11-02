@@ -122,13 +122,15 @@ user's public key registered at https://huggingface.co/settings/keys.
 
 ## Serve a model
 
-`serve` starts a machine, runs llama.cpp with a GGUF model, and waits until it
-answers.
+`hi serve llm` starts a machine, runs llama.cpp with a GGUF model, and waits
+until it answers. `hi compute serve` is the same command under its old name.
 
 ```sh
-hi compute serve --on colab --max 1h --yes qwen3.8-flash-next    # tested recipe, Colab G4
-hi compute serve --on hf --gpu t4-small --quant Q4_K_M --max 30m --yes unsloth/Qwen3-0.6B-GGUF
-hi compute logs <name> --follow                                  # build, download, server
+hi serve llm --on colab --max 1h --yes qwen3.8-flash-next        # tested recipe, Colab G4
+hi serve llm --on hf --gpu t4-small --quant Q4_K_M --max 30m --yes unsloth/Qwen3-0.6B-GGUF
+hi serve ls                                                      # what you serve, and each API
+hi serve logs <name> --follow                                    # build, download, server
+hi serve stop <name>
 ```
 
 - On Colab, `serve` then tunnels the API to `http://127.0.0.1:8080/v1` and
@@ -375,7 +377,7 @@ which needs a terminal. `ls` also stops instances past their limit. Names can be
 | `several providers are ready`                 | Add `--on colab` or `--on hf`, or a provider-specific `--gpu`.     |
 | `Permission denied (publickey)` on Hugging Face | The SSH key is not registered on the Hub account.                |
 | `unknown ... hardware`                        | Use a name from `hi compute hardware`.                             |
-| A `serve` step failed                         | `hi compute logs <name>` shows the build, download, and server logs. |
+| A `serve` step failed                         | `hi serve logs <name>` shows the build, download, and server logs. |
 | `approvers need a reason`                     | Managed provider: add `--reason "..."`.                            |
 | `... is waiting for approval` (exit 3)        | Tell the user; check with `hi compute requests <id> --wait`.       |
 | `... was denied by ...` (exit 4)              | Tell the user the reason; do not retry around it.                  |
