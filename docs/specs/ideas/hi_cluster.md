@@ -4,7 +4,7 @@ Status: Draft (2026-11-01; named `hi cluster` until 2026-11-02)
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, device
 keys, groups, policy, approvals, the audit log, the reconciler, the live
-dashboard), [hi_org.md](../approved/hi_org.md) (`hi server` and `hi connect` become `hi
+dashboard), [hi_org.md](../approved/hi_org.md) (`hi server` and `hi connect` became `hi
 org`, and `--on` means the same everywhere), [hi_compute.md](../approved/hi_compute.md) (the `computeProvider`
 interface, `--max`), [hi_box.md](../approved/hi_box.md) (boxes, rootless
 Podman, the proxy, "Remote sandboxes"), [hi_agent.md](../approved/hi_agent.md)
@@ -43,7 +43,7 @@ RunPod.
 | Need | In hi today |
 |---|---|
 | A private network between machines | NetBird (`hi net`) and its access control |
-| A central place, users, keys | `hi org` (today `hi server` and `hi connect`): ed25519 device keys approved by an admin, users, groups, policy, budgets |
+| A central place, users, keys | `hi org`: ed25519 device keys approved by an admin, users, groups, policy, budgets |
 | Approvals, audit, watching | Slack approvals, the audit log, `hi org live`, the reconciler that stops what has expired |
 | Finding and reaching a machine | `computeProvider` (`compute.go`) and the `managed` driver: `hardware`, `create`, `list`, `stop`, `ssh`, `logs`, `runJob`, `wait`; the `--max` watchdog |
 | The thing that runs | `hi box`: rootless Podman, the egress proxy, presets, limits; `hi agent` and `hi team` build on it |

@@ -4385,7 +4385,7 @@ An optional add-on, if advisories without a severity turn out to matter:
 
 The spec's open questions, to decide once it has run a while:
 
-- [ ] Teams on a machine with no hi server: a watcher in a separate user
+- [ ] Teams on a machine with no org server: a watcher in a separate user
   on the same machine (advisories and network rules, not a dead machine),
   or a team needs a server.
 - [ ] Auto-freeze: keep it on, or have every freeze wait for an admin
@@ -4433,7 +4433,7 @@ libraries.
 
 [boxd](https://docs.boxd.sh/) and similar services (Fly's Sprites, E2B,
 Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
-`hi server`. Candidates from boxd:
+`hi org`. Candidates from boxd:
 
 - Checkpoints before risky changes, and forking a running machine into an
   identical copy.
@@ -4459,7 +4459,7 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   agent order that moves on when one is out of quota, version checks, and
   nested calls through the box socket with depth, concurrency, and time
   limits. Spec: [hi_agent.md, Releases](specs/approved/hi_agent.md#releases) (2).
-- [ ] Agents' sign-ins kept on the hi server, with spend limits, audit, and
+- [ ] Agents' sign-ins kept on the org server, with spend limits, audit, and
   the live view. Spec: [hi_agent.md](specs/approved/hi_agent.md#sign-ins-on-the-server-release-3) (3).
 - [ ] `--on <machine>` and `--remote`, and Antigravity CLI.
   Spec: [hi_agent.md, Releases](specs/approved/hi_agent.md#releases) (4).
@@ -4480,7 +4480,7 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   a JSON schema; and its attack-class prompts (AI and LLM, supply chain,
   data isolation, and more). Decide what to take before any spec.
 
-### Later — `hi data` and `hi server expose`
+### Later — `hi data` and `hi org expose`
 
 Follow-ups to v0.24–v0.28, not scheduled yet.
 
@@ -4490,12 +4490,12 @@ Follow-ups to v0.24–v0.28, not scheduled yet.
 - [ ] On hold (decided 2026-10-03): `hi data upload`, with its limits
   (which repositories or buckets, approval, review) to be decided then.
   Spec: [hi_data.md, Later: uploads](specs/approved/hi_data.md#later-uploads).
-- [ ] A name that stays for `hi server expose`, as `hi net expose
+- [ ] A name that stays for `hi org expose`, as `hi net expose
   --domain` has (v0.70.0), so a restart of the exposure doesn't cut off
   runs already going.
   Spec: [hi_server_expose.md, Open questions](specs/approved/hi_server_expose.md#open-questions) (2) and
   [The exposure's lifetime](specs/approved/hi_server_expose.md#the-exposures-lifetime).
-- [ ] `hi server expose on|off`, in place of `"expose_listen": "off"`.
+- [ ] `hi org expose on|off`, in place of `"expose_listen": "off"`.
   Spec: [hi_server_expose.md, Commands](specs/approved/hi_server_expose.md#commands).
 - [ ] Colab through the proxy: a way to hand Colab the run token, so its
   runs get no one-hour links and can call `load_dataset`.
@@ -4583,7 +4583,7 @@ RunPod code.
 ### Deferred — More `hi q` backends
 
 - [ ] Codex and opencode as `hi q` backends. Deferred on 2026-10-02: with the
-  team model through `hi server` and OpenRouter, they add a second, slow
+  team model through `hi org` and OpenRouter, they add a second, slow
   path that mainly helps people without a team server.
 
 ### Deferred — Spot instances
@@ -4636,7 +4636,7 @@ first, on gpu1 on 2026-10-28, and doesn't work rootless:
   its own, lingering), its folder in `/var/lib/hi/teams/<team>`, and runs
   the team's service and boxes as it. hi moves to `/usr/local/bin`.
 - [ ] The team's keys in its folder; the machine's sign-ins served from
-  the admin's side; a device key per team for the hi server.
+  the admin's side; a device key per team for the org server.
 - [ ] The admin's `hi team` commands run as the team's account
   (`sudo -u`), from the admin's account, as now.
 - [ ] `hi team up` moves an existing team, behind a snapshot, keeping its
@@ -4644,7 +4644,7 @@ first, on gpu1 on 2026-10-28, and doesn't work rootless:
   working, with a warning.
 - [ ] A test that plays the escape: as the team's account on the host, no
   other team's folder, broker, or containers, no admin home, no hi
-  config, and the hi server refuses the team's key for another team.
+  config, and the org server refuses the team's key for another team.
 
 Deferred on 2026-10-30: the per-account design touches most of `hi team`
 (sudo for the admin's commands, a broker for the machine's sign-ins, a
