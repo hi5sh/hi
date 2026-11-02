@@ -43,7 +43,7 @@ var watchExempt = []string{"openrouter.ai", "anthropic.com", "github.com", "gith
 // no reason to send anything.
 const watchHostsStarter = `# Hosts a team's box has no reason to send to: paste sites, file drops,
 # tunnels, and request catchers. One per line; a name covers its
-# subdomains. hi server watch reads this file again when it changes.
+# subdomains. hi team watch reads this file again when it changes.
 pastebin.com
 paste.ee
 hastebin.com

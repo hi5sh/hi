@@ -299,7 +299,7 @@ func openServer(dir string, log io.Writer) (*hiServer, error) {
 	for _, request := range server.state.Requests {
 		if request.State == "starting" {
 			request.State = "failed"
-			request.Error = "the server restarted while starting it; check `hi server ls` and the audit log"
+			request.Error = "the server restarted while starting it; check `hi org ls` and the audit log"
 		}
 	}
 	return server, nil
@@ -586,7 +586,7 @@ func (s *hiServer) deviceLimited(limit int64, next deviceHandler) http.HandlerFu
 				}
 			}
 			s.mu.Unlock()
-			message := "this device is not enrolled; run `hi connect`"
+			message := "this device is not enrolled; run `hi org join`"
 			if pending != "" {
 				message = fmt.Sprintf("this device is waiting for approval (%s)", pending)
 			}
@@ -1068,7 +1068,7 @@ func (s *hiServer) decide(id, actor string, approve bool, group, reason string) 
 	if actor == request.User {
 		s.mu.Unlock()
 		return serverRequest{}, serverUsageError{"nobody can approve or deny their own request; ask another approver " +
-			"(an admin adds their own device with `hi server user add <user> --group G --key K`)"}
+			"(an admin adds their own device with `hi org user add <user> --group G --key K`)"}
 	}
 	if approve && request.Kind == "enroll" {
 		if _, exists := s.state.Users[request.User]; !exists && group == "" {
@@ -1464,7 +1464,7 @@ func (s *hiServer) adminHandler() http.Handler {
 		}
 		s.mu.Unlock()
 		if len(chosen) == 0 {
-			writeAPIError(w, http.StatusNotFound, "nothing matched; see `hi server ls`")
+			writeAPIError(w, http.StatusNotFound, "nothing matched; see `hi org ls`")
 			return
 		}
 		var stopped, failed []string
@@ -1674,7 +1674,7 @@ func (s *hiServer) spendSummary(from, to time.Time) string {
 func decodeDeviceKey(key string) (ed25519.PublicKey, error) {
 	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key))
 	if err != nil || len(raw) != ed25519.PublicKeySize {
-		return nil, errors.New("that is not a device key; get it with `hi connect key` on the device")
+		return nil, errors.New("that is not a device key; get it with `hi org key` on the device")
 	}
 	return ed25519.PublicKey(raw), nil
 }
@@ -1736,7 +1736,7 @@ func (s *hiServer) serve(ctx context.Context, listen string) error {
 	var instance *http.Server
 	if address := s.exposure.listen; address != "" {
 		if listener, err := net.Listen("tcp", address); err != nil {
-			fmt.Fprintf(s.log, "hi server: no instance listener on %s, so cloud runs use signed links: %v\n", address, err)
+			fmt.Fprintf(s.log, "hi org: no instance listener on %s, so cloud runs use signed links: %v\n", address, err)
 			s.exposure.mu.Lock()
 			s.exposure.listen = ""
 			s.exposure.mu.Unlock()
@@ -1745,7 +1745,7 @@ func (s *hiServer) serve(ctx context.Context, listen string) error {
 			go instance.Serve(listener)
 		}
 	}
-	fmt.Fprintf(s.log, "hi server %s listening on %s\n", version, listen)
+	fmt.Fprintf(s.log, "hi org server %s listening on %s\n", version, listen)
 	if err := s.startSlack(ctx); err != nil {
 		fmt.Fprintf(s.log, "slack: %v\n", err)
 	}
@@ -1802,13 +1802,13 @@ func netbirdAddress() (string, error) {
 
 func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
-		printServerUsage(stdout)
+		printOrgUsage(stdout)
 		return 0
 	}
 	command, rest := args[0], args[1:]
 	switch command {
 	case "help", "-h", "--help":
-		printServerUsage(stdout)
+		printOrgUsage(stdout)
 		return 0
 	case "init":
 		return exitCode(serverInitCommand(rest, stdout, stderr), stderr)
@@ -1851,69 +1851,17 @@ func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "expose":
 		return exitCode(serverExposeCommand(rest, stdout, stderr), stderr)
 	case "watch":
-		fmt.Fprintln(stderr, "hi: hi server watch is gone: teams watch themselves on their own machine (hi team watch), and this machine's heartbeat is hi heartbeat <url>.")
+		fmt.Fprintln(stderr, "hi: hi org watch is gone: teams watch themselves on their own machine (hi team watch), and this machine's heartbeat is hi heartbeat <url>.")
 		return 1
 	default:
-		fmt.Fprintf(stderr, "hi: unknown server command %q\n\n", command)
-		printServerUsage(stderr)
+		fmt.Fprintf(stderr, "hi: unknown org command %q\n\n", command)
+		printOrgUsage(stderr)
 		return 2
 	}
 }
 
-func printServerUsage(w io.Writer) {
-	fmt.Fprintln(w, `hi server brokers compute for connected devices: it holds the provider keys,
-and nothing starts without an approval. It also serves your team's private
-project templates to hi init, and your team's Hugging Face datasets and
-models to hi data.
-
-Usage:
-  hi server init [--listen ADDR]          Create the server's state here
-  hi server run                           Serve clients (run it as a systemd service)
-  hi server provider add|remove <p>       Store or remove a provider key (runpod, shadeform)
-  hi server provider list                 Show managed providers
-  hi server user add <u> --group G [--key K]
-                                          Add a user; --key pre-approves a device
-  hi server user remove <u>               Remove a user and all their devices
-  hi server user list                     Users, groups, and devices
-  hi server requests [--all]              Pending requests (--all: every request)
-  hi server approve <id> [--group G]      Approve an enrollment or compute request
-  hi server deny <id> [--reason R]        Deny a request
-  hi server ls                            Everything running, for every user
-  hi server stop <name> | --user U | --all
-                                          Stop instances
-  hi server audit [--since 7d]            Requests, approvals, starts, and stops
-  hi server slack setup                   Connect a Slack app (see: hi server slack manifest)
-  hi server approvers add <Slack ID> --name <user>
-                                          Let someone approve and stop from Slack
-  hi server approvers remove <Slack ID> | list
-  hi server policy show|edit|example|check
-                                          Groups: limits, auto-approve, budgets
-  hi server spend [--since 30d]           Spend per user and group, compute and models
-  hi server ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key
-  hi server live [--wall]                 Live dashboard; --wall is read-only for a shared screen
-  hi server wall setup|add|remove|list    Show the wall dashboard on screens over SSH (needs sudo)
-  hi server viewer add <name> --key K     A device that may only watch the dashboard
-  hi server templates add <name> <git-url> [--ref R]
-                                          Serve a private repository's templates and skills
-  hi server templates list|sync|remove    Show, fetch now, or stop serving template sources
-  hi server templates rename <name> <new> Rename a source; keeps its token and history
-  hi server data                          Hugging Face organizations for hi data (menu)
-  hi server data add <org>... [--token-file F]
-                                          Serve an organization's datasets, models, and buckets
-  hi server data list|test|remove         Show, check, or stop serving organizations
-  hi server expose [stop]                 The public URL cloud runs reach hi data through, if any
-
-
-Commands other than init and run talk to the running server through its
-admin socket, so they work only on the server box. Decisions are recorded
-under your login name; change it with --as.
-
-Options:
-  --dir <dir>    State directory (default: $HI_SERVER_DIR or ~/.local/state/hi/server)`)
-}
-
 func serverFlags(name string, stderr io.Writer) (*flagSet, *string) {
-	flags := newComputeFlags("server "+name, stderr)
+	flags := newComputeFlags("org "+name, stderr)
 	dir := flags.String("dir", "", "state directory")
 	return &flagSet{flags}, dir
 }
@@ -1956,16 +1904,16 @@ func serverInitCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	executable, _ := os.Executable()
 	fmt.Fprintf(stdout, "The server's state is in %s, readable only by you.\n", dir)
-	fmt.Fprintf(stdout, "Clients connect with: hi connect %s\n\n", *listen)
+	fmt.Fprintf(stdout, "Devices join with: hi org join %s\n\n", *listen)
 	fmt.Fprintln(stdout, "Next:")
-	fmt.Fprintln(stdout, "  hi server provider add runpod    (or shadeform)")
-	fmt.Fprintln(stdout, "  hi server run          (or as a service, below)")
+	fmt.Fprintln(stdout, "  hi org provider add runpod    (or shadeform)")
+	fmt.Fprintln(stdout, "  hi org run          (or as a service, below)")
 	if _, set := loadMachineHeartbeat(); !set {
 		fmt.Fprintln(stdout, "  hi heartbeat <url>     so someone hears if this machine stops: a check at a service such as healthchecks.io")
 	}
 	fmt.Fprintf(stdout, "\nA systemd unit, for /etc/systemd/system/hi-server.service:\n\n")
-	fmt.Fprintf(stdout, "[Unit]\nDescription=hi compute server\nAfter=network-online.target netbird.service\nWants=network-online.target\n\n")
-	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_SERVER_DIR=%s\nExecStart=%s server run\nRestart=always\n\n", currentUserName(), dir, executable)
+	fmt.Fprintf(stdout, "[Unit]\nDescription=hi org server\nAfter=network-online.target netbird.service\nWants=network-online.target\n\n")
+	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_SERVER_DIR=%s\nExecStart=%s org run\nRestart=always\n\n", currentUserName(), dir, executable)
 	fmt.Fprintf(stdout, "[Install]\nWantedBy=multi-user.target\n")
 	return nil
 }
@@ -1981,7 +1929,7 @@ func serverRunCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {
-		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
 	}
 	var config serverConfig
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -1998,7 +1946,7 @@ func serverRunCommand(args []string, stdout, stderr io.Writer) error {
 		server.fallback.extra = *config.FallbackPriceExtra
 	}
 	if len(server.providers) == 0 {
-		fmt.Fprintln(stderr, "hi: warning: no provider keys yet; add one with `hi server provider add runpod` or `shadeform`")
+		fmt.Fprintln(stderr, "hi: warning: no provider keys yet; add one with `hi org provider add runpod` or `shadeform`")
 	}
 	server.exposure.listen = exposeListenAddress(config)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -2010,7 +1958,8 @@ func serverRunCommand(args []string, stdout, stderr io.Writer) error {
 func adminClient(dir string) (*http.Client, error) {
 	socket := filepath.Join(dir, "admin.sock")
 	if _, err := os.Stat(socket); err != nil {
-		return nil, fmt.Errorf("the server is not running in %s; start it with `hi server run`", dir)
+		return nil, fmt.Errorf("the server is not running in %s; start it with `hi org run`.\n"+
+			"This runs on the server box. On a device, see `hi org status`; ask your IT team for the rest", dir)
 	}
 	return &http.Client{
 		Timeout: 2 * time.Minute,
@@ -2100,7 +2049,7 @@ func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Wri
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: hi server provider add|remove <provider> | list"}
+	usage := usageError{"usage: hi org provider add|remove <provider> | list"}
 	switch {
 	case len(positional) == 1 && positional[0] == "list":
 		var names []string
@@ -2108,7 +2057,7 @@ func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Wri
 			return err
 		}
 		if len(names) == 0 {
-			fmt.Fprintln(stdout, "No provider keys yet; add one with `hi server provider add runpod` or `shadeform`.")
+			fmt.Fprintln(stdout, "No provider keys yet; add one with `hi org provider add runpod` or `shadeform`.")
 		}
 		for _, name := range names {
 			fmt.Fprintln(stdout, name)
@@ -2125,7 +2074,7 @@ func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Wri
 			return err
 		}
 		if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-			return fmt.Errorf("no server in %s; run `hi server init` first", dir)
+			return fmt.Errorf("no server in %s; run `hi org init` first", dir)
 		}
 		key, err := readProviderKey(name, stdin, stdout)
 		if err != nil {
@@ -2154,7 +2103,7 @@ func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Wri
 			return err
 		}
 		server.audit(*as, "set provider key", name, "")
-		fmt.Fprintf(stdout, "Saved the %s key. Start the server with `hi server run`.\n", name)
+		fmt.Fprintf(stdout, "Saved the %s key. Start the server with `hi org run`.\n", name)
 		return nil
 	case len(positional) == 2 && positional[0] == "remove":
 		path := "/admin/providers/" + positional[1] + "?as=" + *as
@@ -2197,7 +2146,7 @@ func serverUserCommand(args []string, stdout, stderr io.Writer) error {
 	flags, dirFlag := serverFlags("user", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	group := flags.String("group", "", "group")
-	key := flags.String("key", "", "device key from `hi connect key`")
+	key := flags.String("key", "", "device key from `hi org key`")
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
@@ -2233,7 +2182,7 @@ func serverUserCommand(args []string, stdout, stderr io.Writer) error {
 		return table.Flush()
 	case len(positional) == 2 && positional[0] == "add":
 		if *group == "" {
-			return usageError{"usage: hi server user add <user> --group <group> [--key <device key>]"}
+			return usageError{"usage: hi org user add <user> --group <group> [--key <device key>]"}
 		}
 		body := map[string]string{"as": *as, "name": positional[1], "group": *group, "key": *key}
 		if err := adminCall(*dirFlag, http.MethodPost, "/admin/users", body, nil); err != nil {
@@ -2248,11 +2197,11 @@ func serverUserCommand(args []string, stdout, stderr io.Writer) error {
 		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/users/"+positional[1]+"?as="+*as, nil, nil); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Removed %s and their devices. Stop their instances with `hi server stop --user %s`.\n",
+		fmt.Fprintf(stdout, "Removed %s and their devices. Stop their instances with `hi org stop --user %s`.\n",
 			positional[1], positional[1])
 		return nil
 	}
-	return usageError{"usage: hi server user add <u> --group G [--key K] | remove <u> | list"}
+	return usageError{"usage: hi org user add <u> --group G [--key K] | remove <u> | list"}
 }
 
 func serverRequestsCommand(args []string, stdout, stderr io.Writer) error {
@@ -2263,7 +2212,7 @@ func serverRequestsCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 0 {
-		return usageError{"usage: hi server requests [--all]"}
+		return usageError{"usage: hi org requests [--all]"}
 	}
 	path := "/admin/requests"
 	if *all {
@@ -2300,7 +2249,7 @@ func serverDecideCommand(decision string, args []string, stdout, stderr io.Write
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{fmt.Sprintf("usage: hi server %s <request id>", decision)}
+		return usageError{fmt.Sprintf("usage: hi org %s <request id>", decision)}
 	}
 	body := map[string]string{"as": *as, "group": *group, "reason": *reason}
 	var request serverRequest
@@ -2325,7 +2274,7 @@ func serverListCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 0 {
-		return usageError{"usage: hi server ls"}
+		return usageError{"usage: hi org ls"}
 	}
 	var leases []serverLease
 	if err := adminCall(*dirFlag, http.MethodGet, "/admin/instances", nil, &leases); err != nil {
@@ -2361,7 +2310,7 @@ func serverStopCommand(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 	if chosen != 1 || len(positional) > 1 {
-		return usageError{"usage: hi server stop <name> | --user <user> | --all"}
+		return usageError{"usage: hi org stop <name> | --user <user> | --all"}
 	}
 	body := map[string]any{"as": *as, "user": *user, "all": *all}
 	if len(positional) == 1 {
@@ -2388,7 +2337,7 @@ func serverAuditCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 0 {
-		return usageError{"usage: hi server audit [--since 7d]"}
+		return usageError{"usage: hi org audit [--since 7d]"}
 	}
 	window, err := parseLifetime(*since)
 	if err != nil || window == noLimit {
@@ -2435,10 +2384,10 @@ func serverWatchRetiredNote(dir string, log io.Writer) {
 	if err != nil {
 		return
 	}
-	fmt.Fprintf(log, "hi server: teams watch themselves now; %s is read by nothing and can be deleted.\n", filepath.Join(dir, "watch"))
+	fmt.Fprintf(log, "hi org: teams watch themselves now; %s is read by nothing and can be deleted.\n", filepath.Join(dir, "watch"))
 	if strings.Contains(string(data), `"deadman"`) {
 		if _, set := loadMachineHeartbeat(); !set {
-			fmt.Fprintln(log, "hi server: its dead-man's switch is gone: send this machine's heartbeat to the same check with hi heartbeat <url>.")
+			fmt.Fprintln(log, "hi org: its dead-man's switch is gone: send this machine's heartbeat to the same check with hi heartbeat <url>.")
 		}
 	}
 }

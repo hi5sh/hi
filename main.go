@@ -120,8 +120,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runHeartbeat(args[1:], stdout, stderr)
 	case "disconnect":
 		return runDisconnect(args[1:], stdout, stderr)
-	case "server":
-		return runServer(args[1:], stdin, stdout, stderr)
+	case "org", "server":
+		return runOrg(args[1:], stdin, stdout, stderr)
 	case "verify":
 		if len(args) != 2 || args[1] != "strix" {
 			fmt.Fprintln(stderr, "usage: hi verify strix")
@@ -156,10 +156,9 @@ Usage:
   hi compute                    Start and use remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
   hi login <hf|colab|runpod|shadeform>
                                 Sign in to a compute provider
-  hi connect <server>           Join a hi server that approves and pays for compute
   hi data                       Download your team's Hugging Face datasets, models, and buckets
-  hi disconnect                 Leave it; hi compute uses your own keys again
-  hi server                     Run the server that brokers compute and serves templates for your team
+  hi org                        Your organization: join it, or run its server, which approves and pays for compute
+                                and serves your team's templates and data (hi org help)
   hi init [<template> <dir>]    Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml)
   hi q <what you want to do>    Ask an AI model for a shell command, then run, copy, or explain it
   hi q                          Chat with it; hi q --setup chooses the model and sets up the shell
@@ -175,7 +174,7 @@ Usage:
                                 hi skill add hi teaches agents to use hi
   hi verify strix               Check an installed Strix Halo workstation
   hi heartbeat [<url>|off|test] This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
-  hi update [--check]           Update hi to the latest release, and restart a hi server or team running the old one
+  hi update [--check]           Update hi to the latest release, and restart an org server or team running the old one
   hi version                    Print the installed version
   hi help                       Show this help`)
 }

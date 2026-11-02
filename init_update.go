@@ -211,7 +211,7 @@ func planUpdate(catalog *templateCatalog, target string, check, strict, force bo
 	if len(missing) > 0 {
 		if !check || strict {
 			return nil, fmt.Errorf("this repository uses layers from %s, which this device can't reach; "+
-				"check `hi connect status` and try again", strings.Join(missing, ", "))
+				"check `hi org status` and try again", strings.Join(missing, ", "))
 		}
 		// Check what came from the built-in layers only.
 		change.unchecked = missing

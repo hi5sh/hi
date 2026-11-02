@@ -560,7 +560,7 @@ func serverLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 		return err
 	}
 	if len(positional) != 0 || (*names != "initials" && *names != "full") {
-		return usageError{"usage: hi server live [--wall [--names initials|full] [--reasons]] [--once]"}
+		return usageError{"usage: hi org live [--wall [--names initials|full] [--reasons]] [--once]"}
 	}
 	options := liveOptions{wall: *wall, fullNames: *names == "full", reasons: *reasons}
 	// On the server box, read through the admin socket; anywhere else, through
@@ -610,7 +610,7 @@ func connectedClient() (*serverClient, error) {
 		return nil, err
 	}
 	if connection == nil {
-		return nil, errors.New("not connected to a hi server; see `hi connect`")
+		return nil, errors.New("not connected to an org server; see `hi org join`")
 	}
 	key, err := loadDeviceKey(false)
 	if err != nil {

@@ -2713,6 +2713,26 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.55 — hi org: one name for the organization
+
+- [x] `hi org` replaces `hi server`, `hi connect`, and `hi disconnect`:
+  `hi org join`, `status`, `key`, `slack link`, and `leave` on any device,
+  and every `hi server` subcommand, unchanged, on the server box. `hi
+  help` lists one line instead of three, and `hi org help` groups the
+  commands by where they run.
+- [x] The old names still run the same code, with the same output, and
+  print nothing extra: `hi server run` runs under systemd on every org
+  server so far. They are gone from `hi help`, the usage, every error and
+  hint, Slack's messages, and the `hi` skill; a test checks the sources'
+  strings.
+- [x] `hi org init` prints a unit that runs `… org run`, under the same
+  name, `hi-server.service`; `hi update` restarts a stale server started
+  either way. State, `HI_SERVER_DIR`, the device's connection, and the API
+  are unchanged, so this release's clients and servers work with the
+  last one's, both ways (checked with v2.6.54).
+- [x] `hi org data add <hf-org>` says which org it means.
+  Approved spec: [hi_org.md](specs/approved/hi_org.md), release 1.
+
 ### v2.6.54 — The lead gets the app's tools while the app starts
 
 - [x] On a team's restart, a lead whose app was still starting got the
@@ -4074,6 +4094,19 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
+
+### Next — `hi org` in the guide and on the site, then `hi serve llm`
+
+Spec: [hi_org.md](specs/approved/hi_org.md), releases 2, 3, and 5.
+
+- [ ] The guide, `/org/` with `/server/` sending visitors there,
+  `llms.txt`, the README, the diagrams, and a note on hi_server.md.
+- [ ] `hi serve llm`: `hi compute serve` under its new name, with `hi
+  serve ls`, `stop`, and `logs`.
+- [ ] Last, after the machines (hi_cluster.md): rename what was kept so
+  nothing broke, with a migration each: the state directory,
+  `HI_SERVER_DIR`, `server.json`, `hi-server.service`, `hi q`'s saved
+  provider, the Go files and identifiers, and the Slack app's name.
 
 ### Next — sign-in with a real provider, before v2.7.0 is tagged
 

@@ -374,7 +374,7 @@ func (s *hiServer) addViewer(name, key, actor string) error {
 
 func serverViewerCommand(args []string, stdout, stderr io.Writer) error {
 	flags, dirFlag := serverFlags("viewer", stderr)
-	key := flags.String("key", "", "the device key from `hi connect key` on the viewing machine")
+	key := flags.String("key", "", "the device key from `hi org key` on the viewing machine")
 	as := flags.String("as", currentUserName(), "who is acting")
 	positional, err := flags.parse(args)
 	if err != nil {
@@ -395,5 +395,5 @@ func serverViewerCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "Removed the viewer %s.\n", positional[1])
 		return nil
 	}
-	return usageError{"usage: hi server viewer add <name> --key <device key> | remove <name>"}
+	return usageError{"usage: hi org viewer add <name> --key <device key> | remove <name>"}
 }

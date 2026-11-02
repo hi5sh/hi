@@ -93,7 +93,7 @@ func dataRunProxyWrapper(scriptName string, script []byte, repos []dataRunProxyR
 }
 
 const dataRunProxySource = `# Written by hi compute run --data: download the team's data through the
-# hi server, then run the script. The run token reads only these
+# org server, then run the script. The run token reads only these
 # repositories, until the run's time limit.
 import base64, fnmatch, json, os, re, sys, time, runpy, tempfile, urllib.error, urllib.parse, urllib.request
 from concurrent.futures import ThreadPoolExecutor

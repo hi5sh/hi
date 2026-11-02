@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi server run` or team (`hi team __serve`)
+// After an update, a running `hi org run` (or `hi server run`) or team (`hi team __serve`)
 // still runs the old binary until it restarts. hi update finds them, and
 // the systemd unit that runs them, and offers to restart them.
 
@@ -39,7 +39,7 @@ func (s staleServer) what() string {
 	if s.team != "" {
 		return "Team " + s.team
 	}
-	return "A hi server"
+	return "An org server"
 }
 
 // staleServers lists hi servers started from path whose binary has been
@@ -67,7 +67,7 @@ func staleServers(path string) []staleServer {
 		args := strings.Split(strings.TrimRight(string(command), "\x00"), "\x00")
 		server := staleServer{pid: pid}
 		switch {
-		case len(args) >= 3 && args[1] == "server" && args[2] == "run":
+		case len(args) >= 3 && (args[1] == "org" || args[1] == "server") && args[2] == "run":
 		case len(args) == 4 && args[1] == "team" && args[2] == "__serve":
 			server.team = args[3]
 		default:

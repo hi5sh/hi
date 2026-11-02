@@ -47,7 +47,7 @@ func pinServerKey(connection *serverConnection, me apiMe, stdout io.Writer) erro
 	}
 	if connection.ServerKey != me.ServerKey {
 		return fmt.Errorf("the server at %s has a different key than when this device connected; "+
-			"if an admin replaced the server on purpose, run `hi disconnect` and `hi connect` again", connection.URL)
+			"if an admin replaced the server on purpose, run `hi org leave` and `hi org join` again", connection.URL)
 	}
 	return nil
 }
@@ -55,7 +55,7 @@ func pinServerKey(connection *serverConnection, me apiMe, stdout io.Writer) erro
 func (c *serverConnection) serverPublicKey() (ed25519.PublicKey, error) {
 	public, err := base64.StdEncoding.DecodeString(c.ServerKey)
 	if err != nil || len(public) != ed25519.PublicKeySize {
-		return nil, errors.New("this device has no stored server key; run `hi connect status` once")
+		return nil, errors.New("this device has no stored server key; run `hi org status` once")
 	}
 	return ed25519.PublicKey(public), nil
 }

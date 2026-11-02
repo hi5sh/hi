@@ -230,7 +230,7 @@ func setMachineHeartbeat(target string, every time.Duration, stdout io.Writer) e
 // machine runs none of hi's services.
 func machineHeartbeatNote(stdout io.Writer) {
 	if !machineRunsHiServices() {
-		fmt.Fprintln(stdout, "It means most on a machine that runs hi's services all the time: teams, or a hi server. This one runs neither.")
+		fmt.Fprintln(stdout, "It means most on a machine that runs hi's services all the time: teams, or an org server. This one runs neither.")
 	}
 }
 

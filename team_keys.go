@@ -487,7 +487,7 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if fromServer {
 		// The hi server made teams' keys until hi 2.6.34 (hi_team_ops.md).
-		return errors.New("the hi server no longer makes teams' keys; give the team its own: hi team key <name> openrouter")
+		return errors.New("the org server no longer makes teams' keys; give the team its own: hi team key <name> openrouter")
 	}
 	if len(words) != 2 || words[1] != "openrouter" {
 		return usage

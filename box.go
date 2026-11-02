@@ -221,7 +221,7 @@ options when starting:
                          GitHub and package registries; open: everything, still logged
   --allow <domain>       one more domain (repeat it)
   --gpu                  the AMD GPU (Strix Halo)
-  --data                 the team's Hugging Face data through the hi server (hi data);
+  --data                 the team's Hugging Face data through the org server (hi data);
                          the box gets a placeholder token, the proxy the real one
   --worktree             a new git worktree (agents always get one)
   --here                 work in the project folder itself, not a worktree

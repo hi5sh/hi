@@ -183,7 +183,7 @@ func TestHiQSetupOffersTheServerFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
-	if !strings.Contains(out.String(), "1) Your team's hi server (127.0.0.1): no key needed (recommended)") {
+	if !strings.Contains(out.String(), "1) Your team's org server (127.0.0.1): no key needed (recommended)") {
 		t.Fatalf("menu:\n%s", out.String())
 	}
 	config, key, _ := loadQConfig()

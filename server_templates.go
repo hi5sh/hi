@@ -106,7 +106,7 @@ func loadServerKey(dir string) (ed25519.PrivateKey, error) {
 	if err == nil {
 		seed, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data)))
 		if err != nil || len(seed) != ed25519.SeedSize {
-			return nil, fmt.Errorf("%s is not a hi server key", path)
+			return nil, fmt.Errorf("%s is not an org server key", path)
 		}
 		return ed25519.NewKeyFromSeed(seed), nil
 	}
@@ -663,7 +663,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: hi server templates add <name> <git-url> [--ref <ref>] | rename <name> <new-name> | remove <name> | list | sync [<name>]"}
+	usage := usageError{"usage: hi org templates add <name> <git-url> [--ref <ref>] | rename <name> <new-name> | remove <name> | list | sync [<name>]"}
 	if len(positional) == 0 {
 		return usage
 	}
@@ -672,7 +672,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
 	}
 	running := false
 	if _, err := os.Stat(filepath.Join(dir, "admin.sock")); err == nil {
@@ -780,7 +780,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 
 func printTemplateSources(sources []templateSource, stdout io.Writer) {
 	if len(sources) == 0 {
-		fmt.Fprintln(stdout, "No template sources; add one with `hi server templates add <name> <git-url>`.")
+		fmt.Fprintln(stdout, "No template sources; add one with `hi org templates add <name> <git-url>`.")
 		return
 	}
 	for _, source := range sources {

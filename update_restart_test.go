@@ -48,7 +48,7 @@ func TestUpdateRestartsStaleServers(t *testing.T) {
 	fakeReleases(t, "v0.9.0", false)
 	path := installedBinary(t, "v0.7.0")
 	fakeProc(t, map[string][3]string{
-		"101": {path + " (deleted)", path + "\x00server\x00run\x00", "0::/system.slice/hi-server.service\n"},
+		"101": {path + " (deleted)", path + "\x00org\x00run\x00", "0::/system.slice/hi-server.service\n"},
 		"102": {path + " (deleted)", path + "\x00server\x00run\x00", "0::/user.slice/user-1000.slice/user@1000.service/app.slice/hi-test.service\n"},
 		"103": {path + " (deleted)", path + "\x00server\x00run\x00--dir\x00x\x00", "0::/user.slice/user-1000.slice/session-3.scope\n"},
 		"104": {path, path + "\x00server\x00run\x00", "0::/system.slice/fresh.service\n"},
@@ -67,7 +67,7 @@ func TestUpdateRestartsStaleServers(t *testing.T) {
 	if strings.Join(*runs, "|") != strings.Join(want, "|") {
 		t.Fatalf("runs = %q", *runs)
 	}
-	for _, line := range []string{"hi-server.service runs v0.9.0.", "A hi server (process 103) still runs the old version"} {
+	for _, line := range []string{"hi-server.service runs v0.9.0.", "An org server (process 103) still runs the old version"} {
 		if !strings.Contains(stdout, line) {
 			t.Errorf("output lacks %q:\n%s", line, stdout)
 		}

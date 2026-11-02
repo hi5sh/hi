@@ -92,7 +92,7 @@ func loadDeviceKey(create bool) (ed25519.PrivateKey, error) {
 		return nil, err
 	}
 	if !create {
-		return nil, errors.New("this device has no key; run `hi connect <server>`")
+		return nil, errors.New("this device has no key; run `hi org join <server>`")
 	}
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -117,7 +117,7 @@ func devicePublicKey(key ed25519.PrivateKey) string {
 func normalizeServerURL(address string) (string, error) {
 	address = strings.TrimRight(strings.TrimSpace(address), "/")
 	if address == "" {
-		return "", usageError{"usage: hi connect <server>"}
+		return "", usageError{"usage: hi org join <server>"}
 	}
 	if !strings.Contains(address, "://") {
 		if _, _, err := net.SplitHostPort(address); err != nil {
@@ -143,7 +143,7 @@ func (c *serverClient) call(method, path string, body, result any) error {
 	err := doJSON(c.http, method, c.url+path, body, result, c.key)
 	var reply *serverReplyError
 	if err != nil && !errors.As(err, &reply) {
-		return fmt.Errorf("can't reach the hi server at %s: %w", c.url, err)
+		return fmt.Errorf("can't reach the org server at %s: %w", c.url, err)
 	}
 	return err
 }
@@ -165,36 +165,17 @@ func runConnect(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		case "key":
 			return exitCode(connectKeyCommand(args[1:], stdout), stderr)
 		case "slack":
-			if err := connectSlackCommand(args[1:]); err != nil {
-				return exitCode(err, stderr)
-			}
-			fmt.Fprintln(stdout, "Linked. Slack now sends you messages about your requests, and its Home tab shows your machines.")
-			return 0
+			return orgSlackLink(args[1:], stdout, stderr)
 		case "help", "-h", "--help":
-			printConnectUsage(stdout)
+			printOrgUsage(stdout)
 			return 0
 		}
 	}
 	return exitCode(connectCommand(args, stdout, stderr), stderr)
 }
 
-func printConnectUsage(w io.Writer) {
-	fmt.Fprintln(w, `hi connect joins this device to a hi server, which approves and pays for
-compute. Without it, hi compute uses your own keys as before.
-
-Usage:
-  hi connect <server> [--user NAME] [--no-wait]
-                        Enroll this device and wait for an admin's approval
-  hi connect <server> --agent NAME --owner PERSON
-                        Enroll an agent that runs on its own, such as a build bot
-  hi connect status     Server, user, group, and managed providers
-  hi connect key        Print this device's public key, for an admin to pre-approve
-  hi connect slack CODE Link your Slack account, with the code from /hi link
-  hi disconnect         Forget the server and delete this device's key`)
-}
-
 func connectCommand(args []string, stdout, stderr io.Writer) error {
-	flags := &flagSet{newComputeFlags("connect", stderr)}
+	flags := &flagSet{newComputeFlags("org join", stderr)}
 	user := flags.String("user", currentUserName(), "your user name on the server")
 	noWait := flags.Bool("no-wait", false, "return while approval is pending")
 	agent := flags.String("agent", "", "enroll an agent that runs on its own, under this name")
@@ -204,7 +185,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{"usage: hi connect <server> [--user NAME] [--no-wait]"}
+		return usageError{"usage: hi org join <server> [--user NAME] [--no-wait]"}
 	}
 	url, err := normalizeServerURL(positional[0])
 	if err != nil {
@@ -218,7 +199,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	} else if existing != nil && existing.URL != url {
-		return fmt.Errorf("this device is connected to %s; run `hi disconnect` first", existing.URL)
+		return fmt.Errorf("this device is connected to %s; run `hi org leave` first", existing.URL)
 	}
 	serverKey := ""
 	if existing != nil {
@@ -234,7 +215,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	enroll := apiEnroll{User: *user, Hostname: hostname}
 	if *agent != "" {
 		if !validServerName(*agent) || !validServerName(*owner) {
-			return usageError{"usage: hi connect <server> --agent <name> --owner <person>"}
+			return usageError{"usage: hi org join <server> --agent <name> --owner <person>"}
 		}
 		enroll = apiEnroll{User: *agent, Hostname: hostname, Agent: true, Owner: *owner}
 		*user = *agent
@@ -247,10 +228,10 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	if request.State == "pending" {
 		fmt.Fprintf(stdout, "Asked %s to let %s join as %s (request %s).\n", url, hostname, *user, request.ID)
-		fmt.Fprintf(stdout, "An admin approves it with: hi server approve %s --group <group>\n", request.ID)
+		fmt.Fprintf(stdout, "An admin approves it with: hi org approve %s --group <group>\n", request.ID)
 		if *noWait {
 			return exitStatusError{code: exitPending, message: fmt.Sprintf(
-				"%s is waiting for approval; check with `hi connect status`", request.ID)}
+				"%s is waiting for approval; check with `hi org status`", request.ID)}
 		}
 		fmt.Fprintln(stdout, "Waiting for approval… (Ctrl-C stops waiting; the request stays open)")
 		for {
@@ -313,14 +294,14 @@ func printManagedProviders(providers []apiProvider, stdout io.Writer) {
 
 func connectStatusCommand(args []string, stdout io.Writer) error {
 	if len(args) != 0 {
-		return usageError{"usage: hi connect status"}
+		return usageError{"usage: hi org status"}
 	}
 	connection, err := loadServerConnection()
 	if err != nil {
 		return err
 	}
 	if connection == nil {
-		fmt.Fprintln(stdout, "Not connected to a hi server; hi compute uses your own keys.")
+		fmt.Fprintln(stdout, "Not connected to an org server; hi compute uses your own keys.")
 		return nil
 	}
 	key, err := loadDeviceKey(false)
@@ -341,7 +322,7 @@ func connectStatusCommand(args []string, stdout io.Writer) error {
 
 func connectKeyCommand(args []string, stdout io.Writer) error {
 	if len(args) != 0 {
-		return usageError{"usage: hi connect key"}
+		return usageError{"usage: hi org key"}
 	}
 	key, err := loadDeviceKey(true)
 	if err != nil {
@@ -353,7 +334,7 @@ func connectKeyCommand(args []string, stdout io.Writer) error {
 
 func runDisconnect(args []string, stdout, stderr io.Writer) int {
 	if len(args) != 0 {
-		fmt.Fprintln(stderr, "usage: hi disconnect")
+		fmt.Fprintln(stderr, "usage: hi org leave")
 		return 2
 	}
 	connection, err := loadServerConnection()
@@ -361,7 +342,7 @@ func runDisconnect(args []string, stdout, stderr io.Writer) int {
 		return exitCode(err, stderr)
 	}
 	if connection == nil {
-		fmt.Fprintln(stdout, "Not connected to a hi server.")
+		fmt.Fprintln(stdout, "Not connected to an org server.")
 		return 0
 	}
 	// Server templates go with the connection; repositories made from them

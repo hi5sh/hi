@@ -38,8 +38,8 @@ func runUpdate(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	requested := flags.String("version", "", "install this release, such as v0.7.0")
 	check := flags.Bool("check", false, "only report whether an update is available")
-	restart := flags.Bool("restart", false, "restart a hi server or team service that runs the old version, without asking")
-	noRestart := flags.Bool("no-restart", false, "never restart a hi server or team service; print the command instead")
+	restart := flags.Bool("restart", false, "restart an org server or team service that runs the old version, without asking")
+	noRestart := flags.Bool("no-restart", false, "never restart an org server or team service; print the command instead")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*restart && *noRestart) {
 		fmt.Fprintln(stderr, "usage: hi update [--version vX.Y.Z] [--check] [--restart | --no-restart]")
 		return 2

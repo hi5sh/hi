@@ -140,7 +140,7 @@ func (s *hiServer) handleAIStatus(w http.ResponseWriter, _ *http.Request, device
 func (s *hiServer) handleAIModels(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	settings, key, on := s.aiConfig()
 	if !on || s.isViewer(device.User) {
-		writeAIError(w, http.StatusServiceUnavailable, "this hi server doesn't serve a model")
+		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model")
 		return
 	}
 	serverAIModels.Lock()
@@ -172,7 +172,7 @@ func (s *hiServer) handleAIModels(w http.ResponseWriter, r *http.Request, device
 func (s *hiServer) handleAIChat(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
 	settings, key, on := s.aiConfig()
 	if !on {
-		writeAIError(w, http.StatusServiceUnavailable, "this hi server doesn't serve a model; an admin can turn it on with `hi server ai set`")
+		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model; an admin can turn it on with `hi org ai set`")
 		return
 	}
 	if s.isViewer(device.User) {
@@ -199,7 +199,7 @@ func (s *hiServer) handleAIChat(w http.ResponseWriter, r *http.Request, device s
 	setAIAuthorization(upstream, key)
 	if qHost(settings.URL) == "openrouter.ai" {
 		upstream.Header.Set("HTTP-Referer", "https://hi5.sh")
-		upstream.Header.Set("X-Title", "hi q via hi server")
+		upstream.Header.Set("X-Title", "hi q via the org server")
 	}
 	response, err := http.DefaultClient.Do(upstream)
 	if err != nil {
@@ -413,7 +413,7 @@ func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: hi server ai [set [--url URL] [--model M] [--no-key] | off | remove]"}
+	usage := usageError{"usage: hi org ai [set [--url URL] [--model M] [--no-key] | off | remove]"}
 	dir, err := serverDirectory(*dirFlag)
 	if err != nil {
 		return err
@@ -423,7 +423,7 @@ func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 		running = true
 	}
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
 	}
 	action := ""
 	if len(positional) > 0 {
@@ -453,9 +453,9 @@ func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 		case status.On:
 			fmt.Fprintf(stdout, "Serving %s's models to connected devices; the default is %s.\n", qHost(status.URL), status.Model)
 		case status.HasKey:
-			fmt.Fprintln(stdout, "Off. Turn it on with `hi server ai set`.")
+			fmt.Fprintln(stdout, "Off. Turn it on with `hi org ai set`.")
 		default:
-			fmt.Fprintln(stdout, "Not set up. Store an OpenRouter key with `hi server ai set`.")
+			fmt.Fprintln(stdout, "Not set up. Store an OpenRouter key with `hi org ai set`.")
 			return nil
 		}
 		fmt.Fprintf(stdout, "\nThis month\n%s\n", strings.ReplaceAll(status.Usage, "•", "-"))
@@ -535,11 +535,11 @@ func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 		if err := adminCall(*dirFlag, http.MethodPost, "/admin/ai", map[string]any{"as": *as, "off": &off}, nil); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, "Off. Devices use their own keys again; the key is kept for `hi server ai set`.")
+		fmt.Fprintln(stdout, "Off. Devices use their own keys again; the key is kept for `hi org ai set`.")
 		return nil
 	case "remove":
 		if !running {
-			return errors.New("start the server first (`hi server run`), so the key is removed from the running server too")
+			return errors.New("start the server first (`hi org run`), so the key is removed from the running server too")
 		}
 		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/ai?as="+*as, nil, nil); err != nil {
 			return err

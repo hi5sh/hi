@@ -51,7 +51,7 @@ func TestComputeUpDataHandsTheMachineARunToken(t *testing.T) {
 	if !strings.Contains(calls, "root@10.0.0.9") || !strings.Contains(calls, "cat > ~/.hi/data.env") || !strings.Contains(calls, "~/.bashrc ~/.profile") {
 		t.Fatalf("ssh calls:\n%s", calls)
 	}
-	if !strings.Contains(stdout, "box can read acme/ranker, acme/bars through the hi server until") {
+	if !strings.Contains(stdout, "box can read acme/ranker, acme/bars through the org server until") {
 		t.Fatalf("stdout:\n%s", stdout)
 	}
 	// The token is in neither the pod's settings nor the output.

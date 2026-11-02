@@ -309,8 +309,8 @@ Usage:
                                       Run to completion, streaming logs
   hi compute wait <name>...           Wait for detached runs to finish
   hi compute billing [ACCOUNT]        Show or choose who pays (Hugging Face)
-  hi compute requests [<id> [--wait]] Your requests to the hi server (when connected)
-  hi compute extend <name> <duration> Ask the hi server for more time
+  hi compute requests [<id> [--wait]] Your requests to the org server (when connected)
+  hi compute extend <name> <duration> Ask the org server for more time
   hi compute live                     Live view of your managed machines and budget
 
 Options for up and run:
@@ -324,9 +324,9 @@ Options for up and run:
   --secret KEY       Pass $KEY as an encrypted secret (Hugging Face)
   --data ORG/NAME[/PATTERN]
                      run: download your team's data into data/NAME before the script
-                     starts, through the hi server (hi data). up (RunPod, Shadeform):
+                     starts, through the org server (hi data). up (RunPod, Shadeform):
                      the machine's shells get HF_ENDPOINT and HF_TOKEN to read
-                     ORG/NAME through the hi server until --max
+                     ORG/NAME through the org server until --max
   --detach           run: return after starting (Hugging Face)
   --image <image>    Container image (Hugging Face, RunPod)
   --namespace <ns>   Account to bill this once (Hugging Face; see billing)
@@ -335,7 +335,7 @@ Options for up and run:
   --reason <text>    Why you need it; approvers see it (managed providers)
   --no-wait          up: return while approval is pending, exit status 3
 
-Connected to a hi server (hi connect), the providers it manages go through
+Connected to an org server (hi org join), the providers it manages go through
 it and need an approval; a denied request exits with status 4. Colab and
 providers it doesn't manage use your own keys as before.
 
@@ -571,7 +571,7 @@ func computeUpCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		return err
 	}
 	if *noWait && !isManaged(provider) {
-		return usageError{"--no-wait applies only to providers managed by a hi server"}
+		return usageError{"--no-wait applies only to providers managed by an org server"}
 	}
 	request := upRequest{highMem: *highMem, max: maxLifetime.value, image: *image, namespace: *namespace,
 		reason: *reason, noWait: *noWait}
@@ -624,7 +624,7 @@ func startInstance(
 	if dryRun {
 		fmt.Fprintf(stdout, "Would run: %s\n", strings.Join(provider.upCommand(request), " "))
 		if len(request.data) > 0 {
-			fmt.Fprintf(stdout, "Would give it a token to read %s through the hi server.\n", dataRefIDs(request.data))
+			fmt.Fprintf(stdout, "Would give it a token to read %s through the org server.\n", dataRefIDs(request.data))
 		}
 		return nil
 	}
@@ -1500,7 +1500,7 @@ func computeRunCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 			if err != nil {
 				return 0, err
 			}
-			fmt.Fprintf(stdout, "First downloads %s into %s on the instance, through the hi server.\n",
+			fmt.Fprintf(stdout, "First downloads %s into %s on the instance, through the org server.\n",
 				value, defaultDataFolder(dataItem{ID: ref.id}))
 		}
 	}
@@ -1785,10 +1785,10 @@ func helpCommand(name string) string {
 	switch {
 	case len(words) >= 2 && words[0] == "net" && words[1] == "expose":
 		return "hi net expose help"
-	case len(words) >= 1 && (words[0] == "data" || words[0] == "server"):
-		return "hi " + words[0] + " help"
-	case len(words) >= 1 && words[0] == "connect":
-		return "hi connect --help"
+	case len(words) >= 1 && words[0] == "data":
+		return "hi data help"
+	case len(words) >= 1 && words[0] == "org":
+		return "hi org help"
 	}
 	return "hi compute help"
 }

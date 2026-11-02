@@ -525,7 +525,7 @@ func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{"usage: hi server policy show | edit | example | check"}
+		return usageError{"usage: hi org policy show | edit | example | check"}
 	}
 	dir, err := serverDirectory(*dirFlag)
 	if err != nil {
@@ -540,7 +540,7 @@ func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		data, err := os.ReadFile(path)
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintln(stdout, "No policy: every start needs a person, and there are no budgets.")
-			fmt.Fprintln(stdout, "Start from `hi server policy example`, then `hi server policy edit`.")
+			fmt.Fprintln(stdout, "Start from `hi org policy example`, then `hi org policy edit`.")
 			return nil
 		}
 		if err != nil {
@@ -595,7 +595,7 @@ func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 			return nil
 		}
 	}
-	return usageError{"usage: hi server policy show | edit | example | check"}
+	return usageError{"usage: hi org policy show | edit | example | check"}
 }
 
 func serverSpendCommand(args []string, stdout, stderr io.Writer) error {
@@ -606,7 +606,7 @@ func serverSpendCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 0 {
-		return usageError{"usage: hi server spend [--since 7d]"}
+		return usageError{"usage: hi org spend [--since 7d]"}
 	}
 	path := "/admin/spend"
 	if *since != "" {

@@ -75,9 +75,9 @@ func serverWallCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: sudo hi server wall setup [--session S] [--size WxH]\n" +
-		"       sudo hi server wall add <screen> <public key or .pub file> [--session S]\n" +
-		"       sudo hi server wall remove <screen> | list"}
+	usage := usageError{"usage: sudo hi org wall setup [--session S] [--size WxH]\n" +
+		"       sudo hi org wall add <screen> <public key or .pub file> [--session S]\n" +
+		"       sudo hi org wall remove <screen> | list"}
 	if len(positional) == 0 {
 		return usage
 	}
@@ -89,7 +89,7 @@ func serverWallCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	if os.Geteuid() != 0 {
 		return errors.New("the wall needs root to create its account and service; run it with sudo, " +
-			"such as `sudo ~/.local/bin/hi server wall " + positional[0] + "`")
+			"such as `sudo ~/.local/bin/hi org wall " + positional[0] + "`")
 	}
 	switch {
 	case positional[0] == "setup" && len(positional) == 1:
@@ -122,7 +122,7 @@ func wallServerDir(dirFlag string) (string, error) {
 	}
 	name := os.Getenv("SUDO_USER")
 	if name == "" {
-		return "", errors.New("run this with sudo from the account that runs hi server, or pass --dir")
+		return "", errors.New("run this with sudo from the account that runs the org server, or pass --dir")
 	}
 	account, err := user.Lookup(name)
 	if err != nil {
@@ -138,7 +138,7 @@ func wallSetup(dirFlag, session, size string, stdout io.Writer) error {
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {
-		return fmt.Errorf("no hi server in %s; pass --dir", dir)
+		return fmt.Errorf("no org server in %s; pass --dir", dir)
 	}
 	var config serverConfig
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -164,15 +164,15 @@ func wallSetup(dirFlag, session, size string, stdout io.Writer) error {
 		return err
 	}
 	// 3. Its own device key, registered as a viewer that can only watch.
-	key, err := runQuiet("sudo", "-u", wallUser, "-H", wallBinary, "connect", "key")
+	key, err := runQuiet("sudo", "-u", wallUser, "-H", wallBinary, "org", "key")
 	if err != nil {
 		return err
 	}
 	body := map[string]string{"as": os.Getenv("SUDO_USER"), "name": "wall", "key": strings.TrimSpace(key)}
 	if err := adminCall(dir, "POST", "/admin/viewers", body, nil); err != nil {
-		return fmt.Errorf("register the wall as a viewer (is hi server running?): %w", err)
+		return fmt.Errorf("register the wall as a viewer (is the org server running?): %w", err)
 	}
-	if _, err := runQuiet("sudo", "-u", wallUser, "-H", wallBinary, "connect", "http://"+config.Listen, "--user", "wall"); err != nil {
+	if _, err := runQuiet("sudo", "-u", wallUser, "-H", wallBinary, "org", "join", "http://"+config.Listen, "--user", "wall"); err != nil {
 		return err
 	}
 	// 4. A service that keeps the tmux session running.
@@ -222,7 +222,7 @@ func wallAdd(session, screen, key string, stdout io.Writer) error {
 	path := wallKeysPath()
 	existing, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("run `sudo hi server wall setup` first: %w", err)
+		return fmt.Errorf("run `sudo hi org wall setup` first: %w", err)
 	}
 	var kept []string
 	for _, old := range strings.Split(strings.TrimSpace(string(existing)), "\n") {
@@ -277,7 +277,7 @@ func wallRemove(screen string, stdout io.Writer) error {
 func wallList(stdout io.Writer) error {
 	data, err := os.ReadFile(wallKeysPath())
 	if err != nil {
-		return fmt.Errorf("run `sudo hi server wall setup` first: %w", err)
+		return fmt.Errorf("run `sudo hi org wall setup` first: %w", err)
 	}
 	table := newTable(stdout)
 	fmt.Fprintln(table, "SCREEN\tSESSION")
@@ -294,7 +294,7 @@ func wallList(stdout io.Writer) error {
 		}
 	}
 	if count == 0 {
-		fmt.Fprintln(stdout, "No screens yet; add one with `sudo hi server wall add <screen> <public key>`.")
+		fmt.Fprintln(stdout, "No screens yet; add one with `sudo hi org wall add <screen> <public key>`.")
 		return nil
 	}
 	return table.Flush()

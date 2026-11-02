@@ -61,7 +61,7 @@ func (b *slackBridge) startLink(slackUser, user string) string {
 	}
 	b.links.pending[code] = pendingLink{slackUser: slackUser, user: user, expires: time.Now().Add(slackLinkTTL)}
 	b.links.mu.Unlock()
-	return fmt.Sprintf("To link this Slack account to *%s*, run this on %s's device within 10 minutes:\n`hi connect slack %s`",
+	return fmt.Sprintf("To link this Slack account to *%s*, run this on %s's device within 10 minutes:\n`hi org slack link %s`",
 		slackEscape(user), slackEscape(user), code)
 }
 
@@ -381,7 +381,7 @@ func (s *hiServer) handleSlackLink(w http.ResponseWriter, _ *http.Request, devic
 
 func connectSlackCommand(args []string) error {
 	if len(args) != 1 {
-		return usageError{"usage: hi connect slack <code from /hi link in Slack>"}
+		return usageError{"usage: hi org slack link <code from /hi link in Slack>"}
 	}
 	client, err := connectedClient()
 	if err != nil {

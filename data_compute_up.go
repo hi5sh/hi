@@ -59,7 +59,7 @@ func requestDataUp(request upRequest) (apiRunAccess, error) {
 	}
 	_, access, err := requestRunAccess(request.data, seconds, request.name, false)
 	if errors.Is(err, errNoRunAccess) {
-		return access, fmt.Errorf("--data: the hi server can't put its data proxy where cloud machines reach it (%s); an admin can check with hi server expose",
+		return access, fmt.Errorf("--data: the org server can't put its data proxy where cloud machines reach it (%s); an admin can check with hi org expose",
 			strings.TrimPrefix(err.Error(), errNoRunAccess.Error()+": "))
 	}
 	return access, err
@@ -73,7 +73,7 @@ func installDataUp(provider computeProvider, request upRequest, access apiRunAcc
 		return err
 	}
 	repos := dataRefIDs(request.data)
-	env := fmt.Sprintf("# Written by hi compute up --data: your team's data through the hi server,\n"+
+	env := fmt.Sprintf("# Written by hi compute up --data: your team's data through the org server,\n"+
 		"# for %s, until %s.\nexport HF_ENDPOINT=%s\nexport HF_TOKEN=%s\nexport HI_DATA_REPOS=%s\n",
 		repos, access.Expires.UTC().Format(time.RFC3339),
 		shellQuote(access.Endpoint), shellQuote(access.Token), shellQuote(strings.ReplaceAll(repos, ", ", " ")))
@@ -88,7 +88,7 @@ done`
 	if _, err := remoteOutput(target, strings.NewReader(env), 2*time.Minute, command); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "\n%s can read %s through the hi server until %s:\n"+
+	fmt.Fprintf(stdout, "\n%s can read %s through the org server until %s:\n"+
 		"its shells have HF_ENDPOINT and HF_TOKEN, so hf download and load_dataset work there.\n",
 		request.name, repos, access.Expires.Local().Format("2006-01-02 15:04"))
 	return nil

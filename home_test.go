@@ -20,11 +20,11 @@ func slashText(t *testing.T, ts *testServer, user, text string) string {
 func link(t *testing.T, ts *testServer, slackUser, user string) {
 	t.Helper()
 	reply := slashText(t, ts, slackUser, "link "+user)
-	start := strings.Index(reply, "hi connect slack ")
+	start := strings.Index(reply, "hi org slack link ")
 	if start < 0 {
 		t.Fatalf("/hi link: %s", reply)
 	}
-	code := reply[start+len("hi connect slack ") : start+len("hi connect slack ")+6]
+	code := reply[start+len("hi org slack link ") : start+len("hi org slack link ")+6]
 	if code, stdout, stderr := runHi("connect", "slack", code); code != 0 || !strings.Contains(stdout, "Linked") {
 		t.Fatalf("hi connect slack: %d %s%s", code, stdout, stderr)
 	}
@@ -36,7 +36,7 @@ func TestSlackLinkIsProvenFromTheUsersOwnDevice(t *testing.T) {
 	ts.connectAs(t, "carol", "staff")
 
 	reply := slashText(t, ts, "UCAROL", "link bob")
-	code := reply[strings.Index(reply, "hi connect slack ")+len("hi connect slack "):][:6]
+	code := reply[strings.Index(reply, "hi org slack link ")+len("hi org slack link "):][:6]
 	if status, _, stderr := runHi("connect", "slack", code); status == 0 || !strings.Contains(stderr, "asked for bob, not carol") {
 		t.Fatalf("carol's device linked someone as bob: %d %s", status, stderr)
 	}

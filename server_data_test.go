@@ -372,7 +372,7 @@ func TestHiDataGetRunsHFThroughTheServer(t *testing.T) {
 func TestHiDataNeedsAServerAndHF(t *testing.T) {
 	newTestServer(t)
 	code, _, stderr := runHi("data", "ls")
-	if code == 0 || !strings.Contains(stderr, "hi connect") {
+	if code == 0 || !strings.Contains(stderr, "hi org join") {
 		t.Fatalf("without a server: code %d\n%s", code, stderr)
 	}
 

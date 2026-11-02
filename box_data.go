@@ -60,7 +60,7 @@ func newBoxDataInjector(tokenFile, upstream string, log *boxNetworkLog) http.Han
 	target, err := url.Parse(strings.TrimRight(upstream, "/"))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
-			http.Error(w, "hi box: the hi server's address is not valid", http.StatusBadGateway)
+			http.Error(w, "hi box: the org server's address is not valid", http.StatusBadGateway)
 			return
 		}
 		data, readErr := os.ReadFile(tokenFile)
@@ -99,7 +99,7 @@ func newBoxDataInjector(tokenFile, upstream string, log *boxNetworkLog) http.Han
 			},
 			ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 				log.record("data-problem", err.Error())
-				http.Error(w, "hi box: the hi server can't be reached: "+err.Error(), http.StatusBadGateway)
+				http.Error(w, "hi box: the org server can't be reached: "+err.Error(), http.StatusBadGateway)
 			},
 			FlushInterval: -1,
 		}

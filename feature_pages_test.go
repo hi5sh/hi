@@ -24,14 +24,14 @@ var featurePageUsage = map[string]func(io.Writer){
 	"q":            printQUsage,
 	"init":         printInitUsage,
 	"net":          func(w io.Writer) { printNetUsage(w); printNetExposeUsage(w) },
-	"server":       func(w io.Writer) { printServerUsage(w); printConnectUsage(w) },
+	"server":       printOrgUsage,
 	"data":         printDataUsage,
 	"autoresearch": printBestOfUsage,
 }
 
-// featureCommandPage is a command whose page isn't named after it: hi
-// connect is on the server's page, and hi agent best-of has its own.
-var featureCommandPage = map[string]string{"connect": "server", "agent best-of": "autoresearch"}
+// featureCommandPage is a command whose page isn't named after it: hi org
+// is on the server's page, and hi agent best-of has its own.
+var featureCommandPage = map[string]string{"org": "server", "agent best-of": "autoresearch"}
 
 // featureFreeWords are the tools whose words after the name are free text,
 // such as hi q's question, not a subcommand.

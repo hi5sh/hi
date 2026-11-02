@@ -557,7 +557,7 @@ func (b *slackBridge) handleInteraction(callback slack.InteractionCallback) {
 			}
 		}
 		s.audit("slack:"+callback.User.ID, "refused action", string(callback.Type), "not an approver")
-		reply("Only approvers can do that. An admin adds approvers with `hi server approvers add`.")
+		reply("Only approvers can do that. An admin adds approvers with `hi org approvers add`.")
 		return
 	}
 
@@ -686,7 +686,7 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 	}
 	if _, ok := b.approver(command.UserID); !ok {
 		s.audit("slack:"+command.UserID, "refused command", "/hi "+command.Text, "not an approver")
-		return respond("Only approvers can use /hi. An admin adds approvers with `hi server approvers add`.")
+		return respond("Only approvers can use /hi. An admin adds approvers with `hi org approvers add`.")
 	}
 	if text := strings.TrimSpace(command.Text); text == "teams" || strings.HasPrefix(text, "team ") {
 		return respond("Teams watch themselves now, on their own machine: their incidents are in each team's ops channel, and its owners freeze or pause it there with hi team freeze.")
@@ -870,7 +870,7 @@ func (s *hiServer) startSlack(ctx context.Context) error {
 	s.slack.client = client
 	go s.slack.run(ctx)
 	if len(config.Approvers) == 0 {
-		fmt.Fprintln(s.log, "slack: warning: no approvers yet; add one with `hi server approvers add`")
+		fmt.Fprintln(s.log, "slack: warning: no approvers yet; add one with `hi org approvers add`")
 	}
 	return nil
 }
@@ -890,14 +890,14 @@ func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 		return nil
 	case len(positional) == 1 && positional[0] == "setup":
 	default:
-		return usageError{"usage: hi server slack setup | manifest"}
+		return usageError{"usage: hi org slack setup | manifest"}
 	}
 	dir, err := serverDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
 	}
 	existing, err := loadSlackConfig(dir)
 	if err != nil {
@@ -908,7 +908,7 @@ func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 		config.Approvers = existing.Approvers
 	}
 	if isTerminal(stdin) {
-		fmt.Fprintln(stdout, "Create the Slack app from the manifest (`hi server slack manifest`) first.")
+		fmt.Fprintln(stdout, "Create the Slack app from the manifest (`hi org slack manifest`) first.")
 	}
 	if config.BotToken, err = readSetting("Bot User OAuth Token (xoxb-…)", true, stdin, stdout); err != nil {
 		return err
@@ -944,9 +944,9 @@ func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 	}
 	fmt.Fprintf(stdout, "Slack is set up for workspace %s as @%s, posting in %s.\n", auth.Team, auth.User, config.Channel)
 	if len(config.Approvers) == 0 {
-		fmt.Fprintln(stdout, "Add approvers: hi server approvers add <Slack member ID> --name <hi user name>")
+		fmt.Fprintln(stdout, "Add approvers: hi org approvers add <Slack member ID> --name <hi user name>")
 	}
-	fmt.Fprintln(stdout, "Restart the server to connect: sudo systemctl restart hi-server (or restart `hi server run`)")
+	fmt.Fprintln(stdout, "Restart the server to connect: sudo systemctl restart hi-server (or restart `hi org run`)")
 	return nil
 }
 
@@ -1021,14 +1021,14 @@ func serverApproversCommand(args []string, stdout, stderr io.Writer) error {
 		return table.Flush()
 	case len(positional) == 2 && positional[0] == "add":
 		if *name == "" || !validServerName(*name) {
-			return usageError{"usage: hi server approvers add <Slack member ID> --name <hi user name>"}
+			return usageError{"usage: hi org approvers add <Slack member ID> --name <hi user name>"}
 		}
 		if !strings.HasPrefix(positional[1], "U") && !strings.HasPrefix(positional[1], "W") {
 			return usageError{"use the Slack member ID, such as U0123456789: profile → ⋮ → Copy member ID"}
 		}
 	case len(positional) == 2 && positional[0] == "remove":
 	default:
-		return usageError{"usage: hi server approvers add <member ID> --name <user> | remove <member ID> | list"}
+		return usageError{"usage: hi org approvers add <member ID> --name <user> | remove <member ID> | list"}
 	}
 	body := map[string]string{"as": *as, "id": positional[1], "name": *name, "action": positional[0]}
 	if running {
@@ -1041,7 +1041,7 @@ func serverApproversCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 		if config == nil {
-			return errors.New("Slack is not set up; run `hi server slack setup` first")
+			return errors.New("Slack is not set up; run `hi org slack setup` first")
 		}
 		if positional[0] == "add" {
 			config.Approvers[positional[1]] = *name
@@ -1085,7 +1085,7 @@ func (s *hiServer) approversHandler(mux *http.ServeMux) {
 		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
 		config, err := loadSlackConfig(s.dir)
 		if err != nil || config == nil {
-			writeAPIError(w, http.StatusBadRequest, "Slack is not set up; run `hi server slack setup` first")
+			writeAPIError(w, http.StatusBadRequest, "Slack is not set up; run `hi org slack setup` first")
 			return
 		}
 		if input.Action == "add" {

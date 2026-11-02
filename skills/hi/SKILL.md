@@ -1,6 +1,6 @@
 ---
 name: hi
-description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through a hi server (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and teams in Slack (hi team, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
+description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through your org (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and teams in Slack (hi team, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
 ---
 
 # hi
@@ -8,7 +8,7 @@ description: Use the hi CLI to run work on rented remote machines (Google Colab,
 `hi` is the hi5 command-line tool. Its `hi compute` commands rent remote
 machines from Colab, Hugging Face, RunPod, or Shadeform with the same commands
 on all of them, and give them back. `hi init` starts new projects from
-templates. On a machine connected to your team's hi server, `hi data` gets the
+templates. On a machine that joined your org (`hi org`), `hi data` gets the
 team's private Hugging Face data without a token of your own. `hi net expose`
 puts a service on this machine on a temporary public address. `hi agent`
 hands a task to Claude Code, Codex, Hermes, or Antigravity in a box and returns its report. Run
@@ -47,9 +47,9 @@ on Colab). Follow these rules every time:
    for adding or updating skills (`hi skill add`, `hi skill update`).
    (`hi net expose` needs no sudo but has its own rules below.)
 6. **Managed compute waits for a person.** When `hi compute providers` says a
-   provider is `managed by` a hi server, starting there sends a request that
+   provider is `managed by` an org server, starting there sends a request that
    someone else approves. Rules 1 and 2 still apply. Never run
-   `hi server approve` or `hi server deny`, and never retry a denied request
+   `hi org approve` or `hi org deny`, and never retry a denied request
    with other hardware or another name to get around the decision.
 
 ## Choosing a provider and hardware
@@ -141,9 +141,9 @@ hi compute logs <name> --follow                                  # build, downlo
 Use any OpenAI-compatible client with the printed base URL and model name.
 Stop the machine when finished.
 
-## Managed compute (your team's hi server)
+## Managed compute (your org)
 
-If the user's machine has joined a hi server (`hi connect status` says so),
+If the user's machine has joined an org (`hi org status` says so),
 the providers it manages need an approval, a reason, and a time limit. Colab
 and other providers still use the user's own sign-in.
 
@@ -172,7 +172,7 @@ machines.
 
 ## Your team's data (hi data)
 
-On a machine connected to a hi server, your team's private Hugging Face
+On a machine that joined your org, your team's private Hugging Face
 datasets, models, and buckets come through `hi data`. Never look for, ask
 for, or use a Hugging Face token for them: the server keeps it, and `hf`
 runs without one.
@@ -379,7 +379,7 @@ which needs a terminal. `ls` also stops instances past their limit. Names can be
 | `approvers need a reason`                     | Managed provider: add `--reason "..."`.                            |
 | `... is waiting for approval` (exit 3)        | Tell the user; check with `hi compute requests <id> --wait`.       |
 | `... was denied by ...` (exit 4)              | Tell the user the reason; do not retry around it.                  |
-| `can't reach the hi server`                   | Managed providers are unavailable; tell the user. Do not use another key. |
+| `can't reach the org server`                  | Managed providers are unavailable; tell the user. Do not use another key. |
 
 ## Start a project
 

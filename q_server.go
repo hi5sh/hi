@@ -159,7 +159,7 @@ func qConnectedServerChoice(model string, forced bool) (qChoice, bool) {
 	provider := qServerProvider(connection, key, firstNonEmpty(model, info.Model))
 	return qChoice{
 		provider: &qServerFallback{primary: provider, url: connection.URL, name: name, model: model},
-		source:   "connected hi server " + name,
+		source:   "connected org server " + name,
 	}, true
 }
 

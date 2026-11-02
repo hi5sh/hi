@@ -672,7 +672,7 @@ func teamAdvisoriesReport(team string) teamAdvisoriesView {
 func printTeamAdvisories(view teamAdvisoriesView, w io.Writer) {
 	switch {
 	case !view.Watched:
-		fmt.Fprintln(w, "No advisories: this machine isn't connected to a hi server (hi connect), which matches production's packages against them every night.")
+		fmt.Fprintln(w, "No advisories: this machine isn't connected to an org server (hi org join), which matches production's packages against them every night.")
 		return
 	case view.Bom == "":
 		fmt.Fprintln(w, "Nothing is released, so production runs no packages to match.")
@@ -708,7 +708,7 @@ func printTeamAdvisories(view teamAdvisoriesView, w io.Writer) {
 		fmt.Fprintln(w, line)
 	}
 	for _, count := range view.Counts {
-		fmt.Fprintf(w, "  %s: %d more for its OS packages, %d with a fix in a newer package; the team's hi server admins see them\n", advisoryPartName(count.Part), count.Total, count.Fixable)
+		fmt.Fprintf(w, "  %s: %d more for its OS packages, %d with a fix in a newer package; the team's org server admins see them\n", advisoryPartName(count.Part), count.Total, count.Fixable)
 	}
 }
 
@@ -791,6 +791,6 @@ func teamAdvisoryCommand(args []string, stdout io.Writer) error {
 	if err := saveTeamAdvisoriesIgnored(team, kept); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%s no longer counts for %s, as long as the advisory stays as it is; the hi server hears of it with the next heartbeat, within a minute.\n", match.ID, match.Package)
+	fmt.Fprintf(stdout, "%s no longer counts for %s, as long as the advisory stays as it is; the org server hears of it with the next heartbeat, within a minute.\n", match.ID, match.Package)
 	return nil
 }

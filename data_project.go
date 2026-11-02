@@ -118,7 +118,7 @@ func dataProxyGet(endpoint, token, path string, result any) error {
 	request.Header.Set("User-Agent", "hi/"+version)
 	response, err := (&http.Client{Timeout: 2 * time.Minute}).Do(request)
 	if err != nil {
-		return fmt.Errorf("can't reach the hi server: %w", err)
+		return fmt.Errorf("can't reach the org server: %w", err)
 	}
 	defer response.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(response.Body, 64<<20))
