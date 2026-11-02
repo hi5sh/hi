@@ -3,8 +3,7 @@
 Status: Draft
 
 Dependencies: `hi org ai` (the signed pass-through, usage records, spend),
-a model served on the team's own machine (`halogen-qwen3.8-flash-next` on
-gpu2 since v0.22.0, or `hi compute serve`), and `hi q`'s provider order for
+a model served on the team's own machine (`hi serve llm`), and `hi q`'s provider order for
 devices without a server.
 
 ## Goal
@@ -68,7 +67,7 @@ one server can offer OpenRouter for `hi q` and the team's machine for bulk
 work at once:
 
 ```text
-hi org ai add local --url http://gpu2:8080/v1 --no-key
+hi org ai add local --url http://<machine>:8080/v1 --no-key
 hi org ai add team --url https://openrouter.ai/api/v1      # today's upstream, renamed
 hi org ai default team                                     # what hi q uses
 hi org ai bulk local                                       # what hi llm uses
@@ -148,15 +147,15 @@ it. `--resume` is the same idea for one interrupted run.
   well; judgement doesn't. The skill says to use `hi llm` for extraction,
   classification, and summaries, spot-check a sample, and keep decisions for
   the coding agent.
-- **The local machine is shared.** A large `map` keeps gpu2's GPU busy and
+- **The local machine is shared.** A large `map` keeps the machine's GPU busy and
   slows `hi q` for everyone using the same upstream. Separate slots for
   `hi q` or a per-user limit on the bulk upstream may be needed.
 - **Hidden instructions in items.** See Cost and safety.
 
 ## Open questions
 
-1. How many parallel slots the gpu2 llama.cpp server runs today, and how
-   throughput scales with more, for this model on the Strix Halo.
+1. How many parallel slots a llama.cpp server on a Strix Halo should run,
+   and how throughput scales with more, for this model.
 2. Whether `hi llm` belongs as its own command, or as `hi q --map`. The
    proposal keeps `hi q` for people at a terminal and `hi llm` for pipes.
 3. Whether to add embeddings (`hi llm embed`) for search over large sets,

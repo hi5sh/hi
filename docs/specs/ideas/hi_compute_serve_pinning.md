@@ -44,7 +44,7 @@ to a newer build is a deliberate change that is retested and recorded in
 | Colab             | `git clone --branch b11312` and build, as today but at a fixed commit. Colab cannot run images.               |
 | RunPod            | Keep RunPod's own image, which has sshd, and clone the pinned tag. The llama.cpp image has no sshd, so `ssh.direct` and hi's tunnel would not work with it. |
 | Shadeform         | `docker run --gpus all --network host <image@digest>` over SSH on the VM, skipping the build. Whether Docker and the NVIDIA container toolkit are on every cloud's image is unverified. |
-| Local Strix Halo  | Later: the `rocm` image (built for gfx1151 on ROCm 7.2.1) or `server-vulkan`, with `/dev/kfd` and `/dev/dri`. Untested on gpu2. |
+| Local Strix Halo  | Later: the `rocm` image (built for gfx1151 on ROCm 7.2.1) or `server-vulkan`, with `/dev/kfd` and `/dev/dri`. Untested on Strix Halo. |
 
 The script already prefers a prebuilt `/app/llama-server`. The images listen
 on 8080 by default; hi passes its own port.

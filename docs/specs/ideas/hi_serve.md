@@ -1,8 +1,8 @@
 # `hi serve llm --on local`: a model on this machine
 
 Status: Draft (2026-11-02), parked: how `hi serve` and `hi model` become
-one command is to be discussed before it is approved. Questions 1, 2, and
-4 were decided on 2026-11-02 (see Decisions).
+one command is to be discussed before it is approved. The other questions
+were decided on 2026-11-02 (see Decisions).
 
 Dependencies: [hi_org.md](../approved/hi_org.md) (`hi serve llm`, `ls`,
 `logs`, `stop`, and what `--on` means), [hi_compute.md](../approved/hi_compute.md)
@@ -18,9 +18,8 @@ later). It takes in [hi_model.md](hi_model.md), which stays as background.
 ## Goal
 
 The team's Strix Halo machines have 128 GB of memory that a GPU can use,
-and models are served on them today by hand: `halogen-qwen3.8-flash-next`
-on gpu2 is started outside hi, and nothing in hi knows it is there. `hi
-serve llm --on local` serves a model on the machine you're on, the way `hi
+but a model served on one is started by hand, and nothing in hi knows it
+is there. `hi serve llm --on local` serves a model on the machine you're on, the way `hi
 serve llm --on colab` serves one on a rented GPU.
 
 - **The same command and recipes.** A recipe that runs on Colab also says
@@ -128,7 +127,7 @@ backend, with its own flags and its own tested line:
     ...
     hardware: map[string]string{"colab": "G4", "hf": "rtx-pro-6000"},
     local: map[string]serveLocal{
-        "rocm": {memory: 95 << 30, args: "…", tested: "gpu2 (Strix Halo), 2026-11-…: … tokens/s, ready in … min"},
+        "rocm": {memory: 95 << 30, args: "…", tested: "Strix Halo, 2026-11-…: … tokens/s, ready in … min"},
     },
 },
 ```
@@ -170,7 +169,7 @@ cost. `hi serve stop` removes it from the org.
    detect`, the host download into the models folder, the box and its unit,
    the memory check, `ls`, `logs`, `stop`, and `hi serve models`. The
    qwen3.8-flash-next recipe tested on a Strix Halo that runs no production
-   teams, against halogen's numbers on gpu2.
+   teams.
 2. **Sharing.** `--share` and `hi serve key`.
 3. **The org knows.** `--org`, with hi_llm.md's named upstreams.
 4. **More backends.** Vulkan on Strix Halo, then NVIDIA through Podman's CDI
@@ -215,10 +214,7 @@ Taken on 2026-11-02:
 
 ## Open questions
 
-1. Should hi take over the model already served by hand on gpu2
-   (`halogen-qwen3.8-flash-next`), or leave it until someone moves it to
-   `hi serve`?
-2. How do `hi serve` and `hi model` (hi_model.md: `detect`, `list`,
+1. How do `hi serve` and `hi model` (hi_model.md: `detect`, `list`,
    `pull`, `serve`, `status`, `logs`, `stop`) collapse into `hi serve`
    alone? This draft folds hi_model.md in only loosely (`hi serve detect`,
    `hi serve models`); the merge needs its own, deeper pass first.

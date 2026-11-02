@@ -192,7 +192,7 @@ changed files.
 ## Verify before building
 
 Nothing in this spec is built until each check below has been tried on
-gpu2 in a rootless Podman box with hi's hardening (`--cap-drop=ALL`,
+a Strix Halo machine in a rootless Podman box with hi's hardening (`--cap-drop=ALL`,
 `no-new-privileges`, `--userns=keep-id`), and the result, with the date,
 versions, and commands, is written under Findings. A check that fails
 changes the design here first. The spec is approved only after that.

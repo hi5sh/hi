@@ -425,7 +425,7 @@ Dependency: the v0.16.0 layers and metadata; the open decisions
   AMD's gfx1151 build for Strix Halo.
 - [x] `hi init` says when a newer `hi` brings newer built-in templates.
 - [x] Train with the `rocm` group on a Strix Halo machine (v0.18.2,
-  gpu2, 2026-10-01): `hi init ml` installed AMD's PyTorch 2.11 for gfx1151
+  2026-10-01): `hi init ml` installed AMD's PyTorch 2.11 for gfx1151
   through `make sync`, `make check` passed, and `make train` ran on the
   Radeon 8060S.
   Approved spec: [hi_init.md](specs/approved/hi_init.md).
@@ -530,7 +530,7 @@ each type starts.
   file content. This repository has its own.
 - [x] A local model as the team's default: `hi server ai set --url …
   --no-key` for upstreams without a key. Tested on 2026-10-02 with
-  `halogen-qwen3.8-flash-next` already served on gpu2: correct tool calls
+  Qwen 3.8 Flash Next on a Strix Halo machine: correct tool calls
   and commands in 4–14 seconds, against about 2 seconds for Haiku through
   OpenRouter. The production server still uses OpenRouter.
 
@@ -544,8 +544,8 @@ each type starts.
 ### v0.22.2 — Podman in `hi install`
 
 - [x] `hi install podman`: rootless Podman with `crun`, `uidmap`, and
-  `passt`, and a subordinate ID range for users without one. Tested on gpu2
-  on 2026-10-02: a rootless container with `--group-add keep-groups` sees
+  `passt`, and a subordinate ID range for users without one. Tested on a
+  Strix Halo on 2026-10-02: a rootless container with `--group-add keep-groups` sees
   the gfx1151 GPU through ROCm, which needs `crun` rather than Docker's
   `runc`. The first step towards `hi box`.
 
@@ -565,7 +565,7 @@ each type starts.
 - [x] The safe parts of `devcontainer.json`: `image`, `build.dockerfile`,
   `containerEnv`, and `postCreateCommand`.
   Tested on 2026-10-03: Claude Code and Codex with Docker, and Claude Code
-  with rootless Podman on gpu1; `--gpu` with Podman on gpu2 (gfx1151).
+  with rootless Podman on gpu1; `--gpu` with Podman on a Strix Halo (gfx1151).
   Approved spec: [hi_box.md](specs/approved/hi_box.md).
 
 Still open from the container ideas, for later releases: one image on the
@@ -4129,7 +4129,7 @@ v2.7.0 (`hi team sso`) is on main but untagged: its tests use a fake
 provider that signs real tokens and checks PKCE, and no real provider
 has signed anyone in yet. Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
 
-- [ ] Keycloak on gpu2: a realm, a confidential client with both return
+- [ ] Keycloak on a test machine: a realm, a confidential client with both return
   addresses, and one team on a name that stays (`hi team domain <team>
   on`). `hi team sso provider add`, then `on --anyone`: a page load with
   no key goes to Keycloak and back to the page asked for, signed in; a
@@ -4470,7 +4470,7 @@ Daytona, Modal Sandboxes) were studied for ideas that fit `hi compute` and
   `hi-desktop` and a person watches and takes over in the browser; a `cad`
   bundle with Blender, FreeCAD, CadQuery, and KiCad, scripted first.
   First test and explore everything in the spec's "Verify before
-  building" on gpu2 and record it; only then approve and build.
+  building" on a Strix Halo machine and record it; only then approve and build.
   Spec: [hi_box_desktop.md](specs/ideas/hi_box_desktop.md) (draft).
 - [ ] Explore [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)
   for `hi agent review` and the deep review before a release: a

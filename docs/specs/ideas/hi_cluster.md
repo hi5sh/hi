@@ -87,7 +87,7 @@ hi box --on auto --ram 32G --gpu ...       # any host that fits
 hi agent claude "<task>" --on auto
 hi compute up --on auto --ram 64G --max 8h
 hi compute run train.py --on auto --max 6h
-hi team new demo --on gpu2                 # long-running, pinned
+hi team new demo --on gpu1                 # long-running, pinned
 
 # The machines
 hi org offer --cpu 8 --ram 64G [--gpu none]   # on the host: offer room to guests

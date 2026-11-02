@@ -293,7 +293,7 @@ release.
 
 1. ~~Name.~~ Decided on 2026-10-02: `hi box`.
 2. ~~Whether rootless Podman with ROCm works on gfx1151.~~ Yes, tested on
-   gpu2 on 2026-10-02 with Podman 5.7.0 and
+   a Strix Halo machine on 2026-10-02 with Podman 5.7.0 and
    `kyuz0/amd-strix-halo-toolboxes:rocm-10.0`: with
    `--userns=keep-id --device /dev/kfd --device /dev/dri --group-add
    keep-groups`, `rocminfo` in the container finds the gfx1151 Radeon 8060S,

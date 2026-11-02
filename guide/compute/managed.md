@@ -611,8 +611,8 @@ prompts then never leave your network. `--no-key` is for servers that take
 no key; `--model` must be a name from the server's `/v1/models`.
 
 It needs a model that calls tools well, since `hi q` lists and reads files
-through tool calls. Tested on 2026-10-02 with `halogen-qwen3.8-flash-next`
-(Qwen 3.8 Flash Next) served on the Strix Halo workstation gpu2: correct
+through tool calls. Tested on 2026-10-02 with Qwen 3.8 Flash Next served by llama.cpp on a
+Strix Halo workstation: correct
 commands and tool calls, 4–14 seconds an answer, against about 2 seconds for
 Claude Haiku 4.5 through OpenRouter. Large models need most of the machine's
 memory, so share it knowingly: a 4-bit Qwen 3.8 Flash Next is about 110 GB.
