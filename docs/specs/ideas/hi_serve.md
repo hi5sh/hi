@@ -1,6 +1,8 @@
 # `hi serve llm --on local`: a model on this machine
 
-Status: Draft (2026-11-02)
+Status: Draft (2026-11-02), parked: the questions below, and how `hi serve`
+and `hi model` become one command, are to be discussed before it is
+approved.
 
 Dependencies: [hi_org.md](../approved/hi_org.md) (`hi serve llm`, `ls`,
 `logs`, `stop`, and what `--on` means), [hi_compute.md](../approved/hi_compute.md)
@@ -209,3 +211,7 @@ cost. `hi serve stop` removes it from the org.
    until someone moves it to `hi serve` by hand?
 4. Is a shared server's key enough on the VPN, or should `--share` also
    limit who may connect through NetBird's access control?
+5. How do `hi serve` and `hi model` (hi_model.md: `detect`, `list`,
+   `pull`, `serve`, `status`, `logs`, `stop`) collapse into `hi serve`
+   alone? This draft folds hi_model.md in only loosely (`hi serve detect`,
+   `hi serve models`); the merge needs its own, deeper pass first.
