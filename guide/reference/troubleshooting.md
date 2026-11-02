@@ -75,37 +75,37 @@ what to do next.
 | `file(s) already exist with other content; nothing was written` | `hi init` never overwrites. Move those files, or choose another directory. |
 | `give a directory or --name`                                | `hi init python pricing-tools`, or `--name` with `.`.        |
 | `the … template needs hi v… or newer`                       | `hi update`, then run `hi init` again.                       |
-| Private templates are missing from `hi init --list`           | Run `hi connect status`: the device must be connected, and the server's policy may hide them from your group. |
+| Private templates are missing from `hi init --list`           | Run `hi org status`: the device must be connected, and the server's policy may hide them from your group. |
 | `warning: no server templates from …`, then `cached`        | The server is unreachable; the last templates this device fetched still work. |
-| `… are not signed by this server's key`                     | Nothing from that bundle was used. Tell an admin; if the server was replaced on purpose, `hi disconnect` and `hi connect` again. |
+| `… are not signed by this server's key`                     | Nothing from that bundle was used. Tell an admin; if the server was replaced on purpose, `hi org leave` and `hi org join` again. |
 | `the server … has a different key than when this device connected` | Same as above.                                       |
 | `make check` fails right after `hi init`                    | Run the setup first: `uv sync`, `bun install`, or `make sync` in `ml`. `hi init --no-setup` skips it. |
 | `… has no .hi5/template.json`                             | `hi init --update` works only on projects `hi init` made. Use `hi init --adopt <template>` first. |
 | `… were edited by hand and left alone`                      | Make the change in the template, or rerun `hi init --update --force` to overwrite them. |
 | `… conflict with the template; nothing was written`         | `--adopt` found files `hi` would own, or `Makefile` targets it would add. Move them aside, or pass `--force`. |
-| `… uses layers from …, which this device can't reach`       | Run `hi connect status`: private layers need the server. In CI, `--check` without `--strict` skips them. |
+| `… uses layers from …, which this device can't reach`       | Run `hi org status`: private layers need the server. In CI, `--check` without `--strict` skips them. |
 | `… made with hi …, newer than this hi`                      | `hi update`, then run it again.                              |
 
-For admins, `hi server templates list` shows each source's commit, last fetch,
+For admins, `hi org templates list` shows each source's commit, last fetch,
 and any problem. `git fetch: no answer within 2m0s` means GitHub was slow or
 unreachable; devices keep the last good commit, and the next sync retries.
 `Authentication failed` usually means the source's token expired: run
-`hi server templates remove <name>`, then `add` with a new token.
+`hi org templates remove <name>`, then `add` with a new token.
 
 ## Your team's data
 
 | Message                                                     | What to do                                                   |
 |-------------------------------------------------------------|--------------------------------------------------------------|
-| `hi data needs a hi server`                                 | Connect with `hi connect <server>` first.                    |
-| `This server serves no Hugging Face organizations yet`      | An admin runs `hi server data add <org>` on the server box.  |
+| `hi data needs an org server`                                 | Connect with `hi org join <server>` first.                    |
+| `This server serves no Hugging Face organizations yet`      | An admin runs `hi org data add <hf-org>` on the server box.  |
 | `hf isn't installed`                                        | `pip install -U huggingface_hub`, or `uv tool install huggingface_hub`. |
 | `… is more than one kind; say dataset:… or model:…`         | Put `dataset:`, `model:`, or `bucket:` in front of the name. |
 | `… is not among what you may download`                      | Check the name with `hi data ls`; your group may not see it. |
 | `your group … may not read …`                               | Your team's policy. Ask an admin; don't look for another way in. |
 | `this hi data token is for bucket:…, not …`                 | That `hi` is older than v0.24.2 and doesn't know buckets: `hi update`. |
 | `the hi data token has expired`                             | Run the command through `hi data` again; tokens last a day.  |
-| `the hi server is older than v0.25.1`                       | An admin runs `hi update` on the server box.                 |
-| `the server can't expose the data proxy (…); using signed links instead` | The run still works. To use the proxy, an admin turns on Peer Expose in NetBird (Settings > Clients); `hi server expose` shows the last problem. |
+| `the org server is older than v0.25.1`                       | An admin runs `hi update` on the server box.                 |
+| `the server can't expose the data proxy (…); using signed links instead` | The run still works. To use the proxy, an admin turns on Peer Expose in NetBird (Settings > Clients); `hi org expose` shows the last problem. |
 | `the data is too much to send with one Hugging Face job`    | Name a folder or pattern after the repository (`--data acme/fdb/runs/*`), or use Colab. Happens only with signed links. |
 | `the download link for … has expired`                       | The job started more than about an hour after the links were made. Run it again. |
 

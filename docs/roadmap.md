@@ -4099,7 +4099,7 @@ development loop is frozen and goes in release 4.
 
 Spec: [hi_org.md](specs/approved/hi_org.md), releases 2, 3, and 5.
 
-- [ ] The guide, `/org/` with `/server/` sending visitors there,
+- [x] The guide, `/org/` with `/server/` sending visitors there,
   `llms.txt`, the README, the diagrams, and a note on hi_server.md.
 - [ ] `hi serve llm`: `hi compute serve` under its new name, with `hi
   serve ls`, `stop`, and `logs`.

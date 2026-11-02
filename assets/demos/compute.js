@@ -1,6 +1,6 @@
 // The demo at the top of hi5.sh/compute/, played by assets/story.js. Every
 // line a command prints is what hi compute printed in a real run; the account
-// (example-org), the hi server's address, and the people are made up. The
+// (example-org), the org server's address, and the people are made up. The
 // starts are --dry-run, which shows the request without sending it.
 // docs/feature-pages.md says how to edit it.
 window.HI5_STORY = {

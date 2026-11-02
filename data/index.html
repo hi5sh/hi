@@ -6,8 +6,8 @@ tool: hi data
 demo: data
 guide: /guide/data/
 headline: Your team's data, without a token on your machine.
-lede: Download your team's private Hugging Face datasets, models, and buckets through the hi server. It keeps the tokens; your laptop, your boxes, and your rented GPUs never get one.
-description: hi data downloads a team's private Hugging Face datasets, models, and buckets through the hi server, which keeps the tokens, on laptops, in boxes, and on rented GPUs.
+lede: Download your team's private Hugging Face datasets, models, and buckets through the org server. It keeps the tokens; your laptop, your boxes, and your rented GPUs never get one.
+description: hi data downloads a team's private Hugging Face datasets, models, and buckets through the org server, which keeps the tokens, on laptops, in boxes, and on rented GPUs.
 demo_caption: Real hi data output; the server, organization, and datasets are made up.
 fallback: |
   $ hi data get example-org/prices-1d
@@ -18,7 +18,7 @@ fallback: |
   <section id="uses" class="wrap" aria-labelledby="uses-h">
     <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
     <h2 id="uses-h">The same data, wherever the work runs.</h2>
-    <p class="sub">On a machine connected to your team's <a href="/server/">hi server</a>, <code>hi data</code> runs the official <code>hf</code> tool, pointed at the server. Nobody needs a Hugging Face account of their own.</p>
+    <p class="sub">On a machine connected to your team's <a href="/org/">org server</a>, <code>hi data</code> runs the official <code>hf</code> tool, pointed at the server. Nobody needs a Hugging Face account of their own.</p>
     <div class="uses">
       <div class="use">
         <h3>Download, and know what you got</h3>
@@ -48,7 +48,7 @@ fallback: |
       <li><div><p><b>Install <code>hf</code></b>, Hugging Face's own tool.</p>
         <div class="cmdline"><span class="ps">$</span><code>uv tool install huggingface_hub</code><button class="copy" type="button" data-copy="uv tool install huggingface_hub">copy</button></div></div></li>
       <li><div><p><b>Join your team's server</b>, if you haven't. An admin approves it.</p>
-        <div class="cmdline"><span class="ps">$</span><code>hi connect hi.example.com</code><button class="copy" type="button" data-copy="hi connect hi.example.com">copy</button></div></div></li>
+        <div class="cmdline"><span class="ps">$</span><code>hi org join hi.example.com</code><button class="copy" type="button" data-copy="hi org join hi.example.com">copy</button></div></div></li>
       <li><div><p><b>Search and pick.</b> Type words in any order; Enter picks one, and hi asks before it downloads.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi data</code><button class="copy" type="button" data-copy="hi data">copy</button></div></div></li>
       <li><div><p><b>Or name it</b>, with its size first.</p>
@@ -105,8 +105,8 @@ fallback: |
       </div>
       <div class="detail">
         <h3>For admins</h3>
-        <div class="snip"><span class="c">$ hi server data add example-org</span>   <span class="d"># on the server box</span>
-<span class="c">$ hi server data list</span></div>
+        <div class="snip"><span class="c">$ hi org data add example-org</span>   <span class="d"># on the server box</span>
+<span class="c">$ hi org data list</span></div>
         <p>Use a fine-grained, read-only token limited to the organization. Every group reads everything by default; list patterns in <code>policy.json</code>, such as <code>"data": ["example-org/prices-*"]</code>, to limit one.</p>
       </div>
     </div>
@@ -117,7 +117,7 @@ fallback: |
     <h2 id="next-h">Where next.</h2>
     <div class="next">
       <a href="/guide/data/"><b>Download your team's data</b><span>The guide: every option, step by step.</span></a>
-      <a href="/server/"><b>hi server</b><span>The server that keeps the tokens.</span></a>
+      <a href="/org/"><b>hi org</b><span>The server that keeps the tokens.</span></a>
       <a href="/guide/compute/run/#your-teams-data"><b>Data in a cloud run</b><span><code>hi compute run --data</code> on Hugging Face Jobs.</span></a>
       <a href="/guide/reference/commands/#hi-data"><b>Every hi data command</b><span>The reference.</span></a>
     </div>

@@ -1,4 +1,4 @@
-// The demo at the top of hi5.sh/server/, played by assets/story.js. Every line
+// The demo at the top of hi5.sh/org/, played by assets/story.js. Every line
 // a command prints is what hi printed in a real run on a device connected to
 // an org server; the server's name, the people, and the request names are
 // made up. docs/feature-pages.md says how to edit it.

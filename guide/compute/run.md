@@ -73,7 +73,7 @@ hi compute run --gpu a10g-small \
 
 ## Your team's data
 
-With a hi server that serves your team's Hugging Face data
+With an org server that serves your team's Hugging Face data
 ([`hi data`](/guide/data/)), `--data` downloads it on the instance before
 the script starts:
 
@@ -86,7 +86,7 @@ Each repository lands in `data/<name>` next to where the script runs, as
 with `hi data get`. A folder or pattern after the name (`/runs/2026-09`,
 `/*.parquet`) downloads only those files.
 
-Script runs only. The instance can't reach the hi server inside NetBird,
+Script runs only. The instance can't reach the org server inside NetBird,
 so the data gets there one of two ways.
 
 **On Hugging Face Jobs, through the server's public address.** The server

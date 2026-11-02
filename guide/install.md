@@ -78,8 +78,8 @@ shadeform not signed in
 - [Set up RunPod](/guide/compute/runpod/)
 - [Set up Shadeform](/guide/compute/shadeform/)
 
-On a team whose [hi server](/guide/compute/managed/) pays for compute,
-`hi connect <server>` replaces the sign-ins for the providers it manages.
+On a team whose [org server](/guide/compute/managed/) pays for compute,
+`hi org join <server>` replaces the sign-ins for the providers it manages.
 
 `hi install` also offers both providers' command-line tools, the Colab CLI
 and the `hf` CLI (`hi install colab hf`). If you only installed `hi` itself, `hi login` tells you how
@@ -91,14 +91,14 @@ to install the one it needs.
 hi update            # install the latest release
 hi update --check    # only say whether a newer release exists
 hi update --version v0.7.0
-hi update --restart     # and restart a hi server or team that runs the old version, without asking
+hi update --restart     # and restart an org server or team that runs the old version, without asking
 hi update --no-restart  # never restart one; print the command instead
 ```
 
 `hi update` downloads the release for your machine, checks its SHA-256
 checksum, and replaces the binary in one step; if anything fails, the old
 binary stays as it was. `--version` can also go back to an older release.
-If a `hi server` or a [hi team](/guide/team/) on the machine still runs the
+If an org server or a [hi team](/guide/team/) on the machine still runs the
 old binary, `hi update` offers to restart its service; a busy team is left
 until it's done, with the command to run then.
 After updating, refresh any [agent skills](/guide/reference/skill/) you wrote

@@ -49,10 +49,8 @@ hi net domain <domain>  https for the teams' addresses on this machine, with a d
 hi init            Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml, and your server's own)
 hi compute         Start, reach, and stop remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
 hi login <hf|colab|runpod|shadeform>  Sign in to a compute provider
-hi connect <server>         Join your team's hi server, which approves and pays for compute
-hi disconnect               Leave it; hi compute uses your own keys again
-hi data            Download your team's Hugging Face datasets, models, and buckets through it (hi data help)
-hi server          Run the server that brokers compute and serves templates for your team (hi server help)
+hi data            Download your team's Hugging Face datasets, models, and buckets through your org (hi data help)
+hi org             Your organization: join it, or run its server, which approves and pays for compute (hi org help)
 hi agent [task]    Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box and get its report (hi agent help)
 hi agent brainstorm <question>  Several agents give ideas alone; one compiles them into a proposal
 hi box shell       Run a shell or a command in a rootless box (hi box help)
@@ -65,7 +63,7 @@ hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
 hi verify strix    Check an installed Strix Halo workstation
-hi update          Update hi to the latest release, and restart a hi server or team on the old one (--check, --version, --restart)
+hi update          Update hi to the latest release, and restart an org server or team on the old one (--check, --version, --restart)
 hi version         Print the installed version
 hi help            Show help
 ```
@@ -269,8 +267,8 @@ are embedded in the binary. `autoresearch-ml` is a project shaped for
 `hi agent best-of` rounds: a fixed, tested evaluation, one file agents
 change, frozen data, and a holdout outside the repository. Private
 templates, such as the quant ones,
-live in a private repository that a `hi server` mirrors
-(`hi server templates add`) and serves, signed, to connected devices. Template
+live in a private repository that an org server mirrors
+(`hi org templates add`) and serves, signed, to connected devices. Template
 authors can try a folder of layers with `HI_TEMPLATES_DIR=<path> hi init …`.
 
 ## Terminal helper
@@ -296,7 +294,7 @@ dangerous ones, such as `sudo`, `rm -r` outside the current folder, or
 `curl … | sh`, need `yes` typed, and globs in `mv`, `cp`, and `rm` show what
 they match first.
 
-`hi q --setup` chooses the model (the connected hi server's, Claude Code, OpenRouter, any
+`hi q --setup` chooses the model (the connected org server's, Claude Code, OpenRouter, any
 OpenAI-compatible endpoint including Ollama and `hi compute serve`, or an
 Anthropic key) and offers to add shell integration to `~/.bashrc` or
 `~/.zshrc`. With it, `hi q` sees the shell's current history and last exit
@@ -328,7 +326,7 @@ people in one Slack channel, on a machine of yours:
   Release on the dev page, with a snapshot first; an owner can roll each
   release back.
 - **Templates** set how every project starts: hi's blank app, or your
-  developers' own from a private repository through `hi server templates`,
+  developers' own from a private repository through `hi org templates`,
   with your stack, toolchain, `make check`, and agent rules.
 - **Handing over** is changing owners: the project is an ordinary git
   repository from your template, and the team is one folder.
@@ -380,7 +378,7 @@ bundles.
 ## Your team's data
 
 `hi data` downloads the private Hugging Face datasets, models, and buckets
-of your team's organizations through the hi server, with the official `hf`
+of your team's organizations through the org server, with the official `hf`
 tool and no Hugging Face token on the machine:
 
 ```sh
@@ -389,7 +387,7 @@ hi data ls                     # what you may download
 hi data get acme/bars-1d    # into ./data/bars-1d (--to, --revision, --include, --exclude)
 ```
 
-The server keeps one read token per organization (`hi server data add
+The server keeps one read token per organization (`hi org data add
 <org>`) and passes on only the read calls of one repository or bucket; file
 contents come straight from Hugging Face's CDN. In a project, `hi data get`
 records the commit it fetched in `.hi5/data.json`; `hi data run --

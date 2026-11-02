@@ -1,5 +1,5 @@
 {
-  "caption": "How hi q works. You ask in plain words. hi gathers a short, redacted description of where you are, such as the system, the folder, the git state, and recent commands, and sends it with the question to the model you chose: your team's hi server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API. The model may look first with read-only tools that hi runs itself. It answers with one command, which hi shows with its risk; nothing runs until you press Enter.",
+  "caption": "How hi q works. You ask in plain words. hi gathers a short, redacted description of where you are, such as the system, the folder, the git state, and recent commands, and sends it with the question to the model you chose: your team's org server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API. The model may look first with read-only tools that hi runs itself. It answers with one command, which hi shows with its risk; nothing runs until you press Enter.",
   "you": "You",
   "via": "hi q \"move the md files into notes\"",
   "frame": "your machine",
@@ -39,7 +39,7 @@
       "mark": 5,
       "via": "the question and context go to",
       "items": [
-        {"title": "hi q --status", "role": "the model", "does": "Your team's hi server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API, chosen with `hi q --setup`.", "chip": "--setup", "tone": "violet"}
+        {"title": "hi q --status", "role": "the model", "does": "Your team's org server, Claude Code, OpenRouter, an OpenAI-compatible endpoint, or the Anthropic API, chosen with `hi q --setup`.", "chip": "--setup", "tone": "violet"}
       ]
     }
   ],

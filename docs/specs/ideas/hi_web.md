@@ -3,7 +3,7 @@
 Status: Draft
 
 Dependencies: `hi install` (Lightpanda as a new tool), `hi box` (its egress
-proxy), `hi server` (keys on the server, policy, audit, Slack) for signed-in
+proxy), `hi org` (keys on the server, policy, audit, Slack) for signed-in
 browsing, `hi llm` for crawls that feed a model, and `hi skill`.
 
 ## Goal

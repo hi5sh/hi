@@ -68,19 +68,19 @@ there are no run-to-completion jobs: use `up` and `ssh`.
 time, so it stops even if your laptop is off. `stop` deletes the machine,
 and Shadeform stops billing as soon as it is deleting.
 
-With a hi server that serves your team's data, `--data <org>/<name>` lets
+With an org server that serves your team's data, `--data <org>/<name>` lets
 the machine's shells read it through the server until `--max`; see
 [On a machine you SSH into](/guide/data/#on-a-machine-you-ssh-into).
 `hi compute serve` works with `--gpu`, building llama.cpp on the machine
 over SSH as on Colab, but has not been tested on Shadeform.
 
-## Through a hi server
+## Through an org server
 
-A [hi server](/guide/compute/managed/) can hold one Shadeform key for your
+An [org server](/guide/compute/managed/) can hold one Shadeform key for your
 team:
 
 ```sh
-hi server provider add shadeform
+hi org provider add shadeform
 ```
 
 Connected devices then start Shadeform machines through the server, with

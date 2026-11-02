@@ -2,7 +2,7 @@
 
 Status: Draft
 
-Dependencies: `hi server` (keys kept on the server, devices, groups,
+Dependencies: `hi org` (keys kept on the server, devices, groups,
 `policy.json`, audit, Slack), `hi ask` (approvals for writes), and `hi box`
 (its proxy, which already adds Claude Code's token outside the box).
 
@@ -10,7 +10,7 @@ Dependencies: `hi server` (keys kept on the server, devices, groups,
 
 Let agents use the team's API accounts without ever holding their keys.
 The server keeps the key, adds it to each request, checks the request
-against policy, and records it. This is the rule `hi server` was built on,
+against policy, and records it. This is the rule `hi org` was built on,
 "broker, don't distribute", applied to every API and not only to GPU
 providers.
 
@@ -44,9 +44,9 @@ hi call log [--since 1d]             your recent calls
 On the server box:
 
 ```text
-hi server call add <service> --url <base> --auth <kind>    store a key (read without echo)
-hi server call remove|list [<service>]
-hi server call test <service>                              one harmless request
+hi org call add <service> --url <base> --auth <kind>    store a key (read without echo)
+hi org call remove|list [<service>]
+hi org call test <service>                              one harmless request
 ```
 
 Examples:
@@ -124,7 +124,7 @@ proxy where the tool supports a base URL.
 
 Each call is audited with the user, device, agent, service, method, path
 (without query values for `query:` auth), status, bytes, and duration.
-Bodies are never stored. `hi server spend` doesn't apply; the weekly report
+Bodies are never stored. `hi org spend` doesn't apply; the weekly report
 gets a line with calls per service and user.
 
 Responses pass through unchanged, except that the server replaces the key
@@ -142,7 +142,7 @@ body. `GET /v1/call` lists the services and rules for this device's group.
 
 ## Releases
 
-1. `hi call`, `ls`, `log`; `hi server call add|remove|list|test`; bearer,
+1. `hi call`, `ls`, `log`; `hi org call add|remove|list|test`; bearer,
    header, and basic auth; `allow` rules and `per_hour`; audit.
 2. GitHub App tokens narrowed per call; `approve` rules through `hi ask`.
 3. The box proxy adds tokens for `github` and `hf` transparently.

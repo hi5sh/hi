@@ -1,10 +1,10 @@
 ---
 title: Download your team's data
-description: Download your team's private Hugging Face datasets, models, and buckets with hi data, through the hi server, without a Hugging Face token on your machine.
+description: Download your team's private Hugging Face datasets, models, and buckets with hi data, through the org server, without a Hugging Face token on your machine.
 ---
 
 `hi data` downloads the private Hugging Face datasets, models, and buckets
-of your team's organizations. The hi server keeps the Hugging Face tokens;
+of your team's organizations. The org server keeps the Hugging Face tokens;
 your machine never gets one. It runs the official `hf` tool, pointed at
 the server.
 
@@ -14,7 +14,7 @@ hi data ls                       # everything you may download
 hi data get acme/bars-1d      # straight to ./data/bars-1d
 ```
 
-You need a machine connected to your team's server (`hi connect`) and `hf`:
+You need a machine connected to your team's server (`hi org join`) and `hf`:
 
 ```sh
 pip install -U huggingface_hub   # or: uv tool install huggingface_hub
@@ -170,7 +170,7 @@ permissions.
 ## What the server does
 
 ```text
-your machine                       hi server                         Hugging Face
+your machine                       org server                        Hugging Face
 hi data get ──── asks for a ─────▶ checks your group
                  hi data token     
 hf download ──── with the token ─▶ swaps in your team's token ──────▶ the Hub's API
@@ -193,22 +193,22 @@ On the server box, connect an organization with a token that can read it.
 A fine-grained, read-only token limited to the organization is best:
 
 ```sh
-hi server data add acme           # asks for the token; it shows as *
-hi server data add acme name2     # one token for several organizations
-hi server data                       # a menu: add, test, remove
-hi server data list                  # organizations and what they hold
-hi server data test                  # check every token now
-hi server data add acme --token-file token.txt   # without a terminal
-hi server data remove name2
+hi org data add acme           # asks for the token; it shows as *
+hi org data add acme name2     # one token for several organizations
+hi org data                       # a menu: add, test, remove
+hi org data list                  # organizations and what they hold
+hi org data test                  # check every token now
+hi org data add acme --token-file token.txt   # without a terminal
+hi org data remove name2
 ```
 
 Every group can read everything by default. To limit a group, list
-patterns in `policy.json` (`hi server policy edit`); an empty list allows
+patterns in `policy.json` (`hi org policy edit`); an empty list allows
 nothing:
 
 ```json
 "students": { "data": ["acme/bars-1d", "acme/public-*"] }
 ```
 
-Token grants are in the audit log (`hi server audit`), and every download
+Token grants are in the audit log (`hi org audit`), and every download
 is in `data_usage.jsonl` in the server's state folder.

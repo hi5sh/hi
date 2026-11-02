@@ -189,7 +189,7 @@ The same skills in Slack are later work. Slack registers each slash
 command in the app's manifest, so `/accessibility` there would mean a
 manifest change and a reinstall for every new team skill. The likely way
 is the team's own command, `/hi-<team> <skill> ...` (it already exists; plain
-`/hi` is the hi server's), with
+`/hi` is the org server's), with
 Slack's own autocomplete for its first word. Not in this spec's slices.
 
 ## Not in scope

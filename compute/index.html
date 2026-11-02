@@ -108,15 +108,15 @@ fallback: |
         <p>Refer to a machine by its name, or <code>provider/name</code>. <code>--max none</code> starts one with no limit, after a warning you must confirm.</p>
       </div>
       <div class="detail">
-        <h3>A team's GPUs, through a hi server</h3>
-        <p>Connected to a <a href="/server/">hi server</a> (<code>hi connect</code>), the providers it manages go through it: the server holds the keys, an approver says yes in Slack, and budgets are per person and per group. A reason and a time limit are required.</p>
+        <h3>A team's GPUs, through an org server</h3>
+        <p>Connected to an <a href="/org/">org server</a> (<code>hi org join</code>), the providers it manages go through it: the server holds the keys, an approver says yes in Slack, and budgets are per person and per group. A reason and a time limit are required.</p>
         <div class="snip"><span class="c">$ hi compute up --on runpod --gpu rtx-4090 --max 2h --reason "LoRA sweep"</span>
 <span class="c">$ hi compute requests</span>             <span class="d"># what's waiting</span>
 <span class="c">$ hi compute extend rtx-4090-1c2d 1h</span></div>
       </div>
       <div class="detail">
         <h3>Your team's data in a run</h3>
-        <p><code>--data ORG/NAME</code> downloads your team's Hugging Face dataset into <code>data/NAME</code> before the script starts, through the hi server, so the machine never holds a token of yours. On RunPod and Shadeform, <code>hi compute up --data ORG/NAME</code> lets the machine's shells read it until <code>--max</code>.</p>
+        <p><code>--data ORG/NAME</code> downloads your team's Hugging Face dataset into <code>data/NAME</code> before the script starts, through the org server, so the machine never holds a token of yours. On RunPod and Shadeform, <code>hi compute up --data ORG/NAME</code> lets the machine's shells read it until <code>--max</code>.</p>
         <p><code>--env KEY=VALUE</code> sets a variable; <code>--secret KEY</code> passes <code>$KEY</code> as an encrypted secret on Hugging Face.</p>
       </div>
     </div>
@@ -125,7 +125,7 @@ fallback: |
       <div class="prose">
         <p>hi talks to Colab through the Colab CLI, and to Hugging Face Jobs, RunPod, and Shadeform through their REST APIs. <code>--dry-run</code> prints the exact command or request, as in the demo above.</p>
         <p>A Python script goes to the machine as a base64 environment variable and runs with <code>uv run</code>, so the dependencies in its header install there. On Hugging Face the job runs in <code>ghcr.io/astral-sh/uv:python3.12-bookworm</code>, and <code>--max</code> becomes its <code>timeoutSeconds</code>.</p>
-        <p>For a managed provider, the start is a signed request to the hi server, with the device key in <code>~/.config/hi/device_key</code>, your SSH public key, and the time limit. The server holds the provider key and starts the machine after an approval.</p>
+        <p>For a managed provider, the start is a signed request to the org server, with the device key in <code>~/.config/hi/device_key</code>, your SSH public key, and the time limit. The server holds the provider key and starts the machine after an approval.</p>
       </div>
     </details>
   </section>

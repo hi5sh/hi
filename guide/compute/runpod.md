@@ -110,7 +110,7 @@ hi compute up --on runpod --gpu rtx-4090@community --max 2h
 `serve` to the machine. Hosts vary: a host going offline ends the machine,
 so keep your work checkpointed.
 
-Through a [hi server](/guide/compute/managed/), the Slack request carries
+Through an [org server](/guide/compute/managed/), the Slack request carries
 the same warning. An approved Secure start is never moved to Community
 Cloud when its hardware is sold out, and a Community start is only replaced
 on Community Cloud. A group's `hardware` list in the policy must name
@@ -128,7 +128,7 @@ on Community Cloud. A group's `hardware` list in the policy must name
 `up` waits until the pod is running and reachable over SSH, which can take a
 few minutes while RunPod pulls the image.
 
-With a hi server that serves your team's data, `--data <org>/<name>` lets
+With an org server that serves your team's data, `--data <org>/<name>` lets
 the pod's shells read it through the server until `--max`; see
 [On a machine you SSH into](/guide/data/#on-a-machine-you-ssh-into). Community
 Cloud refuses `--data`.

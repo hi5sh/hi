@@ -1,5 +1,5 @@
 {
-  "caption": "How hi init works. You name a template, such as python. hi composes it from a chain of layers, built in or from your team's private template repository through the hi server, and shows the plan: every file it will write and every command it will run. After you confirm, it writes the project, with make check, AGENTS.md, safe agent settings, the hi skill, and CI, and records what it wrote in .hi5/template.json. Later, hi init --update brings the project up to date with the templates, replacing only what hi owns and nobody edited.",
+  "caption": "How hi init works. You name a template, such as python. hi composes it from a chain of layers, built in or from your team's private template repository through the org server, and shows the plan: every file it will write and every command it will run. After you confirm, it writes the project, with make check, AGENTS.md, safe agent settings, the hi skill, and CI, and records what it wrote in .hi5/template.json. Later, hi init --update brings the project up to date with the templates, replacing only what hi owns and nobody edited.",
   "you": "You",
   "via": "hi init python pricing-tools",
   "frame": "your machine",
@@ -10,7 +10,7 @@
       "label": "a chain of layers",
       "mark": 2,
       "items": [
-        {"title": "base → python", "role": "layers", "does": "Built in, or your team's private ones through the hi server, signed and cached.", "chip": "layer.json", "tone": "dim"}
+        {"title": "base → python", "role": "layers", "does": "Built in, or your team's private ones through the org server, signed and cached.", "chip": "layer.json", "tone": "dim"}
       ]
     },
     {

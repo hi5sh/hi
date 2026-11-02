@@ -21,7 +21,7 @@ to `hi` on the host. That account also owns:
 
 - every team's folder: its `secrets.json` (the real Slack tokens), its
   `run/keys` (the OpenRouter key the proxy swaps in), the lead's memory;
-- hi's config, with the machine's device key for the hi server;
+- hi's config, with the machine's device key for the org server;
 - the machine's sign-ins (Claude, ChatGPT) the teams' proxies use;
 - every team's containers, in one Podman store;
 - whatever else the admin keeps there (on gpu1, a repository's `.env` with
@@ -111,7 +111,7 @@ account, as they belong to `hi` now. Nothing about mounts changes.
   by an admin-side broker on a socket each team may ask (only for the
   calls its proxy makes, never the key itself). Which of the machine's
   sign-ins each team may use is the admin's to set, as now.
-- **The hi server.** Each team gets a device key of its own, registered by
+- **The org server.** Each team gets a device key of its own, registered by
   the admin's `hi team new`, so a heartbeat speaks for that team only. The
   machine's key stays the admin's. The server shows which key sent what.
 - **NetBird and `hi net expose`.** The relays stay the admin's; they reach
@@ -157,7 +157,7 @@ added and one more: that an escape from their boxes reaches the others.
 - **The escape.** As `hi-demo` on the host, the user an escape from
   demo's box would be: reading another team's folder, `secrets.json`, the
   admin's home and hi's config fails; `podman ps` shows only demo's
-  boxes; another team's broker socket refuses; the hi server refuses demo's
+  boxes; another team's broker socket refuses; the org server refuses demo's
   key for anything of another team's.
 - **Nothing changed for people.** A team moved mid-life keeps its
   addresses, its links, its data, its lead's memory, and its dev box's

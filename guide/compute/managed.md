@@ -1,11 +1,11 @@
 ---
 title: Managed compute for your team
-description: Run hi server so employees, students, and their agents use GPUs through one set of provider keys, with every start approved and every machine stopped at its limit.
+description: Run hi org so employees, students, and their agents use GPUs through one set of provider keys, with every start approved and every machine stopped at its limit.
 ---
 
-Your team can run `hi server` on a small always-on machine inside its NetBird
+Your team can run `hi org` on a small always-on machine inside its NetBird
 network. The server holds the provider keys, makes every provider call itself,
-and starts nothing until someone approves it. People join with `hi connect`
+and starts nothing until someone approves it. People join with `hi org join`
 and then use the same `hi compute` commands as before.
 
 - Nobody but the admins holds a provider key, so nobody can spend outside
@@ -14,16 +14,16 @@ and then use the same `hi compute` commands as before.
 - The server stops every machine at its `--max`, even when the laptop that
   asked for it is off.
 
-> Management is opt-in. If you never run `hi connect`, `hi` works exactly as
+> Management is opt-in. If you never run `hi org join`, `hi` works exactly as
 > before, with your own keys. Colab is never managed: it always runs under
 > your own Google sign-in.
 {: .note}
 
 hi manages RunPod and Shadeform. Admins approve from Slack or the server box,
-groups can have budgets, and `hi compute live` and `hi server live` show what
+groups can have budgets, and `hi compute live` and `hi org live` show what
 is running.
 
-[See it in action](/server/): a short demo, then how it works.
+[See it in action](/org/): a short demo, then how it works.
 
 {% include diagram.html name="managed" %}
 
@@ -35,19 +35,19 @@ Your admin tells you the server's name, such as `compute.internal`. On a
 machine that is already in the NetBird network:
 
 ```sh
-hi connect compute.internal
+hi org join compute.internal
 ```
 
 ```text
 Asked http://compute.internal:7373 to let laptop-alice join as alice (request e-3f09a1).
-An admin approves it with: hi server approve e-3f09a1 --group <group>
+An admin approves it with: hi org approve e-3f09a1 --group <group>
 Waiting for approval… (Ctrl-C stops waiting; the request stays open)
 Connected to http://compute.internal:7373 as alice (students).
 Managed by the server: runpod. Starting there needs an approval.
 Colab and any other provider still use your own sign-in.
 ```
 
-`hi connect` creates a key for this device in `~/.config/hi/device_key`,
+`hi org join` creates a key for this device in `~/.config/hi/device_key`,
 readable only by you, and signs every request to the server with it. Your
 user name defaults to your login name; choose another with `--user`.
 
@@ -117,7 +117,7 @@ machine's limit moves, and `hi compute ls` shows the new time.
 
 ### Budgets
 
-If your group has a monthly budget, `hi connect status`, `hi compute ls`, and
+If your group has a monthly budget, `hi org status`, `hi compute ls`, and
 every request show what you have spent this month:
 
 ```text
@@ -162,7 +162,7 @@ An agent that runs on its own, such as a scheduled job on a build server,
 joins as itself with a person responsible for it:
 
 ```sh
-hi connect compute.internal --agent build-bot --owner noor
+hi org join compute.internal --agent build-bot --owner noor
 ```
 
 Approvers see it as 🤖 **build-bot** (owner noor), with an *Approve as
@@ -180,7 +180,7 @@ see and stop your machines from the app's Home tab in Slack:
 2. Run the command it replies with on your own device, within 10 minutes:
 
    ```sh
-   hi connect slack 4F7K2Q
+   hi org slack link 4F7K2Q
    ```
 
 The code only works from a device that is connected as that user, so nobody
@@ -225,7 +225,7 @@ lock, and until when.
 ### Leave the server
 
 ```sh
-hi disconnect
+hi org leave
 ```
 
 This deletes the device key and the server address. `hi compute` then uses
@@ -241,13 +241,13 @@ until they stop.
 On a small always-on Linux machine, enrolled in NetBird with `hi net`:
 
 ```sh
-hi server init                    # listens on this machine's NetBird address, port 7373
-hi server provider add runpod     # asks for the key without echoing it
-hi server provider add shadeform  # the same for Shadeform, if you use it
-hi server run
+hi org init                    # listens on this machine's NetBird address, port 7373
+hi org provider add runpod     # asks for the key without echoing it
+hi org provider add shadeform  # the same for Shadeform, if you use it
+hi org run
 ```
 
-`hi server init` prints a systemd unit to run the server as a service. The
+`hi org init` prints a systemd unit to run the server as a service. The
 server keeps its state, audit log, and provider keys in
 `~/.local/state/hi/server`, readable only by the user it runs as. Change that
 with `--dir` or `HI_SERVER_DIR`.
@@ -286,18 +286,18 @@ Admin commands talk to the running server through a socket that only the
 server's user can open, so they work on the server box:
 
 ```sh
-hi server requests                            # what is waiting
-hi server approve e-3f09a1 --group students   # a new device; new users need a group
-hi server approve r-9b41e0                    # a compute request
-hi server deny r-9b41e0 --reason "use a 4090, not an H100"
+hi org requests                            # what is waiting
+hi org approve e-3f09a1 --group students   # a new device; new users need a group
+hi org approve r-9b41e0                    # a compute request
+hi org deny r-9b41e0 --reason "use a 4090, not an H100"
 ```
 
 Decisions are recorded under your login name; change it with `--as`. Nobody
 can decide their own request. To add your own device, pre-approve its key:
-run `hi connect key` on the device, then:
+run `hi org key` on the device, then:
 
 ```sh
-hi server user add alice --group staff --key <key>
+hi org user add alice --group staff --key <key>
 ```
 
 ### Approve from Slack
@@ -308,10 +308,10 @@ an outbound connection, so the server needs no public address.
 
 1. At [api.slack.com/apps](https://api.slack.com/apps), choose **Create New
    App → From a manifest** and paste the output of
-   `hi server slack manifest`. Install it to your workspace.
+   `hi org slack manifest`. Install it to your workspace.
 2. Create a private channel, such as `#compute-approvals`, and invite the
    app with `/invite @hi compute`.
-3. On the server box, run `hi server slack setup`. It asks for the **Bot User
+3. On the server box, run `hi org slack setup`. It asks for the **Bot User
    OAuth Token** (`xoxb-…`), an **App-Level Token** with `connections:write`
    (`xapp-…`, under Basic Information), and the channel's ID (at the bottom
    of the channel's details). It posts a test message, then saves them.
@@ -319,7 +319,7 @@ an outbound connection, so the server needs no public address.
    the `hi` user name they request compute as:
 
    ```sh
-   hi server approvers add U0123456789 --name bob
+   hi org approvers add U0123456789 --name bob
    ```
 
 5. Restart the server: `sudo systemctl restart hi-server`.
@@ -358,10 +358,10 @@ short jobs without waiting, caps what each group may use, and sets monthly
 budgets:
 
 ```sh
-hi server policy example > /tmp/policy.json   # a starting point
-hi server policy edit                         # opens $EDITOR, checks, saves
-hi server policy show
-hi server policy check                        # checks policy.json without changing it
+hi org policy example > /tmp/policy.json   # a starting point
+hi org policy edit                         # opens $EDITOR, checks, saves
+hi org policy show
+hi org policy check                        # checks policy.json without changing it
 ```
 
 | Setting                     | Meaning                                                   |
@@ -383,8 +383,8 @@ devices on Mondays, and the month on the 1st. Turn any off with
 `"reports": {"daily": false}`.
 
 ```sh
-hi server spend                 # this month, per user and group
-hi server spend --since 7d
+hi org spend                 # this month, per user and group
+hi org spend --since 7d
 ```
 
 In Slack:
@@ -415,7 +415,7 @@ to link.
 
 The Home tab needs two settings in the Slack app that older setups lack. At
 [api.slack.com/apps](https://api.slack.com/apps), open the app, choose **App
-Manifest**, replace it with the output of `hi server slack manifest`, save,
+Manifest**, replace it with the output of `hi org slack manifest`, save,
 and reinstall if Slack asks.
 
 ### Live dashboard
@@ -423,7 +423,7 @@ and reinstall if Slack asks.
 On the server box:
 
 ```sh
-hi server live
+hi org live
 ```
 
 ```text
@@ -454,7 +454,7 @@ connected clients report when they open `ssh`, a tunnel, `logs`, or
 
 ### A wall screen
 
-`hi server live --wall` is the same dashboard, read-only, for a shared
+`hi org live --wall` is the same dashboard, read-only, for a shared
 screen. It shows initials instead of names and hides reasons (`--names full`
 and `--reasons` turn them on), fills whatever screen it gets, and takes
 turns showing what doesn't fit. If the server stops answering, it dims and
@@ -464,8 +464,8 @@ To show it on screens without installing anything on them, run it once in a
 tmux session on the server box that screens attach to over SSH:
 
 ```sh
-sudo ~/.local/bin/hi server wall setup
-sudo ~/.local/bin/hi server wall add office-tv ~/office-tv.pub
+sudo ~/.local/bin/hi org wall setup
+sudo ~/.local/bin/hi org wall add office-tv ~/office-tv.pub
 ```
 
 Then on the screen: `ssh -t hi-wall@<server box>`.
@@ -479,11 +479,11 @@ Then on the screen: `ssh -t hi-wall@<server box>`.
 - A systemd service (`hi-wall-live`) keeps the session running across
   crashes and reboots. Rerun `setup` after updating `hi`.
 - All screens on one session share its size. For a screen of another size,
-  add a session: `sudo hi server wall setup --session tv --size 240x67`, and
+  add a session: `sudo hi org wall setup --session tv --size 240x67`, and
   `wall add … --session tv`.
 
-A device elsewhere can also run `hi server live --wall` itself, if an admin
-makes it a viewer with `hi server viewer add <name> --key <key from hi connect key>`.
+A device elsewhere can also run `hi org live --wall` itself, if an admin
+makes it a viewer with `hi org viewer add <name> --key <key from hi org key>`.
 
 ### Serve private project templates
 
@@ -491,13 +491,13 @@ The server can also hand connected devices private project templates and agent s
 ones. Users never need access to the repository on GitHub.
 
 ```sh
-hi server templates add private https://github.com/<org>/<private-repo>
+hi org templates add private https://github.com/<org>/<private-repo>
                                   # asks for a read-only token, shown as *;
                                   # --ref serves a branch or tag other than the default
-hi server templates list          # each source, its commit, layers, and skills
-hi server templates sync          # fetch now instead of within 15 minutes
-hi server templates rename private team   # keeps the token and history
-hi server templates remove private
+hi org templates list          # each source, its commit, layers, and skills
+hi org templates sync          # fetch now instead of within 15 minutes
+hi org templates rename private team   # keeps the token and history
+hi org templates remove private
 ```
 
 - Use a fine-grained GitHub token limited to that one repository with
@@ -510,7 +510,7 @@ hi server templates remove private
   devices keep the last good commit. Run `remove` and `add` again with a new
   token; the commits stay the same, so nothing devices cached changes.
 - Every git command gives up after 2 minutes, so a slow GitHub shows up as a
-  problem in `hi server templates list` instead of blocking the commands.
+  problem in `hi org templates list` instead of blocking the commands.
 - Every new commit is checked before devices get it: valid `layer.json`
   files, no built-in template names, and skills with a `SKILL.md`. A commit
   that fails keeps the previous one in service and posts an alert.
@@ -526,12 +526,12 @@ out the organizations' datasets, models, and buckets through a proxy, so
 nobody needs a Hugging Face account or token of their own:
 
 ```sh
-hi server data add acme           # asks for the token; it shows as *
-hi server data add acme acme-research --token-file token.txt
+hi org data add acme           # asks for the token; it shows as *
+hi org data add acme acme-research --token-file token.txt
                                   # several organizations, one token, read from a file
-hi server data                    # a menu: add, test, remove
-hi server data list               # each organization and whose token it uses
-hi server data test|remove <org>
+hi org data                    # a menu: add, test, remove
+hi org data list               # each organization and whose token it uses
+hi org data test|remove <hf-org>
 ```
 
 - Use a fine-grained, read-only token limited to the organizations. It
@@ -559,10 +559,10 @@ is valid and nothing has called for 10 minutes.
   links, which work but last about an hour and are limited in size on
   Hugging Face, and `hi compute up --data` is refused. Runs on other
   providers always use signed links.
-- `hi server expose` shows the current public address, and each run with
+- `hi org expose` shows the current public address, and each run with
   a run token: who started it, from which device, for which data, and
-  until when. `hi server expose stop` closes the address now.
-- `hi server expose revoke <run>` ends one run's token at once, for
+  until when. `hi org expose stop` closes the address now.
+- `hi org expose revoke <run>` ends one run's token at once, for
   example a run left going on a machine you no longer trust. The server
   remembers it until the token would have expired, and refuses that run a
   new token; other runs keep working.
@@ -578,13 +578,13 @@ OpenAI-compatible endpoint, with one key for your team, so nobody needs a key of
 their own:
 
 ```sh
-hi server ai set                       # asks for the OpenRouter key, shown as *
-hi server ai set --model google/gemini-2.5-flash   # change the default
-hi server ai set --url http://gpu-1.example.com:8731/v1 --model <name> --no-key
+hi org ai set                       # asks for the OpenRouter key, shown as *
+hi org ai set --model google/gemini-2.5-flash   # change the default
+hi org ai set --url http://gpu-1.example.com:8731/v1 --model <name> --no-key
                                        # a model on your own machine, no key
-hi server ai                           # the setup and this month's use per user
-hi server ai off                       # stop serving; keeps the key
-hi server ai remove                    # stop and delete the key
+hi org ai                           # the setup and this month's use per user
+hi org ai off                       # stop serving; keeps the key
+hi org ai remove                    # stop and delete the key
 ```
 
 - It is a plain pass-through: users and agents may ask for any model the
@@ -593,11 +593,11 @@ hi server ai remove                    # stop and delete the key
 - `set` makes one small request with the key and model before saving them.
   Run it again to change them; Enter at the key prompt keeps the stored key.
 - Each request is recorded in `ai_usage.jsonl` with the user, device, model,
-  tokens, and cost, never the messages or the answer. `hi server spend`
+  tokens, and cost, never the messages or the answer. `hi org spend`
   shows it under "Models through hi q".
 - Nothing in hi limits spending on models. Set a credit limit on the key at
   OpenRouter as the backstop.
-- `hi server live` and the Slack Home tab show this month's model spend next
+- `hi org live` and the Slack Home tab show this month's model spend next
   to compute.
 - Prompts carry the user's shell history and folder names. The server
   passes them on and stores none of them, but whoever runs it could read
@@ -617,7 +617,7 @@ commands and tool calls, 4–14 seconds an answer, against about 2 seconds for
 Claude Haiku 4.5 through OpenRouter. Large models need most of the machine's
 memory, so share it knowingly: a 4-bit Qwen 3.8 Flash Next is about 110 GB.
 
-Switch back to OpenRouter with `hi server ai set` without `--url`; the
+Switch back to OpenRouter with `hi org ai set` without `--url`; the
 stored key is kept.
 
 ### Exposed services
@@ -627,7 +627,7 @@ to the server, which writes `exposed` and `stopped exposing` to the audit
 log and shows them in the live feed:
 
 ```sh
-hi server audit --since 1d | grep expos
+hi org audit --since 1d | grep expos
 ```
 
 This is a record, not a control. Whether anyone can expose at all is
@@ -637,11 +637,11 @@ dashboard), which also covers `netbird expose` run without `hi`.
 ### Watch and stop
 
 ```sh
-hi server ls                      # everything running, for every user
-hi server stop rtx-4090-1c2d
-hi server stop --user alice       # everything alice runs
-hi server stop --all
-hi server audit --since 24h       # requests, approvals, starts, and stops
+hi org ls                      # everything running, for every user
+hi org stop rtx-4090-1c2d
+hi org stop --user alice       # everything alice runs
+hi org stop --all
+hi org audit --since 24h       # requests, approvals, starts, and stops
 ```
 
 When approved hardware is sold out, the server starts a replacement with
@@ -689,8 +689,8 @@ heartbeat now.
 ### Remove a user
 
 ```sh
-hi server user remove alice
-hi server stop --user alice
+hi org user remove alice
+hi org stop --user alice
 ```
 
 Removing a user refuses their devices at once. Their running machines keep

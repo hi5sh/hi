@@ -92,7 +92,7 @@ fallback: |
       </div>
       <div class="detail">
         <h3>The model</h3>
-        <p>hi q uses, in order: the model saved by <code>hi q --setup</code>, <code>HI_Q_BASE_URL</code> and <code>HI_Q_MODEL</code>, your team's hi server when it serves a model, an OpenAI, OpenRouter, or Anthropic key in the environment, and Claude Code.</p>
+        <p>hi q uses, in order: the model saved by <code>hi q --setup</code>, <code>HI_Q_BASE_URL</code> and <code>HI_Q_MODEL</code>, your team's org server when it serves a model, an OpenAI, OpenRouter, or Anthropic key in the environment, and Claude Code.</p>
         <p>Any OpenAI-compatible endpoint works: Ollama, vLLM, LM Studio, or a model you serve with <code>hi compute serve</code>. <code>hi q --status</code> shows which one is in use; <code>--provider</code> and <code>--model</code> change it for one question.</p>
       </div>
       <div class="detail">
@@ -135,7 +135,7 @@ command -v hi >/dev/null 2>&amp;1 &amp;&amp; eval "$(hi shell-init bash)"</div>
     <h2 id="next-h">Where next.</h2>
     <div class="next">
       <a href="/guide/q/"><b>Ask for a command</b><span>The guide: every option, step by step.</span></a>
-      <a href="/guide/compute/managed/#use-your-teams-model-with-hi-q"><b>Your team's model</b><span>hi q through the hi server, with no key on the laptop.</span></a>
+      <a href="/guide/compute/managed/#use-your-teams-model-with-hi-q"><b>Your team's model</b><span>hi q through the org server, with no key on the laptop.</span></a>
       <a href="/agent/"><b>hi agent</b><span>When the job is a task, not one command.</span></a>
       <a href="/guide/reference/commands/#hi-q"><b>Every hi q option</b><span>The reference.</span></a>
     </div>

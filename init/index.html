@@ -108,11 +108,11 @@ fallback: |
         <h3>Check it in CI</h3>
         <div class="snip">- run: curl -fsSL https://hi5.sh/install.sh | sh
 - run: ~/.local/bin/hi init --update --check</div>
-        <p><code>--check</code> changes nothing and fails when the project is behind the templates or has conflicts. CI can't reach your team's hi server, so it checks the built-in layers and says which private ones it skipped.</p>
+        <p><code>--check</code> changes nothing and fails when the project is behind the templates or has conflicts. CI can't reach your team's org server, so it checks the built-in layers and says which private ones it skipped.</p>
       </div>
       <div class="detail">
         <h3>Your team's templates</h3>
-        <p>On a device connected to your team's hi server, <code>hi init</code> also offers the templates from your team's private repository, marked <code>(private repo)</code>. hi checks they are signed by the server and keeps a copy, so they work when the server can't be reached.</p>
+        <p>On a device connected to your team's org server, <code>hi init</code> also offers the templates from your team's private repository, marked <code>(private repo)</code>. hi checks they are signed by the server and keeps a copy, so they work when the server can't be reached.</p>
         <p>The built-in templates are part of <code>hi</code>, so <code>hi update</code> is how you get their newest versions.</p>
       </div>
       <div class="detail">

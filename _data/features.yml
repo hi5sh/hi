@@ -24,8 +24,8 @@
 - url: /net/
   name: hi net
   line: Share what you're running on a temporary address
-- url: /server/
-  name: hi server
+- url: /org/
+  name: hi org
   line: One place for the team's keys and approvals
 - url: /data/
   name: hi data

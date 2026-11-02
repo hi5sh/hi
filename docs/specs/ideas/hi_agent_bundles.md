@@ -4,7 +4,7 @@ Status: Draft (proposal, 2026-10-07). Release 1 built on
 2026-10-07; release 2 built on 2026-10-08 (see [As built](#as-built-release-2)).
 
 Dependencies: `hi agent` (release 1, v0.28.0), `hi box` (the proxy, the
-base image, Dockerfile builds), `hi init` and `hi server` template sources
+base image, Dockerfile builds), `hi init` and `hi org` template sources
 (signed, mirrored, cached), `hi skill` (where agents find skills), and
 `hi q` for the planner in release 3.
 
@@ -322,7 +322,7 @@ read the team's data through the proxy and post it anywhere.
 A cheap model reads the task and the catalog of attached skills (name and
 description) and returns only a JSON list of skill names with a reason
 each. Unknown names are dropped; code, never the model, builds the image.
-The model is the one `hi q` uses, which is the team's through `hi server`
+The model is the one `hi q` uses, which is the team's through `hi org`
 when connected.
 
 - `--plan` prints the plan and starts nothing.
@@ -395,7 +395,7 @@ The same report as today, with:
 - [x] How do bundles relate to skills.sh (v0.30.0)? Bundles list skills.sh
   skills by source and commit (v0.30.1).
 - [ ] Are skills that need an API key in scope? If so, through `--secret` or
-  through the hi server, never inside a bundle.
+  through the org server, never inside a bundle.
 
 ## Findings
 
@@ -409,8 +409,8 @@ From checking the proposal against the code and specs on 2026-10-07:
   an optional release 3.
 - **Team skills are already signed and served.** Template sources give
   `skills/<name>/SKILL.md`, signing against the server key pinned at
-  `hi connect`, and a cache per commit. The proposal's
-  `hi server bundles add` and separate signing aren't needed.
+  `hi org join`, and a cache per commit. The proposal's
+  `hi org bundles add` and separate signing aren't needed.
 - **`hi box` builds Dockerfiles, not devcontainer features.** It reads
   `image`, `build.dockerfile`, `containerEnv`, `postCreateCommand`, and
   `customizations.hi` from `devcontainer.json`. A generated Dockerfile fits

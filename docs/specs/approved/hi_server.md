@@ -3,6 +3,9 @@
 Status: Approved. Built in v0.9.0 (brokered RunPod), v0.10.0 (Slack),
 v0.11.0 (policy and budgets), v0.12.0 (Shadeform), v0.13.0 (live
 dashboard), v0.14.0 (App Home), and v0.17.0 (private templates).
+Its commands are `hi org` since v2.6.55 ([hi_org.md](hi_org.md)): `hi
+connect` is `hi org join`, `hi disconnect` is `hi org leave`, and the old
+names still run.
 
 Dependencies: `hi compute` provider drivers (v0.6.0–v0.8.0), `hi net`
 (NetBird), a Slack workspace with a private channel for compute managers.
