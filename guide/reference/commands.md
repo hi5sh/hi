@@ -89,7 +89,7 @@ See [Serve a model](/guide/compute/serve/).
 
 | Command                           | Does                                                                                   |
 |-----------------------------------|----------------------------------------------------------------------------------------|
-| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine |
+| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine; there, `--share` adds the NetBird address with a key, and `--org` serves it to the org through `hi org ai` |
 | `hi serve llm`                    | The llm recipes                                                                        |
 | `hi serve ls [--json]`            | What you serve, here and rented: where, its API, its state, and until when             |
 | `hi serve status <name>`          | Its address, state, memory, and image                                                  |
@@ -97,6 +97,7 @@ See [Serve a model](/guide/compute/serve/).
 | `hi serve stop <name>`            | Rented: stop it and its machine. Local: stop it, and keep it to start again            |
 | `hi serve start <name> [--max <duration>]` | Start a stopped local server again, on the same port, after the memory check  |
 | `hi serve rm <name>`              | Stop a local server and forget it; its model stays                                     |
+| `hi serve key <name> [--new]`     | A shared local server's key, to hand to a teammate; `--new` replaces it                |
 | `hi serve detect`                 | What this machine can serve on: GPU, groups, Podman, lingering, memory, disk           |
 | `hi serve recipes [llm]`          | The recipes, where each runs, and whether it fits here                                 |
 | `hi serve pull llm <recipe>`      | Download a model and its image now, and serve nothing                                  |
@@ -130,7 +131,8 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
 | `hi org policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
 | `hi org spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
-| `hi org ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key                              |
+| `hi org ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
+| `hi org ai remove local/<name>` | Stop passing requests to a model served on a team's machine                              |
 | `hi org live [--wall] [--names full] [--reasons]`                 | Live dashboard; `--wall` is read-only                                                  |
 | `sudo hi org wall setup|add|remove|list`                          | Show the wall on screens over SSH                                                      |
 | `hi org viewer add <name> --key <k>`                              | A device that may only watch                                                           |

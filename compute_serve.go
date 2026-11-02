@@ -75,7 +75,8 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	reason := flags.String("reason", "", "why you need it (managed providers)")
 	memory := flags.String("memory", "", "local: the box's memory limit")
 	backend := flags.String("backend", "", "local: rocm")
-	share := flags.Bool("share", false, "local: also on this machine's NetBird address, with a key")
+	share := flags.Bool("share", false, "local: also on this machine's NetBird address, with a key to hand over")
+	org := flags.Bool("org", false, "local: also on this machine's NetBird address, for the org server's hi org ai")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
 		return err
@@ -88,10 +89,10 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	set := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
 	if *on == "local" {
-		if *share {
-			return usageError{"--share comes in the next release; a local server is on 127.0.0.1 only for now"}
+		if set["reason"] && !*org {
+			return usageError{"--reason is for --org, where approvers see it, or for rented hardware"}
 		}
-		for _, name := range []string{"gpu", "namespace", "reason"} {
+		for _, name := range []string{"gpu", "namespace"} {
 			if set[name] {
 				return usageError{fmt.Sprintf("--%s is for rented hardware, not --on local", name)}
 			}
@@ -105,12 +106,12 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 		}
 		return serveLocalCommand(localRequest{argument: positional[0], quant: *quant, alias: *alias, extra: *extra,
 			name: *name, memory: *memory, backend: *backend, context: *contextSize, port: *localPort, portSet: set["port"],
-			max: lifetime, yes: *yes, dryRun: *dryRun}, stdin, stdout, stderr)
+			max: lifetime, yes: *yes, dryRun: *dryRun, share: *share, org: *org, reason: *reason}, stdin, stdout, stderr)
 	}
 	if *on == "auto" {
 		return usageError{"--on auto isn't built yet; serve with --on local, or on colab, hf, runpod, or shadeform"}
 	}
-	for _, name := range []string{"memory", "backend", "share"} {
+	for _, name := range []string{"memory", "backend", "share", "org"} {
 		if set[name] {
 			return usageError{fmt.Sprintf("--%s is for --on local", name)}
 		}

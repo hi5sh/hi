@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,6 +40,10 @@ type fakeLocal struct {
 	health   int // answers until /health says ready
 	port     int
 	journals []string
+	private  bool            // the Hub shows the model only with the org's data token
+	hubAuth  []string        // Authorization on the Hub's requests
+	front    []*http.Request // requests to /v1 on the front
+	answer   map[string]any  // the front's chat answer
 }
 
 func newFakeLocal(t *testing.T) *fakeLocal {
@@ -68,6 +73,19 @@ func newFakeLocal(t *testing.T) *fakeLocal {
 	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		if strings.HasPrefix(r.URL.Path, "/v1/") {
+			// The front, as the org server reaches it: the box's API.
+			f.front = append(f.front, r.Clone(r.Context()))
+			var body map[string]any
+			json.NewDecoder(r.Body).Decode(&body)
+			f.front[len(f.front)-1].Form = url.Values{"model": {fmt.Sprint(body["model"])}}
+			if r.URL.Path == "/v1/models" {
+				fmt.Fprint(w, `{"data":[{"id":"qwen3.8-flash-next"}]}`)
+				return
+			}
+			json.NewEncoder(w).Encode(f.answer)
+			return
+		}
 		if f.health > 0 {
 			f.health--
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -81,13 +99,15 @@ func newFakeLocal(t *testing.T) *fakeLocal {
 
 	saved := []any{serveHub, serveSysRoot, serveSystemctl, serveJournal, serveLingers, serveGroupNames, servePortFree,
 		serveHealthEvery, serveExecutable, boxCommand, boxLookPath, serveRetryScale}
+	savedShare, savedOrg, savedData, savedRange := serveNetBirdAddress, serveOrgClient, serveDataToken, netbirdRange
 	t.Cleanup(func() {
+		serveNetBirdAddress, serveOrgClient, serveDataToken, netbirdRange = savedShare, savedOrg, savedData, savedRange
 		serveHub, serveSysRoot = saved[0].(string), saved[1].(string)
 		serveSystemctl = saved[2].(func(...string) (string, error))
 		serveJournal = saved[3].(func(io.Writer, io.Writer, ...string) error)
 		serveLingers = saved[4].(func() bool)
 		serveGroupNames = saved[5].(func() []string)
-		servePortFree = saved[6].(func(int) bool)
+		servePortFree = saved[6].(func(string, int) bool)
 		serveHealthEvery = saved[7].(time.Duration)
 		serveExecutable = saved[8].(func() (string, error))
 		boxCommand = saved[9].(func(io.Reader, io.Writer, io.Writer, string, ...string) error)
@@ -97,7 +117,9 @@ func newFakeLocal(t *testing.T) *fakeLocal {
 	serveHub, serveSysRoot, serveHealthEvery, serveRetryScale = hub.URL, f.root, time.Millisecond, 0
 	serveLingers = func() bool { return true }
 	serveGroupNames = func() []string { return []string{"hi", "render", "video"} }
-	servePortFree = func(port int) bool { return true }
+	servePortFree = func(string, int) bool { return true }
+	serveNetBirdAddress = func() (string, error) { return "", errors.New("no NetBird interface (wt0) found") }
+	serveDataToken = func(string) (string, string, error) { return "", "", errors.New("not connected to an org server") }
 	serveExecutable = func() (string, error) { return "/home/hi/.local/bin/hi", nil }
 	boxLookPath = func(name string) (string, error) {
 		if name == "podman" {
@@ -126,6 +148,11 @@ func (f *fakeLocal) serveHub(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	repo := "/unsloth/Qwen3.8-Flash-Next-GGUF"
+	f.hubAuth = append(f.hubAuth, r.Header.Get("Authorization"))
+	if f.private && r.Header.Get("Authorization") != "Bearer data-token" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 	switch {
 	case r.URL.Path == "/api/models"+repo+"/revision/"+testRevision || r.URL.Path == "/api/models"+repo+"/revision/main":
 		var siblings []map[string]any

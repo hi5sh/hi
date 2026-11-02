@@ -32,12 +32,18 @@ type staleServer struct {
 	unit string // such as hi-org.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
 	team string // the team's name; "" for a hi server
+	// front is the served thing whose front this is (hi serve, on this
+	// machine): hi run in a container, from the host's binary.
+	front string
 }
 
 // what names it in a sentence.
 func (s staleServer) what() string {
 	if s.team != "" {
 		return "Team " + s.team
+	}
+	if s.front != "" {
+		return "The front of " + s.front
 	}
 	return "An org server"
 }
@@ -57,7 +63,7 @@ func staleServers(path string) []staleServer {
 		}
 		dir := filepath.Join(updateProcRoot, entry.Name())
 		executable, err := os.Readlink(filepath.Join(dir, "exe"))
-		if err != nil || executable != path+" (deleted)" {
+		if err != nil {
 			continue
 		}
 		command, err := os.ReadFile(filepath.Join(dir, "cmdline"))
@@ -66,6 +72,26 @@ func staleServers(path string) []staleServer {
 		}
 		args := strings.Split(strings.TrimRight(string(command), "\x00"), "\x00")
 		server := staleServer{pid: pid}
+		if len(args) >= 4 && args[1] == "serve" && args[2] == "__front" {
+			// The front runs the host's binary under another path, mounted
+			// into its container: it is old when it isn't the file at path.
+			running, err := os.Stat(filepath.Join(dir, "exe"))
+			installed, statErr := os.Stat(path)
+			if err != nil || statErr != nil || os.SameFile(running, installed) {
+				continue
+			}
+			server.unit, server.user = systemdUnit(filepath.Join(dir, "cgroup"))
+			name, ok := strings.CutPrefix(strings.TrimSuffix(server.unit, "-front.service"), "hi-serve-")
+			if !ok || !server.user || !strings.HasSuffix(server.unit, "-front.service") {
+				continue
+			}
+			server.front = name
+			servers = append(servers, server)
+			continue
+		}
+		if executable != path+" (deleted)" {
+			continue
+		}
 		switch {
 		case len(args) >= 3 && (args[1] == "org" || args[1] == "server") && args[2] == "run":
 		case len(args) == 4 && args[1] == "team" && args[2] == "__serve":
@@ -124,6 +150,9 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			continue
 		}
 		down := "It is down for about a second."
+		if server.front != "" {
+			down = "Open connections to " + server.front + " drop; the model keeps running."
+		}
 		if server.team != "" {
 			down = "Its lead restarts, which takes about half a minute; the app stays up, and moves to new boxes with the new hi in the next few minutes."
 		}

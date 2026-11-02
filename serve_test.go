@@ -83,7 +83,8 @@ func TestServeRefusesWhatIsntBuiltYet(t *testing.T) {
 		t.Errorf("--on auto: %d %s", code, stderr)
 	}
 	for _, args := range [][]string{
-		{"serve", "llm", "--on", "local", "--share", "qwen3.8-flash-next"},
+		{"serve", "llm", "--on", "local", "--reason", "x", "qwen3.8-flash-next"},
+		{"serve", "llm", "--on", "hf", "--org", "qwen3.8-flash-next"},
 		{"serve", "llm", "--on", "local", "--gpu", "G4", "qwen3.8-flash-next"},
 		{"serve", "llm", "--on", "hf", "--memory", "8G", "qwen3.8-flash-next"},
 	} {

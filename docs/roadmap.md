@@ -2713,6 +2713,32 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.60 — hi serve shares a local model, by hand or through the org
+
+Spec: [hi_serve.md](specs/approved/hi_serve.md), releases 2 and 3, built
+together since both change the front and its keys. Tried on a Strix Halo
+that runs no teams (2026-11-02), from a second machine over NetBird and
+through a scratch org server.
+
+- [x] `--share` also publishes the front on the NetBird address, where it
+  takes a key; on `127.0.0.1` it still takes none. The key is a file in
+  `~/.config/hi/serve/<name>/` that only the front mounts, printed once to
+  hand over; `hi serve key <name>` prints it again and `--new` replaces it,
+  and the old one stops working within seconds, with no restart.
+- [x] The front writes an access line per request: the key it came with,
+  the path, the status, and how long, also when the client leaves halfway.
+- [x] `--org` asks the org server to serve the model as `local/<name>`
+  through `hi org ai`. An admin approves it in Slack or with
+  `hi org approve`; devices then use it signed, the org server holds the
+  key and names the user to the front, and use is recorded at no cost.
+  `stop` and `start` mark it down and up, `rm` removes it, and
+  `hi org ai remove local/<name>` drops it on the server's side. The server
+  reaches NetBird addresses only.
+- [x] Left from release 1: a model in the team's private organizations
+  downloads through the org server's Hub proxy with a hi data token, and
+  `hi update` offers to restart a front that runs an old hi.
+- [x] At boot the front retries until the NetBird address is there.
+
 ### v2.6.59 — hi serve llm --on local
 
 Spec: [hi_serve.md](specs/approved/hi_serve.md), release 1. Tried on a
@@ -4181,12 +4207,12 @@ Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
   will use (recipes as JSON files, the served box and its front, Quadlet
   units), with `detect`, `recipes`, `pull`, `models`, `status`, `start`,
   and `rm`.
-- [ ] Left from release 1: a model in the team's private organizations
-  through the org server (only the Hub's public repositories download
-  so far), and `hi update` offering to restart a front that runs an old
-  hi.
-- [ ] Release 2: `--share`, with the key checked at the front.
-- [ ] Release 3: `--org`, a shared model as a named upstream of `hi org ai`.
+- [x] Left from release 1, done in v2.6.60: a model in the team's private
+  organizations through the org server, and `hi update` offering to
+  restart a front that runs an old hi.
+- [x] Release 2 (v2.6.60): `--share`, with the key checked at the front.
+- [x] Release 3 (v2.6.60): `--org`, a shared model served through `hi org ai`.
+- [ ] Release 4: Vulkan on Strix Halo, then NVIDIA through CDI devices.
 - [ ] Later: web servers, file shares, and databases as recipes
   ([hi_serve_recipes.md](specs/ideas/hi_serve_recipes.md), draft).
 

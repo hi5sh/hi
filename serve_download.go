@@ -49,6 +49,23 @@ type hubModel struct {
 	Revision string // the commit
 	License  string
 	Files    []hubFile
+	// Through is the org server's Hub proxy, with its token, for a model
+	// in the team's private organizations (hi data); "" for the Hub.
+	Through string
+	Token   string
+}
+
+func (m hubModel) hub() string { return firstNonEmpty(m.Through, serveHub) }
+
+// serveDataToken asks the org server this device joined for a hi data
+// token that reads one model; tests replace it.
+var serveDataToken = func(repo string) (endpoint, token string, err error) {
+	client, connection, err := dataClient()
+	if err != nil {
+		return "", "", err
+	}
+	token, endpoint, err = dataToken(client, connection, "model:"+repo)
+	return endpoint, token, err
 }
 
 func (m hubModel) size() int64 {
@@ -84,21 +101,52 @@ func serveModelsDir() (string, error) {
 // hubModelFiles asks the Hub for a quant's files at a revision, or at the
 // latest commit when revision is "".
 func hubModelFiles(repo, revision, quant string) (hubModel, error) {
+	model, err := hubModelFilesAt(serveHub, "", repo, revision, quant)
+	var closed hubClosedError
+	if !errors.As(err, &closed) {
+		return model, err
+	}
+	// Private or gated: the org server reads the team's organizations with
+	// its own token (hi_data.md), so no Hugging Face token is here.
+	endpoint, token, orgErr := serveDataToken(repo)
+	if orgErr != nil {
+		return hubModel{}, fmt.Errorf("%w; hi reads a private model through the org server, which says: %v", err, orgErr)
+	}
+	return hubModelFilesAt(endpoint, token, repo, revision, quant)
+}
+
+// hubClosedError is a model the Hub doesn't show without a token.
+type hubClosedError struct{ error }
+
+func hubModelFilesAt(hub, token, repo, revision, quant string) (hubModel, error) {
 	if revision == "" {
 		revision = "main"
 	}
-	address := fmt.Sprintf("%s/api/models/%s/revision/%s?blobs=true", serveHub, repo, url.PathEscape(revision))
-	response, err := serveHubClient.Get(address)
+	address := fmt.Sprintf("%s/api/models/%s/revision/%s?blobs=true", hub, repo, url.PathEscape(revision))
+	request, err := http.NewRequest(http.MethodGet, address, nil)
 	if err != nil {
-		return hubModel{}, fmt.Errorf("ask the Hub for %s: %w", repo, err)
+		return hubModel{}, err
+	}
+	where := "the Hub"
+	if token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+		where = "the org server"
+	}
+	response, err := serveHubClient.Do(request)
+	if err != nil {
+		return hubModel{}, fmt.Errorf("ask %s for %s: %w", where, repo, err)
 	}
 	defer response.Body.Close()
 	switch response.StatusCode {
 	case http.StatusOK:
 	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
-		return hubModel{}, fmt.Errorf("the Hub has no public %s at %s (HTTP %d); a private or gated model can't be served here yet", repo, revision, response.StatusCode)
+		if token != "" {
+			return hubModel{}, fmt.Errorf("the org server has no %s at %s for you (HTTP %d): %s", repo, revision, response.StatusCode,
+				firstNonEmpty(response.Header.Get("X-Error-Message"), "see hi data ls"))
+		}
+		return hubModel{}, hubClosedError{fmt.Errorf("the Hub has no public %s at %s (HTTP %d)", repo, revision, response.StatusCode)}
 	default:
-		return hubModel{}, fmt.Errorf("ask the Hub for %s: HTTP %d", repo, response.StatusCode)
+		return hubModel{}, fmt.Errorf("ask %s for %s: HTTP %d", where, repo, response.StatusCode)
 	}
 	var info struct {
 		SHA      string `json:"sha"`
@@ -118,10 +166,13 @@ func hubModelFiles(repo, revision, quant string) (hubModel, error) {
 	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<20)).Decode(&info); err != nil {
 		return hubModel{}, fmt.Errorf("read the Hub's answer for %s: %w", repo, err)
 	}
-	if gated, ok := info.Gated.(string); ok && gated != "" {
-		return hubModel{}, fmt.Errorf("%s is gated on the Hub; a gated model can't be served here yet", repo)
+	if gated, ok := info.Gated.(string); ok && gated != "" && token == "" {
+		return hubModel{}, hubClosedError{fmt.Errorf("%s is gated on the Hub", repo)}
 	}
 	model := hubModel{Repo: repo, Revision: info.SHA}
+	if token != "" {
+		model.Through, model.Token = hub, token
+	}
 	if license, ok := info.CardData.License.(string); ok {
 		model.License = license
 	}
@@ -306,14 +357,14 @@ func downloadModel(dir string, model hubModel, stdout io.Writer) error {
 // there, and moves it into place once its SHA-256 is the Hub's.
 func downloadHubFile(model hubModel, file hubFile, target string, stdout io.Writer) error {
 	partial := target + ".partial"
-	address := fmt.Sprintf("%s/%s/resolve/%s/%s", serveHub, model.Repo, model.Revision, escapeModelPath(file.Path))
+	address := fmt.Sprintf("%s/%s/resolve/%s/%s", model.hub(), model.Repo, model.Revision, escapeModelPath(file.Path))
 	var lastErr error
 	for attempt := 0; attempt < 8; attempt++ {
 		if attempt > 0 {
 			fmt.Fprintf(stdout, "  %v; resuming\n", lastErr)
 			time.Sleep(min(time.Duration(attempt)*5*time.Second, 30*time.Second) * serveRetryScale)
 		}
-		done, err := downloadPart(address, partial, file, stdout)
+		done, err := downloadPart(address, model.Token, partial, file, stdout)
 		if err == nil && done {
 			break
 		}
@@ -355,7 +406,7 @@ func escapeModelPath(name string) string {
 
 // downloadPart continues partial from where it ends, and reports whether
 // it then holds the whole file with the right SHA-256.
-func downloadPart(address, partial string, file hubFile, stdout io.Writer) (bool, error) {
+func downloadPart(address, token, partial string, file hubFile, stdout io.Writer) (bool, error) {
 	output, err := os.OpenFile(partial, os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return false, permanentError{err}
@@ -381,6 +432,10 @@ func downloadPart(address, partial string, file hubFile, stdout io.Writer) (bool
 		}
 		if have > 0 {
 			request.Header.Set("Range", fmt.Sprintf("bytes=%d-", have))
+		}
+		if token != "" {
+			// Go drops it when the proxy sends the download to the Hub's storage.
+			request.Header.Set("Authorization", "Bearer "+token)
 		}
 		response, err := serveHubClient.Do(request)
 		if err != nil {

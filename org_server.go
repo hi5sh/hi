@@ -79,6 +79,9 @@ type serverState struct {
 	// DataTokens says whose token reads each data organization, and with
 	// what access, as of the last add or test (org_data.go).
 	DataTokens map[string]*dataTokenOwner `json:"data_tokens,omitempty"`
+	// Served are models on the team's machines named to the org, which
+	// devices reach through hi org ai (org_serve.go).
+	Served map[string]*serverServed `json:"served,omitempty"`
 }
 
 type serverUser struct {
@@ -118,10 +121,13 @@ type serverRequest struct {
 	Rate     string    `json:"rate,omitempty"`
 	// Approved is the hardware as approved, when a sold-out start used a
 	// replacement within the approval's bounds.
-	Approved   string    `json:"approved,omitempty"`
-	Name       string    `json:"name,omitempty"`
-	MaxSeconds int64     `json:"max_seconds,omitempty"`
-	Image      string    `json:"image,omitempty"`
+	Approved   string `json:"approved,omitempty"`
+	Name       string `json:"name,omitempty"`
+	MaxSeconds int64  `json:"max_seconds,omitempty"`
+	Image      string `json:"image,omitempty"`
+	// Model and Endpoint are a served model's, for a "serve" request.
+	Model      string    `json:"model,omitempty"`
+	Endpoint   string    `json:"endpoint,omitempty"`
 	PublicKey  string    `json:"public_key,omitempty"`
 	Reason     string    `json:"reason,omitempty"`
 	DecidedBy  string    `json:"decided_by,omitempty"`
@@ -551,6 +557,7 @@ func (s *orgServer) clientHandler() http.Handler {
 	// team's heartbeat, bill, or key is turned away.
 	mux.HandleFunc("POST /v1/watch/", s.deviceLimited(32<<20, s.handleWatchGone))
 	s.aiRoutes(mux)
+	s.serveRoutes(mux)
 	s.dataRoutes(mux)
 	return mux
 }
@@ -1076,6 +1083,12 @@ func (s *orgServer) decide(id, actor string, approve bool, group, reason string)
 		}
 	}
 	request.DecidedBy, request.DecidedAt = actor, computeNow()
+	if request.Kind == "serve" {
+		if approve {
+			return s.approveServeLocked(request, actor)
+		}
+		s.forgetDeniedServeLocked(request)
+	}
 	if !approve {
 		request.State, request.DenyReason = "denied", reason
 		err := s.saveLocked()
@@ -2234,8 +2247,11 @@ func orgRequestsCommand(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintln(table, "ID\tSTATE\tUSER\tWAITING\tWHAT")
 	for _, request := range requests {
 		what := fmt.Sprintf("join from %s", request.Hostname)
-		if request.Kind == "compute" {
+		switch request.Kind {
+		case "compute":
 			what = describeServerRequest(&request)
+		case "serve":
+			what = fmt.Sprintf("serve %s (%s) from %s to hi org ai: %s", orgModelID(request.Name), request.Model, request.Hostname, request.Reason)
 		}
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", request.ID, request.State, request.User,
 			formatDuration(computeNow().Sub(request.Created)), what)
@@ -2265,6 +2281,8 @@ func orgDecideCommand(decision string, args []string, stdout, stderr io.Writer) 
 		fmt.Fprintf(stdout, "Denied %s for %s.\n", request.ID, request.User)
 	case request.Kind == "enroll":
 		fmt.Fprintf(stdout, "Approved %s's device %s (%s).\n", request.User, request.Hostname, request.Group)
+	case request.Kind == "serve":
+		fmt.Fprintf(stdout, "Approved %s; devices reach %s's model through hi org ai as %s.\n", request.ID, request.User, orgModelID(request.Name))
 	default:
 		fmt.Fprintf(stdout, "Approved %s; starting %s/%s for %s.\n", request.ID, request.Provider, request.Name, request.User)
 	}

@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-02), for `hi serve llm --on local` and for the
 frame it is built on, so other kinds fit later. Release 1 is built
-(v2.6.59). Other kinds, recipes from
+(v2.6.59), and releases 2 and 3 (v2.6.60). Other kinds, recipes from
 the org and your own folder, and the org's catalog of what is served are a
 draft: [hi_serve_recipes.md](../ideas/hi_serve_recipes.md).
 
@@ -83,7 +83,9 @@ hi serve llm <recipe | owner/repo-GGUF --quant Q> --on local [options]
     --memory <size>        the box's memory limit (default: the recipe's limit)
     --backend rocm|vulkan  default: rocm on Strix Halo
     --max <duration>       stop after this long (default: none; it's your machine)
-    --share                also on this machine's NetBird address, with a key
+    --share                also on this machine's NetBird address, with a key to hand over
+    --org                  also on the NetBird address, served to the org through hi org ai
+    --reason <text>        with --org: why, for the approvers
     --name, --alias, --args, --yes, --dry-run   as on rented hardware
 
 hi serve ls [--json]            everything you serve, rented and local, with its state
@@ -92,7 +94,7 @@ hi serve logs <name> [--follow]
 hi serve stop <name>            local: stops it and keeps it; rented: ends the machine
 hi serve start <name>           local: starts a stopped one again, on the same port, with the same key
 hi serve rm <name>              local: stops it and forgets it
-hi serve key <name>             print a shared server's key
+hi serve key <name> [--new]     print a shared server's key, or replace it
 
 hi serve detect                 what this machine can serve on: GPU, backend, Podman, free memory and disk, what teams use
 hi serve recipes [<kind>]       the recipes, where each runs, and whether this machine fits
@@ -181,9 +183,13 @@ The same for every kind and recipe, so a new kind gets it for free.
   one of its own (`hi-serve-<name>-front.network`), running hi read-only as
   the `hi box` proxy does, is the only way in. It publishes the box's ports
   on `127.0.0.1` and, when shared, on this machine's NetBird address, and
-  forwards them to the box. For HTTP kinds it checks the key and writes an
+  forwards them to the box. It listens twice: once for `127.0.0.1`, with
+  no key, and, when shared, once for the NetBird address, where it takes
+  only a request with one of its keys and drops the key before passing the
+  request on. For HTTP kinds it writes an
   access line for each request (which key, which path, the status, how
-  long); for other protocols it passes the connection through. Rootless
+  long), also for one the client left halfway; for other protocols it
+  passes the connection through. Rootless
   Podman doesn't pass the client's address through a published port, so
   the line names the key, not the address (Findings 2). Its egress allowlist is empty: a recipe that needs a
   host names it, with a reason, as bundles do (hi_serve_recipes.md), and no
@@ -205,7 +211,9 @@ The same for every kind and recipe, so a new kind gets it for free.
   Podman makes the units `hi-serve-<name>.service` and
   `hi-serve-<name>-front.service` from them. Their command is Podman, not
   hi, so `hi update` never restarts a server. It offers to restart a front
-  that runs an old hi, which drops open connections and nothing else.
+  that runs an old hi, which drops open connections and nothing else: the
+  front runs the host's binary through a mount, so it is old when that
+  isn't the file installed now.
   `Restart=on-failure` with `RestartPreventExitStatus=137`, so a box the
   kernel killed for memory stays stopped instead of loading again beside
   the team it was killed for; `hi serve ls` shows it as stopped, out of
@@ -273,16 +281,20 @@ it runs:
 
 `--share` also publishes the API on this machine's NetBird address, so a
 teammate's device on the VPN can use it. A shared server always has a key.
-hi makes one, keeps it at `~/.config/hi/serve/<name>.key` (0600), hands it
-only to the front, which checks it, and prints it once; `hi serve key
-<name>` prints it again. The key never reaches the box.
+hi makes one, keeps it at `~/.config/hi/serve/<name>/shared` (0600, in a
+folder only you can read), mounts the folder read-only into the front
+only, which checks it, and prints it once; `hi serve key <name>` prints it
+again, and `--new` replaces it. The front reads its keys again every few
+seconds, so an old key stops working without a restart. The key never
+reaches the box. At boot the NetBird address may come up after the front,
+which then tries again every 10 seconds until it can publish on it.
 
 Handing it over is by hand in this release: whoever serves the model sends
 a teammate the address (`http://<NetBird address>:<port>/v1`) and the key,
 the way they would share any API key, and the teammate puts both into
 their client, for example as `OPENAI_BASE_URL` and `OPENAI_API_KEY`. hi
-doesn't change on the teammate's side. Release 3 takes the hand-over away:
-the org server holds the key, and devices reach the model through it.
+doesn't change on the teammate's side. With an org server, `--org` takes
+the hand-over away (below).
 
 The key is the only check hi makes: who may reach the machine over NetBird
 is set by the IT admins in NetBird's access control, not by hi. On
@@ -292,17 +304,38 @@ its own rules.
 
 ## The org knows (release 3)
 
-A shared model can be named to the org:
+A local model can be named to the org:
 
 ```text
-hi serve llm qwen3.8-flash-next --on local --share --org
+hi serve llm qwen3.8-flash-next --on local --org --reason "bulk tagging for the team"
 ```
 
-The device asks the org server to add it as a named upstream of `hi org ai`
-(the named upstreams of hi_llm.md), with its NetBird address and key; an
-admin approves it in Slack, as with any request. Devices then reach it
-through the org server, signed, and its use shows in `hi org spend` at zero
-cost. `hi serve rm` removes it from the org; `stop` marks it down.
+`--org` publishes the front on the NetBird address with a key of its own,
+`~/.config/hi/serve/<name>/org`, which nobody hands over; `--share` is only
+needed to hand a key over as well. Once the model is ready, the device asks
+the org server, signed, to serve it as model `local/<name>` through `hi org
+ai`, with its NetBird address and that key. The request goes to Slack and
+`hi org requests` as `serve local/<name> … to hi org ai`, and an admin
+approves it, as any request; nobody approves their own. A name another
+user serves to the org is refused. The org server keeps the key in
+`keys.json`, and reaches only NetBird addresses (`100.64.0.0/10`) this way,
+so a device can't point it anywhere else.
+
+Devices then ask `hi org ai` for model `local/<name>` (`hi q --model
+local/<name>`), next to the upstream's models, and also with no upstream
+set up. The org server passes the request on with the key and the user's
+name, which the front writes in its access line (`org:alice`), records
+the use as for other models, at no cost, so it shows in `hi org spend`,
+and allows 10 minutes an answer, against 90 seconds for the upstream.
+`hi serve status` says whether it is approved. `stop` marks it stopped for
+the org, `start` marks it up, with the address NetBird gives then, and
+`rm` removes it, key and all; if the org server can't be reached then, hi
+says so. `hi org ai` lists what is served this way, and `hi org ai remove
+local/<name>` drops one from the server's side.
+
+These are the named upstreams of hi_llm.md for the case they were for, a
+model on a team's machine; naming other upstreams, and `hi llm`'s bulk
+upstream, stay in that draft.
 
 ## Teams first
 
@@ -350,9 +383,12 @@ under Findings. A check that fails changes the design here first. Done on
    teams. Left for release 2: a private model through the org server
    (only public repositories download so far), and `hi update` offering
    to restart a front that runs an old hi.
-2. **Sharing.** `--share`, the key at the front, `hi serve key`, and the
-   access lines in `hi serve logs`.
-3. **The org knows.** `--org`, with hi_llm.md's named upstreams.
+2. **Sharing** (built, v2.6.60). `--share`, the key at the front, `hi serve
+   key`, and the access lines in `hi serve logs`; also what was left from
+   release 1.
+3. **The org knows** (built, v2.6.60, with release 2, since both change the
+   front and its keys). `--org`, served through `hi org ai` as
+   `local/<name>`.
 4. **More backends.** Vulkan on Strix Halo, then NVIDIA through Podman's CDI
    devices, with the driver checked against the image's CUDA before the
    pull, and CPU profiles where a recipe has a validated one. Each comes
@@ -390,6 +426,10 @@ Other kinds follow in hi_serve_recipes.md, after release 2 here.
 10. `hi serve models rm` is refused while a server uses the model.
 11. Rented serving works as in v2.6.56, and records written by v2.6.56 still
     list.
+12. A server named with `--org` is used by no device until an admin
+    approves it; then devices reach it as `local/<name>` through `hi org
+    ai`, signed, without its key, and the org server reaches only NetBird
+    addresses. `stop`, `start`, and `rm` mark it down, up, and gone.
 
 ## Decisions
 
@@ -417,7 +457,9 @@ Taken on 2026-11-02:
 ## Open questions
 
 1. Whether the front's access lines also go to the org server's audit log
-   when the server is named to the org (release 3).
+   when the server is named to the org. The org server records each use
+   through it, with the user, as for other models, and audits the request,
+   approval, up, down, and removal; the access lines stay on the machine.
 
 ## Findings
 
@@ -481,3 +523,21 @@ below changed the design where marked.
    Podman's cleanup fails and systemd marks the unit failed though the
    server exited 0. hi reads a failed unit whose server exited 0 as
    stopped, and resets the units after `hi serve stop`.
+7. **Releases 2 and 3 on the same machine (2026-11-02): pass, with a
+   change.** Served with `--share`, Qwen3-0.6B was ready in 2 s. From a
+   second machine over NetBird, a request with no key or a wrong one got
+   401, the key got 200, and a streamed answer came as generated; on
+   `127.0.0.1` no key was asked for. `hi serve key --new` made the old key
+   fail within 4 s with no restart. Through a scratch org server on the
+   machine's NetBird address, `--org` asked to serve it, `hi org approve`
+   approved it, and `hi q --model local/qwen-org` went through the org
+   server: the front's line said `org:tester`, and `hi org spend` showed
+   one request at $0.00. Stopped, the org answered 503, naming who starts
+   it again; started, it worked again; removed, it was gone from `hi org
+   ai`. With the binary replaced, `hi update --restart` restarted only the
+   front, and the model kept running. After a reboot, the front failed to
+   publish on the NetBird address (`bind: cannot assign requested address`,
+   NetBird not up yet), tried again 10 s later, and answered with its key
+   25 s after boot. Changed: a client that left a stream halfway got no
+   access line, since Go's reverse proxy ends such a request by panicking,
+   so the line is written in a deferred call.

@@ -106,6 +106,8 @@ your own machine there is no limit by default.
 | `--port <port>`   | Its port on `127.0.0.1`; default 8080, or the next free one. It keeps it |
 | `--memory <size>` | The box's memory limit, such as `72G`; default the recipe's |
 | `--backend rocm`  | The GPU backend; ROCm, with Vulkan later                     |
+| `--share`         | Also on this machine's NetBird address, with a key to hand over (below) |
+| `--org`           | Also on the NetBird address, for the org server's `hi org ai` (below) |
 | `--name <name>`   | Its name; default from the recipe, such as `qwen3-8-flash-next` |
 | `--ctx`, `--alias`, `--args`, `--quant`, `--max`, `--yes`, `--dry-run` | As above |
 
@@ -137,10 +139,72 @@ hi serve pull llm qwen3.8-flash-next # download a model and its image now, serve
 
 `hi serve models rm` is refused while something served uses the model.
 `hi update` doesn't restart a served model: its units run Podman, not hi.
+It offers to restart a front that still runs the old hi, which drops open
+connections and nothing else.
 
-So far a local server is on `127.0.0.1` only, with no key, as llama.cpp is by
-default, and models come from the Hub's public repositories. Sharing one
-with a teammate over NetBird, with a key, comes next.
+A model in your team's private Hugging Face organizations comes through the
+org server, as `hi data` does, so no Hugging Face token is on the machine.
+
+### Share it with a teammate
+
+On `127.0.0.1` a local server takes no key, as llama.cpp doesn't. `--share`
+also publishes it on this machine's NetBird address, where the front asks
+for a key:
+
+```sh
+hi serve llm qwen3.8-flash-next --on local --share
+```
+
+```text
+Shared on this machine's NetBird address. Hand a teammate these two, as you would any API key:
+  OPENAI_BASE_URL=http://100.70.1.2:8080/v1
+  OPENAI_API_KEY=hi-serve-…
+```
+
+Handing it over is by hand: send both to your teammate, who puts them in
+their client. Nothing of hi runs on their side. Their device reaches yours
+if NetBird's access control lets it, which your IT admins set.
+
+```sh
+hi serve key qwen3-8-flash-next          # print the key again
+hi serve key qwen3-8-flash-next --new    # a new key; the old one stops working within seconds
+```
+
+The key is in `~/.config/hi/serve/<name>/`, readable only by you. Only the
+front reads it; the server never sees it. `hi serve logs <name>` shows a line
+for each request, with which key it came with, the path, the status, and how
+long it took:
+
+```text
+access 2026-11-02T19:59:54Z shared POST /v1/chat/completions 200 69ms
+access 2026-11-02T19:59:23Z no-key GET /v1/models 401 0s
+```
+
+### Serve it to the org
+
+With an org server, `--org` names the model to it instead, so nobody hands
+keys around:
+
+```sh
+hi serve llm qwen3.8-flash-next --on local --org --reason "bulk tagging for the team"
+```
+
+```text
+Asked the org server to add it to hi org ai as model local/qwen3-8-flash-next (s-32a15f); an admin approves it in Slack.
+```
+
+Once an admin approves it, devices that joined the org use it through
+`hi org ai` with their own sign-in, and the org server holds the key:
+
+```sh
+hi q --model local/qwen3-8-flash-next "show the free disk space"
+```
+
+Its use shows in `hi org spend` at no cost, and the access lines name the
+user (`org:alice`). `hi serve status` says whether it is approved. `stop`
+marks it stopped for the org, `start` marks it up again, and `rm` removes it
+from the org. `--org` and `--share` go together if you also want a key to
+hand over.
 
 ## What happens on each provider
 

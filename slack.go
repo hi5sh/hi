@@ -366,6 +366,9 @@ func renderSlackRequest(request serverRequest, lease *serverLease, group string,
 	if request.Kind == "extend" {
 		return renderSlackExtend(request, who)
 	}
+	if request.Kind == "serve" {
+		return renderSlackServe(request, who)
+	}
 	maximum := time.Duration(request.MaxSeconds) * time.Second
 	cost := hourlyRate(request.Rate) * maximum.Hours()
 	summary := fmt.Sprintf("*%s · %s* · %s · max %s → at most %s", request.Provider, request.Hardware, request.Rate,
@@ -430,6 +433,43 @@ func renderSlackRequest(request serverRequest, lease *serverLease, group string,
 		}
 		text += "\n" + mark + " " + request.Budget
 	}
+	blocks := []slack.Block{slack.NewSectionBlock(slackText(text), nil, nil)}
+	if len(actions) > 0 {
+		blocks = append(blocks, slack.NewActionBlock("act-"+request.ID, actions...))
+	}
+	return status, blocks
+}
+
+// renderSlackServe draws a request to name a model on a team's machine to
+// the org.
+func renderSlackServe(request serverRequest, who string) (string, []slack.Block) {
+	what := fmt.Sprintf("`%s` · %s on %s, at %s · no cost", orgModelID(request.Name), slackEscape(request.Model),
+		request.Hostname, slackEscape(request.Endpoint))
+	var status string
+	var actions []slack.BlockElement
+	switch request.State {
+	case "pending":
+		status = fmt.Sprintf("🟡 %s wants to serve a model to hi org ai: %s", who, what)
+		actions = []slack.BlockElement{
+			slackButton("approve", request.ID, "Approve", slack.StylePrimary),
+			slackButton("deny", request.ID, "Deny…", slack.StyleDanger),
+		}
+	case "approved":
+		status = fmt.Sprintf("🟢 %s serves %s · approved by %s", who, what, request.DecidedBy)
+	case "denied":
+		status = fmt.Sprintf("🔴 %s · %s · denied by %s", who, what, request.DecidedBy)
+		if request.DenyReason != "" {
+			status += ": " + request.DenyReason
+		}
+	case "withdrawn":
+		status = fmt.Sprintf("⚪ %s · %s · withdrawn", who, what)
+	case "failed":
+		status = fmt.Sprintf("❌ %s · %s · %s", who, what, request.Error)
+	default:
+		status = fmt.Sprintf("⌛ %s · %s · %s with no decision", who, what, request.State)
+	}
+	text := status + "\n> " + strings.ReplaceAll(request.Reason, "\n", "\n> ") +
+		"\n_Devices would reach it through this server, signed; the machine's owner can stop it at any time._"
 	blocks := []slack.Block{slack.NewSectionBlock(slackText(text), nil, nil)}
 	if len(actions) > 0 {
 		blocks = append(blocks, slack.NewActionBlock("act-"+request.ID, actions...))

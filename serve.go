@@ -42,8 +42,13 @@ type servedModel struct {
 	Context  int       `json:"context,omitempty"`
 	Args     []string  `json:"args,omitempty"`
 	ModelDir string    `json:"model_dir,omitempty"` // under ~/.local/share/hi/models
-	Shared   bool      `json:"shared,omitempty"`
 	Deadline time.Time `json:"deadline,omitzero"`
+	// Shared: a key to hand over; Org: named to the org server. Either
+	// publishes the front on Address, this machine's NetBird address.
+	Shared     bool   `json:"shared,omitempty"`
+	Org        bool   `json:"org,omitempty"`
+	OrgRequest string `json:"org_request,omitempty"`
+	Address    string `json:"address,omitempty"`
 }
 
 func (s servedModel) kind() string {
@@ -90,8 +95,7 @@ func runServe(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "status":
 		return exitCode(serveStatusCommand(rest, stdout, stderr), stderr)
 	case "key":
-		fmt.Fprintln(stderr, "hi: shared servers, and their keys, come in the next release; served things are on 127.0.0.1 only")
-		return 1
+		return exitCode(serveKeyCommand(rest, stdout, stderr), stderr)
 	case "stop", "logs":
 		if len(rest) == 0 {
 			fmt.Fprintf(stderr, "usage: hi serve %s <name>\n", command)
@@ -99,7 +103,7 @@ func runServe(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		if record, ok := localRecord(rest); ok {
 			if command == "stop" {
-				return exitCode(localStop(record, stdout), stderr)
+				return exitCode(localStop(record, stdout, stderr), stderr)
 			}
 			return exitCode(localLogs(record, rest, stdout, stderr), stderr)
 		}
@@ -148,6 +152,7 @@ Usage:
   hi serve start <name> [--max <duration>]
                                  Start a stopped local one again, on the same port
   hi serve rm <name>             Stop a local one and forget it; its model stays
+  hi serve key <name> [--new]    A shared one's key to hand over, or a new one
 
   hi serve detect                What this machine can serve on: GPU, Podman, memory, disk
   hi serve recipes [llm]         The recipes, where each runs, and whether it fits here
@@ -169,7 +174,11 @@ Options for llm:
   --port <port>      Local port for the API (default 8080; local: the next free one)
   --memory <size>    Local: the box's memory limit (default: the recipe's)
   --backend rocm     Local: the GPU backend (rocm; vulkan comes later)
-  --reason <text>    Why you need it; approvers see it (managed providers)
+  --share            Local: also on this machine's NetBird address, with a key you hand
+                     to teammates (hi serve key)
+  --org              Local: also on the NetBird address, for the org server, which an
+                     admin approves; devices then use it through hi org ai as local/<name>
+  --reason <text>    Why you need it; approvers see it (managed providers, --org)
   --yes, --dry-run
 
 Recipes: `+fmt.Sprint(serveRecipeNames()))
@@ -286,7 +295,18 @@ func serveListCommand(args []string, stdout, stderr io.Writer) error {
 			api = "tunnel"
 			tunnelled = r.Name
 		}
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Name, r.Provider, r.Model, api, r.State, stopsInText(r.Stops, now))
+		where := r.Provider
+		var shared []string
+		if r.Shared {
+			shared = append(shared, "shared")
+		}
+		if r.Org {
+			shared = append(shared, "org")
+		}
+		if len(shared) > 0 {
+			where += " (" + strings.Join(shared, ", ") + ")"
+		}
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", r.Name, where, r.Model, api, r.State, stopsInText(r.Stops, now))
 	}
 	table.Flush()
 	if tunnelled != "" {

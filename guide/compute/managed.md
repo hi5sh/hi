@@ -639,6 +639,26 @@ memory, so share it knowingly: a 4-bit Qwen 3.8 Flash Next is about 110 GB.
 Switch back to OpenRouter with `hi org ai set` without `--url`; the
 stored key is kept.
 
+#### Models served on the team's machines
+
+A teammate who serves a model with `hi serve llm <recipe> --on local --org`
+asks this server to pass requests to it. The request comes to Slack, or to
+`hi org requests`, as `serve local/<name> … from <machine> to hi org ai`,
+and an admin approves it as any other (`hi org approve s-…`). Devices then
+ask for model `local/<name>`, next to the upstream's models, and the server
+sends their requests to the machine's NetBird address with the key it was
+given, which nobody else sees. It works with no upstream of its own, too.
+
+```sh
+hi org ai                           # lists them: who serves what, from where, up or stopped
+hi org ai remove local/<name>       # stop passing requests to one, and forget its key
+```
+
+The server only reaches NetBird addresses this way. Use is recorded as for
+the upstream's models, at no cost. A request can take up to 10 minutes,
+against 90 seconds for the upstream, since a local model answers slower.
+See [Serve it to the org](/guide/compute/serve/#serve-it-to-the-org).
+
 ### Exposed services
 
 Connected machines report each [`hi net expose`](/guide/workstation/expose/)

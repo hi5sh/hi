@@ -55,8 +55,8 @@ var (
 		}
 		return names
 	}
-	servePortFree = func(port int) bool {
-		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	servePortFree = func(host string, port int) bool {
+		listener, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 		if err != nil {
 			return false
 		}
@@ -347,6 +347,8 @@ type localRequest struct {
 	portSet                                              bool
 	max                                                  time.Duration
 	yes, dryRun                                          bool
+	share, org                                           bool
+	reason                                               string
 }
 
 // localPlan is what serving a model here takes.
@@ -471,6 +473,18 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 		return fmt.Errorf("%s is already served on %s; choose another --name", name, existing.Provider)
 	}
 
+	address := ""
+	if request.share || request.org {
+		if address, err = shareAddress(); err != nil {
+			return err
+		}
+	}
+	if request.org {
+		if _, err := serveOrgClient(); err != nil {
+			return err
+		}
+	}
+
 	m := detectServeMachine(request.backend)
 	if len(m.problems) > 0 {
 		return fmt.Errorf("this machine can't serve it yet:\n  - %s", strings.Join(m.problems, "\n  - "))
@@ -492,10 +506,10 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	}
 	port := request.port
 	if request.portSet {
-		if !servePortFree(port) || portTaken(served, port) {
-			return fmt.Errorf("port %d on 127.0.0.1 is in use; choose another --port", port)
+		if !portsFree(port, address) || portTaken(served, port) {
+			return fmt.Errorf("port %d on %s is in use; choose another --port", port, portPlaces(address))
 		}
-	} else if port, err = freeServePort(served); err != nil {
+	} else if port, err = freeServePort(served, address); err != nil {
 		return err
 	}
 	record := servedModel{
@@ -504,6 +518,7 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 		Image: plan.profile.Image, Need: plan.need, Memory: plan.limit, Context: plan.recipe.context,
 		Args: plan.serverArgs(), ModelDir: modelDirName(plan.recipe.repo), Port: port,
 		URL: fmt.Sprintf("http://127.0.0.1:%d", port), Started: computeNow(),
+		Shared: request.share, Org: request.org, Address: address,
 	}
 	if request.max != noLimit {
 		record.Deadline = computeNow().Add(request.max)
@@ -522,7 +537,14 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 		if !record.Deadline.IsZero() {
 			fmt.Fprintf(stdout, "\nand a timer that runs hi serve stop %s at %s.\n", name, record.Deadline.Format("2006-01-02 15:04"))
 		}
-		fmt.Fprintf(stdout, "\nThe API would be http://127.0.0.1:%d/v1, model %s. Nothing was changed.\n", port, plan.recipe.alias)
+		fmt.Fprintf(stdout, "\nThe API would be http://127.0.0.1:%d/v1, model %s.", port, plan.recipe.alias)
+		if record.servesShared() {
+			fmt.Fprintf(stdout, " Also %s, with a key.", record.sharedURL())
+		}
+		if record.Org {
+			fmt.Fprintf(stdout, " The org server would be asked to add it to hi org ai as %s.", orgModelID(name))
+		}
+		fmt.Fprintln(stdout, " Nothing was changed.")
 		return nil
 	}
 	if download > 0 {
@@ -537,7 +559,10 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if err := pullServeImage(m.engine, plan.profile.Image, stdout, stderr); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "  start      hi-serve-%s: a box with the GPU, no way out, the model read-only, behind its front on 127.0.0.1:%d\n", name, port)
+	fmt.Fprintf(stdout, "  start      hi-serve-%s: a box with the GPU, no way out, the model read-only, behind its front on %s:%d\n", name, portPlaces(address), port)
+	if err := ensureServeKeys(record); err != nil {
+		return err
+	}
 	served[name] = record
 	if err := writeServed(served); err != nil {
 		return err
@@ -545,7 +570,43 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if err := startLocal(record, stdout); err != nil {
 		return err
 	}
-	return finishLocalStart(record, m, stdout)
+	if err := finishLocalStart(record, m, stdout); err != nil {
+		return err
+	}
+	if record.Shared {
+		printShareHandOver(record, readServeKey(name, serveSharedKey), stdout)
+	}
+	if record.Org {
+		named, err := nameToOrg(record, request.reason, stdout)
+		if err != nil {
+			return fmt.Errorf("%w\nIt runs here; hi serve rm %s, then serve it again with --org, to ask again", err, name)
+		}
+		return updateServed(named)
+	}
+	return nil
+}
+
+// updateServed writes one record back.
+func updateServed(record servedModel) error {
+	served, err := loadServed()
+	if err != nil {
+		return err
+	}
+	served[record.Name] = record
+	return writeServed(served)
+}
+
+// portsFree reports a port free on 127.0.0.1 and, for a shared server,
+// on the NetBird address.
+func portsFree(port int, address string) bool {
+	return servePortFree("127.0.0.1", port) && (address == "" || servePortFree(address, port))
+}
+
+func portPlaces(address string) string {
+	if address == "" {
+		return "127.0.0.1"
+	}
+	return "127.0.0.1 and " + address
 }
 
 func describeDownload(model hubModel, dir string, download int64, stdout io.Writer) {
@@ -573,13 +634,13 @@ func portTaken(served map[string]servedModel, port int) bool {
 	return false
 }
 
-func freeServePort(served map[string]servedModel) (int, error) {
+func freeServePort(served map[string]servedModel, address string) (int, error) {
 	for port := serveFirstPort; port < serveFirstPort+100; port++ {
-		if !portTaken(served, port) && servePortFree(port) {
+		if !portTaken(served, port) && portsFree(port, address) {
 			return port, nil
 		}
 	}
-	return 0, errors.New("no free port from 8080 to 8179 on 127.0.0.1; choose one with --port")
+	return 0, fmt.Errorf("no free port from 8080 to 8179 on %s; choose one with --port", portPlaces(address))
 }
 
 func pullServeImage(engine boxEngine, image string, stdout, stderr io.Writer) error {
@@ -815,20 +876,31 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		label +
 		"\n[Service]\nRestart=on-failure\n# The kernel killed it for memory: it stays stopped, beside the team it was killed for.\nRestartPreventExitStatus=137\nTimeoutStartSec=300\n" +
 		install
-	front := header + "[Unit]\nDescription=hi serve " + record.Name + ": its front\nRequires=" + name + ".service\nAfter=" + name + ".service\n\n[Container]\n" +
+	frontExec := fmt.Sprintf("Exec=serve __front :%d http://%s:%d", serveBoxPort, name, serveBoxPort)
+	publish := fmt.Sprintf("PublishPort=127.0.0.1:%d:%d\n", record.Port, serveBoxPort)
+	keys, retry := "", ""
+	if record.servesShared() {
+		frontExec += fmt.Sprintf(" --shared :%d --keys %s", serveFrontPort, serveFrontKeys)
+		publish += fmt.Sprintf("PublishPort=%s:%d:%d\n", record.Address, record.Port, serveFrontPort)
+		keys = "Volume=" + quadletPath(serveKeysDir(record.Name)) + ":" + serveFrontKeys + ":ro\n"
+		// At boot the NetBird address may come up after it: try again until then.
+		retry = "RestartSec=10\n"
+	}
+	front := header + "[Unit]\nDescription=hi serve " + record.Name + ": its front\nRequires=" + name + ".service\nAfter=" + name + ".service\nStartLimitIntervalSec=0\n\n[Container]\n" +
 		"ContainerName=" + name + "-front\n" +
 		"Image=" + record.Image + "\n" +
 		"Pull=never\n" +
 		"Entrypoint=/usr/local/bin/hi\n" +
-		fmt.Sprintf("Exec=serve __front :%d http://%s:%d\n", serveBoxPort, name, serveBoxPort) +
+		frontExec + "\n" +
 		"Volume=" + quadletPath(executable) + ":/usr/local/bin/hi:ro\n" +
+		keys +
 		"Network=" + name + ".network\n" +
 		"Network=" + name + "-front.network\n" +
-		fmt.Sprintf("PublishPort=127.0.0.1:%d:%d\n", record.Port, serveBoxPort) +
-		"UserNS=keep-id\nReadOnly=true\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=256\n" +
+		publish +
+		"UserNS=keep-id\nSecurityLabelDisable=true\nReadOnly=true\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=256\n" +
 		"PodmanArgs=--memory=256m\n" +
 		label +
-		"\n[Service]\nRestart=on-failure\n" +
+		"\n[Service]\nRestart=on-failure\n" + retry +
 		install
 	return []serveUnit{
 		{name + ".network", header + "[Network]\nNetworkName=" + name + "\nInternal=true\n" + label},
@@ -924,7 +996,7 @@ func stopLocalUnits(record servedModel) error {
 // ---------------------------------------------------------------------------
 // stop, start, rm, status, logs
 
-func localStop(record servedModel, stdout io.Writer) error {
+func localStop(record servedModel, stdout, stderr io.Writer) error {
 	if !ownsUnits(record.Name) {
 		return fmt.Errorf("the units of %s aren't labeled as hi serve's, so hi leaves them alone", record.Name)
 	}
@@ -942,6 +1014,7 @@ func localStop(record servedModel, stdout io.Writer) error {
 			return err
 		}
 	}
+	tellOrg(record, "down", stderr)
 	fmt.Fprintf(stdout, "Stopped %s, and kept it: hi serve start %s starts it again on port %d, and hi serve rm %s forgets it.\n",
 		record.Name, record.Name, record.Port, record.Name)
 	return nil
@@ -983,8 +1056,17 @@ func serveStartCommand(args []string, stdout, stderr io.Writer) error {
 	if err := checkFits(m, record.Need, 0, modelsDir, stdout, false); err != nil {
 		return err
 	}
-	if !servePortFree(record.Port) {
-		return fmt.Errorf("port %d on 127.0.0.1, where %s is served, is in use by something else", record.Port, record.Name)
+	if record.servesShared() {
+		// NetBird may have given this machine a new address since.
+		if record.Address, err = shareAddress(); err != nil {
+			return err
+		}
+		if err := ensureServeKeys(record); err != nil {
+			return err
+		}
+	}
+	if !portsFree(record.Port, record.Address) {
+		return fmt.Errorf("port %d on %s, where %s is served, is in use by something else", record.Port, portPlaces(record.Address), record.Name)
 	}
 	record.Deadline = time.Time{}
 	if maxLifetime.value != noLimit {
@@ -995,11 +1077,18 @@ func serveStartCommand(args []string, stdout, stderr io.Writer) error {
 	if err := writeServed(served); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "  start      hi-serve-%s on 127.0.0.1:%d\n", record.Name, record.Port)
+	fmt.Fprintf(stdout, "  start      hi-serve-%s on %s:%d\n", record.Name, portPlaces(record.Address), record.Port)
 	if err := startLocal(record, stdout); err != nil {
 		return err
 	}
-	return finishLocalStart(record, m, stdout)
+	if err := finishLocalStart(record, m, stdout); err != nil {
+		return err
+	}
+	if record.Shared {
+		fmt.Fprintf(stdout, "\nShared, with the same key, at %s.\n", record.sharedURL())
+	}
+	tellOrg(record, "up", stderr)
+	return nil
 }
 
 func serveRemoveCommand(args []string, stdout, stderr io.Writer) error {
@@ -1042,6 +1131,8 @@ func serveRemoveCommand(args []string, stdout, stderr io.Writer) error {
 			engine.output(append([]string{"network", "rm"}, strings.Fields(out)...)...)
 		}
 	}
+	tellOrg(record, "rm", stderr)
+	os.RemoveAll(serveKeysDir(record.Name))
 	delete(served, record.Name)
 	if err := writeServed(served); err != nil {
 		return err
@@ -1085,6 +1176,12 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "Recipe:   %s\n", record.Recipe)
 	}
 	fmt.Fprintf(stdout, "Address:  http://127.0.0.1:%d/v1\n", record.Port)
+	if record.servesShared() {
+		fmt.Fprintf(stdout, "Shared:   %s, with a key (%s)\n", record.sharedURL(), sharedKeysText(record))
+	}
+	if record.Org {
+		fmt.Fprintf(stdout, "Org:      %s\n", orgUpstreamState(record))
+	}
 	memory := fmt.Sprintf("needs %s in all; the box's host side is limited to %s", sizeText(record.Need), sizeText(record.Memory))
 	if used := serveBoxMemory(record.Name); used > 0 {
 		memory += fmt.Sprintf(", and uses %s of it now", sizeText(used))
@@ -1096,6 +1193,12 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "Units:    hi-serve-%s.service, hi-serve-%s-front.service\n", record.Name, record.Name)
 	fmt.Fprintf(stdout, "\nConnect:  OPENAI_BASE_URL=http://127.0.0.1:%d/v1 with any API key, model %s\n", record.Port, record.Model)
+	if record.Shared {
+		fmt.Fprintf(stdout, "Shared:   OPENAI_BASE_URL=%s OPENAI_API_KEY=$(hi serve key %s)\n", record.sharedURL(), record.Name)
+	}
+	if record.Org {
+		fmt.Fprintf(stdout, "Org:      hi q --model %s, on a device that joined the org\n", orgModelID(record.Name))
+	}
 	if state.text == "stopped: out of memory" {
 		fmt.Fprintf(stdout, "\nThe kernel killed it for memory, so it stays stopped; hi serve start %s checks memory again first.\n", record.Name)
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -62,6 +63,8 @@ type apiAI struct {
 	Enabled bool   `json:"enabled"`
 	Model   string `json:"model,omitempty"`
 	Host    string `json:"host,omitempty"`
+	// Served are the models on the team's machines, local/<name>.
+	Served []string `json:"served,omitempty"`
 }
 
 var serverAIModels struct {
@@ -129,18 +132,36 @@ func (s *orgServer) aiRoutes(mux *http.ServeMux) {
 
 func (s *orgServer) handleAIStatus(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	settings, _, on := s.aiConfig()
-	if !on || s.isViewer(device.User) {
+	if s.isViewer(device.User) {
 		writeJSON(w, http.StatusOK, apiAI{})
 		return
 	}
-	writeJSON(w, http.StatusOK, apiAI{Enabled: true, Model: settings.Model, Host: qHost(settings.URL)})
+	var served []string
+	for _, model := range s.servedModelList() {
+		served = append(served, model["id"].(string))
+	}
+	switch {
+	case on:
+		writeJSON(w, http.StatusOK, apiAI{Enabled: true, Model: settings.Model, Host: qHost(settings.URL), Served: served})
+	case len(served) > 0:
+		// Only the team's own models: the first is the default.
+		writeJSON(w, http.StatusOK, apiAI{Enabled: true, Model: served[0], Served: served})
+	default:
+		writeJSON(w, http.StatusOK, apiAI{})
+	}
 }
 
 // handleAIModels passes the upstream's model list on, cached for an hour.
 func (s *orgServer) handleAIModels(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	settings, key, on := s.aiConfig()
-	if !on || s.isViewer(device.User) {
+	served := s.servedModelList()
+	if s.isViewer(device.User) || (!on && len(served) == 0) {
 		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model")
+		return
+	}
+	if !on {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(withServedModels(nil, served))
 		return
 	}
 	serverAIModels.Lock()
@@ -164,13 +185,24 @@ func (s *orgServer) handleAIModels(w http.ResponseWriter, r *http.Request, devic
 		serverAIModels.url, serverAIModels.fetched, serverAIModels.data = settings.URL, time.Now(), data
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(serverAIModels.data)
+	w.Write(withServedModels(serverAIModels.data, served))
 }
 
 // handleAIChat forwards one chat completion to the upstream with the team's
 // key and returns its answer and status as they are.
 func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
 	settings, key, on := s.aiConfig()
+	var request map[string]any
+	if json.Unmarshal(body, &request) == nil {
+		if model, _ := request["model"].(string); strings.HasPrefix(model, serveOrgPrefix) {
+			if s.isViewer(device.User) {
+				writeAIError(w, http.StatusForbidden, "a dashboard viewer can't use the model")
+				return
+			}
+			s.handleServedChat(w, r, device, request, model)
+			return
+		}
+	}
 	if !on {
 		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model; an admin can turn it on with `hi org ai set`")
 		return
@@ -179,8 +211,7 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 		writeAIError(w, http.StatusForbidden, "a dashboard viewer can't use the model")
 		return
 	}
-	var request map[string]any
-	if err := json.Unmarshal(body, &request); err != nil {
+	if request == nil {
 		writeAIError(w, http.StatusBadRequest, "the request is not JSON")
 		return
 	}
@@ -231,7 +262,7 @@ func (s *orgServer) recordAIUsage(device serverDevice, model string, answer []by
 	}
 	if answer != nil && json.Unmarshal(answer, &parsed) == nil {
 		entry.PromptTokens, entry.CompletionTokens, entry.Cost = parsed.Usage.PromptTokens, parsed.Usage.CompletionTokens, parsed.Usage.Cost
-		if parsed.Model != "" {
+		if parsed.Model != "" && !strings.HasPrefix(model, serveOrgPrefix) {
 			entry.Model = parsed.Model
 		}
 	}
@@ -331,8 +362,16 @@ func (s *orgServer) aiAdminRoutes(mux *http.ServeMux) {
 		now := computeNow()
 		writeJSON(w, http.StatusOK, map[string]any{
 			"on": on, "has_key": key != "" || settings.NoKey, "url": settings.URL, "model": settings.Model,
-			"usage": describeAIUsage(readAIUsage(s.dir, monthStart(now), now)),
+			"usage":  describeAIUsage(readAIUsage(s.dir, monthStart(now), now)),
+			"served": describeServed(s.servedList()),
 		})
+	})
+	mux.HandleFunc("DELETE /admin/ai/served/{name}", func(w http.ResponseWriter, r *http.Request) {
+		if err := s.removeServed(r.PathValue("name"), r.URL.Query().Get("as")); err != nil {
+			writeAPIError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"removed": true})
 	})
 	mux.HandleFunc("POST /admin/ai", func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
@@ -413,7 +452,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: hi org ai [set [--url URL] [--model M] [--no-key] | off | remove]"}
+	usage := usageError{"usage: hi org ai [set [--url URL] [--model M] [--no-key] | off | remove [local/<name>]]"}
 	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
@@ -428,6 +467,18 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	action := ""
 	if len(positional) > 0 {
 		action = positional[0]
+	}
+	if len(positional) == 2 && action == "remove" {
+		if !running {
+			return errors.New("start the server first (`hi org run`)")
+		}
+		name := strings.TrimPrefix(positional[1], serveOrgPrefix)
+		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/ai/served/"+url.PathEscape(name)+"?as="+url.QueryEscape(*as), nil, nil); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "Removed %s from hi org ai, and its key from this server. The machine still serves it; its owner stops it with hi serve rm %s.\n",
+			orgModelID(name), name)
+		return nil
 	}
 	if len(positional) > 1 {
 		return usage
@@ -445,6 +496,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 			URL    string `json:"url"`
 			Model  string `json:"model"`
 			Usage  string `json:"usage"`
+			Served string `json:"served"`
 		}
 		if err := adminCall(*dirFlag, http.MethodGet, "/admin/ai", nil, &status); err != nil {
 			return err
@@ -454,11 +506,17 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 			fmt.Fprintf(stdout, "Serving %s's models to connected devices; the default is %s.\n", qHost(status.URL), status.Model)
 		case status.HasKey:
 			fmt.Fprintln(stdout, "Off. Turn it on with `hi org ai set`.")
+		case status.Served != "":
+			fmt.Fprintln(stdout, "Serves only the team's own models; `hi org ai set` adds OpenRouter's.")
 		default:
 			fmt.Fprintln(stdout, "Not set up. Store an OpenRouter key with `hi org ai set`.")
-			return nil
 		}
-		fmt.Fprintf(stdout, "\nThis month\n%s\n", strings.ReplaceAll(status.Usage, "•", "-"))
+		if status.Served != "" {
+			fmt.Fprintf(stdout, "\n%s\n", status.Served)
+		}
+		if status.On || status.HasKey || status.Served != "" {
+			fmt.Fprintf(stdout, "\nThis month\n%s\n", strings.ReplaceAll(status.Usage, "•", "-"))
+		}
 		return nil
 	case "set":
 		settings := readServerAISettings(dir)

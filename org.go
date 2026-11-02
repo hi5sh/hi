@@ -93,7 +93,9 @@ On the server box:
   hi org policy show|edit|example|check
                                        Groups: limits, auto-approve, budgets
   hi org spend [--since 30d]           Spend per user and group, compute and models
-  hi org ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key
+  hi org ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key,
+                                       and to models served on the team's machines (hi serve --org)
+  hi org ai remove local/<name>        Stop passing requests to a model served on a team's machine
   hi org live [--wall]                 Live dashboard; --wall is read-only for a shared screen
   hi org wall setup|add|remove|list    Show the wall dashboard on screens over SSH (needs sudo)
   hi org viewer add <name> --key K     A device that may only watch the dashboard

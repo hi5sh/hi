@@ -141,6 +141,12 @@ hi serve stop <name>
   A local server keeps running until `hi serve stop`, which keeps it for
   `hi serve start`; `hi serve rm` forgets it. Don't stop or remove one you
   didn't start.
+- `--share` also publishes a local server on the NetBird address with a
+  key; `hi serve key <name>` prints it. It is a secret: never print it or
+  put it in a file or message unless the user asks to hand it over.
+  `--org` asks the org server to serve it as `local/<name>` through
+  `hi org ai` once an admin approves; `hi serve status <name>` says whether
+  it is approved. Only share when the user asks to.
 
 - On Colab, `serve` then tunnels the API to `http://127.0.0.1:8080/v1` and
   stays in the foreground.

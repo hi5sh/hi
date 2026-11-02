@@ -166,6 +166,8 @@ Serve a model with llama.cpp and get an OpenAI-compatible API on
 ```sh
 hi serve llm qwen3.8-flash-next --on colab              # tested recipe, Colab G4
 hi serve llm qwen3.8-flash-next --on local              # this machine's Strix Halo
+hi serve llm qwen3.8-flash-next --on local --share      # also on NetBird, with a key to hand over
+hi serve llm qwen3.8-flash-next --on local --org        # to the org: hi q --model local/<name>
 hi serve llm unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4
 hi compute logs <name> --follow                         # build, download, server
 ```
