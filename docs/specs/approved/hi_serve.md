@@ -275,8 +275,14 @@ it runs:
 teammate's device on the VPN can use it. A shared server always has a key.
 hi makes one, keeps it at `~/.config/hi/serve/<name>.key` (0600), hands it
 only to the front, which checks it, and prints it once; `hi serve key
-<name>` prints it again. The key never reaches the box. The address and the
-key are what `hi q --setup` or any OpenAI-compatible client needs.
+<name>` prints it again. The key never reaches the box.
+
+Handing it over is by hand in this release: whoever serves the model sends
+a teammate the address (`http://<NetBird address>:<port>/v1`) and the key,
+the way they would share any API key, and the teammate puts both into
+their client, for example as `OPENAI_BASE_URL` and `OPENAI_API_KEY`. hi
+doesn't change on the teammate's side. Release 3 takes the hand-over away:
+the org server holds the key, and devices reach the model through it.
 
 The key is the only check hi makes: who may reach the machine over NetBird
 is set by the IT admins in NetBird's access control, not by hi. On
