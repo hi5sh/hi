@@ -2713,6 +2713,12 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.58 — a device's org.json stays the one in use
+
+- [x] When an older `hi` saves `server.json` over the link to `org.json`,
+  the next read moves the newer copy in and links it again.
+- [x] Two tests no longer read the developer's own `~/.config/hi`.
+
 ### v2.6.57 — hi org: what was kept as hi server gets the new name
 
 - [x] The org server's state moves from `~/.local/state/hi/server` to
