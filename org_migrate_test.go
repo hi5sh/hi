@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func orgMigrateTest(t *testing.T) string {
@@ -84,6 +85,27 @@ func TestDeviceConnectionMovesToOrgJSON(t *testing.T) {
 	if link, _ := os.Readlink(filepath.Join(config, "server.json")); link != "org.json" {
 		t.Fatalf("server.json links to %q", link)
 	}
+
+	// An older hi saves server.json over the link: the newer copy wins.
+	os.Remove(filepath.Join(config, "server.json"))
+	os.WriteFile(filepath.Join(config, "server.json"), []byte(`{"url": "http://100.64.0.1:7373", "user": "bo"}`), 0o600)
+	future := time.Now().Add(time.Minute)
+	os.Chtimes(filepath.Join(config, "server.json"), future, future)
+	if connection, _ := loadServerConnection(); connection == nil || connection.User != "bo" {
+		t.Fatalf("after an older hi saved: %+v", connection)
+	}
+	if link, _ := os.Readlink(filepath.Join(config, "server.json")); link != "org.json" {
+		t.Fatalf("server.json isn't linked again: %q", link)
+	}
+	// An older copy than org.json is only linked again.
+	os.Remove(filepath.Join(config, "server.json"))
+	os.WriteFile(filepath.Join(config, "server.json"), []byte(`{"url": "x", "user": "old"}`), 0o600)
+	past := time.Now().Add(-time.Hour)
+	os.Chtimes(filepath.Join(config, "server.json"), past, past)
+	if connection, _ := loadServerConnection(); connection == nil || connection.User != "bo" {
+		t.Fatalf("an older copy won: %+v", connection)
+	}
+
 	if code, _, stderr := runHi("org", "leave"); code != 0 {
 		t.Fatalf("leave: %s", stderr)
 	}

@@ -84,13 +84,20 @@ func legacyConnectionPath() string {
 }
 
 // moveOrgConnection moves server.json to org.json the first time it's
-// read, and links the old name there.
+// read, and links the old name there. An older hi saves server.json over
+// the link; when that copy is newer, it is moved in again.
 func moveOrgConnection() {
 	path, old := serverConnectionPath(), legacyConnectionPath()
-	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+	oldInfo, err := os.Lstat(old)
+	if err != nil || !oldInfo.Mode().IsRegular() {
 		return
 	}
-	if info, err := os.Lstat(old); err != nil || !info.Mode().IsRegular() {
+	if info, err := os.Lstat(path); err == nil && !oldInfo.ModTime().After(info.ModTime()) {
+		if os.Remove(old) == nil {
+			os.Symlink(filepath.Base(path), old)
+		}
+		return
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return
 	}
 	if os.Rename(old, path) == nil {

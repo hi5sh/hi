@@ -216,6 +216,11 @@ func TestInitRefusesTemplatesForNewerHi(t *testing.T) {
 // their own point at theirs, and hi compute <command> --help never looks for
 // a machine called --help.
 func TestHelpFlagFindsTheCommandsHelp(t *testing.T) {
+	// hi init --help reads the device's org connection for its templates.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
 	var stdout, stderr bytes.Buffer
 	if code := run([]string{"init", "--help"}, strings.NewReader(""), &stdout, &stderr); code != 0 || !strings.Contains(stdout.String(), "hi init --list") {
 		t.Fatalf("hi init --help: exit %d, stdout %q, stderr %q", code, stdout.String(), stderr.String())

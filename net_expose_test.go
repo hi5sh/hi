@@ -30,6 +30,8 @@ func fakeNetbirdExpose(t *testing.T, output string) string {
 	netExposeAddress = func() (string, error) { return "127.0.0.1", nil }
 	t.Cleanup(func() { exposeCommand, netExposeAddress = previous, previousAddress })
 	t.Setenv("XDG_STATE_HOME", filepath.Join(t.TempDir(), "state"))
+	// An exposure is reported to a connected org server: none here.
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(t.TempDir(), "config"))
 	return record
 }
 
