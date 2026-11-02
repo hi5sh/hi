@@ -131,7 +131,7 @@ touch only what hi labeled as its own.
 ```text
  hi serve llm qwen3.8-flash-next --on local
    1. detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, ROCm, Podman with crun; 104 GB free, teams use 18 GB
-   2. check      the recipe needs ~95 GB with its context: fits, 9 GB left; 41 GB to download, 300 GB free
+   2. check      the recipe needs 91 GB with its context: fits, 13 GB left; 41 GB to download, 300 GB free
    3. download   unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL at a8c1f0e into ~/.local/share/hi/models, verified
    4. start      hi-serve-qwen3-8-flash-next: a box with the GPU, no way out, the model read-only
    5. wait       until /health answers, printing each step
@@ -147,7 +147,7 @@ touch only what hi labeled as its own.
    nothing is guessed.
 2. **Check memory and disk.** On Strix Halo the GPU's memory is system
    RAM, so the need is the model file plus the context's cache, from the
-   recipe. The room is `MemAvailable`, less what the teams on the machine
+   recipe's measured total (91 GB for qwen3.8-flash-next at 131k context). The room is `MemAvailable`, less what the teams on the machine
    reserve and a headroom of 8 GB. The download must fit on the disk with
    10% to spare. If either doesn't fit, hi says by how much and starts
    nothing. `--yes` doesn't override it.
@@ -175,13 +175,15 @@ The same for every kind and recipe, so a new kind gets it for free.
 - **Its own network, with no way out.** Each served box is on its own
   internal Podman network, as `hi box` boxes are. A box with `--network
   none` can't be reached on a published port, so that isn't used.
-- **A front.** A small container on that network and a normal one, running
-  hi read-only as the `hi box` proxy does, is the only way in. It publishes
-  the box's ports on `127.0.0.1` and, when shared, on this machine's
-  NetBird address, and forwards them to the box. For HTTP kinds it checks
-  the key and writes an access line for each request (who, from which
-  address, which path, the status); for other protocols it passes the
-  connection through. Its egress allowlist is empty: a recipe that needs a
+- **A front.** A small container on that network and on a second, normal
+  one of its own (`hi-serve-<name>-front.network`), running hi read-only as
+  the `hi box` proxy does, is the only way in. It publishes the box's ports
+  on `127.0.0.1` and, when shared, on this machine's NetBird address, and
+  forwards them to the box. For HTTP kinds it checks the key and writes an
+  access line for each request (which key, which path, the status, how
+  long); for other protocols it passes the connection through. Rootless
+  Podman doesn't pass the client's address through a published port, so
+  the line names the key, not the address (Findings 2). Its egress allowlist is empty: a recipe that needs a
   host names it, with a reason, as bundles do (hi_serve_recipes.md), and no
   `llm` recipe does.
 - **Hardened as `hi box` boxes are.** Rootless Podman under your own
@@ -190,8 +192,11 @@ The same for every kind and recipe, so a new kind gets it for free.
   mounts the recipe declares, never the container engine's socket, and no
   credentials. A secret the server needs is a file mounted read-only,
   never an argument or an environment value.
-- **A hard memory limit and `oom_score_adj=1000`**, so under pressure the
-  kernel kills the served box before anything of a team's.
+- **`oom_score_adj=1000` and a memory limit.** Under pressure the kernel
+  kills the served box before anything of a team's. On Strix Halo the
+  model's GPU memory isn't charged to the box's cgroup, so the limit bounds
+  only the host side (the CPU's tensors and the model file's page cache);
+  what bounds the whole is the memory check before the start (Findings 3).
 - **Systemd user units, written as Quadlet files.** `hi serve` writes
   `hi-serve-<name>.network`, `hi-serve-<name>.container`, and
   `hi-serve-<name>-front.container` under `~/.config/containers/systemd/`.
@@ -199,8 +204,12 @@ The same for every kind and recipe, so a new kind gets it for free.
   `hi-serve-<name>-front.service` from them. Their command is Podman, not
   hi, so `hi update` never restarts a server. It offers to restart a front
   that runs an old hi, which drops open connections and nothing else.
-  `Restart=on-failure`, enabled so they come back after a reboot, with
-  `RuntimeMaxSec` when `--max` is set.
+  `Restart=on-failure` with `RestartPreventExitStatus=137`, so a box the
+  kernel killed for memory stays stopped instead of loading again beside
+  the team it was killed for; `hi serve ls` shows it as stopped, out of
+  memory, and `hi serve start` checks memory again first. `WantedBy=` in
+  the files makes them start at boot (Quadlet units can't be enabled
+  otherwise), with `RuntimeMaxSec` when `--max` is set.
 - **Lingering.** User units stop when you log out unless the account
   lingers. If it doesn't, `hi serve` says so with the command, `sudo
   loginctl enable-linger <user>`, as `hi team up` and `hi heartbeat` do.
@@ -235,8 +244,9 @@ it runs:
                "tested": "Colab G4, 2026-09-27: ~84 tokens/s, 62.9 GB VRAM at 131k context, ready in ~7 min" },
     "hf": { "hardware": "rtx-pro-6000" },
     "local": {
-      "rocm": { "image": "ghcr.io/ggml-org/llama.cpp:server-rocm-<build>@sha256:…", "memory": "95G",
-                "tested": "Strix Halo, 2026-11-…: … tokens/s, ready in … min" }
+      "rocm": { "image": "ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d72e2e948d30fe8ff10ee204881d86a9260290bab352c4eb770ce7756",
+                "need": "91G", "limit": "72G",
+                "tested": "Strix Halo, 2026-11-02, build 12033: 24 tokens/s, 540 tokens/s reading 8k, ready in 29 s from disk" }
     }
   }
 }
@@ -244,6 +254,9 @@ it runs:
 
 - One llama.cpp build per recipe, pinned by digest
   (hi_compute_serve_pinning.md), with one image per backend.
+- `need` is the whole memory the server takes, GPU and host, measured;
+  the start is refused unless it fits. `limit` is the box's cgroup limit,
+  the host side's measured peak with headroom.
 - Arguments are lists, never a shell line. They can't set where the server
   listens or its key; hi sets those.
 - An ad hoc model (`owner/repo-GGUF --quant Q`) runs on the default
@@ -288,8 +301,9 @@ cost. `hi serve rm` removes it from the org; `stop` marks it down.
 The machines that serve models also run teams, and a team's load is never
 interrupted.
 
-- Every served box has a hard memory limit (`--memory`, from the recipe)
-  and `oom_score_adj=1000`.
+- Every served box has `oom_score_adj=1000`, a cgroup limit for its host
+  side, and a start only after its whole measured need fits. If the kernel
+  kills it for memory, it stays stopped until `hi serve start`.
 - What teams reserve comes from their boxes' memory limits, as `hi serve
   detect` shows. A team started after the model may still need room. hi
   doesn't stop the model for it, but `hi team up` warns when a served box
@@ -300,7 +314,8 @@ interrupted.
 
 Each check below is tried on a Strix Halo machine that runs no production
 teams, and the result, with the date, versions, and commands, is written
-under Findings. A check that fails changes the design here first.
+under Findings. A check that fails changes the design here first. Done on
+2026-11-02: all pass, with the changes in Findings.
 
 1. A Quadlet `.container` on two networks starts as a user unit, survives
    logout with lingering, and starts again after a reboot, with rootless
@@ -354,7 +369,8 @@ Other kinds follow in hi_serve_recipes.md, after release 2 here.
 6. A shared server refuses requests without its key, and the key is in no
    process's arguments and never in the box.
 7. Under memory pressure the served box is killed before any team's
-   process.
+   process, and stays stopped until `hi serve start`, which checks memory
+   again.
 8. A local server survives logout and reboot, stops at `--max`, and `hi
    update` leaves it running. `stop` keeps it, and `start` brings it back
    on the same port with the same key.
@@ -395,4 +411,49 @@ Taken on 2026-11-02:
 
 ## Findings
 
-None yet; see "Verify before building".
+Tried on 2026-11-02 on a Strix Halo (Ryzen AI MAX+ 395, 128 GB, gfx1151)
+that runs no teams: Ubuntu 26.04.1, kernel 7.0.0, Podman 5.7.0 with `crun`
+and netavark, ROCm 10.0. The units were Quadlet files as described, with a
+stand-in for the front (a Go reverse proxy that flushes as it goes) and
+busybox, then llama.cpp, as the server. All five checks pass; the findings
+below changed the design where marked.
+
+1. **Units, lingering, and reboot (check 1): pass.** Lingering was off and
+   needed `sudo loginctl enable-linger hi`. After a reboot, with nobody
+   logged in, both units started and the model answered `/health` about 40
+   seconds after boot. Quadlet units report `generated` and start through
+   `WantedBy=` in the file.
+2. **No way out, and the front (check 2): pass.** From the box, `1.1.1.1`
+   is unreachable and names don't resolve; its only route is its own /24.
+   The front, on that network and a normal one, publishes `127.0.0.1` and
+   the NetBird address, and a device on the VPN reached it. Changed: the
+   client's address doesn't reach the front (every request, from this
+   machine or over the VPN, came from an address inside Podman's network), so access
+   lines name the key instead. Showing addresses would need the front on
+   `pasta`, which can't share a network with the box; not needed for now.
+3. **The ROCm image on gfx1151 (check 3): pass.**
+   `ghcr.io/ggml-org/llama.cpp:server-rocm` (build 12033, 22.9 GB, digest
+   `1bc7c96d…`) finds the Radeon 8060S with `--device /dev/kfd --device
+   /dev/dri`, `keep-id`, `keep-groups`, no capabilities, and a read-only
+   root, and serves qwen3.8-flash-next at 131k context: ready in 29 s from
+   a cold page cache, 24 tokens/s, 116 tokens/s reading a short prompt and
+   540 reading 8k. It takes 91 GB in all: 61 GiB as GPU memory (GTT) and
+   52 GiB, 63 at peak, charged to the box's cgroup. Changed: GTT isn't
+   charged to the cgroup, and a 16 GB limit killed the box while loading,
+   so recipes give a measured `need` for the check and a `limit` for the
+   host side. The image took 23 minutes to pull from ghcr.io, against 18
+   for the 90 GB model from the Hub, so `pull` shows progress and `hi
+   serve pull` is worth running ahead. The model's three files checked
+   against the Hub's SHA-256 in 46 s. The Strix Halo toolbox image
+   (`kyuz0/amd-strix-halo-toolboxes:rocm-10.0`, build 11042) also works.
+4. **Teams first under memory pressure (check 4): pass, with a change.**
+   Rootless containers in user units start at `oom_score_adj` 200. With
+   the model loaded and a team stand-in asking for 40 GiB more than was
+   free, the kernel killed `llama-server` and the stand-in kept its
+   memory; the GPU memory was freed with it. Changed: `Restart=on-failure`
+   loaded the model again at once, beside the team it had been killed for,
+   so the unit has `RestartPreventExitStatus=137`; tried, the model then
+   stayed stopped and the team kept running.
+5. **Streaming through the front (check 5): pass.** A 300-token answer
+   arrived as 302 chunks spread over 12 s, as generated, through a reverse
+   proxy that flushes at once (Go's `FlushInterval = -1`).

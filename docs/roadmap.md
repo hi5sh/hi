@@ -4142,10 +4142,12 @@ development loop is frozen and goes in release 4.
 Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
 `hi model` is `hi serve`.
 
-- [ ] First, the spec's "Verify before building" on a Strix Halo machine
-  that runs no production teams: Quadlet units on two networks, no way
-  out of an internal network, the ROCm llama.cpp image on gfx1151, the
-  memory limit keeping teams first, and streaming through the front.
+- [x] First, the spec's "Verify before building" on a Strix Halo machine
+  that runs no production teams (2026-11-02): all five pass. The model's
+  GPU memory isn't charged to the box's cgroup, so recipes give a measured
+  need for the check; a box killed for memory stays stopped; and access
+  lines name the key, since rootless Podman hides the client's address.
+  qwen3.8-flash-next: ready in 29 s, 24 tokens/s.
 - [ ] Release 1: `--on local` with ROCm on the frame every kind will use
   (recipes as JSON files, the served box and its front, Quadlet units),
   with `detect`, `recipes`, `pull`, `models`, `status`, `start`, and `rm`.
