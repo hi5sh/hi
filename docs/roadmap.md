@@ -2713,6 +2713,27 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.57 — hi org: what was kept as hi server gets the new name
+
+- [x] The org server's state moves from `~/.local/state/hi/server` to
+  `~/.local/state/hi/org` when `hi org run` starts, with a link at the old
+  path for older binaries and units; `HI_ORG_DIR` is read before
+  `HI_SERVER_DIR`, and a folder of the admin's choosing stays put.
+- [x] On a terminal, `hi update` on the server box offers to replace
+  `hi-server.service` with `hi-org.service`, written from the old unit
+  with anything the admin added, and starts the old unit again if the new
+  one doesn't come up. `hi heartbeat`, `hi org wall`, and the Slack setup
+  find either.
+- [x] A device's `server.json` becomes `org.json` the first time it is
+  read; `hi q` saves its provider as `org` and still takes `server`; the
+  Slack app's manifest and Home tab say hi org.
+- [x] `hi server`, `hi connect`, and `hi disconnect` name their `hi org`
+  form on a terminal, and print nothing new for scripts and units. They
+  are never removed.
+- [x] The Go files and identifiers named for the org, in a rename-only
+  commit.
+  Approved spec: [hi_org.md](specs/approved/hi_org.md), release 5.
+
 ### v2.6.56 — hi serve llm: serving a model has its own command
 
 - [x] `hi serve llm <recipe | owner/repo-GGUF --quant Q>` serves a model,
@@ -4109,19 +4130,6 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
-
-### Next — `hi org` in the guide and on the site, then `hi serve llm`
-
-Spec: [hi_org.md](specs/approved/hi_org.md), releases 2, 3, and 5.
-
-- [x] The guide, `/org/` with `/server/` sending visitors there,
-  `llms.txt`, the README, the diagrams, and a note on hi_server.md.
-- [x] `hi serve llm`: `hi compute serve` under its new name, with `hi
-  serve ls`, `stop`, and `logs`.
-- [ ] Last, after the machines (hi_cluster.md): rename what was kept so
-  nothing broke, with a migration each: the state directory,
-  `HI_SERVER_DIR`, `server.json`, `hi-server.service`, `hi q`'s saved
-  provider, the Go files and identifiers, and the Slack app's name.
 
 ### Next — sign-in with a real provider, before v2.7.0 is tagged
 

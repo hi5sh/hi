@@ -125,7 +125,7 @@ fallback: |
     <details class="deep">
       <summary>Under the hood</summary>
       <div class="prose">
-        <p>The server keeps its state, audit log, and provider keys in <code>~/.local/state/hi/server</code>, readable only by the user it runs as; <code>--dir</code> or <code>HI_SERVER_DIR</code> moves it.</p>
+        <p>The server keeps its state, audit log, and provider keys in <code>~/.local/state/hi/org</code>, readable only by the user it runs as; <code>--dir</code> or <code>HI_ORG_DIR</code> moves it.</p>
         <p><code>hi org join</code> creates a key for the device in <code>~/.config/hi/device_key</code>, readable only by you, and signs every request with it. A request with no decision expires after 30 minutes.</p>
         <p>If approved hardware is sold out by the time it starts, the server starts the cheapest free hardware with at least as much memory, at most twice the approved price or the approved price plus $1.00/h, whichever is higher, and says so.</p>
       </div>

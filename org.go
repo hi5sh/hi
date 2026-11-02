@@ -111,7 +111,7 @@ Commands on the server box talk to the running server through its admin
 socket. Decisions are recorded under your login name; change it with --as.
 
 Options:
-  --dir <dir>    State directory (default: $HI_SERVER_DIR or ~/.local/state/hi/server)`)
+  --dir <dir>    State directory (default: $HI_ORG_DIR or ~/.local/state/hi/org)`)
 }
 
 // oldNameIsTerminal is replaced in tests.

@@ -26,7 +26,7 @@
       "via": "keeps",
       "items": [
         {
-          "title": "~/.local/state/hi/server",
+          "title": "~/.local/state/hi/org",
           "role": "what it holds",
           "does": "Provider keys, Hugging Face tokens, the model key, template tokens, devices, groups, and the audit log.",
           "chip": "owner only",

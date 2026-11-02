@@ -29,7 +29,7 @@ description: The environment variables hi reads and the files it writes.
 | `VISUAL`, `EDITOR`      | `hi q`: the editor behind `e`                                     |
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
 | `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
-| `HI_SERVER_DIR`         | Where `hi org` keeps its state                                 |
+| `HI_ORG_DIR`            | Where `hi org` keeps its state; `HI_SERVER_DIR` is read too    |
 | `HI_TEAMS_DIR`          | Where `hi team` keeps teams; default `~/.local/share/hi/teams`    |
 | `HI_TEAM_SLACK_BOT_TOKEN`, `HI_TEAM_SLACK_APP_TOKEN`, `HI_TEAM_OPENROUTER_API_KEY` | `hi team new --from`: the team's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_TEAM_CLAUDE_TOKEN`, `HI_TEAM_CHATGPT_AUTH` | `hi team new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
@@ -53,7 +53,7 @@ description: The environment variables hi reads and the files it writes.
 | `skills-lock.json`                                | Each skill's source and commit (shared with `npx skills`) |
 | `~/.config/hi/skills.json`                        | The same for skills added with `--global`      |
 | `~/.config/hi/shadeform_key`                | The Shadeform API key from `hi login shadeform` (mode 0600) |
-| `~/.config/hi/server.json`, `~/.config/hi/device_key` | The org server this device joined, its stored key, and this device's private key (`hi org join`) |
+| `~/.config/hi/org.json`, `~/.config/hi/device_key`    | The org server this device joined, its stored key, and this device's private key (`hi org join`) |
 | `~/.config/hi/q.json`, `~/.config/hi/q-key` | The model chosen with `hi q --setup`, and its key (mode 0600) |
 | `~/.local/state/hi/q/log.jsonl`             | Commands `hi q` ran: time, folder, prompt, class, exit status; no output |
 | `~/.local/state/hi/q/server.json`           | Whether the connected org server serves a model, checked at most hourly, and a failure for five minutes |
@@ -97,7 +97,7 @@ Shadeform, in `~/.config/hi/shadeform_key`, and the `hi q` model's key, in
 ## On an org server
 
 The server keeps everything in its state folder (`hi org --dir`, default
-`~/.local/state/hi/server`), readable only by its account:
+`~/.local/state/hi/org`), readable only by its account:
 
 | File                       | Contents                                                       |
 |----------------------------|----------------------------------------------------------------|

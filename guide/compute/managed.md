@@ -249,8 +249,8 @@ hi org run
 
 `hi org init` prints a systemd unit to run the server as a service. The
 server keeps its state, audit log, and provider keys in
-`~/.local/state/hi/server`, readable only by the user it runs as. Change that
-with `--dir` or `HI_SERVER_DIR`.
+`~/.local/state/hi/org`, readable only by the user it runs as. Change that
+with `--dir` or `HI_ORG_DIR`.
 
 It listens only on its NetBird address. Clients sign every request, so a
 forged, altered, or replayed request is refused, even from inside the VPN.
@@ -265,7 +265,7 @@ hi update
 
 After installing the new binary, `hi update` finds the running server, which
 still runs the old one, and asks to restart its systemd service with
-`sudo systemctl restart hi-server.service`. It is down for about a second.
+`sudo systemctl restart hi-org.service`. It is down for about a second.
 It also asks when the binary is already current but the server was never
 restarted. `--restart` restarts without asking, for scripts, and
 `--no-restart` only prints the command. A server started by hand, outside
@@ -275,10 +275,25 @@ State, keys, and devices carry over; connected devices need no change.
 Devices on an older `hi` keep working, and get new features when they run
 `hi update` themselves.
 
-If systemd warns that `hi-server.service` changed on disk, compare
-`systemctl cat hi-server` with what you meant to change, then run
+If systemd warns that `hi-org.service` changed on disk, compare
+`systemctl cat hi-org` with what you meant to change, then run
 `sudo systemctl daemon-reload` and restart. The reload alone doesn't restart
 the server.
+
+#### From `hi-server.service` to `hi-org.service`
+
+A server set up before hi 2.6.57 runs as `hi-server.service`, with its
+state in `~/.local/state/hi/server`. On a terminal, `hi update` offers to
+move it: it writes `hi-org.service` from the old unit, with `HI_ORG_DIR` and
+`org run` in place of `HI_SERVER_DIR` and `server run` and anything else
+you added kept, then disables the old unit and starts the new one. On
+start, the server moves its state to `~/.local/state/hi/org` and leaves a
+link at the old path. If the new unit doesn't come up, the old one is
+started again. The old unit stays on disk, disabled, until you remove it.
+
+Until you move it, everything keeps working under the old names, and
+`hi update` asks again each time. A state folder of your own choosing
+(`--dir`, or `HI_SERVER_DIR` set to another path) stays where it is.
 
 ### Approve and deny
 
@@ -310,7 +325,7 @@ an outbound connection, so the server needs no public address.
    App → From a manifest** and paste the output of
    `hi org slack manifest`. Install it to your workspace.
 2. Create a private channel, such as `#compute-approvals`, and invite the
-   app with `/invite @hi compute`.
+   app with `/invite @hi org`.
 3. On the server box, run `hi org slack setup`. It asks for the **Bot User
    OAuth Token** (`xoxb-…`), an **App-Level Token** with `connections:write`
    (`xapp-…`, under Basic Information), and the channel's ID (at the bottom
@@ -322,7 +337,11 @@ an outbound connection, so the server needs no public address.
    hi org approvers add U0123456789 --name bob
    ```
 
-5. Restart the server: `sudo systemctl restart hi-server`.
+5. Restart the server: `sudo systemctl restart hi-org`.
+
+An app made before hi 2.6.57 is called *hi compute*. It works as it is; to
+rename it, change its name and the bot's display name under **App Home** at
+api.slack.com.
 
 In the channel:
 
@@ -399,7 +418,7 @@ In Slack:
 
 ### Slack Home tab
 
-Open the hi compute app in Slack for a dashboard that is rebuilt each time
+Open the hi org app in Slack for a dashboard that is rebuilt each time
 you open it:
 
 - **Now:** each running machine with its user, hardware, cost so far, and a
