@@ -68,11 +68,12 @@ checked, and what it keeps:
 | `llm` | OpenAI-compatible HTTP | `/health` answers | none on `127.0.0.1`; a key at the front when shared | nothing; models are shared and read-only |
 | `web` | HTTP | `/` answers | none on `127.0.0.1`; a key link at the front when shared | nothing; the folder is read-only |
 | `files` | WebDAV, SFTP, or FTP | the protocol answers | always: a password made for it, or your SSH keys | nothing; the folder is yours, read-only unless `--write` |
-| `db` | the database's own protocol, or SQL over HTTP | the engine's own check | always: a password made for it | its data folder, until `rm --data` |
+| `db` | the database's own protocol (PostgreSQL's, Valkey's, DuckDB's Quack over HTTP) | the engine's own check | always: a password or token made for it | its data folder, until `rm --data` |
 
-Only `web`, `files webdav`, and `llm` speak HTTP, so only they can go
-public through `hi net expose`, and `hi net expose` warns about a port that
-`hi serve` serves without a key. A `db` is never offered publicly.
+Only `web`, `files webdav`, and `llm` can go public through `hi net
+expose`, which warns about a port that `hi serve` serves without a key. A
+`db` is never offered publicly, DuckDB's Quack included, though it speaks
+HTTP.
 
 ### `web`
 
@@ -133,12 +134,26 @@ hi serve db duckdb <file.duckdb | folder> [--write] [--share]
 
 - **Valkey**, the open-source fork of Redis, with its password in a
   configuration file hi mounts, never as an argument.
-- **DuckDB** is a library, not a server, so serving it means putting
-  something in front of it. A file is served read-only by default, so
-  your own scripts can still read it; a reader can't open it while
-  something writes, and `--write` holds the only writable connection.
-  A folder of Parquet or CSV files is served as one view per file. Which
-  server answers is open question 1.
+- **DuckDB** through its own protocol, Quack (DuckDB 2.0, the `quack`
+  extension): DuckDB itself serves the file over HTTP on port 9494, with a
+  token, and any DuckDB 2.0 client attaches it:
+
+  ```sql
+  ATTACH 'quack:<address>' AS prices (TYPE quack);   -- with a quack secret holding the token
+  ```
+
+  The box runs the pinned DuckDB 2.0 CLI with `-serve`, listening only on
+  its own network (`allow_other_hostname`), plain HTTP inside, since the
+  front is the TLS-terminating proxy the DuckDB docs recommend and the VPN
+  encrypts. hi makes the token, mounts it as a file, and passes it to
+  `quack_serve` from there; `hi serve key <name>` prints it, with the
+  `CREATE SECRET` line to use it.
+  A file is opened read-only by default, so writes are refused and your
+  own scripts can still read it. `--write` opens it for writing, which
+  DuckDB allows one process at a time, so nothing else can then open the
+  file. A folder of Parquet or CSV files is served as one view per file.
+  The authorization hook (`quack_authorization_function`) is left at its
+  default; read-only comes from how the file is opened.
 
 ### Later kinds
 
@@ -268,8 +283,8 @@ hi org services              # what is named to the org: kind, owner, machine, a
    data and a protocol that isn't HTTP.
 2. **Folders.** `hi serve web static` with key links at the front, and `hi
    serve files webdav` and `sftp`.
-3. **More databases.** `hi serve db valkey`, and `hi serve db duckdb` once
-   open question 1 is settled.
+3. **More databases.** `hi serve db duckdb` over Quack, and `hi serve db
+   valkey`.
 4. **The org's catalog.** `--org` for every kind, `hi org services`, and
    the policy on the org's machines.
 5. **FTP**, if open question 2 keeps it.
@@ -295,11 +310,11 @@ hi org services              # what is named to the org: kind, owner, machine, a
 
 ## Open questions
 
-1. **What serves DuckDB.** The `httpserver` community extension (SQL over
-   HTTP), the DuckDB UI (which loads its pages from ui.duckdb.org, so the
-   recipe would name that host), a PostgreSQL-protocol front so `psql` and
-   BI tools connect, or a small server shipped in the image. Also whether
-   hi's release workflow builds and pins that image.
+1. **DuckDB beyond DuckDB clients.** Quack (decided on 2026-11-02) serves
+   DuckDB 2.0 clients: the CLI, and any language's DuckDB library. Tools
+   that speak only PostgreSQL's protocol or ODBC would need a front of
+   their own; whether that is wanted, and whether a DuckDB 2.0 CLI image
+   exists to pin or hi's release workflow builds one.
 2. **FTP at all.** Clear-text passwords (the VPN encrypts them in
    transit), passive ports through the front, and rclone taking the FTP
    password only as an argument. The proposal is to leave it out until
