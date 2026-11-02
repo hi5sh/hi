@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// hi server expose: a second listener with only what cloud machines may
+// hi org expose: a second listener with only what cloud machines may
 // use (the hi data proxy), published with `netbird expose` while runs need
 // it. The client API stays inside NetBird. Cloud machines authenticate with
 // run tokens: hi data tokens marked for cloud use, for named repositories,
@@ -70,7 +70,7 @@ func exposeListenAddress(config serverConfig) string {
 
 // instanceHandler serves cloud machines: the data proxy for run tokens,
 // and a health check. Everything else is a 404.
-func (s *hiServer) instanceHandler() http.Handler {
+func (s *orgServer) instanceHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.Handle(dataProxyPath+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func (s *hiServer) instanceHandler() http.Handler {
 
 // ensureExposure starts `netbird expose` if it isn't running and returns
 // the public URL once it answers.
-func (s *hiServer) ensureExposure(name string) (string, error) {
+func (s *orgServer) ensureExposure(name string) (string, error) {
 	e := &s.exposure
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -142,7 +142,7 @@ func (s *hiServer) ensureExposure(name string) (string, error) {
 
 // reapExposure stops the exposure once no run token is valid and nothing
 // has called for a while.
-func (s *hiServer) reapExposure() {
+func (s *orgServer) reapExposure() {
 	s.pruneRuns()
 	e := &s.exposure
 	e.mu.Lock()
@@ -154,7 +154,7 @@ func (s *hiServer) reapExposure() {
 }
 
 // stopExposure stops `netbird expose` and waits until it has exited.
-func (s *hiServer) stopExposure() {
+func (s *orgServer) stopExposure() {
 	e := &s.exposure
 	e.mu.Lock()
 	cmd, done := e.cmd, e.done
@@ -179,7 +179,7 @@ type apiRunAccess struct {
 	Expires  time.Time `json:"expires"`
 }
 
-func (s *hiServer) handleRunAccess(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleRunAccess(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	group, ok := s.userGroup(device.User)
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "a dashboard viewer can't use hi data")
@@ -276,7 +276,7 @@ type serverRun struct {
 }
 
 // runRevoked reports whether a run's tokens were revoked.
-func (s *hiServer) runRevoked(run string) bool {
+func (s *orgServer) runRevoked(run string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	entry := s.state.Runs[run]
@@ -285,7 +285,7 @@ func (s *hiServer) runRevoked(run string) bool {
 
 // revokeRun ends a run's tokens now. The server keeps the run until its
 // tokens would have expired.
-func (s *hiServer) revokeRun(run, actor string) (*serverRun, error) {
+func (s *orgServer) revokeRun(run, actor string) (*serverRun, error) {
 	s.mu.Lock()
 	entry := s.state.Runs[run]
 	if entry == nil {
@@ -316,7 +316,7 @@ func (s *hiServer) revokeRun(run, actor string) (*serverRun, error) {
 }
 
 // pruneRuns forgets runs whose tokens have expired.
-func (s *hiServer) pruneRuns() {
+func (s *orgServer) pruneRuns() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	changed := false
@@ -331,7 +331,7 @@ func (s *hiServer) pruneRuns() {
 	}
 }
 
-func (s *hiServer) runList() []serverRun {
+func (s *orgServer) runList() []serverRun {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var runs []serverRun
@@ -345,7 +345,7 @@ func (s *hiServer) runList() []serverRun {
 }
 
 // exposeName is the prefix for NetBird's generated service name.
-func (s *hiServer) exposeName() string {
+func (s *orgServer) exposeName() string {
 	host, err := os.Hostname()
 	if err != nil || host == "" {
 		host = "server"
@@ -368,7 +368,7 @@ type apiExposure struct {
 	Runs    []serverRun `json:"runs,omitempty"`
 }
 
-func (s *hiServer) exposeAdminRoutes(mux *http.ServeMux) {
+func (s *orgServer) exposeAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/expose", func(w http.ResponseWriter, _ *http.Request) {
 		runs := s.runList()
 		e := &s.exposure
@@ -397,8 +397,8 @@ func (s *hiServer) exposeAdminRoutes(mux *http.ServeMux) {
 	})
 }
 
-func serverExposeCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("expose", stderr)
+func orgExposeCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("expose", stderr)
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err

@@ -145,7 +145,7 @@ func TestTeamWatchesItself(t *testing.T) {
 	}
 }
 
-// What the hi server told a team before it watched itself is closed at
+// What the org server told a team before it watched itself is closed at
 // the team's first check, and opens again here if it still holds.
 func TestTeamWatchTakesOverFromTheServer(t *testing.T) {
 	setupTeamTest(t)
@@ -172,7 +172,7 @@ func TestTeamWatchTakesOverFromTheServer(t *testing.T) {
 	}
 }
 
-// A hi server turns away what a team from before hi 2.6.32 sends.
+// An org server turns away what a team from before hi 2.6.32 sends.
 func TestServerTurnsHeartbeatsAway(t *testing.T) {
 	ts := newTestServer(t)
 	ts.connectAs(t, "anna", "staff")

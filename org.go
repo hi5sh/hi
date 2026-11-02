@@ -9,7 +9,7 @@ import (
 // hi org is the organization: devices join and leave it, and its server
 // runs on one box. The commands that join (once hi connect and hi
 // disconnect) are handled here; everything else is the server's, in
-// runServer. hi server, hi connect, and hi disconnect still run these, and
+// runOrgServer. hi server, hi connect, and hi disconnect still run these, and
 // are never removed: old units and scripts keep running.
 
 func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -39,7 +39,7 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			return orgSlackLink(rest[1:], stdout, stderr)
 		}
 	}
-	return runServer(args, stdin, stdout, stderr)
+	return runOrgServer(args, stdin, stdout, stderr)
 }
 
 // orgSlackLink links this device's user to their Slack account, with the

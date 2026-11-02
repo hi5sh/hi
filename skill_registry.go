@@ -208,7 +208,7 @@ var skillVerifiedOwners = map[string]bool{
 }
 
 // skillVerifiedOwner is one of the makers above, or the GitHub owner of a
-// template source the connected hi server serves: its admin chose that
+// template source the connected org server serves: its admin chose that
 // owner, so no team's own organization is written into hi.
 func skillVerifiedOwner(source string) bool {
 	owner, _, _ := strings.Cut(source, "/")

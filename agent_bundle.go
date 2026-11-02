@@ -27,7 +27,7 @@ import (
 var builtinBundleFiles embed.FS
 
 // bundleSource is where bundles come from: hi itself, a team's template
-// source on the hi server, or the person's own folder. Later ones win.
+// source on the org server, or the person's own folder. Later ones win.
 type bundleSource struct {
 	name   string // builtin, a team source's name, or local
 	files  fs.FS  // bundles/, and skills/ for a team or local source

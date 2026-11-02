@@ -25,7 +25,7 @@ var (
 	}
 )
 
-// staleServer is a hi server, or a team, running a binary that has since
+// staleServer is an org server, or a team, running a binary that has since
 // been replaced.
 type staleServer struct {
 	pid  int

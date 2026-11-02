@@ -130,7 +130,7 @@ func loadServerKey(dir string) (ed25519.PrivateKey, error) {
 // ---------------------------------------------------------------------------
 // mirroring and checking
 
-func (s *hiServer) templateMirror(name string) string {
+func (s *orgServer) templateMirror(name string) string {
 	return filepath.Join(s.dir, "templates", name+".git")
 }
 
@@ -283,7 +283,7 @@ func containsString(values []string, value string) bool {
 
 // addTemplateSource mirrors a repository and serves it once its current
 // commit passes the checks.
-func (s *hiServer) addTemplateSource(name, url, ref, token, actor string) (templateSource, error) {
+func (s *orgServer) addTemplateSource(name, url, ref, token, actor string) (templateSource, error) {
 	s.templateMu.Lock()
 	defer s.templateMu.Unlock()
 	if !validServerName(name) || name == "builtin" || name == "local" {
@@ -351,7 +351,7 @@ func resolveTemplateRef(mirror, ref string) (string, error) {
 
 // renameTemplateSource changes a source's name and keeps its mirror, token,
 // and commits. Devices fetch it again under the new name.
-func (s *hiServer) renameTemplateSource(name, to, actor string) error {
+func (s *orgServer) renameTemplateSource(name, to, actor string) error {
 	s.templateMu.Lock()
 	defer s.templateMu.Unlock()
 	if !validServerName(to) || to == "builtin" || to == "local" {
@@ -383,7 +383,7 @@ func (s *hiServer) renameTemplateSource(name, to, actor string) error {
 	return nil
 }
 
-func (s *hiServer) removeTemplateSource(name, actor string) error {
+func (s *orgServer) removeTemplateSource(name, actor string) error {
 	s.templateMu.Lock()
 	defer s.templateMu.Unlock()
 	s.mu.Lock()
@@ -405,7 +405,7 @@ func (s *hiServer) removeTemplateSource(name, actor string) error {
 
 // syncTemplateSources fetches every source, or the named one, and serves
 // a new commit only when it passes the checks.
-func (s *hiServer) syncTemplateSources(only, actor string) ([]templateSource, error) {
+func (s *orgServer) syncTemplateSources(only, actor string) ([]templateSource, error) {
 	s.templateMu.Lock()
 	defer s.templateMu.Unlock()
 	s.mu.Lock()
@@ -427,7 +427,7 @@ func (s *hiServer) syncTemplateSources(only, actor string) ([]templateSource, er
 	return results, nil
 }
 
-func (s *hiServer) syncTemplateSource(name, actor string) templateSource {
+func (s *orgServer) syncTemplateSource(name, actor string) templateSource {
 	s.mu.Lock()
 	source := *s.state.TemplateSources[name]
 	token := s.keys[templateTokenPrefix+name]
@@ -508,7 +508,7 @@ func listOrNone(values []string) string {
 }
 
 // syncTemplatesInBackground keeps sources current while the server runs.
-func (s *hiServer) syncTemplatesInBackground() {
+func (s *orgServer) syncTemplatesInBackground() {
 	s.mu.Lock()
 	any := len(s.state.TemplateSources) > 0
 	s.mu.Unlock()
@@ -523,7 +523,7 @@ func (s *hiServer) syncTemplatesInBackground() {
 
 // templateSourcesFor returns the sources a user's group may use: every
 // source unless policy lists them.
-func (s *hiServer) templateSourcesFor(user string) []templateSource {
+func (s *orgServer) templateSourcesFor(user string) []templateSource {
 	policy := s.policy()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -546,7 +546,7 @@ func (s *hiServer) templateSourcesFor(user string) []templateSource {
 	return sources
 }
 
-func (s *hiServer) handleTemplateCatalog(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleTemplateCatalog(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	catalog := apiTemplateCatalog{Sources: []apiTemplateSourceInfo{}}
 	for _, source := range s.templateSourcesFor(device.User) {
 		catalog.Sources = append(catalog.Sources, apiTemplateSourceInfo{
@@ -567,7 +567,7 @@ func templateGitHubOwner(url string) string {
 	return ""
 }
 
-func (s *hiServer) handleTemplateBundle(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleTemplateBundle(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	name, commit := r.PathValue("source"), r.PathValue("commit")
 	var source *templateSource
 	for _, candidate := range s.templateSourcesFor(device.User) {
@@ -602,7 +602,7 @@ func (s *hiServer) handleTemplateBundle(w http.ResponseWriter, r *http.Request, 
 // ---------------------------------------------------------------------------
 // admin API and commands
 
-func (s *hiServer) templateAdminRoutes(mux *http.ServeMux) {
+func (s *orgServer) templateAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/templates", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, s.templateSourceList())
 	})
@@ -644,7 +644,7 @@ func (s *hiServer) templateAdminRoutes(mux *http.ServeMux) {
 	})
 }
 
-func (s *hiServer) templateSourceList() []templateSource {
+func (s *orgServer) templateSourceList() []templateSource {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	list := []templateSource{}
@@ -655,8 +655,8 @@ func (s *hiServer) templateSourceList() []templateSource {
 	return list
 }
 
-func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("templates", stderr)
+func orgTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("templates", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	ref := flags.String("ref", "", "branch or tag to serve (default: the repository's default branch)")
 	positional, err := flags.parse(args)
@@ -667,7 +667,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 	if len(positional) == 0 {
 		return usage
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -680,7 +680,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 	}
 	// Without a running server, work on its state directly; it reads the
 	// result when it starts.
-	direct := func() (*hiServer, error) { return openServer(dir, io.Discard) }
+	direct := func() (*orgServer, error) { return openServer(dir, io.Discard) }
 
 	switch {
 	case positional[0] == "list" && len(positional) == 1:
@@ -688,7 +688,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		if running {
 			err = adminCall(*dirFlag, http.MethodGet, "/admin/templates", nil, &sources)
 		} else {
-			var server *hiServer
+			var server *orgServer
 			if server, err = direct(); err == nil {
 				sources = server.templateSourceList()
 			}
@@ -713,7 +713,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 			body := map[string]string{"as": *as, "name": name, "url": url, "ref": *ref, "token": token}
 			err = adminCall(*dirFlag, http.MethodPost, "/admin/templates", body, &source)
 		} else {
-			var server *hiServer
+			var server *orgServer
 			if server, err = direct(); err == nil {
 				source, err = server.addTemplateSource(name, url, *ref, token, *as)
 			}
@@ -729,7 +729,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		if running {
 			err = adminCall(*dirFlag, http.MethodPost, "/admin/templates/"+positional[1]+"/rename", map[string]string{"as": *as, "to": positional[2]}, nil)
 		} else {
-			var server *hiServer
+			var server *orgServer
 			if server, err = direct(); err == nil {
 				err = server.renameTemplateSource(positional[1], positional[2], *as)
 			}
@@ -744,7 +744,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		if running {
 			err = adminCall(*dirFlag, http.MethodDelete, "/admin/templates/"+positional[1]+"?as="+*as, nil, nil)
 		} else {
-			var server *hiServer
+			var server *orgServer
 			if server, err = direct(); err == nil {
 				err = server.removeTemplateSource(positional[1], *as)
 			}
@@ -764,7 +764,7 @@ func serverTemplatesCommand(args []string, stdin io.Reader, stdout, stderr io.Wr
 		if running {
 			err = adminCall(*dirFlag, http.MethodPost, "/admin/templates/sync", map[string]string{"as": *as, "name": name}, &sources)
 		} else {
-			var server *hiServer
+			var server *orgServer
 			if server, err = direct(); err == nil {
 				sources, err = server.syncTemplateSources(name, *as)
 			}

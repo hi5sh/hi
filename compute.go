@@ -103,11 +103,11 @@ type upRequest struct {
 	reason    string
 	noWait    bool
 	publicKey string
-	// brokered means a hi server starts this for a connected device; the
+	// brokered means an org server starts this for a connected device; the
 	// server has no SSH access to the instance.
 	brokered bool
 	// data are the team's repositories the machine may read through the
-	// hi server (--data).
+	// org server (--data).
 	data []dataRunRef
 }
 

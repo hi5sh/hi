@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// hi server ai passes hi q's model requests through to an OpenAI-compatible
+// hi org ai passes hi q's model requests through to an OpenAI-compatible
 // upstream, OpenRouter by default, with the team's key. Devices sign their
 // requests as for everything else; any model may be asked for, and the
 // server records who used what and what it cost, never the messages.
@@ -28,7 +28,7 @@ const (
 	serverAIDefaultModel = "anthropic/claude-haiku-4.5"
 	serverAIMaxBody      = 4 << 20
 	serverAITimeout      = 90 * time.Second
-	// serverAIErrorHeader marks errors that come from the hi server itself,
+	// serverAIErrorHeader marks errors that come from the org server itself,
 	// rather than the upstream, so hi q knows to fall back.
 	serverAIErrorHeader = "Hi-Server-Error"
 )
@@ -71,7 +71,7 @@ var serverAIModels struct {
 	data    []byte
 }
 
-func (s *hiServer) aiSettingsPath() string { return filepath.Join(s.dir, "ai.json") }
+func (s *orgServer) aiSettingsPath() string { return filepath.Join(s.dir, "ai.json") }
 
 func readServerAISettings(dir string) serverAISettings {
 	settings := serverAISettings{URL: serverAIDefaultURL, Model: serverAIDefaultModel}
@@ -101,7 +101,7 @@ func writeServerAISettings(dir string, settings serverAISettings) error {
 
 // aiConfig returns the settings and key, and whether the server serves a
 // model.
-func (s *hiServer) aiConfig() (serverAISettings, string, bool) {
+func (s *orgServer) aiConfig() (serverAISettings, string, bool) {
 	settings := readServerAISettings(s.dir)
 	s.mu.Lock()
 	key := s.keys[serverAIKeyName]
@@ -121,13 +121,13 @@ func writeAIError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]any{"error": map[string]string{"message": message}})
 }
 
-func (s *hiServer) aiRoutes(mux *http.ServeMux) {
+func (s *orgServer) aiRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/ai", s.device(s.handleAIStatus))
 	mux.HandleFunc("GET /v1/ai/models", s.device(s.handleAIModels))
 	mux.HandleFunc("POST /v1/ai/chat/completions", s.deviceLimited(serverAIMaxBody, s.handleAIChat))
 }
 
-func (s *hiServer) handleAIStatus(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleAIStatus(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	settings, _, on := s.aiConfig()
 	if !on || s.isViewer(device.User) {
 		writeJSON(w, http.StatusOK, apiAI{})
@@ -137,7 +137,7 @@ func (s *hiServer) handleAIStatus(w http.ResponseWriter, _ *http.Request, device
 }
 
 // handleAIModels passes the upstream's model list on, cached for an hour.
-func (s *hiServer) handleAIModels(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleAIModels(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	settings, key, on := s.aiConfig()
 	if !on || s.isViewer(device.User) {
 		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model")
@@ -169,7 +169,7 @@ func (s *hiServer) handleAIModels(w http.ResponseWriter, r *http.Request, device
 
 // handleAIChat forwards one chat completion to the upstream with the team's
 // key and returns its answer and status as they are.
-func (s *hiServer) handleAIChat(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
 	settings, key, on := s.aiConfig()
 	if !on {
 		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model; an admin can turn it on with `hi org ai set`")
@@ -219,7 +219,7 @@ func (s *hiServer) handleAIChat(w http.ResponseWriter, r *http.Request, device s
 	w.Write(answer)
 }
 
-func (s *hiServer) recordAIUsage(device serverDevice, model string, answer []byte, status int) {
+func (s *orgServer) recordAIUsage(device serverDevice, model string, answer []byte, status int) {
 	entry := serverAIUsage{Time: computeNow().UTC(), User: device.User, Device: device.Hostname, Model: model, Status: status}
 	var parsed struct {
 		Model string `json:"model"`
@@ -294,7 +294,7 @@ func readAIUsage(dir string, from, to time.Time) []aiUsageRow {
 	return out
 }
 
-// describeAIUsage is the AI part of hi server ai and hi server spend.
+// describeAIUsage is the AI part of hi org ai and hi org spend.
 func describeAIUsage(rows []aiUsageRow) string {
 	if len(rows) == 0 {
 		return "No model requests."
@@ -325,7 +325,7 @@ func formatTokens(tokens int) string {
 // ---------------------------------------------------------------------------
 // admin
 
-func (s *hiServer) aiAdminRoutes(mux *http.ServeMux) {
+func (s *orgServer) aiAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/ai", func(w http.ResponseWriter, _ *http.Request) {
 		settings, key, on := s.aiConfig()
 		now := computeNow()
@@ -403,8 +403,8 @@ func checkServerAIKey(url, key, model string) error {
 	return err
 }
 
-func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("ai", stderr)
+func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("ai", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	urlFlag := flags.String("url", "", "an OpenAI-compatible base URL (default OpenRouter)")
 	modelFlag := flags.String("model", "", "the default model (default "+serverAIDefaultModel+")")
@@ -414,7 +414,7 @@ func serverAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 		return err
 	}
 	usage := usageError{"usage: hi org ai [set [--url URL] [--model M] [--no-key] | off | remove]"}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}

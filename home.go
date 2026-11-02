@@ -67,7 +67,7 @@ func (b *slackBridge) startLink(slackUser, user string) string {
 
 // finishLink links the Slack account that asked for the code, if the code
 // was asked for this device's user.
-func (s *hiServer) finishLink(code, user string) error {
+func (s *orgServer) finishLink(code, user string) error {
 	if s.slack == nil {
 		return fmt.Errorf("this server has no Slack")
 	}
@@ -138,7 +138,7 @@ func (b *slackBridge) linkedUser(slackUser string) (string, bool) {
 }
 
 // notifyUser sends a direct message to a linked user.
-func (s *hiServer) notifyUser(user, text string) {
+func (s *orgServer) notifyUser(user, text string) {
 	if s.slack == nil {
 		return
 	}
@@ -184,7 +184,7 @@ type deviceRow struct {
 	LastSeen                time.Time
 }
 
-func (s *hiServer) deviceRows() []deviceRow {
+func (s *orgServer) deviceRows() []deviceRow {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var rows []deviceRow
@@ -366,7 +366,7 @@ type apiSlackLink struct {
 	Code string `json:"code"`
 }
 
-func (s *hiServer) handleSlackLink(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleSlackLink(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	var input apiSlackLink
 	if err := json.Unmarshal(body, &input); err != nil || input.Code == "" {
 		writeAPIError(w, http.StatusBadRequest, "give the code from /hi link")

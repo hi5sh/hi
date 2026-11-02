@@ -1,7 +1,7 @@
 package main
 
 // hi watch, release 3: the app's boxes look names up through a resolver of
-// the team's, which logs every name, so the hi server sees where
+// the team's, which logs every name, so the org server sees where
 // production connects. The app keeps its full internet: a resolver breaks
 // no protocol, unlike a proxy. Each slot has a port on this machine;
 // Podman's pasta carries the box's DNS (port 53, UDP and TCP) to it, and

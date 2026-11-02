@@ -168,7 +168,7 @@ func hubLink(token, kind, id, commit string, file *apiDataLink) error {
 	return err
 }
 
-func (s *hiServer) handleDataLinks(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleDataLinks(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	group, ok := s.userGroup(device.User)
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "a dashboard viewer can't use hi data")

@@ -243,7 +243,7 @@ func sortDataItems(items []dataItem) {
 
 var dataOrgPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$`)
 
-func (s *hiServer) dataOrgs() map[string]string {
+func (s *orgServer) dataOrgs() map[string]string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	orgs := map[string]string{}
@@ -301,7 +301,7 @@ func countDataKinds(items []dataItem) (datasets, models, buckets int) {
 
 // addDataOrgs checks the token for each organization and stores it. Either
 // all are added or none.
-func (s *hiServer) addDataOrgs(orgs []string, token, actor string) ([]apiDataOrgStatus, error) {
+func (s *orgServer) addDataOrgs(orgs []string, token, actor string) ([]apiDataOrgStatus, error) {
 	if len(orgs) == 0 {
 		return nil, serverUsageError{"name at least one organization"}
 	}
@@ -347,7 +347,7 @@ func (s *hiServer) addDataOrgs(orgs []string, token, actor string) ([]apiDataOrg
 	return results, nil
 }
 
-func (s *hiServer) removeDataOrg(org, actor string) error {
+func (s *orgServer) removeDataOrg(org, actor string) error {
 	s.mu.Lock()
 	if _, ok := s.keys[dataKeyPrefix+org]; !ok {
 		s.mu.Unlock()
@@ -371,7 +371,7 @@ func (s *hiServer) removeDataOrg(org, actor string) error {
 }
 
 // testDataOrgs checks every organization's token, or one's, now.
-func (s *hiServer) testDataOrgs(only string) ([]apiDataOrgStatus, error) {
+func (s *orgServer) testDataOrgs(only string) ([]apiDataOrgStatus, error) {
 	orgs := s.dataOrgs()
 	if only != "" {
 		token, ok := orgs[only]
@@ -395,7 +395,7 @@ func (s *hiServer) testDataOrgs(only string) ([]apiDataOrgStatus, error) {
 	return results, nil
 }
 
-func (s *hiServer) recordDataTokenOwnersLocked(results []apiDataOrgStatus) {
+func (s *orgServer) recordDataTokenOwnersLocked(results []apiDataOrgStatus) {
 	if s.state.DataTokens == nil {
 		s.state.DataTokens = map[string]*dataTokenOwner{}
 	}
@@ -409,7 +409,7 @@ func (s *hiServer) recordDataTokenOwnersLocked(results []apiDataOrgStatus) {
 
 // dataListings returns every organization's listing, fetching those older
 // than dataListEvery.
-func (s *hiServer) dataListings() map[string]dataListing {
+func (s *orgServer) dataListings() map[string]dataListing {
 	orgs := s.dataOrgs()
 	s.dataMu.Lock()
 	defer s.dataMu.Unlock()
@@ -457,7 +457,7 @@ func dataAllowed(policy serverPolicy, group, id string) bool {
 	return false
 }
 
-func (s *hiServer) userGroup(user string) (string, bool) {
+func (s *orgServer) userGroup(user string) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record := s.state.Users[user]
@@ -477,7 +477,7 @@ type dataClaims struct {
 	User    string `json:"u"`
 	Scope   string `json:"s,omitempty"` // "*" or "<kind>:<org>/<name>"
 	Expires int64  `json:"e"`
-	// A run token, for a cloud machine (hi server expose): accepted only on
+	// A run token, for a cloud machine (hi org expose): accepted only on
 	// the instance listener, for the repositories in Scopes.
 	Cloud  bool     `json:"x,omitempty"`
 	Scopes []string `json:"ss,omitempty"`
@@ -508,7 +508,7 @@ func dataTokenPayload(claims []byte) []byte {
 	return append([]byte("hi data token v1\n"), claims...)
 }
 
-func (s *hiServer) issueDataToken(claims dataClaims) string {
+func (s *orgServer) issueDataToken(claims dataClaims) string {
 	data, _ := json.Marshal(claims)
 	s.mu.Lock()
 	key := s.serverKey
@@ -519,7 +519,7 @@ func (s *hiServer) issueDataToken(claims dataClaims) string {
 
 // verifyDataToken checks a token's signature and time, and that its device
 // and user are still enrolled.
-func (s *hiServer) verifyDataToken(token string) (dataClaims, error) {
+func (s *orgServer) verifyDataToken(token string) (dataClaims, error) {
 	var claims dataClaims
 	body, ok := strings.CutPrefix(token, dataTokenPrefix)
 	encoded, encodedSignature, found := strings.Cut(body, ".")
@@ -569,7 +569,7 @@ func validRepoPart(part string) bool {
 // ---------------------------------------------------------------------------
 // device API
 
-func (s *hiServer) dataRoutes(mux *http.ServeMux) {
+func (s *orgServer) dataRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/data", s.device(s.handleDataCatalog))
 	mux.HandleFunc("POST /v1/data/token", s.device(s.handleDataToken))
 	mux.HandleFunc("POST /v1/data/links", s.device(s.handleDataLinks))
@@ -605,7 +605,7 @@ func clientKnowsBuckets(agent string) bool {
 	return true
 }
 
-func (s *hiServer) handleDataCatalog(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleDataCatalog(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	group, ok := s.userGroup(device.User)
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "a dashboard viewer can't use hi data")
@@ -634,7 +634,7 @@ func (s *hiServer) handleDataCatalog(w http.ResponseWriter, r *http.Request, dev
 	writeJSON(w, http.StatusOK, catalog)
 }
 
-func (s *hiServer) handleDataToken(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleDataToken(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	group, ok := s.userGroup(device.User)
 	if !ok {
 		writeAPIError(w, http.StatusForbidden, "a dashboard viewer can't use hi data")
@@ -771,14 +771,14 @@ func writeHubError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
 }
 
-func (s *hiServer) handleDataProxy(w http.ResponseWriter, r *http.Request) {
+func (s *orgServer) handleDataProxy(w http.ResponseWriter, r *http.Request) {
 	s.serveDataProxy(w, r, false, "")
 }
 
 // serveDataProxy is the proxy on the client listener (device tokens) or,
 // with cloud set, on the instance listener (run tokens only), whose links
 // point at the public URL.
-func (s *hiServer) serveDataProxy(w http.ResponseWriter, r *http.Request, cloud bool, public string) {
+func (s *orgServer) serveDataProxy(w http.ResponseWriter, r *http.Request, cloud bool, public string) {
 	token, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	claims, err := s.verifyDataToken(strings.TrimSpace(token))
 	if err == nil && claims.Cloud && s.runRevoked(claims.Run) {
@@ -903,7 +903,7 @@ type dataUsage struct {
 	Size     int64     `json:"size,omitempty"`
 }
 
-func (s *hiServer) recordDataUsage(claims dataClaims, route dataRoute, method string, response *http.Response) {
+func (s *orgServer) recordDataUsage(claims dataClaims, route dataRoute, method string, response *http.Response) {
 	size, _ := strconv.ParseInt(response.Header.Get("X-Linked-Size"), 10, 64)
 	if size == 0 && response.StatusCode == http.StatusOK && !route.xet {
 		size = response.ContentLength
@@ -923,7 +923,7 @@ func (s *hiServer) recordDataUsage(claims dataClaims, route dataRoute, method st
 // ---------------------------------------------------------------------------
 // admin API and commands
 
-func (s *hiServer) dataAdminRoutes(mux *http.ServeMux) {
+func (s *orgServer) dataAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/data", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, s.dataOrgList())
 	})
@@ -961,7 +961,7 @@ func (s *hiServer) dataAdminRoutes(mux *http.ServeMux) {
 }
 
 // dataOrgList is the organizations with what was last listed for them.
-func (s *hiServer) dataOrgList() []apiDataOrgStatus {
+func (s *orgServer) dataOrgList() []apiDataOrgStatus {
 	list := []apiDataOrgStatus{}
 	listings := s.dataListings()
 	for _, org := range sortedKeys(s.dataOrgs()) {
@@ -980,15 +980,15 @@ func (s *hiServer) dataOrgList() []apiDataOrgStatus {
 
 const serverDataUsage = "usage: hi org data [add <hf-org>... [--token-file <path>] | list | test [<hf-org>] | remove <hf-org>]"
 
-func serverDataCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("data", stderr)
+func orgDataCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("data", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	tokenFile := flags.String("token-file", "", "read the Hugging Face token from this file")
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -999,8 +999,8 @@ func serverDataCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	running := statErr == nil
 	// Without a running server, work on its state directly; it reads the
 	// result when it starts.
-	var direct *hiServer
-	server := func() (*hiServer, error) {
+	var direct *orgServer
+	server := func() (*orgServer, error) {
 		if direct == nil {
 			direct, err = openServer(dir, io.Discard)
 		}

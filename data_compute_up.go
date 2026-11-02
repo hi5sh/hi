@@ -9,7 +9,7 @@ import (
 )
 
 // hi compute up --data: a RunPod or Shadeform machine reads the team's
-// data through the hi server's exposed data proxy, with a run token for the
+// data through the org server's exposed data proxy, with a run token for the
 // named repositories and the machine's lifetime. hi writes HF_ENDPOINT and
 // HF_TOKEN into a file on the machine that its shells load, over SSH, so
 // the token never appears in the provider's console or API.

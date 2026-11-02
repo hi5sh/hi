@@ -1,6 +1,6 @@
 package main
 
-// hi watch, release 3, on the team's machine: what the hi server asks in
+// hi watch, release 3, on the team's machine: what the org server asks in
 // the answer to a heartbeat (freeze, unfreeze, pause, unpause), carried
 // out once and confirmed in the next heartbeat; and the weekly look at
 // what production's box has that its bill of materials doesn't.

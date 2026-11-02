@@ -57,7 +57,7 @@ func setupTeamTest(t *testing.T) string {
 	savedStopDev := teamStopDevBox
 	teamStopDevBox = func(string) {}
 	t.Cleanup(func() { teamStopDevBox = savedStopDev })
-	// Not this machine's hi server: no server templates.
+	// Not this machine's org server: no server templates.
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
 	hermes := filepath.Join(dir, "hermes")
@@ -81,7 +81,7 @@ func setupTeamTest(t *testing.T) string {
 	teamOverlayEngine = func() bool { return true }
 	t.Cleanup(func() { teamOverlayEngine = overlay })
 	// The app's boxes are fakes, with no resolver; a freeze or pause the
-	// hi server asks for touches no real container.
+	// org server asks for touches no real container.
 	teamResolverOn = false
 	engine := teamWatchEngine
 	teamWatchEngine = func(args ...string) (string, error) { return "", nil }

@@ -28,7 +28,7 @@ const teamLeadPlugin = "hi-team"
 
 // teamSlashCommand is the team's command for a private link: one per
 // team, since Slack gives a command two apps in a workspace share to the
-// one installed last (and hi server's app has /hi).
+// one installed last (and org server's app has /hi).
 func teamSlashCommand(team string) string {
 	name := strings.Trim(regexp.MustCompile(`[^a-z0-9_-]+`).ReplaceAllString(strings.ToLower(team), "-"), "-")
 	if len(name) > 28 {

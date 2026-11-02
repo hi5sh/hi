@@ -15,7 +15,7 @@ import (
 )
 
 // hi data lists and downloads the Hugging Face datasets, models, and
-// buckets a connected hi server serves. The server keeps the Hugging Face tokens; hf
+// buckets a connected org server serves. The server keeps the Hugging Face tokens; hf
 // runs here with HF_ENDPOINT pointing to the server's proxy and a hi data
 // token that lasts a day (docs/specs/approved/hi_data.md).
 

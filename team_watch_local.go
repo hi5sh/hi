@@ -1,7 +1,7 @@
 package main
 
 // The team's own watcher (docs/specs/approved/hi_team_ops.md, release 3):
-// the rules the hi server ran on a team's heartbeat run in the team's
+// the rules the org server ran on a team's heartbeat run in the team's
 // broker, on the same heartbeat, with the server's own code
 // (server_watch.go, server_watch_network.go, server_advisories.go) and
 // its state in the team's folder, watch/. What they open and close are

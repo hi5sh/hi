@@ -88,7 +88,7 @@ func readTemplateMetadata(target string) (templateMetadataFile, error) {
 
 // followRenamedSources maps sources the repository recorded but the catalog
 // no longer has to the one current source with the same layers, as after
-// `hi server templates rename`, and rewrites the metadata to the new names.
+// `hi org templates rename`, and rewrites the metadata to the new names.
 func followRenamedSources(catalog *templateCatalog, metadata *templateMetadataFile) map[string]string {
 	current := map[string]bool{}
 	for _, layer := range catalog.layers {

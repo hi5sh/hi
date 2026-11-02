@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// hi box --data: the box reaches the hi server's Hugging Face proxy through
+// hi box --data: the box reaches the org server's Hugging Face proxy through
 // a listener on hi's box proxy, which puts a hi data token in place of the
 // box's placeholder. The token stays in the box's state folder on the host,
 // mounted only into the proxy.

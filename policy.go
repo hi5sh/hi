@@ -119,7 +119,7 @@ func parsePolicy(data []byte) (serverPolicy, error) {
 // policy reads policy.json each time, so edits apply without a restart. A
 // broken file is reported and treated as no policy: every start then needs
 // a person, which is the safe side.
-func (s *hiServer) policy() serverPolicy {
+func (s *orgServer) policy() serverPolicy {
 	data, err := os.ReadFile(policyPath(s.dir))
 	if err != nil {
 		return serverPolicy{Groups: map[string]groupPolicy{}}
@@ -180,7 +180,7 @@ func requestCost(request serverRequest, from, to time.Time) float64 {
 }
 
 // spendLocked adds up what matching requests cost between from and to.
-func (s *hiServer) spendLocked(from, to time.Time, match func(request *serverRequest) bool) float64 {
+func (s *orgServer) spendLocked(from, to time.Time, match func(request *serverRequest) bool) float64 {
 	var total float64
 	for _, request := range s.state.Requests {
 		if match(request) {
@@ -222,7 +222,7 @@ func (b budgetStatus) text() string {
 	return text
 }
 
-func (s *hiServer) budgetLocked(policy serverPolicy, user string, now time.Time) budgetStatus {
+func (s *orgServer) budgetLocked(policy serverPolicy, user string, now time.Time) budgetStatus {
 	group := ""
 	if record, ok := s.state.Users[user]; ok {
 		group = record.Group
@@ -246,7 +246,7 @@ func (s *hiServer) budgetLocked(policy serverPolicy, user string, now time.Time)
 
 // checkRequestLocked refuses what the group may never do, and says whether
 // the policy approves the rest by itself.
-func (s *hiServer) checkRequestLocked(policy serverPolicy, user, hardware, rate string, totalHours float64) (autoApproved string, budget budgetStatus, err error) {
+func (s *orgServer) checkRequestLocked(policy serverPolicy, user, hardware, rate string, totalHours float64) (autoApproved string, budget budgetStatus, err error) {
 	group := ""
 	if record, ok := s.state.Users[user]; ok {
 		group = record.Group
@@ -279,7 +279,7 @@ func (s *hiServer) checkRequestLocked(policy serverPolicy, user, hardware, rate 
 
 // checkBudgets tells the approvers, once a month, when a user or group has
 // gone over its budget.
-func (s *hiServer) checkBudgets(now time.Time) {
+func (s *orgServer) checkBudgets(now time.Time) {
 	policy := s.policy()
 	month := monthStart(now).Format("2006-01")
 	var alerts []string
@@ -338,7 +338,7 @@ type spendRow struct {
 }
 
 // spendTableLocked is each user's spend between from and to, most first.
-func (s *hiServer) spendTableLocked(policy serverPolicy, from, to time.Time) ([]spendRow, map[string]float64) {
+func (s *orgServer) spendTableLocked(policy serverPolicy, from, to time.Time) ([]spendRow, map[string]float64) {
 	perUser := map[string]float64{}
 	perGroup := map[string]float64{}
 	for _, request := range s.state.Requests {
@@ -399,7 +399,7 @@ func describeGroupSpend(policy serverPolicy, perGroup map[string]float64) string
 
 // report builds the daily, weekly, or monthly summary for the period
 // ending at end.
-func (s *hiServer) report(which string, end time.Time) string {
+func (s *orgServer) report(which string, end time.Time) string {
 	policy := s.policy()
 	var from time.Time
 	var title string
@@ -478,7 +478,7 @@ func (s *hiServer) report(which string, end time.Time) string {
 
 // maybeReport posts the reports that are due, at 09:00 server time: daily,
 // weekly on Mondays, and monthly on the 1st.
-func (s *hiServer) maybeReport(now time.Time) {
+func (s *orgServer) maybeReport(now time.Time) {
 	if s.slack == nil {
 		return
 	}
@@ -518,8 +518,8 @@ func (s *hiServer) maybeReport(now time.Time) {
 // ---------------------------------------------------------------------------
 // commands
 
-func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("policy", stderr)
+func orgPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("policy", stderr)
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
@@ -527,7 +527,7 @@ func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	if len(positional) != 1 {
 		return usageError{"usage: hi org policy show | edit | example | check"}
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -598,8 +598,8 @@ func serverPolicyCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	return usageError{"usage: hi org policy show | edit | example | check"}
 }
 
-func serverSpendCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("spend", stderr)
+func orgSpendCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("spend", stderr)
 	since := flags.String("since", "", "how far back, such as 7d (default: this month)")
 	positional, err := flags.parse(args)
 	if err != nil {
@@ -625,7 +625,7 @@ func serverSpendCommand(args []string, stdout, stderr io.Writer) error {
 }
 
 // usersSummary lists users with their group, devices, and spend this month.
-func (s *hiServer) usersSummary(now time.Time) string {
+func (s *orgServer) usersSummary(now time.Time) string {
 	policy := s.policy()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -671,7 +671,7 @@ func (s *hiServer) usersSummary(now time.Time) string {
 }
 
 // recentAudit is the last few audit entries, optionally about one user.
-func (s *hiServer) recentAudit(user string, count int) string {
+func (s *orgServer) recentAudit(user string, count int) string {
 	data, err := os.ReadFile(filepath.Join(s.dir, "audit.jsonl"))
 	if err != nil {
 		return "Nothing has happened yet."
@@ -702,7 +702,7 @@ func (s *hiServer) recentAudit(user string, count int) string {
 
 // setBudget changes a group's monthly budget per user, or for the whole
 // group, in policy.json.
-func (s *hiServer) setBudget(group, amount string, total bool, actor string) (string, error) {
+func (s *orgServer) setBudget(group, amount string, total bool, actor string) (string, error) {
 	var dollars float64
 	if _, err := fmt.Sscanf(strings.TrimPrefix(amount, "$"), "%g", &dollars); err != nil || dollars < 0 {
 		return "", fmt.Errorf("%q is not an amount in dollars", amount)

@@ -111,13 +111,13 @@ func (f *fakeManaged) started(name string) (upRequest, bool) {
 }
 
 type testServer struct {
-	server *hiServer
+	server *orgServer
 	fake   *fakeManaged
 	url    string
 	dir    string
 }
 
-// newTestServer runs a hi server over HTTP with a fake RunPod, and gives
+// newTestServer runs an org server over HTTP with a fake RunPod, and gives
 // the test a device home that has never connected.
 func newTestServer(t *testing.T) *testServer {
 	t.Helper()

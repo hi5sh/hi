@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// managedProvider forwards a provider's hi compute calls to the hi server
+// managedProvider forwards a provider's hi compute calls to the org server
 // this device joined. The server holds the key, asks for approval, and
 // enforces the limits; this device never sees the provider key.
 type managedProvider struct {

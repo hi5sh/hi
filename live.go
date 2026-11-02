@@ -32,7 +32,7 @@ type liveSnapshot struct {
 	Today       float64        `json:"today"`
 	Month       float64        `json:"month"`
 	MonthBudget float64        `json:"month_budget"`
-	// Models is this month's use of the model hi server ai serves, per
+	// Models is this month's use of the model hi org ai serves, per
 	// user, and ModelsMonth its cost.
 	Models      []liveModelUse `json:"models,omitempty"`
 	ModelsMonth float64        `json:"models_month,omitempty"`
@@ -183,7 +183,7 @@ func (f *liveFeed) doingFor(instance string) []string {
 }
 
 // liveSnapshot builds the dashboard's view: everything, or one user's part.
-func (s *hiServer) liveSnapshot(user string) liveSnapshot {
+func (s *orgServer) liveSnapshot(user string) liveSnapshot {
 	policy := s.policy()
 	now := computeNow()
 	snapshot := liveSnapshot{Now: now, Version: version, Scope: "all"}
@@ -279,7 +279,7 @@ type apiActivity struct {
 }
 
 // handleLive serves a viewer everything, and anyone else their own part.
-func (s *hiServer) handleLive(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleLive(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	s.mu.Lock()
 	user := s.state.Users[device.User]
 	viewer := user != nil && user.Kind == "viewer"
@@ -294,7 +294,7 @@ func (s *hiServer) handleLive(w http.ResponseWriter, _ *http.Request, device ser
 // handleActivity records that a user opened or closed ssh, a tunnel, logs,
 // or a model server on one of their instances. Only the command and
 // instance names are sent, never arguments or anything typed.
-func (s *hiServer) handleActivity(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleActivity(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	var input apiActivity
 	if err := json.Unmarshal(body, &input); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "malformed activity")
@@ -347,7 +347,7 @@ func (s *hiServer) handleActivity(w http.ResponseWriter, _ *http.Request, device
 // ---------------------------------------------------------------------------
 // viewers: devices that may only watch, such as a wall screen
 
-func (s *hiServer) addViewer(name, key, actor string) error {
+func (s *orgServer) addViewer(name, key, actor string) error {
 	if !validServerName(name) {
 		return fmt.Errorf("invalid viewer name %q", name)
 	}
@@ -372,8 +372,8 @@ func (s *hiServer) addViewer(name, key, actor string) error {
 	return err
 }
 
-func serverViewerCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("viewer", stderr)
+func orgViewerCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("viewer", stderr)
 	key := flags.String("key", "", "the device key from `hi org key` on the viewing machine")
 	as := flags.String("as", currentUserName(), "who is acting")
 	positional, err := flags.parse(args)

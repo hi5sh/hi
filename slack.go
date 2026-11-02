@@ -102,7 +102,7 @@ type slackAPI interface {
 }
 
 type slackBridge struct {
-	server *hiServer
+	server *orgServer
 	api    slackAPI
 	client *slack.Client
 
@@ -113,7 +113,7 @@ type slackBridge struct {
 	queue chan func()
 }
 
-func newSlackBridge(server *hiServer, config slackConfig, api slackAPI) *slackBridge {
+func newSlackBridge(server *orgServer, config slackConfig, api slackAPI) *slackBridge {
 	bridge := &slackBridge{server: server, api: api, config: config, queue: make(chan func(), 256)}
 	go func() {
 		for job := range bridge.queue {
@@ -156,7 +156,7 @@ func (b *slackBridge) channel() string {
 // notifications from the server
 
 // notifyRequest posts or updates the request's message.
-func (s *hiServer) notifyRequest(id string) {
+func (s *orgServer) notifyRequest(id string) {
 	if s.slack == nil {
 		return
 	}
@@ -164,7 +164,7 @@ func (s *hiServer) notifyRequest(id string) {
 }
 
 // notifyThread adds a line to the request's thread.
-func (s *hiServer) notifyThread(id, text string) {
+func (s *orgServer) notifyThread(id, text string) {
 	if s.slack == nil {
 		return
 	}
@@ -196,7 +196,7 @@ func (s *hiServer) notifyThread(id, text string) {
 }
 
 // notifyChannel posts a message of its own.
-func (s *hiServer) notifyChannel(text string) {
+func (s *orgServer) notifyChannel(text string) {
 	if s.slack == nil {
 		return
 	}
@@ -632,7 +632,7 @@ func (b *slackBridge) openDenyForm(triggerID, id string) error {
 	return err
 }
 
-func (s *hiServer) stopByName(name, actor string) error {
+func (s *orgServer) stopByName(name, actor string) error {
 	s.mu.Lock()
 	lease, ok := s.state.Leases[name]
 	var copy serverLease
@@ -646,7 +646,7 @@ func (s *hiServer) stopByName(name, actor string) error {
 	return s.stopLease(copy, actor)
 }
 
-func (s *hiServer) stopMatching(actor string, match func(serverLease) bool) error {
+func (s *orgServer) stopMatching(actor string, match func(serverLease) bool) error {
 	s.mu.Lock()
 	var chosen []serverLease
 	for _, lease := range s.state.Leases {
@@ -860,7 +860,7 @@ func (b *slackBridge) run(ctx context.Context) {
 }
 
 // startSlack connects the bridge when slack.json exists.
-func (s *hiServer) startSlack(ctx context.Context) error {
+func (s *orgServer) startSlack(ctx context.Context) error {
 	config, err := loadSlackConfig(s.dir)
 	if err != nil || config == nil {
 		return err
@@ -878,8 +878,8 @@ func (s *hiServer) startSlack(ctx context.Context) error {
 // ---------------------------------------------------------------------------
 // commands
 
-func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("slack", stderr)
+func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("slack", stderr)
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
@@ -892,7 +892,7 @@ func serverSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 	default:
 		return usageError{"usage: hi org slack setup | manifest"}
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -975,15 +975,15 @@ func readSetting(label string, secret bool, stdin io.Reader, stdout io.Writer) (
 	return strings.TrimSpace(line), nil
 }
 
-func serverApproversCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("approvers", stderr)
+func orgApproversCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("approvers", stderr)
 	name := flags.String("name", "", "the approver's hi user name")
 	as := flags.String("as", currentUserName(), "who is acting")
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -1061,7 +1061,7 @@ func serverApproversCommand(args []string, stdout, stderr io.Writer) error {
 }
 
 // approversHandler lets the admin CLI change approvers while the server runs.
-func (s *hiServer) approversHandler(mux *http.ServeMux) {
+func (s *orgServer) approversHandler(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/approvers", func(w http.ResponseWriter, _ *http.Request) {
 		approvers := map[string]string{}
 		if s.slack != nil {

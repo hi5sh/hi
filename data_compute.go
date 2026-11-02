@@ -16,7 +16,7 @@ import (
 )
 
 // hi compute run --data: the job downloads the team's data before the
-// script runs. A rented instance can't reach the hi server, so hi asks
+// script runs. A rented instance can't reach the org server, so hi asks
 // the server for signed links when the run starts and ships them inside
 // a wrapper script; the instance never holds a token.
 

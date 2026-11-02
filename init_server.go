@@ -269,7 +269,7 @@ func cachedServerTemplateSources() []serverTemplateSource {
 var skillOwnerPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,38}$`)
 
 // serverTemplateOwners are the GitHub owners of the template sources this
-// device last fetched from its hi server.
+// device last fetched from its org server.
 func serverTemplateOwners() map[string]bool {
 	owners := map[string]bool{}
 	entries, _ := os.ReadDir(templateCacheDirectory())

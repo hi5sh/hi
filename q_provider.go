@@ -214,7 +214,7 @@ type qOpenAI struct {
 	key     string
 	model   string
 	client  *http.Client
-	// sign and via are set for a hi server: requests are signed with the
+	// sign and via are set for an org server: requests are signed with the
 	// device key instead of carrying an API key.
 	sign ed25519.PrivateKey
 	via  string
@@ -363,7 +363,7 @@ type qHTTPError struct {
 	status  string
 	code    int
 	message string
-	// fromServer is set when a hi server itself refused, rather than the
+	// fromServer is set when an org server itself refused, rather than the
 	// upstream it passes requests to.
 	fromServer bool
 }
@@ -772,7 +772,7 @@ func resolveQProvider(name, model string) (qChoice, error) {
 }
 
 // qPersonalProvider is the user's own key or Claude Code: what hi q uses
-// without a hi server, and falls back to when the server can't be used.
+// without an org server, and falls back to when the server can't be used.
 func qPersonalProvider(model string) (qChoice, error) {
 	if key := os.Getenv("OPENAI_API_KEY"); key != "" {
 		base := firstNonEmpty(os.Getenv("OPENAI_BASE_URL"), qOpenAIURL)

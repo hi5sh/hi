@@ -96,7 +96,7 @@ type teamConfig struct {
 	PreviewData     string  `json:"preview_data,omitempty"`
 	PreviewModelUSD float64 `json:"preview_model_usd,omitempty"`
 	// Template is the team template the project and the roles started
-	// from, one that extends team-app, such as one from the hi server's
+	// from, one that extends team-app, such as one from the org server's
 	// sources; empty is team-app itself.
 	Template string `json:"template,omitempty"`
 	// Adopted is where a project someone else wrote came from (hi team
@@ -2231,7 +2231,7 @@ func teamDown(name string, stdout io.Writer) error {
 	// The dev box keeps running when the service restarts, not when the
 	// team stops.
 	teamStopDevBox(name)
-	// The hi server stops watching for its heartbeat until hi team up.
+	// The org server stops watching for its heartbeat until hi team up.
 	(&teamBroker{team: name}).sendHeartbeat("down")
 	if config, err := loadTeam(name); err == nil {
 		teamHeartbeatDown(config, stdout)

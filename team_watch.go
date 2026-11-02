@@ -5,7 +5,7 @@ package main
 // model calls cost through hi and what OpenRouter counts on the key, and
 // the network logs from where the watcher left off, and its own watcher
 // runs the rules on it (team_watch_local.go). Until hi 2.6.32 it went to
-// the team's hi server, which watched from outside.
+// the team's org server, which watched from outside.
 //
 // Spec: docs/specs/approved/hi_watch.md, and hi_team_ops.md (release 3).
 
@@ -536,7 +536,7 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 	defer teamWatchStateMu.Unlock()
 	state = loadTeamWatchState(b.team)
 	if state.Server != "" {
-		// The first check here after the hi server watched: what it told is
+		// The first check here after the org server watched: what it told is
 		// checked here now, and opens again if it still holds.
 		for _, local := range state.Told {
 			if b.incidentOpen(local) {

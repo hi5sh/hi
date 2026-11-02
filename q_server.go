@@ -17,8 +17,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// A connected hi server can pass hi q's requests to a model with the team's
-// key (hi server ai). hi q asks the server whether it does at most once an
+// A connected org server can pass hi q's requests to a model with the team's
+// key (hi org ai). hi q asks the server whether it does at most once an
 // hour, and after a failure skips it for five minutes, falling back to the
 // user's own key or Claude Code.
 
@@ -198,7 +198,7 @@ func (f *qServerFallback) step(ctx context.Context, system string, turns []qTurn
 	return f.switched.step(ctx, system, turns, lookup)
 }
 
-// qServerUnusable is true when the hi server itself failed or refused,
+// qServerUnusable is true when the org server itself failed or refused,
 // not when it passed on an error from the upstream, such as an unknown
 // model, which a personal key would get too.
 func qServerUnusable(ctx context.Context, err error) bool {

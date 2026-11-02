@@ -24,7 +24,7 @@ import (
 	"time"
 )
 
-// hi server brokers compute for connected devices: it holds the provider
+// org server brokers compute for connected devices: it holds the provider
 // keys, makes every provider call itself, and starts nothing without an
 // approval. See docs/specs/approved/hi_server.md.
 
@@ -69,15 +69,15 @@ type serverState struct {
 	// Alerts records budget alerts already sent, per month.
 	Alerts map[string]bool `json:"alerts,omitempty"`
 	// TemplateSources are the repositories of templates and skills served
-	// to devices (server_templates.go).
+	// to devices (org_templates.go).
 	TemplateSources map[string]*templateSource `json:"template_sources,omitempty"`
 	// Reported records the last period each Slack report covered.
 	Reported map[string]string `json:"reported,omitempty"`
 	// Runs are the cloud runs given run tokens, kept until their tokens
-	// expire, so one can be revoked (server_expose.go).
+	// expire, so one can be revoked (org_expose.go).
 	Runs map[string]*serverRun `json:"runs,omitempty"`
 	// DataTokens says whose token reads each data organization, and with
-	// what access, as of the last add or test (server_data.go).
+	// what access, as of the last add or test (org_data.go).
 	DataTokens map[string]*dataTokenOwner `json:"data_tokens,omitempty"`
 }
 
@@ -163,7 +163,7 @@ type serverLease struct {
 	Warned bool `json:"warned,omitempty"`
 }
 
-type hiServer struct {
+type orgServer struct {
 	dir       string
 	mu        sync.Mutex
 	state     serverState
@@ -190,10 +190,10 @@ type hiServer struct {
 	// watch is hi watch: the teams' heartbeats (server_watch.go).
 }
 
-// serverDirectory is the org server's state: --dir, then HI_ORG_DIR, then
+// orgDirectory is the org server's state: --dir, then HI_ORG_DIR, then
 // HI_SERVER_DIR (its name until hi 2.6.57), then ~/.local/state/hi/org, or
 // the old ~/.local/state/hi/server until hi org run has moved it.
-func serverDirectory(flagValue string) (string, error) {
+func orgDirectory(flagValue string) (string, error) {
 	if flagValue != "" {
 		return flagValue, nil
 	}
@@ -217,7 +217,7 @@ type serverConfig struct {
 	FallbackPriceFactor float64  `json:"fallback_price_factor,omitempty"`
 	FallbackPriceExtra  *float64 `json:"fallback_price_extra,omitempty"`
 	// ExposeListen is the listener netbird expose publishes for cloud
-	// machines (server_expose.go): the client address's host on port 7374
+	// machines (org_expose.go): the client address's host on port 7374
 	// by default, or "off".
 	ExposeListen string `json:"expose_listen,omitempty"`
 }
@@ -242,8 +242,8 @@ type fallbackProvider interface {
 	alternatives(name string, ceiling float64) ([]computeHardware, error)
 }
 
-func openServer(dir string, log io.Writer) (*hiServer, error) {
-	server := &hiServer{
+func openServer(dir string, log io.Writer) (*orgServer, error) {
+	server := &orgServer{
 		dir:       dir,
 		keys:      map[string]string{},
 		providers: map[string]computeProvider{},
@@ -306,7 +306,7 @@ func openServer(dir string, log io.Writer) (*hiServer, error) {
 
 // enableProvider puts the key where the driver reads it and registers the
 // driver. The key never leaves this process except to the provider.
-func (s *hiServer) enableProvider(name, key string) {
+func (s *orgServer) enableProvider(name, key string) {
 	factory, ok := serverProviderFactories[name]
 	if !ok {
 		return
@@ -317,7 +317,7 @@ func (s *hiServer) enableProvider(name, key string) {
 	s.providers[name] = factory()
 }
 
-func (s *hiServer) saveLocked() error {
+func (s *orgServer) saveLocked() error {
 	data, err := json.MarshalIndent(s.state, "", "  ")
 	if err != nil {
 		return err
@@ -329,7 +329,7 @@ func (s *hiServer) saveLocked() error {
 	return os.Rename(path+".tmp", path)
 }
 
-func (s *hiServer) saveKeysLocked() error {
+func (s *orgServer) saveKeysLocked() error {
 	data, err := json.MarshalIndent(s.keys, "", "  ")
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ type auditEntry struct {
 }
 
 // audit appends one line to the audit log. It never records keys.
-func (s *hiServer) audit(actor, action, subject, detail string) {
+func (s *orgServer) audit(actor, action, subject, detail string) {
 	detail = strings.Join(strings.Fields(strings.ReplaceAll(detail, "\n", " · ")), " ")
 	entry := auditEntry{Time: computeNow().UTC(), Actor: actor, Action: action, Subject: subject, Detail: detail}
 	s.feed.add(auditEvent(entry))
@@ -412,7 +412,7 @@ func signRequest(request *http.Request, key ed25519.PrivateKey, body []byte) {
 }
 
 // verifyRequest checks the signature and returns the key and its body.
-func (s *hiServer) verifyRequest(request *http.Request, limit int64) (ed25519.PublicKey, []byte, error) {
+func (s *orgServer) verifyRequest(request *http.Request, limit int64) (ed25519.PublicKey, []byte, error) {
 	body, err := io.ReadAll(io.LimitReader(request.Body, limit))
 	if err != nil {
 		return nil, nil, err
@@ -530,7 +530,7 @@ func writeAPIError(w http.ResponseWriter, status int, message string) {
 
 // clientHandler serves connected devices. Every route but enrollment needs
 // an approved device.
-func (s *hiServer) clientHandler() http.Handler {
+func (s *orgServer) clientHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/enroll", s.handleEnroll)
 	mux.HandleFunc("GET /v1/me", s.device(s.handleMe))
@@ -557,12 +557,12 @@ func (s *hiServer) clientHandler() http.Handler {
 
 type deviceHandler func(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte)
 
-func (s *hiServer) device(next deviceHandler) http.HandlerFunc {
+func (s *orgServer) device(next deviceHandler) http.HandlerFunc {
 	return s.deviceLimited(serverMaxBody, next)
 }
 
 // deviceLimited is device with its own limit on the body's size.
-func (s *hiServer) deviceLimited(limit int64, next deviceHandler) http.HandlerFunc {
+func (s *orgServer) deviceLimited(limit int64, next deviceHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		public, body, err := s.verifyRequest(r, limit)
 		if err != nil {
@@ -602,7 +602,7 @@ func (s *hiServer) deviceLimited(limit int64, next deviceHandler) http.HandlerFu
 	}
 }
 
-func (s *hiServer) handleEnroll(w http.ResponseWriter, r *http.Request) {
+func (s *orgServer) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	public, body, err := s.verifyRequest(r, serverMaxBody)
 	if err != nil {
 		writeAPIError(w, http.StatusUnauthorized, err.Error())
@@ -659,7 +659,7 @@ func (s *hiServer) handleEnroll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, request)
 }
 
-func (s *hiServer) handleMe(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleMe(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	policy := s.policy()
 	s.mu.Lock()
 	user := s.state.Users[device.User]
@@ -685,7 +685,7 @@ func (s *hiServer) handleMe(w http.ResponseWriter, _ *http.Request, device serve
 
 // providerSnapshot copies the managed providers; admins can change them
 // while the server runs.
-func (s *hiServer) providerSnapshot() map[string]computeProvider {
+func (s *orgServer) providerSnapshot() map[string]computeProvider {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	providers := make(map[string]computeProvider, len(s.providers))
@@ -695,7 +695,7 @@ func (s *hiServer) providerSnapshot() map[string]computeProvider {
 	return providers
 }
 
-func (s *hiServer) provider(name string) (computeProvider, error) {
+func (s *orgServer) provider(name string) (computeProvider, error) {
 	s.mu.Lock()
 	provider, ok := s.providers[name]
 	s.mu.Unlock()
@@ -705,7 +705,7 @@ func (s *hiServer) provider(name string) (computeProvider, error) {
 	return provider, nil
 }
 
-func (s *hiServer) handleHardware(w http.ResponseWriter, r *http.Request, _ serverDevice, _ []byte) {
+func (s *orgServer) handleHardware(w http.ResponseWriter, r *http.Request, _ serverDevice, _ []byte) {
 	provider, err := s.provider(r.URL.Query().Get("provider"))
 	if err != nil {
 		writeAPIError(w, http.StatusNotFound, err.Error())
@@ -742,7 +742,7 @@ func (s *hiServer) handleHardware(w http.ResponseWriter, r *http.Request, _ serv
 	writeJSON(w, http.StatusOK, result)
 }
 
-func (s *hiServer) handleCreateRequest(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleCreateRequest(w http.ResponseWriter, _ *http.Request, device serverDevice, body []byte) {
 	if s.isViewer(device.User) {
 		writeAPIError(w, http.StatusForbidden, "a viewer can only watch")
 		return
@@ -868,7 +868,7 @@ func cleanAgentName(name string) string {
 
 // handleExtend asks for more time on one of the user's running instances.
 // It goes through the same approval as a start.
-func (s *hiServer) handleExtend(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
+func (s *orgServer) handleExtend(w http.ResponseWriter, r *http.Request, device serverDevice, body []byte) {
 	if s.isViewer(device.User) {
 		writeAPIError(w, http.StatusForbidden, "a viewer can only watch")
 		return
@@ -934,7 +934,7 @@ func (s *hiServer) handleExtend(w http.ResponseWriter, r *http.Request, device s
 }
 
 // nameRequestedLocked reports an open request that will use this name.
-func (s *hiServer) nameRequestedLocked(name string) bool {
+func (s *orgServer) nameRequestedLocked(name string) bool {
 	for _, request := range s.state.Requests {
 		if request.Kind == "compute" && request.Name == name && (request.State == "pending" || request.State == "starting") {
 			return true
@@ -952,7 +952,7 @@ func describeServerRequest(request *serverRequest) string {
 		request.Rate, image, formatDuration(time.Duration(request.MaxSeconds)*time.Second), request.Reason)
 }
 
-func (s *hiServer) handleListRequests(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleListRequests(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	s.mu.Lock()
 	var mine []serverRequest
 	for _, request := range s.state.Requests {
@@ -968,7 +968,7 @@ func (s *hiServer) handleListRequests(w http.ResponseWriter, _ *http.Request, de
 	writeJSON(w, http.StatusOK, mine)
 }
 
-func (s *hiServer) handleGetRequest(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleGetRequest(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	s.mu.Lock()
 	request, ok := s.state.Requests[r.PathValue("id")]
 	var copy serverRequest
@@ -983,7 +983,7 @@ func (s *hiServer) handleGetRequest(w http.ResponseWriter, r *http.Request, devi
 	writeJSON(w, http.StatusOK, copy)
 }
 
-func (s *hiServer) handleListInstances(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleListInstances(w http.ResponseWriter, _ *http.Request, device serverDevice, _ []byte) {
 	s.mu.Lock()
 	var mine []serverLease
 	for _, lease := range s.state.Leases {
@@ -997,7 +997,7 @@ func (s *hiServer) handleListInstances(w http.ResponseWriter, _ *http.Request, d
 }
 
 // ownLease finds the named lease if it belongs to the device's user.
-func (s *hiServer) ownLease(name, user string) (serverLease, bool) {
+func (s *orgServer) ownLease(name, user string) (serverLease, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	lease, ok := s.state.Leases[name]
@@ -1007,7 +1007,7 @@ func (s *hiServer) ownLease(name, user string) (serverLease, bool) {
 	return *lease, true
 }
 
-func (s *hiServer) handleStopInstance(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleStopInstance(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	lease, ok := s.ownLease(r.PathValue("name"), device.User)
 	if !ok {
 		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you have no instance named %q", r.PathValue("name")))
@@ -1020,7 +1020,7 @@ func (s *hiServer) handleStopInstance(w http.ResponseWriter, r *http.Request, de
 	writeJSON(w, http.StatusOK, map[string]string{"stopped": lease.Name})
 }
 
-func (s *hiServer) handleSSH(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
+func (s *orgServer) handleSSH(w http.ResponseWriter, r *http.Request, device serverDevice, _ []byte) {
 	lease, ok := s.ownLease(r.PathValue("name"), device.User)
 	if !ok {
 		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you have no instance named %q", r.PathValue("name")))
@@ -1052,7 +1052,7 @@ type serverUsageError struct{ message string }
 func (e serverUsageError) Error() string { return e.message }
 
 // decide approves or denies a pending request. Nobody decides their own.
-func (s *hiServer) decide(id, actor string, approve bool, group, reason string) (serverRequest, error) {
+func (s *orgServer) decide(id, actor string, approve bool, group, reason string) (serverRequest, error) {
 	s.mu.Lock()
 	request, ok := s.state.Requests[id]
 	if !ok {
@@ -1153,7 +1153,7 @@ func (s *hiServer) decide(id, actor string, approve bool, group, reason string) 
 
 // progressWriter keeps the last line a driver printed, for clients to show.
 type progressWriter struct {
-	server *hiServer
+	server *orgServer
 	id     string
 }
 
@@ -1174,7 +1174,7 @@ func (p progressWriter) Write(data []byte) (int, error) {
 }
 
 // start creates an approved instance and records its lease.
-func (s *hiServer) start(request serverRequest) {
+func (s *orgServer) start(request serverRequest) {
 	fail := func(err error) {
 		s.mu.Lock()
 		if current, ok := s.state.Requests[request.ID]; ok {
@@ -1276,7 +1276,7 @@ func (s *hiServer) start(request serverRequest) {
 }
 
 // stopLease terminates an instance and ends its lease.
-func (s *hiServer) stopLease(lease serverLease, actor string) error {
+func (s *orgServer) stopLease(lease serverLease, actor string) error {
 	provider, err := s.provider(lease.Provider)
 	if err != nil {
 		return err
@@ -1295,7 +1295,7 @@ func (s *hiServer) stopLease(lease serverLease, actor string) error {
 	return nil
 }
 
-func (s *hiServer) endLease(name, stoppedBy string) {
+func (s *orgServer) endLease(name, stoppedBy string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	lease, ok := s.state.Leases[name]
@@ -1315,7 +1315,7 @@ func (s *hiServer) endLease(name, stoppedBy string) {
 
 // reconcile expires old requests, stops instances past their limit, ends
 // leases whose instance is gone, and reports instances with no lease.
-func (s *hiServer) reconcile() {
+func (s *orgServer) reconcile() {
 	now := computeNow()
 	s.mu.Lock()
 	for _, request := range s.state.Requests {
@@ -1395,7 +1395,7 @@ func (s *hiServer) reconcile() {
 // ---------------------------------------------------------------------------
 // admin API, over a Unix socket that only the server's user can open
 
-func (s *hiServer) adminHandler() http.Handler {
+func (s *orgServer) adminHandler() http.Handler {
 	mux := http.NewServeMux()
 	s.templateAdminRoutes(mux)
 	s.dataAdminRoutes(mux)
@@ -1649,7 +1649,7 @@ func (s *hiServer) adminHandler() http.Handler {
 }
 
 // spendSummary is spend per user and group between from and to, as text.
-func (s *hiServer) spendSummary(from, to time.Time) string {
+func (s *orgServer) spendSummary(from, to time.Time) string {
 	policy := s.policy()
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1669,7 +1669,7 @@ func (s *hiServer) spendSummary(from, to time.Time) string {
 		formatDollars(total), describeSpendRows(rows, 50), describeGroupSpend(policy, perGroup)) + ai
 }
 
-// decodeDeviceKey reads a device key as `hi connect key` prints it.
+// decodeDeviceKey reads a device key as `hi org key` prints it.
 func decodeDeviceKey(key string) (ed25519.PublicKey, error) {
 	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key))
 	if err != nil || len(raw) != ed25519.PublicKeySize {
@@ -1679,7 +1679,7 @@ func decodeDeviceKey(key string) (ed25519.PublicKey, error) {
 }
 
 // isViewer reports a device that may only watch the dashboard.
-func (s *hiServer) isViewer(user string) bool {
+func (s *orgServer) isViewer(user string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.state.Users[user]
@@ -1711,7 +1711,7 @@ func validServerName(name string) bool {
 // running
 
 // serve listens for clients and admins until the context ends.
-func (s *hiServer) serve(ctx context.Context, listen string) error {
+func (s *orgServer) serve(ctx context.Context, listen string) error {
 	clientListener, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", listen, err)
@@ -1799,7 +1799,7 @@ func netbirdAddress() (string, error) {
 // ---------------------------------------------------------------------------
 // commands
 
-func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		printOrgUsage(stdout)
 		return 0
@@ -1810,45 +1810,45 @@ func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		printOrgUsage(stdout)
 		return 0
 	case "init":
-		return exitCode(serverInitCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgInitCommand(rest, stdout, stderr), stderr)
 	case "run":
-		return exitCode(serverRunCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgRunCommand(rest, stdout, stderr), stderr)
 	case "provider":
-		return exitCode(serverProviderCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgProviderCommand(rest, stdin, stdout, stderr), stderr)
 	case "user":
-		return exitCode(serverUserCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgUserCommand(rest, stdout, stderr), stderr)
 	case "requests":
-		return exitCode(serverRequestsCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgRequestsCommand(rest, stdout, stderr), stderr)
 	case "approve", "deny":
-		return exitCode(serverDecideCommand(command, rest, stdout, stderr), stderr)
+		return exitCode(orgDecideCommand(command, rest, stdout, stderr), stderr)
 	case "ls":
-		return exitCode(serverListCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgListCommand(rest, stdout, stderr), stderr)
 	case "stop":
-		return exitCode(serverStopCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgStopCommand(rest, stdout, stderr), stderr)
 	case "audit":
-		return exitCode(serverAuditCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgAuditCommand(rest, stdout, stderr), stderr)
 	case "slack":
-		return exitCode(serverSlackCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgSlackCommand(rest, stdin, stdout, stderr), stderr)
 	case "approvers":
-		return exitCode(serverApproversCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgApproversCommand(rest, stdout, stderr), stderr)
 	case "policy":
-		return exitCode(serverPolicyCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgPolicyCommand(rest, stdin, stdout, stderr), stderr)
 	case "spend":
-		return exitCode(serverSpendCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgSpendCommand(rest, stdout, stderr), stderr)
 	case "ai":
-		return exitCode(serverAICommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgAICommand(rest, stdin, stdout, stderr), stderr)
 	case "viewer":
-		return exitCode(serverViewerCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgViewerCommand(rest, stdout, stderr), stderr)
 	case "live":
-		return exitCode(serverLiveCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgLiveCommand(rest, stdin, stdout, stderr), stderr)
 	case "wall":
-		return exitCode(serverWallCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgWallCommand(rest, stdout, stderr), stderr)
 	case "templates":
-		return exitCode(serverTemplatesCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgTemplatesCommand(rest, stdin, stdout, stderr), stderr)
 	case "data":
-		return exitCode(serverDataCommand(rest, stdin, stdout, stderr), stderr)
+		return exitCode(orgDataCommand(rest, stdin, stdout, stderr), stderr)
 	case "expose":
-		return exitCode(serverExposeCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgExposeCommand(rest, stdout, stderr), stderr)
 	case "watch":
 		fmt.Fprintln(stderr, "hi: hi org watch is gone: teams watch themselves on their own machine (hi team watch), and this machine's heartbeat is hi heartbeat <url>.")
 		return 1
@@ -1859,19 +1859,19 @@ func runServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 }
 
-func serverFlags(name string, stderr io.Writer) (*flagSet, *string) {
+func orgFlags(name string, stderr io.Writer) (*flagSet, *string) {
 	flags := newComputeFlags("org "+name, stderr)
 	dir := flags.String("dir", "", "state directory")
 	return &flagSet{flags}, dir
 }
 
-func serverInitCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("init", stderr)
+func orgInitCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("init", stderr)
 	listen := flags.String("listen", "", "address to listen on")
 	if _, err := flags.parse(args); err != nil {
 		return err
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -1917,12 +1917,12 @@ func serverInitCommand(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-func serverRunCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("run", stderr)
+func orgRunCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("run", stderr)
 	if _, err := flags.parse(args); err != nil {
 		return err
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -1975,7 +1975,7 @@ func adminClient(dir string) (*http.Client, error) {
 }
 
 func adminCall(dirFlag, method, path string, body, result any) error {
-	dir, err := serverDirectory(dirFlag)
+	dir, err := orgDirectory(dirFlag)
 	if err != nil {
 		return err
 	}
@@ -2046,8 +2046,8 @@ func currentUserName() string {
 	return "admin"
 }
 
-func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("provider", stderr)
+func orgProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("provider", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	positional, err := flags.parse(args)
 	if err != nil {
@@ -2073,7 +2073,7 @@ func serverProviderCommand(args []string, stdin io.Reader, stdout, stderr io.Wri
 			return usageError{fmt.Sprintf("%q can't be managed yet; managed providers: %s",
 				name, strings.Join(managedProviderNames(), ", "))}
 		}
-		dir, err := serverDirectory(*dirFlag)
+		dir, err := orgDirectory(*dirFlag)
 		if err != nil {
 			return err
 		}
@@ -2146,8 +2146,8 @@ func readProviderKey(provider string, stdin io.Reader, stdout io.Writer) (string
 	return strings.TrimSpace(line), nil
 }
 
-func serverUserCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("user", stderr)
+func orgUserCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("user", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	group := flags.String("group", "", "group")
 	key := flags.String("key", "", "device key from `hi org key`")
@@ -2208,8 +2208,8 @@ func serverUserCommand(args []string, stdout, stderr io.Writer) error {
 	return usageError{"usage: hi org user add <u> --group G [--key K] | remove <u> | list"}
 }
 
-func serverRequestsCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("requests", stderr)
+func orgRequestsCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("requests", stderr)
 	all := flags.Bool("all", false, "every request")
 	positional, err := flags.parse(args)
 	if err != nil {
@@ -2243,8 +2243,8 @@ func serverRequestsCommand(args []string, stdout, stderr io.Writer) error {
 	return table.Flush()
 }
 
-func serverDecideCommand(decision string, args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags(decision, stderr)
+func orgDecideCommand(decision string, args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags(decision, stderr)
 	as := flags.String("as", currentUserName(), "who is deciding")
 	group := flags.String("group", "", "group for a new user")
 	reason := flags.String("reason", "", "why it is denied")
@@ -2271,8 +2271,8 @@ func serverDecideCommand(decision string, args []string, stdout, stderr io.Write
 	return nil
 }
 
-func serverListCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("ls", stderr)
+func orgListCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("ls", stderr)
 	positional, err := flags.parse(args)
 	if err != nil {
 		return err
@@ -2298,8 +2298,8 @@ func serverListCommand(args []string, stdout, stderr io.Writer) error {
 	return table.Flush()
 }
 
-func serverStopCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("stop", stderr)
+func orgStopCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("stop", stderr)
 	as := flags.String("as", currentUserName(), "who is acting")
 	user := flags.String("user", "", "stop everything this user runs")
 	all := flags.Bool("all", false, "stop everything")
@@ -2333,8 +2333,8 @@ func serverStopCommand(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-func serverAuditCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("audit", stderr)
+func orgAuditCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("audit", stderr)
 	since := flags.String("since", "7d", "how far back")
 	positional, err := flags.parse(args)
 	if err != nil {
@@ -2347,7 +2347,7 @@ func serverAuditCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil || window == noLimit {
 		return usageError{fmt.Sprintf("invalid --since %q; use e.g. 24h or 7d", *since)}
 	}
-	dir, err := serverDirectory(*dirFlag)
+	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
 	}
@@ -2376,7 +2376,7 @@ func serverAuditCommand(args []string, stdout, stderr io.Writer) error {
 
 // handleWatchGone answers a team from before hi 2.6.32, which still sends
 // the server its heartbeat, bill, or key request: teams watch themselves.
-func (s *hiServer) handleWatchGone(w http.ResponseWriter, _ *http.Request, _ serverDevice, _ []byte) {
+func (s *orgServer) handleWatchGone(w http.ResponseWriter, _ *http.Request, _ serverDevice, _ []byte) {
 	writeAPIError(w, http.StatusGone, "teams watch themselves on their own machine from hi v2.6.32 (hi team watch); update hi on the team's machine")
 }
 

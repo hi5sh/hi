@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// A wall screen shows `hi server live --wall` from a tmux session on the
+// A wall screen shows `hi org live --wall` from a tmux session on the
 // server box. The session runs as its own account, hi-wall, which holds only
 // a viewer key and cannot read the server's state or provider keys. Screens
 // attach over SSH with keys that can do nothing but a read-only attach.
@@ -67,8 +67,8 @@ func wallKeyLine(session, screen, publicKey string) (string, error) {
 		session, session, fields[0], fields[1], session, screen), nil
 }
 
-func serverWallCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("wall", stderr)
+func orgWallCommand(args []string, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("wall", stderr)
 	session := flags.String("session", "live", "the wall session")
 	size := flags.String("size", "", "a fixed size for every screen, such as 240x67")
 	positional, err := flags.parse(args)
@@ -112,8 +112,8 @@ func runQuiet(name string, args ...string) (string, error) {
 	return string(output), nil
 }
 
-// wallServerDir finds the server's state as the admin who ran sudo sees it.
-func wallServerDir(dirFlag string) (string, error) {
+// wallOrgDir finds the server's state as the admin who ran sudo sees it.
+func wallOrgDir(dirFlag string) (string, error) {
 	if dirFlag != "" {
 		return dirFlag, nil
 	}
@@ -132,7 +132,7 @@ func wallServerDir(dirFlag string) (string, error) {
 }
 
 func wallSetup(dirFlag, session, size string, stdout io.Writer) error {
-	dir, err := wallServerDir(dirFlag)
+	dir, err := wallOrgDir(dirFlag)
 	if err != nil {
 		return err
 	}

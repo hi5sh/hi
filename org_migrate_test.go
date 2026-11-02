@@ -29,14 +29,14 @@ func TestOrgRunMovesTheStateDirectory(t *testing.T) {
 	os.MkdirAll(old, 0o700)
 	os.WriteFile(filepath.Join(old, "config.json"), []byte("{}"), 0o600)
 
-	if dir, _ := serverDirectory(""); dir != old {
+	if dir, _ := orgDirectory(""); dir != old {
 		t.Fatalf("before the move: %s", dir)
 	}
 	var out bytes.Buffer
 	if err := moveOrgDirectory(old, &out); err != nil || !strings.Contains(out.String(), "Moved the org server's state") {
 		t.Fatalf("move: %v %s", err, out.String())
 	}
-	if dir, _ := serverDirectory(""); dir != target {
+	if dir, _ := orgDirectory(""); dir != target {
 		t.Fatalf("after the move: %s", dir)
 	}
 	if link, err := os.Readlink(old); err != nil || link != "org" {
@@ -57,11 +57,11 @@ func TestOrgRunMovesTheStateDirectory(t *testing.T) {
 		t.Fatalf("moved a custom directory: %s", out.String())
 	}
 	t.Setenv("HI_SERVER_DIR", custom)
-	if dir, _ := serverDirectory(""); dir != custom {
+	if dir, _ := orgDirectory(""); dir != custom {
 		t.Fatalf("HI_SERVER_DIR: %s", dir)
 	}
 	t.Setenv("HI_ORG_DIR", target)
-	if dir, _ := serverDirectory(""); dir != target {
+	if dir, _ := orgDirectory(""); dir != target {
 		t.Fatalf("HI_ORG_DIR: %s", dir)
 	}
 }

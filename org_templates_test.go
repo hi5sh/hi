@@ -160,7 +160,7 @@ func TestDeviceRefusesBundlesNotSignedByItsServer(t *testing.T) {
 	if entries, _ := os.ReadDir(filepath.Join(templateCacheDirectory(), "firm")); len(entries) != 0 {
 		t.Fatalf("the refused bundle was cached: %v", entries)
 	}
-	// And hi connect status notices the key changed.
+	// And hi org status notices the key changed.
 	if code, _, stderr := runHi("connect", "status"); code == 0 || !strings.Contains(stderr, "different key") {
 		t.Fatalf("connect status: %d %s", code, stderr)
 	}

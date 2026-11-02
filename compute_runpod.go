@@ -484,7 +484,7 @@ func (p *runpodProvider) lookupHardware(name string) (computeHardware, error) {
 	return option.hardware, err
 }
 
-// forgetHardware drops the cached list, so a long-running hi server sees
+// forgetHardware drops the cached list, so a long-running org server sees
 // current prices and availability.
 func (p *runpodProvider) forgetHardware() {
 	p.mu.Lock()
@@ -667,7 +667,7 @@ func (p *runpodProvider) create(request upRequest, stdout, stderr io.Writer) err
 		fmt.Fprintf(stderr, "hi: the pod still bills; stop it with `hi compute stop %s`\n", request.name)
 		return err
 	}
-	// A hi server has no SSH access to pods it starts for a device; its own
+	// An org server has no SSH access to pods it starts for a device; its own
 	// reconciler stops them at --max instead.
 	if request.max != noLimit && !request.brokered {
 		if err := p.installWatchdog(request.name, request.max); err != nil {

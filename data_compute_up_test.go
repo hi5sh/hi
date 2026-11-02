@@ -36,7 +36,7 @@ func dataUpSent(t *testing.T) string {
 
 func TestComputeUpDataHandsTheMachineARunToken(t *testing.T) {
 	ts, _, public := upWithData(t)
-	// RunPod through the hi server, approved by policy.
+	// RunPod through the org server, approved by policy.
 	code, stdout, stderr := runComputeTest("up", "--on", "runpod", "--gpu", "rtx-4090", "--name", "box", "--max", "2h",
 		"--data", "acme/ranker", "--data", "dataset:acme/bars", "--reason", "train", "--yes")
 	if code != 0 {

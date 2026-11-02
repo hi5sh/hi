@@ -54,7 +54,7 @@ func runUpdate(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if err := update(*requested, *check, stdout); err != nil {
 		return exitCode(err, stderr)
 	}
-	// A hi server started before this update still runs the old binary,
+	// An org server started before this update still runs the old binary,
 	// also when this update found nothing new to install.
 	if path, err := updateExecutable(); err == nil {
 		if resolved, err := filepath.EvalSymlinks(path); err == nil {

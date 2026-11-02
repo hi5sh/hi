@@ -547,8 +547,8 @@ func runLive(source liveSource, options liveOptions, once bool, width int, stdin
 // ---------------------------------------------------------------------------
 // commands
 
-func serverLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := serverFlags("live", stderr)
+func orgLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	flags, dirFlag := orgFlags("live", stderr)
 	wall := flags.Bool("wall", false, "read-only, for a shared screen")
 	names := flags.String("names", "initials", "on a wall: initials or full")
 	reasons := flags.Bool("reasons", false, "on a wall: show why each machine was requested")
@@ -566,7 +566,7 @@ func serverLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer)
 	// On the server box, read through the admin socket; anywhere else, through
 	// this device's connection, which must be a viewer to see everything.
 	var source liveSource
-	if dir, err := serverDirectory(*dirFlag); err == nil {
+	if dir, err := orgDirectory(*dirFlag); err == nil {
 		if _, err := adminClient(dir); err == nil {
 			source = adminLiveSource{dir: *dirFlag, actor: *as}
 		}
@@ -603,7 +603,7 @@ func computeLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer
 	return runLive(clientLiveSource{client: client}, liveOptions{title: "hi compute · your machines"}, *once, *width, stdin, stdout)
 }
 
-// connectedClient is this device's signed connection to its hi server.
+// connectedClient is this device's signed connection to its org server.
 func connectedClient() (*serverClient, error) {
 	connection, err := loadServerConnection()
 	if err != nil {

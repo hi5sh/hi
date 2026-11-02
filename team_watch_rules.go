@@ -5,7 +5,7 @@ package main
 // are down, a team that restarts on its own, OOM kills, a disk filling up,
 // snapshots that stopped, model spend that runs away or happens outside
 // hi. Rules are plain code, no model; each opens one incident until it
-// clears. Until hi 2.6.32 the hi server ran them on heartbeats teams sent
+// clears. Until hi 2.6.32 the org server ran them on heartbeats teams sent
 // it.
 //
 // Spec: docs/specs/approved/hi_watch.md, and hi_team_ops.md (release 3).

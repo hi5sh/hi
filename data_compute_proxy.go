@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// hi compute run --data through hi server expose: on Hugging Face Jobs, the
+// hi compute run --data through hi org expose: on Hugging Face Jobs, the
 // job reaches the server's data proxy at a public URL with a run token,
 // sent as an encrypted job secret. No size limit and no one-hour links;
 // the script can also call load_dataset for the named repositories.

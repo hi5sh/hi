@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// hi connect joins this device to a hi server. Until it does, hi compute
+// hi org join joins this device to an org server. Until it does, hi compute
 // works exactly as before, with the user's own keys.
 
 var connectPollEvery = 3 * time.Second

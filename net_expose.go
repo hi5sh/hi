@@ -364,7 +364,7 @@ func netExposeArgs(options netExposeOptions, relayPort int) []string {
 }
 
 // ---------------------------------------------------------------------------
-// netbird expose, shared with hi server expose
+// netbird expose, shared with hi org expose
 
 var exposeNameLine = regexp.MustCompile(`Name:\s*(\S+)`)
 
@@ -861,7 +861,7 @@ func printNetExposeState(state netExposeState, asJSON bool, stdout io.Writer) {
 	}
 }
 
-// reportNetExpose tells a connected hi server, for its audit log and live
+// reportNetExpose tells a connected org server, for its audit log and live
 // feed. It never fails the exposure.
 func reportNetExpose(state netExposeState, open bool) {
 	connection, err := loadServerConnection()

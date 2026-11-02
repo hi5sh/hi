@@ -16,7 +16,7 @@ func slashText(t *testing.T, ts *testServer, user, text string) string {
 }
 
 // link links a Slack member to the device's user through /hi link and
-// hi connect slack, as a person would.
+// hi org slack link, as a person would.
 func link(t *testing.T, ts *testServer, slackUser, user string) {
 	t.Helper()
 	reply := slashText(t, ts, slackUser, "link "+user)
