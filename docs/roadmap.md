@@ -4399,21 +4399,11 @@ and the spec's As-built sections):
   `~/hi-server-backup-20261022-202124`); orbit runs v1.7.1 and sends
   heartbeats since 2026-10-23, with its production lookups logged.
 
-Switching it on, on vmserver (an admin's, with credentials only they
-have; orbit sends heartbeats since v1.7.1 on 2026-10-23):
+Dropped on 2026-11-02: switching on the dead-man's switch, ntfy pushes,
+OpenRouter rekeying, and the NetBird cut-off through `hi server watch`
+(`--deadman`, `--ntfy`, `--openrouter`, `--netbird`), a command that went
+when hi server became hi org.
 
-- [ ] The dead-man's switch: a healthchecks.io check (1 minute, a few
-  minutes' grace) and `hi server watch --deadman <url>`. Until then
-  nobody hears if the server stops.
-- [ ] Pushes: an ntfy server that needs a login to read, not on
-  vmserver, then `hi server watch --ntfy <url> --ntfy-token <token>`,
-  and each team's owners subscribed (`hi server watch subscribe <team>`).
-- [ ] Revoke and rekey: an OpenRouter provisioning key (`hi server watch
-  --openrouter`), then each team moved to a key of the server's making
-  (`hi team key <team> openrouter --from-server`).
-- [ ] Cut off: a NetBird API token (`hi server watch --netbird`), and
-  peer approval turned on or the Default policy narrowed: as it is, All
-  reaches All and a cut off doesn't hold.
 - [ ] After a few weeks of orbit's heartbeats: look at what the network
   rules, the spend rule, and auto-freeze raised, and tune the thresholds
   and `watch-hosts.txt` on what was noise.
