@@ -1,6 +1,7 @@
 # `hi model` specification
 
-Status: Draft
+Status: Draft, folded into [hi_serve.md](hi_serve.md) (2026-11-02): local
+serving is `hi serve llm --on local`. This stays as background.
 
 Dependencies: `hi doctor` hardware detectors, Docker or Podman, managed-service
 lifecycle behavior, and a versioned recipe catalog.

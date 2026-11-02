@@ -200,7 +200,7 @@ offer` refuses such a name.
    hi_server.md.
 3. **`hi serve llm`.** `hi compute serve` moved under it, with `hi serve ls`,
    `stop`, and `logs` over the instances that serve a model.
-4. **Later, in their own specs.** `hi serve llm --on local` (hi_serve.md),
+4. **Later, in their own specs.** `hi serve llm --on local` ([hi_serve.md](../ideas/hi_serve.md)),
    then the machines: `hi org offer` and `hi org machines`, and `--on
    <machine|auto>` (../ideas/hi_cluster.md).
 5. **Cleaning up**, last: what was kept so nothing broke gets the new name
