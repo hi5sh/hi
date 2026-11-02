@@ -122,16 +122,25 @@ user's public key registered at https://huggingface.co/settings/keys.
 
 ## Serve a model
 
-`hi serve llm` starts a machine, runs llama.cpp with a GGUF model, and waits
-until it answers. `hi compute serve` is the same command under its old name.
+`hi serve llm` runs llama.cpp with a GGUF model, on a rented machine or with
+`--on local` on this machine's GPU (a Strix Halo), and waits until it
+answers. `hi compute serve` is the same command under its old name.
 
 ```sh
 hi serve llm --on colab --max 1h --yes qwen3.8-flash-next        # tested recipe, Colab G4
 hi serve llm --on hf --gpu t4-small --quant Q4_K_M --max 30m --yes unsloth/Qwen3-0.6B-GGUF
+hi serve llm --on local --yes qwen3.8-flash-next                # this machine: http://127.0.0.1:8080/v1
 hi serve ls                                                      # what you serve, and each API
 hi serve logs <name> --follow                                    # build, download, server
 hi serve stop <name>
 ```
+
+- On this machine, run `hi serve detect` first: it names what's missing
+  and the `hi install` that adds it. The model must fit in the memory
+  teams leave; hi refuses it otherwise, and `--yes` doesn't override that.
+  A local server keeps running until `hi serve stop`, which keeps it for
+  `hi serve start`; `hi serve rm` forgets it. Don't stop or remove one you
+  didn't start.
 
 - On Colab, `serve` then tunnels the API to `http://127.0.0.1:8080/v1` and
   stays in the foreground.

@@ -5,6 +5,7 @@ import (
 	"context"
 	_ "embed"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -28,17 +29,25 @@ const (
 // servePollEvery is shortened in tests.
 var servePollEvery = 10 * time.Second
 
-// serveRecipe is a tested model setup. Flags are hardware-specific, so a
-// recipe names the hardware to use on each provider.
+// serveRecipe is a tested model setup, read from a recipe file
+// (serve_recipe.go). Flags are hardware-specific, so a recipe names the
+// hardware to use on each provider, and its arguments there.
 type serveRecipe struct {
-	name     string
-	repo     string
-	quant    string
-	context  int
-	alias    string
-	args     string
-	hardware map[string]string
-	tested   string
+	name        string
+	description string
+	repo        string
+	revision    string // the Hub commit served locally; rented hardware takes the latest
+	quant       string
+	context     int
+	alias       string
+	args        string              // llama-server arguments on the chosen rented provider (forProvider)
+	common      []string            // arguments everywhere
+	rented      map[string][]string // arguments on one rented provider, before common
+	override    bool                // --args replaced the arguments
+	hardware    map[string]string
+	tested      string // the chosen provider's tested line (forProvider)
+	tests       map[string]string
+	local       map[string]localProfile // by backend
 }
 
 // serveProvider is implemented by providers whose instance runs the server
@@ -46,22 +55,6 @@ type serveRecipe struct {
 type serveProvider interface {
 	serverState(name string) (string, error)
 	serverURL(name string) (string, error)
-}
-
-var serveRecipes = map[string]serveRecipe{
-	"qwen3.8-flash-next": {
-		name:    "qwen3.8-flash-next",
-		repo:    "unsloth/Qwen3.8-Flash-Next-GGUF",
-		quant:   "UD-Q3_K_XL",
-		context: 131072,
-		alias:   "qwen3.8-flash-next",
-		// The 28.8 GB n-gram table stays fully in host RAM; lazy mode would
-		// stream it from Colab's slow network disk.
-		args: `-ot per_layer_token_embd\.weight=CPU --lazy-mode off --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0`,
-		// Both have 96 GB of VRAM on an RTX PRO 6000.
-		hardware: map[string]string{"colab": "G4", "hf": "rtx-pro-6000"},
-		tested:   "Colab G4, 2026-09-27: ~84 tokens/s through hi compute serve (~103 in colab-runner), 62.9 GB VRAM at 131k context, ready in ~7 min",
-	},
 }
 
 func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
@@ -80,6 +73,9 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	dryRun := flags.Bool("dry-run", false, "show without starting")
 	namespace := flags.String("namespace", "", "account or organization to bill")
 	reason := flags.String("reason", "", "why you need it (managed providers)")
+	memory := flags.String("memory", "", "local: the box's memory limit")
+	backend := flags.String("backend", "", "local: rocm")
+	share := flags.Bool("share", false, "local: also on this machine's NetBird address, with a key")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
 		return err
@@ -89,8 +85,35 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 			"recipes: " + strings.Join(serveRecipeNames(), ", ")}
 	}
 
-	if *on == "local" || *on == "auto" {
-		return usageError{fmt.Sprintf("--on %s isn't built yet; serve on colab, hf, runpod, or shadeform", *on)}
+	set := map[string]bool{}
+	flags.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	if *on == "local" {
+		if *share {
+			return usageError{"--share comes in the next release; a local server is on 127.0.0.1 only for now"}
+		}
+		for _, name := range []string{"gpu", "namespace", "reason"} {
+			if set[name] {
+				return usageError{fmt.Sprintf("--%s is for rented hardware, not --on local", name)}
+			}
+		}
+		lifetime := noLimit
+		if set["max"] {
+			lifetime = maxLifetime.value
+		}
+		if _, err := parsePort(strconv.Itoa(*localPort)); err != nil {
+			return err
+		}
+		return serveLocalCommand(localRequest{argument: positional[0], quant: *quant, alias: *alias, extra: *extra,
+			name: *name, memory: *memory, backend: *backend, context: *contextSize, port: *localPort, portSet: set["port"],
+			max: lifetime, yes: *yes, dryRun: *dryRun}, stdin, stdout, stderr)
+	}
+	if *on == "auto" {
+		return usageError{"--on auto isn't built yet; serve with --on local, or on colab, hf, runpod, or shadeform"}
+	}
+	for _, name := range []string{"memory", "backend", "share"} {
+		if set[name] {
+			return usageError{fmt.Sprintf("--%s is for --on local", name)}
+		}
 	}
 	recipe, err := resolveServeRecipe(positional[0], *quant, *contextSize, *alias, *extra)
 	if err != nil {
@@ -117,6 +140,7 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	if err != nil {
 		return err
 	}
+	recipe = recipe.forProvider(provider.name())
 	if *gpu == "" {
 		*gpu = recipe.hardware[provider.name()]
 	}
@@ -249,7 +273,7 @@ func resolveServeRecipe(argument, quant string, contextSize int, alias, extra st
 		recipe.alias = alias
 	}
 	if extra != "" {
-		recipe.args = extra
+		recipe.args, recipe.override = extra, true
 	}
 	for _, value := range []string{recipe.repo, recipe.quant, recipe.alias} {
 		if strings.ContainsAny(value, "'\"`$\\ \n") {

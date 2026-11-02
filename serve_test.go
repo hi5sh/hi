@@ -30,7 +30,7 @@ func TestServeLLMListsAndStopsTheModel(t *testing.T) {
 
 	code, stdout, stderr = runHi("serve", "ls")
 	if code != 0 || !strings.Contains(stdout, "NAME") ||
-		!strings.Contains(stdout, "qwen  hf        qwen3.8-flash-next  https://job0001--8000.hf.jobs/v1") {
+		!strings.Contains(stdout, "qwen  hf     qwen3.8-flash-next  https://job0001--8000.hf.jobs/v1  running") {
 		t.Fatalf("hi serve ls: %d\n%s%s", code, stdout, stderr)
 	}
 	code, stdout, _ = runHi("serve", "ls", "--json")
@@ -79,10 +79,21 @@ func TestComputeServeIsServeLLM(t *testing.T) {
 
 func TestServeRefusesWhatIsntBuiltYet(t *testing.T) {
 	serveTest(t)
-	for _, on := range []string{"local", "auto"} {
-		code, _, stderr := runHi("serve", "llm", "--on", on, "qwen3.8-flash-next")
-		if code != 2 || !strings.Contains(stderr, "--on "+on+" isn't built yet") {
-			t.Errorf("--on %s: %d %s", on, code, stderr)
+	if code, _, stderr := runHi("serve", "llm", "--on", "auto", "qwen3.8-flash-next"); code != 2 || !strings.Contains(stderr, "--on auto isn't built yet") {
+		t.Errorf("--on auto: %d %s", code, stderr)
+	}
+	for _, args := range [][]string{
+		{"serve", "llm", "--on", "local", "--share", "qwen3.8-flash-next"},
+		{"serve", "llm", "--on", "local", "--gpu", "G4", "qwen3.8-flash-next"},
+		{"serve", "llm", "--on", "hf", "--memory", "8G", "qwen3.8-flash-next"},
+	} {
+		if code, _, stderr := runHi(args...); code != 2 {
+			t.Errorf("hi %s: %d %s", strings.Join(args, " "), code, stderr)
+		}
+	}
+	for _, kind := range []string{"web", "files", "db"} {
+		if code, _, stderr := runHi("serve", kind, "x"); code != 1 || !strings.Contains(stderr, "isn't built yet") {
+			t.Errorf("hi serve %s: %d %s", kind, code, stderr)
 		}
 	}
 	if code, _, stderr := runHi("serve", "nonsense"); code != 2 || !strings.Contains(stderr, "unknown serve command") {
@@ -105,7 +116,7 @@ func TestServeListsATunnelledModel(t *testing.T) {
 		t.Fatalf("hi serve llm: %s", stderr)
 	}
 	code, stdout, stderr := runHi("serve", "ls")
-	if code != 0 || !strings.Contains(stdout, "qwen  colab     qwen3.8-flash-next  tunnel") ||
+	if code != 0 || !strings.Contains(stdout, "qwen  colab  qwen3.8-flash-next  tunnel  running") ||
 		!strings.Contains(stdout, "hi compute tunnel qwen 8000:8080") {
 		t.Fatalf("hi serve ls: %d\n%s%s", code, stdout, stderr)
 	}

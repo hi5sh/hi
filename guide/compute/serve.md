@@ -1,13 +1,14 @@
 ---
 title: Serve a model
-description: Start a GPU, run a GGUF model with llama.cpp, and use it through an OpenAI-compatible API from curl, Python, or any OpenAI-compatible tool.
+description: Run a GGUF model with llama.cpp on a rented GPU or on this machine's Strix Halo, and use it through an OpenAI-compatible API from curl, Python, or any OpenAI-compatible tool.
 ---
 
-`hi serve llm` rents a GPU, starts [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
+`hi serve llm` starts [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
 server with a GGUF model, waits until it answers, and gives you an
-OpenAI-compatible URL. It takes a tested recipe or any GGUF repository on the
-Hugging Face Hub. `hi compute serve` is another name for it, with the same
-options.
+OpenAI-compatible URL. It runs on a rented GPU, or with `--on local` on this
+machine's GPU (a Strix Halo, so far). It takes a tested recipe or any GGUF
+repository on the Hugging Face Hub. `hi compute serve` is another name for
+it, with the same options.
 
 ## With a recipe
 
@@ -20,7 +21,10 @@ hi serve llm qwen3.8-flash-next --on colab --max 1h
 
 | Recipe               | Model                                      | Hardware                             | Measured                     |
 |----------------------|--------------------------------------------|--------------------------------------|------------------------------|
-| `qwen3.8-flash-next` | `unsloth/Qwen3.8-Flash-Next-GGUF`, `UD-Q3_K_XL` (90 GB), 131k context | Colab `G4`, Hugging Face `rtx-pro-6000` (96 GB) | Colab G4: ready in ~7 min, ~84 tokens/s |
+| `qwen3.8-flash-next` | `unsloth/Qwen3.8-Flash-Next-GGUF`, `UD-Q3_K_XL` (90 GB), 131k context | Colab `G4`, Hugging Face `rtx-pro-6000` (96 GB), Strix Halo (`--on local`, 128 GB) | Colab G4: ready in ~7 min, ~84 tokens/s. Strix Halo: ready in 29 s from disk, 24 tokens/s |
+
+`hi serve llm` alone, or `hi serve recipes`, lists the recipes, where each
+runs, and whether it fits on this machine.
 
 [Try a 125B model on a 96 GB GPU](/guide/tutorials/big-model/) walks through
 this one.
@@ -48,6 +52,95 @@ file needs a 96 GB GPU.
 | `--args "<args>"` | Extra `llama-server` arguments                               |
 | `--port <port>`   | Local port for the tunnel; default 8080                      |
 | `--max`, `--name`, `--on`, `--namespace`, `--reason`, `--yes`, `--dry-run` | As for `hi compute up` |
+
+## On this machine
+
+On a Strix Halo with 128 GB, a recipe serves on the machine you're on:
+
+```sh
+hi serve detect                                   # what this machine can serve on
+hi serve llm qwen3.8-flash-next --on local
+```
+
+```text
+  detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, teams' boxes may still take 0 MB
+  check      it needs 91.0 GB with its context: fits, 21.3 GB left; 83.8 GB to download, 801 GB free
+  download   unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL at 766911a into ~/.local/share/hi/models/unsloth--Qwen3.8-Flash-Next-GGUF
+  pull       ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d… (once; ROCm images are about 23 GB)
+  start      hi-serve-qwen3-8-flash-next: a box with the GPU, no way out, the model read-only, behind its front on 127.0.0.1:8080
+  [15:30:22] loading the model
+  [15:30:51] ready after 29s
+  ready      OpenAI-compatible API: http://127.0.0.1:8080/v1   model: qwen3.8-flash-next
+```
+
+1. **Detect.** It looks for the evidence: a GPU the kernel lists (gfx1151),
+   `/dev/kfd` and `/dev/dri`, the render and video groups, and rootless
+   Podman 5 with `crun`. Anything missing is named with the `hi install`
+   that adds it (`hi install strix`, `hi install podman`), and nothing starts.
+2. **Check.** The recipe says how much memory the model takes in all, GPU
+   and host, as measured: 91 GB for this one. It must fit in what is
+   available, less what teams' boxes may still take under their limits and
+   8 GB of headroom, and the download must fit on the disk with 10% to
+   spare. If not, hi says by how much, before downloading anything.
+3. **Download.** hi downloads the files itself, from the commit the recipe
+   pins, and checks each against the Hub's SHA-256. A broken download
+   resumes when you run the command again; a partial file is never served.
+   Models are kept in `~/.local/share/hi/models`, so the next start doesn't
+   download them again.
+4. **Start.** The server runs in a box with the GPU, on a network with no
+   way out, with no capabilities, a read-only root, and the model mounted
+   read-only. Its only way in is a small front, hi itself in a second
+   container, which publishes the API on `127.0.0.1`. Both are systemd user
+   units, which Podman makes from files hi writes in
+   `~/.config/containers/systemd/`.
+
+It keeps running after you log out and comes back after a reboot, until you
+stop it, if your account lingers. If it doesn't, hi says so with the command
+an admin runs: `sudo loginctl enable-linger <you>`.
+
+`--max 4h` stops it after that long, also if the machine was off then. On
+your own machine there is no limit by default.
+
+| Option            | Meaning                                                     |
+|-------------------|-------------------------------------------------------------|
+| `--port <port>`   | Its port on `127.0.0.1`; default 8080, or the next free one. It keeps it |
+| `--memory <size>` | The box's memory limit, such as `72G`; default the recipe's |
+| `--backend rocm`  | The GPU backend; ROCm, with Vulkan later                     |
+| `--name <name>`   | Its name; default from the recipe, such as `qwen3-8-flash-next` |
+| `--ctx`, `--alias`, `--args`, `--quant`, `--max`, `--yes`, `--dry-run` | As above |
+
+`--dry-run` checks the machine and the memory, and prints the download, the
+image, and the units it would write, and changes nothing.
+
+### Teams come first
+
+The machines that serve models also run teams. A served box is the first
+thing the kernel stops when memory runs out, so a team's process is never
+killed to make room for a model. A box stopped that way stays stopped, and
+`hi serve ls` says `stopped: out of memory`; `hi serve start <name>` checks
+the memory again before it loads the model.
+
+On a Strix Halo the model's GPU memory isn't counted in the box's memory
+limit: the limit bounds the host side, and the check before the start bounds
+the whole.
+
+### Stop, start, and remove
+
+```sh
+hi serve stop qwen3-8-flash-next     # stops it and keeps it; it doesn't start at boot
+hi serve start qwen3-8-flash-next    # back on the same port, after the memory check
+hi serve rm qwen3-8-flash-next       # stops it and forgets it; the model stays
+hi serve models                      # models downloaded here, and what uses them
+hi serve models rm unsloth/Qwen3.8-Flash-Next-GGUF
+hi serve pull llm qwen3.8-flash-next # download a model and its image now, serve nothing
+```
+
+`hi serve models rm` is refused while something served uses the model.
+`hi update` doesn't restart a served model: its units run Podman, not hi.
+
+So far a local server is on `127.0.0.1` only, with no key, as llama.cpp is by
+default, and models come from the Hub's public repositories. Sharing one
+with a teammate over NetBird, with a key, comes next.
 
 ## What happens on each provider
 
@@ -148,15 +241,17 @@ hi serve ls
 ```
 
 ```text
-NAME           PROVIDER  MODEL               API                                  STOPS IN
-t4-small-3fa1  hf        qwen3-0.6b-gguf     https://6ab97de2…--8000.hf.jobs/v1   27m
-qwen           colab     qwen3.8-flash-next  tunnel                               52m
+NAME                WHERE  MODEL               API                                 STATE    STOPS IN
+t4-small-3fa1       hf     qwen3-0.6b-gguf     https://6ab97de2…--8000.hf.jobs/v1  running  27m
+qwen                colab  qwen3.8-flash-next  tunnel                              running  52m
+qwen3-8-flash-next  local  qwen3.8-flash-next  http://127.0.0.1:8080/v1            running  no limit
 ```
 
 A model on Colab, RunPod, or Shadeform is reached through its tunnel, so
 its API works while the tunnel runs; `hi compute tunnel <name> 8000:8080`
 opens it again. `hi serve ls --json` gives the same list, with the
-repository and quant of each.
+repository and quant of each. `hi serve status <name>` shows one: its
+address, state, memory, and image.
 
 ## Watch and troubleshoot
 
@@ -177,11 +272,12 @@ hi compute status <name>
 
 ## Stop
 
-A model server keeps costing money until it stops:
+A model server on rented hardware keeps costing money until it stops:
 
 ```sh
 hi serve stop <name>
 ```
 
 `hi serve stop` stops only machines that serve a model; `hi compute stop`
-stops any.
+stops any. On this machine, `hi serve stop` keeps the server to start again;
+see [Stop, start, and remove](#stop-start-and-remove).

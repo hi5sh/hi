@@ -1,7 +1,8 @@
 # `hi serve`: recipes served on rented hardware and on this machine
 
 Status: Approved (2026-11-02), for `hi serve llm --on local` and for the
-frame it is built on, so other kinds fit later. Other kinds, recipes from
+frame it is built on, so other kinds fit later. Release 1 is built
+(v2.6.59). Other kinds, recipes from
 the org and your own folder, and the org's catalog of what is served are a
 draft: [hi_serve_recipes.md](../ideas/hi_serve_recipes.md).
 
@@ -79,7 +80,7 @@ alone lists that kind's recipes and what each needs.
 hi serve llm <recipe | owner/repo-GGUF --quant Q> --on local [options]
     --port <port>          on 127.0.0.1 (default: 8080, or the next free one; kept across restarts)
     --ctx <tokens>         context length (recipes set their own)
-    --memory <size>        the box's memory limit (default: the recipe's need plus headroom)
+    --memory <size>        the box's memory limit (default: the recipe's limit)
     --backend rocm|vulkan  default: rocm on Strix Halo
     --max <duration>       stop after this long (default: none; it's your machine)
     --share                also on this machine's NetBird address, with a key
@@ -138,10 +139,11 @@ touch only what hi labeled as its own.
    6. ready      OpenAI-compatible API: http://127.0.0.1:8080/v1   model: qwen3.8-flash-next
 ```
 
-1. **Detect.** Evidence, not names. A Strix Halo is `gfx1151` with
-   `/dev/kfd`, `/dev/dri`, and the render and video groups (what `hi verify
-   strix` checks), and a ROCm device that `rocminfo` lists (or, for
-   `--backend vulkan`, one that `vulkaninfo` lists). It also needs rootless
+1. **Detect.** Evidence, not names. A Strix Halo is `gfx1151` in the
+   kernel's KFD topology (`/sys/class/kfd`), with `/dev/kfd`, `/dev/dri`,
+   and the render and video groups. The image brings ROCm, so `rocminfo`
+   isn't needed on the host (for `--backend vulkan`, `vulkaninfo` will
+   be). It also needs rootless
    Podman with `crun`, and lingering for the account (below). Anything
    missing is reported with the `hi install` command that fixes it, and
    nothing is guessed.
@@ -333,13 +335,15 @@ under Findings. A check that fails changes the design here first. Done on
 
 ## Releases
 
-1. **Local on Strix Halo.** `--on local` with the ROCm backend, built on the
+1. **Local on Strix Halo** (built, v2.6.59). `--on local` with the ROCm backend, built on the
    frame: recipe files (the existing recipe moved into one), the record's
    new fields, the served box, its front and units, and lingering. Also
    `hi serve detect`, `recipes`, `pull`, `models`, `ls`, `status`, `logs`,
    `stop`, `start`, and `rm`, and the memory and disk checks.
    qwen3.8-flash-next is tested on a Strix Halo that runs no production
-   teams.
+   teams. Left for release 2: a private model through the org server
+   (only public repositories download so far), and `hi update` offering
+   to restart a front that runs an old hi.
 2. **Sharing.** `--share`, the key at the front, `hi serve key`, and the
    access lines in `hi serve logs`.
 3. **The org knows.** `--org`, with hi_llm.md's named upstreams.
@@ -457,3 +461,17 @@ below changed the design where marked.
 5. **Streaming through the front (check 5): pass.** A 300-token answer
    arrived as 302 chunks spread over 12 s, as generated, through a reverse
    proxy that flushes at once (Go's `FlushInterval = -1`).
+6. **Release 1 on the same machine (2026-11-02): pass, with a change.**
+   `hi serve llm qwen3.8-flash-next --on local` checked the three files
+   already there against the Hub in about 45 s, and the model was ready
+   14 s after the start (28 s after a reboot, from a cold page cache);
+   24 tokens/s, streaming through the front. The box had no route out
+   and no DNS, a read-only root, `oom_score_adj` 1000, a 72 GB limit, and
+   its port on `127.0.0.1` only. It came back after a reboot; stopped,
+   it and a second, ad hoc model stayed stopped through one. `--max 2m`
+   stopped the second through its timer. Changed: when the last container
+   stops, Ubuntu 26.04's AppArmor profile for `pasta` refuses Podman's
+   SIGTERM (`apparmor="DENIED" operation="signal" profile="pasta"`), so
+   Podman's cleanup fails and systemd marks the unit failed though the
+   server exited 0. hi reads a failed unit whose server exited 0 as
+   stopped, and resets the units after `hi serve stop`.

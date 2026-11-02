@@ -89,10 +89,19 @@ See [Serve a model](/guide/compute/serve/).
 
 | Command                           | Does                                                                                   |
 |-----------------------------------|----------------------------------------------------------------------------------------|
-| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`; the options are `hi compute serve`'s |
-| `hi serve ls [--json]`            | The models you serve: where, their API, and until when                                 |
+| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine |
+| `hi serve llm`                    | The llm recipes                                                                        |
+| `hi serve ls [--json]`            | What you serve, here and rented: where, its API, its state, and until when             |
+| `hi serve status <name>`          | Its address, state, memory, and image                                                  |
 | `hi serve logs <name> [--follow]` | The server's setup and logs                                                            |
-| `hi serve stop <name>`            | Stop a model server and its machine                                                    |
+| `hi serve stop <name>`            | Rented: stop it and its machine. Local: stop it, and keep it to start again            |
+| `hi serve start <name> [--max <duration>]` | Start a stopped local server again, on the same port, after the memory check  |
+| `hi serve rm <name>`              | Stop a local server and forget it; its model stays                                     |
+| `hi serve detect`                 | What this machine can serve on: GPU, groups, Podman, lingering, memory, disk           |
+| `hi serve recipes [llm]`          | The recipes, where each runs, and whether it fits here                                 |
+| `hi serve pull llm <recipe>`      | Download a model and its image now, and serve nothing                                  |
+| `hi serve models [--json]`        | Models downloaded here, their size, and what uses them                                 |
+| `hi serve models rm <owner/repo>` | Delete a downloaded model that nothing serves                                          |
 
 ## hi org
 

@@ -2713,6 +2713,35 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.59 — hi serve llm --on local
+
+Spec: [hi_serve.md](specs/approved/hi_serve.md), release 1. Tried on a
+Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
+14 s with a warm page cache and 28 s after a reboot, 24 tokens/s.
+
+- [x] Recipes are JSON files under `recipes/<kind>/`, with an entry per
+  place they run: `qwen3.8-flash-next` moved out of Go, and rented
+  serving passes llama-server the same arguments as before.
+- [x] `hi serve llm <recipe> --on local` checks the machine from evidence
+  (the kernel's GPU, `/dev/kfd` and `/dev/dri`, the render and video
+  groups, Podman 5 with `crun`), then the memory, against the recipe's
+  measured need, less what teams' boxes may still take and 8 GB, and the
+  disk, before anything downloads. It names the `hi install` that adds
+  what's missing.
+- [x] It downloads the model on the host, at the recipe's commit,
+  resumably, and checks every file against the Hub's SHA-256; a file in
+  place is checked once.
+- [x] The server runs in a box on an internal network with no way out, no
+  capabilities, a read-only root, the model read-only, a host-side memory
+  limit, and `oom_score_adj` 1000, behind a front (hi in a second
+  container) that publishes it on `127.0.0.1`. Both are Quadlet user
+  units; a box the kernel killed for memory stays stopped.
+- [x] `hi serve ls` shows local and rented servers with their state;
+  `status`, `logs`, `stop` (keeps it, and it doesn't start at boot),
+  `start` (same port, memory checked again), `rm`, `detect`, `recipes`,
+  `pull`, `models`, and `models rm` (refused while in use). `--max`
+  stops a local server with a persistent timer.
+
 ### v2.6.58 — a device's org.json stays the one in use
 
 - [x] When an older `hi` saves `server.json` over the link to `org.json`,
@@ -4148,9 +4177,14 @@ Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
   need for the check; a box killed for memory stays stopped; and access
   lines name the key, since rootless Podman hides the client's address.
   qwen3.8-flash-next: ready in 29 s, 24 tokens/s.
-- [ ] Release 1: `--on local` with ROCm on the frame every kind will use
-  (recipes as JSON files, the served box and its front, Quadlet units),
-  with `detect`, `recipes`, `pull`, `models`, `status`, `start`, and `rm`.
+- [x] Release 1 (v2.6.59): `--on local` with ROCm on the frame every kind
+  will use (recipes as JSON files, the served box and its front, Quadlet
+  units), with `detect`, `recipes`, `pull`, `models`, `status`, `start`,
+  and `rm`.
+- [ ] Left from release 1: a model in the team's private organizations
+  through the org server (only the Hub's public repositories download
+  so far), and `hi update` offering to restart a front that runs an old
+  hi.
 - [ ] Release 2: `--share`, with the key checked at the front.
 - [ ] Release 3: `--org`, a shared model as a named upstream of `hi org ai`.
 - [ ] Later: web servers, file shares, and databases as recipes

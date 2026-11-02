@@ -1,0 +1,30 @@
+{
+  "kind": "llm",
+  "name": "qwen3.8-flash-next",
+  "description": "Qwen 3.8 Flash Next, 3-bit, 128k context",
+  "model": { "repo": "unsloth/Qwen3.8-Flash-Next-GGUF", "revision": "766911a6b7369840a91dbcd95f9f997acaab6cd6", "quant": "UD-Q3_K_XL" },
+  "alias": "qwen3.8-flash-next",
+  "context": 131072,
+  "args": ["--temp", "1.0", "--top-p", "0.95", "--top-k", "20", "--min-p", "0.0"],
+  "on": {
+    "colab": {
+      "hardware": "G4",
+      "args": ["-ot", "per_layer_token_embd\\.weight=CPU", "--lazy-mode", "off"],
+      "tested": "Colab G4, 2026-09-27: ~84 tokens/s through hi compute serve (~103 in colab-runner), 62.9 GB VRAM at 131k context, ready in ~7 min"
+    },
+    "hf": {
+      "hardware": "rtx-pro-6000",
+      "args": ["-ot", "per_layer_token_embd\\.weight=CPU", "--lazy-mode", "off"]
+    },
+    "runpod": { "args": ["-ot", "per_layer_token_embd\\.weight=CPU", "--lazy-mode", "off"] },
+    "shadeform": { "args": ["-ot", "per_layer_token_embd\\.weight=CPU", "--lazy-mode", "off"] },
+    "local": {
+      "rocm": {
+        "image": "ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d72e2e948d30fe8ff10ee204881d86a9260290bab352c4eb770ce7756",
+        "need": "91G",
+        "limit": "72G",
+        "tested": "Strix Halo, 2026-11-02, build 12033: 24 tokens/s, 540 tokens/s reading 8k, ready in 29 s from disk"
+      }
+    }
+  }
+}
