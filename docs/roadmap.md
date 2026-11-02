@@ -4137,6 +4137,23 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
+### Next — `hi serve llm --on local`
+
+Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
+`hi model` is `hi serve`.
+
+- [ ] First, the spec's "Verify before building" on a Strix Halo machine
+  that runs no production teams: Quadlet units on two networks, no way
+  out of an internal network, the ROCm llama.cpp image on gfx1151, the
+  memory limit keeping teams first, and streaming through the front.
+- [ ] Release 1: `--on local` with ROCm on the frame every kind will use
+  (recipes as JSON files, the served box and its front, Quadlet units),
+  with `detect`, `recipes`, `pull`, `models`, `status`, `start`, and `rm`.
+- [ ] Release 2: `--share`, with the key checked at the front.
+- [ ] Release 3: `--org`, a shared model as a named upstream of `hi org ai`.
+- [ ] Later: web servers, file shares, and databases as recipes
+  ([hi_serve_recipes.md](specs/ideas/hi_serve_recipes.md), draft).
+
 ### Next — sign-in with a real provider, before v2.7.0 is tagged
 
 v2.7.0 (`hi team sso`) is on main but untagged: its tests use a fake

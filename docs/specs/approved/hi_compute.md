@@ -11,7 +11,7 @@ providers.
 Dependencies: provider APIs and SDKs as listed under Provider integration;
 the `hf` CLI for login only; `hi login`; `uv` for script runs; OpenSSH for
 interactive instances; the recipe catalog from
-[hi_model.md](../ideas/hi_model.md) for `serve`.
+[hi_serve.md](hi_serve.md) for `serve`.
 
 ## Goal
 

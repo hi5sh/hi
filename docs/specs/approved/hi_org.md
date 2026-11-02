@@ -10,7 +10,7 @@ renamed), [hi_server_ai.md](hi_server_ai.md),
 [hi_compute.md](hi_compute.md) (`hi compute serve`, `--on`),
 [hi_update.md](hi_update.md) (restarting a server that runs an
 old binary), [hi_cluster.md](../ideas/hi_cluster.md) (the organization's machines),
-[hi_model.md](../ideas/hi_model.md) and [hi_llm.md](../ideas/hi_llm.md) (serving and using
+[hi_serve.md](hi_serve.md) (which took in hi_model.md) and [hi_llm.md](../ideas/hi_llm.md) (serving and using
 models).
 
 ## Goal
@@ -155,7 +155,7 @@ hi serve logs <name> [--follow]
 | `--on` | Where | From |
 |---|---|---|
 | `colab`, `hf`, `runpod`, `shadeform` | Rented hardware, through the org when managed | Today's `hi compute serve` |
-| `local` | This machine, in a box | hi_model.md, folded in here |
+| `local` | This machine, in a box | [hi_serve.md](hi_serve.md), with hi_model.md merged in |
 | `<machine>` | One of the organization's machines | hi_cluster.md |
 | `auto` | An organization machine that fits | hi_cluster.md |
 
@@ -201,7 +201,7 @@ offer` refuses such a name.
    hi_server.md.
 3. **`hi serve llm`.** `hi compute serve` moved under it, with `hi serve ls`,
    `stop`, and `logs` over the instances that serve a model.
-4. **Later, in their own specs.** `hi serve llm --on local` ([hi_serve.md](../ideas/hi_serve.md)),
+4. **Later, in their own specs.** `hi serve llm --on local` ([hi_serve.md](hi_serve.md)),
    then the machines: `hi org offer` and `hi org machines`, and `--on
    <machine|auto>` (../ideas/hi_cluster.md).
 5. **Cleaning up**, last: what was kept so nothing broke gets the new name
