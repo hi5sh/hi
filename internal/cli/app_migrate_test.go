@@ -159,3 +159,38 @@ func TestLegacyAppExposeLeavesOtherApps(t *testing.T) {
 		t.Error("cartman's dev page, with no cartman-dev app")
 	}
 }
+
+func TestAppMigrateCarriesTheWatchersRecord(t *testing.T) {
+	folder := t.TempDir()
+	writeSkillTestFile(t, filepath.Join(folder, "watch", "state.json"), `{"teams": {"goat": {
+		"logs_kept": {"apps": 10, "box:team-goat-dev": 2142908, "box:team-goats-dev": 5},
+		"net_seen": {"allowlist:box:team-goat-dev:kenney.nl": "2026-10-28T10:00:00Z", "burst": "2026-10-28T10:00:00Z"}},
+		"other": {"logs_kept": {"box:team-goat-dev": 1}}}, "config": {"x": 1}}`, 0o600)
+	writeSkillTestFile(t, filepath.Join(folder, "run", "watch.json"), `{"kept": 4, "logs_kept": {"box:team-goat-dev": 2142908}}`, 0o600)
+	migrateAppWatchState("goat", folder)
+	var state struct {
+		Teams map[string]struct {
+			LogsKept map[string]float64 `json:"logs_kept"`
+			NetSeen  map[string]string  `json:"net_seen"`
+		} `json:"teams"`
+		Config map[string]int `json:"config"`
+	}
+	data, _ := os.ReadFile(filepath.Join(folder, "watch", "state.json"))
+	if err := json.Unmarshal(data, &state); err != nil {
+		t.Fatal(err)
+	}
+	goat := state.Teams["goat"]
+	if goat.LogsKept["box:app-goat-dev"] != 2142908 || goat.LogsKept["apps"] != 10 || goat.LogsKept["box:team-goats-dev"] != 5 || len(goat.LogsKept) != 3 {
+		t.Fatal(goat.LogsKept)
+	}
+	if goat.NetSeen["allowlist:box:app-goat-dev:kenney.nl"] == "" || goat.NetSeen["burst"] == "" || len(goat.NetSeen) != 2 {
+		t.Fatal(goat.NetSeen)
+	}
+	if state.Teams["other"].LogsKept["box:team-goat-dev"] != 1 || state.Config["x"] != 1 {
+		t.Fatal("touched what isn't goat's record:", string(data))
+	}
+	data, _ = os.ReadFile(filepath.Join(folder, "run", "watch.json"))
+	if !strings.Contains(string(data), `"box:app-goat-dev": 2142908`) || strings.Contains(string(data), "team-goat") || !strings.Contains(string(data), `"kept": 4`) {
+		t.Fatal(string(data))
+	}
+}

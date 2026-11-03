@@ -2713,6 +2713,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.68 — Moving an app keeps what its watcher has seen
+
+- [x] `hi app up` on an app from before v2.6.67 gives the watcher's record
+  of each box under its old name to its new name: how far it read the
+  box's network log, and what it has seen there. Without it the watcher
+  read the dev box's whole log again and took every site an owner ever
+  allowed for new, as "may now reach" incidents.
+
 ### v2.6.67 — hi team is hi app
 
 - [x] The product is an app: `hi app new|up|down|ls` and every other

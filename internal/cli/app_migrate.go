@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -87,6 +88,7 @@ var appMigrate = func(name string, stdout io.Writer) error {
 		appStopLegacy(name)
 	}
 	folder := appDir(name)
+	migrateAppWatchState(name, folder)
 	if filepath.Base(folder) != "team-"+name {
 		return nil
 	}
@@ -192,4 +194,67 @@ func legacyAppExpose(expose, name string, others map[string]bool) bool {
 
 func legacyAppExposeName(expose, name string) bool {
 	return regexp.MustCompile(`^team-` + regexp.QuoteMeta(name) + `(-live|-dev)?-[A-Za-z0-9_-]{6}$`).MatchString(expose)
+}
+
+// migrateAppWatchState gives the watcher's record of each box under its
+// old name to the box's new name: how far it read the box's network log,
+// and what it has seen there. Without it the watcher would read the dev
+// box's whole log again and take every site an owner ever allowed for new.
+func migrateAppWatchState(name, folder string) {
+	renamed := func(key string) (string, bool) {
+		old := "box:team-" + name
+		i := strings.Index(key, old)
+		if i < 0 {
+			return "", false
+		}
+		rest := key[i+len(old):]
+		if rest != "" && rest[0] != '-' && rest[0] != ':' {
+			return "", false
+		}
+		return key[:i] + "box:app-" + name + rest, true
+	}
+	carry := func(values map[string]any) {
+		for key, value := range values {
+			if next, ok := renamed(key); ok {
+				if _, there := values[next]; !there {
+					values[next] = value
+				}
+				delete(values, key)
+			}
+		}
+	}
+	rewrite := func(path string, fields func(map[string]any) []map[string]any) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+		var state map[string]any
+		if json.Unmarshal(data, &state) != nil {
+			return
+		}
+		for _, values := range fields(state) {
+			carry(values)
+		}
+		if data, err := json.MarshalIndent(state, "", "  "); err == nil {
+			writeFileAtomic(path, append(data, '\n'), 0o600)
+		}
+	}
+	field := func(state map[string]any, keys ...string) map[string]any {
+		var current any = state
+		for _, key := range keys {
+			next, ok := current.(map[string]any)
+			if !ok {
+				return nil
+			}
+			current = next[key]
+		}
+		values, _ := current.(map[string]any)
+		return values
+	}
+	rewrite(filepath.Join(folder, "watch", "state.json"), func(state map[string]any) []map[string]any {
+		return []map[string]any{field(state, "teams", name, "logs_kept"), field(state, "teams", name, "net_seen")}
+	})
+	rewrite(filepath.Join(folder, "run", "watch.json"), func(state map[string]any) []map[string]any {
+		return []map[string]any{field(state, "logs_kept")}
+	})
 }
