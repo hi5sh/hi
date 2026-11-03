@@ -92,23 +92,23 @@ type nvidiaGPUs struct {
 
 // nvidiaDriverVersion is the loaded kernel module's version, or "".
 func nvidiaDriverVersion() string {
+	if data, err := os.ReadFile(servePath("/sys/module/nvidia/version")); err == nil {
+		if version := strings.TrimSpace(string(data)); version != "" {
+			return version
+		}
+	}
 	data, err := os.ReadFile(servePath("/proc/driver/nvidia/version"))
 	if err != nil {
 		return ""
 	}
 	// NVRM version: NVIDIA UNIX x86_64 Kernel Module  570.124.06  Wed Feb 26 ...
-	fields := strings.Fields(strings.SplitN(string(data), "\n", 2)[0])
-	for i, field := range fields {
-		if field == "Module" && i+1 < len(fields) {
-			return fields[i+1]
-		}
-	}
-	for _, field := range fields {
-		if strings.Count(field, ".") >= 1 && field[0] >= '0' && field[0] <= '9' {
+	// NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  580.126.09  Release Build ...
+	for _, field := range strings.Fields(strings.SplitN(string(data), "\n", 2)[0]) {
+		if strings.Contains(field, ".") && strings.Trim(field, "0123456789.") == "" {
 			return field
 		}
 	}
-	return ""
+	return "unknown"
 }
 
 // readNvidiaGPUs asks nvidia-smi, which comes with the driver.
@@ -205,7 +205,7 @@ func (m *serveMachine) detectAMD() {
 func (m *serveMachine) detectNVIDIA() {
 	m.driver = nvidiaDriverVersion()
 	if m.driver == "" {
-		m.problems = append(m.problems, "No NVIDIA driver is loaded (no /proc/driver/nvidia/version). Installing it takes sudo and a reboot; ask your IT team.")
+		m.problems = append(m.problems, "No NVIDIA driver is loaded (no /sys/module/nvidia). Installing it takes sudo and a reboot; ask your IT team.")
 		return
 	}
 	gpus, err := readNvidiaGPUs()
@@ -259,18 +259,23 @@ func (m serveMachine) vramRoom() int64 {
 	return max(0, m.nvidia.free-serveVRAMHeadroom)
 }
 
-// backendUnitLines are the box's devices and what they need.
-func backendUnitLines(backend string) string {
+// backendUnitLines are the box's devices and what they need, and the
+// box's own Podman arguments. GroupAdd= and Entrypoint= are written as
+// arguments: Quadlet only has them from Podman 5, and Ubuntu 24.04 has 4.9.
+func backendUnitLines(backend string) (lines, podmanArgs string) {
 	switch backend {
 	case backendVulkan:
 		// Mesa's shader cache goes on the box's tmpfs: its root is read-only.
-		return "AddDevice=/dev/dri\nGroupAdd=keep-groups\nEnvironment=MESA_SHADER_CACHE_DIR=/tmp/mesa\n"
+		return "AddDevice=/dev/dri\nEnvironment=MESA_SHADER_CACHE_DIR=/tmp/mesa\nReadOnly=true\n", " --group-add=keep-groups"
 	case backendCUDA:
-		return "AddDevice=nvidia.com/gpu=all\n"
+		// NVIDIA's CDI hooks link the driver's libraries into the box's root
+		// as it starts, so its root can't be read-only; the box runs as you,
+		// and can't write the image's files (hi_serve.md, Findings 9).
+		return "AddDevice=nvidia.com/gpu=all\n", ""
 	case backendCPU:
-		return ""
+		return "ReadOnly=true\n", ""
 	}
-	return "AddDevice=/dev/kfd\nAddDevice=/dev/dri\nGroupAdd=keep-groups\n"
+	return "AddDevice=/dev/kfd\nAddDevice=/dev/dri\nReadOnly=true\n", " --group-add=keep-groups"
 }
 
 // backendText says what a backend is, for detect.

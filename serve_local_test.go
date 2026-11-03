@@ -298,7 +298,7 @@ func TestServeLocalServesStopsStartsAndRemoves(t *testing.T) {
 		"Network=hi-serve-qwen3-8-flash-next.network\n",
 		"AddDevice=/dev/kfd\nAddDevice=/dev/dri\n",
 		"ReadOnly=true\n", "DropCapability=ALL\n", "NoNewPrivileges=true\n",
-		"PodmanArgs=--memory=73728m --oom-score-adj=1000\n",
+		"PodmanArgs=--memory=73728m --oom-score-adj=1000 --group-add=keep-groups\n",
 		"Label=hi.serve=qwen3-8-flash-next\n",
 		"Restart=on-failure\n", "RestartPreventExitStatus=137\n",
 		"[Install]\nWantedBy=default.target\n",
@@ -312,7 +312,7 @@ func TestServeLocalServesStopsStartsAndRemoves(t *testing.T) {
 	}
 	front := quadletFile(t, "hi-serve-qwen3-8-flash-next-front.container")
 	for _, want := range []string{
-		"Entrypoint=/usr/local/bin/hi\n",
+		"PodmanArgs=--memory=256m --entrypoint=/usr/local/bin/hi\n",
 		"Exec=serve __front :8080 http://hi-serve-qwen3-8-flash-next:8080\n",
 		"Volume=/home/hi/.local/bin/hi:/usr/local/bin/hi:ro\n",
 		"Network=hi-serve-qwen3-8-flash-next.network\nNetwork=hi-serve-qwen3-8-flash-next-front.network\n",

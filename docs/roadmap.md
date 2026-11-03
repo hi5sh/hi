@@ -4217,8 +4217,10 @@ Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
   tokens/s) and CPU (13) profiles, tested on a Strix Halo. NVIDIA goes
   through Podman's CDI devices, with the driver checked against the
   image's CUDA before anything is downloaded.
-- [ ] NVIDIA on a real machine: run a model with `--backend cuda` and give
-  a recipe a tested `cuda` profile.
+- [x] NVIDIA on a real machine (v2.6.63): qwen3.8-flash-next on a rented RTX
+  PRO 6000, 44 tokens/s, now a tested `cuda` profile. The CUDA box's root
+  is writable for NVIDIA's CDI hooks, Ubuntu 24.04's Podman 4.9 works, and
+  `hi serve rm` lets a name be served again.
 - [ ] Later: web servers, file shares, and databases as recipes
   ([hi_serve_recipes.md](specs/ideas/hi_serve_recipes.md), draft).
 

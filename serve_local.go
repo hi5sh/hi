@@ -32,7 +32,9 @@ const (
 var (
 	serveSysRoot   = "" // a fake / with /sys, /dev, and /proc
 	serveSystemctl = func(args ...string) (string, error) {
-		out, err := exec.Command("systemctl", append([]string{"--user"}, args...)...).CombinedOutput()
+		command := exec.Command("systemctl", append([]string{"--user"}, args...)...)
+		command.Env = userBusEnv()
+		out, err := command.CombinedOutput()
 		if err != nil {
 			return string(out), fmt.Errorf("systemctl --user %s: %s", strings.Join(args, " "), qFirstLine(string(out), err.Error()))
 		}
@@ -40,6 +42,7 @@ var (
 	}
 	serveJournal = func(stdout, stderr io.Writer, args ...string) error {
 		command := exec.Command("journalctl", append([]string{"--user"}, args...)...)
+		command.Env = userBusEnv()
 		command.Stdout, command.Stderr = stdout, stderr
 		return command.Run()
 	}
@@ -76,6 +79,19 @@ var (
 )
 
 func servePath(path string) string { return filepath.Join(serveSysRoot, path) }
+
+// userBusEnv is the environment for systemctl --user: some SSH sessions,
+// such as a rented machine's, start without XDG_RUNTIME_DIR, and systemd's
+// user bus is then not found though the account lingers.
+func userBusEnv() []string {
+	env := os.Environ()
+	if os.Getenv("XDG_RUNTIME_DIR") == "" {
+		if dir := fmt.Sprintf("/run/user/%d", os.Getuid()); fileExists(dir) {
+			env = append(env, "XDG_RUNTIME_DIR="+dir)
+		}
+	}
+	return env
+}
 
 // ---------------------------------------------------------------------------
 // detect
@@ -129,8 +145,8 @@ func detectServeMachine(backend string) serveMachine {
 			m.problems = append(m.problems, "Podman doesn't answer (podman info failed); check it with podman info.")
 		} else if m.runtime != "crun" && (backend == backendROCm || backend == backendVulkan) {
 			m.problems = append(m.problems, fmt.Sprintf("Podman runs containers with %s, and passing the GPU's groups in needs crun: install crun, and set runtime = \"crun\" under [engine] in ~/.config/containers/containers.conf.", m.runtime))
-		} else if major, _ := strconv.Atoi(strings.Split(m.podman, ".")[0]); major < 5 {
-			m.problems = append(m.problems, fmt.Sprintf("Podman %s is too old for hi serve's units; it needs 5 or later.", m.podman))
+		} else if compareVersions(m.podman, "4.9") < 0 {
+			m.problems = append(m.problems, fmt.Sprintf("Podman %s is too old for hi serve's units; it needs 4.9 or later.", m.podman))
 		}
 	} else {
 		m.problems = append(m.problems, "Podman isn't installed; hi install podman adds it. (Docker isn't used: its daemon runs boxes as root.)")
@@ -311,7 +327,7 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "Memory:     %s, %s available\n", sizeText(m.memTotal), sizeText(m.memAvailable))
 	fmt.Fprintf(stdout, "Teams:      %d %s, which may still take %s\n", m.teamBoxes, map[bool]string{true: "box", false: "boxes"}[m.teamBoxes == 1], sizeText(m.teamsReserve))
 	if *backend == backendCUDA {
-		fmt.Fprintf(stdout, "For models: %s of GPU memory, and %s on the host (after %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveHeadroom))
+		fmt.Fprintf(stdout, "For models: %s of GPU memory and %s on the host (after %s and %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveVRAMHeadroom), sizeText(serveHeadroom))
 	} else {
 		fmt.Fprintf(stdout, "For models: %s (after %s of headroom)\n", sizeText(m.room()), sizeText(serveHeadroom))
 	}
@@ -430,7 +446,9 @@ func planLocal(argument, quant string, contextSize int, alias, extra, backend, m
 		// No measurement: the files and an estimate for the context's
 		// cache on the GPU, and a little on the host.
 		plan.vram = plan.model.size() + plan.model.size()*15/100 + 1<<30
-		plan.need, plan.limit = 4<<30, 16<<30
+		// The limit holds the model file's page cache as it loads: a
+		// smaller one evicts it as it is read, and loading takes minutes.
+		plan.need, plan.limit = 4<<30, max(16<<30, plan.model.size()+4<<30)
 	case plan.adhoc:
 		plan.need = plan.model.size() + plan.model.size()*15/100 + 1<<30
 		plan.limit = plan.need
@@ -926,6 +944,7 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 	for i, arg := range record.Args {
 		exec[i] = quadletValue(arg)
 	}
+	devices, boxArgs := backendUnitLines(backendOf(record))
 	box := header + "[Unit]\nDescription=hi serve " + record.Name + ": " + record.Model + "\n\n[Container]\n" +
 		"ContainerName=" + name + "\n" +
 		"Image=" + record.Image + "\n" +
@@ -933,10 +952,10 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		"Exec=" + strings.Join(exec, " ") + "\n" +
 		"Volume=" + quadletPath(filepath.Join(modelsDir, record.ModelDir)) + ":/models:ro\n" +
 		"Network=" + name + ".network\n" +
-		backendUnitLines(backendOf(record)) +
+		devices +
 		"UserNS=keep-id\nSecurityLabelDisable=true\n" +
-		"ReadOnly=true\nTmpfs=/tmp\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=4096\n" +
-		fmt.Sprintf("PodmanArgs=--memory=%dm --oom-score-adj=1000\n", record.Memory>>20) +
+		"Tmpfs=/tmp\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=4096\n" +
+		fmt.Sprintf("PodmanArgs=--memory=%dm --oom-score-adj=1000%s\n", record.Memory>>20, boxArgs) +
 		label +
 		"\n[Service]\nRestart=on-failure\n# The kernel killed it for memory: it stays stopped, beside the team it was killed for.\nRestartPreventExitStatus=137\nTimeoutStartSec=300\n" +
 		install
@@ -954,7 +973,6 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		"ContainerName=" + name + "-front\n" +
 		"Image=" + record.Image + "\n" +
 		"Pull=never\n" +
-		"Entrypoint=/usr/local/bin/hi\n" +
 		frontExec + "\n" +
 		"Volume=" + quadletPath(executable) + ":/usr/local/bin/hi:ro\n" +
 		keys +
@@ -962,7 +980,8 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		"Network=" + name + "-front.network\n" +
 		publish +
 		"UserNS=keep-id\nSecurityLabelDisable=true\nReadOnly=true\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=256\n" +
-		"PodmanArgs=--memory=256m\n" +
+		// --entrypoint, not Entrypoint=, which Quadlet only has from Podman 5.
+		"PodmanArgs=--memory=256m --entrypoint=/usr/local/bin/hi\n" +
 		label +
 		"\n[Service]\nRestart=on-failure\n" + retry +
 		install
@@ -1183,6 +1202,11 @@ func serveRemoveCommand(args []string, stdout, stderr io.Writer) error {
 			return fmt.Errorf("the units of %s aren't labeled as hi serve's, so hi leaves them alone", record.Name)
 		}
 		stopLocalUnits(record)
+		// Quadlet's network units stay active once they made the network:
+		// stopped here, so serving the name again makes it again.
+		networks := []string{"hi-serve-" + record.Name + "-network.service", "hi-serve-" + record.Name + "-front-network.service"}
+		serveSystemctl(append([]string{"stop"}, networks...)...)
+		serveSystemctl(append([]string{"reset-failed"}, networks...)...)
 		for _, unit := range []string{".network", "-front.network", ".container", "-front.container"} {
 			os.Remove(filepath.Join(serveQuadletDir(), "hi-serve-"+record.Name+unit))
 		}

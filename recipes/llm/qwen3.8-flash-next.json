@@ -31,6 +31,15 @@
         "limit": "72G",
         "tested": "Strix Halo, 2026-11-03, build 12033: 28 tokens/s, 439 tokens/s reading 10k, ready in 28 s from disk"
       },
+      "cuda": {
+        "image": "ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:0a9f6c7cfe5a6b90b6c048b7a86865bf55a88af34bada927482eab2ef5f25b4a",
+        "cuda": "12.8",
+        "vram": "66G",
+        "need": "8G",
+        "limit": "64G",
+        "args": ["-ot", "per_layer_token_embd\\.weight=CPU", "--lazy-mode", "off"],
+        "tested": "RTX PRO 6000 Blackwell (96 GB), driver 580.126, 2026-11-03, build 12033: 44 tokens/s, 901 tokens/s reading 10k, 62 GB of GPU memory, ready in 36 s from the page cache, 2 min from disk"
+      },
       "cpu": {
         "image": "ghcr.io/ggml-org/llama.cpp:server@sha256:0b0212befa4facc6fd1e34ee04e19f13b570d0b9ec87d26edf4c402dc0dd636f",
         "need": "88G",

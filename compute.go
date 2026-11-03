@@ -930,7 +930,10 @@ func listInstances(stdout, stderr io.Writer) ([]listedInstance, error) {
 		}
 		instances, err := provider.list()
 		if err != nil {
-			return nil, fmt.Errorf("list %s instances: %w", provider.name(), err)
+			// One provider that can't list, such as a sign-in that expired,
+			// doesn't hide the others; its records are kept as they are.
+			fmt.Fprintf(stderr, "hi: list %s instances: %v; the other providers' are listed\n", provider.name(), err)
+			continue
 		}
 		seen := map[string]bool{}
 		for _, instance := range instances {
@@ -1048,13 +1051,15 @@ func findInstance(argument string) (computeProvider, string, error) {
 		provider, err := providerByName(record.Provider)
 		return provider, name, err
 	}
+	var listErrors []string
 	for _, provider := range computeProviders {
 		if status := provider.check(); !status.installed || !status.signedIn {
 			continue
 		}
 		instances, err := provider.list()
 		if err != nil {
-			return nil, "", err
+			listErrors = append(listErrors, fmt.Sprintf("%s: %v", provider.name(), err))
+			continue
 		}
 		for _, instance := range instances {
 			if instance.name == name {
@@ -1073,6 +1078,10 @@ func findInstance(argument string) (computeProvider, string, error) {
 		if _, err := history.lookup(name); err == nil {
 			return provider, name, nil
 		}
+	}
+	if len(listErrors) > 0 {
+		return nil, "", fmt.Errorf("no instance named %q among the providers that answered (%s); name its provider, such as shadeform/%s",
+			name, strings.Join(listErrors, "; "), name)
 	}
 	return nil, "", fmt.Errorf("no instance named %q; see `hi compute ls`", name)
 }

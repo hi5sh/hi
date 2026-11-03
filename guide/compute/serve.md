@@ -75,7 +75,7 @@ hi serve llm qwen3.8-flash-next --on local
 
 1. **Detect.** It looks for the evidence: a GPU the kernel lists (gfx1151),
    `/dev/kfd` and `/dev/dri`, the render and video groups, and rootless
-   Podman 5 with `crun`. Anything missing is named with the `hi install`
+   Podman 4.9 or later with `crun`. Anything missing is named with the `hi install`
    that adds it (`hi install strix`, `hi install podman`), and nothing starts.
 2. **Check.** The recipe says how much memory the model takes in all, GPU
    and host, as measured: 91 GB for this one. It must fit in what is
@@ -137,9 +137,11 @@ admin writes once with NVIDIA's Container Toolkit:
 sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 ```
 
-No recipe has a tested NVIDIA profile yet, so a model there is served by
-the repository and quant (`hi serve llm owner/Model-GGUF --quant Q4_K_M
---on local`), with its memory estimated. Without a GPU, nothing is served
+On an RTX PRO 6000 (96 GB), qwen3.8-flash-next writes 44 tokens/s and
+reads long prompts at 901 tokens/s, in 62 GB of GPU memory. A model
+without a recipe is served by the repository and quant (`hi serve llm
+owner/Model-GGUF --quant Q4_K_M --on local`), with its memory estimated.
+Ubuntu 24.04's own Podman (4.9) works. Without a GPU, nothing is served
 unless you ask for `--backend cpu`.
 
 ### Teams come first

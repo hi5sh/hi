@@ -2,8 +2,8 @@
 
 Status: Approved (2026-11-02), for `hi serve llm --on local` and for the
 frame it is built on, so other kinds fit later. Release 1 is built
-(v2.6.59), releases 2 and 3 (v2.6.60), and release 4 (v2.6.61), whose
-NVIDIA backend has not run on an NVIDIA machine yet. Other kinds, recipes from
+(v2.6.59), releases 2 and 3 (v2.6.60), and release 4 (v2.6.61, with
+its NVIDIA fixes in v2.6.63). Other kinds, recipes from
 the org and your own folder, and the org's catalog of what is served are a
 draft: [hi_serve_recipes.md](../ideas/hi_serve_recipes.md).
 
@@ -206,7 +206,8 @@ The same for every kind and recipe, so a new kind gets it for free.
   `llm` recipe does.
 - **Hardened as `hi box` boxes are.** Rootless Podman under your own
   account, no capabilities, no privilege gain, a pids limit, a read-only
-  root filesystem with the recipe's writable paths as tmpfs, only the
+  root filesystem with the recipe's writable paths as tmpfs (except on
+  CUDA, whose CDI hooks link the driver into the root; Findings 9), only the
   mounts the recipe declares, never the container engine's socket, and no
   credentials. A secret the server needs is a file mounted read-only,
   never an argument or an environment value.
@@ -233,6 +234,8 @@ The same for every kind and recipe, so a new kind gets it for free.
 - **Lingering.** User units stop when you log out unless the account
   lingers. If it doesn't, `hi serve` says so with the command, `sudo
   loginctl enable-linger <user>`, as `hi team up` and `hi heartbeat` do.
+- **Podman 4.9 or later**, so Ubuntu 24.04's own works: the units use no
+  Quadlet key newer than that (Findings 9).
 - **Podman only.** Docker's daemon runs boxes as root, and Quadlet is
   Podman's. Without Podman, hi says to run `hi install podman`.
 - **Labels.** Every container, network, and unit carries `hi.serve=<name>`.
@@ -412,9 +415,8 @@ under Findings. A check that fails changes the design here first. Done on
    through Podman's CDI devices, with the driver checked against the
    image's CUDA before the pull, and CPU profiles where a recipe has a
    validated one. Each comes with its own tested line. qwen3.8-flash-next
-   has Vulkan and CPU profiles, tested on a Strix Halo (Findings 8). No
-   NVIDIA machine has run it yet, so no recipe has a `cuda` profile, and
-   an ad hoc model on NVIDIA is served by estimate.
+   has Vulkan and CPU profiles, tested on a Strix Halo (Findings 8), and
+   a CUDA profile, tested on a rented RTX PRO 6000 (Findings 9).
 5. **On the org's machines.** `--on <machine>` and `--on auto` through `hi
    org machines` (hi_cluster.md, release 3): the same box and units, placed
    by the org server, on machines set aside for guests only, and reached
@@ -605,3 +607,36 @@ below changed the design where marked.
    while a stopped CPU one stayed stopped. The NVIDIA backend was tried
    only against a fake machine: detection, the CDI device, the CUDA
    check, and the GPU memory check.
+9. **NVIDIA on a rented machine (2026-11-03): pass, with changes.** A
+   Shadeform RTX PRO 6000 Blackwell (96 GB), Ubuntu 24.04.4, driver
+   580.126.09 (CUDA 13.0), NVIDIA Container Toolkit 1.18.2, 88 GB of RAM,
+   Podman 4.9.3 from Ubuntu with `crun`. `hi serve detect` named the
+   missing CDI spec and its `nvidia-ctk` command; after it, the box got
+   the GPU as `nvidia.com/gpu=all`. qwen3.8-flash-next at 131k context:
+   44 tokens/s, 50 at the end of a 10k prompt read at 901 tokens/s, and
+   62 GB of GPU memory. Ready in 6 s from the page cache and 2 min from
+   disk; it came back after a reboot. The box had no route out and ran
+   as the account's own uid, which can't write the image's files.
+   Changed:
+   - **The root is writable on CUDA.** NVIDIA's CDI hooks
+     (`create-symlinks`, `update-ldcache`) write the driver's library links
+     into the box's root as it starts, and fail on a read-only one; without
+     them llama.cpp finds no GPU. The box keeps everything else: no
+     capabilities, no privilege gain, its own uid, no way out.
+   - **The limit holds the model file.** The host side's own memory was
+     0.4 to 1.4 GB, but the model file's page cache is charged to the box:
+     under a 16 GB limit it was evicted as it was read, 33,418 times, and
+     loading took 5 minutes cold and 3 warm, against 2 minutes and 36 s
+     under 64 GB. The profile's limit is 64 GB, and an ad hoc model's is
+     its files' size and 4 GB.
+   - **Podman 4.9.** Ubuntu 24.04 has no Podman 5. Its Quadlet lacks
+     `Entrypoint=` and `GroupAdd=`, which the units now pass as Podman
+     arguments, and nothing else they use, so hi asks for 4.9.
+   - **The user bus.** The rented machine's SSH session had no
+     `XDG_RUNTIME_DIR`, so `systemctl --user` found no bus; hi sets it to
+     `/run/user/<uid>` when it is missing and the folder exists.
+   - **Removing a server.** `hi serve rm` left Quadlet's network units
+     active, so serving the same name again found no network; it stops
+     them now.
+   - **The driver's version.** The open kernel module writes its version
+     after "for x86_64", so hi reads `/sys/module/nvidia/version`.

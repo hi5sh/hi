@@ -17,7 +17,7 @@ func nvidiaMachine(t *testing.T, f *fakeLocal, cudaVersion string, freeMiB int, 
 	os.Remove(filepath.Join(f.root, "dev/kfd"))
 	os.MkdirAll(filepath.Join(f.root, "proc/driver/nvidia"), 0o755)
 	os.WriteFile(filepath.Join(f.root, "proc/driver/nvidia/version"),
-		[]byte("NVRM version: NVIDIA UNIX x86_64 Kernel Module  570.124.06  Wed Feb 26 2026\nGCC version:  gcc 13\n"), 0o644)
+		[]byte("NVRM version: NVIDIA UNIX Open Kernel Module for x86_64  570.124.06  Release Build  (dvs-builder@U22)  Wed Feb 26 2026\nGCC version:  gcc 13\n"), 0o644)
 	if cdi {
 		os.MkdirAll(filepath.Join(f.root, "etc/cdi"), 0o755)
 		os.WriteFile(filepath.Join(f.root, "etc/cdi/nvidia.yaml"), []byte("cdiVersion: 0.5.0\nkind: nvidia.com/gpu\ndevices:\n- name: all\n"), 0o644)
@@ -52,8 +52,8 @@ func TestServeLocalOnVulkan(t *testing.T) {
 		t.Fatalf("serve on vulkan: %d\n%s%s", code, stdout, stderr)
 	}
 	box := quadletFile(t, "hi-serve-qwen3-8-flash-next.container")
-	for _, want := range []string{"Image=ghcr.io/ggml-org/llama.cpp:server-vulkan@sha256:4211375", "AddDevice=/dev/dri\nGroupAdd=keep-groups\n",
-		"Environment=MESA_SHADER_CACHE_DIR=/tmp/mesa\n", "-ngl 999", "--memory=73728m"} {
+	for _, want := range []string{"Image=ghcr.io/ggml-org/llama.cpp:server-vulkan@sha256:4211375", "AddDevice=/dev/dri\nEnvironment=MESA_SHADER_CACHE_DIR=/tmp/mesa\nReadOnly=true\n",
+		"--memory=73728m --oom-score-adj=1000 --group-add=keep-groups\n", "-ngl 999"} {
 		if !strings.Contains(box, want) {
 			t.Fatalf("the box lacks %q:\n%s", want, box)
 		}
@@ -67,7 +67,7 @@ func TestServeLocalOnVulkan(t *testing.T) {
 	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "Where:    local (vulkan)") {
 		t.Fatalf("status: %s", stdout)
 	}
-	if _, stdout, _ := runHi("serve", "recipes", "--backend", "vulkan"); !strings.Contains(stdout, "local (cpu, rocm, vulkan)") || !strings.Contains(stdout, "fits on vulkan") {
+	if _, stdout, _ := runHi("serve", "recipes", "--backend", "vulkan"); !strings.Contains(stdout, "local (cpu, cuda, rocm, vulkan)") || !strings.Contains(stdout, "fits on vulkan") {
 		t.Fatalf("recipes: %s", stdout)
 	}
 }
@@ -94,12 +94,12 @@ func TestServeLocalOnTheCPU(t *testing.T) {
 		t.Fatalf("serve on the CPU: %d\n%s%s", code, stdout, stderr)
 	}
 	box := quadletFile(t, "hi-serve-qwen3-8-flash-next.container")
-	for _, want := range []string{"Image=ghcr.io/ggml-org/llama.cpp:server@sha256:0b0212b", "-ngl 0 ", "--memory=90112m"} {
+	for _, want := range []string{"Image=ghcr.io/ggml-org/llama.cpp:server@sha256:0b0212b", "-ngl 0 ", "--memory=90112m --oom-score-adj=1000\n", "ReadOnly=true\n"} {
 		if !strings.Contains(box, want) {
 			t.Fatalf("the box lacks %q:\n%s", want, box)
 		}
 	}
-	if strings.Contains(box, "AddDevice") || strings.Contains(box, "GroupAdd") {
+	if strings.Contains(box, "AddDevice") || strings.Contains(box, "group-add") {
 		t.Fatalf("the CPU's box was given a device:\n%s", box)
 	}
 	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "needs 88.0 GB, on the CPU") {
@@ -137,8 +137,8 @@ func TestServeLocalOnNVIDIA(t *testing.T) {
 	if code, _, stderr := runHi("serve", "llm", adhocModel, "--quant", "UD-Q3_K_XL", "--on", "local", "--yes"); code == 0 || !strings.Contains(stderr, "of GPU memory by estimate") || !strings.Contains(stderr, "short, so nothing was started") {
 		t.Fatalf("too little GPU memory: %d %s", code, stderr)
 	}
-	if code, _, stderr := runHi("serve", "llm", "qwen3.8-flash-next", "--on", "local", "--yes"); code == 0 || !strings.Contains(stderr, "has no cuda profile") {
-		t.Fatalf("a recipe without a cuda profile: %d %s", code, stderr)
+	if code, _, stderr := runHi("serve", "llm", "qwen3.8-flash-next", "--on", "local", "--yes"); code == 0 || !strings.Contains(stderr, "it needs 66.0 GB of GPU memory with its context") {
+		t.Fatalf("the recipe on too small a GPU: %d %s", code, stderr)
 	}
 
 	nvidiaMachine(t, f, "13.0", 90000, true)
@@ -153,8 +153,12 @@ func TestServeLocalOnNVIDIA(t *testing.T) {
 			t.Fatalf("the box lacks %q:\n%s", want, box)
 		}
 	}
-	if strings.Contains(box, "/dev/kfd") || strings.Contains(box, "/dev/dri") {
+	if strings.Contains(box, "/dev/kfd") || strings.Contains(box, "/dev/dri") || strings.Contains(box, "group-add") {
 		t.Fatalf("CUDA was given AMD's devices:\n%s", box)
+	}
+	// NVIDIA's CDI hooks write the driver's links into the root.
+	if strings.Contains(box, "ReadOnly=true") || !strings.Contains(box, "DropCapability=ALL\n") {
+		t.Fatalf("the CUDA box's root:\n%s", box)
 	}
 	served, _ := loadServed()
 	record := served["qwen3-8-flash-next"]
@@ -163,6 +167,24 @@ func TestServeLocalOnNVIDIA(t *testing.T) {
 	}
 	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "of GPU memory and 4.0 GB on the host") {
 		t.Fatalf("status: %s", stdout)
+	}
+
+	// The recipe's own cuda profile, with its arguments for NVIDIA.
+	if code, stdout, stderr := runHi("serve", "llm", "qwen3.8-flash-next", "--on", "local", "--name", "recipe", "--dry-run"); code != 0 ||
+		!strings.Contains(stdout, "tested on RTX PRO 6000 Blackwell") || !strings.Contains(stdout, `-ot "per_layer_token_embd\\.weight=CPU" --lazy-mode off`) ||
+		!strings.Contains(stdout, "--memory=65536m") || !strings.Contains(stdout, "it needs 66.0 GB of GPU memory and 8.0 GB on the host") {
+		t.Fatalf("the recipe on cuda: %d\n%s%s", code, stdout, stderr)
+	}
+
+	// rm stops Quadlet's network units, so the name serves again.
+	if code, stdout, stderr := runHi("serve", "rm", "qwen3-8-flash-next"); code != 0 {
+		t.Fatalf("rm: %s%s", stdout, stderr)
+	}
+	if _, system := f.calls(); !strings.Contains(system, "stop hi-serve-qwen3-8-flash-next-network.service hi-serve-qwen3-8-flash-next-front-network.service") {
+		t.Fatalf("rm left the network units:\n%s", system)
+	}
+	if code, stdout, stderr := runHi("serve", "llm", adhocModel, "--quant", "UD-Q3_K_XL", "--on", "local", "--port", port, "--yes"); code != 0 {
+		t.Fatalf("serve again: %s%s", stdout, stderr)
 	}
 
 	// The driver is checked again at each start.
