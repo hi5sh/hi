@@ -1,0 +1,20 @@
+# The website, hi5.sh: .github/workflows/pages.yml builds this folder with
+# Jekyll and deploys it to GitHub Pages. index.html and install.sh are served
+# as they are; the guide lives in guide/.
+title: hi guide
+url: https://hi5.sh
+baseurl: ""
+description: Step-by-step guides for the hi CLI
+permalink: pretty
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+exclude:
+  - vendor/
+defaults:
+  - scope:
+      path: guide
+    values:
+      layout: guide

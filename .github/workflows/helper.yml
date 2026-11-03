@@ -5,12 +5,12 @@ on:
     paths:
       - "helper/**"
       - "third_party/finder/**"
-      - "team_helper*.go"
+      - "internal/cli/team_helper*.go"
   pull_request:
     paths:
       - "helper/**"
       - "third_party/finder/**"
-      - "team_helper*.go"
+      - "internal/cli/team_helper*.go"
 
 jobs:
   helper:
@@ -22,4 +22,4 @@ jobs:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2.2.0
       - name: The helper's tests in happy-dom, on the script hi serves
-        run: go test -run 'TestHelperInABrowser|TestTeamHelper' -v .
+        run: go test -run 'TestHelperInABrowser|TestTeamHelper' -v ./internal/cli

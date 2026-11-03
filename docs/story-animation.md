@@ -1,5 +1,7 @@
 # The story animation
 
+The website is in `site/`; paths here are from there.
+
 The feature pages' demos (`docs/feature-pages.md`) play scenes drawn in
 HTML and CSS from scene definitions, with no video and no library. Until
 2026-10-30 the homepage played a story with it too: an HR employee's idea

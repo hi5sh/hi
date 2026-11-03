@@ -4,13 +4,13 @@ on:
   push:
     paths:
       - "templates/**"
-      - "templates*.go"
-      - "team.go"
+      - "internal/cli/templates*.go"
+      - "internal/cli/team.go"
   pull_request:
     paths:
       - "templates/**"
-      - "templates*.go"
-      - "team.go"
+      - "internal/cli/templates*.go"
+      - "internal/cli/team.go"
 
 jobs:
   templates:
@@ -28,4 +28,4 @@ jobs:
       - name: Generate every built-in template and run its make check
         env:
           HI_TEMPLATE_CHECK: "1"
-        run: go test -run 'Template|Fragment|Compose' -v .
+        run: go test -run 'Template|Fragment|Compose' -v ./internal/cli

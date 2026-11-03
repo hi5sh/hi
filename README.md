@@ -481,10 +481,24 @@ machine with Radeon 8060S graphics; the final report detected the GPU through bo
 Build with Go 1.26 or newer:
 
 ```sh
-go build -o hi .
+go build -o /tmp/hi ./cmd/hi
 go test ./...
-HI_TEMPLATE_CHECK=1 go test -run Template .   # generate each template and run its make check
+HI_TEMPLATE_CHECK=1 go test -run Template ./internal/cli   # generate each template and run its make check
 ```
+
+The repository:
+
+| Folder | What it holds |
+|---|---|
+| `cmd/hi/` | The `hi` command; it only calls `internal/cli`. |
+| `internal/cli/` | hi itself, one Go package, a file or a few per command (`box*.go`, `team_*.go`, ...). |
+| `embed.go` | The files the binary carries, embedded from the folders below. |
+| `templates/`, `skills/`, `bundles/`, `recipes/` | Project templates, the hi skill, skill bundles, and `hi serve`'s recipes. |
+| `helper/` | The team pages' scripts and styles, and the lead's Hermes plugin. |
+| `scripts/` | The workstation installer and the llama.cpp setup that run on machines. |
+| `third_party/` | Vendored code, under its own licenses. |
+| `site/` | The website, hi5.sh. |
+| `docs/` | Specs, the roadmap, and notes on how the site is built. |
 
 Pushing a `v*` tag builds amd64 and arm64 Linux binaries, writes SHA-256
 checksums, and publishes them in a GitHub release. The setup script is embedded
@@ -492,10 +506,10 @@ in each binary, so script changes ship with the next release.
 
 ## Website
 
-GitHub Pages serves the repository root at <https://hi5.sh>. `index.html` is
-the landing page, `install.sh` is the CLI installer, and `llms.txt` points
-coding agents to the skill; all go live when
-pushed to `main`, without a release.
+The website is in `site/`, and a workflow deploys it to GitHub Pages at
+<https://hi5.sh> on every push to `main` that changes it, without a release.
+`site/index.html` is the landing page, `site/install.sh` is the CLI installer,
+and `site/llms.txt` points coding agents to the skill.
 
 ## License
 

@@ -1,5 +1,7 @@
 # Structure diagrams in the guide
 
+The website is in `site/`; paths here are from there.
+
 Every hi tool's main guide page shows how its parts fit together in a
 diagram, near the top, right after the opening paragraphs: what runs where,
 what sits inside what, and which way things go. People grasp a tool's shape
@@ -10,12 +12,12 @@ numbered marks, and a key that explains each mark.
 
 ## The rule
 
-- A tool's main page has a diagram. `guide_diagrams_test.go` lists the
+- A tool's main page has a diagram. `internal/cli/guide_diagrams_test.go` lists the
   pages that must have one (`guideDiagramPages`); a new tool's page goes
   there with its diagram.
 - A change to how a tool's parts connect changes its diagram in the same
   commit, like the guide's text.
-- `go test -run TestGuide` checks every diagram: its fields, its colours,
+- `go test -run TestGuide ./internal/cli` checks every diagram: its fields, its colours,
   that each mark is in the key, and that each diagram is on a page.
 
 ## Adding one
@@ -86,8 +88,8 @@ every file with a `tag` and a tone), a `via` for the arrow between them
 (`back` turns it around; `"arrow": false` leaves only the words, for
 "nothing crosses"), and a sentence or two of `text`. A `legend`
 says what the tones mean. The caption, again, says it all in sentences;
-`go test -run TestGuideSteps` checks the fields and that a page shows it.
-[Preview and production data](/guide/team/data/) is the first.
+`go test -run TestGuideSteps ./internal/cli` checks the fields and that a page shows it.
+[Stage and production data](/guide/team/data/) is the first.
 
 ## Seeing it
 
@@ -96,7 +98,7 @@ pushing, build with the same version and look at it at desktop, tablet, and
 phone widths:
 
 ```sh
-podman run --rm --userns=keep-id -v $PWD:/srv/jekyll:ro,Z -v /tmp/site:/out:Z \
+podman run --rm --userns=keep-id -v $PWD/site:/srv/jekyll:ro,Z -v /tmp/site:/out:Z \
   docker.io/jekyll/jekyll:pages jekyll build --source /srv/jekyll --destination /out
 python3 -m http.server --directory /tmp/site 8765 &
 chrome-headless-shell --hide-scrollbars --window-size=1440,2400 \

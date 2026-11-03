@@ -1,5 +1,7 @@
 # Feature pages
 
+The website is in `site/`; paths here are from there.
+
 A feature page is one tool on its own page, named after its command:
 `hi box` is at https://hi5.sh/box/. It starts with a demo of the tool in a
 terminal, and each section below is a step deeper than the one before. The
@@ -27,7 +29,7 @@ shows what the tool is and how it works, and links to the guide for the rest.
 `box/index.html` and `agent/index.html` are the examples to copy. Quote a
 front-matter value that holds `: `, such as a lede with a list after a
 colon; unquoted, Jekyll drops the front matter and the page loses its
-layout. `feature_pages_test.go` checks for it.
+layout. `internal/cli/feature_pages_test.go` checks for it.
 
 ## The demo
 
@@ -68,7 +70,7 @@ window.HI5_STORY = {
 Every line a command prints is copied from a real run of that command, with
 only names and folders changed. Run the commands in a scratch project, paste
 what they print, and say so under the demo (`demo_caption`).
-`feature_pages_test.go` checks that every `hi <name>` command a demo types
+`internal/cli/feature_pages_test.go` checks that every `hi <name>` command a demo types
 uses a subcommand and flags the tool's usage lists; a new feature page goes
 in its `featurePageUsage` with its tool's usage function.
 
