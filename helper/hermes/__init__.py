@@ -1,10 +1,10 @@
-"""/hi-<team> for a hi team's lead (written by hi on every start of the team),
+"""/hi-<app> for a hi app's lead (written by hi on every start of the app),
 and Allow and Say no on hi's posts that the dev box asks for a site.
 
-/hi-<team> in the team's Slack channel has hi send an owner who typed it their
-private link to the team's dev page (docs/specs/approved/hi_team_dev.md in
+/hi-<app> in the app's Slack channel has hi send an owner who typed it their
+private link to the app's dev page (docs/specs/approved/hi_team_dev.md in
 hi); anyone else hears that the app's own link is all they need. No model is asked:
-the handler runs hi team web link with the member ID Slack gave the
+the handler runs hi app web link with the member ID Slack gave the
 command, which nobody can type, and the links go only to that person's DM.
 """
 
@@ -15,15 +15,15 @@ import subprocess
 import sys
 import time
 
-DESCRIPTION = "Owners: your link to the dev page; signin chatgpt|claude signs the team in again"
+DESCRIPTION = "Owners: your link to the dev page; signin chatgpt|claude signs the app in again"
 
-# Each team's app has a command of its own, /hi-<team>: Slack gives a
+# Each app has a command of its own, /hi-<app>: Slack gives a
 # command two apps in a workspace share to the one installed last. Plain
-# /hi is the org server's: answering it too would let a team app whose
+# /hi is the org server's: answering it too would let an app whose
 # manifest still has it take /hi from the server when reinstalled.
 TEAM = re.sub(r"[^a-z0-9_-]+", "-", os.environ.get("HI_TEAM", "").lower()).strip("-")
 COMMANDS = ["hi-" + TEAM] if TEAM else []
-TYPE = "Type /%s in the team's Slack channel." % (COMMANDS[0] if COMMANDS else "hi-<team>")
+TYPE = "Type /%s in the app's Slack channel." % (COMMANDS[0] if COMMANDS else "hi-<app>")
 
 
 def _hi(raw_args):
@@ -39,25 +39,25 @@ def _hi(raw_args):
 
 
 def _answer(user, text):
-    """What /hi-<team> does: the person's links, or, as "signin chatgpt" or
+    """What /hi-<app> does: the person's links, or, as "signin chatgpt" or
     "signin claude", an owner's sign-in, sent to them alone in a DM."""
     words = (text or "").split()
     if words and words[0] == "signin":
         if len(words) != 2:
-            return "Sign the team in again with /%s signin chatgpt or /%s signin claude." % (COMMANDS[0], COMMANDS[0]) if COMMANDS else "signin chatgpt or signin claude"
-        return _run(["team", "web", "signin", words[1], "--user", user], "your sign-in")
+            return "Sign the app in again with /%s signin chatgpt or /%s signin claude." % (COMMANDS[0], COMMANDS[0]) if COMMANDS else "signin chatgpt or signin claude"
+        return _run(["app", "web", "signin", words[1], "--user", user], "your sign-in")
     if words and words[0] == "dev":
-        return _run(["team", "web", "link", "--user", user, "--dev"], "your link to the dev page")
+        return _run(["app", "web", "link", "--user", user, "--dev"], "your link to the dev page")
     return _link(user)
 
 
 def _link(user):
     """The links for a Slack member, by hi; what to tell them."""
-    return _run(["team", "web", "link", "--user", user], "your link")
+    return _run(["app", "web", "link", "--user", user], "your link")
 
 
 def _run(args, what):
-    """hi in the box, which asks the team's service; what to tell them."""
+    """hi in the box, which asks the app's service; what to tell them."""
     try:
         done = subprocess.run(["/usr/local/bin/hi"] + args, capture_output=True, text=True, timeout=60)
     except Exception as error:
@@ -80,7 +80,7 @@ def _site_button(allow):
         value = (action or {}).get("value") or ""
         if not user or not value:
             return
-        args = ["team", "web", "site", value, "allow" if allow else "no", "--user", user]
+        args = ["app", "web", "site", value, "allow" if allow else "no", "--user", user]
         text = await asyncio.get_running_loop().run_in_executor(None, _run, args, "the answer")
         url = (body or {}).get("response_url")
         if url and not text.startswith(("Allowed ", "Said no ")):
@@ -96,12 +96,12 @@ _MAY = {}  # member ID -> (may they, until when)
 
 def _may_ask(user):
     """Whether someone may ask the team for work, so the lead answers their
-    DM: hi decides, as for /hi-<team>. Kept a few minutes."""
+    DM: hi decides, as for /hi-<app>. Kept a few minutes."""
     known = _MAY.get(user)
     if known and known[1] > time.monotonic():
         return known[0]
     try:
-        done = subprocess.run(["/usr/local/bin/hi", "team", "web", "may", "--user", user],
+        done = subprocess.run(["/usr/local/bin/hi", "app", "web", "may", "--user", user],
                               capture_output=True, text=True, timeout=30)
         may = done.returncode == 0
     except Exception:
@@ -127,7 +127,7 @@ def _put_first(original):
 
 def _answer_in_dms():
     """Hermes drops a slash command typed in a DM when DMs are off, as they
-    are for a team's lead, before any plugin sees it; and the bot's DM is
+    are for an app's lead, before any plugin sees it; and the bot's DM is
     where people type it. So the Slack adapter's listener answers ours
     itself, wherever they are typed: the person is the user_id Slack sets,
     hi checks they may ask for work, and the links go only to their DM."""
@@ -165,7 +165,7 @@ def _answer_in_dms():
 READS = {"search_files", "read_file"}
 READS_BEFORE_NOTE = 12
 READS_NOTE = ("\n\n[hi: that is %d reads of the code in this turn. You have enough to answer: put "
-              "what you found in the task (hi team task comment) or on the incident (hi team "
+              "what you found in the task (hi app task comment) or on the incident (hi app "
               "incidents note <id> \"...\"), then answer. The owners' agents read the code properly "
               "in the dev box.]")
 _reads = {}  # turn -> reads so far, for the newest turns only
@@ -207,7 +207,7 @@ def register(ctx):
 
 def _guard_dms():
     """The lead answers DMs from the people who may ask for work only:
-    Hermes' own gate lets the whole workspace in when the team has no
+    Hermes' own gate lets the whole workspace in when the app has no
     askers. Anyone else's DM is dropped before Hermes reads it."""
     import logging
     log = logging.getLogger("hi-team")

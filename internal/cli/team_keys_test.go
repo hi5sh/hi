@@ -27,9 +27,9 @@ func newTeamKeysTest(t *testing.T) {
 	t.Cleanup(func() { teamCheckOpenRouterKey = saved })
 	file := filepath.Join(t.TempDir(), "team.json")
 	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
-	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
-	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
-	t.Setenv("HI_TEAM_OPENROUTER_API_KEY", "sk-or-team")
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_OPENROUTER_API_KEY", "sk-or-team")
 	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), io.Discard); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func newTeamKeysTest(t *testing.T) {
 func TestTeamKey(t *testing.T) {
 	newTeamKeysTest(t)
 	if secrets, _ := loadTeamSecrets("payments"); secrets.OpenRouterAPIKey != "sk-or-team" {
-		t.Fatalf("hi team new --from keeps the team's key: %+v", secrets)
+		t.Fatalf("hi app new --from keeps the app's key: %+v", secrets)
 	}
 	if key, _ := teamOpenRouterKey("payments"); key != "sk-or-team" {
 		t.Fatal(key)
@@ -86,7 +86,7 @@ func TestTeamKeySlack(t *testing.T) {
 	}
 	after, _ := loadTeamSecrets("payments")
 	if after.SlackBotToken != "xoxb-new-bot" || after.SlackAppToken != before.SlackAppToken ||
-		!strings.Contains(out.String(), "hi team up payments") || strings.Contains(out.String(), "xoxb-new-bot") {
+		!strings.Contains(out.String(), "hi app up payments") || strings.Contains(out.String(), "xoxb-new-bot") {
 		t.Fatalf("%+v %q", after, out.String())
 	}
 	out.Reset()
@@ -262,7 +262,7 @@ func TestTeamEnvDev(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if !strings.Contains(out.String(), "dev box gets its own DEBUG") || !strings.Contains(out.String(), "hi team dev payments restart") {
+	if !strings.Contains(out.String(), "dev box gets its own DEBUG") || !strings.Contains(out.String(), "hi app dev payments restart") {
 		t.Fatal(out.String())
 	}
 	got := teamDevSettings("payments")

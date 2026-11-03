@@ -19,7 +19,7 @@ import (
 var featurePageUsage = map[string]func(io.Writer){
 	"box":          printBoxUsage,
 	"agent":        printAgentUsage,
-	"team":         printTeamUsage,
+	"app":          printTeamUsage,
 	"compute":      printComputeUsage,
 	"q":            printQUsage,
 	"init":         printInitUsage,

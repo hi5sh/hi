@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Files the lead sends from its box (hi team web post --attach), and the
+// Files the lead sends from its box (hi app web post --attach), and the
 // helpers that copy them: from hi 2.4 the lead hands out no tasks.
 
 const (

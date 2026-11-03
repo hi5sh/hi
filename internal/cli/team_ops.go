@@ -35,9 +35,9 @@ func teamChannelLogDir(team string, config teamConfig, channel string) string {
 	return teamChannelDir(team)
 }
 
-// teamOpsCommand is hi team ops <name> [<channel ID>|off].
+// teamOpsCommand is hi app ops <name> [<channel ID>|off].
 func teamOpsCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team ops <name> [<channel ID>|off]"}
+	usage := usageError{"usage: hi app ops <name> [<channel ID>|off]"}
 	if len(args) == 0 || len(args) > 2 {
 		return usage
 	}
@@ -48,44 +48,44 @@ func teamOpsCommand(args []string, stdout io.Writer) error {
 	}
 	if len(args) == 1 {
 		if config.OpsChannel == "" {
-			fmt.Fprintf(stdout, "Team %s posts everything in its channel, %s. A second channel for operations and security: hi team ops %s <channel ID>\n", name, config.Channel, name)
+			fmt.Fprintf(stdout, "App %s posts everything in its channel, %s. A second channel for operations and security: hi app ops %s <channel ID>\n", name, config.Channel, name)
 			return nil
 		}
-		fmt.Fprintf(stdout, "Team %s: releases, ideas, and the app in %s; incidents, warnings, security, keys, and access in %s.\n", name, config.Channel, config.OpsChannel)
+		fmt.Fprintf(stdout, "App %s: releases, ideas, and the app in %s; incidents, warnings, security, keys, and access in %s.\n", name, config.Channel, config.OpsChannel)
 		return nil
 	}
 	switch id := args[1]; {
 	case id == "off":
 		if config.OpsChannel == "" {
-			fmt.Fprintf(stdout, "Team %s has no ops channel.\n", name)
+			fmt.Fprintf(stdout, "App %s has no ops channel.\n", name)
 			return nil
 		}
 		config.OpsChannel = ""
 	case !slackIDPattern.MatchString(id):
 		return fmt.Errorf("the ops channel is a Slack channel ID, such as C07ABC123, not %q", id)
 	case id == config.Channel:
-		return fmt.Errorf("%s is the team's main channel; the ops channel is a second one", id)
+		return fmt.Errorf("%s is the app's main channel; the ops channel is a second one", id)
 	default:
 		secrets, err := loadTeamSecrets(name)
 		if err != nil {
-			return fmt.Errorf("the team's secrets: %w", err)
+			return fmt.Errorf("the app's secrets: %w", err)
 		}
 		channel, err := teamCheckChannel(teamBotHandle(config), secrets.SlackBotToken, id)
 		if err != nil {
 			return err
 		}
 		config.OpsChannel = id
-		fmt.Fprintf(stdout, "Team %s posts incidents, warnings, security, keys, and access in #%s now; releases, ideas, and the app stay in %s.\n", name, channel, config.Channel)
+		fmt.Fprintf(stdout, "App %s posts incidents, warnings, security, keys, and access in #%s now; releases, ideas, and the app stay in %s.\n", name, channel, config.Channel)
 		fmt.Fprintln(stdout, "Keep it to people with the know-how: a private channel, for owners and Pro Devs.")
 	}
 	if err := saveTeam(config); err != nil {
 		return err
 	}
 	if config.OpsChannel == "" {
-		fmt.Fprintf(stdout, "Team %s posts everything in %s again.\n", name, config.Channel)
+		fmt.Fprintf(stdout, "App %s posts everything in %s again.\n", name, config.Channel)
 	}
 	if teamState(name) != "up" {
-		fmt.Fprintf(stdout, "The lead hears it from the team's next start: hi team up %s.\n", name)
+		fmt.Fprintf(stdout, "The lead hears it from the app's next start: hi app up %s.\n", name)
 		return nil
 	}
 	fmt.Fprintln(stdout, "The lead restarts to talk in both channels; the app stays up.")
@@ -100,7 +100,7 @@ func teamSkillOps(config teamConfig) string {
 	return fmt.Sprintf(`
 ## Two channels
 
-The team has two Slack channels, and you're in both:
+The app has two Slack channels, and you're in both:
 
 - **The main channel** (%[1]s) is for the people who use and shape the
   app: releases, Stage, tasks, ideas, the helper's feedback. Talk there in
@@ -118,7 +118,7 @@ detail, keys, hosts, or logs into the main channel.
 Changes to permissions are said only in the ops channel: who is an
 owner, a Pro Dev, a Vibe Dev, or a contributor, who may use the dev
 page, the addresses' privacy and sign-in, the sites the dev box may
-reach, the team's keys and sign-ins. Asked about them in the main
+reach, the app's keys and sign-ins. Asked about them in the main
 channel, answer the person in a DM or point them to an owner.
 `, config.Channel, config.OpsChannel)
 }

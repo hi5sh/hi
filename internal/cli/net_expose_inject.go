@@ -18,7 +18,7 @@ import (
 
 // An exposure can add a script to the pages it relays and serve a path
 // prefix from a socket instead of the service: --inject, --route, and
-// --inject-if. hi team uses them to put its helper, a chat with the lead,
+// --inject-if. hi app uses them to put its helper, a chat with the lead,
 // into every page of a team's app whatever it is written in, without the
 // app holding any of it (docs/specs/approved/hi_team_helper.md).
 
@@ -40,7 +40,7 @@ const (
 
 // A visitor's key, for people who aren't signed in: the routes set it in a
 // cookie of their own, and the relay hands it to the socket as
-// X-Hi-Visitor, as it does a person's key. hi team uses it to show
+// X-Hi-Visitor, as it does a person's key. hi app uses it to show
 // feedback's answers to whoever sent it.
 const (
 	netExposeVisitorCookie = "hi_visitor"

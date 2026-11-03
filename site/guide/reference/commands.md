@@ -16,7 +16,7 @@ description: Every hi command and option in one place.
 | `hi q [<what you want>]`         | Ask for a shell command, or chat; see below            |
 | `hi shell-init bash|zsh`        | Shell integration for `hi q`                           |
 | `hi agent …`                     | Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box; see below |
-| `hi team …`                      | A team's app in a Slack channel, built by its owners in a dev box; see below |
+| `hi app …`                       | An app in a Slack channel, built by its owners in a dev box; see below |
 | `hi box …`                       | Run a shell or a command in a rootless box; see below  |
 | `hi bundle …`                    | Bundles of skills for `hi agent --bundle`; see below   |
 | `hi skill …`                     | Find, install, and update agent skills; see below      |
@@ -25,10 +25,10 @@ description: Every hi command and option in one place.
 | `hi verify strix`                | Check a Strix Halo workstation                         |
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
-| `hi net domain [<domain> --dns <provider> \| --unset]` | https for the teams' addresses, under a domain of yours; see [The addresses on https](/guide/team/dev/#the-addresses-on-https) |
+| `hi net domain [<domain> --dns <provider> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
 | `hi adduser <name>`              | Create a user with GPU access                          |
-| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and team services still on the old version |
-| `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi team` below |
+| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and app services still on the old version |
+| `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi app` below |
 | `hi version`, `hi help`          | Version and help                                       |
 
 ## hi compute
@@ -134,7 +134,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
 | `hi org spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
 | `hi org ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
-| `hi org ai remove local/<name>` | Stop passing requests to a model served on a team's machine                              |
+| `hi org ai remove local/<name>` | Stop passing requests to a model served on an app's machine                              |
 | `hi org live [--wall] [--names full] [--reasons]`                 | Live dashboard; `--wall` is read-only                                                  |
 | `sudo hi org wall setup|add|remove|list`                          | Show the wall on screens over SSH                                                      |
 | `hi org viewer add <name> --key <k>`                              | A device that may only watch                                                           |
@@ -201,7 +201,7 @@ hi init --adopt python           # bring this existing repository under a templa
 | `--force`               | With `--update` or `--adopt`: overwrite files hi owns even when edited by hand |
 | `--strict`              | With `--check`: fail when private layers can't be checked |
 
-Templates: `python`, `web`, `app`, `service`, `pipeline`, `ml`,
+Templates: `python`, `web`, `webapp`, `service`, `pipeline`, `ml`,
 `autoresearch-ml`, and on a connected
 device your team's private ones.
 
@@ -317,76 +317,76 @@ forward through n folds, after `--fold-every <k>` rounds or when
 `--patience` runs out; each fold starts from a new baseline. See [Keep only gains that hold](/guide/autoresearch/validation/).
 See [Autoresearch](/guide/autoresearch/).
 
-## hi team
+## hi app
 
-See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how the team works](/guide/team/how-it-works/).
+See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app works](/guide/app/how-it-works/).
 
 | Command | What it does |
 |---|---|
-| `hi team new <name> [--dir <folder>] [--from <file.json>]` | Set up a team: its Slack app, channel, owners, members, and code, and a NetBird key for its dev box |
-| `hi team adopt <name> <source> [--ref <branch\|tag\|commit>] [--github <owner/name>] [--shallow\|--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same setup for a project someone else wrote (`github.com/owner/name`, `owner/name`, or a URL), fetched without running anything from it: the team keeps its own copy, with the project as `upstream` that never takes a push, and an owner's agent surveys it in the dev box; see [Start from someone else's project](/guide/team/adopt/) |
-| `hi team adopt <name> <folder> [--github <owner/name>] [--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same for a folder on this machine, copied without its history: what git would commit, leaving `.git`, files that look like secrets, and links outside it behind; the folder doesn't change, and there's no upstream |
-| `hi team up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
-| `hi team down <name>`                     | Stop it; its folder stays |
-| `hi team rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages, and restart the team on it; what fixes the image's advisories |
-| `hi team rename <name> <new> [--yes]`     | Another name, after its Slack app's: its bot, `/hi-<name>` command, and service; memory and snapshots stay |
-| `hi team rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder |
-| `hi team ls`                              | Teams on this machine |
-| `hi team status <name>`                   | Up or down, its members, production's version and what dev has on top of it, backups, and the helper |
-| `hi team logs <name> [-f]`                | The lead's log; `-f` follows it |
-| `hi team channel <name> [--since 2h]`     | What was said in the team's channel, threads and shared files included |
-| `hi team key <name> openrouter [--unset]` | Give the team an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
-| `hi team signin <name> chatgpt [--machine]` | Sign the team in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the team's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
-| `hi team signin <name> claude [--machine]` | The team's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the team's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
-| `hi team member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running team restarts |
-| `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them; the lead's box gets placeholders, and the team's proxy puts the tokens on its calls to Slack |
-| `hi team env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
-| `hi team addresses <name> [domain\|netbird\|<host>]` | What the team's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
-| `hi team addresses <name> names <production's name>\|production=… stage=… dev=… [--https]` | A name for each address, which the IT team keeps; `--https` when their proxy ends TLS in front |
-| `hi team domain [<domain> [--new-token]|off]` | A domain verified in NetBird for the teams' apps on this machine, with a NetBird Admin service user's token |
-| `hi team allow-ip <name> [<ip,cidr>|off]` | The only addresses the team's Stage and production let in, through NetBird's Access Control; hi puts back exactly this list every minute, so set it here rather than in NetBird's dashboard |
-| `hi team domain <name> on|off` | The team's app at `<name>.<domain>` and Stage at `<name>-preview.<domain>`, names that stay; off by default |
-| `hi team sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]` | An OpenID Connect provider for signing in to the teams' apps (Google Workspace, Entra ID, Keycloak, Auth0, Okta…); checks the issuer and asks for the client secret |
-| `hi team sso <name> on <provider> [--domain <d>] [--group <g>] [--anyone]` | People without the link sign in to the app and Stage, if the rules let them in; needs `hi team domain <name> on`; prints the return addresses to register |
-| `hi team sso [<name> [off]]` | The providers and the teams using them; a team's rules and last sign-ins; `off` signs everyone out |
-| `hi team sso provider rm <name>` | Forget a provider no team uses |
-| `hi team helper <name> [stage|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
-| `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
-| `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
-| `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
-| `hi team jobs <name> [--stage] [--json]` | The app's long work in production (or Stage): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/team/incidents/) |
-| `hi team incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
-| `"$HI" team job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
-| `hi team dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The team's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
-| `hi team heartbeat <name> [<url> [--every 1m] \| off \| test]` | The team's heartbeat: a GET to a service such as healthchecks.io at the interval (30s to 1h) while the team runs, so the service alerts when it stops. Without arguments, where it goes and the last one |
-| `hi heartbeat [<url> [--every 5m] \| off \| test]` | This machine's heartbeat, from a systemd user timer (1m to 1h), for a machine that runs teams or an org server |
-| `hi team watch <name> [--auto-freeze on\|off]` | The team's own watcher, on its machine: health, network, and advisory rules each minute, and what it has open; whether it freezes the team on its own for an exploited advisory in the app or a burst to a watched host |
-| `hi team freeze\|unfreeze\|pause\|unpause <name> --why "…"` | Cut the team's boxes off from the internet and pause its app, or pause every box, within a minute; and undo it. Said in the ops channel |
-| `hi team ops <name> [<channel ID>\|off]` | A second Slack channel for incidents, warnings, security, keys, access, and the dev box's site asks; without one they go to the main channel. A running team's lead restarts to talk in both |
-| `hi team dev <name> allow [<site> [--why <what for>] \| --remove <site>]` | The sites the dev box reaches, a database's name too, as the owners allow them on the dev page; with no site, the list and the asks waiting |
-| `hi team owners <name> [add\|remove <member ID>]` | The team's owners, who build in the dev box; removing one ends their SSH key and links |
-| `hi team owners <name> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
-| `hi team access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |
-| `hi team access <name> <member ID> pro\|vibe\|contributor\|none` | An owner's change, also on the dev page's People table: a Pro Dev builds with Chat, terminal, VS Code, and SSH, and releases; a Vibe Dev builds in Chat only, and releases; a contributor reports bugs as tasks; none takes the level away |
-| `hi team access <name> key <member ID> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
-| `hi team task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]]` | The team's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
-| `hi dev preview\|ship\|status\|say\|task\|allow` | In a team's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/team/dev/) |
-| `hi dev review\|deep-review\|brainstorm` | In a team's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
-| `hi dev data\|settings\|incidents` | In a team's dev box: the app's data and a new fork for the preview, the settings' names and the preview's own values, what hi recorded about incidents |
-| `hi dev agy "<task>" [--file <path>]…` | In a team's dev box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/`; ask the user first; `show [<id>]` |
-| `hi dev upstream\|propose` | In a team's dev box, for an adopted project: where dev stands against the original and its refs into the box's clone; offer shipped work back as a draft pull request; see [Start from someone else's project](/guide/team/adopt/) |
-| `hi team say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer); a change it asks for, the lead files as a task |
-| `hi team data <name> [fork \| copy stage production [--yes] \| stage empty]` | The app's data folders, production's and Stage's fork of it; a new fork now; production from Stage, snapshotted first; or a Stage that starts empty at every release |
-| `hi team limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
-| `hi team limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the team has its own; running boxes get a new limit at once, without a restart |
-| `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
-| `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
-| `hi team bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
-| `hi team advisories <name>`               | Known advisories for what production runs, as the team's org server last matched them; the lead has it too |
-| `hi team advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
-| `hi team manifest <name>`                 | The Slack app manifest again |
-| `hi team github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the team pushes every merge there |
-| `hi team upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the team's, and what it has added since, with its new tags |
+| `hi app new <name> [--dir <folder>] [--from <file.json>]` | Set up an app: its Slack app, channel, owners, members, and code, and a NetBird key for its dev box |
+| `hi app adopt <name> <source> [--ref <branch\|tag\|commit>] [--github <owner/name>] [--shallow\|--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same setup for a project someone else wrote (`github.com/owner/name`, `owner/name`, or a URL), fetched without running anything from it: the app keeps its own copy, with the project as `upstream` that never takes a push, and an owner's agent surveys it in the dev box; see [Start from someone else's project](/guide/app/adopt/) |
+| `hi app adopt <name> <folder> [--github <owner/name>] [--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same for a folder on this machine, copied without its history: what git would commit, leaving `.git`, files that look like secrets, and links outside it behind; the folder doesn't change, and there's no upstream |
+| `hi app up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
+| `hi app down <name>`                     | Stop it; its folder stays |
+| `hi app rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages, and restart the app on it; what fixes the image's advisories |
+| `hi app rename <name> <new> [--yes]`     | Another name, after its Slack app's: its bot, `/hi-<name>` command, and service; memory and snapshots stay |
+| `hi app rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder |
+| `hi app ls`                              | Apps on this machine |
+| `hi app status <name>`                   | Up or down, its members, production's version and what dev has on top of it, backups, and the helper |
+| `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
+| `hi app channel <name> [--since 2h]`     | What was said in the app's channel, threads and shared files included |
+| `hi app key <name> openrouter [--unset]` | Give the app an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
+| `hi app signin <name> chatgpt [--machine]` | Sign the app in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the app's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
+| `hi app signin <name> claude [--machine]` | The app's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the app's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
+| `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |
+| `hi app key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running app restarts with them; the lead's box gets placeholders, and the app's proxy puts the tokens on its calls to Slack |
+| `hi app env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the app's boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
+| `hi app addresses <name> [domain\|netbird\|<host>]` | What the app's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
+| `hi app addresses <name> names <production's name>\|production=… stage=… dev=… [--https]` | A name for each address, which the IT team keeps; `--https` when their proxy ends TLS in front |
+| `hi app domain [<domain> [--new-token]|off]` | A domain verified in NetBird for the apps on this machine, with a NetBird Admin service user's token |
+| `hi app allow-ip <name> [<ip,cidr>|off]` | The only addresses the app's Stage and production let in, through NetBird's Access Control; hi puts back exactly this list every minute, so set it here rather than in NetBird's dashboard |
+| `hi app domain <name> on|off` | The app at `<name>.<domain>` and Stage at `<name>-preview.<domain>`, names that stay; off by default |
+| `hi app sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]` | An OpenID Connect provider for signing in to the apps (Google Workspace, Entra ID, Keycloak, Auth0, Okta…); checks the issuer and asks for the client secret |
+| `hi app sso <name> on <provider> [--domain <d>] [--group <g>] [--anyone]` | People without the link sign in to the app and Stage, if the rules let them in; needs `hi app domain <name> on`; prints the return addresses to register |
+| `hi app sso [<name> [off]]` | The providers and the apps using them; an app's rules and last sign-ins; `off` signs everyone out |
+| `hi app sso provider rm <name>` | Forget a provider no app uses |
+| `hi app helper <name> [stage|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
+| `hi app snapshot <name>`                 | Take a snapshot now of the lead's memory, the app's record, and production's data; the app keeps running. It takes one daily and before every release too |
+| `hi app snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
+| `hi app restore <name> <snapshot> [--code] [--yes]` | Put the app back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
+| `hi app jobs <name> [--stage] [--json]` | The app's long work in production (or Stage): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/app/incidents/) |
+| `hi app incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
+| `"$HI" app job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
+| `hi app dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The app's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
+| `hi app heartbeat <name> [<url> [--every 1m] \| off \| test]` | The app's heartbeat: a GET to a service such as healthchecks.io at the interval (30s to 1h) while the app runs, so the service alerts when it stops. Without arguments, where it goes and the last one |
+| `hi heartbeat [<url> [--every 5m] \| off \| test]` | This machine's heartbeat, from a systemd user timer (1m to 1h), for a machine that runs apps or an org server |
+| `hi app watch <name> [--auto-freeze on\|off]` | The app's own watcher, on its machine: health, network, and advisory rules each minute, and what it has open; whether it freezes the app on its own for an exploited advisory in the app or a burst to a watched host |
+| `hi app freeze\|unfreeze\|pause\|unpause <name> --why "…"` | Cut the app's boxes off from the internet and pause it, or pause every box, within a minute; and undo it. Said in the ops channel |
+| `hi app ops <name> [<channel ID>\|off]` | A second Slack channel for incidents, warnings, security, keys, access, and the dev box's site asks; without one they go to the main channel. A running app's lead restarts to talk in both |
+| `hi app dev <name> allow [<site> [--why <what for>] \| --remove <site>]` | The sites the dev box reaches, a database's name too, as the owners allow them on the dev page; with no site, the list and the asks waiting |
+| `hi app owners <name> [add\|remove <member ID>]` | The app's owners, who build in the dev box; removing one ends their SSH key and links |
+| `hi app owners <name> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
+| `hi app access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |
+| `hi app access <name> <member ID> pro\|vibe\|contributor\|none` | An owner's change, also on the dev page's People table: a Pro Dev builds with Chat, terminal, VS Code, and SSH, and releases; a Vibe Dev builds in Chat only, and releases; a contributor reports bugs as tasks; none takes the level away |
+| `hi app access <name> key <member ID> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
+| `hi app task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]]` | The app's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
+| `hi dev preview\|ship\|status\|say\|task\|allow` | In an app's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/app/dev/) |
+| `hi dev review\|deep-review\|brainstorm` | In an app's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
+| `hi dev data\|settings\|incidents` | In an app's dev box: the app's data and a new fork for the preview, the settings' names and the preview's own values, what hi recorded about incidents |
+| `hi dev agy "<task>" [--file <path>]…` | In an app's dev box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/`; ask the user first; `show [<id>]` |
+| `hi dev upstream\|propose` | In an app's dev box, for an adopted project: where dev stands against the original and its refs into the box's clone; offer shipped work back as a draft pull request; see [Start from someone else's project](/guide/app/adopt/) |
+| `hi app say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer); a change it asks for, the lead files as a task |
+| `hi app data <name> [fork \| copy stage production [--yes] \| stage empty]` | The app's data folders, production's and Stage's fork of it; a new fork now; production from Stage, snapshotted first; or a Stage that starts empty at every release |
+| `hi app limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
+| `hi app limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the app has its own; running boxes get a new limit at once, without a restart |
+| `hi app rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
+| `hi app backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
+| `hi app bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
+| `hi app advisories <name>`               | Known advisories for what production runs, as the org server last matched them; the lead has it too |
+| `hi app advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
+| `hi app manifest <name>`                 | The Slack app manifest again |
+| `hi app github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the app pushes every merge there |
+| `hi app upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the app's own, and what it has added since, with its new tags |
 
 In its box, the lead runs `task [list|show|add|comment|edit]` (it files what
 people ask for; the owners close tasks), `versions` (production's
@@ -394,7 +394,7 @@ version and what dev has on top of it), `channel [--since 2h | --new]`,
 `task start <n>` (when an owner asks: start work on it in the dev box),
 `web` (the feedback from the app), `web show <feedback>`, `web questions`
 (what people asked the app's help), `web link --user <member ID>` (DM an
-owner their link to the dev page, as `/hi-<team> dev` does), `env`, `data`, and `helper`
+owner their link to the dev page, as `/hi-<name> dev` does), `env`, `data`, and `helper`
 (read only), `upstream`, `advisories`, `jobs [restart --incident <id>
 --because <why>]` (one restart per incident), `incidents [note|ask|close]`,
 `agy` (Antigravity on the machine, for images, media, and research), and `alert`. It has no command that changes the code, dev, or production:
@@ -479,12 +479,12 @@ hi net status | down | reconnect
 | ↳ `--domain <name>`                                 | An address that stays, under a domain verified in NetBird; needs a NetBird API token |
 | ↳ `--link`, `--password <text>`, `--pin <6 digits>`, `--groups <g1,g2>`, `--public` | The lock: a generated password by default; `--link` puts a key in the link instead |
 | ↳ `--allow-ip <ip,cidr>`                            | Only from these addresses, through NetBird's Access Control; needs a NetBird API token |
-| ↳ `--sso <file>`                                    | With `--link` and `--domain`, people may also sign in with the OIDC provider and rules in the file (`hi team sso` writes it) |
+| ↳ `--sso <file>`                                    | With `--link` and `--domain`, people may also sign in with the OIDC provider and rules in the file (`hi app sso` writes it) |
 | ↳ `--vpn`                                           | No public address: only devices on the NetBird network, at `http://<name>:<port>` |
 | ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
 | ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |
-| `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, a team's Stage and dev page too |
+| `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, an app's Stage and dev page too |
 
 See [Share a local service](/guide/workstation/expose/).
 

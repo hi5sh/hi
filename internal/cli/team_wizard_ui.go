@@ -18,7 +18,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-// How hi team new looks. At a terminal its questions are hi install's: a
+// How hi app new looks. At a terminal its questions are hi install's: a
 // field at a time, a list where the answer is one of a few, a hidden field
 // for a token, and a line left behind for each answer. Without a terminal
 // (a script, the tests) each is a line to answer, as before.
@@ -137,18 +137,18 @@ var teamBannerShown bool
 // name yet, before it's asked.
 func teamSetupBanner(stdout io.Writer, styled bool, name, dir string) {
 	if !styled {
-		fmt.Fprintf(stdout, "Setting up team %s in %s. Each answer is checked as you give it.\n", name, dir)
+		fmt.Fprintf(stdout, "Setting up app %s in %s. Each answer is checked as you give it.\n", name, dir)
 		return
 	}
 	dim := lipgloss.NewStyle().Foreground(colorDim)
 	if !teamBannerShown {
 		badge := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#ffffff")).Background(colorAccent).Padding(0, 1)
-		fmt.Fprintf(stdout, "\n%s %s\n", badge.Render("hi team new"), dim.Render("a team: its lead in Slack, its members, and its project"))
+		fmt.Fprintf(stdout, "\n%s %s\n", badge.Render("hi app new"), dim.Render("an app: its lead in Slack, its members, and its project"))
 		fmt.Fprintln(stdout, dim.Render("Each answer is checked as you give it. Ctrl+C stops; nothing is set up until the end."))
 		teamBannerShown = true
 	}
 	if name != "" {
-		fmt.Fprintln(stdout, dim.Render("Team "+name+", in "+dir+"."))
+		fmt.Fprintln(stdout, dim.Render("App "+name+", in "+dir+"."))
 	}
 }
 
@@ -295,13 +295,13 @@ func teamLeadName(config teamConfig) string {
 	return firstNonEmpty(config.Members["lead"].Name, config.Name)
 }
 
-// teamLeadTitle heads what the lead is: "Maja, the payments team's
-// lead", or "The payments team's lead" when it has the team's name.
+// teamLeadTitle heads what the lead is: "Maja, the payments app's
+// lead", or "The payments app's lead" when it has the team's name.
 func teamLeadTitle(config teamConfig) string {
 	if name := config.Members["lead"].Name; name != "" {
-		return name + ", the " + config.Name + " team's lead"
+		return name + ", the " + config.Name + " app's lead"
 	}
-	return "The " + config.Name + " team's lead"
+	return "The " + config.Name + " app's lead"
 }
 
 // teamLeadIntro is teamLeadTitle within a sentence.
@@ -309,7 +309,7 @@ func teamLeadIntro(config teamConfig) string {
 	if config.Members["lead"].Name != "" {
 		return teamLeadTitle(config)
 	}
-	return "the " + config.Name + " team's lead"
+	return "the " + config.Name + " app's lead"
 }
 
 // teamBotHandle is the lead's @handle in Slack: its name in the letters a

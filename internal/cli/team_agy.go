@@ -1,6 +1,6 @@
 package cli
 
-// Antigravity for a team: hi dev agy in the dev box, and hi team agy for
+// Antigravity for a team: hi dev agy in the dev box, and hi app agy for
 // the lead. The broker runs hi agent agy on the machine, with the
 // machine's Google sign-in and Gemini API key, which never enter the
 // team's boxes: images and web search on the Google AI plan, and video,
@@ -163,7 +163,7 @@ func (b *teamBroker) leadAgy(request teamAgyRequest) (teamAgy, error) {
 		return teamAgy{}, err
 	}
 	if !slackIDPattern.MatchString(request.User) || !b.teamMayAsk(config, request.User) {
-		return teamAgy{}, fmt.Errorf("%s may not ask the team for work; Antigravity runs on the machine's Google plan, for contributors, developers, and owners", firstNonEmpty(request.User, "whoever wrote"))
+		return teamAgy{}, fmt.Errorf("%s may not start Antigravity runs; Antigravity runs on the machine's Google plan, for contributors, developers, and owners", firstNonEmpty(request.User, "whoever wrote"))
 	}
 	var inputs []teamAgyInput
 	for _, file := range b.threadFiles(teamTicketRequest{Chat: request.Chat, Thread: request.Thread}) {
@@ -187,11 +187,11 @@ func (b *teamBroker) startAgy(record teamAgy, inputs []teamAgyInput) (teamAgy, e
 		return teamAgy{}, fmt.Errorf("a run takes up to %d files, not %d", teamAgyMaxFiles, len(inputs))
 	}
 	if err := agentReady("agy"); err != nil {
-		return teamAgy{}, fmt.Errorf("Antigravity isn't set up on the team's machine (%v). Ask your IT team: an admin of the machine runs hi install agy, then agy once to sign in with Google", err)
+		return teamAgy{}, fmt.Errorf("Antigravity isn't set up on the app's machine (%v). Ask your IT team: an admin of the machine runs hi install agy, then agy once to sign in with Google", err)
 	}
 	for _, earlier := range loadTeamAgys(b.team) {
 		if earlier.Status == "running" {
-			return teamAgy{}, fmt.Errorf("Antigravity run %s is still going; wait for it (one at a time per team)", earlier.ID)
+			return teamAgy{}, fmt.Errorf("Antigravity run %s is still going; wait for it (one at a time per app)", earlier.ID)
 		}
 	}
 	config, err := loadTeam(b.team)
@@ -238,9 +238,9 @@ func (b *teamBroker) startAgy(record teamAgy, inputs []teamAgyInput) (teamAgy, e
 func teamAgyTask(config teamConfig, record teamAgy, task string) string {
 	var who string
 	if record.Dev {
-		who = fmt.Sprintf("You work for the developers of the %s team's app (what it's for: %s). They put what you make into the project themselves.", config.Name, config.Purpose)
+		who = fmt.Sprintf("You work for the developers of the %s app (what it's for: %s). They put what you make into the project themselves.", config.Name, config.Purpose)
 	} else {
-		who = fmt.Sprintf("You work for the people in the %s team's Slack channel (their app is for: %s), through the team's lead. What you make is posted in their thread.", config.Name, config.Purpose)
+		who = fmt.Sprintf("You work for the people in the %s app's Slack channel (the app is for: %s), through the app's lead. What you make is posted in their thread.", config.Name, config.Purpose)
 	}
 	text := who + "\n\n# The task\n\n" + task + "\n\n# Where things go\n\n"
 	if len(record.Inputs) > 0 {
@@ -446,12 +446,12 @@ func teamAgyRunIn(hi string) func(dir string, args ...string) ([]byte, error) {
 }
 
 // ---------------------------------------------------------------------------
-// hi dev agy and hi team agy
+// hi dev agy and hi app agy
 
-// teamAgyClient runs hi dev agy (dev) or hi team agy: it starts a run and,
+// teamAgyClient runs hi dev agy (dev) or hi app agy: it starts a run and,
 // in the dev box, waits for it.
 func teamAgyClient(args []string, stdin io.Reader, stdout io.Writer, call teamDevCall, dev bool, lead teamAgyRequest) error {
-	usage := "usage: hi team agy \"<what to make or find>\" (the thread's files go with it); hi team agy show [<id>]"
+	usage := "usage: hi app agy \"<what to make or find>\" (the thread's files go with it); hi app agy show [<id>]"
 	if dev {
 		usage = "usage: hi dev agy \"<what to make or find>\" [--file <path>]...; hi dev agy show [<id>]"
 	}

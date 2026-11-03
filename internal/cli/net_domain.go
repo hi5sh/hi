@@ -183,7 +183,7 @@ func (d hiDomain) recordName(fqdn string) string {
 	return libdns.RelativeName(fqdn, d.Zone+".")
 }
 
-const hiDomainUsage = `usage: hi net domain                                  the domain this machine's teams' addresses use
+const hiDomainUsage = `usage: hi net domain                                  the domain this machine's apps' addresses use
        hi net domain <domain> --dns <provider> [--zone <zone>]
                                                      use it: hi asks for the provider's token
        hi net domain --email <address>               where Let's Encrypt writes about the certificate
@@ -225,7 +225,7 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		if err := os.Remove(hiDomainPath()); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		fmt.Fprintln(stdout, "The teams' addresses go back to plain http on their NetBird names within a minute; ask for the dev page's new link in Slack. The records hi made stay in the zone until you remove them.")
+		fmt.Fprintln(stdout, "The apps' addresses go back to plain http on their NetBird names within a minute; ask for the dev page's new link in Slack. The records hi made stay in the zone until you remove them.")
 		return nil
 	case domain == "" && emailGiven:
 		current, ok := loadHiDomain()
@@ -245,10 +245,10 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	case domain == "":
 		current, ok := loadHiDomain()
 		if !ok {
-			fmt.Fprintln(stdout, "The teams' addresses are on plain http, on their NetBird names. Give them a domain of your own for https: hi net domain dev.example.com --dns gandi")
+			fmt.Fprintln(stdout, "The apps' addresses are on plain http, on their NetBird names. Give them a domain of your own for https: hi net domain dev.example.com --dns gandi")
 			return nil
 		}
-		fmt.Fprintf(stdout, "The teams' addresses are on https at <team>.%[1]s (production), <team>-preview.%[1]s, and <team>-dev.%[1]s (the dev page), with the DNS at %[2]s (zone %[3]s), since %[4]s.\n", current.Domain, current.Provider, current.Zone, current.Set.Local().Format("Jan 2, 2006"))
+		fmt.Fprintf(stdout, "The apps' addresses are on https at <app>.%[1]s (production), <app>-preview.%[1]s, and <app>-dev.%[1]s (the dev page), with the DNS at %[2]s (zone %[3]s), since %[4]s.\n", current.Domain, current.Provider, current.Zone, current.Set.Local().Format("Jan 2, 2006"))
 		if current.Email != "" {
 			fmt.Fprintf(stdout, "Let's Encrypt writes to %s about the certificate.\n", current.Email)
 		} else {
@@ -326,7 +326,7 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		return err
 	}
 	fmt.Fprintf(stdout, "%s answers for %s (%d records). hi keeps the token on this machine only.\n", provider, zone, len(records))
-	fmt.Fprintf(stdout, "Within a few minutes each team's production is on https://<team>.%[1]s/, its preview on https://<team>-preview.%[1]s/, and its dev page on https://<team>-dev.%[1]s/, with their names in the zone pointing at the team's NetBird address and a certificate for *.%[1]s from Let's Encrypt. Then ask for the dev page's new link in Slack (/hi-<team> dev).\n", domain)
-	fmt.Fprintln(stdout, "In NetBird's Access Control, let the people and the owners reach the teams' peers on TCP 443 too. Each team's peer starts again once for it, which ends SSH sessions to the dev box; the agents and the apps keep running.")
+	fmt.Fprintf(stdout, "Within a few minutes each app's production is on https://<app>.%[1]s/, its preview on https://<app>-preview.%[1]s/, and its dev page on https://<app>-dev.%[1]s/, with their names in the zone pointing at the app's NetBird address and a certificate for *.%[1]s from Let's Encrypt. Then ask for the dev page's new link in Slack (/hi-<app> dev).\n", domain)
+	fmt.Fprintln(stdout, "In NetBird's Access Control, let the people and the owners reach the apps' peers on TCP 443 too. Each app's peer starts again once for it, which ends SSH sessions to the dev box; the agents and production keep running.")
 	return nil
 }

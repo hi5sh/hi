@@ -13,7 +13,7 @@ import (
 )
 
 // A domain for the teams' apps on this machine: a team that has it on
-// (hi team domain <team> on) has its production at <team>.<domain> and its
+// (hi app domain <team> on) has its production at <team>.<domain> and its
 // preview at <team>-preview.<domain>, names that stay, so the people's cookies for an app (the helper's answers to their
 // feedback, their sign-in) last. Without one, NetBird makes up an address
 // each day.
@@ -57,13 +57,13 @@ func teamSlotDomain(team, slot string) string {
 	return team + "." + domain
 }
 
-// teamDomainCommand is hi team domain [<domain>|off], and hi team domain
+// teamDomainCommand is hi app domain [<domain>|off], and hi app domain
 // <team> on|off.
 func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	settings := loadTeamsSettings()
 	if len(args) == 0 {
 		if settings.Domain == "" {
-			fmt.Fprintln(stdout, "The teams' apps get an address from NetBird that changes each day. hi team domain <domain> gives them names that stay.")
+			fmt.Fprintln(stdout, "The apps get an address from NetBird that changes each day. hi app domain <domain> gives them names that stay.")
 			return nil
 		}
 		var on []string
@@ -73,9 +73,9 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 				on = append(on, fmt.Sprintf("  %s: https://%s", config.Name, teamSlotDomain(config.Name, teamSlotProduction)))
 			}
 		}
-		fmt.Fprintf(stdout, "The domain for the teams' apps is %s.\n", settings.Domain)
+		fmt.Fprintf(stdout, "The domain for the apps is %s.\n", settings.Domain)
 		if len(on) == 0 {
-			fmt.Fprintln(stdout, "No team has it on yet: hi team domain <team> on.")
+			fmt.Fprintln(stdout, "No app has it on yet: hi app domain <name> on.")
 		} else {
 			fmt.Fprintln(stdout, "On for:\n"+strings.Join(on, "\n"))
 		}
@@ -89,14 +89,14 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		newToken, args = true, args[:1]
 	}
 	if len(args) != 1 {
-		return usageError{"usage: hi team domain [<domain> [--new-token] | off]"}
+		return usageError{"usage: hi app domain [<domain> [--new-token] | off]"}
 	}
 	if args[0] == "off" {
 		settings.Domain = ""
 		if err := saveTeamsSettings(settings); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, "The teams' apps go back to addresses NetBird makes up: production's within a minute, a preview with the next one, for the teams that run this version of hi.")
+		fmt.Fprintln(stdout, "The apps go back to addresses NetBird makes up: production's within a minute, a preview with the next one, for the apps that run this version of hi.")
 		return nil
 	}
 	domain := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(args[0]), "."))
@@ -104,7 +104,7 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return fmt.Errorf("%q isn't a domain such as apps.example.com", args[0])
 	}
 	// askToken asks at a terminal, or reads a pipe or file:
-	// hi team domain app.example.com < token.txt
+	// hi app domain app.example.com < token.txt
 	asked := false
 	askToken := func() (string, error) {
 		file, isFile := stdin.(*os.File)
@@ -120,7 +120,7 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		case isFile && !teamStdinTerminal(file):
 			read, err = io.ReadAll(io.LimitReader(stdin, 4096))
 		default:
-			return "", errors.New("hi needs a NetBird API token, from a service user with the Admin role (NetBird: Team > Service Users): run hi team domain in a terminal, where it asks for it, or give it on standard input (hi team domain <domain> < token.txt)")
+			return "", errors.New("hi needs a NetBird API token, from a service user with the Admin role (NetBird: Team > Service Users): run hi app domain in a terminal, where it asks for it, or give it on standard input (hi app domain <domain> < token.txt)")
 		}
 		asked = true
 		if err != nil {
@@ -160,7 +160,7 @@ func teamDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := saveTeamsSettings(settings); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "The domain for the teams' apps is %s. No team moves until you turn it on for it: hi team domain <team> on.\n", domain)
+	fmt.Fprintf(stdout, "The domain for the apps is %s. No app moves until you turn it on for it: hi app domain <name> on.\n", domain)
 	return nil
 }
 
@@ -216,7 +216,7 @@ func teamCheckDomain(domain string) error {
 	var made netbirdService
 	if err := api.call(http.MethodPost, "/api/reverse-proxies/services", check, &made); err != nil {
 		if strings.Contains(err.Error(), "permission denied") {
-			return errors.New("the NetBird API token may read the reverse proxy but not make services: it must be a service user's with the Admin role (Team > Service Users); hi team domain <domain> --new-token takes another")
+			return errors.New("the NetBird API token may read the reverse proxy but not make services: it must be a service user's with the Admin role (Team > Service Users); hi app domain <domain> --new-token takes another")
 		}
 		// Anything else, such as the check's service not suiting
 		// NetBird, says nothing about the token.
@@ -243,7 +243,7 @@ func teamDomainSwitch(name string, on bool, stdout io.Writer) error {
 	}
 	domain := loadTeamsSettings().Domain
 	if on && domain == "" {
-		return errors.New("this machine has no domain for the teams' apps yet: hi team domain <domain> first")
+		return errors.New("this machine has no domain for the apps yet: hi app domain <domain> first")
 	}
 	config.Domain = on
 	if err := saveTeam(config); err != nil {
@@ -273,14 +273,14 @@ func teamWarnOldHi(name string, stdout io.Writer) {
 		if process.team != name {
 			continue
 		}
-		restart := "hi team down " + name + " && hi team up " + name
+		restart := "hi app down " + name + " && hi app up " + name
 		if process.unit != "" {
 			restart = "systemctl restart " + process.unit
 			if process.user {
 				restart = "systemctl --user restart " + process.unit
 			}
 		}
-		fmt.Fprintf(stdout, "Note: %s still runs the hi it started with, from before an update. If that hi is older than this setting, nothing changes until the team restarts (hi update offers to):\n  %s\n", name, restart)
+		fmt.Fprintf(stdout, "Note: %s still runs the hi it started with, from before an update. If that hi is older than this setting, nothing changes until the app restarts (hi update offers to):\n  %s\n", name, restart)
 	}
 }
 
@@ -302,10 +302,10 @@ func teamAccessOutdated(team string, state teamPreview) bool {
 	return state.AllowIPs != teamAllowIPs(team)
 }
 
-// teamAllowIPCommand is hi team allow-ip <team> [<ip,cidr>|off].
+// teamAllowIPCommand is hi app allow-ip <team> [<ip,cidr>|off].
 func teamAllowIPCommand(args []string, stdout io.Writer) error {
 	if len(args) != 1 && len(args) != 2 {
-		return usageError{"usage: hi team allow-ip <name> [<ip,cidr> | off]"}
+		return usageError{"usage: hi app allow-ip <name> [<ip,cidr> | off]"}
 	}
 	config, err := loadTeam(args[0])
 	if err != nil {
@@ -318,7 +318,7 @@ func teamAllowIPCommand(args []string, stdout io.Writer) error {
 				return err
 			}
 			if _, err := netbirdAPIToken(); err != nil {
-				return errors.New("hi sets the rule through NetBird's API, with the token hi team domain <domain> saves; this machine has none yet")
+				return errors.New("hi sets the rule through NetBird's API, with the token hi app domain <domain> saves; this machine has none yet")
 			}
 		}
 		config.AllowIPs = allowed
@@ -328,12 +328,12 @@ func teamAllowIPCommand(args []string, stdout io.Writer) error {
 	}
 	switch {
 	case len(config.AllowIPs) == 0:
-		fmt.Fprintf(stdout, "Team %s's app lets in any address that has its link.\n", config.Name)
+		fmt.Fprintf(stdout, "App %s lets in any address that has its link.\n", config.Name)
 	case len(args) == 2:
-		fmt.Fprintf(stdout, "Team %s's app lets in only %s: production within a minute, the preview with it. Links on a name that stays keep working; others change.\n",
+		fmt.Fprintf(stdout, "App %s lets in only %s: production within a minute, the preview with it. Links on a name that stays keep working; others change.\n",
 			config.Name, strings.Join(config.AllowIPs, ", "))
 	default:
-		fmt.Fprintf(stdout, "Team %s's app lets in only %s.\n", config.Name, strings.Join(config.AllowIPs, ", "))
+		fmt.Fprintf(stdout, "App %s lets in only %s.\n", config.Name, strings.Join(config.AllowIPs, ", "))
 	}
 	if len(args) == 2 {
 		teamWarnOldHi(config.Name, stdout)

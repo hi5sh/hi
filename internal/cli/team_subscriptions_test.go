@@ -480,17 +480,17 @@ func TestTeamMemberCommand(t *testing.T) {
 
 func TestTeamNewFromFileTakesAChatGPTSignIn(t *testing.T) {
 	dir := setupTeamTest(t)
-	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
-	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
 	t.Setenv("CODEX_HOME", filepath.Join(dir, "no-codex"))
 	answers := filepath.Join(dir, "answers.json")
 	writeSkillTestFile(t, answers, `{"purpose":"p","channel":"C07PAYMENTS","owners":["U07OWNER1"],"members":{"lead":{"agent":"hermes","provider":"chatgpt","model":"gpt-6.1-sol"},"coder":{"agent":"claude"}}}`, 0o600)
-	if _, _, err := teamAnswersFromFile("payments", answers); err == nil || !strings.Contains(err.Error(), "HI_TEAM_CHATGPT_AUTH") {
+	if _, _, err := teamAnswersFromFile("payments", answers); err == nil || !strings.Contains(err.Error(), "HI_APP_CHATGPT_AUTH") {
 		t.Fatal(err)
 	}
 	auth := filepath.Join(dir, "auth.json")
 	writeSkillTestFile(t, auth, `{"auth_mode":"chatgpt","tokens":{"access_token":"`+testChatGPTToken(time.Now().Add(time.Hour), "acct-2", "team")+`","refresh_token":"rt-file"}}`, 0o600)
-	t.Setenv("HI_TEAM_CHATGPT_AUTH", auth)
+	t.Setenv("HI_APP_CHATGPT_AUTH", auth)
 	_, secrets, err := teamAnswersFromFile("payments", answers)
 	if err != nil || secrets.ChatGPT == nil || secrets.ChatGPT.RefreshToken != "rt-file" || secrets.ChatGPT.AccountID != "acct-2" {
 		t.Fatalf("%v %+v", err, secrets.ChatGPT)
@@ -519,7 +519,7 @@ func TestTeamMemberProxyArgs(t *testing.T) {
 		t.Fatal(secret)
 	}
 	// Signed in nowhere: refused before a box is made.
-	if _, _, err := teamMemberProxyArgs(boxMeta{Name: "b", Agent: "claude", Team: "payments:coder"}, nil, ""); err == nil || !strings.Contains(err.Error(), "hi team signin payments claude") {
+	if _, _, err := teamMemberProxyArgs(boxMeta{Name: "b", Agent: "claude", Team: "payments:coder"}, nil, ""); err == nil || !strings.Contains(err.Error(), "hi app signin payments claude") {
 		t.Fatal(err)
 	}
 	// With the team's own token, this machine's isn't needed.

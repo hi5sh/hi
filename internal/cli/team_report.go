@@ -36,11 +36,11 @@ func (b *teamBroker) webReporter(config teamConfig, r *http.Request) (teamPerson
 	person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader))
 	switch {
 	case ended:
-		return person, fmt.Errorf("your link has ended: type %s in the team's Slack channel for a new one", teamSlashCommand(b.team))
+		return person, fmt.Errorf("your link has ended: type %s in the app's Slack channel for a new one", teamSlashCommand(b.team))
 	case !ok:
 		return person, errors.New("reports are for people signed in with their own link; Feedback works for everyone")
 	case b.level(config, person.User) == teamLevelNone:
-		return person, errors.New("reports are for the team's contributors, whom an owner adds; Feedback works for everyone")
+		return person, errors.New("reports are for the app's contributors, whom an owner adds; Feedback works for everyone")
 	}
 	return person, nil
 }

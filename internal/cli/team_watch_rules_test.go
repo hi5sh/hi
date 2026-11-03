@@ -153,7 +153,7 @@ func TestWatchHealthRules(t *testing.T) {
 	rig.watch.mu.Lock()
 	key := rig.watch.state.Incidents[rig.watch.state.Teams["payments"].Open["key"]]
 	rig.watch.mu.Unlock()
-	if !strings.Contains(key.Title, "$2.30 outside hi") || !strings.Contains(key.Detail, "hi team key payments openrouter") {
+	if !strings.Contains(key.Title, "$2.30 outside hi") || !strings.Contains(key.Detail, "hi app key payments openrouter") {
 		t.Fatalf("%+v", key)
 	}
 	send(now.Add(8*time.Minute), nil)

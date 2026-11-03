@@ -1,6 +1,6 @@
 ---
 name: hi-dev-incidents
-description: Look into the hi team's incidents from its dev box - what hi recorded when an app job, the app, or a task failed. Use when the user asks why something broke, about errors, failures, outages, or an incident number, or when hi dev status shows open incidents. Covers hi dev incidents.
+description: Look into the hi app's incidents from its dev box - what hi recorded when an app job, the app, or a task failed. Use when the user asks why something broke, about errors, failures, outages, or an incident number, or when hi dev status shows open incidents. Covers hi dev incidents.
 ---
 
 # Incidents

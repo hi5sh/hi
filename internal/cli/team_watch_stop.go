@@ -71,7 +71,7 @@ func (b *teamBroker) errStopped() error {
 	if state.Paused {
 		what = "paused"
 	}
-	return fmt.Errorf("the team is %s (%s: %s), so nothing new starts; someone at the machine undoes it (hi team un%s %s). Tell the people in a line", what, state.By, firstNonEmpty(state.Because, "no reason given"), strings.TrimSuffix(what, "d"), b.team)
+	return fmt.Errorf("the app is %s (%s: %s), so nothing new starts; someone at the machine undoes it (hi app un%s %s). Tell the people in a line", what, state.By, firstNonEmpty(state.Because, "no reason given"), strings.TrimSuffix(what, "d"), b.team)
 }
 
 // stopped says the team is frozen or paused: hi's own checks then don't
@@ -149,7 +149,7 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Frozen = true
 		}
-		text = ":ice_cube: *The team's org server froze the team*"
+		text = ":ice_cube: *The org server froze the app*"
 	case "unfreeze":
 		if state.Frozen {
 			for path, data := range state.Allow {
@@ -164,7 +164,7 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Frozen, state.Allow, state.Apps = false, nil, nil
 		}
-		text = ":sunny: *The team's org server unfroze the team*"
+		text = ":sunny: *The org server unfroze the app*"
 	case "pause":
 		if !state.Paused {
 			running := teamRunningContainers("hi-box-team-"+b.team, "hi-box-"+b.team+"-t-")
@@ -173,7 +173,7 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Boxes, state.Paused = running, true
 		}
-		text = ":pause_button: *The team's org server paused every box of the team*"
+		text = ":pause_button: *The org server paused every box of the app*"
 	case "unpause":
 		if state.Paused {
 			for _, name := range state.Boxes {
@@ -186,7 +186,7 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Paused, state.Boxes = false, nil
 		}
-		text = ":arrow_forward: *The team's org server unpaused the team*"
+		text = ":arrow_forward: *The org server unpaused the app*"
 	default:
 		return fmt.Errorf("the org server asked for %q, which this hi doesn't know", do.Action)
 	}
@@ -201,9 +201,9 @@ func (b *teamBroker) carryOut(do apiWatchDo) error {
 	text += ")."
 	switch {
 	case state.Paused:
-		text += " Nothing runs: not the lead, not the app. Someone at the machine undoes it: hi team unpause " + b.team + "."
+		text += " Nothing runs: not the lead, not the app. Someone at the machine undoes it: hi app unpause " + b.team + "."
 	case state.Frozen:
-		text += " The boxes reach nothing but this channel, the app's pages are paused, and no work or version starts. Someone at the machine undoes it, after a look: hi team unfreeze " + b.team + "."
+		text += " The boxes reach nothing but this channel, the app's pages are paused, and no work or version starts. Someone at the machine undoes it, after a look: hi app unfreeze " + b.team + "."
 	default:
 		text += " Everything runs as before."
 	}

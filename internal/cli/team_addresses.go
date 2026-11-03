@@ -16,7 +16,7 @@ import (
 // plain http with the NetBird name's ports; or a name for each address,
 // which an IT team keeps, pointing at the team's NetBird address (port 80
 // sends each name to its address) or at its port through the IT team's
-// proxy, which may end TLS in front. hi team new asks; hi team addresses
+// proxy, which may end TLS in front. hi app new asks; hi app addresses
 // changes it.
 
 const (
@@ -59,7 +59,7 @@ func teamNamesFrom(production string) teamNames {
 	return teamNames{Production: production, Preview: "stage." + production, Dev: "dev." + production}
 }
 
-// teamParseNames reads hi team addresses' names: production's alone, or
+// teamParseNames reads hi app addresses' names: production's alone, or
 // production=, stage= (or preview=), and dev= each.
 func teamParseNames(args []string) (teamNames, error) {
 	var names teamNames
@@ -129,7 +129,7 @@ func teamCheckHost(host string) error {
 func teamAddressesWords(config teamConfig) string {
 	switch {
 	case config.Addresses == teamAddressesNetBird:
-		return "on the team's NetBird name, " + teamPeerName(config.Name) + ", on plain http"
+		return "on the app's NetBird name, " + teamPeerName(config.Name) + ", on plain http"
 	case config.Addresses == teamAddressesNames && config.Names != nil:
 		tls := "on plain http"
 		if config.Names.HTTPS {
@@ -142,7 +142,7 @@ func teamAddressesWords(config teamConfig) string {
 	if domain, ok := loadHiDomain(); ok {
 		return "on this machine's domain, on https: " + domain.addressName(config.Name, teamAddressDev) + " and the like"
 	}
-	return "on the team's NetBird name, " + teamPeerName(config.Name) + ", on plain http (this machine has no domain: hi net domain)"
+	return "on the app's NetBird name, " + teamPeerName(config.Name) + ", on plain http (this machine has no domain: hi net domain)"
 }
 
 // teamAskAddresses is the setup's question: the machine's domain if it
@@ -157,7 +157,7 @@ func teamAskAddresses(stdin io.Reader, stdout io.Writer, styled bool, config *te
 	}
 	options = append(options,
 		teamOption{teamAddressesNames, "a name for each, which your IT team keeps: demo.example.com, stage.demo.example.com, dev.demo.example.com"},
-		teamOption{"host", "one name your IT team keeps in its DNS, pointing at the team's NetBird address, with ports"},
+		teamOption{"host", "one name your IT team keeps in its DNS, pointing at the app's NetBird address, with ports"},
 		teamOption{teamAddressesNetBird, "the NetBird name, " + teamPeerName(config.Name) + ", on plain http"})
 	answer, err := teamChoose(stdin, stdout, "Addresses", options, offered)
 	if err != nil {
@@ -187,15 +187,15 @@ func teamAskAddresses(stdin io.Reader, stdout io.Writer, styled bool, config *te
 			return err
 		}
 		config.Addresses = host
-		teamSay(stdout, styled, "Ask your IT team for an A record from "+host+" to the team's NetBird address: hi team dev "+config.Name,
-			"shows it once the team joined. Production is http://"+host+"/, the preview :8080, and the dev page :8888.")
+		teamSay(stdout, styled, "Ask your IT team for an A record from "+host+" to the app's NetBird address: hi app dev "+config.Name,
+			"shows it once the app joined. Production is http://"+host+"/, the preview :8080, and the dev page :8888.")
 	}
 	return nil
 }
 
-// teamAddressesCommand is hi team addresses <name> [domain|netbird|<host>].
+// teamAddressesCommand is hi app addresses <name> [domain|netbird|<host>].
 func teamAddressesCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team addresses <name> [domain | netbird | <host name> | names <production's name> | names production=<name> stage=<name> dev=<name>] [--https]"}
+	usage := usageError{"usage: hi app addresses <name> [domain | netbird | <host name> | names <production's name> | names production=<name> stage=<name> dev=<name>] [--https]"}
 	https := false
 	if i := slices.Index(args, "--https"); i >= 0 {
 		https, args = true, slices.Delete(slices.Clone(args), i, i+1)
@@ -212,7 +212,7 @@ func teamAddressesCommand(args []string, stdout io.Writer) error {
 		return err
 	}
 	if len(args) == 1 {
-		fmt.Fprintf(stdout, "Team %s's addresses are %s.\n", name, teamAddressesWords(config))
+		fmt.Fprintf(stdout, "App %s's addresses are %s.\n", name, teamAddressesWords(config))
 		if config.Addresses == teamAddressesNames && config.Names != nil {
 			fmt.Fprint(stdout, teamNamesAsk(name, *config.Names))
 		}
@@ -236,7 +236,7 @@ func teamAddressesCommand(args []string, stdout io.Writer) error {
 	return teamMoveAddresses(config, stdout)
 }
 
-// teamSetNames is hi team addresses <name> names ...: each address at a
+// teamSetNames is hi app addresses <name> names ...: each address at a
 // name of its own.
 func teamSetNames(name string, args []string, https bool, stdout io.Writer) error {
 	config, err := loadTeam(name)
@@ -265,7 +265,7 @@ func teamNamesAsk(team string, names teamNames) string {
 	}
 	peer := teamPeerName(team)
 	var b strings.Builder
-	fmt.Fprintf(&b, "Ask your IT team to point each name at the team's NetBird peer, %s, either way:\n", peer)
+	fmt.Fprintf(&b, "Ask your IT team to point each name at the app's NetBird peer, %s, either way:\n", peer)
 	for _, address := range []string{teamSlotProduction, teamSlotPreview, teamAddressDev} {
 		fmt.Fprintf(&b, "  %-11s %s://%s/   an A record to its NetBird address, or a proxy to %s:%d\n", teamAddressLabel(address), scheme, names.name(address), peer, teamInternalPort(address))
 	}
@@ -291,11 +291,11 @@ func teamMoveAddresses(config teamConfig, stdout io.Writer) error {
 	if err := saveTeam(config); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Team %s's addresses are %s.\n", name, teamAddressesWords(config))
+	fmt.Fprintf(stdout, "App %s's addresses are %s.\n", name, teamAddressesWords(config))
 	if teamState(name) != "up" {
-		fmt.Fprintf(stdout, "They move there when it starts: hi team up %s.\n", name)
+		fmt.Fprintf(stdout, "They move there when it starts: hi app up %s.\n", name)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Team %s restarts to move them; the owners get the dev page's new link in Slack.\n", name)
+	fmt.Fprintf(stdout, "App %s restarts to move them; the owners get the dev page's new link in Slack.\n", name)
 	return teamUp(name, stdout)
 }

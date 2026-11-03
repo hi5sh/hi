@@ -49,7 +49,7 @@ func TestTeamRename(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	moved := filepath.Join(dir, "team-billing")
+	moved := filepath.Join(dir, "app-billing")
 	if config.Name != "billing" || config.MadeAs != "payments" || teamDir("billing") != moved || fileExists(folder) {
 		t.Fatal(config.Name, config.MadeAs, teamDir("billing"))
 	}
@@ -62,12 +62,12 @@ func TestTeamRename(t *testing.T) {
 	if len(removed) != 1 || removed[0] != "payments" || !strings.Contains(strings.Join(calls, "; "), "disable --now hi-team-payments.service") {
 		t.Fatal(calls, removed)
 	}
-	if !strings.Contains(out.String(), "/hi-billing") || !strings.Contains(out.String(), "hi team manifest billing") {
+	if !strings.Contains(out.String(), "/hi-billing") || !strings.Contains(out.String(), "hi app manifest billing") {
 		t.Fatal(out.String())
 	}
 
 	soul, _ := os.ReadFile(filepath.Join(moved, "lead", "SOUL.md"))
-	if !strings.HasPrefix(string(soul), "# The billing team's lead\n\nYou are the billing team's lead") || !strings.Contains(string(soul), "The payments team's people") {
+	if !strings.HasPrefix(string(soul), "# The billing app's lead\n\nYou are the billing app's lead") || !strings.Contains(string(soul), "The payments team's people") {
 		t.Fatal(string(soul))
 	}
 
@@ -84,7 +84,7 @@ func TestTeamRename(t *testing.T) {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(filepath.Join(lead, "hindsight", "config.json"))
-	if !strings.Contains(string(data), `"bank_id": "team-payments"`) || !strings.Contains(string(data), "the billing team's") {
+	if !strings.Contains(string(data), `"bank_id": "team-payments"`) || !strings.Contains(string(data), "the billing app's") {
 		t.Fatal(string(data))
 	}
 
@@ -110,7 +110,7 @@ func TestTeamRenameKeepsOthers(t *testing.T) {
 		teamRegister(name, filepath.Join(dir, "team-"+name))
 		saveTeam(config)
 	}
-	if err := teamRename([]string{"payments", "billing", "--yes"}, strings.NewReader(""), &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "already a team") {
+	if err := teamRename([]string{"payments", "billing", "--yes"}, strings.NewReader(""), &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "already an app") {
 		t.Fatal(err)
 	}
 	os.MkdirAll(teamTaskDir("payments"), 0o700)

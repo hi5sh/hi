@@ -87,7 +87,7 @@ type teamPreview struct {
 	// version ("thread", "dm", "channel"); only in replies.
 	Docs string `json:"docs,omitempty"`
 	Told string `json:"told,omitempty"`
-	// Domain is the name that stays the address is on (hi team domain),
+	// Domain is the name that stays the address is on (hi app domain),
 	// or "" for one NetBird made up. DomainError says why the name it
 	// should be on didn't work, at DomainChecked; hi tries again later.
 	Domain        string    `json:"domain,omitempty"`
@@ -173,7 +173,7 @@ func saveTeamSlot(team string, state teamPreview) error {
 }
 
 // teamRunCommand is how the project starts: make hi-run, for a project
-// whose own run target means something else (hi team adopt), else make
+// whose own run target means something else (hi app adopt), else make
 // run, else the start script, with Bun when the project has a bun.lock
 // and npm otherwise.
 func teamRunCommand(dir string) (string, error) {
@@ -241,7 +241,7 @@ func (b *teamBroker) preview(request teamPreviewRequest) (teamPreview, error) {
 
 // startPreview puts the new team's blank app on the preview when the team
 // starts, so the people's own links (/hi) work before anyone has asked for
-// anything. Only while the project is as hi team new wrote it: once there
+// anything. Only while the project is as hi app new wrote it: once there
 // is work in it, or for a project cloned or started empty, the lead makes
 // the previews.
 func (b *teamBroker) startPreview(stderr io.Writer) {
@@ -260,11 +260,14 @@ func (b *teamBroker) startPreview(stderr io.Writer) {
 }
 
 // teamFreshApp says the project is still the blank app from team-app: its
-// only commit outside the lead's specs is hi team new's.
+// only commit outside the lead's specs is hi app new's.
 func teamFreshApp(repo, branch string) bool {
 	data, ok := teamGitShow(repo, branch, templateMetadataPath)
 	var metadata templateMetadataFile
-	if !ok || json.Unmarshal([]byte(data), &metadata) != nil || metadata.Template != teamAppTemplate {
+	if !ok || json.Unmarshal([]byte(data), &metadata) != nil {
+		return false
+	}
+	if followRenamedBuiltins(&metadata); metadata.Template != teamAppTemplate {
 		return false
 	}
 	return len(strings.Fields(boxGit(repo, "rev-list", branch, "--", ".", ":!"+teamSpecsPath))) == 1
@@ -329,7 +332,7 @@ func (b *teamBroker) show(next teamPreview, ref string, keep time.Duration) (tea
 		teamInternalMoved(b.team, next.Slot, current.Expose, current.URL)) && exposed
 	lasts := exposed && time.Until(current.Expires) > keep && teamDomainSettled(current, wanted) && !outdated
 	next.Settings = teamSettingsStamp(b.team)
-	// hi team rebuild built the base image again: a new box, on it.
+	// hi app rebuild built the base image again: a new box, on it.
 	rebuilt := had && b.oldImage != nil && b.oldImage(current.Container)
 	if lasts && current.Commit == next.Commit && current.Port == next.Port && current.Settings == next.Settings && !rebuilt && b.running(current.Container) {
 		current.Label = next.Label
@@ -644,7 +647,7 @@ func (b *teamBroker) postProductionLink(state *teamPreview) string {
 
 // keepLinks keeps production on its address, and gives it a new one
 // before the old ends. A preview whose address has had its day is
-// stopped; one whose address ended early, stopped from outside hi team,
+// stopped; one whose address ended early, stopped from outside hi app,
 // goes back on an address, and the people hear of its new link.
 func (b *teamBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 	var failed, previewFailed time.Time
@@ -746,7 +749,7 @@ func (b *teamBroker) productionNeedsWork() bool {
 }
 
 // appOnOldImage says an app's box runs another image than hi's base image
-// is now: hi team rebuild built it again, with Ubuntu's fixes.
+// is now: hi app rebuild built it again, with Ubuntu's fixes.
 func (b *teamBroker) appOnOldImage(container string) bool {
 	running, err := b.engineOutput("container", "inspect", "-f", "{{.Image}}", container)
 	if err != nil {
@@ -830,7 +833,7 @@ func (b *teamBroker) startApp(slot, name, src, data, address, command string, po
 		"-v", files+":"+teamAppFilesDir+":ro",
 		"-v", b.hi+":"+teamAppRelay+":ro",
 		"--env-file", envFile,
-		image, teamAppRelay, "team", "__app", "--workers", teamAppWorkersDir, "--box", name,
+		image, teamAppRelay, "app", "__app", "--workers", teamAppWorkersDir, "--box", name,
 		teamAppModelsDir+"/"+teamModelsSocket, strconv.Itoa(teamAppModelsPort), command)
 	name, args := teamOutsideService(engine.bin, run)
 	if out, err := exec.Command(name, args...).CombinedOutput(); err != nil {

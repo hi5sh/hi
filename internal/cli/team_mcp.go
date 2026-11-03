@@ -2,7 +2,7 @@ package cli
 
 // The app's MCP server, for the lead (docs/specs/approved/hi_team_agents.md).
 // An app may serve MCP at /mcp. The lead's Hermes reaches it through
-// hi team mcp production|preview in its box, a bridge from stdio to the
+// hi app mcp production|preview in its box, a bridge from stdio to the
 // broker, which passes the messages to the app. The broker, outside the
 // lead's box, keeps production to the tools that only read: on the
 // preview, which runs on its own copy of production's data, every tool.
@@ -310,7 +310,7 @@ func teamMCPLeadTools(slot string, tools []json.RawMessage) []json.RawMessage {
 func teamMCPInstructions(team, slot, app string, err error) string {
 	where := "production, what everyone uses: only the app's tools that read, never one that changes something"
 	if slot == teamSlotPreview {
-		where = "the preview, on its own copy of production's data: every tool. It may show a branch being tried rather than dev: hi team versions says which"
+		where = "the preview, on its own copy of production's data: every tool. It may show a branch being tried rather than dev: hi app versions says which"
 	}
 	if errors.Is(err, errTeamNoMCP) {
 		return fmt.Sprintf("The %s app on %s. It has no MCP server at %s yet, so it has no tools: the owners add them, and docs/user/mcp.md says what they do.", team, slot, teamMCPPath)
@@ -385,12 +385,12 @@ func (b *teamBroker) leadMCP(ctx context.Context, slot string, message teamMCPMe
 				allowed = allowed || tool.Name == params.Name
 			}
 			if !allowed {
-				fmt.Fprintf(os.Stderr, "team %s: the lead may not use %s on production\n", b.team, params.Name)
+				fmt.Fprintf(os.Stderr, "app %s: the lead may not use %s on production\n", b.team, params.Name)
 				return answer(map[string]any{"isError": true, "content": []map[string]string{{"type": "text",
 					"text": params.Name + " isn't one of the app's tools that only read, so the lead can't use it on production. Try it on the preview (app_preview), on its own copy of the data."}}})
 			}
 		}
-		fmt.Fprintf(os.Stderr, "team %s: the lead uses %s on %s\n", b.team, params.Name, slot)
+		fmt.Fprintf(os.Stderr, "app %s: the lead uses %s on %s\n", b.team, params.Name, slot)
 		forwarded, err := b.appMCP(ctx, slot, message)
 		if err != nil {
 			return failure(-32603, err.Error())
@@ -423,11 +423,11 @@ func (b *teamBroker) leadMCPRoute(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 // the bridge, in the lead's box
 
-// runTeamMCPBridge is hi team mcp <address>: Hermes' MCP server for the
+// runTeamMCPBridge is hi app mcp <address>: Hermes' MCP server for the
 // app on that address, over stdio, one JSON-RPC message a line.
 func runTeamMCPBridge(args []string, stdin io.Reader, stdout io.Writer, client *http.Client) error {
 	if len(args) != 1 || !teamMCPSlot(args[0]) {
-		return usageError{"usage: hi team mcp production|preview  (the app's MCP server, for the lead's Hermes, over stdio)"}
+		return usageError{"usage: hi app mcp production|preview  (the app's MCP server, for the lead's Hermes, over stdio)"}
 	}
 	slot := args[0]
 	post := func(ctx context.Context, message teamMCPMessage) (*teamMCPMessage, error) {
@@ -435,7 +435,7 @@ func runTeamMCPBridge(args []string, stdin io.Reader, stdout io.Writer, client *
 		request, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://team/mcp/"+slot, bytes.NewReader(body))
 		response, err := client.Do(request)
 		if err != nil {
-			return nil, fmt.Errorf("the team's broker isn't answering: %w", err)
+			return nil, fmt.Errorf("the app's broker isn't answering: %w", err)
 		}
 		defer response.Body.Close()
 		var answer *teamMCPMessage

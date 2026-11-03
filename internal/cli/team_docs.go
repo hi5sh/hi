@@ -31,7 +31,7 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// Every app a hi team builds has its docs at /docs on its addresses, in
+// Every hi app has its docs at /docs on its addresses, in
 // two parts: the user docs, for the people who use the app (why it exists,
 // who it's for, its parts, how to do things), and the tech docs, for
 // developers and agents (how it's built and why, the map, the specs, what
@@ -466,7 +466,7 @@ func teamDocsDiagramHTML(data []byte) template.HTML {
 // production hasn't.
 func teamDocsChangelog(team, slot string) string {
 	var text strings.Builder
-	text.WriteString("# Changelog\n\nWhat each version of production brought, newest first. hi writes this page from the team's releases.\n")
+	text.WriteString("# Changelog\n\nWhat each version of production brought, newest first. hi writes this page from the app's releases.\n")
 	view, err := teamVersionsReport(team)
 	if err != nil {
 		return text.String()
@@ -665,7 +665,7 @@ func (b *teamBroker) llmsHandler(slot string, full bool) http.Handler {
 // server when its docs tell of one, and every page with its file.
 func teamDocsIndex(w http.ResponseWriter, config teamConfig, version *teamDocsVersion) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, "# %s\n\n> %s\n\n", config.Name, firstNonEmpty(config.Purpose, "An app a hi team builds."))
+	fmt.Fprintf(w, "# %s\n\n> %s\n\n", config.Name, firstNonEmpty(config.Purpose, "A hi app."))
 	fmt.Fprintf(w, "The user docs are for the people who use the app, the tech docs for those who build it. Each page's Markdown is at %sraw/<file>.\n", teamDocsPrefix)
 	if _, ok := version.Files[teamDocsMCPPage]; ok {
 		fmt.Fprintf(w, "\n## Use it with an agent\n\n")
@@ -695,7 +695,7 @@ func teamDocsIndex(w http.ResponseWriter, config teamConfig, version *teamDocsVe
 // teamDocsFull is /llms-full.txt: the user docs, page after page.
 func teamDocsFull(w http.ResponseWriter, config teamConfig, version *teamDocsVersion) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, "# %s\n\n> %s\n", config.Name, firstNonEmpty(config.Purpose, "An app a hi team builds."))
+	fmt.Fprintf(w, "# %s\n\n> %s\n", config.Name, firstNonEmpty(config.Purpose, "A hi app."))
 	for _, page := range version.User {
 		if page.File == "" {
 			continue

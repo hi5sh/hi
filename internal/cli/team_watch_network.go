@@ -5,7 +5,7 @@ package cli
 // incident once and closes it after a day without a repeat. A burst of
 // sends to a host on watch-hosts.txt freezes the team on its own, as does
 // an advisory known to be exploited in the app's own packages; everything
-// else that stops a team is an owner's (hi team freeze).
+// else that stops a team is an owner's (hi app freeze).
 //
 // Spec: docs/specs/approved/hi_watch.md (release 3).
 
@@ -41,9 +41,9 @@ var watchExempt = []string{"openrouter.ai", "anthropic.com", "github.com", "gith
 // watchHostsStarter is watch-hosts.txt as the server first writes it:
 // paste sites, file drops, tunnels, and request catchers, where a box has
 // no reason to send anything.
-const watchHostsStarter = `# Hosts a team's box has no reason to send to: paste sites, file drops,
+const watchHostsStarter = `# Hosts an app's box has no reason to send to: paste sites, file drops,
 # tunnels, and request catchers. One per line; a name covers its
-# subdomains. hi team watch reads this file again when it changes.
+# subdomains. hi app watch reads this file again when it changes.
 pastebin.com
 paste.ee
 hastebin.com
@@ -399,5 +399,5 @@ func (w *teamWatcher) stopConfirmedLocked(team *watchTeam, stop apiWatchStop) st
 		return ""
 	}
 	team.WantDone = true
-	return fmt.Sprintf("Team %s did %s (%s).", team.Team, team.Want.Action, team.Want.ID)
+	return fmt.Sprintf("App %s did %s (%s).", team.Team, team.Want.Action, team.Want.ID)
 }

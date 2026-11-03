@@ -262,7 +262,7 @@ func TestServeLocalServesStopsStartsAndRemoves(t *testing.T) {
 		t.Fatalf("serve: %d\n%s%s", code, stdout, stderr)
 	}
 	for _, want := range []string{
-		"detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, teams' boxes may still take 8.0 GB",
+		"detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, apps' boxes may still take 8.0 GB",
 		"check      it needs 91.0 GB with its context: fits, 13.0 GB left; 8 MB to download",
 		"tested on Strix Halo, 2026-11-02",
 		"License: apache-2.0",
@@ -394,7 +394,7 @@ func TestServeLocalRefusesWhatDoesntFitAndDryRunChangesNothing(t *testing.T) {
 	f := newFakeLocal(t)
 	f.memory(128, 90)
 	code, stdout, stderr := runHi("serve", "llm", "qwen3.8-flash-next", "--on", "local", "--yes")
-	if code == 0 || !strings.Contains(stderr, "it needs 91.0 GB with its context, and this machine has 74.0 GB for it: 90.0 GB available, less 8.0 GB that teams' boxes may still take and 8.0 GB of headroom. It is 17.0 GB short") {
+	if code == 0 || !strings.Contains(stderr, "it needs 91.0 GB with its context, and this machine has 74.0 GB for it: 90.0 GB available, less 8.0 GB that apps' boxes may still take and 8.0 GB of headroom. It is 17.0 GB short") {
 		t.Fatalf("too big: %d\n%s%s", code, stdout, stderr)
 	}
 	if _, system := f.calls(); f.gets != 0 || system != "" {

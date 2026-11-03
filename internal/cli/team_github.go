@@ -45,7 +45,7 @@ var teamGHLookPath = func() (string, error) { return exec.LookPath("gh") }
 func teamConnectGitHub(config *teamConfig, name string, stdout io.Writer) error {
 	repo := teamDir(config.Name) + "/repo"
 	if current := boxGit(repo, "remote", "get-url", "origin"); current != "" {
-		return fmt.Errorf("the team's project already pushes to %s", current)
+		return fmt.Errorf("the app's project already pushes to %s", current)
 	}
 	url := "https://github.com/" + name + ".git"
 	if _, err := teamGH("", "repo", "view", name, "--json", "name"); err == nil {
@@ -55,7 +55,7 @@ func teamConnectGitHub(config *teamConfig, name string, stdout io.Writer) error 
 		}
 		if out, err := teamGit(repo, "push", "-q", "-u", "origin", config.Branch); err != nil {
 			teamGit(repo, "remote", "remove", "origin")
-			return fmt.Errorf("%s exists and didn't take the team's project (is it empty?): %s", name, qFirstLine(out, err.Error()))
+			return fmt.Errorf("%s exists and didn't take the app's project (is it empty?): %s", name, qFirstLine(out, err.Error()))
 		}
 		fmt.Fprintf(stdout, "The project is on GitHub in %s, which already existed.\n", name)
 	} else {
@@ -68,6 +68,6 @@ func teamConnectGitHub(config *teamConfig, name string, stdout io.Writer) error 
 	if err := saveTeam(*config); err != nil {
 		return err
 	}
-	fmt.Fprintln(stdout, "The team pushes every merge there, with this machine's GitHub sign-in.")
+	fmt.Fprintln(stdout, "The app pushes every merge there, with this machine's GitHub sign-in.")
 	return nil
 }

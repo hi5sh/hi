@@ -1,6 +1,6 @@
 ---
 name: hi
-description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through your org (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and teams in Slack (hi team, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
+description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through your org (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and apps in Slack (hi app, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
 ---
 
 # hi
@@ -137,7 +137,7 @@ hi serve stop <name>
 
 - On this machine, run `hi serve detect` first: it names what's missing
   and the `hi install` that adds it. The model must fit in the memory
-  teams leave; hi refuses it otherwise, and `--yes` doesn't override that.
+  apps leave; hi refuses it otherwise, and `--yes` doesn't override that.
   The backend follows the GPU (ROCm on AMD, CUDA on NVIDIA); `--backend
   vulkan` or `--backend cpu` only when the user asks, and the CPU only
   for a recipe with a CPU profile.
@@ -267,7 +267,7 @@ so:
 5. When only colleagues need it, prefer `--vpn` (no public address, only
    devices on the NetBird network) or `--allow-ip <their address>`.
    Never stop all exposures (`hi net expose stop --all`) on a shared machine:
-   it also stops teams' addresses.
+   it also stops apps' addresses.
 
 ```sh
 hi net expose 3000 --max 30m --detach --json
@@ -412,7 +412,7 @@ hi init python pricing-tools --dry-run       # every file and command, nothing w
 hi init python pricing-tools --yes           # after the user agreed to the plan
 ```
 
-Other templates: `web`, `app`, `service`, `pipeline`, `ml`, and your team's private
+Other templates: `web`, `webapp`, `service`, `pipeline`, `ml`, and your team's private
 ones on a connected device. `autoresearch-ml`, and private research
 templates built on `autoresearch-base`, are for `hi agent best-of` rounds:
 after `hi init`, `make data`, `make score`, and a commit, `make loop` starts
@@ -450,18 +450,18 @@ agents follow, often with scripts. Never pass `--accept-risk` or `--force`
 on your own; if an audit rates a skill `high` or `critical`, tell the user.
 A new skill is loaded in the next session, not this one.
 
-## Teams (hi team)
+## Apps (hi app)
 
-`hi team` runs one app for the people in one Slack channel: a Hermes lead
+`hi app` runs one app for the people in one Slack channel: a Hermes lead
 in the channel helps them and files what they ask for as tasks, and the
-team's owners build the app with coding agents in the team's dev box.
-On the team's machine, `hi team ls`, `status`, `logs`, `channel`, `jobs`,
+app's owners build it with coding agents in the app's dev box.
+On the app's machine, `hi app ls`, `status`, `logs`, `channel`, `jobs`,
 `incidents`, `snapshots`, and `task list` are read-only. Everything else
 there (`new`, `up`, `down`, `rm`, `owners`, `key`, `env`, `restore`,
-`rollback`, `data copy`) changes a running team and its production: run
+`rollback`, `data copy`) changes a running app and its production: run
 it only when the user asks, and say what it changes first.
 
-Inside a team's dev box, use `hi dev` instead (`hi dev help`), and the
+Inside an app's dev box, use `hi dev` instead (`hi dev help`), and the
 box's own `hi-dev-*` skills: `hi dev preview`, `hi dev ship`, `hi dev
 task`, and `hi dev allow <site> --why "<what for>"` for a site the proxy
 refuses. Production moves only when an owner or a developer clicks Release on
@@ -478,7 +478,7 @@ These change the machine and need sudo; run them only when asked.
   `hi verify strix` checks a Strix Halo machine afterwards.
 - `hi net`: enroll the machine in NetBird (it prompts for the setup key).
   `hi net status` is read-only and safe to run. `hi net domain` (read-only
-  without arguments) puts the machine's teams' addresses on https with a
+  without arguments) puts the machine's apps' addresses on https with a
   domain of the user's; setting it needs their DNS provider's token.
 - `hi version`: the installed version. `hi update --check` says whether a
   newer release exists; `hi update` installs it (ask first).

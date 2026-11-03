@@ -1,8 +1,8 @@
 # hi
 
 `hi` is the CLI behind hi5, an open-source software factory for businesses:
-colleagues turn their ideas into internal apps with coding agents, in a
-team in Slack, on your machines and network, from the templates and rules
+colleagues turn their ideas into internal apps with coding agents, in
+Slack, on your machines and network, from the templates and rules
 your developers set, and ready for IT to take over when an app becomes
 critical. It also prepares Linux machines and project folders, runs coding
 agents in boxes, and rents remote GPUs. It is a small, static Go binary so
@@ -45,8 +45,8 @@ hi net status      Show NetBird connection status
 hi net down        Disconnect NetBird
 hi net reconnect   Reconnect an enrolled NetBird peer
 hi net expose 3000 Put a local service on a temporary public address (hi net expose help)
-hi net domain <domain>  https for the teams' addresses on this machine, with a domain of yours
-hi init            Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml, and your server's own)
+hi net domain <domain>  https for the apps' addresses on this machine, with a domain of yours
+hi init            Start a project from a template (python, web, webapp, service, pipeline, ml, autoresearch-ml, and your server's own)
 hi compute         Start, reach, and stop remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
 hi login <hf|colab|runpod|shadeform>  Sign in to a compute provider
 hi serve llm <recipe>  Serve a model with an OpenAI-compatible API, rented or on this machine (hi serve help)
@@ -56,17 +56,17 @@ hi agent [task]    Hand a task to Claude Code, Codex, Hermes, or Antigravity in 
 hi agent brainstorm <question>  Several agents give ideas alone; one compiles them into a proposal
 hi agent best-of <n> <task>  The same task in n boxes, checked and ranked; --score runs rounds that keep only gains
 hi box shell       Run a shell or a command in a rootless box (hi box help)
-hi team new <name> Set up a team's app in a Slack channel, with a lead and a dev box; hi team up starts it (hi team help)
-hi team dev <name> The team's dev box, where its owners build with agents over SSH or from the dev page
-hi team owners <name>  The team's owners and their SSH keys
-hi team key <name> openrouter  The team's own OpenRouter key; hi team env <name> KEY=VALUE gives its app settings
-hi team snapshots <name>  The team's daily and pre-release snapshots; hi team restore <name> <snapshot> puts it back
+hi app new <name>  Set up an app in a Slack channel, with a lead and a dev box; hi app up starts it (hi app help)
+hi app dev <name>  The app's dev box, where its owners build with agents over SSH or from the dev page
+hi app owners <name>  The app's owners and their SSH keys
+hi app key <name> openrouter  The app's own OpenRouter key; hi app env <name> KEY=VALUE gives it settings
+hi app snapshots <name>  The app's daily and pre-release snapshots; hi app restore <name> <snapshot> puts it back
 hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
 hi verify strix    Check an installed Strix Halo workstation
 hi heartbeat <url> This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
-hi update          Update hi to the latest release, and restart an org server or team on the old one (--check, --version, --restart)
+hi update          Update hi to the latest release, and restart an org server or app on the old one (--check, --version, --restart)
 hi version         Print the installed version
 hi help            Show help
 ```
@@ -252,7 +252,7 @@ that keep it out of `.env` and `secrets/`, the `hi` skill, and CI.
 hi init                         # choose a template, name, and directory
 hi init python pricing-tools    # Python: uv, ruff, pyrefly, pytest
 hi init web dashboard           # React and TypeScript on Vite: Bun, Biome, Vitest
-hi init app suppliers           # a web app on Bun alone: Bun.serve, React, SQLite, bun test
+hi init webapp suppliers        # a web app on Bun alone: Bun.serve, React, SQLite, bun test
 hi init service orders-api      # FastAPI, SQLAlchemy and Alembic, Dockerfile
 hi init pipeline prices-feed    # an idempotent run --date: land raw, parse, load
 hi init ml forecaster           # PyTorch; ROCm on Strix Halo, CUDA on NVIDIA, else CPU
@@ -311,18 +311,18 @@ question carries a short, redacted context, which `hi q --context` shows.
 Commands that run are logged to `~/.local/state/hi/q/log.jsonl`, without
 their output.
 
-## Teams
+## Apps
 
-`hi team` is the software factory: one team runs one internal app for the
+`hi app` is the software factory: one app, built and run for the
 people in one Slack channel, on a machine of yours:
 
 - **The lead**, Hermes Agent, is in the channel. It helps people use the
   app, shapes what they ask for into tasks (GitHub Issues, GitLab issues,
   or hi's own), answers how far something is, and watches the app's jobs,
   incidents, and backups. It never writes code or moves production.
-- **The owners**, the team's developers, build in the team's **dev box**:
+- **The owners**, the app's developers, build in the app's **dev box**:
   a long-lived box with the project, Claude Code, Codex, and
-  [herdr](https://herdr.dev), reached over SSH on the team's NetBird
+  [herdr](https://herdr.dev), reached over SSH on the app's NetBird
   network or from the **dev page** in a browser, with the tasks, a chat
   with each agent, VS Code, and the system's state. `hi dev preview` and
   `hi dev ship` put work on the preview and into dev.
@@ -336,20 +336,20 @@ people in one Slack channel, on a machine of yours:
   developers' own from a private repository through `hi org templates`,
   with your stack, toolchain, `make check`, and agent rules.
 - **Handing over** is changing owners: the project is an ordinary git
-  repository from your template, and the team is one folder.
+  repository from your template, and the app is one folder.
 
 ```sh
-hi team new onboarding          # ten questions: the lead, purpose, Slack app, channel, people, members, models, code, network, heartbeats
-hi team up onboarding           # start it, now and at boot
-hi team owners onboarding key U07ANNA "$(cat anna.pub)"   # an owner's SSH key for the dev box
-hi team dev onboarding          # the dev box, and how to get in
-hi team status onboarding       # versions, backups, the helper
+hi app new onboarding           # ten questions: the lead, purpose, Slack app, channel, people, members, models, code, network, heartbeats
+hi app up onboarding            # start it, now and at boot
+hi app owners onboarding key U07ANNA "$(cat anna.pub)"   # an owner's SSH key for the dev box
+hi app dev onboarding           # the dev box, and how to get in
+hi app status onboarding        # versions, backups, the helper
 ```
 
-The boxes hold no keys: hi's proxy adds them on the way out. A team's
+The boxes hold no keys: hi's proxy adds them on the way out. An app's
 addresses are on its NetBird network unless an owner makes one public, and
 `hi net domain` puts them on https. See
-[Agent teams](https://hi5.sh/guide/team/).
+[Apps](https://hi5.sh/guide/app/).
 
 ## Agents and boxes
 
@@ -458,7 +458,7 @@ under the name in brackets for `hi install <tool>` and `hi uninstall <tool>`:
 - [GitHub CLI](https://cli.github.com) [`gh`]
 - [Docker Engine](https://docs.docker.com/engine/) and Docker Compose [`docker`]
 - [Podman](https://podman.io), rootless, with `crun` [`podman`]
-- [restic](https://restic.net), for `hi team`'s snapshots [`restic`]
+- [restic](https://restic.net), for `hi app`'s snapshots [`restic`]
 - [NetBird](https://netbird.io) [`netbird`]
 - [btop](https://github.com/aristocratos/btop),
   [tmux](https://github.com/tmux/tmux), and
@@ -494,7 +494,7 @@ The repository:
 | `internal/cli/` | hi itself, one Go package, a file or a few per command (`box*.go`, `team_*.go`, ...). |
 | `embed.go` | The files the binary carries, embedded from the folders below. |
 | `templates/`, `skills/`, `bundles/`, `recipes/` | Project templates, the hi skill, skill bundles, and `hi serve`'s recipes. |
-| `helper/` | The team pages' scripts and styles, and the lead's Hermes plugin. |
+| `helper/` | The app pages' scripts and styles, and the lead's Hermes plugin. |
 | `scripts/` | The workstation installer and the llama.cpp setup that run on machines. |
 | `third_party/` | Vendored code, under its own licenses. |
 | `site/` | The website, hi5.sh. |

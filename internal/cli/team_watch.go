@@ -106,7 +106,7 @@ func teamRecordSpend(team, slot string, cost float64) {
 }
 
 // teamServeStoppedPath marks a stop __serve was asked for: systemd's
-// SIGTERM, for an update, hi team up, or hi team down.
+// SIGTERM, for an update, hi app up, or hi app down.
 func teamServeStoppedPath(team string) string {
 	return filepath.Join(teamDir(team), "run", "serve-stopped")
 }
@@ -372,7 +372,7 @@ func (b *teamBroker) heartbeat(state *teamWatchState, probe teamWatchProbe, now 
 		}
 		beat.Parts["production"] = production
 	}
-	// Only the starts nobody asked for: updates and hi team up restart on
+	// Only the starts nobody asked for: updates and hi app up restart on
 	// purpose.
 	beat.Restarts = teamUnplannedStarts(b.team, now.Add(-24*time.Hour))
 	if used, inodes, err := probe.statfs(teamDir(b.team)); err == nil {
@@ -540,7 +540,7 @@ func (b *teamBroker) sendHeartbeat(stopping string) (bool, error) {
 		// checked here now, and opens again if it still holds.
 		for _, local := range state.Told {
 			if b.incidentOpen(local) {
-				b.recovered(local, "The team watches itself now, on its own machine; this opens again here if it still holds.")
+				b.recovered(local, "The app watches itself now, on its own machine; this opens again here if it still holds.")
 			}
 		}
 		state.Told = nil
@@ -635,10 +635,10 @@ func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
 		more, err := b.sendHeartbeat("")
 		switch {
 		case err != nil && !failing:
-			fmt.Fprintf(stderr, "hi: the team's watcher: %v\n", err)
+			fmt.Fprintf(stderr, "hi: the app's watcher: %v\n", err)
 			failing = true
 		case err == nil && failing:
-			fmt.Fprintln(stderr, "hi: the team's watcher runs again")
+			fmt.Fprintln(stderr, "hi: the app's watcher runs again")
 			failing = false
 		}
 		b.lookAtProduction()
@@ -654,11 +654,11 @@ func (b *teamBroker) keepWatched(done <-chan struct{}, stderr io.Writer) {
 	}
 }
 
-// teamWatchLine is what hi team status says about the watcher.
+// teamWatchLine is what hi app status says about the watcher.
 func teamWatchLine(team string) string {
 	state := loadTeamWatchState(team)
 	if state.Sent.IsZero() {
-		return "Watcher: on this machine, from the team's next start; it checks every minute."
+		return "Watcher: on this machine, from the app's next start; it checks every minute."
 	}
 	return fmt.Sprintf("Watcher: on this machine, last checked %s ago.", teamAgo(time.Since(state.Sent)))
 }

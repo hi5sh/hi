@@ -252,7 +252,7 @@ func (b *teamBroker) devSiteAsk(host, why, work string) (teamDevSiteAnswer, erro
 		teamDevAccessMu.Unlock()
 	}
 	return teamDevSiteAnswer{Host: host, State: teamDevSiteAsked,
-		Message: "Asked the team's owners for " + host + ": they see it on the dev page and in the channel. hi dev allow " + host + " --wait waits for their answer."}, nil
+		Message: "Asked the app's owners for " + host + ": they see it on the dev page and in the channel. hi dev allow " + host + " --wait waits for their answer."}, nil
 }
 
 // devSiteTell posts an ask in the channel, with the dev page's link, and
@@ -395,7 +395,7 @@ func (b *teamBroker) webSite(user, value string, allow bool) (string, error) {
 		return "", err
 	}
 	if !containsString(config.Owners, user) {
-		return "", errors.New("only the team's owners allow sites for the dev box; ask one of them")
+		return "", errors.New("only the app's owners allow sites for the dev box; ask one of them")
 	}
 	name := user
 	if b.channel != nil {
@@ -537,11 +537,11 @@ func (b *teamBroker) devSiteRemove(host string) error {
 	return writeTeamDevAllow(b.team, host)
 }
 
-// teamDevAllowAdmin is hi team dev <team> allow, on the machine: the
+// teamDevAllowAdmin is hi app dev <app> allow, on the machine: the
 // sites the owners allowed, or one allowed or removed as the dev page
 // does, which the box's proxy takes at once.
 func teamDevAllowAdmin(team string, args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team dev <team> allow [<site> [--why <what for>] | --remove <site>]"}
+	usage := usageError{"usage: hi app dev <app> allow [<site> [--why <what for>] | --remove <site>]"}
 	b := &teamBroker{team: team}
 	// The answer goes in the ask's thread, as from the dev page.
 	if secrets, err := loadTeamSecrets(team); err == nil && secrets.SlackBotToken != "" {
@@ -551,7 +551,7 @@ func teamDevAllowAdmin(team string, args []string, stdout io.Writer) error {
 	case len(args) == 0:
 		access := loadTeamDevAccess(team)
 		if len(access.Allowed) == 0 {
-			fmt.Fprintf(stdout, "The owners allowed no sites beyond hi's own. Allow one: hi team dev %s allow <site> --why \"<what for>\"\n", team)
+			fmt.Fprintf(stdout, "The owners allowed no sites beyond hi's own. Allow one: hi app dev %s allow <site> --why \"<what for>\"\n", team)
 		}
 		for _, site := range access.Allowed {
 			fmt.Fprintf(stdout, "%s  %s, %s", site.Host, site.By, site.At.Local().Format("2006-01-02"))
@@ -562,7 +562,7 @@ func teamDevAllowAdmin(team string, args []string, stdout io.Writer) error {
 		}
 		for _, ask := range access.Requests {
 			if ask.State == teamDevSiteAsked {
-				fmt.Fprintf(stdout, "%s  asked for: %s (hi team dev %s allow %s)\n", ask.Host, ask.Why, team, ask.Host)
+				fmt.Fprintf(stdout, "%s  asked for: %s (hi app dev %s allow %s)\n", ask.Host, ask.Why, team, ask.Host)
 			}
 		}
 		return nil
@@ -722,15 +722,15 @@ func teamDevKeys(team string) []teamDevKeyStatus {
 	}
 	claude := "This machine's sign-in"
 	if secrets.ClaudeToken != "" {
-		claude = "The team's own token"
+		claude = "The app's own token"
 		if !secrets.ClaudeSignedIn.IsZero() {
 			claude += ", since " + secrets.ClaudeSignedIn.Format("Jan 2, 2006")
 		}
 	}
 	return []teamDevKeyStatus{
-		{Name: "OpenRouter key", State: own(secrets.OpenRouterAPIKey != "", "The team's own", "This machine's"), Command: "hi team key " + team + " openrouter"},
-		{Name: "Claude", State: claude, Command: "hi team signin " + team + " claude"},
-		{Name: "ChatGPT", State: own(secrets.ChatGPT != nil, "The team's own sign-in", "This machine's sign-in (Codex's)"), Command: "hi team signin " + team + " chatgpt"},
-		{Name: "Slack tokens", State: own(secrets.SlackBotToken != "" && secrets.SlackAppToken != "", "Set", "Missing"), Command: "hi team key " + team + " slack"},
+		{Name: "OpenRouter key", State: own(secrets.OpenRouterAPIKey != "", "The app's own", "This machine's"), Command: "hi app key " + team + " openrouter"},
+		{Name: "Claude", State: claude, Command: "hi app signin " + team + " claude"},
+		{Name: "ChatGPT", State: own(secrets.ChatGPT != nil, "The app's own sign-in", "This machine's sign-in (Codex's)"), Command: "hi app signin " + team + " chatgpt"},
+		{Name: "Slack tokens", State: own(secrets.SlackBotToken != "" && secrets.SlackAppToken != "", "Set", "Missing"), Command: "hi app key " + team + " slack"},
 	}
 }

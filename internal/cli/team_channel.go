@@ -23,7 +23,7 @@ import (
 // in passing. Hermes drops the messages that don't mention it, so the
 // broker keeps the channel's log itself, from the host with the bot's
 // token, in channel/: a JSON line per message, a file per day, and the
-// files people share. The lead reads it with hi team channel, and a
+// files people share. The lead reads it with hi app channel, and a
 // Hermes cron job (channel-watch) has it read what's new and keep what
 // matters in its memory.
 
@@ -529,7 +529,7 @@ func teamTSBefore(a, b string) bool {
 }
 
 // ---------------------------------------------------------------------------
-// hi team channel: reading the log
+// hi app channel: reading the log
 
 // runTeamChannel prints the log: in the lead's box from /team/channel, on
 // the host for a team by name.
@@ -556,12 +556,12 @@ func runTeamChannel(args []string, stdout io.Writer) error {
 			}
 			dir = teamChannelDir(args[i])
 		default:
-			return usageError{"usage: hi team channel [<name>] [--since 2h | --new] [--ids]"}
+			return usageError{"usage: hi app channel [<name>] [--since 2h | --new] [--ids]"}
 		}
 	}
 	if dir == "" {
 		if !fileExists(teamChannelInBox) {
-			return usageError{"usage: hi team channel <name> [--since 2h]"}
+			return usageError{"usage: hi app channel <name> [--since 2h]"}
 		}
 		dir = teamChannelInBox
 		home, _ := os.UserHomeDir()

@@ -40,7 +40,7 @@ plan, or `--yes` to skip the question (for agents and scripts).
 |----------|----------------------------------|----------------------------------------------------------|
 | `python` | Libraries and scripts            | uv, ruff, pyrefly, pytest; the package lives in `src/`   |
 | `web`    | Internal web apps and dashboards | React and TypeScript on Vite, Bun, Biome, Vitest         |
-| `app`    | Small web apps with their own data | Bun alone: `Bun.serve`, React, SQLite in `$HI_DATA_DIR`, `bun test`, one executable from `bun run build` |
+| `webapp` | Small web apps with their own data | Bun alone: `Bun.serve`, React, SQLite in `$HI_DATA_DIR`, `bun test`, one executable from `bun run build` |
 | `service` | Backend services and APIs       | `python` + FastAPI, SQLAlchemy and Alembic, `/healthz` and `/readyz`, Dockerfile, compose |
 | `pipeline` | Data sources and ingestion     | `python` + one idempotent `run --date`, raw files landed before parsing, offline parser tests |
 | `ml`     | Model training                   | `python` + PyTorch for CPU, CUDA, or ROCm, a typed config, a two-step training test |
@@ -50,12 +50,12 @@ plan, or `--yes` to skip the question (for agents and scripts).
 repo, are shaped for `hi agent best-of` rounds; see
 [Start from a template](/guide/autoresearch/templates/).
 
-`hi team new` starts a team's project from `team-app`: the `app` template
-with a blank page, plus the team's roles. It is a layer for
-[hi team](/guide/team/setup/), so `hi init` doesn't offer it.
+`hi app new` starts an app's project from `hi-app`: the `webapp` template
+with a blank page, plus the app's roles. It is a layer for
+[hi app](/guide/app/setup/), so `hi init` doesn't offer it.
 
 `hi init --list` shows them. The Python ones need `uv`, `web` needs Bun
-and Node.js, and `app` needs only Bun; `hi install` sets up all three. `web` installs with Bun
+and Node.js, and `webapp` needs only Bun; `hi install` sets up all three. `web` installs with Bun
 and commits `bun.lock`; Vite and Vitest still run on Node.js. An older
 `web` project that still uses npm gets the Bun Makefile from
 `hi init --update`, with upgrade notes for `bunfig.toml`, and its

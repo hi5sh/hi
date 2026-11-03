@@ -160,7 +160,7 @@ func (c *teamHTTPSCerts) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certif
 func (b *teamBroker) keepHTTPS(done <-chan struct{}, stderr io.Writer) {
 	for {
 		if err := b.applyHTTPS(); err != nil {
-			fmt.Fprintf(stderr, "hi: the team's addresses on https: %v\n", err)
+			fmt.Fprintf(stderr, "hi: the app's addresses on https: %v\n", err)
 		}
 		select {
 		case <-done:
@@ -176,7 +176,7 @@ func (b *teamBroker) applyHTTPS() error {
 	domain, ok := loadHiDomain()
 	current := teamHTTPSDomain(b.team)
 	old := fileExists(teamHTTPSOldHostFile(b.team))
-	// A team may keep its addresses off the machine's domain (hi team
+	// A team may keep its addresses off the machine's domain (hi app
 	// addresses).
 	if !ok || !teamPeerJoined(b.team) || !teamUsesMachineDomain(b.team) {
 		if current != "" || old {
@@ -198,7 +198,7 @@ func (b *teamBroker) applyHTTPS() error {
 	defer cancel()
 	ip, err := teamPeerIP(b.team)
 	if err != nil {
-		return fmt.Errorf("the team's NetBird address: %w", err)
+		return fmt.Errorf("the app's NetBird address: %w", err)
 	}
 	// The addresses' names, at the peer's address.
 	var names []string
@@ -265,7 +265,7 @@ func (b *teamBroker) restartPeer() {
 	}
 	if engine, _, err := detectBoxEngine(); err == nil && engine.state(teamDevContainer(b.team)) == "running" {
 		if err := startTeamDevNet(engine, b.team, b.hi, os.Stderr); err != nil {
-			fmt.Fprintf(os.Stderr, "hi: the team's NetBird peer: %v\n", err)
+			fmt.Fprintf(os.Stderr, "hi: the app's NetBird peer: %v\n", err)
 		}
 	}
 	b.applyDevPage(true, os.Stderr)
@@ -302,7 +302,7 @@ func teamHTTPSHandler(team string, relays map[string]http.Handler) http.Handler 
 				return
 			}
 		}
-		http.Error(w, "hi: nothing of this team's is at "+host, http.StatusMisdirectedRequest)
+		http.Error(w, "hi: nothing of this app's is at "+host, http.StatusMisdirectedRequest)
 	})
 }
 

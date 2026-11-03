@@ -16,7 +16,7 @@ import (
 // Keeping up with the project a team adopted (team_adopt.go). The host
 // fetches upstream once a day, running nothing from it, into
 // refs/remotes/upstream/* and refs/tags/upstream/*, which every member's
-// worktree can read. hi team upstream says where dev stands against it.
+// worktree can read. hi app upstream says where dev stands against it.
 // Bringing it in is work like any other: a task with --upstream, on a yes,
 // that starts by merging upstream's branch or a tag, and a review of what
 // the merge itself changed.
@@ -126,9 +126,9 @@ type teamUpstreamView struct {
 func teamNoUpstream(config teamConfig) error {
 	switch {
 	case config.Adopted == nil:
-		return errors.New("this team's project didn't come from elsewhere: it has no upstream")
+		return errors.New("this app's project didn't come from elsewhere: it has no upstream")
 	case config.Adopted.Local:
-		return fmt.Errorf("this team's project is a copy of the folder %s, without its history: it has no upstream to keep up with", config.Adopted.From)
+		return fmt.Errorf("this app's project is a copy of the folder %s, without its history: it has no upstream to keep up with", config.Adopted.From)
 	}
 	return nil
 }
@@ -172,7 +172,7 @@ func printTeamUpstream(view teamUpstreamView, w io.Writer) {
 		at = view.BaseTag + " (" + at + ")"
 	}
 	fmt.Fprintf(w, "%s, from %s, branch %s.\n", view.Name, view.From, view.Follow)
-	fmt.Fprintf(w, "Dev: %s's %s + %s of the team's.\n", view.Name, at, teamPlural(view.Ours, "commit"))
+	fmt.Fprintf(w, "Dev: %s's %s + %s of the app's.\n", view.Name, at, teamPlural(view.Ours, "commit"))
 	switch {
 	case view.Behind == 0:
 		fmt.Fprintf(w, "Upstream: nothing new on %s.\n", view.Follow)
@@ -194,22 +194,22 @@ func printTeamUpstream(view teamUpstreamView, w io.Writer) {
 		fmt.Fprintf(w, "Fetched %s.\n", view.Fetched.Local().Format("Jan 2 15:04"))
 	}
 	if view.Shallow {
-		fmt.Fprintln(w, "The team's copy has only the history since it was adopted, so counts start there.")
+		fmt.Fprintln(w, "The app's copy has only the history since it was adopted, so counts start there.")
 	}
 }
 
-// teamUpstreamCommand is hi team upstream <name> on the machine: fetch,
+// teamUpstreamCommand is hi app upstream <name> on the machine: fetch,
 // then say where dev stands.
 func teamUpstreamCommand(args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return usageError{"usage: hi team upstream <name>"}
+		return usageError{"usage: hi app upstream <name>"}
 	}
 	config, err := loadTeam(args[0])
 	if err != nil {
 		return err
 	}
 	if err := teamNoUpstream(config); err != nil {
-		return fmt.Errorf("team %s: %w", config.Name, err)
+		return fmt.Errorf("app %s: %w", config.Name, err)
 	}
 	if _, err := fetchTeamUpstream(config); err != nil {
 		fmt.Fprintf(stdout, "hi couldn't fetch %s: %v\nWhat follows is as of the last fetch.\n", config.Adopted.From, err)
@@ -291,7 +291,7 @@ func (b *teamBroker) checkUpstream(now time.Time) error {
 		newest := fresh[0]
 		deliver := "slack:" + config.Channel
 		if b.channel != nil {
-			text := fmt.Sprintf(":seedling: *%s, the project this team started from, has a new version: %s.* The lead says what's new here, and whether it matters for this app.",
+			text := fmt.Sprintf(":seedling: *%s, the project this app started from, has a new version: %s.* The lead says what's new here, and whether it matters for this app.",
 				teamSlackEscape(config.Adopted.Name), teamSlackEscape(newest))
 			if ts, err := b.channel.post(config.Channel, text); err == nil {
 				deliver += ":" + ts
@@ -310,7 +310,7 @@ func (b *teamBroker) checkUpstream(now time.Time) error {
 
 func teamUpstreamPrompt(config teamConfig, view teamUpstreamView, tag string) string {
 	at := firstNonEmpty(view.BaseTag, shortCommit(view.Base))
-	return fmt.Sprintf(`This is hi, not a person. %[1]s, the project this team started from, has a new version upstream: %[2]s. Dev has its %[3]s, plus the team's own work.
+	return fmt.Sprintf(`This is hi, not a person. %[1]s, the project this app started from, has a new version upstream: %[2]s. Dev has its %[3]s, plus the app's own work.
 
 Read what changed: git -C /team/repo log --oneline %[4]s..%[5]s/%[2]s, and its release notes or changelog there (git -C /team/repo show %[5]s/%[2]s:CHANGELOG.md, if it has one). Then tell the people, in a few lines in their words, what's new that they would notice, and whether you think it matters for this app; if it fixes something they use or adds something they asked for, ask whether they want it. Don't start any work: bringing it in is a task like any other, with --upstream=%[2]s once someone says yes. If nothing in it matters to them, say so in one line.
 

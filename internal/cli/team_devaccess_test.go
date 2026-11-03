@@ -56,7 +56,7 @@ func TestTeamDevSiteAsk(t *testing.T) {
 	}
 	branch := func() (string, error) { return "9-game", nil }
 	var out bytes.Buffer
-	if err := teamDevAllowClient([]string{"https://query1.finance.yahoo.com/v8/finance/chart/AAPL", "--why", "daily price history"}, &out, call, branch); err != nil || !strings.Contains(out.String(), "Asked the team's owners for query1.finance.yahoo.com") {
+	if err := teamDevAllowClient([]string{"https://query1.finance.yahoo.com/v8/finance/chart/AAPL", "--why", "daily price history"}, &out, call, branch); err != nil || !strings.Contains(out.String(), "Asked the app's owners for query1.finance.yahoo.com") {
 		t.Fatal(err, out.String())
 	}
 	out.Reset()
@@ -266,7 +266,7 @@ func TestTeamDevSiteFromSlack(t *testing.T) {
 	if view := b.devAccessView(); len(view.Asks) != 1 || view.Asks[0].Key != "" {
 		t.Fatal("the key shows:", view.Asks)
 	}
-	if _, err := b.webSite("U07ASKER1", "api.example.com "+key, true); err == nil || !strings.Contains(err.Error(), "only the team's owners") {
+	if _, err := b.webSite("U07ASKER1", "api.example.com "+key, true); err == nil || !strings.Contains(err.Error(), "only the app's owners") {
 		t.Fatal("someone else allowed it:", err)
 	}
 	if _, err := b.webSite("U07OWNER1", "api.example.com made-up", true); err == nil {
@@ -336,7 +336,7 @@ func TestTeamDevKeys(t *testing.T) {
 	saveTeamSecrets("payments", secrets)
 	keys := teamDevKeys("payments")
 	data, _ := json.Marshal(keys)
-	if len(keys) != 4 || keys[0].State != "The team's own" || keys[1].State != "The team's own token" || keys[2].State != "This machine's sign-in (Codex's)" || keys[0].Command != "hi team key payments openrouter" || strings.Contains(string(data), "secret") {
+	if len(keys) != 4 || keys[0].State != "The app's own" || keys[1].State != "The app's own token" || keys[2].State != "This machine's sign-in (Codex's)" || keys[0].Command != "hi app key payments openrouter" || strings.Contains(string(data), "secret") {
 		t.Fatalf("%s", data)
 	}
 }

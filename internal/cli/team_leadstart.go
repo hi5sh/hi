@@ -44,14 +44,14 @@ func teamDevTaskLink(team string, number int) string {
 	return link.String()
 }
 
-// leadStart is hi team task start <n> from the lead, for user, who asked.
+// leadStart is hi app task start <n> from the lead, for user, who asked.
 func (b *teamBroker) leadStart(number int, user string) (string, error) {
 	config, err := loadTeam(b.team)
 	if err != nil {
 		return "", err
 	}
 	if !slackIDPattern.MatchString(user) || !teamBuilds(config, user) {
-		return "", fmt.Errorf("only the team's owners and developers start work in the dev box (%s); offer to tell them it's ready", teamPeople(slices.Concat(config.Owners, config.Developers)))
+		return "", fmt.Errorf("only the app's owners and developers start work in the dev box (%s); offer to tell them it's ready", teamPeople(slices.Concat(config.Owners, config.Developers)))
 	}
 	shown, err := teamTicketDo(b.team, teamTicketRequest{Action: "show", Number: number})
 	if err != nil {
@@ -97,7 +97,7 @@ func (b *teamBroker) leadStart(number int, user string) (string, error) {
 	teamDevSpacesCache.Unlock()
 	teamTicketDo(b.team, teamTicketRequest{Action: "comment", Number: number, Author: "the lead",
 		Body: fmt.Sprintf("Started in the dev box by the lead, as %s asked in Slack: branch %s, with Claude Code.", name, branch)})
-	fmt.Fprintf(os.Stderr, "team %s: the lead started task %d for %s (%s)\n", b.team, number, name, branch)
+	fmt.Fprintf(os.Stderr, "app %s: the lead started task %d for %s (%s)\n", b.team, number, name, branch)
 	if err != nil {
 		return progress(fmt.Sprintf("Task #%d is now in progress, though %s.", number, err)), nil
 	}

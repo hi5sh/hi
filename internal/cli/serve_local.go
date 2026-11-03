@@ -110,7 +110,7 @@ type serveMachine struct {
 	lingers       bool
 	memTotal      int64
 	memAvailable  int64
-	teamsReserve  int64 // what teams' boxes may still take, under their limits
+	teamsReserve  int64 // what apps' boxes may still take, under their limits
 	teamBoxes     int
 	problems      []string // each says what is missing and what adds it
 }
@@ -325,7 +325,7 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "Lingering:  %s\n", map[bool]string{true: "on: served things run without a login, and start at boot", false: "off: served things stop when you log out"}[m.lingers])
 	fmt.Fprintf(stdout, "Memory:     %s, %s available\n", sizeText(m.memTotal), sizeText(m.memAvailable))
-	fmt.Fprintf(stdout, "Teams:      %d %s, which may still take %s\n", m.teamBoxes, map[bool]string{true: "box", false: "boxes"}[m.teamBoxes == 1], sizeText(m.teamsReserve))
+	fmt.Fprintf(stdout, "Apps:       %d %s, which may still take %s\n", m.teamBoxes, map[bool]string{true: "box", false: "boxes"}[m.teamBoxes == 1], sizeText(m.teamsReserve))
 	if *backend == backendCUDA {
 		fmt.Fprintf(stdout, "For models: %s of GPU memory and %s on the host (after %s and %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveVRAMHeadroom), sizeText(serveHeadroom))
 	} else {
@@ -497,7 +497,7 @@ func checkFits(m serveMachine, need, vram, download int64, modelsDir string, std
 		}
 	}
 	if need > room {
-		return fmt.Errorf("it needs %s%s %s, and this machine has %s for it: %s available, less %s that teams' boxes may still take and %s of headroom. It is %s short, so nothing was started",
+		return fmt.Errorf("it needs %s%s %s, and this machine has %s for it: %s available, less %s that apps' boxes may still take and %s of headroom. It is %s short, so nothing was started",
 			sizeText(need), host, measured, sizeText(room), sizeText(m.memAvailable), sizeText(m.teamsReserve), sizeText(serveHeadroom), sizeText(need-room))
 	}
 	free, err := freeDisk(modelsDir)
@@ -567,7 +567,7 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if len(m.problems) > 0 {
 		return fmt.Errorf("this machine can't serve it yet:\n  - %s", strings.Join(m.problems, "\n  - "))
 	}
-	fmt.Fprintf(stdout, "  detect     %s; %s available, teams' boxes may still take %s\n", m.describe(), sizeText(m.memAvailable), sizeText(m.teamsReserve))
+	fmt.Fprintf(stdout, "  detect     %s; %s available, apps' boxes may still take %s\n", m.describe(), sizeText(m.memAvailable), sizeText(m.teamsReserve))
 
 	plan, err := planLocal(request.argument, request.quant, request.context, request.alias, request.extra, request.backend, request.memory)
 	if err != nil {
@@ -957,7 +957,7 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		"Tmpfs=/tmp\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=4096\n" +
 		fmt.Sprintf("PodmanArgs=--memory=%dm --oom-score-adj=1000%s\n", record.Memory>>20, boxArgs) +
 		label +
-		"\n[Service]\nRestart=on-failure\n# The kernel killed it for memory: it stays stopped, beside the team it was killed for.\nRestartPreventExitStatus=137\nTimeoutStartSec=300\n" +
+		"\n[Service]\nRestart=on-failure\n# The kernel killed it for memory: it stays stopped, beside the app it was killed for.\nRestartPreventExitStatus=137\nTimeoutStartSec=300\n" +
 		install
 	frontExec := fmt.Sprintf("Exec=serve __front :%d http://%s:%d", serveBoxPort, name, serveBoxPort)
 	publish := fmt.Sprintf("PublishPort=127.0.0.1:%d:%d\n", record.Port, serveBoxPort)

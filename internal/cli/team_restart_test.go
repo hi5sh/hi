@@ -34,7 +34,7 @@ func TestUpdateWaitsForRelease(t *testing.T) {
 	}()
 	start := time.Now()
 	var out bytes.Buffer
-	if !teamWaitIdle(server.team, server.pid, &out) || !strings.Contains(out.String(), "Team bulletin is releasing") || time.Since(start) < 50*time.Millisecond {
+	if !teamWaitIdle(server.team, server.pid, &out) || !strings.Contains(out.String(), "App bulletin is releasing") || time.Since(start) < 50*time.Millisecond {
 		t.Fatal(out.String())
 	}
 

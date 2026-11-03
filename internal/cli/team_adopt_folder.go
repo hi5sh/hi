@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// hi team adopt <name> <folder>: a project on this machine, copied without
+// hi app adopt <name> <folder>: a project on this machine, copied without
 // its history (docs/specs/approved/hi_team_adopt.md, A folder on this
 // machine). hi copies what git would commit, leaves .git, secrets, and
 // links that point outside the folder behind, and makes one commit of it;
@@ -264,7 +264,7 @@ func (adopt *teamAdoption) prepareFolder(folder, dir string, stdin io.Reader, st
 	adopt.stage = dir + ".adopting"
 	stageAbs, _ := filepath.Abs(adopt.stage)
 	if rel, err := filepath.Rel(folder, stageAbs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return false, fmt.Errorf("the team's folder would be inside %s: choose another one with --dir", folder)
+		return false, fmt.Errorf("the app's folder would be inside %s: choose another one with --dir", folder)
 	}
 	if fileExists(adopt.stage) {
 		return false, fmt.Errorf("%s is in the way: remove it, or choose another folder with --dir", adopt.stage)
@@ -308,7 +308,7 @@ func (adopt *teamAdoption) prepareFolder(folder, dir string, stdin io.Reader, st
 	if adopt.Yes {
 		return true, nil
 	}
-	ok, err := teamYesNo(stdin, stdout, fmt.Sprintf("Adopt it? The team keeps its own copy; nothing in %s changes.", folder), true)
+	ok, err := teamYesNo(stdin, stdout, fmt.Sprintf("Adopt it? The app keeps its own copy; nothing in %s changes.", folder), true)
 	if err != nil || !ok {
 		adopt.discard()
 	}
@@ -322,7 +322,7 @@ func teamFolderCommit(folder, stage string) error {
 	if out, err := teamFolderGit(folder, "branch", "--show-current"); err == nil && strings.TrimSpace(string(out)) != "" {
 		branch = strings.TrimSpace(string(out))
 	}
-	message := "Code from " + folder + "\n\nCopied by hi team adopt, without its history."
+	message := "Code from " + folder + "\n\nCopied by hi app adopt, without its history."
 	for _, args := range [][]string{{"init", "-q", "-b", branch}, {"add", "-A", "--force"}, {"commit", "-q", "--no-verify", "-m", message}} {
 		if out, err := teamGit(stage, args...); err != nil {
 			return fmt.Errorf("git %s: %s", args[0], qFirstLine(out, err.Error()))

@@ -5,7 +5,7 @@ package cli
 // GitHub Issues, through gh; on gitlab.com or a GitLab of one's own,
 // GitLab issues, through glab; elsewhere, hi's own in tickets/. hi runs gh
 // and glab on the machine, with its sign-in, so no box holds a forge
-// token. hi team task on the machine and hi dev task in the dev box
+// token. hi app task on the machine and hi dev task in the dev box
 // are the same commands.
 
 import (
@@ -172,7 +172,7 @@ func teamSaveTicketFiles(team string, number int, files []teamAttachment) (strin
 		}
 		saved = append(saved, fmt.Sprintf("%s (%s)", name, teamDataSize(int64(len(file.Data)))))
 	}
-	return fmt.Sprintf("Attached: %s. hi keeps them with the team; in the dev box, hi dev task files %d fetches them.", strings.Join(saved, ", "), number), nil
+	return fmt.Sprintf("Attached: %s. hi keeps them with the app; in the dev box, hi dev task files %d fetches them.", strings.Join(saved, ", "), number), nil
 }
 
 // teamTicketDo runs a ticket command where the team's tickets are, and
@@ -877,10 +877,10 @@ func printTeamTicketResult(request teamTicketRequest, result teamTicketResult, w
 	}
 }
 
-// teamTicketCommand is hi team task <team> ..., on the machine.
+// teamTicketCommand is hi app task <team> ..., on the machine.
 func teamTicketCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {
-		return usageError{"usage: hi team task <team> [list [--closed] | show <n> | add <title> [<body|->] [--attach <file>]... | comment <n> <text|-> [--attach <file>]... | edit <n> [--title <title>] <body|-> | close <n> [<comment>] | files <n>]"}
+		return usageError{"usage: hi app task <name> [list [--closed] | show <n> | add <title> [<body|->] [--attach <file>]... | comment <n> <text|-> [--attach <file>]... | edit <n> [--title <title>] <body|-> | close <n> [<comment>] | files <n>]"}
 	}
 	if _, err := loadTeam(args[0]); err != nil {
 		return err

@@ -327,7 +327,7 @@ func (b *teamBroker) checkWorkers(now time.Time) error {
 	if view.Holder != "" && b.running(view.Holder) {
 		detail += "That box still runs: a deploy that stopped half way left it. Someone at the machine removes it with podman rm -f " + view.Holder + ", and production's box takes the workers within a second."
 	} else {
-		detail += "No box by that name runs. hi team jobs restart gives production a new box."
+		detail += "No box by that name runs. hi app jobs restart gives production a new box."
 	}
 	alert := title + ".\nIts pages answer; its background work waits. The lead looks into it here."
 	incident, err := b.openIncident(teamIncident{Kind: "workers", Slot: teamSlotProduction, Title: title, Detail: detail, Opened: now.UTC()}, alert, "", teamIncidentPrompt)
@@ -392,7 +392,7 @@ func teamWorkersRulePrompt() string {
 
 This app reports jobs, so it has such workers, and dev doesn't mention $HI_WORKERS_FILE yet. Look through dev (/team/repo), reading only, for where the workers start: loops, queues, schedules started with the app.
 
-File a task for the owners (hi team task add), titled "Hand the workers over at a deploy": each worker starts once the file named by $HI_WORKERS_FILE exists and stops when it goes away, checking every few seconds; stopping puts back the item in hand and writes nothing more; when the last worker has stopped, the app creates $HI_WORKERS_FILE.stopped, so hi needn't wait out the grace (30 seconds; HI_WORKERS_GRACE in hi team env for longer). Without $HI_WORKERS_FILE, as in the tests, the workers run as before. List where the workers start. The first release after it still overlaps; the ones after don't.
+File a task for the owners (hi app task add), titled "Hand the workers over at a deploy": each worker starts once the file named by $HI_WORKERS_FILE exists and stops when it goes away, checking every few seconds; stopping puts back the item in hand and writes nothing more; when the last worker has stopped, the app creates $HI_WORKERS_FILE.stopped, so hi needn't wait out the grace (30 seconds; HI_WORKERS_GRACE in hi app env for longer). Without $HI_WORKERS_FILE, as in the tests, the workers run as before. List where the workers start. The first release after it still overlaps; the ones after don't.
 
 What you write is posted under hi's message: in a few plain lines, which work runs twice at a release today, in the people's words, and the task's number. If the app already does this some other way, say so in one line.`
 }

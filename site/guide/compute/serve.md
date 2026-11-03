@@ -64,7 +64,7 @@ hi serve llm qwen3.8-flash-next --on local
 ```
 
 ```text
-  detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, teams' boxes may still take 0 MB
+  detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, apps' boxes may still take 0 MB
   check      it needs 91.0 GB with its context: fits, 21.3 GB left; 83.8 GB to download, 801 GB free
   download   unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL at 766911a into ~/.local/share/hi/models/unsloth--Qwen3.8-Flash-Next-GGUF
   pull       ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d… (once; about 23 GB)
@@ -81,7 +81,7 @@ hi serve llm qwen3.8-flash-next --on local
    that adds it (`hi install strix`, `hi install podman`), and nothing starts.
 2. **Check.** The recipe says how much memory the model takes in all, GPU
    and host, as measured: 91 GB for this one on a Strix Halo. It must fit in what is
-   available, less what teams' boxes may still take under their limits and
+   available, less what apps' boxes may still take under their limits and
    8 GB of headroom, and the download must fit on the disk with 10% to
    spare. If not, hi says by how much, before downloading anything.
 3. **Download.** hi downloads the files itself, from the commit the recipe
@@ -148,10 +148,10 @@ owner/Model-GGUF --quant Q4_K_M --on local`), with its memory estimated.
 Ubuntu 24.04's own Podman (4.9) works. Without a GPU, nothing is served
 unless you ask for `--backend cpu`.
 
-### Teams come first
+### Apps come first
 
-The machines that serve models also run teams. A served box is the first
-thing the kernel stops when memory runs out, so a team's process is never
+The machines that serve models also run apps. A served box is the first
+thing the kernel stops when memory runs out, so an app's process is never
 killed to make room for a model. A box stopped that way stays stopped, and
 `hi serve ls` says `stopped: out of memory`; `hi serve start <name>` checks
 the memory again before it loads the model.

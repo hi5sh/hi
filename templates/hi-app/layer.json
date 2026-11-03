@@ -1,0 +1,11 @@
+{
+  "name": "hi-app",
+  "summary": "A hi app's project: the webapp template with a blank page",
+  "extends": "webapp",
+  "hidden": true,
+  "schema": 1,
+  "remove": [
+    "HELP.md",
+    "llms.txt"
+  ]
+}

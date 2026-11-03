@@ -18,7 +18,7 @@ description: The environment variables hi reads and the files it writes.
 | `RUNPOD_API_KEY`        | RunPod API key; otherwise read from `~/.runpod/config.toml`       |
 | `SHADEFORM_API_KEY`     | Shadeform API key; otherwise read from `~/.config/hi/shadeform_key` |
 | `HI_NETBIRD_SETUP_KEY`  | Setup key for `hi net` in scripts                                 |
-| `NETBIRD_API_TOKEN`     | NetBird Admin token for `hi net expose --domain` and `--allow-ip`, and `hi team domain` |
+| `NETBIRD_API_TOKEN`     | NetBird Admin token for `hi net expose --domain` and `--allow-ip`, and `hi app domain` |
 | `HI_Q_BASE_URL`, `HI_Q_MODEL`, `HI_Q_API_KEY` | `hi q`: an OpenAI-compatible endpoint, its model, and key |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | `hi q`: OpenAI, or another endpoint with an OpenAI key |
 | `OPENROUTER_API_KEY`    | `hi q`: OpenRouter                                                |
@@ -30,17 +30,17 @@ description: The environment variables hi reads and the files it writes.
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
 | `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
 | `HI_ORG_DIR`            | Where `hi org` keeps its state; `HI_SERVER_DIR` is read too    |
-| `HI_TEAMS_DIR`          | Where `hi team` keeps teams; default `~/.local/share/hi/teams`    |
-| `HI_TEAM_SLACK_BOT_TOKEN`, `HI_TEAM_SLACK_APP_TOKEN`, `HI_TEAM_OPENROUTER_API_KEY` | `hi team new --from`: the team's Slack tokens and OpenRouter key, so the file holds no secrets |
-| `HI_TEAM_CLAUDE_TOKEN`, `HI_TEAM_CHATGPT_AUTH` | `hi team new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
-| `HI_TEAM_S3_ACCESS_KEY_ID`, `HI_TEAM_S3_SECRET_ACCESS_KEY` | `hi team backups --offsite`: the bucket's keys, instead of asking |
+| `HI_TEAMS_DIR`          | Where `hi app` keeps apps; default `~/.local/share/hi/teams`      |
+| `HI_APP_SLACK_BOT_TOKEN`, `HI_APP_SLACK_APP_TOKEN`, `HI_APP_OPENROUTER_API_KEY` | `hi app new --from`: the app's Slack tokens and OpenRouter key, so the file holds no secrets |
+| `HI_APP_CLAUDE_TOKEN`, `HI_APP_CHATGPT_AUTH` | `hi app new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
+| `HI_APP_S3_ACCESS_KEY_ID`, `HI_APP_S3_SECRET_ACCESS_KEY` | `hi app backups --offsite`: the bucket's keys, instead of asking |
 | `ANTHROPIC_MODEL`       | `hi agent claude`: the model, when Claude Code's settings name none |
 | `DO_NOT_TRACK`, `DISABLE_TELEMETRY` | `hi skill`: no searches or audits from skills.sh |
 | `HI_INSTALL_DIR`        | Installer: where to put `hi`                                      |
 | `HI_VERSION`            | Installer: which release to install                               |
 | `XDG_CONFIG_HOME`       | Base of `hi`'s config folder; default `~/.config`                 |
 | `XDG_STATE_HOME`        | Base of `hi`'s state folder; default `~/.local/state`             |
-| `XDG_DATA_HOME`         | Base of `hi`'s data folder (teams, bundles, the machine's domain); default `~/.local/share` |
+| `XDG_DATA_HOME`         | Base of `hi`'s data folder (apps, bundles, the machine's domain); default `~/.local/share` |
 | `XDG_CACHE_HOME`        | Base of `hi`'s cache folder; default `~/.cache`                   |
 
 ## Files hi writes
@@ -74,7 +74,7 @@ description: The environment variables hi reads and the files it writes.
 | `.hi5/template.json` (in a project)       | What `hi init` generated: template, versions or commits, and file hashes; no paths or names |
 | `docs/upgrades/<version>.md` (in a project) | From `hi init --update`: template changes to the project's own files, for an agent to apply; delete it afterward |
 | `~/.local/share/hi/domain.json`             | The machine's domain from `hi net domain`: the domain, zone, DNS provider and its token, and the Let's Encrypt email (mode 0600) |
-| `~/.local/share/hi/certs/`                  | The domain's wildcard certificate, shared by the machine's teams |
+| `~/.local/share/hi/certs/`                  | The domain's wildcard certificate, shared by the machine's apps |
 
 In a project, `hi data get` records its downloads in `.hi5/data.json`:
 each repository, the commit, the folder, and the filters. Commit it with

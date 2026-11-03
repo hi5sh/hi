@@ -309,7 +309,7 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 		if refused != nil {
 			refused.release()
 		} else {
-			http.Error(w, "hi: the subscription refused, and the team has no OpenRouter key to fall back on", http.StatusServiceUnavailable)
+			http.Error(w, "hi: the subscription refused, and the app has no OpenRouter key to fall back on", http.StatusServiceUnavailable)
 		}
 		return
 	}

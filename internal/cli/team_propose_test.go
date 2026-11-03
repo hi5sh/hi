@@ -73,7 +73,7 @@ func TestTeamPropose(t *testing.T) {
 	if files != "src/dark.css" || boxGit(fork, "show", branch+":AGENTS.md") != "Run npm test before you finish." {
 		t.Fatal(files)
 	}
-	if subject := boxGit(fork, "log", "-1", "--format=%s%n%b", branch); !strings.Contains(subject, "Add dark mode") || !strings.Contains(subject, "From the payments team's work (t-1)") {
+	if subject := boxGit(fork, "log", "-1", "--format=%s%n%b", branch); !strings.Contains(subject, "Add dark mode") || !strings.Contains(subject, "From the payments app's work (t-1)") {
 		t.Fatal(subject)
 	}
 	if boxGit(b.repo, "worktree", "list", "--porcelain") != "worktree "+b.repo+"\nHEAD "+boxGit(b.repo, "rev-parse", "HEAD")+"\nbranch refs/heads/main" {

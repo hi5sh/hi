@@ -104,7 +104,7 @@ func TestNetDomain(t *testing.T) {
 	}
 	dns.fail = nil
 	out.Reset()
-	if err := runNetDomain([]string{"dev.example.com", "--dns", "test"}, strings.NewReader(""), &out, io.Discard); err != nil || !strings.Contains(out.String(), "https://<team>.dev.example.com/") {
+	if err := runNetDomain([]string{"dev.example.com", "--dns", "test"}, strings.NewReader(""), &out, io.Discard); err != nil || !strings.Contains(out.String(), "https://<app>.dev.example.com/") {
 		t.Fatal(err, out.String())
 	}
 	domain, ok := loadHiDomain()
@@ -233,7 +233,7 @@ func TestTeamHTTPS(t *testing.T) {
 	for _, address := range teamHTTPSAddresses {
 		relays[address] = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, address) })
 	}
-	for name, want := range map[string]string{"payments.dev.example.com": "production", "payments-preview.dev.example.com": "preview", "payments-dev.dev.example.com": "dev", "other.dev.example.com": "nothing of this team's"} {
+	for name, want := range map[string]string{"payments.dev.example.com": "production", "payments-preview.dev.example.com": "preview", "payments-dev.dev.example.com": "dev", "other.dev.example.com": "nothing of this app's"} {
 		server, client := net.Pipe()
 		go func() {
 			listener := &teamOneConn{conn: server}

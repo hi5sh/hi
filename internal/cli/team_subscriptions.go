@@ -351,7 +351,7 @@ func readCodexChatGPT() (teamChatGPTGrant, error) {
 		AccountID: firstNonEmpty(auth.Tokens.AccountID, readChatGPTClaims(auth.Tokens.AccessToken).AccountID), LastRefresh: auth.LastRefresh}, nil
 }
 
-// readChatGPTAuthFile reads a ChatGPT sign-in from a file, for hi team new
+// readChatGPTAuthFile reads a ChatGPT sign-in from a file, for hi app new
 // --from: Codex's auth.json, or a grant as secrets.json keeps it.
 func readChatGPTAuthFile(path string) (teamChatGPTGrant, error) {
 	data, err := os.ReadFile(path)
@@ -506,7 +506,7 @@ func updateTeamSecrets(name string, change func(*teamSecrets) error) error {
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's secrets: %w", err)
+		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	if err := change(&secrets); err != nil {
 		return err
@@ -654,7 +654,7 @@ func (b *teamBroker) keepSubscriptions(done <-chan struct{}, stderr io.Writer) {
 		if config, err := loadTeam(b.team); err == nil {
 			if teamUsesChatGPT(config) && time.Since(lastPrepare) >= 15*time.Minute {
 				if err := prepareTeamChatGPT(b.team, time.Now()); err != nil {
-					fmt.Fprintf(stderr, "hi: the team's ChatGPT sign-in: %v\n", err)
+					fmt.Fprintf(stderr, "hi: the app's ChatGPT sign-in: %v\n", err)
 				}
 				lastPrepare = time.Now()
 			}
@@ -768,7 +768,7 @@ func (b *teamBroker) tellSubscriptions(config teamConfig, now time.Time) {
 func teamFallbackMessage(config teamConfig, secrets teamSecrets, role string, refusal teamRefusal) string {
 	member := config.Members[role]
 	host, _ := os.Hostname()
-	host = firstNonEmpty(host, "the team's machine")
+	host = firstNonEmpty(host, "the app's machine")
 	plan := "ChatGPT"
 	if refusal.provider == "claude" {
 		plan = "Claude"
@@ -783,7 +783,7 @@ func teamFallbackMessage(config teamConfig, secrets teamSecrets, role string, re
 	fallback := firstNonEmpty(refusal.model, member.Fallback, teamFallbackModel(member))
 	text := fmt.Sprintf(":warning: The %s's %s, so it uses OpenRouter (%s) now, billed per token.", role, why, fallback)
 	if key, err := teamOpenRouterKey(config.Name); refusal.noKey || err != nil || key == "" {
-		text = fmt.Sprintf(":warning: The %s's %s, and the team has no OpenRouter key to fall back on, so the %s can't work.", role, why, role)
+		text = fmt.Sprintf(":warning: The %s's %s, and the app has no OpenRouter key to fall back on, so the %s can't work.", role, why, role)
 	}
 	switch {
 	case refusal.reason == "limit" && refusal.provider == "claude":
@@ -793,23 +793,23 @@ func teamFallbackMessage(config teamConfig, secrets teamSecrets, role string, re
 	case refusal.provider == "claude" && secrets.ClaudeToken != "":
 		text += fmt.Sprintf(" An owner gives it a new token with `%s signin claude`.", teamSlashCommand(config.Name))
 	case refusal.provider == "claude":
-		text += fmt.Sprintf(" The team uses %s's Claude sign-in: an owner gives the team a token of its own with `%s signin claude`, or an admin runs `hi agent token claude` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
+		text += fmt.Sprintf(" The app uses %s's Claude sign-in: an owner gives the app a token of its own with `%s signin claude`, or an admin runs `hi agent token claude` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
 	case secrets.ChatGPT != nil:
 		text += fmt.Sprintf(" An owner signs it in again with `%s signin chatgpt`.", teamSlashCommand(config.Name))
 	default:
-		text += fmt.Sprintf(" The team uses %s's ChatGPT sign-in (Codex's): an owner signs the team in with `%s signin chatgpt` for one of its own, or an admin runs `codex login` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
+		text += fmt.Sprintf(" The app uses %s's ChatGPT sign-in (Codex's): an owner signs the app in with `%s signin chatgpt` for one of its own, or an admin runs `codex login` there. Ask your IT team if you can't.", host, teamSlashCommand(config.Name))
 	}
 	return text + " hi won't say this again for the " + role + "."
 }
 
-// teamFallbackLine is hi team status's line on roles on their fallback.
+// teamFallbackLine is hi app status's line on roles on their fallback.
 func teamFallbackLine(name string) string {
 	state := loadTeamSubscriptions(name)
 	if len(state.Warned) == 0 {
 		return ""
 	}
 	roles := sortedKeys(state.Warned)
-	return fmt.Sprintf("On OpenRouter since their subscription refused them: the %s (%s signin chatgpt|claude in Slack, or hi team signin %s here, signs in again).", strings.Join(roles, ", the "), teamSlashCommand(name), name)
+	return fmt.Sprintf("On OpenRouter since their subscription refused them: the %s (%s signin chatgpt|claude in Slack, or hi app signin %s here, signs in again).", strings.Join(roles, ", the "), teamSlashCommand(name), name)
 }
 
 // ---------------------------------------------------------------------------
@@ -838,7 +838,7 @@ func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, 
 		}
 	}
 	if meta.Agent == "claude" && secret == "" && !fileExists(filepath.Join(keys, teamClaudeKeyFile)) {
-		return args, secret, fmt.Errorf("Claude Code is signed in neither for team %s nor on this machine; hi team signin %s claude", team, team)
+		return args, secret, fmt.Errorf("Claude Code is signed in neither for app %s nor on this machine; hi app signin %s claude", team, team)
 	}
 	args = append(args, "-v", keys+":/secrets/team:ro", "-v", events+":/events")
 	fallback := "/secrets/team/openrouter.env"
@@ -854,7 +854,7 @@ func teamMemberProxyArgs(meta boxMeta, args []string, secret string) ([]string, 
 		// Written by the team's server before the box starts; read again
 		// for each call.
 		if err := prepareTeamChatGPT(team, time.Now()); err != nil && !fileExists(filepath.Join(keys, teamChatGPTKeyFile)) {
-			return args, secret, fmt.Errorf("the team's ChatGPT sign-in: %w", err)
+			return args, secret, fmt.Errorf("the app's ChatGPT sign-in: %w", err)
 		}
 		args = append(args, "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile)
 		return args, "openrouter:" + fallback, nil
@@ -956,9 +956,9 @@ func versionNewer(a, b string) bool {
 // ---------------------------------------------------------------------------
 // the commands
 
-// teamSignin is hi team signin <name> chatgpt|claude [--machine].
+// teamSignin is hi app signin <name> chatgpt|claude [--machine].
 func teamSignin(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team signin <name> chatgpt|claude [--machine]"}
+	usage := usageError{"usage: hi app signin <name> chatgpt|claude [--machine]"}
 	machine := false
 	var words []string
 	for _, arg := range args {
@@ -984,9 +984,9 @@ func teamSignin(args []string, stdin io.Reader, stdout io.Writer) error {
 		if _, err := readCodexChatGPT(); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Team %s uses this machine's ChatGPT sign-in (Codex's) from now on. hi never refreshes it: Codex does.\n", name)
+		fmt.Fprintf(stdout, "App %s uses this machine's ChatGPT sign-in (Codex's) from now on. hi never refreshes it: Codex does.\n", name)
 	} else {
-		fmt.Fprintf(stdout, "Signing team %s in to ChatGPT. Its roles on ChatGPT use this sign-in; only the team's server refreshes it, and no box holds it.\n", name)
+		fmt.Fprintf(stdout, "Signing app %s in to ChatGPT. Its roles on ChatGPT use this sign-in; only the app's server refreshes it, and no box holds it.\n", name)
 		signedIn, err := teamChatGPTSignIn(stdout)
 		if err != nil {
 			return err
@@ -1003,14 +1003,14 @@ func teamSignin(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Signed in: %s.\n", chatGPTPlanName(*grant))
 	}
 	if !teamUsesChatGPT(config) {
-		fmt.Fprintf(stdout, "No role is on ChatGPT yet: hi team member %s lead --provider chatgpt puts the lead on it.\n", name)
+		fmt.Fprintf(stdout, "No role is on ChatGPT yet: hi app member %s lead --provider chatgpt puts the lead on it.\n", name)
 		return nil
 	}
 	if err := prepareTeamChatGPT(name, time.Now()); err != nil {
 		return err
 	}
 	if teamState(name) == "up" {
-		fmt.Fprintln(stdout, "The team uses it from its next call, and says so in its channel.")
+		fmt.Fprintln(stdout, "The app uses it from its next call, and says so in its channel.")
 	}
 	return nil
 }
@@ -1024,7 +1024,7 @@ func teamSigninClaude(config teamConfig, machine bool, stdin io.Reader, stdout i
 		if _, err := boxClaudeSecret(); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Team %s's Claude members use this machine's sign-in from now on.\n", config.Name)
+		fmt.Fprintf(stdout, "App %s's Claude members use this machine's sign-in from now on.\n", config.Name)
 	} else {
 		fmt.Fprintln(stdout, "Run claude setup-token in another terminal, signed in to the Claude account that pays, and paste the token it prints. It lasts a year; no box holds it.")
 		var err error
@@ -1042,16 +1042,16 @@ func teamSigninClaude(config teamConfig, machine bool, stdin io.Reader, stdout i
 		return err
 	}
 	if token != "" {
-		fmt.Fprintf(stdout, "Saved. Team %s's Claude members use it from their next call.\n", config.Name)
+		fmt.Fprintf(stdout, "Saved. App %s's Claude members use it from their next call.\n", config.Name)
 	}
 	return nil
 }
 
-// teamMemberCommand is hi team member <name> <role> [--provider P]
+// teamMemberCommand is hi app member <name> <role> [--provider P]
 // [--model M] [--fallback M]: a member's provider and models, checked
 // as the wizard checks them. A running team restarts with them.
 func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team member <name> <role> [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>] [--effort <level>]"}
+	usage := usageError{"usage: hi app member <name> <role> [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>] [--effort <level>]"}
 	var words []string
 	values := map[string]*string{}
 	var provider, model, fallback, effort string
@@ -1078,7 +1078,7 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	member, ok := config.Members[role]
 	if !ok {
-		return fmt.Errorf("team %s has no %s; its roles are %s", name, role, strings.Join(teamRoles(config), ", "))
+		return fmt.Errorf("app %s has no %s; its roles are %s", name, role, strings.Join(teamRoles(config), ", "))
 	}
 	if len(values) == 0 {
 		fmt.Fprintf(stdout, "%s: %s\n", role, teamMemberLabel(member))
@@ -1111,7 +1111,7 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if teamProvider(member) == teamProviderChatGPT && (provider != "" || model != "" || fallback != "") {
 		grant, _, err := teamChatGPTGrantFor(name)
 		if err != nil {
-			return fmt.Errorf("%w; or sign the team in: hi team signin %s chatgpt", err, name)
+			return fmt.Errorf("%w; or sign the app in: hi app signin %s chatgpt", err, name)
 		}
 		models, err := chatGPTModels(grant)
 		if err != nil {
@@ -1143,9 +1143,9 @@ func teamMemberCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "%s: %s\n", role, teamMemberLabel(member))
 	if teamState(name) != "up" {
-		fmt.Fprintf(stdout, "Team %s uses it from its next start: hi team up %s.\n", name, name)
+		fmt.Fprintf(stdout, "App %s uses it from its next start: hi app up %s.\n", name, name)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Team %s restarts with it.\n", name)
+	fmt.Fprintf(stdout, "App %s restarts with it.\n", name)
 	return teamUp(name, stdout)
 }

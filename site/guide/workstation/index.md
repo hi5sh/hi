@@ -92,7 +92,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | omp                | `omp`      | `omp`                                                     |
 | Hermes Agent       | `hermes`   | `hermes`, from Nous Research's installer (setup later with `hermes setup`) |
 | herdr              | `herdr`    | `herdr`                                                   |
-| restic             | `restic`   | `restic`, for [hi team](/guide/team/folder/)'s snapshots |
+| restic             | `restic`   | `restic`, for [hi app](/guide/app/folder/)'s snapshots |
 | NetBird            | `netbird`  | NetBird client and service                                |
 | Colab CLI          | `colab`    | `colab` (needs uv)                                        |
 | Hugging Face CLI   | `hf`       | `hf`                                                      |
@@ -134,7 +134,7 @@ The final report confirms that ROCm sees the `gfx1151` GPU through both
 ## Next
 
 - Join the hi5 network: [NetBird network](/guide/workstation/netbird/)
-- Put this machine's teams on https: [A domain for the teams' addresses](/guide/workstation/netbird/#a-domain-for-the-teams-addresses)
+- Put this machine's apps on https: [A domain for the apps' addresses](/guide/workstation/netbird/#a-domain-for-the-apps-addresses)
 - Show a web app or receive a webhook from this machine: [Share a local service](/guide/workstation/expose/)
 - Add people to the machine: [Users](/guide/workstation/users/)
 - Sign in to compute providers: [Install hi](/guide/install/#sign-in-to-a-compute-provider)

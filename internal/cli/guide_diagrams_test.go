@@ -20,8 +20,8 @@ import (
 var guideDiagramPages = map[string][]string{
 	"guide/box/index.md":          {"box"},
 	"guide/agent/index.md":        {"agent"},
-	"guide/team/index.md":         {"team"},
-	"guide/team/data.md":          {"team-data"},
+	"guide/app/index.md":          {"app"},
+	"guide/app/data.md":           {"app-data"},
 	"guide/compute/index.md":      {"compute"},
 	"guide/compute/managed.md":    {"managed", "server"},
 	"guide/workstation/expose.md": {"expose"},

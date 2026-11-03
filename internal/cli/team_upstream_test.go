@@ -45,7 +45,7 @@ func TestTeamUpstream(t *testing.T) {
 	if err := teamUpstreamCommand([]string{"payments"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "Dev: pocket-kanban's ") || !strings.Contains(out.String(), "+ 1 commit of the team's") || strings.Contains(out.String(), "v1.0") ||
+	if !strings.Contains(out.String(), "Dev: pocket-kanban's ") || !strings.Contains(out.String(), "+ 1 commit of the app's") || strings.Contains(out.String(), "v1.0") ||
 		!strings.Contains(out.String(), "Upstream: nothing new on main.") {
 		t.Fatal(out.String())
 	}

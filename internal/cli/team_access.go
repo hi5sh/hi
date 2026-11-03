@@ -67,7 +67,7 @@ func teamLevel(config teamConfig, user string) string {
 }
 
 // teamSetLevel makes someone a developer, a contributor, or none, and says
-// what changed. Owners are the machine admin's (hi team owners). Someone
+// what changed. Owners are the machine admin's (hi app owners). Someone
 // who stops being a developer loses their SSH key, and anyone whose level
 // drops loses their links, so their next click is refused.
 func teamSetLevel(config *teamConfig, user, level string) (string, error) {
@@ -75,7 +75,7 @@ func teamSetLevel(config *teamConfig, user, level string) (string, error) {
 		return "", err
 	}
 	if containsString(config.Owners, user) {
-		return "", fmt.Errorf("%s is an owner of team %s; an admin of the machine changes owners (hi team owners %s remove %s)", user, config.Name, config.Name, user)
+		return "", fmt.Errorf("%s is an owner of app %s; an admin of the machine changes owners (hi app owners %s remove %s)", user, config.Name, config.Name, user)
 	}
 	level = teamParseLevel(level)
 	if level != teamLevelDeveloper && level != teamLevelVibe && level != teamLevelContributor && level != teamLevelNone {
@@ -128,11 +128,11 @@ func teamLevelRank(level string) int {
 func teamLevelSentence(user, level, team string, already bool) string {
 	if level == teamLevelNone {
 		if already {
-			return fmt.Sprintf("%s has no level in team %s already.", user, team)
+			return fmt.Sprintf("%s has no level in app %s already.", user, team)
 		}
-		return fmt.Sprintf("%s has no level in team %s; they don't report, and the lead doesn't take their requests.", user, team)
+		return fmt.Sprintf("%s has no level in app %s; they don't report, and the lead doesn't take their requests.", user, team)
 	}
-	return fmt.Sprintf("%s is %s of team %s%s.", user, teamLevelWords(level), team, map[bool]string{true: " already"}[already])
+	return fmt.Sprintf("%s is %s of app %s%s.", user, teamLevelWords(level), team, map[bool]string{true: " already"}[already])
 }
 
 // teamLevelWords names a level in a sentence: "a developer".
@@ -158,7 +158,7 @@ func teamSetDevKey(config teamConfig, user, key string) error {
 		return writeTeamDevSSH(config)
 	}
 	if !teamHasShell(config, user) {
-		return fmt.Errorf("%s isn't an owner or a Pro Dev of team %s, who get SSH into the dev box; an owner makes them a Pro Dev first", user, config.Name)
+		return fmt.Errorf("%s isn't an owner or a Pro Dev of app %s, who get SSH into the dev box; an owner makes them a Pro Dev first", user, config.Name)
 	}
 	key = strings.TrimSpace(key)
 	if strings.Contains(key, "PRIVATE KEY") {
@@ -181,12 +181,12 @@ func teamDevKeyLabel(team, user string) string {
 	if data, err := os.ReadFile(teamDevKeyPath(team, user)); err == nil {
 		return teamSSHKeyLabel(string(data))
 	}
-	return "no SSH key: hi team access " + team + " key " + user + " <public key>"
+	return "no SSH key: hi app access " + team + " key " + user + " <public key>"
 }
 
-// teamAccessCommand is hi team access.
+// teamAccessCommand is hi app access.
 func teamAccessCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team access <team> [<member ID> pro|vibe|contributor|none | key <member ID> <public key>|--remove]"}
+	usage := usageError{"usage: hi app access <app> [<member ID> pro|vibe|contributor|none | key <member ID> <public key>|--remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -207,7 +207,7 @@ func teamAccessCommand(args []string, stdout io.Writer) error {
 			if err := teamSetDevKey(config, user, ""); err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "%s's SSH key is out of team %s's dev box.\n", user, config.Name)
+			fmt.Fprintf(stdout, "%s's SSH key is out of app %s's dev box.\n", user, config.Name)
 			return nil
 		}
 		key := strings.TrimSpace(strings.Join(args[3:], " "))
@@ -217,7 +217,7 @@ func teamAccessCommand(args []string, stdout io.Writer) error {
 		if err := teamSetDevKey(config, user, key); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s's SSH key for team %s's dev box is %s; a key they had before no longer works.\n", user, config.Name, teamSSHKeyLabel(key))
+		fmt.Fprintf(stdout, "%s's SSH key for app %s's dev box is %s; a key they had before no longer works.\n", user, config.Name, teamSSHKeyLabel(key))
 		return nil
 	case len(args) == 3:
 		text, err := teamSetLevel(&config, strings.Trim(args[1], "<@>"), args[2])
@@ -240,17 +240,17 @@ func teamDeveloperNote(config teamConfig, level string) string {
 		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, and releases, but has no terminal, VS Code, or SSH. The agents still run commands in the dev box for them.\n"
 	}
 	if config.PreviewData != teamPreviewEmpty {
-		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi team data " + config.Name + " preview empty starts the preview empty instead.\n"
+		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi app data " + config.Name + " preview empty starts the preview empty instead.\n"
 	}
 	if level == teamLevelDeveloper {
-		note += "For SSH into the dev box, they give a public key (hi team access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
+		note += "For SSH into the dev box, they give a public key (hi app access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
 	}
 	return note
 }
 
 func printTeamAccess(config teamConfig, stdout io.Writer) {
 	names := teamPeopleNames(config, slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors))
-	fmt.Fprintf(stdout, "Owners of team %s (an admin changes them: hi team owners):\n", config.Name)
+	fmt.Fprintf(stdout, "Owners of app %s (an admin changes them: hi app owners):\n", config.Name)
 	for _, owner := range config.Owners {
 		fmt.Fprintf(stdout, "  %s %s\n", teamPersonColumn(owner, names), teamDevKeyLabel(config.Name, owner))
 	}

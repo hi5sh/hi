@@ -88,7 +88,7 @@ func TestTeamNamesAddresses(t *testing.T) {
 	}
 }
 
-// Stage is what people call the preview: hi team helper <team> stage off
+// Stage is what people call the preview: hi app helper <team> stage off
 // is the preview's helper.
 func TestTeamStageIsThePreview(t *testing.T) {
 	setupTeamTest(t)
@@ -105,7 +105,7 @@ func TestTeamStageIsThePreview(t *testing.T) {
 	}
 }
 
-// hi team limit <team> memory: the dev box's and the app's boxes' memory,
+// hi app limit <team> memory: the dev box's and the app's boxes' memory,
 // hi's unless the team sets its own, given to running boxes at once, and
 // never most of the machine.
 func TestTeamBoxMemory(t *testing.T) {

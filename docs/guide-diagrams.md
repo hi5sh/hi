@@ -81,7 +81,7 @@ A diagram is a JSON file in `_data/diagrams/`, drawn by
 
 A workflow that changes things over time, rather than a structure, is
 drawn step by step: `_data/steps/<name>.json`, drawn by
-`_includes/steps.html`, with `{% include steps.html name="team-data" %}`.
+`_includes/steps.html`, with `{% include steps.html name="app-data" %}`.
 Each step has a title, an optional command, the two places it changes side
 by side (`left` and `right`, each a `name` and its `folders` of `files`,
 every file with a `tag` and a tone), a `via` for the arrow between them
@@ -89,7 +89,7 @@ every file with a `tag` and a tone), a `via` for the arrow between them
 "nothing crosses"), and a sentence or two of `text`. A `legend`
 says what the tones mean. The caption, again, says it all in sentences;
 `go test -run TestGuideSteps ./internal/cli` checks the fields and that a page shows it.
-[Stage and production data](/guide/team/data/) is the first.
+[Stage and production data](/guide/app/data/) is the first.
 
 ## Seeing it
 

@@ -231,7 +231,7 @@ func TestTeamAllowIP(t *testing.T) {
 	// Without a token there is no way to set the rule.
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("NETBIRD_API_TOKEN", "")
-	if err := teamAllowIPCommand([]string{"payments", "203.0.113.18"}, &out); err == nil || !strings.Contains(err.Error(), "hi team domain") {
+	if err := teamAllowIPCommand([]string{"payments", "203.0.113.18"}, &out); err == nil || !strings.Contains(err.Error(), "hi app domain") {
 		t.Fatal(err)
 	}
 	t.Setenv("NETBIRD_API_TOKEN", "nbp_test")

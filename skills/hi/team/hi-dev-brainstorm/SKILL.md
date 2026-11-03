@@ -1,6 +1,6 @@
 ---
 name: hi-dev-brainstorm
-description: Ask several AI agents for ideas on a hard question about the hi team's project, from its dev box, and compile their ideas into one proposal. Use when the user is stuck, wants options, alternatives, a design, or asks to brainstorm. Covers hi dev brainstorm.
+description: Ask several AI agents for ideas on a hard question about the hi app's project, from its dev box, and compile their ideas into one proposal. Use when the user is stuck, wants options, alternatives, a design, or asks to brainstorm. Covers hi dev brainstorm.
 ---
 
 # Brainstorm with several agents
@@ -18,7 +18,7 @@ hi dev brainstorm stop b-2
 Each agent works alone on the project, as dev has it, with production's
 data read-only (unless `--web`), for up to 20 minutes; the whole
 brainstorm costs up to $10. **Ask the user before starting.** Without
-`--agents`, the agents ready on the team's machine take part; starting
+`--agents`, the agents ready on the app's machine take part; starting
 says which.
 
 Write the question so an agent that knows nothing of your conversation

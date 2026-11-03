@@ -318,7 +318,7 @@ func (b *teamBroker) forkPreviewLocked() (teamDataCopy, error) {
 	case !teamOverlayEngine():
 		why = "the box engine isn't Podman, which mounts the overlay"
 	case strings.ContainsAny(run+src, ",:"):
-		why = "the team's folder has a comma or colon in its path, which the overlay's mount can't take"
+		why = "the app's folder has a comma or colon in its path, which the overlay's mount can't take"
 	}
 	if why != "" {
 		return b.copyWholeLocked(result, why)
@@ -345,7 +345,7 @@ func (b *teamBroker) forkPreviewLocked() (teamDataCopy, error) {
 		teamRemoveAll(own)
 		b.previewMu.Unlock()
 		if errors.Is(err, errTeamForkNoLinks) {
-			return b.copyWholeLocked(result, "hardlinks don't work in the team's folder")
+			return b.copyWholeLocked(result, "hardlinks don't work in the app's folder")
 		}
 		b.restartPreview(target, hadTarget, &result)
 		return result, fmt.Errorf("forking production's data: %w", err)
@@ -434,7 +434,7 @@ func (b *teamBroker) copyWholeLocked(result teamDataCopy, why string) (teamDataC
 
 // emptyPreviewLocked starts the preview again on an empty data folder,
 // with b.mu held, for a team whose previews don't show production's data
-// (hi team data <name> preview empty).
+// (hi app data <name> preview empty).
 func (b *teamBroker) emptyPreviewLocked() (teamDataCopy, error) {
 	result := teamDataCopy{From: "", To: teamSlotPreview}
 	b.previewMu.Lock()

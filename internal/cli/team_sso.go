@@ -1,6 +1,6 @@
 package cli
 
-// hi team sso: people reach a team's app without a key link by signing in
+// hi app sso: people reach a team's app without a key link by signing in
 // with the organisation's OpenID Connect provider, under the team's rules
 // (docs/specs/approved/hi_team_sso.md). The machine keeps the providers;
 // each team that has it on gets sso.json in its folder, which its relays
@@ -80,13 +80,13 @@ func teamSSOEntra(issuer string) bool {
 	return err == nil && strings.EqualFold(parsed.Host, "login.microsoftonline.com")
 }
 
-// teamSSOCommand is hi team sso.
+// teamSSOCommand is hi app sso.
 func teamSSOCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{`usage: hi team sso
-       hi team sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]
-       hi team sso provider rm <name>
-       hi team sso <team> on <provider> [--domain <d>[,<d>]] [--group <g>[,<g>]] [--anyone]
-       hi team sso <team> [off]`}
+	usage := usageError{`usage: hi app sso
+       hi app sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]
+       hi app sso provider rm <name>
+       hi app sso <app> on <provider> [--domain <d>[,<d>]] [--group <g>[,<g>]] [--anyone]
+       hi app sso <app> [off]`}
 	switch {
 	case len(args) == 0:
 		return teamSSOList(stdout)
@@ -160,10 +160,10 @@ func teamSSODiscover(issuer string) error {
 	return nil
 }
 
-// teamSSOProviderAdd is hi team sso provider add: a new provider, or new
+// teamSSOProviderAdd is hi app sso provider add: a new provider, or new
 // details for one, which the teams using it get at once.
 func teamSSOProviderAdd(args []string, stdin io.Reader, stdout io.Writer) error {
-	flags := &flagSet{newComputeFlags("team sso provider add", io.Discard)}
+	flags := &flagSet{newComputeFlags("app sso provider add", io.Discard)}
 	clientID := flags.String("client-id", "", "the client ID")
 	groupsClaim := flags.String("groups-claim", "", "the claim with the person's groups")
 	positional, err := flags.parse(args)
@@ -171,7 +171,7 @@ func teamSSOProviderAdd(args []string, stdin io.Reader, stdout io.Writer) error 
 		return err
 	}
 	if len(positional) != 2 {
-		return usageError{"usage: hi team sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]"}
+		return usageError{"usage: hi app sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]"}
 	}
 	name, issuer := positional[0], strings.TrimSpace(positional[1])
 	if !teamSSOProviderName.MatchString(name) {
@@ -182,7 +182,7 @@ func teamSSOProviderAdd(args []string, stdin io.Reader, stdout io.Writer) error 
 	}
 	provider := teamSSOProvider{Issuer: issuer, ClientID: strings.TrimSpace(*clientID), GroupsClaim: strings.TrimSpace(*groupsClaim)}
 	// The ID and secret: asked at a terminal, or the secret read from a
-	// pipe or file: hi team sso provider add acme <issuer> --client-id <id> < secret.txt
+	// pipe or file: hi app sso provider add acme <issuer> --client-id <id> < secret.txt
 	file, isFile := stdin.(*os.File)
 	atTerminal := isFile && interactive(stdin, stdout)
 	if provider.ClientID == "" {
@@ -235,9 +235,9 @@ func teamSSOProviderAdd(args []string, stdin io.Reader, stdout io.Writer) error 
 		fmt.Fprintf(stdout, "Provider %s is %s.", name, issuer)
 	}
 	if len(teams) > 0 {
-		fmt.Fprintf(stdout, " Teams %s sign in with it as it is now.\n", strings.Join(teams, ", "))
+		fmt.Fprintf(stdout, " Apps %s sign in with it as it is now.\n", strings.Join(teams, ", "))
 	} else {
-		fmt.Fprintf(stdout, " Turn it on for a team: hi team sso <team> on %s --domain <domain> (or --group, or --anyone).\n", name)
+		fmt.Fprintf(stdout, " Turn it on for an app: hi app sso <app> on %s --domain <domain> (or --group, or --anyone).\n", name)
 	}
 	return nil
 }
@@ -252,7 +252,7 @@ func teamSSOConfigFor(name string, provider teamSSOProvider, config netExposeSSO
 	return config
 }
 
-// teamSSOProviderRemove is hi team sso provider rm.
+// teamSSOProviderRemove is hi app sso provider rm.
 func teamSSOProviderRemove(name string, stdout io.Writer) error {
 	providers := loadTeamSSOProviders()
 	if _, ok := providers[name]; !ok {
@@ -265,7 +265,7 @@ func teamSSOProviderRemove(name string, stdout io.Writer) error {
 		}
 	}
 	if len(using) > 0 {
-		return fmt.Errorf("teams %s sign in with %s: hi team sso <team> off first", strings.Join(using, ", "), name)
+		return fmt.Errorf("apps %s sign in with %s: hi app sso <app> off first", strings.Join(using, ", "), name)
 	}
 	delete(providers, name)
 	if err := saveTeamSSOProviders(providers); err != nil {
@@ -288,9 +288,9 @@ func teamSSOTeams() []string {
 	return teams
 }
 
-// teamSSOOn is hi team sso <team> on <provider> and its rules.
+// teamSSOOn is hi app sso <app> on <provider> and its rules.
 func teamSSOOn(team string, args []string, stdout io.Writer) error {
-	flags := &flagSet{newComputeFlags("team sso on", io.Discard)}
+	flags := &flagSet{newComputeFlags("app sso on", io.Discard)}
 	domains := flags.String("domain", "", "accounts on these domains")
 	groups := flags.String("group", "", "people in these groups")
 	anyone := flags.Bool("anyone", false, "everyone the provider signs in")
@@ -299,7 +299,7 @@ func teamSSOOn(team string, args []string, stdout io.Writer) error {
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{"usage: hi team sso <team> on <provider> [--domain <d>[,<d>]] [--group <g>[,<g>]] [--anyone]"}
+		return usageError{"usage: hi app sso <app> on <provider> [--domain <d>[,<d>]] [--group <g>[,<g>]] [--anyone]"}
 	}
 	name := positional[0]
 	if _, err := loadTeam(team); err != nil {
@@ -307,10 +307,10 @@ func teamSSOOn(team string, args []string, stdout io.Writer) error {
 	}
 	provider, ok := loadTeamSSOProviders()[name]
 	if !ok {
-		return fmt.Errorf("no provider named %s on this machine: hi team sso provider add %s <issuer> first", name, name)
+		return fmt.Errorf("no provider named %s on this machine: hi app sso provider add %s <issuer> first", name, name)
 	}
 	if teamSlotDomain(team, teamSlotProduction) == "" {
-		return fmt.Errorf("signing in needs %s on a name that stays, where the provider sends people back: hi team domain %s on first", team, team)
+		return fmt.Errorf("signing in needs %s on a name that stays, where the provider sends people back: hi app domain %s on first", team, team)
 	}
 	split := func(text string) []string {
 		var values []string
@@ -349,7 +349,7 @@ func teamSSOOn(team string, args []string, stdout io.Writer) error {
 	if err := saveTeamSSO(team, config); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%s's app lets in %s, signed in with %s, as well as whoever has its link. Register these return addresses with the provider, if they aren't yet:\n", team, netExposeSSORules(&config), name)
+	fmt.Fprintf(stdout, "%s lets in %s, signed in with %s, as well as whoever has its link. Register these return addresses with the provider, if they aren't yet:\n", team, netExposeSSORules(&config), name)
 	for _, slot := range []string{teamSlotProduction, teamSlotPreview} {
 		fmt.Fprintf(stdout, "  https://%s%s\n", teamSlotDomain(team, slot), netExposeSSOCallback)
 	}
@@ -357,7 +357,7 @@ func teamSSOOn(team string, args []string, stdout io.Writer) error {
 	return nil
 }
 
-// teamSSOOff is hi team sso <team> off: the key only, and every session
+// teamSSOOff is hi app sso <team> off: the key only, and every session
 // ends with the file.
 func teamSSOOff(team string, stdout io.Writer) error {
 	if _, err := loadTeam(team); err != nil {
@@ -366,15 +366,15 @@ func teamSSOOff(team string, stdout io.Writer) error {
 	if err := os.Remove(teamSSOFile(team)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	fmt.Fprintf(stdout, "%s's app lets in only whoever has its link again; everyone signed in is signed out.\n", team)
+	fmt.Fprintf(stdout, "%s lets in only whoever has its link again; everyone signed in is signed out.\n", team)
 	return nil
 }
 
-// teamSSOList is hi team sso: the providers, and the teams using them.
+// teamSSOList is hi app sso: the providers, and the teams using them.
 func teamSSOList(stdout io.Writer) error {
 	providers := loadTeamSSOProviders()
 	if len(providers) == 0 {
-		fmt.Fprintln(stdout, "No sign-in provider on this machine yet. hi team sso provider add <name> <issuer> adds one, such as an organisation's Google Workspace, Entra ID, Keycloak, Auth0, or Okta.")
+		fmt.Fprintln(stdout, "No sign-in provider on this machine yet. hi app sso provider add <name> <issuer> adds one, such as an organisation's Google Workspace, Entra ID, Keycloak, Auth0, or Okta.")
 		return nil
 	}
 	using := map[string][]string{}
@@ -392,16 +392,16 @@ func teamSSOList(stdout io.Writer) error {
 		if teams := using[name]; len(teams) > 0 {
 			fmt.Fprintf(stdout, "  for %s\n", strings.Join(teams, ", "))
 		} else {
-			fmt.Fprintln(stdout, "  no team yet")
+			fmt.Fprintln(stdout, "  no app yet")
 		}
 	}
 	return nil
 }
 
-// teamSSOShown is how many of the last sign-ins hi team sso <team> shows.
+// teamSSOShown is how many of the last sign-ins hi app sso <team> shows.
 const teamSSOShown = 10
 
-// teamSSOShow is hi team sso <team>: its provider, rules, and last
+// teamSSOShow is hi app sso <team>: its provider, rules, and last
 // sign-ins.
 func teamSSOShow(team string, stdout io.Writer) error {
 	if _, err := loadTeam(team); err != nil {
@@ -409,10 +409,10 @@ func teamSSOShow(team string, stdout io.Writer) error {
 	}
 	config, ok := loadTeamSSO(team)
 	if !ok {
-		fmt.Fprintf(stdout, "%s's app lets in whoever has its link. hi team sso %s on <provider> lets people sign in as well.\n", team, team)
+		fmt.Fprintf(stdout, "%s lets in whoever has its link. hi app sso %s on <provider> lets people sign in as well.\n", team, team)
 		return nil
 	}
-	fmt.Fprintf(stdout, "%s's app lets in %s, signed in with %s (%s), as well as whoever has its link.\n", team, netExposeSSORules(&config), config.Provider, config.Issuer)
+	fmt.Fprintf(stdout, "%s lets in %s, signed in with %s (%s), as well as whoever has its link.\n", team, netExposeSSORules(&config), config.Provider, config.Issuer)
 	data, _ := os.ReadFile(teamSSOLog(team))
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 	var records []netExposeSSORecord

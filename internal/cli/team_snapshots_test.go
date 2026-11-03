@@ -264,7 +264,7 @@ func TestTeamBrokerSnapshot(t *testing.T) {
 		t.Fatal(err, result)
 	}
 	if !slices.ContainsFunc(channel.calls, func(call string) bool {
-		return strings.Contains(call, "<@U07OWNER1>") && strings.Contains(call, "couldn't take the team's snapshot (before v2)")
+		return strings.Contains(call, "<@U07OWNER1>") && strings.Contains(call, "couldn't take the app's snapshot (before v2)")
 	}) {
 		t.Fatal(channel.calls)
 	}
@@ -291,7 +291,7 @@ func TestTeamBrokerSnapshot(t *testing.T) {
 	if err := teamSnapshotCommand([]string{"payments", "--daily"}, &out); err != nil {
 		t.Fatal(err)
 	}
-	if taken[len(taken)-1] != "daily " || !strings.Contains(out.String(), "Snapshot snap0004 of team payments") {
+	if taken[len(taken)-1] != "daily " || !strings.Contains(out.String(), "Snapshot snap0004 of app payments") {
 		t.Fatal(taken, out.String())
 	}
 }
@@ -385,7 +385,7 @@ func TestTeamRestore(t *testing.T) {
 	// What the snapshot holds is back, and what is newer is gone; the
 	// settings, run/, and the code stay.
 	if config, _ := loadTeam("payments"); config.Channel != "C07PAYMENTS" {
-		t.Fatal("team.json is the team's settings, and stays:", config)
+		t.Fatal("team.json is the app's settings, and stays:", config)
 	}
 	if read("lead/SOUL.md") != "the old soul" || read("app/entries.json") != "[]" || fileExists(filepath.Join(dir, "channel")) ||
 		fileExists(filepath.Join(dir, "memory")) || read("secrets.json") != "{}" || read("run/proxy/network.log") != "log" || read("repo/README.md") != "today's code" {
@@ -403,7 +403,7 @@ func TestTeamRestore(t *testing.T) {
 	if strings.Join(calls, "; ") != "is-active hi-team-payments.service; stop hi-team-payments.service; start hi-team-payments.service" || !stopped {
 		t.Fatal(calls, stopped)
 	}
-	if !strings.Contains(posted, "back as it was") || !strings.Contains(posted, "hi team restore payments 0000000") || !strings.Contains(out.String(), "undoes it: hi team restore payments 0000000") {
+	if !strings.Contains(posted, "back as it was") || !strings.Contains(posted, "hi app restore payments 0000000") || !strings.Contains(out.String(), "undoes it: hi app restore payments 0000000") {
 		t.Fatal(posted, out.String())
 	}
 
@@ -441,8 +441,8 @@ func TestTeamBackupsCommand(t *testing.T) {
 	if err := teamBackupsCommand([]string{"payments", "--offsite", "s3.example.com/bucket"}, strings.NewReader(""), &out); err == nil {
 		t.Fatal("an offsite URL is restic's s3:https://...")
 	}
-	t.Setenv("HI_TEAM_S3_ACCESS_KEY_ID", "AKID")
-	t.Setenv("HI_TEAM_S3_SECRET_ACCESS_KEY", "SECRET")
+	t.Setenv("HI_APP_S3_ACCESS_KEY_ID", "AKID")
+	t.Setenv("HI_APP_S3_SECRET_ACCESS_KEY", "SECRET")
 	if err := teamBackupsCommand([]string{"payments", "--offsite", "s3:https://s3.example.com/bucket", "--keep", "14,8,12"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}

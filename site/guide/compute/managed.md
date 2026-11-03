@@ -639,7 +639,7 @@ memory, so share it knowingly: a 4-bit Qwen 3.8 Flash Next is about 110 GB.
 Switch back to OpenRouter with `hi org ai set` without `--url`; the
 stored key is kept.
 
-#### Models served on the team's machines
+#### Models served on the apps' machines
 
 A teammate who serves a model with `hi serve llm <recipe> --on local --org`
 asks this server to pass requests to it. The request comes to Slack, or to
@@ -705,23 +705,23 @@ Every 30 seconds the server checks each provider account. It stops machines
 past their `--max`, and it records a machine it didn't start, such as one
 created on the provider's website, as `unleased instance` in the audit log.
 
-### Watch the teams
+### Watch the apps
 
-Teams watch themselves, on their own machine, since hi 2.6.32: each
-team's watcher runs the health, network, and advisory rules every minute
-and posts what it finds in the team's ops channel (see
-[When something goes wrong](/guide/team/incidents/#the-teams-watcher)).
-The server watches nothing, and keeps no team's logs or keys.
+Apps watch themselves, on their own machine, since hi 2.6.32: each
+app's watcher runs the health, network, and advisory rules every minute
+and posts what it finds in the app's ops channel (see
+[When something goes wrong](/guide/app/incidents/#the-apps-watcher)).
+The server watches nothing, and keeps no app's logs or keys.
 
 What a machine can't say is that it stopped. Give the server's machine,
-and each machine that runs teams, a heartbeat to an outside service such
+and each machine that runs apps, a heartbeat to an outside service such
 as healthchecks.io, which alerts when it stops:
 
 ```sh
 hi heartbeat https://hc-ping.com/<uuid>     # this machine, every 5 minutes
 ```
 
-A server that watched teams before keeps its `watch/` folder, read by
+A server that watched apps before keeps its `watch/` folder, read by
 nothing: delete it when you like. Its dead-man's switch is this
 heartbeat now.
 

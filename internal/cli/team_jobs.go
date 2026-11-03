@@ -48,7 +48,7 @@ const (
 const teamJobsRule = "Long work in the app: work that can outlive a request (a loop over many records, a queue, a backfill, an import, a scheduled recalculation) reports as a job, so hi notices when it stops. " +
 	"While it runs, at least every few minutes, it writes $HI_JOBS_DIR/<job>.json (to a temporary name, then renamed) with " +
 	`{"state": "running|blocked|failed|done", "done": <count>, "total": <count>, "unit": "<word>", "stall_after": "30m", "at": "<RFC 3339 time>", "item": "<what it is on>", "error": "<why, for people>"}` +
-	", or runs \"$HI\" team job <job> --done <count> (also --total, --unit, --item, --error, --stall-after, and --running, --blocked, --failed, --finished). " +
+	", or runs \"$HI\" app job <job> --done <count> (also --total, --unit, --item, --error, --stall-after, and --running, --blocked, --failed, --finished). " +
 	"stall_after is how long its count may stay the same before hi alerts: set it to what is normal for the job. Without $HI_JOBS_DIR, as in the dev box and the tests, it writes nothing. " +
 	"When the job meets an item it can't process, it stops with state blocked, the item, and why, unless the job's spec gives a rule for that case: never skip, drop, or make up an item on its own, since later values may depend on it. " +
 	"A job that stops on its own for any other reason (too many failures in a row, a limit it reached) writes failed or blocked with why before it stops: a job that only stops looks to hi like one that is idle. " +
@@ -369,9 +369,9 @@ func (b *teamBroker) checkUnreported() error {
 func teamUnreportedPrompt() string {
 	return `This is hi, not a person. hi now watches the app's long work: work that can outlive a request (a loop over many records, a queue consumer, a backfill, an import, a scheduled recalculation, a worker started with the app) reports as a job, and hi opens an incident and wakes you when one fails, is blocked, stops moving, or goes silent. This app's work was written before that, and no job has reported yet, so hi can't see it stop.
 
-Look through dev (/team/repo) and the specs, reading only, for such work. For each piece, note whether it reports as a job ($HI_JOBS_DIR or "$HI" team job), and whether it says so when it stops on its own: after too many failures in a row, at a limit, or on an item it can't process, it must write blocked or failed with why, not just stop. hi team jobs shows what reports today.
+Look through dev (/team/repo) and the specs, reading only, for such work. For each piece, note whether it reports as a job ($HI_JOBS_DIR or "$HI" app job), and whether it says so when it stops on its own: after too many failures in a row, at a limit, or on an item it can't process, it must write blocked or failed with why, not just stop. hi app jobs shows what reports today.
 
-If any doesn't, file a task for the owners (hi team task add), titled "Report the app's long work as jobs": each piece reports as a named job, with a stall_after that is normal for it, and writes blocked or failed with the item and why wherever it stops on its own today, keeping its behavior otherwise. List the pieces you found, with where they are. It reaches production with the owners' next release.
+If any doesn't, file a task for the owners (hi app task add), titled "Report the app's long work as jobs": each piece reports as a named job, with a stall_after that is normal for it, and writes blocked or failed with the item and why wherever it stops on its own today, keeping its behavior otherwise. List the pieces you found, with where they are. It reaches production with the owners' next release.
 
 What you write is posted under hi's message: in a few plain lines, which work hi couldn't see stopping, in the people's words, and the task's number. If all of it already reports, say so in one line.`
 }
@@ -505,7 +505,7 @@ func teamJobLines(team string, now time.Time) []string {
 
 func printTeamJobs(views []teamJobView, slot string, now time.Time, w io.Writer) {
 	if len(views) == 0 {
-		fmt.Fprintf(w, "No jobs in %s. An app's long work (a backfill, an import, a recalculation) shows here once it writes $HI_JOBS_DIR/<job>.json, or runs \"$HI\" team job.\n", teamSlotName(slot))
+		fmt.Fprintf(w, "No jobs in %s. An app's long work (a backfill, an import, a recalculation) shows here once it writes $HI_JOBS_DIR/<job>.json, or runs \"$HI\" app job.\n", teamSlotName(slot))
 		return
 	}
 	fmt.Fprintf(w, "Jobs in %s:\n", teamSlotName(slot))
@@ -531,7 +531,7 @@ func printTeamJobs(views []teamJobView, slot string, now time.Time, w io.Writer)
 			fmt.Fprintf(w, "  Note: %s\n", view.Note)
 		}
 		if view.Incident != "" {
-			fmt.Fprintf(w, "  Incident: %s (hi team incidents %s)\n", view.Incident, view.Incident)
+			fmt.Fprintf(w, "  Incident: %s (hi app incidents %s)\n", view.Incident, view.Incident)
 		}
 	}
 }
@@ -585,7 +585,7 @@ func (b *teamBroker) restartApp(request teamJobsRequest) (teamPreview, error) {
 	} else {
 		state, err = b.refreshPreview(current)
 	}
-	event := teamIncidentEvent{Who: who, Action: "restart", Command: "hi team jobs restart" + map[bool]string{true: " --preview"}[request.Preview], Because: request.Because, Approval: approval}
+	event := teamIncidentEvent{Who: who, Action: "restart", Command: "hi app jobs restart" + map[bool]string{true: " --preview"}[request.Preview], Because: request.Because, Approval: approval}
 	if err != nil {
 		event.Result = "failed: " + err.Error()
 	} else {
@@ -610,7 +610,7 @@ func (b *teamBroker) forgetJob(request teamJobsRequest) error {
 	}
 	path := filepath.Join(teamSlotJobsDir(b.team, slot), request.Job+".json")
 	if !fileExists(path) {
-		return fmt.Errorf("%s has no job %s; hi team jobs lists them", teamSlotName(slot), request.Job)
+		return fmt.Errorf("%s has no job %s; hi app jobs lists them", teamSlotName(slot), request.Job)
 	}
 	b.jobsMu.Lock()
 	defer b.jobsMu.Unlock()
@@ -620,7 +620,7 @@ func (b *teamBroker) forgetJob(request teamJobsRequest) error {
 	state := loadTeamJobsState(b.team)
 	if watch := state.Jobs[slot+"/"+request.Job]; watch != nil && watch.Open != "" {
 		if incident, err := loadTeamIncident(b.team, watch.Open); err == nil {
-			b.logIncidentAction(incident, teamIncidentEvent{Who: "lead", Action: "forget", Command: "hi team jobs forget " + request.Job, Because: request.Because})
+			b.logIncidentAction(incident, teamIncidentEvent{Who: "lead", Action: "forget", Command: "hi app jobs forget " + request.Job, Because: request.Because})
 		}
 	}
 	delete(state.Jobs, slot+"/"+request.Job)
@@ -638,17 +638,17 @@ type teamJobsRequest struct {
 }
 
 // ---------------------------------------------------------------------------
-// hi team job, in the app's box
+// hi app job, in the app's box
 
-// teamJobCommand writes a job's file for the app: hi team job <job>
+// teamJobCommand writes a job's file for the app: hi app job <job>
 // [--running|--blocked|--failed|--finished] [--done <n>] [--total <n>] ...
 // What it isn't told stays as the file had it.
 func teamJobCommand(args []string, stdout io.Writer) error {
-	usage := usageError{`usage: "$HI" team job <job> [--running|--blocked|--failed|--finished] [--done <n>] [--total <n>] [--unit <word>]
+	usage := usageError{`usage: "$HI" app job <job> [--running|--blocked|--failed|--finished] [--done <n>] [--total <n>] [--unit <word>]
                      [--item <id>] [--error <text>] [--note <text>] [--stall-after <duration>]`}
 	dir := os.Getenv("HI_JOBS_DIR")
 	if dir == "" {
-		return errors.New("hi team job is for a team's app, in its box, where $HI_JOBS_DIR says where jobs go")
+		return errors.New("hi app job is for an app, in its box, where $HI_JOBS_DIR says where jobs go")
 	}
 	if len(args) == 0 || !teamJobName.MatchString(args[0]) {
 		return usage
@@ -727,9 +727,9 @@ func teamJobCommand(args []string, stdout io.Writer) error {
 }
 
 // ---------------------------------------------------------------------------
-// hi team jobs, on the machine
+// hi app jobs, on the machine
 
-// teamJobsCommand is hi team jobs <name> [--preview] [--json].
+// teamJobsCommand is hi app jobs <name> [--preview] [--json].
 func teamJobsCommand(args []string, stdout io.Writer) error {
 	var words []string
 	slot, asJSON := teamSlotProduction, false
@@ -747,7 +747,7 @@ func teamJobsCommand(args []string, stdout io.Writer) error {
 		}
 	}
 	if len(words) != 1 {
-		return usageError{"usage: hi team jobs <name> [--preview] [--json]"}
+		return usageError{"usage: hi app jobs <name> [--preview] [--json]"}
 	}
 	if _, err := loadTeam(words[0]); err != nil {
 		return err

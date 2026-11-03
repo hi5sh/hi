@@ -51,7 +51,7 @@ func netbirdAPIToken() (string, error) {
 	if token := strings.TrimSpace(string(data)); err == nil && token != "" {
 		return token, nil
 	}
-	return "", errors.New("--domain and --allow-ip need a NetBird API token, from a service user that may manage the reverse proxy: in $NETBIRD_API_TOKEN, or saved with hi team domain")
+	return "", errors.New("--domain and --allow-ip need a NetBird API token, from a service user that may manage the reverse proxy: in $NETBIRD_API_TOKEN, or saved with hi app domain")
 }
 
 func saveNetbirdAPIToken(token string) error {
@@ -85,7 +85,7 @@ var netbirdAPIURL = func() (string, error) {
 
 // errNetbirdToken is a token NetBird doesn't take: deleted, expired, or
 // mistyped.
-var errNetbirdToken = errors.New("NetBird doesn't know the API token (deleted or expired?); hi team domain <domain> --new-token takes another")
+var errNetbirdToken = errors.New("NetBird doesn't know the API token (deleted or expired?); hi app domain <domain> --new-token takes another")
 
 type netbirdAPI struct {
 	base, token string

@@ -75,20 +75,20 @@ func (b *teamBroker) keepHeartbeat(done <-chan struct{}) {
 	}
 }
 
-// teamHeartbeatLine is what hi team status says about the heartbeat.
+// teamHeartbeatLine is what hi app status says about the heartbeat.
 func teamHeartbeatLine(config teamConfig) string {
 	secrets, err := loadTeamSecrets(config.Name)
 	if err != nil || secrets.HeartbeatURL == "" {
-		return fmt.Sprintf("Heartbeat: none, so nobody would hear that the team stopped (hi team heartbeat %s <url>).", config.Name)
+		return fmt.Sprintf("Heartbeat: none, so nobody would hear that the app stopped (hi app heartbeat %s <url>).", config.Name)
 	}
 	return fmt.Sprintf("Heartbeat: to %s every %s; the last was %s.", heartbeatHost(secrets.HeartbeatURL),
 		heartbeatDuration(teamHeartbeatEvery(config)), loadTeamHeartbeatLast(config.Name))
 }
 
-// teamHeartbeatCommand is hi team heartbeat <name> [<url> [--every 1m] |
+// teamHeartbeatCommand is hi app heartbeat <name> [<url> [--every 1m] |
 // off | test].
 func teamHeartbeatCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team heartbeat <name> [<url> [--every 1m] | off | test]"}
+	usage := usageError{"usage: hi app heartbeat <name> [<url> [--every 1m] | off | test]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -99,7 +99,7 @@ func teamHeartbeatCommand(args []string, stdout io.Writer) error {
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's secrets: %w", err)
+		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	rest := args[1:]
 	switch {
@@ -108,7 +108,7 @@ func teamHeartbeatCommand(args []string, stdout io.Writer) error {
 		return nil
 	case len(rest) == 1 && rest[0] == "test":
 		if secrets.HeartbeatURL == "" {
-			return fmt.Errorf("team %s has no heartbeat; hi team heartbeat %s <url> sets one", name, name)
+			return fmt.Errorf("app %s has no heartbeat; hi app heartbeat %s <url> sets one", name, name)
 		}
 		if err := heartbeatPing(secrets.HeartbeatURL); err != nil {
 			return err
@@ -117,14 +117,14 @@ func teamHeartbeatCommand(args []string, stdout io.Writer) error {
 		return nil
 	case len(rest) == 1 && rest[0] == "off":
 		if secrets.HeartbeatURL == "" {
-			fmt.Fprintf(stdout, "Team %s has no heartbeat.\n", name)
+			fmt.Fprintf(stdout, "App %s has no heartbeat.\n", name)
 			return nil
 		}
 		secrets.HeartbeatURL = ""
 		if err := saveTeamSecrets(name, secrets); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Team %s sends no heartbeat now. Pause or remove its check at the service, or it will alert.\n", name)
+		fmt.Fprintf(stdout, "App %s sends no heartbeat now. Pause or remove its check at the service, or it will alert.\n", name)
 		return nil
 	}
 	target, every := "", teamHeartbeatEvery(config)
@@ -153,7 +153,7 @@ func teamHeartbeatCommand(args []string, stdout io.Writer) error {
 	if err := saveTeamSecrets(name, secrets); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Team %s sends a heartbeat to %s every %s while it runs; the first arrived. Set the check's period there to %s, and who it alerts: the ops channel is a good place.\n",
+	fmt.Fprintf(stdout, "App %s sends a heartbeat to %s every %s while it runs; the first arrived. Set the check's period there to %s, and who it alerts: the ops channel is a good place.\n",
 		name, heartbeatHost(target), heartbeatDuration(every), heartbeatDuration(every))
 	return nil
 }
@@ -182,7 +182,7 @@ func teamHeartbeatDown(config teamConfig, stdout io.Writer) {
 	if err != nil || secrets.HeartbeatURL == "" {
 		return
 	}
-	text := fmt.Sprintf("Team %s's heartbeat to %s stops with it, so its check will alert: pause it there until the team is up again.", config.Name, heartbeatHost(secrets.HeartbeatURL))
+	text := fmt.Sprintf("App %s's heartbeat to %s stops with it, so its check will alert: pause it there until the app is up again.", config.Name, heartbeatHost(secrets.HeartbeatURL))
 	fmt.Fprintln(stdout, text)
 	if secrets.SlackBotToken != "" {
 		newLiveTeamChannel(secrets.SlackBotToken).post(config.opsChannel(), ":double_vertical_bar: "+text)
@@ -192,9 +192,9 @@ func teamHeartbeatDown(config teamConfig, stdout io.Writer) {
 // teamAskHeartbeats is the wizard's last step: the team's heartbeat, and
 // the machine's when it has none.
 func teamAskHeartbeats(stdin io.Reader, stdout io.Writer, styled bool, answers *teamAnswers) error {
-	teamSay(stdout, styled, "Heartbeats tell an outside service, such as healthchecks.io (free for 20 checks), that the team",
+	teamSay(stdout, styled, "Heartbeats tell an outside service, such as healthchecks.io (free for 20 checks), that the app",
 		"runs; it alerts when they stop. Make a check there, and set there who hears of a stop: your IT team, or the ops channel.")
-	target, err := teamAskUntil(stdin, stdout, "Team heartbeat URL [Enter: none]", false, func(target string) error {
+	target, err := teamAskUntil(stdin, stdout, "App heartbeat URL [Enter: none]", false, func(target string) error {
 		if target == "" {
 			return nil
 		}
@@ -230,7 +230,7 @@ func teamAskHeartbeats(stdin io.Reader, stdout io.Writer, styled bool, answers *
 	if _, set := loadMachineHeartbeat(); set {
 		return nil
 	}
-	teamSay(stdout, styled, "This machine has no heartbeat of its own: one says the machine is up, whichever of its teams run.")
+	teamSay(stdout, styled, "This machine has no heartbeat of its own: one says the machine is up, whichever of its apps run.")
 	machine, err := teamAskUntil(stdin, stdout, "Machine heartbeat URL [Enter: none]", false, func(target string) error {
 		if target == "" {
 			return nil
@@ -254,7 +254,7 @@ func applyTeamHeartbeats(name string, answers teamAnswers, stdout io.Writer) {
 			err = saveTeamSecrets(name, secrets)
 		}
 		if err != nil {
-			fmt.Fprintf(stdout, "The team's heartbeat isn't set: %v\nTry again with: hi team heartbeat %s <url>\n", err, name)
+			fmt.Fprintf(stdout, "The app's heartbeat isn't set: %v\nTry again with: hi app heartbeat %s <url>\n", err, name)
 		}
 	}
 	if answers.MachineHeartbeatURL != "" {

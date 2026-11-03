@@ -1,21 +1,21 @@
 ---
 name: hi-dev-ship
-description: Put work from this hi team dev box on the team's preview, and ship it into dev. Use when the user wants to see a branch running with real data, try a change on the preview, share it with the team, merge or ship work, or asks how work gets to production. Covers hi dev preview and hi dev ship.
+description: Put work from this hi app's dev box on the app's preview, and ship it into dev. Use when the user wants to see a branch running with real data, try a change on the preview, share it with the team, merge or ship work, or asks how work gets to production. Covers hi dev preview and hi dev ship.
 ---
 
 # Preview and ship from the dev box
 
-You are in a hi team's **dev box**. The project is a clone in `/box/repo`;
+You are in a hi app's **dev box**. The project is a clone in `/box/repo`;
 each piece of work has its own branch and worktree (herdr makes them:
 `herdr worktree create --cwd /box/repo --branch <name>`). Your commits stay
-in this clone until you ship them. There is no `git push`: the team's
+in this clone until you ship them. There is no `git push`: the app's
 repository is `origin`, read-only.
 
 ## How work moves
 
 1. **Build and commit** on the work's branch. Run the tests first.
 2. **Preview:** `hi dev preview` (the current branch) or `hi dev preview <branch>`.
-   It puts the branch on the team's preview address, and prints the link.
+   It puts the branch on the app's preview address, and prints the link.
    When it is new work there, the preview first gets a fresh copy of
    production's data, so the change is tried on real data. Give the user
    the link and say what to look at. The preview is one address: while it
@@ -30,7 +30,7 @@ repository is `origin`, read-only.
    roll back, or restore from here, and shouldn't try another way.
 
 After a ship, `git fetch origin` brings dev into the clone; start the next
-work from `origin/<team branch>`.
+work from `origin/<the app's branch>`.
 
 ## When the work is done
 
@@ -48,10 +48,10 @@ not committed) shows there, and only **Discard** drops it.
 - **"adds ... to trustedDependencies"** or **"advisory known to be
   exploited":** the box can't ship that. Use another package or a fixed
   version, or tell the user an admin of the machine has to merge it.
-- **"the team's service isn't answering":** it is restarting; try again in
+- **"the app's service isn't answering":** it is restarting; try again in
   a minute.
 - **A site the box can't reach** (a 403 from its proxy, "not allowed"): ask
-  the team's owners for it right away, saying what it's for in a line, and
+  the app's owners for it right away, saying what it's for in a line, and
   wait for their answer:
   `hi dev allow query1.finance.yahoo.com --why "daily price history for the game" --wait`.
   They see it on the dev page and in the channel, and allow it with a tap;

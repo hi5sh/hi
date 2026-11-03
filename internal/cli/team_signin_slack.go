@@ -59,7 +59,7 @@ func (b *teamBroker) webSignin(user, provider string) (string, error) {
 		for _, owner := range config.Owners {
 			owners = append(owners, "<@"+owner+">")
 		}
-		return "", fmt.Errorf("only the team's owners may sign it in, since a sign-in decides whose subscription pays. Ask an owner: %s", strings.Join(owners, ", "))
+		return "", fmt.Errorf("only the app's owners may sign it in, since a sign-in decides whose subscription pays. Ask an owner: %s", strings.Join(owners, ", "))
 	}
 	if provider == teamProviderChatGPT {
 		return b.signinChatGPT(user)
@@ -87,12 +87,12 @@ func (b *teamBroker) signinChatGPT(user string) (string, error) {
 		done()
 		return "", err
 	}
-	text := fmt.Sprintf(":key: To sign the *%s* team in to ChatGPT, open <%s> on any device, signed in to the ChatGPT account that should pay, and type *%s*. The code works for %d minutes. You asked for this with %s signin chatgpt; if you didn't, ignore it.",
+	text := fmt.Sprintf(":key: To sign the *%s* app in to ChatGPT, open <%s> on any device, signed in to the ChatGPT account that should pay, and type *%s*. The code works for %d minutes. You asked for this with %s signin chatgpt; if you didn't, ignore it.",
 		teamBotName(b.team), chatGPTDeviceURL(), device.Code, int(teamSigninLasts.Minutes()), teamSlashCommand(b.team))
 	dm, ts, err := b.channel.dm(user, text)
 	if err != nil {
 		done()
-		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the team's Slack app needs the im:write scope, from hi team manifest %s", err, b.team)
+		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the Slack app needs the im:write scope, from hi app manifest %s", err, b.team)
 	}
 	go func() {
 		defer done()
@@ -110,9 +110,9 @@ func (b *teamBroker) signinChatGPT(user string) (string, error) {
 			b.channel.update(dm, ts, fmt.Sprintf(":x: The ChatGPT sign-in didn't finish: %s. %s signin chatgpt gives you a new code.", teamSlackEscape(err.Error()), teamSlashCommand(b.team)))
 			return
 		}
-		b.channel.update(dm, ts, fmt.Sprintf(":white_check_mark: The *%s* team is signed in to ChatGPT: %s. Its roles on ChatGPT use it from their next call.", teamBotName(b.team), chatGPTPlanName(grant)))
+		b.channel.update(dm, ts, fmt.Sprintf(":white_check_mark: The *%s* app is signed in to ChatGPT: %s. Its roles on ChatGPT use it from their next call.", teamBotName(b.team), chatGPTPlanName(grant)))
 	}()
-	return "I've sent you a code in a DM. Type it at OpenAI within 15 minutes, and the team signs in.", nil
+	return "I've sent you a code in a DM. Type it at OpenAI within 15 minutes, and the app signs in.", nil
 }
 
 // signinClaude DMs the owner a one-time page on the team's app, where they
@@ -128,7 +128,7 @@ func (b *teamBroker) signinClaude(user string) (string, error) {
 		}
 	}
 	if base == "" {
-		return "", fmt.Errorf("the team's app has no address yet, so there is no page to paste the token on; an admin runs hi team signin %s claude on the team's machine", b.team)
+		return "", fmt.Errorf("the app has no address yet, so there is no page to paste the token on; an admin runs hi app signin %s claude on the app's machine", b.team)
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
@@ -148,10 +148,10 @@ func (b *teamBroker) signinClaude(user string) (string, error) {
 	b.signins.claude[id] = teamClaudeSignin{User: user, Ends: now.Add(teamSigninLasts)}
 	b.signins.mu.Unlock()
 	link := strings.TrimSuffix(base, "/") + teamHelperPrefix + "signin/" + id
-	text := fmt.Sprintf(":key: To give the *%s* team a Claude token: run `claude setup-token` on any computer with Claude Code, signed in to the Claude account that should pay, and paste the token it prints on <%s|this page>. The page works once, for %d minutes; the token never goes through Slack. You asked for this with %s signin claude; if you didn't, ignore it.",
+	text := fmt.Sprintf(":key: To give the *%s* app a Claude token: run `claude setup-token` on any computer with Claude Code, signed in to the Claude account that should pay, and paste the token it prints on <%s|this page>. The page works once, for %d minutes; the token never goes through Slack. You asked for this with %s signin claude; if you didn't, ignore it.",
 		teamBotName(b.team), link, int(teamSigninLasts.Minutes()), teamSlashCommand(b.team))
 	if _, _, err := b.channel.dm(user, text); err != nil {
-		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the team's Slack app needs the im:write scope, from hi team manifest %s", err, b.team)
+		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the Slack app needs the im:write scope, from hi app manifest %s", err, b.team)
 	}
 	return "I've sent you a page in a DM, where you paste the token. It works once, for 15 minutes.", nil
 }
@@ -176,12 +176,12 @@ func (b *teamBroker) claudeSigninPage(w http.ResponseWriter, r *http.Request) {
 <style>body{font:16px system-ui,sans-serif;max-width:34rem;margin:3rem auto;padding:0 1rem;color:#222}input{width:100%%;font:inherit;padding:.5rem;box-sizing:border-box}button{margin-top:1rem;font:inherit;padding:.5rem 1rem}p.note{color:#666}</style></head><body>%s</body></html>`, body)
 	}
 	if !ok {
-		page(http.StatusNotFound, fmt.Sprintf("<h1>This page has ended</h1><p>It works once, for %d minutes. %s signin claude in the team's Slack channel gives you a new one.</p>", int(teamSigninLasts.Minutes()), html.EscapeString(teamSlashCommand(b.team))))
+		page(http.StatusNotFound, fmt.Sprintf("<h1>This page has ended</h1><p>It works once, for %d minutes. %s signin claude in the app's Slack channel gives you a new one.</p>", int(teamSigninLasts.Minutes()), html.EscapeString(teamSlashCommand(b.team))))
 		return
 	}
 	if r.Method == http.MethodGet {
-		page(http.StatusOK, fmt.Sprintf(`<h1>The %s team's Claude token</h1><p>Paste the token <code>claude setup-token</code> printed. It starts <code>sk-ant-</code> and lasts a year.</p>
-<form method="post"><input name="token" type="password" autocomplete="off" required autofocus><button type="submit">Save</button></form><p class="note">Only the team's service sees it: no box, no chat, no Slack.</p>`, html.EscapeString(teamBotName(b.team))))
+		page(http.StatusOK, fmt.Sprintf(`<h1>The %s app's Claude token</h1><p>Paste the token <code>claude setup-token</code> printed. It starts <code>sk-ant-</code> and lasts a year.</p>
+<form method="post"><input name="token" type="password" autocomplete="off" required autofocus><button type="submit">Save</button></form><p class="note">Only the app's service sees it: no box, no chat, no Slack.</p>`, html.EscapeString(teamBotName(b.team))))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 8192)
@@ -206,7 +206,7 @@ func (b *teamBroker) claudeSigninPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if b.channel != nil {
-		b.channel.dm(signin.User, fmt.Sprintf(":white_check_mark: The *%s* team has its new Claude token. Its Claude members use it from their next call.", teamBotName(b.team)))
+		b.channel.dm(signin.User, fmt.Sprintf(":white_check_mark: The *%s* app has its new Claude token. Its Claude members use it from their next call.", teamBotName(b.team)))
 	}
-	page(http.StatusOK, fmt.Sprintf("<h1>Saved</h1><p>The %s team's Claude members use it from their next call. You can close this page.</p>", html.EscapeString(teamBotName(b.team))))
+	page(http.StatusOK, fmt.Sprintf("<h1>Saved</h1><p>The %s app's Claude members use it from their next call. You can close this page.</p>", html.EscapeString(teamBotName(b.team))))
 }

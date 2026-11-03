@@ -600,7 +600,7 @@ func advisoryAction(team string, advisory apiAdvisory) string {
 	case advisory.Part == "app":
 		return fmt.Sprintf("The app's %s package %s %s (%s). The lead proposes the upgrade and waits for a yes, as for any work, then asks for the release.", advisory.Ecosystem, advisory.Package, advisory.Version, fixed)
 	case strings.HasPrefix(advisory.Part, "image:base"):
-		return fmt.Sprintf("In hi's base image, which the app and the lead run in: %s %s (%s). The lead can't change it: someone at the machine runs hi team rebuild %s, which builds the image again with Ubuntu's current packages and restarts the team on it. The image is the machine's, so its other teams have the same advisory.", advisory.Package, advisory.Version, fixed, team)
+		return fmt.Sprintf("In hi's base image, which the app and the lead run in: %s %s (%s). The lead can't change it: someone at the machine runs hi app rebuild %s, which builds the image again with Ubuntu's current packages and restarts the app on it. The image is the machine's, so its other apps have the same advisory.", advisory.Package, advisory.Version, fixed, team)
 	case strings.HasPrefix(advisory.Part, "image:"):
 		return fmt.Sprintf("In the image of the lead's memory (Hindsight): %s %s (%s). A fix comes with a hi that uses a newer image: hi update on the machine.", advisory.Package, advisory.Version, fixed)
 	case advisory.Part == "agent":
@@ -807,7 +807,7 @@ func (w *teamWatcher) reportLocked(team *watchTeam, now time.Time) string {
 			fmt.Fprintf(&text, " (%+d since last week)", count.Total-last)
 		}
 		if count.Fixable+loud[count.Part] > 0 && count.Part == "image:base" {
-			fmt.Fprintf(&text, ": hi team rebuild %s on the machine builds the image again with them", team.Team)
+			fmt.Fprintf(&text, ": hi app rebuild %s on the machine builds the image again with them", team.Team)
 		}
 		text.WriteString("\n")
 	}
@@ -817,7 +817,7 @@ func (w *teamWatcher) reportLocked(team *watchTeam, now time.Time) string {
 		for _, line := range teamClipLines(appLines, 15) {
 			app.WriteString("• " + line + "\n")
 		}
-		app.WriteString("The lead can bring these up to date in one small task when it suits; `hi team advisories` lists them.")
+		app.WriteString("The lead can bring these up to date in one small task when it suits; `hi app advisories` lists them.")
 		team.Report = &apiWatchReport{ID: "r-" + now.UTC().Format("2006-01-02"), Text: app.String()}
 	}
 	return strings.TrimSpace(text.String())

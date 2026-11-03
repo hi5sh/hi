@@ -268,10 +268,10 @@
   <section id="lifecycle" class="wrap" aria-labelledby="lifecycle-h">
     <div class="eyebrow">The whole lifecycle</div>
     <h2 id="lifecycle-h">One path, from idea to mission-critical.</h2>
-    <p class="sub">One hi team carries an app the whole way, so nothing has to be rebuilt when it starts to matter.</p>
+    <p class="sub">One hi app goes the whole way, so nothing has to be rebuilt when it starts to matter.</p>
     <ol class="steps life">
-      <li><div><h3>Ask</h3><p>Anyone says what they need in the team's Slack channel. The lead, an AI, asks what it needs to know and files a task when they agree.</p></div></li>
-      <li><div><h3>Start right</h3><p>The project starts from your template: your stack, toolchain, and rules, not whatever an agent guesses. Already have a prototype? <code>hi team adopt</code> brings it in.</p></div></li>
+      <li><div><h3>Ask</h3><p>Anyone says what they need in the app's Slack channel. The lead, an AI, asks what it needs to know and files a task when they agree.</p></div></li>
+      <li><div><h3>Start right</h3><p>The project starts from your template: your stack, toolchain, and rules, not whatever an agent guesses. Already have a prototype? <code>hi app adopt</code> brings it in.</p></div></li>
       <li><div><h3>Build</h3><p>Vibe Devs build by chatting with Claude Code or Codex in the browser; Pro Devs get the terminal, VS Code, and SSH. The agents work in a box with no credentials.</p></div></li>
       <li><div><h3>Try</h3><p>Each change lands on Stage at an internal address. People try it on their phone and send feedback from inside the app; it becomes the next task.</p></div></li>
       <li><div><h3>Release and run</h3><p>Production changes only when a developer or an owner clicks Release, after a snapshot. Daily snapshots, watches, incidents, and a monthly budget keep it running.</p></div></li>
@@ -295,7 +295,7 @@
         <div class="term-bar"><div class="dots" aria-hidden="true"><i></i><i></i><i></i></div><span class="term-title">your templates repository · an example</span></div>
 <pre class="tree">project_templates/
 └─ <span class="k">acme-app/</span>
-   ├─ layer.json             <span class="d"># extends team-app</span>
+   ├─ layer.json             <span class="d"># extends hi-app</span>
    ├─ AGENTS.md              <span class="d"># the rules agents follow</span>
    ├─ .claude/settings.json  <span class="d"># what they may not touch</span>
    ├─ Makefile               <span class="d"># make check: lint, tests</span>
@@ -304,7 +304,7 @@
 
 <span class="m">$</span> hi org templates add acme \
     https://git.example.com/platform/templates
-<span class="m">$</span> hi team new expenses  <span class="d"># offers acme-app</span></pre>
+<span class="m">$</span> hi app new expenses   <span class="d"># offers acme-app</span></pre>
       </div>
     </div>
     <div class="more"><a href="/init/">How templates work →</a><a href="/org/">hi org →</a></div>
@@ -313,12 +313,12 @@
   <section id="team" class="wrap" aria-labelledby="team-h">
     <div class="eyebrow">Fits your organisation</div>
     <h2 id="team-h">Every role gets what it needs. Nothing more.</h2>
-    <p class="sub">A hi team lives in one Slack channel and runs one app. People bring the ideas, developers build with coding agents, and IT, DevOps, and security keep the controls they already have.</p>
+    <p class="sub">A hi app lives in one Slack channel. People bring the ideas, developers build with coding agents, and IT, DevOps, and security keep the controls they already have.</p>
     <div class="roles">
       <div class="role people"><span class="tag t-warm"><i></i>colleagues</span><h3>The people with the ideas</h3><p>Ask in Slack, use the app, and send feedback from inside it. Contributors file bugs as tasks with their name on them. Nobody needs to read code.</p></div>
       <div class="role"><span class="tag t-violet"><i></i>Vibe Devs</span><h3>Builders without code</h3><p>Build by chatting with coding agents in the browser, on a task of their own, and release it with a click.</p></div>
       <div class="role"><span class="tag t-sky"><i></i>Pro Devs</span><h3>Web developers</h3><p>The terminal, VS Code, and SSH into the dev box, on the same tasks, branches, and Stage as everyone else. They release too.</p></div>
-      <div class="role"><span class="tag t-amber"><i></i>owners</span><h3>IT</h3><p>Set up the team and the infrastructure it runs on, and support the developers: who builds, which sites the dev box may reach, and a rollback when a release goes wrong.</p></div>
+      <div class="role"><span class="tag t-amber"><i></i>owners</span><h3>IT</h3><p>Set up the app and the infrastructure it runs on, and support the developers: who builds, which sites the dev box may reach, and a rollback when a release goes wrong.</p></div>
       <div class="role"><span class="tag t-dim"><i></i>platform</span><h3>DevOps</h3><p>Define the templates, toolchains, and checks. hi org holds the model keys, the budgets, and the private templates.</p></div>
       <div class="role"><span class="tag t-dim"><i></i>security</span><h3>SecOps</h3><p>Internal addresses by default and your organisation's sign-in. Agents in rootless boxes without credentials, every request out through a proxy, logged.</p></div>
     </div>
@@ -329,17 +329,17 @@
       <li><span><b>Keys never reach the agents</b>, and the dev box reaches only allowed sites.</span></li>
     </ul>
     <div class="ctas" style="justify-content:flex-start">
-      <a class="btn primary" href="/team/">Explore hi team</a>
-      <a class="btn ghost" href="/guide/team/setup/">Set up a team</a>
+      <a class="btn primary" href="/app/">Explore hi app</a>
+      <a class="btn ghost" href="/guide/app/setup/">Set up an app</a>
     </div>
   </section>
 
   <section id="components" class="wrap" aria-labelledby="components-h">
     <div class="eyebrow">Components</div>
     <h2 id="components-h">Built from components. Each one works alone.</h2>
-    <p class="sub">The factory is put together from standard components: a box, an agent, compute, a server, the network. A hi team uses them all, and each one is also a command you can use on its own, in your terminal.</p>
+    <p class="sub">The factory is put together from standard components: a box, an agent, compute, a server, the network. A hi app uses them all, and each one is also a command you can use on its own, in your terminal.</p>
     <div class="tools">
-      <a class="tool" href="/team/"><b>hi team</b><span>an app in Slack</span></a>
+      <a class="tool" href="/app/"><b>hi app</b><span>an app in Slack</span></a>
       <a class="tool" href="/agent/"><b>hi agent</b><span>hand a task to an agent</span></a>
       <a class="tool" href="/autoresearch/"><b>hi agent best-of</b><span>keep the best attempt</span></a>
       <a class="tool" href="/box/"><b>hi box</b><span>code with nothing to steal</span></a>

@@ -300,7 +300,7 @@ func (p *boxEgressProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if host == "" || !p.allow.allows(host) {
 		p.log.record("blocked", host)
 		if p.ask != "" {
-			http.Error(w, fmt.Sprintf("hi box: %s is not allowed; ask the team's owners for it: hi dev allow %s --why \"<what for>\"", host, host), http.StatusForbidden)
+			http.Error(w, fmt.Sprintf("hi box: %s is not allowed; ask the app's owners for it: hi dev allow %s --why \"<what for>\"", host, host), http.StatusForbidden)
 			return
 		}
 		http.Error(w, fmt.Sprintf("hi box: %s is not allowed; on the host run: hi box allow <name> %s", host, host), http.StatusForbidden)

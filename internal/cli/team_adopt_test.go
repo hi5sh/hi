@@ -71,8 +71,8 @@ func fakeAdoptGitHub(t *testing.T, upstream string, info teamRepoInfo, canPush b
 
 func writeAdoptAnswers(t *testing.T, extra string) string {
 	t.Helper()
-	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
-	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
 	file := filepath.Join(t.TempDir(), "answers.json")
 	writeSkillTestFile(t, file, `{"channel": "C07PAYMENTS", "owners": ["U07OWNER1"]`+extra+`}`, 0o600)
 	return file
@@ -89,7 +89,7 @@ func TestTeamAdopt(t *testing.T) {
 	for _, want := range []string{"ada/pocket-kanban: A kanban board for small teams", "licence         MIT", "2 commits", "TypeScript 80%, CSS 20%",
 		"package.json (start: vite preview)", "AGENTS.md, CLAUDE.md, .claude/ (hooks)", "its agent settings stay off",
 		"2 packages run their own code when installed, in the boxes only: esbuild, sharp", "vendor/lib (not fetched", "v0, the project as adopted",
-		"ask your agent to survey pocket-kanban first", "hi team up payments"} {
+		"ask your agent to survey pocket-kanban first", "hi app up payments"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("no %q in:\n%s", want, out.String())
 		}
@@ -153,7 +153,7 @@ func TestTeamAdopt(t *testing.T) {
 	soul := readTestFile(t, filepath.Join(teamDir("payments"), "lead", "SOUL.md"))
 	skill := teamSkill(config)
 	if !strings.Contains(soul, "## Where the project came from") || !strings.Contains(soul, `never
-"upstream" or "fork"`) || !strings.Contains(skill, "## A project from elsewhere") || !strings.Contains(skill, "hi team upstream") || strings.Contains(skill, "%!") {
+"upstream" or "fork"`) || !strings.Contains(skill, "## A project from elsewhere") || !strings.Contains(skill, "hi app upstream") || strings.Contains(skill, "%!") {
 		t.Fatal(soul, skill)
 	}
 	if strings.Contains(teamSkill(testTeamConfig()), "A project from elsewhere") {
@@ -173,7 +173,7 @@ func TestTeamAdoptInTheWizard(t *testing.T) {
 	fakeAdoptGitHub(t, upstream, teamRepoInfo{Description: "A kanban board for small teams", DefaultBranch: "main"}, false)
 	wizard := []string{"xoxb-bot", "xapp-app", "C07PAYMENTS", "", "U07OWNER1", "", "", "", "", "", "", "", "", ""} // the members, their providers, sign-ins, and efforts as offered
 
-	// hi team adopt asks before the wizard, and offers the description as
+	// hi app adopt asks before the wizard, and offers the description as
 	// the purpose.
 	answers := strings.Join(append(append([]string{"", "", ""}, wizard...), ""), "\n") + "\n"
 	var out bytes.Buffer
@@ -182,11 +182,11 @@ func TestTeamAdoptInTheWizard(t *testing.T) {
 	}
 	config, _ := loadTeam("payments")
 	if config.Adopted == nil || config.Purpose != "A kanban board for small teams" || !strings.Contains(out.String(), "Purpose [A kanban board for small teams]") ||
-		!strings.Contains(out.String(), "It's ada/pocket-kanban, adopted") || !strings.Contains(out.String(), "Keep the team's copy on GitHub too?") {
+		!strings.Contains(out.String(), "It's ada/pocket-kanban, adopted") || !strings.Contains(out.String(), "Keep the app's copy on GitHub too?") {
 		t.Fatalf("%+v\n%s", config, out.String())
 	}
 
-	// In hi team new, a project's address in the code step adopts it; no
+	// In hi app new, a project's address in the code step adopts it; no
 	// is asked again, and with no terminal, ends the setup.
 	answers = strings.Join(append(append([]string{"", "Track work"}, wizard...), "github.com/ada/pocket-kanban", "n"), "\n") + "\n"
 	out.Reset()

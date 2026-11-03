@@ -121,7 +121,7 @@ func TestTeamJobsAlertOncePerIncident(t *testing.T) {
 	if len(*woken) != 1 || !strings.HasPrefix((*woken)[0], "hi-incident-i-1 slack:C07PAYMENTS:1700000000.000001 ") {
 		t.Fatal(*woken)
 	}
-	for _, want := range []string{"Incident i-1 is open", "no rules for backfill", "fetching r-338", "--incident i-1", "Never skip", "hi team incidents ask i-1"} {
+	for _, want := range []string{"Incident i-1 is open", "no rules for backfill", "fetching r-338", "--incident i-1", "Never skip", "hi app incidents ask i-1"} {
 		if !strings.Contains((*woken)[0], want) {
 			t.Errorf("the lead's prompt has no %q:\n%s", want, (*woken)[0])
 		}
@@ -175,7 +175,7 @@ func TestTeamJobsOnThePreview(t *testing.T) {
 	woken := teamTestWakes(b.teamBroker)
 	now := time.Now()
 	b.started = now.Add(-time.Hour)
-	// Dev on the preview: hi team jobs --preview shows it, nobody is told.
+	// Dev on the preview: hi app jobs --preview shows it, nobody is told.
 	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)
 	saveTeamSlot("payments", teamPreview{Slot: teamSlotPreview, Source: "main", Container: "app-preview"})
 	writeTeamTestJob(t, teamSlotPreview, teamJob{Job: "import", State: "failed", At: now, Error: "boom"})
@@ -238,7 +238,7 @@ func TestTeamIncidentLeadActions(t *testing.T) {
 	if _, err := b.restartApp(teamJobsRequest{Preview: true, Incident: incident.ID, Because: "again"}); err == nil || !strings.Contains(err.Error(), "dev page") {
 		t.Fatal(err)
 	}
-	if !strings.Contains(strings.Join(channel.calls, "\n"), ":gear: *The lead, i-1:* `hi team jobs restart --preview`: the preview runs in a new box. Why: the job went silent while the box ran.") {
+	if !strings.Contains(strings.Join(channel.calls, "\n"), ":gear: *The lead, i-1:* `hi app jobs restart --preview`: the preview runs in a new box. Why: the job went silent while the box ran.") {
 		t.Fatal(channel.calls)
 	}
 
@@ -428,7 +428,7 @@ func TestTeamJobsCheckUnreported(t *testing.T) {
 	if len(channel.calls) != 1 || len(*woken) != 1 || !strings.HasPrefix((*woken)[0], "hi-jobs-check ") {
 		t.Fatal(channel.calls, *woken)
 	}
-	if !strings.Contains((*woken)[0], "hi team task add") || !strings.Contains((*woken)[0], "blocked or failed") {
+	if !strings.Contains((*woken)[0], "hi app task add") || !strings.Contains((*woken)[0], "blocked or failed") {
 		t.Fatal((*woken)[0])
 	}
 
@@ -475,7 +475,7 @@ func TestTeamJobsSettleAfterStart(t *testing.T) {
 		t.Fatal(channel.calls)
 	}
 	check(start.Add(11 * time.Minute))
-	if len(channel.calls) != 1 || !strings.Contains(channel.calls[0], "hi started the team at 12:29 UTC") || len(*woken) != 1 {
+	if len(channel.calls) != 1 || !strings.Contains(channel.calls[0], "hi started the app at 12:29 UTC") || len(*woken) != 1 {
 		t.Fatal(channel.calls, *woken)
 	}
 }

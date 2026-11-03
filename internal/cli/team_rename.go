@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// hi team rename gives a team another name: the one its Slack bot goes by,
+// hi app rename gives a team another name: the one its Slack bot goes by,
 // its /hi-<name> command, and what hi calls it on this machine. What hi made
 // for it under the old name outside its folder (the service, the snapshot
 // timer, the boxes) is made again under the new one. Its memory bank and its
@@ -53,39 +53,39 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 	}
 	if len(names) != 2 {
-		return usageError{"usage: hi team rename <name> <new name> [--yes]"}
+		return usageError{"usage: hi app rename <name> <new name> [--yes]"}
 	}
 	old, name := names[0], names[1]
 	if old == name {
-		return fmt.Errorf("team %s is already named %s", old, name)
+		return fmt.Errorf("app %s is already named %s", old, name)
 	}
 	if !teamNamePattern.MatchString(name) {
-		return fmt.Errorf("a team's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
+		return fmt.Errorf("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
 	}
 	config, err := loadTeam(old)
 	if err != nil {
 		return err
 	}
 	if _, err := os.Lstat(filepath.Join(teamsDir(), name)); err == nil || fileExists(teamUnitPath(name)) {
-		return fmt.Errorf("there is already a team named %s on this machine", name)
+		return fmt.Errorf("there is already an app named %s on this machine", name)
 	}
 	if fileExists(teamSnapshotsDir(name)) {
-		return fmt.Errorf("%s is in the way: snapshots of an earlier team named %s", teamSnapshotsDir(name), name)
+		return fmt.Errorf("%s is in the way: snapshots of an earlier app named %s", teamSnapshotsDir(name), name)
 	}
 	for _, task := range loadTeamTasks(old) {
 		if task.Status == "starting" || task.Status == "running" {
-			return fmt.Errorf("task %s is %s; rename the team when its members are done, or stop it first", task.ID, task.Status)
+			return fmt.Errorf("task %s is %s; rename the app when its members are done, or stop it first", task.ID, task.Status)
 		}
 	}
 	folder := teamDir(old)
 	moveTo := ""
-	if filepath.Base(folder) == "team-"+old {
-		if next := filepath.Join(filepath.Dir(folder), "team-"+name); !fileExists(next) {
+	if base := filepath.Base(folder); base == "app-"+old || base == "team-"+old {
+		if next := filepath.Join(filepath.Dir(folder), "app-"+name); !fileExists(next) {
 			moveTo = next
 		}
 	}
 
-	fmt.Fprintf(stdout, "Renaming team %s to %s:\n", old, name)
+	fmt.Fprintf(stdout, "Renaming app %s to %s:\n", old, name)
 	renamed := config
 	renamed.Name = name
 	fmt.Fprintf(stdout, "  its Slack bot     @%s, with %s instead of %s\n", teamBotHandle(renamed), teamSlashCommand(name), teamSlashCommand(old))
@@ -98,8 +98,8 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "  its app           https://%s\n", strings.Replace(domain, old, name, 1))
 		}
 	}
-	fmt.Fprintln(stdout, "The team stops while it's done and starts again if it was up; a preview it was showing ends. Its memory, tasks, and snapshots stay.")
-	if err := confirm(stdin, stdout, yes, "Rename team "+old+" to "+name+"?"); err != nil {
+	fmt.Fprintln(stdout, "The app stops while it's done and starts again if it was up; a preview it was showing ends. Its memory, tasks, and snapshots stay.")
+	if err := confirm(stdin, stdout, yes, "Rename app "+old+" to "+name+"?"); err != nil {
 		return err
 	}
 
@@ -119,12 +119,12 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 
 	if fileExists(teamSnapshotsDir(old)) {
 		if err := os.Rename(teamSnapshotsDir(old), teamSnapshotsDir(name)); err != nil {
-			return fmt.Errorf("moving the team's snapshots: %w", err)
+			return fmt.Errorf("moving the app's snapshots: %w", err)
 		}
 	}
 	if moveTo != "" {
 		if err := os.Rename(folder, moveTo); err != nil {
-			return fmt.Errorf("moving the team's folder: %w", err)
+			return fmt.Errorf("moving the app's folder: %w", err)
 		}
 		folder = moveTo
 	}
@@ -150,15 +150,15 @@ func teamRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "Team %s is now %s, in %s.\n", old, name, folder)
+	fmt.Fprintf(stdout, "App %s is now %s, in %s.\n", old, name, folder)
 	if up {
 		if err := teamUp(name, stdout); err != nil {
 			return err
 		}
 	} else {
-		fmt.Fprintf(stdout, "hi team up %s starts it.\n", name)
+		fmt.Fprintf(stdout, "hi app up %s starts it.\n", name)
 	}
-	fmt.Fprintf(stdout, "\nIn Slack, give the team's app the new name and %s: open the app at https://api.slack.com/apps, choose App Manifest, and paste what this prints:\n  hi team manifest %s\n", teamSlashCommand(name), name)
+	fmt.Fprintf(stdout, "\nIn Slack, give the Slack app the new name and %s: open the app at https://api.slack.com/apps, choose App Manifest, and paste what this prints:\n  hi app manifest %s\n", teamSlashCommand(name), name)
 	return nil
 }
 
@@ -188,12 +188,16 @@ func teamRenameSoul(lead, old, name string) {
 	if err != nil {
 		return
 	}
-	soul := strings.Replace(string(data), "# The "+old+" team's lead\n", "# The "+name+" team's lead\n", 1)
-	soul = strings.Replace(soul, "You lead the "+old+" team,", "You lead the "+name+" team,", 1)
-	soul = strings.Replace(soul, "You are the "+old+" team's lead", "You are the "+name+" team's lead", 1)
-	// A lead with a name of its own: "# Maja, the payments team's lead".
-	soul = strings.Replace(soul, ", the "+old+" team's lead\n", ", the "+name+" team's lead\n", 1)
-	soul = strings.Replace(soul, ", the "+old+" team's lead:", ", the "+name+" team's lead:", 1)
+	soul := string(data)
+	// SOUL.md written before v2.6.67 says team, later ones app.
+	for _, word := range []string{"team", "app"} {
+		soul = strings.Replace(soul, "# The "+old+" "+word+"'s lead\n", "# The "+name+" "+word+"'s lead\n", 1)
+		soul = strings.Replace(soul, "You lead the "+old+" "+word+",", "You lead the "+name+" "+word+",", 1)
+		soul = strings.Replace(soul, "You are the "+old+" "+word+"'s lead", "You are the "+name+" "+word+"'s lead", 1)
+		// A lead with a name of its own: "# Maja, the payments app's lead".
+		soul = strings.Replace(soul, ", the "+old+" "+word+"'s lead\n", ", the "+name+" "+word+"'s lead\n", 1)
+		soul = strings.Replace(soul, ", the "+old+" "+word+"'s lead:", ", the "+name+" "+word+"'s lead:", 1)
+	}
 	if soul != string(data) {
 		os.WriteFile(path, []byte(soul), 0o600)
 	}
@@ -207,7 +211,10 @@ func teamRenameNotes(lead, old, name string) {
 	if err != nil {
 		return
 	}
-	notes := strings.Replace(string(data), "description: What you learned running the "+old+" team,", "description: What you learned running the "+name+" team,", 1)
+	notes := string(data)
+	for _, word := range []string{"team", "app"} {
+		notes = strings.Replace(notes, "description: What you learned running the "+old+" "+word+",", "description: What you learned running the "+name+" "+word+",", 1)
+	}
 	if notes != string(data) {
 		os.WriteFile(path, []byte(notes), 0o600)
 	}

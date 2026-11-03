@@ -23,7 +23,7 @@ import (
 // teamDataRoom is what a copy leaves free on the disk, beyond itself.
 const teamDataRoom = 256 << 20
 
-// teamDataFolder is one slot's data folder, as hi team data lists it.
+// teamDataFolder is one slot's data folder, as hi app data lists it.
 type teamDataFolder struct {
 	Slot    string    `json:"slot"`
 	Dir     string    `json:"dir"`
@@ -338,7 +338,7 @@ func (b *teamBroker) copyDataLocked(from, to string) (teamDataCopy, error) {
 // ---------------------------------------------------------------------------
 // the command, on the host
 
-// teamDataCommand is hi team data <name> [fork | copy <from> <to> |
+// teamDataCommand is hi app data <name> [fork | copy <from> <to> |
 // preview empty|fork] [--yes].
 func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	yes := false
@@ -353,7 +353,7 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			words = append(words, arg)
 		}
 	}
-	usage := usageError{"usage: hi team data <name> [fork | copy preview production | preview empty | preview fork] [--yes]"}
+	usage := usageError{"usage: hi app data <name> [fork | copy preview production | preview empty | preview fork] [--yes]"}
 	if len(words) == 0 {
 		return usage
 	}
@@ -395,10 +395,10 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return fmt.Errorf("%s has no data to copy", teamSlotName(from))
 	}
 	if to == teamSlotProduction {
-		fmt.Fprintf(stdout, "This replaces team %s's production data with a copy of the preview's (%s). hi snapshots production's data first, and posts it in the channel.\n", team, teamDataSize(bytes))
+		fmt.Fprintf(stdout, "This replaces app %s's production data with a copy of the preview's (%s). hi snapshots production's data first, and posts it in the channel.\n", team, teamDataSize(bytes))
 		fmt.Fprintln(stdout, "The preview's box pauses while it is copied, and production restarts on the copy.")
 	} else {
-		fmt.Fprintf(stdout, "This gives team %s's preview a new fork of production's data (%s); what the preview wrote itself is kept in run/preview-data-before.\n", team, teamDataSize(bytes))
+		fmt.Fprintf(stdout, "This gives app %s's preview a new fork of production's data (%s); what the preview wrote itself is kept in run/preview-data-before.\n", team, teamDataSize(bytes))
 		fmt.Fprintln(stdout, "Production's box pauses for a few seconds while it is forked, and the preview restarts on the fork.")
 	}
 	question := fmt.Sprintf("Copy %s's data to %s?", from, to)
@@ -411,7 +411,7 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	var result teamDataCopy
 	asked, err := teamHostCall(team, "/data/copy", teamDataCopyRequest{From: from, To: to, Who: currentUserName()}, &result)
 	if !asked {
-		return fmt.Errorf("team %s isn't up, or runs a hi from before hi team data; hi team up %s, then try again", team, team)
+		return fmt.Errorf("app %s isn't up, or runs a hi from before hi app data; hi app up %s, then try again", team, team)
 	}
 	if err != nil {
 		return err
@@ -420,7 +420,7 @@ func teamDataCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	return nil
 }
 
-// teamPreviewDataMode is hi team data <name> preview empty|fork: whether
+// teamPreviewDataMode is hi app data <name> preview empty|fork: whether
 // a preview starts on a fork of production's data at every release, or
 // empty, for an app whose people's data previews shouldn't show.
 func teamPreviewDataMode(team, mode string, stdout io.Writer) error {
@@ -434,15 +434,15 @@ func teamPreviewDataMode(team, mode string, stdout io.Writer) error {
 	case "fork":
 		config.PreviewData = ""
 	default:
-		return usageError{"usage: hi team data <name> preview empty | preview fork"}
+		return usageError{"usage: hi app data <name> preview empty | preview fork"}
 	}
 	if err := saveTeam(config); err != nil {
 		return err
 	}
 	if mode == "empty" {
-		fmt.Fprintf(stdout, "Team %s's preview starts on an empty data folder at every release, never on production's data. It keeps what it has until then.\n", team)
+		fmt.Fprintf(stdout, "App %s's preview starts on an empty data folder at every release, never on production's data. It keeps what it has until then.\n", team)
 	} else {
-		fmt.Fprintf(stdout, "Team %s's preview starts on a fork of production's data at every release. hi team data %s fork gives it one now.\n", team, team)
+		fmt.Fprintf(stdout, "App %s's preview starts on a fork of production's data at every release. hi app data %s fork gives it one now.\n", team, team)
 	}
 	return nil
 }

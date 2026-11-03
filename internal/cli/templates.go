@@ -24,7 +24,7 @@ const (
 	// projectTemplatesDir holds a source's layers, one folder each, beside
 	// skills/ and docs/. Layers at the top of a source still load.
 	projectTemplatesDir = "project_templates"
-	// teamTemplateDir is a layer's folder for a hi team rather than the
+	// teamTemplateDir is a layer's folder for a hi app rather than the
 	// project: roles/<role>/ROLE.md and LEARNED.md. It never reaches a
 	// project's files.
 	teamTemplateDir = "team"
@@ -77,7 +77,7 @@ type composedTemplate struct {
 	// Origins names the source of the last layer that wrote or added to
 	// each file.
 	Origins map[string]string
-	// Team are the files of the layers' team/ folders, for a hi team made
+	// Team are the files of the layers' team/ folders, for a hi app made
 	// from the template, by their path in it.
 	Team map[string][]byte
 }
@@ -162,6 +162,11 @@ func layerChain(layers map[string]*templateLayer, name string) ([]*templateLayer
 		// A parent in the layer's own source wins over one with the same
 		// name elsewhere.
 		current = layer.Extends
+		if _, own := layers[current]; !own {
+			if name, ok := renamedBuiltins[current]; ok {
+				current = name // a source's template that extends app or team-app
+			}
+		}
 		if _, ok := layers[layer.source+"/"+current]; ok && current != "" {
 			current = layer.source + "/" + current
 		}

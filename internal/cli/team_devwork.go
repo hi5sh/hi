@@ -368,21 +368,21 @@ func runDev(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	return exitCode(teamDevClient(args, stdin, stdout), stderr)
 }
 
-const teamDevUsage = `hi dev is how the dev box works with its team. In the box:
+const teamDevUsage = `hi dev is how the dev box works with the rest of the app. In the box:
 
   hi dev status                     production's and dev's versions, what dev has, the preview,
                                     backups, open incidents, the app's jobs
-  hi dev preview [<branch>]         put the branch (the current one by default) on the team's preview,
+  hi dev preview [<branch>]         put the branch (the current one by default) on the app's preview,
                                     with a fresh copy of production's data when it is new work there
   hi dev preview --dev              dev on the preview again, after a branch was tried there
   hi dev ship [<branch>] [-m <title>]  merge the branch into dev, and put dev on the preview;
                                     production moves only when someone releases it
-  hi dev say [--thread <ts>] <text|->  post in the team's Slack channel
+  hi dev say [--thread <ts>] <text|->  post in the app's Slack channel
   hi dev allow <site> --why <what for> [--wait]
-                                    ask the team's owners to let the box reach a site its proxy
+                                    ask the app's owners to let the box reach a site its proxy
                                     refused; --wait waits up to 9 minutes for their answer
   hi dev allow [<site>]             what the owners allowed, asks waiting, and refusals; or one site
-  hi dev task list [--closed]       the team's tasks (GitHub, GitLab, or hi's own)
+  hi dev task list [--closed]       the app's tasks (GitHub, GitLab, or hi's own)
   hi dev task show <n>
   hi dev task add <title> [<body|->]
   hi dev task comment <n> <text|->
@@ -414,7 +414,7 @@ func teamDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	socket := os.Getenv(teamDevSocketEnv)
 	if socket == "" {
-		return errors.New("hi dev works in a team's dev box; on the machine, use hi team")
+		return errors.New("hi dev works in an app's dev box; on the machine, use hi app")
 	}
 	call := func(method, path string, body, out any) error {
 		client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
@@ -424,7 +424,7 @@ func teamDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		request, _ := http.NewRequest(method, "http://team"+path, strings.NewReader(string(data)))
 		response, err := client.Do(request)
 		if err != nil {
-			return errors.New("the team's service isn't answering; it may be restarting, so try again in a minute")
+			return errors.New("the app's service isn't answering; it may be restarting, so try again in a minute")
 		}
 		defer response.Body.Close()
 		answer, _ := io.ReadAll(response.Body)
@@ -532,7 +532,7 @@ func teamDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err := call("POST", "/say", request, &answer); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Posted in the team's channel (%s).\n", answer["ts"])
+		fmt.Fprintf(stdout, "Posted in the app's channel (%s).\n", answer["ts"])
 		return nil
 	case "allow":
 		return teamDevAllowClient(rest, stdout, call, currentBranch)

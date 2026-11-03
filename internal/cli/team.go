@@ -20,7 +20,7 @@ import (
 	"github.com/slack-go/slack"
 )
 
-// hi team runs a team's app and its dev box: its owners build in the dev
+// hi app runs a team's app and its dev box: its owners build in the dev
 // box with coding agents and release from the dev page, and a lead
 // (Hermes) helps the people in its Slack channel, files what they ask for
 // as tickets, and watches the app. A team is a folder; its containers are
@@ -69,7 +69,7 @@ type teamConfig struct {
 	// network only. A team made before hi 2.5 has none: all public, until
 	// an owner says otherwise (hi_team_internal.md).
 	Public *teamPublic `json:"public,omitempty"`
-	// Domain puts the team's app on the machine's domain (hi team domain
+	// Domain puts the team's app on the machine's domain (hi app domain
 	// <team> on): names that stay, rather than ones NetBird makes up.
 	Domain bool `json:"domain,omitempty"`
 	// Addresses is what the team's addresses on the NetBird network are
@@ -80,13 +80,13 @@ type teamConfig struct {
 	Addresses string `json:"addresses,omitempty"`
 	// BoxMemory is the memory limit of the team's dev box ("dev") and of
 	// its app's boxes, Stage's and production's ("app"), when it isn't
-	// hi's (hi team limit <team> memory).
+	// hi's (hi app limit <team> memory).
 	BoxMemory map[string]string `json:"box_memory,omitempty"`
 	// Names are each address's own name, which an IT team keeps
 	// (docs/specs/approved/hi_team_addresses.md).
 	Names *teamNames `json:"names,omitempty"`
 	// AllowIPs are the only addresses the team's preview and production
-	// let in (hi team allow-ip <team>; hi net expose --allow-ip).
+	// let in (hi app allow-ip <team>; hi net expose --allow-ip).
 	AllowIPs []string `json:"allow_ips,omitempty"`
 	// PreviewData is "empty" for a team whose preview starts empty at every
 	// release; otherwise it starts on a fork of production's data
@@ -99,12 +99,12 @@ type teamConfig struct {
 	// from, one that extends team-app, such as one from the org server's
 	// sources; empty is team-app itself.
 	Template string `json:"template,omitempty"`
-	// Adopted is where a project someone else wrote came from (hi team
+	// Adopted is where a project someone else wrote came from (hi app
 	// adopt); ProjectAgentSettings lets members load its own agent
 	// settings (hooks, MCP servers), off by default (team_adopt.go).
 	Adopted              *teamAdopted `json:"adopted,omitempty"`
 	ProjectAgentSettings bool         `json:"project_agent_settings,omitempty"`
-	// MadeAs is the name the team was made with, when hi team rename has
+	// MadeAs is the name the team was made with, when hi app rename has
 	// given it another since: its memory bank and its snapshots keep it.
 	MadeAs  string    `json:"made_as,omitempty"`
 	Created time.Time `json:"created"`
@@ -137,28 +137,28 @@ type teamSecrets struct {
 	// OpenRouterAPIKey is the team's own; without it the team uses this
 	// machine's, from Hermes' .env (team_keys.go).
 	OpenRouterAPIKey string `json:"openrouter_api_key,omitempty"`
-	// Env is the settings the team's app boxes get (hi team env).
+	// Env is the settings the team's app boxes get (hi app env).
 	Env map[string]string `json:"env,omitempty"`
 	// EnvProduction and EnvPreview are settings one slot gets alone:
-	// production's only (hi team env --production), or a value of the
+	// production's only (hi app env --production), or a value of the
 	// preview's own (--preview). A name is in Env or in these, never both.
 	EnvProduction map[string]string `json:"env_production,omitempty"`
 	EnvPreview    map[string]string `json:"env_preview,omitempty"`
-	// Files are settings the app's boxes get as files (hi team env
+	// Files are settings the app's boxes get as files (hi app env
 	// --file), base64, by the name of the variable that holds the file's
 	// path; FilesProduction and FilesPreview are one slot's alone, as with
 	// Env. A name is a value or a file, never both.
 	Files           map[string]string `json:"files,omitempty"`
 	FilesProduction map[string]string `json:"files_production,omitempty"`
 	FilesPreview    map[string]string `json:"files_preview,omitempty"`
-	// EnvDev and FilesDev are the dev box's own (hi team env --dev), such
+	// EnvDev and FilesDev are the dev box's own (hi app env --dev), such
 	// as a test database's: it gets no others, so production's keys stay
 	// out of reach of its agents.
 	EnvDev   map[string]string `json:"env_dev,omitempty"`
 	FilesDev map[string]string `json:"files_dev,omitempty"`
 	// HeartbeatURL is where the team's heartbeat goes (team_heartbeat.go).
 	HeartbeatURL string `json:"heartbeat_url,omitempty"`
-	// The bucket snapshots are copied to (hi team backups).
+	// The bucket snapshots are copied to (hi app backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
 	// LeadAPIKey opens Hermes' API server in the lead's box to the team's
@@ -186,7 +186,7 @@ func teamsDir() string {
 }
 
 // A team's folder is wherever it was made, ./team-<name> by default.
-// teamsDir holds a link to each, by name, so hi team <command> <name>
+// teamsDir holds a link to each, by name, so hi app <command> <name>
 // finds it from anywhere.
 func teamDir(name string) string {
 	link := filepath.Join(teamsDir(), name)
@@ -204,7 +204,7 @@ func teamRegister(name, folder string) error {
 	link := filepath.Join(teamsDir(), name)
 	if info, err := os.Lstat(link); err == nil {
 		if info.Mode()&os.ModeSymlink == 0 {
-			return fmt.Errorf("%s is in the way: it should be a link to team %s's folder", link, name)
+			return fmt.Errorf("%s is in the way: it should be a link to app %s's folder", link, name)
 		}
 		os.Remove(link)
 	}
@@ -230,7 +230,7 @@ func defaultTeamMembers() map[string]teamMember {
 
 func validateTeam(config teamConfig) error {
 	if !teamNamePattern.MatchString(config.Name) {
-		return fmt.Errorf("a team's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", config.Name)
+		return fmt.Errorf("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", config.Name)
 	}
 	if !slackIDPattern.MatchString(config.Channel) {
 		return fmt.Errorf("the channel is a Slack channel ID, such as C07ABC123, not %q", config.Channel)
@@ -239,7 +239,7 @@ func validateTeam(config teamConfig) error {
 		return fmt.Errorf("the ops channel is a Slack channel ID, such as C07ABC123, not %q", config.OpsChannel)
 	}
 	if len(config.Owners) == 0 {
-		return errors.New("a team needs at least one owner")
+		return errors.New("an app needs at least one owner")
 	}
 	for _, id := range slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors) {
 		if !slackIDPattern.MatchString(id) {
@@ -309,14 +309,14 @@ func validateTeam(config teamConfig) error {
 func loadTeam(name string) (teamConfig, error) {
 	var config teamConfig
 	if !teamNamePattern.MatchString(name) {
-		return config, fmt.Errorf("no team named %q", name)
+		return config, fmt.Errorf("no app named %q", name)
 	}
 	data, err := os.ReadFile(filepath.Join(teamDir(name), "team.json"))
 	if errors.Is(err, os.ErrNotExist) {
 		if target, linkErr := os.Readlink(filepath.Join(teamsDir(), name)); linkErr == nil {
-			return config, fmt.Errorf("team %s's folder %s is gone; if you moved it, run hi team up <its new folder>", name, target)
+			return config, fmt.Errorf("app %s's folder %s is gone; if you moved it, run hi app up <its new folder>", name, target)
 		}
-		return config, fmt.Errorf("no team named %s; hi team ls lists them", name)
+		return config, fmt.Errorf("no app named %s; hi app ls lists them", name)
 	}
 	if err != nil {
 		return config, err
@@ -391,7 +391,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamAdoptCommand(rest, stdin, stdout)
 	case "up":
 		if len(rest) == 0 && interactive(stdin, stdout) {
-			name, pickErr := teamPick(stdin, stdout, "Start or restart a team")
+			name, pickErr := teamPick(stdin, stdout, "Start or restart an app")
 			if errors.Is(pickErr, errMenuBack) {
 				return 0
 			}
@@ -435,7 +435,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = teamJobCommand(rest, stdout)
 	case "github":
 		if len(rest) != 2 {
-			err = usageError{"usage: hi team github <name> <owner/repository>"}
+			err = usageError{"usage: hi app github <name> <owner/repository>"}
 			break
 		}
 		config, loadErr := loadTeam(rest[0])
@@ -517,7 +517,7 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "__serve":
 		err = withTeamName(rest, func(name string) error { return teamServe(name, stdout, stderr) })
 	default:
-		fmt.Fprintf(stderr, "hi: unknown team command %q\n\n", command)
+		fmt.Fprintf(stderr, "hi: unknown app command %q\n\n", command)
 		printTeamUsage(stderr)
 		return 2
 	}
@@ -526,100 +526,100 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func withTeamName(args []string, action func(string) error) error {
 	if len(args) != 1 {
-		return usageError{"name the team: hi team <command> <name>"}
+		return usageError{"name the app: hi app <command> <name>"}
 	}
 	return action(args[0])
 }
 
 func printTeamUsage(w io.Writer) {
-	fmt.Fprintln(w, `hi team runs a team's app for the people in one Slack channel. Its owners build it
-with coding agents in the team's dev box and release it from the dev page; a lead
+	fmt.Fprintln(w, `hi app runs an app for the people in one Slack channel. Its owners build it
+with coding agents in the app's dev box and release it from the dev page; a lead
 (Hermes) helps the people in the channel, files what they ask for as tasks, and
 watches the app.
 
 usage:
-  hi team new <name>               a step-by-step setup: Slack app, channel, people, members, code,
-                                   in a new folder ./team-<name>
-      [--dir <folder>]             the team's folder somewhere else
+  hi app new <name>                a step-by-step setup: Slack app, channel, people, members, code,
+                                   in a new folder ./app-<name>
+      [--dir <folder>]             the app's folder somewhere else
       [--from <file.json>]         the answers from a file; the Slack tokens from
-                                   HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN, the
-                                   team's own OpenRouter key from HI_TEAM_OPENROUTER_API_KEY, and
-                                   its ChatGPT sign-in from HI_TEAM_CHATGPT_AUTH (an auth.json), and
-                                   its Claude token from HI_TEAM_CLAUDE_TOKEN
-  hi team adopt <name> <source>    the same setup for a project someone else wrote, such as one on
-                                   GitHub (github.com/owner/name, owner/name, or a URL): the team keeps
+                                   HI_APP_SLACK_BOT_TOKEN and HI_APP_SLACK_APP_TOKEN, the
+                                   app's own OpenRouter key from HI_APP_OPENROUTER_API_KEY, and
+                                   its ChatGPT sign-in from HI_APP_CHATGPT_AUTH (an auth.json), and
+                                   its Claude token from HI_APP_CLAUDE_TOKEN
+  hi app adopt <name> <source>     the same setup for a project someone else wrote, such as one on
+                                   GitHub (github.com/owner/name, owner/name, or a URL): the app keeps
                                    its own copy and never pushes to it; an owner's agent surveys it
-  hi team adopt <name> <folder>    the same for a folder on this machine, copied without its history:
+  hi app adopt <name> <folder>     the same for a folder on this machine, copied without its history:
                                    what git would commit, without .git, secrets such as .env, or
                                    links that point outside it; the folder doesn't change
       [--ref <branch|tag|commit>]  where to start; upstream's default branch otherwise
-      [--github <owner/name>]      keep the team's copy in a new private GitHub repository too
+      [--github <owner/name>]      keep the app's copy in a new private GitHub repository too
       [--shallow|--full]           only its latest commit, or its whole history (a folder: all of it) even over 1 GB
-      [--dir, --from, --yes]       as for hi team new; --yes doesn't ask before adopting
-  hi team up [<name>]              start or restart the team and keep it up, also after a reboot;
+      [--dir, --from, --yes]       as for hi app new; --yes doesn't ask before adopting
+  hi app up [<name>]               start or restart the app and keep it up, also after a reboot;
                                    without a name, pick it from a list
-  hi team up <folder>              the same for a team whose folder moved or was copied here
-  hi team down <name>              stop it; its folder stays
-  hi team rebuild <name>           hi's base image again, with Ubuntu's current packages, and the
-                                   team on it: what fixes the image's advisories
-  hi team rm [<name>]              stop it and remove it from this machine: its service, boxes,
+  hi app up <folder>               the same for an app whose folder moved or was copied here
+  hi app down <name>               stop it; its folder stays
+  hi app rebuild <name>            hi's base image again, with Ubuntu's current packages, and the
+                                   app on it: what fixes the image's advisories
+  hi app rm [<name>]               stop it and remove it from this machine: its service, boxes,
                                    and folder; without a name, pick it from a list
-      [--keep-folder]              keep the folder; hi team up <folder> brings the team back
+      [--keep-folder]              keep the folder; hi app up <folder> brings the app back
       [--yes]                      don't ask first
-  hi team rename <name> <new>      give the team another name, after its Slack app's: its bot,
+  hi app rename <name> <new>       give the app another name, after its Slack app's: its bot,
                                    its /hi-<name> command, its service; memory and snapshots stay
       [--yes]                      don't ask first
-  hi team ls                       teams on this machine
-  hi team status <name>            whether it is up, and its members
-  hi team logs <name> [-f]         the lead's log; -f follows it
-  hi team say <name> <text|->      tell the lead something from this machine: hi posts it in the
+  hi app ls                        apps on this machine
+  hi app status <name>             whether it is up, and its members
+  hi app logs <name> [-f]          the lead's log; -f follows it
+  hi app say <name> <text|->       tell the lead something from this machine: hi posts it in the
                                    channel, and the lead answers in its thread; what it asks to
                                    change, the lead files as a task
       [--wait]                     wait for the answer and print it
-  hi team dev <name>               the team's dev box, where owners build with agents over SSH:
+  hi app dev <name>                the app's dev box, where owners build with agents over SSH:
                                    whether it runs, its NetBird name, and how to get in
       [restart | netbird [<key file>] | new-host-key]  a new box; join NetBird; a new host key
       [start <task> [--agent claude|codex]]  a task's branch, worktree, and herdr workspace
       [finish <branch> [--discard]]  once it's shipped: its worktree, workspace, branch, and task
       [allow [<site> [--why <what for>] | --remove <site>]]  the sites the dev box reaches, as
                                    owners allow them on the dev page; a database's name too
-  hi team owners <name>            the team's owners, who build in the dev box, and their SSH keys
+  hi app owners <name>             the app's owners, who build in the dev box, and their SSH keys
       [add|remove <member ID> | key <member ID> <public key>|--remove]
-  hi team access <name>            who reaches what: owners, Pro Devs and Vibe Devs (who build and
+  hi app access <name>             who reaches what: owners, Pro Devs and Vibe Devs (who build and
                                    release), and contributors (who report bugs); nobody else
       [<member ID> pro|vibe|contributor|none]  an owner's change, also on the dev page: a Pro
                                    Dev has Chat, terminal, VS Code, and SSH, a Vibe Dev Chat; none
                                    takes the level away
       [key <member ID> <public key>|--remove]  a Pro Dev's or owner's SSH key for the dev box
-  hi team task <name>              the team's tasks: GitHub Issues (gh) or GitLab issues (glab),
+  hi app task <name>               the app's tasks: GitHub Issues (gh) or GitLab issues (glab),
                                    where its repository is, or hi's own
       [list [--closed] | show <n> | add <title> [<body|->] | comment <n> <text|-> | close <n> [<comment>]]
-  hi team channel <name> [--since 2h]  what was said in the channel (the last day by default)
-  hi team key <name> openrouter    give the team an OpenRouter key of its own (asked, never an
+  hi app channel <name> [--since 2h]  what was said in the channel (the last day by default)
+  hi app key <name> openrouter     give the app an OpenRouter key of its own (asked, never an
                                    argument); --unset goes back to this machine's. No box holds it:
                                    the app reaches models at $OPENROUTER_BASE_URL through hi
-  hi team key <name> slack         the Slack app's tokens again, when Slack gave new ones (asked
-                                   for and checked; Enter keeps one); a running team restarts
-  hi team ops <name> [<channel ID>|off]  a second channel for incidents, warnings, security, keys,
+  hi app key <name> slack          the Slack app's tokens again, when Slack gave new ones (asked
+                                   for and checked; Enter keeps one); a running app restarts
+  hi app ops <name> [<channel ID>|off]  a second channel for incidents, warnings, security, keys,
                                    and access; without one they go to the main channel
-  hi team heartbeat <name> [<url> [--every 1m] | off | test]  a GET to an outside service, such as
-                                   healthchecks.io, while the team runs: it alerts when they stop
-  hi team watch <name>             the team's watcher, on its machine: health, network, advisories
-      [--auto-freeze on|off]       whether it freezes the team on its own for the worst of them
-  hi team freeze|unfreeze|pause|unpause <name> --why "…"  stop the team's boxes reaching anything,
+  hi app heartbeat <name> [<url> [--every 1m] | off | test]  a GET to an outside service, such as
+                                   healthchecks.io, while the app runs: it alerts when they stop
+  hi app watch <name>              the app's watcher, on its machine: health, network, advisories
+      [--auto-freeze on|off]       whether it freezes the app on its own for the worst of them
+  hi app freeze|unfreeze|pause|unpause <name> --why "…"  stop the app's boxes reaching anything,
                                    or pause them, within a minute, and undo it
-  hi team signin <name> chatgpt    sign the team in to ChatGPT, for its roles on a ChatGPT plan: a
-                                   code to type on any device; only the team's server refreshes it
-  hi team signin <name> claude     the team's own Claude token, from claude setup-token (asked for):
+  hi app signin <name> chatgpt     sign the app in to ChatGPT, for its roles on a ChatGPT plan: a
+                                   code to type on any device; only the app's server refreshes it
+  hi app signin <name> claude      the app's own Claude token, from claude setup-token (asked for):
                                    its Claude members use it before this machine's sign-in
       [--machine]                  use this machine's sign-in (Codex's, or Claude Code's) instead
-  hi team member <name> <role>     a member's agent, model, and who pays for it
+  hi app member <name> <role>      a member's agent, model, and who pays for it
       [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>]
       [--effort low|medium|high|xhigh|max]  how hard it thinks; medium unless set
                                    on ChatGPT, the fallback (the same model on OpenRouter unless
-                                   given) takes over when the plan refuses; a running team restarts
-  hi team env <name>               the settings the team's app gets, by name
-  hi team env <name> KEY=VALUE...  add or change settings: environment variables in the app's
+                                   given) takes over when the plan refuses; a running app restarts
+  hi app env <name>                the settings the app gets, by name
+  hi app env <name> KEY=VALUE...   add or change settings: environment variables in the app's
                                    boxes only (Stage and production); KEY alone asks for the value
       [--file KEY=<path>]          a file, such as a certificate with its key: the app's boxes
                                    get it read-only, and $KEY holds its path there
@@ -629,71 +629,71 @@ usage:
       [--stage]                    a value of Stage's own, such as a test key; production
                                    keeps its own
       [--dev]                      the dev box's own, such as a test database's certificate; it
-                                   gets no others, from its next start (hi team dev <name> restart)
-  hi team limit <name>             what Stage's model calls may cost a day, and spent today
+                                   gets no others, from its next start (hi app dev <name> restart)
+  hi app limit <name>              what Stage's model calls may cost a day, and spent today
       [stage <usd> | stage off]      set it ($5 a day unless set); production has no limit from hi
-  hi team limit <name> memory      the boxes' memory: the dev box 16g, Stage's and production's 4g
-      [dev|app <size>|default]     the team's own, such as dev 24g; running boxes get it at once
-    hi team bom <name> [v<n>|stage]    production's bill of materials (CycloneDX), or a release's
-  hi team advisories <name>        known advisories for what production runs, from the team's hi
+  hi app limit <name> memory       the boxes' memory: the dev box 16g, Stage's and production's 4g
+      [dev|app <size>|default]     the app's own, such as dev 24g; running boxes get it at once
+    hi app bom <name> [v<n>|stage]    production's bill of materials (CycloneDX), or a release's
+  hi app advisories <name>         known advisories for what production runs, from the app's hi
                                    server, which matches them every night
-  hi team advisory <name> ignore <id> --because "<why>" [--package <p>]
+  hi app advisory <name> ignore <id> --because "<why>" [--package <p>]
                                    an owner's word that one doesn't apply, until it changes;
                                    unignore <id> takes it back
-  hi team snapshot <name>          take a snapshot now: the lead's memory, the team's record, and
-                                   the app's data; the team keeps running. It takes one daily too
-  hi team snapshots <name>         list them
-  hi team restore <name> <snapshot>  put the team back as it was: a snapshot's ID, latest, v3 (the
+  hi app snapshot <name>           take a snapshot now: the lead's memory, the app's record, and
+                                   its data; the app keeps running. It takes one daily too
+  hi app snapshots <name>          list them
+  hi app restore <name> <snapshot>  put the app back as it was: a snapshot's ID, latest, v3 (the
                                    one taken before v3 went out), or a day (2026-10-12)
       [--code]                     put the code (repo/) back too
       [--yes]                      don't ask first
-  hi team rollback <name> v2       put production back on v2, with its data as v2 left it; what was
+  hi app rollback <name> v2        put production back on v2, with its data as v2 left it; what was
                                    entered since is kept in a snapshot, and going forward the same
                                    way puts it back
       [--code-only]                the code alone; production's data stays as it is
       [--yes]                      don't ask first
-  hi team data <name>              the app's data folders: production's, and Stage's fork of
+  hi app data <name>               the app's data folders: production's, and Stage's fork of
                                    it with what Stage wrote itself
-  hi team data <name> fork         Stage gets a new fork of production's data now (it gets
+  hi app data <name> fork          Stage gets a new fork of production's data now (it gets
                                    one at every release): all of it, in seconds, with no copy
-  hi team data <name> copy stage production  production starts from what Stage gathered;
+  hi app data <name> copy stage production  production starts from what Stage gathered;
                                    its own data is snapshotted first
       [--yes]                      don't ask first
-  hi team data <name> stage empty  Stage starts empty at every release, for an app whose
+  hi app data <name> stage empty   Stage starts empty at every release, for an app whose
                                    people's data Stage shouldn't show; stage fork undoes it
-  hi team backups <name>           where snapshots are kept, and for how long
+  hi app backups <name>            where snapshots are kept, and for how long
       [--offsite s3:https://<host>/<bucket>]  copy them to an S3-compatible bucket too (asks for
                                    its keys); --offsite off stops
       [--region <region>]          the bucket's region, if it isn't us-east-1
       [--keep 7,4,6]               how many daily, weekly, and monthly snapshots to keep
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
-  hi team helper <name>            whether the app's pages have the helper, help and feedback
+  hi app helper <name>             whether the app's pages have the helper, help and feedback
       [stage|production on|off]    turn it on or off for an address, from the next page load
-  hi team addresses <name>         what its addresses on NetBird are named: this machine's domain
+  hi app addresses <name>          what its addresses on NetBird are named: this machine's domain
       [domain|netbird|<host>]      on https (hi net domain), the NetBird name, or a host name IT
-                                   keeps in its DNS; asked in hi team new
-  hi team domain [<domain>|off]    a domain verified in NetBird for the apps on this machine
-  hi team domain <name> on|off     the team's app at <name>.<domain>, its preview at
+                                   keeps in its DNS; asked in hi app new
+  hi app domain [<domain>|off]     a domain verified in NetBird for the apps on this machine
+  hi app domain <name> on|off      the app at <name>.<domain>, its preview at
                                    <name>-preview.<domain>; off by default
-  hi team allow-ip <name>          the only addresses the app's Stage and production let in
-      [<ip,cidr> | off]            (NetBird's Access Control; needs hi team domain's token);
+  hi app allow-ip <name>           the only addresses the app's Stage and production let in
+      [<ip,cidr> | off]            (NetBird's Access Control; needs hi app domain's token);
                                    hi puts back exactly this list every minute, so add an
                                    address here, not in NetBird's dashboard
-  hi team sso provider add <name> <issuer>  an OIDC provider for signing in (Google Workspace,
+  hi app sso provider add <name> <issuer>  an OIDC provider for signing in (Google Workspace,
       [--client-id <id>] [--groups-claim <c>]  Entra ID, Keycloak, Auth0, Okta...); asks for the secret
-  hi team sso <name> on <provider> people without the link sign in to the app, needing
-      [--domain <d>] [--group <g>] [--anyone]  these rules; on a name that stays (hi team domain)
-  hi team sso [<name> [off]]       the providers and teams; a team's rules and last sign-ins
-  hi team manifest <name>          the Slack app manifest again
-  hi team github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
-                                   empty one); the team pushes every merge there
-  hi team jobs <name> [--stage]    the app's long work: each job's state, count, rate a day, last error
-  hi team incidents <name> [<id>]  what went wrong while nobody looked, and what the lead did about it
+  hi app sso <name> on <provider> people without the link sign in to the app, needing
+      [--domain <d>] [--group <g>] [--anyone]  these rules; on a name that stays (hi app domain)
+  hi app sso [<name> [off]]        the providers and apps; an app's rules and last sign-ins
+  hi app manifest <name>           the Slack app manifest again
+  hi app github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
+                                   empty one); the app pushes every merge there
+  hi app jobs <name> [--stage]     the app's long work: each job's state, count, rate a day, last error
+  hi app incidents <name> [<id>]   what went wrong while nobody looked, and what the lead did about it
                                    (--rules: the decisions the people made about the app's jobs)
-  hi team upstream <name>          for an adopted project: fetch the project it came from, and say
+  hi app upstream <name>           for an adopted project: fetch the project it came from, and say
                                    where dev stands against it and what's new there
 
-A team is its folder. hi finds it by name through `+teamsDir()+`.`)
+An app is its folder. hi finds it by name through `+teamsDir()+`.`)
 }
 
 // ---------------------------------------------------------------------------
@@ -767,7 +767,7 @@ func teamScopesAdvice(missing []string) string {
 	advice := fmt.Sprintf("the Slack app lacks %s, so the lead can't read what people share or post everything it should. In Slack's app settings (api.slack.com/apps), add them under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace", strings.Join(missing, ", "))
 	var lost []string
 	if containsString(missing, "commands") || containsString(missing, "im:write") {
-		lost = append(lost, "/hi-<team>, which DMs owners their link to the dev page")
+		lost = append(lost, "/hi-<name>, which DMs owners their link to the dev page")
 	}
 	if containsString(missing, "im:history") || containsString(missing, "im:read") {
 		lost = append(lost, "talking to the lead in a DM")
@@ -775,7 +775,7 @@ func teamScopesAdvice(missing []string) string {
 	if len(lost) > 0 {
 		// These need the manifest's command and events too, not just
 		// scopes.
-		advice = fmt.Sprintf("the Slack app lacks %s, so %s can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi team manifest <name> prints, Save, then Reinstall to Workspace", strings.Join(missing, ", "), strings.Join(lost, ", and "))
+		advice = fmt.Sprintf("the Slack app lacks %s, so %s can't work. In Slack's app settings (api.slack.com/apps), open App Manifest, replace it with the one hi app manifest <name> prints, Save, then Reinstall to Workspace", strings.Join(missing, ", "), strings.Join(lost, ", and "))
 	}
 	return advice
 }
@@ -804,7 +804,7 @@ type teamAnswers struct {
 	// Empty starts a new repository with only a README and the team's rules,
 	// instead of a web app on Bun.
 	Empty bool `json:"empty,omitempty"`
-	// Adopt is a project someone else wrote to adopt (hi team adopt), from
+	// Adopt is a project someone else wrote to adopt (hi app adopt), from
 	// Ref; Shallow fetches only its latest commit, and NoSurvey skips the
 	// first task. PushToSource makes a clone or an adoption push its
 	// merges back to where it came from, as a project of your own does.
@@ -846,20 +846,20 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		case name == "":
 			name = args[i]
 		default:
-			return usageError{"usage: hi team new <name> [--dir <folder>] [--from <file.json>]"}
+			return usageError{"usage: hi app new <name> [--dir <folder>] [--from <file.json>]"}
 		}
 	}
 	if name == "" && from == "" && teamStyled(stdin, stdout) {
 		// The team's name is asked first: its folder is named after it.
 		teamSetupBanner(stdout, true, "", "")
-		teamSay(stdout, true, "A short name for the team, such as payments: lowercase letters, digits, and dashes.")
+		teamSay(stdout, true, "A short name for the app, such as payments: lowercase letters, digits, and dashes.")
 		var err error
-		if name, err = teamFieldAsk(stdin, stdout, "Team name", false, func(answer string) error {
+		if name, err = teamFieldAsk(stdin, stdout, "App name", false, func(answer string) error {
 			if !teamNamePattern.MatchString(answer) {
-				return errors.New("a team's name starts with a letter and has lowercase letters, digits, and dashes, up to 20")
+				return errors.New("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20")
 			}
 			if _, err := loadTeam(answer); err == nil {
-				return fmt.Errorf("team %s already exists in %s", answer, teamDir(answer))
+				return fmt.Errorf("app %s already exists in %s", answer, teamDir(answer))
 			}
 			return nil
 		}); err != nil {
@@ -867,21 +867,21 @@ func teamNew(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 	}
 	if name == "" {
-		return usageError{"usage: hi team new <name> [--dir <folder>] [--from <file.json>]"}
+		return usageError{"usage: hi app new <name> [--dir <folder>] [--from <file.json>]"}
 	}
 	return teamCreate(name, folder, from, nil, stdin, stdout)
 }
 
 // teamCreate sets up a team, from the wizard or answers in a file, with a
-// project that's new, cloned, or adopted (hi team adopt).
+// project that's new, cloned, or adopted (hi app adopt).
 func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader, stdout io.Writer) error {
 	if !teamNamePattern.MatchString(name) {
-		return fmt.Errorf("a team's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
+		return fmt.Errorf("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
 	}
 	if _, err := loadTeam(name); err == nil {
-		return fmt.Errorf("team %s already exists in %s", name, teamDir(name))
+		return fmt.Errorf("app %s already exists in %s", name, teamDir(name))
 	}
-	dir, err := filepath.Abs(firstNonEmpty(folder, "team-"+name))
+	dir, err := filepath.Abs(firstNonEmpty(folder, "app-"+name))
 	if err != nil {
 		return err
 	}
@@ -964,13 +964,13 @@ func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader,
 	}
 	if answers.GitHub != "" {
 		if err := teamConnectGitHub(&config, answers.GitHub, stdout); err != nil {
-			fmt.Fprintf(stdout, "The team is set up, but not on GitHub: %v\nTry again with: hi team github %s %s\n", err, name, answers.GitHub)
+			fmt.Fprintf(stdout, "The app is set up, but not on GitHub: %v\nTry again with: hi app github %s %s\n", err, name, answers.GitHub)
 		}
 	}
 	applyTeamHeartbeats(name, answers, stdout)
 	if answers.NetBirdKey != "" {
 		if err := setTeamDevNetBird(name, answers.NetBirdKey); err != nil {
-			fmt.Fprintf(stdout, "The dev box isn't on NetBird: %v\nTry again with: hi team dev %s netbird\n", err, name)
+			fmt.Fprintf(stdout, "The dev box isn't on NetBird: %v\nTry again with: hi app dev %s netbird\n", err, name)
 		}
 	}
 	fmt.Fprintf(stdout, "\nTeam %s is ready in %s.\n", name, dir)
@@ -981,7 +981,7 @@ func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader,
 	if config.Adopted != nil {
 		fmt.Fprintf(stdout, "\nIn the dev box, ask your agent to survey %s first: it makes it run and maps it (the hi-dev-survey skill).\n", config.Adopted.Name)
 	}
-	fmt.Fprintf(stdout, "\nStart it with:\n  hi team up %s\n", name)
+	fmt.Fprintf(stdout, "\nStart it with:\n  hi app up %s\n", name)
 	return nil
 }
 
@@ -991,7 +991,7 @@ func teamCreate(name, folder, from string, adopt *teamAdoption, stdin io.Reader,
 // same model on OpenRouter.
 func teamAskProvider(stdin io.Reader, stdout io.Writer, member *teamMember, secrets *teamSecrets, signIn *string) error {
 	provider, err := teamChoose(stdin, stdout, "         provider", []teamOption{
-		{teamProviderOpenRouter, "pay per call, with the team's OpenRouter key"},
+		{teamProviderOpenRouter, "pay per call, with the app's OpenRouter key"},
 		{teamProviderChatGPT, "a ChatGPT plan, falling back to OpenRouter"},
 	}, teamProviderOpenRouter)
 	if err != nil {
@@ -1040,12 +1040,12 @@ func teamAskCodex(stdin io.Reader, stdout io.Writer, member *teamMember, secrets
 // its roles on ChatGPT use, and signs the team in when it's its own.
 func teamAskChatGPTSignIn(stdin io.Reader, stdout io.Writer, secrets *teamSecrets, signIn *string) error {
 	if *signIn == "" {
-		teamNote(stdin, stdout, "         The team signs in to ChatGPT once, for every role on it: team signs in with a code on any device")
-		teamNote(stdin, stdout, "         (only the team's server refreshes it); machine uses this machine's, Codex's, which Codex refreshes.")
+		teamNote(stdin, stdout, "         The app signs in to ChatGPT once, for every role on it: app signs in with a code on any device")
+		teamNote(stdin, stdout, "         (only the app's server refreshes it); machine uses this machine's, Codex's, which Codex refreshes.")
 		answer, err := teamChoose(stdin, stdout, "         ChatGPT sign-in", []teamOption{
-			{"team", "the team's own, with a code on any device"},
+			{"app", "the app's own, with a code on any device"},
 			{"machine", "this machine's, Codex's"},
-		}, "team")
+		}, "app")
 		if err != nil {
 			return err
 		}
@@ -1055,7 +1055,7 @@ func teamAskChatGPTSignIn(stdin io.Reader, stdout io.Writer, secrets *teamSecret
 			}
 		}
 		*signIn = answer
-		if *signIn == "team" {
+		if *signIn == "app" {
 			grant, err := teamChatGPTSignIn(stdout)
 			if err != nil {
 				return err
@@ -1135,7 +1135,7 @@ func teamAskFallback(stdin io.Reader, stdout io.Writer, member *teamMember, usua
 func teamAskClaude(stdin io.Reader, stdout io.Writer, member *teamMember, secrets *teamSecrets, asked *bool) error {
 	if !*asked {
 		*asked = true
-		teamNote(stdin, stdout, "         Claude: a token of the team's own, from claude setup-token signed in to the account that pays")
+		teamNote(stdin, stdout, "         Claude: a token of the app's own, from claude setup-token signed in to the account that pays")
 		teamNote(stdin, stdout, "         (it lasts a year), or Enter for this machine's sign-in.")
 		var token string
 		check := func(answer string) error {
@@ -1212,12 +1212,12 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	if answers.Members == nil {
 		answers.Members = defaultTeamMembers()
 	}
-	secrets := teamSecrets{SlackBotToken: os.Getenv("HI_TEAM_SLACK_BOT_TOKEN"), SlackAppToken: os.Getenv("HI_TEAM_SLACK_APP_TOKEN"),
-		OpenRouterAPIKey: os.Getenv("HI_TEAM_OPENROUTER_API_KEY")}
+	secrets := teamSecrets{SlackBotToken: os.Getenv("HI_APP_SLACK_BOT_TOKEN"), SlackAppToken: os.Getenv("HI_APP_SLACK_APP_TOKEN"),
+		OpenRouterAPIKey: os.Getenv("HI_APP_OPENROUTER_API_KEY")}
 	if secrets.SlackBotToken == "" || secrets.SlackAppToken == "" {
-		return answers, secrets, errors.New("set HI_TEAM_SLACK_BOT_TOKEN and HI_TEAM_SLACK_APP_TOKEN to the Slack app's tokens")
+		return answers, secrets, errors.New("set HI_APP_SLACK_BOT_TOKEN and HI_APP_SLACK_APP_TOKEN to the Slack app's tokens")
 	}
-	if token := os.Getenv("HI_TEAM_CLAUDE_TOKEN"); token != "" {
+	if token := os.Getenv("HI_APP_CLAUDE_TOKEN"); token != "" {
 		if err := teamCheckClaudeToken(token); err != nil {
 			return answers, secrets, err
 		}
@@ -1225,14 +1225,14 @@ func teamAnswersFromFile(name, path string) (teamAnswers, teamSecrets, error) {
 	}
 	if teamUsesChatGPT(answers.teamConfig) {
 		// The team's own ChatGPT sign-in from a file, else this machine's.
-		if path := os.Getenv("HI_TEAM_CHATGPT_AUTH"); path != "" {
+		if path := os.Getenv("HI_APP_CHATGPT_AUTH"); path != "" {
 			grant, err := readChatGPTAuthFile(path)
 			if err != nil {
 				return answers, secrets, err
 			}
 			secrets.ChatGPT = &grant
 		} else if _, err := readCodexChatGPT(); err != nil {
-			return answers, secrets, fmt.Errorf("a member is on ChatGPT: set HI_TEAM_CHATGPT_AUTH to a ChatGPT auth.json, or %w", err)
+			return answers, secrets, fmt.Errorf("a member is on ChatGPT: set HI_APP_CHATGPT_AUTH to a ChatGPT auth.json, or %w", err)
 		}
 	}
 	return answers, secrets, nil
@@ -1250,7 +1250,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	teamSetupBanner(stdout, styled, name, dir)
 
 	teamStep(stdout, styled, "1/10 Lead")
-	teamSay(stdout, styled, "The lead talks with the people in the team's Slack channel. Give it a name of its own, such as a",
+	teamSay(stdout, styled, "The lead talks with the people in the app's Slack channel. Give it a name of its own, such as a",
 		"person's, or press Enter to call it "+name+".")
 	leadName, err := teamAskUntil(stdin, stdout, "Lead's name ["+name+"]", false, teamCheckLeadName)
 	if err != nil {
@@ -1265,7 +1265,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	teamSay(stdout, styled, "In Slack it's @"+handle+".")
 
 	teamStep(stdout, styled, "2/10 Purpose")
-	teamSay(stdout, styled, "In one sentence, what is this team for? The lead starts from it.")
+	teamSay(stdout, styled, "In one sentence, what is this app for? The lead starts from it.")
 	offered := ""
 	if adopt != nil {
 		offered = adopt.summary.Description
@@ -1275,7 +1275,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	}
 
 	teamStep(stdout, styled, "3/10 Slack app")
-	teamSay(stdout, styled, "Each team has a Slack app of its own. Create it from this manifest:",
+	teamSay(stdout, styled, "Each app has a Slack app of its own. Create it from this manifest:",
 		"  api.slack.com/apps → Create New App → From a manifest → YAML → paste it → Create,",
 		"  then Install to Workspace.")
 	if err := teamShowManifest(stdin, stdout, styled, *config); err != nil {
@@ -1296,7 +1296,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	teamSay(stdout, styled, fmt.Sprintf("Slack: both tokens work, in workspace %s.", workspace))
 
 	teamStep(stdout, styled, "4/10 Channel")
-	teamSay(stdout, styled, "Invite the app to the team's channel first: /invite @"+handle,
+	teamSay(stdout, styled, "Invite the Slack app to the app's channel first: /invite @"+handle,
 		"Then copy the channel's ID: click the channel's name; the ID is at the bottom (C…).")
 	channel := ""
 	if config.Channel, err = teamAskUntil(stdin, stdout, "Channel ID", false, func(id string) error {
@@ -1342,7 +1342,7 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 		teamSay(stdout, styled, "Each role's agent (claude, codex, or hermes) and model, and for Hermes who pays: OpenRouter, or a",
 			"ChatGPT plan (falling back to OpenRouter), and how hard it thinks. Enter keeps what's offered.")
 	}
-	chatGPTSignIn := "" // team or machine, once asked
+	chatGPTSignIn := "" // app or machine, once asked
 	claudeAsked := false
 	for _, role := range teamRoles(*config) {
 		member := config.Members[role]
@@ -1385,10 +1385,10 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 
 	teamStep(stdout, styled, "7/10 Models")
 	if teamUsesChatGPT(*config) {
-		teamSay(stdout, styled, "OpenRouter is what the roles on ChatGPT fall back on, and the lead's memory and the app the team",
-			"builds use it. Give the team a key of its")
+		teamSay(stdout, styled, "OpenRouter is what the roles on ChatGPT fall back on, and the lead's memory and the app itself",
+			"use it. Give the app a key of its")
 	} else {
-		teamSay(stdout, styled, "The lead, and the app the team builds, use models through OpenRouter. Give the team a key of its")
+		teamSay(stdout, styled, "The lead, and the app itself, use models through OpenRouter. Give the app a key of its")
 	}
 	teamSay(stdout, styled, "own (openrouter.ai/settings/keys), so its use is billed and limited apart, or press Enter for this",
 		"machine's (Hermes'). No box ever holds the key; nobody needs to paste one into Slack.")
@@ -1397,12 +1397,12 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	}
 
 	teamStep(stdout, styled, "8/10 Code")
-	teamSay(stdout, styled, "The team keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
+	teamSay(stdout, styled, "The app keeps its own copy of the project in "+filepath.Join(dir, "repo")+".")
 	if adopt != nil {
 		if adopt.local != "" {
 			teamSay(stdout, styled, fmt.Sprintf("It's a copy of %s, without its history: nothing there changes.", adopt.local))
 		} else {
-			teamSay(stdout, styled, fmt.Sprintf("It's %s, adopted: the team never pushes to it.", adopt.displayName()))
+			teamSay(stdout, styled, fmt.Sprintf("It's %s, adopted: the app never pushes to it.", adopt.displayName()))
 		}
 		answers.adoption = adopt
 	} else if err := teamAskRepository(stdin, stdout, styled, dir, &answers); err != nil {
@@ -1415,11 +1415,11 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 			teamSay(stdout, styled, "With only its latest commit, the copy stays on this machine.")
 		}
 	case adoption != nil:
-		teamSay(stdout, styled, "Keep the team's copy on GitHub too? Give owner/name, and hi creates a private repository with",
-			"the project's history, with this machine's GitHub sign-in (gh); the team pushes every merge there.")
+		teamSay(stdout, styled, "Keep the app's copy on GitHub too? Give owner/name, and hi creates a private repository with",
+			"the project's history, with this machine's GitHub sign-in (gh); the app pushes every merge there.")
 	case answers.Clone == "":
 		teamSay(stdout, styled, "Put it on GitHub too? Give owner/name, such as octocat/world-clock, and hi creates a private",
-			"repository with this machine's GitHub sign-in (gh); the team pushes every merge there.")
+			"repository with this machine's GitHub sign-in (gh); the app pushes every merge there.")
 	}
 	if answers.Clone == "" && !(adoption != nil && (adoption.GitHub != "" || adoption.Shallow)) {
 		if answers.GitHub, err = teamAskUntil(stdin, stdout, "GitHub [Enter: none, it stays on this machine]", false, func(name string) error {
@@ -1433,13 +1433,13 @@ func teamWizard(name, dir string, adopt *teamAdoption, stdin io.Reader, stdout i
 	}
 
 	teamStep(stdout, styled, "9/10 Network")
-	teamSay(stdout, styled, "The team's addresses are on your NetBird network, and the owners build in its dev box over SSH there.")
+	teamSay(stdout, styled, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there.")
 	if styled {
 		teamSay(stdout, styled, strings.Split(strings.TrimRight(teamDevNetBirdHelp(name), "\n"), "\n")...)
 	} else {
 		fmt.Fprint(stdout, teamDevNetBirdHelp(name))
 	}
-	key, err := teamReadSecret(stdin, stdout, "NetBird setup key [Enter: later, with hi team dev "+name+" netbird]")
+	key, err := teamReadSecret(stdin, stdout, "NetBird setup key [Enter: later, with hi app dev "+name+" netbird]")
 	if err != nil && !errors.Is(err, io.EOF) {
 		return answers, secrets, err
 	}
@@ -1566,8 +1566,8 @@ func teamAskRepository(stdin io.Reader, stdout io.Writer, styled bool, dir strin
 			return err
 		}
 		if clone == "adopt" {
-			teamSay(stdout, styled, "The team works on its own copy and never pushes to theirs. A folder on this machine is cloned,",
-				"and its owner pulls from the team.")
+			teamSay(stdout, styled, "The app works on its own copy and never pushes to theirs. A folder on this machine is cloned,",
+				"and its owner pulls from the app.")
 			if clone, err = teamAskUntil(stdin, stdout, "Project to adopt", false, func(answer string) error {
 				if answer == "" {
 					return errors.New("give github.com/owner/name, a URL, or a folder")
@@ -1580,10 +1580,10 @@ func teamAskRepository(stdin io.Reader, stdout io.Writer, styled bool, dir strin
 	} else {
 		teamSay(stdout, styled, "Enter starts a new web app there: a blank page on Bun, with a database and tests, and the",
 			"helper's chat on every page. Type empty for a repository with only a README. Or give a project",
-			"someone else wrote, such as github.com/owner/name, to adopt it: the team works on its own copy",
-			"and never pushes to theirs. A folder on this machine is cloned, and its owner pulls from the team.")
+			"someone else wrote, such as github.com/owner/name, to adopt it: the app works on its own copy",
+			"and never pushes to theirs. A folder on this machine is cloned, and its owner pulls from the app.")
 		if len(offered) > 0 {
-			fmt.Fprintln(stdout, "Or name a team template, a web app ready for a kind of work:")
+			fmt.Fprintln(stdout, "Or name an app template, a web app ready for a kind of work:")
 			for _, template := range offered {
 				fmt.Fprintf(stdout, "  %-20s %s\n", firstNonEmpty(template.key, template.Name), template.Summary)
 			}
@@ -1891,12 +1891,12 @@ func createTeamFolder(config *teamConfig, secrets teamSecrets, clone string, emp
 		// usually someone's working copy, which git won't push into, so its
 		// owner pulls from the team instead.
 		if info, err := os.Stat(clone); err == nil && info.IsDir() {
-			fmt.Fprintf(stdout, "The team works on its own copy; get its work with: git pull %s %s\n", repo, firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main"))
+			fmt.Fprintf(stdout, "The app works on its own copy; get its work with: git pull %s %s\n", repo, firstNonEmpty(boxGit(repo, "branch", "--show-current"), "main"))
 		} else {
 			config.Remote = clone
 		}
 		if boxGit(repo, "rev-parse", "--verify", "-q", "HEAD") == "" {
-			return errors.New("the repository has no commits yet; push a first commit, or let the team start a new one")
+			return errors.New("the repository has no commits yet; push a first commit, or let the app start a new one")
 		}
 	} else if err := newTeamRepo(*config, repo, empty); err != nil {
 		return err
@@ -1937,7 +1937,7 @@ func teamComposeTemplate(config teamConfig) (*composedTemplate, *templateCatalog
 	}
 	name := firstNonEmpty(config.Template, teamAppTemplate)
 	if config.Template != "" && !teamIsTemplate(catalog, name) {
-		return nil, nil, fmt.Errorf("%q isn't a team template: one that extends %s (hi init --list shows the templates)", name, teamAppTemplate)
+		return nil, nil, fmt.Errorf("%q isn't an app template: one that extends %s (hi init --list shows the templates)", name, teamAppTemplate)
 	}
 	composed, err := composeTemplateAllowingHidden(catalog.layers, name, map[string]string{"name": config.Name})
 	if err != nil {
@@ -1999,9 +1999,9 @@ func newTeamRepo(config teamConfig, repo string, empty bool) error {
 	if err := writeInitFiles(repo, entries); err != nil {
 		return err
 	}
-	author := []string{"-c", "user.name=" + firstNonEmpty(boxGit(".", "config", "user.name"), "hi team "+config.Name),
+	author := []string{"-c", "user.name=" + firstNonEmpty(boxGit(".", "config", "user.name"), "hi app "+config.Name),
 		"-c", "user.email=" + firstNonEmpty(boxGit(".", "config", "user.email"), "team-"+config.Name+"@hi.invalid")}
-	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"add", "-A"}, append(author, "commit", "-q", "-m", "Start the "+config.Name+" team's project")} {
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"add", "-A"}, append(author, "commit", "-q", "-m", "Start the "+config.Name+" app's project")} {
 		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
 			return fmt.Errorf("git %s: %s", args[0], qFirstLine(string(out), err.Error()))
 		}
@@ -2012,7 +2012,7 @@ func newTeamRepo(config teamConfig, repo string, empty bool) error {
 // teamAppTemplate is what a new team's project starts from: the app
 // template with a blank page, since nearly every team builds a web app.
 // The helper's chat box needs nothing from it: hi adds it to every page.
-const teamAppTemplate = "team-app"
+const teamAppTemplate = "hi-app"
 
 // teamAppEntries are the files of a new team's project: the template's,
 // with the team's purpose in README.md, the team's rules in AGENTS.md, and
@@ -2043,8 +2043,8 @@ func teamAppEntries(config teamConfig) ([]initEntry, error) {
 
 const teamAgentsFile = `# Working on this project
 
-This project is built by a hi team: its owners, with coding agents in the
-team's dev box, for the people in its Slack channel. The people may not
+This project is a hi app: its owners build it with coding agents in the
+app's dev box, for the people in its Slack channel. The people may not
 read code, so the code, its tests, and its docs must explain themselves.
 
 - docs/specs/ is what was agreed, feature by feature. Larger work starts
@@ -2079,7 +2079,7 @@ read code, so the code, its tests, and its docs must explain themselves.
   a lock rather than failing (SQLite: a busy timeout of 10 s or more).
 - The project starts with ` + "`make run`" + `: a Makefile run target that starts the
   app on the port in $PORT (8080 if it's unset), listening on 0.0.0.0, so
-  hi can put it on the team's preview.
+  hi can put it on the app's preview.
 - Commit your work on your branch with a message that says what changed and
   why. There is no push: hi dev ship merges the branch into dev, and an
   owner or a developer releases dev to production.
@@ -2099,19 +2099,19 @@ func teamUnit(config teamConfig, executable string) string {
 	if dir := os.Getenv("HI_TEAMS_DIR"); dir != "" {
 		env += "Environment=HI_TEAMS_DIR=" + dir + "\n"
 	}
-	// The agents, git, and podman are found as in the shell that ran hi team up.
+	// The agents, git, and podman are found as in the shell that ran hi app up.
 	env += "Environment=PATH=" + os.Getenv("PATH") + "\n"
 	return fmt.Sprintf(`[Unit]
-Description=hi team %[1]s
+Description=hi app %[1]s
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-%[2]sExecStart=%[3]s team __serve %[1]s
+%[2]sExecStart=%[3]s app __serve %[1]s
 Restart=always
 RestartSec=10
 TimeoutStopSec=60
-# Only hi team __serve gets the stop signal; it stops the lead itself.
+# Only hi app __serve gets the stop signal; it stops the lead itself.
 KillMode=mixed
 
 [Install]
@@ -2164,22 +2164,22 @@ func teamUp(name string, stdout io.Writer) error {
 			return fmt.Errorf("systemctl --user %s: %s", strings.Join(args, " "), qFirstLine(out, err.Error()))
 		}
 	}
-	fmt.Fprintf(stdout, "Team %s is starting. It answers in its Slack channel in a minute or so.\n", name)
+	fmt.Fprintf(stdout, "App %s is starting. It answers in its Slack channel in a minute or so.\n", name)
 	if secrets, err := loadTeamSecrets(name); err == nil {
 		if missing := teamMissingScopes(secrets.SlackBotToken); len(missing) > 0 {
 			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", teamScopesAdvice(missing))
 		}
 	}
 	if secrets, err := loadTeamSecrets(name); err == nil && secrets.HeartbeatURL == "" {
-		fmt.Fprintf(stdout, "\nWarning: the team sends no heartbeat, so nobody would hear that it stopped: hi team heartbeat %s <url>.\n", name)
+		fmt.Fprintf(stdout, "\nWarning: the app sends no heartbeat, so nobody would hear that it stopped: hi app heartbeat %s <url>.\n", name)
 	}
 	if warning := boxRootGroupsWarning(); warning != "" {
 		fmt.Fprintf(stdout, "\nWarning: %s\n", warning)
 	}
 	if !teamResticInstalled() {
-		fmt.Fprintf(stdout, "\nWarning: restic isn't installed, so the team can't take its daily snapshots. hi install restic adds it.\n\n")
+		fmt.Fprintf(stdout, "\nWarning: restic isn't installed, so the app can't take its daily snapshots. hi install restic adds it.\n\n")
 	}
-	fmt.Fprintf(stdout, "  hi team status %s   whether it is up\n  hi team logs %s     the lead's log\n", name, name)
+	fmt.Fprintf(stdout, "  hi app status %s   whether it is up\n  hi app logs %s     the lead's log\n", name, name)
 	if !teamLingers() {
 		fmt.Fprintf(stdout, "\nIt stops when you log out, and doesn't start at boot, until you run:\n  sudo loginctl enable-linger %s\n", currentUserName())
 	}
@@ -2201,7 +2201,7 @@ func teamAdopt(folder string, stdout io.Writer) (string, error) {
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "team.json"))
 	if err != nil {
-		return "", fmt.Errorf("%s isn't a team's folder: %w", dir, err)
+		return "", fmt.Errorf("%s isn't an app's folder: %w", dir, err)
 	}
 	var config teamConfig
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -2211,12 +2211,12 @@ func teamAdopt(folder string, stdout io.Writer) (string, error) {
 		return "", fmt.Errorf("team.json has no valid name: %q", config.Name)
 	}
 	if current := teamDir(config.Name); current != dir && fileExists(filepath.Join(current, "team.json")) {
-		return "", fmt.Errorf("another team named %s is in %s", config.Name, current)
+		return "", fmt.Errorf("another app named %s is in %s", config.Name, current)
 	}
 	if err := teamRegister(config.Name, dir); err != nil {
 		return "", err
 	}
-	fmt.Fprintf(stdout, "Team %s is in %s.\n", config.Name, dir)
+	fmt.Fprintf(stdout, "App %s is in %s.\n", config.Name, dir)
 	return config.Name, nil
 }
 
@@ -2231,19 +2231,19 @@ func teamDown(name string, stdout io.Writer) error {
 	// The dev box keeps running when the service restarts, not when the
 	// team stops.
 	teamStopDevBox(name)
-	// The org server stops watching for its heartbeat until hi team up.
+	// The org server stops watching for its heartbeat until hi app up.
 	(&teamBroker{team: name}).sendHeartbeat("down")
 	if config, err := loadTeam(name); err == nil {
 		teamHeartbeatDown(config, stdout)
 	}
-	fmt.Fprintf(stdout, "Team %s is stopped. Its folder stays; hi team up %s starts it again.\n", name, name)
+	fmt.Fprintf(stdout, "App %s is stopped. Its folder stays; hi app up %s starts it again.\n", name, name)
 	return nil
 }
 
 // teamRebuild builds hi's base image again, with Ubuntu's current
 // packages, and restarts the team on it: the lead now, the preview and
 // production within minutes, on the same addresses (keepLinks). The dev
-// box keeps the owners' agents running until hi team dev restart. The
+// box keeps the owners' agents running until hi app dev restart. The
 // image is the machine's, so it names the other teams still on the old
 // one.
 func teamRebuild(name string, stdout, stderr io.Writer) error {
@@ -2256,7 +2256,7 @@ func teamRebuild(name string, stdout, stderr io.Writer) error {
 	if err := teamUp(name, stdout); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "\nIts preview and production move to the new image in a few minutes, on the same addresses. The dev box moves when it restarts: hi team dev %s restart (agents working there stop; herdr brings their conversations back).\n", name)
+	fmt.Fprintf(stdout, "\nIts preview and production move to the new image in a few minutes, on the same addresses. The dev box moves when it restarts: hi app dev %s restart (agents working there stop; herdr brings their conversations back).\n", name)
 	var others []string
 	entries, _ := os.ReadDir(teamsDir())
 	for _, entry := range entries {
@@ -2265,7 +2265,7 @@ func teamRebuild(name string, stdout, stderr io.Writer) error {
 		}
 	}
 	if len(others) > 0 {
-		fmt.Fprintf(stdout, "The image is this machine's, so %s still run the old one: hi team up <name> restarts each on the new one.\n", strings.Join(others, ", "))
+		fmt.Fprintf(stdout, "The image is this machine's, so %s still run the old one: hi app up <name> restarts each on the new one.\n", strings.Join(others, ", "))
 	}
 	return nil
 }
@@ -2337,14 +2337,14 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		case name == "":
 			name = arg
 		default:
-			return usageError{"usage: hi team rm [<name>] [--keep-folder] [--yes]"}
+			return usageError{"usage: hi app rm [<name>] [--keep-folder] [--yes]"}
 		}
 	}
 	if name == "" {
 		if !interactive(stdin, stdout) {
-			return usageError{"usage: hi team rm <name> [--keep-folder] [--yes]"}
+			return usageError{"usage: hi app rm <name> [--keep-folder] [--yes]"}
 		}
-		picked, err := teamPick(stdin, stdout, "Remove a team")
+		picked, err := teamPick(stdin, stdout, "Remove an app")
 		if errors.Is(err, errMenuBack) {
 			return nil
 		}
@@ -2354,7 +2354,7 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		name = picked
 	}
 	if !teamNamePattern.MatchString(name) {
-		return fmt.Errorf("no team named %q", name)
+		return fmt.Errorf("no app named %q", name)
 	}
 	link := filepath.Join(teamsDir(), name)
 	_, linkErr := os.Lstat(link)
@@ -2371,7 +2371,7 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 	}
 
-	fmt.Fprintf(stdout, "Removing team %s stops it and deletes:\n", name)
+	fmt.Fprintf(stdout, "Removing app %s stops it and deletes:\n", name)
 	fmt.Fprintf(stdout, "  its service       %s\n", teamUnitPath(name))
 	fmt.Fprintf(stdout, "  its name          %s\n", link)
 	if len(boxes) > 0 {
@@ -2380,7 +2380,7 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	if folder != "" && !keep {
 		fmt.Fprintf(stdout, "  its folder        %s  (the project, its tasks, the channel's log, the lead's memory)\n", folder)
 	}
-	if err := confirm(stdin, stdout, yes, "Remove team "+name+"?"); err != nil {
+	if err := confirm(stdin, stdout, yes, "Remove app "+name+"?"); err != nil {
 		return err
 	}
 
@@ -2398,12 +2398,12 @@ func teamRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if folder != "" && !keep {
 		if err := teamRemoveAll(folder); err != nil {
-			return fmt.Errorf("the team is off this machine, but not all of its folder is deleted: %w", err)
+			return fmt.Errorf("the app is off this machine, but not all of its folder is deleted: %w", err)
 		}
 	}
-	fmt.Fprintf(stdout, "Team %s is removed.", name)
+	fmt.Fprintf(stdout, "App %s is removed.", name)
 	if folder != "" && keep {
-		fmt.Fprintf(stdout, " Its folder stays in %s; hi team up %s brings the team back.", folder, folder)
+		fmt.Fprintf(stdout, " Its folder stays in %s; hi app up %s brings the app back.", folder, folder)
 	}
 	if snapshots := teamSnapshotsDir(name); fileExists(snapshots) {
 		fmt.Fprintf(stdout, "\nIts snapshots stay in %s, with the key to them; delete that folder if you no longer want them.", snapshots)
@@ -2427,7 +2427,7 @@ func teamState(name string) string {
 }
 
 // teamLeadBoxes describes the leads' boxes that are running, for hi box
-// ls: hi team starts them, not hi box.
+// ls: hi app starts them, not hi box.
 func teamLeadBoxes() []string {
 	entries, err := os.ReadDir(teamsDir())
 	if err != nil || len(entries) == 0 {
@@ -2447,7 +2447,7 @@ func teamLeadBoxes() []string {
 		if engine.state(container) != "running" {
 			continue
 		}
-		lines = append(lines, fmt.Sprintf("%-22s team %s's lead (Hermes), channel %s, folder %s", container, config.Name, config.Channel, teamDir(config.Name)))
+		lines = append(lines, fmt.Sprintf("%-22s app %s's lead (Hermes), channel %s, folder %s", container, config.Name, config.Channel, teamDir(config.Name)))
 	}
 	return lines
 }
@@ -2469,7 +2469,7 @@ func teamPick(stdin io.Reader, stdout io.Writer, title string) (string, error) {
 		options = append(options, fmt.Sprintf("%-20s %-6s %s", config.Name, teamState(config.Name), config.Channel))
 	}
 	if len(names) == 0 {
-		return "", errors.New("no teams yet. hi team new <name> sets one up")
+		return "", errors.New("no apps yet. hi app new <name> sets one up")
 	}
 	choice, err := runListSelect(stdin, stdout, title, "", options, false)
 	if err != nil {
@@ -2495,14 +2495,14 @@ func teamList(stdout io.Writer) error {
 			continue
 		}
 		if count == 0 {
-			fmt.Fprintln(table, "TEAM\tSTATE\tCHANNEL\tMEMBERS\tFOLDER")
+			fmt.Fprintln(table, "APP\tSTATE\tCHANNEL\tMEMBERS\tFOLDER")
 		}
 		count++
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\n", config.Name, teamState(config.Name), config.Channel, strings.Join(teamRoles(config), ", "), teamDir(config.Name))
 	}
 	table.Flush()
 	if count == 0 {
-		fmt.Fprintln(stdout, "No teams yet. hi team new <name> sets one up.")
+		fmt.Fprintln(stdout, "No apps yet. hi app new <name> sets one up.")
 	}
 	return nil
 }
@@ -2516,7 +2516,7 @@ func teamStatus(name string, stdout io.Writer) error {
 	if config.OpsChannel != "" {
 		channels += ", ops " + config.OpsChannel
 	}
-	fmt.Fprintf(stdout, "Team %s: %s. %s. %s\n%s\n\n", name, teamState(name), channels, config.Purpose, teamHeartbeatLine(config))
+	fmt.Fprintf(stdout, "App %s: %s. %s. %s\n%s\n\n", name, teamState(name), channels, config.Purpose, teamHeartbeatLine(config))
 	for _, role := range teamRoles(config) {
 		fmt.Fprintf(stdout, "  %-10s %s\n", role, teamMemberLabel(config.Members[role]))
 	}
@@ -2546,12 +2546,12 @@ func teamLogs(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 	if len(words) != 1 {
-		return usageError{"usage: hi team logs <name> [-f]"}
+		return usageError{"usage: hi app logs <name> [-f]"}
 	}
 	if _, err := loadTeam(words[0]); err != nil {
 		return err
 	}
-	// Only what hi team __serve and the lead print: not Podman's events, nor
+	// Only what hi app __serve and the lead print: not Podman's events, nor
 	// the copy Podman's log driver keeps.
 	journal := []string{"--user", "-u", teamUnitName(words[0]), "-t", "hi", "-n", "200", "--no-pager", "-o", "cat"}
 	if follow {

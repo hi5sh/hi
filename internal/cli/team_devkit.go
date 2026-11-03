@@ -59,7 +59,7 @@ func (b *teamBroker) devDeepReview(request teamDeepReviewRequest) (teamDeepRevie
 		return teamDeepReview{}, fmt.Errorf("a deep review from the dev box may spend up to $%d; for a larger one, ask an admin of the machine to run hi agent review", teamDevDeepReviewMaxUSD)
 	}
 	if err := teamDeepReviewRunning(b.team); err != nil {
-		return teamDeepReview{}, errors.New(strings.ReplaceAll(err.Error(), "hi team review stop", "hi dev deep-review stop"))
+		return teamDeepReview{}, errors.New(strings.ReplaceAll(err.Error(), "hi app review stop", "hi dev deep-review stop"))
 	}
 	record := teamDeepReview{Approval: &teamApproval{Name: teamDevBy}, Budget: request.Budget, Version: request.Version, Status: "running", Dev: true}
 	return b.launchDeepReview(config, request, record)
@@ -77,7 +77,7 @@ func (b *teamBroker) devBrainstorm(request teamBrainstormRequest) (teamBrainstor
 		return teamBrainstorm{}, errors.New(strings.ReplaceAll(err.Error(), "--question <file>", "hi dev brainstorm <file|->"))
 	}
 	if err := teamBrainstormRunning(b.team); err != nil {
-		return teamBrainstorm{}, errors.New(strings.ReplaceAll(err.Error(), "hi team brainstorm stop", "hi dev brainstorm stop"))
+		return teamBrainstorm{}, errors.New(strings.ReplaceAll(err.Error(), "hi app brainstorm stop", "hi dev brainstorm stop"))
 	}
 	record := teamBrainstorm{Approval: &teamApproval{Name: teamDevBy}, Question: question, Web: request.Web, Status: "running", Dev: true}
 	return b.launchBrainstorm(config, request, record)
@@ -458,7 +458,7 @@ func teamDevKitClient(command string, args []string, stdin io.Reader, stdout io.
 		if err := call("POST", "/propose", teamProposeRequest{Task: args[0], Notes: notes}, &work); err != nil {
 			return true, err
 		}
-		fmt.Fprintf(stdout, "%s is proposed to the project the team adopted, as a draft pull request: %s\n", work.ID, work.Proposed)
+		fmt.Fprintf(stdout, "%s is proposed to the adopted project, as a draft pull request: %s\n", work.ID, work.Proposed)
 		return true, nil
 	case "incidents", "incident":
 		if len(args) > 1 {
@@ -680,7 +680,7 @@ const teamPreviewCheck = "Verify on the preview:"
 func teamDevReviewPrompt(branch, dev, base, notes string) string {
 	var text strings.Builder
 	fmt.Fprintf(&text, "# A second opinion on %s\n\n", branch)
-	text.WriteString("You're reviewing work another coding agent did with an owner of the team, in the team's dev box. This folder is a copy of the branch for you alone. Look at what it adds to dev:\n\n")
+	text.WriteString("You're reviewing work another coding agent did with an owner of the app, in the app's dev box. This folder is a copy of the branch for you alone. Look at what it adds to dev:\n\n")
 	fmt.Fprintf(&text, "    git log --oneline %[1]s..HEAD\n    git diff %[1]s..HEAD\n\n", base)
 	fmt.Fprintf(&text, "Judge it against the project's specs (docs/specs/), its AGENTS.md or CLAUDE.md, and the code around it on %s. You may run the project's checks (make check, the tests). Don't fix anything and don't commit: say what must change.\n\n", dev)
 	text.WriteString("What a review may ask for:\n\n")

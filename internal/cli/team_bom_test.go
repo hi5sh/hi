@@ -82,7 +82,7 @@ func TestTeamBomListsWhatProductionRuns(t *testing.T) {
 	if teamBomDigest(again) != teamBomDigest(path) || !strings.HasPrefix(teamBomDigest(path), "sha256:") {
 		t.Fatal("made twice")
 	}
-	// hi team rebuild built the base image again: the bill is made again,
+	// hi app rebuild built the base image again: the bill is made again,
 	// with the new image's packages.
 	before := teamBomDigest(path)
 	tools := teamTestBomTools()
@@ -332,7 +332,7 @@ func TestWatchSumsUpAnImagesAdvisories(t *testing.T) {
 	report := w.reportLocked(team, time.Now())
 	if strings.Count(report, "\n") > 5 || !strings.Contains(report, "1 open as incidents; besides those, 1 with a fix") ||
 		!strings.Contains(report, "hi's base image: 1 open as incidents, and 3000 advisories for its OS packages, 1000 of them with a fix") ||
-		!strings.Contains(report, "hi team rebuild payments") || !strings.Contains(report, "GHSA-1, fixed in 19.3.1") {
+		!strings.Contains(report, "hi app rebuild payments") || !strings.Contains(report, "GHSA-1, fixed in 19.3.1") {
 		t.Fatal(report)
 	}
 	if team.Report == nil || !strings.Contains(team.Report.Text, "GHSA-1") || strings.Contains(team.Report.Text, "UBUNTU") {
@@ -362,7 +362,7 @@ func TestAdvisoryMerge(t *testing.T) {
 	if title != "demo runs in hi's base image, whose brotli 1.1.0-2build2 has UBUNTU-CVE-2026-111497 (also USN-8956-1), EPSS 0.36" {
 		t.Fatal(title)
 	}
-	if action := advisoryAction("demo", merged[0]); !strings.Contains(action, "hi team rebuild demo") || strings.Contains(action, "podman") {
+	if action := advisoryAction("demo", merged[0]); !strings.Contains(action, "hi app rebuild demo") || strings.Contains(action, "podman") {
 		t.Fatal(action)
 	}
 }

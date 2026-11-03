@@ -243,7 +243,7 @@ func TestTeamMemorySettings(t *testing.T) {
 		}
 	}
 	// The plugin that gives the channel /hi is in the lead's home.
-	if plugin, err := os.ReadFile(filepath.Join(lead, "plugins", "hi-team", "__init__.py")); err != nil || !strings.Contains(string(plugin), `"team", "web", "link", "--user", user`) ||
+	if plugin, err := os.ReadFile(filepath.Join(lead, "plugins", "hi-team", "__init__.py")); err != nil || !strings.Contains(string(plugin), `"app", "web", "link", "--user", user`) ||
 		!fileExists(filepath.Join(lead, "plugins", "hi-team", "plugin.yaml")) {
 		t.Fatal("no /hi plugin:", err)
 	}

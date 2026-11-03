@@ -1,12 +1,12 @@
 ---
 name: hi-dev-tasks
-description: Read, file, comment on, edit, and close the hi team's tasks from its dev box (GitHub Issues, GitLab issues, or hi's own). Use when the user mentions tasks, tickets, issues, bugs reported by the team, ideas to work on, what to do next, or wants something written down for later.
+description: Read, file, comment on, edit, and close the hi app's tasks from its dev box (GitHub Issues, GitLab issues, or hi's own). Use when the user mentions tasks, tickets, issues, bugs reported by the team, ideas to work on, what to do next, or wants something written down for later.
 ---
 
-# The team's tasks
+# The app's tasks
 
-Ideas, suggestions, and bug reports from the team's Slack channel become
-tasks. They live where the team's repository is: GitHub Issues, GitLab
+Ideas, suggestions, and bug reports from the app's Slack channel become
+tasks. They live where the app's repository is: GitHub Issues, GitLab
 issues, or hi's own when it is on neither. `hi dev task` works the same
 for all three; hi runs gh or glab on the machine, so you need no token.
 
@@ -24,7 +24,7 @@ hi dev task comment 12 "Before and after" --attach before.png --attach after.png
 ```
 
 A task's attachments (pictures, PDFs, whatever people shared with it)
-are kept by hi on the team's machine, whichever forge has the task:
+are kept by hi on the app's machine, whichever forge has the task:
 `hi dev task show` lists them, and `hi dev task files` fetches them.
 Look at them before you start: a picture often says more than the
 text. A reference such as `[image: image-3fa9c1.png]` in the text is one

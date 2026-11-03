@@ -196,7 +196,7 @@ var teamUpdateMemory = func(team, box, size string) ([]string, error) {
 	return updated, nil
 }
 
-// teamMemoryCommand is hi team limit <name> memory [dev|app <size>|default]:
+// teamMemoryCommand is hi app limit <name> memory [dev|app <size>|default]:
 // the boxes' memory, which a box that runs out of it is killed for.
 func teamMemoryCommand(config teamConfig, args []string, stdout io.Writer) error {
 	if len(args) == 2 {
@@ -229,9 +229,9 @@ func teamMemoryCommand(config teamConfig, args []string, stdout io.Writer) error
 			fmt.Fprintf(stdout, "Running now with it, without a restart: %s.\n", strings.Join(updated, ", "))
 		}
 	} else if len(args) != 0 {
-		return usageError{"usage: hi team limit <name> memory [dev|app <size>|default]"}
+		return usageError{"usage: hi app limit <name> memory [dev|app <size>|default]"}
 	}
-	fmt.Fprintf(stdout, "Team %s's dev box may use %s of memory, and each of its app's boxes, Stage's and production's, %s; a box that needs more has a process killed (an incident says so).\n",
+	fmt.Fprintf(stdout, "App %s's dev box may use %s of memory, and each of Stage's and production's boxes %s; a box that needs more has a process killed (an incident says so).\n",
 		config.Name, teamBoxMemory(config, teamBoxDev), teamBoxMemory(config, teamBoxApp))
 	return nil
 }
@@ -251,11 +251,11 @@ var teamMachineMemory = func() int64 {
 	return 0
 }
 
-// teamLimitCommand is hi team limit <name> [preview <usd> | preview off],
-// what Stage's model calls may cost a day, and hi team limit <name> memory,
+// teamLimitCommand is hi app limit <name> [preview <usd> | preview off],
+// what Stage's model calls may cost a day, and hi app limit <name> memory,
 // the boxes' memory.
 func teamLimitCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team limit <name> [stage <dollars a day> | stage off | memory [dev|app <size>|default]]"}
+	usage := usageError{"usage: hi app limit <name> [stage <dollars a day> | stage off | memory [dev|app <size>|default]]"}
 	if len(args) >= 2 && args[1] == "memory" {
 		config, err := loadTeam(args[0])
 		if err != nil {
@@ -286,9 +286,9 @@ func teamLimitCommand(args []string, stdout io.Writer) error {
 	}
 	spend := loadTeamPreviewSpend(team)
 	if limit := teamPreviewModelLimit(team); limit > 0 {
-		fmt.Fprintf(stdout, "Team %s's preview may spend $%.2f a day on model calls; today it spent $%.2f in %d call(s). Production has no limit from hi.\n", team, limit, spend.USD, spend.Calls)
+		fmt.Fprintf(stdout, "App %s's preview may spend $%.2f a day on model calls; today it spent $%.2f in %d call(s). Production has no limit from hi.\n", team, limit, spend.USD, spend.Calls)
 	} else {
-		fmt.Fprintf(stdout, "Team %s's preview has no daily limit on model calls; today it spent $%.2f in %d call(s).\n", team, spend.USD, spend.Calls)
+		fmt.Fprintf(stdout, "App %s's preview has no daily limit on model calls; today it spent $%.2f in %d call(s).\n", team, spend.USD, spend.Calls)
 	}
 	return nil
 }

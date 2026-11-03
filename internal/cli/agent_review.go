@@ -72,7 +72,7 @@ type review struct {
 	Compare     *reviewCompare `json:"compare,omitempty"`
 	SARIF       bool           `json:"sarif,omitempty"`
 	// Fixes are the work that set out to fix earlier findings, by their
-	// fingerprint, such as a team's task (--fixes, from hi team).
+	// fingerprint, such as a team's task (--fixes, from hi app).
 	Fixes      map[string]string `json:"fixes,omitempty"`
 	Out        string            `json:"out,omitempty"` // a folder the report is also written to
 	Paths      []string          `json:"paths,omitempty"`

@@ -35,7 +35,7 @@ const (
 	// asked, before hi tells the owners, once: the lead may have chosen to
 	// wait, and waiting with production's work stopped is theirs to choose.
 	teamIncidentStandsAfter = 4 * time.Hour
-	// teamAlertsPerDay and teamAlertGap limit hi team alert.
+	// teamAlertsPerDay and teamAlertGap limit hi app alert.
 	teamAlertsPerDay = 10
 	teamAlertGap     = time.Minute
 	// teamIncidentLogLines is how much of the app's log an incident keeps.
@@ -114,7 +114,7 @@ func loadTeamIncident(team, id string) (teamIncident, error) {
 	}
 	data, err := os.ReadFile(teamIncidentPath(team, id))
 	if errors.Is(err, os.ErrNotExist) {
-		return teamIncident{}, fmt.Errorf("no incident %s; hi team incidents lists them", id)
+		return teamIncident{}, fmt.Errorf("no incident %s; hi app incidents lists them", id)
 	}
 	if err != nil {
 		return teamIncident{}, err
@@ -340,7 +340,7 @@ func (b *teamBroker) leadIncident(id, because string) (teamIncident, error) {
 		return incident, err
 	}
 	if incident.Status == "closed" {
-		return incident, fmt.Errorf("incident %s is closed; hi team incidents lists the open ones", incident.ID)
+		return incident, fmt.Errorf("incident %s is closed; hi app incidents lists the open ones", incident.ID)
 	}
 	return incident, nil
 }
@@ -359,13 +359,13 @@ func (b *teamBroker) openJobIncident(slot string, job teamJob, condition string,
 	}
 	alert := title + "."
 	if !b.started.IsZero() && now.Sub(b.started) < 2*teamJobSettle {
-		restarted := fmt.Sprintf("hi started the team at %s UTC, which cuts the app's model calls and restarts its boxes; that may be the cause, though the job hasn't moved again since.", b.started.UTC().Format("15:04"))
+		restarted := fmt.Sprintf("hi started the app at %s UTC, which cuts the app's model calls and restarts its boxes; that may be the cause, though the job hasn't moved again since.", b.started.UTC().Format("15:04"))
 		alert += "\n" + restarted
 		detail += "\n\n" + restarted
 	}
 	incident := teamIncident{Kind: "job", Slot: slot, Job: job.Job, Title: title, Detail: detail, Opened: now.UTC()}
 	if slot == teamSlotPreview {
-		// A preview is an owner's work in progress: hi team jobs --preview,
+		// A preview is an owner's work in progress: hi app jobs --preview,
 		// and the dev page, show it.
 		return incident, nil
 	}
@@ -374,7 +374,7 @@ func (b *teamBroker) openJobIncident(slot string, job teamJob, condition string,
 
 // appStopped opens an incident for production's box, which stopped on its
 // own while the team ran, before hi starts it again. A stop from before
-// the team started (a reboot, hi team down) isn't one.
+// the team started (a reboot, hi app down) isn't one.
 func (b *teamBroker) appStopped(state teamPreview) {
 	if b.appExit == nil || b.stopped() {
 		return
@@ -416,11 +416,11 @@ func (b *teamBroker) appStopped(state teamPreview) {
 	b.openIncident(incident, title+".\nhi starts it again in a new box; the lead looks into why.", "", teamIncidentPrompt)
 }
 
-// alert is hi team alert: something the lead or a member noticed.
+// alert is hi app alert: something the lead or a member noticed.
 func (b *teamBroker) alert(text, who string) (teamIncident, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
-		return teamIncident{}, errors.New(`say what's wrong: hi team alert "<what you noticed>"`)
+		return teamIncident{}, errors.New(`say what's wrong: hi app alert "<what you noticed>"`)
 	}
 	if len(text) > 2000 {
 		text = teamClipText(text, 2000)
@@ -563,7 +563,7 @@ func (b *teamBroker) incidentAction(action string, request teamIncidentRequest) 
 // it was made in, which must be one of theirs.
 func (b *teamBroker) addRule(request teamIncidentRequest) (teamIncident, error) {
 	if !teamJobName.MatchString(request.Job) {
-		return teamIncident{}, fmt.Errorf("%q isn't a job's name; hi team jobs lists them", request.Job)
+		return teamIncident{}, fmt.Errorf("%q isn't a job's name; hi app jobs lists them", request.Job)
 	}
 	text := strings.TrimSpace(request.Text)
 	if text == "" {
@@ -631,14 +631,14 @@ const teamIncidentAutonomy = `Handle what you can on your own, so the people don
 
 On your own, when it can be undone and changes no result nobody has ruled on:
 - Wait or retry when the cause passes (a network error, a service that was down, a rate limit), and check back once it should have moved.
-- Restart the app's box once per incident: hi team jobs restart [--preview] --incident <id> --because "<why>". After that, the owners restart it on the dev page.
-- Apply a rule the owners gave (listed below, and in hi team incidents --rules).
+- Restart the app's box once per incident: hi app jobs restart [--preview] --incident <id> --because "<why>". After that, the owners restart it on the dev page.
+- Apply a rule the owners gave (listed below, and in hi app incidents --rules).
 
-Ask the owners when no rule covers a choice that changes results, when a step can't be undone (deleting or rewriting data, a rollback), when the fix is a change to the code, when your own attempts ran out, or when you aren't sure what happened. Never skip, drop, or invent an item a job couldn't process unless a rule says so: in some jobs every later value depends on the one before, and a silent gap makes them all wrong. Say what you found, what depends on it, and the choices, each with what it would do to the results, and which you'd take. Then run hi team incidents ask <id> "<your question in a line>", so hi reminds the owners if nobody answers in a day. They keep their decision as the job's rule on the dev page. When it needs a change to the code, file a task with what you found (hi team task add), and say its number here.
+Ask the owners when no rule covers a choice that changes results, when a step can't be undone (deleting or rewriting data, a rollback), when the fix is a change to the code, when your own attempts ran out, or when you aren't sure what happened. Never skip, drop, or invent an item a job couldn't process unless a rule says so: in some jobs every later value depends on the one before, and a silent gap makes them all wrong. Say what you found, what depends on it, and the choices, each with what it would do to the results, and which you'd take. Then run hi app incidents ask <id> "<your question in a line>", so hi reminds the owners if nobody answers in a day. They keep their decision as the job's rule on the dev page. When it needs a change to the code, file a task with what you found (hi app task add), and say its number here.
 
 Waiting is a choice too. When what you'd do leaves production's work stopped beyond the incident's own cause, say how much is left and what waiting costs at the work's usual rate, give the choices (resuming it through the app's own controls now is one, and isn't a restart), and ask.
 
-Log what you do: pass --incident <id> --because "<why>" to hi team jobs restart, and keep the rest as notes (hi team incidents note <id> "..."); hi posts each in this thread and keeps it in the incident's record. When it is resolved and hi hasn't closed it, run hi team incidents close <id> --because "<what resolved it>".`
+Log what you do: pass --incident <id> --because "<why>" to hi app jobs restart, and keep the rest as notes (hi app incidents note <id> "..."); hi posts each in this thread and keeps it in the incident's record. When it is resolved and hi hasn't closed it, run hi app incidents close <id> --because "<what resolved it>".`
 
 // teamIncidentPrompt wakes the lead for an incident, with what it would
 // otherwise spend its turn finding.
@@ -659,16 +659,16 @@ func teamIncidentPrompt(config teamConfig, incident teamIncident) string {
 			}
 			text.WriteString("\n")
 		}
-		text.WriteString("hi team jobs shows every job's state, count, and rate. ")
+		text.WriteString("hi app jobs shows every job's state, count, and rate. ")
 	}
-	fmt.Fprintf(&text, "First find out why, reading only: the logs, the code, the item, hi team incidents %s. Nothing in production changes while you look.\n\n", incident.ID)
+	fmt.Fprintf(&text, "First find out why, reading only: the logs, the code, the item, hi app incidents %s. Nothing in production changes while you look.\n\n", incident.ID)
 	text.WriteString(strings.ReplaceAll(teamIncidentAutonomy, "<id>", incident.ID))
 	text.WriteString("\n\nWhat you write at the end is posted in the incident's thread. Keep it short: what happened, what you did or propose, and what happens next.")
 	return text.String()
 }
 
 // ---------------------------------------------------------------------------
-// hi team incidents
+// hi app incidents
 
 // teamIncidentsReport is the open incidents, then the last month's.
 func teamIncidentsReport(team string, now time.Time) []teamIncident {
@@ -735,7 +735,7 @@ func printTeamRules(rules []teamJobRule, w io.Writer) {
 	}
 }
 
-// teamIncidentsCommand is hi team incidents <name> [<id>|--rules], on the
+// teamIncidentsCommand is hi app incidents <name> [<id>|--rules], on the
 // machine; it reads the team's folder, so it works while the team is down.
 func teamIncidentsCommand(args []string, stdout io.Writer) error {
 	var words []string
@@ -754,7 +754,7 @@ func teamIncidentsCommand(args []string, stdout io.Writer) error {
 		}
 	}
 	if len(words) < 1 || len(words) > 2 {
-		return usageError{"usage: hi team incidents <name> [<id>] [--rules] [--json]"}
+		return usageError{"usage: hi app incidents <name> [<id>] [--rules] [--json]"}
 	}
 	team := words[0]
 	if _, err := loadTeam(team); err != nil {
@@ -863,7 +863,7 @@ func (b *teamBroker) incidentRoutes(mux *http.ServeMux, reply func(http.Response
 	})
 }
 
-// runTeamIncidentLeadCommand is hi team jobs, incidents, and alert in the
+// runTeamIncidentLeadCommand is hi app jobs, incidents, and alert in the
 // lead's box.
 func runTeamIncidentLeadCommand(command string, args []string, stdout io.Writer, call func(method, path string, body, out any) error) error {
 	flags := map[string]string{}
@@ -894,7 +894,7 @@ func runTeamIncidentLeadCommand(command string, args []string, stdout io.Writer,
 	case "alert":
 		text := strings.TrimSpace(strings.Join(words, " "))
 		if text == "" {
-			return usageError{`usage: hi team alert "<what you noticed>"`}
+			return usageError{`usage: hi app alert "<what you noticed>"`}
 		}
 		var incident teamIncident
 		if err := call("POST", "/alert", teamIncidentRequest{Text: text}, &incident); err != nil {
@@ -938,13 +938,13 @@ func runTeamIncidentLeadCommand(command string, args []string, stdout io.Writer,
 			}
 			fmt.Fprintf(stdout, "Forgot %s: it isn't listed or watched until it writes again.\n", request.Job)
 		default:
-			return usageError{"usage: hi team jobs [--preview] [--json]\n       hi team jobs restart [--preview] --incident <id> --because <why>\n       hi team jobs forget <job> [--preview] --because <why>"}
+			return usageError{"usage: hi app jobs [--preview] [--json]\n       hi app jobs restart [--preview] --incident <id> --because <why>\n       hi app jobs forget <job> [--preview] --because <why>"}
 		}
 	case "incidents":
-		usage := usageError{`usage: hi team incidents [<id>] [--rules] [--json]
-       hi team incidents ask <id> "<your question, in a line>"
-       hi team incidents note <id> "<what you found or did>"
-       hi team incidents close <id> --because "<what resolved it>"`}
+		usage := usageError{`usage: hi app incidents [<id>] [--rules] [--json]
+       hi app incidents ask <id> "<your question, in a line>"
+       hi app incidents note <id> "<what you found or did>"
+       hi app incidents close <id> --because "<what resolved it>"`}
 		if len(words) > 0 {
 			switch action := words[0]; action {
 			case "ask", "note", "close":

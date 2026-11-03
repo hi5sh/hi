@@ -90,7 +90,7 @@ func TestTeamHeartbeat(t *testing.T) {
 }
 
 // The machine's heartbeat: a systemd user timer that runs hi heartbeat
-// __ping, and the answers file of hi team new sets it once.
+// __ping, and the answers file of hi app new sets it once.
 func TestMachineHeartbeat(t *testing.T) {
 	setupTeamTest(t)
 	var calls []string

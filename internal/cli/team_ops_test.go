@@ -98,7 +98,7 @@ func TestTeamOpsLead(t *testing.T) {
 	}
 }
 
-// hi team ops sets the channel, checked in Slack, and takes it off.
+// hi app ops sets the channel, checked in Slack, and takes it off.
 func TestTeamOpsCommand(t *testing.T) {
 	setupTeamTest(t)
 	newTeamTestBroker(t)

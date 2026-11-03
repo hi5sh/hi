@@ -344,7 +344,7 @@ func keepTeamPeer(done <-chan struct{}, team, hi string, stderr io.Writer) {
 			continue
 		}
 		if err := startTeamDevNet(engine, team, hi, stderr); err != nil {
-			fmt.Fprintf(stderr, "hi: the team's NetBird peer: %v\n", err)
+			fmt.Fprintf(stderr, "hi: the app's NetBird peer: %v\n", err)
 		}
 	}
 }

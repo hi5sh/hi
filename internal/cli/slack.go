@@ -26,12 +26,12 @@ import (
 // approvers list when it happens.
 
 const slackManifest = `{
-  "display_information": { "name": "hi org", "description": "Approve and control GPU compute and teams started with hi" },
+  "display_information": { "name": "hi org", "description": "Approve and control GPU compute and apps started with hi" },
   "features": {
     "app_home": { "home_tab_enabled": true, "messages_tab_enabled": true, "messages_tab_read_only_enabled": true },
     "bot_user": { "display_name": "hi org", "always_online": true },
     "slash_commands": [
-      { "command": "/hi", "description": "GPU compute and teams: status, stop, spend, budgets, teams", "usage_hint": "status | stop <name|@user|all> | spend | users | audit | budget <group> <usd> | link <user> | teams | team <action> <team>", "should_escape": false }
+      { "command": "/hi", "description": "GPU compute and apps: status, stop, spend, budgets, apps", "usage_hint": "status | stop <name|@user|all> | spend | users | audit | budget <group> <usd> | link <user> | apps | app <action> <app>", "should_escape": false }
     ]
   },
   "oauth_config": { "scopes": { "bot": ["chat:write", "commands", "users:read", "im:write"] } },
@@ -728,9 +728,6 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 		s.audit("slack:"+command.UserID, "refused command", "/hi "+command.Text, "not an approver")
 		return respond("Only approvers can use /hi. An admin adds approvers with `hi org approvers add`.")
 	}
-	if text := strings.TrimSpace(command.Text); text == "teams" || strings.HasPrefix(text, "team ") {
-		return respond("Teams watch themselves now, on their own machine: their incidents are in each team's ops channel, and its owners freeze or pause it there with hi team freeze.")
-	}
 	fields := strings.Fields(command.Text)
 	for i, field := range fields {
 		fields[i] = slackName(field)
@@ -833,8 +830,7 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 		return respond(text)
 	}
 	return respond("Usage: `/hi status`, `/hi stop <name | @user | all>`, `/hi spend`, `/hi users`, " +
-		"`/hi audit [user]`, `/hi budget <group> <usd>` (each user), `/hi budget <group> total <usd>`, `/hi teams`, " +
-		"`/hi team freeze|unfreeze|pause|unpause|revoke|rekey|cutoff|reconnect <team> <why>`")
+		"`/hi audit [user]`, `/hi budget <group> <usd>` (each user), `/hi budget <group> total <usd>`")
 }
 
 // ---------------------------------------------------------------------------

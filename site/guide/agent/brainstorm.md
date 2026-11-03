@@ -90,8 +90,8 @@ how each agent is paid, and asks (`--yes` skips the question).
 The report is in `~/.local/state/hi/brainstorms/<id>/`, readable only by
 you: `report.md`, `proposal.md`, and each idea with its artifacts.
 
-## In a team
+## In an app
 
-A team's owners start a brainstorm from the team's dev box, with
+An app's owners start a brainstorm from the app's dev box, with
 `hi dev brainstorm`; their agent asks first. See
-[Brainstorms on hard questions](/guide/team/brainstorms/).
+[Brainstorms on hard questions](/guide/app/brainstorms/).

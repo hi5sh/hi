@@ -11,7 +11,7 @@
 </head>
 <body>
 <header class="bar">
-  <strong id="team">hi team</strong>
+  <strong id="team">hi app</strong>
   <span id="links" class="links"></span>
   <span class="grow"></span>
   <span id="you" class="muted"></span>
@@ -57,7 +57,7 @@
       <div class="decisions-head">
         <div class="grow">
           <h2>Decisions</h2>
-          <p class="muted small">The team's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the team's branch.</p>
+          <p class="muted small">The app's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the app's branch.</p>
         </div>
         <button id="decision-new" class="primary">New decision</button>
       </div>
@@ -194,7 +194,7 @@
     <div class="release-wrap">
       <section class="where-card">
         <h2>Where things run</h2>
-        <p class="muted small">Each address and what it shows now. On the team's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
+        <p class="muted small">Each address and what it shows now. On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
         <ul id="addresses" class="where"></ul>
       </section>
       <section class="releases-card">
@@ -215,9 +215,9 @@
           <button id="data-copy">Copy Stage's data to production</button>
         </div>
         <h2>Snapshots</h2>
-        <p class="muted small">The team as it was: production's data, the code, the lead's memory, and the team's record. Daily, before every release, and before data is copied to production.</p>
+        <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every release, and before data is copied to production.</p>
         <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
-        <p class="muted small">To put the team back as it was in one, an admin runs <code id="data-restore">hi team restore</code> on the machine; hi takes a snapshot of how it is first.</p>
+        <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.</p>
       </div>
       <div class="system-col">
         <h2>Stage's data</h2>
@@ -261,13 +261,13 @@
       <div class="system-col">
         <section id="people-box" class="owners-only">
           <h2>People</h2>
-          <p class="muted small">Who may do what. Nobody has a level for being in the team's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the team's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+          <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
           <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
           <div class="people-wrap">
             <table id="people-table" class="people-table">
               <thead><tr>
                 <th scope="col">Person</th>
-                <th scope="col" title="An admin of the machine changes owners: hi team owners">Owner</th>
+                <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
                 <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; releases">Pro Dev</th>
                 <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH; releases">Vibe Dev</th>
                 <th scope="col" title="Reports bugs as tasks">Contributor</th>
@@ -276,12 +276,12 @@
               <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
             </table>
           </div>
-          <p class="muted small">Owners are set by an admin of the machine (<code>hi team owners</code>). The channel hears every change made here.</p>
+          <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>). The channel hears every change made here.</p>
           <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (the Data tab).</p>
         </section>
         <section id="sshkey-box" class="pro-only">
           <h2>Your SSH key</h2>
-          <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the team's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
+          <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
           <p id="sshkey-now" class="small"></p>
           <form id="sshkey-form" class="setting-form">
             <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
@@ -311,8 +311,8 @@
           <button type="submit">Set</button>
         </form>
         <div class="owners-only">
-        <h2>The team's keys and sign-ins</h2>
-        <p class="muted small">What the team's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
+        <h2>The app's keys and sign-ins</h2>
+        <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
         <ul id="team-keys" class="list"></ul>
         </div>
       </div>
@@ -322,7 +322,7 @@
 <dialog id="release-dialog">
   <form method="dialog" id="release-form">
     <h2 id="release-title">Release</h2>
-    <p class="muted">What changes for the people, in their words. hi posts it in the team's channel with the release.</p>
+    <p class="muted">What changes for the people, in their words. hi posts it in the app's channel with the release.</p>
     <textarea id="release-notes" rows="8" required></textarea>
     <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of Stage's data</label>
     <p id="release-error" class="error"></p>

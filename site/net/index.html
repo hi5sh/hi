@@ -100,11 +100,11 @@ fallback: |
       <div class="detail">
         <h3>An address that stays</h3>
         <div class="snip"><span class="c">$ hi net expose 3000 --link --domain app.apps.example.com --max 720h</span></div>
-        <p><code>--domain</code> puts the service on a name you choose, under a domain verified in NetBird (Reverse Proxy &gt; Custom Domains), for up to 30 days. It needs a NetBird API token from a service user, in <code>$NETBIRD_API_TOKEN</code> or saved with <code>hi team domain</code>.</p>
+        <p><code>--domain</code> puts the service on a name you choose, under a domain verified in NetBird (Reverse Proxy &gt; Custom Domains), for up to 30 days. It needs a NetBird API token from a service user, in <code>$NETBIRD_API_TOKEN</code> or saved with <code>hi app domain</code>.</p>
       </div>
       <div class="detail">
         <h3>A service that moves</h3>
-        <p><code>--host</code> points the relay at another address, such as a container's. <code>--follow &lt;file&gt;</code> relays to the port written in a file, read again whenever it changes, so a service can move to a new port without the address changing. hi teams put their apps on their addresses this way.</p>
+        <p><code>--host</code> points the relay at another address, such as a container's. <code>--follow &lt;file&gt;</code> relays to the port written in a file, read again whenever it changes, so a service can move to a new port without the address changing. hi apps go on their addresses this way.</p>
       </div>
       <div class="detail">
         <h3>Joining the network</h3>
@@ -115,9 +115,9 @@ fallback: |
         <p>hi writes the key to a file only you can read, runs <code>netbird up</code>, and deletes the file whatever happens. <code>hi net &lt;setup-key&gt;</code> is refused, since it would put the key in your shell history.</p>
       </div>
       <div class="detail">
-        <h3>https for the teams</h3>
+        <h3>https for the apps</h3>
         <div class="snip"><span class="c">$ hi net domain dev.example.com --dns gandi</span></div>
-        <p>On a machine that runs <a href="/guide/team/">hi teams</a>, <code>hi net domain</code> puts their production, preview, and dev page on https names under a domain of yours, reachable only over NetBird, with one wildcard certificate from Let's Encrypt.</p>
+        <p>On a machine that runs <a href="/guide/app/">hi apps</a>, <code>hi net domain</code> puts their production, preview, and dev page on https names under a domain of yours, reachable only over NetBird, with one wildcard certificate from Let's Encrypt.</p>
       </div>
       <div class="detail">
         <h3>What to keep in mind</h3>
@@ -133,7 +133,7 @@ fallback: |
     <div class="next">
       <a href="/guide/workstation/expose/"><b>Share a local service</b><span>The guide: every option, step by step.</span></a>
       <a href="/guide/workstation/netbird/"><b>NetBird network</b><span>Enroll a machine without exposing the setup key.</span></a>
-      <a href="/guide/team/app/"><b>Try what the team built</b><span>How a hi team puts its app on an address.</span></a>
+      <a href="/guide/app/try/"><b>Try the app</b><span>How a hi app goes on an address.</span></a>
       <a href="/guide/reference/commands/#hi-net"><b>Every hi net command</b><span>The reference.</span></a>
     </div>
   </section>

@@ -1,11 +1,11 @@
 ---
 name: hi-dev-upstream
-description: Keep a hi team's adopted project up with the project it came from (its upstream) from the dev box, and offer the team's own work back as a pull request. Use when the user mentions upstream, a new version of the project the team started from, merging upstream changes, or contributing a change back. Covers hi dev upstream and hi dev propose.
+description: Keep a hi app's adopted project up with the project it came from (its upstream) from the dev box, and offer the app's own work back as a pull request. Use when the user mentions upstream, a new version of the project the app started from, merging upstream changes, or contributing a change back. Covers hi dev upstream and hi dev propose.
 ---
 
 # Upstream
 
-A project the team adopted keeps the project it came from as `upstream`.
+A project the app adopted keeps the project it came from as `upstream`.
 hi fetches it daily, and the lead says in the channel when it has a new
 version.
 
@@ -36,6 +36,6 @@ hi dev propose t-12 description.md     # a draft pull request upstream with t-12
 
 Only work that is in dev, and only when the user asks: the description
 is for upstream's maintainers, so write what the change does and why,
-without the team's internals. The team's own files (its specs, docs/map,
+without the app's internals. The app's own files (its specs, docs/map,
 AGENTS.md) stay out of the pull request. It needs `gh` signed in on the
 machine.

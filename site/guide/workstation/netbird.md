@@ -49,10 +49,10 @@ hi net reconnect    # disconnect and reconnect with the stored enrollment
 
 `reconnect` does not need the setup key again.
 
-## A domain for the teams' addresses
+## A domain for the apps' addresses
 
-[hi teams](/guide/team/) on this machine put their apps and dev pages on
-plain http at the team peer's NetBird name. `hi net domain` gives them
+[hi apps](/guide/app/) on this machine put their addresses and dev pages on
+plain http at the app peer's NetBird name. `hi net domain` gives them
 https names under a domain of yours instead, such as `dev.example.com`,
 with a certificate browsers trust:
 
@@ -63,9 +63,9 @@ hi net domain --email ops@example.com       # where Let's Encrypt writes about t
 hi net domain --unset                       # back to plain http
 ```
 
-Each team's production is then on `https://<team>.dev.example.com/`, its
-preview on `<team>-preview`, and its dev page on `<team>-dev`. hi keeps
-those names in the domain's DNS, pointing at the team's NetBird address,
+Each app's production is then on `https://<app>.dev.example.com/`, its
+preview on `<app>-preview`, and its dev page on `<app>-dev`. hi keeps
+those names in the domain's DNS, pointing at the app's NetBird address,
 so only the network reaches them, and gets one wildcard certificate from
 Let's Encrypt by proving the domain with a TXT record. `--dns` takes
 `gandi`, `cloudflare`, `route53`, `hetzner`, `digitalocean`, or `rfc2136`
@@ -74,8 +74,8 @@ domain's registered part. hi checks that the token can read the zone
 before it keeps it, in `~/.local/share/hi/domain.json`, which only you
 can read.
 
-In NetBird's Access Control, let people reach the teams' peers on TCP 443
-as well. See [The addresses on https](/guide/team/dev/#the-addresses-on-https).
+In NetBird's Access Control, let people reach the apps' peers on TCP 443
+as well. See [The addresses on https](/guide/app/dev/#the-addresses-on-https).
 
 ## Share a service
 

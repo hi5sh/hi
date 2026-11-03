@@ -110,7 +110,7 @@ func TestTeamForkPreview(t *testing.T) {
 		t.Fatal(mount)
 	}
 
-	// hi team data says what the preview runs on.
+	// hi app data says what the preview runs on.
 	var out bytes.Buffer
 	printTeamDataFolders(&out, teamDataFolders("payments", b.running))
 	if !strings.Contains(out.String(), "a fork of production v1 from") || !strings.Contains(out.String(), "of its own") {

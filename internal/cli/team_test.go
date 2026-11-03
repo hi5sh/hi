@@ -122,7 +122,7 @@ func TestValidateTeam(t *testing.T) {
 		t.Fatal(err)
 	}
 	cases := map[string]func(*teamConfig){
-		"a team's name":            func(c *teamConfig) { c.Name = "Payments" },
+		"an app's name":            func(c *teamConfig) { c.Name = "Payments" },
 		"Slack channel ID":         func(c *teamConfig) { c.Channel = "#payments" },
 		"at least one owner":       func(c *teamConfig) { c.Owners = nil },
 		"Slack member IDs":         func(c *teamConfig) { c.Owners = []string{"alice"} },
@@ -180,7 +180,7 @@ func TestTeamManifest(t *testing.T) {
 	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "## Shaping a task") || !strings.Contains(skill, "web_extract reads them") {
 		t.Error("the skill doesn't say how to shape a task")
 	}
-	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "**Before you file**, run hi team task list") {
+	if skill := teamSkill(testTeamConfig()); !strings.Contains(skill, "**Before you file**, run hi app task list") {
 		t.Fatal("the skill doesn't send the lead to the tasks before it files one")
 	}
 	if teamSlashCommand("Team Ab.C") != "/hi-team-ab-c" {
@@ -219,7 +219,7 @@ func TestTeamWizard(t *testing.T) {
 	}
 	// The manifest is YAML, named after the lead, with its handle.
 	if !strings.Contains(out.String(), "\n  name: Åsa Berg\n") || !strings.Contains(out.String(), "display_name: asa-berg") ||
-		!strings.Contains(out.String(), "/invite @asa-berg") || !strings.Contains(out.String(), "hi team up payments") {
+		!strings.Contains(out.String(), "/invite @asa-berg") || !strings.Contains(out.String(), "hi app up payments") {
 		t.Fatal(out.String())
 	}
 	config, err := loadTeam("payments")
@@ -270,12 +270,12 @@ func TestTeamWizard(t *testing.T) {
 	}
 	soul, _ := os.ReadFile(filepath.Join(teamDir("payments"), "lead", "SOUL.md"))
 	if !strings.Contains(string(soul), "<@U07OWNER1>") || !strings.Contains(string(soul), "may not read code") ||
-		!strings.HasPrefix(string(soul), "# Åsa Berg, the payments team's lead\n\nYou are Åsa Berg, the payments team's lead: its helper") {
+		!strings.HasPrefix(string(soul), "# Åsa Berg, the payments app's lead\n\nYou are Åsa Berg, the payments app's lead: its helper") {
 		t.Fatal(string(soul))
 	}
-	// The folder is where hi team new ran, and hi finds it by name.
-	if want := filepath.Join(dir, "team-payments"); teamDir("payments") != want || !fileExists(filepath.Join(want, ".gitignore")) {
-		t.Fatalf("the team is in %s", teamDir("payments"))
+	// The folder is where hi app new ran, and hi finds it by name.
+	if want := filepath.Join(dir, "app-payments"); teamDir("payments") != want || !fileExists(filepath.Join(want, ".gitignore")) {
+		t.Fatalf("the app is in %s", teamDir("payments"))
 	}
 	// The same name again is refused.
 	if err := teamNew([]string{"payments"}, strings.NewReader(answers), &out); err == nil || !strings.Contains(err.Error(), "already exists") {
@@ -288,11 +288,11 @@ func TestTeamNewChecksSlack(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "team.json")
 	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
 	var out bytes.Buffer
-	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "HI_TEAM_SLACK_BOT_TOKEN") {
+	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "HI_APP_SLACK_BOT_TOKEN") {
 		t.Fatal(err)
 	}
-	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
-	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
 	teamSlack = fakeTeamSlack{notMember: true}
 	if err := teamNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "/invite @payments") {
 		t.Fatal(err)
@@ -336,7 +336,7 @@ func TestWriteTeamLead(t *testing.T) {
 		t.Fatal("the DM's first-reply hook is missing", err)
 	}
 	settings, _ := os.ReadFile(filepath.Join(lead, "config.yaml"))
-	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "web:\n  backend: exa", "mcp_servers:\n  app:\n    command: hi\n    args: [team, mcp, production]\n    env:\n      HI_TEAM_SOCKET: /team/run/broker.sock", "  app_preview:\n    command: hi\n    args: [team, mcp, preview]", "display:\n  busy_ack_enabled: false\n  live_status: verb\n  memory_notifications: \"off\"", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.75"} {
+	for _, want := range []string{"default: qwen/qwen3.8-max", "base_url: http://10.234.7.2:3129/api/v1", "cwd: /team", `mode: "off"`, "cron:\n  wrap_response: false", "web:\n  backend: exa", "mcp_servers:\n  app:\n    command: hi\n    args: [app, mcp, production]\n    env:\n      HI_APP_SOCKET: /team/run/broker.sock", "  app_preview:\n    command: hi\n    args: [app, mcp, preview]", "display:\n  busy_ack_enabled: false\n  live_status: verb\n  memory_notifications: \"off\"", "agent:\n  max_turns: 60\n  budget_warning_ratio: 0.75"} {
 		if !strings.Contains(string(settings), want) {
 			t.Errorf("config.yaml lacks %s:\n%s", want, settings)
 		}
@@ -354,7 +354,7 @@ func TestWriteTeamLead(t *testing.T) {
 	if old, _ := os.ReadFile(filepath.Join(lead, "SOUL.before-2.4.md")); !strings.HasPrefix(string(old), "edited by an owner") {
 		t.Fatal("the old SOUL.md isn't kept")
 	}
-	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi team task add") || !strings.Contains(string(skill), "in the\nhi-team-notes skill") {
+	if skill, _ := os.ReadFile(filepath.Join(lead, "skills", "hi-team", "SKILL.md")); !strings.Contains(string(skill), "hi app task add") || !strings.Contains(string(skill), "in the\nhi-team-notes skill") {
 		t.Fatal(string(skill))
 	}
 	// The lead's notes skill is made once, then left to the lead.
@@ -388,7 +388,7 @@ func TestTeamUpWritesUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 	unit, _ := os.ReadFile(teamUnitPath("payments"))
-	if !strings.Contains(string(unit), " team __serve payments\n") || !strings.Contains(string(unit), "Restart=always") || !strings.Contains(string(unit), "HI_TEAMS_DIR=") {
+	if !strings.Contains(string(unit), " app __serve payments\n") || !strings.Contains(string(unit), "Restart=always") || !strings.Contains(string(unit), "HI_TEAMS_DIR=") {
 		t.Fatal(string(unit))
 	}
 	if strings.Join(calls, "; ") != "daemon-reload; enable hi-team-payments.service; restart hi-team-payments.service; enable --now hi-team-payments-snapshot.timer" {
@@ -397,7 +397,7 @@ func TestTeamUpWritesUnit(t *testing.T) {
 	// The daily snapshot: a timer, caught up after a reboot, and its service.
 	timer, _ := os.ReadFile(filepath.Join(filepath.Dir(teamUnitPath("payments")), "hi-team-payments-snapshot.timer"))
 	service, _ := os.ReadFile(filepath.Join(filepath.Dir(teamUnitPath("payments")), "hi-team-payments-snapshot.service"))
-	if !strings.Contains(string(timer), "Persistent=true") || !strings.Contains(string(service), " team snapshot payments --daily\n") {
+	if !strings.Contains(string(timer), "Persistent=true") || !strings.Contains(string(service), " app snapshot payments --daily\n") {
 		t.Fatal(string(timer), string(service))
 	}
 	if !strings.Contains(out.String(), "enable-linger") {
@@ -456,7 +456,7 @@ func TestTeamRemove(t *testing.T) {
 	if strings.Join(calls, "; ") != "disable --now hi-team-payments.service; disable --now hi-team-payments-snapshot.timer; daemon-reload" || len(removed) != 1 {
 		t.Fatal(calls, removed)
 	}
-	if !strings.Contains(out.String(), "hi team up "+folder) {
+	if !strings.Contains(out.String(), "hi app up "+folder) {
 		t.Fatal(out.String())
 	}
 
@@ -476,7 +476,7 @@ func TestTeamRemove(t *testing.T) {
 func TestTeamLeadCommandsNeedTheBox(t *testing.T) {
 	t.Setenv(teamSocketEnv, "")
 	var out, errs bytes.Buffer
-	if code := runTeam([]string{"versions"}, strings.NewReader(""), &out, &errs); code != 1 || !strings.Contains(errs.String(), "for a team's lead, in its box") {
+	if code := runTeam([]string{"versions"}, strings.NewReader(""), &out, &errs); code != 1 || !strings.Contains(errs.String(), "for an app's lead, in its box") {
 		t.Fatal(code, errs.String())
 	}
 }
@@ -736,9 +736,9 @@ func TestTeamBrokerSocket(t *testing.T) {
 	if err := runTeamLeadCommand("task", []string{"list"}, strings.NewReader(""), &out); err != nil || !strings.Contains(out.String(), "Tasks (") {
 		t.Fatal(out.String(), err)
 	}
-	// A SOUL.md that says hi team task isn't taken for one from before 2.4.
+	// A SOUL.md that says hi app task isn't taken for one from before 2.4.
 	soul := filepath.Join(dir, "SOUL.md")
-	os.WriteFile(soul, []byte(teamSoul(testTeamConfig())+"\nFile it with hi team task add.\n"), 0o600)
+	os.WriteFile(soul, []byte(teamSoul(testTeamConfig())+"\nFile it with hi app task add.\n"), 0o600)
 	if err := updateTeamSoul(soul, testTeamConfig()); err != nil || fileExists(filepath.Join(dir, "SOUL.before-2.4.md")) {
 		t.Fatal("a new SOUL.md was replaced", err)
 	}
@@ -757,7 +757,7 @@ func TestTeamBrokerSocket(t *testing.T) {
 			t.Fatalf("not rewritten from %q:\n%s", rewrite[0], data)
 		}
 	}
-	if usage := teamLeadUsage(); !strings.Contains(usage, "  hi team task start 12\n      When an owner or a developer asks") || !strings.Contains(usage, "<body|body file|->") {
+	if usage := teamLeadUsage(); !strings.Contains(usage, "  hi app task start 12\n      When an owner or a developer asks") || !strings.Contains(usage, "<body|body file|->") {
 		t.Fatal(usage)
 	}
 	// What they asked for changed: the lead gives the ticket its new text.
@@ -796,8 +796,8 @@ func TestTeamBrokerSocket(t *testing.T) {
 
 func TestTeamMovedFolder(t *testing.T) {
 	dir := setupTeamTest(t)
-	t.Setenv("HI_TEAM_SLACK_BOT_TOKEN", "xoxb-bot")
-	t.Setenv("HI_TEAM_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
 	file := filepath.Join(dir, "answers.json")
 	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "empty": true}`, 0o600)
 	var out bytes.Buffer
@@ -812,7 +812,7 @@ func TestTeamMovedFolder(t *testing.T) {
 		t.Fatal(teamDir("payments"))
 	}
 	os.Rename(filepath.Join(dir, "elsewhere", "pay"), filepath.Join(dir, "moved"))
-	if _, err := loadTeam("payments"); err == nil || !strings.Contains(err.Error(), "if you moved it, run hi team up <its new folder>") {
+	if _, err := loadTeam("payments"); err == nil || !strings.Contains(err.Error(), "if you moved it, run hi app up <its new folder>") {
 		t.Fatal(err)
 	}
 	name, err := teamAdopt("moved", &out)
@@ -867,22 +867,22 @@ func TestWriteTeamSkillKeepsTheLeadsEdits(t *testing.T) {
 	dir := t.TempDir()
 	path, notes := filepath.Join(dir, "SKILL.md"), filepath.Join(dir, "notes.md")
 	read := func(path string) string { data, _ := os.ReadFile(path); return string(data) }
-	writeTeamSkill(dir, "# hi\n\nUse hi team task.", notes)
-	if read(path) != "# hi\n\nUse hi team task." {
+	writeTeamSkill(dir, "# hi\n\nUse hi app task.", notes)
+	if read(path) != "# hi\n\nUse hi app task." {
 		t.Fatal(read(path))
 	}
-	edited := "# hi\n\nUse hi team task.\n\nPreviews can't reach the model proxy."
+	edited := "# hi\n\nUse hi app task.\n\nPreviews can't reach the model proxy."
 	os.WriteFile(path, []byte(edited), 0o600)
-	writeTeamSkill(dir, "# hi\n\nUse hi team task.", notes)
+	writeTeamSkill(dir, "# hi\n\nUse hi app task.", notes)
 	if read(path) != edited {
 		t.Fatal("the lead's edit was lost on a restart")
 	}
 	// A new text replaces it; what the lead added moves to its notes.
-	writeTeamSkill(dir, "# hi v2\n\nUse hi team task and wait.", notes)
-	if read(path) != "# hi v2\n\nUse hi team task and wait." || read(path+".lead") != edited {
+	writeTeamSkill(dir, "# hi v2\n\nUse hi app task and wait.", notes)
+	if read(path) != "# hi v2\n\nUse hi app task and wait." || read(path+".lead") != edited {
 		t.Fatal(read(path), read(path+".lead"))
 	}
-	if got := read(notes); !strings.Contains(got, "## From hi-team, before hi updated it") || !strings.Contains(got, "\n\nPreviews can't reach the model proxy.\n") || strings.Contains(got, "Use hi team task") {
+	if got := read(notes); !strings.Contains(got, "## From hi-team, before hi updated it") || !strings.Contains(got, "\n\nPreviews can't reach the model proxy.\n") || strings.Contains(got, "Use hi app task") {
 		t.Fatal(got)
 	}
 	// Unedited, a new text replaces it without a copy.
@@ -1007,7 +1007,7 @@ func TestTeamStartPreviewOnlyForTheFreshApp(t *testing.T) {
 	if apps() != 0 {
 		t.Fatal(b.apps)
 	}
-	// The blank app hi team new writes goes on the preview, once.
+	// The blank app hi app new writes goes on the preview, once.
 	os.RemoveAll(b.repo)
 	config, _ := loadTeam("payments")
 	if err := newTeamRepo(config, b.repo, false); err != nil {
@@ -1132,7 +1132,7 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatalf("%+v", fourth)
 	}
 
-	// hi team rebuild built the base image again: production moves to it,
+	// hi app rebuild built the base image again: production moves to it,
 	// on the same link.
 	b.mu.Lock()
 	b.oldImages = map[string]bool{fourth.Container: true}
@@ -1147,7 +1147,7 @@ func TestTeamProductionLink(t *testing.T) {
 	}
 }
 
-// hi team rebuild builds the image again and restarts the team on it,
+// hi app rebuild builds the image again and restarts the team on it,
 // and names the machine's other teams still on the old one.
 func TestTeamRebuild(t *testing.T) {
 	setupTeamTest(t)
@@ -1180,7 +1180,7 @@ func TestTeamRebuild(t *testing.T) {
 	if len(calls) < 4 || calls[0] != "build" || !slices.Contains(calls, "restart hi-team-payments.service") {
 		t.Fatal(calls)
 	}
-	if !strings.Contains(out.String(), "hi team dev payments restart") || !strings.Contains(out.String(), "so billing still run the old one") {
+	if !strings.Contains(out.String(), "hi app dev payments restart") || !strings.Contains(out.String(), "so billing still run the old one") {
 		t.Fatal(out.String())
 	}
 	// A failed build restarts nothing.
@@ -1397,7 +1397,7 @@ func TestTeamManifestYAML(t *testing.T) {
 	if !reflect.DeepEqual(fromYAML, fromJSON) {
 		t.Fatalf("%v\n%s", fromYAML, manifest)
 	}
-	if !strings.Contains(manifest, "display_name: maja-strom") || !strings.Contains(manifest, "chat with Maja Ström, the payments team's lead") {
+	if !strings.Contains(manifest, "display_name: maja-strom") || !strings.Contains(manifest, "chat with Maja Ström, the payments app's lead") {
 		t.Fatal(manifest)
 	}
 	for name, err := range map[string]bool{"Maja": false, "A name far longer than Slack keeps for an app": true, "@maja": true, " Maja": true} {

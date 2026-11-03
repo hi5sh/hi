@@ -1,6 +1,6 @@
 ---
 name: hi-dev-review
-description: Get a review of work in this hi team dev box - a second opinion on the branch from the other coding agent (Claude reviews Codex's work, Codex reviews Claude's), or a deep multi-agent review of the whole project. Use before shipping, when the user asks for a review, a second opinion, a security or quality check, or wants to know what is wrong with the project. Covers hi dev review and hi dev deep-review.
+description: Get a review of work in this hi app's dev box - a second opinion on the branch from the other coding agent (Claude reviews Codex's work, Codex reviews Claude's), or a deep multi-agent review of the whole project. Use before shipping, when the user asks for a review, a second opinion, a security or quality check, or wants to know what is wrong with the project. Covers hi dev review and hi dev deep-review.
 ---
 
 # Reviews
@@ -47,7 +47,7 @@ hi dev deep-review show r-4                    # how far it is
 hi dev deep-review stop r-4
 ```
 
-Several agents review the project in their own boxes on the team's
+Several agents review the project in their own boxes on the app's
 machine, and confirm each other's findings. It costs real money, up to
 the budget ($50 at most from the box), and often takes an hour. **Ask the
 user for the budget before starting**, and pass what the team knows that

@@ -1,4 +1,4 @@
-// The hi team's dev page (team_devpage.go): three tabs, the team's tasks
+// The hi app's dev page (team_devpage.go): three tabs, the app's tasks
 // (tickets, in hi's code), herdr with the workspaces, and the system.
 (function () {
   "use strict";
@@ -53,7 +53,7 @@
       credentials: "same-origin",
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
-        if (response.status === 401) lock(data.error || "This page is for the team's owners.");
+        if (response.status === 401) lock(data.error || "This page is for the app's owners.");
         if (!response.ok) throw new Error(data.error || response.statusText);
         return data;
       });
@@ -395,7 +395,7 @@
     var list = $("tickets");
     list.textContent = "";
     if (!tickets) return;
-    var where = tickets.forge === "hi" ? "hi's own tasks, in the team's folder" : "Issues in " + (tickets.where || tickets.forge);
+    var where = tickets.forge === "hi" ? "hi's own tasks, in the app's folder" : "Issues in " + (tickets.where || tickets.forge);
     $("tickets-where").textContent = where;
     var all = (tickets.tickets || []).filter(function (ticket) {
       return showing === "all" || (showing === "closed" ? ticket.state === "closed" : ticket.state !== "closed");
@@ -661,7 +661,7 @@
         } else if (s.production) {
           lines.push(el("div", { class: "muted small", text: "Dev is the same: nothing to release." }));
         }
-        // A team that starts from code it already had has no tasks of its
+        // An app that starts from code it already had has no tasks of its
         // own yet, and dev is still its first release.
         if (releasing) {
           lines.push(el("div", { class: "where-what" }, [
@@ -717,7 +717,7 @@
       } else {
         lines.push(el("div", { class: "muted small", text: "The dev page, for the owners." }));
       }
-      if (!a.joined) lines.push(el("div", { class: "small warn", text: "The team's NetBird peer hasn't joined: hi team dev " + state.team + " netbird <a setup key>, on the machine" }));
+      if (!a.joined) lines.push(el("div", { class: "small warn", text: "The app's NetBird peer hasn't joined: hi app dev " + state.team + " netbird <a setup key>, on the machine" }));
       if (a.public) {
         var publicLine = a.link ? "Public too: " : "Public too, but it has no public address right now";
         var parts = [document.createTextNode(publicLine)];
@@ -726,13 +726,13 @@
         if (a.domain) notes.push("name " + a.domain);
         notes.push(a.allow_ips ? "only from " + a.allow_ips : "from anywhere, with the link's key");
         lines.push(el("div", { class: "small warn" }, parts));
-        lines.push(el("div", { class: "muted small", text: notes.join(" · ") + " (hi team domain, hi team allow-ip on the machine)" }));
+        lines.push(el("div", { class: "muted small", text: notes.join(" · ") + " (hi app domain, hi app allow-ip on the machine)" }));
       } else {
         lines.push(el("div", { class: "muted small", text: "Internal only" }));
       }
       var button = a.public
         ? el("button", { class: "small owners-only", text: "Internal only", busy: "public:" + a.address, onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the team's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
+            act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the app's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
           } })
         : el("button", { class: "small danger owners-only", text: "Make public", busy: "public:" + a.address, onclick: function () {
             act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and releases the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
@@ -890,7 +890,7 @@
         el("div", { class: "muted small", text: snapshot.id + (snapshot.size ? " · " + size(snapshot.size) : "") }),
       ])]));
     });
-    $("data-restore").textContent = "hi team restore " + (state.team || "<team>") + " <snapshot>";
+    $("data-restore").textContent = "hi app restore " + (state.team || "<app>") + " <snapshot>";
   }
   function dataAct(question, path, body, done) {
     (question ? ask(question) : Promise.resolve("")).then(function (answer) {
@@ -1179,7 +1179,7 @@
       $("vscode-status").textContent = (space ? (space.branch || space.label) : "The project's clone") + ": " + folder +
         // The viewers (PDFs, CSV tables, Markdown's preview) draw in
         // webviews, which the browser gives only to https pages.
-        (location.protocol === "https:" ? "" : ". Previews of PDFs, tables, and Markdown need the team's https address (hi net domain).");
+        (location.protocol === "https:" ? "" : ". Previews of PDFs, tables, and Markdown need the app's https address (hi net domain).");
     }).catch(function (error) {
       $("vscode-status").textContent = error.message;
     }).then(function () { vscode.starting = false; });
@@ -2508,7 +2508,7 @@
     }).then(function () { $("note-go").disabled = false; });
   });
 
-  // ---- decisions: docs/decisions/ on the team's branch, as cards; one
+  // ---- decisions: docs/decisions/ on the app's branch, as cards; one
   // opens to read all of it, and to edit or delete it, each a commit
   var decisions = { list: null, open: null };
   function refreshDecisions() {
@@ -2597,7 +2597,7 @@
     $("decision-save").disabled = true;
     $("decision-error").textContent = "";
     api("POST", "decision", { file: decision ? decision.file : "", blob: decision ? decision.blob : "", text: $("decision-text").value }).then(function (result) {
-      toast(decision ? "Saved, on the team's branch." : "Added " + result.file + " to the team's branch.");
+      toast(decision ? "Saved, on the app's branch." : "Added " + result.file + " to the app's branch.");
       return refreshDecisions().then(function () {
         var saved = (decisions.list || []).filter(function (each) { return each.file === result.file; })[0];
         if (saved) openDecision(saved, false);
@@ -2610,7 +2610,7 @@
   });
   $("decision-delete").addEventListener("click", function () {
     var decision = decisions.open;
-    ask("Delete the decision \u201c" + decision.title + "\u201d? It goes from the team's branch; git keeps its history.").then(function (answer) {
+    ask("Delete the decision \u201c" + decision.title + "\u201d? It goes from the app's branch; git keeps its history.").then(function (answer) {
       if (answer === null) return;
       api("POST", "decision", { file: decision.file, blob: decision.blob, delete: true }).then(function () {
         toast("Deleted " + decision.file + ".");

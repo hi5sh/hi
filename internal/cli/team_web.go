@@ -14,7 +14,7 @@ import (
 
 // What the helper's chat has besides words: files on a message, both ways;
 // a picture of each part of the page the person points at; and what the
-// lead says in a chat after its answer, with hi team web post. The panel
+// lead says in a chat after its answer, with hi app web post. The panel
 // hears new messages over GET /__hi/api/events
 // (docs/specs/approved/hi_team_helper.md, slice 3).
 
@@ -53,7 +53,7 @@ type teamWebUpload struct {
 	Data   []byte `json:"data"`
 }
 
-// teamWebPost is a message the lead posts in a chat: hi team web post.
+// teamWebPost is a message the lead posts in a chat: hi app web post.
 type teamWebPost struct {
 	Conversation string           `json:"conversation"`
 	Text         string           `json:"text"`
@@ -191,9 +191,9 @@ func teamWebFilesText(id string, files []teamWebFile, seen map[string]bool, inde
 }
 
 // ---------------------------------------------------------------------------
-// the lead's side: hi team web
+// the lead's side: hi app web
 
-// teamWebList is hi team web: the feedback of the last week, newest first.
+// teamWebList is hi app web: the feedback of the last week, newest first.
 func teamWebList(team string, now time.Time) string {
 	var lines []string
 	var feedback []string
@@ -229,7 +229,7 @@ func teamWebAgo(d time.Duration) string {
 	return fmt.Sprintf("%dd", int(d.Hours()/24))
 }
 
-// teamWebShow is hi team web show <id>: a whole chat from the app, from
+// teamWebShow is hi app web show <id>: a whole chat from the app, from
 // before hi 2.4 took the chat out of the helper.
 func teamWebShow(team, id string) (string, error) {
 	chat, err := loadTeamWebConversation(team, id)
@@ -252,7 +252,7 @@ func teamWebShow(team, id string) (string, error) {
 			text.WriteString(", on " + message.Page.Path)
 		}
 		if message.Posted {
-			text.WriteString(", posted with hi team web post")
+			text.WriteString(", posted with hi app web post")
 		}
 		fmt.Fprintf(&text, ":\n%s\n", strings.TrimSpace(message.Text))
 		if refs := teamWebRefsText(message.Refs, "  "); refs != "" {

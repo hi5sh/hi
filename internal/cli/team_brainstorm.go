@@ -45,7 +45,7 @@ type teamBrainstorm struct {
 	Dev bool `json:"dev,omitempty"`
 }
 
-// teamBrainstormRequest is the lead's hi team brainstorm.
+// teamBrainstormRequest is the lead's hi app brainstorm.
 type teamBrainstormRequest struct {
 	Agents   string `json:"agents,omitempty"`
 	Question string `json:"question"`
@@ -105,7 +105,7 @@ func teamBrainstormQuestion(question string) (string, error) {
 func teamBrainstormRunning(team string) error {
 	for _, earlier := range loadTeamBrainstorms(team) {
 		if earlier.Status == "running" {
-			return fmt.Errorf("brainstorm %s is still running; wait for it, or stop it with hi team brainstorm stop %s", earlier.ID, earlier.ID)
+			return fmt.Errorf("brainstorm %s is still running; wait for it, or stop it with hi app brainstorm stop %s", earlier.ID, earlier.ID)
 		}
 	}
 	return nil
@@ -124,9 +124,9 @@ func (b *teamBroker) launchBrainstorm(config teamConfig, request teamBrainstormR
 	contextFile := filepath.Join(teamBrainstormsDir(b.team), "context.md")
 	data := teamSlotDataDir(b.team, teamSlotProduction)
 	withData := !request.Web && teamDirHasFiles(data)
-	context := fmt.Sprintf("This is the project of a team of agents in a Slack channel, for the people in it.\n\nWhat it's for: %s\n", config.Purpose)
+	context := fmt.Sprintf("This is the project of an app that agents build in a Slack channel, for the people in it.\n\nWhat it's for: %s\n", config.Purpose)
 	if record.Dev {
-		context = fmt.Sprintf("This is the project of the %s team, which its owners build with coding agents.\n\nWhat it's for: %s\n", config.Name, config.Purpose)
+		context = fmt.Sprintf("This is the project of the %s app, which its owners build with coding agents.\n\nWhat it's for: %s\n", config.Name, config.Purpose)
 	}
 	if withData {
 		context += "\nThe app's data, as production has it, is in /data/" + filepath.Base(data) + ", read-only. It is the people's: use it to understand them, and don't copy it into what you write beyond a few examples.\n"
@@ -330,7 +330,7 @@ func (b *teamBroker) stopBrainstorm(id string) (string, error) {
 			return strings.TrimSpace(string(out)), err
 		}
 	}
-	return "", fmt.Errorf("no brainstorm %s; hi team brainstorm list shows them", id)
+	return "", fmt.Errorf("no brainstorm %s; hi app brainstorm list shows them", id)
 }
 
 // showBrainstorms is the team's brainstorms, or one brainstorm's state.
@@ -357,5 +357,5 @@ func (b *teamBroker) showBrainstorms(id string) (string, error) {
 			return out.String(), nil
 		}
 	}
-	return "", fmt.Errorf("no brainstorm %s; hi team brainstorm list shows them", id)
+	return "", fmt.Errorf("no brainstorm %s; hi app brainstorm list shows them", id)
 }

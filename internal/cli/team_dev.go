@@ -3,7 +3,7 @@ package cli
 // A team's dev box (docs/specs/approved/hi_team_dev.md, release 1): one
 // long-lived box per team, where its owners build with Claude Code or
 // Codex in herdr. The team's service starts it, and leaves it running
-// when it restarts, so agents keep working; hi team down stops it.
+// when it restarts, so agents keep working; hi app down stops it.
 //
 //   - The box has its own clone of the team's repository (/box/repo),
 //     with the team's repository read-only as origin: it may fetch, and
@@ -94,7 +94,7 @@ func ensureTeamDevImage(engine boxEngine, stdout, stderr io.Writer) (string, err
 		return "", err
 	}
 	file := teamDevContainerfile(base)
-	// The base image's ID too: after hi team rebuild, the tag is the same
+	// The base image's ID too: after hi app rebuild, the tag is the same
 	// but the image is new.
 	id, _ := engine.output("image", "inspect", "-f", "{{.Id}}", base)
 	digest := sha256.Sum256([]byte(file + "\x00" + strings.TrimSpace(id)))
@@ -159,7 +159,7 @@ func writeTeamDevSSH(config teamConfig) error {
 }
 
 // teamDevHostKey makes the box's SSH host key once, with the image's
-// ssh-keygen; hi team dev <team> new-host-key makes a new one.
+// ssh-keygen; hi app dev <app> new-host-key makes a new one.
 func teamDevHostKey(engine boxEngine, team, image string) error {
 	dir := filepath.Join(teamDevDir(team), "ssh")
 	if fileExists(filepath.Join(dir, "host_ed25519")) {
@@ -358,7 +358,7 @@ func prepareTeamDevRepo(team string) error {
 		return err
 	}
 	if out, err := teamGit(teamDevDir(team), "clone", "-q", filepath.Join(teamDir(team), "repo"), repo); err != nil {
-		return fmt.Errorf("cloning the team's repository for the dev box: %s", qFirstLine(out, err.Error()))
+		return fmt.Errorf("cloning the app's repository for the dev box: %s", qFirstLine(out, err.Error()))
 	}
 	if out, err := teamGit(repo, "remote", "set-url", "origin", "/team/origin"); err != nil {
 		return fmt.Errorf("the dev box's clone: %s", qFirstLine(out, err.Error()))
@@ -389,7 +389,7 @@ func teamDevProxyArgs(team string, args []string) ([]string, string, error) {
 		secrets = append(secrets, "/secrets/claude")
 	}
 	if len(secrets) == 0 {
-		return args, "", fmt.Errorf("Claude Code is signed in neither for team %s nor on this machine; hi team signin %s claude", team, team)
+		return args, "", fmt.Errorf("Claude Code is signed in neither for app %s nor on this machine; hi app signin %s claude", team, team)
 	}
 	fallback := "/secrets/team/openrouter.env"
 	if fileExists(hermesEnvPath()) {
@@ -424,7 +424,7 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 		return err
 	}
 	name := config.Name
-	// The service and hi team dev may start it at the same moment.
+	// The service and hi app dev may start it at the same moment.
 	unlock, err := teamDevLock(name)
 	if err != nil {
 		return err
@@ -449,11 +449,11 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 	}
 	herdr, err := boxHostBinary("herdr")
 	if err != nil {
-		return errors.New("herdr isn't installed on this machine, so the team has no dev box; install it from herdr.dev, then hi team dev " + name + " restart")
+		return errors.New("herdr isn't installed on this machine, so the app has no dev box; install it from herdr.dev, then hi app dev " + name + " restart")
 	}
 	claude, err := boxHostBinary("claude")
 	if err != nil {
-		return errors.New("Claude Code isn't installed on this machine, so the team has no dev box; hi install claude, then hi team dev " + name + " restart")
+		return errors.New("Claude Code isn't installed on this machine, so the app has no dev box; hi install claude, then hi app dev " + name + " restart")
 	}
 	// What a box that stopped left behind.
 	engine.output("rm", "-f", teamDevNetContainer(name))
@@ -485,7 +485,7 @@ var startTeamDev = func(config teamConfig, hi string, stdout, stderr io.Writer) 
 		return err
 	}
 	env := teamDevEnv(name, meta.ProxyIP)
-	// The dev box's own settings (hi team env --dev); hi's own come first.
+	// The dev box's own settings (hi app env --dev); hi's own come first.
 	settings := teamDevSettings(name)
 	for key := range settings {
 		if _, ok := env[key]; ok {
@@ -627,7 +627,7 @@ func startTeamDevNet(engine boxEngine, team, hi string, stderr io.Writer) error 
 	}
 	netbird, err := boxHostBinary("netbird")
 	if err != nil {
-		return errors.New("NetBird isn't installed on this machine, so the dev box isn't on the team's network; hi install netbird")
+		return errors.New("NetBird isn't installed on this machine, so the dev box isn't on the app's network; hi install netbird")
 	}
 	state, ok := loadTeamDevState(team)
 	if !ok {
@@ -718,10 +718,10 @@ func teamForward(listener net.Listener, to string) error {
 }
 
 // ---------------------------------------------------------------------------
-// hi team dev
+// hi app dev
 
 func teamDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team dev <team> [status | start <task> [--agent claude|codex] | finish <branch> [--discard] | restart | netbird [<setup key file>] | new-host-key]"}
+	usage := usageError{"usage: hi app dev <app> [status | start <task> [--agent claude|codex] | finish <branch> [--discard] | restart | netbird [<setup key file>] | new-host-key]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -743,7 +743,7 @@ func teamDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	case action == "start" && (len(args) == 3 || len(args) == 5 && args[3] == "--agent"):
 		number, err := strconv.Atoi(strings.TrimPrefix(args[2], "#"))
 		if err != nil || number <= 0 {
-			return usageError{"usage: hi team dev <team> start <task> [--agent claude|codex]"}
+			return usageError{"usage: hi app dev <app> start <task> [--agent claude|codex]"}
 		}
 		agent := ""
 		if len(args) == 5 {
@@ -800,9 +800,9 @@ func teamDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			return err
 		}
 		if teamDevJoined(config.Name, time.Minute) {
-			fmt.Fprintf(stdout, "The team is on its NetBird network as %s; hi has removed the setup key it used.\n", teamPeerHostname(config.Name))
+			fmt.Fprintf(stdout, "The app is on its NetBird network as %s; hi has removed the setup key it used.\n", teamPeerHostname(config.Name))
 		} else {
-			fmt.Fprintf(stdout, "The team is joining its NetBird network as %s; hi team dev %s shows when it has.\n", teamPeerHostname(config.Name), config.Name)
+			fmt.Fprintf(stdout, "The app is joining its NetBird network as %s; hi app dev %s shows when it has.\n", teamPeerHostname(config.Name), config.Name)
 		}
 		return nil
 	case action == "new-host-key" && len(args) == 2:
@@ -849,7 +849,7 @@ func setTeamDevNetBird(team, key string) error {
 }
 
 func teamDevNetBirdHelp(team string) string {
-	return fmt.Sprintf(`The team joins its NetBird network as one peer, %[1]s: production on port 80, the preview on 8080, the dev page on 8888, and SSH to the dev box on 22.
+	return fmt.Sprintf(`The app joins its NetBird network as one peer, %[1]s: production on port 80, the preview on 8080, the dev page on 8888, and SSH to the dev box on 22.
 In NetBird's dashboard:
   1. Add Peer → Server: a one-off key (not ephemeral), with an auto-group such as hi-%[2]s.
   2. Access Control: a policy from the people's group to hi-%[2]s, TCP ports 80 and 8080, and one from the owners' group, TCP 8888 and 22.
@@ -864,7 +864,7 @@ func teamDevStatus(config teamConfig, stdout io.Writer) error {
 	}
 	name := config.Name
 	box := firstNonEmpty(engine.state(teamDevContainer(name)), "not started")
-	fmt.Fprintf(stdout, "Dev box of team %s: %s\n", name, box)
+	fmt.Fprintf(stdout, "Dev box of app %s: %s\n", name, box)
 	switch {
 	case engine.state(teamDevNetContainer(name)) == "running":
 		address := ""
@@ -879,7 +879,7 @@ func teamDevStatus(config teamConfig, stdout io.Writer) error {
 	case fileExists(filepath.Join(teamDevDir(name), teamDevSetupKey)) || fileExists(filepath.Join(teamDevDir(name), "netbird", "default.json")):
 		fmt.Fprintln(stdout, "NetBird: not running")
 	default:
-		fmt.Fprintf(stdout, "NetBird: not on the team's network yet; hi team dev %s netbird\n", name)
+		fmt.Fprintf(stdout, "NetBird: not on the app's network yet; hi app dev %s netbird\n", name)
 	}
 	fmt.Fprintln(stdout, "Owners:")
 	for _, owner := range config.Owners {
@@ -908,10 +908,10 @@ func teamSSHKeyLabel(key string) string {
 }
 
 // ---------------------------------------------------------------------------
-// hi team owners
+// hi app owners
 
 func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team owners <team> [add <member ID> | remove <member ID> | key <member ID> <public key> | key <member ID> --remove]"}
+	usage := usageError{"usage: hi app owners <app> [add <member ID> | remove <member ID> | key <member ID> <public key> | key <member ID> --remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -920,7 +920,7 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if len(args) == 1 {
-		fmt.Fprintf(stdout, "Owners of team %s, who build in its dev box:\n", config.Name)
+		fmt.Fprintf(stdout, "Owners of app %s, who build in its dev box:\n", config.Name)
 		names := teamPeopleNames(config, config.Owners)
 		for _, owner := range config.Owners {
 			key := "no SSH key"
@@ -941,7 +941,7 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	switch {
 	case action == "add" && len(args) == 3:
 		if containsString(config.Owners, user) {
-			fmt.Fprintf(stdout, "%s is an owner of team %s already.\n", user, config.Name)
+			fmt.Fprintf(stdout, "%s is an owner of app %s already.\n", user, config.Name)
 			return nil
 		}
 		// An owner is an owner only: a level they had goes.
@@ -957,13 +957,13 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if name := teamPeopleNames(config, []string{user})[user]; name != "" {
 			who += " (" + name + ")"
 		}
-		fmt.Fprintf(stdout, "%s is an owner of team %s. For the dev box they give a public SSH key:\n  hi team owners %s key %s \"$(cat ~/.ssh/id_ed25519.pub)\"\n", who, config.Name, config.Name, user)
+		fmt.Fprintf(stdout, "%s is an owner of app %s. For the dev box they give a public SSH key:\n  hi app owners %s key %s \"$(cat ~/.ssh/id_ed25519.pub)\"\n", who, config.Name, config.Name, user)
 	case action == "remove" && len(args) == 3:
 		if !containsString(config.Owners, user) {
-			return fmt.Errorf("%s isn't an owner of team %s", user, config.Name)
+			return fmt.Errorf("%s isn't an owner of app %s", user, config.Name)
 		}
 		if len(config.Owners) == 1 {
-			return fmt.Errorf("%s is team %s's only owner; add another first", user, config.Name)
+			return fmt.Errorf("%s is app %s's only owner; add another first", user, config.Name)
 		}
 		var kept []string
 		for _, owner := range config.Owners {
@@ -977,7 +977,7 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		os.Remove(teamDevKeyPath(config.Name, user))
 		ended := teamEndLinks(config.Name, user)
-		fmt.Fprintf(stdout, "%s is no longer an owner of team %s: their SSH key is out of the dev box", user, config.Name)
+		fmt.Fprintf(stdout, "%s is no longer an owner of app %s: their SSH key is out of the dev box", user, config.Name)
 		if ended > 0 {
 			fmt.Fprint(stdout, ", and their private links have ended")
 		}
@@ -986,7 +986,7 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err := teamSetDevKey(config, user, ""); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s's SSH key is out of team %s's dev box.\n", user, config.Name)
+		fmt.Fprintf(stdout, "%s's SSH key is out of app %s's dev box.\n", user, config.Name)
 	case action == "key" && len(args) >= 4:
 		key := strings.TrimSpace(strings.Join(args[3:], " "))
 		if data, err := os.ReadFile(key); err == nil {
@@ -995,7 +995,7 @@ func teamOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err := teamSetDevKey(config, user, key); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s's SSH key for team %s's dev box is %s; a key they had before no longer works.\n", user, config.Name, teamSSHKeyLabel(key))
+		fmt.Fprintf(stdout, "%s's SSH key for app %s's dev box is %s; a key they had before no longer works.\n", user, config.Name, teamSSHKeyLabel(key))
 	default:
 		return usage
 	}
@@ -1033,19 +1033,19 @@ var teamDevSkills = hi.TeamDevSkills
 // teamDevInstructions is what the agents in the dev box are told of it,
 // in a block of their user-level instructions that hi keeps current.
 const teamDevInstructions = `<!-- Written by hi on each start of the dev box: changes here are replaced. -->
-# The %[1]s team's dev box
+# The %[1]s app's dev box
 
-You run in the %[1]s team's dev box, a container on the team's machine.
-The people who use you are the team's owners: its developers.
+You run in the %[1]s app's dev box, a container on the app's machine.
+The people who use you are the app's owners: its developers.
 
 - **The project** is a clone in /box/repo. Each piece of work gets its
   own branch and worktree: herdr worktree create --cwd /box/repo --branch <name>.
-  Commit there. origin is the team's repository, read-only: there is no
+  Commit there. origin is the app's repository, read-only: there is no
   push; work leaves the box with hi dev (the hi-dev-ship skill).
-- **Dev and production:** hi dev preview puts a branch on the team's
+- **Dev and production:** hi dev preview puts a branch on the app's
   preview, with production's data; hi dev ship merges it into dev (%[2]s).
   An owner or a developer releases dev to production, from the dev page.
-- **The team:** hi dev status (what runs where), hi dev task (the team's
+- **The app:** hi dev status (what runs where), hi dev task (the app's
   tasks), hi dev say (its Slack channel), hi dev incidents (what failed).
   Their skills say more.
 - **Help:** hi dev review asks the other agent for a second opinion before
@@ -1077,12 +1077,12 @@ const teamDrawRule = "Drawing in the docs: /docs draws two kinds of fenced block
 	"```boxes\n" +
 	`{"caption": "The whole diagram in sentences, for screen readers.",` + "\n" +
 	` "you": "People using the app", "via": "the app's address",` + "\n" +
-	` "frame": "the team's machine", "frame_mark": 1,` + "\n" +
+	` "frame": "the app's machine", "frame_mark": 1,` + "\n" +
 	` "groups": [{"name": "app box", "label": "rootless container", "mark": 2, "summary": "One line on the part.",` + "\n" +
 	`   "items": [{"title": "src/server.ts", "role": "Bun server", "does": "One sentence; ` + "`code`" + ` is fine.", "chip": "Bun", "tone": "mint", "entry": "pages and API"}]},` + "\n" +
 	`  {"name": "data", "via": "SQL", "mark": 3, "items": [{"title": "app.db", "role": "SQLite", "does": "Every order.", "chip": "SQLite", "tone": "dim"}]}],` + "\n" +
 	` "after": [{"name": "outside", "via": "HTTPS", "items": [{"title": "api.example.com", "role": "forecasts", "does": "One sentence.", "chip": "API", "tone": "dim"}]}],` + "\n" +
-	` "key": [{"mark": 1, "term": "The team's machine", "text": "One sentence."}, {"mark": 2, "term": "The app box", "text": "One sentence."}, {"mark": 3, "term": "The data", "text": "One sentence."}]}` + "\n" +
+	` "key": [{"mark": 1, "term": "The app's machine", "text": "One sentence."}, {"mark": 2, "term": "The app box", "text": "One sentence."}, {"mark": 3, "term": "The data", "text": "One sentence."}]}` + "\n" +
 	"```\n" +
 	"  Groups are the parts inside the frame, one to four, in the order things happen; via is the arrow into a group; after holds what runs outside the frame. A sentence per card, every mark in the key. Tones: accent, mint, amber, sky, violet, red, dim.\n" +
 	"- A mermaid block draws how things move and change, with every kind of Mermaid chart (drawn by pele): sequenceDiagram for a request, stateDiagram-v2, erDiagram for the tables, flowchart, timeline, gantt, and the rest.\n" +
@@ -1160,7 +1160,7 @@ func installTeamDevKit(config teamConfig, home string) error {
 	block := fmt.Sprintf(teamDevInstructions, config.Name, config.Branch)
 	block = strings.Replace(block, teamDevBlockEnd, "\n## The project's docs\n\n"+teamMapRule+"\n\n"+teamDrawRule+"\n\n## The app's long work\n\n"+teamJobsRule+"\n"+teamDevBlockEnd, 1)
 	if adopted := config.Adopted; adopted != nil && adopted.Local {
-		block = strings.Replace(block, teamDevBlockEnd, fmt.Sprintf("- **Adopted:** this project is a copy of %s, a folder on the team's machine, without its history; it has no upstream. When docs/map.md is missing, offer a survey first (the hi-dev-survey skill).\n", adopted.From)+teamDevBlockEnd, 1)
+		block = strings.Replace(block, teamDevBlockEnd, fmt.Sprintf("- **Adopted:** this project is a copy of %s, a folder on the app's machine, without its history; it has no upstream. When docs/map.md is missing, offer a survey first (the hi-dev-survey skill).\n", adopted.From)+teamDevBlockEnd, 1)
 	} else if adopted != nil {
 		// The project came from elsewhere: keeping up with it, and the
 		// survey that maps it, are the owner's to ask for.

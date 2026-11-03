@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -37,7 +38,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's Slack tokens: %w", err)
+		return fmt.Errorf("the app's Slack tokens: %w", err)
 	}
 	if secrets.LeadAPIKey == "" {
 		secrets.LeadAPIKey = netExposeKey() + netExposeKey()
@@ -102,7 +103,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 		// The lead's first call already has the token; a sign-in that
 		// doesn't work sends it to its fallback, and the channel hears.
 		if err := prepareTeamChatGPT(name, time.Now()); err != nil {
-			fmt.Fprintf(stderr, "hi: the team's ChatGPT sign-in: %v\n", err)
+			fmt.Fprintf(stderr, "hi: the app's ChatGPT sign-in: %v\n", err)
 		}
 	}
 	// The lead's box gets placeholders for the Slack tokens, which its
@@ -336,12 +337,12 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 			engine.output("stop", "-t", "20", container)
 		}
 	}()
-	fmt.Fprintf(stdout, "Team %s: the lead is starting in %s: %s.\n", name, container, teamMemberLabel(teamMember{Agent: "hermes", Model: firstNonEmpty(config.Members["lead"].Model, "Hermes' default"),
+	fmt.Fprintf(stdout, "App %s: the lead is starting in %s: %s.\n", name, container, teamMemberLabel(teamMember{Agent: "hermes", Model: firstNonEmpty(config.Members["lead"].Model, "Hermes' default"),
 		Provider: config.Members["lead"].Provider, Fallback: config.Members["lead"].Fallback}))
 	err = engine.interactive(nil, stdout, stderr, run...)
 	cancel()
 	if stopped.Load() {
-		fmt.Fprintf(stdout, "Team %s stopped.\n", name)
+		fmt.Fprintf(stdout, "App %s stopped.\n", name)
 		return nil
 	}
 	select {
@@ -354,7 +355,7 @@ func teamServe(name string, stdout, stderr io.Writer) error {
 	if err == nil {
 		err = errors.New("the lead stopped")
 	}
-	return fmt.Errorf("team %s: %w; systemd starts it again", name, err)
+	return fmt.Errorf("app %s: %w; systemd starts it again", name, err)
 }
 
 // teamBrokerDir holds the broker's socket. A socket's path must be short,
@@ -445,7 +446,7 @@ func writeTeamLead(config teamConfig, secrets teamSecrets, proxyIP, memoryIP str
 	// the environment it's given, so the bridge is told the broker's socket.
 	settings += "mcp_servers:\n"
 	for _, server := range []struct{ name, slot string }{{"app", teamSlotProduction}, {"app_preview", teamSlotPreview}} {
-		settings += fmt.Sprintf("  %s:\n    command: hi\n    args: [team, mcp, %s]\n    env:\n      %s: /team/run/%s\n    tools:\n      resources: false\n      prompts: false\n",
+		settings += fmt.Sprintf("  %s:\n    command: hi\n    args: [app, mcp, %s]\n    env:\n      %s: /team/run/%s\n    tools:\n      resources: false\n      prompts: false\n",
 			server.name, server.slot, teamSocketEnv, teamSocketName)
 	}
 	// No "Interrupting current task" reply, with its /busy tip, when someone
@@ -558,13 +559,13 @@ const teamNotesSkill = "hi-team-notes"
 func teamNotes(config teamConfig) string {
 	return fmt.Sprintf(`---
 name: %[2]s
-description: What you learned running the %[1]s team, such as pitfalls with briefs, specs, reviews, previews, and the channel. Read it with hi-team, and add to it.
+description: What you learned running the %[1]s app, such as pitfalls with briefs, specs, reviews, previews, and the channel. Read it with hi-team, and add to it.
 ---
 
 # What the lead learned
 
 This skill is yours: hi never rewrites it. Keep here what you learn about
-running the team, one short note each. hi-team is hi's, and hi replaces it
+running the app, one short note each. hi-team is hi's, and hi replaces it
 when hi updates; where a note here disagrees with hi-team, hi-team is
 current.
 `, config.Name, teamNotesSkill)
@@ -573,9 +574,9 @@ current.
 // teamChannelWatchScript runs before each channel-watch job: it prints what
 // was said since the lead last looked, or wakes nobody when nothing was.
 const teamChannelWatchScript = `#!/bin/bash
-# Written by hi on every start of the team: the channel's new messages for
+# Written by hi on every start of the app: the channel's new messages for
 # the channel-watch job.
-out=$(/usr/local/bin/hi team channel --new 2>&1)
+out=$(/usr/local/bin/hi app channel --new 2>&1)
 if [ -z "$out" ]; then
   echo '{"wakeAgent": false}'
 else
@@ -585,9 +586,9 @@ fi
 
 // teamChannelPrompt is the channel-watch job's: the lead reads what was
 // said without being asked and keeps what matters.
-const teamChannelPrompt = `Above is what was said in the team's Slack channel since you last looked (your own messages are there too, for context). Nobody asked you anything, and this run posts nothing in the channel.
+const teamChannelPrompt = `Above is what was said in the app's Slack channel since you last looked (your own messages are there too, for context). Nobody asked you anything, and this run posts nothing in the channel.
 
-Keep what is worth remembering in your memory: decisions and wishes for the project, ideas, who knows or cares about what, people's preferences, problems they mention, and links, videos, or files someone found worth sharing. Open a link, or look at a file under /team/channel/files, when it may matter for the project, and remember what it holds, not just that it was shared. If something needs the team's attention, remember it so you can raise it the next time someone asks you something. Skip small talk.`
+Keep what is worth remembering in your memory: decisions and wishes for the project, ideas, who knows or cares about what, people's preferences, problems they mention, and links, videos, or files someone found worth sharing. Open a link, or look at a file under /team/channel/files, when it may matter for the project, and remember what it holds, not just that it was shared. If something needs the app's attention, remember it so you can raise it the next time someone asks you something. Skip small talk.`
 
 // teamEnsureChannelJob adds the channel-watch job to the lead's Hermes
 // once it runs, unless the job is there already (the lead may have tuned
@@ -706,11 +707,11 @@ func teamManifest(config teamConfig) string {
 // teamManifestYAML. The app has the lead's name; its bot, the lead's
 // handle.
 func teamManifestData(config teamConfig) map[string]any {
-	description := firstNonEmpty(config.Purpose, "A hi team")
+	description := firstNonEmpty(config.Purpose, "A hi app")
 	if len(description) > 139 {
 		description = description[:136] + "..."
 	}
-	lead := "the " + config.Name + " team lead"
+	lead := "the " + config.Name + " app's lead"
 	if config.Members["lead"].Name != "" {
 		lead = teamLeadTitle(config)
 	}
@@ -749,15 +750,15 @@ func teamPeople(ids []string) string {
 func teamSoul(config teamConfig) string {
 	return fmt.Sprintf(`# %[5]s
 
-You are %[6]s: its helper in the team's Slack channel,
-for the people who use what the team builds.
+You are %[6]s: its helper in the app's Slack channel,
+for the people who use the app.
 
 The project: %[2]s
 
-The team's owners are %[3]s. They build the project themselves, with
-coding agents in the team's dev box, and release it from the team's dev
+The app's owners are %[3]s. They build the project themselves, with
+coding agents in the app's dev box, and release it from the app's dev
 page. You don't build, merge, or release. When an owner asks you to
-start work on a task, run hi team task start <number>: it starts in the
+start work on a task, run hi app task start <number>: it starts in the
 dev box. You help the people, and you make sure the owners hear what the
 people need.
 
@@ -781,7 +782,7 @@ own field who want something that works. You bridge the gap:
   versions: whether it's filed, started, in dev to try on Stage, or
   in production. Don't promise when: the owners decide what comes next.
 - **Watch the system.** hi wakes you for incidents, failing jobs, a new
-  version of a project the team started from, and the backups. Handle
+  version of a project the app started from, and the backups. Handle
   what you can, and say what the people and the owners need to know.
 - **Say what's the owners'.** Anything that changes the app, its data,
   its settings, or what production runs is theirs, in the dev box or on
@@ -792,7 +793,7 @@ The hi-team skill has the commands for each.
 `+teamSoulAnswerFirst+`
 
 Keep what you find. What a turn learns is gone when it ends unless you
-write it down: put it in the task, or the incident (hi team incidents
+write it down: put it in the task, or the incident (hi app incidents
 note <id> "..."), where the next turn and the owners look.
 
 ## What you keep
@@ -848,13 +849,13 @@ var teamSoulRewrites = [][2]string{
 	{`page. You don't build, merge, or release. You start work on a task in
 the dev box only when an owner asks you to: you help the people, and you
 make sure the owners hear what the people need.`, `page. You don't build, merge, or release. When an owner asks you to
-start work on a task, run hi team task start <number>: it starts in the
+start work on a task, run hi app task start <number>: it starts in the
 dev box. You help the people, and you make sure the owners hear what the
 people need.`},
 	{`page. You don't build, merge, or release, and you don't start agents on
 the code: you help the people, and you make sure the owners hear what
 the people need.`, `page. You don't build, merge, or release. When an owner asks you to
-start work on a task, run hi team task start <number>: it starts in the
+start work on a task, run hi app task start <number>: it starts in the
 dev box. You help the people, and you make sure the owners hear what the
 people need.`},
 	{`- **Turn what they ask for into tasks.** An idea, a suggestion, or a
@@ -871,9 +872,13 @@ it has.`, teamLeadMaxTurns), teamSoulAnswerFirst},
 
 // teamSoulBuilds says a SOUL.md is from before hi 2.4, when the lead
 // handed tasks to members.
-// Since hi 2.5.14 the lead files tasks with hi team task add, so the marks
+// Since hi 2.5.14 the lead files tasks with hi app task add, so the marks
 // are what only a SOUL.md from before 2.4 says.
 var teamSoulBuilds = []string{"You hand tasks to the members", "The hi-team skill says how: hi team task", "hi team task --small", "## How work is done"}
+
+// teamSoulCommands finds the lead's commands as a SOUL.md from before
+// v2.6.67 names them, when hi team became hi app.
+var teamSoulCommands = regexp.MustCompile(`\bhi team (task|incidents|jobs|versions|web|channel|alert|agy|data|helper|env|advisories)\b`)
 
 // updateTeamSoul gives a SOUL.md from before hi 2.4, which still has the
 // lead building, the lead's new one; the old one is kept beside it, with
@@ -892,6 +897,7 @@ func updateTeamSoul(path string, config teamConfig) error {
 		for _, rewrite := range teamSoulRewrites {
 			soul = strings.Replace(soul, rewrite[0], rewrite[1], 1)
 		}
+		soul = teamSoulCommands.ReplaceAllString(soul, "hi app $1")
 		if soul == string(data) {
 			return nil
 		}
@@ -957,47 +963,47 @@ func teamSkill(config teamConfig) string {
 	// <team> in the text is the team's name.
 	return strings.ReplaceAll(fmt.Sprintf(`---
 name: hi-team
-description: Help the people in the %[1]s team's channel - file their ideas and bug reports as tasks, answer what's the status of something, and watch the app's incidents and jobs - with the hi team command.
+description: Help the people in the %[1]s app's channel - file their ideas and bug reports as tasks, answer what's the status of something, and watch the app's incidents and jobs - with the hi app command.
 metadata:
   hermes:
     requires_toolsets: [terminal]
 ---
 
-# The team's commands
+# The app's commands
 
 Run these with the terminal tool. The owners build the project in the
-team's dev box and release it from the dev page; you help the people and
+app's dev box and release it from the dev page; you help the people and
 watch the system.
 
 | Command | What it does |
 |---|---|
-| hi team channel [--since 2h] | What was said in the channel lately |
-| hi team task list [--closed] | The team's tasks: what the owners have to do |
-| hi team task show 12 | One task, with its comments |
-| hi team task add "<title>" <body\|body file\|-> [--attach <file>]... | File an idea, a suggestion, or a bug report; the thread's files go with it; prints its number |
-| hi team task comment 12 <text\|-> [--attach <file>]... | Add to a task: more from the person, a picture, a file, a link |
-| hi team task edit 12 [--title "<title>"] <body\|body file\|-> | Give a task its whole new text, when what they ask for changed |
-| hi team task start 12 | When an owner or a developer asks: start work on it in the dev box; prints what to reply |
-| hi team versions | What production runs, what dev has on top of it, and who built each change |
-| hi team web | The feedback in the app in the last week, newest first |
-| hi team web show f-12 | One piece of feedback, with what they pointed at and their files |
-| hi team web questions | What people asked the app's help lately, and its answers |
-| hi team web may --user U07ANNA | Whether someone is a contributor, developer, or owner, whose requests you file |
-| hi team web link --user U07ANNA | DM someone their own links (what %[3]s does): the dev page for owners and developers, and the app's, whose helper then files their reports as tasks, for contributors |
-| hi team helper | Whether the app's pages have the helper (help and feedback) |
-| hi team jobs [--preview] | The app's long work: each job's state, count, rate a day, and its last error |
-| hi team jobs restart [--preview] --incident i-3 --because "<why>" | Give the app a new box, once per incident |
-| hi team advisories | Known advisories for what production runs |
-| hi team incidents [<id>] | What went wrong while nobody looked, and each one's timeline; --rules, the owners' rules for the jobs |
-| hi team incidents note\|ask i-3 "<text>" | Keep a note of your own, or ask the owners (hi reminds them in a day) |
-| hi team incidents close i-3 --because "<what resolved it>" | Close an incident hi hasn't closed |
-| hi team alert "text" | Raise something you noticed as an incident, such as production broken |
-| hi team agy "<what to make or find>" | Once the person agreed: Antigravity makes pictures, speech, music, or a short video, reads the thread's files, or researches on the web; hi posts what it made in the thread |
-| hi team agy show [a-3] | The latest Antigravity runs, or one: what it made and its summary |
+| hi app channel [--since 2h] | What was said in the channel lately |
+| hi app task list [--closed] | The app's tasks: what the owners have to do |
+| hi app task show 12 | One task, with its comments |
+| hi app task add "<title>" <body\|body file\|-> [--attach <file>]... | File an idea, a suggestion, or a bug report; the thread's files go with it; prints its number |
+| hi app task comment 12 <text\|-> [--attach <file>]... | Add to a task: more from the person, a picture, a file, a link |
+| hi app task edit 12 [--title "<title>"] <body\|body file\|-> | Give a task its whole new text, when what they ask for changed |
+| hi app task start 12 | When an owner or a developer asks: start work on it in the dev box; prints what to reply |
+| hi app versions | What production runs, what dev has on top of it, and who built each change |
+| hi app web | The feedback in the app in the last week, newest first |
+| hi app web show f-12 | One piece of feedback, with what they pointed at and their files |
+| hi app web questions | What people asked the app's help lately, and its answers |
+| hi app web may --user U07ANNA | Whether someone is a contributor, developer, or owner, whose requests you file |
+| hi app web link --user U07ANNA | DM someone their own links (what %[3]s does): the dev page for owners and developers, and the app's, whose helper then files their reports as tasks, for contributors |
+| hi app helper | Whether the app's pages have the helper (help and feedback) |
+| hi app jobs [--preview] | The app's long work: each job's state, count, rate a day, and its last error |
+| hi app jobs restart [--preview] --incident i-3 --because "<why>" | Give the app a new box, once per incident |
+| hi app advisories | Known advisories for what production runs |
+| hi app incidents [<id>] | What went wrong while nobody looked, and each one's timeline; --rules, the owners' rules for the jobs |
+| hi app incidents note\|ask i-3 "<text>" | Keep a note of your own, or ask the owners (hi reminds them in a day) |
+| hi app incidents close i-3 --because "<what resolved it>" | Close an incident hi hasn't closed |
+| hi app alert "text" | Raise something you noticed as an incident, such as production broken |
+| hi app agy "<what to make or find>" | Once the person agreed: Antigravity makes pictures, speech, music, or a short video, reads the thread's files, or researches on the web; hi posts what it made in the thread |
+| hi app agy show [a-3] | The latest Antigravity runs, or one: what it made and its summary |
 
 **Stage** is what people call the preview, the address where dev is tried
 before a release: say Stage to them. Some of hi's commands still say
-preview (--preview, hi team data <team> preview ...); they mean Stage.
+preview (--preview, hi app data <team> preview ...); they mean Stage.
 
 ## Tasks
 
@@ -1005,20 +1011,20 @@ What the people ask for reaches the owners as tasks. hi keeps them
 where the project lives (GitHub or GitLab issues, or its own), and the
 owners see them on the dev page, where they start work on one.
 
-- **Only for the team's people.** File a task only for its contributors,
+- **Only for the app's people.** File a task only for its contributors,
   developers, and owners, whom the owners choose; being in the channel
-  isn't enough. hi team web may --user <their member ID> says whether
+  isn't enough. hi app web may --user <their member ID> says whether
   someone is one. For anyone else, still answer their questions, but
   file nothing: say an owner can make them a contributor on the dev page.
-- **Before you file**, run hi team task list: when it's there, add to
-  that task (hi team task comment) and say its number, rather than
+- **Before you file**, run hi app task list: when it's there, add to
+  that task (hi app task comment) and say its number, rather than
   filing it twice.
 - **Shape it first**, as below: look, talk it through, then file. Write
   the title as what should change: "The chart misses the last day".
 - **Say who asked** in the body ("Asked by Anna in the channel"), with a
   link to the thread.
 - **When they change what they asked for** ("make it the top 20", "not
-  blue, green"), the task says what they want now: hi team task edit
+  blue, green"), the task says what they want now: hi app task edit
   with its whole new text (and --title when that changed too), so the
   owners don't piece it together from comments. Then a short comment
   says what changed and who changed it, and you tell them.
@@ -1032,7 +1038,7 @@ owners see them on the dev page, where they start work on one.
   agents fetch them in the dev box.
 - **Feedback** from the app's button (f-12) is anonymous, and for the
   people in the channel to handle: don't file it on your own. When
-  someone here asks you to, run hi team web show f-12 and file it as
+  someone here asks you to, run hi app web show f-12 and file it as
   above, with its files.
 - **Reports** are already tasks. Someone signed in with their own link
   reports a bug from the app's helper, and hi files it itself; the
@@ -1042,7 +1048,7 @@ owners see them on the dev page, where they start work on one.
 - **Then tell them** its number, and that the owners pick up the
   tasks; don't promise when.
 - **When an owner or a developer asks you to start** on a task ("start
-  on #9", "go ahead, build it"), run hi team task start 9. hi starts it
+  on #9", "go ahead, build it"), run hi app task start 9. hi starts it
   in the dev box, with Claude Code on the task, only for an owner or a
   developer and only while no
   other task is in progress there. Reply with exactly the line it prints,
@@ -1103,8 +1109,8 @@ Leave out a part that has nothing to say.
 from the tasks and the versions, not from memory, which may be from
 before the last release.
 
-- hi team task show 12: filed, with the owners' comments, or closed.
-- hi team versions: what dev has on top of production, each change with
+- hi app task show 12: filed, with the owners' comments, or closed.
+- hi app versions: what dev has on top of production, each change with
   its title; dev is on Stage to try, production is what everyone
   gets. Say which version people look at: production v3, or dev.
 - Something not in either isn't planned yet: offer to file it.
@@ -1114,7 +1120,7 @@ before the last release.
 You answer when someone @-mentions you, and after that every reply in
 that thread, without a fresh @; a reply that opens by @-mentioning
 someone else is not for you. hi keeps a log of everything said in the
-channel, threads and shared files included (hi team channel); shared
+channel, threads and shared files included (hi app channel); shared
 files are in /team/channel/files. Every 15 minutes your channel-watch
 job reads what's new and keeps what matters in your memory; don't remove
 that job.
@@ -1133,13 +1139,13 @@ someone signed in with their own link. You aren't in it.
 - **Feedback** goes to the channel as its own message, "Feedback f-12",
   with pictures and files in its thread; your channel watch sees it. It
   is for the people in the channel to handle: file it only when one of
-  them asks you to (hi team web show f-12 has its files, to attach). A
+  them asks you to (hi app web show f-12 has its files, to attach). A
   reply in its thread that starts with > is shown to the sender in the
   app; other replies stay in Slack.
 - **Report**, for someone signed in with their own link (%[3]s in the
   channel): hi files what they send as a task itself, and posts
   ":lady_beetle: ... reported #31" in the channel.
-- /__hi/ on the team's addresses is hi's.
+- /__hi/ on the app's addresses is hi's.
 
 ## Using the app
 
@@ -1153,7 +1159,7 @@ on Stage. The app's docs say what each does (docs/user/mcp.md in
   "is supplier X in?") rather than guessing from the code.
 - **Stage** runs on its own copy of production's data: every tool,
   so try there what a person reports, before you file it. It may show a
-  branch being tried rather than dev: hi team versions says which.
+  branch being tried rather than dev: hi app versions says which.
 - **No tools**, or not the one you need: the app hasn't got it yet. Say
   so plainly, and when people need it, file a task for the tool, as for
   any feature.
@@ -1162,7 +1168,7 @@ on Stage. The app's docs say what each does (docs/user/mcp.md in
 
 ## Pictures, media, and research: Antigravity
 
-hi team agy hands a task to Google's Antigravity agent on the team's
+hi app agy hands a task to Google's Antigravity agent on the app's
 machine. It makes and finds things, for the people in the thread:
 
 - **Pictures:** a logo idea, an illustration, a mock-up of a screen, an
@@ -1173,7 +1179,7 @@ machine. It makes and finds things, for the people in the thread:
   transcript. The thread's files go with the run.
 
 It runs on the Google plan and the Gemini key of whoever set the machine
-up, not the team's budget, so **ask first**: say what you'd ask it for and
+up, not the app's budget, so **ask first**: say what you'd ask it for and
 that video, music, and deep research cost the most, and run it only once
 the person says yes, and only for someone who may ask the team for work
 (hi checks). One run at a time; it takes a minute or two, longer for a
@@ -1204,26 +1210,26 @@ channel, and wakes you there once, with what it knows.
 
 - **On your own**, when it can be undone and changes no result: wait or
   retry when the cause passes (a network error, a service that was down),
-  and check back; restart the app's box once per incident (hi team jobs
+  and check back; restart the app's box once per incident (hi app jobs
   restart --incident i-3 --because "..."); apply a rule the owners gave
-  (hi team incidents --rules).
+  (hi app incidents --rules).
 - **Ask the owners** for the rest: a second restart, anything that can't
   be undone, a choice that changes results, a fix to the code. Say what
   you found, what depends on it, and the choices, each with what it
-  would do; then hi team incidents ask i-3 "<the question in a line>", and
+  would do; then hi app incidents ask i-3 "<the question in a line>", and
   hi reminds them if nobody answers in a day. They restart, close, and
   keep rules on the dev page. When it needs a change to the code, file a
-  task with what you found, and say its number in the incident (hi team
+  task with what you found, and say its number in the incident (hi app
   incidents note).
 - **Never let a job skip, drop, or invent an item** on its own: in some
   jobs every later value depends on the one before.
 - **Log what you do**: --incident i-3 --because "<why>" with a restart,
-  hi team incidents note for the rest, and hi team incidents close i-3
+  hi app incidents note for the rest, and hi app incidents close i-3
   --because "..." when it's resolved and hi hasn't closed it.
 - **Status questions** about the app's work ("how many a day?", "is it
-  stuck?"): hi team jobs answers from hi's own hourly counts. Look there,
-  and at hi team versions, before you say something is broken.
-- **Frozen or paused.** The team's watcher can freeze the team on its own
+  stuck?"): hi app jobs answers from hi's own hourly counts. Look there,
+  and at hi app versions, before you say something is broken.
+- **Frozen or paused.** The app's watcher can freeze the app on its own
   after something it saw, and the owners can freeze or pause it from the
   machine; hi says so in the ops channel. Tell people what you know, and
   that an owner at the machine lifts it.
@@ -1232,20 +1238,20 @@ channel, and wakes you there once, with what it knows.
 
 ## What needs someone at the machine
 
-Some changes need whoever runs hi on the team's machine, often the
+Some changes need whoever runs hi on the app's machine, often the
 person's IT team rather than the person asking. Say so in the same reply,
 in plain words: what is needed and why, the exact command, and that if
 they don't run hi on the machine themselves, they ask their IT team.
 
 | On the machine | For |
 |---|---|
-| hi team env <team> NAME | a key or setting the app needs; hi asks for the value, so it never goes in the channel (owners can also set it on the dev page) |
-| hi team key <team> openrouter | the team's own OpenRouter key |
-| hi team manifest <team> | the Slack app's settings again, when the bot needs a new permission |
-| hi team domain <team> on | the app on an address that stays |
-| hi team owners <team> add <member ID> | a new owner, who builds in the dev box |
-| hi team access <team> <member ID> developer\|contributor | a developer, who builds in the dev box and releases, or a contributor, who reports bugs (an owner can also do it on the dev page's Security tab) |
-| hi team rebuild <team> | hi's base image again, with Ubuntu's fixes, when an advisory names one of its packages |
+| hi app env <team> NAME | a key or setting the app needs; hi asks for the value, so it never goes in the channel (owners can also set it on the dev page) |
+| hi app key <team> openrouter | the app's own OpenRouter key |
+| hi app manifest <team> | the Slack app's settings again, when the bot needs a new permission |
+| hi app domain <team> on | the app on an address that stays |
+| hi app owners <team> add <member ID> | a new owner, who builds in the dev box |
+| hi app access <team> <member ID> developer\|contributor | a developer, who builds in the dev box and releases, or a contributor, who reports bugs (an owner can also do it on the dev page's Security tab) |
+| hi app rebuild <team> | hi's base image again, with Ubuntu's fixes, when an advisory names one of its packages |
 
 Never ask for a key in the channel, and don't use one that someone posts
 there.

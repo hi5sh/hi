@@ -73,7 +73,7 @@ func teamWaitIdle(team string, pid int, stdout io.Writer) bool {
 	if what == "" {
 		return true
 	}
-	fmt.Fprintf(stdout, "Team %s is %s; hi restarts it when that is done.\n", team, map[string]string{
+	fmt.Fprintf(stdout, "App %s is %s; hi restarts it when that is done.\n", team, map[string]string{
 		teamBusyReleasing: "releasing",
 		teamBusyPaused:    "taking a snapshot",
 	}[what])

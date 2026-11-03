@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Contributing back: hi team propose offers the project a team adopted a
+// Contributing back: hi app propose offers the project a team adopted a
 // piece of the team's merged work, as a draft pull request from a fork
 // under the host's GitHub account, once an owner says yes. Only the
 // work's own changes go: the team's specs, rules, and docs stay out, and
@@ -49,7 +49,7 @@ func (b *teamBroker) propose(request teamProposeRequest) (teamTask, error) {
 	adopted := config.Adopted
 	switch {
 	case adopted == nil:
-		return teamTask{}, errors.New("hi team propose is for a project the team adopted; this one has no upstream")
+		return teamTask{}, errors.New("hi app propose is for a project the app adopted; this one has no upstream")
 	case adopted.Local:
 		return teamTask{}, fmt.Errorf("the project is a copy of the folder %s: there's no upstream to propose to", adopted.From)
 	case adopted.GitHub == "":
@@ -67,7 +67,7 @@ func (b *teamBroker) propose(request teamProposeRequest) (teamTask, error) {
 		return work, fmt.Errorf("%s is proposed already: %s", work.ID, work.Proposed)
 	}
 	if _, brought := teamUpstreamWorkOf(loadTeamTasks(b.team), work); brought {
-		return teamTask{}, fmt.Errorf("%s brought %s's own changes in; there's nothing of the team's in it to offer back", work.ID, adopted.Name)
+		return teamTask{}, fmt.Errorf("%s brought %s's own changes in; there's nothing of the app's in it to offer back", work.ID, adopted.Name)
 	}
 	if request.owner == "" {
 		return teamTask{}, errors.New("an owner proposes work, from the dev box: hi dev propose")
@@ -98,7 +98,7 @@ func (b *teamBroker) propose(request teamProposeRequest) (teamTask, error) {
 		return teamTask{}, fmt.Errorf("git diff: %s", qFirstLine(patch, err.Error()))
 	}
 	if strings.TrimSpace(patch) == "" {
-		return teamTask{}, fmt.Errorf("%s changed only the team's own files (its specs, rules, and docs): nothing to propose", work.ID)
+		return teamTask{}, fmt.Errorf("%s changed only the app's own files (its specs, rules, and docs): nothing to propose", work.ID)
 	}
 
 	// On upstream's latest, in a worktree of its own.
@@ -122,7 +122,7 @@ func (b *teamBroker) propose(request teamProposeRequest) (teamTask, error) {
 	}
 	name := firstNonEmpty(boxGit(".", "config", "user.name"), login)
 	email := firstNonEmpty(boxGit(".", "config", "user.email"), login+"@users.noreply.github.com")
-	message := fmt.Sprintf("%s\n\nFrom the %s team's work (%s).", work.Title, config.Name, work.ID)
+	message := fmt.Sprintf("%s\n\nFrom the %s app's work (%s).", work.Title, config.Name, work.ID)
 	if out, err := exec.Command("git", "-C", tree, "-c", "user.name="+name, "-c", "user.email="+email, "commit", "-q", "-m", message).CombinedOutput(); err != nil {
 		return teamTask{}, fmt.Errorf("git commit: %s", qFirstLine(strings.TrimSpace(string(out)), err.Error()))
 	}
@@ -149,7 +149,7 @@ func (b *teamBroker) propose(request teamProposeRequest) (teamTask, error) {
 		}
 		time.Sleep(teamProposePushWait)
 	}
-	body := strings.TrimSpace(request.Notes) + "\n\n---\n\n" + fmt.Sprintf("This change was made by a team of AI agents (a [hi team](https://hi5.sh/guide/team/adopt/)) working on a copy of %s, and checked by its own reviewer agent. "+
+	body := strings.TrimSpace(request.Notes) + "\n\n---\n\n" + fmt.Sprintf("This change was made by a team of AI agents (a [hi app](https://hi5.sh/guide/app/adopt/)) working on a copy of %s, and checked by its own reviewer agent. "+
 		"It's a draft, opened by @%s, who reads it before marking it ready for review.", adopted.Name, login)
 	out, err := teamGH("", "pr", "create", "--repo", adopted.GitHub, "--draft", "--head", login+":"+branch, "--base", adopted.Follow, "--title", work.Title, "--body", body)
 	if err != nil {

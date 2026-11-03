@@ -6,7 +6,7 @@ description: Have Google's Antigravity make or find things for the app while you
 # Antigravity: assets, media, documents, research
 
 `hi dev agy` hands a task to Google's Antigravity agent, which runs on the
-team's machine, not in this box. It makes files and finds things; it
+app's machine, not in this box. It makes files and finds things; it
 doesn't write the app's code. What it makes comes back into this box, and
 you put it into the project.
 
@@ -25,7 +25,7 @@ machine has one: video, music, and deep research cost the most.
 
 ## Ask first
 
-It runs on someone's plan and key, not the team's budget, so **ask the
+It runs on someone's plan and key, not the app's budget, so **ask the
 user before every run**: say what you'd ask it for and what it may cost,
 such as "Antigravity can make the 12 card images in one run on the Google
 plan, OK?" or "a 10-second video is billed to the Gemini key, a dollar or
@@ -45,7 +45,7 @@ hi dev agy show a-3             # one run: what it made and its summary
   the names of the files. It can't see the project; give it what it needs
   with `--file` (up to 20 files, from your home or the clone).
 - It waits for the run, often a minute or two, longer for a video. One
-  run at a time per team.
+  run at a time per app.
 - What it made is in `~/hi/agy/<id>/`, with its summary in `summary.md`.
   Look at it before you use it, move what you keep into the project, and
   commit it with the work. Say what you used.
@@ -57,7 +57,7 @@ search, or make pictures for its users, it calls a model at run time:
 `$OPENROUTER_BASE_URL` with `$OPENROUTER_API_KEY` (Gemini is there too;
 see hi dev settings), not `hi dev agy`.
 
-When hi says Antigravity isn't set up on the team's machine, tell the user
+When hi says Antigravity isn't set up on the app's machine, tell the user
 an admin of the machine runs `hi install agy` and signs in with `agy` (and
 `hi install gemini-api` and `hi agent token gemini` for media): "ask your
 IT team".

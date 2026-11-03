@@ -1,5 +1,5 @@
-"""A first reply to a new message in a DM with a hi team's lead (written by
-hi on every start of the team).
+"""A first reply to a new message in a DM with a hi app's lead (written by
+hi on every start of the app).
 
 Slack shows the lead's status ("is working") only in a thread, and a
 message at the top of a DM has no thread until the answer comes, which may

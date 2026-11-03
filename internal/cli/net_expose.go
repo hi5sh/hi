@@ -134,7 +134,7 @@ options:
   --domain <name>      an address that stays, such as app.example.com, under a
                        domain verified in NetBird (Reverse Proxy > Custom Domains);
                        needs a NetBird API token in $NETBIRD_API_TOKEN or saved
-                       with hi team domain
+                       with hi app domain
   --host <addr>        where the service listens (default localhost)
   --follow <file>      relay to the port written in this file, read again when it
                        changes, so the service can move without a new address
@@ -143,7 +143,7 @@ options:
   --inject <url>       add <script src="<url>" defer> to each page the browser loads
   --inject-if <file>   inject and route only while this file exists
   --sso <file>         with --link and --domain, people may also sign in with the
-                       OIDC provider and rules in this file (hi team sso writes
+                       OIDC provider and rules in this file (hi app sso writes
                        it), read again when it changes; no file, only the key
   --key <key>          with --link, this key instead of a new one, so the links
                        already given out keep working (a new relay on the same

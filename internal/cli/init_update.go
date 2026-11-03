@@ -83,7 +83,34 @@ func readTemplateMetadata(target string) (templateMetadataFile, error) {
 	if err := json.Unmarshal(data, &metadata); err != nil || metadata.Template == "" || metadata.Params["name"] == "" {
 		return metadata, fmt.Errorf("%s is not valid; restore it from Git", templateMetadataPath)
 	}
+	followRenamedBuiltins(&metadata)
 	return metadata, nil
+}
+
+// renamedBuiltins are built-in templates' old names: app became webapp, and
+// team-app hi-app, in v2.6.67.
+var renamedBuiltins = map[string]string{"app": "webapp", "team-app": "hi-app"}
+
+// followRenamedBuiltins gives a repository that recorded an old built-in name
+// the new one, so it keeps updating; the next update writes it.
+func followRenamedBuiltins(metadata *templateMetadataFile) {
+	if name, ok := renamedBuiltins[metadata.Template]; ok && builtinLayerRecorded(metadata, metadata.Template) {
+		metadata.Template = name
+	}
+	for i, layer := range metadata.Layers {
+		if name, ok := renamedBuiltins[layer.Name]; ok && layer.Source == "builtin" {
+			metadata.Layers[i].Name = name
+		}
+	}
+}
+
+func builtinLayerRecorded(metadata *templateMetadataFile, name string) bool {
+	for _, layer := range metadata.Layers {
+		if layer.Name == name {
+			return layer.Source == "builtin"
+		}
+	}
+	return true
 }
 
 // followRenamedSources maps sources the repository recorded but the catalog

@@ -847,7 +847,7 @@ func TestTeamLeadStart(t *testing.T) {
 	b, ran := teamTestDevPage(t)
 	teamTicketDo("payments", teamTicketRequest{Action: "add", Title: "Chart misses the last day", Author: "Olga"})
 	teamTicketDo("payments", teamTicketRequest{Action: "add", Title: "A trading game", Author: "Olga"})
-	if _, err := b.leadStart(2, "U07ASKER1"); err == nil || !strings.Contains(err.Error(), "only the team's owners") {
+	if _, err := b.leadStart(2, "U07ASKER1"); err == nil || !strings.Contains(err.Error(), "only the app's owners") {
 		t.Fatal(err)
 	}
 	// #1 is at work in the box (1-chart): it's in progress, and #2 waits.

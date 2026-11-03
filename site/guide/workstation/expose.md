@@ -66,11 +66,11 @@ with any lock above. NetBird's proxy turns every other address away before
 its login page, as a rule under Reverse Proxy > Access Control does.
 `netbird expose` can't set that rule, so hi sets it through NetBird's API,
 with the same token as `--domain` (in `$NETBIRD_API_TOKEN` or saved by
-`hi team domain`). The address lets nobody in until NetBird has the rule,
+`hi app domain`). The address lets nobody in until NetBird has the rule,
 and hi checks it every minute: if it has gone or differs, hi puts back
 exactly the addresses it was given, and lets nobody in until it can. An
 address added under Access Control by hand is taken out again, so give
-every address to `--allow-ip` (or `hi team allow-ip`).
+every address to `--allow-ip` (or `hi app allow-ip`).
 
 `--vpn` gives no public address. The service is reachable at
 `http://<this machine's NetBird name>:<port>`, only from devices on your
@@ -99,7 +99,7 @@ name you choose instead, under a domain verified in NetBird (Reverse Proxy
 > Custom Domains, with a CNAME for `*.<domain>`), for up to 30 days. hi
 makes it a NetBird service through NetBird's API, with a token from a
 service user that may manage the reverse proxy, in `$NETBIRD_API_TOKEN` or
-saved by `hi team domain`. When the exposure ends, the service is switched
+saved by `hi app domain`. When the exposure ends, the service is switched
 off rather than removed, so the next exposure on the name takes it over
 with its certificate.
 
@@ -127,8 +127,8 @@ gave out, so a new exposure on the same `--domain` keeps the old links
 working.
 
 > `hi net expose stop --all` stops every exposure your user runs,
-> including the ones [hi team](/guide/team/app/) runs for its apps'
-> production, preview, and dev page. On a machine with teams, stop
+> including the ones [hi app](/guide/app/try/) runs for each app's
+> production, preview, and dev page. On a machine with apps, stop
 > exposures by name.
 {: .warning}
 

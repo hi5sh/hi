@@ -139,7 +139,7 @@ func TestNetExposePublish(t *testing.T) {
 	}
 	// Without a token at all.
 	t.Setenv("NETBIRD_API_TOKEN", "")
-	if _, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "hi team domain") {
+	if _, _, err := netExposePublish("payments.apps.example.com", "100.64.0.7", 41003, nil); err == nil || !strings.Contains(err.Error(), "hi app domain") {
 		t.Fatal(err)
 	}
 	if err := saveNetbirdAPIToken("nbp_test\n"); err != nil {

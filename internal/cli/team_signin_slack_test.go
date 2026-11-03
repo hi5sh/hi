@@ -23,7 +23,7 @@ func TestTeamSigninFromSlackIsForOwners(t *testing.T) {
 	if _, err := b.webSignin("U07OWNER1", "bedrock"); err == nil || !strings.Contains(err.Error(), "/hi-payments signin chatgpt") {
 		t.Fatal(err)
 	}
-	if _, err := b.webSignin("U07ANNA01", "chatgpt"); err == nil || !strings.Contains(err.Error(), "only the team's owners") || !strings.Contains(err.Error(), "<@U07OWNER1>") {
+	if _, err := b.webSignin("U07ANNA01", "chatgpt"); err == nil || !strings.Contains(err.Error(), "only the app's owners") || !strings.Contains(err.Error(), "<@U07OWNER1>") {
 		t.Fatal(err)
 	}
 }
@@ -84,7 +84,7 @@ func TestTeamSigninClaudeFromSlack(t *testing.T) {
 	saveTeamSecrets("payments", teamSecrets{SlackBotToken: "xoxb"})
 	b.exposed = func(name string) (netExposeState, bool) { return netExposeState{}, name == "team-payments" }
 	// No address yet: the machine, then.
-	if _, err := b.webSignin("U07OWNER1", "claude"); err == nil || !strings.Contains(err.Error(), "hi team signin payments claude") {
+	if _, err := b.webSignin("U07OWNER1", "claude"); err == nil || !strings.Contains(err.Error(), "hi app signin payments claude") {
 		t.Fatal(err)
 	}
 	os.MkdirAll(filepath.Join(teamDir("payments"), "run"), 0o700)

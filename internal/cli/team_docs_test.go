@@ -308,7 +308,7 @@ func TestTeamDrawRuleExampleDraws(t *testing.T) {
 	if strings.Contains(html, "docs-broken") {
 		t.Fatal(html)
 	}
-	for _, want := range []string{"People using the app", "src/server.ts", "app.db", "api.example.com", "The team&#39;s machine", "<code>code</code>"} {
+	for _, want := range []string{"People using the app", "src/server.ts", "app.db", "api.example.com", "The app&#39;s machine", "<code>code</code>"} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("no %q in\n%s", want, html)
 		}

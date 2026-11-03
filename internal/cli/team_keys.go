@@ -57,7 +57,7 @@ const (
 	teamFileSettingMax = 32 << 10
 )
 
-// teamSlotDev is the dev box, for its own settings (hi team env --dev).
+// teamSlotDev is the dev box, for its own settings (hi app env --dev).
 const teamSlotDev = "dev"
 
 // teamSlotFilesDir is a slot's file settings on the machine, written as
@@ -208,7 +208,7 @@ func teamAppEnv(name, slot string, port int) map[string]string {
 	env["HI_PUBLIC_URL_FILE"] = teamAppAddressFile
 	env["HI_DATA_DIR"] = teamAppDataDir
 	env["HI_SLOT"] = slot
-	// The app's long work reports here, as files or with "$HI" team job
+	// The app's long work reports here, as files or with "$HI" app job
 	// (team_jobs.go).
 	env["HI_JOBS_DIR"] = teamAppJobsDir
 	// The app's background workers run while this file exists
@@ -381,7 +381,7 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 		if slot == teamSlotPreview {
 			if limit := teamPreviewModelLimit(team); limit > 0 {
 				if spent := loadTeamPreviewSpend(team); spent.USD >= limit {
-					teamModelsRefuse(w, fmt.Sprintf("hi: the preview's model calls stopped for today: they cost $%.2f, and the team's limit for the preview is $%.2f a day (hi team limit on the machine). Production's calls aren't limited.", spent.USD, limit))
+					teamModelsRefuse(w, fmt.Sprintf("hi: the preview's model calls stopped for today: they cost $%.2f, and the app's limit for the preview is $%.2f a day (hi app limit on the machine). Production's calls aren't limited.", spent.USD, limit))
 					return
 				}
 			}
@@ -405,7 +405,7 @@ func runTeamApp(args []string, stderr io.Writer) int {
 		args = args[2:]
 	}
 	if len(args) != 3 {
-		fmt.Fprintln(stderr, "usage: hi team __app [--workers <dir> --box <name>] <models socket> <port> <command>")
+		fmt.Fprintln(stderr, "usage: hi app __app [--workers <dir> --box <name>] <models socket> <port> <command>")
 		return 2
 	}
 	socket, port, command := args[0], args[1], args[2]
@@ -467,9 +467,9 @@ func teamRelay(conn net.Conn, socket string) {
 // ---------------------------------------------------------------------------
 // the commands
 
-// teamKey is hi team key <name> openrouter [--unset], or slack.
+// teamKey is hi app key <name> openrouter [--unset], or slack.
 func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team key <name> openrouter [--unset]\n       hi team key <name> slack"}
+	usage := usageError{"usage: hi app key <name> openrouter [--unset]\n       hi app key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return teamKeySlack(args[0], stdin, stdout)
 	}
@@ -487,7 +487,7 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if fromServer {
 		// The org server made teams' keys until hi 2.6.34 (hi_team_ops.md).
-		return errors.New("the org server no longer makes teams' keys; give the team its own: hi team key <name> openrouter")
+		return errors.New("the org server no longer makes apps' keys; give the app its own: hi app key <name> openrouter")
 	}
 	if len(words) != 2 || words[1] != "openrouter" {
 		return usage
@@ -498,18 +498,18 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's secrets: %w", err)
+		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	if unset {
 		secrets.OpenRouterAPIKey = ""
 	} else {
-		fmt.Fprintln(stdout, "The team's OpenRouter key (openrouter.ai/settings/keys). No box ever holds it.")
+		fmt.Fprintln(stdout, "The app's OpenRouter key (openrouter.ai/settings/keys). No box ever holds it.")
 		key, err := teamAskOpenRouterKey(stdin, stdout, "OpenRouter key")
 		if err != nil {
 			return err
 		}
 		if key == "" {
-			return errors.New("no key was entered; hi team key " + name + " openrouter --unset uses this machine's")
+			return errors.New("no key was entered; hi app key " + name + " openrouter --unset uses this machine's")
 		}
 		secrets.OpenRouterAPIKey = key
 	}
@@ -520,14 +520,14 @@ func teamKey(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if unset {
-		fmt.Fprintf(stdout, "Team %s uses this machine's OpenRouter key again (Hermes').\n", name)
+		fmt.Fprintf(stdout, "App %s uses this machine's OpenRouter key again (Hermes').\n", name)
 	} else {
-		fmt.Fprintf(stdout, "Team %s's model calls use its own OpenRouter key now: the lead's, and the app's at $OPENROUTER_BASE_URL.\n", name)
+		fmt.Fprintf(stdout, "App %s's model calls use its own OpenRouter key now: the lead's, and the app's at $OPENROUTER_BASE_URL.\n", name)
 	}
 	return nil
 }
 
-// teamKeySlack is hi team key <name> slack: the Slack app's tokens again,
+// teamKeySlack is hi app key <name> slack: the Slack app's tokens again,
 // after Slack gave new ones. Each is asked for and checked; Enter keeps the
 // one the team has. A running team restarts with them.
 func teamKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
@@ -537,9 +537,9 @@ func teamKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's secrets: %w", err)
+		return fmt.Errorf("the app's secrets: %w", err)
 	}
-	fmt.Fprintf(stdout, "Team %s's Slack app tokens, from its settings at api.slack.com/apps. Enter keeps the one the team has.\n", name)
+	fmt.Fprintf(stdout, "App %s's Slack app tokens, from its settings at api.slack.com/apps. Enter keeps the one the app has.\n", name)
 	bot, err := teamAskKeep(stdin, stdout, "Bot User OAuth Token (OAuth & Permissions, xoxb-…)", func(token string) error {
 		if token == "" {
 			return nil
@@ -576,10 +576,10 @@ func teamKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if teamState(name) != "up" {
-		fmt.Fprintf(stdout, "Saved. Team %s uses them from its next start: hi team up %s.\n", name, name)
+		fmt.Fprintf(stdout, "Saved. App %s uses them from its next start: hi app up %s.\n", name, name)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Saved. Team %s restarts with them.\n", name)
+	fmt.Fprintf(stdout, "Saved. App %s restarts with them.\n", name)
 	return teamUp(name, stdout)
 }
 
@@ -603,12 +603,12 @@ func teamAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(str
 	}
 }
 
-// teamEnv is hi team env <name> [--production | --preview] [KEY=VALUE |
+// teamEnv is hi app env <name> [--production | --preview] [KEY=VALUE |
 // KEY | --file KEY=<path> | --unset KEY]...: settings for both slots, or
 // with --production for production alone, or with --preview a value of
 // the preview's own.
 func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi team env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]..."}
+	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]..."}
 	if len(args) == 0 {
 		return usage
 	}
@@ -618,7 +618,7 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
-		return fmt.Errorf("the team's secrets: %w", err)
+		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	slot := ""
 	var rest []string
@@ -640,10 +640,10 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		names := teamEnvNames(secrets)
 		if len(names) == 0 {
-			fmt.Fprintf(stdout, "Team %s has no settings. Add one: hi team env %s KEY=VALUE\n", name, name)
+			fmt.Fprintf(stdout, "App %s has no settings. Add one: hi app env %s KEY=VALUE\n", name, name)
 			return nil
 		}
-		fmt.Fprintf(stdout, "Team %s's app gets: %s\n", name, strings.Join(names, ", "))
+		fmt.Fprintf(stdout, "App %s gets: %s\n", name, strings.Join(names, ", "))
 		return nil
 	}
 	var set, unset, files []string
@@ -651,18 +651,18 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		arg := rest[i]
 		if arg == "--unset" {
 			if i+1 >= len(rest) {
-				return usageError{"usage: hi team env <name> [--production | --preview] --unset KEY"}
+				return usageError{"usage: hi app env <name> [--production | --preview] --unset KEY"}
 			}
 			i++
 			if !teamEnvUnset(&secrets, slot, rest[i]) && !teamFileUnset(&secrets, slot, rest[i]) {
-				return fmt.Errorf("team %s has no setting %s%s", name, rest[i], teamEnvSlotWords(slot))
+				return fmt.Errorf("app %s has no setting %s%s", name, rest[i], teamEnvSlotWords(slot))
 			}
 			unset = append(unset, rest[i])
 			continue
 		}
 		if arg == "--file" {
 			if i+1 >= len(rest) {
-				return usageError{"usage: hi team env <name> [--production | --preview] --file KEY=<path>"}
+				return usageError{"usage: hi app env <name> [--production | --preview] --file KEY=<path>"}
 			}
 			i++
 			key, file, _ := strings.Cut(rest[i], "=")
@@ -670,7 +670,7 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 				return err
 			}
 			if file == "" {
-				return usageError{"usage: hi team env <name> [--production | --preview] --file KEY=<path>"}
+				return usageError{"usage: hi app env <name> [--production | --preview] --file KEY=<path>"}
 			}
 			data, err := teamFileSettingRead(file)
 			if err != nil {
@@ -706,16 +706,16 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	switch {
 	case len(set) > 0 && slot == teamSlotDev:
-		fmt.Fprintf(stdout, "Team %s's dev box gets its own %s; the app's boxes don't.\n", name, strings.Join(set, ", "))
+		fmt.Fprintf(stdout, "App %s's dev box gets its own %s; the app's boxes don't.\n", name, strings.Join(set, ", "))
 	case len(set) > 0 && slot == teamSlotProduction:
-		fmt.Fprintf(stdout, "Team %s's production gets %s; the preview doesn't, unless it has a value of its own (--preview).\n", name, strings.Join(set, ", "))
+		fmt.Fprintf(stdout, "App %s's production gets %s; the preview doesn't, unless it has a value of its own (--preview).\n", name, strings.Join(set, ", "))
 	case len(set) > 0 && slot == teamSlotPreview:
-		fmt.Fprintf(stdout, "Team %s's preview gets its own %s; production keeps what it has.\n", name, strings.Join(set, ", "))
+		fmt.Fprintf(stdout, "App %s's preview gets its own %s; production keeps what it has.\n", name, strings.Join(set, ", "))
 	case len(set) > 0:
-		fmt.Fprintf(stdout, "Team %s's app gets %s, in the preview and production.\n", name, strings.Join(set, ", "))
+		fmt.Fprintf(stdout, "App %s gets %s, in the preview and production.\n", name, strings.Join(set, ", "))
 	}
 	if len(unset) > 0 {
-		fmt.Fprintf(stdout, "Team %s's %s no longer gets %s.\n", name, map[string]string{"": "app or dev box", teamSlotProduction: "production", teamSlotPreview: "preview", teamSlotDev: "dev box"}[slot], strings.Join(unset, ", "))
+		fmt.Fprintf(stdout, "App %s's %s no longer gets %s.\n", name, map[string]string{"": "app or dev box", teamSlotProduction: "production", teamSlotPreview: "preview", teamSlotDev: "dev box"}[slot], strings.Join(unset, ", "))
 	}
 	where := "the app's boxes"
 	if slot == teamSlotDev {
@@ -725,10 +725,10 @@ func teamEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "In %s, $%s is %s/%s, read-only. hi keeps it; the file you gave isn't needed on this machine any more.\n", where, key, teamAppFilesDir, key)
 	}
 	if slot == teamSlotDev {
-		fmt.Fprintf(stdout, "The dev box has it from its next start: hi team dev %s restart, when the agents are idle.\n", name)
+		fmt.Fprintf(stdout, "The dev box has it from its next start: hi app dev %s restart, when the agents are idle.\n", name)
 		return nil
 	}
-	fmt.Fprintln(stdout, "The next preview has it, and hi restarts production on the same link within a minute while the team is up.")
+	fmt.Fprintln(stdout, "The next preview has it, and hi restarts production on the same link within a minute while the app is up.")
 	return nil
 }
 

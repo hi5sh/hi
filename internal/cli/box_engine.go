@@ -170,7 +170,7 @@ func boxHardening(memory string) []string {
 // 22, a release behind the LTS the web template is tested on.
 // Bun, like uv, is the latest release when the image is built, checked
 // against that release's SHASUMS256.txt. Ubuntu's packages are upgraded,
-// so a build has the fixes Ubuntu has published (hi team rebuild).
+// so a build has the fixes Ubuntu has published (hi app rebuild).
 const boxContainerfile = `FROM docker.io/library/ubuntu:26.04
 RUN userdel -r ubuntu 2>/dev/null || true \
  && useradd --uid 1000 --home-dir /box/home --no-create-home --shell /bin/bash box \

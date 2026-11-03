@@ -58,7 +58,7 @@ func (b *teamBroker) localBeat(beat apiHeartbeat, bomPath string, now time.Time)
 	var posts []string
 	w.mu.Lock()
 	// The owners' choice of automatic freezes, from the file, which
-	// hi team watch writes.
+	// hi app watch writes.
 	var config watchConfig
 	if data, err := os.ReadFile(filepath.Join(w.dir, "config.json")); err == nil {
 		json.Unmarshal(data, &config)
@@ -74,7 +74,7 @@ func (b *teamBroker) localBeat(beat apiHeartbeat, bomPath string, now time.Time)
 		var want teamWatchWant
 		if json.Unmarshal(data, &want) == nil && want.Action != "" {
 			do := w.wantLocked(team, want.Action, want.By, want.Because, now)
-			posts = append(posts, fmt.Sprintf(":octagonal_sign: %s asked the team to %s%s (%s). It does within a minute.",
+			posts = append(posts, fmt.Sprintf(":octagonal_sign: %s asked the app to %s%s (%s). It does within a minute.",
 				teamSlackEscape(want.By), want.Action, map[bool]string{true: ": " + teamSlackEscape(want.Because), false: ""}[want.Because != ""], do.ID))
 		}
 		os.Remove(teamWatchWantPath(b.team))
@@ -161,10 +161,10 @@ func (b *teamBroker) tellLocal(state *teamWatchState, events []watchEvent) {
 	}
 }
 
-// teamWatchCommand is hi team watch <name> [--auto-freeze on|off]: the
+// teamWatchCommand is hi app watch <name> [--auto-freeze on|off]: the
 // watcher's open incidents, and whether it freezes on its own.
 func teamWatchCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team watch <name> [--auto-freeze on|off]"}
+	usage := usageError{"usage: hi app watch <name> [--auto-freeze on|off]"}
 	if len(args) != 1 && !(len(args) == 3 && args[1] == "--auto-freeze" && (args[2] == "on" || args[2] == "off")) {
 		return usage
 	}
@@ -188,9 +188,9 @@ func teamWatchCommand(args []string, stdout io.Writer) error {
 		}
 	}
 	if config.AutoFreeze == "off" {
-		fmt.Fprintf(stdout, "Team %s's watcher doesn't freeze it on its own; an exploited advisory in the app or a burst to a watched host is an incident that waits for an owner.\n", name)
+		fmt.Fprintf(stdout, "App %s's watcher doesn't freeze it on its own; an exploited advisory in the app or a burst to a watched host is an incident that waits for an owner.\n", name)
 	} else {
-		fmt.Fprintf(stdout, "Team %s's watcher freezes it on its own for an exploited advisory in the app's own packages, or a burst to a watched host (hi team watch %s --auto-freeze off to wait for an owner).\n", name, name)
+		fmt.Fprintf(stdout, "App %s's watcher freezes it on its own for an exploited advisory in the app's own packages, or a burst to a watched host (hi app watch %s --auto-freeze off to wait for an owner).\n", name, name)
 	}
 	fmt.Fprintln(stdout, teamWatchLine(name))
 	var open []string
@@ -206,10 +206,10 @@ func teamWatchCommand(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// teamStopCommand is hi team freeze|unfreeze|pause|unpause <name>
+// teamStopCommand is hi app freeze|unfreeze|pause|unpause <name>
 // --why "…": asked here, done by the team's broker within a minute.
 func teamStopCommand(action string, args []string, stdout io.Writer) error {
-	usage := usageError{fmt.Sprintf("usage: hi team %s <name> --why \"<why>\"", action)}
+	usage := usageError{fmt.Sprintf("usage: hi app %s <name> --why \"<why>\"", action)}
 	if len(args) == 0 {
 		return usage
 	}
@@ -229,7 +229,7 @@ func teamStopCommand(action string, args []string, stdout io.Writer) error {
 		return err
 	}
 	if (action == "freeze" || action == "pause") && strings.TrimSpace(because) == "" {
-		return fmt.Errorf("say why, for the ops channel: hi team %s %s --why \"<why>\"", action, name)
+		return fmt.Errorf("say why, for the ops channel: hi app %s %s --why \"<why>\"", action, name)
 	}
 	want := teamWatchWant{Action: action, By: firstNonEmpty(os.Getenv("USER"), "an admin") + " on the machine", Because: because, At: time.Now().UTC()}
 	data, _ := json.Marshal(want)
@@ -240,9 +240,9 @@ func teamStopCommand(action string, args []string, stdout io.Writer) error {
 		return err
 	}
 	if teamState(name) != "up" {
-		fmt.Fprintf(stdout, "Asked team %s to %s; it does when it's up again (hi team up %s).\n", name, action, name)
+		fmt.Fprintf(stdout, "Asked app %s to %s; it does when it's up again (hi app up %s).\n", name, action, name)
 		return nil
 	}
-	fmt.Fprintf(stdout, "Asked team %s to %s. Its broker does within a minute, and says so in the ops channel.\n", name, action)
+	fmt.Fprintf(stdout, "Asked app %s to %s. Its broker does within a minute, and says so in the ops channel.\n", name, action)
 	return nil
 }

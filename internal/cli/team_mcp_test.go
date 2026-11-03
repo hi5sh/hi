@@ -181,7 +181,7 @@ func TestTeamMCPLead(t *testing.T) {
 	}
 }
 
-// TestTeamMCPBridge runs hi team mcp as Hermes would: lines in, lines out,
+// TestTeamMCPBridge runs hi app mcp as Hermes would: lines in, lines out,
 // and a notice when the app's tools change.
 func TestTeamMCPBridge(t *testing.T) {
 	setupTeamTest(t)

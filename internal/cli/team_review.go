@@ -42,7 +42,7 @@ type teamDeepReview struct {
 	Dev bool `json:"dev,omitempty"`
 }
 
-// teamDeepReviewRequest is the lead's hi team review --project.
+// teamDeepReviewRequest is the lead's hi app review --project.
 type teamDeepReviewRequest struct {
 	Budget  float64 `json:"budget_usd"`
 	Areas   string  `json:"areas,omitempty"`
@@ -103,7 +103,7 @@ func saveTeamDeepReview(team string, review teamDeepReview) error {
 func teamDeepReviewRunning(team string) error {
 	for _, earlier := range loadTeamDeepReviews(team) {
 		if earlier.Status == "running" {
-			return fmt.Errorf("deep review %s is still running; wait for it, or stop it with hi team review stop %s", earlier.ID, earlier.ID)
+			return fmt.Errorf("deep review %s is still running; wait for it, or stop it with hi app review stop %s", earlier.ID, earlier.ID)
 		}
 	}
 	return nil
@@ -121,7 +121,7 @@ func (b *teamBroker) launchDeepReview(config teamConfig, request teamDeepReviewR
 				return r.Commit, nil
 			}
 		}
-		return "", fmt.Errorf("there's no %s; hi team versions lists them", version)
+		return "", fmt.Errorf("there's no %s; hi app versions lists them", version)
 	}
 	if request.Version != "" {
 		if !teamVersionArg.MatchString(request.Version) {
@@ -237,7 +237,7 @@ func teamReviewWhat(review teamDeepReview) string {
 // and what the lead adds from the people.
 func (b *teamBroker) deepReviewContext(config teamConfig, versions teamVersions, lead string) string {
 	var c strings.Builder
-	fmt.Fprintf(&c, "This is the project of a team of agents in a Slack channel, for the people in it.\n\nWhat it's for: %s\n\n", config.Purpose)
+	fmt.Fprintf(&c, "This is the project of an app that agents build in a Slack channel, for the people in it.\n\nWhat it's for: %s\n\n", config.Purpose)
 	var production teamPreview
 	if data, err := os.ReadFile(teamSlotPath(b.team, teamSlotProduction)); err == nil && json.Unmarshal(data, &production) == nil && production.URL != "" {
 		// The address without its key: the key is what lets people in,
@@ -245,7 +245,7 @@ func (b *teamBroker) deepReviewContext(config teamConfig, versions teamVersions,
 		address, guard := production.URL, "Anyone who has the address can open it; there's no login page in front of it."
 		if parsed, err := url.Parse(production.URL); err == nil {
 			if parsed.Query().Get(netExposeKeyParam) != "" {
-				guard = "Its link carries a secret key: without the key, the app doesn't open, and the page asks for the link. Only the people the team gives the link to can reach it."
+				guard = "Its link carries a secret key: without the key, the app doesn't open, and the page asks for the link. Only the people the app's team gives the link to can reach it."
 			}
 			parsed.RawQuery, parsed.Fragment = "", ""
 			address = parsed.String()
@@ -257,7 +257,7 @@ func (b *teamBroker) deepReviewContext(config teamConfig, versions teamVersions,
 	} else {
 		c.WriteString("Production isn't running at an address yet.\n\n")
 	}
-	fmt.Fprintf(&c, "It has %s, who build it; anyone in the team's channel may suggest changes.\n\n", plural(len(config.Owners), "owner"))
+	fmt.Fprintf(&c, "It has %s, who build it; anyone in the app's channel may suggest changes.\n\n", plural(len(config.Owners), "owner"))
 	if entries, err := os.ReadDir(filepath.Join(b.repo, "docs", "decisions")); err == nil {
 		var decisions []string
 		for _, entry := range entries {
@@ -266,7 +266,7 @@ func (b *teamBroker) deepReviewContext(config teamConfig, versions teamVersions,
 			}
 		}
 		if len(decisions) > 0 {
-			c.WriteString("The team's technical decisions are in docs/decisions/; read them before calling something a mistake:\n\n" + strings.Join(decisions, "\n") + "\n\n")
+			c.WriteString("The app's technical decisions are in docs/decisions/; read them before calling something a mistake:\n\n" + strings.Join(decisions, "\n") + "\n\n")
 		}
 	}
 	if lead = strings.TrimSpace(lead); lead != "" {
@@ -353,7 +353,7 @@ func teamDeepReviewPrompt(record teamDeepReview, rv review, sent bool) string {
 	owner := firstNonEmpty(record.Approval.Name, "the owner")
 	delivered := fmt.Sprintf("hi sent %s the full report in a DM.", owner)
 	if !sent {
-		delivered = fmt.Sprintf("hi couldn't send %s the report in a DM; tell them it's on the team's machine (hi agent review show %s --md).", owner, rv.ID)
+		delivered = fmt.Sprintf("hi couldn't send %s the report in a DM; tell them it's on the app's machine (hi agent review show %s --md).", owner, rv.ID)
 	}
 	compared := ""
 	if line := reviewCompareCounts(rv); line != "" {
@@ -365,14 +365,14 @@ func teamDeepReviewPrompt(record teamDeepReview, rv review, sent bool) string {
 	}
 	return fmt.Sprintf(`This is hi, not a person. The deep review %[1]s that %[2]s agreed to (%[3]s) is over. %[4]s%[5]s %[6]s
 
-The report is /team/reviews/%[1]s/report.md. Read it, then write for the people in this thread. They may not read code: leave out file, function, and route names, and jargon such as CSRF, SSRF, or JSON, unless they ask. Say what could go wrong for them, in their words: "someone with the link could stop the history from filling in", not "POST /api/history/pause has no auth". The report's titles are for the team; write each finding in a line of your own, with its number (F-1) so people can name it.
+The report is /team/reviews/%[1]s/report.md. Read it, then write for the people in this thread. They may not read code: leave out file, function, and route names, and jargon such as CSRF, SSRF, or JSON, unless they ask. Say what could go wrong for them, in their words: "someone with the link could stop the history from filling in", not "POST /api/history/pause has no auth". The report's titles are for the developers; write each finding in a line of your own, with its number (F-1) so people can name it.
 
 - How many findings were confirmed, by severity, each in that line of yours, and nothing about how to exploit them.
 - That these are recommendations to weigh, not requirements: the reviewers read the code and didn't know how the app is run, who uses it, or what protects it.
-- Which findings you think matter for this team and why, and which you think don't, because of how the app is run, who uses it, or what protects it (say what each one assumes when that's the reason).
+- Which findings you think matter for this app and why, and which you think don't, because of how the app is run, who uses it, or what protects it (say what each one assumes when that's the reason).
 - The questions you can't settle yourself, about those assumptions.
 
-Don't offer to fix everything; the people choose. Remember what they decide, so a finding they set aside isn't raised again as news. For what they choose, file a ticket for the owners (hi team ticket add), with the finding's number (%[1]s:F-1) and its section from the report.`,
+Don't offer to fix everything; the people choose. Remember what they decide, so a finding they set aside isn't raised again as news. For what they choose, file a ticket for the owners (hi app ticket add), with the finding's number (%[1]s:F-1) and its section from the report.`,
 		rv.ID, owner, teamReviewWhat(record), ended, compared, delivered)
 }
 
@@ -393,7 +393,7 @@ func (b *teamBroker) stopDeepReview(id string) (string, error) {
 			return strings.TrimSpace(string(out)), err
 		}
 	}
-	return "", fmt.Errorf("no deep review %s; hi team review list shows them", id)
+	return "", fmt.Errorf("no deep review %s; hi app review list shows them", id)
 }
 
 // showDeepReviews is the team's deep reviews, or one review's findings.
@@ -421,5 +421,5 @@ func (b *teamBroker) showDeepReviews(id string) (string, error) {
 			return out.String(), nil
 		}
 	}
-	return "", fmt.Errorf("no deep review %s; hi team review list shows them", id)
+	return "", fmt.Errorf("no deep review %s; hi app review list shows them", id)
 }

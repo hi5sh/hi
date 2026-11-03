@@ -325,7 +325,7 @@ func TestTeamFreezeAndPause(t *testing.T) {
 	if strings.Join(engine, "; ") != "pause hi-box-team-payments-app-production-4100" {
 		t.Fatal(engine)
 	}
-	if len(channel.calls) == 0 || !strings.Contains(strings.Join(channel.calls, "\n"), "froze the team* (bob on the machine: looking into a paste site)") {
+	if len(channel.calls) == 0 || !strings.Contains(strings.Join(channel.calls, "\n"), "froze the app* (bob on the machine: looking into a paste site)") {
 		t.Fatal(channel.calls)
 	}
 	b.sendHeartbeat("")

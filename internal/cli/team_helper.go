@@ -50,7 +50,7 @@ var teamHelperScript = func() []byte {
 
 const (
 	teamHelperPrefix = "/__hi/"
-	// teamLeadAPIPort is Hermes' API server in the lead's box; hi team
+	// teamLeadAPIPort is Hermes' API server in the lead's box; hi app
 	// __leadapi relays a socket the host reaches to it.
 	teamLeadAPIPort   = 8642
 	teamLeadAPISocket = "lead-api.sock"
@@ -100,7 +100,7 @@ func teamSyncHelper(config teamConfig) error {
 	return nil
 }
 
-// teamHelperLine is the helper's state, for hi team status and the lead.
+// teamHelperLine is the helper's state, for hi app status and the lead.
 func teamHelperLine(config teamConfig) string {
 	state := func(slot string) string {
 		if teamHelperOn(config, slot) {
@@ -180,7 +180,7 @@ type teamWebMessage struct {
 	Refs  []teamWebRef  `json:"refs,omitempty"`  // the elements the person pointed at
 	Files []teamWebFile `json:"files,omitempty"` // in web/<id>-files (team_web.go)
 	// Posted is a message of the lead's from outside the chat's
-	// conversation with it: hi team web post.
+	// conversation with it: hi app web post.
 	Posted  bool      `json:"posted,omitempty"`
 	At      time.Time `json:"at"`
 	SlackTS string    `json:"slack_ts,omitempty"` // its copy in the channel
@@ -507,7 +507,7 @@ func (b *teamBroker) webHandler(slot string) http.Handler {
 		w.Write(teamSnapSource)
 	})
 	mux.HandleFunc("GET "+teamHelperPrefix+"api/status", func(w http.ResponseWriter, r *http.Request) {
-		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " team lead", Slot: slot}
+		status := teamWebStatus{Team: b.team, Lead: teamBotName(b.team) + " lead", Slot: slot}
 		if config, err := loadTeam(b.team); err == nil && config.Members["lead"].Name != "" {
 			status.Lead = config.Members["lead"].Name
 		}
@@ -584,10 +584,10 @@ const teamWebHistory = 30
 
 // teamWebProductionNote starts a chat from production, where the person
 // uses the app rather than shapes it.
-const teamWebProductionNote = `(They are on production, the version people rely on. What they ask for goes into dev, as from anywhere: say so, then send them the preview link with hi team web post when it is ready to try, naming the version ("dev, v3 + 1 change"). Production gets it with the next release, which an owner or a developer makes on the dev page; when you ask for it, say what else in dev would go with it. If they only report a problem or ask how something works, answer that; nothing needs to change.)`
+const teamWebProductionNote = `(They are on production, the version people rely on. What they ask for goes into dev, as from anywhere: say so, then send them the preview link with hi app web post when it is ready to try, naming the version ("dev, v3 + 1 change"). Production gets it with the next release, which an owner or a developer makes on the dev page; when you ask for it, say what else in dev would go with it. If they only report a problem or ask how something works, answer that; nothing needs to change.)`
 
 // teamWebFirstNote starts each web chat for the lead.
-const teamWebFirstNote = `(This message comes from the helper in the team's app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in a task, since the owners' agents find them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in their DM with you (in the channel when they aren't signed in through Slack). Your answer ends when you stop writing; to tell them something here later, run hi team web post <chat> "...". What they ask to change becomes a task for the owners (hi team task add): say its number.)`
+const teamWebFirstNote = `(This message comes from the helper in the app: a chat panel beside the page the person is on, not Slack. The header in brackets says who it is (signed in through Slack, so checked), which address and version they see, and the page. "Referenced elements" are parts of the page they clicked on to show what they mean: #1, #2 in their words are those; put them in a task, since the owners' agents find them in the code by their text, classes, and html. A picture of each comes with the message, and so do files they attach, listed with their paths in /team/web. Answer in a few short sentences, as in Slack: the panel is narrow. hi copies this chat into a thread in their DM with you (in the channel when they aren't signed in through Slack). Your answer ends when you stop writing; to tell them something here later, run hi app web post <chat> "...". What they ask to change becomes a task for the owners (hi app task add): say its number.)`
 
 // teamSlackEscape keeps a person's text from becoming Slack markup.
 func teamSlackEscape(text string) string {
@@ -751,7 +751,7 @@ func teamKeepLeadAPI(engine boxEngine, container, socket string, done <-chan str
 			}
 			continue
 		}
-		out, err := engine.output("exec", "-d", container, "/usr/local/bin/hi", "team", "__leadapi", "/team/run/"+teamLeadAPISocket, strconv.Itoa(teamLeadAPIPort))
+		out, err := engine.output("exec", "-d", container, "/usr/local/bin/hi", "app", "__leadapi", "/team/run/"+teamLeadAPISocket, strconv.Itoa(teamLeadAPIPort))
 		if err != nil && !reported {
 			fmt.Fprintf(stderr, "hi: the helper can't reach the lead yet: %s\n", qFirstLine(strings.TrimSpace(out), err.Error()))
 			reported = true
@@ -760,7 +760,7 @@ func teamKeepLeadAPI(engine boxEngine, container, socket string, done <-chan str
 }
 
 // ---------------------------------------------------------------------------
-// hi team helper
+// hi app helper
 
 // teamHelperRequest turns a slot's helper on or off.
 type teamHelperRequest struct {
@@ -831,10 +831,10 @@ func teamSetHelper(config *teamConfig, slot string, on bool) error {
 	return teamSyncHelper(*config)
 }
 
-// teamHelperCommand is hi team helper <name> [preview|production on|off],
+// teamHelperCommand is hi app helper <name> [preview|production on|off],
 // on the machine: whoever runs the machine needs no approval.
 func teamHelperCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi team helper <name> [preview|production on|off]"}
+	usage := usageError{"usage: hi app helper <name> [preview|production on|off]"}
 	if len(args) != 1 && len(args) != 3 {
 		return usage
 	}

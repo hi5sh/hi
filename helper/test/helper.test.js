@@ -1,6 +1,6 @@
 // Tests of the helper as a browser runs it: the script hi serves, on a
-// page of a team's app, talking to a fake of the team's service at
-// /__hi/api/. `hi team` serves the script from Go; the Go test
+// page of a hi app, talking to a fake of the app's service at
+// /__hi/api/. `hi app` serves the script from Go; the Go test
 // TestHelperInABrowser runs these with the exact bytes it serves
 // (HI_HELPER_SCRIPT), and without it they put the script together the
 // same way from its two files.
@@ -95,7 +95,7 @@ afterEach(() => mock.restore());
 
 const anyone = { "GET status": () => json({ team: "payments", version: "v3", commit: "abc", command: "/hi-payments" }) };
 
-test("shows no button when the team's service doesn't answer", async () => {
+test("shows no button when the app's service doesn't answer", async () => {
   await start({}, { button: false });
   await until(() => requests.length);
   await new Promise((resolve) => setTimeout(resolve, 50));

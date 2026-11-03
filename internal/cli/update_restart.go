@@ -10,9 +10,10 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi org run` (or the older `hi server run`) or team (`hi team __serve`)
-// still runs the old binary until it restarts. hi update finds them, and
-// the systemd unit that runs them, and offers to restart them.
+// After an update, a running `hi org run` (or the older `hi server run`) or
+// app (`hi app __serve`, `hi team __serve` in older units) still runs the
+// old binary until it restarts. hi update finds them, and the systemd unit
+// that runs them, and offers to restart them.
 
 // These are replaced in tests.
 var (
@@ -40,7 +41,7 @@ type staleServer struct {
 // what names it in a sentence.
 func (s staleServer) what() string {
 	if s.team != "" {
-		return "Team " + s.team
+		return "App " + s.team
 	}
 	if s.front != "" {
 		return "The front of " + s.front
@@ -94,7 +95,7 @@ func staleServers(path string) []staleServer {
 		}
 		switch {
 		case len(args) >= 3 && (args[1] == "org" || args[1] == "server") && args[2] == "run":
-		case len(args) == 4 && args[1] == "team" && args[2] == "__serve":
+		case len(args) == 4 && (args[1] == "app" || args[1] == "team") && args[2] == "__serve":
 			server.team = args[3]
 		default:
 			continue
@@ -177,7 +178,7 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			}
 		}
 		if server.team != "" && !teamWaitIdle(server.team, server.pid, stdout) {
-			fmt.Fprintf(stdout, "Team %s is still busy, so it isn't restarted. When it is done:\n  %s\n", server.team, line)
+			fmt.Fprintf(stdout, "App %s is still busy, so it isn't restarted. When it is done:\n  %s\n", server.team, line)
 			continue
 		}
 		fmt.Fprintf(stdout, "$ %s\n", line)

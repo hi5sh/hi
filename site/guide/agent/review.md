@@ -254,6 +254,6 @@ hi agent review stop <id>         stop it, keep what's done, and write the repor
 hi agent review rm <id>           remove a review, its report, and its snapshot
 ```
 
-In a team, an owner's agent starts a deep review from the team's dev box,
+In an app, an owner's agent starts a deep review from the app's dev box,
 with `hi dev deep-review --budget <usd>`, once the owner names the budget:
-see [Reviews from the dev box](/guide/team/reviews/).
+see [Reviews from the dev box](/guide/app/reviews/).

@@ -178,7 +178,7 @@ func writeTeamHindsightConfig(lead, team, bank, memoryIP string) error {
 }
 
 func teamMemoryContext(team string) string {
-	return "the " + team + " team's Slack channel: the people, and the team's lead"
+	return "the " + team + " app's Slack channel: the people, and the app's lead"
 }
 
 // teamPrepareMemory readies everything the lead's memory needs before the

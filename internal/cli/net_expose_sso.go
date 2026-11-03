@@ -2,7 +2,7 @@ package cli
 
 // Sign-in with an organisation's OpenID Connect provider, in the relay,
 // beside the link's key (docs/specs/approved/hi_team_sso.md). --sso names
-// a file with the provider and the rules, which hi team sso writes; the
+// a file with the provider and the rules, which hi app sso writes; the
 // relay reads it again when it changes, and no file is sign-in off. The
 // provider sends people back to the name that stays (--domain), so without
 // one there is only the key.
@@ -289,7 +289,7 @@ func (s *netExposeSSO) callback(w http.ResponseWriter, r *http.Request) bool {
 	if reason := netExposeSSOAllow(config, claims); reason != "" {
 		s.record(config, r, "refused", email, reason)
 		who := firstNonEmpty(email, "This account")
-		netExposeSSOPage(w, http.StatusForbidden, "Not let in", who+" signed in, but this app lets in only "+netExposeSSORules(config)+". Ask the team's owners, or open the page with the whole link you were sent.")
+		netExposeSSOPage(w, http.StatusForbidden, "Not let in", who+" signed in, but this app lets in only "+netExposeSSORules(config)+". Ask the app's owners, or open the page with the whole link you were sent.")
 		return true
 	}
 	s.record(config, r, "in", email, "")

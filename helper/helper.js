@@ -1,8 +1,8 @@
-// The hi team helper: a panel beside any page of the team's app, with
+// The hi app helper: a panel beside any page of the app, with
 // help, answered from the app's guide, and feedback to the team, which
 // the lead files for the owners (from hi 2.4 the chat with the lead is in
 // Slack, not here). hi net expose adds this script to each page
-// it relays and serves /__hi/ from the team's service, so the app holds
+// it relays and serves /__hi/ from the app's service, so the app holds
 // none of it (docs/specs/approved/hi_team_helper.md and
 // hi_team_helper_signin.md). Plain JavaScript, no framework,
 // no build step: hi serves this file inside one closure with finder
@@ -313,7 +313,7 @@ textarea:focus { border-color: var(--accent); }
   };
   const feedbackTab = () => state.tab === "feedback";
   // Someone signed in with their own link reports bugs, which hi files as
-  // tasks, where anyone else sends feedback to the team's channel.
+  // tasks, where anyone else sends feedback to the app's channel.
   const reporting = () => !!state.status?.report;
   nameInput.value = store.get("localStorage", "name") || "";
   nameInput.addEventListener("input", () => {
@@ -399,7 +399,7 @@ textarea:focus { border-color: var(--accent); }
   });
   addEventListener("resize", () => setWidth(store.get("localStorage", "width") || usualWidth));
 
-  // The page can follow the helper, as a new team's welcome page does to
+  // The page can follow the helper, as a new app's welcome page does to
   // point at the button: <hi-helper> says where the button is
   // (data-corner: tl, tr, bl, br), whether the panel is open (data-open),
   // whether the button is hidden (data-hidden), whether whoever is here
@@ -413,7 +413,7 @@ textarea:focus { border-color: var(--accent); }
     dispatchEvent(new CustomEvent("hi-helper", { detail }));
   }
 
-  // The page can hand the panel some text, as a new team's welcome page
+  // The page can hand the panel some text, as a new app's welcome page
   // does from its own message box: a "hi-helper-send" event on window with
   // { text } opens the panel with the text in its box.
   addEventListener("hi-helper-send", (event) => {
@@ -504,7 +504,7 @@ textarea:focus { border-color: var(--accent); }
   }
 
   // ---------------------------------------------------------------------
-  // talking to the team's service
+  // talking to the app's service
 
   async function call(path, options = {}) {
     const response = await fetch(API + path, {
@@ -601,7 +601,7 @@ textarea:focus { border-color: var(--accent); }
     render();
   }
 
-  // sendFeedback sends feedback to the team's channel, with a picture of
+  // sendFeedback sends feedback to the app's channel, with a picture of
   // the page when the box is ticked.
   async function sendFeedback(text, items, files) {
     state.sending = true;
@@ -794,18 +794,18 @@ textarea:focus { border-color: var(--accent); }
       return;
     }
     body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Tell the team what\'s wrong, or what would make the app better.</p>' +
-      "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the team's Slack channel as it is; nothing changes until they decide. Their answers show up here.</p></div>");
+      "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the app's Slack channel as it is; nothing changes until they decide. Their answers show up here.</p></div>");
     drawFeedback();
   }
 
   // renderReport is Report, for someone signed in: what it does, or the
   // number of the task just filed. The helper keeps no list of reports:
-  // the people who fix one say so in the team's channel.
+  // the people who fix one say so in the app's channel.
   function renderReport() {
     if (state.sent) {
       const sent = document.createElement("div");
       sent.className = "sent";
-      sent.innerHTML = "<strong></strong><span>The people who build the app see it as a task, and the team's Slack channel hears of it.</span>";
+      sent.innerHTML = "<strong></strong><span>The people who build the app see it as a task, and the app's Slack channel hears of it.</span>";
       sent.querySelector("strong").textContent = "Filed as " + state.sent + ". Thank you!";
       const again = document.createElement("button");
       again.type = "button";
@@ -1473,7 +1473,7 @@ textarea:focus { border-color: var(--accent); }
   });
 
   // ---------------------------------------------------------------------
-  // start: show the button once the team's service answers, and say when
+  // start: show the button once the app's service answers, and say when
   // a new version is up
 
   // refreshStatus says whether anything the panel shows changed.
@@ -1492,7 +1492,7 @@ textarea:focus { border-color: var(--accent); }
     try {
       await refreshStatus();
     } catch {
-      return; // the helper is off or the team is down: no button at all
+      return; // the helper is off or the app is down: no button at all
     }
     document.body.appendChild(host);
     placeButton();

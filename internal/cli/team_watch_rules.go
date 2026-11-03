@@ -397,9 +397,9 @@ func (w *teamWatcher) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 			return watchIncident{Title: fmt.Sprintf("%s's production stopped %d times in the last hour", team.Team, production.Restarts1h), Tell: true}
 		})
 	}
-	add("serve-restarts", beat.Restarts > 3, "The team has stopped restarting on its own.", func() watchIncident {
+	add("serve-restarts", beat.Restarts > 3, "The app has stopped restarting on its own.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("%s restarted on its own %d times in a day", team.Team, beat.Restarts),
-			Detail: "systemd starts hi team __serve again when it stops without being asked (a crash, a kill); updates and hi team up don't count. This many means it keeps stopping: journalctl --user -u hi-team-" + team.Team + " on the team's machine says why."}
+			Detail: "systemd starts hi app __serve again when it stops without being asked (a crash, a kill); updates and hi app up don't count. This many means it keeps stopping: journalctl --user -u hi-team-" + team.Team + " on the app's machine says why."}
 	})
 	add("oom", beat.OOMKills > 0, "No box was killed for memory in the last day.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("A box of %s was killed for memory (%d in a day)", team.Team, beat.OOMKills), Tell: true}
@@ -417,7 +417,7 @@ func (w *teamWatcher) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 		if days < 3 {
 			title = fmt.Sprintf("%s's disk fills up in about %.1f days at this week's rate (%.0f%% now)", team.Team, days, beat.Disk.Team*100)
 		}
-		return watchIncident{Title: title, Detail: fmt.Sprintf("Team folder %.0f%%, containers %.0f%%, inodes %.0f%%.", beat.Disk.Team*100, beat.Disk.Containers*100, beat.Disk.Inodes*100), Tell: true}
+		return watchIncident{Title: title, Detail: fmt.Sprintf("App folder %.0f%%, containers %.0f%%, inodes %.0f%%.", beat.Disk.Team*100, beat.Disk.Containers*100, beat.Disk.Inodes*100), Tell: true}
 	})
 
 	// Snapshots: one a day, and its copy offsite when set. A new team has a
@@ -448,7 +448,7 @@ func (w *teamWatcher) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 	}
 	add("key", outside > 1, "The key spends no more than hi counts again.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("%s's OpenRouter key spent $%.2f outside hi in the last %d minutes", team.Team, outside, beat.Window),
-			Detail: fmt.Sprintf("OpenRouter counts $%.2f on the key; hi's proxies counted $%.2f. The key never enters a box, so spend hi didn't see was made elsewhere with it: rotate it at openrouter.ai and set the new one with hi team key %s openrouter.", *beat.KeyUsage, beat.Spend, team.Team)}
+			Detail: fmt.Sprintf("OpenRouter counts $%.2f on the key; hi's proxies counted $%.2f. The key never enters a box, so spend hi didn't see was made elsewhere with it: rotate it at openrouter.ai and set the new one with hi app key %s openrouter.", *beat.KeyUsage, beat.Spend, team.Team)}
 	})
 	// What production's box has that its bill doesn't: the bill missed
 	// it, or something installed it (the team looks once a week).

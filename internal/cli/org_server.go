@@ -1863,7 +1863,7 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 	case "expose":
 		return exitCode(orgExposeCommand(rest, stdout, stderr), stderr)
 	case "watch":
-		fmt.Fprintln(stderr, "hi: hi org watch is gone: teams watch themselves on their own machine (hi team watch), and this machine's heartbeat is hi heartbeat <url>.")
+		fmt.Fprintln(stderr, "hi: hi org watch is gone: apps watch themselves on their own machine (hi app watch), and this machine's heartbeat is hi heartbeat <url>.")
 		return 1
 	default:
 		fmt.Fprintf(stderr, "hi: unknown org command %q\n\n", command)
@@ -2395,7 +2395,7 @@ func orgAuditCommand(args []string, stdout, stderr io.Writer) error {
 // handleWatchGone answers a team from before hi 2.6.32, which still sends
 // the server its heartbeat, bill, or key request: teams watch themselves.
 func (s *orgServer) handleWatchGone(w http.ResponseWriter, _ *http.Request, _ serverDevice, _ []byte) {
-	writeAPIError(w, http.StatusGone, "teams watch themselves on their own machine from hi v2.6.32 (hi team watch); update hi on the team's machine")
+	writeAPIError(w, http.StatusGone, "apps watch themselves on their own machine from hi v2.6.32 (hi app watch); update hi on the app's machine")
 }
 
 // serverWatchRetiredNote says, when the server watched teams before, what
@@ -2406,7 +2406,7 @@ func serverWatchRetiredNote(dir string, log io.Writer) {
 	if err != nil {
 		return
 	}
-	fmt.Fprintf(log, "hi org: teams watch themselves now; %s is read by nothing and can be deleted.\n", filepath.Join(dir, "watch"))
+	fmt.Fprintf(log, "hi org: apps watch themselves now; %s is read by nothing and can be deleted.\n", filepath.Join(dir, "watch"))
 	if strings.Contains(string(data), `"deadman"`) {
 		if _, set := loadMachineHeartbeat(); !set {
 			fmt.Fprintln(log, "hi org: its dead-man's switch is gone: send this machine's heartbeat to the same check with hi heartbeat <url>.")

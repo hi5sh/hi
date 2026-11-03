@@ -159,7 +159,7 @@ func teamDevWork(all, changes []teamTask) []teamWork {
 
 var teamSlackTSPattern = regexp.MustCompile(`^[0-9]{9,11}\.[0-9]{6}$`)
 
-// teamVersionsView is what hi team versions shows.
+// teamVersionsView is what hi app versions shows.
 type teamVersionsView struct {
 	Production int           `json:"production"`
 	Release    *teamRelease  `json:"release,omitempty"` // production's
@@ -377,7 +377,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	notes := strings.TrimSpace(request.Notes)
 	if request.Version == 0 && notes == "" {
 		if request.Data {
-			return teamReleaseResult{}, errors.New("name the version to roll back to: hi team rollback <team> v2")
+			return teamReleaseResult{}, errors.New("name the version to roll back to: hi app rollback <name> v2")
 		}
 		return teamReleaseResult{}, errors.New("say what changes for the people: --notes <file|->, a few lines in their words; hi posts them in the channel")
 	}
@@ -391,7 +391,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	if request.host != "" {
 		approval = teamApproval{Name: request.host}
 	} else {
-		return teamReleaseResult{}, errors.New("production moves on a click on the dev page; on the machine, hi team rollback puts it back on an earlier release")
+		return teamReleaseResult{}, errors.New("production moves on a click on the dev page; on the machine, hi app rollback puts it back on an earlier release")
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -405,7 +405,7 @@ func (b *teamBroker) moveProductionLocked(request teamReleaseRequest) (teamRelea
 	if request.Version != 0 {
 		release, ok := versions.release(request.Version)
 		if !ok {
-			return result, fmt.Errorf("there is no v%d; hi team versions lists the releases", request.Version)
+			return result, fmt.Errorf("there is no v%d; hi app versions lists the releases", request.Version)
 		}
 		if release.Version == versions.Production {
 			return result, fmt.Errorf("production is on v%d already", release.Version)

@@ -1,7 +1,7 @@
 # The feature pages (docs/feature-pages.md), in the order the site menu
 # lists them (_includes/site-menu.html). A new page goes here too.
-- url: /team/
-  name: hi team
+- url: /app/
+  name: hi app
   line: An app in Slack, built by its owners in a dev box
 - url: /agent/
   name: hi agent

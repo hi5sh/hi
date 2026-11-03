@@ -1,11 +1,11 @@
 ---
 name: hi-dev-agents
-description: Make the hi team's app usable by agents - its MCP server at /mcp, a tool per feature, and docs/user/mcp.md - so the team's lead (and people's own agents) can use it. Use when adding a feature people use, when asked to add MCP or tools or llms.txt to the app, or when the lead can't do something in the app.
+description: Make the hi app usable by agents - its MCP server at /mcp, a tool per feature, and docs/user/mcp.md - so the app's lead (and people's own agents) can use it. Use when adding a feature people use, when asked to add MCP or tools or llms.txt to the app, or when the lead can't do something in the app.
 ---
 
 # Apps agents can use
 
-Agents use the app as well as people: the team's lead in Slack first,
+Agents use the app as well as people: the app's lead in Slack first,
 and people's own (Claude, ChatGPT, Cursor). They use it through three
 things on the app's addresses:
 
@@ -17,7 +17,7 @@ things on the app's addresses:
 
 ## The lead uses the app's tools
 
-hi gives the team's lead two MCP servers: `app`, production, and
+hi gives the app's lead two MCP servers: `app`, production, and
 `app_preview`, the preview. On production the lead gets **only the tools
 marked read-only**; hi enforces it outside the lead's box. On the preview,
 which runs on its own copy of production's data, every tool. When the
@@ -47,7 +47,7 @@ the same work, where an agent would want it:
 
 ## In the app
 
-A project from hi's team template has it: `src/mcp.ts` is the protocol
+A project from hi's app template has it: `src/mcp.ts` is the protocol
 (leave it be), `src/tools.ts` the tools, and `/mcp` a route in
 `src/server.ts`. Add a tool:
 

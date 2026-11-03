@@ -504,7 +504,7 @@ func teamWriteBom(team, version, commit string, tools teamBomMachine) (string, e
 
 // teamProductionBom is production's bill, made the first time it's
 // asked for after a release, and again when hi's base image is built
-// again (hi team rebuild), and its version.
+// again (hi app rebuild), and its version.
 func teamProductionBom(team string, tools teamBomMachine) (string, string, error) {
 	versions, err := loadTeamVersions(team)
 	if err != nil || versions.Production == 0 {
@@ -597,10 +597,10 @@ func saveTeamAdvisoriesIgnored(team string, ignored []teamAdvisoryIgnore) error 
 // ---------------------------------------------------------------------------
 // the commands
 
-// teamBomCommand is hi team bom <name> [version|preview].
+// teamBomCommand is hi app bom <name> [version|preview].
 func teamBomCommand(args []string, stdout io.Writer) error {
 	if len(args) < 1 || len(args) > 2 {
-		return usageError{"usage: hi team bom <name> [v<n>|preview]"}
+		return usageError{"usage: hi app bom <name> [v<n>|preview]"}
 	}
 	team := args[0]
 	if _, err := loadTeam(team); err != nil {
@@ -635,11 +635,11 @@ func teamBomCommand(args []string, stdout io.Writer) error {
 	return err
 }
 
-// teamAdvisoriesCommand is hi team advisories <name>: what matches
+// teamAdvisoriesCommand is hi app advisories <name>: what matches
 // production now, from the server's last answer, and what was ignored.
 func teamAdvisoriesCommand(args []string, stdout io.Writer) error {
 	if len(args) != 1 {
-		return usageError{"usage: hi team advisories <name>"}
+		return usageError{"usage: hi app advisories <name>"}
 	}
 	if _, err := loadTeam(args[0]); err != nil {
 		return err
@@ -678,7 +678,7 @@ func printTeamAdvisories(view teamAdvisoriesView, w io.Writer) {
 		fmt.Fprintln(w, "Nothing is released, so production runs no packages to match.")
 		return
 	case view.At.IsZero():
-		fmt.Fprintln(w, "The team's watcher hasn't matched production's packages yet; it does within a day of a release.")
+		fmt.Fprintln(w, "The app's watcher hasn't matched production's packages yet; it does within a day of a release.")
 		return
 	}
 	loud, report, ignored := 0, 0, 0
@@ -708,16 +708,16 @@ func printTeamAdvisories(view teamAdvisoriesView, w io.Writer) {
 		fmt.Fprintln(w, line)
 	}
 	for _, count := range view.Counts {
-		fmt.Fprintf(w, "  %s: %d more for its OS packages, %d with a fix in a newer package; the team's org server admins see them\n", advisoryPartName(count.Part), count.Total, count.Fixable)
+		fmt.Fprintf(w, "  %s: %d more for its OS packages, %d with a fix in a newer package; the app's org server admins see them\n", advisoryPartName(count.Part), count.Total, count.Fixable)
 	}
 }
 
-// teamAdvisoryCommand is hi team advisory <name> ignore <id> --because
+// teamAdvisoryCommand is hi app advisory <name> ignore <id> --because
 // "<why>" [--package <name>], or unignore <id>: an owner's word that a
 // match doesn't apply, until the advisory changes.
 func teamAdvisoryCommand(args []string, stdout io.Writer) error {
-	usage := usageError{`usage: hi team advisory <name> ignore <id> --because "<why>" [--package <name>]
-       hi team advisory <name> unignore <id>`}
+	usage := usageError{`usage: hi app advisory <name> ignore <id> --because "<why>" [--package <name>]
+       hi app advisory <name> unignore <id>`}
 	var words []string
 	because, pkg := "", ""
 	for i := 0; i < len(args); i++ {
@@ -761,7 +761,7 @@ func teamAdvisoryCommand(args []string, stdout io.Writer) error {
 		return nil
 	}
 	if strings.TrimSpace(because) == "" {
-		return errors.New(`say why it doesn't apply: --because "<why>"; it is kept with the team, and the server shows it`)
+		return errors.New(`say why it doesn't apply: --because "<why>"; it is kept with the app, and the server shows it`)
 	}
 	var matches []apiAdvisory
 	for _, advisory := range loadTeamWatchState(team).Advisories {
@@ -771,7 +771,7 @@ func teamAdvisoryCommand(args []string, stdout io.Writer) error {
 	}
 	switch len(matches) {
 	case 0:
-		return fmt.Errorf("%s doesn't match production now; hi team advisories %s lists what does", id, team)
+		return fmt.Errorf("%s doesn't match production now; hi app advisories %s lists what does", id, team)
 	case 1:
 	default:
 		var names []string

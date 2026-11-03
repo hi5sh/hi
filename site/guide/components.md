@@ -1,15 +1,15 @@
 ---
 title: The components
-description: The standard components hi5's software factory is built from, such as hi box, hi agent, hi compute, hi org, and hi net. A hi team puts them together, and each one also works on its own.
+description: The standard components hi5's software factory is built from, such as hi box, hi agent, hi compute, hi org, and hi net. A hi app puts them together, and each one also works on its own.
 ---
 
-hi5's software factory is built from standard components. A hi team puts
+hi5's software factory is built from standard components. A hi app puts
 them together, and each one is also a command you can use on its own, in
 your terminal: hand a task to an agent, run code in a box, rent a GPU, or
 share what you're running.
 
 <div class="cards">
-  <a href="{{ '/team/' | relative_url }}"><strong>hi team</strong><span>An app in Slack, built by its owners in a dev box.</span></a>
+  <a href="{{ '/app/' | relative_url }}"><strong>hi app</strong><span>An app in Slack, built by its owners in a dev box.</span></a>
   <a href="{{ '/agent/' | relative_url }}"><strong>hi agent</strong><span>Hand a task to a coding agent.</span></a>
   <a href="{{ '/autoresearch/' | relative_url }}"><strong>hi agent best-of</strong><span>Several attempts at once, and rounds that keep only gains.</span></a>
   <a href="{{ '/box/' | relative_url }}"><strong>hi box</strong><span>Run code with nothing to steal.</span></a>
@@ -23,7 +23,7 @@ share what you're running.
 
 ## Agents
 
-Different agents have different strengths. The same tools a hi team uses
+Different agents have different strengths. The same tools a hi app uses
 work in your terminal: hand work to Claude Code, Codex, Hermes, or Antigravity, try ideas
 several ways at once, and keep only what works.
 
@@ -162,14 +162,14 @@ cd pricing-tools && make check
 | `hi install [strix]` | Install the workstation software; with `strix`, ROCm and GPU groups too, ending with a hardware report. |
 | `hi verify strix` | Re-run the hardware report after the reboot. Nothing is uploaded. |
 | `hi net` · `status` · `down` · `reconnect` | Join NetBird, then check, disconnect, or reconnect. |
-| `hi net domain <domain>` | https, with a trusted certificate, for the teams' addresses on the network. |
+| `hi net domain <domain>` | https, with a trusted certificate, for the apps' addresses on the network. |
 | `hi net expose <port>` | A local service on a temporary public HTTPS address, password-protected by default. |
 | `hi init <template> <dir>` | Start a project agents work well in; `--update` keeps it current. |
 | `hi q <what you want>` | A shell command from plain words, or a chat. |
 | `hi agent <task>` | A task for Claude Code, Codex, Hermes, or Antigravity, in a box, with one report. |
 | `hi agent best-of <n> <task>` | One task in n boxes, checked and ranked; with `--score`, rounds that keep only gains. |
 | `hi agent brainstorm <question>` | Several agents think it through alone; one compiles a proposal. |
-| `hi team new <name>` | A team in one Slack channel that runs an app: a lead for the people, a dev box for its owners. |
+| `hi app new <name>` | An app in one Slack channel: a lead for the people, a dev box for its owners. |
 | `hi box shell` · `run` | A shell or a command in a rootless container with no credentials. |
 | `hi compute run` · `up` · `serve` · `stop` | Remote GPUs on Colab, Hugging Face, RunPod, or Shadeform, with time limits. |
 | `hi serve llm <recipe>` | A model with an OpenAI-compatible API, on rented hardware or this machine's GPU. |

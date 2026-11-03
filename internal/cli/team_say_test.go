@@ -32,11 +32,11 @@ func TestTeamSay(t *testing.T) {
 	if err != nil || said.Answer != "On it." || said.Who != "admin on the machine" {
 		t.Fatalf("%+v %v", said, err)
 	}
-	if channel.calls[0] != "post C07PAYMENTS :desktop_computer: *admin on the machine* to the lead, with hi team say:\n> Update the docs &lt;now&gt;" ||
+	if channel.calls[0] != "post C07PAYMENTS :desktop_computer: *admin on the machine* to the lead, with hi app say:\n> Update the docs &lt;now&gt;" ||
 		channel.calls[1] != "postIn C07PAYMENTS "+said.TS+" On it." {
 		t.Fatalf("%q", channel.calls)
 	}
-	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi team say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "hi team task add") {
+	if !strings.HasPrefix(input, "say-"+said.TS+"\n[hi app say · message say:"+said.TS+" · admin on the machine") || !strings.Contains(input, "hi app task add") {
 		t.Fatal(input)
 	}
 }

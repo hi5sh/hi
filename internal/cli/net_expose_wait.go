@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// A service the relay sends to may be restarting, as a hi team's service
+// A service the relay sends to may be restarting, as a hi app's service
 // does on hi update --restart, for a few seconds. The relay waits for it
 // rather than showing an error: a connection that never opened sent
 // nothing, so trying again is safe for any request. If it still doesn't

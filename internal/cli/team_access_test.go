@@ -43,10 +43,10 @@ func TestTeamAccessLevels(t *testing.T) {
 		t.Fatal("levels")
 	}
 	// A contributor, by an owner's choice.
-	if text, err := teamSetLevel(&config, "U07CHAN01", teamLevelContributor); err != nil || text != "U07CHAN01 is a contributor of team payments." {
+	if text, err := teamSetLevel(&config, "U07CHAN01", teamLevelContributor); err != nil || text != "U07CHAN01 is a contributor of app payments." {
 		t.Fatal(text, err)
 	}
-	if _, err := teamSetLevel(&config, owner, teamLevelDeveloper); err == nil || !strings.Contains(err.Error(), "hi team owners") {
+	if _, err := teamSetLevel(&config, owner, teamLevelDeveloper); err == nil || !strings.Contains(err.Error(), "hi app owners") {
 		t.Fatal("an owner made a developer:", err)
 	}
 	if _, err := teamSetLevel(&config, "U07DEV001", "admin"); err == nil {
@@ -54,7 +54,7 @@ func TestTeamAccessLevels(t *testing.T) {
 	}
 	// A developer, with a key and a link.
 	text, err := teamSetLevel(&config, "U07DEV001", teamLevelDeveloper)
-	if err != nil || text != "U07DEV001 is a Pro Dev of team payments." {
+	if err != nil || text != "U07DEV001 is a Pro Dev of app payments." {
 		t.Fatal(text, err)
 	}
 	saved, _ := loadTeam("payments")
@@ -73,7 +73,7 @@ func TestTeamAccessLevels(t *testing.T) {
 	saveTeamPeople("payments", teamPeopleFile{Keys: []teamPersonKey{{Key: teamTestDeveloperKey, User: "U07DEV001", Name: "Dev", Ends: time.Now().Add(time.Hour)}}})
 	// Back to a contributor: the key is out, the link ends.
 	text, err = teamSetLevel(&saved, "U07DEV001", teamLevelContributor)
-	if err != nil || !strings.Contains(text, "U07DEV001 is a contributor of team payments. Their SSH key is out of the dev box, and their private links have ended.") {
+	if err != nil || !strings.Contains(text, "U07DEV001 is a contributor of app payments. Their SSH key is out of the dev box, and their private links have ended.") {
 		t.Fatal(text, err)
 	}
 	if keys, _ := os.ReadFile(teamDevDir("payments") + "/ssh/authorized_keys"); strings.Contains(string(keys), "dev@laptop") {
@@ -83,14 +83,14 @@ func TestTeamAccessLevels(t *testing.T) {
 		t.Fatal("the link still works")
 	}
 	// No level any more.
-	if text, err := teamSetLevel(&saved, "U07CHAN01", teamLevelNone); err != nil || !strings.Contains(text, "has no level in team payments") {
+	if text, err := teamSetLevel(&saved, "U07CHAN01", teamLevelNone); err != nil || !strings.Contains(text, "has no level in app payments") {
 		t.Fatal(text, err)
 	}
 	saved, _ = loadTeam("payments")
 	if teamLevel(saved, "U07CHAN01") != teamLevelNone || slices.Contains(saved.Contributors, "U07CHAN01") {
 		t.Fatalf("%+v", saved)
 	}
-	// hi team access lists who is which.
+	// hi app access lists who is which.
 	var out strings.Builder
 	if err := teamAccessCommand([]string{"payments", "U07DEV001", "developer"}, &out); err != nil || !strings.Contains(out.String(), "a developer can read it through a preview") {
 		t.Fatal(out.String(), err)
@@ -304,7 +304,7 @@ func TestTeamVibeDev(t *testing.T) {
 	b := teamTestDevPageWithDeveloper(t)
 	b.running = func(string) bool { return true }
 	config, _ := loadTeam("payments")
-	if text, err := teamSetLevel(&config, "U07DEV001", "Vibe Dev"); err != nil || text != "U07DEV001 is a Vibe Dev of team payments. Their SSH key is out of the dev box, and their private links have ended." {
+	if text, err := teamSetLevel(&config, "U07DEV001", "Vibe Dev"); err != nil || text != "U07DEV001 is a Vibe Dev of app payments. Their SSH key is out of the dev box, and their private links have ended." {
 		t.Fatal(text, err)
 	}
 	if !teamBuilds(config, "U07DEV001") || teamHasShell(config, "U07DEV001") || teamLevel(config, "U07DEV001") != teamLevelVibe {

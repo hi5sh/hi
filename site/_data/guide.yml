@@ -9,42 +9,42 @@
       url: /guide/components/
     - title: Your first remote GPU
       url: /guide/quickstart/
-- section: Agent teams
+- section: Apps
   pages:
-    - title: What a hi team is
-      url: /guide/team/
-    - title: Set up a team
-      url: /guide/team/setup/
+    - title: What a hi app is
+      url: /guide/app/
+    - title: Set up an app
+      url: /guide/app/setup/
     - title: Start from someone else's project
-      url: /guide/team/adopt/
-    - title: How the team works
-      url: /guide/team/how-it-works/
+      url: /guide/app/adopt/
+    - title: How the app works
+      url: /guide/app/how-it-works/
     - title: Build in the dev box
-      url: /guide/team/dev/
-    - title: Try what the team built
-      url: /guide/team/app/
+      url: /guide/app/dev/
+    - title: Try the app
+      url: /guide/app/try/
     - title: Help and feedback in the app
-      url: /guide/team/helper/
+      url: /guide/app/helper/
     - title: The app's docs
-      url: /guide/team/docs/
+      url: /guide/app/docs/
     - title: Apps agents can use
-      url: /guide/team/agents/
+      url: /guide/app/agents/
     - title: Keys and settings
-      url: /guide/team/keys/
+      url: /guide/app/keys/
     - title: Dev and production
-      url: /guide/team/releases/
+      url: /guide/app/releases/
     - title: Stage and production data
-      url: /guide/team/data/
+      url: /guide/app/data/
     - title: Reviews from the dev box
-      url: /guide/team/reviews/
+      url: /guide/app/reviews/
     - title: Brainstorms on hard questions
-      url: /guide/team/brainstorms/
+      url: /guide/app/brainstorms/
     - title: Images, media, and research
-      url: /guide/team/agy/
+      url: /guide/app/agy/
     - title: When something goes wrong
-      url: /guide/team/incidents/
+      url: /guide/app/incidents/
     - title: The folder and backups
-      url: /guide/team/folder/
+      url: /guide/app/folder/
 - section: Remote compute
   pages:
     - title: How hi compute works

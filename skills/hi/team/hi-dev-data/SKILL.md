@@ -1,6 +1,6 @@
 ---
 name: hi-dev-data
-description: See the hi team's app data from its dev box, and give the preview a fresh fork of production's data. Use when the user asks about the app's data, its size, the preview showing old or wrong data, or wants to test against current production data. Covers hi dev data.
+description: See the hi app's data from its dev box, and give the preview a fresh fork of production's data. Use when the user asks about the app's data, its size, the preview showing old or wrong data, or wants to test against current production data. Covers hi dev data.
 ---
 
 # The app's data

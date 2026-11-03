@@ -75,7 +75,7 @@ func teamFreeUDPPort() (int, error) {
 			return port, nil
 		}
 	}
-	return 0, errors.New("no free port for the team's resolver")
+	return 0, errors.New("no free port for the app's resolver")
 }
 
 // teamAppNetworkArgs are what an app's box gets to look names up through
@@ -116,8 +116,8 @@ func startTeamResolver(team, hi string, done <-chan struct{}, stderr io.Writer) 
 	exec.Command("systemctl", "--user", "stop", unit).Run()
 	exec.Command("systemctl", "--user", "reset-failed", unit).Run()
 	out, err := exec.Command("systemd-run", "--user", "--unit", unit, "--quiet", "--collect",
-		"--property=Restart=always", "--property=RestartSec=2", "--description=hi team "+team+": the app's resolver",
-		hi, "team", "__resolver", team).CombinedOutput()
+		"--property=Restart=always", "--property=RestartSec=2", "--description=hi app "+team+": the app's resolver",
+		hi, "app", "__resolver", team).CombinedOutput()
 	if err != nil {
 		fmt.Fprintf(stderr, "hi: the app's resolver: %s\n", qFirstLine(strings.TrimSpace(string(out)), err.Error()))
 	}
@@ -131,7 +131,7 @@ func stopTeamResolver(team string) {
 // runTeamResolver is hi team __resolver <team>.
 func runTeamResolver(args []string, stderr io.Writer) int {
 	if len(args) != 1 {
-		fmt.Fprintln(stderr, "usage: hi team __resolver <team>")
+		fmt.Fprintln(stderr, "usage: hi app __resolver <name>")
 		return 2
 	}
 	if err := serveTeamResolver(args[0], nil); err != nil {

@@ -139,7 +139,7 @@ func TestTeamWatchesItself(t *testing.T) {
 	if incident, _ := loadTeamIncident("payments", incidents[0].ID); incident.Status != "closed" {
 		t.Fatalf("%+v", incident)
 	}
-	// hi team down sends nothing anywhere.
+	// hi app down sends nothing anywhere.
 	if _, err := b.sendHeartbeat("down"); err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestServerTurnsHeartbeatsAway(t *testing.T) {
 }
 
 // Only the starts nobody asked for count: a stop systemd asked for (an
-// update, hi team up, hi team down) leaves a mark the next start reads.
+// update, hi app up, hi app down) leaves a mark the next start reads.
 func TestTeamUnplannedRestarts(t *testing.T) {
 	setupTeamTest(t)
 	newTeamTestBroker(t)
@@ -197,7 +197,7 @@ func TestTeamUnplannedRestarts(t *testing.T) {
 	teamNoteServeStop("payments")
 	teamNoteServeStart("payments") // an update
 	teamNoteServeStop("payments")
-	teamNoteServeStart("payments") // hi team up
+	teamNoteServeStart("payments") // hi app up
 	teamNoteServeStart("payments") // killed, no mark
 	if n := teamUnplannedStarts("payments", time.Now().Add(-24*time.Hour)); n != 2 {
 		data, _ := os.ReadFile(teamServeStartsPath("payments"))

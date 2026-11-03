@@ -311,7 +311,7 @@ func (b *teamBroker) devPagePublic(address string, on bool, by string) error {
 		return err
 	}
 	if b.channel != nil {
-		what := "internal only, on the team's NetBird network"
+		what := "internal only, on the app's NetBird network"
 		if on {
 			what = "public too"
 		}
@@ -641,7 +641,7 @@ func (b *teamBroker) devPageView(person teamPersonKey, level string) teamDevPage
 	view.PreviewData = files > 0 || teamPreviewOverlay(b.team)
 	view.Box = "running"
 	if !b.running(teamDevContainer(b.team)) {
-		view.Box = "The dev box isn't running; an admin of the machine starts it: hi team dev " + b.team + " restart"
+		view.Box = "The dev box isn't running; an admin of the machine starts it: hi app dev " + b.team + " restart"
 	} else if spaces, err := teamDevSpaces(b.team); err != nil {
 		view.Box = err.Error()
 	} else {
@@ -840,7 +840,7 @@ func teamDevNewTitle(text string) string {
 }
 
 // teamDevPageSetting is a setting an owner changes on the page: both
-// slots, or one, as hi team env does.
+// slots, or one, as hi app env does.
 type teamDevPageSetting struct {
 	Key   string `json:"key"`
 	Value string `json:"value,omitempty"`
@@ -902,11 +902,11 @@ func (b *teamBroker) devPagePerson(r *http.Request) (teamPersonKey, string, erro
 	person, ok, ended := b.webUser(config, r.Header.Get(netExposeUserHeader))
 	switch {
 	case ended:
-		return person, "", fmt.Errorf("your link has ended: type %s dev in the team's Slack channel for a new one", teamSlashCommand(b.team))
+		return person, "", fmt.Errorf("your link has ended: type %s dev in the app's Slack channel for a new one", teamSlashCommand(b.team))
 	case !ok:
-		return person, "", fmt.Errorf("the dev page is for the team's owners and developers: type %s dev in the team's Slack channel for your link", teamSlashCommand(b.team))
+		return person, "", fmt.Errorf("the dev page is for the app's owners and developers: type %s dev in the app's Slack channel for your link", teamSlashCommand(b.team))
 	case !teamBuilds(config, person.User):
-		return person, "", errors.New("the dev page is for the team's owners and developers; an owner makes someone a developer")
+		return person, "", errors.New("the dev page is for the app's owners and developers; an owner makes someone a developer")
 	}
 	return person, teamLevel(config, person.User), nil
 }
@@ -1459,7 +1459,7 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		}
 		// Production's data is the owners': a developer releases the code.
 		if request.PreviewData && level != teamLevelOwner {
-			failure(w, http.StatusForbidden, errors.New("only the team's owners start production with Stage's data; release without it, or ask an owner to release"))
+			failure(w, http.StatusForbidden, errors.New("only the app's owners start production with Stage's data; release without it, or ask an owner to release"))
 			return
 		}
 		// The builder's click is the yes, logged with their name.
@@ -1662,7 +1662,7 @@ func (b *teamBroker) devPageHandler() http.Handler {
 		case err != nil:
 			return http.StatusUnauthorized, err
 		case level != teamLevelOwner && !teamDevDeveloperRoutes[pattern]:
-			return http.StatusForbidden, errors.New("only the team's owners do that; developers build and release, and owners look after production")
+			return http.StatusForbidden, errors.New("only the app's owners do that; developers build and release, and owners look after production")
 		case level == teamLevelVibe && teamDevShellRoutes[pattern]:
 			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal and VS Code are for Pro Devs and owners")
 		}

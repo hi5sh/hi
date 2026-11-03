@@ -80,7 +80,7 @@ type boxMeta struct {
 	// BudgetUSD is Claude Code's own spending limit for the run.
 	BudgetUSD float64 `json:"budget_usd,omitempty"`
 	// NoProjectSettings runs the agent without the project's own settings,
-	// for a project someone else wrote (hi team adopt), on the project's
+	// for a project someone else wrote (hi app adopt), on the project's
 	// image as usual.
 	NoProjectSettings bool `json:"no_project_settings,omitempty"`
 	// Team is the team and role a member's box works for, as
@@ -971,7 +971,7 @@ func listBoxes(stdout io.Writer) error {
 		return err
 	}
 	if len(leads) > 0 {
-		fmt.Fprintln(stdout, "\nTeam leads, run by hi team (hi team status <team>; hi team down <team> stops one):")
+		fmt.Fprintln(stdout, "\nApp leads, run by hi app (hi app status <app>; hi app down <app> stops one):")
 		for _, line := range leads {
 			fmt.Fprintln(stdout, "  "+line)
 		}

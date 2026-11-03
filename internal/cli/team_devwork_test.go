@@ -258,7 +258,7 @@ func TestTeamDevKit(t *testing.T) {
 		t.Fatal("no herdr skill")
 	}
 	claude, _ := os.ReadFile(filepath.Join(home, ".claude", "CLAUDE.md"))
-	if strings.Count(string(claude), teamDevBlockStart) != 1 || !strings.Contains(string(claude), "My own notes.") || !strings.Contains(string(claude), "payments team's dev box") {
+	if strings.Count(string(claude), teamDevBlockStart) != 1 || !strings.Contains(string(claude), "My own notes.") || !strings.Contains(string(claude), "payments app's dev box") {
 		t.Fatal(string(claude))
 	}
 	if codex, _ := os.ReadFile(filepath.Join(home, ".codex", "AGENTS.md")); !strings.Contains(string(codex), "hi dev ship merges it into dev (main)") {

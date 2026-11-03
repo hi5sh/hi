@@ -1,9 +1,9 @@
 ---
 name: hi-dev-status
-description: See the hi team's state from its dev box - what production runs, what dev has on top of it, what is on the preview, backups, open incidents, and the app's jobs. Use when the user asks what is deployed, released, on the preview or in production, whether something shipped, about backups, incidents, or whether the app's jobs run.
+description: See the hi app's state from its dev box - what production runs, what dev has on top of it, what is on the preview, backups, open incidents, and the app's jobs. Use when the user asks what is deployed, released, on the preview or in production, whether something shipped, about backups, incidents, or whether the app's jobs run.
 ---
 
-# The team's state
+# The app's state
 
 ```bash
 hi dev status

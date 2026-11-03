@@ -118,7 +118,7 @@ func (b *teamBroker) webUser(config teamConfig, key string) (person teamPersonKe
 	return person, true, false
 }
 
-// webLink is hi team web link --user <id>: a new key for someone who may
+// webLink is hi app web link --user <id>: a new key for someone who may
 // ask for work, sent to them in a DM with the links. Their old key ends.
 // The plugin behind /hi runs it with the ID Slack gave; the lead may run it
 // too, and the links still go only to that person.
@@ -143,9 +143,9 @@ func (b *teamBroker) webLink(user string, dev bool) (string, error) {
 	level := b.level(config, user)
 	switch {
 	case dev && !teamBuilds(config, user):
-		return "", fmt.Errorf("the dev page is for the %s team's owners and developers; an owner makes someone a developer", teamBotName(b.team))
+		return "", fmt.Errorf("the dev page is for the %s app's owners and developers; an owner makes someone a developer", teamBotName(b.team))
 	case level == teamLevelNone:
-		return fmt.Sprintf("Private links are for the %s team's contributors, developers, and owners; an owner adds contributors on the dev page. The app's own link works for everyone, with help and feedback in its helper.", teamBotName(b.team)), nil
+		return fmt.Sprintf("Private links are for the %s app's contributors, developers, and owners; an owner adds contributors on the dev page. The app's own link works for everyone, with help and feedback in its helper.", teamBotName(b.team)), nil
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
@@ -170,7 +170,7 @@ func (b *teamBroker) webLink(user string, dev bool) (string, error) {
 	}
 	dm, ts, err := b.channel.dm(user, b.teamLinkText(key))
 	if err != nil {
-		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the team's Slack app needs the im:write scope, from hi team manifest %s", err, b.team)
+		return "", fmt.Errorf("Slack wouldn't take the DM (%v); the app's Slack app needs the im:write scope, from hi app manifest %s", err, b.team)
 	}
 	key.DM, key.DMTS = dm, ts
 	people.Keys = append(kept, key)
@@ -178,9 +178,9 @@ func (b *teamBroker) webLink(user string, dev bool) (string, error) {
 		return "", err
 	}
 	if dev || level != teamLevelContributor {
-		return fmt.Sprintf("I've sent you your private link to the %s team's dev page in a DM, %s, with the app's. They work for %d days.", teamBotName(b.team), key.Name, int(teamKeyLasts.Hours()/24)), nil
+		return fmt.Sprintf("I've sent you your private link to the %s app's dev page in a DM, %s, with the app's. They work for %d days.", teamBotName(b.team), key.Name, int(teamKeyLasts.Hours()/24)), nil
 	}
-	return fmt.Sprintf("I've sent you your private links to the %s team's app in a DM, %s. They work for %d days.", teamBotName(b.team), key.Name, int(teamKeyLasts.Hours()/24)), nil
+	return fmt.Sprintf("I've sent you your private links to the %s app in a DM, %s. They work for %d days.", teamBotName(b.team), key.Name, int(teamKeyLasts.Hours()/24)), nil
 }
 
 // teamLinkText is the DM with a person's links: preview's and production's,
@@ -219,9 +219,9 @@ func (b *teamBroker) teamLinkText(key teamPersonKey) string {
 			}
 		}
 	}
-	text := fmt.Sprintf(":wave: Your private links for the *%s* team, %s: its dev page, where you build, and the app.\n", teamBotName(b.team), teamSlackEscape(key.Name))
+	text := fmt.Sprintf(":wave: Your private links for the *%s* app, %s: its dev page, where you build, and the app.\n", teamBotName(b.team), teamSlackEscape(key.Name))
 	if !builds {
-		text = fmt.Sprintf(":wave: Your private links to the *%s* team's app, %s. Signed in with them, the helper (the button in the corner) has Report: what you send there becomes a task for the people who build the app, with your name on it.\n", teamBotName(b.team), teamSlackEscape(key.Name))
+		text = fmt.Sprintf(":wave: Your private links to the *%s* app, %s. Signed in with them, the helper (the button in the corner) has Report: what you send there becomes a task for the people who build the app, with your name on it.\n", teamBotName(b.team), teamSlackEscape(key.Name))
 	}
 	if len(lines) == 0 {
 		text += "The app has no address right now; this message gets the links when it does.\n"

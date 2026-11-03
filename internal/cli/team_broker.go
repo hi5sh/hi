@@ -30,7 +30,7 @@ import (
 
 const (
 	teamSocketName = "broker.sock"
-	teamSocketEnv  = "HI_TEAM_SOCKET"
+	teamSocketEnv  = "HI_APP_SOCKET"
 )
 
 // teamTask is tasks/<id>.json.
@@ -184,7 +184,7 @@ type teamBroker struct {
 	exposed       func(name string) (netExposeState, bool)
 	running       func(container string) bool
 	// oldImage says an app's box runs hi's base image as it was before
-	// hi team rebuild built it again; tests replace it.
+	// hi app rebuild built it again; tests replace it.
 	oldImage func(container string) bool
 	// answers says the app on a host port answers at all (team_health.go);
 	// tests replace it.
@@ -219,7 +219,7 @@ type teamBroker struct {
 	webMu        sync.Mutex
 	answering    map[string]bool
 	webListeners map[string]map[chan teamWebMessage]bool
-	// sayMu guards run/say.json, the messages from hi team say.
+	// sayMu guards run/say.json, the messages from hi app say.
 	sayMu sync.Mutex
 	// jobsMu guards run/jobs.json, and incidentMu the incidents
 	// (team_jobs.go, team_incidents.go). started is when this broker
@@ -371,7 +371,7 @@ func (b *teamBroker) handler() http.Handler {
 			return
 		}
 		if request.Action == "close" || teamTicketOwnerActions[request.Action] {
-			reply(w, nil, errors.New("the owners close tasks, once the work is shipped, and keep them tidy on the dev page; add what you know with hi team task comment"))
+			reply(w, nil, errors.New("the owners close tasks, once the work is shipped, and keep them tidy on the dev page; add what you know with hi app task comment"))
 			return
 		}
 		request.Author = "the lead"
@@ -533,7 +533,7 @@ func teamIsAncestor(repo, branch, of string) bool {
 
 // teamGit runs git in the repository as the team's lead.
 func teamGit(repo string, args ...string) (string, error) {
-	name := firstNonEmpty(boxGit(repo, "config", "user.name"), "hi team")
+	name := firstNonEmpty(boxGit(repo, "config", "user.name"), "hi app")
 	email := firstNonEmpty(boxGit(repo, "config", "user.email"), "team@hi.invalid")
 	out, err := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=" + name, "-c", "user.email=" + email}, args...)...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err
@@ -542,13 +542,13 @@ func teamGit(repo string, args ...string) (string, error) {
 // ---------------------------------------------------------------------------
 // the lead's commands, in its box
 
-// teamLeadUsage is hi team --help in the lead's box: the commands from
+// teamLeadUsage is hi app --help in the lead's box: the commands from
 // the hi-team skill's table, so the two never differ.
 func teamLeadUsage() string {
 	var text strings.Builder
-	text.WriteString("The team's commands, for its lead (the hi-team skill says when to use each):\n\n")
-	for _, line := range strings.Split(teamSkill(teamConfig{Name: "<team>"}), "\n") {
-		if !strings.HasPrefix(line, "| hi team ") {
+	text.WriteString("The app's commands, for its lead (the hi-team skill says when to use each):\n\n")
+	for _, line := range strings.Split(teamSkill(teamConfig{Name: "<name>"}), "\n") {
+		if !strings.HasPrefix(line, "| hi app ") {
 			continue
 		}
 		cells := strings.Split(strings.ReplaceAll(strings.Trim(line, "| "), `\|`, "\x00"), " | ")
@@ -570,7 +570,7 @@ var teamLeadOrHost = map[string]bool{"env": true, "helper": true, "data": true, 
 func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout io.Writer) error {
 	socket := os.Getenv(teamSocketEnv)
 	if socket == "" {
-		return errors.New("hi team " + command + " is for a team's lead, in its box; on this machine, hi team status <name> shows a team")
+		return errors.New("hi app " + command + " is for an app's lead, in its box; on this machine, hi app status <name> shows an app")
 	}
 	client := &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
@@ -584,7 +584,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		request, _ := http.NewRequest(method, "http://team"+path, reader)
 		response, err := client.Do(request)
 		if err != nil {
-			return fmt.Errorf("the team's broker isn't answering: %w", err)
+			return fmt.Errorf("the app's broker isn't answering: %w", err)
 		}
 		defer response.Body.Close()
 		data, _ := io.ReadAll(response.Body)
@@ -603,7 +603,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			// Hermes tells its commands who wrote: only an owner starts work.
 			number, err := strconv.Atoi(strings.TrimPrefix(strings.Join(args[1:], ""), "#"))
 			if len(args) != 2 || err != nil {
-				return usageError{"usage: hi team task start <n>  (when an owner asks: work on it starts in the dev box)"}
+				return usageError{"usage: hi app task start <n>  (when an owner asks: work on it starts in the dev box)"}
 			}
 			var line string
 			if err := call("POST", "/start", map[string]any{"number": number, "user": os.Getenv("HERMES_SESSION_USER_ID")}, &line); err != nil {
@@ -633,18 +633,18 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		return nil
 	case "env":
 		if len(args) != 0 {
-			return usageError{"usage: hi team env (the names of the settings the app gets; the people add them on the machine)"}
+			return usageError{"usage: hi app env (the names of the settings the app gets; the people add them on the machine)"}
 		}
 		var names []string
 		if err := call("GET", "/env", nil, &names); err != nil {
 			return err
 		}
 		if len(names) == 0 {
-			fmt.Fprintln(stdout, "The app gets no settings. The people add them on the machine: hi team env <team> KEY=VALUE")
+			fmt.Fprintln(stdout, "The app gets no settings. The people add them on the machine: hi app env <name> KEY=VALUE")
 		} else {
 			fmt.Fprintf(stdout, "The app gets these settings as environment variables: %s\n", strings.Join(names, ", "))
 		}
-		fmt.Fprintf(stdout, "A setting marked production only isn't in the preview: there the app must do without it. The people set those on the machine with hi team env <team> --production KEY, for a key that sends, posts, orders, or pays per call.\n")
+		fmt.Fprintf(stdout, "A setting marked production only isn't in the preview: there the app must do without it. The people set those on the machine with hi app env <name> --production KEY, for a key that sends, posts, orders, or pays per call.\n")
 		fmt.Fprintf(stdout, "Models: $OPENROUTER_BASE_URL with $OPENROUTER_API_KEY, in previews and production; the preview's calls stop for the day at a limit ($5 unless the people set another), and production's have none. $HI_SLOT says which one the app is (preview or production), and $HI_DATA_DIR is its data folder.\n")
 	case "agy":
 		// Hermes tells its commands who wrote, and where: the thread's
@@ -653,7 +653,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			Chat: os.Getenv("HERMES_SESSION_CHAT_ID"), Thread: firstNonEmpty(os.Getenv("HERMES_SESSION_THREAD_ID"), os.Getenv("HERMES_SESSION_MESSAGE_ID"))})
 	case "versions":
 		if len(args) != 0 {
-			return usageError{"usage: hi team versions"}
+			return usageError{"usage: hi app versions"}
 		}
 		var view teamVersionsView
 		if err := call("GET", "/versions", nil, &view); err != nil {
@@ -662,7 +662,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		printTeamVersions(view, stdout)
 	case "data":
 		if len(args) != 0 {
-			return usageError{"usage: hi team data  (the data folders; the owners fork and copy them on the dev page)"}
+			return usageError{"usage: hi app data  (the data folders; the owners fork and copy them on the dev page)"}
 		}
 		var folders []teamDataFolder
 		if err := call("GET", "/data", nil, &folders); err != nil {
@@ -672,7 +672,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		fmt.Fprintln(stdout, "The app sees its own as $HI_DATA_DIR, and $HI_SLOT says which it is. Production owns the data; the preview runs on a fork of it, and what it writes stays its own. The owners give the preview a new fork, or production the preview's data, from the dev box and the dev page.")
 	case "helper":
 		if len(args) != 0 {
-			return usageError{"usage: hi team helper  (whether the app has the helper; the owners turn it on or off on the dev page)"}
+			return usageError{"usage: hi app helper  (whether the app has the helper; the owners turn it on or off on the dev page)"}
 		}
 		var line string
 		if err := call("GET", "/helper", nil, &line); err != nil {
@@ -680,7 +680,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		}
 		fmt.Fprintln(stdout, line)
 	case "web":
-		usage := usageError{"usage: hi team web  (the feedback in the app, last week)\n       hi team web show <feedback>\n       hi team web questions  (what people asked the app's help)\n       hi team web link --user <Slack member ID>  (DM someone their own links: the app's, and the dev page for owners and developers)\n       hi team web signin chatgpt|claude --user <Slack member ID>  (an owner signs the team in again, in a DM)"}
+		usage := usageError{"usage: hi app web  (the feedback in the app, last week)\n       hi app web show <feedback>\n       hi app web questions  (what people asked the app's help)\n       hi app web link --user <Slack member ID>  (DM someone their own links: the app's, and the dev page for owners and developers)\n       hi app web signin chatgpt|claude --user <Slack member ID>  (an owner signs the app in again, in a DM)"}
 		var line string
 		switch {
 		case len(args) == 0:
@@ -735,7 +735,7 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 		return nil
 	case "upstream":
 		if len(args) != 0 {
-			return usageError{"usage: hi team upstream"}
+			return usageError{"usage: hi app upstream"}
 		}
 		var view teamUpstreamView
 		if err := call("GET", "/upstream", nil, &view); err != nil {

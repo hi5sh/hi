@@ -52,7 +52,7 @@ func TestTeamSSO(t *testing.T) {
 		t.Fatal("the providers' file is", info.Mode())
 	}
 	// A name that stays first.
-	if err := teamSSOCommand([]string{"payments", "on", "acme", "--domain", "example.com"}, nil, &out); err == nil || !strings.Contains(err.Error(), "hi team domain payments on") {
+	if err := teamSSOCommand([]string{"payments", "on", "acme", "--domain", "example.com"}, nil, &out); err == nil || !strings.Contains(err.Error(), "hi app domain payments on") {
 		t.Fatal(err)
 	}
 	saveTeamsSettings(teamsSettings{Domain: "apps.example.com"})
@@ -83,7 +83,7 @@ func TestTeamSSO(t *testing.T) {
 		t.Fatalf("%+v", sso)
 	}
 	key = sso.Key
-	if err := add("acme", provider.URL, "--client-id", "hi-client"); err != nil || !strings.Contains(out.String(), "Teams payments") {
+	if err := add("acme", provider.URL, "--client-id", "hi-client"); err != nil || !strings.Contains(out.String(), "Apps payments") {
 		t.Fatal(err, out.String())
 	}
 	if sso, _ = loadTeamSSO("payments"); sso.Key != key {

@@ -1,7 +1,7 @@
 {
   "name": "hi-helper-test",
   "private": true,
-  "description": "Tests of the hi team helper (../helper.js) in happy-dom; hi doesn't need them to build",
+  "description": "Tests of the hi app helper (../helper.js) in happy-dom; hi doesn't need them to build",
   "scripts": {
     "test": "bun test"
   },

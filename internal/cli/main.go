@@ -95,8 +95,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runBox(args[1:], stdin, stdout, stderr)
 	case "agent":
 		return runAgent(args[1:], stdin, stdout, stderr)
-	case "team":
+	case "app":
 		return runTeam(args[1:], stdin, stdout, stderr)
+	case "team":
+		// Units and boxes written before v2.6.67 start hi team __serve, __app,
+		// __resolver, __leadapi, and snapshot; only those still answer to team.
+		if len(args) > 1 && (strings.HasPrefix(args[1], "__") || args[1] == "snapshot") {
+			return runTeam(args[1:], stdin, stdout, stderr)
+		}
+		fmt.Fprintf(stderr, "hi: unknown command %q\n\n", args[0])
+		printUsage(stderr)
+		return 2
 	case "dev":
 		return runDev(args[1:], stdin, stdout, stderr)
 	case "bundle", "bundles":
@@ -158,7 +167,7 @@ Usage:
   hi net down                   Disconnect NetBird
   hi net reconnect              Reconnect an enrolled NetBird peer
   hi net expose <port>          Put a local service on a temporary public address (hi net expose help)
-  hi net domain <domain>        https for the teams' addresses on this machine, with a domain of yours
+  hi net domain <domain>        https for the apps' addresses on this machine, with a domain of yours
   hi compute                    Start and use remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
   hi login <hf|colab|runpod|shadeform>
                                 Sign in to a compute provider
@@ -166,7 +175,7 @@ Usage:
   hi serve llm <recipe>         Serve a model with an OpenAI-compatible API on rented hardware (hi serve help)
   hi org                        Your organization: join it, or run its server, which approves and pays for compute
                                 and serves your team's templates and data (hi org help)
-  hi init [<template> <dir>]    Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml)
+  hi init [<template> <dir>]    Start a project from a template (python, web, webapp, service, pipeline, ml, autoresearch-ml)
   hi q <what you want to do>    Ask an AI model for a shell command, then run, copy, or explain it
   hi q                          Chat with it; hi q --setup chooses the model and sets up the shell
   hi agent [claude|codex|hermes|agy] [task]
@@ -174,14 +183,14 @@ Usage:
   hi agent best-of <n> <task>   The same task in n boxes, checked and ranked; --score runs rounds that keep only gains
   hi agent brainstorm <question>
                                 Several agents give ideas alone; one compiles them into a proposal
-  hi team new|up|down|ls <name> A team's app in a Slack channel: owners build it in a dev box, a Hermes lead helps the people (hi team help)
+  hi app new|up|down|ls <name>  An app in a Slack channel: owners build it in a dev box, a Hermes lead helps the people (hi app help)
   hi bundle ls|show             Bundles for hi agent --bundle: skills and the tools they need
   hi box shell|run              Run a shell or a command in a rootless box with no credentials
   hi skills                     Find, install, and update agent skills from skills.sh (hi skill help);
                                 hi skill add hi teaches agents to use hi
   hi verify strix               Check an installed Strix Halo workstation
   hi heartbeat [<url>|off|test] This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
-  hi update [--check]           Update hi to the latest release, and restart an org server or team running the old one
+  hi update [--check]           Update hi to the latest release, and restart an org server or app running the old one
   hi version                    Print the installed version
   hi help                       Show this help`)
 }
@@ -195,7 +204,7 @@ func printNetUsage(w io.Writer) {
   hi net reconnect
   hi net expose <port> [--max 1h] [--public | --pin P | --groups G] [--detach]
   hi net expose ls | stop <name>
-  hi net domain [<domain> --dns <provider> | --unset]   https for the teams' addresses`)
+  hi net domain [<domain> --dns <provider> | --unset]   https for the apps' addresses`)
 }
 
 func readLine(r io.Reader) (string, error) {

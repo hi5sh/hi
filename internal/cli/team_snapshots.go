@@ -98,7 +98,7 @@ func (s teamSnapshot) why() string {
 	return s.Kind
 }
 
-// teamSnapshotStatus is status.json beside the repository: what hi team
+// teamSnapshotStatus is status.json beside the repository: what hi app
 // status shows about snapshots.
 type teamSnapshotStatus struct {
 	Last     *teamSnapshot `json:"last,omitempty"`
@@ -217,7 +217,7 @@ func teamSnapshotRepo(team string) error {
 	key, repo := teamSnapshotKey(team), filepath.Join(dir, "repo")
 	if fileExists(filepath.Join(repo, "config")) {
 		if !fileExists(key) {
-			return fmt.Errorf("the key to the team's snapshots, %s, is gone; without it they can't be read", key)
+			return fmt.Errorf("the key to the app's snapshots, %s, is gone; without it they can't be read", key)
 		}
 		return nil
 	}
@@ -229,7 +229,7 @@ func teamSnapshotRepo(team string) error {
 		}
 	}
 	if _, err := teamRestic(teamResticEnv(team), dir, "init", "--quiet"); err != nil {
-		return fmt.Errorf("making the team's snapshot repository: %w", err)
+		return fmt.Errorf("making the app's snapshot repository: %w", err)
 	}
 	return nil
 }
@@ -514,7 +514,7 @@ func teamListSnapshots(team string) ([]teamSnapshot, error) {
 // snapshot before it went out), or a day (its last).
 func teamFindSnapshot(snapshots []teamSnapshot, which string) (teamSnapshot, error) {
 	if len(snapshots) == 0 {
-		return teamSnapshot{}, errors.New("the team has no snapshots yet; hi team snapshot takes one")
+		return teamSnapshot{}, errors.New("the app has no snapshots yet; hi app snapshot takes one")
 	}
 	var picked []teamSnapshot
 	switch {
@@ -527,7 +527,7 @@ func teamFindSnapshot(snapshots []teamSnapshot, which string) (teamSnapshot, err
 			}
 		}
 		if len(picked) == 0 {
-			return teamSnapshot{}, fmt.Errorf("no snapshot was taken before %s; hi team snapshots lists them", which)
+			return teamSnapshot{}, fmt.Errorf("no snapshot was taken before %s; hi app snapshots lists them", which)
 		}
 	default:
 		if day, err := time.ParseInLocation("2006-01-02", which, time.Local); err == nil {
@@ -537,7 +537,7 @@ func teamFindSnapshot(snapshots []teamSnapshot, which string) (teamSnapshot, err
 				}
 			}
 			if len(picked) == 0 {
-				return teamSnapshot{}, fmt.Errorf("no snapshot was taken on %s; hi team snapshots lists them", which)
+				return teamSnapshot{}, fmt.Errorf("no snapshot was taken on %s; hi app snapshots lists them", which)
 			}
 			break
 		}
@@ -547,7 +547,7 @@ func teamFindSnapshot(snapshots []teamSnapshot, which string) (teamSnapshot, err
 			}
 		}
 		if len(picked) == 0 {
-			return teamSnapshot{}, fmt.Errorf("no snapshot %s; hi team snapshots lists them", which)
+			return teamSnapshot{}, fmt.Errorf("no snapshot %s; hi app snapshots lists them", which)
 		}
 		if len(picked) > 1 {
 			return teamSnapshot{}, fmt.Errorf("%s starts more than one snapshot's ID; give more of it", which)
@@ -579,15 +579,15 @@ func (b *teamBroker) snapshotLocked(kind, label string) (teamSnapshot, error) {
 	b.previewMu.Unlock()
 	config, _ := loadTeam(b.team)
 	if err != nil {
-		b.announceOps(config, fmt.Sprintf(":warning: %s hi couldn't take the team's snapshot (%s): %s", teamPeople(config.Owners), teamSnapshot{Kind: kind, Label: label}.why(), err))
+		b.announceOps(config, fmt.Sprintf(":warning: %s hi couldn't take the app's snapshot (%s): %s", teamPeople(config.Owners), teamSnapshot{Kind: kind, Label: label}.why(), err))
 		return snapshot, err
 	}
 	if snapshot.Warning != "" {
-		b.announceOps(config, fmt.Sprintf(":warning: %s The team's snapshot %s (%s) has a problem: %s", teamPeople(config.Owners), snapshot.ID, snapshot.why(), snapshot.Warning))
+		b.announceOps(config, fmt.Sprintf(":warning: %s The app's snapshot %s (%s) has a problem: %s", teamPeople(config.Owners), snapshot.ID, snapshot.why(), snapshot.Warning))
 	}
 	go func() {
 		if err := teamAfterSnapshot(b.team, kind); err != nil {
-			b.announceOps(config, fmt.Sprintf(":warning: %s The team's snapshot %s is taken, but: %s", teamPeople(config.Owners), snapshot.ID, err))
+			b.announceOps(config, fmt.Sprintf(":warning: %s The app's snapshot %s is taken, but: %s", teamPeople(config.Owners), snapshot.ID, err))
 		}
 	}()
 	return snapshot, nil
@@ -741,7 +741,7 @@ func teamHostCall(team, path string, body, out any) (ok bool, err error) {
 // ---------------------------------------------------------------------------
 // the commands, on the host
 
-// teamSnapshotCommand is hi team snapshot <name> [--daily].
+// teamSnapshotCommand is hi app snapshot <name> [--daily].
 func teamSnapshotCommand(args []string, stdout io.Writer) error {
 	kind := teamSnapshotManual
 	var words []string
@@ -756,7 +756,7 @@ func teamSnapshotCommand(args []string, stdout io.Writer) error {
 		}
 	}
 	if len(words) != 1 {
-		return usageError{"usage: hi team snapshot <name>"}
+		return usageError{"usage: hi app snapshot <name>"}
 	}
 	team := words[0]
 	if _, err := loadTeam(team); err != nil {
@@ -776,19 +776,19 @@ func teamSnapshotCommand(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Snapshot %s of team %s: %s, %s new.\n", snapshot.ID, team, qSize(snapshot.Size), qSize(snapshot.Added))
+	fmt.Fprintf(stdout, "Snapshot %s of app %s: %s, %s new.\n", snapshot.ID, team, qSize(snapshot.Size), qSize(snapshot.Added))
 	if snapshot.Warning != "" {
 		fmt.Fprintln(stdout, "Note: "+snapshot.Warning)
 	}
 	if asked {
 		if config, err := loadTeam(team); err == nil && config.backups().Offsite != "" {
-			fmt.Fprintln(stdout, "The team copies it offsite now; hi team snapshots shows when it's there.")
+			fmt.Fprintln(stdout, "The app copies it offsite now; hi app snapshots shows when it's there.")
 		}
 	}
 	return nil
 }
 
-// teamSnapshotsCommand is hi team snapshots <name>.
+// teamSnapshotsCommand is hi app snapshots <name>.
 func teamSnapshotsCommand(name string, stdout io.Writer) error {
 	config, err := loadTeam(name)
 	if err != nil {
@@ -800,7 +800,7 @@ func teamSnapshotsCommand(name string, stdout io.Writer) error {
 	}
 	status := loadTeamSnapshotStatus(name)
 	backups := config.backups()
-	fmt.Fprintf(stdout, "Snapshots of team %s, in %s.\n", name, teamSnapshotsDir(name))
+	fmt.Fprintf(stdout, "Snapshots of app %s, in %s.\n", name, teamSnapshotsDir(name))
 	if backups.Offsite != "" {
 		fmt.Fprintf(stdout, "Copied to %s.\n", backups.Offsite)
 	}
@@ -811,7 +811,7 @@ func teamSnapshotsCommand(name string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "The last copy offsite failed, %s: %s\n", status.CopyFailedAt.Local().Format("Jan 2 15:04"), status.CopyFailed)
 	}
 	if len(snapshots) == 0 {
-		fmt.Fprintf(stdout, "\nNone yet. hi team snapshot %s takes one; the team takes one daily while it is up.\n", name)
+		fmt.Fprintf(stdout, "\nNone yet. hi app snapshot %s takes one; the app takes one daily while it is up.\n", name)
 		return nil
 	}
 	fmt.Fprintln(stdout)
@@ -833,11 +833,11 @@ func teamSnapshotsCommand(name string, stdout io.Writer) error {
 		fmt.Fprintln(table, line)
 	}
 	table.Flush()
-	fmt.Fprintf(stdout, "\nhi team restore %s <ID> puts the team back as it was then.\n", name)
+	fmt.Fprintf(stdout, "\nhi app restore %s <ID> puts the app back as it was then.\n", name)
 	return nil
 }
 
-// teamSnapshotLine is hi team status's line about snapshots.
+// teamSnapshotLine is hi app status's line about snapshots.
 func teamSnapshotLine(name string) string {
 	config, err := loadTeam(name)
 	if err != nil {
@@ -854,7 +854,7 @@ func teamSnapshotLine(name string) string {
 		line = "Snapshots: none yet."
 	}
 	if offsite := config.backups().Offsite; offsite == "" {
-		line += " Not copied offsite (hi team backups)."
+		line += " Not copied offsite (hi app backups)."
 	} else if status.CopyFailed != "" {
 		line += fmt.Sprintf(" The last copy to %s failed, %s: %s", offsite, status.CopyFailedAt.Local().Format("Jan 2 15:04"), status.CopyFailed)
 	} else if status.CopiedOffsite == offsite {
@@ -890,7 +890,7 @@ var (
 	}
 )
 
-// teamRestoreCommand is hi team restore <name> <snapshot> [--code] [--yes].
+// teamRestoreCommand is hi app restore <name> <snapshot> [--code] [--yes].
 func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	var code, yes bool
 	var words []string
@@ -907,7 +907,7 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		}
 	}
 	if len(words) != 2 {
-		return usageError{"usage: hi team restore <name> <snapshot ID | latest | v3 | 2026-10-12> [--code] [--yes]"}
+		return usageError{"usage: hi app restore <name> <snapshot ID | latest | v3 | 2026-10-12> [--code] [--yes]"}
 	}
 	team := words[0]
 	config, err := loadTeam(team)
@@ -924,23 +924,23 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	}
 	dir := teamDir(team)
 	code = code || !fileExists(filepath.Join(dir, "repo"))
-	fmt.Fprintf(stdout, "This puts team %s back as it was %s, in snapshot %s (%s):\n", team, snapshot.Time.Local().Format("Mon Jan 2 at 15:04"), snapshot.ID, snapshot.why())
+	fmt.Fprintf(stdout, "This puts app %s back as it was %s, in snapshot %s (%s):\n", team, snapshot.Time.Local().Format("Mon Jan 2 at 15:04"), snapshot.ID, snapshot.why())
 	fmt.Fprintln(stdout, "  the lead's memory     lead/, memory/")
-	fmt.Fprintln(stdout, "  the team's record     versions.json, tasks/, incidents/, channel/, logs/")
+	fmt.Fprintln(stdout, "  the app's record     versions.json, tasks/, incidents/, channel/, logs/")
 	fmt.Fprintln(stdout, "  the app's data        app/")
 	if code {
 		fmt.Fprintln(stdout, "  the code              repo/")
 	} else {
 		fmt.Fprintln(stdout, "The code (repo/) stays as it is; --code puts it back too.")
 	}
-	fmt.Fprintln(stdout, "The team's settings (team.json, secrets.json) stay. The team stops while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
-	if err := confirm(stdin, stdout, yes, "Restore team "+team+"?"); err != nil {
+	fmt.Fprintln(stdout, "The app's settings (team.json, secrets.json) stay. The app stops while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
+	if err := confirm(stdin, stdout, yes, "Restore app "+team+"?"); err != nil {
 		return err
 	}
 
 	wasUp := teamState(team) == "up"
 	if wasUp {
-		fmt.Fprintf(stdout, "Stopping team %s…\n", team)
+		fmt.Fprintf(stdout, "Stopping app %s…\n", team)
 		if out, err := teamSystemctl("stop", teamUnitName(team)); err != nil {
 			return fmt.Errorf("systemctl --user stop %s: %s", teamUnitName(team), qFirstLine(out, err.Error()))
 		}
@@ -948,7 +948,7 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	start := func() {
 		if wasUp {
 			if out, err := teamSystemctl("start", teamUnitName(team)); err != nil {
-				fmt.Fprintf(stdout, "The team didn't start again: %s. hi team up %s starts it.\n", qFirstLine(out, err.Error()), team)
+				fmt.Fprintf(stdout, "The app didn't start again: %s. hi app up %s starts it.\n", qFirstLine(out, err.Error()), team)
 			}
 		}
 	}
@@ -976,7 +976,7 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		return err
 	}
 	if wasUp {
-		fmt.Fprintf(stdout, "Starting team %s…\n", team)
+		fmt.Fprintf(stdout, "Starting app %s…\n", team)
 	}
 	start()
 
@@ -984,12 +984,12 @@ func teamRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	if code {
 		what += ", and the code"
 	}
-	text := fmt.Sprintf(":rewind: *The team is back as it was %s* (snapshot %s, %s): %s. What changed since is in snapshot %s; hi team restore %s %s on the machine puts it back.",
+	text := fmt.Sprintf(":rewind: *The app is back as it was %s* (snapshot %s, %s): %s. What changed since is in snapshot %s; hi app restore %s %s on the machine puts it back.",
 		snapshot.Time.Local().Format("Mon Jan 2 at 15:04"), snapshot.ID, snapshot.why(), what, before.ID, team, before.ID)
 	if err := teamRestorePost(config, text); err != nil {
 		fmt.Fprintf(stdout, "The channel wasn't told: %v\n", err)
 	}
-	fmt.Fprintf(stdout, "Team %s is back as it was in snapshot %s. Snapshot %s undoes it: hi team restore %s %s\n", team, snapshot.ID, before.ID, team, before.ID)
+	fmt.Fprintf(stdout, "App %s is back as it was in snapshot %s. Snapshot %s undoes it: hi app restore %s %s\n", team, snapshot.ID, before.ID, team, before.ID)
 	return nil
 }
 
@@ -1052,7 +1052,7 @@ func teamSwapRestored(dir, restored string, code bool) error {
 // ---------------------------------------------------------------------------
 // backups: where and how long
 
-// teamBackupsCommand is hi team backups <name> [--offsite <url>|off]
+// teamBackupsCommand is hi app backups <name> [--offsite <url>|off]
 // [--keep d,w,m] [--show-key].
 func teamBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	var name, offsite, keep, region string
@@ -1072,15 +1072,15 @@ func teamBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		case arg == "--show-key":
 			showKey = true
 		case strings.HasPrefix(arg, "-"):
-			return usageError{"usage: hi team backups <name> [--offsite s3:https://<host>/<bucket>[/<path>] [--region <region>] | --offsite off] [--keep <daily>,<weekly>,<monthly>] [--show-key]"}
+			return usageError{"usage: hi app backups <name> [--offsite s3:https://<host>/<bucket>[/<path>] [--region <region>] | --offsite off] [--keep <daily>,<weekly>,<monthly>] [--show-key]"}
 		case name == "":
 			name = arg
 		default:
-			return usageError{"usage: hi team backups <name> [--offsite ...] [--keep ...] [--show-key]"}
+			return usageError{"usage: hi app backups <name> [--offsite ...] [--keep ...] [--show-key]"}
 		}
 	}
 	if name == "" {
-		return usageError{"name the team: hi team backups <name>"}
+		return usageError{"name the app: hi app backups <name>"}
 	}
 	config, err := loadTeam(name)
 	if err != nil {
@@ -1089,7 +1089,7 @@ func teamBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	if showKey {
 		key, err := os.ReadFile(teamSnapshotKey(name))
 		if err != nil {
-			return errors.New("the team has no snapshots yet, so no key; hi team snapshot takes the first")
+			return errors.New("the app has no snapshots yet, so no key; hi app snapshot takes the first")
 		}
 		fmt.Fprintln(stdout, strings.TrimSpace(string(key)))
 		return nil
@@ -1135,7 +1135,7 @@ func teamBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		if err != nil {
 			return err
 		}
-		id, secret := os.Getenv("HI_TEAM_S3_ACCESS_KEY_ID"), os.Getenv("HI_TEAM_S3_SECRET_ACCESS_KEY")
+		id, secret := os.Getenv("HI_APP_S3_ACCESS_KEY_ID"), os.Getenv("HI_APP_S3_SECRET_ACCESS_KEY")
 		if id == "" {
 			if id, err = teamAskSecret(stdin, stdout, "The bucket's access key ID"); err != nil {
 				return err
@@ -1162,18 +1162,18 @@ func teamBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		if err := teamSnapshotRepo(name); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Copying the team's snapshots to %s…\n", backups.Offsite)
+		fmt.Fprintf(stdout, "Copying the app's snapshots to %s…\n", backups.Offsite)
 		if err := teamCopyOffsite(name, false); err != nil {
 			return fmt.Errorf("the bucket is saved, but the copy failed: %w", err)
 		}
 	}
-	fmt.Fprintf(stdout, "Team %s's snapshots are in %s.\n", name, teamSnapshotsDir(name))
+	fmt.Fprintf(stdout, "App %s's snapshots are in %s.\n", name, teamSnapshotsDir(name))
 	fmt.Fprintf(stdout, "hi keeps the last %d days, %d weeks, and %d months, everything from the last week, and every snapshot taken before a release.\n", backups.Daily, backups.Weekly, backups.Monthly)
 	if backups.Offsite != "" {
 		fmt.Fprintf(stdout, "Each one is copied to %s.\n", backups.Offsite)
-		fmt.Fprintf(stdout, "They are encrypted with the key in %s; keep a copy somewhere other than this machine (hi team backups %s --show-key), or the bucket can't be read if the machine is lost.\n", teamSnapshotKey(name), name)
+		fmt.Fprintf(stdout, "They are encrypted with the key in %s; keep a copy somewhere other than this machine (hi app backups %s --show-key), or the bucket can't be read if the machine is lost.\n", teamSnapshotKey(name), name)
 	} else {
-		fmt.Fprintf(stdout, "They are only on this machine: hi team backups %s --offsite s3:https://<host>/<bucket> copies them to a bucket too.\n", name)
+		fmt.Fprintf(stdout, "They are only on this machine: hi app backups %s --offsite s3:https://<host>/<bucket> copies them to a bucket too.\n", name)
 	}
 	return nil
 }
@@ -1190,14 +1190,14 @@ func teamSnapshotUnits(config teamConfig, executable string) (service, timer str
 	}
 	env += "Environment=PATH=" + os.Getenv("PATH") + "\n"
 	service = fmt.Sprintf(`[Unit]
-Description=hi team %[1]s: the daily snapshot
+Description=hi app %[1]s: the daily snapshot
 
 [Service]
 Type=oneshot
-%[2]sExecStart=%[3]s team snapshot %[1]s --daily
+%[2]sExecStart=%[3]s app snapshot %[1]s --daily
 `, config.Name, env, executable)
 	timer = fmt.Sprintf(`[Unit]
-Description=hi team %[1]s: a snapshot every day
+Description=hi app %[1]s: a snapshot every day
 
 [Timer]
 OnCalendar=*-*-* 03:00:00
@@ -1237,7 +1237,7 @@ var teamResticInstalled = func() bool {
 // ---------------------------------------------------------------------------
 // rollback, on the host
 
-// teamRollbackCommand is hi team rollback <name> v2 [--code-only] [--yes]:
+// teamRollbackCommand is hi app rollback <name> v2 [--code-only] [--yes]:
 // production back on an earlier release, with its data as that release
 // left it. An owner on the machine needs no yes in the channel; the team's
 // service does it, so the team must be up.
@@ -1257,7 +1257,7 @@ func teamRollbackCommand(args []string, stdin io.Reader, stdout io.Writer) error
 		}
 	}
 	if len(words) != 2 || !teamVersionArg.MatchString(words[1]) {
-		return usageError{"usage: hi team rollback <name> v2 [--code-only] [--yes]"}
+		return usageError{"usage: hi app rollback <name> v2 [--code-only] [--yes]"}
 	}
 	team := words[0]
 	if _, err := loadTeam(team); err != nil {
@@ -1269,21 +1269,21 @@ func teamRollbackCommand(args []string, stdin io.Reader, stdout io.Writer) error
 		return err
 	}
 	if _, ok := versions.release(version); !ok {
-		return fmt.Errorf("team %s has no v%d; hi team status %s shows its versions", team, version, team)
+		return fmt.Errorf("app %s has no v%d; hi app status %s shows its versions", team, version, team)
 	}
 	if version == versions.Production {
 		return fmt.Errorf("production is on v%d already", version)
 	}
 	if codeOnly {
-		fmt.Fprintf(stdout, "This puts team %s's production back on v%d's code (it is on v%d). Production's data stays as it is.\n", team, version, versions.Production)
+		fmt.Fprintf(stdout, "This puts app %s's production back on v%d's code (it is on v%d). Production's data stays as it is.\n", team, version, versions.Production)
 	} else {
 		left, ok := versions.leftSnapshot(version)
 		if !ok {
 			return fmt.Errorf("hi has no snapshot of production's data as v%d left it (hi snapshots it when production moves, since v0.55.0); --code-only puts back its code alone", version)
 		}
-		fmt.Fprintf(stdout, "This puts team %s's production back on v%d (it is on v%d), with production's data as v%d left it, %s (snapshot %s).\n",
+		fmt.Fprintf(stdout, "This puts app %s's production back on v%d (it is on v%d), with production's data as v%d left it, %s (snapshot %s).\n",
 			team, version, versions.Production, version, left.At.Local().Format("Mon Jan 2 at 15:04"), left.Snapshot)
-		fmt.Fprintf(stdout, "What was entered in production since is set aside in a snapshot hi takes first; hi team rollback %s v%d puts it back.\n", team, versions.Production)
+		fmt.Fprintf(stdout, "What was entered in production since is set aside in a snapshot hi takes first; hi app rollback %s v%d puts it back.\n", team, versions.Production)
 	}
 	fmt.Fprintln(stdout, "The lead's memory, the tasks, and the channel's log stay as they are. hi posts it in the channel.")
 	if err := confirm(stdin, stdout, yes, fmt.Sprintf("Roll production back to v%d?", version)); err != nil {
@@ -1292,7 +1292,7 @@ func teamRollbackCommand(args []string, stdin io.Reader, stdout io.Writer) error
 	var result teamReleaseResult
 	asked, err := teamHostCall(team, "/rollback", teamHostRollback{Version: version, CodeOnly: codeOnly, Who: currentUserName()}, &result)
 	if !asked {
-		return fmt.Errorf("team %s isn't up, or runs a hi from before rollback; hi team up %s, then try again", team, team)
+		return fmt.Errorf("app %s isn't up, or runs a hi from before rollback; hi app up %s, then try again", team, team)
 	}
 	if err != nil {
 		return err
