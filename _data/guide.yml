@@ -33,7 +33,7 @@
       url: /guide/team/keys/
     - title: Dev and production
       url: /guide/team/releases/
-    - title: Preview and production data
+    - title: Stage and production data
       url: /guide/team/data/
     - title: Reviews from the dev box
       url: /guide/team/reviews/

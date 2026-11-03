@@ -101,28 +101,33 @@ install. [Install hi]({{ '/guide/install/' | relative_url }}) has the
 commands, and [Set up a workstation]({{ '/guide/workstation/' | relative_url }})
 walks through it.
 
-Every workstation gets the same coding agents and GPU tooling at first login:
+Nothing is installed until you ask. `hi install` opens a menu of coding
+agents and GPU tooling: check the ones this machine should have. Without a
+terminal, name them, as in `hi install claude codex`.
 
 | Tool | Command |
 |------|---------|
 | [Claude Code](https://code.claude.com/docs) | `claude` |
 | [Codex CLI](https://developers.openai.com/codex/cli) | `codex` |
 | [Antigravity CLI](https://antigravity.google) | `agy` |
+| Gemini API CLI, for Antigravity's boxes | `gemini-api` |
 | [Hermes Agent](https://github.com/NousResearch/hermes-agent) | `hermes` |
 | [omp](https://omp.sh) | `omp` |
 | [herdr](https://herdr.dev) | `herdr` |
 | [AMD ROCm 10](https://rocm.docs.amd.com) | `hi install strix` |
 | [amd-debug-tools](https://pypi.org/project/amd-debug-tools/) | `hi install strix` |
 
-It also gets [uv](https://docs.astral.sh/uv/), [pipx](https://pipx.pypa.io),
-[Node.js](https://nodejs.org), [Docker](https://docs.docker.com/engine/),
+It also offers [uv](https://docs.astral.sh/uv/),
+[Node.js](https://nodejs.org), [Bun](https://bun.com),
+[Docker](https://docs.docker.com/engine/),
 [Podman](https://podman.io), [GitHub CLI](https://cli.github.com),
-[NetBird](https://netbird.io),
+[NetBird](https://netbird.io), [restic](https://restic.net),
 [Colab CLI](https://github.com/googlecolab/google-colab-cli),
 [hf CLI](https://huggingface.co/docs/huggingface_hub/guides/cli),
 [btop](https://github.com/aristocratos/btop),
 [tmux](https://github.com/tmux/tmux), and
-[timg](https://github.com/hzeller/timg).
+[timg](https://github.com/hzeller/timg). Any install also sets up
+[pipx](https://pipx.pypa.io).
 
 ### Tested on Strix Halo
 
@@ -167,6 +172,7 @@ cd pricing-tools && make check
 | `hi team new <name>` | A team in one Slack channel that runs an app: a lead for the people, a dev box for its owners. |
 | `hi box shell` · `run` | A shell or a command in a rootless container with no credentials. |
 | `hi compute run` · `up` · `serve` · `stop` | Remote GPUs on Colab, Hugging Face, RunPod, or Shadeform, with time limits. |
+| `hi serve llm <recipe>` | A model with an OpenAI-compatible API, on rented hardware or this machine's GPU. |
 | `hi org join <server>` | Join your team's org server. |
 | `hi data` | Your team's private Hugging Face datasets, models, and buckets. |
 | `hi skills` | Agent skills from skills.sh, pinned and audited. |

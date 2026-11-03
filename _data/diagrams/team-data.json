@@ -1,5 +1,5 @@
 {
-  "caption": "How a hi team keeps its app's data. On the team's machine, production's box runs the released version on app/, the team's data folder, which owns the data and is snapshotted. At every release, and with hi team data fork, hi forks app/ into run/preview-base/: it hardlinks the files, which takes seconds and no disk. The preview's box mounts that fork read only, with run/preview-data/ over it: that folder holds the databases and the files being written, copied in full, and whatever the preview writes. Nothing the preview does reaches production. The preview's model calls go through a socket of its own and stop for the day at a limit; settings marked production only aren't in the preview.",
+  "caption": "How a hi team keeps its app's data. On the team's machine, production's box runs the released version on app/, the team's data folder, which owns the data and is snapshotted. At every release, and with hi team data fork, hi forks app/ into run/preview-base/: it hardlinks the files, which takes seconds and no disk. Stage's box mounts that fork read only, with run/preview-data/ over it: that folder holds the databases and the files being written, copied in full, and whatever Stage writes. Nothing Stage does reaches production. Stage's model calls go through a socket of its own and stop for the day at a limit; settings marked production only aren't in Stage.",
   "you": "People",
   "via": "the app's two links",
   "frame": "the team's machine",
@@ -45,7 +45,7 @@
       ]
     },
     {
-      "name": "preview",
+      "name": "Stage",
       "label": "what people try",
       "mark": 4,
       "via": "mounted under",
@@ -53,13 +53,13 @@
       "items": [
         {
           "title": "run/preview-data/",
-          "role": "the preview's own",
-          "does": "The databases and the files being written, copied in full, and everything the preview writes.",
+          "role": "Stage's own",
+          "does": "The databases and the files being written, copied in full, and everything Stage writes.",
           "chip": "overlay",
           "tone": "accent"
         },
         {
-          "title": "preview",
+          "title": "Stage",
           "role": "app box",
           "does": "Sees the fork with its own folder over it at `/data`; no production-only settings.",
           "chip": "link",
@@ -71,14 +71,14 @@
   ],
   "after": [
     {
-      "name": "the preview's models socket",
+      "name": "Stage's models socket",
       "label": "OpenRouter, through hi",
       "mark": 5,
       "via": "model calls",
       "items": [
         {
           "title": "$5 a day",
-          "role": "the preview's limit",
+          "role": "Stage's limit",
           "does": "Its calls stop for the day at the limit (`hi team limit`); production's have none.",
           "chip": "OpenRouter",
           "tone": "violet"
@@ -100,17 +100,17 @@
     {
       "mark": 3,
       "term": "Fork",
-      "text": "A frozen view of production's files from the last release, which the preview reads but never writes."
+      "text": "A frozen view of production's files from the last release, which Stage reads but never writes."
     },
     {
       "mark": 4,
-      "term": "Preview",
+      "term": "Stage",
       "text": "Runs on the fork with a folder of its own over it: an overlay, mounted by Podman."
     },
     {
       "mark": 5,
       "term": "Limit",
-      "text": "A preview can't act on the world: a daily limit on its model calls, and keys it doesn't get."
+      "text": "Stage can't act on the world: a daily limit on its model calls, and keys it doesn't get."
     }
   ]
 }

@@ -104,7 +104,7 @@ fallback: |
     --score "make score" --higher --edit strategy.py \
     --validate "make validate" \
     --validate-data ../myproject-validation program.md</span></div>
-        <p>After each round, hi runs <code>--validate</code> on the winner in a container of its own, with no network, no <code>.git</code>, and only the <code>--edit</code> files from the box. The data is read-only at <code>/box/data</code> and never in an agent's box. A gain is kept only if its validation is no worse than the highest so far; <code>--validate-slack</code> allows for noise.</p>
+        <p>After each round, hi runs <code>--validate</code> on every result that could be kept, each in a container of its own, with no network, no <code>.git</code>, and only the <code>--edit</code> files from the box. The data is read-only at <code>/box/data</code> and never in an agent's box. The round's winner is kept only if its validation is no worse than the highest so far; <code>--validate-slack</code> allows for noise.</p>
       </div>
       <div class="detail">
         <h3>Keeping agents to the experiment</h3>
@@ -119,7 +119,7 @@ fallback: |
             <tr><td>CHECK</td><td>✓ or ✗, and how long the check took</td></tr>
             <tr><td>DIFF</td><td>lines added and removed, and files changed</td></tr>
             <tr><td>FLAGS</td><td>changed files that run on your machine later, such as a <code>Makefile</code></td></tr>
-            <tr><td>SPEND</td><td>dollars at API prices (Claude Code) or tokens (Codex)</td></tr>
+            <tr><td>SPEND</td><td>dollars at API prices (Claude Code) or tokens (Codex, Antigravity)</td></tr>
           </tbody>
         </table>
         <p>The order is no judgement of quality: passing boxes that changed something come first, then fewer flagged files, then the smaller diff. Read the diff before you keep one.</p>
@@ -134,7 +134,7 @@ fallback: |
       <div class="prose">
         <p><strong>1.</strong> hi starts n boxes from the same commit (for rounds: the best so far), each on its own branch, <code>best-of/&lt;run&gt;/&lt;i&gt;</code>, with <code>--agents</code> taken in turn.</p>
         <p><strong>2.</strong> Each agent works on the task, unattended, without permission prompts.</p>
-        <p><strong>3.</strong> When an agent ends, hi stops whatever it left running, snapshots its files, then runs <code>--check</code> and <code>--score</code> on that snapshot, under a time limit of twice the baseline's time plus a minute.</p>
+        <p><strong>3.</strong> When an agent ends, hi stops whatever it left running, snapshots its files, then runs <code>--check</code> and <code>--score</code> on that snapshot. The score runs under a time limit of twice the baseline's time plus a minute, and at least two minutes.</p>
         <p><strong>4.</strong> hi ranks the boxes. In best of n, you pick one with <code>keep</code>. In rounds, the best score is committed if it beats the best so far, and holds on validation if there is one, and every box is removed.</p>
         <p><strong>5.</strong> In rounds, the next round's task tells the agents the best score and what every earlier attempt tried and scored. hi keeps every attempt's files, kept or not, under <code>refs/best-of/&lt;run&gt;/</code>.</p>
         <p>The rounds run in a process of their own, so they go on when you close the terminal or the SSH session; <code>hi agent best-of resume</code> goes on from the best so far, after a reboot too.</p>

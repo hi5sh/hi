@@ -1,14 +1,14 @@
 ---
 title: Try what the team built
-description: "How a hi team shows its work: the preview and production on the team's NetBird network, on https with a domain of yours, or public behind a key in the link, and addresses that stay."
+description: "How a hi team shows its work: Stage and production on the team's NetBird network, on https with a domain of yours, or public behind a key in the link, and addresses that stay."
 ---
 
 When an owner's agent ships work into dev (`hi dev ship`), or puts a
-branch on the preview first (`hi dev preview`), hi shows it on the team's
-preview address, so the people can try the work, on their phones too:
+branch on Stage first (`hi dev preview`), hi shows it on Stage's
+address, so the people can try the work, on their phones too:
 
 1. hi starts the project in an app box of its own, from dev (or the
-   branch on the preview), with `make run`, or the
+   branch on Stage), with `make run`, or the
    `start` script: `bun run start` with a `bun.lock`, else `npm start`.
    The app listens on `$PORT`; its port reaches this machine only.
 2. **On the team's NetBird network**, it is at `http://<team>.<your
@@ -19,8 +19,8 @@ preview address, so the people can try the work, on their phones too:
    public. They need no key and don't expire; WireGuard encrypts the
    traffic on the network.
 3. **On https**, with a domain of yours for the machine
-   (`hi net domain`): production at `https://<team>.<domain>/` and the
-   preview at `https://<team>-preview.<domain>/`, still reached only on
+   (`hi net domain`): production at `https://<team>.<domain>/` and
+   Stage at `https://<team>-preview.<domain>/`, still reached only on
    the network (see [The addresses on https](/guide/team/dev/#the-addresses-on-https)).
 4. **Public too**, when an owner makes it so under **Where things run**
    in the [dev page](/guide/team/dev/#the-dev-page)'s Release tab:
@@ -28,15 +28,15 @@ preview address, so the people can try the work, on their phones too:
    machine's NetBird (see [hi net](/guide/workstation/expose/)), which
    only the link with its key opens, from the addresses `hi team allow-ip`
    allows. The machine must be enrolled with `hi net`, and Peer Expose
-   must be on in NetBird. A team made before hi 2.5 is public until an
-   owner makes it internal only. A public link lasts a day; the preview
+   must be on in NetBird. An older team, made before new teams were internal, is public until
+   an owner makes it internal only. A public link lasts a day; Stage
    gets a new one only when the old one has less than 12 hours left.
-5. The address stays the same from one preview to the next: the new
+5. The address stays the same from one version on Stage to the next: the new
    version starts beside the old one, and the address moves to it once
    it answers, so the people just reload. If the new version doesn't
    start, the address keeps showing the old one.
 
-A new team's app is on the preview as soon as `hi team up` starts the
+A new team's app is on Stage as soon as `hi team up` starts the
 team, so its link works before anything is built. It is a welcome page
 that points at the helper's button, whose Feedback tells the team what
 the app should do. The first feature replaces it.
@@ -57,7 +57,7 @@ so the app's data isn't opened twice for the sake of a link.
 By default NetBird makes up each public address, and production's
 changes every day. With a domain of your own verified in NetBird's
 reverse proxy, a team you turn it on for gets public names that stay:
-production at `<team>.<domain>` and the preview at
+production at `<team>.<domain>` and Stage at
 `<team>-preview.<domain>`, renewed every 30 days on the same name.
 This is a different domain from `hi net domain`'s, which is for the
 internal addresses.
@@ -83,7 +83,7 @@ hi team domain apps.example.com --new-token   # another token; hi also asks when
 ```
 
 A team's production moves within a minute of `on` or `off`, and its
-preview with the next one.
+Stage with the next one.
 
 To let in only some addresses, such as the office's, with the same token:
 
@@ -100,7 +100,7 @@ list, so an address added there by hand is gone again within a minute.
 The same goes for the service itself: one deleted in the dashboard is
 made again within a minute, on the same name, with the same key.
 
-The team's production and preview move to addresses with the rule within
+The team's production and Stage move to addresses with the rule within
 a minute (`hi net expose --allow-ip`). On a name that stays, the links
 people have keep working; from anywhere else, NetBird turns them away. A team still running an older hi moves when
 it is restarted. If
@@ -122,7 +122,7 @@ hi team sso payments                                 # the rules, and the last s
 hi team sso payments off                             # the link only; everyone is signed out
 ```
 
-`on` prints two return addresses, production's and the preview's, such as
+`on` prints two return addresses, production's and Stage's, such as
 `https://payments.apps.example.com/__hi/auth/callback`: add both to the
 client at the provider. Someone who opens the app with no key and no
 session goes to the provider's sign-in and back to the page they asked

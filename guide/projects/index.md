@@ -56,10 +56,10 @@ with a blank page, plus the team's roles. It is a layer for
 
 `hi init --list` shows them. The Python ones need `uv`, `web` needs Bun
 and Node.js, and `app` needs only Bun; `hi install` sets up all three. `web` installs with Bun
-and commits `bun.lock`; Vite and Vitest still run on Node.js. A `web`
-project from before v0.61.0 that runs `hi init --update` gets the Bun
-Makefile and upgrade notes for `bunfig.toml`, and its `make check` says to
-run `bun install`, which turns `package-lock.json` into `bun.lock`, and
+and commits `bun.lock`; Vite and Vitest still run on Node.js. An older
+`web` project that still uses npm gets the Bun Makefile from
+`hi init --update`, with upgrade notes for `bunfig.toml`, and its
+`make check` says to run `bun install`, which turns `package-lock.json` into `bun.lock`, and
 then to delete the old file.
 
 Each adds its own checks to `make check`: `service` checks that the health
@@ -82,7 +82,7 @@ from. `hi` checks that they are signed by the server and keeps a copy, so
 they still work when the server can't be reached.
 
 In the private repository, each template is a folder with its `layer.json`
-in `project_templates/` (hi 0.51.1 or later), beside `skills/`, `bundles/`,
+in `project_templates/`, beside `skills/`, `bundles/`,
 and `docs/`, so templates and the rest don't mix. Folders with a
 `layer.json` at the top of the repository still load, for repositories laid
 out before; a template in both places is refused, since hi couldn't tell
@@ -187,6 +187,6 @@ commit of each layer, and a hash of every file it wrote with its kind and
 source. It holds no paths, user names, or secrets. Commit it: `--update`
 and `--check` depend on it.
 
-Projects made before v0.65.0 keep these records in `.hifin/` instead.
+Older projects keep these records in `.hifin/` instead.
 `hi` still reads them there, and the next `hi init --update` renames the
 folder to `.hi5/`; commit the rename.

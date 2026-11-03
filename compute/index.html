@@ -33,8 +33,9 @@ fallback: |
       </div>
       <div class="use">
         <h3>A model behind an API</h3>
-        <p>llama.cpp on the GPU, with its OpenAI-compatible API tunnelled to <code>localhost</code>.</p>
-        <div class="snip"><span class="c">$ hi compute serve qwen3.8-flash-next</span></div>
+        <p>llama.cpp on a rented GPU, with its OpenAI-compatible API tunnelled to <code>localhost</code>, or with <code>--on local</code> on this machine's AMD or NVIDIA GPU.</p>
+        <div class="snip"><span class="c">$ hi serve llm qwen3.8-flash-next --on colab</span>
+<span class="c">$ hi serve llm qwen3.8-flash-next --on local</span></div>
       </div>
     </div>
   </section>

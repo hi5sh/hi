@@ -68,13 +68,15 @@ secure cloud with its price per hour. GPUs with free units come first, with
 ```text
 PROVIDER  HARDWARE      KIND  MEMORY             RATE     NOW
 runpod    cpu3c         CPU   2 vCPU, 4 GB RAM   $0.06/h
-runpod    rtx-4000-ada  GPU   20 GB VRAM         $0.28/h  few free
-runpod    a40           GPU   48 GB VRAM         $0.49/h  few free
-...
+runpod    h200-sxm      GPU   141 GB VRAM        $5.29/h  few free
+runpod    b300          GPU   288 GB VRAM        $8.99/h  few free
+runpod    rtx-2000-ada  GPU   16 GB VRAM         $0.24/h  none free
 runpod    rtx-a4000     GPU   16 GB VRAM         $0.25/h  none free
+...
 ```
 
-Availability changes by the minute, so treat it as a hint.
+Availability changes by the minute, so treat it as a hint. Prices change
+too; `hi compute hardware` shows today's.
 
 ```sh
 hi compute up --gpu rtx-4090 --name box --max 2
@@ -89,7 +91,7 @@ hi compute up --gpu rtx-4090 --name box --max 2
 {: .warning}
 
 By default `hi` uses RunPod's Secure Cloud, in RunPod's own datacenters.
-Community Cloud rents the same GPUs from third-party hosts, 25–54% cheaper,
+Community Cloud rents the same GPUs from third-party hosts, 28–62% cheaper,
 and is still on-demand: nobody can take the machine back. Choose it by
 adding `@community` to the hardware name:
 
@@ -100,10 +102,13 @@ hi compute up --on runpod --gpu rtx-4090@community --max 2h
 
 | GPU            | Secure | Community |
 |----------------|--------|-----------|
-| RTX 4090       | $0.74  | $0.34     |
+| RTX 4090       | $0.89  | $0.34     |
 | L40S           | $1.09  | $0.79     |
-| A100 PCIe 80GB | $1.59  | $1.19     |
-| H100 SXM       | $3.49  | $2.69     |
+| A100 PCIe 80GB | $1.79  | $1.19     |
+| H100 SXM       | $3.99  | $2.69     |
+
+Prices per hour on 2026-11-03; `hi compute hardware --on runpod --community`
+shows today's.
 
 `hi` shows the warning above before every Community start, even with
 `--yes`, and again on every `hi compute ssh`, `tunnel`, `logs`, and
@@ -150,8 +155,11 @@ paused RunPod pod still bills for its disk.
 
 - `hi compute run`: RunPod has no run-to-completion jobs; start a pod and run
   your script over `hi compute ssh`.
-- Model recipes: `hi compute serve` works with `--gpu` and `--quant`, building
-  llama.cpp on the pod over SSH as on Colab, but has not been tested on RunPod.
+- A tested serve: `hi serve llm` (also `hi compute serve`) works, with a
+  recipe or any GGUF model, building llama.cpp on the pod over SSH as on
+  Colab, but has not been tested on RunPod. Recipes don't name RunPod
+  hardware, so add `--gpu`, such as
+  `hi serve llm qwen3.8-flash-next --on runpod --gpu rtx-pro-6000`.
 
 ## Troubleshooting
 

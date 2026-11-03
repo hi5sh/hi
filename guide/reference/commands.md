@@ -28,6 +28,7 @@ description: Every hi command and option in one place.
 | `hi net domain [<domain> --dns <provider> \| --unset]` | https for the teams' addresses, under a domain of yours; see [The addresses on https](/guide/team/dev/#the-addresses-on-https) |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and team services still on the old version |
+| `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi team` below |
 | `hi version`, `hi help`          | Version and help                                       |
 
 ## hi compute
@@ -77,7 +78,7 @@ description: Every hi command and option in one place.
 | `--ctx <tokens>`    |    |     | ✓     | Context length                                       |
 | `--alias <id>`      |    |     | ✓     | Model name in the API                                |
 | `--args "<args>"`   |    |     | ✓     | Extra `llama-server` arguments                       |
-| `--port <port>`     |    |     | ✓     | Local port for the Colab tunnel; default 8080        |
+| `--port <port>`     |    |     | ✓     | Local port for the API's tunnel; default 8080        |
 
 Defaults: `--gpu` is the provider's cheapest CPU; `--max` is `4h` for `up` and
 `serve` and `1h` for `run`, at most `24h` on Colab. Flags may come before or
@@ -90,6 +91,7 @@ See [Serve a model](/guide/compute/serve/).
 | Command                           | Does                                                                                   |
 |-----------------------------------|----------------------------------------------------------------------------------------|
 | `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine; there, `--share` adds the NetBird address with a key, and `--org` serves it to the org through `hi org ai` |
+| `hi serve llm … --on local [--memory <size>] [--backend rocm\|vulkan\|cuda\|cpu]` | On this machine: the box's memory limit (default: the recipe's), and the backend (default: `rocm` on an AMD GPU, `cuda` on an NVIDIA one; `cpu` only for a recipe with a CPU profile) |
 | `hi serve llm`                    | The llm recipes                                                                        |
 | `hi serve ls [--json]`            | What you serve, here and rented: where, its API, its state, and until when             |
 | `hi serve status <name>`          | Its address, state, memory, and image                                                  |
@@ -125,7 +127,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org approve <id> [--group <g>]`                               | Approve an enrollment or compute request                                               |
 | `hi org deny <id> [--reason <r>]`                                 | Deny a request                                                                         |
 | `hi org ls`                                                       | Everything running, for every user                                                     |
-| `hi org stop <name>                                               | --user <u> | --all`      | Stop instances                                              |
+| `hi org stop <name> \| --user <u> \| --all`                         | Stop instances                                                                         |
 | `hi org audit [--since <d>]`                                      | The audit log                                                                          |
 | `hi org slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
 | `hi org approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
@@ -252,11 +254,19 @@ need `yes` typed. See [Ask for a command](/guide/q/).
 | `hi agent review stop <id>`              | Stop it, keep what's done, and write the report          |
 | `hi agent review rm <id>`                | Remove a review, its report, and its snapshot            |
 | `hi agent token claude`                  | Store a long-lived token from `claude setup-token`       |
+| `hi agent brainstorm "<question>"`       | Several agents each give an idea, alone, in a box of its own on a snapshot of the project; one more compiles them into a proposal; nothing in the project changes. `--question <file.md\|->` takes the question from a file |
+| `hi agent brainstorm ls`                 | Brainstorms, their state, and cost                       |
+| `hi agent brainstorm show <id> [--md\|--json]` | The proposal and each idea; `--md` the whole report, `--json` the record |
+| `hi agent brainstorm watch <id>`         | Follow one; Ctrl+C stops following, not the brainstorm   |
+| `hi agent brainstorm stop <id>`          | Stop it, keeping what's done                             |
+| `hi agent brainstorm rm <id>`            | Remove one and its report                                |
 
 Options: `--detach` to start and return, `--json` for the report as JSON on
 stdout, `--task-file <path>` for a task file whose name doesn't end in
 `.md`, `--model <model>` for the agent's model (without it, the one in your
-own Claude Code, Codex, Hermes, or Antigravity settings, else `opus` for Claude Code),
+own Claude Code, Codex, or Hermes settings, else `opus` for Claude Code),
+`--effort low|medium|high|xhigh|max` for how hard the agent thinks (without it, the
+agent's own default for the model),
 `--from <commit>` to start the worktree from a commit or branch instead of
 `HEAD`, `--files <folder>` for files the agent may read at `/box/files`,
 `--session <folder>` to keep Claude Code's or Codex's conversation in a
@@ -279,6 +289,16 @@ earlier review, `--sarif`, `--out <dir>` for a copy of the report, `--name <name
 `--max <duration>` per run (default 30m), `--parallel <k>` (default 3),
 `--detach`, `--json`, and `--yes`. Reports are in
 `~/.local/state/hi/reviews/<id>/`. See [Review a whole repository](/guide/agent/review/).
+
+`brainstorm` takes `--agents a,b,c` (each with `:model` if you like; `gemini`
+is Hermes with Google's Gemini; default: `codex`, `claude`, and `gemini`, those
+ready here), `--lead <agent>` for who compiles the proposal (default: the first
+that took part), `--no-proposal` for the ideas only, `--context <file.md>`,
+`--data <dir>` for a read-only folder at `/data/<name>` (repeatable), `--web` to
+let the agents reach the internet (not with `--data`), `--ref <ref>`,
+`--name <name>`, `--budget <dollars>`, `--max <duration>` per run (default
+20m), `--detach`, `--json`, and `--yes`. Reports are in
+`~/.local/state/hi/brainstorms/<id>/`.
 
 `best-of` also takes `--agents claude,codex` (taken in turn), `--check
 "<command>"` (default: `make check`), `--max <duration>` per agent, and
@@ -320,21 +340,21 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi team signin <name> claude [--machine]` | The team's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the team's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
 | `hi team member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running team restarts |
 | `hi team key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running team restarts with them; the lead's box gets placeholders, and the team's proxy puts the tokens on its calls to Slack |
-| `hi team env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--dev` for the dev box's own, which gets no others |
+| `hi team env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the team's app boxes get as environment variables: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
 | `hi team addresses <name> [domain\|netbird\|<host>]` | What the team's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
 | `hi team addresses <name> names <production's name>\|production=… stage=… dev=… [--https]` | A name for each address, which the IT team keeps; `--https` when their proxy ends TLS in front |
 | `hi team domain [<domain> [--new-token]|off]` | A domain verified in NetBird for the teams' apps on this machine, with a NetBird Admin service user's token |
-| `hi team allow-ip <name> [<ip,cidr>|off]` | The only addresses the team's preview and production let in, through NetBird's Access Control; hi puts back exactly this list every minute, so set it here rather than in NetBird's dashboard |
-| `hi team domain <name> on|off` | The team's app at `<name>.<domain>` and its preview at `<name>-preview.<domain>`, names that stay; off by default |
+| `hi team allow-ip <name> [<ip,cidr>|off]` | The only addresses the team's Stage and production let in, through NetBird's Access Control; hi puts back exactly this list every minute, so set it here rather than in NetBird's dashboard |
+| `hi team domain <name> on|off` | The team's app at `<name>.<domain>` and Stage at `<name>-preview.<domain>`, names that stay; off by default |
 | `hi team sso provider add <name> <issuer> [--client-id <id>] [--groups-claim <claim>]` | An OpenID Connect provider for signing in to the teams' apps (Google Workspace, Entra ID, Keycloak, Auth0, Okta…); checks the issuer and asks for the client secret |
-| `hi team sso <name> on <provider> [--domain <d>] [--group <g>] [--anyone]` | People without the link sign in to the app and its preview, if the rules let them in; needs `hi team domain <name> on`; prints the return addresses to register |
+| `hi team sso <name> on <provider> [--domain <d>] [--group <g>] [--anyone]` | People without the link sign in to the app and Stage, if the rules let them in; needs `hi team domain <name> on`; prints the return addresses to register |
 | `hi team sso [<name> [off]]` | The providers and the teams using them; a team's rules and last sign-ins; `off` signs everyone out |
 | `hi team sso provider rm <name>` | Forget a provider no team uses |
-| `hi team helper <name> [preview|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
+| `hi team helper <name> [stage|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
 | `hi team snapshot <name>`                 | Take a snapshot now of the lead's memory, the team's record, and production's data; the team keeps running. It takes one daily and before every release too |
 | `hi team snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi team restore <name> <snapshot> [--code] [--yes]` | Put the team back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
-| `hi team jobs <name> [--preview] [--json]` | The app's long work in production (or the preview): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/team/incidents/) |
+| `hi team jobs <name> [--stage] [--json]` | The app's long work in production (or Stage): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/team/incidents/) |
 | `hi team incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
 | `"$HI" team job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
 | `hi team dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The team's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
@@ -353,14 +373,15 @@ See [Agent teams](/guide/team/): [set up a team](/guide/team/setup/) and [how th
 | `hi dev preview\|ship\|status\|say\|task\|allow` | In a team's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/team/dev/) |
 | `hi dev review\|deep-review\|brainstorm` | In a team's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
 | `hi dev data\|settings\|incidents` | In a team's dev box: the app's data and a new fork for the preview, the settings' names and the preview's own values, what hi recorded about incidents |
+| `hi dev agy "<task>" [--file <path>]…` | In a team's dev box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/`; ask the user first; `show [<id>]` |
 | `hi dev upstream\|propose` | In a team's dev box, for an adopted project: where dev stands against the original and its refs into the box's clone; offer shipped work back as a draft pull request; see [Start from someone else's project](/guide/team/adopt/) |
 | `hi team say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer); a change it asks for, the lead files as a task |
-| `hi team data <name> [fork \| copy preview production [--yes] \| preview empty]` | The app's data folders, production's and the preview's fork of it; a new fork now; production from the preview, snapshotted first; or a preview that starts empty at every release |
-| `hi team limit <name> [preview <usd> \| preview off]` | What the preview's model calls may cost a day ($5 unless set), and spent today |
+| `hi team data <name> [fork \| copy stage production [--yes] \| stage empty]` | The app's data folders, production's and Stage's fork of it; a new fork now; production from Stage, snapshotted first; or a Stage that starts empty at every release |
+| `hi team limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
 | `hi team limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the team has its own; running boxes get a new limit at once, without a restart |
 | `hi team rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
 | `hi team backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
-| `hi team bom <name> [v<n>|preview]`       | Production's bill of materials (CycloneDX), or a release's, or the preview's |
+| `hi team bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
 | `hi team advisories <name>`               | Known advisories for what production runs, as the team's org server last matched them; the lead has it too |
 | `hi team advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
 | `hi team manifest <name>`                 | The Slack app manifest again |
@@ -376,7 +397,7 @@ version and what dev has on top of it), `channel [--since 2h | --new]`,
 owner their link to the dev page, as `/hi-<team> dev` does), `env`, `data`, and `helper`
 (read only), `upstream`, `advisories`, `jobs [restart --incident <id>
 --because <why>]` (one restart per incident), `incidents [note|ask|close]`,
-and `alert`. It has no command that changes the code, dev, or production:
+`agy` (Antigravity on the machine, for images, media, and research), and `alert`. It has no command that changes the code, dev, or production:
 the owners build in the dev box and release from the dev page.
 
 ## hi box
@@ -463,7 +484,7 @@ hi net status | down | reconnect
 | ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
 | ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |
-| `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, a team's preview and dev page too |
+| `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, a team's Stage and dev page too |
 
 See [Share a local service](/guide/workstation/expose/).
 

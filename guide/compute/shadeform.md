@@ -34,16 +34,18 @@ hi compute hardware --on shadeform
 
 ```text
 PROVIDER   HARDWARE  KIND  MEMORY       RATE     NOW
-shadeform  a4000     GPU   16 GB VRAM   $0.15/h  hyperstack, NO, Oslo
-shadeform  l40s      GPU   48 GB VRAM   $0.88/h  massedcompute, US, Des Moines, IA
+shadeform  rtx4090   GPU   24 GB VRAM   $0.60/h  excesssupply, NO, Central
+shadeform  a4000     GPU   16 GB VRAM   $0.80/h  paperspace, US, New York, NY
+shadeform  l40s      GPU   48 GB VRAM   $0.88/h  massedcompute, US, Kansas City, KS
 shadeform  a100-80g  GPU   80 GB VRAM   $1.35/h  hyperstack, CA, Montreal
-shadeform  h100      GPU   80 GB VRAM   $2.73/h  massedcompute, US, Des Moines, IA
-shadeform  rtx4090   GPU   24 GB VRAM   $0.60/h  excesssupply, none free
+shadeform  h100      GPU   80 GB VRAM   $2.50/h  hyperstack, CA, Montreal
+shadeform  a30       GPU   24 GB VRAM   $0.35/h  massedcompute, none free
 ```
 
 `hi` lists single-GPU machines only. Several clouds offer the same GPU at
 different prices. Each GPU type is listed once, at its cheapest offer that is free right now, with the cloud
-and region it would run in. Sold-out types come last.
+and region it would run in. Sold-out types come last. Offers and prices
+change often; `hi compute hardware` shows today's.
 
 To pick a cloud yourself, add it to the name:
 
@@ -71,8 +73,9 @@ and Shadeform stops billing as soon as it is deleting.
 With an org server that serves your team's data, `--data <org>/<name>` lets
 the machine's shells read it through the server until `--max`; see
 [On a machine you SSH into](/guide/data/#on-a-machine-you-ssh-into).
-`hi compute serve` works with `--gpu`, building llama.cpp on the machine
-over SSH as on Colab, but has not been tested on Shadeform.
+`hi serve llm` (also `hi compute serve`) works with `--gpu`, building
+llama.cpp on the machine over SSH as on Colab, but has not been tested on
+Shadeform.
 
 ## Through an org server
 

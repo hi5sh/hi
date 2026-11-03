@@ -58,7 +58,7 @@ hi compute up --on runpod --gpu rtx-4090 --max 2h --reason "LoRA sweep for my th
 ```
 
 ```text
-Start runpod/rtx-4090-1c2d on rtx-4090 ($0.74/h), stopping after 2h at 16:05.
+Start runpod/rtx-4090-1c2d on rtx-4090 ($0.89/h), stopping after 2h at 16:05.
 Start it? [y/N] y
 Sent request r-9b41e0 to http://compute.internal:7373.
 Waiting for approval… (Ctrl-C stops waiting; the request stays open)

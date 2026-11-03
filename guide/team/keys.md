@@ -9,7 +9,7 @@ where every copy of the project can read it. Keys go to the team on the
 machine, or on the dev page, instead.
 
 **Models.** The app calls OpenRouter's API at `$OPENROUTER_BASE_URL` with
-`$OPENROUTER_API_KEY`, in previews and production. That key is a
+`$OPENROUTER_API_KEY`, on Stage and in production. That key is a
 placeholder: the call goes through a socket to hi's team service on the
 machine, which puts the team's real key on it. The lead's own model calls
 take the same key, through its proxy. Give the team a key of its own, or
@@ -112,7 +112,7 @@ API. For that, the proxy answers the box's connections to `slack.com` and
 which the box trusts and which can vouch for `slack.com` only. Every other
 site the lead reaches stays a plain tunnel. On a machine without a bundle
 of public certificates to add the CA to, hi says so when the team starts,
-and the box holds the real tokens, as before v1.2.1.
+and the box holds the real tokens.
 
 **Settings.** Other keys and settings the app needs reach its boxes as
 environment variables, and nothing else: not the lead, not the dev box.
@@ -136,8 +136,8 @@ hi team env payments --file MONGODB_CERT=~/Downloads/X509-cert-123.pem
 In the app, `$MONGODB_CERT` is `/hi-files/MONGODB_CERT`; hand that path to
 the driver (`tlsCertificateKeyFile` for MongoDB). The file you gave isn't
 needed on the machine afterwards: keep the original in a password manager
-or vault. Like a value, it can be for the preview or production only
-(`--preview`, `--production`), and `--unset` removes it. It never reaches
+or vault. Like a value, it can be for Stage or production only
+(`--stage`, `--production`), and `--unset` removes it. It never reaches
 the dev box or the repository, and snapshots don't copy it.
 
 The dev box gets none of these: its agents could read them. It gets
@@ -150,14 +150,15 @@ hi team env payments --dev --file MONGODB_CERT=~/Downloads/test-user.pem
 hi team dev payments restart        # when the agents are idle
 ```
 
-The next preview has a change, and hi starts production again on the same
+Stage has a change from its next deploy, and hi starts production again on the same
 link within a minute. A setting is readable by the app's code, which the
 agents write; the OpenRouter key and the Slack tokens never are.
 
 Owners set them on the [dev page](/guide/team/dev/#the-dev-page) too,
-under Security, **The app's settings**: a name, a value that is never shown again (or a file), and whether it
-is for both, the preview only, or production only. In the dev box,
-`hi dev settings KEY=VALUE` sets only the preview's own value.
+under Security, **The app's settings**: a name, a value that is never shown again (or a file), and where it
+goes: **Stage and production**, **Stage only**, **production only**,
+or **the dev box only, from its next restart**. In the dev box,
+`hi dev settings KEY=VALUE` sets only Stage's own value.
 
 The lead itself never joins your NetBird network: the machine runs the
 app and its addresses. The dev box does, as a peer of its own that only

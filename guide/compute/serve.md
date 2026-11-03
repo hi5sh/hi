@@ -1,12 +1,12 @@
 ---
 title: Serve a model
-description: Run a GGUF model with llama.cpp on a rented GPU or on this machine's Strix Halo, and use it through an OpenAI-compatible API from curl, Python, or any OpenAI-compatible tool.
+description: Run a GGUF model with llama.cpp on a rented GPU or on this machine (AMD, NVIDIA, or the CPU), and use it through an OpenAI-compatible API from curl, Python, or any OpenAI-compatible tool.
 ---
 
 `hi serve llm` starts [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
 server with a GGUF model, waits until it answers, and gives you an
 OpenAI-compatible URL. It runs on a rented GPU, or with `--on local` on this
-machine's GPU (a Strix Halo, so far). It takes a tested recipe or any GGUF
+machine: an AMD GPU (ROCm or Vulkan), an NVIDIA GPU (CUDA), or the CPU. It takes a tested recipe or any GGUF
 repository on the Hugging Face Hub. `hi compute serve` is another name for
 it, with the same options.
 
@@ -21,7 +21,7 @@ hi serve llm qwen3.8-flash-next --on colab --max 1h
 
 | Recipe               | Model                                      | Hardware                             | Measured                     |
 |----------------------|--------------------------------------------|--------------------------------------|------------------------------|
-| `qwen3.8-flash-next` | `unsloth/Qwen3.8-Flash-Next-GGUF`, `UD-Q3_K_XL` (90 GB), 131k context | Colab `G4`, Hugging Face `rtx-pro-6000` (96 GB), Strix Halo (`--on local`, 128 GB) | Colab G4: ready in ~7 min, ~84 tokens/s. Strix Halo: ready in 29 s from disk, 24 tokens/s |
+| `qwen3.8-flash-next` | `unsloth/Qwen3.8-Flash-Next-GGUF`, `UD-Q3_K_XL` (90 GB), 131k context | Colab `G4`, Hugging Face `rtx-pro-6000` (96 GB); `--on local` on a Strix Halo (128 GB), an NVIDIA GPU with 96 GB, or the CPU | Colab G4: ready in ~7 min, ~84 tokens/s. Strix Halo: ready in 29 s from disk, 24 tokens/s on ROCm. RTX PRO 6000: ready in 2 min from disk, 44 tokens/s |
 
 `hi serve llm` alone, or `hi serve recipes`, lists the recipes, where each
 runs, and whether it fits on this machine.
@@ -35,7 +35,7 @@ Name a Hugging Face repository that contains GGUF files, a quantization that
 exists in it, and hardware with enough memory:
 
 ```sh
-hi serve llm unsloth/Qwen3-8B-GGUF --quant Q4_K_M --gpu L4 --max 1h
+hi serve llm unsloth/Qwen3-8B-GGUF --quant Q4_K_M --on colab --gpu L4 --max 1h
 hi serve llm unsloth/Qwen3-0.6B-GGUF --quant Q4_K_M --gpu t4-small --max 30m
 ```
 
@@ -55,7 +55,8 @@ file needs a 96 GB GPU.
 
 ## On this machine
 
-On a Strix Halo with 128 GB, a recipe serves on the machine you're on:
+With `--on local`, a recipe serves on the machine you're on: a Strix Halo
+with 128 GB, a machine with an NVIDIA GPU, or the CPU. On a Strix Halo:
 
 ```sh
 hi serve detect                                   # what this machine can serve on
@@ -73,12 +74,13 @@ hi serve llm qwen3.8-flash-next --on local
   ready      OpenAI-compatible API: http://127.0.0.1:8080/v1   model: qwen3.8-flash-next
 ```
 
-1. **Detect.** It looks for the evidence: a GPU the kernel lists (gfx1151),
-   `/dev/kfd` and `/dev/dri`, the render and video groups, and rootless
-   Podman 4.9 or later with `crun`. Anything missing is named with the `hi install`
+1. **Detect.** It looks for the evidence: on AMD, a GPU the kernel lists
+   (gfx1151), `/dev/kfd` and `/dev/dri`, the render and video groups, and
+   `crun`; on NVIDIA, the driver and its GPUs; and rootless Podman 4.9 or
+   later. Anything missing is named with the `hi install`
    that adds it (`hi install strix`, `hi install podman`), and nothing starts.
 2. **Check.** The recipe says how much memory the model takes in all, GPU
-   and host, as measured: 91 GB for this one. It must fit in what is
+   and host, as measured: 91 GB for this one on a Strix Halo. It must fit in what is
    available, less what teams' boxes may still take under their limits and
    8 GB of headroom, and the download must fit on the disk with 10% to
    spare. If not, hi says by how much, before downloading anything.
@@ -138,7 +140,9 @@ sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 ```
 
 On an RTX PRO 6000 (96 GB), qwen3.8-flash-next writes 44 tokens/s and
-reads long prompts at 901 tokens/s, in 62 GB of GPU memory. A model
+reads long prompts at 901 tokens/s, in 62 GB of GPU memory, and is ready in
+2 minutes from disk. Its check asks for 66 GB of free GPU memory, plus 1 GB
+of headroom, and 8 GB on the host. A model
 without a recipe is served by the repository and quant (`hi serve llm
 owner/Model-GGUF --quant Q4_K_M --on local`), with its memory estimated.
 Ubuntu 24.04's own Podman (4.9) works. Without a GPU, nothing is served

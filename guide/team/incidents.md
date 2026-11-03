@@ -125,7 +125,7 @@ A team can't say that it stopped, or that its machine did: its
 
 ## What hi watches
 
-Every minute hi reads production's jobs, and the preview's. It opens an
+Every minute hi reads production's jobs, and Stage's. It opens an
 **incident** when:
 
 - a job is `blocked` or `failed`;
@@ -142,8 +142,8 @@ Every minute hi reads production's jobs, and the preview's. It opens an
   app answers again;
 - the lead raised one.
 
-An incident is one thread. hi posts it once, in the channel, and wakes
-the lead there with
+An incident is one thread. hi posts it once, in the ops channel (or the
+main one, without it), and wakes the lead there with
 what it would otherwise spend its turn finding: the job's file, the app's
 last lines, the rules for that job. A job that stays stuck isn't posted
 again, and when it moves again hi says so in the thread and closes the
@@ -161,7 +161,7 @@ and stays within the team's budget:
 - it waits, or retries, when the cause passes: a network error, a service
   that was down;
 - it restarts the app once per incident. A second restart is the
-  owners': the lead asks, and an owner clicks **Restart** on the
+  owners': the lead asks, and an owner clicks **Restart production** on the
   incident on the dev page. For an app that stopped answering while its
   box runs, the lead looks first: a restart starts the same work again;
 - it applies a rule the owners gave;
@@ -196,8 +196,8 @@ meanwhile.
 ## On the dev page
 
 Each open incident is on the owners' [dev page](/guide/team/dev/#the-dev-page),
-with **Restart**, which gives production's app (or the preview's) a new
-box, and **Close**, with why. Both are logged in the incident with the
+with **Restart production** (or **Restart Stage**, for Stage's), which
+gives that app a new box, and **Close**, with why. Both are logged in the incident with the
 owner's name, as the lead's steps are.
 
 Waiting is a choice too. When the lead would leave production's work
@@ -218,7 +218,7 @@ backups keep it with the rest of the folder.
 
 | Command | What it does |
 |---|---|
-| `hi team jobs <name> [--preview]` | Each job's state, how far it is, how many a day (from hi's hourly counts), where it is, and its last error |
+| `hi team jobs <name> [--stage]` | Each job's state, how far it is, how many a day (from hi's hourly counts), where it is, and its last error |
 | `hi team incidents <name>` | The open incidents, then the last month's |
 | `hi team incidents <name> i-3` | One incident's timeline: what hi saw, what the lead and the owners did and why |
 | `hi team incidents <name> --rules` | Every rule the owners gave for the app's jobs, with who and when |

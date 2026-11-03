@@ -26,11 +26,11 @@ window.HI5_STORY = {
       messages: [
         { who: "emma", at: 300, mention: true, text: "Late steps get missed. Can they show in red?" },
         { who: "lead", at: 2200, text: "Filed for the owners as #12:", list: ["A step past its due date shows in red", "Its owner gets a reminder each morning"], after: "An owner picks it up in the dev box." },
-        { who: "tom", at: 9000, text: "Late steps are red on the preview now; try it:", link: true },
+        { who: "tom", at: 9000, text: "Late steps are red on Stage now; try it:", link: true },
       ],
     },
     {
-      id: "ship", title: "Built in the dev box", caption: "An owner builds it with Claude Code, and ships it to the preview.",
+      id: "ship", title: "Built in the dev box", caption: "An owner builds it with Claude Code, and ships it to Stage.",
       short: 13000, screen: "terminal", window: "box@onboarding-dev: ~/.herdr/worktrees/repo/12-late-steps",
       lines: [
         { cmd: "hi dev ship -m \"Late steps in red\"", at: 300 },

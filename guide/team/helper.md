@@ -3,7 +3,7 @@ title: Help and feedback in the app
 description: "The button on every page of a hi team's app: help from the app's guide, feedback to the team's channel, and, for people signed in with their own link, bug reports filed as tasks."
 ---
 
-Every page of the preview and of production has a round button in the
+Every page of Stage and of production has a round button in the
 bottom-left corner; drag it to another corner if it covers something. The
 panel opens on its side, and you can drag the panel's edge to make it
 wider. It has help and feedback, for anyone with the app's link:
@@ -48,7 +48,7 @@ wider. It has help and feedback, for anyone with the app's link:
   [Public addresses that stay](/guide/team/app/#public-addresses-that-stay)).
 
 To talk with the lead, people use the team's Slack channel or the bot's
-DM: from hi 2.4 the helper has no chat with the lead.
+DM: the helper has no chat with the lead.
 
 **Talk to the lead in a DM.** A contributor, developer, or owner can write to the
 team's bot directly, one to one, so the channel stays for the group. The

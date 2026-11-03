@@ -1,12 +1,12 @@
 ---
 title: Dev and production
-description: "A hi team's project has two versions: dev, where the owners ship work from the dev box and people try it on the preview, and production, which moves only on a click on the dev page by an owner, a Pro Dev, or a Vibe Dev, as numbered releases an owner can undo."
+description: "A hi team's project has two versions: dev, where the owners ship work from the dev box and people try it on Stage, and production, which moves only on a click on the dev page by an owner, a Pro Dev, or a Vibe Dev, as numbered releases an owner can undo."
 ---
 
 The project has two versions:
 
 - **Dev** is where the owners' work goes, with `hi dev ship` from the
-  [dev box](/guide/team/dev/). The preview shows it, on a fork of
+  [dev box](/guide/team/dev/). Stage shows it, on a fork of
   production's data, for the people to try.
 - **Production** is the version people rely on, on a `production` branch
   of its own, with a link of its own. It changes only when an owner, a
@@ -18,7 +18,7 @@ The project has two versions:
 On the dev page's Release tab, **Release v4** shows in Production's row
 when dev has work production hasn't. It opens the release notes, drafted from dev's changes; edit them
 in the people's words and click Release. hi takes a snapshot, moves
-production, gives the preview a new fork of production's data, and posts
+production, gives Stage a new fork of production's data, and posts
 one line in the channel, with the notes, who released it, and the work it
 brings in its thread:
 
@@ -27,9 +27,9 @@ brings in its thread:
 Owners, Pro Devs, and Vibe Devs release. The click is their yes, logged
 as "Anna on the dev page" in the versions and the announcement. Work
 shipped into dev doesn't reach the channel; their agent says what it wants
-to with `hi dev say`. At the first release, only an owner can start
-production with a copy of Stage's data; a developer's first release
-starts it empty. Going back is the owners'.
+to with `hi dev say`. At the first release, only an owner can tick
+**Start production with a copy of Stage's data**; a developer's first
+release starts it empty. Going back is the owners'.
 
 ## Going back
 
@@ -42,7 +42,7 @@ for which to choose.
 
 When the owners want everything in dev since the last release gone,
 **Set dev back to production**, beside Release, sets dev's code back to what production
-runs. What dev had stays in the project's history, and the preview shows
+runs. What dev had stays in the project's history, and Stage shows
 production's code.
 
 On the machine, an admin can do the same without the page:
@@ -65,7 +65,7 @@ it answers: the app's pages never go down. An app's background workers
 at once. They would do the same work twice, and the new version could
 fail to start because the old one's workers hold the database.
 
-So one box of production, and one of the preview, runs the workers at a
+So one box of production, and one of Stage, runs the workers at a
 time. hi holds a lock for that box, and while it does, the file named by
 `$HI_WORKERS_FILE` exists inside it. The app starts its workers once the
 file exists and stops them when it goes away. At each release:

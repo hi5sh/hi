@@ -239,7 +239,7 @@ so far, the tokens in and out, the steps taken, and the latest one.
 ```
 
 hi reads it from the agent's own session log in the box's home folder, so
-it works the same for Claude Code and Codex. Tokens in include cached
+it works the same for Claude Code, Codex, and Hermes. Tokens in include cached
 ones. The line shows only in a terminal; `hi agent wait` shows it too.
 
 When the agent is done, the report gives the same numbers for the whole
@@ -377,6 +377,7 @@ non-zero exit, an error from the agent, or no answer at all.
 hi agent claude
 hi agent codex
 hi agent hermes
+hi agent agy
 ```
 
 Without a task, the agent opens in your terminal, in a box, without
@@ -467,7 +468,8 @@ hi agent claude "make the flaky test in tests/test_sync.py reliable"
      --dangerously-skip-permissions`; the result goes to a file in the
      box's home folder, and the final text to the box's log. Codex runs as
      `codex exec --dangerously-bypass-approvals-and-sandbox --skip-git-repo-check -o <file> -`,
-     and Hermes as `hermes chat --query-file <file> -Q --yolo`.
+     Hermes as `hermes chat --query-file <file> -Q --yolo`, and Antigravity as
+     `agy --output-format json --dangerously-skip-permissions -p=<task>`.
 6. **It waits** for the box to stop, then stops the proxy.
 7. **It writes the report** from the agent's result file, the box's exit
    status, and `git diff` against the commit it started from.

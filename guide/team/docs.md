@@ -4,7 +4,7 @@ description: "Every app a hi team builds has its docs at /docs: user docs for th
 ---
 
 Every app a hi team builds has its docs on its own addresses, at `/docs`
-on the preview and on production, such as `https://app.example.com/docs`.
+on Stage and on production, such as `https://app.example.com/docs`.
 The first thing you see is two ways in: **User docs** and **Tech docs**.
 hi serves them itself, from the project's `docs/` folder in the version
 on that address, so they work whatever the app is written in, and the
@@ -41,7 +41,7 @@ and why. The menu holds:
 - **The map**, `docs/map.md`: what the project has and where each part
   lives.
 - **The changelog**: hi writes it from the team's releases, each version
-  with its date, notes, and the work it brought; on the preview, what dev
+  with its date, notes, and the work it brought; on Stage, what dev
   has that production hasn't yet.
 - **Decisions** (`docs/decisions/`), **Specs** (`docs/specs/`), and
   **Notes** (`docs/specs/notes/`), each a group of its own.

@@ -243,7 +243,7 @@ What agents learn:
   adding a skill; never pass `--force` or `--accept-risk` on their own.
 
 Each file starts with a marker such as
-``<!-- Written by hi v0.7.1; rerun `hi skill` to update. -->``. `hi skill update`
+``<!-- Written by hi v2.6.65; rerun `hi skill` to update. -->``. `hi skill update`
 rewrites it after you update `hi`, and `hi skill ls` says when it's from an
 older `hi`. A `hi` skill that someone wrote by hand is kept unless you add
 `--force`.

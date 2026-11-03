@@ -44,7 +44,7 @@ Ranked by the check, then fewer flagged files and a smaller diff: read the diff 
 | CHECK | ✓ or ✗ and how long the check took |
 | DIFF | lines added and removed, and files changed |
 | FLAGS | changed files that run on your machine later, such as a `Makefile` or a CI workflow ([why](/guide/box/)) |
-| TIME, SPEND | how long the agent worked, and its cost in dollars (Claude Code) or tokens (Codex) |
+| TIME, SPEND | how long the agent worked, and its cost in dollars (Claude Code) or tokens (Codex, Antigravity) |
 | NOTE | why a box is where it is: the check's last line, "changed nothing", "ran out of time" |
 
 The order is no judgement of quality: boxes that passed and changed
@@ -72,7 +72,7 @@ so `git merge best-of/b-4/2` takes all of it. Nothing is pushed.
 
 | Option | |
 |---|---|
-| `--agents claude,codex` | the agents, taken in turn; different agents fail in different ways (default: the first agent ready). A model after a colon picks one per agent: `--agents claude:opus,codex,hermes:qwen/qwen3.8-max-0902` (Hermes takes any OpenRouter model) |
+| `--agents claude,codex` | the agents, taken in turn: `claude`, `codex`, `hermes`, and `agy`; different agents fail in different ways (default: the first agent ready). A model after a colon picks one per agent: `--agents claude:opus,codex,hermes:qwen/qwen3.8-max-0902` (Hermes takes any OpenRouter model) |
 | `--check "<command>"` | the check hi runs in each box (default: `make check`; without a `check` target in the `Makefile`, hi asks for `--check`) |
 | `--max 45m` | a time limit for each agent |
 | `--model <model>` | with one agent only; with several, name each one's model in `--agents` |

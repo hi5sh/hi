@@ -11,7 +11,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
 |---|---|
 | `team.json` | Purpose, channel, owners, members |
 | `secrets.json` | The Slack tokens, readable only by you |
-| `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` when hi 2.4 replaced an older SOUL.md |
+| `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` in an older team whose SOUL.md hi replaced |
 | `repo/` | The project's git repository, which dev and production are branches of; `repo/docs/specs/` holds the specs, one file per feature |
 | `dev/` | The dev box: its home (the agents' conversations, herdr's sessions, the worktrees), its clone of the project, the owners' SSH keys, and its NetBird identity |
 | `tasks/` | A record of each piece of work shipped into dev, which the versions and release notes read; older teams' tasks too |
@@ -30,8 +30,8 @@ listed in the folder's `.gitignore`, in case the folder sits inside a
 repository. `lead/SOUL.md`
 is the lead's identity: edit it to change how the lead works, then
 `hi team up payments` to restart it. Conversations already going, a DM
-with the lead too, follow the new SOUL.md from their next message. A
-SOUL.md from before hi 2.4, which still has the lead building, is
+with the lead too, follow the new SOUL.md from their next message. An
+older team's SOUL.md, which still has the lead building, is
 replaced by the new one on the next start, and the old one is kept as
 `lead/SOUL.before-2.4.md`.
 
@@ -71,11 +71,15 @@ hi team restore payments v4
 ```
 
 hi says what it puts back and asks first. It stops the team, takes a
-snapshot of how things are now, puts back the lead's memory, the work
-records, the channel's log, and production's data, and starts the team again. The
-channel hears what happened, with the snapshot that undoes it. The code
-stays as it is unless you add `--code`, and so do the team's settings
-(`team.json`, `secrets.json`).
+snapshot of how things are now, puts back the folder as the snapshot
+has it, and starts the team again. That is the lead's memory, the work
+records, the channel's log, the incidents, reviews, and brainstorms,
+production's data, and `dev/`: the dev box is rewound too, its home, its
+clone, the worktrees, and the agents' conversations. Work there since the
+snapshot is only in the snapshot taken first. The code in `repo/` stays
+as it is unless you add `--code`, and so do the team's settings
+(`team.json`, `secrets.json`). The channel hears what happened, with the
+snapshot that undoes it.
 
 Snapshots live in `~/.local/share/hi/team-snapshots/<name>/`, outside the
 team's folder, with the key they are encrypted with. They stay when the
@@ -139,7 +143,7 @@ fresh copy of the code at each release, so anything written there is
 lost. The project's `AGENTS.md` tells the agents to keep data in
 `$HI_DATA_DIR`.
 
-Production owns the data, and the preview runs on a fork of it from the
+Production owns the data, and Stage runs on a fork of it from the
 last release, in `run/preview-base/` with its own writes in
-`run/preview-data/`. [Preview and production data](/guide/team/data/)
+`run/preview-data/`. [Stage and production data](/guide/team/data/)
 shows how, step by step, with the commands.

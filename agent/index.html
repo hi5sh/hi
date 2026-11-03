@@ -51,7 +51,7 @@ fallback: |
     <ol class="try">
       <li><div><p><b>Install hi</b> and rootless Podman, if you haven't.</p>
         <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh &amp;&amp; hi install podman">copy</button></div></div></li>
-      <li><div><p><b>Hand it a task</b> in a git project. Without a name, hi takes Claude Code, then Codex, then Hermes, whichever is signed in.</p>
+      <li><div><p><b>Hand it a task</b> in a git project. Without a name, hi takes Claude Code, then Codex, then Hermes, then Antigravity, whichever is signed in first.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi agent "make make check pass, and commit the fix"</code><button class="copy" type="button" data-copy="hi agent &quot;make make check pass, and commit the fix&quot;">copy</button></div></div></li>
       <li><div><p><b>Follow it</b> from another terminal if you like. In the first, Ctrl+C stops waiting, not the agent.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi box attach myproject-1</code><button class="copy" type="button" data-copy="hi box attach myproject-1">copy</button></div></div></li>
@@ -68,7 +68,7 @@ fallback: |
     <p class="sub">The agent starts from your last commit, on a new worktree and the branch <code>hi-box/&lt;name&gt;</code>, in a <a href="/box/">box</a> with the project and nothing else from your home folder.</p>
     {% include diagram.html name="agent" %}
     <div class="prose">
-      <p><strong>The agent never sees your token.</strong> Claude Code in the box holds the word <code>hi-box-placeholder</code>; hi's proxy outside the box swaps in your Claude sign-in on the way to Anthropic. Hermes' OpenRouter key stays outside the same way. Codex gets a copy of its sign-in for now, and hi copies a refreshed one back when the run ends.</p>
+      <p><strong>Claude Code never sees your token.</strong> In the box it holds the word <code>hi-box-placeholder</code>; hi's proxy outside the box swaps in your Claude sign-in on the way to Anthropic. Hermes' OpenRouter key stays outside the same way. Codex gets a copy of its sign-in for now, and hi copies a refreshed one back when the run ends. Antigravity gets a copy of its Google sign-in too.</p>
       <p><strong>The changed files come from git</strong>, not from the agent, so they are right even when the agent is wrong about what it did. hi asks every agent to end with a short summary, and the report has the same shape whichever agent did the work.</p>
       <p><strong>Uncommitted changes aren't in the box</strong>, since it starts from your last commit; hi says so when there are some. <code>--from</code> starts from another commit or branch instead.</p>
     </div>

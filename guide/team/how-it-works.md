@@ -25,32 +25,36 @@ before it files:
 A typo or a bug with clear steps it files at once; most tasks take a
 round or two of talk.
 
+The lead files tasks only for the team's contributors, developers, and
+owners, whom the owners choose; being in the channel isn't enough. For
+anyone else it still answers, files nothing, and says an owner can make
+them a contributor on the dev page.
+
 The owners pick tasks up in the team's [dev box](/guide/team/dev/), with
 Claude Code or Codex. Their agent builds the change on a branch of its
-own, puts it on the preview with `hi dev preview`, and takes it into dev
-with `hi dev ship`. Production moves only when an owner clicks
-**Release** on the dev page.
+own, puts it on Stage with `hi dev preview`, and takes it into dev
+with `hi dev ship`. Production moves only when an owner or a
+developer clicks **Release** on the dev page.
 
 When someone asks how far something is, the lead answers from the
 tasks and the versions (`hi team versions` in its box): filed, started,
-in dev to try on the preview, or in production. It doesn't promise when:
+in dev to try on Stage, or in production. It doesn't promise when:
 the owners decide what comes next.
 
 ## What the lead does, and doesn't
 
-The lead is Hermes, in the team's Slack channel. From hi 2.4 it doesn't
-build, merge, or release, and starts work in the dev box only when an
-owner asks it to. It:
+The lead is Hermes, in the team's Slack channel. It doesn't build,
+merge, or release, and starts work in the dev box only when an owner or
+a developer asks it to. It:
 
 - **helps people use the app**, in the channel and in DMs, from the user
-  docs, the specs, and dev's code, which it reads but can't change, and
-  files the feedback people send from the app's helper;
+  docs, the specs, and dev's code, which it reads but can't change;
 - **shapes what people ask for into tasks**: it reads the code, the
   docs, and the web, talks it through, and files it (`hi team task add`
   and `comment` in its box; the owners close them);
-- **starts a task** in the dev box when an owner asks ("start on #9"),
-  while no other task is in progress there, and answers with the dev
-  page's link to follow it (`hi team task start`);
+- **starts a task** in the dev box when an owner or a developer asks
+  ("start on #9"), while no other task is in progress there, and answers
+  with the dev page's link to follow it (`hi team task start`);
 - **answers what's the status of something** from the tasks and the
   versions;
 - **watches the system**: incidents, jobs, a new version of a project the
@@ -64,9 +68,10 @@ owner asks it to. It:
 
 | Who | What they do |
 |---|---|
-| Anyone in the channel | Talk with the lead in the channel or a DM; anyone with the app's link sends feedback from its helper |
-| Pro Devs and Vibe Devs | All of that, and build in the dev box and Release from the dev page (Vibe Devs through the chat only) |
-| Owners | All of that, and the rest of the dev page: Roll back, set dev back to production, the preview's data to production, the helper, incidents, jobs' rules, and settings |
+| Anyone in the channel | Talk with the lead in the channel or a DM; anyone with the app's link sends feedback from its helper, which goes to the channel |
+| Contributors | All of that, and the lead files what they ask for as tasks; a bug they report from the helper, signed in with their own link, becomes a task too |
+| Pro Devs and Vibe Devs | What contributors do, and build in the dev box and Release from the dev page (Vibe Devs through the chat only) |
+| Owners | All of that, and the rest of the dev page: Roll back, set dev back to production, Stage's data to production (also at a release), the helper, incidents, jobs' rules, and settings |
 | An admin on the machine | Change the owners, and roll back, copy data, turn the helper on or off, and set settings with `hi team`, without anyone's yes |
 
 Each action on the dev page is a click by an owner or a developer, logged with their name
@@ -114,9 +119,9 @@ The memory is for the people and the conversation. Facts about the app
 belong in the project, where the owners' agents read them: the lead puts
 what it learns in the task, and the owners put it in the docs.
 
-## Its SOUL.md from before 2.4
+## A SOUL.md from an older hi
 
-`lead/SOUL.md` is the lead's identity. A SOUL.md from before hi 2.4,
+`lead/SOUL.md` is the lead's identity. A SOUL.md from an older hi,
 which still has the lead handing tasks to members, is replaced by the new
 one on the team's next start; hi keeps the old one beside it as
 `lead/SOUL.before-2.4.md`, so you can carry over what you wrote in it.

@@ -21,8 +21,9 @@ prices stay the provider's own.
 | **Run**      | `hi compute run`   | Its script or command finishes            | Training, evaluation, batch jobs, experiments |
 | **Instance** | `hi compute up`    | You stop it, or it reaches `--max`        | Shells, notebooks, web apps, model servers |
 
-`hi compute serve` is an instance that runs a model server for you. Runs and
-instances share `ls`, `status`, `logs`, `stop`, and the same limits.
+[`hi serve llm`](/guide/compute/serve/) starts an instance that runs a model
+server for you (`hi compute serve` is another name for it), or with
+`--on local` serves the model on this machine. Runs and instances share `ls`, `status`, `logs`, `stop`, and the same limits.
 
 ## Providers
 
@@ -121,7 +122,7 @@ When the input is not a terminal, the menu falls back to numbered questions.
 | `hi compute up`                           | Start an instance                              |
 | `hi compute run <script.py>`              | Run a script to completion, streaming its logs |
 | `hi compute run <image> -- <command>`     | Run a container command (Hugging Face)         |
-| `hi compute serve <model>`                | Serve a model with an OpenAI-compatible API    |
+| `hi serve llm <model>`                    | Serve a model with an OpenAI-compatible API, rented or `--on local` |
 | `hi compute ssh <name>`                   | Open a shell or run one command                |
 | `hi compute tunnel <name> <port>`         | Forward a port to localhost                    |
 | `hi compute ls`, `status <name>`          | What is running, and details                   |

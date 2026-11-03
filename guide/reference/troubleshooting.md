@@ -102,9 +102,9 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `… is more than one kind; say dataset:… or model:…`         | Put `dataset:`, `model:`, or `bucket:` in front of the name. |
 | `… is not among what you may download`                      | Check the name with `hi data ls`; your group may not see it. |
 | `your group … may not read …`                               | Your team's policy. Ask an admin; don't look for another way in. |
-| `this hi data token is for bucket:…, not …`                 | That `hi` is older than v0.24.2 and doesn't know buckets: `hi update`. |
+| `this hi data token is for bucket:…, not …`                 | That `hi` is older and doesn't know buckets: `hi update`. |
 | `the hi data token has expired`                             | Run the command through `hi data` again; tokens last a day.  |
-| `the org server is older than v0.25.1`                       | An admin runs `hi update` on the server box.                 |
+| `the org server is older than …`                             | An admin runs `hi update` on the server box.                 |
 | `the server can't expose the data proxy (…); using signed links instead` | The run still works. To use the proxy, an admin turns on Peer Expose in NetBird (Settings > Clients); `hi org expose` shows the last problem. |
 | `the data is too much to send with one Hugging Face job`    | Name a folder or pattern after the repository (`--data acme/fdb/runs/*`), or use Colab. Happens only with signed links. |
 | `the download link for … has expired`                       | The job started more than about an hour after the links were made. Run it again. |

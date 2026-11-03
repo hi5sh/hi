@@ -585,8 +585,8 @@ usage:
                                    owners allow them on the dev page; a database's name too
   hi team owners <name>            the team's owners, who build in the dev box, and their SSH keys
       [add|remove <member ID> | key <member ID> <public key>|--remove]
-  hi team access <name>            who reaches what: owners, Pro Devs and Vibe Devs (who build but
-                                   don't release), and contributors (who report bugs); nobody else
+  hi team access <name>            who reaches what: owners, Pro Devs and Vibe Devs (who build and
+                                   release), and contributors (who report bugs); nobody else
       [<member ID> pro|vibe|contributor|none]  an owner's change, also on the dev page: a Pro
                                    Dev has Chat, terminal, VS Code, and SSH, a Vibe Dev Chat; none
                                    takes the level away

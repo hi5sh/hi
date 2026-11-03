@@ -3,9 +3,8 @@ title: Build in the dev box
 description: "Each hi team has a dev box: a long-lived box with the project, Claude Code, Codex, and herdr, where the team's owners build with their agents over SSH on the team's NetBird network."
 ---
 
-From hi 2.0, the team's owners build the app themselves, with coding
-agents, in the team's **dev box**, instead of asking the lead in Slack.
-The dev box is one long-lived [box](/guide/box/) per team:
+The team's owners and developers build the app themselves, with coding
+agents, in the team's **dev box**. The dev box is one long-lived [box](/guide/box/) per team:
 
 - **The project:** a clone of the team's repository in `/box/repo`. The
   team's repository is its `origin`, read-only: the box fetches from it,
@@ -33,20 +32,21 @@ is in the team's folder, `dev/`, and in the team's snapshots.
 
 Work leaves the box through `hi dev`, which talks to the team's service.
 The agents know it from their skills (below), so you can just ask them to
-"put it on the preview" or "ship it".
+"put it on Stage" or "ship it".
 
 ```bash
-hi dev preview              # the current branch on the team's preview, with production's data
-hi dev ship -m "Show the last day on the chart"   # into dev, and dev on the preview
-hi dev status               # what production runs, what dev has, the preview, backups, incidents
-hi dev say "The chart has the last day now; try it on the preview"   # in the team's channel
+hi dev preview              # the current branch on Stage, with production's data
+hi dev ship -m "Show the last day on the chart"   # into dev, and dev on Stage
+hi dev status               # what production runs, what dev has, Stage, backups, incidents
+hi dev say "The chart has the last day now; try it on Stage"   # in the team's channel
 hi dev task list          # the team's tasks
 ```
 
-- **Preview** puts a branch on the team's preview address. When it is new
-  work there, the preview first gets a fresh copy of production's data.
+- **Preview** puts a branch on Stage, the team's address for trying
+  work. When it is new work there, Stage first gets a fresh copy of
+  production's data.
 - **Ship** merges the branch into dev, records it as work, and puts dev
-  on the preview. A branch that conflicts with dev says how to rebase it.
+  on Stage. A branch that conflicts with dev says how to rebase it.
   A change that adds an install script to `trustedDependencies`, or a
   package with an exploited advisory, can't be shipped from the box.
 - **Production** moves only when an owner or a developer releases dev
@@ -65,7 +65,7 @@ on the machine with its sign-in, so the box holds no token.
 hi dev task list [--closed]
 hi dev task show 12
 hi dev task add "Chart misses the last day" "What happens, and how to see it"
-hi dev task comment 12 "On the preview now"
+hi dev task comment 12 "On Stage now"
 hi dev task edit 12 [--title "..."] -   # its whole new text, on stdin
 hi dev task close 12 "Shipped in t-31"
 hi dev task files 12            # its attachments, into ~/hi/tasks/12/
@@ -114,8 +114,8 @@ hi dev brainstorm question.md       # several agents' ideas on a hard question
 - **A second opinion:** the other agent than the one you work with (Codex
   reviews Claude's work, Claude reviews Codex's) reads what the branch adds
   to dev, in a copy of its own, may run the tests, and changes nothing. Its
-  report says whether to ship, what to change, and what to try on the
-  preview. It runs in the box, in a few minutes, on the team's sign-ins.
+  report says whether to ship, what to change, and what to try on
+  Stage. It runs in the box, in a few minutes, on the team's sign-ins.
 - **A deep review** is [hi agent review](/guide/agent/review/) of the
   project, up to the budget you give ($50 at most from the box); it often
   takes an hour. The report lands in the box, in `~/hi/reviews/<id>/`.
@@ -129,23 +129,24 @@ The agents ask you for the budget before they start one of these.
 ### Data, settings, and incidents
 
 ```bash
-hi dev data                         # production's and the preview's data
-hi dev data fork                    # a new fork of production's data for the preview
+hi dev data                         # production's and Stage's data
+hi dev data fork                    # a new fork of production's data for Stage
 hi dev settings                     # the names of the app's settings
-hi dev settings QUOTES_URL=https://sandbox.example.com   # the preview's own value
+hi dev settings QUOTES_URL=https://sandbox.example.com   # Stage's own value
 hi dev incidents                    # what failed, and what hi recorded
 ```
 
-The box sets only the preview's settings and never sees a value;
+The box sets only Stage's settings and never sees a value;
 production's settings and data are the owners', on the dev page, or an
 admin's, on the machine.
 
 ### The agents' skills
 
 The box's agents get skills made for hi's teams, kept current by each new
-hi: `hi-dev-ship` (preview and ship), `hi-dev-tasks`, `hi-dev-say`,
+hi: `hi-dev-ship` (Stage and ship), `hi-dev-tasks`, `hi-dev-say`,
 `hi-dev-status`, `hi-dev-review`, `hi-dev-brainstorm`, `hi-dev-data`,
-`hi-dev-settings`, `hi-dev-incidents`, and herdr's own. For a project the
+`hi-dev-settings`, `hi-dev-incidents`, `hi-dev-agents` (the app's MCP
+server, for agents), `hi-dev-agy` (Antigravity), and herdr's own. For a project the
 team [adopted](/guide/team/adopt/), `hi-dev-survey` makes it run and maps
 it, and `hi-dev-upstream` brings in the original's new versions
 (`hi dev upstream`) and offers work back (`hi dev propose`). Their instructions (`~/.claude/CLAUDE.md`
@@ -291,8 +292,8 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   workspace's worktree: the same files the agent works on, to edit by
   hand, search, read the git history, or open a terminal of your own.
   hi fetches it into the dev box the first time (about a minute) and
-  starts it when the view opens; only the owners reach it, as with the
-  terminal. It saves as you type, so the agent sees your changes. Type
+  starts it when the view opens; only owners and Pro Devs reach it, as
+  with the terminal. It saves as you type, so the agent sees your changes. Type
   `/ide` in the chat and Claude links to it: its changes open as diffs
   in the editor, and it sees what you select. Extensions come from
   [Open VSX](https://open-vsx.org); **Open in a new tab** gives it the
@@ -303,21 +304,21 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   VS Code's parts from it: previews, these viewers, and extensions' own
   panels don't show, and copy and paste go through the keyboard only. Put the
   addresses [on https](#the-addresses-on-https) for all of it.
-- **Try on preview** and **Ship to Dev**, beside a workspace with commits
+- **Try on Stage** and **Ship to Dev**, beside a workspace with commits
   dev hasn't got, do what `hi dev preview` and `hi dev ship` do in the
-  box. The preview is one address, and it shows one thing at a time:
+  box. Stage is one address, and it shows one thing at a time:
   dev, or a branch being tried. Trying a branch puts it there alone,
   with a fresh copy of production's data, and changes nothing in dev;
-  **Show dev**, beside "Preview:" at the top of the Code tab and in
+  **Show dev**, beside "Stage:" at the top of the Code tab and in
   Release, puts dev back (`hi dev preview --dev` in the box). Ship to
   Dev merges the branch's commits into dev (with a title for the
-  release notes; the last commit's by default) and puts dev on the
-  preview. Changes not committed stay in the worktree.
+  release notes; the last commit's by default) and puts dev on
+  Stage. Changes not committed stay in the worktree.
 
   ```
-  Try on preview   the preview shows only your branch   (dev doesn't change)
-  Show dev         the preview shows dev again           (undoes the line above)
-  Ship to Dev      your branch joins dev; the preview shows dev
+  Try on Stage     Stage shows only your branch   (dev doesn't change)
+  Show dev         Stage shows dev again           (undoes the line above)
+  Ship to Dev      your branch joins dev; Stage shows dev
   Release          dev becomes production
   ```
 - **Done ✓**, beside a workspace in the Code tab (and beside its task),
@@ -341,34 +342,35 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   clone's `.git`.
 - **Release:** at the top, **Where things run**: each address and what
   it shows now. Production, in green, with the version everyone uses
-  and, when dev has changes waiting, what they are and **Release**. The
-  preview, in blue, with what it shows (dev, or ▸ a branch being tried,
+  and, when dev has changes waiting, what they are and **Release**.
+  Stage, in blue, with what it shows (dev, or ▸ a branch being tried,
   with **Show dev**), and under it the work dev hasn't got: the one on
-  the preview marked "← on the preview now", the others with **Try on
-  preview**. And this page. Each has **Make public** or **Internal
-  only**. Under it:
+  Stage marked "← on Stage now", the others with **Try on Stage**. And
+  this page. Each has **Make public** or **Internal only**. Under it:
   - **Release** puts dev in production, with notes for the channel
-    drafted from dev's changes. **Set dev back to production** drops
+    drafted from dev's changes. Owners and developers release; at the
+    first release, only an owner may **Start production with a copy of
+    Stage's data**. **Set dev back to production** drops
     what dev has on top of it (see [Dev and production](/guide/team/releases/)).
   - **Releases**, each with **Roll back**, of the code, or the code and
     its data.
-- **Data:** production's data and the preview's side by side: how much
-  each holds, when it was last written, and what the preview's is a copy
+- **Data:** production's data and Stage's side by side: how much
+  each holds, when it was last written, and what Stage's is a copy
   of. Then what you can do with them:
-  - **Copy production's data to the preview**, a fresh copy now; what
-    the preview wrote itself is kept once, apart.
-  - **Copy the preview's data to production**, with a snapshot of
+  - **Copy production's data to Stage**, a fresh copy now; what
+    Stage wrote itself is kept once, apart.
+  - **Copy Stage's data to production**, with a snapshot of
     production's first.
   - **Take a snapshot now**, and the newest snapshots. Putting the team
     back as it was in one is an admin's, on the machine:
     `hi team restore <team> <snapshot>`.
-  - **Start the preview empty at every release**, for an app whose
-    people's data the preview shouldn't show.
-- **System:** what production runs, what dev has, the preview, backups,
+  - **Start Stage empty at every release**, for an app whose
+    people's data Stage shouldn't show.
+- **System:** what production runs, what dev has, Stage, backups,
   incidents, and jobs, and what an owner decides:
   - **Incidents**, each open one with **Restart** and **Close** (see
     [When something goes wrong](/guide/team/incidents/)).
-  - **The helper**, on or off for the preview and for production.
+  - **The helper**, **On Stage** and **In production**.
   - **Rules for the app's jobs**, added and removed.
 
   Each click is the yes, logged with your name.
@@ -377,7 +379,8 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
     agents' asks, what the owners allowed, and what the box was refused
     lately (see [Sites the box reaches](#sites-the-box-reaches)).
   - **The app's settings**, its API keys among them, by name: set one for
-    both, the preview, or production; nobody sees a value.
+    Stage and production, Stage only, production only, or the dev box
+    only (from its next restart); nobody sees a value.
   - **The team's keys and sign-ins**: whether the OpenRouter key, the
     Claude and ChatGPT sign-ins, and the Slack tokens are the team's own
     or the machine's, and the command an admin runs to change each.
@@ -390,24 +393,25 @@ stays above the keyboard while you type.
 
 ## Getting in over SSH
 
-Owners reach the dev box over SSH on your NetBird network, where it is a
-peer of its own named `<team>-dev`:
+Owners and Pro Devs reach the dev box over SSH on your NetBird network,
+at the team's peer, named `<team>`:
 
 ```bash
-ssh box@orbit-dev            # then: herdr
-herdr --remote box@orbit-dev # or from your own herdr
+ssh box@orbit            # then: herdr
+herdr --remote box@orbit # or from your own herdr
 ```
 
-Several owners may attach to the same agent; they coordinate between
-themselves.
+`hi team dev <team>` prints the name. An older team's peer may be named
+`<team>-dev` (`ssh box@orbit-dev`). Several people may attach to the same
+agent; they coordinate between themselves.
 
 ### Joining NetBird
 
 The team is on your NetBird network as one peer, such as
-`orbit.corp.example`: production on port 80 (`http://orbit.corp.example/`), the
-preview on 8080, the dev page on 8888, and SSH to the dev box on 22. A
-team whose peer joined before hi 2.5.1 keeps its name, `orbit-dev`;
-rename it in NetBird's dashboard if you like, and hi follows.
+`orbit.corp.example`: production on port 80 (`http://orbit.corp.example/`), Stage
+on 8080, the dev page on 8888, and SSH to the dev box on 22. An older
+team's peer keeps its name, `orbit-dev`; rename it in NetBird's
+dashboard if you like, and hi follows.
 `hi team new` asks for a NetBird setup key at the end; for a team made
 before, run `hi team dev <team> netbird`. In NetBird's dashboard:
 
@@ -447,16 +451,17 @@ They can point the names either way, and hi takes both at once:
 `--https` is for TLS ended in front of hi, by their proxy: hi serves http,
 and its links say https. Without it, the links say http.
 
-**Stage** is the address where dev is tried before a release; hi called it
-the preview before v2.6.17, and its commands take `stage` and `preview`
-both (`hi team data <team> stage empty`, `--stage`).
+**Stage** is the address where dev is tried before a release. `hi dev`
+and some of hi's output still call it the preview, and `hi team`'s
+commands take `stage` and `preview` both (`hi team data <team> stage
+empty`, `--stage`).
 
 ### The addresses on https
 
 On their NetBird names the addresses are plain http, which browsers keep
 some things from: VS Code's previews and extensions' panels, the
 clipboard's buttons, and the app's own use of them. Give the machine a
-domain of yours, and every team's production, preview, and dev page move
+domain of yours, and every team's production, Stage, and dev page move
 to https, with a certificate browsers trust and nothing to install on
 anyone's devices. A team stays off it when its setup said so, or after
 `hi team addresses <team> netbird` (or a host name your IT team keeps):
@@ -469,8 +474,8 @@ hi net domain --email ops@example.com         # the email alone, later
 The email is optional: Let's Encrypt writes to it if the certificate's
 renewal keeps failing, well before it ends.
 
-- **The names:** production is `https://<team>.dev.example.com/`, the
-  preview `https://<team>-preview.dev.example.com/`, and the dev page
+- **The names:** production is `https://<team>.dev.example.com/`,
+  Stage `https://<team>-preview.dev.example.com/`, and the dev page
   `https://<team>-dev.dev.example.com/`. hi keeps their records in the
   domain's DNS, pointing at the team's NetBird address: anyone can look
   the names up, but only the network reaches them. The http addresses on
@@ -492,14 +497,10 @@ renewal keeps failing, well before it ends.
   the app keep running.
 
 The owners get the dev page's new link in their DMs; `/hi-<team> dev`
-gives it too, and the dev page's Addresses show production's and the
-preview's. `hi net domain` says what's set, and `hi net domain --unset`
+gives it too, and the dev page's Addresses show production's and
+Stage's. `hi net domain` says what's set, and `hi net domain --unset`
 puts the addresses back on their NetBird names (the records hi made stay
 in the zone).
-
-A team's dev page on https from hi 2.5.46 was at `<team>.dev.example.com`,
-which is production's name now: it moves to `<team>-dev`, and the owners
-get its new link.
 
 ### Owners, developers, and contributors
 
@@ -515,10 +516,10 @@ Terminal, VS Code, an agent's chat, starting a task, uploading files, and
 SSH are one level, not separate switches: they all run in the same dev
 box, and VS Code has a terminal of its own. A developer also has the dev
 box's broker role, so **a developer can read production's data** through
-a preview of their own work, since the preview runs on a copy of it,
-unless the preview starts empty (`hi team data <team> preview empty`).
+Stage, with their own work on it, since Stage runs on a copy of it,
+unless Stage starts empty (`hi team data <team> stage empty`).
 The page says so when an owner makes someone a developer, and the channel
-hears every change ("Olga made Bo a developer").
+hears every change ("Olga made Bo a Pro Dev").
 
 Nobody has a level for being in the team's channel. The dev page's
 Security tab has a **People** table: everyone with a level and everyone
@@ -538,9 +539,9 @@ hi team access orbit key U083YSQFD0B "$(cat ~/.ssh/id_ed25519.pub)"
 ```
 
 Taking away someone's level counts at once: their next click is refused,
-and an open terminal or VS Code closes within seconds. Developers paste
+and an open terminal or VS Code closes within seconds. Pro Devs paste
 their own SSH key on the dev page's Security tab; NetBird's policy for the
-dev box has to let them reach it, as for the owners.
+dev box has to let them reach it, as for the owners. Vibe Devs have no SSH.
 
 ### Owners and their keys
 
@@ -572,7 +573,7 @@ ssh then warns once that it changed.
 | `hi team owners <team> [add\|remove <member ID>]` | The team's owners, who build in the dev box |
 | `hi team owners <team> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box |
 | `hi team task <team> [list\|show\|add\|comment\|close]` | The team's tasks, on the machine |
-| `hi dev preview [<branch>\|--dev]` | In the box: a branch on the team's preview; `--dev` puts dev back on it |
+| `hi dev preview [<branch>\|--dev]` | In the box: a branch on Stage; `--dev` puts dev back on it |
 | `hi dev ship [<branch>] [-m <title>]` | In the box: a branch into dev |
 | `hi dev status` | In the box: what runs where |
 | `hi dev say [--thread <ts>] <text\|->` | In the box: a message in the team's channel |
@@ -582,8 +583,8 @@ ssh then warns once that it changed.
 | `hi dev deep-review --budget <usd>` | In the box: a multi-agent review of the project (also `list`, `show`, `stop`) |
 | `hi dev brainstorm <question file\|->` | In the box: several agents' ideas (also `list`, `show`, `stop`) |
 | `hi dev agy "<task>" [--file <path>]...` | In the box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/` (also `show`) |
-| `hi dev data [fork]` | In the box: the app's data; a new fork for the preview |
-| `hi dev settings [KEY=VALUE\|--unset KEY]` | In the box: the settings' names; the preview's own values |
+| `hi dev data [fork]` | In the box: the app's data; a new fork for Stage |
+| `hi dev settings [KEY=VALUE\|--unset KEY]` | In the box: the settings' names; Stage's own values |
 | `hi dev incidents [<id>]` | In the box: incidents and what hi recorded |
 | `hi dev upstream` | In the box, for an adopted project: where dev stands against the original, and its branches and tags into the box's clone |
 | `hi dev propose <work> <description file\|->` | In the box, for an adopted project: offer shipped work to the original, as a draft pull request |

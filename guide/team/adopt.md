@@ -15,7 +15,7 @@ makes a team whose project is that repository. It's the same setup as
 [`hi team new`](/guide/team/setup/), with the code step answered. The
 team works on its own copy and never pushes to the project it came from.
 Then an owner asks their agent in the [dev box](/guide/team/dev/) to
-survey it: make it run on the preview, run its tests, and map it. From
+survey it: make it run on Stage, run its tests, and map it. From
 there it's a team like any other.
 
 ## What hi checks first
@@ -51,8 +51,8 @@ Adopt it? The team keeps its own copy and never pushes to ada/pocket-kanban. [Y/
 
 ## A folder on this machine
 
-The source can also be a folder here, such as a project from a team on
-hi 1.x, or code you have on a laptop:
+The source can also be a folder here, such as a project from another
+team, or code you have on a laptop:
 
 ```sh
 hi team adopt helpdesk ~/projects/team-helpdesk/repo --github example-org/helpdesk-v2
@@ -116,8 +116,8 @@ survey first, and the box's instructions offer one while the project has
 no `docs/map.md`. In the dev box, ask "survey the project"; the agent
 follows its `hi-dev-survey` skill, on a branch of its own:
 
-1. **Run it**: install what it needs, and start it on `$PORT` for the
-   preview, with a `make run` target, or `make hi-run` when the project's
+1. **Run it**: install what it needs, and start it on `$PORT` for
+   Stage, with a `make run` target, or `make hi-run` when the project's
    own `run` target means something else (hi uses `hi-run` first). Data it
    keeps goes in `$HI_DATA_DIR` when that's a setting.
 2. **Test it**: run its own tests and say which pass.
@@ -126,7 +126,7 @@ follows its `hi-dev-survey` skill, on a branch of its own:
 4. **Say what's missing**: settings it needs, such as an API key, services
    it expects beside it, and what doesn't work yet.
 
-It changes no behavior. The agent puts it on the preview with
+It changes no behavior. The agent puts it on Stage with
 `hi dev preview`, tells you what the app is, what to try, and what
 doesn't work yet, and ships it with `hi dev ship` when you agree. Settings
 the app needs go on the dev page or the machine (`hi team env`), never in
@@ -177,7 +177,7 @@ hi dev upstream        # where dev stands, and upstream's branches and tags into
 
 The agent merges the tag (`upstream/v2.4`) on a branch of its own,
 resolves what conflicts with the team's work in favor of what the team
-changed on purpose, runs the checks, puts it on the preview, and ships it
+changed on purpose, runs the checks, puts it on Stage, and ships it
 with `hi dev ship` when you agree. Once it's in dev, `hi team upstream`
 lists it.
 

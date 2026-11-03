@@ -23,7 +23,7 @@ fallback: |
   <section id="uses" class="wrap" aria-labelledby="uses-h">
     <div class="eyebrow"><span class="lvl">1</span>What it's for</div>
     <h2 id="uses-h">An app for the people who know the problem.</h2>
-    <p class="sub">One team lives in one Slack channel and runs one project for the people in it. They don't need to read code: they ask, try the preview, and say whether it works. The developers build it, on your stack, inside your network.</p>
+    <p class="sub">One team lives in one Slack channel and runs one project for the people in it. They don't need to read code: they ask, try it on Stage, and say whether it works. The developers build it, on your stack, inside your network.</p>
     <div class="uses" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr))">
       <div class="use">
         <h3>A tool nobody would build for you</h3>
@@ -46,7 +46,7 @@ Can they show in red?</div>
       </div>
       <div class="use">
         <h3>Keep improving it, from inside the app</h3>
-        <p>Every page of the app has a helper: help from its docs, and feedback the lead files as a task, pointing at the part of the page you mean.</p>
+        <p>Every page of the app has a helper: help from its docs, and feedback pointing at the part of the page you mean. Someone signed in with their own link reports a bug, and hi files it as a task.</p>
         <div class="snip"><span class="c">$ hi team helper onboarding production on</span></div>
         <a class="go" href="/guide/team/helper/">The helper →</a>
       </div>
@@ -62,7 +62,7 @@ Can they show in red?</div>
         <div class="cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div></div></li>
       <li><div><p><b>Install what a team needs.</b> Then give Hermes an OpenRouter key with <code>hermes setup</code>, and sign in to Claude Code and Codex.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi install hermes claude codex podman restic</code><button class="copy" type="button" data-copy="hi install hermes claude codex podman restic">copy</button></div></div></li>
-      <li><div><p><b>Set it up.</b> Seven questions, one at a time: purpose, the Slack app (from a manifest hi prints), channel, owners, the agents and their sign-ins, and code, from a blank app or one of your templates; then the dev box's NetBird key.</p>
+      <li><div><p><b>Set it up.</b> Ten questions, one at a time: the lead's name, purpose, the Slack app (from a manifest hi prints), channel, owners, the agents and their sign-ins, the models' key, and code, from a blank app or one of your templates; then the NetBird key and addresses, and heartbeats.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi team new onboarding</code><button class="copy" type="button" data-copy="hi team new onboarding">copy</button></div></div></li>
       <li><div><p><b>Start it</b>, now and at every boot. It answers in its channel in a minute or so.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi team up onboarding</code><button class="copy" type="button" data-copy="hi team up onboarding">copy</button></div></div></li>
@@ -77,9 +77,9 @@ Can they show in red?</div>
     <p class="sub">The lead is the only agent that runs all the time, in the channel. The owners build in the dev box, whose only way out is hi's service on the machine, which never moves production.</p>
     {% include diagram.html name="team" %}
     <div class="prose">
-      <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what they ask for, in the channel, a DM, or feedback from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
-      <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and VS Code beside it. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on the preview with production's data, and ship it into dev.</p>
-      <p><strong>Dev and production.</strong> People try dev on a preview link that opens on their phones. Production moves only when an owner or a developer clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and an owner can roll each one back.</p>
+      <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what the team's contributors, developers, and owners ask for, in the channel, a DM, or a bug report from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
+      <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and VS Code beside it. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on Stage with production's data, and ship it into dev.</p>
+      <p><strong>Dev and production.</strong> People try dev on Stage, a link that opens on their phones. Production moves only when an owner or a developer clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and an owner can roll each one back.</p>
       <p><strong>Handing it over.</strong> An app that becomes critical changes hands, not code. An admin of the machine makes IT's people its owners, and the people who built it stay on as developers or step back. The project is an ordinary git repository from your template, with its history, its specs in <code>docs/specs/</code>, and its tasks in GitHub, GitLab, or hi's own; the whole team is one folder that moves to another machine.</p>
     </div>
   </section>
@@ -119,11 +119,11 @@ Can they show in red?</div>
         <h3>Who does what</h3>
         <div class="snip"><span class="c">$ hi team owners onboarding add U07ANNA</span>
 <span class="c">$ hi team owners onboarding key U07ANNA ~/anna.pub</span></div>
-        <p>Owners, whom an admin of the machine adds, decide what reaches production. On the dev page's People table they make others Pro Devs (Chat, terminal, VS Code, and SSH) or Vibe Devs (Chat only), who build without touching production, and contributors, who file bugs as tasks with their name on them.</p>
+        <p>Owners, whom an admin of the machine adds, keep production's data, settings, and rollbacks. On the dev page's People table they make others Pro Devs (Chat, terminal, VS Code, and SSH) or Vibe Devs (Chat only), who build and release but don't roll back or change production's data and settings, and contributors, who file bugs as tasks with their name on them.</p>
       </div>
       <div class="detail">
         <h3>What the box can't do</h3>
-        <p>The dev box's agents work without asking, but its connection to hi offers only preview, ship, tasks, and the like: no release, rollback, restore, or production setting is there to refuse. No GitHub credential enters it: hi pushes from the machine.</p>
+        <p>The dev box's agents work without asking, but its connection to hi offers only Stage, ship, tasks, and the like: no release, rollback, restore, or production setting is there to refuse. No GitHub credential enters it: hi pushes from the machine.</p>
       </div>
     </div>
     <details class="deep">
@@ -141,8 +141,8 @@ Can they show in red?</div>
     <div class="eyebrow"><span class="lvl">5</span>Go further</div>
     <h2 id="next-h">Where next.</h2>
     <div class="next">
-      <a href="/guide/team/setup/"><b>Set up a team</b><span>The guide: the seven questions, starting and stopping, GitHub.</span></a>
-      <a href="/guide/team/dev/"><b>Build in the dev box</b><span>SSH and the dev page, herdr, preview and ship, the agents' skills.</span></a>
+      <a href="/guide/team/setup/"><b>Set up a team</b><span>The guide: the ten questions, starting and stopping, GitHub.</span></a>
+      <a href="/guide/team/dev/"><b>Build in the dev box</b><span>SSH and the dev page, herdr, Stage and ship, the agents' skills.</span></a>
       <a href="/guide/team/how-it-works/"><b>How the team works</b><span>From a request to a task to production, and the lead's memory.</span></a>
       <a href="/guide/team/releases/"><b>Dev and production</b><span>Versions, releases, and going back.</span></a>
       <a href="/guide/team/folder/"><b>The folder and backups</b><span>Snapshots, restore, rollback, and offsite copies.</span></a>

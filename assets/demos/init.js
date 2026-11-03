@@ -13,7 +13,7 @@ window.HI5_STORY = {
       short: 12000, screen: "terminal", window: "you@laptop: ~/projects",
       lines: [
         { cmd: "hi init python pricing-tools", at: 300 },
-        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 1400 },
+        { out: "Template  python: base (hi v2.6.65), python (hi v2.6.65)", at: 1400 },
         { out: "Target    /home/you/projects/pricing-tools (new directory)", at: 1600 },
         { out: "Files", at: 2000 },
         { out: "  write    .claude/settings.json", at: 2200 },
@@ -55,12 +55,12 @@ window.HI5_STORY = {
       short: 11000, screen: "terminal", window: "you@laptop: ~/projects/pricing-tools",
       lines: [
         { cmd: "hi init --update --dry-run", at: 300 },
-        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 1300 },
+        { out: "Template  python: base (hi v2.6.65), python (hi v2.6.65)", at: 1300 },
         { out: "Target    /home/you/projects/pricing-tools", at: 1400 },
         { ok: "Nothing to update; the repository matches the templates.", at: 1700 },
         { cmd: "echo '# my note' >> CLAUDE.md", at: 3400 },
         { cmd: "hi init --update --check", at: 4800 },
-        { out: "Template  python: base (hi v1.0.5), python (hi v1.0.5)", at: 5800 },
+        { out: "Template  python: base (hi v2.6.65), python (hi v2.6.65)", at: 5800 },
         { out: "Target    /home/you/projects/pricing-tools", at: 5900 },
         { out: "Files", at: 6100 },
         { warn: "  CONFLICT CLAUDE.md (edited by hand)", at: 6200 },

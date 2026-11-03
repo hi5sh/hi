@@ -1,6 +1,6 @@
 ---
 title: Set up a team
-description: "Install what a hi team needs, answer the setup's nine questions with hi team new, start and stop the team, put its project on GitHub, and change the agents and sign-ins its members stand for."
+description: "Install what a hi team needs, answer the setup's ten questions with hi team new, start and stop the team, put its project on GitHub, and change the agents and sign-ins its members stand for."
 ---
 
 ## Before you start
@@ -24,7 +24,7 @@ hi team new payments
 
 Without a name, `hi team new` asks for it first. At a terminal the
 questions look like `hi install`'s: a field at a time, checked as you
-answer, and a list where the answer is one of a few. The setup asks nine
+answer, and a list where the answer is one of a few. The setup asks ten
 things, one at a time:
 
 1. **Lead.** What the lead goes by in Slack: a name of its own, such as
@@ -50,8 +50,8 @@ things, one at a time:
 5. **People.** The owners' Slack member IDs (`U…`): the team's
    developers, who build in the dev box and release from the dev page.
    Everyone in the channel may talk with the lead.
-6. **Members.** Each role's agent and model, and who pays for it; Enter
-   keeps what's offered. The members decide the team's sign-ins (see
+6. **Members.** Each role's agent and model, who pays for it, and how
+   hard it thinks (its effort); Enter keeps what's offered. The members decide the team's sign-ins (see
    [Change a member](#change-a-member)).
 7. **Models.** An OpenRouter key of the team's own, so its use is billed
    and limited apart; Enter uses this machine's, from Hermes. No box ever
@@ -83,7 +83,7 @@ things, one at a time:
      [The addresses on https](/guide/team/dev/#the-addresses-on-https)).
    - **A host name your IT team keeps** in its DNS, pointing at the
      team's NetBird address (`hi team dev <team>` shows it once the team
-     joined): `http://payments.corp.example/`, the preview on `:8080`, the
+     joined): `http://payments.corp.example/`, Stage on `:8080`, the
      dev page on `:8888`.
    - **The NetBird name**, `http://payments.<your network>/`, on the same
      ports.
@@ -119,8 +119,7 @@ the app fixes it. `hi team up` checks again and warns, for teams made
 before. The app has Slack's Agent experience and its MCP server off: the
 lead shows it's working with a reaction on the message. For Slack's
 "thinking…" line under the reply box too, turn Agent experience on in the
-app's settings and add the `assistant:write` scope; apps made before
-v2.6.8 have both, and keep them. Without a terminal, give the answers in
+app's settings and add the `assistant:write` scope. Without a terminal, give the answers in
 a file and the tokens in
 `HI_TEAM_SLACK_BOT_TOKEN` and `HI_TEAM_SLACK_APP_TOKEN` (and the team's
 OpenRouter key, if it has one, in `HI_TEAM_OPENROUTER_API_KEY`):
@@ -180,8 +179,8 @@ reads them to answer people.
 
 ## Change a member
 
-The members in `team.json` are the lead, a coder, and a reviewer. From hi
-2.4 the coder and the reviewer get no tasks: they decide which sign-ins
+The members in `team.json` are the lead, a coder, and a reviewer. The
+coder and the reviewer get no tasks: they decide which sign-ins
 the team keeps (Claude, ChatGPT, OpenRouter), which the lead and the dev
 box use, and their agents take turns in a
 [deep review](/guide/team/reviews/#a-deep-review). The lead is always

@@ -135,10 +135,10 @@ The gate compares with the highest validation number so far, not the latest
 kept version's. Against the latest, each kept round could lose up to the
 slack, and the losses would add up: ten rounds at a slack of 0.05 could
 lose 0.5. Against the highest, validation can never end more than the slack
-below its best point, and it doesn't have to rise every round either. (In
-v0.52.0 the gate compared with the latest. A run started then, and resumed
-after an update, starts its mark at its latest kept number, since the
-earlier ones weren't recorded, and keeps the highest from there.)
+below its best point, and it doesn't have to rise every round either. (An
+older hi compared with the latest. A run it started, and resumed after an
+update, starts its mark at its latest kept number, since the earlier ones
+weren't recorded, and keeps the highest from there.)
 
 Each good box is validated, not just the winner, so the report shows every
 attempt's number. Without the GPU the containers run at once; with

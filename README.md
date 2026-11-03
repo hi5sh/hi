@@ -31,7 +31,7 @@ applies to new shells; until then the installer prints the full path to run, suc
 as `~/.local/bin/hi install`. Set `HI_INSTALL_DIR` to override the
 destination.
 
-To update later, run `hi update` (v0.7.1 and newer).
+To update later, run `hi update`.
 
 ## Commands
 
@@ -49,10 +49,12 @@ hi net domain <domain>  https for the teams' addresses on this machine, with a d
 hi init            Start a project from a template (python, web, app, service, pipeline, ml, autoresearch-ml, and your server's own)
 hi compute         Start, reach, and stop remote GPU machines (Colab, Hugging Face, RunPod, Shadeform)
 hi login <hf|colab|runpod|shadeform>  Sign in to a compute provider
+hi serve llm <recipe>  Serve a model with an OpenAI-compatible API, rented or on this machine (hi serve help)
 hi data            Download your team's Hugging Face datasets, models, and buckets through your org (hi data help)
 hi org             Your organization: join it, or run its server, which approves and pays for compute (hi org help)
 hi agent [task]    Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box and get its report (hi agent help)
 hi agent brainstorm <question>  Several agents give ideas alone; one compiles them into a proposal
+hi agent best-of <n> <task>  The same task in n boxes, checked and ranked; --score runs rounds that keep only gains
 hi box shell       Run a shell or a command in a rootless box (hi box help)
 hi team new <name> Set up a team's app in a Slack channel, with a lead and a dev box; hi team up starts it (hi team help)
 hi team dev <name> The team's dev box, where its owners build with agents over SSH or from the dev page
@@ -63,6 +65,7 @@ hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
 hi verify strix    Check an installed Strix Halo workstation
+hi heartbeat <url> This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
 hi update          Update hi to the latest release, and restart an org server or team on the old one (--check, --version, --restart)
 hi version         Print the installed version
 hi help            Show help
@@ -146,9 +149,10 @@ CLI), Hugging Face Jobs, RunPod, and Shadeform (through their APIs). Run `hi com
 in a terminal for a guided menu that prints the equivalent command for every
 step.
 
-When both providers are signed in, `hi` picks the one that offers the
-hardware you ask for (`G4` is Colab, `a10g-small` is Hugging Face). Otherwise
-pass `--on colab` or `--on hf`, or set `HI_COMPUTE_PROVIDER`.
+When several providers are signed in, `hi` picks the one that offers the
+hardware you ask for (`G4` is Colab, `a10g-small` is Hugging Face, `rtx-4090`
+is RunPod). Otherwise pass `--on colab`, `--on hf`, `--on runpod`, or
+`--on shadeform`, or set `HI_COMPUTE_PROVIDER`.
 
 ```sh
 hi compute providers                      # which providers are signed in?
@@ -335,7 +339,7 @@ people in one Slack channel, on a machine of yours:
   repository from your template, and the team is one folder.
 
 ```sh
-hi team new onboarding          # seven questions: Slack app, channel, owners, members, code
+hi team new onboarding          # ten questions: the lead, purpose, Slack app, channel, people, members, models, code, network, heartbeats
 hi team up onboarding           # start it, now and at boot
 hi team owners onboarding key U07ANNA "$(cat anna.pub)"   # an owner's SSH key for the dev box
 hi team dev onboarding          # the dev box, and how to get in
@@ -439,6 +443,9 @@ under the name in brackets for `hi install <tool>` and `hi uninstall <tool>`:
 - AI coding tools, installed per user in `~/.local/bin`:
   - [Claude Code](https://code.claude.com/docs) [`claude`]
   - [Codex CLI](https://developers.openai.com/codex/cli) [`codex`]
+  - [Antigravity CLI](https://antigravity.google) [`agy`], on a Google AI Pro or Ultra plan
+  - Gemini API CLI [`gemini-api`]: video, speech, music, transcripts, and
+    research, for Antigravity's boxes
   - [omp](https://omp.sh) [`omp`]
   - [herdr](https://herdr.dev) [`herdr`]
   - [Hermes Agent](https://github.com/NousResearch/hermes-agent) [`hermes`]
@@ -471,7 +478,7 @@ machine with Radeon 8060S graphics; the final report detected the GPU through bo
 
 ## Development and releases
 
-Build with Go 1.24 or newer:
+Build with Go 1.26 or newer:
 
 ```sh
 go build -o hi .

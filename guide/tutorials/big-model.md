@@ -95,5 +95,7 @@ instead of tunnelling; use your Hugging Face token as the API key. See
 [Serve a model](/guide/compute/serve/#hugging-face).
 
 > The recipe was measured on a Colab G4. The Hugging Face flow was tested with
-> a smaller model; expect similar speed on the same GPU.
+> a smaller model. On an RTX PRO 6000 with llama.cpp's CUDA image, the image
+> Hugging Face runs, the recipe writes about 44 tokens/s, so expect that
+> rather than Colab's 84.
 {: .note}

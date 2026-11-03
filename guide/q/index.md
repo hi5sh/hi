@@ -95,7 +95,8 @@ The first time, `hi q` uses what it finds, in this order:
    needs a key.
 3. The [org server](/guide/compute/managed/#use-your-teams-model-with-hi-q)
    this device is connected to, when it serves a model: no key needed. If
-   it can't be reached, `hi q` falls back to the next of these and says so.
+   it can't be reached or refuses this device, `hi q` falls back to the
+   next of these and says so.
 4. `OPENAI_API_KEY` (and `OPENAI_BASE_URL` if set), then
    `OPENROUTER_API_KEY`, then `ANTHROPIC_API_KEY`.
 5. Claude Code, if it is installed. It uses your Claude sign-in and the Haiku
@@ -170,7 +171,7 @@ with each question, and `hi q --context` shows them.
 
 ## Shell integration
 
-`hi q --setup` offers to add two lines to `~/.bashrc` or `~/.zshrc`, once,
+`hi q --setup` offers to add these lines to `~/.bashrc` or `~/.zshrc`, once,
 after showing them:
 
 ```sh

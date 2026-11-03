@@ -19,7 +19,7 @@ hi box run --gpu -- python train.py   # with the Strix Halo GPU
 [See it in action](/box/): a short demo, then how it works.
 
 Coding agents run in boxes too: [`hi agent`](/guide/agent/) starts Claude
-Code, Codex, or Hermes in one, without permission prompts, and reports what
+Code, Codex, Hermes, or Antigravity in one, without permission prompts, and reports what
 it did.
 
 {% include diagram.html name="box" %}

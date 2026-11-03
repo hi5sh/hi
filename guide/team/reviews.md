@@ -37,7 +37,7 @@ Its report starts with **Approve:** or **Changes needed:**, with a
 numbered list of what to change and where, and then:
 
 - **Verify on the preview:** what only the running app can show, such as
-  a service behind a key only the app has. Put the branch on the preview
+  a service behind a key only the app has. Put the branch on Stage
   with `hi dev preview` and try those.
 - **Later:** an edge case the work doesn't set out to handle, for a
   task.

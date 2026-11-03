@@ -117,21 +117,21 @@ list, so the editable file can't read the data it is scored on.
 |---|---|
 | `--rounds 50` | after 50 rounds (default 1; `forever` has no end) |
 | `--for 8h` | no round starts after 8 hours |
-| `--budget 30` | no round starts once agents have used $30 at API prices, as Claude Code reports it; on a subscription that is a measure of usage, not a bill, and Codex and Hermes report no dollars |
+| `--budget 30` | no round starts once agents have used $30 at API prices, as Claude Code reports it; on a subscription that is a measure of usage, not a bill, and Codex, Antigravity, and Hermes report no dollars |
 | `--patience 10` | after 10 rounds without a gain |
 | `--max 30m` | not the run: a time limit for each agent in each round |
 
 `--budget` counts dollars agents report. Claude Code works out its own cost
 at API prices from its built-in price list, whether you pay by subscription
-or by API key. Codex reports only tokens, and Hermes, which reaches
-OpenRouter through hi's proxy, can't price its calls, so their runs count
-as nothing. After the first round, the view shows
-what a round costs.
+or by API key. Codex and Antigravity report only tokens, and Hermes,
+which reaches OpenRouter through hi's proxy, can't price its calls, so
+their runs count as nothing. After the first round, the view shows what a
+round costs.
 
 hi reads how each agent is paid for from its sign-in on your machine: a
-Claude plan (such as Max 20x), a ChatGPT plan, an OpenAI API key, or
-OpenRouter. The live view shows it for each box, and the header splits the
-dollars: `$4.10 at API prices ($0.62 of it billed)` means $0.62 was charged
+Claude plan (such as Max 20x), a ChatGPT plan, an OpenAI API key,
+OpenRouter, or a Google AI plan for Antigravity. The live view shows it
+for each box, and the header splits the dollars: `$4.10 at API prices ($0.62 of it billed)` means $0.62 was charged
 (OpenRouter or an API key) and the rest was subscription usage.
 
 ## Watching and stopping

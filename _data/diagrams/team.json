@@ -1,5 +1,5 @@
 {
-  "caption": "How a hi team works. People talk to the lead in the team's Slack channel or a DM, and send feedback from the helper on the app's pages; the lead, Hermes, helps them and files what they ask for as tasks. The owners build in the dev box, a long-lived box with the project, Claude Code, Codex, and herdr, reached over SSH or from the dev page in a browser. Work leaves the box through the team's service, part of hi on the machine: hi dev preview puts a branch on the preview, and hi dev ship merges it into dev. Production moves only when an owner releases dev from the dev page, with a snapshot first. Everything lives in the team's folder.",
+  "caption": "How a hi team works. People talk to the lead in the team's Slack channel or a DM, and send feedback from the helper on the app's pages; the lead, Hermes, helps them and files what the team's contributors, developers, and owners ask for as tasks. The owners build in the dev box, a long-lived box with the project, Claude Code, Codex, and herdr, reached over SSH or from the dev page in a browser. Work leaves the box through the team's service, part of hi on the machine: hi dev preview puts a branch on Stage, and hi dev ship merges it into dev. Production moves only when an owner or a developer releases dev from the dev page, with a snapshot first. Everything lives in the team's folder.",
   "you": "People and owners",
   "via": "the Slack channel · the helper · the dev page",
   "frame": "the team's machine",
@@ -43,12 +43,12 @@
       "label": "hi, on the host",
       "mark": 4,
       "via": "hi dev",
-      "summary": "The dev box's only way out: preview and ship, never production.",
+      "summary": "The dev box's only way out: Stage and ship, never production.",
       "items": [
         {
           "title": "hi team __serve",
           "role": "the team's service",
-          "does": "Puts a branch on the preview with production's data, merges shipped work into dev, keeps tasks, snapshots, and incidents.",
+          "does": "Puts a branch on Stage with production's data, merges shipped work into dev, keeps tasks, snapshots, and incidents.",
           "chip": "hi team",
           "tone": "accent"
         }
@@ -62,7 +62,7 @@
       "summary": "Dev is `main`; production moves only by a release.",
       "items": [
         {
-          "title": "preview",
+          "title": "Stage",
           "role": "dev",
           "does": "Dev, or a branch of the box, on its own link, on a fork of production's data.",
           "chip": "link",
@@ -71,7 +71,7 @@
         {
           "title": "v3",
           "role": "production",
-          "does": "Released by an owner's click on the dev page, snapshot first.",
+          "does": "Released by an owner's or a developer's click on the dev page, snapshot first.",
           "chip": "link",
           "tone": "mint"
         }
@@ -114,12 +114,12 @@
     {
       "mark": 4,
       "term": "The team's service",
-      "text": "Part of hi, outside every box: the dev box can preview and ship through it, but nothing it offers moves production."
+      "text": "Part of hi, outside every box: the dev box can put work on Stage and ship through it, but nothing it offers moves production."
     },
     {
       "mark": 5,
       "term": "Dev and production",
-      "text": "What the people try, and what they use. Only an owner's click moves production."
+      "text": "What the people try, and what they use. Only an owner's or a developer's click moves production."
     },
     {
       "mark": 6,

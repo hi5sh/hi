@@ -46,10 +46,10 @@ See [Set up a workstation](/guide/workstation/) for the tools on offer.
 | Variable         | Effect                                                         |
 |------------------|----------------------------------------------------------------|
 | `HI_INSTALL_DIR` | Install somewhere other than `~/.local/bin`                    |
-| `HI_VERSION`     | Install a specific release, such as `v0.7.0`, instead of latest |
+| `HI_VERSION`     | Install a specific release, such as `v2.6.65`, instead of latest |
 
 ```sh
-curl -fsSL https://hi5.sh/install.sh | HI_VERSION=v0.7.0 sh
+curl -fsSL https://hi5.sh/install.sh | HI_VERSION=v2.6.65 sh
 ```
 
 ## Sign in to a compute provider
@@ -81,8 +81,9 @@ shadeform not signed in
 On a team whose [org server](/guide/compute/managed/) pays for compute,
 `hi org join <server>` replaces the sign-ins for the providers it manages.
 
-`hi install` also offers both providers' command-line tools, the Colab CLI
-and the `hf` CLI (`hi install colab hf`). If you only installed `hi` itself, `hi login` tells you how
+`hi install` also offers the command-line tools Colab and Hugging Face need,
+the Colab CLI and the `hf` CLI (`hi install colab hf`); RunPod and Shadeform
+need only their API keys. If you only installed `hi` itself, `hi login` tells you how
 to install the one it needs.
 
 ## Update
@@ -90,7 +91,7 @@ to install the one it needs.
 ```sh
 hi update            # install the latest release
 hi update --check    # only say whether a newer release exists
-hi update --version v0.7.0
+hi update --version v2.6.65
 hi update --restart     # and restart an org server or team that runs the old version, without asking
 hi update --no-restart  # never restart one; print the command instead
 ```
@@ -103,12 +104,6 @@ old binary, `hi update` offers to restart its service; a busy team is left
 until it's done, with the command to run then.
 After updating, refresh any [agent skills](/guide/reference/skill/) you wrote
 with `hi skill update`.
-
-`hi update` arrived in v0.7.1. Older versions update once with the installer:
-
-```sh
-curl -fsSL https://hi5.sh/install.sh | sh
-```
 
 ## Remove
 

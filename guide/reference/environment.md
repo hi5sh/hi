@@ -33,6 +33,9 @@ description: The environment variables hi reads and the files it writes.
 | `HI_TEAMS_DIR`          | Where `hi team` keeps teams; default `~/.local/share/hi/teams`    |
 | `HI_TEAM_SLACK_BOT_TOKEN`, `HI_TEAM_SLACK_APP_TOKEN`, `HI_TEAM_OPENROUTER_API_KEY` | `hi team new --from`: the team's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_TEAM_CLAUDE_TOKEN`, `HI_TEAM_CHATGPT_AUTH` | `hi team new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
+| `HI_TEAM_S3_ACCESS_KEY_ID`, `HI_TEAM_S3_SECRET_ACCESS_KEY` | `hi team backups --offsite`: the bucket's keys, instead of asking |
+| `ANTHROPIC_MODEL`       | `hi agent claude`: the model, when Claude Code's settings name none |
+| `DO_NOT_TRACK`, `DISABLE_TELEMETRY` | `hi skill`: no searches or audits from skills.sh |
 | `HI_INSTALL_DIR`        | Installer: where to put `hi`                                      |
 | `HI_VERSION`            | Installer: which release to install                               |
 | `XDG_CONFIG_HOME`       | Base of `hi`'s config folder; default `~/.config`                 |
@@ -62,6 +65,8 @@ description: The environment variables hi reads and the files it writes.
 | `~/.local/state/hi/box/<name>/`             | A box: `box.json`, its worktree (`work/`), home folder (an agent's result in `home/.hi-agent/`), allowlist (`allow`), and `network.log` |
 | `~/.local/state/hi/box/domains.json`        | Projects' extra domains you allowed or refused          |
 | `~/.config/hi/box-claude-token`             | The token from `hi agent token claude` (mode 0600); only the box proxy reads it |
+| `~/.config/hi/gemini-api-key`               | The key from `hi agent token gemini` (mode 0600); it never enters a box |
+| `~/.config/hi/serve/<name>/`                | A local server's keys, from `hi serve llm --share` or `--org`; `hi serve key` shows the shared one |
 | `~/.local/state/hi/q/last.json`             | The last conversation, for `hi q -c`; mode 0600       |
 | `~/.local/state/hi/q/shell-<pid>`           | With shell integration: that shell's last 30 commands and exit status, and commands handed between it and `hi q`; removed after the shell exits |
 | `~/.bashrc`, `~/.zshrc`                     | Two lines for the shell integration, added by `hi q --setup` after asking |

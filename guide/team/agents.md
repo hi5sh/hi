@@ -39,11 +39,11 @@ The lead has the app's tools in Slack, on both addresses:
   real data ("how many orders came in today?") instead of guessing from
   the code. hi keeps it to those, outside the lead's box, so a tool that
   changes something never runs on production for the lead.
-- **The preview**: every tool, on the preview's
+- **Stage**: every tool, on Stage's
   [own copy of production's data](/guide/team/data/). It tries there what
   someone reports before it files a task.
 
-When the tools change, with a release or a branch on the preview, the
+When the tools change, with a release or a branch on Stage, the
 lead sees the new ones within a minute. An app without `/mcp` simply gives
 the lead no tools, and it says so.
 
