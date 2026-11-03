@@ -2713,6 +2713,28 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.67 — hi team is hi app
+
+- [x] The product is an app: `hi app new|up|down|ls` and every other
+  subcommand; the help, messages, Slack, the dev page, the helper, the
+  lead's instructions, the skills, and the website say app, and team is
+  the people around one. `hi team` is gone; old units and boxes still
+  start `hi team __serve`, `__app`, `__resolver`, `__leadapi`, and
+  `snapshot`, and only those answer to it.
+- [x] The `app` template is `webapp` and the hidden `team-app` layer
+  `hi-app`; repositories that recorded the old names follow the new ones.
+  New apps' folders are `./app-<name>`; `HI_TEAM_*` settings are
+  `HI_APP_*`.
+- [x] On the machine: `~/.local/share/hi/apps`, `app-snapshots`,
+  `app.json`, services `hi-app-<name>*`, boxes `app-<name>` and
+  `app-<name>-dev`, addresses `app-<name>`, `-live`, and `-dev`. An app
+  from before keeps running after the update; `hi app up <name>` moves it,
+  and the machine's folders move with its last such app. The memory bank,
+  the snapshots' host tag, and in-box paths keep their names.
+- [x] The website's /team/ and /guide/team/ are /app/ and /guide/app/,
+  with redirects; the code's team names are app names (`internal/cli/app_*.go`,
+  `skills/hi/app`, `docs/specs/*/hi_app_*.md`).
+
 ### v2.6.66 — The repository in folders, and the website up to date
 
 - [x] The Go code is in `internal/cli`, started by `cmd/hi`; the root's
