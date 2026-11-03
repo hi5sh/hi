@@ -417,7 +417,9 @@ under Findings. A check that fails changes the design here first. Done on
    an ad hoc model on NVIDIA is served by estimate.
 5. **On the org's machines.** `--on <machine>` and `--on auto` through `hi
    org machines` (hi_cluster.md, release 3): the same box and units, placed
-   by the org server.
+   by the org server, on machines set aside for guests only, and reached
+   through `hi org ai` as with `--org`. It waits for hi_cluster.md to be
+   approved and its releases 1 and 2 to be built.
 
 Other kinds follow in hi_serve_recipes.md, after release 2 here.
 

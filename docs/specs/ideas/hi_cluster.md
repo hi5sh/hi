@@ -1,6 +1,9 @@
 # `hi org machines`: workloads on the organization's own machines
 
-Status: Draft (2026-11-01; named `hi cluster` until 2026-11-02)
+Status: Draft (2026-11-01; named `hi cluster` until 2026-11-02), revised
+on 2026-11-03 with its three open questions decided (Decisions 7 to 9), for
+review. `hi serve llm --on <machine>` (hi_serve.md, release 5) is built on
+its release 3.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, device
 keys, groups, policy, approvals, the audit log, the reconciler, the live
@@ -55,14 +58,23 @@ RunPod.
 1. **A machine offers room.** On the machine, `hi org offer` uses its
    existing device key to ask the server to add it as a host; an admin
    approves it in Slack, as with enrollment. The offer says what guests may
-   use, for example 64 GB of RAM and 8 cores, and never the GPU while a team
-   serves a model. Running `hi org offer` again changes the offer; a smaller
-   one takes nothing from guests already running.
-2. **An inventory.** The host reports its totals, what its teams and boxes
-   use and reserve, and what is left for guests, on the timer it already
-   has. NVIDIA GPUs are read with `nvidia-smi`, AMD with `rocm-smi` or
-   sysfs. On Strix Halo, GPU memory is system RAM, so free GPU memory and
-   free RAM are counted as one pool.
+   use, for example 64 GB of RAM and 8 cores, and whether the GPU. Running
+   `hi org offer` again changes the offer; a smaller one takes nothing from
+   guests already running. Only a machine that runs no teams may offer
+   room (Decision 7): `hi org offer` refuses on one that does, and `hi team
+   up` refuses on a host that offers, naming `hi org offer off`.
+2. **An inventory.** Every device that runs `hi org offer`, and every
+   machine with teams that chooses to, reports its totals, what its teams
+   and boxes reserve, and what is left for guests, signed with its device
+   key, from a systemd user timer of its own every minute. (The machine
+   heartbeat of hi_team_ops.md goes to an outside service, not to the org
+   server, so this is a new timer, not that one.) It reads what `hi serve
+   detect` reads, from evidence: AMD GPUs from the kernel's KFD topology,
+   NVIDIA ones from `nvidia-smi`. On Strix Halo, GPU memory is system RAM,
+   so free GPU memory and free RAM are counted as one pool. A team's
+   reservation is what its boxes' cgroup limits still allow (Decision 9).
+   A host that stops reporting for five minutes gets no new work, and `hi
+   org machines` shows it as unreachable; what runs there keeps running.
 3. **Placement.** First fit, with headroom kept on each host. No queue at
    first: when nothing fits, hi says so and shows the closest fits, as
    RunPod's "suggest free alternatives" does.
@@ -73,6 +85,15 @@ RunPod.
 5. **Direct reach.** SSH, tunnels, and logs go from the laptop to the host
    over NetBird, never through the server, as with rented compute. The
    server puts the user's SSH public key in place for the lease.
+6. **Served models on a host** (hi_serve.md, release 5). `hi serve llm
+   <recipe> --on <host|auto>` asks the server for a lease; the host agent
+   runs `hi serve llm <recipe> --on local --org` under the host's account,
+   with the same box, front, units, and memory check as on your own
+   machine, and the lease's end as its `--max`. The model is then reached
+   as `local/<name>` through `hi org ai`, as with `--org`, by the user who
+   asked and whoever the group policy allows; nobody holds its key by
+   hand. `hi serve ls`, `status`, `logs`, `stop`, and `rm` work on it from
+   the laptop through the lease.
 
 ## Commands
 
@@ -88,6 +109,7 @@ hi agent claude "<task>" --on auto
 hi compute up --on auto --ram 64G --max 8h
 hi compute run train.py --on auto --max 6h
 hi team new demo --on gpu1                 # long-running, pinned
+hi serve llm qwen3.8-flash-next --on auto  # a host whose GPU and memory fit it
 
 # The machines
 hi org offer --cpu 8 --ram 64G [--gpu none]   # on the host: offer room to guests
@@ -159,6 +181,23 @@ machine may not be named like a provider; `hi org offer` refuses one.
    one name, its machines under another. They live together under `hi org`
    (hi_org.md).
 
+Taken on 2026-11-03:
+
+7. **Guests run only on machines set aside for them.** A machine that runs
+   production teams offers no room, until the guest accounts of
+   hi_team_accounts.md exist, so a guest's box can never reach a team's
+   `secrets.json` or the machine's device key. This settles Decision 2.
+   Such machines may still report their inventory, so `hi org machines`
+   shows where everything runs.
+8. **Only through the org server.** Every placement goes through `hi org`:
+   device keys, policy, Slack approvals, leases, and the audit log. There
+   is no mode without an org server: plain SSH over NetBird already does
+   that, and hi would add nothing to it.
+9. **A team's reservation is its boxes' limits.** A team holds what its
+   boxes' cgroup limits still allow beyond what they use now, as `hi serve
+   detect` counts it, so the reservation is measured, not declared, and
+   grows only when a team's limits do.
+
 ## Existing tools
 
 Studied for what to take, not to adopt as the core: none of them knows
@@ -184,7 +223,8 @@ boxes, teams, the proxy, or approvals, which are the hard part here.
    `stop` with `--on <host|auto>`: a box with a lease, `--max`, and
    approval.
 3. **`--on` across commands.** `hi box`, `hi agent`, `hi compute run`, and
-   `hi serve llm` with `--detach`, `wait`, and `logs`.
+   `hi serve llm` (hi_serve.md, release 5) with `--detach`, `wait`, and
+   `logs`.
 4. **Teams placed and moved.** `hi team new --on`, and moving a team, with
    the planned export and import ("Restore a team ... on another machine").
 5. **Later.** A queue when nothing fits, drain with maintenance windows,
@@ -192,9 +232,6 @@ boxes, teams, the proxy, or approvals, which are the hard part here.
 
 ## Open questions
 
-1. May guests ever run on a host with production teams, or only on hosts
-   set aside for guests?
-2. Only through the org server, or also a mode without one, where the
-   machines are a NetBird group of hosts reached over SSH?
-3. Does a team's reservation come from what it uses, or from what its
-   owners declare?
+1. Who may use a model served on a host for someone: only the user who
+   asked, or anyone the group policy allows through `hi org ai`? The draft
+   above says the policy, as for `--org`.
