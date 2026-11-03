@@ -18,6 +18,7 @@
 </header>
 <nav class="tabs" role="tablist">
   <button data-tab="tasks" role="tab" aria-selected="true">Tasks <span id="tasks-count" class="count"></span></button>
+  <button data-tab="decisions" role="tab">Decisions</button>
   <button data-tab="terminal" role="tab">Code</button>
   <button data-tab="files" role="tab">Files</button>
   <button data-tab="release" role="tab">Release <span id="release-count" class="count"></span></button>
@@ -49,6 +50,19 @@
         </div>
         <div id="tickets" role="rowgroup"></div>
       </div>
+    </div>
+  </section>
+  <section id="tab-decisions" class="panel decisions-panel" hidden>
+    <div class="decisions-box">
+      <div class="decisions-head">
+        <div class="grow">
+          <h2>Decisions</h2>
+          <p class="muted small">The team's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the team's branch.</p>
+        </div>
+        <button id="decision-new" class="primary">New decision</button>
+      </div>
+      <label class="search"><span aria-hidden="true">⌕</span><input id="decisions-search" type="search" placeholder="Find a decision…" aria-label="Find a decision" autocomplete="off"></label>
+      <div id="decisions" class="decision-cards"><p class="muted small">Loading…</p></div>
     </div>
   </section>
   <section id="tab-terminal" class="panel terminal-panel" hidden>
@@ -374,6 +388,21 @@
       <button id="note-go" class="primary">Add the note</button>
     </div>
   </form>
+</dialog>
+<dialog id="decision-dialog" class="wide">
+  <h2 id="decision-title"></h2>
+  <p id="decision-meta" class="muted small"></p>
+  <div id="decision-body"></div>
+  <textarea id="decision-text" class="edit-text" rows="20" spellcheck="true" aria-label="The decision, in Markdown" hidden
+    placeholder="# Keep prices in cents&#10;&#10;What was decided, in a sentence or two: its card shows this.&#10;&#10;## Why&#10;&#10;## Context"></textarea>
+  <p id="decision-error" class="error"></p>
+  <div class="buttons">
+    <button type="button" id="decision-delete" class="danger">Delete</button>
+    <span class="grow"></span>
+    <button type="button" id="decision-close">Close</button>
+    <button type="button" id="decision-edit" class="primary">Edit</button>
+    <button type="button" id="decision-save" class="primary" hidden>Save</button>
+  </div>
 </dialog>
 <dialog id="ask-dialog">
   <form method="dialog" id="ask-form">

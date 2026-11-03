@@ -76,6 +76,7 @@
     try { localStorage.setItem("hi-dev-tab", tab); } catch (e) { /* private window */ }
     if (tab === "terminal") setTimeout(function () { if (chat.view === "terminal") { fitTerminal(); term.focus(); } else pollChat(); }, 0);
     if (tab === "files") openFiles();
+    if (tab === "decisions") refreshDecisions();
     if (tab === "data") refreshData();
     if (tab === "security" && !developer()) refreshPeople();
   }
@@ -2507,11 +2508,115 @@
     }).then(function () { $("note-go").disabled = false; });
   });
 
+  // ---- decisions: docs/decisions/ on the team's branch, as cards; one
+  // opens to read all of it, and to edit or delete it, each a commit
+  var decisions = { list: null, open: null };
+  function refreshDecisions() {
+    return api("GET", "decisions").then(function (list) {
+      decisions.list = list;
+      renderDecisions();
+    }).catch(function (error) {
+      $("decisions").textContent = "";
+      $("decisions").appendChild(el("p", { class: "error", text: error.message }));
+    });
+  }
+  function day(at) {
+    return at ? new Date(at).toLocaleDateString([], { dateStyle: "medium" }) : "";
+  }
+  function renderDecisions() {
+    var box = $("decisions");
+    box.textContent = "";
+    var words = $("decisions-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = (decisions.list || []).filter(function (decision) {
+      var text = (decision.file + " " + decision.text).toLowerCase();
+      return words.every(function (word) { return text.indexOf(word) >= 0; });
+    });
+    if (!shown.length) {
+      box.appendChild(el("p", { class: "muted", text: (decisions.list || []).length ? "No decision has those words." :
+        "No decisions yet. The agents write one for a technical choice someone shouldn't undo by accident, and so can you." }));
+    }
+    shown.forEach(function (decision) {
+      box.appendChild(el("button", { type: "button", class: "decision-card", onclick: function () { openDecision(decision, false); } }, [
+        el("span", { class: "decision-top" }, [
+          decision.number ? el("span", { class: "id-pill", text: decision.number }) : null,
+          el("span", { class: "muted small", text: day(decision.added) }),
+        ]),
+        el("span", { class: "decision-card-title", text: decision.title }),
+        decision.summary ? el("span", { class: "decision-summary", text: decision.summary }) : null,
+      ]));
+    });
+  }
+  $("decisions-search").addEventListener("input", renderDecisions);
+  // openDecision shows one, or with edit its Markdown to change; a new
+  // one (null) opens to write.
+  function openDecision(decision, edit) {
+    decisions.open = decision;
+    var editing = edit || !decision;
+    $("decision-title").textContent = decision ? decision.title : "New decision";
+    $("decision-meta").textContent = decision ? [decision.file, decision.added ? "written " + day(decision.added) : "",
+      day(decision.changed) !== day(decision.added) ? "changed " + day(decision.changed) : ""].filter(Boolean).join(" · ") :
+      "Start with its title as a heading, then what was decided: the card shows that paragraph.";
+    var body = $("decision-body");
+    body.textContent = "";
+    if (decision && !editing) {
+      // Its title is the dialog's already.
+      var shown = renderMarkdown(decision.text, "", false);
+      var first = shown.firstElementChild;
+      if (first && first.tagName === "H1") first.remove();
+      body.appendChild(shown);
+    }
+    body.hidden = editing;
+    $("decision-text").hidden = !editing;
+    $("decision-text").value = decision ? decision.text : "";
+    $("decision-error").textContent = "";
+    $("decision-delete").hidden = !decision;
+    $("decision-edit").hidden = editing;
+    $("decision-save").hidden = !editing;
+    $("decision-save").disabled = false;
+    $("decision-close").textContent = editing && decision ? "Cancel" : "Close";
+    if (!$("decision-dialog").open) $("decision-dialog").showModal();
+    if (editing) $("decision-text").focus();
+  }
+  $("decision-new").addEventListener("click", function () { openDecision(null, true); });
+  $("decision-edit").addEventListener("click", function () { openDecision(decisions.open, true); });
+  // Close, or while editing one, Cancel: back to reading it.
+  $("decision-close").addEventListener("click", function () {
+    if (decisions.open && !$("decision-text").hidden) openDecision(decisions.open, false);
+    else $("decision-dialog").close();
+  });
+  $("decision-save").addEventListener("click", function () {
+    var decision = decisions.open;
+    $("decision-save").disabled = true;
+    $("decision-error").textContent = "";
+    api("POST", "decision", { file: decision ? decision.file : "", blob: decision ? decision.blob : "", text: $("decision-text").value }).then(function (result) {
+      toast(decision ? "Saved, on the team's branch." : "Added " + result.file + " to the team's branch.");
+      return refreshDecisions().then(function () {
+        var saved = (decisions.list || []).filter(function (each) { return each.file === result.file; })[0];
+        if (saved) openDecision(saved, false);
+        else $("decision-dialog").close();
+      });
+    }).catch(function (error) {
+      $("decision-error").textContent = error.message;
+      $("decision-save").disabled = false;
+    });
+  });
+  $("decision-delete").addEventListener("click", function () {
+    var decision = decisions.open;
+    ask("Delete the decision \u201c" + decision.title + "\u201d? It goes from the team's branch; git keeps its history.").then(function (answer) {
+      if (answer === null) return;
+      api("POST", "decision", { file: decision.file, blob: decision.blob, delete: true }).then(function () {
+        toast("Deleted " + decision.file + ".");
+        $("decision-dialog").close();
+        refreshDecisions();
+      }).catch(function (error) { $("decision-error").textContent = error.message; });
+    });
+  });
+
   // On a phone, the workspaces start folded, and the terminal has the room.
   if (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) $("spaces-box").open = false;
   var tab = "tasks";
   try { tab = localStorage.getItem("hi-dev-tab") || "tasks"; } catch (e) { /* private window */ }
-  show(["tasks", "terminal", "files", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
+  show(["tasks", "decisions", "terminal", "files", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
   refresh().then(function () {
     if ($("locked").hidden && !vibe()) connect();
   });

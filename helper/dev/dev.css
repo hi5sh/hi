@@ -121,6 +121,30 @@ select option { background: var(--widget); }
 }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
+/* Decisions: cards, each its title and first paragraph, opened to read
+   all of it and edit it. */
+.decisions-panel { padding: 16px; }
+.decisions-box { max-width: 1200px; margin: 0 auto 120px; display: flex; flex-direction: column; gap: 12px; }
+.decisions-head { display: flex; align-items: flex-start; gap: 16px; }
+.decisions-head h2 { margin-top: 0; }
+.decisions-head p { margin: 0; max-width: 760px; }
+.decisions-box .search { flex: none; max-width: 420px; }
+.decision-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+button.decision-card {
+  display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--text); font-weight: 400;
+}
+button.decision-card:hover { border-color: var(--focus); background: var(--panel); }
+.decision-top { display: flex; align-items: center; gap: 8px; }
+.decision-top .id-pill { padding: 0; }
+.decision-card-title { font-size: 14px; font-weight: 600; color: var(--bright); overflow-wrap: anywhere; }
+.decision-summary { margin: 0; color: var(--text); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
+#decision-body .md { max-width: none; }
+#decision-body .md > :first-child { margin-top: 0; }
+#decision-text { font: 13px/1.5 var(--mono); min-height: 40vh; }
+#decision-dialog .buttons { align-items: center; }
+button.danger { color: var(--bad); }
+
 /* Tasks: a table, as in Orca's. */
 .tasks-panel { padding: 16px; }
 /* Not overflow: hidden, which would cut off a row's ⋯ menu; the last row
@@ -549,6 +573,9 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
   .file-row { grid-template-columns: 22px minmax(0, 1fr) auto; }
   .file-row > span:last-child { display: none; }
   .tasks-panel { padding: 8px; }
+  .decisions-panel { padding: 8px; }
+  .decisions-head { flex-direction: column; gap: 8px; }
+  .decision-cards { grid-template-columns: 1fr; }
   .tabs button { flex: 1; }
   .table .head { display: none; }
   .table .row { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "id title title actions" ". status updated updated"; gap: 4px 10px; padding: 10px; }

@@ -213,8 +213,8 @@ a private link to the team's **dev page**, in a DM; their links from
 old ones. A developer's page has no Data tab and none of the owners'
 buttons ([below](#owners-developers-and-contributors)).
 
-Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
-**System**, and **Security**; the page remembers the last one.
+Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Release**,
+**Data**, **System**, and **Security**; the page remembers the last one.
 
 - **Tasks:** the team's tasks as a table: each one's number, title,
   who asked for it (the one who asked the lead in the channel, or filed
@@ -232,6 +232,15 @@ Seven tabs along the top, **Tasks**, **Code**, **Files**, **Release**, **Data**,
   it finishes the workspace too (worktree, workspace, branch); when the
   workspace still has work dev hasn't got, that stays there, and only
   the task closes. A closed task's ⋯ has **Reopen**.
+- **Decisions:** the project's `docs/decisions/`, the technical choices
+  nobody should undo by accident, as cards: each one's number, when it
+  was written, its title, and its first paragraph, newest first, with a
+  search. A card opens to all of it, with **Edit** (its Markdown) and
+  **Delete**; **New decision** writes one, numbered after the last and
+  named from its title. Each change is a commit to the team's branch,
+  with who made it, as the specs are: no review, and the agents read it
+  from there. A save over a change someone made since you opened it is
+  refused, so open it again and make yours on theirs.
 - **Code:** herdr, the dev box's workspaces and agents, in the
   browser, the same ones as over SSH, with the workspaces beside it.
   Closing the tab leaves the agents working. Ctrl+V pastes there as in

@@ -928,7 +928,7 @@ func init() {
 		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev", "POST api/release",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
-		"POST api/code/start", "POST api/sshkey",
+		"POST api/code/start", "POST api/sshkey", "GET api/decisions", "POST api/decision",
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		teamDevDeveloperRoutes[method+" "+teamDevPagePrefix+path] = true
@@ -1040,6 +1040,7 @@ func (b *teamBroker) devPageHandler() http.Handler {
 	b.devFileRoutes(mux, builder, reply, failure)
 	b.devChatRoutes(mux, builder, reply, failure)
 	b.devCodeRoutes(mux, builder, reply, failure)
+	b.devDecisionRoutes(mux, builder, reply, failure, decode)
 	mux.HandleFunc("POST "+teamDevPagePrefix+"api/site", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := builder(w, r)
 		if !ok {
