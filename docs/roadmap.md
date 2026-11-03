@@ -2713,6 +2713,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.69 — Projects hide every .env but .env.example from Claude
+
+- [x] The templates' Claude Code settings deny `.env`, `.env.*`, and
+  `secrets/` in any folder, with `!.env.example` carving the example back
+  out (deny rules take gitignore negations). Since v2.6.26 they had listed
+  `.env.local`, `.env.*.local`, and four named variants, so `.env.dev`,
+  `.env.prod`, or `.env.preview` were readable again. Checked in Claude
+  Code: `.env`, `.env.dev`, and `sub/.env.production` are refused,
+  `.env.example` reads. A Claude Code without negations blocks
+  `.env.example` too, rather than less.
+
 ### v2.6.68 — Moving an app keeps what its watcher has seen
 
 - [x] `hi app up` on an app from before v2.6.67 gives the watcher's record
