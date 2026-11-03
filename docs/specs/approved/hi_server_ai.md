@@ -47,7 +47,7 @@ OpenAI-compatible endpoint works. `--no-key` is for one that takes no key,
 such as a model served on the team's own machine; then no Authorization
 header is sent. `--model` is the model `hi q` suggests
 and uses when the user hasn't chosen one; it defaults to
-`anthropic/claude-haiku-4.5`. `set` makes one small request with the key
+`anthropic/claude-haiku-5.5`. `set` makes one small request with the key
 before saving it, as `hi q --setup` does. The key is kept with the other
 provider keys in `keys.json`.
 
@@ -93,7 +93,7 @@ Step 3 asks the server (`GET /v1/ai`, 1.5 second timeout) only when nothing
 above it is set, and caches the answer for an hour in
 `~/.local/state/hi/q/server.json`, so an unreachable server costs one short
 wait, not one per question. `--provider server` forces it. `hi q --status`
-shows "anthropic/claude-haiku-4.5 via vmserver".
+shows "anthropic/claude-haiku-5.5 via vmserver".
 
 The team's server comes before personal keys on purpose: a team member with
 an old `OPENAI_API_KEY` in their shell uses the team's key unless they
@@ -113,7 +113,13 @@ no personal provider, `hi q` fails with the server's error and suggests
 
 Errors from the upstream that the server passes on, such as an unknown
 model or no credit, don't cause a fallback: they would happen with a
-personal key too, and falling back would hide them.
+personal key too, and falling back would hide them. A refused key (the
+upstream's 401 or 403) is the exception: it is the server's own fault, so
+the server answers 502 as its own error, "openrouter.ai refused this org
+server's key (…); an admin stores a new one with `hi org ai set`", and
+`hi q` falls back. The fallback uses the personal provider's own default
+model, not the server's saved one, which is often a name only the server
+knows; a model given with `--model` is kept.
 
 ## Protocol
 
@@ -132,7 +138,8 @@ For a request, the server:
 2. forwards the body to `<url>/chat/completions` with the upstream key,
    with `stream` forced off and nothing else changed;
 3. returns the upstream's answer and status as they are, so the upstream's
-   own errors (an unknown model, no credit) reach `hi q` unchanged;
+   own errors (an unknown model, no credit) reach `hi q` unchanged, except
+   a refused key, which becomes the server's own 502;
 4. records the user, device, model, tokens, and cost from the answer's
    `usage`. OpenRouter reports the cost there; for other upstreams the cost
    is left empty.

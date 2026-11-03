@@ -20,9 +20,9 @@ import (
 const (
 	qOpenAIURL       = "https://api.openai.com/v1"
 	qOpenAIModel     = "gpt-5-mini"
-	qOpenRouterModel = "anthropic/claude-haiku-4.5"
+	qOpenRouterModel = "anthropic/claude-haiku-5.5"
 	qAnthropicURL    = "https://api.anthropic.com"
-	qAnthropicModel  = "claude-haiku-4-5"
+	qAnthropicModel  = "claude-haiku-5-5"
 	qClaudeCodeModel = "haiku"
 	qRequestTimeout  = 90 * time.Second
 )
@@ -765,7 +765,7 @@ func resolveQProvider(name, model string) (qChoice, error) {
 		}
 		return qChoice{provider: qOpenAI{baseURL: base, key: os.Getenv("HI_Q_API_KEY"), model: chosen}, source: "HI_Q_BASE_URL"}, nil
 	}
-	if choice, ok := qConnectedServerChoice(model, false); ok {
+	if choice, ok := qConnectedServerChoice(model, model, false); ok {
 		return choice, nil
 	}
 	return qPersonalProvider(model)
@@ -835,7 +835,7 @@ func qProviderByName(name, model string, config qConfig, key string) (qChoice, e
 		if config.Provider == "org" {
 			saved = config.Model
 		}
-		if choice, ok := qConnectedServerChoice(firstNonEmpty(model, saved), true); ok {
+		if choice, ok := qConnectedServerChoice(firstNonEmpty(model, saved), model, true); ok {
 			return choice, nil
 		}
 		return qChoice{}, errors.New("this device isn't connected to an org server that serves a model; run hi org join, or choose another model with hi q --setup")

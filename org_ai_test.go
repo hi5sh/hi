@@ -327,3 +327,30 @@ func TestServerAIWithoutKey(t *testing.T) {
 		t.Fatalf("set --no-key: %d %s %s", code, out, errOut)
 	}
 }
+
+func TestHiQFallsBackWhenTheServersKeyIsRefused(t *testing.T) {
+	ts, upstream := newAIServer(t)
+	// The upstream refuses the team's key, as OpenRouter does for one that
+	// was deleted.
+	upstream.status = http.StatusUnauthorized
+	personal := newFakeUpstream(t, "echo personal")
+	t.Setenv("OPENAI_API_KEY", "personal-key")
+	t.Setenv("OPENAI_BASE_URL", personal.server.URL)
+	// The server's model was saved with hi q --setup; it means nothing to
+	// the personal provider.
+	if err := saveQConfig(qConfig{Provider: "server", Model: "anthropic/claude-haiku-5.5"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	status, stdout, stderr := askQ(t, "--print", "how", "full")
+	if status != 0 || stdout != "echo personal\n" {
+		t.Fatalf("status %d stdout %q stderr %q", status, stdout, stderr)
+	}
+	notice := qNotice.(*bytes.Buffer).String()
+	if !strings.Contains(notice, "refused this org server's key") || !strings.Contains(notice, "hi org ai set") {
+		t.Fatalf("notice = %q", notice)
+	}
+	if model := personal.requests[0]["model"]; model != qOpenAIModel {
+		t.Fatalf("personal model = %v, want %s", model, qOpenAIModel)
+	}
+	_ = ts
+}

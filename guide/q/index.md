@@ -42,7 +42,7 @@ which commands ran and how they ended:
 
 ```text
 $ hi q
-hi q · anthropic/claude-haiku-4.5 at openrouter.ai · /help · Ctrl-D leaves
+hi q · anthropic/claude-haiku-5.5 at openrouter.ai · /help · Ctrl-D leaves
 q› how many md files are here (not counting txt)?
 There are 2 Markdown files here: a.md and b.md.
 q› move them into a folder called docs
@@ -109,7 +109,7 @@ If none of these are there, a menu opens. Run `hi q --setup` to choose again:
 - **OpenRouter**: one key from [openrouter.ai/keys](https://openrouter.ai/keys)
   for models from Anthropic, OpenAI, Google, DeepSeek, and others. Only
   models that can call tools are listed, with fast, cheap ones such as
-  `anthropic/claude-haiku-4.5` and `google/gemini-2.5-flash` first; press
+  `anthropic/claude-haiku-5.5` and `google/gemini-2.5-flash` first; press
   `/` to filter.
 - **An OpenAI-compatible endpoint**: OpenAI, Groq, Ollama
   (`http://localhost:11434/v1`), vLLM, llama.cpp, LM Studio, or a model you

@@ -453,12 +453,12 @@ func TestQListModelsKeepsToolModels(t *testing.T) {
 		w.Write([]byte(`{"data":[
 			{"id":"z/plain","supported_parameters":["temperature"]},
 			{"id":"a/tools","supported_parameters":["tools","temperature"]},
-			{"id":"anthropic/claude-haiku-4.5","supported_parameters":["tools"]},
-			{"id":"anthropic/claude-haiku-4.5:batch","supported_parameters":["tools"]}]}`))
+			{"id":"anthropic/claude-haiku-5.5","supported_parameters":["tools"]},
+			{"id":"anthropic/claude-haiku-5.5:batch","supported_parameters":["tools"]}]}`))
 	}))
 	defer server.Close()
 	got := qSuggestedFirst(qListModels(server.URL, "", nil), "")
-	if strings.Join(got, ",") != "anthropic/claude-haiku-4.5,a/tools" {
+	if strings.Join(got, ",") != "anthropic/claude-haiku-5.5,a/tools" {
 		t.Fatalf("models = %q", got)
 	}
 }

@@ -26,7 +26,7 @@ import (
 const (
 	serverAIKeyName      = "ai" // in keys.json, next to the compute keys
 	serverAIDefaultURL   = "https://openrouter.ai/api/v1"
-	serverAIDefaultModel = "anthropic/claude-haiku-4.5"
+	serverAIDefaultModel = "anthropic/claude-haiku-5.5"
 	serverAIMaxBody      = 4 << 20
 	serverAITimeout      = 90 * time.Second
 	// serverAIErrorHeader marks errors that come from the org server itself,
@@ -245,6 +245,13 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 		return
 	}
 	s.recordAIUsage(device, model, answer, response.StatusCode)
+	if (response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden) && key != "" {
+		// The team's key was refused, which no device can fix: say so as
+		// the server's own error, so hi q falls back and names the cause.
+		writeAIError(w, http.StatusBadGateway, fmt.Sprintf("%s refused this org server's key (%s: %s); an admin stores a new one with `hi org ai set`",
+			qHost(settings.URL), response.Status, qErrorMessage(answer)))
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(response.StatusCode)
 	w.Write(answer)

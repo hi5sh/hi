@@ -129,9 +129,11 @@ func qServerProvider(connection *serverConnection, key ed25519.PrivateKey, model
 
 // qConnectedServerChoice picks the connected server when it serves a model.
 // When the server can't be reached it returns the user's own provider with
-// a note. forced is set when the user chose the server, so it is used even
-// when nothing else is there to fall back to.
-func qConnectedServerChoice(model string, forced bool) (qChoice, bool) {
+// a note. personalModel is the model for that fallback: only one the user
+// named, since the server's saved model is often a name only it knows.
+// forced is set when the user chose the server, so it is used even when
+// nothing else is there to fall back to.
+func qConnectedServerChoice(model, personalModel string, forced bool) (qChoice, bool) {
 	connection, err := loadServerConnection()
 	if err != nil || connection == nil {
 		return qChoice{}, false
@@ -143,7 +145,7 @@ func qConnectedServerChoice(model string, forced bool) (qChoice, bool) {
 	name := qServerName(connection.URL)
 	info, down := qServerAI(connection, key, false)
 	if down != "" {
-		personal, err := qPersonalProvider(model)
+		personal, err := qPersonalProvider(personalModel)
 		if err == nil && personal.provider != nil {
 			personal.note = fmt.Sprintf("%s %s; using %s", name, down, personal.source)
 			return personal, true
@@ -158,7 +160,7 @@ func qConnectedServerChoice(model string, forced bool) (qChoice, bool) {
 	}
 	provider := qServerProvider(connection, key, firstNonEmpty(model, info.Model))
 	return qChoice{
-		provider: &qServerFallback{primary: provider, url: connection.URL, name: name, model: model},
+		provider: &qServerFallback{primary: provider, url: connection.URL, name: name, model: personalModel},
 		source:   "connected org server " + name,
 	}, true
 }

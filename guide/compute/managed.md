@@ -607,7 +607,7 @@ hi org ai remove                    # stop and delete the key
 ```
 
 - It is a plain pass-through: users and agents may ask for any model the
-  upstream has. The default, `anthropic/claude-haiku-4.5` unless you set
+  upstream has. The default, `anthropic/claude-haiku-5.5` unless you set
   another, is what `hi q` uses when the user hasn't chosen one.
 - `set` makes one small request with the key and model before saving them.
   Run it again to change them; Enter at the key prompt keeps the stored key.

@@ -2713,6 +2713,20 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.65 — hi q falls back properly when the org server's key is refused
+
+Spec: [hi_server_ai.md](specs/approved/hi_server_ai.md).
+
+- [x] When the upstream refuses the org server's key (OpenRouter's "401
+  User not found" for a deleted key), the server says so as its own error
+  and names `hi org ai set`, so `hi q` falls back instead of blaming the
+  device.
+- [x] The fallback uses the personal provider's own model, not the
+  server's saved OpenRouter name, which Claude Code turned down.
+- [x] Haiku 5.5 is the default for the org server, OpenRouter, and
+  Anthropic keys (`anthropic/claude-haiku-5.5`, `claude-haiku-5-5`). A
+  server set up earlier keeps its model until `hi org ai set --model`.
+
 ### v2.6.64 — Boxes on Ubuntu 26.04
 
 Spec: [hi_box.md](specs/approved/hi_box.md), Findings, "The image's
