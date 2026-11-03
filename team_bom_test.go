@@ -102,7 +102,7 @@ func TestTeamBomListsWhatProductionRuns(t *testing.T) {
 }
 
 func TestTeamBomParsers(t *testing.T) {
-	for in, want := range map[[2]string]string{{"ubuntu", "24.04"}: "Ubuntu:24.04:LTS", {"ubuntu", "25.10"}: "Ubuntu:25.10", {"debian", "12.7"}: "Debian:12", {"alpine", "3.20.3"}: "Alpine:v3.20"} {
+	for in, want := range map[[2]string]string{{"ubuntu", "24.04"}: "Ubuntu:24.04:LTS", {"ubuntu", "26.04"}: "Ubuntu:26.04:LTS", {"ubuntu", "25.10"}: "Ubuntu:25.10", {"debian", "12.7"}: "Debian:12", {"alpine", "3.20.3"}: "Alpine:v3.20"} {
 		if got := teamOSVEcosystem(in[0], in[1]); got != want {
 			t.Errorf("%v: %s", in, got)
 		}

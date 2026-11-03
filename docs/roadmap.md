@@ -2713,6 +2713,17 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.64 — Boxes on Ubuntu 26.04
+
+Spec: [hi_box.md](specs/approved/hi_box.md), Findings, "The image's
+Ubuntu".
+
+- [x] hi's base image and the autoresearch-ml and autoresearch-quant
+  templates' images are Ubuntu 26.04 LTS (Python 3.14, gcc 15). Teams on
+  the base image move when their boxes restart (`hi team rebuild`);
+  teams from a template get the one-line change from `hi init --update`.
+  Tried with a real box and both templates' images built.
+
 ### v2.6.60 — hi serve shares a local model, by hand or through the org
 
 Spec: [hi_serve.md](specs/approved/hi_serve.md), releases 2 and 3, built

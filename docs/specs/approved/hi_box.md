@@ -242,7 +242,8 @@ for the workstation and a `cuda` tag for the cloud.
 
 Where v0.23.0 differs from the design above:
 
-- **Agents come from the host.** The base image (Ubuntu 24.04 with git,
+- **Agents come from the host.** The base image (Ubuntu 26.04, 24.04
+  until v2.6.64, with git,
   Python, uv, Node.js LTS, ripgrep, and build tools, built locally on first use
   and tagged by its Containerfile's hash) holds no agent. `claude` and
   Codex's package folder are mounted read-only from the host, so a box runs
@@ -367,6 +368,31 @@ Checked on the workstation: Ubuntu 26.04, kernel 7.0, Docker 29.6, Claude
 Code 2.1.287, Codex 0.159.3. bubblewrap works under Ubuntu's user-namespace
 restriction. Podman is not installed. `/dev/kfd` and the render node belong
 to the `render` group.
+
+### The image's Ubuntu
+
+Decided 2026-11-03 (v2.6.64): hi's base image and the templates' own
+images (autoresearch-ml, autoresearch-quant) are Ubuntu 26.04 LTS, so
+boxes have standard support until 2031, not 2029. It brings Python 3.14,
+gcc 15, and git 2.53. The templates' projects use uv's own Python 3.14, so
+only code run with the system `python3` sees the change from 3.12. Node.js
+stays nodejs.org's LTS: 26.04's is 22. OSV knows `Ubuntu:26.04:LTS`, so
+the bill of materials checks it as before.
+
+Machines that run boxes need no particular Ubuntu: rented GPU machines
+come with 22.04 or 24.04, and hi runs on 24.04's Podman 4.9.
+
+Existing teams move to it this way:
+
+- A team on hi's base image moves when its boxes restart: the image is
+  tagged by its Containerfile's hash, so the new hi builds a new one.
+  `hi team rebuild <team>` restarts the lead, the preview and production
+  on it, and the dev box moves at `hi team dev <team> restart`.
+- A team from an autoresearch template keeps its copy of the Dockerfile
+  in its own repository, as the project's file. `hi init --update` there
+  writes `docs/upgrades/hi-dev.md` with the one-line diff for the team's
+  agent to apply; the image's tag follows the Dockerfile's content, so
+  the next box builds it.
 
 ## Sources
 

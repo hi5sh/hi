@@ -2,7 +2,7 @@
 # locked dependencies with one PyTorch build in /opt/venv, so boxes start at
 # once and need no network. hi builds it once, and again when uv.lock or
 # TORCH in devcontainer.json changes.
-FROM docker.io/library/ubuntu:24.04
+FROM docker.io/library/ubuntu:26.04
 ARG TORCH=cpu
 RUN userdel -r ubuntu 2>/dev/null || true \
  && useradd --uid 1000 --home-dir /box/home --no-create-home --shell /bin/bash box \
