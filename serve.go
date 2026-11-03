@@ -37,7 +37,9 @@ type servedModel struct {
 	Revision string    `json:"revision,omitempty"`
 	Backend  string    `json:"backend,omitempty"`
 	Image    string    `json:"image,omitempty"`
-	Need     int64     `json:"need,omitempty"`   // bytes in all, GPU and host
+	Need     int64     `json:"need,omitempty"`   // bytes in all, GPU and host; on the host only with VRAM
+	VRAM     int64     `json:"vram,omitempty"`   // cuda: bytes on the GPU
+	CUDA     string    `json:"cuda,omitempty"`   // cuda: the CUDA its image is built with
 	Memory   int64     `json:"memory,omitempty"` // the box's limit, in bytes
 	Context  int       `json:"context,omitempty"`
 	Args     []string  `json:"args,omitempty"`
@@ -173,7 +175,8 @@ Options for llm:
   --args "<args>"    Extra llama-server arguments
   --port <port>      Local port for the API (default 8080; local: the next free one)
   --memory <size>    Local: the box's memory limit (default: the recipe's)
-  --backend rocm     Local: the GPU backend (rocm; vulkan comes later)
+  --backend <name>   Local: rocm, vulkan, cuda, or cpu (default: rocm on an AMD GPU,
+                     cuda on an NVIDIA one; cpu only for a recipe with a CPU profile)
   --share            Local: also on this machine's NetBird address, with a key you hand
                      to teammates (hi serve key)
   --org              Local: also on the NetBird address, for the org server, which an

@@ -24,6 +24,18 @@
         "need": "91G",
         "limit": "72G",
         "tested": "Strix Halo, 2026-11-02, build 12033: 24 tokens/s, 540 tokens/s reading 8k, ready in 29 s from disk"
+      },
+      "vulkan": {
+        "image": "ghcr.io/ggml-org/llama.cpp:server-vulkan@sha256:421137599beb2135a9e1d664fa8991a3f4f5f953440a9d7622c7a61b63185fe8",
+        "need": "91G",
+        "limit": "72G",
+        "tested": "Strix Halo, 2026-11-03, build 12033: 28 tokens/s, 439 tokens/s reading 10k, ready in 28 s from disk"
+      },
+      "cpu": {
+        "image": "ghcr.io/ggml-org/llama.cpp:server@sha256:0b0212befa4facc6fd1e34ee04e19f13b570d0b9ec87d26edf4c402dc0dd636f",
+        "need": "88G",
+        "limit": "88G",
+        "tested": "Strix Halo's CPU (Ryzen AI MAX+ 395, 16 cores), 2026-11-03, build 12033: 13 tokens/s, 88 tokens/s reading 10k, ready in 19 s from disk"
       }
     }
   }

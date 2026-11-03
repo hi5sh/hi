@@ -4212,7 +4212,13 @@ Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
   restart a front that runs an old hi.
 - [x] Release 2 (v2.6.60): `--share`, with the key checked at the front.
 - [x] Release 3 (v2.6.60): `--org`, a shared model served through `hi org ai`.
-- [ ] Release 4: Vulkan on Strix Halo, then NVIDIA through CDI devices.
+- [x] Release 4 (v2.6.61): `--backend vulkan`, `cuda`, and `cpu`, each from
+  the recipe's one llama.cpp build. qwen3.8-flash-next has Vulkan (28
+  tokens/s) and CPU (13) profiles, tested on a Strix Halo. NVIDIA goes
+  through Podman's CDI devices, with the driver checked against the
+  image's CUDA before anything is downloaded.
+- [ ] NVIDIA on a real machine: run a model with `--backend cuda` and give
+  a recipe a tested `cuda` profile.
 - [ ] Later: web servers, file shares, and databases as recipes
   ([hi_serve_recipes.md](specs/ideas/hi_serve_recipes.md), draft).
 

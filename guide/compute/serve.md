@@ -66,7 +66,7 @@ hi serve llm qwen3.8-flash-next --on local
   detect     Strix Halo (gfx1151), /dev/kfd and /dev/dri, Podman 5.7.0 with crun; 120 GB available, teams' boxes may still take 0 MB
   check      it needs 91.0 GB with its context: fits, 21.3 GB left; 83.8 GB to download, 801 GB free
   download   unsloth/Qwen3.8-Flash-Next-GGUF:UD-Q3_K_XL at 766911a into ~/.local/share/hi/models/unsloth--Qwen3.8-Flash-Next-GGUF
-  pull       ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d… (once; ROCm images are about 23 GB)
+  pull       ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d… (once; about 23 GB)
   start      hi-serve-qwen3-8-flash-next: a box with the GPU, no way out, the model read-only, behind its front on 127.0.0.1:8080
   [15:30:22] loading the model
   [15:30:51] ready after 29s
@@ -105,7 +105,7 @@ your own machine there is no limit by default.
 |-------------------|-------------------------------------------------------------|
 | `--port <port>`   | Its port on `127.0.0.1`; default 8080, or the next free one. It keeps it |
 | `--memory <size>` | The box's memory limit, such as `72G`; default the recipe's |
-| `--backend rocm`  | The GPU backend; ROCm, with Vulkan later                     |
+| `--backend <name>`| `rocm`, `vulkan`, `cuda`, or `cpu`; default `rocm` on an AMD GPU, `cuda` on an NVIDIA one |
 | `--share`         | Also on this machine's NetBird address, with a key to hand over (below) |
 | `--org`           | Also on the NetBird address, for the org server's `hi org ai` (below) |
 | `--name <name>`   | Its name; default from the recipe, such as `qwen3-8-flash-next` |
@@ -113,6 +113,34 @@ your own machine there is no limit by default.
 
 `--dry-run` checks the machine and the memory, and prints the download, the
 image, and the units it would write, and changes nothing.
+
+### Backends
+
+| Backend  | Where | What the box gets |
+|----------|-------|-------------------|
+| `rocm`   | An AMD GPU; the default there | `/dev/kfd` and `/dev/dri`; a 23 GB image |
+| `vulkan` | An AMD GPU | `/dev/dri` only; a 1 GB image that brings its own Mesa driver |
+| `cuda`   | An NVIDIA GPU; the default there | The GPUs through CDI; a 3 GB image built with CUDA 12.8 |
+| `cpu`    | Any machine, for a recipe with a CPU profile | No device |
+
+On a Strix Halo, qwen3.8-flash-next writes 24 tokens/s on ROCm, 28 on
+Vulkan, and 13 on the CPU; ROCm reads long prompts fastest (525 tokens/s
+against 439 on Vulkan). `hi serve recipes --backend vulkan` says what fits
+on a backend.
+
+On an NVIDIA machine, hi checks the driver before it downloads anything:
+the image needs a driver for its CUDA or newer, and the model must fit in
+the GPUs' free memory. Podman finds the GPUs through a CDI spec, which an
+admin writes once with NVIDIA's Container Toolkit:
+
+```sh
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+No recipe has a tested NVIDIA profile yet, so a model there is served by
+the repository and quant (`hi serve llm owner/Model-GGUF --quant Q4_K_M
+--on local`), with its memory estimated. Without a GPU, nothing is served
+unless you ask for `--backend cpu`.
 
 ### Teams come first
 

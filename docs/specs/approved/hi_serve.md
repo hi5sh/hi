@@ -2,7 +2,8 @@
 
 Status: Approved (2026-11-02), for `hi serve llm --on local` and for the
 frame it is built on, so other kinds fit later. Release 1 is built
-(v2.6.59), and releases 2 and 3 (v2.6.60). Other kinds, recipes from
+(v2.6.59), releases 2 and 3 (v2.6.60), and release 4 (v2.6.61), whose
+NVIDIA backend has not run on an NVIDIA machine yet. Other kinds, recipes from
 the org and your own folder, and the org's catalog of what is served are a
 draft: [hi_serve_recipes.md](../ideas/hi_serve_recipes.md).
 
@@ -81,7 +82,7 @@ hi serve llm <recipe | owner/repo-GGUF --quant Q> --on local [options]
     --port <port>          on 127.0.0.1 (default: 8080, or the next free one; kept across restarts)
     --ctx <tokens>         context length (recipes set their own)
     --memory <size>        the box's memory limit (default: the recipe's limit)
-    --backend rocm|vulkan  default: rocm on Strix Halo
+    --backend rocm|vulkan|cuda|cpu   default: rocm on an AMD GPU, cuda on an NVIDIA one
     --max <duration>       stop after this long (default: none; it's your machine)
     --share                also on this machine's NetBird address, with a key to hand over
     --org                  also on the NetBird address, served to the org through hi org ai
@@ -96,8 +97,8 @@ hi serve start <name>           local: starts a stopped one again, on the same p
 hi serve rm <name>              local: stops it and forgets it
 hi serve key <name> [--new]     print a shared server's key, or replace it
 
-hi serve detect                 what this machine can serve on: GPU, backend, Podman, free memory and disk, what teams use
-hi serve recipes [<kind>]       the recipes, where each runs, and whether this machine fits
+hi serve detect [--backend B]   what this machine can serve on: GPU, backend, Podman, free memory and disk, what teams use
+hi serve recipes [<kind>] [--backend B]   the recipes, where each runs, and whether this machine fits
 hi serve pull llm <recipe>      download a model and its image now, and serve nothing
 hi serve models [--json]        models downloaded here, their size, and which servers use them
 hi serve models rm <repo>       delete a downloaded model that no server uses
@@ -144,14 +145,23 @@ touch only what hi labeled as its own.
 1. **Detect.** Evidence, not names. A Strix Halo is `gfx1151` in the
    kernel's KFD topology (`/sys/class/kfd`), with `/dev/kfd`, `/dev/dri`,
    and the render and video groups. The image brings ROCm, so `rocminfo`
-   isn't needed on the host (for `--backend vulkan`, `vulkaninfo` will
-   be). It also needs rootless
-   Podman with `crun`, and lingering for the account (below). Anything
-   missing is reported with the `hi install` command that fixes it, and
-   nothing is guessed.
+   isn't needed on the host. `--backend vulkan` needs only `/dev/dri` and
+   the groups: its image brings Mesa's RADV driver, so `vulkaninfo` isn't
+   needed either (Findings 8). An NVIDIA GPU is the loaded driver
+   (`/proc/driver/nvidia/version`), `nvidia-smi`'s GPUs, memory, and
+   newest CUDA, and a CDI spec for `nvidia.com/gpu` in `/etc/cdi` or
+   `/var/run/cdi`, which NVIDIA's Container Toolkit writes. It also needs
+   rootless Podman, with `crun` for the AMD backends, which pass the
+   GPU's groups in, and lingering for the account (below). Anything
+   missing is reported with the `hi install` command that fixes it, or
+   the command an admin runs, and nothing is guessed. Without `--backend`,
+   an AMD GPU means ROCm and an NVIDIA one CUDA; with no GPU, nothing is
+   served unless `--backend cpu` is asked for.
 2. **Check memory and disk.** On Strix Halo the GPU's memory is system
    RAM, so the need is the model file plus the context's cache, from the
-   recipe's measured total (91 GB for qwen3.8-flash-next at 131k context). The room is `MemAvailable`, less what the teams on the machine
+   recipe's measured total; on NVIDIA the recipe's `vram` is checked
+   against the GPUs' free memory, less 1 GB, and its `need` against the
+   host's (91 GB for qwen3.8-flash-next at 131k context). The room is `MemAvailable`, less what the teams on the machine
    reserve and a headroom of 8 GB. The download must fit on the disk with
    10% to spare. If either doesn't fit, hi says by how much and starts
    nothing. `--yes` doesn't override it.
@@ -263,15 +273,24 @@ it runs:
 ```
 
 - One llama.cpp build per recipe, pinned by digest
-  (hi_compute_serve_pinning.md), with one image per backend.
+  (hi_compute_serve_pinning.md), with one image per backend: `rocm`,
+  `vulkan`, `cuda`, and `cpu`. Each profile says where it was tested.
+- A `cuda` profile also gives `vram`, the GPU memory it takes, measured,
+  and `cuda`, the CUDA its image is built with. The driver must run that
+  CUDA or newer, which is checked before anything is downloaded or
+  pulled, and again at each start; an older driver is refused with what
+  is needed, never tried.
 - `need` is the whole memory the server takes, GPU and host, measured;
   the start is refused unless it fits. `limit` is the box's cgroup limit,
   the host side's measured peak with headroom.
 - Arguments are lists, never a shell line. They can't set where the server
   listens or its key; hi sets those.
 - An ad hoc model (`owner/repo-GGUF --quant Q`) runs on the default
-  backend, at the repository's current revision, with no tested line, and
-  its need is the file size plus a context estimate.
+  backend, or the GPU backend asked for, at the repository's current
+  revision, with no tested line, and its need is the file size plus a
+  context estimate: on NVIDIA as GPU memory, with 4 GB on the host and a
+  16 GB limit there. Each backend's image for it is from the same pinned
+  build.
 - `--args` adds arguments, as on rented hardware. They are shown in the
   dry run, and refused if they set the address, the port, or a key.
 - A CPU profile is only for a recipe with a validated one, and it is never
@@ -389,10 +408,13 @@ under Findings. A check that fails changes the design here first. Done on
 3. **The org knows** (built, v2.6.60, with release 2, since both change the
    front and its keys). `--org`, served through `hi org ai` as
    `local/<name>`.
-4. **More backends.** Vulkan on Strix Halo, then NVIDIA through Podman's CDI
-   devices, with the driver checked against the image's CUDA before the
-   pull, and CPU profiles where a recipe has a validated one. Each comes
-   with its own tested line.
+4. **More backends** (built, v2.6.61). Vulkan on Strix Halo, then NVIDIA
+   through Podman's CDI devices, with the driver checked against the
+   image's CUDA before the pull, and CPU profiles where a recipe has a
+   validated one. Each comes with its own tested line. qwen3.8-flash-next
+   has Vulkan and CPU profiles, tested on a Strix Halo (Findings 8). No
+   NVIDIA machine has run it yet, so no recipe has a `cuda` profile, and
+   an ad hoc model on NVIDIA is served by estimate.
 5. **On the org's machines.** `--on <machine>` and `--on auto` through `hi
    org machines` (hi_cluster.md, release 3): the same box and units, placed
    by the org server.
@@ -430,6 +452,11 @@ Other kinds follow in hi_serve_recipes.md, after release 2 here.
     approves it; then devices reach it as `local/<name>` through `hi org
     ai`, signed, without its key, and the org server reaches only NetBird
     addresses. `stop`, `start`, and `rm` mark it down, up, and gone.
+13. Each backend's box gets only its own devices: ROCm `/dev/kfd` and
+    `/dev/dri`, Vulkan `/dev/dri`, CUDA `nvidia.com/gpu=all`, and the CPU
+    none; the front gets none. An NVIDIA driver older than the image's
+    CUDA is refused before any download or pull. On a machine without a
+    GPU, nothing is served on the CPU unless `--backend cpu` is asked for.
 
 ## Decisions
 
@@ -549,3 +576,30 @@ below changed the design where marked.
    25 s after boot. Changed: a client that left a stream halfway got no
    access line, since Go's reverse proxy ends such a request by panicking,
    so the line is written in a deferred call.
+8. **Release 4 on the same machine (2026-11-03): pass, with a change.**
+   The same build, b12033, has an image for each backend:
+   `server-vulkan` (880 MB, pulled in 14 s) and `server` for the CPU (860
+   MB), against 22.9 GB for `server-rocm`. The Vulkan image finds the
+   Radeon 8060S through its own Mesa RADV with `/dev/dri` alone (`Vulkan0:
+   Radeon 8060S Graphics (RADV STRIX_HALO)`, 101 GiB free), so the host
+   needs no `vulkaninfo`. Changed: Mesa couldn't write its shader cache to
+   the read-only root, so the box sets `MESA_SHADER_CACHE_DIR` to its
+   tmpfs. qwen3.8-flash-next takes the same memory on Vulkan as on ROCm:
+   61 GiB of GTT and 53 GiB in the cgroup, 63 at peak. The same requests on
+   both (300 tokens; a 10,449-token prompt):
+
+   | Backend | Tokens/s | Reading 10k | Ready, cold page cache |
+   |---|---|---|---|
+   | ROCm | 24.5 | 525 tokens/s | 27 s |
+   | Vulkan | 28.4 | 439 tokens/s | 28 s |
+   | CPU, 16 cores | 12.9 | 88 tokens/s | 19 s |
+
+   ROCm stays the default (Decision 1): Vulkan writes faster and reads
+   slower. On the CPU the box took 79 GiB at peak, with nothing on a GPU,
+   so its profile needs and is limited to 88 GB. Through `hi serve`, each
+   was ready in 12 to 20 s with the page cache warm, the Vulkan box had
+   no route out and no device but `/dev/dri`, the CPU's had none, and a
+   Vulkan server came back after a reboot, answering 40 s after boot,
+   while a stopped CPU one stayed stopped. The NVIDIA backend was tried
+   only against a fake machine: detection, the CDI device, the CUDA
+   check, and the GPU memory check.

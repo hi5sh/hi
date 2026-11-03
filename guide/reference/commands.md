@@ -98,7 +98,7 @@ See [Serve a model](/guide/compute/serve/).
 | `hi serve start <name> [--max <duration>]` | Start a stopped local server again, on the same port, after the memory check  |
 | `hi serve rm <name>`              | Stop a local server and forget it; its model stays                                     |
 | `hi serve key <name> [--new]`     | A shared local server's key, to hand to a teammate; `--new` replaces it                |
-| `hi serve detect`                 | What this machine can serve on: GPU, groups, Podman, lingering, memory, disk           |
+| `hi serve detect [--backend B]`   | What this machine can serve on: GPU, driver, devices, Podman, lingering, memory, disk  |
 | `hi serve recipes [llm]`          | The recipes, where each runs, and whether it fits here                                 |
 | `hi serve pull llm <recipe>`      | Download a model and its image now, and serve nothing                                  |
 | `hi serve models [--json]`        | Models downloaded here, their size, and what uses them                                 |

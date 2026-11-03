@@ -138,6 +138,9 @@ hi serve stop <name>
 - On this machine, run `hi serve detect` first: it names what's missing
   and the `hi install` that adds it. The model must fit in the memory
   teams leave; hi refuses it otherwise, and `--yes` doesn't override that.
+  The backend follows the GPU (ROCm on AMD, CUDA on NVIDIA); `--backend
+  vulkan` or `--backend cpu` only when the user asks, and the CPU only
+  for a recipe with a CPU profile.
   A local server keeps running until `hi serve stop`, which keeps it for
   `hi serve start`; `hi serve rm` forgets it. Don't stop or remove one you
   didn't start.

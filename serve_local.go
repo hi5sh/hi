@@ -23,10 +23,9 @@ import (
 // units written as Quadlet files (hi_serve.md, How a served box runs).
 
 const (
-	serveHeadroom     = 8 << 30
-	serveBoxPort      = 8080 // where llama-server listens in the box, and the front
-	serveFirstPort    = 8080
-	serveDefaultImage = "ghcr.io/ggml-org/llama.cpp:server-rocm@sha256:1bc7c96d72e2e948d30fe8ff10ee204881d86a9260290bab352c4eb770ce7756"
+	serveHeadroom  = 8 << 30
+	serveBoxPort   = 8080 // where llama-server listens in the box, and the front
+	serveFirstPort = 8080
 )
 
 // These are replaced in tests.
@@ -83,8 +82,11 @@ func servePath(path string) string { return filepath.Join(serveSysRoot, path) }
 
 // serveMachine is what this machine can serve on, from evidence.
 type serveMachine struct {
+	backend       string
 	gpu           string // such as gfx1151, from the kernel's KFD topology
-	devices       bool
+	driver        string // the NVIDIA kernel module's version
+	nvidia        nvidiaGPUs
+	devices       bool // the backend's devices: /dev/kfd and /dev/dri, /dev/dri, or NVIDIA's CDI spec
 	missingGroups []string
 	engine        boxEngine
 	podman        string // its version
@@ -104,34 +106,17 @@ func (m serveMachine) room() int64 {
 }
 
 func detectServeMachine(backend string) serveMachine {
-	var m serveMachine
-	m.gpu = kfdGPU()
-	m.devices = fileExists(servePath("/dev/kfd")) && fileExists(servePath("/dev/dri"))
-	switch {
-	case m.gpu == "":
-		m.problems = append(m.problems, "No AMD GPU that ROCm can use was found (the kernel's KFD lists none). On a Strix Halo, hi install strix sets it up, and hi verify strix says what is missing.")
-	case m.gpu != "gfx1151":
-		m.problems = append(m.problems, fmt.Sprintf("The GPU is %s; local recipes are tested on Strix Halo (gfx1151) only so far.", m.gpu))
-	}
-	if m.gpu != "" && !m.devices {
-		m.problems = append(m.problems, "/dev/kfd or /dev/dri is missing; hi install strix sets the GPU up.")
-	}
-	groups := serveGroupNames()
-	for _, want := range []string{"render", "video"} {
-		found := false
-		for _, group := range groups {
-			found = found || group == want
-		}
-		if !found {
-			m.missingGroups = append(m.missingGroups, want)
-		}
-	}
-	if len(m.missingGroups) > 0 {
-		m.problems = append(m.problems, fmt.Sprintf("You aren't in the %s %s that open the GPU; hi install strix adds you, and you log in again after.",
-			strings.Join(m.missingGroups, " and "), map[bool]string{true: "groups", false: "group"}[len(m.missingGroups) > 1]))
-	}
-	if backend != "rocm" {
-		m.problems = append(m.problems, fmt.Sprintf("The %s backend isn't built yet; ROCm is.", backend))
+	m := serveMachine{backend: backend}
+	switch backend {
+	case backendROCm, backendVulkan:
+		m.detectAMD()
+	case backendCUDA:
+		m.detectNVIDIA()
+	case backendCPU:
+	case "":
+		m.problems = append(m.problems, "No GPU was found: no AMD GPU in the kernel's KFD, and no NVIDIA driver. On a Strix Halo, hi install strix sets it up; --backend cpu serves a recipe with a CPU profile on the CPU.")
+	default:
+		m.problems = append(m.problems, fmt.Sprintf("%q isn't a backend; hi serve knows %s.", backend, strings.Join(serveBackends, ", ")))
 	}
 	if path, err := boxLookPath("podman"); err == nil {
 		m.engine = boxEngine{name: "podman", bin: path}
@@ -142,7 +127,7 @@ func detectServeMachine(backend string) serveMachine {
 		}
 		if m.podman == "" {
 			m.problems = append(m.problems, "Podman doesn't answer (podman info failed); check it with podman info.")
-		} else if m.runtime != "crun" {
+		} else if m.runtime != "crun" && (backend == backendROCm || backend == backendVulkan) {
 			m.problems = append(m.problems, fmt.Sprintf("Podman runs containers with %s, and passing the GPU's groups in needs crun: install crun, and set runtime = \"crun\" under [engine] in ~/.config/containers/containers.conf.", m.runtime))
 		} else if major, _ := strconv.Atoi(strings.Split(m.podman, ".")[0]); major < 5 {
 			m.problems = append(m.problems, fmt.Sprintf("Podman %s is too old for hi serve's units; it needs 5 or later.", m.podman))
@@ -234,13 +219,25 @@ func teamsReserve(engine boxEngine) (int64, int) {
 
 func (m serveMachine) describe() string {
 	parts := []string{}
-	if m.gpu == "gfx1151" {
+	switch {
+	case m.gpu == "gfx1151":
 		parts = append(parts, "Strix Halo (gfx1151)")
-	} else if m.gpu != "" {
+	case m.gpu != "":
 		parts = append(parts, m.gpu)
+	case len(m.nvidia.names) > 0:
+		parts = append(parts, fmt.Sprintf("%s, driver %s for CUDA %s, %s of GPU memory free", strings.Join(m.nvidia.names, " and "), m.nvidia.driver, m.nvidia.cuda, sizeText(m.nvidia.free)))
 	}
-	if m.devices {
+	switch {
+	case !m.devices:
+	case m.backend == backendROCm:
 		parts = append(parts, "/dev/kfd and /dev/dri")
+	case m.backend == backendVulkan:
+		parts = append(parts, "/dev/dri")
+	case m.backend == backendCUDA:
+		parts = append(parts, "its CDI devices")
+	}
+	if m.backend == backendCPU {
+		parts = append(parts, "the CPU")
 	}
 	if m.podman != "" {
 		parts = append(parts, "Podman "+m.podman+" with "+m.runtime)
@@ -250,13 +247,18 @@ func (m serveMachine) describe() string {
 
 func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	flags := newComputeFlags("serve detect", stderr)
-	backend := flags.String("backend", "rocm", "rocm or vulkan")
+	backend := flags.String("backend", "", "rocm, vulkan, cuda, or cpu (default: what the GPU points to)")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
 		return err
 	}
 	if len(positional) != 0 {
-		return usageError{"usage: hi serve detect [--backend rocm]"}
+		return usageError{"usage: hi serve detect [--backend rocm|vulkan|cuda|cpu]"}
+	}
+	if *backend == "" {
+		*backend = defaultServeBackend()
+	} else if !isServeBackend(*backend) {
+		return usageError{fmt.Sprintf("--backend %s: hi serve knows %s", *backend, strings.Join(serveBackends, ", "))}
 	}
 	m := detectServeMachine(*backend)
 	yes := func(ok bool, text string) string {
@@ -266,20 +268,40 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 		return "missing"
 	}
 	gpu := "none found"
-	if m.gpu != "" {
+	switch {
+	case m.gpu != "":
 		gpu = m.gpu
 		if m.gpu == "gfx1151" {
 			gpu += " (Strix Halo)"
 		}
+	case len(m.nvidia.names) > 0:
+		gpu = strings.Join(m.nvidia.names, " and ")
+	case *backend == backendCPU:
+		gpu = "not used (--backend cpu)"
 	}
 	fmt.Fprintf(stdout, "GPU:        %s\n", gpu)
-	fmt.Fprintf(stdout, "Devices:    %s\n", yes(m.devices, "/dev/kfd and /dev/dri"))
-	if len(m.missingGroups) == 0 {
-		fmt.Fprintln(stdout, "Groups:     render and video")
-	} else {
-		fmt.Fprintf(stdout, "Groups:     not in %s\n", strings.Join(m.missingGroups, " and "))
+	switch *backend {
+	case backendROCm, backendVulkan:
+		fmt.Fprintf(stdout, "Devices:    %s\n", yes(m.devices, map[bool]string{true: "/dev/kfd and /dev/dri", false: "/dev/dri"}[*backend == backendROCm]))
+		if len(m.missingGroups) == 0 {
+			fmt.Fprintln(stdout, "Groups:     render and video")
+		} else {
+			fmt.Fprintf(stdout, "Groups:     not in %s\n", strings.Join(m.missingGroups, " and "))
+		}
+	case backendCUDA:
+		if m.driver != "" {
+			driver := m.driver
+			if m.nvidia.cuda != "" {
+				driver += ", for CUDA " + m.nvidia.cuda + " and older"
+			}
+			fmt.Fprintf(stdout, "Driver:     %s\n", driver)
+		}
+		if len(m.nvidia.names) > 0 {
+			fmt.Fprintf(stdout, "GPU memory: %s, %s free\n", sizeText(m.nvidia.total), sizeText(m.nvidia.free))
+			fmt.Fprintf(stdout, "Devices:    %s\n", yes(m.devices, "nvidia.com/gpu, through CDI"))
+		}
 	}
-	fmt.Fprintf(stdout, "Backend:    %s (the image brings ROCm; Vulkan comes later)\n", *backend)
+	fmt.Fprintf(stdout, "Backend:    %s\n", backendText(*backend))
 	if m.podman != "" {
 		fmt.Fprintf(stdout, "Podman:     %s with %s\n", m.podman, m.runtime)
 	} else {
@@ -288,7 +310,11 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	fmt.Fprintf(stdout, "Lingering:  %s\n", map[bool]string{true: "on: served things run without a login, and start at boot", false: "off: served things stop when you log out"}[m.lingers])
 	fmt.Fprintf(stdout, "Memory:     %s, %s available\n", sizeText(m.memTotal), sizeText(m.memAvailable))
 	fmt.Fprintf(stdout, "Teams:      %d %s, which may still take %s\n", m.teamBoxes, map[bool]string{true: "box", false: "boxes"}[m.teamBoxes == 1], sizeText(m.teamsReserve))
-	fmt.Fprintf(stdout, "For models: %s (after %s of headroom)\n", sizeText(m.room()), sizeText(serveHeadroom))
+	if *backend == backendCUDA {
+		fmt.Fprintf(stdout, "For models: %s of GPU memory, and %s on the host (after %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveHeadroom))
+	} else {
+		fmt.Fprintf(stdout, "For models: %s (after %s of headroom)\n", sizeText(m.room()), sizeText(serveHeadroom))
+	}
 	if dir, err := serveModelsDir(); err == nil {
 		if free, err := freeDisk(dir); err == nil {
 			fmt.Fprintf(stdout, "Disk:       %s free for %s\n", sizeText(free), dir)
@@ -353,10 +379,12 @@ type localRequest struct {
 
 // localPlan is what serving a model here takes.
 type localPlan struct {
+	backend string
 	recipe  serveRecipe
 	profile localProfile
 	model   hubModel
-	need    int64
+	need    int64 // on the host, and on the GPU where its memory is the host's
+	vram    int64 // cuda: on the GPU
 	limit   int64
 	args    []string
 	adhoc   bool
@@ -369,17 +397,22 @@ func planLocal(argument, quant string, contextSize int, alias, extra, backend, m
 	if err != nil {
 		return localPlan{}, err
 	}
-	plan := localPlan{recipe: recipe}
+	plan := localPlan{recipe: recipe, backend: backend}
 	_, builtin := serveRecipes[strings.ToLower(argument)]
 	profile, ok := recipe.local[backend]
 	switch {
 	case ok:
 		plan.profile = profile
 	case builtin:
-		return localPlan{}, fmt.Errorf("the recipe %s has no %s profile for this machine; it runs on %s", recipe.name, backend, strings.Join(recipe.places(), ", "))
+		return localPlan{}, fmt.Errorf("the recipe %s has no %s profile; it runs on %s", recipe.name, backend, strings.Join(recipe.places(), ", "))
+	case backend == backendCPU:
+		return localPlan{}, errors.New("a model without a recipe isn't served on the CPU, which only a recipe's tested profile is for; serve it on a GPU")
 	default:
 		plan.adhoc = true
-		plan.profile = localProfile{Image: serveDefaultImage}
+		plan.profile = localProfile{Image: serveDefaultImages[backend]}
+		if backend == backendCUDA {
+			plan.profile.CUDA = serveDefaultCUDA
+		}
 	}
 	if extra != "" {
 		extraArgs := strings.Fields(extra)
@@ -392,13 +425,21 @@ func planLocal(argument, quant string, contextSize int, alias, extra, backend, m
 	if err != nil {
 		return localPlan{}, err
 	}
-	if plan.adhoc {
-		// No measurement: the files and an estimate for the context's cache.
+	switch {
+	case plan.adhoc && backend == backendCUDA:
+		// No measurement: the files and an estimate for the context's
+		// cache on the GPU, and a little on the host.
+		plan.vram = plan.model.size() + plan.model.size()*15/100 + 1<<30
+		plan.need, plan.limit = 4<<30, 16<<30
+	case plan.adhoc:
 		plan.need = plan.model.size() + plan.model.size()*15/100 + 1<<30
 		plan.limit = plan.need
-	} else {
+	default:
 		plan.need, _ = parseSize(profile.Need)
 		plan.limit, _ = parseSize(profile.Limit)
+		if profile.VRAM != "" {
+			plan.vram, _ = parseSize(profile.VRAM)
+		}
 	}
 	if memory != "" {
 		if plan.limit, err = parseSize(memory); err != nil {
@@ -412,22 +453,34 @@ func planLocal(argument, quant string, contextSize int, alias, extra, backend, m
 // backend's, the recipe's, and --args.
 func (p localPlan) serverArgs() []string {
 	args := []string{"--host", "0.0.0.0", "--port", strconv.Itoa(serveBoxPort),
-		"-m", "/models/" + p.model.first(), "-ngl", "999", "-c", strconv.Itoa(p.recipe.context), "--alias", p.recipe.alias}
+		"-m", "/models/" + p.model.first(), "-ngl", map[bool]string{true: "999", false: "0"}[usesGPU(p.backend)], "-c", strconv.Itoa(p.recipe.context), "--alias", p.recipe.alias}
 	args = append(args, p.profile.Args...)
 	args = append(args, p.recipe.common...)
 	return append(args, p.args...)
 }
 
-// checkFits refuses a model that doesn't fit in memory or on the disk.
-func checkFits(m serveMachine, need, download int64, modelsDir string, stdout io.Writer, estimated bool) error {
+// checkFits refuses a model that doesn't fit in memory or on the disk:
+// the GPU's memory where it has its own, and the host's.
+func checkFits(m serveMachine, need, vram, download int64, modelsDir string, stdout io.Writer, estimated bool) error {
 	room := m.room()
 	measured := "with its context"
 	if estimated {
 		measured = "by estimate (the files and 15% for the context)"
 	}
+	if vram > 0 && vram > m.vramRoom() {
+		return fmt.Errorf("it needs %s of GPU memory %s, and the GPU has %s free, less %s of headroom. It is %s short, so nothing was started",
+			sizeText(vram), measured, sizeText(m.nvidia.free), sizeText(serveVRAMHeadroom), sizeText(vram-m.vramRoom()))
+	}
+	host := ""
+	if vram > 0 {
+		host, measured = " on the host", "besides"
+		if estimated {
+			measured = "besides, by estimate"
+		}
+	}
 	if need > room {
-		return fmt.Errorf("it needs %s %s, and this machine has %s for it: %s available, less %s that teams' boxes may still take and %s of headroom. It is %s short, so nothing was started",
-			sizeText(need), measured, sizeText(room), sizeText(m.memAvailable), sizeText(m.teamsReserve), sizeText(serveHeadroom), sizeText(need-room))
+		return fmt.Errorf("it needs %s%s %s, and this machine has %s for it: %s available, less %s that teams' boxes may still take and %s of headroom. It is %s short, so nothing was started",
+			sizeText(need), host, measured, sizeText(room), sizeText(m.memAvailable), sizeText(m.teamsReserve), sizeText(serveHeadroom), sizeText(need-room))
 	}
 	free, err := freeDisk(modelsDir)
 	if err != nil {
@@ -441,13 +494,20 @@ func checkFits(m serveMachine, need, download int64, modelsDir string, stdout io
 	if download > 0 {
 		disk = fmt.Sprintf("%s to download, %s free", sizeText(download), sizeText(free))
 	}
+	if vram > 0 {
+		fmt.Fprintf(stdout, "  check      it needs %s of GPU memory and %s on the host: fits, %s and %s left; %s\n",
+			sizeText(vram), sizeText(need), sizeText(m.vramRoom()-vram), sizeText(room-need), disk)
+		return nil
+	}
 	fmt.Fprintf(stdout, "  check      it needs %s %s: fits, %s left; %s\n", sizeText(need), measured, sizeText(room-need), disk)
 	return nil
 }
 
 func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.Writer) error {
 	if request.backend == "" {
-		request.backend = "rocm"
+		request.backend = defaultServeBackend()
+	} else if !isServeBackend(request.backend) {
+		return usageError{fmt.Sprintf("--backend %s: hi serve knows %s", request.backend, strings.Join(serveBackends, ", "))}
 	}
 	served, err := loadServed()
 	if err != nil {
@@ -499,9 +559,12 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return err
 	}
+	if err := checkCUDA(m, plan.profile.CUDA); err != nil {
+		return err
+	}
 	modelDir := filepath.Join(modelsDir, modelDirName(plan.recipe.repo))
 	download := toDownload(modelDir, plan.model)
-	if err := checkFits(m, plan.need, download, modelsDir, stdout, plan.adhoc); err != nil {
+	if err := checkFits(m, plan.need, plan.vram, download, modelsDir, stdout, plan.adhoc); err != nil {
 		return err
 	}
 	port := request.port
@@ -515,7 +578,7 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	record := servedModel{
 		Name: name, Provider: "local", Kind: "llm", Recipe: plan.recipe.name, Model: plan.recipe.alias,
 		Repo: plan.recipe.repo, Quant: plan.recipe.quant, Revision: plan.model.Revision, Backend: request.backend,
-		Image: plan.profile.Image, Need: plan.need, Memory: plan.limit, Context: plan.recipe.context,
+		Image: plan.profile.Image, Need: plan.need, VRAM: plan.vram, CUDA: plan.profile.CUDA, Memory: plan.limit, Context: plan.recipe.context,
 		Args: plan.serverArgs(), ModelDir: modelDirName(plan.recipe.repo), Port: port,
 		URL: fmt.Sprintf("http://127.0.0.1:%d", port), Started: computeNow(),
 		Shared: request.share, Org: request.org, Address: address,
@@ -556,10 +619,11 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if err := downloadModel(modelDir, plan.model, stdout); err != nil {
 		return err
 	}
-	if err := pullServeImage(m.engine, plan.profile.Image, stdout, stderr); err != nil {
+	if err := pullServeImage(m.engine, plan.profile.Image, request.backend, stdout, stderr); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "  start      hi-serve-%s: a box with the GPU, no way out, the model read-only, behind its front on %s:%d\n", name, portPlaces(address), port)
+	fmt.Fprintf(stdout, "  start      hi-serve-%s: a box with %s, no way out, the model read-only, behind its front on %s:%d\n", name,
+		map[bool]string{true: "the GPU", false: "the CPU only"}[usesGPU(request.backend)], portPlaces(address), port)
 	if err := ensureServeKeys(record); err != nil {
 		return err
 	}
@@ -643,11 +707,11 @@ func freeServePort(served map[string]servedModel, address string) (int, error) {
 	return 0, fmt.Errorf("no free port from 8080 to 8179 on %s; choose one with --port", portPlaces(address))
 }
 
-func pullServeImage(engine boxEngine, image string, stdout, stderr io.Writer) error {
+func pullServeImage(engine boxEngine, image, backend string, stdout, stderr io.Writer) error {
 	if engine.exists("image", image) {
 		return nil
 	}
-	fmt.Fprintf(stdout, "  pull       %s (once; ROCm images are about 23 GB)\n", image)
+	fmt.Fprintf(stdout, "  pull       %s (once; %s)\n", image, serveImageSizes[backend])
 	if err := engine.interactive(nil, stdout, stderr, "pull", image); err != nil {
 		return fmt.Errorf("podman pull %s: %w", image, err)
 	}
@@ -869,8 +933,8 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		"Exec=" + strings.Join(exec, " ") + "\n" +
 		"Volume=" + quadletPath(filepath.Join(modelsDir, record.ModelDir)) + ":/models:ro\n" +
 		"Network=" + name + ".network\n" +
-		"AddDevice=/dev/kfd\nAddDevice=/dev/dri\n" +
-		"UserNS=keep-id\nGroupAdd=keep-groups\nSecurityLabelDisable=true\n" +
+		backendUnitLines(backendOf(record)) +
+		"UserNS=keep-id\nSecurityLabelDisable=true\n" +
 		"ReadOnly=true\nTmpfs=/tmp\nDropCapability=ALL\nNoNewPrivileges=true\nPidsLimit=4096\n" +
 		fmt.Sprintf("PodmanArgs=--memory=%dm --oom-score-adj=1000\n", record.Memory>>20) +
 		label +
@@ -1045,15 +1109,18 @@ func serveStartCommand(args []string, stdout, stderr io.Writer) error {
 	if localState(record).running {
 		return fmt.Errorf("%s is already running", record.Name)
 	}
-	m := detectServeMachine(record.Backend)
+	m := detectServeMachine(backendOf(record))
 	if len(m.problems) > 0 {
 		return fmt.Errorf("this machine can't serve it now:\n  - %s", strings.Join(m.problems, "\n  - "))
+	}
+	if err := checkCUDA(m, record.CUDA); err != nil {
+		return err
 	}
 	modelsDir, err := serveModelsDir()
 	if err != nil {
 		return err
 	}
-	if err := checkFits(m, record.Need, 0, modelsDir, stdout, false); err != nil {
+	if err := checkFits(m, record.Need, record.VRAM, 0, modelsDir, stdout, false); err != nil {
 		return err
 	}
 	if record.servesShared() {
@@ -1166,7 +1233,7 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	state := localState(record)
 	unit := localUnit(record.Name)
-	fmt.Fprintf(stdout, "Name:     %s\nKind:     %s\nWhere:    local (%s)\n", record.Name, record.kind(), record.Backend)
+	fmt.Fprintf(stdout, "Name:     %s\nKind:     %s\nWhere:    local (%s)\n", record.Name, record.kind(), backendOf(record))
 	fmt.Fprintf(stdout, "State:    %s\n", state.text)
 	if state.running && unit.since != "" {
 		fmt.Fprintf(stdout, "Since:    %s\n", unit.since)
@@ -1183,6 +1250,12 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "Org:      %s\n", orgUpstreamState(record))
 	}
 	memory := fmt.Sprintf("needs %s in all; the box's host side is limited to %s", sizeText(record.Need), sizeText(record.Memory))
+	switch {
+	case record.VRAM > 0:
+		memory = fmt.Sprintf("needs %s of GPU memory and %s on the host, where the box is limited to %s", sizeText(record.VRAM), sizeText(record.Need), sizeText(record.Memory))
+	case !usesGPU(backendOf(record)):
+		memory = fmt.Sprintf("needs %s, on the CPU; the box is limited to %s", sizeText(record.Need), sizeText(record.Memory))
+	}
 	if used := serveBoxMemory(record.Name); used > 0 {
 		memory += fmt.Sprintf(", and uses %s of it now", sizeText(used))
 	}
@@ -1244,6 +1317,7 @@ func localLogs(record servedModel, args []string, stdout, stderr io.Writer) erro
 
 func serveRecipesCommand(args []string, stdout, stderr io.Writer) error {
 	flags := newComputeFlags("serve recipes", stderr)
+	backendFlag := flags.String("backend", "", "rocm, vulkan, cuda, or cpu (default: what the GPU points to)")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
 		return err
@@ -1252,23 +1326,37 @@ func serveRecipesCommand(args []string, stdout, stderr io.Writer) error {
 		if len(positional) == 1 && isServeKind(positional[0]) {
 			return fmt.Errorf("hi serve %s isn't built yet; hi serve llm is", positional[0])
 		}
-		return usageError{"usage: hi serve recipes [llm]"}
+		return usageError{"usage: hi serve recipes [llm] [--backend rocm|vulkan|cuda|cpu]"}
 	}
-	m := detectServeMachine("rocm")
+	backend := *backendFlag
+	if backend == "" {
+		backend = defaultServeBackend()
+	} else if !isServeBackend(backend) {
+		return usageError{fmt.Sprintf("--backend %s: hi serve knows %s", backend, strings.Join(serveBackends, ", "))}
+	}
+	m := detectServeMachine(backend)
 	table := newServeTable(stdout)
 	fmt.Fprintln(table, "RECIPE\tKIND\tMODEL\tRUNS ON\tHERE")
 	for _, name := range serveRecipeNames() {
 		recipe := serveRecipes[name]
 		here := "no local profile"
-		if profile, ok := recipe.local["rocm"]; ok {
+		if backend != "" {
+			here = "no " + backend + " profile"
+		}
+		if profile, ok := recipe.local[backend]; ok {
 			need, _ := parseSize(profile.Need)
+			vram, _ := parseSize(profile.VRAM)
 			switch {
 			case len(m.problems) > 0:
 				here = "can't serve here (hi serve detect)"
-			case need <= m.room():
-				here = fmt.Sprintf("fits: needs %s of %s", sizeText(need), sizeText(m.room()))
-			default:
+			case vram > m.vramRoom():
+				here = fmt.Sprintf("too big: needs %s of GPU memory, %s free", sizeText(vram), sizeText(m.vramRoom()))
+			case need > m.room():
 				here = fmt.Sprintf("too big: needs %s, %s free", sizeText(need), sizeText(m.room()))
+			case vram > 0:
+				here = fmt.Sprintf("fits on %s: needs %s of %s of GPU memory", backend, sizeText(vram), sizeText(m.vramRoom()))
+			default:
+				here = fmt.Sprintf("fits on %s: needs %s of %s", backend, sizeText(need), sizeText(m.room()))
 			}
 		}
 		fmt.Fprintf(table, "%s\tllm\t%s:%s\t%s\t%s\n", name, recipe.repo, recipe.quant, strings.Join(recipe.places(), ", "), here)
@@ -1290,7 +1378,7 @@ func isServeKind(word string) bool {
 func servePullCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := newComputeFlags("serve pull", stderr)
 	quant := flags.String("quant", "", "GGUF quant")
-	backend := flags.String("backend", "rocm", "rocm")
+	backend := flags.String("backend", "", "rocm, vulkan, cuda, or cpu (default: what the GPU points to)")
 	yes := flags.Bool("yes", false, "skip confirmation")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
@@ -1300,7 +1388,14 @@ func servePullCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		if len(positional) >= 1 && isServeKind(positional[0]) && positional[0] != "llm" {
 			return fmt.Errorf("hi serve %s isn't built yet; hi serve llm is", positional[0])
 		}
-		return usageError{"usage: hi serve pull llm <recipe | owner/repo-GGUF --quant Q>"}
+		return usageError{"usage: hi serve pull llm <recipe | owner/repo-GGUF --quant Q> [--backend rocm|vulkan|cuda|cpu]"}
+	}
+	if *backend == "" {
+		if *backend = defaultServeBackend(); *backend == "" {
+			return errors.New("no GPU was found here to pull an image for; choose one with --backend rocm, vulkan, cuda, or cpu")
+		}
+	} else if !isServeBackend(*backend) {
+		return usageError{fmt.Sprintf("--backend %s: hi serve knows %s", *backend, strings.Join(serveBackends, ", "))}
 	}
 	plan, err := planLocal(positional[1], *quant, 0, "", "", *backend, "")
 	if err != nil {
@@ -1334,7 +1429,7 @@ func servePullCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		fmt.Fprintln(stdout, "Podman isn't installed, so its image isn't pulled; hi install podman adds it.")
 		return nil
 	}
-	if err := pullServeImage(boxEngine{name: "podman", bin: path}, plan.profile.Image, stdout, stderr); err != nil {
+	if err := pullServeImage(boxEngine{name: "podman", bin: path}, plan.profile.Image, *backend, stdout, stderr); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Its image is here: %s\n", plan.profile.Image)

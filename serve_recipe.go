@@ -44,8 +44,10 @@ type recipePlace struct {
 // localProfile is how a recipe runs on this machine with one backend.
 type localProfile struct {
 	Image  string   `json:"image"`
-	Need   string   `json:"need"`  // the whole memory it takes, GPU and host, measured
-	Limit  string   `json:"limit"` // the box's cgroup limit, for the host side
+	Need   string   `json:"need"`           // the whole memory it takes, GPU and host, measured
+	Limit  string   `json:"limit"`          // the box's cgroup limit, for the host side
+	VRAM   string   `json:"vram,omitempty"` // cuda: the GPU memory it takes, measured; need is then the host's
+	CUDA   string   `json:"cuda,omitempty"` // cuda: the CUDA its image is built with, checked against the driver
 	Args   []string `json:"args"`
 	Tested string   `json:"tested"`
 }
@@ -137,8 +139,21 @@ func parseRecipe(data []byte) (serveRecipe, error) {
 				return serveRecipe{}, fmt.Errorf("on.local: %w", err)
 			}
 			for backend, profile := range profiles {
-				if backend != "rocm" && backend != "vulkan" {
+				if !isServeBackend(backend) {
 					return serveRecipe{}, fmt.Errorf("on.local: unknown backend %q", backend)
+				}
+				if backend == backendCUDA {
+					if _, err := parseSize(profile.VRAM); err != nil {
+						return serveRecipe{}, fmt.Errorf("on.local.cuda.vram: %w", err)
+					}
+					if compareVersions(profile.CUDA, "1") < 0 {
+						return serveRecipe{}, fmt.Errorf("on.local.cuda.cuda: the CUDA its image is built with, such as 12.8")
+					}
+				} else if profile.VRAM != "" || profile.CUDA != "" {
+					return serveRecipe{}, fmt.Errorf("on.local.%s: vram and cuda are for the cuda backend", backend)
+				}
+				if profile.Tested == "" {
+					return serveRecipe{}, fmt.Errorf("on.local.%s: a profile says where it was tested", backend)
 				}
 				if !strings.Contains(profile.Image, "@sha256:") {
 					return serveRecipe{}, fmt.Errorf("on.local.%s: the image must be pinned by digest", backend)
@@ -211,14 +226,14 @@ func (r serveRecipe) forProvider(provider string) serveRecipe {
 	return r
 }
 
-// places lists where a recipe runs, such as colab, hf, and local (rocm).
+// places lists where a recipe runs, such as colab, hf, and local (cpu, rocm).
 func (r serveRecipe) places() []string {
 	var places []string
 	for _, provider := range sortedKeys(r.hardware) {
 		places = append(places, provider)
 	}
-	for _, backend := range sortedKeys(r.local) {
-		places = append(places, "local ("+backend+")")
+	if len(r.local) > 0 {
+		places = append(places, "local ("+strings.Join(sortedKeys(r.local), ", ")+")")
 	}
 	return places
 }
