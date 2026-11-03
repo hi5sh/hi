@@ -454,12 +454,20 @@ Taken on 2026-11-02:
    key, and later a database's data; `rm` forgets them.
 8. **Podman only, with Quadlet units.**
 
+Taken on 2026-11-03:
+
+9. **The front's access lines stay on the machine.** A server named to the
+   org isn't also logged in the org server's audit log line by line. The
+   org server already records each use through it, with the user, as for
+   other models, and audits the request, approval, up, down, and removal.
+   Use with the key handed over by hand is between whoever serves it and
+   whoever they gave the key to, as with any API key, and `hi serve logs`
+   shows it; sending it on would need a new path from every serving
+   machine to the org server for little gain.
+
 ## Open questions
 
-1. Whether the front's access lines also go to the org server's audit log
-   when the server is named to the org. The org server records each use
-   through it, with the user, as for other models, and audits the request,
-   approval, up, down, and removal; the access lines stay on the machine.
+None.
 
 ## Findings
 
