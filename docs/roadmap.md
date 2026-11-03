@@ -2713,6 +2713,21 @@ Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.66 — The repository in folders, and the website up to date
+
+- [x] The Go code is in `internal/cli`, started by `cmd/hi`; the root's
+  `embed.go` embeds the files the binary carries. The release sets the
+  version at `github.com/hi5sh/hi/internal/cli.version` and builds
+  `./cmd/hi`.
+- [x] The website is in `site/`, deployed to hi5.sh by
+  `.github/workflows/pages.yml`; its addresses are the same.
+- [x] The website matches v2.6.65: Stage, not preview; Antigravity among
+  the agents; ten setup questions; developers release; `hi serve` on NVIDIA
+  and the CPU; the commands and settings that were missing.
+- [x] `hi team access` says Pro Devs and Vibe Devs release, and the dev
+  page's settings say "Stage and production".
+- [x] The scene player keeps only the feature pages' screens.
+
 ### v2.6.65 — hi q falls back properly when the org server's key is refused
 
 Spec: [hi_server_ai.md](specs/approved/hi_server_ai.md).
