@@ -105,15 +105,30 @@ func TestLegacyAppContainerLeavesOtherApps(t *testing.T) {
 }
 
 func TestAppsDirMovesTheOldFolders(t *testing.T) {
-	data := t.TempDir()
+	data, config := t.TempDir(), t.TempDir()
 	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("XDG_CONFIG_HOME", config)
 	t.Setenv("HI_APPS_DIR", "")
 	os.Unsetenv("HI_APPS_DIR")
 	writeSkillTestFile(t, filepath.Join(data, "hi", "teams", "settings.json"), "{}", 0o600)
 	writeSkillTestFile(t, filepath.Join(data, "hi", "team-snapshots", "payments", "key"), "k", 0o600)
 	saved := appMigrateMachine
-	appMigrateMachine = &sync.Once{}
 	t.Cleanup(func() { appMigrateMachine = saved })
+
+	// While an app still runs under its old names, its old hi reads the
+	// old folders, so they stay.
+	legacy := filepath.Join(config, "systemd", "user", "hi-team-billing.service")
+	writeSkillTestFile(t, legacy, "[Unit]\n", 0o644)
+	appMigrateMachine = &sync.Once{}
+	if got := appsDir(); got != filepath.Join(data, "hi", "teams") {
+		t.Fatal(got)
+	}
+	if got := appSnapshotsDir("payments"); got != filepath.Join(data, "hi", "team-snapshots", "payments") {
+		t.Fatal(got)
+	}
+
+	os.Remove(legacy)
+	appMigrateMachine = &sync.Once{}
 	if got := appsDir(); got != filepath.Join(data, "hi", "apps") {
 		t.Fatal(got)
 	}

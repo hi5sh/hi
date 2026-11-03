@@ -182,9 +182,7 @@ func appsDir() string {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".local", "share")
 	}
-	dir := filepath.Join(base, "hi", "apps")
-	migrateAppsMachine(dir)
-	return dir
+	return migrateAppsMachine(filepath.Join(base, "hi", "apps"))
 }
 
 // A team's folder is wherever it was made, ./team-<name> by default.

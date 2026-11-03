@@ -21,20 +21,41 @@ import (
 var appMigrateMachine = &sync.Once{}
 
 // migrateAppsMachine moves the old links by name and the snapshots to their
-// new folders, once, when the new ones don't exist yet.
-func migrateAppsMachine(apps string) {
+// new folders, once, when the new ones don't exist yet, and gives the
+// folder the links are in. While an app still runs under its old names its
+// old hi reads the old folders, so they stay until hi app up has moved the
+// last such app.
+func migrateAppsMachine(apps string) string {
+	old := filepath.Join(filepath.Dir(apps), "teams")
+	if fileExists(apps) || !fileExists(old) {
+		return apps
+	}
 	appMigrateMachine.Do(func() {
-		if os.Getenv("HI_APPS_DIR") != "" {
+		if legacyAppsInstalled() {
 			return
 		}
 		base := filepath.Dir(apps)
-		for old, current := range map[string]string{"teams": "apps", "team-snapshots": "app-snapshots"} {
-			from, to := filepath.Join(base, old), filepath.Join(base, current)
-			if fileExists(from) && !fileExists(to) {
+		for from, to := range map[string]string{"teams": "apps", "team-snapshots": "app-snapshots"} {
+			if from, to := filepath.Join(base, from), filepath.Join(base, to); fileExists(from) && !fileExists(to) {
 				os.Rename(from, to)
 			}
 		}
 	})
+	if fileExists(apps) {
+		return apps
+	}
+	return old
+}
+
+// legacyAppsInstalled says whether any app still has its old service.
+func legacyAppsInstalled() bool {
+	matches, _ := filepath.Glob(filepath.Join(filepath.Dir(appUnitPath("x")), "hi-team-*.service"))
+	for _, unit := range matches {
+		if !strings.HasSuffix(unit, "-snapshot.service") {
+			return true
+		}
+	}
+	return false
 }
 
 // migrateAppConfig renames an old folder's team.json to app.json.
@@ -99,6 +120,7 @@ func appStopLegacy(name string) {
 		os.Remove(filepath.Join(units, unit))
 	}
 	appSystemctl("daemon-reload")
+	appMigrateMachine = &sync.Once{} // the last one may let the machine's folders move
 }
 
 // appRemoveLegacyBoxes stops an app's boxes and addresses under their old

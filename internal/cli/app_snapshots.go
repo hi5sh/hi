@@ -117,7 +117,11 @@ var appSnapshotStatusMu sync.Mutex
 // appSnapshotsDir holds a team's repository, its key, and status.json:
 // beside the teams' links, outside the team's folder.
 func appSnapshotsDir(team string) string {
-	return filepath.Join(filepath.Dir(appsDir()), "app-snapshots", team)
+	root := filepath.Join(filepath.Dir(appsDir()), "app-snapshots")
+	if old := filepath.Join(filepath.Dir(root), "team-snapshots"); !fileExists(root) && fileExists(old) {
+		root = old // until the machine's last app from before v2.6.67 moves (migrateAppsMachine)
+	}
+	return filepath.Join(root, team)
 }
 
 func appSnapshotKey(team string) string { return filepath.Join(appSnapshotsDir(team), "key") }
