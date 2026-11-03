@@ -112,11 +112,11 @@ func hiDNSKindNames() []string {
 }
 
 // hiDomainPath is where the machine's domain is kept, beside the teams.
-func hiDomainPath() string { return filepath.Join(filepath.Dir(teamsDir()), "domain.json") }
+func hiDomainPath() string { return filepath.Join(filepath.Dir(appsDir()), "domain.json") }
 
 // hiCertsDir holds the certificates, which every team on the machine
 // shares.
-func hiCertsDir() string { return filepath.Join(filepath.Dir(teamsDir()), "certs") }
+func hiCertsDir() string { return filepath.Join(filepath.Dir(appsDir()), "certs") }
 
 func loadHiDomain() (hiDomain, bool) {
 	var domain hiDomain

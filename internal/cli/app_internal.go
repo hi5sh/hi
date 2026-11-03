@@ -374,7 +374,7 @@ func appPeerStamp(script string) string {
 // since v2.5.1 the team's one peer has every address.
 func stopTeamPeers(engine boxEngine, team string) {
 	for _, address := range []string{appSlotProduction, appSlotPreview} {
-		engine.output("rm", "-f", "hi-box-team-"+team+"-peer-"+address)
+		engine.output("rm", "-f", "hi-box-app-"+team+"-peer-"+address)
 	}
 }
 

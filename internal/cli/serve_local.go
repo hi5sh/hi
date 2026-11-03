@@ -110,7 +110,7 @@ type serveMachine struct {
 	lingers       bool
 	memTotal      int64
 	memAvailable  int64
-	teamsReserve  int64 // what apps' boxes may still take, under their limits
+	appsReserve   int64 // what apps' boxes may still take, under their limits
 	appBoxes      int
 	problems      []string // each says what is missing and what adds it
 }
@@ -118,7 +118,7 @@ type serveMachine struct {
 // room is the memory a model may take: what is available, less what
 // teams' boxes may still take and a headroom.
 func (m serveMachine) room() int64 {
-	return max(0, m.memAvailable-m.teamsReserve-serveHeadroom)
+	return max(0, m.memAvailable-m.appsReserve-serveHeadroom)
 }
 
 func detectServeMachine(backend string) serveMachine {
@@ -154,7 +154,7 @@ func detectServeMachine(backend string) serveMachine {
 	m.lingers = serveLingers()
 	m.memTotal, m.memAvailable = memInfo()
 	if m.engine.bin != "" && m.podman != "" {
-		m.teamsReserve, m.appBoxes = teamsReserve(m.engine)
+		m.appsReserve, m.appBoxes = appsReserve(m.engine)
 	}
 	return m
 }
@@ -199,10 +199,10 @@ func memInfo() (total, available int64) {
 	return total, available
 }
 
-// teamsReserve is what the running boxes that hi serve didn't start may
+// appsReserve is what the running boxes that hi serve didn't start may
 // still take: each one's memory limit less what it uses now, which is
 // already out of what is available.
-func teamsReserve(engine boxEngine) (int64, int) {
+func appsReserve(engine boxEngine) (int64, int) {
 	out, err := engine.output("ps", "-q")
 	if err != nil || strings.TrimSpace(out) == "" {
 		return 0, 0
@@ -325,7 +325,7 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "Lingering:  %s\n", map[bool]string{true: "on: served things run without a login, and start at boot", false: "off: served things stop when you log out"}[m.lingers])
 	fmt.Fprintf(stdout, "Memory:     %s, %s available\n", sizeText(m.memTotal), sizeText(m.memAvailable))
-	fmt.Fprintf(stdout, "Apps:       %d %s, which may still take %s\n", m.appBoxes, map[bool]string{true: "box", false: "boxes"}[m.appBoxes == 1], sizeText(m.teamsReserve))
+	fmt.Fprintf(stdout, "Apps:       %d %s, which may still take %s\n", m.appBoxes, map[bool]string{true: "box", false: "boxes"}[m.appBoxes == 1], sizeText(m.appsReserve))
 	if *backend == backendCUDA {
 		fmt.Fprintf(stdout, "For models: %s of GPU memory and %s on the host (after %s and %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveVRAMHeadroom), sizeText(serveHeadroom))
 	} else {
@@ -498,7 +498,7 @@ func checkFits(m serveMachine, need, vram, download int64, modelsDir string, std
 	}
 	if need > room {
 		return fmt.Errorf("it needs %s%s %s, and this machine has %s for it: %s available, less %s that apps' boxes may still take and %s of headroom. It is %s short, so nothing was started",
-			sizeText(need), host, measured, sizeText(room), sizeText(m.memAvailable), sizeText(m.teamsReserve), sizeText(serveHeadroom), sizeText(need-room))
+			sizeText(need), host, measured, sizeText(room), sizeText(m.memAvailable), sizeText(m.appsReserve), sizeText(serveHeadroom), sizeText(need-room))
 	}
 	free, err := freeDisk(modelsDir)
 	if err != nil {
@@ -567,7 +567,7 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 	if len(m.problems) > 0 {
 		return fmt.Errorf("this machine can't serve it yet:\n  - %s", strings.Join(m.problems, "\n  - "))
 	}
-	fmt.Fprintf(stdout, "  detect     %s; %s available, apps' boxes may still take %s\n", m.describe(), sizeText(m.memAvailable), sizeText(m.teamsReserve))
+	fmt.Fprintf(stdout, "  detect     %s; %s available, apps' boxes may still take %s\n", m.describe(), sizeText(m.memAvailable), sizeText(m.appsReserve))
 
 	plan, err := planLocal(request.argument, request.quant, request.context, request.alias, request.extra, request.backend, request.memory)
 	if err != nil {

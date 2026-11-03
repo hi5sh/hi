@@ -25,7 +25,7 @@ func newTeamKeysTest(t *testing.T) {
 		return nil
 	}
 	t.Cleanup(func() { appCheckOpenRouterKey = saved })
-	file := filepath.Join(t.TempDir(), "team.json")
+	file := filepath.Join(t.TempDir(), "app.json")
 	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
 	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
 	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")

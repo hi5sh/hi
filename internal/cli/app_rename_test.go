@@ -53,13 +53,13 @@ func TestTeamRename(t *testing.T) {
 	if config.Name != "billing" || config.MadeAs != "payments" || appDir("billing") != moved || fileExists(folder) {
 		t.Fatal(config.Name, config.MadeAs, appDir("billing"))
 	}
-	if _, err := os.Lstat(filepath.Join(teamsDir(), "payments")); err == nil || fileExists(appUnitPath("payments")) {
+	if _, err := os.Lstat(filepath.Join(appsDir(), "payments")); err == nil || fileExists(appUnitPath("payments")) {
 		t.Fatal("the old name is still on this machine")
 	}
 	if !fileExists(appSnapshotKey("billing")) || fileExists(appSnapshotsDir("payments")) || appSnapshotHost("billing") != "hi-team-payments" {
 		t.Fatal("the snapshots didn't carry over")
 	}
-	if len(removed) != 1 || removed[0] != "payments" || !strings.Contains(strings.Join(calls, "; "), "disable --now hi-team-payments.service") {
+	if len(removed) != 1 || removed[0] != "payments" || !strings.Contains(strings.Join(calls, "; "), "disable --now hi-app-payments.service") {
 		t.Fatal(calls, removed)
 	}
 	if !strings.Contains(out.String(), "/hi-billing") || !strings.Contains(out.String(), "hi app manifest billing") {

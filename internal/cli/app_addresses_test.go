@@ -116,7 +116,7 @@ func TestTeamBoxMemory(t *testing.T) {
 	var updates []string
 	appUpdateMemory = func(team, box, size string) ([]string, error) {
 		updates = append(updates, box+"="+size)
-		return []string{"hi-box-team-" + team + "-" + box}, nil
+		return []string{"hi-box-app-" + team + "-" + box}, nil
 	}
 	appMachineMemory = func() int64 { return 64 << 30 }
 	config, _ := loadTeam("payments")
@@ -128,7 +128,7 @@ func TestTeamBoxMemory(t *testing.T) {
 		t.Fatal(err)
 	}
 	config, _ = loadTeam("payments")
-	if appBoxMemory(config, appBoxDev) != "24g" || strings.Join(updates, " ") != "dev=24g" || !strings.Contains(out.String(), "Running now with it, without a restart: hi-box-team-payments-dev") ||
+	if appBoxMemory(config, appBoxDev) != "24g" || strings.Join(updates, " ") != "dev=24g" || !strings.Contains(out.String(), "Running now with it, without a restart: hi-box-app-payments-dev") ||
 		!strings.Contains(out.String(), "dev box may use 24g") {
 		t.Fatal(out.String(), updates)
 	}

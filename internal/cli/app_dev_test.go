@@ -165,7 +165,7 @@ func TestTeamDevStart(t *testing.T) {
 		t.Fatalf("no %q in\n%s", prefix, strings.Join(calls, "\n"))
 		return ""
 	}
-	box := find("run -d --init --name hi-box-team-payments-dev ")
+	box := find("run -d --init --name hi-box-app-payments-dev ")
 	for _, want := range []string{"--ip " + ip, "--userns=keep-id", "--cap-drop=ALL", "/dev/ssh:/box/dev/ssh:ro", "/dev/bin:/box/bin:ro", "/repo:/team/origin:ro", "/dev/repo:/box/repo",
 		"-e CLAUDE_CODE_OAUTH_TOKEN=" + boxClaudePlacehold, "-e ANTHROPIC_BASE_URL=http://" + state.ProxyIP, "herdr server", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config",
 		// Its DNS is the proxy's; its own settings come from a file.
@@ -174,20 +174,20 @@ func TestTeamDevStart(t *testing.T) {
 			t.Errorf("the box lacks %q: %s", want, box)
 		}
 	}
-	proxy := find("create --name hi-box-team-payments-dev-proxy ")
+	proxy := find("create --name hi-box-app-payments-dev-proxy ")
 	if !strings.Contains(proxy, "--sysctl net.ipv4.ip_unprivileged_port_start=53") || !strings.Contains(proxy, boxSelfEnv+"="+state.ProxyIP) || !strings.Contains(proxy, boxTLSPortsEnv+"=27017") {
 		t.Errorf("the proxy doesn't answer the box's DNS and MongoDB's port: %s", proxy)
 	}
 	if !strings.Contains(proxy, "/secrets/team:ro") || !strings.Contains(proxy, "__proxy /state/allow /state/network.log /secrets/team/"+appClaudeKeyFile) {
 		t.Errorf("the proxy hasn't the team's Claude sign-in: %s", proxy)
 	}
-	peer := find("create --init --name hi-box-team-payments-dev-net ")
+	peer := find("create --init --name hi-box-app-payments-dev-net ")
 	for _, want := range []string{"NB_USE_NETSTACK_MODE=true", "--setup-key-file /run/netbird-key", "--hostname payments ", "hi box __forward 127.0.0.1:22 " + ip + ":2222"} {
 		if !strings.Contains(peer, want) {
 			t.Errorf("the peer lacks %q: %s", want, peer)
 		}
 	}
-	find("network connect --ip " + appDevBoxIP(state.ProxyIP, 4) + " hi-box-team-payments-dev hi-box-team-payments-dev-net")
+	find("network connect --ip " + appDevBoxIP(state.ProxyIP, 4) + " hi-box-app-payments-dev hi-box-app-payments-dev-net")
 
 	home := filepath.Join(appDevDir("payments"), "home")
 	if env, _ := os.ReadFile(filepath.Join(home, ".hi-env")); !strings.Contains(string(env), "export ANTHROPIC_BASE_URL=") {
@@ -202,7 +202,7 @@ func TestTeamDevStart(t *testing.T) {
 
 	// Running, and joined: a restart of the service leaves the box, and
 	// the used key goes.
-	running["hi-box-team-payments-dev"], running["hi-box-team-payments-dev-net"] = true, true
+	running["hi-box-app-payments-dev"], running["hi-box-app-payments-dev-net"] = true, true
 	os.MkdirAll(filepath.Join(appDevDir("payments"), "netbird"), 0o700)
 	os.WriteFile(filepath.Join(appDevDir("payments"), "netbird", "default.json"), []byte("{}"), 0o600)
 	// The running peer runs what this hi would.
@@ -225,10 +225,10 @@ func TestTeamDevStart(t *testing.T) {
 		t.Fatal("the used setup key stayed")
 	}
 	// A new box joins as the same peer, without a key.
-	running["hi-box-team-payments-dev-net"] = false
+	running["hi-box-app-payments-dev-net"] = false
 	calls = nil
 	startTeamDevNet(engineForTest(), "payments", "/usr/local/bin/hi", io.Discard)
-	if peer := find("create --init --name hi-box-team-payments-dev-net "); strings.Contains(peer, "setup-key") {
+	if peer := find("create --init --name hi-box-app-payments-dev-net "); strings.Contains(peer, "setup-key") {
 		t.Fatal("joined again with a key:", peer)
 	}
 }
@@ -304,7 +304,7 @@ func TestTeamDevEnvSkipsProxyForLocalAddresses(t *testing.T) {
 // The dev box's NetBird identity and setup key stay out of snapshots.
 func TestTeamSnapshotPathsLeaveDevSecrets(t *testing.T) {
 	dir := t.TempDir()
-	for _, path := range []string{"dev/home/x", "dev/repo/x", "dev/netbird/default.json", "dev/" + appDevSetupKey, "team.json"} {
+	for _, path := range []string{"dev/home/x", "dev/repo/x", "dev/netbird/default.json", "dev/" + appDevSetupKey, "app.json"} {
 		os.MkdirAll(filepath.Dir(filepath.Join(dir, path)), 0o700)
 		os.WriteFile(filepath.Join(dir, path), nil, 0o600)
 	}
@@ -313,7 +313,7 @@ func TestTeamSnapshotPathsLeaveDevSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := strings.Join(paths, " ")
-	if got != "dev/home dev/repo team.json" {
+	if got != "app.json dev/home dev/repo" {
 		t.Fatal(got)
 	}
 }

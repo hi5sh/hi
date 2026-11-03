@@ -278,7 +278,7 @@ func appStatfs(path string) (float64, float64, error) {
 func appOOMCounts(team string) map[string]int {
 	counts := map[string]int{}
 	b := &appBroker{}
-	out, err := b.engineOutput("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-team-"+team)
+	out, err := b.engineOutput("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-app-"+team)
 	if err != nil {
 		return counts
 	}
@@ -344,8 +344,8 @@ func (b *appBroker) heartbeat(state *appWatchState, probe appWatchProbe, now tim
 		}
 	}
 	beat.Parts["broker"] = apiWatchPart{State: "up"}
-	beat.Parts["lead"] = part("hi-box-team-" + b.team)
-	beat.Parts["proxy"] = part("hi-box-team-" + b.team + "-proxy")
+	beat.Parts["lead"] = part("hi-box-app-" + b.team)
+	beat.Parts["proxy"] = part("hi-box-app-" + b.team + "-proxy")
 	beat.Parts["gateway"] = appGatewayPart(b.team, now)
 	if memory := probe.state(appMemoryContainer(b.team)); memory == "" {
 		beat.Parts["memory"] = apiWatchPart{State: "off"}

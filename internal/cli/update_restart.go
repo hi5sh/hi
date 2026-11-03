@@ -197,6 +197,9 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			return fmt.Errorf("%s did not come back up; check `%s`", server.unit, logs)
 		}
 		fmt.Fprintf(stdout, "%s runs %s.\n", server.unit, newVersion)
+		if server.team != "" && server.unit == legacyAppUnit(server.team) {
+			fmt.Fprintf(stdout, "  It still has the names from before v2.6.67; hi app up %s moves it to the new ones (its addresses change).\n", server.team)
+		}
 	}
 	if !offered && installedOrgUnit() == oldOrgUnit {
 		_, err := offerOrgUnitMove(mode, stdin, stdout, stderr)

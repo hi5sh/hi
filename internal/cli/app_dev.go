@@ -57,7 +57,7 @@ func appDevDir(team string) string { return filepath.Join(appDir(team), "dev") }
 
 // appDevBox is the dev box's name: its network and proxy are named after
 // it, as a box's are.
-func appDevBox(team string) string       { return "team-" + team + "-dev" }
+func appDevBox(team string) string       { return "app-" + team + "-dev" }
 func appDevContainer(team string) string { return "hi-box-" + appDevBox(team) }
 
 // appDevHiDir is where hi dev puts what it fetches in the box.

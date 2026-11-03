@@ -140,12 +140,18 @@ hi app rm payments       # stop it and remove it, folder and all
 hi app rename payments billing   # give it another name
 ```
 
-`hi app up` installs a systemd user service, `hi-team-payments`, which
+`hi app up` installs a systemd user service, `hi-app-payments`, which
 restarts the app if it stops. For it to run while you're logged out and
 start at boot, run `sudo loginctl enable-linger $USER` once.
 
+An app made before hi v2.6.67 keeps running after `hi update`, under its
+old names. Its next `hi app up <name>` moves it to the new ones: the
+service, the boxes, the folder (`app-<name>`), and `app.json`. Stage's,
+production's, and the dev page's addresses change then, unless they are on
+a domain of yours; the lead posts the new links, and the links' keys stay.
+
 `hi app rm` asks first, then removes everything hi made for the app: the
-service, its name in `~/.local/share/hi/teams`, the lead's box, the dev
+service, its name in `~/.local/share/hi/apps`, the lead's box, the dev
 box, the app's boxes, and the folder. With `--keep-folder` the folder stays, and `hi app up <folder>`
 brings the app back. Deleting just the folder leaves the service and the
 name behind. The Slack app and channel, and a GitHub repository, are yours
@@ -154,7 +160,7 @@ to remove in Slack and GitHub.
 `hi app rename` follows a new name for the Slack app: the bot's handle,
 the `/hi-<name>` command, the service, and the folder when it is still
 `app-<name>`. The app stops while it's done and starts again if it was
-up. Its work records, memory, and snapshots carry over: team.json's `made_as`
+up. Its work records, memory, and snapshots carry over: app.json's `made_as`
 keeps the name the memory bank and the snapshots are filed under, and a
 new app given the old name is filed under `<name>-2`. Then paste
 `hi app manifest <new name>` into the app's manifest in Slack. A lead with
@@ -179,7 +185,7 @@ reads them to answer people.
 
 ## Change a member
 
-The members in `team.json` are the lead, a coder, and a reviewer. The
+The members in `app.json` are the lead, a coder, and a reviewer. The
 coder and the reviewer get no tasks: they decide which sign-ins
 the app keeps (Claude, ChatGPT, OpenRouter), which the lead and the dev
 box use, and their agents take turns in a
@@ -193,5 +199,5 @@ hi app member payments lead --effort high           # how hard the lead thinks
 ```
 
 `hi app member` restarts a running app; an edit to `members` in
-`team.json` takes `hi app up payments`. See
+`app.json` takes `hi app up payments`. See
 [Keys and settings](/guide/app/keys/) for the sign-ins.

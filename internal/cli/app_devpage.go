@@ -192,7 +192,7 @@ func (b *appBroker) exposeDevPage(current appDevPageState) (appDevPageState, err
 	}
 	longest := netExposeMaxMax
 	args := []string{"net", "expose", strings.TrimSpace(string(data)), "--follow", appDevPagePortFile(b.team), "--link", "--detach", "--json",
-		"--name", "team-" + b.team + "-dev", "--route-always", appHelperPrefix + "=unix:" + appDevPageSocket(b.team)}
+		"--name", "app-" + b.team + "-dev", "--route-always", appHelperPrefix + "=unix:" + appDevPageSocket(b.team)}
 	if domain := appSlotDomain(b.team, appSlotProduction); domain != "" {
 		args = append(args, "--domain", b.team+"-dev."+strings.TrimPrefix(domain, b.team+"."))
 		longest = netExposeDomainMax

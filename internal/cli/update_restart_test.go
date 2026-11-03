@@ -120,8 +120,8 @@ func TestUpdateRestartsStaleTeams(t *testing.T) {
 	path, _ := updateExecutable()
 	userUnit := "0::/user.slice/user-1000.slice/user@1000.service/app.slice/%s\n"
 	fakeProc(t, map[string][3]string{
-		"201": {path + " (deleted)", path + "\x00team\x00__serve\x00bulletin\x00", fmt.Sprintf(userUnit, "hi-team-bulletin.service")},
-		"202": {path, path + "\x00team\x00__serve\x00timmai\x00", fmt.Sprintf(userUnit, "hi-team-timmai.service")},
+		"201": {path + " (deleted)", path + "\x00team\x00__serve\x00bulletin\x00", fmt.Sprintf(userUnit, "hi-app-bulletin.service")},
+		"202": {path, path + "\x00team\x00__serve\x00timmai\x00", fmt.Sprintf(userUnit, "hi-app-timmai.service")},
 		"203": {path + " (deleted)", path + "\x00team\x00__app\x00x\x00", fmt.Sprintf(userUnit, "other.service")},
 	})
 	runs := recordUpdateRuns(t)
@@ -130,7 +130,7 @@ func TestUpdateRestartsStaleTeams(t *testing.T) {
 	defer func() { updateIsTerminal = previous }()
 	var out, errOut bytes.Buffer
 	run([]string{"update"}, strings.NewReader("\n"), &out, &errOut)
-	want := "systemctl --user restart hi-team-bulletin.service|systemctl --user is-active --quiet hi-team-bulletin.service"
+	want := "systemctl --user restart hi-app-bulletin.service|systemctl --user is-active --quiet hi-app-bulletin.service"
 	if strings.Join(*runs, "|") != want || !strings.Contains(out.String(), "Its lead restarts") {
 		t.Fatalf("runs %q\n%s", *runs, out.String())
 	}
@@ -138,7 +138,7 @@ func TestUpdateRestartsStaleTeams(t *testing.T) {
 	// hi app domain says the setting waits for the restart.
 	var said bytes.Buffer
 	appWarnOldHi("bulletin", &said)
-	if !strings.Contains(said.String(), "systemctl --user restart hi-team-bulletin.service") {
+	if !strings.Contains(said.String(), "systemctl --user restart hi-app-bulletin.service") {
 		t.Fatal(said.String())
 	}
 	said.Reset()

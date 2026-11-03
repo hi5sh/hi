@@ -151,7 +151,7 @@ func writeTeamSlotAddress(team, slot, url string) error {
 }
 
 // appPreviewContainer is the start of the name of every app box of a team.
-func appPreviewContainer(team string) string { return "hi-box-team-" + team + "-app" }
+func appPreviewContainer(team string) string { return "hi-box-app-" + team + "-app" }
 
 func loadTeamSlot(team, slot string) (appPreview, bool) {
 	var state appPreview
@@ -478,7 +478,7 @@ func (b *appBroker) newAddress(next *appPreview, current appPreview, exposed, ou
 		return nil
 	}
 	portFile := appSlotPortFile(b.team, next.Slot)
-	name := "team-" + b.team
+	name := "app-" + b.team
 	if next.Slot == appSlotProduction {
 		name += "-live"
 	}

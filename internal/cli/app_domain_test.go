@@ -125,7 +125,7 @@ func TestTeamPreviewDomain(t *testing.T) {
 	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
 	exec.Command("git", "-C", b.repo, "add", "-A").Run()
 	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "app").Run()
-	if err := saveTeamsSettings(teamsSettings{Domain: "apps.example.com"}); err != nil {
+	if err := saveTeamsSettings(appsSettings{Domain: "apps.example.com"}); err != nil {
 		t.Fatal(err)
 	}
 	config, _ := loadTeam("payments")
@@ -156,7 +156,7 @@ func TestTeamPreviewDomain(t *testing.T) {
 			last = call
 		}
 	}
-	if !strings.Contains(last, "--max 720h0m0s") || !strings.Contains(last, "--name team-payments --domain payments-preview.apps.example.com ") {
+	if !strings.Contains(last, "--max 720h0m0s") || !strings.Contains(last, "--name app-payments --domain payments-preview.apps.example.com ") {
 		t.Fatal(last)
 	}
 	// A relay from a hi that routed less (before /docs/): a new relay on

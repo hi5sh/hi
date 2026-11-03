@@ -91,7 +91,7 @@ func TestTeamSnapshotPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"app", "lead", "memory", "tasks", "team.json", "versions.json", "run/proxy/network.log"}
+	want := []string{"app", "app.json", "lead", "memory", "tasks", "versions.json", "run/proxy/network.log"}
 	if strings.Join(paths, " ") != strings.Join(want, " ") {
 		t.Fatal(paths)
 	}
@@ -355,7 +355,7 @@ func TestTeamRestore(t *testing.T) {
 	restic := &fakeTeamRestic{list: `[{"short_id":"1a2b3c4d","time":"2026-10-12T03:00:00Z","tags":["hi-team","kind:daily"],"summary":{"data_added":10,"total_bytes_processed":100}}]`}
 	restic.install(t)
 	restic.restore = func(target string) {
-		for path, content := range map[string]string{"lead/SOUL.md": "the old soul", "app/entries.json": "[]", "team.json": `{"name":"payments","channel":"C07OLD"}`, "repo/README.md": "old code"} {
+		for path, content := range map[string]string{"lead/SOUL.md": "the old soul", "app/entries.json": "[]", "app.json": `{"name":"payments","channel":"C07OLD"}`, "repo/README.md": "old code"} {
 			writeSkillTestFile(t, filepath.Join(target, path), content, 0o600)
 		}
 	}
@@ -400,7 +400,7 @@ func TestTeamRestore(t *testing.T) {
 	if !strings.Contains(backup, "kind:restore,label:1a2b3c4d") || !strings.Contains(restore, "--exclude /repo") || !strings.Contains(restore, "--exclude /run") || !strings.Contains(restore, "--exclude /team.json") {
 		t.Fatal(backup, restore)
 	}
-	if strings.Join(calls, "; ") != "is-active hi-team-payments.service; stop hi-team-payments.service; start hi-team-payments.service" || !stopped {
+	if strings.Join(calls, "; ") != "is-active hi-app-payments.service; stop hi-app-payments.service; start hi-app-payments.service" || !stopped {
 		t.Fatal(calls, stopped)
 	}
 	if !strings.Contains(posted, "back as it was") || !strings.Contains(posted, "hi app restore payments 0000000") || !strings.Contains(out.String(), "undoes it: hi app restore payments 0000000") {
@@ -424,7 +424,7 @@ func TestTeamRestore(t *testing.T) {
 	if err := appRestoreCommand([]string{"payments", "latest", "--yes"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "nothing was restored") {
 		t.Fatal(err)
 	}
-	if read("lead/SOUL.md") != "today" || calls[len(calls)-1] != "start hi-team-payments.service" {
+	if read("lead/SOUL.md") != "today" || calls[len(calls)-1] != "start hi-app-payments.service" {
 		t.Fatal(read("lead/SOUL.md"), calls)
 	}
 }
@@ -452,7 +452,7 @@ func TestTeamBackupsCommand(t *testing.T) {
 		t.Fatal(config.backups(), secrets)
 	}
 	// The keys stay out of team.json, which snapshots hold.
-	if data, _ := os.ReadFile(filepath.Join(appDir("payments"), "team.json")); strings.Contains(string(data), "SECRET") {
+	if data, _ := os.ReadFile(filepath.Join(appDir("payments"), "app.json")); strings.Contains(string(data), "SECRET") {
 		t.Fatal(string(data))
 	}
 	if restic.find("copy") == nil || !strings.Contains(out.String(), "--show-key") {

@@ -59,7 +59,7 @@ func TestTeamHeartbeat(t *testing.T) {
 	if config.HeartbeatEvery != "5m" || secrets.HeartbeatURL != secret || secrets.SlackBotToken != "xoxb-1" {
 		t.Fatal(config.HeartbeatEvery, secrets)
 	}
-	data, _ := os.ReadFile(filepath.Join(appDir("payments"), "team.json"))
+	data, _ := os.ReadFile(filepath.Join(appDir("payments"), "app.json"))
 	if strings.Contains(string(data), "secret-uuid") {
 		t.Fatal("the URL is in team.json")
 	}

@@ -32,7 +32,7 @@ type appSSOProvider struct {
 	GroupsClaim  string `json:"groups_claim,omitempty"`
 }
 
-func appSSOProvidersPath() string { return filepath.Join(teamsDir(), "sso-providers.json") }
+func appSSOProvidersPath() string { return filepath.Join(appsDir(), "sso-providers.json") }
 
 func loadTeamSSOProviders() map[string]appSSOProvider {
 	providers := map[string]appSSOProvider{}
@@ -43,7 +43,7 @@ func loadTeamSSOProviders() map[string]appSSOProvider {
 }
 
 func saveTeamSSOProviders(providers map[string]appSSOProvider) error {
-	if err := os.MkdirAll(teamsDir(), 0o700); err != nil {
+	if err := os.MkdirAll(appsDir(), 0o700); err != nil {
 		return err
 	}
 	data, _ := json.MarshalIndent(providers, "", "  ")
@@ -278,7 +278,7 @@ func appSSOProviderRemove(name string, stdout io.Writer) error {
 // appSSOTeams are the teams that have sign-in on.
 func appSSOTeams() []string {
 	var teams []string
-	entries, _ := os.ReadDir(teamsDir())
+	entries, _ := os.ReadDir(appsDir())
 	for _, entry := range entries {
 		if appNamePattern.MatchString(entry.Name()) && fileExists(appSSOFile(entry.Name())) {
 			teams = append(teams, entry.Name())

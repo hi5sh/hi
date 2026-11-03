@@ -348,7 +348,7 @@ var (
 // CISA's KEV, beside the teams.
 func appAdvisoryCache() *advisoryFeeds {
 	appAdvisoryFeedsOnce.Do(func() {
-		appAdvisoryFeeds = &advisoryFeeds{dir: filepath.Join(filepath.Dir(teamsDir()), "advisories")}
+		appAdvisoryFeeds = &advisoryFeeds{dir: filepath.Join(filepath.Dir(appsDir()), "advisories")}
 	})
 	return appAdvisoryFeeds
 }

@@ -30,7 +30,7 @@ description: The environment variables hi reads and the files it writes.
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
 | `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
 | `HI_ORG_DIR`            | Where `hi org` keeps its state; `HI_SERVER_DIR` is read too    |
-| `HI_TEAMS_DIR`          | Where `hi app` keeps apps; default `~/.local/share/hi/teams`      |
+| `HI_APPS_DIR`          | Where `hi app` keeps apps; default `~/.local/share/hi/apps`      |
 | `HI_APP_SLACK_BOT_TOKEN`, `HI_APP_SLACK_APP_TOKEN`, `HI_APP_OPENROUTER_API_KEY` | `hi app new --from`: the app's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_APP_CLAUDE_TOKEN`, `HI_APP_CHATGPT_AUTH` | `hi app new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
 | `HI_APP_S3_ACCESS_KEY_ID`, `HI_APP_S3_SECRET_ACCESS_KEY` | `hi app backups --offsite`: the bucket's keys, instead of asking |

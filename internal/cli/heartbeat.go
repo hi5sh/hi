@@ -236,7 +236,7 @@ func machineHeartbeatNote(stdout io.Writer) {
 
 // machineRunsHiServices is whether this machine has an app or an org server.
 func machineRunsHiServices() bool {
-	if entries, err := os.ReadDir(teamsDir()); err == nil && len(entries) > 0 {
+	if entries, err := os.ReadDir(appsDir()); err == nil && len(entries) > 0 {
 		return true
 	}
 	return fileExists(filepath.Join(systemdUnitDir, orgUnit)) || fileExists(filepath.Join(systemdUnitDir, oldOrgUnit))

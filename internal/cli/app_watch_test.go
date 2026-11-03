@@ -61,7 +61,7 @@ func TestTeamHeartbeatSays(t *testing.T) {
 	os.WriteFile(appSpendLogPath("payments"), []byte(now.Add(-10*time.Minute).UTC().Format(time.RFC3339)+" production 0.5\n"+now.Add(-3*time.Hour).UTC().Format(time.RFC3339)+" production 9\n"), 0o600)
 	os.WriteFile(appNetworkLogPath("payments"), []byte(now.Add(-5*time.Minute).UTC().Format(time.RFC3339)+" spend 0.25\n"+now.UTC().Format(time.RFC3339)+" openrouter /api/v1/chat\n"), 0o600)
 
-	probe := &appTestProbe{states: map[string]string{"hi-box-team-payments": "running", "hi-box-team-payments-proxy": "running", "box-prod": "running"},
+	probe := &appTestProbe{states: map[string]string{"hi-box-app-payments": "running", "hi-box-app-payments-proxy": "running", "box-prod": "running"},
 		disk: 0.42, oom: map[string]int{"box-prod": 0}, usage: 10, key: true}
 	state := appWatchState{}
 	beat := b.heartbeat(&state, probe.probe(), now.Add(-30*time.Minute))
@@ -103,7 +103,7 @@ func TestTeamWatchesItself(t *testing.T) {
 	b.channel = channel
 	savedMachine := appWatchMachine
 	t.Cleanup(func() { appWatchMachine = savedMachine })
-	probe := &appTestProbe{states: map[string]string{"hi-box-team-payments": "running", "hi-box-team-payments-proxy": "running"}, disk: 0.5}
+	probe := &appTestProbe{states: map[string]string{"hi-box-app-payments": "running", "hi-box-app-payments-proxy": "running"}, disk: 0.5}
 	appWatchMachine = probe.probe()
 	os.MkdirAll(filepath.Dir(appNetworkLogPath("payments")), 0o700)
 	os.WriteFile(appNetworkLogPath("payments"), []byte("2026-10-22T09:13:02Z allowed api.github.com\n"), 0o600)
@@ -154,7 +154,7 @@ func TestTeamWatchTakesOverFromTheServer(t *testing.T) {
 	b.channel = &fakeTeamChannel{}
 	savedMachine := appWatchMachine
 	t.Cleanup(func() { appWatchMachine = savedMachine })
-	appWatchMachine = (&appTestProbe{states: map[string]string{"hi-box-team-payments": "running"}, disk: 0.95}).probe()
+	appWatchMachine = (&appTestProbe{states: map[string]string{"hi-box-app-payments": "running"}, disk: 0.95}).probe()
 	told, _ := b.openIncident(appIncident{Kind: "watch", Slot: appSlotProduction, Title: "payments's disk is 95% full"}, "x", "", nil)
 	saveTeamWatchState("payments", appWatchState{Server: "https://hi.example", Told: map[string]string{"w-1": told.ID}})
 	b.sendHeartbeat("")

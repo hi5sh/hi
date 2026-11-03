@@ -80,7 +80,7 @@ Slack moves production: the lead has no command that can.
 
 ## The members
 
-`team.json` still lists the members: the lead, a coder, and a reviewer.
+`app.json` still lists the members: the lead, a coder, and a reviewer.
 They no longer get tasks. They decide which sign-ins the app keeps
 (Claude, ChatGPT, OpenRouter), which the lead and the dev box use, and
 the coder's and reviewer's agents take turns in a
@@ -112,7 +112,7 @@ the lead answers. It runs in a container of its own on the app's private
 network, with its database in the app's `memory/` folder. Its model calls
 go through the app's proxy like the lead's, so it holds no keys. The
 first `hi app up` downloads its image, about 2.6 GB. To do without it, set
-`"memory": "off"` in `team.json`; the lead then keeps Hermes' small
+`"memory": "off"` in `app.json`; the lead then keeps Hermes' small
 built-in notepad only.
 
 The memory is for the people and the conversation. Facts about the app

@@ -36,7 +36,7 @@ func appResolverPath(team string) string {
 func appResolveLogPath(team string) string {
 	return filepath.Join(appDir(team), "run", "proxy", "resolve.log")
 }
-func appResolverUnit(team string) string { return "hi-team-" + team + "-resolver" }
+func appResolverUnit(team string) string { return "hi-app-" + team + "-resolver" }
 
 // appResolverPorts are the ports the team's resolver listens on, one per
 // slot, chosen once and kept, so a box started before a restart still

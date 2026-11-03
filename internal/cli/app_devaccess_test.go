@@ -319,7 +319,7 @@ func TestBoxPublicDialer(t *testing.T) {
 			t.Errorf("%s: private %v", ip, !private)
 		}
 	}
-	proxy := &boxEgressProxy{allow: &boxAllowlist{hosts: []string{"github.com"}, path: "/nonexistent"}, log: &boxNetworkLog{file: &logged}, ask: "team-payments-dev"}
+	proxy := &boxEgressProxy{allow: &boxAllowlist{hosts: []string{"github.com"}, path: "/nonexistent"}, log: &boxNetworkLog{file: &logged}, ask: "app-payments-dev"}
 	recorder := httptest.NewRecorder()
 	proxy.ServeHTTP(recorder, httptest.NewRequest(http.MethodConnect, "query1.finance.yahoo.com:443", nil))
 	if recorder.Code != http.StatusForbidden || !strings.Contains(recorder.Body.String(), `hi dev allow query1.finance.yahoo.com --why`) {

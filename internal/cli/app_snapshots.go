@@ -46,10 +46,10 @@ const (
 	appSnapshotKeepWithin = "7d"
 )
 
-// appSnapshotKeep is the retention when team.json sets none.
+// appSnapshotKeep is the retention when app.json sets none.
 var appSnapshotKeep = appBackups{Daily: 7, Weekly: 4, Monthly: 6}
 
-// appBackups is team.json's "backups": how long snapshots are kept, and
+// appBackups is app.json's "backups": how long snapshots are kept, and
 // where they are copied. The bucket's keys are in secrets.json.
 type appBackups struct {
 	Offsite string `json:"offsite,omitempty"` // a restic repository, s3:https://<host>/<bucket>[/<path>]
@@ -117,7 +117,7 @@ var appSnapshotStatusMu sync.Mutex
 // appSnapshotsDir holds a team's repository, its key, and status.json:
 // beside the teams' links, outside the team's folder.
 func appSnapshotsDir(team string) string {
-	return filepath.Join(filepath.Dir(teamsDir()), "team-snapshots", team)
+	return filepath.Join(filepath.Dir(appsDir()), "app-snapshots", team)
 }
 
 func appSnapshotKey(team string) string { return filepath.Join(appSnapshotsDir(team), "key") }
@@ -391,7 +391,7 @@ var appPause = func(team string) (func(), string) {
 	if err != nil {
 		return func() {}, ""
 	}
-	containers := []string{"hi-box-team-" + team, appMemoryContainer(team), appDevContainer(team)}
+	containers := []string{"hi-box-app-" + team, appMemoryContainer(team), appDevContainer(team)}
 	if slot, ok := loadTeamSlot(team, appSlotProduction); ok && slot.Container != "" {
 		containers = append(containers, slot.Container)
 	}
@@ -933,7 +933,7 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	} else {
 		fmt.Fprintln(stdout, "The code (repo/) stays as it is; --code puts it back too.")
 	}
-	fmt.Fprintln(stdout, "The app's settings (team.json, secrets.json) stay. The app stops while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
+	fmt.Fprintln(stdout, "The app's settings (app.json, secrets.json) stay. The app stops while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
 	if err := confirm(stdin, stdout, yes, "Restore app "+team+"?"); err != nil {
 		return err
 	}
@@ -962,7 +962,7 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 
 	restored := filepath.Join(dir, ".restore-"+snapshot.ID)
 	os.RemoveAll(restored)
-	restoreArgs := []string{"restore", snapshot.ID, "--quiet", "--target", restored, "--exclude", "/run", "--exclude", "/secrets.json", "--exclude", "/team.json"}
+	restoreArgs := []string{"restore", snapshot.ID, "--quiet", "--target", restored, "--exclude", "/run", "--exclude", "/secrets.json", "--exclude", "/" + appConfigFile, "--exclude", "/" + legacyAppConfigFile}
 	if !code {
 		restoreArgs = append(restoreArgs, "--exclude", "/repo")
 	}
@@ -994,12 +994,12 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 }
 
 // appSwapRestored moves what a snapshot holds out of the team's folder and
-// the restored copy in, then deletes the old. The settings (team.json,
+// the restored copy in, then deletes the old. The settings (app.json,
 // secrets.json) and run/ stay, and repo/ unless code. On failure it moves
 // the old back.
 func appSwapRestored(dir, restored string, code bool) error {
 	stays := func(name string) bool {
-		return name == "secrets.json" || name == "team.json" || name == "run" || strings.HasPrefix(name, ".restore-") || name == "repo" && !code
+		return name == "secrets.json" || name == appConfigFile || name == legacyAppConfigFile || name == "run" || strings.HasPrefix(name, ".restore-") || name == "repo" && !code
 	}
 	old := restored + "-old"
 	os.RemoveAll(old)
@@ -1181,12 +1181,12 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 // ---------------------------------------------------------------------------
 // the daily timer
 
-func appSnapshotUnitName(name string) string { return "hi-team-" + name + "-snapshot" }
+func appSnapshotUnitName(name string) string { return "hi-app-" + name + "-snapshot" }
 
 func appSnapshotUnits(config appConfig, executable string) (service, timer string) {
 	env := ""
-	if dir := os.Getenv("HI_TEAMS_DIR"); dir != "" {
-		env += "Environment=HI_TEAMS_DIR=" + dir + "\n"
+	if dir := os.Getenv("HI_APPS_DIR"); dir != "" {
+		env += "Environment=HI_APPS_DIR=" + dir + "\n"
 	}
 	env += "Environment=PATH=" + os.Getenv("PATH") + "\n"
 	service = fmt.Sprintf(`[Unit]

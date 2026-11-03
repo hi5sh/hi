@@ -292,7 +292,7 @@ func TestTeamFreezeAndPause(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		if args[0] == "ps" {
-			return "hi-box-team-payments\nhi-box-team-payments-proxy\nhi-box-team-payments-app-production-4100\nhi-box-payments-t-1\nhi-box-other\n", nil
+			return "hi-box-app-payments\nhi-box-app-payments-proxy\nhi-box-app-payments-app-production-4100\nhi-box-payments-t-1\nhi-box-other\n", nil
 		}
 		engine = append(engine, strings.Join(args, " "))
 		return "", nil
@@ -322,7 +322,7 @@ func TestTeamFreezeAndPause(t *testing.T) {
 	if data, _ := os.ReadFile(boxStateFile("payments-t-1", "allow")); len(data) != 0 {
 		t.Fatalf("%q", data)
 	}
-	if strings.Join(engine, "; ") != "pause hi-box-team-payments-app-production-4100" {
+	if strings.Join(engine, "; ") != "pause hi-box-app-payments-app-production-4100" {
 		t.Fatal(engine)
 	}
 	if len(channel.calls) == 0 || !strings.Contains(strings.Join(channel.calls, "\n"), "froze the app* (bob on the machine: looking into a paste site)") {
@@ -350,10 +350,10 @@ func TestTeamFreezeAndPause(t *testing.T) {
 	if data, _ := os.ReadFile(boxStateFile("payments-t-1", "allow")); string(data) != "registry.npmjs.org\n" {
 		t.Fatalf("%q", data)
 	}
-	want := "pause hi-box-team-payments-app-production-4100; " +
-		"pause hi-box-payments-t-1; pause hi-box-team-payments; pause hi-box-team-payments-app-production-4100; pause hi-box-team-payments-proxy; " +
-		"unpause hi-box-payments-t-1; unpause hi-box-team-payments; unpause hi-box-team-payments-app-production-4100; unpause hi-box-team-payments-proxy; pause hi-box-team-payments-app-production-4100; " +
-		"unpause hi-box-team-payments-app-production-4100"
+	want := "pause hi-box-app-payments-app-production-4100; " +
+		"pause hi-box-app-payments; pause hi-box-app-payments-app-production-4100; pause hi-box-app-payments-proxy; pause hi-box-payments-t-1; " +
+		"unpause hi-box-app-payments; unpause hi-box-app-payments-app-production-4100; unpause hi-box-app-payments-proxy; unpause hi-box-payments-t-1; pause hi-box-app-payments-app-production-4100; " +
+		"unpause hi-box-app-payments-app-production-4100"
 	if strings.Join(engine, "; ") != want {
 		t.Fatal(strings.Join(engine, "; "))
 	}

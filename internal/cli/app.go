@@ -32,7 +32,7 @@ var (
 	slackIDPattern = regexp.MustCompile(`^[A-Z0-9]{6,20}$`)
 )
 
-// appConfig is team.json. It holds no secrets.
+// appConfig is app.json. It holds no secrets.
 type appConfig struct {
 	Name    string `json:"name"`
 	Purpose string `json:"purpose"`
@@ -173,8 +173,8 @@ type appSecrets struct {
 	ClaudeSignedIn time.Time `json:"claude_signed_in,omitempty"`
 }
 
-func teamsDir() string {
-	if dir := os.Getenv("HI_TEAMS_DIR"); dir != "" {
+func appsDir() string {
+	if dir := os.Getenv("HI_APPS_DIR"); dir != "" {
 		return dir
 	}
 	base := os.Getenv("XDG_DATA_HOME")
@@ -182,14 +182,16 @@ func teamsDir() string {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".local", "share")
 	}
-	return filepath.Join(base, "hi", "teams")
+	dir := filepath.Join(base, "hi", "apps")
+	migrateAppsMachine(dir)
+	return dir
 }
 
 // A team's folder is wherever it was made, ./team-<name> by default.
-// teamsDir holds a link to each, by name, so hi app <command> <name>
+// appsDir holds a link to each, by name, so hi app <command> <name>
 // finds it from anywhere.
 func appDir(name string) string {
-	link := filepath.Join(teamsDir(), name)
+	link := filepath.Join(appsDir(), name)
 	if target, err := filepath.EvalSymlinks(link); err == nil {
 		return target
 	}
@@ -198,10 +200,10 @@ func appDir(name string) string {
 
 // appRegister links a team's name to its folder.
 func appRegister(name, folder string) error {
-	if err := os.MkdirAll(teamsDir(), 0o700); err != nil {
+	if err := os.MkdirAll(appsDir(), 0o700); err != nil {
 		return err
 	}
-	link := filepath.Join(teamsDir(), name)
+	link := filepath.Join(appsDir(), name)
 	if info, err := os.Lstat(link); err == nil {
 		if info.Mode()&os.ModeSymlink == 0 {
 			return fmt.Errorf("%s is in the way: it should be a link to app %s's folder", link, name)
@@ -211,7 +213,14 @@ func appRegister(name, folder string) error {
 	return os.Symlink(folder, link)
 }
 
-func appUnitName(name string) string { return "hi-team-" + name + ".service" }
+func appUnitName(name string) string { return "hi-app-" + name + ".service" }
+
+// appConfigFile is an app's settings in its folder; apps made before v2.6.67
+// kept them in team.json, until hi app up moves them (appMigrate).
+const (
+	appConfigFile       = "app.json"
+	legacyAppConfigFile = "team.json"
+)
 
 // defaultTeamMembers is the roster the wizard offers: the reviewer is a
 // different agent from the coder, so the code is checked by someone other
@@ -311,9 +320,10 @@ func loadTeam(name string) (appConfig, error) {
 	if !appNamePattern.MatchString(name) {
 		return config, fmt.Errorf("no app named %q", name)
 	}
-	data, err := os.ReadFile(filepath.Join(appDir(name), "team.json"))
+	migrateAppConfig(appDir(name))
+	data, err := os.ReadFile(filepath.Join(appDir(name), appConfigFile))
 	if errors.Is(err, os.ErrNotExist) {
-		if target, linkErr := os.Readlink(filepath.Join(teamsDir(), name)); linkErr == nil {
+		if target, linkErr := os.Readlink(filepath.Join(appsDir(), name)); linkErr == nil {
 			return config, fmt.Errorf("app %s's folder %s is gone; if you moved it, run hi app up <its new folder>", name, target)
 		}
 		return config, fmt.Errorf("no app named %s; hi app ls lists them", name)
@@ -322,14 +332,14 @@ func loadTeam(name string) (appConfig, error) {
 		return config, err
 	}
 	if err := json.Unmarshal(data, &config); err != nil {
-		return config, fmt.Errorf("team.json: %w", err)
+		return config, fmt.Errorf("app.json: %w", err)
 	}
 	return config, nil
 }
 
 func saveTeam(config appConfig) error {
 	data, _ := json.MarshalIndent(config, "", "  ")
-	return os.WriteFile(filepath.Join(appDir(config.Name), "team.json"), append(data, '\n'), 0o600)
+	return os.WriteFile(filepath.Join(appDir(config.Name), appConfigFile), append(data, '\n'), 0o600)
 }
 
 func loadTeamSecrets(name string) (appSecrets, error) {
@@ -693,7 +703,7 @@ usage:
   hi app upstream <name>           for an adopted project: fetch the project it came from, and say
                                    where dev stands against it and what's new there
 
-An app is its folder. hi finds it by name through `+teamsDir()+`.`)
+An app is its folder. hi finds it by name through `+appsDir()+`.`)
 }
 
 // ---------------------------------------------------------------------------
@@ -795,7 +805,7 @@ func (liveTeamSlack) channel(botToken, channel string) (string, bool, error) {
 	return info.Name, info.IsMember, nil
 }
 
-// appAnswers is what --from reads: team.json's fields, and a repository
+// appAnswers is what --from reads: app.json's fields, and a repository
 // to clone instead of a new one.
 type appAnswers struct {
 	appConfig
@@ -959,7 +969,7 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	}
 	if err := createTeamFolder(&config, secrets, answers.Clone, answers.Empty, answers.adoption, stdout); err != nil {
 		os.RemoveAll(dir)
-		os.Remove(filepath.Join(teamsDir(), name))
+		os.Remove(filepath.Join(appsDir(), name))
 		return err
 	}
 	if answers.GitHub != "" {
@@ -1731,7 +1741,7 @@ func appMemberLabel(member appMember) string {
 	return label
 }
 
-// appDefaultEffort is how hard a member thinks unless team.json says.
+// appDefaultEffort is how hard a member thinks unless app.json says.
 const appDefaultEffort = "medium"
 
 func appEffort(member appMember) string { return firstNonEmpty(member.Effort, appDefaultEffort) }
@@ -2096,8 +2106,8 @@ func appBotName(name string) string { return name }
 
 func appUnit(config appConfig, executable string) string {
 	env := ""
-	if dir := os.Getenv("HI_TEAMS_DIR"); dir != "" {
-		env += "Environment=HI_TEAMS_DIR=" + dir + "\n"
+	if dir := os.Getenv("HI_APPS_DIR"); dir != "" {
+		env += "Environment=HI_APPS_DIR=" + dir + "\n"
 	}
 	// The agents, git, and podman are found as in the shell that ran hi app up.
 	env += "Environment=PATH=" + os.Getenv("PATH") + "\n"
@@ -2140,6 +2150,9 @@ func appUp(name string, stdout io.Writer) error {
 		return err
 	}
 	if err := hermesInstalled(); err != nil {
+		return err
+	}
+	if err := appMigrate(name, stdout); err != nil {
 		return err
 	}
 	executable, err := os.Executable()
@@ -2199,18 +2212,19 @@ func appAdopt(folder string, stdout io.Writer) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "team.json"))
+	migrateAppConfig(dir)
+	data, err := os.ReadFile(filepath.Join(dir, appConfigFile))
 	if err != nil {
 		return "", fmt.Errorf("%s isn't an app's folder: %w", dir, err)
 	}
 	var config appConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		return "", fmt.Errorf("team.json: %w", err)
+		return "", fmt.Errorf("app.json: %w", err)
 	}
 	if !appNamePattern.MatchString(config.Name) {
-		return "", fmt.Errorf("team.json has no valid name: %q", config.Name)
+		return "", fmt.Errorf("app.json has no valid name: %q", config.Name)
 	}
-	if current := appDir(config.Name); current != dir && fileExists(filepath.Join(current, "team.json")) {
+	if current := appDir(config.Name); current != dir && fileExists(filepath.Join(current, appConfigFile)) {
 		return "", fmt.Errorf("another app named %s is in %s", config.Name, current)
 	}
 	if err := appRegister(config.Name, dir); err != nil {
@@ -2223,6 +2237,9 @@ func appAdopt(folder string, stdout io.Writer) (string, error) {
 func appDown(name string, stdout io.Writer) error {
 	if _, err := loadTeam(name); err != nil {
 		return err
+	}
+	if appLegacy(name) {
+		appStopLegacy(name)
 	}
 	if out, err := appSystemctl("disable", "--now", appUnitName(name)); err != nil && fileExists(appUnitPath(name)) {
 		return fmt.Errorf("systemctl --user disable --now %s: %s", appUnitName(name), qFirstLine(out, err.Error()))
@@ -2258,7 +2275,7 @@ func appRebuild(name string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "\nIts preview and production move to the new image in a few minutes, on the same addresses. The dev box moves when it restarts: hi app dev %s restart (agents working there stop; herdr brings their conversations back).\n", name)
 	var others []string
-	entries, _ := os.ReadDir(teamsDir())
+	entries, _ := os.ReadDir(appsDir())
 	for _, entry := range entries {
 		if entry.Name() != name && appNamePattern.MatchString(entry.Name()) && appState(entry.Name()) == "up" {
 			others = append(others, entry.Name())
@@ -2309,7 +2326,7 @@ var appRemoveContainers = func(name string, boxes []string) {
 	}
 	engine.output("rm", "-f", appMemoryContainer(name))
 	stopTeamResolver(name)
-	teardownBox(engine, boxMeta{Name: "team-" + name})
+	teardownBox(engine, boxMeta{Name: "app-" + name})
 	stopTeamDev(engine, name)
 	stopTeamPeers(engine, name)
 	for _, box := range boxes {
@@ -2356,7 +2373,7 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	if !appNamePattern.MatchString(name) {
 		return fmt.Errorf("no app named %q", name)
 	}
-	link := filepath.Join(teamsDir(), name)
+	link := filepath.Join(appsDir(), name)
 	_, linkErr := os.Lstat(link)
 	folder := ""
 	if config, err := loadTeam(name); err == nil {
@@ -2382,6 +2399,9 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if err := confirm(stdin, stdout, yes, "Remove app "+name+"?"); err != nil {
 		return err
+	}
+	if appLegacy(name) {
+		appStopLegacy(name)
 	}
 
 	if out, err := appSystemctl("disable", "--now", appUnitName(name)); err != nil && fileExists(appUnitPath(name)) {
@@ -2413,7 +2433,11 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 }
 
 func appState(name string) string {
-	out, _ := appSystemctl("is-active", appUnitName(name))
+	unit := appUnitName(name)
+	if appLegacy(name) && !fileExists(appUnitPath(name)) {
+		unit = legacyAppUnit(name) // until hi app up moves it to the new names
+	}
+	out, _ := appSystemctl("is-active", unit)
 	if out == "" {
 		return "down"
 	}
@@ -2429,7 +2453,7 @@ func appState(name string) string {
 // appLeadBoxes describes the leads' boxes that are running, for hi box
 // ls: hi app starts them, not hi box.
 func appLeadBoxes() []string {
-	entries, err := os.ReadDir(teamsDir())
+	entries, err := os.ReadDir(appsDir())
 	if err != nil || len(entries) == 0 {
 		return nil
 	}
@@ -2443,7 +2467,7 @@ func appLeadBoxes() []string {
 		if err != nil {
 			continue
 		}
-		container := "hi-box-team-" + config.Name
+		container := "hi-box-app-" + config.Name
 		if engine.state(container) != "running" {
 			continue
 		}
@@ -2455,7 +2479,7 @@ func appLeadBoxes() []string {
 // appPick lets you choose one of the teams on this machine from a list
 // that shows whether each is up.
 func appPick(stdin io.Reader, stdout io.Writer, title string) (string, error) {
-	entries, err := os.ReadDir(teamsDir())
+	entries, err := os.ReadDir(appsDir())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
@@ -2479,7 +2503,7 @@ func appPick(stdin io.Reader, stdout io.Writer, title string) (string, error) {
 }
 
 func appList(stdout io.Writer) error {
-	entries, err := os.ReadDir(teamsDir())
+	entries, err := os.ReadDir(appsDir())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}

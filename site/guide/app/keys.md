@@ -44,7 +44,7 @@ do. It goes back to ChatGPT on its own when it can. `hi app status` shows
 a role on its fallback. A model the plan has and OpenRouter hasn't gets a
 fallback of your choice: `--fallback <model on OpenRouter>`. The lead's
 memory (Hindsight) keeps using OpenRouter, with this machine's Hermes model,
-a cheap one, unless team.json names one (`"memory_model":
+a cheap one, unless app.json names one (`"memory_model":
 "google/gemini-3.8-flash"`); the helper's answers use the lead's model, through OpenRouter.
 hi counts what each of these calls cost from OpenRouter's answer, asking
 for it when the caller didn't.
@@ -90,7 +90,7 @@ Only owners may: a sign-in decides whose subscription pays. On the
 machine, `hi app signin payments chatgpt|claude` does the same.
 
 **How hard the lead thinks.** The lead thinks at medium effort unless
-team.json says otherwise; hi passes it to Hermes (`reasoning_effort`),
+app.json says otherwise; hi passes it to Hermes (`reasoning_effort`),
 since the machine's own settings don't reach its box:
 
 ```sh

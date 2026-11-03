@@ -86,7 +86,7 @@
       "via": "everything lives in",
       "items": [
         {
-          "title": "team.json · repo/ · dev/ · tickets/ · memory/ · app/",
+          "title": "app.json · repo/ · dev/ · tickets/ · memory/ · app/",
           "role": "on disk",
           "does": "Containers are rebuilt from it; a copy of the folder is a copy of the app, snapshotted daily.",
           "chip": "restic",

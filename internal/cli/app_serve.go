@@ -82,7 +82,7 @@ func appServe(name string, stdout, stderr io.Writer) error {
 		}
 	}
 
-	meta := boxMeta{Name: "team-" + name, Agent: "hermes", Engine: engine.name, Network: "team", Created: time.Now().UTC()}
+	meta := boxMeta{Name: "app-" + name, Agent: "hermes", Engine: engine.name, Network: "team", Created: time.Now().UTC()}
 	container := "hi-box-" + meta.Name
 	// Whatever a crash left behind goes first, the memory server before the
 	// network it is on.
@@ -362,7 +362,7 @@ func appServe(name string, stdout, stderr io.Writer) error {
 // so it lives in the user's runtime folder when there is one.
 func appBrokerDir(name string) string {
 	if runtime := os.Getenv("XDG_RUNTIME_DIR"); runtime != "" && fileExists(runtime) {
-		return filepath.Join(runtime, "hi-team-"+name)
+		return filepath.Join(runtime, "hi-app-"+name)
 	}
 	return filepath.Join(appDir(name), "run", "broker")
 }

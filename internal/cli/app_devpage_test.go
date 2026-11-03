@@ -330,10 +330,10 @@ func TestTeamDevPageTerminal(t *testing.T) {
 		t.Fatal("a WebSocket from another site:", err)
 	}
 	// The page's address as hi exposed it, whatever host the proxy says.
-	state, _ := json.Marshal(appDevPageState{URL: "https://team-payments-dev.example.net/?hi_key=k", Expose: "team-payments-dev"})
+	state, _ := json.Marshal(appDevPageState{URL: "https://app-payments-dev.example.net/?hi_key=k", Expose: "app-payments-dev"})
 	os.MkdirAll(appDir("payments")+"/run", 0o700)
 	os.WriteFile(appDevPageStatePath("payments"), state, 0o600)
-	header.Set("Origin", "https://team-payments-dev.example.net")
+	header.Set("Origin", "https://app-payments-dev.example.net")
 	conn, _, err := websocket.DefaultDialer.Dial(address, header)
 	if err != nil {
 		t.Fatal(err)
@@ -355,13 +355,13 @@ func TestTeamDevPageTerminal(t *testing.T) {
 // Owners' DMs get the dev page's link, with their key; others' don't.
 func TestTeamDevPageLink(t *testing.T) {
 	b, _ := appTestDevPage(t)
-	state := appDevPageState{URL: "https://team-payments-dev.example.net/?hi_key=k", Expose: "team-payments-dev", Expires: time.Now().Add(time.Hour)}
+	state := appDevPageState{URL: "https://app-payments-dev.example.net/?hi_key=k", Expose: "app-payments-dev", Expires: time.Now().Add(time.Hour)}
 	data, _ := json.Marshal(state)
 	os.MkdirAll(appDir("payments")+"/run", 0o700)
 	os.WriteFile(appDevPageStatePath("payments"), data, 0o600)
-	b.exposed = func(name string) (netExposeState, bool) { return netExposeState{}, name == "team-payments-dev" }
+	b.exposed = func(name string) (netExposeState, bool) { return netExposeState{}, name == "app-payments-dev" }
 	owner := b.appLinkText(appPersonKey{Key: appTestOwnerKey, User: "U07OWNER1", Name: "Olga", Ends: time.Now().Add(time.Hour)})
-	if !strings.Contains(owner, "https://team-payments-dev.example.net/?hi_key=k&hi_user="+appTestOwnerKey) {
+	if !strings.Contains(owner, "https://app-payments-dev.example.net/?hi_key=k&hi_user="+appTestOwnerKey) {
 		t.Fatal(owner)
 	}
 	if asker := b.appLinkText(appPersonKey{Key: appTestAskerKey, User: "U07ASKER1", Name: "Ari", Ends: time.Now().Add(time.Hour)}); strings.Contains(asker, "Dev page") {

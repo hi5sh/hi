@@ -18,27 +18,27 @@ import (
 // feedback, their sign-in) last. Without one, NetBird makes up an address
 // each day.
 
-// teamsSettings is settings.json beside the teams' links.
-type teamsSettings struct {
+// appsSettings is settings.json beside the teams' links.
+type appsSettings struct {
 	Domain string `json:"domain,omitempty"`
 }
 
-func teamsSettingsPath() string { return filepath.Join(teamsDir(), "settings.json") }
+func appsSettingsPath() string { return filepath.Join(appsDir(), "settings.json") }
 
-func loadTeamsSettings() teamsSettings {
-	var settings teamsSettings
-	if data, err := os.ReadFile(teamsSettingsPath()); err == nil {
+func loadTeamsSettings() appsSettings {
+	var settings appsSettings
+	if data, err := os.ReadFile(appsSettingsPath()); err == nil {
 		json.Unmarshal(data, &settings)
 	}
 	return settings
 }
 
-func saveTeamsSettings(settings teamsSettings) error {
-	if err := os.MkdirAll(teamsDir(), 0o700); err != nil {
+func saveTeamsSettings(settings appsSettings) error {
+	if err := os.MkdirAll(appsDir(), 0o700); err != nil {
 		return err
 	}
 	data, _ := json.MarshalIndent(settings, "", "  ")
-	return writeFileAtomic(teamsSettingsPath(), append(data, '\n'), 0o600)
+	return writeFileAtomic(appsSettingsPath(), append(data, '\n'), 0o600)
 }
 
 // appSlotDomain is the name a team's preview or production is on, or ""
@@ -67,7 +67,7 @@ func appDomainCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			return nil
 		}
 		var on []string
-		entries, _ := os.ReadDir(teamsDir())
+		entries, _ := os.ReadDir(appsDir())
 		for _, entry := range entries {
 			if config, err := loadTeam(entry.Name()); err == nil && appNamePattern.MatchString(entry.Name()) && config.Domain {
 				on = append(on, fmt.Sprintf("  %s: https://%s", config.Name, appSlotDomain(config.Name, appSlotProduction)))

@@ -399,7 +399,7 @@ func (w *appWatcher) rulesLocked(team *watchTeam, now time.Time) []watchEvent {
 	}
 	add("serve-restarts", beat.Restarts > 3, "The app has stopped restarting on its own.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("%s restarted on its own %d times in a day", team.Team, beat.Restarts),
-			Detail: "systemd starts hi app __serve again when it stops without being asked (a crash, a kill); updates and hi app up don't count. This many means it keeps stopping: journalctl --user -u hi-team-" + team.Team + " on the app's machine says why."}
+			Detail: "systemd starts hi app __serve again when it stops without being asked (a crash, a kill); updates and hi app up don't count. This many means it keeps stopping: journalctl --user -u hi-app-" + team.Team + " on the app's machine says why."}
 	})
 	add("oom", beat.OOMKills > 0, "No box was killed for memory in the last day.", func() watchIncident {
 		return watchIncident{Title: fmt.Sprintf("A box of %s was killed for memory (%d in a day)", team.Team, beat.OOMKills), Tell: true}

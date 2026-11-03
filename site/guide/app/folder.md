@@ -5,11 +5,11 @@ description: "Everything a hi app knows and has made lives in one folder; hi sna
 
 Everything an app knows and has made is in one folder: `app-<name>` in
 the folder where you ran `hi app new`, or wherever `--dir` puts it. hi
-finds it by name from anywhere, through a link in `~/.local/share/hi/teams`.
+finds it by name from anywhere, through a link in `~/.local/share/hi/apps`.
 
 | Path | What |
 |---|---|
-| `team.json` | Purpose, channel, owners, members |
+| `app.json` | Purpose, channel, owners, members |
 | `secrets.json` | The Slack tokens, readable only by you |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` in an older app whose SOUL.md hi replaced |
 | `repo/` | The project's git repository, which dev and production are branches of; `repo/docs/specs/` holds the specs, one file per feature |
@@ -78,10 +78,10 @@ production's data, and `dev/`: the dev box is rewound too, its home, its
 clone, the worktrees, and the agents' conversations. Work there since the
 snapshot is only in the snapshot taken first. The code in `repo/` stays
 as it is unless you add `--code`, and so do the app's settings
-(`team.json`, `secrets.json`). The channel hears what happened, with the
+(`app.json`, `secrets.json`). The channel hears what happened, with the
 snapshot that undoes it.
 
-Snapshots live in `~/.local/share/hi/team-snapshots/<name>/`, outside the
+Snapshots live in `~/.local/share/hi/app-snapshots/<name>/`, outside the
 app's folder, with the key they are encrypted with. They stay when the
 app is removed. hi keeps the last 7 days, 4 weeks, and 6 months, every
 snapshot from the last week, and every snapshot taken before a release.

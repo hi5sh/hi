@@ -39,7 +39,7 @@ const (
 // "memory": "off" leaves the lead with Hermes' built-in memory alone.
 func appMemoryOn(config appConfig) bool { return config.Memory != "off" }
 
-func appMemoryContainer(team string) string { return "hi-box-team-" + team + "-memory" }
+func appMemoryContainer(team string) string { return "hi-box-app-" + team + "-memory" }
 
 // appMemoryIP is the server's address: the proxy's /24, at .200.
 func appMemoryIP(proxyIP string) string {
@@ -233,7 +233,7 @@ func startTeamMemory(engine boxEngine, config appConfig, proxyIP string) error {
 	model := appMemoryModel(config)
 	proxy := fmt.Sprintf("http://%s:%d", proxyIP, boxProxyPort)
 	run := []string{"run", "-d", "--rm", "--init", "--name", appMemoryContainer(config.Name), "--hostname", config.Name + "-memory",
-		"--network", "hi-box-team-" + config.Name, "--ip", appMemoryIP(proxyIP), "--dns", "127.0.0.1"}
+		"--network", "hi-box-app-" + config.Name, "--ip", appMemoryIP(proxyIP), "--dns", "127.0.0.1"}
 	run = append(run, engine.userArgs()...)
 	run = append(run, boxHardening("4g")...)
 	run = append(run, "-v", data+":/home/hindsight/.pg0",

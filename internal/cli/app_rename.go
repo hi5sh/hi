@@ -26,7 +26,7 @@ func (config appConfig) madeAs() string { return firstNonEmpty(config.MadeAs, co
 // it; then name-2, name-3, and on, so the two never share them.
 func appFreeMadeAs(name string) string {
 	taken := map[string]bool{}
-	entries, _ := os.ReadDir(teamsDir())
+	entries, _ := os.ReadDir(appsDir())
 	for _, entry := range entries {
 		if config, err := loadTeam(entry.Name()); err == nil && appNamePattern.MatchString(entry.Name()) {
 			taken[config.madeAs()] = true
@@ -66,7 +66,7 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Lstat(filepath.Join(teamsDir(), name)); err == nil || fileExists(appUnitPath(name)) {
+	if _, err := os.Lstat(filepath.Join(appsDir(), name)); err == nil || fileExists(appUnitPath(name)) {
 		return fmt.Errorf("there is already an app named %s on this machine", name)
 	}
 	if fileExists(appSnapshotsDir(name)) {
@@ -134,7 +134,7 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		config.MadeAs = ""
 	}
 	data, _ := json.MarshalIndent(config, "", "  ")
-	if err := os.WriteFile(filepath.Join(folder, "team.json"), append(data, '\n'), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(folder, appConfigFile), append(data, '\n'), 0o600); err != nil {
 		return err
 	}
 	appRenameSoul(filepath.Join(folder, "lead"), old, name)
@@ -143,7 +143,7 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		os.WriteFile(filepath.Join(folder, "slack-manifest.json"), []byte(appManifest(config)+"\n"), 0o600)
 	}
 	appRenameMemoryContext(filepath.Join(folder, "lead"), old)
-	if err := os.Remove(filepath.Join(teamsDir(), old)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := os.Remove(filepath.Join(appsDir(), old)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	if err := appRegister(name, folder); err != nil {

@@ -51,7 +51,7 @@ window.HI5_STORY = {
       short: 11000, screen: "terminal", window: "you@it: ~",
       lines: [
         { cmd: "hi app snapshots onboarding", at: 300 },
-        { out: "Snapshots of app onboarding, in /home/you/.local/share/hi/team-snapshots/onboarding.", at: 1300 },
+        { out: "Snapshots of app onboarding, in /home/you/.local/share/hi/app-snapshots/onboarding.", at: 1300 },
         { out: " ", at: 1300 },
         { out: "ID        TAKEN             WHY         SIZE      NEW", pre: true, at: 1600 },
         { out: "7a298224  2026-10-19 03:33  daily       12.1 MB   12.1 MB", pre: true, at: 2100 },

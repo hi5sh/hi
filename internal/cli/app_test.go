@@ -51,8 +51,8 @@ func setupTeamTest(t *testing.T) string {
 	// A broker's background work that ends after its test (a fix round, a
 	// deep review) writes somewhere harmless, not to this machine's
 	// teams: this runs after t.Setenv puts the old value back.
-	t.Cleanup(func() { os.Setenv("HI_TEAMS_DIR", filepath.Join(os.TempDir(), "hi-test-teams")) })
-	t.Setenv("HI_TEAMS_DIR", filepath.Join(dir, "teams"))
+	t.Cleanup(func() { os.Setenv("HI_APPS_DIR", filepath.Join(os.TempDir(), "hi-test-teams")) })
+	t.Setenv("HI_APPS_DIR", filepath.Join(dir, "teams"))
 	// No test reaches this machine's containers for a team's dev box.
 	savedStopDev := appStopDevBox
 	appStopDevBox = func(string) {}
@@ -285,7 +285,7 @@ func TestTeamWizard(t *testing.T) {
 
 func TestTeamNewChecksSlack(t *testing.T) {
 	setupTeamTest(t)
-	file := filepath.Join(t.TempDir(), "team.json")
+	file := filepath.Join(t.TempDir(), "app.json")
 	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
 	var out bytes.Buffer
 	if err := appNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "HI_APP_SLACK_BOT_TOKEN") {
@@ -388,15 +388,15 @@ func TestTeamUpWritesUnit(t *testing.T) {
 		t.Fatal(err)
 	}
 	unit, _ := os.ReadFile(appUnitPath("payments"))
-	if !strings.Contains(string(unit), " app __serve payments\n") || !strings.Contains(string(unit), "Restart=always") || !strings.Contains(string(unit), "HI_TEAMS_DIR=") {
+	if !strings.Contains(string(unit), " app __serve payments\n") || !strings.Contains(string(unit), "Restart=always") || !strings.Contains(string(unit), "HI_APPS_DIR=") {
 		t.Fatal(string(unit))
 	}
-	if strings.Join(calls, "; ") != "daemon-reload; enable hi-team-payments.service; restart hi-team-payments.service; enable --now hi-team-payments-snapshot.timer" {
+	if strings.Join(calls, "; ") != "daemon-reload; enable hi-app-payments.service; restart hi-app-payments.service; enable --now hi-app-payments-snapshot.timer" {
 		t.Fatal(calls)
 	}
 	// The daily snapshot: a timer, caught up after a reboot, and its service.
-	timer, _ := os.ReadFile(filepath.Join(filepath.Dir(appUnitPath("payments")), "hi-team-payments-snapshot.timer"))
-	service, _ := os.ReadFile(filepath.Join(filepath.Dir(appUnitPath("payments")), "hi-team-payments-snapshot.service"))
+	timer, _ := os.ReadFile(filepath.Join(filepath.Dir(appUnitPath("payments")), "hi-app-payments-snapshot.timer"))
+	service, _ := os.ReadFile(filepath.Join(filepath.Dir(appUnitPath("payments")), "hi-app-payments-snapshot.service"))
 	if !strings.Contains(string(timer), "Persistent=true") || !strings.Contains(string(service), " app snapshot payments --daily\n") {
 		t.Fatal(string(timer), string(service))
 	}
@@ -450,10 +450,10 @@ func TestTeamRemove(t *testing.T) {
 	if err := appRemove([]string{"payments", "--keep-folder", "--yes"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !fileExists(filepath.Join(folder, "team.json")) || fileExists(appUnitPath("payments")) || fileExists(filepath.Join(teamsDir(), "payments")) {
+	if !fileExists(filepath.Join(folder, "app.json")) || fileExists(appUnitPath("payments")) || fileExists(filepath.Join(appsDir(), "payments")) {
 		t.Fatal("--keep-folder should remove only what is outside the folder")
 	}
-	if strings.Join(calls, "; ") != "disable --now hi-team-payments.service; disable --now hi-team-payments-snapshot.timer; daemon-reload" || len(removed) != 1 {
+	if strings.Join(calls, "; ") != "disable --now hi-app-payments.service; disable --now hi-app-payments-snapshot.timer; daemon-reload" || len(removed) != 1 {
 		t.Fatal(calls, removed)
 	}
 	if !strings.Contains(out.String(), "hi app up "+folder) {
@@ -934,7 +934,7 @@ func TestTeamPreview(t *testing.T) {
 	if !first.NewLink || !strings.HasSuffix(first.URL, "?hi_key=k") || first.Source != "main" || !strings.HasSuffix(b.apps[0], " make run 8080") {
 		t.Fatalf("%+v %q", first, b.apps)
 	}
-	if calls := exposed(); len(calls) != 1 || !strings.Contains(calls[0], fmt.Sprintf("net expose %d --follow %s --link --detach --json --max 24h0m0s --name team-payments", first.HostPort, portFile)) {
+	if calls := exposed(); len(calls) != 1 || !strings.Contains(calls[0], fmt.Sprintf("net expose %d --follow %s --link --detach --json --max 24h0m0s --name app-payments", first.HostPort, portFile)) {
 		t.Fatal(calls)
 	}
 	if data, _ := os.ReadFile(portFile); strings.TrimSpace(string(data)) != fmt.Sprint(first.HostPort) {
@@ -1065,7 +1065,7 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, ok := loadTeamSlot("payments", appSlotProduction)
-	if !ok || first.Label != "production v1" || first.Message == "" || !strings.Contains(first.Expose, "team-payments-live") {
+	if !ok || first.Label != "production v1" || first.Message == "" || !strings.Contains(first.Expose, "app-payments-live") {
 		t.Fatalf("%+v", first)
 	}
 	// The app reads its address from a file hi keeps current.
@@ -1177,7 +1177,7 @@ func TestTeamRebuild(t *testing.T) {
 	if err := appRebuild("payments", &out, io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if len(calls) < 4 || calls[0] != "build" || !slices.Contains(calls, "restart hi-team-payments.service") {
+	if len(calls) < 4 || calls[0] != "build" || !slices.Contains(calls, "restart hi-app-payments.service") {
 		t.Fatal(calls)
 	}
 	if !strings.Contains(out.String(), "hi app dev payments restart") || !strings.Contains(out.String(), "so billing still run the old one") {

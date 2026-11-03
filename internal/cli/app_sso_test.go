@@ -55,7 +55,7 @@ func TestTeamSSO(t *testing.T) {
 	if err := appSSOCommand([]string{"payments", "on", "acme", "--domain", "example.com"}, nil, &out); err == nil || !strings.Contains(err.Error(), "hi app domain payments on") {
 		t.Fatal(err)
 	}
-	saveTeamsSettings(teamsSettings{Domain: "apps.example.com"})
+	saveTeamsSettings(appsSettings{Domain: "apps.example.com"})
 	config.Domain = true
 	saveTeam(config)
 	if err := appSSOCommand([]string{"payments", "on", "acme"}, nil, &out); err == nil || !strings.Contains(err.Error(), "--anyone") {
@@ -120,7 +120,7 @@ func TestTeamSSOProviderRules(t *testing.T) {
 	config := testTeamConfig()
 	config.Domain = true
 	saveTeam(config)
-	saveTeamsSettings(teamsSettings{Domain: "apps.example.com"})
+	saveTeamsSettings(appsSettings{Domain: "apps.example.com"})
 	saveTeamSSOProviders(map[string]appSSOProvider{
 		"google": {Issuer: "https://accounts.google.com", ClientID: "id", ClientSecret: "s"},
 		"entra":  {Issuer: "https://login.microsoftonline.com/0000-tenant/v2.0", ClientID: "id", ClientSecret: "s"},

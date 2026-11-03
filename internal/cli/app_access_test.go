@@ -234,10 +234,10 @@ func TestTeamDevPageTerminalEndsWithAccess(t *testing.T) {
 	t.Cleanup(func() { appDevTermCommand, appDevAccessCheck = previousCommand, previousCheck })
 	server := httptest.NewServer(b.devPageHandler())
 	t.Cleanup(server.Close)
-	state := `{"url":"https://team-payments-dev.example.net/?hi_key=k","expose":"team-payments-dev"}`
+	state := `{"url":"https://app-payments-dev.example.net/?hi_key=k","expose":"app-payments-dev"}`
 	os.MkdirAll(appDir("payments")+"/run", 0o700)
 	os.WriteFile(appDevPageStatePath("payments"), []byte(state), 0o600)
-	header := http.Header{netExposeUserHeader: {appTestDeveloperKey}, "Origin": {"https://team-payments-dev.example.net"}}
+	header := http.Header{netExposeUserHeader: {appTestDeveloperKey}, "Origin": {"https://app-payments-dev.example.net"}}
 	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+appDevPagePrefix+"api/term", header)
 	if err != nil {
 		t.Fatal(err)

@@ -167,7 +167,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 		text = ":sunny: *The org server unfroze the app*"
 	case "pause":
 		if !state.Paused {
-			running := appRunningContainers("hi-box-team-"+b.team, "hi-box-"+b.team+"-t-")
+			running := appRunningContainers("hi-box-app-"+b.team, "hi-box-"+b.team+"-t-")
 			for _, name := range running {
 				appWatchEngine("pause", name)
 			}

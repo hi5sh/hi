@@ -16,7 +16,7 @@ import (
 // (staleServers leaves out hi's own process, so the wait is called as
 // restartStaleServers calls it.)
 func TestUpdateWaitsForRelease(t *testing.T) {
-	t.Setenv("HI_TEAMS_DIR", t.TempDir())
+	t.Setenv("HI_APPS_DIR", t.TempDir())
 	pid := strconv.Itoa(os.Getpid())
 	fakeProc(t, map[string][3]string{pid: {"/usr/local/bin/hi (deleted)", "hi\x00team\x00__serve\x00bulletin\x00", ""}})
 	previous := appRestartPoll
@@ -24,7 +24,7 @@ func TestUpdateWaitsForRelease(t *testing.T) {
 	defer func() { appRestartPoll = previous }()
 
 	done := appMarkBusy("bulletin", appBusyReleasing)
-	server := staleServer{pid: os.Getpid(), unit: "hi-team-bulletin.service", user: true, team: "bulletin"}
+	server := staleServer{pid: os.Getpid(), unit: "hi-app-bulletin.service", user: true, team: "bulletin"}
 	if got := appBusy(server.team, server.pid); got != appBusyReleasing {
 		t.Fatal(got)
 	}
@@ -57,14 +57,14 @@ func TestUpdateWaitsForRelease(t *testing.T) {
 
 // A start unpauses what the service before left paused.
 func TestTeamUnpauseLeftovers(t *testing.T) {
-	t.Setenv("HI_TEAMS_DIR", t.TempDir())
+	t.Setenv("HI_APPS_DIR", t.TempDir())
 	os.MkdirAll(filepath.Join(appDir("payments"), "run"), 0o700)
 	saveTeamSlot("payments", appPreview{Slot: appSlotProduction, Container: "app-prod"})
 	saveTeamSlot("payments", appPreview{Slot: appSlotPreview, Container: "app-preview"})
-	os.WriteFile(appBusyPath("payments", appBusyPaused), []byte("1\nhi-box-team-payments\napp-prod\n"), 0o600)
+	os.WriteFile(appBusyPath("payments", appBusyPaused), []byte("1\nhi-box-app-payments\napp-prod\n"), 0o600)
 	appMarkBusy("payments", appBusyReleasing)
 
-	states := map[string]string{"app-prod": "paused", "app-preview": "running", "hi-box-team-payments": "paused"}
+	states := map[string]string{"app-prod": "paused", "app-preview": "running", "hi-box-app-payments": "paused"}
 	var unpaused []string
 	previous := boxCommand
 	boxCommand = func(_ io.Reader, stdout, _ io.Writer, _ string, args ...string) error {
@@ -80,7 +80,7 @@ func TestTeamUnpauseLeftovers(t *testing.T) {
 
 	var said bytes.Buffer
 	appUnpauseLeftovers(boxEngine{name: "podman", bin: "podman"}, "payments", &said)
-	if strings.Join(unpaused, " ") != "hi-box-team-payments app-prod" || !strings.Contains(said.String(), "app-prod was left paused") {
+	if strings.Join(unpaused, " ") != "hi-box-app-payments app-prod" || !strings.Contains(said.String(), "app-prod was left paused") {
 		t.Fatal(unpaused, said.String())
 	}
 	if fileExists(appBusyPath("payments", appBusyPaused)) || fileExists(appBusyPath("payments", appBusyReleasing)) {

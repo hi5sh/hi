@@ -130,9 +130,9 @@ Can they show in red?</div>
       <summary>Under the hood: the app's folder</summary>
       <div class="prose">
         <p>Everything an app knows and has made is in one folder, <code>app-&lt;name&gt;</code>. The containers are rebuilt from it on every start, so a copy of the folder is a copy of the app: stop it, move the folder, and <code>hi app up ~/app-onboarding</code>.</p>
-        <p><code>team.json</code> holds the purpose, channel, owners, and members; <code>secrets.json</code> the Slack tokens, readable only by you. <code>lead/</code> is the lead's Hermes home, with <code>SOUL.md</code>, its identity: edit it to change how the lead works. <code>repo/</code> is the project's git repository, with its specs in <code>docs/specs/</code>, and <code>dev/</code> the dev box's home and clone.</p>
+        <p><code>app.json</code> holds the purpose, channel, owners, and members; <code>secrets.json</code> the Slack tokens, readable only by you. <code>lead/</code> is the lead's Hermes home, with <code>SOUL.md</code>, its identity: edit it to change how the lead works. <code>repo/</code> is the project's git repository, with its specs in <code>docs/specs/</code>, and <code>dev/</code> the dev box's home and clone.</p>
         <p><code>tasks/</code> has a record of each piece of work shipped into dev, <code>tickets/</code> hi's own tasks, <code>incidents/</code> what went wrong and what the lead did, <code>channel/</code> the channel's log and the files people shared, <code>memory/</code> the lead's long-term memory, and <code>app/</code> production's data.</p>
-        <p><code>hi app up</code> installs a systemd user service, <code>hi-team-&lt;name&gt;</code>, which restarts the app if it stops.</p>
+        <p><code>hi app up</code> installs a systemd user service, <code>hi-app-&lt;name&gt;</code>, which restarts the app if it stops.</p>
       </div>
     </details>
   </section>

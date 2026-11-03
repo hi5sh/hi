@@ -175,7 +175,7 @@ var appUpdateMemory = func(team, box, size string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := engine.output("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-team-"+team+"-")
+	out, err := engine.output("ps", "--format", "{{.Names}}", "--filter", "name=hi-box-app-"+team+"-")
 	if err != nil {
 		return nil, err
 	}

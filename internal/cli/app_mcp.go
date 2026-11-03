@@ -235,7 +235,7 @@ func (b *appBroker) slotMCPSession(ctx context.Context, slot, address string) (a
 	params, _ := json.Marshal(map[string]any{
 		"protocolVersion": appMCPProtocol,
 		"capabilities":    map[string]any{},
-		"clientInfo":      map[string]string{"name": "hi-team-" + b.team, "version": version},
+		"clientInfo":      map[string]string{"name": "hi-app-" + b.team, "version": version},
 	})
 	answer, id, err := appMCPPost(ctx, address, "", appMCPMessage{JSONRPC: "2.0", ID: json.RawMessage(`0`), Method: "initialize", Params: params})
 	if err != nil {
