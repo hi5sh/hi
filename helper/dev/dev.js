@@ -2578,6 +2578,14 @@
     if (editing) $("decision-text").focus();
   }
   $("decision-new").addEventListener("click", function () { openDecision(null, true); });
+  // A click outside it closes it, unless that would lose an edit.
+  $("decision-dialog").addEventListener("click", function (event) {
+    var dialog = $("decision-dialog");
+    var box = dialog.getBoundingClientRect();
+    var outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+    var unsaved = !$("decision-text").hidden && $("decision-text").value !== (decisions.open ? decisions.open.text : "");
+    if (event.target === dialog && outside && !unsaved) dialog.close();
+  });
   $("decision-edit").addEventListener("click", function () { openDecision(decisions.open, true); });
   // Close, or while editing one, Cancel: back to reading it.
   $("decision-close").addEventListener("click", function () {
