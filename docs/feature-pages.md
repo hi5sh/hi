@@ -33,7 +33,7 @@ layout. `internal/cli/feature_pages_test.go` checks for it.
 
 ## The demo
 
-The demo uses the homepage story's player (`docs/story-animation.md`), with
+The demo uses the scene player (`docs/story-animation.md`), with
 its `terminal` screen. The scenes file sets `window.HI5_STORY`:
 
 ```js
