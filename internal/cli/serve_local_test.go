@@ -199,12 +199,12 @@ func (f *fakeLocal) runPodman(stdin io.Reader, stdout, stderr io.Writer, name st
 	case len(args) > 0 && args[0] == "pull":
 		f.images[args[1]] = true
 	case len(args) >= 2 && args[0] == "ps" && args[1] == "-q":
-		fmt.Fprintln(stdout, "team1\nserved1")
+		fmt.Fprintln(stdout, "app1\nserved1")
 	case len(args) > 0 && args[0] == "inspect" && strings.Contains(strings.Join(args, " "), "hi.serve"):
-		os.MkdirAll(filepath.Join(f.root, "sys/fs/cgroup/team1"), 0o755)
-		os.WriteFile(filepath.Join(f.root, "sys/fs/cgroup/team1/memory.current"), []byte(strconv.Itoa(2<<30)), 0o644)
+		os.MkdirAll(filepath.Join(f.root, "sys/fs/cgroup/app1"), 0o755)
+		os.WriteFile(filepath.Join(f.root, "sys/fs/cgroup/app1/memory.current"), []byte(strconv.Itoa(2<<30)), 0o644)
 		// A team's box limited to 10 GB that uses 2, and a served one.
-		fmt.Fprintf(stdout, "%d|/team1|<no value>\n%d|/served1|other\n", 10<<30, 72<<30)
+		fmt.Fprintf(stdout, "%d|/app1|<no value>\n%d|/served1|other\n", 10<<30, 72<<30)
 	}
 	return nil
 }

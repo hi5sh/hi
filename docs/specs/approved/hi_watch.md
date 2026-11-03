@@ -3,7 +3,7 @@
 Status: Approved (2026-10-22). Built: release 1 in v1.4.0, 2 in v1.5.0, 3 in v1.6.0, 4 in v1.7.0.
 
 Superseded (2026-10-29, v2.6.32 to v2.6.34) by
-[hi_team_ops.md](hi_team_ops.md): the rules run on the team's own
+[hi_app_ops.md](hi_app_ops.md): the rules run on the team's own
 machine, a dead team or machine is an outside heartbeat service's to
 notice, and the server watches nothing. The rules, bills, and advisories
 below are still how the team's watcher works; the server's side, the
@@ -12,10 +12,10 @@ the record of what was built.
 
 Dependencies: [hi_server.md](../approved/hi_server.md) (the server, its
 Slack app, client reports, the audit log, the device key),
-[hi_team.md](../approved/hi_team.md) (the broker, `__serve` under systemd),
-[hi_team_jobs.md](../approved/hi_team_jobs.md) (incidents, which this
+[hi_app.md](../approved/hi_app.md) (the broker, `__serve` under systemd),
+[hi_app_jobs.md](../approved/hi_app_jobs.md) (incidents, which this
 reuses), [hi_box.md](../approved/hi_box.md) (the egress proxy and its
-network log), [hi_team_snapshots.md](../approved/hi_team_snapshots.md)
+network log), [hi_app_snapshots.md](../approved/hi_app_snapshots.md)
 (releases and their snapshots), [hi_bun.md](../approved/hi_bun.md) (the
 dependency review), [hi_net.md](../approved/hi_net.md) (NetBird).
 

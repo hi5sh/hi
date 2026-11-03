@@ -969,7 +969,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   copied one. The bot is `team-<name>`.
 - [x] Members reach any site by default (`--network open`); `network` in
   team.json narrows one.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v0.37.1 — `hi team new` checks each answer as it's given
 
@@ -1216,7 +1216,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] The `hi-team` skill: the app's models and settings, and a key offered
   in the channel is sent to `hi team env` instead of a brief. Team bulletin's
   OpenRouter key went from Slack into four briefs and the code.
-  Approved spec: [hi_team_keys.md](specs/approved/hi_team_keys.md).
+  Approved spec: [hi_app_keys.md](specs/approved/hi_app_keys.md).
 
 ### v0.53.1 — The start-up summary shows `--min-gain`
 
@@ -1262,7 +1262,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   is the team's `app/`, which outlives releases; a preview's is its own.
   Team bulletin's app lost what it wrote at every release.
 - [x] `hi install restic`.
-  Approved spec: [hi_team_snapshots.md](specs/approved/hi_team_snapshots.md).
+  Approved spec: [hi_app_snapshots.md](specs/approved/hi_app_snapshots.md).
 
 ### v0.56.0 — Roll production back with its data
 
@@ -1276,7 +1276,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   snapshot taken just before.
 - [x] The broker has a second socket for the machine, which no box mounts;
   `hi team snapshot` and `hi team rollback` use it.
-  Approved spec: [hi_team_snapshots.md, Rollback](specs/approved/hi_team_snapshots.md#rollback-release-2).
+  Approved spec: [hi_app_snapshots.md, Rollback](specs/approved/hi_app_snapshots.md#rollback-release-2).
 
 ### v0.57.0 — Talk to the lead from the app
 
@@ -1295,7 +1295,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] `hi team helper`: on in preview and production by default; the lead
   turns the preview's off when asked, and production's with an owner's
   yes; `hi team helper <name> production off` on the machine.
-  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md) (slice 1).
+  Approved spec: [hi_app_helper.md](specs/approved/hi_app_helper.md) (slice 1).
 
 ### v0.58.0 — Point at what you mean
 
@@ -1311,7 +1311,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   chat. Open shadow roots work; iframes don't.
 - [x] The helper's script has a fixed URL with an ETag, so a new hi's
   helper reaches pages on their next load, without new links.
-  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#select-mode) (slice 2).
+  Approved spec: [hi_app_helper.md](specs/approved/hi_app_helper.md#select-mode) (slice 2).
 
 ### v0.58.1 — Alt+S from anywhere on the page
 
@@ -1330,7 +1330,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   answer, such as that the work is ready to try. The panel shows it at
   once, or a dot and a preview on the button; `hi team web` and
   `hi team web show` list and read the chats.
-  Approved spec: [hi_team_helper.md](specs/approved/hi_team_helper.md#files-and-pictures) (slice 3).
+  Approved spec: [hi_app_helper.md](specs/approved/hi_app_helper.md#files-and-pictures) (slice 3).
 
 ### v0.59.1 — The lead is working
 
@@ -1352,7 +1352,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   address changes. The manifest gains `/hi`, `commands`, and `im:write`.
 - [x] `hi team web questions` and `hi team web link`; feedback in
   `hi team web` and `hi team web show f-12`.
-  Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
+  Approved spec: [hi_app_helper_signin.md](specs/approved/hi_app_helper_signin.md).
 
 ### v0.61.0 — Bun, and a box that can build the web template
 
@@ -1404,7 +1404,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   and each release says who asked for what it holds.
 - [x] The manifest gains `im:history` and `message.im`, and the Messages
   tab is writable.
-  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+  Approved spec: [hi_app_dm.md](specs/approved/hi_app_dm.md).
 
 ### v0.62.1 — im:read
 
@@ -1498,7 +1498,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   A `hi_visitor` cookie, which only `/__hi/` gets, says which browser sent
   what, without anyone knowing who it is.
 - [x] Feedback asks for a name: the box flashes until it's filled.
-  Approved spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md#feedback).
+  Approved spec: [hi_app_helper_signin.md](specs/approved/hi_app_helper_signin.md#feedback).
 
 ### v0.70.0 — Addresses that stay
 
@@ -1583,7 +1583,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   reaches production with a release. Their feedback carries their Slack
   name, checked. A chat from production tells the lead the same. A
   preview's panel stays the chat.
-  Spec: [hi_team_helper_signin.md](specs/approved/hi_team_helper_signin.md).
+  Spec: [hi_app_helper_signin.md](specs/approved/hi_app_helper_signin.md).
 
 ### v0.75.0 — Continuing work without losing any
 
@@ -1605,7 +1605,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   tasks (t-4 > t-6 > t-7).
 - [x] A continuation that was discarded or failed before it had a branch
   no longer hides the work it continued from the five-idea count.
-  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
+  Spec: [hi_app_roles.md](specs/approved/hi_app_roles.md), idea 6.
 
 ### v0.76.0 — Roles that remember, and a map of the project
 
@@ -1624,7 +1624,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 - [x] The lead's SOUL.md and skill say what goes where: the people and the
   conversation in its long-term memory, facts about the code in the map,
   decisions, and specs.
-  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), ideas 1 to 4.
+  Spec: [hi_app_roles.md](specs/approved/hi_app_roles.md), ideas 1 to 4.
 
 ### v0.77.0 — Roles from the template
 
@@ -1635,7 +1635,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   `team/roles/<role>/ROLE.md` gives a role its instructions, ahead of hi's
   defaults, which now live in team-app's own `team/` folder. A cloned or
   empty project still takes a template's roles.
-  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 5.
+  Spec: [hi_app_roles.md](specs/approved/hi_app_roles.md), idea 5.
 
 ### v0.77.1 — An idea ends at merged work
 
@@ -1644,7 +1644,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   shows each line from the merged task it went on from rather than the
   whole history, and discarding one no longer discards the other. Found
   on a team that forked work before v0.75.0.
-  Spec: [hi_team_roles.md](specs/approved/hi_team_roles.md), idea 6.
+  Spec: [hi_app_roles.md](specs/approved/hi_app_roles.md), idea 6.
 
 ### v0.78.0 — Rename a team
 
@@ -1655,7 +1655,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
   the snapshots stay filed under the name the team was made with
   (team.json's `made_as`), so what the lead remembers and every snapshot
   carry over. Refused while a task is running.
-  Spec: [hi_team.md](specs/approved/hi_team.md), Commands.
+  Spec: [hi_app.md](specs/approved/hi_app.md), Commands.
 
 ### v0.78.1 — A renamed lead knows its name
 
@@ -1770,7 +1770,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 - [x] Every team's app has its docs at `/docs` on its addresses: a page
   with two ways in, **User docs** and **Tech docs**
-  ([hi_team_docs.md](specs/approved/hi_team_docs.md)). The user docs are
+  ([hi_app_docs.md](specs/approved/hi_app_docs.md)). The user docs are
   `docs/user/`: why the app exists and who it's for (the owners' story),
   what's in it, how to do things. The tech docs are `docs/tech/` (the
   parts drawn with `boxes` diagrams, like the guide's, and Mermaid
@@ -1885,7 +1885,7 @@ and image policy on the server. Podman arrived in `hi install` in v0.22.2.
 
 ### v0.86.0 — The app's data across preview and production
 
-Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
+Approved spec: [hi_app_data.md](specs/approved/hi_app_data.md).
 
 - [x] Team orbit's first release started production on an empty data
   folder. Production then read 533k press releases again and called a
@@ -2004,7 +2004,7 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
 
 - [x] `hi team adopt <name> <source>` makes a team whose project is one
   someone else wrote, such as one on GitHub
-  ([hi_team_adopt.md](specs/approved/hi_team_adopt.md)): `hi team new` with
+  ([hi_app_adopt.md](specs/approved/hi_app_adopt.md)): `hi team new` with
   the code step answered and the purpose offered from its description.
   In `hi team new`, a project's address in the code step adopts it too.
 - [x] It's fetched without running anything from it, as `hi agent review`
@@ -2067,7 +2067,7 @@ Approved spec: [hi_team_data.md](specs/approved/hi_team_data.md).
 
 ### v0.93.0 — When something goes wrong
 
-Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+Approved spec: [hi_app_jobs.md](specs/approved/hi_app_jobs.md).
 
 - [x] The app's long work reports as jobs: a file per job in
   `$HI_JOBS_DIR` (`/jobs` in the app's box, `run/<slot>-jobs/` on the
@@ -2120,7 +2120,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   window), lights up while it does, and the browser keeps the width;
   `<hi-helper data-width>` tells the page.
 - [x] Spec draft for `/` commands in the chat:
-  [hi_team_commands.md](specs/ideas/hi_team_commands.md).
+  [hi_app_commands.md](specs/ideas/hi_app_commands.md).
 - [x] The compute guide lists Shadeform with the other providers.
 
 ### v0.95.1 — The lead follows its threads
@@ -2157,7 +2157,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
 - [x] Once per team whose dev has merged work and no job has reported,
   hi asks the lead in the channel to find the app's long work that hi
   can't see, and to start its fix as a small task.
-  Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+  Approved spec: [hi_app_jobs.md](specs/approved/hi_app_jobs.md).
 
 ### v0.97.0 — One line per version
 
@@ -2169,14 +2169,14 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   the merged work), and for production who approved and who asked.
 - [x] An owner may release dev from their DM with the lead, `--approval
   dm`; a rollback and production's helper still need the channel.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v0.97.1 — A yes in a DM's thread
 
 - [x] hi reads the replies in a DM's threads when it checks a yes given
   there: Slack's DM history leaves them out, so a yes in a thread went
   unseen and an older message at the top of the DM counted instead.
-  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+  Approved spec: [hi_app_dm.md](specs/approved/hi_app_dm.md).
 
 ### v0.98.0 — Asked where the owner is
 
@@ -2190,7 +2190,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   status to Slack's new Agent Sessions API, which takes only a lifecycle
   state and refused every call. hi hides that API from the lead's Hermes,
   which then uses `assistant.threads.setStatus`.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v0.98.1 — No alarm for hi's own restart
 
@@ -2198,7 +2198,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   restart cuts the app's model calls, and a job that trips on that and
   moves again raises nothing. One that doesn't recover opens its
   incident then, saying when hi started the team.
-  Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
+  Approved spec: [hi_app_jobs.md](specs/approved/hi_app_jobs.md).
 
 ### v0.98.2 — A sign of life in a DM
 
@@ -2210,7 +2210,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
 - [x] Before the lead says work is stuck or proposes a fix, it checks hi
   team jobs and hi team versions: orbit once proposed two fixes that
   production v11 already had, from memory.
-  Approved spec: [hi_team_dm.md](specs/approved/hi_team_dm.md).
+  Approved spec: [hi_app_dm.md](specs/approved/hi_app_dm.md).
 
 ### v0.99.0 — Dev where it's asked for
 
@@ -2220,7 +2220,7 @@ Approved spec: [hi_team_jobs.md](specs/approved/hi_team_jobs.md).
   was noise for everyone else. `hi team preview --channel` posts it in
   the channel when the people ask for that. The lead's SOUL.md and the
   hi-team skill say so.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v1.0.0 — `hi agent brainstorm`, and the full version
 
@@ -2250,7 +2250,7 @@ often come when several models trade ideas.
   `hi team brainstorm`. hi now has each session whose instructions lack
   the current SOUL.md build them again on its next message, keeping the
   conversation.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v1.0.2 — A slow start is waited for
 
@@ -2260,7 +2260,7 @@ often come when several models trade ideas.
   fails at once, with its last lines. The hi-team skill tells the lead to
   run hi team preview and hi team release in the background, since its
   terminal gives up on a command after 3 minutes.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v1.0.4 — The lead hands code on before its steps run out
 
@@ -2280,7 +2280,7 @@ often come when several models trade ideas.
   lead for hands the code to a member.
 - [x] The budget, the warning, and the nudge say which model they were
   set for (gemini-3.8-flash) and are to be checked again on another.
-  Approved spec: [hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md).
+  Approved spec: [hi_app_lead_steps.md](specs/approved/hi_app_lead_steps.md).
 
 ### v1.0.5 — The lead looks at dev before it proposes
 
@@ -2291,11 +2291,11 @@ often come when several models trade ideas.
   the lead's own Ask / Plan proposal, while the yes, t-87, and its merge
   were in a thread of the same DM, a Hermes session of its own; nine
   hours later it proposed the same four steps again.
-  Approved spec: [hi_team.md](specs/approved/hi_team.md).
+  Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 ### v1.1.0 — A preview runs on a fork of production
 
-Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
+Approved spec: [hi_app_data_fork.md](specs/approved/hi_app_data_fork.md).
 
 - [x] Team orbit's preview held 47 GB to production's 157 GB and fell
   further behind each day: its workers run only in production, and
@@ -2326,7 +2326,7 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
   day, and v1.1.0 copied every file changed in the last day. It copies
   what changed in the last ten minutes now, besides the databases, and
   links the rest however new.
-  Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
+  Approved spec: [hi_app_data_fork.md](specs/approved/hi_app_data_fork.md).
 
 ### v1.2.0 — An exposure only from some addresses, or only on the VPN
 
@@ -2344,7 +2344,7 @@ Approved spec: [hi_team_data_fork.md](specs/approved/hi_team_data_fork.md).
 
 ### v1.3.0 — One box runs the app's workers, handed over at every deploy
 
-Approved spec: [hi_team_workers_handover.md](specs/approved/hi_team_workers_handover.md).
+Approved spec: [hi_app_workers_handover.md](specs/approved/hi_app_workers_handover.md).
 
 - [x] Team orbit's production failed to start four times on 2026-10-21
   with "database is locked": at a deploy the new box starts beside the
@@ -2467,7 +2467,7 @@ a task without asking anyone.
 
 ### v1.8.0 — The lead on a ChatGPT plan
 
-Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 1.
+Approved spec: [hi_app_subscriptions.md](specs/approved/hi_app_subscriptions.md), release 1.
 
 - [x] A member's `provider` (openrouter or chatgpt) and `fallback`; the
   wizard asks it for Hermes, signs the team in to ChatGPT with a device
@@ -2487,7 +2487,7 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
 
 ### v1.9.0 — The coder on the team's Claude plan, and each member's effort
 
-Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 3.
+Approved spec: [hi_app_subscriptions.md](specs/approved/hi_app_subscriptions.md), release 3.
 
 - [x] The team's own Claude token (`hi team signin <name> claude`, the
   wizard, `HI_TEAM_CLAUDE_TOKEN`), which members' proxies read before this
@@ -2507,7 +2507,7 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
 
 ### v1.10.0 — The reviewer through the proxy
 
-Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 2.
+Approved spec: [hi_app_subscriptions.md](specs/approved/hi_app_subscriptions.md), release 2.
 
 - [x] A team's Codex member calls ChatGPT through its proxy on a custom
   provider with a placeholder key: no `auth.json` in the box, and no box
@@ -2524,7 +2524,7 @@ Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.m
 
 ### v1.11.0 — Signing in again from Slack
 
-Approved spec: [hi_team_subscriptions.md](specs/approved/hi_team_subscriptions.md), release 4.
+Approved spec: [hi_app_subscriptions.md](specs/approved/hi_app_subscriptions.md), release 4.
 
 - [x] `/hi-<team> signin chatgpt`, owners only: a device code in that
   owner's DM; the team's service waits for it, keeps the new sign-in, and
@@ -2585,7 +2585,7 @@ cost.
 
 ### v1.12.0 — Review rounds that end, and briefs that say what's new
 
-Approved spec: [hi_team_rounds.md](specs/approved/hi_team_rounds.md). Found
+Approved spec: [hi_app_rounds.md](specs/approved/hi_app_rounds.md). Found
 on team orbit: downloading one index's prices took 7 tasks and 68
 minutes, unfinished, with "ultrathink" in every coder brief.
 
@@ -2614,7 +2614,7 @@ minutes, unfinished, with "ultrathink" in every coder brief.
 
 ### v1.13.0 — An agent's conversation outlives its box
 
-Approved spec: [hi_team_threads.md](specs/approved/hi_team_threads.md),
+Approved spec: [hi_app_threads.md](specs/approved/hi_app_threads.md),
 release 1.
 
 - [x] `hi agent --session <folder>` keeps Claude Code's or Codex's session
@@ -2629,7 +2629,7 @@ release 1.
 (v1.14.0 was tagged by mistake on v1.13.0's commit, and is the same as
 v1.13.0.)
 
-Approved spec: [hi_team_threads.md](specs/approved/hi_team_threads.md),
+Approved spec: [hi_app_threads.md](specs/approved/hi_app_threads.md),
 release 2.
 
 - [x] Each piece of work keeps one session per role, in
@@ -2692,7 +2692,7 @@ only checked it on the preview.
 
 ### v2.7.0 — Sign in with the organisation's provider
 
-Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
+Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 
 - [x] `hi team sso provider add <name> <issuer>` keeps an OpenID Connect
   provider on the machine (Google Workspace, Entra ID, Keycloak, Auth0,
@@ -3097,7 +3097,7 @@ Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
 
 ### v2.6.34 — The server watches nothing
 
-- [x] The hi server's watch is gone (hi_team_ops.md, release 4): its
+- [x] The hi server's watch is gone (hi_app_ops.md, release 4): its
   endpoints answer 410, and `hi server watch`, `/hi teams`, ntfy pushes,
   the dead-man's switch, and the OpenRouter keys it made, with revoke,
   rekey, and cut off, are removed. The rules live on as each team's
@@ -3114,7 +3114,7 @@ Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
 ### v2.6.32 — The team watches itself
 
 - [x] The hi server's health, network, and advisory rules run in each
-  team's broker, on its own machine (hi_team_ops.md, release 3), and
+  team's broker, on its own machine (hi_app_ops.md, release 3), and
   every incident they open is the team's, in the ops channel. Teams send
   the server nothing; it answers an old team's heartbeat with 410 and
   closes what it had open for it. `hi team watch`, `hi team freeze`,
@@ -3122,7 +3122,7 @@ Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
 
 ### v2.6.31 — Heartbeats
 
-- [x] A team's heartbeat and the machine's (hi_team_ops.md, release 2):
+- [x] A team's heartbeat and the machine's (hi_app_ops.md, release 2):
   a GET to a service such as healthchecks.io, which alerts when they
   stop. The wizard's last step asks for both; `hi team heartbeat <team>
   <url> [--every 1m]` sends the team's from its service while it runs,
@@ -3143,7 +3143,7 @@ Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
 ### v2.6.29 — An ops channel
 
 - [x] A team can have a second Slack channel for operations and
-  security (hi_team_ops.md, release 1): incidents and everything in their
+  security (hi_app_ops.md, release 1): incidents and everything in their
   threads, jobs' and workers' notices, sign-ins that stopped, snapshots'
   warnings, access changes, and the dev box's site asks go there, and the
   main channel keeps releases, Stage, tasks, ideas, and the app. The
@@ -3250,7 +3250,7 @@ Strix Halo that runs no teams (2026-11-02): qwen3.8-flash-next ready in
 
 ### v2.6.17 — A name for each address, and Stage
 
-Spec: [hi_team_addresses.md](specs/approved/hi_team_addresses.md).
+Spec: [hi_app_addresses.md](specs/approved/hi_app_addresses.md).
 
 - [x] `hi team addresses <team> names <production's name>` gives each
   address a name of its own, which the IT team keeps: production at the
@@ -3300,7 +3300,7 @@ Spec: [hi_team_addresses.md](specs/approved/hi_team_addresses.md).
 
 ### v2.6.13 — Owners, developers, contributors, and viewers
 
-Spec: [hi_team_dev_access.md](specs/approved/hi_team_dev_access.md).
+Spec: [hi_app_dev_access.md](specs/approved/hi_app_dev_access.md).
 
 - [x] **Developers**, whom owners set on the dev page's new People
   section (Security tab) or with `hi team access <team> <@user>
@@ -3456,7 +3456,7 @@ Spec: [hi_team_dev_access.md](specs/approved/hi_team_dev_access.md).
 
 ### v2.6.0 — Adopt a folder
 
-Spec: [hi_team_adopt.md, A folder on this machine](specs/approved/hi_team_adopt.md#a-folder-on-this-machine).
+Spec: [hi_app_adopt.md, A folder on this machine](specs/approved/hi_app_adopt.md#a-folder-on-this-machine).
 Moving team helpdesk from hi 1.x showed the need: its code, in a clean
 team, without the old history or release tags.
 
@@ -3755,7 +3755,7 @@ team, without the old history or release tags.
 - [x] hi serves `/llms.txt` and `/llms-full.txt` on every team's
   addresses, from the user docs, with the app's MCP server when
   `docs/user/mcp.md` tells of one. A relay route may be one path, such as
-  `/llms.txt`. (docs/specs/approved/hi_team_agents.md)
+  `/llms.txt`. (docs/specs/approved/hi_app_agents.md)
 - [x] The lead has the app's tools, from its `/mcp`: `app` on
   production, only those marked read-only, enforced by the team's service;
   `app_preview` on the preview, every one. `hi team mcp` in the lead's box
@@ -4091,7 +4091,7 @@ team, without the old history or release tags.
   `<team>`, `<team>-preview`, and `<team>-dev`, three peers of its own
   passing port 80 to a relay in the team's service, the same as `hi net
   expose`'s without NetBird's public proxy or a link key
-  (docs/specs/approved/hi_team_internal.md). An owner makes an address
+  (docs/specs/approved/hi_app_internal.md). An owner makes an address
   public on the dev page, under Addresses. New teams start internal;
   teams from before stay public until an owner says otherwise. One
   reusable setup key joins the three peers. On 2026-10-25 NetBird's
@@ -4196,7 +4196,7 @@ team, without the old history or release tags.
 
 ### v2.0.0 — hi team dev: owners build in a dev box, not through Slack
 
-Spec: [hi_team_dev.md](specs/approved/hi_team_dev.md). Co-developing
+Spec: [hi_app_dev.md](specs/approved/hi_app_dev.md). Co-developing
 through the Slack lead didn't work out on orbit: nothing showed what
 was going on, and the lead in front cost more than it hid. 2.0 is the
 takeoff from 1.x: each team gets a dev box with herdr, where its owners
@@ -4212,7 +4212,7 @@ development loop is frozen and goes in release 4.
   dev <team> new-host-key`; `hi team new` asks for the NetBird key.
 - [x] Release 2 (v2.1.0): `hi dev preview` and `hi dev ship` from the
   box; `hi team ticket` and `hi dev ticket` over gh, glab or local; the
-  broker's `dev` socket; the first skills in `skills/hi/team`; the setup
+  broker's `dev` socket; the first skills in `skills/hi/app`; the setup
   key goes once joined; a lock on starting the box.
 - [x] Release 2b (v2.2.0): `hi dev review`, a second opinion from the
   other agent in a worktree of its own; `hi dev deep-review` (up to $50)
@@ -4268,7 +4268,7 @@ Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
 
 v2.7.0 (`hi team sso`) is on main but untagged: its tests use a fake
 provider that signs real tokens and checks PKCE, and no real provider
-has signed anyone in yet. Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
+has signed anyone in yet. Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 
 - [ ] Keycloak on a test machine: a realm, a confidential client with both return
   addresses, and one team on a name that stays (`hi team domain <team>
@@ -4290,7 +4290,7 @@ has signed anyone in yet. Spec: [hi_team_sso.md](specs/approved/hi_team_sso.md).
 
 ### Next — people outside Slack, by email, with sign-in
 
-From [hi_team_dev_access.md](specs/approved/hi_team_dev_access.md)'s
+From [hi_app_dev_access.md](specs/approved/hi_app_dev_access.md)'s
 "Later, with sign-in", once the app's address has `hi team sso`.
 
 - [ ] The relay hands the verified email and name to hi's routes as
@@ -4328,7 +4328,7 @@ a plan; this makes the fact reach it without looking.
   lead's Hermes (which hook carries it is to find out), not in the
   system prompt, so its prompt cache stays as it is.
 - [ ] Goes with carrying a turn's findings over
-  ([hi_team_lead_steps.md](specs/approved/hi_team_lead_steps.md)): both
+  ([hi_app_lead_steps.md](specs/approved/hi_app_lead_steps.md)): both
   are what the next turn needs that its conversation doesn't hold.
 
 ### Guide — a diagram for every tool
@@ -4357,7 +4357,7 @@ Once a single round has been tried on real questions:
 
 ### Later — `hi team`
 
-Approved spec: [hi_team.md](specs/approved/hi_team.md).
+Approved spec: [hi_app.md](specs/approved/hi_app.md).
 
 - [ ] A team without NetBird: its peer gets an address on the machine's
   LAN instead, by DHCP or a fixed IP the setup asks for, and its addresses
@@ -4383,13 +4383,13 @@ Approved spec: [hi_team.md](specs/approved/hi_team.md).
   `hi team adopt <name> <source>`, a copy that never pushes to the source,
   a survey that makes it run and maps it, keeping up with upstream, and
   contributing back (v0.90.0 to v0.92.0). Spec:
-  [hi_team_adopt.md](specs/approved/hi_team_adopt.md).
+  [hi_app_adopt.md](specs/approved/hi_app_adopt.md).
 - [ ] Explore a playground team for trying projects out: one team whose
   adopted project can be swapped (`hi team adopt playground <url>
   --replace`), keeping the old one as a branch, so trying something
   doesn't cost a new Slack app and channel. Decide whether it's worth
   bending "a new project is a new team". See
-  [hi_team_adopt.md](specs/approved/hi_team_adopt.md#decisions).
+  [hi_app_adopt.md](specs/approved/hi_app_adopt.md#decisions).
 - [ ] Adopt from the chat, into a team that already exists: while the
   project is still the blank app `hi team new` wrote, someone in Slack or
   the helper's chat gives the lead a repository's link ("adopt <link>",
@@ -4752,7 +4752,7 @@ the root-equivalent groups on gpu1; this takes away the rest.
 How: each team runs as a Linux account of its own, `hi-demo`, which owns
 the team's folder. keep-id stays and maps the box to that account, so
 nothing about mounts changes, and an escape holds what that team holds
-and nothing else. Draft spec: [hi_team_accounts.md](specs/ideas/hi_team_accounts.md).
+and nothing else. Draft spec: [hi_app_accounts.md](specs/ideas/hi_app_accounts.md).
 
 Giving each box a user of its own while the service stays hi's was tried
 first, on gpu1 on 2026-10-28, and doesn't work rootless:

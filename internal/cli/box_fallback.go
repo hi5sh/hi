@@ -1,7 +1,7 @@
 package cli
 
 // A team member's calls to its subscription fall back to OpenRouter when
-// the subscription refuses them (docs/specs/approved/hi_team_subscriptions.md).
+// the subscription refuses them (docs/specs/approved/hi_app_subscriptions.md).
 // Claude Code has no fallback of its own, so the member's proxy resends the
 // same call to OpenRouter's Anthropic-compatible endpoint, with the model's
 // OpenRouter name and the team's OpenRouter key, and keeps to OpenRouter
@@ -148,7 +148,7 @@ func chatGPTRefusal(status int, header http.Header, body []byte) string {
 
 // refusal says what a held response means for the role, or "".
 func (f *boxFallback) refusal(status int, header http.Header, body []byte) string {
-	if f.kind == teamProviderChatGPT {
+	if f.kind == appProviderChatGPT {
 		return chatGPTRefusal(status, header, body)
 	}
 	return claudeRefusal(status, header)
@@ -232,7 +232,7 @@ func newBoxFailover(primary http.Handler, fallback *boxFallback) http.Handler {
 			held.release()
 			return
 		}
-		if fallback.kind != teamProviderChatGPT {
+		if fallback.kind != appProviderChatGPT {
 			// The ChatGPT injector logs its own refusals.
 			fallback.log.record("claude-refused", fmt.Sprintf("%d:%s", held.status, held.reason))
 		}
@@ -285,13 +285,13 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 	}
 	path := "/api" + r.URL.Path
 	target := firstNonEmpty(f.model, claudeOpenRouterModel(model))
-	if f.kind == teamProviderChatGPT {
+	if f.kind == appProviderChatGPT {
 		if !strings.HasSuffix(r.URL.Path, "/responses") {
 			// Only model calls go to OpenRouter; Codex can do without the rest.
 			http.NotFound(w, r)
 			return
 		}
-		path, target = "/api/v1/responses", firstNonEmpty(f.model, teamFallbackModel(teamMember{Provider: teamProviderChatGPT, Model: model}))
+		path, target = "/api/v1/responses", firstNonEmpty(f.model, appFallbackModel(appMember{Provider: appProviderChatGPT, Model: model}))
 		if fields != nil {
 			chatGPTForOpenRouter(fields)
 		}
@@ -353,7 +353,7 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 		w.Header()[name] = values
 	}
 	w.WriteHeader(response.StatusCode)
-	reader := &teamCostReader{body: response.Body, done: func(cost float64) {
+	reader := &appCostReader{body: response.Body, done: func(cost float64) {
 		if cost > 0 {
 			f.log.record("spend", strconv.FormatFloat(cost, 'f', -1, 64))
 			f.event("spend", strconv.FormatFloat(cost, 'f', -1, 64))

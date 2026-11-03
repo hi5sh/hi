@@ -62,7 +62,7 @@ var boxSystemCABundles = []string{"/etc/ssl/certs/ca-certificates.crt", "/etc/pk
 // trustDir. It returns false, and takes the tokens away again, when this
 // machine has no bundle of public roots to add the CA to: the box then
 // gets the real tokens, as before.
-func prepareTeamSlackSwap(keysDir, trustDir string, secrets teamSecrets) (bool, error) {
+func prepareTeamSlackSwap(keysDir, trustDir string, secrets appSecrets) (bool, error) {
 	roots, err := readSystemCABundle()
 	if err != nil || secrets.SlackBotToken == "" || secrets.SlackAppToken == "" {
 		for _, file := range []string{filepath.Join(keysDir, boxSlackEnv), filepath.Join(trustDir, boxSlackBundle)} {

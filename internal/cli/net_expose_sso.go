@@ -1,7 +1,7 @@
 package cli
 
 // Sign-in with an organisation's OpenID Connect provider, in the relay,
-// beside the link's key (docs/specs/approved/hi_team_sso.md). --sso names
+// beside the link's key (docs/specs/approved/hi_app_sso.md). --sso names
 // a file with the provider and the rules, which hi app sso writes; the
 // relay reads it again when it changes, and no file is sign-in off. The
 // provider sends people back to the name that stays (--domain), so without
@@ -380,7 +380,7 @@ func (s *netExposeSSO) record(config *netExposeSSOConfig, r *http.Request, resul
 	if config.Log == "" {
 		return
 	}
-	line, _ := json.Marshal(netExposeSSORecord{Time: time.Now().UTC(), Host: s.host, Result: result, Email: email, Reason: reason, Address: teamWebAddress(r)})
+	line, _ := json.Marshal(netExposeSSORecord{Time: time.Now().UTC(), Host: s.host, Result: result, Email: email, Reason: reason, Address: appWebAddress(r)})
 	file, err := os.OpenFile(config.Log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return

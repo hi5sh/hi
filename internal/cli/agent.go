@@ -199,7 +199,7 @@ func startAgent(kind string, options boxOptions, stdin io.Reader, stdout, stderr
 		if kind, err = chooseAgent(); err != nil {
 			return err
 		}
-	} else if err := agentReady(kind); err != nil && !teamMemberSignedIn(options.team, kind) {
+	} else if err := agentReady(kind); err != nil && !appMemberSignedIn(options.team, kind) {
 		return err
 	}
 	if options.model == "" {
@@ -498,10 +498,10 @@ func agentBoxSetup(kind, prompt string, meta boxMeta, homeDir string, run *[]str
 		if err := os.MkdirAll(filepath.Join(homeDir, ".codex"), 0o700); err != nil {
 			return nil, err
 		}
-		if meta.Team != "" && teamCodexViaProxy(meta.Team) {
+		if meta.Team != "" && appCodexViaProxy(meta.Team) {
 			// A team's member reaches ChatGPT through its proxy, which puts
 			// the team's token on its calls: no sign-in in the box, and
-			// nothing for the box to refresh (team_subscriptions.go).
+			// nothing for the box to refresh (app_subscriptions.go).
 			if err := os.WriteFile(filepath.Join(homeDir, ".codex", "config.toml"), []byte(codexBoxConfig(meta.ProxyIP)), 0o600); err != nil {
 				return nil, err
 			}

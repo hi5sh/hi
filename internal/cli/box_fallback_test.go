@@ -219,7 +219,7 @@ func TestBoxChatGPTFailover(t *testing.T) {
 	events := filepath.Join(dir, "box.log")
 	var logged bytes.Buffer
 	log := &boxNetworkLog{file: &logged}
-	fallback := &boxFallback{kind: teamProviderChatGPT, keys: keys, role: "reviewer", events: events, upstream: openRouter.URL, log: log}
+	fallback := &boxFallback{kind: appProviderChatGPT, keys: keys, role: "reviewer", events: events, upstream: openRouter.URL, log: log}
 	// Codex names itself: the proxy leaves its originator alone.
 	proxy := httptest.NewServer(boxRouteChatGPT(newBoxFailover(newBoxChatGPTInjector(token, chatGPT.URL, "", log), fallback), http.NotFoundHandler()))
 	defer proxy.Close()

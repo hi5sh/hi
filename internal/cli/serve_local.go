@@ -46,7 +46,7 @@ var (
 		command.Stdout, command.Stderr = stdout, stderr
 		return command.Run()
 	}
-	serveLingers    = func() bool { return teamLingers() }
+	serveLingers    = func() bool { return appLingers() }
 	serveGroupNames = func() []string {
 		ids, _ := os.Getgroups()
 		var names []string
@@ -111,7 +111,7 @@ type serveMachine struct {
 	memTotal      int64
 	memAvailable  int64
 	teamsReserve  int64 // what apps' boxes may still take, under their limits
-	teamBoxes     int
+	appBoxes      int
 	problems      []string // each says what is missing and what adds it
 }
 
@@ -154,7 +154,7 @@ func detectServeMachine(backend string) serveMachine {
 	m.lingers = serveLingers()
 	m.memTotal, m.memAvailable = memInfo()
 	if m.engine.bin != "" && m.podman != "" {
-		m.teamsReserve, m.teamBoxes = teamsReserve(m.engine)
+		m.teamsReserve, m.appBoxes = teamsReserve(m.engine)
 	}
 	return m
 }
@@ -325,7 +325,7 @@ func serveDetectCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "Lingering:  %s\n", map[bool]string{true: "on: served things run without a login, and start at boot", false: "off: served things stop when you log out"}[m.lingers])
 	fmt.Fprintf(stdout, "Memory:     %s, %s available\n", sizeText(m.memTotal), sizeText(m.memAvailable))
-	fmt.Fprintf(stdout, "Apps:       %d %s, which may still take %s\n", m.teamBoxes, map[bool]string{true: "box", false: "boxes"}[m.teamBoxes == 1], sizeText(m.teamsReserve))
+	fmt.Fprintf(stdout, "Apps:       %d %s, which may still take %s\n", m.appBoxes, map[bool]string{true: "box", false: "boxes"}[m.appBoxes == 1], sizeText(m.teamsReserve))
 	if *backend == backendCUDA {
 		fmt.Fprintf(stdout, "For models: %s of GPU memory and %s on the host (after %s and %s of headroom)\n", sizeText(m.vramRoom()), sizeText(m.room()), sizeText(serveVRAMHeadroom), sizeText(serveHeadroom))
 	} else {

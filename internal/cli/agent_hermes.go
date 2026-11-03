@@ -312,7 +312,7 @@ func hermesBoxSetup(prompt string, meta boxMeta, homeDir, results string, run *[
 	config += "terminal:\n  backend: local\n  cwd: .\n"
 	// The proxy is no model on this machine: give up on a silent call
 	// after the usual 2 minutes, not a local server's 15.
-	config += fmt.Sprintf("agent:\n  local_stream_stale_timeout: %d\n", teamLeadSilentCall)
+	config += fmt.Sprintf("agent:\n  local_stream_stale_timeout: %d\n", appLeadSilentCall)
 	if meta.Effort != "" {
 		config += "  reasoning_effort: " + meta.Effort + "\n"
 	}

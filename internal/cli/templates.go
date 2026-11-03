@@ -24,10 +24,10 @@ const (
 	// projectTemplatesDir holds a source's layers, one folder each, beside
 	// skills/ and docs/. Layers at the top of a source still load.
 	projectTemplatesDir = "project_templates"
-	// teamTemplateDir is a layer's folder for a hi app rather than the
+	// appTemplateDir is a layer's folder for a hi app rather than the
 	// project: roles/<role>/ROLE.md and LEARNED.md. It never reaches a
 	// project's files.
-	teamTemplateDir = "team"
+	appTemplateDir = "team"
 )
 
 // templateLayer is one layer's layer.json plus where its files live.
@@ -234,7 +234,7 @@ func composeTemplate(layers map[string]*templateLayer, name string, params map[s
 			if err != nil {
 				return err
 			}
-			if team, ok := strings.CutPrefix(name, teamTemplateDir+"/"); ok {
+			if team, ok := strings.CutPrefix(name, appTemplateDir+"/"); ok {
 				result.Team[team] = data
 				return nil
 			}

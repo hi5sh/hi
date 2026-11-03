@@ -85,7 +85,7 @@ type boxMeta struct {
 	NoProjectSettings bool `json:"no_project_settings,omitempty"`
 	// Team is the team and role a member's box works for, as
 	// team:role: its proxy takes the team's sign-in and falls back to
-	// OpenRouter (team_subscriptions.go).
+	// OpenRouter (app_subscriptions.go).
 	Team string `json:"team,omitempty"`
 	// Effort is how hard the agent thinks: low, medium, high, xhigh, or
 	// max; the agent's own default when empty.
@@ -284,7 +284,7 @@ func parseBoxOptions(command string, args []string) (boxOptions, error) {
 			}
 		case command == "agent" && (arg == "--team" || strings.HasPrefix(arg, "--team=")):
 			if options.team, err = value(); err == nil {
-				if team, role, ok := strings.Cut(options.team, ":"); !ok || !teamNamePattern.MatchString(team) || !teamRolePattern.MatchString(role) {
+				if team, role, ok := strings.Cut(options.team, ":"); !ok || !appNamePattern.MatchString(team) || !appRolePattern.MatchString(role) {
 					err = fmt.Errorf("--team is <team>:<role>, such as payments:coder, not %q", options.team)
 				}
 			}
@@ -772,19 +772,19 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		if meta.Team != "" {
 			// A team's member: its own sign-in first, and OpenRouter when
 			// Claude refuses.
-			var teamErr error
-			if args, secret, teamErr = teamMemberProxyArgs(*meta, args, secret); teamErr != nil {
-				return teamErr
+			var appErr error
+			if args, secret, appErr = appMemberProxyArgs(*meta, args, secret); appErr != nil {
+				return appErr
 			}
 		} else if err != nil {
 			return err
 		}
 	case "codex":
-		if meta.Team != "" && teamCodexViaProxy(meta.Team) {
+		if meta.Team != "" && appCodexViaProxy(meta.Team) {
 			// A team's member: ChatGPT through its proxy, with no sign-in
 			// in the box, and OpenRouter when ChatGPT refuses.
 			var err error
-			if args, secret, err = teamMemberProxyArgs(*meta, args, ""); err != nil {
+			if args, secret, err = appMemberProxyArgs(*meta, args, ""); err != nil {
 				return err
 			}
 		}
@@ -806,12 +806,12 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		secret = "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env"
 		// And the lead's Slack tokens, when hi put them there, and the
 		// team's ChatGPT access token, when it has roles on ChatGPT.
-		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+teamChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent")
+		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+appChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent")
 	}
 	if team, ok := strings.CutPrefix(kind, "dev:"); ok {
 		// A team's dev box: Claude Code and Codex on the team's sign-ins.
 		var err error
-		if args, secret, err = teamDevProxyArgs(team, args); err != nil {
+		if args, secret, err = appDevProxyArgs(team, args); err != nil {
 			return err
 		}
 		// Its DNS, on port 53, and MongoDB's port (box_proxy_tls.go).
@@ -960,7 +960,7 @@ func listBoxes(stdout io.Writer) error {
 		}
 		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\n", meta.Name, meta.Agent, state, firstNonEmpty(meta.Branch, "-"), changes, formatDuration(time.Since(meta.Created)))
 	}
-	leads := teamLeadBoxes()
+	leads := appLeadBoxes()
 	if count == 0 && len(leads) == 0 {
 		fmt.Fprintln(stdout, "No boxes. Start one with hi box shell, hi box run, or hi agent.")
 		return nil

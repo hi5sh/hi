@@ -3,8 +3,8 @@
 // the lead files for the owners (from hi 2.4 the chat with the lead is in
 // Slack, not here). hi net expose adds this script to each page
 // it relays and serves /__hi/ from the app's service, so the app holds
-// none of it (docs/specs/approved/hi_team_helper.md and
-// hi_team_helper_signin.md). Plain JavaScript, no framework,
+// none of it (docs/specs/approved/hi_app_helper.md and
+// hi_app_helper_signin.md). Plain JavaScript, no framework,
 // no build step: hi serves this file inside one closure with finder
 // (third_party/finder), whose finder() makes select mode's selectors.
 (() => {

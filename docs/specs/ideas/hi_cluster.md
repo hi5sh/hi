@@ -12,8 +12,8 @@ org`, and `--on` means the same everywhere), [hi_compute.md](../approved/hi_comp
 interface, `--max`), [hi_box.md](../approved/hi_box.md) (boxes, rootless
 Podman, the proxy, "Remote sandboxes"), [hi_agent.md](../approved/hi_agent.md)
 (`--on <machine>`, release 4), [hi_net.md](../approved/hi_net.md) (NetBird),
-[hi_team_ops.md](../approved/hi_team_ops.md) (machine heartbeats, a server
-that watches nothing), and [hi_team_accounts.md](hi_team_accounts.md) (a
+[hi_app_ops.md](../approved/hi_app_ops.md) (machine heartbeats, a server
+that watches nothing), and [hi_app_accounts.md](hi_app_accounts.md) (a
 Linux account per team, deferred).
 
 ## Goal
@@ -50,7 +50,7 @@ RunPod.
 | Approvals, audit, watching | Slack approvals, the audit log, `hi org live`, the reconciler that stops what has expired |
 | Finding and reaching a machine | `computeProvider` (`compute.go`) and the `managed` driver: `hardware`, `create`, `list`, `stop`, `ssh`, `logs`, `runJob`, `wait`; the `--max` watchdog |
 | The thing that runs | `hi box`: rootless Podman, the egress proxy, presets, limits; `hi agent` and `hi team` build on it |
-| A machine that reports | The machine heartbeat timer (hi_team_ops.md, release 2) |
+| A machine that reports | The machine heartbeat timer (hi_app_ops.md, release 2) |
 | Already planned | `hi agent --on <machine>` and `hi box --remote <hardware>`, "when `hi box` gains remote boxes" |
 
 ## What is new
@@ -67,7 +67,7 @@ RunPod.
    machine with teams that chooses to, reports its totals, what its teams
    and boxes reserve, and what is left for guests, signed with its device
    key, from a systemd user timer of its own every minute. (The machine
-   heartbeat of hi_team_ops.md goes to an outside service, not to the org
+   heartbeat of hi_app_ops.md goes to an outside service, not to the org
    server, so this is a new timer, not that one.) It reads what `hi serve
    detect` reads, from evidence: AMD GPUs from the kernel's KFD topology,
    NVIDIA ones from `nvidia-smi`. On Strix Halo, GPU memory is system RAM,
@@ -161,10 +161,10 @@ machine may not be named like a provider; `hi org offer` refuses one.
    spot-like guest class that a team's load can be traded against.
 2. **Isolation before guests share a machine with teams.** Today every box
    on a machine runs as the one account that owns every team's
-   `secrets.json` and the device key (hi_team_accounts.md). A guest's box
+   `secrets.json` and the device key (hi_app_accounts.md). A guest's box
    escape would reach all of it. So either release 2 places guests only on
    hosts without teams, or a guest account (or one per user) from
-   hi_team_accounts.md comes first.
+   hi_app_accounts.md comes first.
 3. **The server is a ledger and a matchmaker.** v2.6.32 took watching off
    the server so teams don't depend on it. This keeps that: a host's teams
    and running boxes don't need the server; only new placement does, and
@@ -185,7 +185,7 @@ Taken on 2026-11-03:
 
 7. **Guests run only on machines set aside for them.** A machine that runs
    production teams offers no room, until the guest accounts of
-   hi_team_accounts.md exist, so a guest's box can never reach a team's
+   hi_app_accounts.md exist, so a guest's box can never reach a team's
    `secrets.json` or the machine's device key. This settles Decision 2.
    Such machines may still report their inventory, so `hi org machines`
    shows where everything runs.

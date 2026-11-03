@@ -553,7 +553,7 @@ func (s *orgServer) clientHandler() http.Handler {
 	mux.HandleFunc("POST /v1/slack-link", s.device(s.handleSlackLink))
 	mux.HandleFunc("GET /v1/templates", s.device(s.handleTemplateCatalog))
 	mux.HandleFunc("GET /v1/templates/{source}/{commit}", s.device(s.handleTemplateBundle))
-	// Teams watch themselves from hi 2.6.32 (hi_team_ops.md): an older
+	// Teams watch themselves from hi 2.6.32 (hi_app_ops.md): an older
 	// team's heartbeat, bill, or key is turned away.
 	mux.HandleFunc("POST /v1/watch/", s.deviceLimited(32<<20, s.handleWatchGone))
 	s.aiRoutes(mux)

@@ -177,7 +177,7 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 				continue
 			}
 		}
-		if server.team != "" && !teamWaitIdle(server.team, server.pid, stdout) {
+		if server.team != "" && !appWaitIdle(server.team, server.pid, stdout) {
 			fmt.Fprintf(stdout, "App %s is still busy, so it isn't restarted. When it is done:\n  %s\n", server.team, line)
 			continue
 		}

@@ -1,0 +1,693 @@
+package cli
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/slack-go/slack"
+)
+
+// The lead answers only in threads someone @-mentioned it in, or that it
+// started, but it should know
+// everything said in its channel: a link someone found, a video, a wish
+// in passing. Hermes drops the messages that don't mention it, so the
+// broker keeps the channel's log itself, from the host with the bot's
+// token, in channel/: a JSON line per message, a file per day, and the
+// files people share. The lead reads it with hi app channel, and a
+// Hermes cron job (channel-watch) has it read what's new and keep what
+// matters in its memory.
+
+const (
+	appChannelEvery   = 2 * time.Minute
+	appChannelBack    = 14 * 24 * time.Hour // how far back threads are followed, and the first log reaches
+	appChannelMaxFile = 50 << 20
+
+	appChannelJob    = "channel-watch"
+	appChannelScript = "channel-watch.sh"
+)
+
+// appChannelInBox is the log in the lead's box; tests move it.
+var appChannelInBox = "/team/channel"
+
+// appChannelMessage is a line of channel/<day>.jsonl.
+type appChannelMessage struct {
+	TS     string           `json:"ts"`
+	Thread string           `json:"thread,omitempty"` // the thread's first message, for a reply
+	User   string           `json:"user,omitempty"`
+	Name   string           `json:"name"`
+	Bot    bool             `json:"bot,omitempty"` // a bot's, such as the lead's
+	Text   string           `json:"text"`
+	Files  []appChannelFile `json:"files,omitempty"`
+	// Web is set on hi's copy of a message from the app's chat.
+	Web *appChannelWeb `json:"web,omitempty"`
+}
+
+// appChannelWeb says which web chat a message was copied from.
+type appChannelWeb struct {
+	Conversation string `json:"conversation"`
+	Person       string `json:"person,omitempty"`
+	From         string `json:"from"` // person or lead; feedback for feedback
+}
+
+type appChannelFile struct {
+	Name string `json:"name"`
+	Type string `json:"type,omitempty"`
+	Size int    `json:"size,omitempty"`
+	Path string `json:"path,omitempty"` // under channel/, when it was downloaded
+	Link string `json:"link,omitempty"` // Slack's page for it, for people
+}
+
+// appChannelState is channel/.watch.json: how far the log goes.
+type appChannelState struct {
+	Latest  string            `json:"latest,omitempty"`  // the newest message outside threads
+	Threads map[string]string `json:"threads,omitempty"` // a thread's first message → its newest reply logged
+}
+
+// appChannelSource is Slack; tests replace it.
+type appChannelSource interface {
+	history(channel, oldest string) ([]slack.Message, error)
+	replies(channel, thread, oldest string) ([]slack.Message, error)
+	userName(id string) string
+	download(url string, w io.Writer) error
+	// post returns the message's timestamp, which update and permalink take.
+	post(channel, text string) (string, error)
+	// postIn replies in a thread.
+	postIn(channel, thread, text string) (string, error)
+	// upload shares a file in a thread, titled title.
+	upload(channel, thread, path, title string) error
+	update(channel, ts, text string) error
+	// postButtons posts text with buttons under it, which the team's lead
+	// hears clicked (hi's plugin for it, helper/hermes); settle puts text
+	// in their place.
+	postButtons(channel, text string, buttons []appSlackButton) (string, error)
+	settle(channel, ts, text string) error
+	permalink(channel, ts string) (string, error)
+	// dm sends a person a direct message from the team's bot; update
+	// changes it later, with the channel it returns.
+	dm(user, text string) (channel, ts string, err error)
+	// inChannel says whether someone is a member of the channel, and
+	// members lists the people in it: not bots and apps, such as the
+	// team's own lead.
+	inChannel(channel, user string) bool
+	members(channel string) ([]string, error)
+}
+
+type liveTeamChannel struct {
+	api   *slack.Client
+	token string
+	names map[string]string
+	bots  map[string]bool // bots, apps, and deactivated accounts
+}
+
+func newLiveTeamChannel(botToken string) *liveTeamChannel {
+	return &liveTeamChannel{api: slack.New(botToken), token: botToken, names: map[string]string{}, bots: map[string]bool{}}
+}
+
+func (l *liveTeamChannel) history(channel, oldest string) ([]slack.Message, error) {
+	var all []slack.Message
+	cursor := ""
+	for page := 0; page < 20; page++ {
+		response, err := l.api.GetConversationHistory(&slack.GetConversationHistoryParameters{ChannelID: channel, Oldest: oldest, Limit: 200, Cursor: cursor})
+		if err != nil {
+			return all, err
+		}
+		all = append(all, response.Messages...)
+		if !response.HasMore || response.ResponseMetaData.NextCursor == "" {
+			break
+		}
+		cursor = response.ResponseMetaData.NextCursor
+	}
+	return all, nil
+}
+
+func (l *liveTeamChannel) replies(channel, thread, oldest string) ([]slack.Message, error) {
+	var all []slack.Message
+	cursor := ""
+	for page := 0; page < 20; page++ {
+		messages, more, next, err := l.api.GetConversationReplies(&slack.GetConversationRepliesParameters{ChannelID: channel, Timestamp: thread, Oldest: oldest, Limit: 200, Cursor: cursor})
+		if err != nil {
+			return all, err
+		}
+		all = append(all, messages...)
+		if !more || next == "" {
+			break
+		}
+		cursor = next
+	}
+	return all, nil
+}
+
+func (l *liveTeamChannel) userName(id string) string {
+	if name, ok := l.names[id]; ok {
+		return name
+	}
+	name := id
+	if user, err := l.api.GetUserInfo(id); err == nil {
+		name = firstNonEmpty(user.Profile.DisplayName, user.RealName, user.Name, id)
+		l.bots[id] = user.IsBot || user.IsAppUser || user.Deleted || id == "USLACKBOT"
+	}
+	l.names[id] = name
+	return name
+}
+
+func (l *liveTeamChannel) download(url string, w io.Writer) error { return l.api.GetFile(url, w) }
+
+func (l *liveTeamChannel) post(channel, text string) (string, error) {
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
+	return ts, err
+}
+
+func (l *liveTeamChannel) postIn(channel, thread, text string) (string, error) {
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionTS(thread), slack.MsgOptionDisableLinkUnfurl())
+	return ts, err
+}
+
+func (l *liveTeamChannel) upload(channel, thread, path, title string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	_, name, _ := strings.Cut(filepath.Base(path), "-") // web files are <message>-<name>
+	_, err = l.api.UploadFileV2(slack.UploadFileV2Parameters{Channel: channel, ThreadTimestamp: thread, File: path, FileSize: int(info.Size()),
+		Filename: firstNonEmpty(name, filepath.Base(path)), Title: title})
+	return err
+}
+
+func (l *liveTeamChannel) update(channel, ts, text string) error {
+	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false))
+	return err
+}
+
+// appSlackButton is a button on a message: what the lead's plugin hears
+// (its action ID and value), and what it says.
+type appSlackButton struct {
+	Action, Value, Label string
+	Primary              bool
+}
+
+func (l *liveTeamChannel) postButtons(channel, text string, buttons []appSlackButton) (string, error) {
+	var elements []slack.BlockElement
+	for _, b := range buttons {
+		style := slack.Style("")
+		if b.Primary {
+			style = slack.StylePrimary
+		}
+		elements = append(elements, slackButton(b.Action, b.Value, b.Label, style))
+	}
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl(),
+		slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil), slack.NewActionBlock("", elements...)))
+	return ts, err
+}
+
+func (l *liveTeamChannel) settle(channel, ts, text string) error {
+	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false), slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil)))
+	return err
+}
+
+func (l *liveTeamChannel) dm(user, text string) (string, string, error) {
+	im, _, _, err := l.api.OpenConversation(&slack.OpenConversationParameters{Users: []string{user}, ReturnIM: true})
+	if err != nil {
+		return "", "", err
+	}
+	_, ts, err := l.api.PostMessage(im.ID, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl())
+	return im.ID, ts, err
+}
+
+func (l *liveTeamChannel) inChannel(channel, user string) bool {
+	cursor := ""
+	for page := 0; page < 50; page++ {
+		members, next, err := l.api.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: channel, Cursor: cursor, Limit: 1000})
+		if err != nil {
+			return false
+		}
+		if containsString(members, user) {
+			return true
+		}
+		if next == "" {
+			return false
+		}
+		cursor = next
+	}
+	return false
+}
+
+func (l *liveTeamChannel) members(channel string) ([]string, error) {
+	var all []string
+	cursor := ""
+	for page := 0; page < 50; page++ {
+		members, next, err := l.api.GetUsersInConversation(&slack.GetUsersInConversationParameters{ChannelID: channel, Cursor: cursor, Limit: 1000})
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range members {
+			if l.userName(id); !l.bots[id] {
+				all = append(all, id)
+			}
+		}
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+	return all, nil
+}
+
+func (l *liveTeamChannel) permalink(channel, ts string) (string, error) {
+	return l.api.GetPermalink(&slack.PermalinkParameters{Channel: channel, Ts: ts})
+}
+
+// appChannelMu keeps one poll at a time: the watch's and the broker's,
+// when it checks an approval that may not be logged yet.
+var appChannelMu sync.Mutex
+
+func appChannelDir(team string) string { return filepath.Join(appDir(team), "channel") }
+
+// appWatchChannel logs the channel until done is closed.
+func appWatchChannel(done <-chan struct{}, team, channel string, source appChannelSource, stderr io.Writer) {
+	last := ""
+	for {
+		err := appPollChannel(team, channel, source, time.Now())
+		// Each new problem once in the journal, not every two minutes.
+		if message := fmt.Sprint(err); err != nil && message != last {
+			fmt.Fprintf(stderr, "hi: logging the channel: %v\n", err)
+			last = message
+		} else if err == nil {
+			last = ""
+		}
+		select {
+		case <-done:
+			return
+		case <-time.After(appChannelEvery):
+		}
+	}
+}
+
+// appPollChannel adds what's new in the channel to its log: messages, the
+// replies in threads up to two weeks old, and the files shared in them.
+func appPollChannel(team, channel string, source appChannelSource, now time.Time) error {
+	appChannelMu.Lock()
+	defer appChannelMu.Unlock()
+	config, _ := loadTeam(team)
+	dir := appChannelLogDir(team, config, channel)
+	if err := os.MkdirAll(filepath.Join(dir, "files"), 0o700); err != nil {
+		return err
+	}
+	var state appChannelState
+	if data, err := os.ReadFile(filepath.Join(dir, ".watch.json")); err == nil {
+		json.Unmarshal(data, &state)
+	}
+	if state.Threads == nil {
+		state.Threads = map[string]string{}
+	}
+	oldest := appSlackTS(now.Add(-appChannelBack))
+	messages, err := source.history(channel, oldest)
+	if err != nil {
+		return err
+	}
+	sort.Slice(messages, func(i, j int) bool { return appTSBefore(messages[i].Timestamp, messages[j].Timestamp) })
+	var logged []appChannelMessage
+	for _, message := range messages {
+		// A reply also sent to the channel comes with its thread.
+		if message.ThreadTimestamp != "" && message.ThreadTimestamp != message.Timestamp {
+			continue
+		}
+		if appTSBefore(state.Latest, message.Timestamp) {
+			if entry, ok := appChannelEntry(dir, message, "", source); ok {
+				logged = append(logged, entry)
+			}
+			state.Latest = message.Timestamp
+		}
+	}
+	var failed error
+	for _, message := range messages {
+		if message.ReplyCount == 0 {
+			continue
+		}
+		thread := message.Timestamp
+		seen := firstNonEmpty(state.Threads[thread], thread)
+		if !appTSBefore(seen, message.LatestReply) {
+			continue
+		}
+		replies, err := source.replies(channel, thread, seen)
+		if err != nil {
+			failed = err
+			continue
+		}
+		sort.Slice(replies, func(i, j int) bool { return appTSBefore(replies[i].Timestamp, replies[j].Timestamp) })
+		for _, reply := range replies {
+			if reply.Timestamp == thread || !appTSBefore(seen, reply.Timestamp) {
+				continue
+			}
+			if entry, ok := appChannelEntry(dir, reply, thread, source); ok {
+				logged = append(logged, entry)
+			}
+			seen = reply.Timestamp
+		}
+		state.Threads[thread] = seen
+	}
+	for thread := range state.Threads {
+		if appTSBefore(thread, oldest) {
+			delete(state.Threads, thread)
+		}
+	}
+	if len(logged) > 0 {
+		mirrored := appWebMirrored(team)
+		for i := range logged {
+			if web, ok := mirrored[logged[i].TS]; ok {
+				logged[i].Web = &web
+			}
+		}
+	}
+	if err := appAppendChannel(dir, logged); err != nil {
+		return err
+	}
+	if err := appTakeFeedbackAnswers(team, logged); err != nil {
+		failed = err
+	}
+	data, _ := json.MarshalIndent(state, "", "  ")
+	if err := os.WriteFile(filepath.Join(dir, ".watch.json.tmp"), append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(filepath.Join(dir, ".watch.json.tmp"), filepath.Join(dir, ".watch.json")); err != nil {
+		return err
+	}
+	return failed
+}
+
+// appChannelSkip are the messages that say nothing: joins, leaves, topic
+// changes, and the like.
+var appChannelSkip = map[string]bool{
+	"channel_join": true, "channel_leave": true, "channel_topic": true, "channel_purpose": true,
+	"channel_name": true, "group_join": true, "group_leave": true, "bot_add": true, "bot_remove": true,
+	"pinned_item": true, "unpinned_item": true, "message_deleted": true,
+}
+
+func appChannelEntry(dir string, message slack.Message, thread string, source appChannelSource) (appChannelMessage, bool) {
+	if appChannelSkip[message.SubType] {
+		return appChannelMessage{}, false
+	}
+	entry := appChannelMessage{TS: message.Timestamp, Thread: thread, User: message.User,
+		Bot: message.BotID != "" || message.SubType == "bot_message"}
+	switch {
+	case message.User != "":
+		entry.Name = source.userName(message.User)
+	default:
+		entry.Name = message.Username
+		if entry.Name == "" && message.BotProfile != nil {
+			entry.Name = message.BotProfile.Name
+		}
+		entry.Name = firstNonEmpty(entry.Name, "a bot")
+	}
+	entry.Text = appSlackText(message.Text, source)
+	for _, file := range message.Files {
+		shared := appChannelFile{Name: firstNonEmpty(file.Name, file.Title, file.ID), Type: file.Mimetype, Size: file.Size, Link: file.Permalink}
+		if url := firstNonEmpty(file.URLPrivateDownload, file.URLPrivate); url != "" && file.Size <= appChannelMaxFile {
+			path := filepath.Join("files", file.ID+"-"+appSafeFileName(shared.Name))
+			if appDownload(source, url, filepath.Join(dir, path)) == nil {
+				shared.Path = path
+			}
+		}
+		entry.Files = append(entry.Files, shared)
+	}
+	if entry.Text == "" && len(entry.Files) == 0 {
+		return entry, false
+	}
+	return entry, true
+}
+
+func appDownload(source appChannelSource, url, path string) error {
+	if fileExists(path) {
+		return nil
+	}
+	file, err := os.OpenFile(path+".part", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	err = source.download(url, file)
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		os.Remove(path + ".part")
+		return err
+	}
+	return os.Rename(path+".part", path)
+}
+
+var appUnsafeName = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
+
+func appSafeFileName(name string) string {
+	name = strings.Trim(appUnsafeName.ReplaceAllString(name, "_"), "._")
+	if len(name) > 80 {
+		name = name[len(name)-80:]
+	}
+	return firstNonEmpty(name, "file")
+}
+
+func appAppendChannel(dir string, messages []appChannelMessage) error {
+	files := map[string]*os.File{}
+	defer func() {
+		for _, file := range files {
+			file.Close()
+		}
+	}()
+	for _, message := range messages {
+		day := appTSTime(message.TS).Local().Format("2006-01-02")
+		file := files[day]
+		if file == nil {
+			var err error
+			if file, err = os.OpenFile(filepath.Join(dir, day+".jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); err != nil {
+				return err
+			}
+			files[day] = file
+		}
+		data, _ := json.Marshal(message)
+		if _, err := file.Write(append(data, '\n')); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var appSlackMarkup = regexp.MustCompile(`<([^<>|]+)(?:\|([^<>]*))?>`)
+
+// appSlackText turns Slack's markup into plain text: <@U1> is @Name,
+// <#C1|name> is #name, and <url|label> is label (url).
+func appSlackText(text string, source appChannelSource) string {
+	text = appSlackMarkup.ReplaceAllStringFunc(text, func(markup string) string {
+		parts := appSlackMarkup.FindStringSubmatch(markup)
+		target, label := parts[1], parts[2]
+		switch {
+		case strings.HasPrefix(target, "@"):
+			return "@" + firstNonEmpty(label, source.userName(target[1:]))
+		case strings.HasPrefix(target, "#"):
+			return "#" + firstNonEmpty(label, target[1:])
+		case strings.HasPrefix(target, "!"):
+			return "@" + strings.TrimPrefix(firstNonEmpty(label, target[1:]), "@")
+		case label != "" && label != target:
+			return label + " (" + target + ")"
+		}
+		return target
+	})
+	return strings.TrimSpace(strings.NewReplacer("&lt;", "<", "&gt;", ">", "&amp;", "&").Replace(text))
+}
+
+func appSlackTS(t time.Time) string {
+	return fmt.Sprintf("%d.%06d", t.Unix(), t.Nanosecond()/1000)
+}
+
+func appTSTime(ts string) time.Time {
+	seconds, _ := strconv.ParseFloat(ts, 64)
+	return time.Unix(int64(seconds), int64((seconds-float64(int64(seconds)))*1e9))
+}
+
+// appTSBefore says whether Slack timestamp a comes before b; "" is before
+// everything.
+func appTSBefore(a, b string) bool {
+	if a == "" || b == "" {
+		return a == "" && b != ""
+	}
+	secondsA, fractionA, _ := strings.Cut(a, ".")
+	secondsB, fractionB, _ := strings.Cut(b, ".")
+	if len(secondsA) != len(secondsB) {
+		return len(secondsA) < len(secondsB)
+	}
+	if secondsA != secondsB {
+		return secondsA < secondsB
+	}
+	return fractionA < fractionB
+}
+
+// ---------------------------------------------------------------------------
+// hi app channel: reading the log
+
+// runTeamChannel prints the log: in the lead's box from /team/channel, on
+// the host for a team by name.
+func runTeamChannel(args []string, stdout io.Writer) error {
+	dir, seenPath := "", ""
+	var since time.Duration = 24 * time.Hour
+	newOnly, ids := false, false
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--new":
+			newOnly = true
+		case args[i] == "--ids":
+			ids = true
+		case args[i] == "--since" && i+1 < len(args):
+			duration, err := parseTeamSince(args[i+1])
+			if err != nil {
+				return err
+			}
+			since = duration
+			i++
+		case !strings.HasPrefix(args[i], "-") && dir == "":
+			if _, err := loadTeam(args[i]); err != nil {
+				return err
+			}
+			dir = appChannelDir(args[i])
+		default:
+			return usageError{"usage: hi app channel [<name>] [--since 2h | --new] [--ids]"}
+		}
+	}
+	if dir == "" {
+		if !fileExists(appChannelInBox) {
+			return usageError{"usage: hi app channel <name> [--since 2h]"}
+		}
+		dir = appChannelInBox
+		home, _ := os.UserHomeDir()
+		seenPath = filepath.Join(firstNonEmpty(home, "/box/home"), ".hi-team-channel-seen")
+	} else if newOnly {
+		return errors.New("--new is the lead's: it remembers what the lead has read")
+	}
+	after := appSlackTS(time.Now().Add(-since))
+	if newOnly {
+		after = "0"
+		if data, err := os.ReadFile(seenPath); err == nil {
+			after = strings.TrimSpace(string(data))
+		}
+	}
+	messages, err := readTeamChannel(dir, after)
+	if err != nil {
+		return err
+	}
+	shown := messages
+	if newOnly {
+		// The lead was in the app's chats it copied here.
+		shown = nil
+		for _, message := range messages {
+			if message.Web == nil {
+				shown = append(shown, message)
+			}
+		}
+	}
+	printTeamChannel(shown, dir, ids, stdout)
+	if newOnly && len(messages) > 0 {
+		latest := after
+		for _, message := range messages {
+			if appTSBefore(latest, message.TS) {
+				latest = message.TS
+			}
+		}
+		return os.WriteFile(seenPath, []byte(latest+"\n"), 0o600)
+	}
+	if !newOnly && len(messages) == 0 {
+		fmt.Fprintln(stdout, "Nothing was said in that time.")
+	}
+	return nil
+}
+
+func parseTeamSince(text string) (time.Duration, error) {
+	if days, ok := strings.CutSuffix(text, "d"); ok {
+		if n, err := strconv.Atoi(days); err == nil && n > 0 {
+			return time.Duration(n) * 24 * time.Hour, nil
+		}
+	}
+	duration, err := time.ParseDuration(text)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("--since takes a time such as 30m, 2h, or 3d, not %q", text)
+	}
+	return duration, nil
+}
+
+// readTeamChannel reads the messages logged after Slack timestamp after.
+func readTeamChannel(dir, after string) ([]appChannelMessage, error) {
+	days, err := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(days)
+	from := appTSTime(after).Local().AddDate(0, 0, -1).Format("2006-01-02")
+	var messages []appChannelMessage
+	for _, day := range days {
+		if strings.TrimSuffix(filepath.Base(day), ".jsonl") < from {
+			continue
+		}
+		data, err := os.ReadFile(day)
+		if err != nil {
+			return nil, err
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			var message appChannelMessage
+			if json.Unmarshal([]byte(line), &message) == nil && message.TS != "" && appTSBefore(after, message.TS) {
+				messages = append(messages, message)
+			}
+		}
+	}
+	sort.SliceStable(messages, func(i, j int) bool { return appTSBefore(messages[i].TS, messages[j].TS) })
+	return messages, nil
+}
+
+func printTeamChannel(messages []appChannelMessage, dir string, ids bool, w io.Writer) {
+	names := map[string]string{}
+	for _, message := range messages {
+		names[message.TS] = message.Name
+	}
+	lastDay := ""
+	for _, message := range messages {
+		at := appTSTime(message.TS).Local()
+		if day := at.Format("Mon 2 Jan 2006"); day != lastDay {
+			fmt.Fprintf(w, "— %s —\n", day)
+			lastDay = day
+		}
+		who := message.Name
+		if message.Thread != "" {
+			started := appTSTime(message.Thread).Local().Format("Jan 2 15:04")
+			if name := names[message.Thread]; name != "" {
+				who += fmt.Sprintf(", in %s's thread from %s", name, started)
+			} else {
+				who += ", in a thread from " + started
+			}
+		}
+		if ids {
+			who += " [" + message.TS + "]"
+		}
+		fmt.Fprintf(w, "%s  %s: %s\n", at.Format("15:04"), who, strings.ReplaceAll(message.Text, "\n", "\n       "))
+		for _, file := range message.Files {
+			where := firstNonEmpty(file.Link, "not downloaded")
+			if file.Path != "" {
+				where = filepath.Join(dir, file.Path)
+			}
+			fmt.Fprintf(w, "       [file: %s, %s, %s: %s]\n", file.Name, firstNonEmpty(file.Type, "unknown type"), formatTeamSize(file.Size), where)
+		}
+	}
+}
+
+func formatTeamSize(size int) string {
+	switch {
+	case size >= 1<<20:
+		return fmt.Sprintf("%.1f MB", float64(size)/(1<<20))
+	case size >= 1<<10:
+		return fmt.Sprintf("%d KB", size>>10)
+	}
+	return fmt.Sprintf("%d bytes", size)
+}

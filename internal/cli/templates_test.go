@@ -144,7 +144,7 @@ func TestBuiltinTemplatesPassTheirCheck(t *testing.T) {
 	// A new hi app's project, which hi app new writes from hi-app.
 	t.Run("hi-app", func(t *testing.T) {
 		project := t.TempDir()
-		entries, err := teamAppEntries(teamConfig{Name: "check-team", Purpose: "Check the team's project"})
+		entries, err := hiAppEntries(appConfig{Name: "check-team", Purpose: "Check the team's project"})
 		if err != nil {
 			t.Fatal(err)
 		}

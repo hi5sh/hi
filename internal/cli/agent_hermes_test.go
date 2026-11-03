@@ -230,7 +230,7 @@ func TestHermesWithSlackStatus(t *testing.T) {
 }
 
 // What a call through the lead's proxy cost goes in the network log, for
-// hi watch to add up (team_watch.go).
+// hi watch to add up (app_watch.go).
 func TestBoxOpenRouterInjectorNotesTheCost(t *testing.T) {
 	openrouter := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, "data: {\"choices\":[]}\n\ndata: {\"usage\":{\"cost\":0.0042}}\n\ndata: [DONE]\n\n")

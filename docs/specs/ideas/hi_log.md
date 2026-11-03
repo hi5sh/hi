@@ -2,13 +2,13 @@
 
 Status: Draft (2026-10-29). Rented machines and agents agreed the same day; a watch without a URL is still to discuss.
 
-Dependencies: [hi_team_ops.md](../approved/hi_team_ops.md) (heartbeats,
+Dependencies: [hi_app_ops.md](../approved/hi_app_ops.md) (heartbeats,
 the ops channel, the team's watcher), [hi_compute.md](../approved/hi_compute.md)
 (runs on rented machines).
 
 ## Goal
 
-A team watches itself, and a machine says it's alive (hi_team_ops.md).
+A team watches itself, and a machine says it's alive (hi_app_ops.md).
 Everything else hi runs, or runs beside, goes unwatched: a training run
 on the Strix Halo box, a nightly script, `ollama`, `hi compute serve`, a
 backfill someone started in tmux. When one dies, is killed for memory,

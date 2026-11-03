@@ -8,10 +8,10 @@ recipes, where, the served box, its front and units, teams first),
 allowlist), [hi_agent_bundles.md](hi_agent_bundles.md) (bundles as data
 files from hi, the org's template sources, and your own folder),
 [hi_server.md](../approved/hi_server.md#template-sources) (template sources),
-[hi_team_helper_signin.md](../approved/hi_team_helper_signin.md) (key links),
+[hi_app_helper_signin.md](../approved/hi_app_helper_signin.md) (key links),
 [hi_net_expose.md](../approved/hi_net_expose.md) (public addresses),
-[hi_team.md](../approved/hi_team.md) and
-[hi_team_snapshots.md](../approved/hi_team_snapshots.md) (what a team keeps
+[hi_app.md](../approved/hi_app.md) and
+[hi_app_snapshots.md](../approved/hi_app_snapshots.md) (what a team keeps
 itself), and [hi_cluster.md](hi_cluster.md) (`--on <machine>`).
 
 ## Goal
@@ -85,7 +85,7 @@ hi serve web static <folder> [--spa] [--port P] [--share]
   configuration hi writes and mounts. `--spa` answers unknown paths with
   `index.html`, for single-page apps.
 - Shared, the front takes the key once and keeps it in an HttpOnly
-  cookie, the way a team's key links do (hi_team_helper_signin.md), so a
+  cookie, the way a team's key links do (hi_app_helper_signin.md), so a
   browser can open `http://<netbird-address>:<port>/?hi_key=…`.
 - Later recipes: a folder of Markdown rendered as a site, and a file
   browser.

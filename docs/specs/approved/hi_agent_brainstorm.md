@@ -7,7 +7,7 @@ Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes, reports, cost),
 [hi_agent_review.md](hi_agent_review.md) (a snapshot, the run's own
 process, `watch`, `stop`, `--budget`, the team's broker starting it on a
 yes and waking the lead), [hi_agent_best_of.md](hi_agent_best_of.md)
-(several agents at once), [hi_team.md](hi_team.md) (approvals).
+(several agents at once), [hi_app.md](hi_app.md) (approvals).
 
 ## Goal
 

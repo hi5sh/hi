@@ -1,6 +1,6 @@
 package cli
 
-// hi agent --session <folder> (docs/specs/approved/hi_team_threads.md): an
+// hi agent --session <folder> (docs/specs/approved/hi_app_threads.md): an
 // agent's conversation outlives its box. The folder keeps a copy of the
 // agent's own session file, as Claude Code (~/.claude/projects) and Codex
 // (~/.codex/sessions) write it; the next box with the same folder gets it
@@ -193,7 +193,7 @@ func prepareAgentSession(kind string, meta boxMeta, homeDir string) (string, err
 		return "", err
 	}
 	os.Remove(target)
-	if err := teamCopyFile(source, target); err != nil {
+	if err := appCopyFile(source, target); err != nil {
 		return "", err
 	}
 	// Claude Code keeps large tool results beside the session, in a folder
@@ -268,7 +268,7 @@ func keepAgentSession(meta boxMeta, id string) error {
 	if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
 		return err
 	}
-	if err := teamCopyFile(source, target); err != nil {
+	if err := appCopyFile(source, target); err != nil {
 		return err
 	}
 	if extra := strings.TrimSuffix(source, ".jsonl"); meta.Agent == "claude" && fileExists(extra) {

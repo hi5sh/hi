@@ -174,7 +174,7 @@ func TestPrepareTeamSlackSwap(t *testing.T) {
 	os.WriteFile(roots, []byte("-----BEGIN CERTIFICATE-----\npublic roots\n-----END CERTIFICATE-----\n"), 0o644)
 	defer func(old []string) { boxSystemCABundles = old }(boxSystemCABundles)
 	boxSystemCABundles = []string{filepath.Join(dir, "missing.pem"), roots}
-	secrets := teamSecrets{SlackBotToken: "xoxb-real", SlackAppToken: "xapp-real"}
+	secrets := appSecrets{SlackBotToken: "xoxb-real", SlackAppToken: "xapp-real"}
 
 	if ok, err := prepareTeamSlackSwap(keys, trust, secrets); !ok || err != nil {
 		t.Fatal(ok, err)

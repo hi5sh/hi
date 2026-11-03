@@ -165,7 +165,7 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 			var chatgpt http.Handler = newBoxChatGPTInjector(token, chatGPTBackend, os.Getenv(boxOriginatorEnv), log)
 			if keys := os.Getenv(boxFallbackEnv); keys != "" {
 				// A member (Codex): OpenRouter takes over when ChatGPT refuses.
-				chatgpt = newBoxFailover(chatgpt, &boxFallback{kind: teamProviderChatGPT, keys: keys, model: os.Getenv(boxFallbackModelEnv),
+				chatgpt = newBoxFailover(chatgpt, &boxFallback{kind: appProviderChatGPT, keys: keys, model: os.Getenv(boxFallbackModelEnv),
 					role: os.Getenv(boxRoleEnv), events: os.Getenv(boxEventsEnv), upstream: "https://openrouter.ai", log: log})
 			}
 			inject = boxRouteChatGPT(chatgpt, inject)
@@ -182,10 +182,10 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 		}
 		if token := os.Getenv(boxChatGPTEnv); token != "" {
 			// A team's dev box has Codex beside Claude Code: its calls to
-			// ChatGPT's Codex endpoint go there (team_dev.go).
+			// ChatGPT's Codex endpoint go there (app_dev.go).
 			var chatgpt http.Handler = newBoxChatGPTInjector(token, chatGPTBackend, os.Getenv(boxOriginatorEnv), log)
 			if keys := os.Getenv(boxFallbackEnv); keys != "" {
-				chatgpt = newBoxFailover(chatgpt, &boxFallback{kind: teamProviderChatGPT, keys: keys, model: os.Getenv(boxFallbackModelEnv),
+				chatgpt = newBoxFailover(chatgpt, &boxFallback{kind: appProviderChatGPT, keys: keys, model: os.Getenv(boxFallbackModelEnv),
 					role: os.Getenv(boxRoleEnv), events: os.Getenv(boxEventsEnv), upstream: "https://openrouter.ai", log: log})
 			}
 			inject = boxRouteChatGPT(chatgpt, inject)
@@ -478,9 +478,9 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 		log.record("openrouter", r.URL.Path)
 	}
 	// What each call cost, as a line of its own, so a team's watcher can
-	// add up what the key spent through hi (team_watch.go).
+	// add up what the key spent through hi (app_watch.go).
 	proxy.ModifyResponse = func(response *http.Response) error {
-		response.Body = &teamCostReader{body: response.Body, done: func(cost float64) {
+		response.Body = &appCostReader{body: response.Body, done: func(cost float64) {
 			if cost > 0 {
 				log.record("spend", strconv.FormatFloat(cost, 'f', -1, 64))
 			}
@@ -513,7 +513,7 @@ const boxOriginatorEnv = "HI_BOX_ORIGINATOR"
 // without it the placeholder goes on and ChatGPT refuses the call, so the
 // role falls back. A refusal that sends a role to its fallback is logged
 // as chatgpt-refused <status>:signin or :limit, which the server tells
-// the channel about (team_subscriptions.go).
+// the channel about (app_subscriptions.go).
 func newBoxChatGPTInjector(tokenFile, upstream, originator string, log *boxNetworkLog) http.Handler {
 	target, _ := url.Parse(upstream)
 	proxy := httputil.NewSingleHostReverseProxy(target)
@@ -580,7 +580,7 @@ func boxChatGPTRefusal(response *http.Response) string {
 
 // openRouterAskCost asks OpenRouter to say what a model call cost, in its
 // answer's usage, when the caller didn't: hi adds the cost up from the
-// answers (teamCostReader), and Hindsight, for one, never asks, so its
+// answers (appCostReader), and Hindsight, for one, never asks, so its
 // calls counted as free.
 func openRouterAskCost(r *http.Request) {
 	if r.Method != http.MethodPost || r.Body == nil || !strings.HasSuffix(r.URL.Path, "/chat/completions") && !strings.HasSuffix(r.URL.Path, "/responses") {

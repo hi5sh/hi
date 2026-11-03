@@ -1,8 +1,8 @@
 package cli
 
-// Heartbeats (docs/specs/approved/hi_team_ops.md, release 2): hi sends a
+// Heartbeats (docs/specs/approved/hi_app_ops.md, release 2): hi sends a
 // GET to an outside service, such as healthchecks.io, which alerts when
-// they stop. A team's comes from its service (team_heartbeat.go); this
+// they stop. A team's comes from its service (app_heartbeat.go); this
 // machine's, for a machine that runs hi's services, from a systemd user
 // timer. hi only sends: who hears of a stop, and how, is set up at the
 // service. The URL is the secret, so it is never printed or logged, only
@@ -170,11 +170,11 @@ func heartbeatCommand(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "%s took the heartbeat.\n", heartbeatHost(beat.URL))
 		return nil
 	case len(args) == 1 && args[0] == "off":
-		teamSystemctl("disable", "--now", machineHeartbeatUnit+".timer")
-		dir := filepath.Dir(teamUnitPath("x"))
+		appSystemctl("disable", "--now", machineHeartbeatUnit+".timer")
+		dir := filepath.Dir(appUnitPath("x"))
 		os.Remove(filepath.Join(dir, machineHeartbeatUnit+".timer"))
 		os.Remove(filepath.Join(dir, machineHeartbeatUnit+".service"))
-		teamSystemctl("daemon-reload")
+		appSystemctl("daemon-reload")
 		os.Remove(machineHeartbeatPath())
 		fmt.Fprintln(stdout, "This machine sends no heartbeat now. Pause or remove its check at the service, or it will alert.")
 		return nil
@@ -220,7 +220,7 @@ func setMachineHeartbeat(target string, every time.Duration, stdout io.Writer) e
 	fmt.Fprintf(stdout, "This machine sends a heartbeat to %s every %s; the first arrived. Set the check's period there to %s, and who it alerts.\n",
 		heartbeatHost(target), beat.Every, beat.Every)
 	machineHeartbeatNote(stdout)
-	if !teamLingers() {
+	if !appLingers() {
 		fmt.Fprintf(stdout, "It stops when you log out, and doesn't start at boot, until you run:\n  sudo loginctl enable-linger %s\n", currentUserName())
 	}
 	return nil
@@ -252,7 +252,7 @@ func installMachineHeartbeatTimer(every time.Duration) error {
 	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
 		executable = resolved
 	}
-	dir := filepath.Dir(teamUnitPath("x"))
+	dir := filepath.Dir(appUnitPath("x"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -281,13 +281,13 @@ WantedBy=timers.target
 	if err := os.WriteFile(filepath.Join(dir, machineHeartbeatUnit+".timer"), []byte(timer), 0o644); err != nil {
 		return err
 	}
-	if out, err := teamSystemctl("daemon-reload"); err != nil {
+	if out, err := appSystemctl("daemon-reload"); err != nil {
 		return fmt.Errorf("systemctl --user daemon-reload: %s", qFirstLine(out, err.Error()))
 	}
-	if out, err := teamSystemctl("enable", "--now", machineHeartbeatUnit+".timer"); err != nil {
+	if out, err := appSystemctl("enable", "--now", machineHeartbeatUnit+".timer"); err != nil {
 		return fmt.Errorf("systemctl --user enable --now %s.timer: %s", machineHeartbeatUnit, qFirstLine(out, err.Error()))
 	}
 	// A changed interval: start counting from now.
-	teamSystemctl("restart", machineHeartbeatUnit+".timer")
+	appSystemctl("restart", machineHeartbeatUnit+".timer")
 	return nil
 }

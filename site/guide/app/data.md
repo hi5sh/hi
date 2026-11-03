@@ -119,4 +119,4 @@ forked: give Stage its own address with `hi app env <name>
 
 See also [The folder and backups](/guide/app/folder/) for snapshots and
 rollback, and the spec,
-[hi_team_data_fork.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_team_data_fork.md).
+[hi_app_data_fork.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_app_data_fork.md).

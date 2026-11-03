@@ -170,9 +170,9 @@ func hiDomainZone(domain string) (string, error) {
 // quarry-preview for the preview, and quarry-dev for the dev page.
 func (d hiDomain) addressName(team, address string) string {
 	switch address {
-	case teamSlotPreview:
+	case appSlotPreview:
 		return team + "-preview." + d.Domain
-	case teamAddressDev:
+	case appAddressDev:
 		return team + "-dev." + d.Domain
 	}
 	return team + "." + d.Domain
@@ -280,7 +280,7 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		for _, field := range kind.Fields {
 			var value string
 			if field.Secret {
-				value, err = teamAskSecret(stdin, stdout, field.Label)
+				value, err = appAskSecret(stdin, stdout, field.Label)
 			} else {
 				fmt.Fprintf(stdout, "%s: ", field.Label)
 				value, err = readLine(stdin)

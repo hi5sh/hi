@@ -9,8 +9,8 @@ what it kept and what it left out is under [Decisions](#decisions).
 Dependencies: [hi_agent.md](hi_agent.md) (runs in boxes,
 reports, cost), [hi_agent_best_of.md](hi_agent_best_of.md)
 (several runs at once, hi checking what agents claim, the run's own
-process, `watch`, `stop`, `--budget`), [hi_team.md](hi_team.md)
-(approvals, the broker, the budget), [hi_team_adopt.md](../ideas/hi_team_adopt.md)
+process, `watch`, `stop`, `--budget`), [hi_app.md](hi_app.md)
+(approvals, the broker, the budget), [hi_app_adopt.md](../ideas/hi_app_adopt.md)
 (fetching a repository with nothing run, the project's agent settings
 off), and [hi_agent_fanout.md](../ideas/hi_agent_fanout.md) (the queue, `--parallel`),
 which this can share code with but doesn't need.
@@ -685,7 +685,7 @@ v0.89.0, 2026-10-18. Code: `team_review.go`; tests: `team_review_test.go`.
   message in the yes's thread before it has to contain the budget as a
   dollar figure (`$30`, `$30.00`). The yes counts once, and one deep
   review runs at a time.
-- **No team budget.** [hi_team.md](hi_team.md) has a monthly budget that
+- **No team budget.** [hi_app.md](hi_app.md) has a monthly budget that
   isn't built, so "the budget must fit in what is left of the team's
   month" has nothing to check against. The review's own `--budget` is
   the limit; SOUL.md has the lead say "of the month" only as words.

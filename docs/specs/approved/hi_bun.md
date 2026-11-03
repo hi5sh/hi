@@ -3,8 +3,8 @@
 Status: Approved (2026-10-15). Slice 1 is built (v0.61.0), slice 2 (v0.63.0), slice 3 (v0.64.0), and slice 4 (v0.66.0).
 
 Dependencies: `hi box` (the base image), `hi init` (the `web` template and
-its layers), `hi install`, [hi_team.md](hi_team.md) (the preview, merges,
-and approvals), [hi_team_helper.md](hi_team_helper.md) (the helper
+its layers), `hi install`, [hi_app.md](hi_app.md) (the preview, merges,
+and approvals), [hi_app_helper.md](hi_app_helper.md) (the helper
 script), and, for the preview check, [hi_web.md](../ideas/hi_web.md).
 
 ## Goal

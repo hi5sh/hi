@@ -137,12 +137,12 @@ func TestUpdateRestartsStaleTeams(t *testing.T) {
 
 	// hi app domain says the setting waits for the restart.
 	var said bytes.Buffer
-	teamWarnOldHi("bulletin", &said)
+	appWarnOldHi("bulletin", &said)
 	if !strings.Contains(said.String(), "systemctl --user restart hi-team-bulletin.service") {
 		t.Fatal(said.String())
 	}
 	said.Reset()
-	teamWarnOldHi("timmai", &said)
+	appWarnOldHi("timmai", &said)
 	if said.Len() != 0 {
 		t.Fatal(said.String())
 	}

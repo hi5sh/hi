@@ -2,7 +2,7 @@
 and Allow and Say no on hi's posts that the dev box asks for a site.
 
 /hi-<app> in the app's Slack channel has hi send an owner who typed it their
-private link to the app's dev page (docs/specs/approved/hi_team_dev.md in
+private link to the app's dev page (docs/specs/approved/hi_app_dev.md in
 hi); anyone else hears that the app's own link is all they need. No model is asked:
 the handler runs hi app web link with the member ID Slack gave the
 command, which nobody can type, and the links go only to that person's DM.
@@ -121,7 +121,7 @@ def _put_first(original):
         _guard_dms()
         entries = [entry for entry in original() if entry[0] not in COMMANDS]
         return (entries[:1] + [(name, DESCRIPTION, "") for name in COMMANDS] + entries[1:])[:50]
-    slashes.hi_team = True
+    slashes.hi_app = True
     return slashes
 
 
@@ -134,7 +134,7 @@ def _answer_in_dms():
     for module in list(sys.modules.values()):
         adapter = getattr(module, "SlackAdapter", None)
         listener = getattr(adapter, "_handle_hermes_command", None)
-        if listener is None or getattr(listener, "hi_team", False):
+        if listener is None or getattr(listener, "hi_app", False):
             continue
 
         def make(original):
@@ -150,7 +150,7 @@ def _answer_in_dms():
                     async with aiohttp.ClientSession(trust_env=True) as session:  # the box's proxy
                         await session.post(url, json={"response_type": "ephemeral", "replace_original": True, "text": text},
                                            timeout=aiohttp.ClientTimeout(total=15))
-            handle.hi_team = True
+            handle.hi_app = True
             return handle
 
         adapter._handle_hermes_command = make(listener)
@@ -158,7 +158,7 @@ def _answer_in_dms():
 
 # The lead answers and files tasks; the owners' agents read the code.
 # Past a dozen reads and searches in one turn, each result says so
-# (docs/specs/approved/hi_team_lead_steps.md in hi). Written for
+# (docs/specs/approved/hi_app_lead_steps.md in hi). Written for
 # google/gemini-3.8-flash, whose leads on 2026-10-20 spent whole 60-step
 # turns mostly in search_files over /team/repo/src: re-check the counts on
 # another model before keeping it.
@@ -199,7 +199,7 @@ def register(ctx):
         pass
     try:
         from hermes_cli import commands_platforms
-        if not getattr(commands_platforms.slack_native_slashes, "hi_team", False):
+        if not getattr(commands_platforms.slack_native_slashes, "hi_app", False):
             commands_platforms.slack_native_slashes = _put_first(commands_platforms.slack_native_slashes)
     except Exception:
         pass
@@ -214,7 +214,7 @@ def _guard_dms():
     for module in list(sys.modules.values()):
         adapter = getattr(module, "SlackAdapter", None)
         check = getattr(adapter, "_early_reject_unauthorized", None)
-        if check is None or getattr(check, "hi_team", False):
+        if check is None or getattr(check, "hi_app", False):
             continue
 
         def make(original):
@@ -223,7 +223,7 @@ def _guard_dms():
                     log.info("hi-team: dropped a DM from %s, who may not ask the team for work", user_id)
                     return True
                 return original(self, user_id, channel_id, is_dm)
-            reject.hi_team = True
+            reject.hi_app = True
             return reject
 
         adapter._early_reject_unauthorized = make(check)

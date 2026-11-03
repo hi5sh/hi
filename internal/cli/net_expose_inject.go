@@ -20,7 +20,7 @@ import (
 // prefix from a socket instead of the service: --inject, --route, and
 // --inject-if. hi app uses them to put its helper, a chat with the lead,
 // into every page of a team's app whatever it is written in, without the
-// app holding any of it (docs/specs/approved/hi_team_helper.md).
+// app holding any of it (docs/specs/approved/hi_app_helper.md).
 
 // netExposeInjectScan is how much of a page the relay reads looking for
 // where the script goes; a page with no <head>, <body>, or <html> that far
@@ -30,7 +30,7 @@ const netExposeInjectScan = 64 << 10
 // A person's own key to the routes: a link with hi_user=<key> leaves it in
 // a cookie only the routes' paths get, and the relay hands it to the
 // socket as X-Hi-User. The service never sees it, and the page's scripts
-// can't read it (docs/specs/approved/hi_team_helper_signin.md).
+// can't read it (docs/specs/approved/hi_app_helper_signin.md).
 const (
 	netExposeUserParam  = "hi_user"
 	netExposeUserCookie = "hi_user"
@@ -49,7 +49,7 @@ const (
 
 // netExposePlainHeader tells the routes a request came over plain HTTP,
 // through a team's internal relay, so their cookies can't be Secure ones
-// (hi_team_internal.md). Only the relay sets it.
+// (hi_app_internal.md). Only the relay sets it.
 const netExposePlainHeader = "X-Hi-Plain"
 
 var netExposeUserKey = regexp.MustCompile(`^[A-Za-z0-9_-]{20,100}$`)

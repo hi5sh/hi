@@ -31,68 +31,68 @@ var BuiltinRecipeFiles embed.FS
 //go:embed skills/hi/SKILL.md
 var HiSkill []byte
 
-// TeamDevSkills are the skills a team's dev box gets.
+// AppDevSkills are the skills a team's dev box gets.
 //
-//go:embed skills/hi/team
-var TeamDevSkills embed.FS
+//go:embed skills/hi/app
+var AppDevSkills embed.FS
 
-// TeamDevPageHTML, TeamDevPageScript, and TeamDevPageStyle are the dev page.
+// AppDevPageHTML, AppDevPageScript, and AppDevPageStyle are the dev page.
 //
 //go:embed helper/dev/page.html
-var TeamDevPageHTML []byte
+var AppDevPageHTML []byte
 
 //go:embed helper/dev/dev.js
-var TeamDevPageScript []byte
+var AppDevPageScript []byte
 
 //go:embed helper/dev/dev.css
-var TeamDevPageStyle []byte
+var AppDevPageStyle []byte
 
-// TeamXtermScript, TeamXtermStyle, and TeamXtermFit are the dev page's terminal.
+// AppXtermScript, AppXtermStyle, and AppXtermFit are the dev page's terminal.
 //
 //go:embed third_party/xterm/xterm.js
-var TeamXtermScript []byte
+var AppXtermScript []byte
 
 //go:embed third_party/xterm/xterm.css
-var TeamXtermStyle []byte
+var AppXtermStyle []byte
 
 //go:embed third_party/xterm/addon-fit.js
-var TeamXtermFit []byte
+var AppXtermFit []byte
 
-// TeamDocsPageSource and TeamDocsCSS are the app's docs page; TeamDocsPele draws its diagrams.
+// AppDocsPageSource and AppDocsCSS are the app's docs page; AppDocsPele draws its diagrams.
 //
 //go:embed helper/docs/page.html
-var TeamDocsPageSource string
+var AppDocsPageSource string
 
 //go:embed helper/docs/docs.css
-var TeamDocsCSS string
+var AppDocsCSS string
 
 //go:embed third_party/pele/pele.js
-var TeamDocsPele []byte
+var AppDocsPele []byte
 
-// TeamHelperSource is the helper on the app's pages, with the finder and screenshot scripts it loads.
+// AppHelperSource is the helper on the app's pages, with the finder and screenshot scripts it loads.
 //
 //go:embed helper/helper.js
-var TeamHelperSource []byte
+var AppHelperSource []byte
 
 //go:embed third_party/finder/finder.js
-var TeamFinderSource []byte
+var AppFinderSource []byte
 
 //go:embed third_party/modern-screenshot/modern-screenshot.js
-var TeamSnapSource []byte
+var AppSnapSource []byte
 
-// TeamLeadPluginManifest and TeamLeadPluginSource are the lead's Hermes plugin; TeamLeadAck* is its hook that acknowledges DMs.
+// AppLeadPluginManifest and AppLeadPluginSource are the lead's Hermes plugin; AppLeadAck* is its hook that acknowledges DMs.
 //
 //go:embed helper/hermes/plugin.yaml
-var TeamLeadPluginManifest []byte
+var AppLeadPluginManifest []byte
 
 //go:embed helper/hermes/__init__.py
-var TeamLeadPluginSource []byte
+var AppLeadPluginSource []byte
 
 //go:embed helper/hermes/hooks/dm-ack/HOOK.yaml
-var TeamLeadAckManifest []byte
+var AppLeadAckManifest []byte
 
 //go:embed helper/hermes/hooks/dm-ack/handler.py
-var TeamLeadAckSource []byte
+var AppLeadAckSource []byte
 
 // BuiltinTemplateFiles are the project templates behind hi init.
 //
