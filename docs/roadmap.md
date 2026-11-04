@@ -4284,6 +4284,27 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
+### Next — production on a machine of your own (`hi app target`)
+
+Spec: [hi_app_targets.md](specs/ideas/hi_app_targets.md), a draft: any
+Linux machine hi can SSH into runs an app's production, while the lead,
+the dev box, the dev page, the keys, and the snapshots stay on the app's
+machine.
+
+- [ ] First, decide the draft's open questions (data kept on the target,
+  how fresh the mirror is, model calls while the app's machine is down,
+  who may move production, Docker targets) and move it to
+  `specs/approved/`.
+- [ ] Release 1: production on an SSH target. `hi app target`, the
+  runner on the target, the one SSH connection, `https` and
+  `behind-proxy` fronts, the mirror at home, releases, rollbacks,
+  snapshots, and incidents.
+- [ ] Release 2: Stage on a target, forking production's data there.
+- [ ] Release 3: recipes for providers (`cloud-init`, then VMs made with
+  `aws`, `gcloud`, `az`, `doctl`, `hcloud`), and a front targets share.
+- [ ] Later: internal-only addresses on a target, the dev box on a
+  target, a target from `hi org machines`.
+
 ### Next — `hi serve llm --on local`
 
 Spec: [hi_serve.md](specs/approved/hi_serve.md), which took in hi_model.md:
