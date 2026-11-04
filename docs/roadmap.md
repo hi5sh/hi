@@ -3976,13 +3976,19 @@ team, without the old history or release tags.
   or a link, and an HTML file shows as text in a sandbox, never as a
   page.
 
-### Later — More in the Files tab
+### Later — More in the Files view
+
+The Files tab moved beside the chat (2026-11-04), as one of the panel's
+views with Source control and Rewind: the chat's workspace's tree,
+folders opening in place. Source control has each change's diff against
+the last commit, staging, discarding, and a commit.
 
 - [ ] More formats, as teams need them: most are in VS Code's view now
   (v2.6.2). Left: SQLite tables, xlsx, and docx in VS Code, once an
   extension for them is free of the problems v2.6.2 lists; SVG drawn
   safely in the tab.
-- [ ] A file's changes against dev, as a diff, beside its preview.
+- [ ] A file's changes against dev, as a diff (Source control has them
+  against the last commit).
 - [ ] The app's data folder (production's and the preview's), read-only.
 - [x] Decided 2026-10-27: viewers go in VS Code (v2.6.2), and VS Code
   does new folder, rename, delete, and editing; the tab stays for

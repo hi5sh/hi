@@ -214,7 +214,7 @@ a private link to the app's **dev page**, in a DM; their links from
 old ones. A developer's page has no Data tab and none of the owners'
 buttons ([below](#owners-developers-and-contributors)).
 
-Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Release**,
+Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
 **Data**, **System**, and **Security**; the page remembers the last one.
 
 - **Tasks:** the app's tasks as a table: each one's number, title,
@@ -267,8 +267,12 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   your own words, and hi presses the keys for you. It works for Codex's
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
-  shows its last session, with **Resume this session**. On a wide
-  screen, **Rewind** beside a Claude Code conversation is its messages
+  shows its last session, with **Resume this session**. Beside the chat
+  is a panel with three views, by the icons along its top: **Files**,
+  **Source control**, and **Rewind** ([below](#beside-the-chat)). Its
+  left edge drags it wider; the panel button at the end of the chat's
+  bar shows and hides it, and on a narrow screen it lies over the chat.
+  **Rewind** is a Claude Code conversation's messages
   as a timeline, newest last: each with when, and what the code did
   after it (green when it changed: `sand.ts +20`). A message opens to go
   back to before it, as Claude Code's `/rewind` does: **Code and chat**,
@@ -287,6 +291,29 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   and starts the agent on it. It ships, and is done, like any task. The chat is the
   default; the page remembers your choice. Codex's sessions
   are in the terminal.
+- <a id="beside-the-chat"></a>**Beside the chat**, the panel's views:
+  - **Files** is the chat's workspace's files, a tree whose folders
+    open in place: its worktree, or dev's clone for the project's own
+    workspace; the list at the top picks another. A file opens in the
+    panel, with **←** back to the tree: Markdown (with the project's own
+    pictures, and its links to other files), text and code, and
+    pictures; anything else, and any file, downloads. A file the chat
+    links to opens here too. **Upload**, or files dropped on it, go
+    into the folder last opened; a file that's there already is
+    replaced only when you say so. A changed file has git's letter
+    beside it. It shows nothing outside the project, nor its `.git`.
+  - **Source control** is the workspace's branch, how it stands against
+    dev, and its changes not committed: **Staged** and **Changes**, each
+    file with its lines added and removed and git's letter (M changed,
+    U new, D deleted, R renamed). A file opens to its diff. **+**
+    stages, **−** unstages, and **↶** discards: the file goes back as
+    the last commit has it, and a new one is deleted, after you say so.
+    **Commit** commits what's staged, or with nothing staged
+    (**Commit all**) every change, as the dev box's author, as the
+    agents commit. Under it, the branch's last commits, those dev
+    hasn't in green. Once it has commits dev hasn't, **Try on Stage**
+    and **Ship to Dev** are there too, as in the workspaces' list.
+  - **Rewind**, as above.
 - **VS Code**, the third view on a wide screen, is VS Code in the
   browser ([code-server](https://github.com/coder/code-server)) on the
   workspace's worktree: the same files the agent works on, to edit by
@@ -332,14 +359,6 @@ Eight tabs along the top, **Tasks**, **Decisions**, **Code**, **Files**, **Relea
   its NetBird peer has joined; **Make public** puts one on the internet
   too, with its link's key, and **Internal only** takes it off again. Both
   are an owner's click, said in the channel.
-- **Files:** the project in the dev box, to look through without a
-  terminal: dev's clone, or a piece of work's worktree, picked at the
-  top. It previews Markdown (with the project's own pictures, and its
-  links to other files), text and code, and pictures; anything else,
-  and any file, downloads. **Upload**, or files dropped on it, go into
-  the folder you're in; a file that's there already is replaced only
-  when you say so. It shows nothing outside the project, nor the
-  clone's `.git`.
 - **Release:** at the top, **Where things run**: each address and what
   it shows now. Production, in green, with the version everyone uses
   and, when dev has changes waiting, what they are and **Release**.

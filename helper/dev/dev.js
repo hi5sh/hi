@@ -14,7 +14,7 @@
       if (key === "text") node.textContent = attrs[key];
       else if (key.slice(0, 2) === "on") node.addEventListener(key.slice(2), attrs[key]);
       else if (key === "busy") { node.dataset.busy = attrs[key]; if (pending[attrs[key]]) { node.disabled = true; node.classList.add("busy"); } }
-      else node.setAttribute(key, attrs[key]);
+      else if (attrs[key] != null) node.setAttribute(key, attrs[key]);
     }
     (children || []).forEach(function (child) { if (child) node.appendChild(child); });
     return node;
@@ -65,7 +65,8 @@
     $("locked").hidden = false;
   }
 
-  // ---- tabs: Tasks, Code (herdr), Files, System; the page remembers the last one
+  // ---- tabs: Tasks, Code (herdr), System; the page remembers the last one.
+  // Files are beside the chat, in its panel.
   function show(tab) {
     document.querySelectorAll(".tabs button").forEach(function (button) {
       button.setAttribute("aria-selected", button.dataset.tab === tab ? "true" : "false");
@@ -74,8 +75,7 @@
       panel.hidden = panel.id !== "tab-" + tab;
     });
     try { localStorage.setItem("hi-dev-tab", tab); } catch (e) { /* private window */ }
-    if (tab === "terminal") setTimeout(function () { if (chat.view === "terminal") { fitTerminal(); term.focus(); } else pollChat(); }, 0);
-    if (tab === "files") openFiles();
+    if (tab === "terminal") setTimeout(function () { if (chat.view === "terminal") { fitTerminal(); term.focus(); } else { pollChat(); sideShown(); } }, 0);
     if (tab === "decisions") refreshDecisions();
     if (tab === "data") refreshData();
     if (tab === "security" && !developer()) refreshPeople();
@@ -467,18 +467,8 @@
       var actions = [el("button", { text: "Open", busy: "focus:" + space.id, onclick: function () { focus(space); } })];
       if (space.path && space.checked && space.ahead > 0) {
         // What hi dev preview and hi dev ship do in the box, by a click.
-        actions.push(el("button", { text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
-          toast("Putting " + space.branch + " on Stage…", true);
-          act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
-        } }));
-        actions.push(el("button", { class: "primary", text: "Ship to Dev", busy: "ship:" + space.id, title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
-          ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves when someone releases it." +
-            (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the release notes:", "the last commit's title").then(function (title) {
-            if (title === null) return;
-            toast("Shipping " + space.branch + " into dev…", true);
-            act("", "ship", { workspace: space.id, title: title }, function (r) { return r.text; }, "ship:" + space.id);
-          });
-        } }));
+        actions.push(tryButton(space));
+        actions.push(shipButton(space));
       }
       if (space.path && space.checked) {
         actions.push(el("button", {
@@ -575,6 +565,24 @@
   }
 
   // Asks, then does an owner's action, and says how it went.
+  // Try on Stage and Ship to Dev: what hi dev preview and hi dev ship do
+  // in the box, for a workspace's branch, by a click.
+  function tryButton(space) {
+    return el("button", { text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
+      toast("Putting " + space.branch + " on Stage…", true);
+      act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
+    } });
+  }
+  function shipButton(space) {
+    return el("button", { class: "primary", text: "Ship to Dev", busy: "ship:" + space.id, title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
+      ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves when someone releases it." +
+        (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the release notes:", "the last commit's title").then(function (title) {
+        if (title === null) return;
+        toast("Shipping " + space.branch + " into dev…", true);
+        act("", "ship", { workspace: space.id, title: title }, function (r) { return r.text; }, "ship:" + space.id);
+      });
+    } });
+  }
   function act(question, path, body, done, busy) {
     (question ? ask(question) : Promise.resolve("")).then(function (answer) {
       if (answer === null) return;
@@ -1141,6 +1149,20 @@
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
   // The rewind timeline's messages, what the page last saw, and the one open.
   var rewind = { points: [], seen: "", open: "" };
+  // The panel beside the chat: its open view, whether it's shown, and how
+  // wide. On a narrow screen it lies over the chat, so it starts hidden.
+  var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
+  var side = { view: "files", open: true, width: 340 };
+  try {
+    var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
+    if (["files", "git", "rewind"].indexOf(keptSide.view) >= 0) side.view = keptSide.view;
+    if (keptSide.open === false) side.open = false;
+    if (keptSide.width >= 240) side.width = keptSide.width;
+  } catch (e) { /* private window */ }
+  if (sideOver.matches) side.open = false;
+  // The source control view: what git last said of the chat's workspace,
+  // and the file whose diff is open.
+  var git = { view: null, space: "", busy: false, at: 0, diff: null, error: "" };
   try {
     // Chat is the default since hi 2.5.24; the choice before it isn't kept.
     chat.view = localStorage.getItem("hi-dev-code-view-2") || chat.view;
@@ -1160,7 +1182,7 @@
     $("chat-status").hidden = view !== "chat";
     if (view === "terminal") setTimeout(function () { fitTerminal(); term.focus(); }, 0);
     else if (view === "code") openVSCode();
-    else pollChat();
+    else { pollChat(); sideShown(); }
   }
   // VS Code: code-server in the dev box, which hi starts the first time
   // (and fetches, the very first), on the workspace's worktree.
@@ -1226,6 +1248,11 @@
     renderPoints();
     clearChat();
     showChatStart();
+    git.view = null;
+    closeDiff();
+    renderGit();
+    syncFilesRoot();
+    sideShown();
     if (chat.view === "code") openVSCode();
     if (!quiet) pollChat();
   }
@@ -1239,6 +1266,7 @@
     $("chat-space").hidden = chat.view !== "chat" || !workSpaces().length;
     $("adhoc-cancel").hidden = !chat.space;
     if (starting) $("chat-title").textContent = "";
+    renderSide();
   }
   $("chat-new").addEventListener("click", function () {
     chat.composing = true;
@@ -1568,11 +1596,15 @@
     }).join(", ");
   }
   function renderPoints() {
-    var rail = $("chat-rewind"), list = $("rewind-points");
+    var list = $("rewind-points"), empty = $("rewind-empty");
     var agent = chat.agent || {};
-    rail.hidden = !(agent.running && agent.agent === "claude" && rewind.points.length);
+    var usable = agent.running && agent.agent === "claude";
     list.textContent = "";
-    if (rail.hidden) return;
+    empty.hidden = usable && rewind.points.length > 0;
+    empty.textContent = agent.running && agent.agent !== "claude" ? "Rewind is Claude Code's: " + agent.agent + " keeps no checkpoints of the code."
+      : !usable ? "Rewind works while Claude Code runs in this workspace: each message you send is a point to go back to."
+      : "Nothing to go back to yet: each message you send is a point here.";
+    if (!empty.hidden) return;
     var busy = agent.status === "working" || agent.status === "blocked";
     rewind.points.forEach(function (point) { list.appendChild(pointItem(point, busy)); });
     list.appendChild(el("li", { class: "rp now" }, [el("span", { class: "rp-dot", "aria-hidden": "true" }), el("div", { class: "rp-now", text: "Now" })]));
@@ -1667,7 +1699,7 @@
       // The timeline again when its messages, or what Claude is doing, change.
       var agent = view.agent || {};
       var seen = [agent.running, agent.agent, agent.status, view.turns, view.session].join("/");
-      if (view.reset || seen !== rewind.seen) { rewind.seen = seen; loadPoints(); }
+      if (view.reset || seen !== rewind.seen) { rewind.seen = seen; loadPoints(); if (gitShown()) refreshGit(); }
       if (atBottom) log.scrollTop = log.scrollHeight;
     }).catch(function (error) {
       $("chat-status").textContent = error.message;
@@ -1838,15 +1870,18 @@
   });
   setCodeView(chat.view);
 
-  // ---- the Files tab: dev's clone and each piece of work's worktree
-  var files = { root: "repo", dir: "", file: "", roots: [], loaded: false };
+  // ---- Files, in the panel beside the chat: the chat's workspace's tree
+  // (or dev's clone, or another worktree), its folders opening in place.
+  // A file's preview takes the panel, with a way back.
+  var files = { root: "repo", dir: "", file: "", roots: [], loaded: false, open: {}, lists: {}, sig: "", at: 0, kept: {} };
   try {
-    var kept = JSON.parse(localStorage.getItem("hi-dev-files") || "{}");
-    files.root = kept.root || "repo";
-    files.dir = kept.dir || "";
+    var kept = JSON.parse(localStorage.getItem("hi-dev-files-2") || "{}");
+    files.kept = kept.open || {};
   } catch (e) { /* private window */ }
+  // keepFiles remembers each tree's open folders.
   function keepFiles() {
-    try { localStorage.setItem("hi-dev-files", JSON.stringify({ root: files.root, dir: files.dir })); } catch (e) { /* private window */ }
+    files.kept[files.root] = Object.keys(files.open);
+    try { localStorage.setItem("hi-dev-files-2", JSON.stringify({ open: files.kept })); } catch (e) { /* private window */ }
   }
   function fileQuery(path, extra) {
     return "root=" + encodeURIComponent(files.root) + "&path=" + encodeURIComponent(path) + (extra || "");
@@ -1858,6 +1893,7 @@
     dir: "M1.5 3.5h4l1.5 1.5h7.5v8.5h-13z",
     file: "M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3",
     up: "M6 3.5 2.5 7 6 10.5 M2.5 7h7a4 4 0 0 1 4 4v1.5",
+    chevron: "M6 3.5 10.5 8 6 12.5",
   };
   function icon(kind) {
     var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -1878,91 +1914,492 @@
     while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
     return (i ? n.toFixed(n < 10 ? 1 : 0) : n) + " " + units[i];
   }
+  // The chat's workspace's tree: its worktree's, by its branch, or dev's
+  // clone for a workspace with none.
+  function chatSpace() {
+    return ((state && state.workspaces) || []).filter(function (s) { return s.id === chat.space; })[0];
+  }
+  function spaceRoot() {
+    var space = chatSpace();
+    return space && space.path && space.branch ? space.branch : "repo";
+  }
+  function setRoot(root) {
+    if (root === files.root) return;
+    files.root = root;
+    files.open = {};
+    (files.kept[root] || []).forEach(function (dir) { files.open[dir] = true; });
+    files.lists = {};
+    files.sig = "";
+    files.file = "";
+    files.dir = "";
+    showPreview(null);
+    $("files-list").textContent = "";
+    if (files.roots.some(function (r) { return r.id === root; })) $("files-root").value = root;
+  }
+  function syncFilesRoot() {
+    if (!files.loaded) { files.root = ""; return; }
+    var want = spaceRoot();
+    if (want === files.root) return;
+    // A worktree hi hasn't listed yet: the roots again, then its tree.
+    if (!files.roots.some(function (r) { return r.id === want; })) {
+      loadRoots().then(function () { setRoot(files.roots.some(function (r) { return r.id === want; }) ? want : "repo"); if (filesShown()) loadTree(); });
+      return;
+    }
+    setRoot(want);
+  }
+  function filesShown() { return sideOpen() && side.view === "files"; }
   function openFiles() {
-    if (files.loaded) return;
-    files.loaded = true;
-    loadRoots().then(function () { listDir(files.dir); });
+    if (!files.loaded) {
+      files.loaded = true;
+      loadRoots().then(function () {
+        var want = spaceRoot();
+        files.root = "";
+        setRoot(files.roots.some(function (r) { return r.id === want; }) ? want : "repo");
+        loadTree();
+      });
+      return;
+    }
+    syncFilesRoot();
+    if (Date.now() - files.at > 3000) loadTree();
   }
   function loadRoots() {
     return api("GET", "files/roots").then(function (roots) {
       files.roots = roots;
-      if (!roots.some(function (root) { return root.id === files.root; })) { files.root = "repo"; files.dir = ""; }
       var select = $("files-root");
       select.textContent = "";
       roots.forEach(function (root) {
-        var option = el("option", { value: root.id, text: root.label });
-        if (root.id === files.root) option.selected = true;
-        select.appendChild(option);
+        select.appendChild(el("option", { value: root.id, text: root.label }));
       });
+      if (roots.some(function (root) { return root.id === files.root; })) select.value = files.root;
     }).catch(function (error) { $("files-list").textContent = error.message; });
   }
-  $("files-root").addEventListener("change", function () {
-    files.root = this.value;
-    files.file = "";
-    listDir("");
-    showPreview(null);
-  });
-  $("files-refresh").addEventListener("click", function () { loadRoots().then(function () { listDir(files.dir); }); });
-  function crumbs() {
-    var nav = $("files-crumbs");
-    nav.textContent = "";
-    var parts = files.dir ? files.dir.split("/") : [];
-    nav.appendChild(el("button", { class: "link crumb", text: "/", title: "The top of the tree", onclick: function () { listDir(""); } }));
-    parts.forEach(function (part, i) {
-      if (i) nav.appendChild(el("span", { class: "muted", text: "/" }));
-      nav.appendChild(el("button", { class: "link crumb", text: part, onclick: function () { listDir(parts.slice(0, i + 1).join("/")); } }));
-    });
-    $("files-drop-where").textContent = (files.roots.filter(function (root) { return root.id === files.root; })[0] || { label: files.root }).label + "/" + files.dir;
+  $("files-root").addEventListener("change", function () { setRoot(this.value); loadTree(); });
+  $("files-refresh").addEventListener("click", function () { loadRoots().then(loadTree); });
+  $("files-collapse").addEventListener("click", function () { files.open = {}; files.dir = ""; keepFiles(); renderTree(); target(); });
+  // target is the folder an upload goes into: the one last opened, or the
+  // open file's.
+  function target() {
+    var label = (files.roots.filter(function (root) { return root.id === files.root; })[0] || { label: files.root }).label;
+    $("files-drop-where").textContent = label + "/" + files.dir;
+    $("files-upload-label").title = "Upload files into /" + files.dir + "; or drop them here";
   }
-  function listDir(dir) {
-    files.dir = dir;
-    keepFiles();
-    crumbs();
-    var list = $("files-list");
+  function listOf(dir) {
+    var root = files.root;
     return api("GET", "files/list?" + fileQuery(dir)).then(function (entries) {
-      list.textContent = "";
-      if (dir) {
-        list.appendChild(el("button", { class: "file-row", role: "listitem", onclick: function () { listDir(dir.split("/").slice(0, -1).join("/")); } }, [
-          icon("up"), el("span", { class: "file-name", text: ".." }), el("span"), el("span"),
-        ]));
-      }
-      if (!entries.length) list.appendChild(el("p", { class: "muted empty-preview", text: "An empty folder. Upload files into it, or drop them here." }));
-      entries.forEach(function (entry) {
-        var path = joinPath(dir, entry.name);
-        list.appendChild(el("button", { class: "file-row" + (path === files.file ? " current" : ""), role: "listitem", title: path, onclick: function () {
-          if (entry.dir) listDir(path); else openFile(path, entry);
-        } }, [
-          icon(entry.dir ? "dir" : "file"),
-          el("span", { class: "file-name", text: entry.name }),
-          el("span", { class: "muted small", text: entry.dir ? "" : size(entry.size) }),
-          el("span", { class: "muted small", text: ago(entry.modified) }),
-        ]));
+      if (root === files.root) files.lists[dir] = entries;
+      return entries;
+    });
+  }
+  // loadTree lists the top and every open folder again; one that's gone
+  // closes.
+  function loadTree() {
+    var root = files.root;
+    if (!root) return Promise.resolve();
+    files.at = Date.now();
+    var dirs = [""].concat(Object.keys(files.open));
+    return Promise.all(dirs.map(function (dir) {
+      return listOf(dir).catch(function (error) {
+        if (dir) { delete files.open[dir]; delete files.lists[dir]; } else throw error;
       });
+    })).then(function () {
+      if (root !== files.root) return;
+      var sig = JSON.stringify([files.lists, files.open, gitMarks()]);
+      if (sig !== files.sig) { files.sig = sig; renderTree(); }
+      target();
     }).catch(function (error) {
+      var list = $("files-list");
       list.textContent = "";
       list.appendChild(el("p", { class: "error empty-preview", text: error.message }));
     });
+  }
+  // gitMarks are the source control view's letters for the tree, when it
+  // has looked at this tree's workspace.
+  function gitMarks() {
+    var marks = {};
+    if (!git.view || git.space !== chat.space || spaceRoot() !== files.root) return marks;
+    git.view.staged.concat(git.view.changes, git.view.conflicts || []).forEach(function (file) { marks[file.path] = file.status; });
+    return marks;
+  }
+  function renderTree() {
+    var list = $("files-list"), top = list.scrollTop, marks = gitMarks();
+    list.textContent = "";
+    if (!files.lists[""]) { list.appendChild(el("p", { class: "muted tree-note", text: "Loading…" })); return; }
+    if (!files.lists[""].length) list.appendChild(el("p", { class: "muted empty-preview", text: "An empty folder. Upload files into it, or drop them here." }));
+    (function rows(dir, depth) {
+      (files.lists[dir] || []).forEach(function (entry) {
+        var path = joinPath(dir, entry.name), open = entry.dir && files.open[path];
+        var mark = marks[path];
+        var changed = !entry.dir ? mark : Object.keys(marks).some(function (p) { return p.indexOf(path + "/") === 0; }) ? "dot" : "";
+        list.appendChild(el("button", {
+          class: "file-row" + (open ? " open" : "") + (path === files.file ? " current" : "") + (entry.dir && path === files.dir ? " target" : ""),
+          role: "treeitem", "aria-level": String(depth + 1), "aria-expanded": entry.dir ? String(!!open) : null, "data-path": path,
+          title: path + (entry.dir ? "" : " · " + size(entry.size)) + (entry.modified ? " · " + ago(entry.modified) : ""),
+          style: "padding-left:" + (8 + depth * 14) + "px",
+          onclick: function () { if (entry.dir) toggleDir(path); else { files.dir = dir; target(); openFile(path, entry); } },
+        }, [
+          el("span", { class: "file-chevron" }, entry.dir ? [icon("chevron").firstChild] : []),
+          icon(entry.dir ? "dir" : "file"),
+          el("span", { class: "file-name" + (changed && changed !== "dot" ? " " + gitClass(changed) : ""), text: entry.name }),
+          changed ? el("span", { class: "file-git " + gitClass(changed === "dot" ? "M" : changed), text: changed === "dot" ? "•" : gitLetter(changed) }) : null,
+        ]));
+        if (open) {
+          if (files.lists[path]) rows(path, depth + 1);
+          else list.appendChild(el("p", { class: "muted tree-note", style: "padding-left:" + (34 + depth * 14) + "px", text: "Loading…" }));
+        }
+      });
+    })("", 0);
+    list.scrollTop = top;
+  }
+  function toggleDir(path) {
+    if (files.open[path]) {
+      delete files.open[path];
+      Object.keys(files.open).forEach(function (dir) { if (dir.indexOf(path + "/") === 0) delete files.open[dir]; });
+      files.dir = path.split("/").slice(0, -1).join("/");
+    } else {
+      files.open[path] = true;
+      files.dir = path;
+    }
+    keepFiles();
+    target();
+    renderTree();
+    if (files.open[path] && !files.lists[path]) listOf(path).then(renderTree).catch(function (error) { toast(error.message); delete files.open[path]; renderTree(); });
   }
   function showPreview(nodes) {
     var preview = $("files-preview");
     preview.textContent = "";
     $("files-main").classList.toggle("showing-file", !!nodes);
-    if (!nodes) {
-      preview.appendChild(el("p", { class: "muted empty-preview", text: "Pick a file to preview it: Markdown, text and code, and pictures. Anything else, download." }));
+    (nodes || []).forEach(function (node) { if (node) preview.appendChild(node); });
+  }
+  // widenSide gives a preview or a diff room: half the chat's width, at least.
+  function widenSide() {
+    var room = Math.round($("chat").clientWidth * 0.55);
+    if (side.width >= room) return;
+    side.width = room;
+    keepSide();
+    renderSide();
+  }
+  // ---- the panel beside the chat: Files, Source control, and Rewind, by
+  // the icons along its top.
+  function keepSide() {
+    try { localStorage.setItem("hi-dev-side", JSON.stringify({ view: side.view, open: side.open, width: side.width })); } catch (e) { /* private window */ }
+  }
+  function sideOpen() {
+    return !$("chat-side").hidden && !$("tab-terminal").hidden && chat.view === "chat" && !document.hidden;
+  }
+  function renderSide() {
+    var starting = !$("chat-start").hidden;
+    var panel = $("chat-side");
+    panel.hidden = !side.open || starting;
+    panel.style.setProperty("--side-width", side.width + "px");
+    $("side-toggle").setAttribute("aria-pressed", String(side.open));
+    $("side-toggle").hidden = starting || chat.view !== "chat";
+    document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
+      button.setAttribute("aria-selected", String(button.dataset.side === side.view));
+    });
+    $("side-files").hidden = side.view !== "files";
+    $("side-git").hidden = side.view !== "git";
+    $("side-rewind").hidden = side.view !== "rewind";
+  }
+  // sideShown brings the open view up to date, when it's on the screen.
+  function sideShown() {
+    if (!sideOpen()) return;
+    if (side.view === "files") openFiles();
+    if (side.view === "git") refreshGit();
+    if (side.view === "rewind") renderPoints();
+  }
+  function setSide(view, open) {
+    if (view) side.view = view;
+    if (open != null) side.open = open;
+    keepSide();
+    renderSide();
+    sideShown();
+  }
+  // revealSide opens a view from anywhere on the page: the Code tab, its
+  // chat, the panel.
+  function revealSide(view) {
+    if ($("tab-terminal").hidden) show("terminal");
+    if (chat.view !== "chat") setCodeView("chat");
+    setSide(view, true);
+  }
+  document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
+    button.addEventListener("click", function () { setSide(button.dataset.side, true); });
+  });
+  $("side-close").addEventListener("click", function () { setSide(null, false); });
+  $("side-toggle").addEventListener("click", function () { setSide(null, !side.open); });
+  // The panel's left edge drags it wider or narrower; a double click puts
+  // it back.
+  (function () {
+    var handle = $("side-resize"), from = 0, width = 0;
+    handle.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      from = event.clientX;
+      width = $("chat-side").getBoundingClientRect().width;
+      handle.setPointerCapture(event.pointerId);
+      handle.classList.add("dragging");
+    });
+    handle.addEventListener("pointermove", function (event) {
+      if (!handle.classList.contains("dragging")) return;
+      var most = Math.max(240, $("chat").clientWidth - 320);
+      side.width = Math.round(Math.min(most, Math.max(240, width + from - event.clientX)));
+      $("chat-side").style.setProperty("--side-width", side.width + "px");
+    });
+    function done() {
+      if (!handle.classList.contains("dragging")) return;
+      handle.classList.remove("dragging");
+      keepSide();
+    }
+    handle.addEventListener("pointerup", done);
+    handle.addEventListener("pointercancel", done);
+    handle.addEventListener("dblclick", function () { side.width = 340; keepSide(); renderSide(); });
+  })();
+  // A narrow screen's panel lies over the chat: tapping the chat closes it.
+  $("chat-log").addEventListener("click", function () { if (sideOver.matches && side.open) setSide(null, false); });
+
+  // ---- Source control: the chat's workspace's changes, staged or not,
+  // each file's diff, a commit, and its branch's commits. Try on Stage and
+  // Ship to Dev too, once it has commits dev hasn't.
+  function gitShown() { return sideOpen() && side.view === "git"; }
+  function refreshGit() {
+    if (!chat.space || git.busy) return;
+    var asked = chat.space;
+    git.busy = true;
+    api("GET", "git?workspace=" + encodeURIComponent(asked)).then(function (view) {
+      if (asked !== chat.space) return;
+      git.view = view;
+      git.space = asked;
+      git.error = "";
+    }).catch(function (error) {
+      if (asked === chat.space) git.error = error.message;
+    }).then(function () {
+      git.busy = false;
+      git.at = Date.now();
+      if (asked !== chat.space) return;
+      renderGit();
+      if (filesShown()) loadTree();
+    });
+  }
+  setInterval(function () {
+    if (gitShown() && Date.now() - git.at > 4000) refreshGit();
+    else if (filesShown() && files.loaded && Date.now() - files.at > 8000) {
+      // The tree, and its letters, as the agent changes files.
+      if (Date.now() - git.at > 15000) refreshGit(); else loadTree();
+    }
+  }, 1000);
+  function count(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  function gitLetter(status) { return status === "?" ? "U" : status; }
+  function gitClass(status) { return status === "?" ? "git-new" : status === "!" ? "git-conflict" : "git-" + status; }
+  var gitWords = { M: "Changed", A: "Added", D: "Deleted", R: "Renamed", C: "Copied", T: "Changed its kind", "?": "New: git doesn't know it yet", "!": "A conflict, to resolve" };
+  function gitBusyWords() {
+    var agent = chat.agent || {};
+    return agent.status === "working" ? " Claude is at work here: it may be changing these files right now." : "";
+  }
+  function renderGit() {
+    var view = git.view && git.space === chat.space ? git.view : null;
+    var space = chatSpace() || {};
+    var lists = $("git-lists");
+    $("git-error").textContent = git.error;
+    var all = view ? view.staged.length + view.changes.length + (view.conflicts || []).length : 0;
+    var badge = $("git-count");
+    badge.hidden = !(view ? all : space.dirty);
+    badge.classList.toggle("dot", !view);
+    badge.textContent = view && all ? (all > 99 ? "99+" : String(all)) : "";
+    if (!view) {
+      $("git-branch").textContent = space.branch || space.label || "";
+      $("git-base").textContent = "";
+      $("git-ship").textContent = "";
+      $("git-commits").textContent = "";
+      lists.textContent = "";
+      lists.appendChild(el("p", { class: "muted small", text: chat.space ? (git.error ? "" : "Loading…") : "Pick a workspace to see its changes." }));
+      $("git-commit").disabled = true;
       return;
     }
-    nodes.forEach(function (node) { if (node) preview.appendChild(node); });
+    $("git-branch").textContent = view.branch || "(no branch)";
+    var where = [];
+    if (!space.path) where.push("The project's own clone");
+    where.push(view.ahead ? count(view.ahead, "commit", "commits") + " dev hasn't" : view.branch === view.base ? "dev itself" : "Nothing committed that dev hasn't");
+    if (view.behind) where.push("dev has " + count(view.behind, "commit", "commits") + " it hasn't");
+    $("git-base").textContent = where.join(" · ");
+    var ship = $("git-ship");
+    ship.textContent = "";
+    if (space.path && space.branch && view.ahead > 0) {
+      var shipping = Object.assign({}, space, { ahead: view.ahead, dirty: all > 0 });
+      ship.appendChild(tryButton(shipping));
+      ship.appendChild(shipButton(shipping));
+    }
+    var commit = $("git-commit");
+    commit.textContent = view.staged.length ? "Commit" : "Commit all";
+    commit.disabled = !(view.staged.length || view.changes.length);
+    lists.textContent = "";
+    if (view.conflicts && view.conflicts.length) lists.appendChild(gitSection("Conflicts", view.conflicts, "conflict"));
+    if (view.staged.length) lists.appendChild(gitSection("Staged", view.staged, "staged"));
+    if (view.changes.length || !view.staged.length) lists.appendChild(gitSection("Changes", view.changes, "changes"));
+    if (!all) lists.appendChild(el("p", { class: "muted small", text: "Nothing to commit: every change is in a commit." }));
+    var commits = $("git-commits");
+    commits.textContent = "";
+    $("git-commits-box").querySelector("summary").textContent = "Commits" + (view.ahead ? " · " + view.ahead + " new" : "");
+    view.commits.forEach(function (c) {
+      commits.appendChild(el("li", { class: c.new ? "new" : "", title: c.hash + "\n" + c.subject + "\n" + c.author + (c.new ? "\nNot in dev yet" : "") }, [
+        el("span", { class: "git-hash", text: c.short }),
+        el("span", { class: "git-subject", text: c.subject }),
+        el("span", { class: "git-when", text: ago(c.at) }),
+      ]));
+    });
+    if (!view.commits.length) commits.appendChild(el("li", { class: "muted small", text: "No commits yet." }));
   }
+  function gitSection(title, list, kind) {
+    var box = el("div", { class: "git-section" });
+    var acts = [];
+    var paths = list.map(function (file) { return file.path; });
+    if (kind === "staged") acts.push(el("button", { class: "side-icon", text: "−", title: "Unstage them all", "aria-label": "Unstage them all", onclick: function () { gitDo("unstage", []); } }));
+    if (kind === "changes" && list.length) {
+      acts.push(el("button", { class: "side-icon", text: "↶", title: "Discard them all", "aria-label": "Discard them all", onclick: function () {
+        gitDo("discard", paths, "Discard every change not staged, " + count(list.length, "file", "files") + "? Each goes back as the last commit has it, staged changes to it too; a new file is deleted. There's no undo." + gitBusyWords());
+      } }));
+      acts.push(el("button", { class: "side-icon", text: "+", title: "Stage them all", "aria-label": "Stage them all", onclick: function () { gitDo("stage", []); } }));
+    }
+    box.appendChild(el("div", { class: "git-section-head" }, [el("span", { text: title }), list.length ? el("span", { class: "count", text: String(list.length) }) : null, el("span", { class: "grow" })].concat(acts)));
+    list.forEach(function (file) { box.appendChild(gitRow(file, kind)); });
+    return box;
+  }
+  function gitRow(file, kind) {
+    var parts = file.path.split("/"), name = parts.pop(), dir = parts.join("/");
+    var diffKind = kind === "staged" ? "staged" : file.status === "?" ? "new" : "";
+    var acts = [];
+    function stop(fn) { return function (event) { event.stopPropagation(); fn(); }; }
+    if (kind === "staged") acts.push(el("button", { class: "side-icon", text: "−", title: "Unstage", "aria-label": "Unstage", onclick: stop(function () { gitDo("unstage", file.old ? [file.old, file.path] : [file.path]); }) }));
+    if (kind === "changes") {
+      acts.push(el("button", { class: "side-icon", text: "↶", title: "Discard the changes", "aria-label": "Discard the changes", onclick: stop(function () { discardFile(file); }) }));
+      acts.push(el("button", { class: "side-icon", text: "+", title: "Stage", "aria-label": "Stage", onclick: stop(function () { gitDo("stage", [file.path]); }) }));
+    }
+    if (kind === "conflict") acts.push(el("button", { class: "side-icon", text: "+", title: "Mark it resolved: stage it", "aria-label": "Mark it resolved", onclick: stop(function () { gitDo("stage", [file.path]); }) }));
+    var lines = file.binary ? [el("span", { class: "muted", text: "binary" })] : [
+      file.added ? el("span", { class: "plus", text: "+" + file.added }) : null,
+      file.removed ? el("span", { class: "minus", text: " −" + file.removed }) : null,
+    ];
+    var row = el("div", {
+      class: "git-file" + (git.diff && git.diff.key === diffKind + ":" + file.path ? " current" : ""), role: "button", tabindex: "0",
+      title: file.path + (file.old ? " (was " + file.old + ")" : "") + " · " + (gitWords[file.status] || file.status),
+      onclick: function () { openDiff(file, diffKind, kind); },
+      onkeydown: function (event) { if (event.key === "Enter" && event.target === row) openDiff(file, diffKind, kind); },
+    }, [
+      icon("file"),
+      el("span", { class: "git-name " + gitClass(file.status), text: name }),
+      el("span", { class: "git-dir muted", text: file.old ? "← " + file.old : dir }),
+      el("span", { class: "git-lines" }, lines),
+      el("span", { class: "git-acts" }, acts),
+      el("span", { class: "git-letter " + gitClass(file.status), text: gitLetter(file.status) }),
+    ]);
+    return row;
+  }
+  function discardFile(file) {
+    var words = file.status === "?" ? "Delete " + file.path + "? It's new, and git hasn't it, so it's gone for good."
+      : "Discard the changes to " + file.path + "? It goes back as the last commit has it, staged changes too. There's no undo.";
+    gitDo("discard", [file.path], words + gitBusyWords());
+  }
+  function gitDo(action, paths, question) {
+    var asked = chat.space;
+    (question ? ask(question) : Promise.resolve("")).then(function (answer) {
+      if (answer === null) return;
+      var message = $("git-message").value;
+      return api("POST", "git", { workspace: asked, action: action, paths: paths, message: message }).then(function (view) {
+        if (asked !== chat.space) return;
+        git.view = view;
+        git.space = asked;
+        git.error = "";
+        git.at = Date.now();
+        if (action === "commit") {
+          $("git-message").value = "";
+          toast("Committed.");
+          refresh();
+        }
+        if (git.diff) {
+          var still = view.staged.concat(view.changes).some(function (f) { return git.diff.kind + ":" + f.path === git.diff.key || f.path === git.diff.file.path; });
+          if (!still || action === "discard") closeDiff(); else openDiff(git.diff.file, git.diff.kind, git.diff.list, true);
+        }
+        renderGit();
+        if (files.loaded) { files.at = 0; loadTree(); }
+      }).catch(function (error) {
+        git.error = error.message;
+        renderGit();
+        refreshGit();
+      });
+    });
+  }
+  $("git-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var message = $("git-message").value.trim();
+    if (!message) { $("git-error").textContent = "Say what the commit does, in its message."; $("git-message").focus(); return; }
+    var busy = gitBusyWords();
+    gitDo("commit", [], busy ? "Commit what's there now?" + busy : "");
+  });
+  $("git-message").addEventListener("keydown", function (event) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); $("git-form").requestSubmit(); }
+  });
+  $("git-refresh").addEventListener("click", function () { git.at = 0; refreshGit(); });
+  // A file's diff takes the view, with a way back; its lines colored.
+  function openDiff(file, kind, list, again) {
+    var key = kind + ":" + file.path;
+    git.diff = { key: key, file: file, kind: kind, list: list };
+    var box = $("git-diff");
+    box.hidden = false;
+    $("side-git").classList.add("showing-diff");
+    var parts = file.path.split("/");
+    var acts = [];
+    if (list === "staged") acts.push(el("button", { class: "small", text: "Unstage", onclick: function () { gitDo("unstage", file.old ? [file.old, file.path] : [file.path]); } }));
+    if (list === "changes" || list === "conflict") acts.push(el("button", { class: "small", text: "Stage", onclick: function () { gitDo("stage", [file.path]); } }));
+    if (list === "changes") acts.push(el("button", { class: "small danger", text: "Discard", onclick: function () { discardFile(file); } }));
+    var head = el("div", { class: "preview-head" }, [
+      el("button", { class: "side-icon", text: "←", title: "Back to the changes", "aria-label": "Back to the changes", onclick: closeDiff }),
+      el("strong", { class: "preview-name " + gitClass(file.status), text: parts[parts.length - 1], title: file.path }),
+      el("span", { class: "muted small", text: list === "staged" ? "staged" : "" }),
+      el("span", { class: "grow" }),
+    ].concat(acts, [
+      file.status !== "D" ? el("button", { class: "side-icon", text: "↗", title: "Open it in Files", "aria-label": "Open it in Files", onclick: function () { openPath(file.path); } }) : null,
+      el("button", { class: "side-icon", text: "⤢", title: "Wider", "aria-label": "Wider", onclick: widenSide }),
+    ]));
+    var body = el("pre", { class: "diff" }, again && box.querySelector(".diff") ? [].slice.call(box.querySelector(".diff").childNodes) : [el("div", { class: "meta", text: "Loading the diff…" })]);
+    box.textContent = "";
+    box.appendChild(head);
+    box.appendChild(body);
+    var query = "git/diff?workspace=" + encodeURIComponent(chat.space) + "&kind=" + encodeURIComponent(kind) +
+      (file.old && kind === "staged" ? "&path=" + encodeURIComponent(file.old) : "") + "&path=" + encodeURIComponent(file.path);
+    api("GET", query).then(function (result) {
+      if (!git.diff || git.diff.key !== key) return;
+      body.textContent = "";
+      var text = result.diff || "";
+      if (!text.trim()) { body.appendChild(el("div", { class: "meta", text: file.binary ? "A binary file: no lines to show." : "No differences to show." })); return; }
+      text.replace(/\n$/, "").split("\n").forEach(function (line) {
+        var cls = /^(diff |index |--- |\+\+\+ |new file|deleted file|similarity|rename |old mode|new mode|Binary )/.test(line) ? "meta"
+          : line[0] === "@" ? "hunk" : line[0] === "+" ? "add" : line[0] === "-" ? "del" : "";
+        body.appendChild(el("div", { class: cls, text: line || " " }));
+      });
+    }).catch(function (error) {
+      if (!git.diff || git.diff.key !== key) return;
+      body.textContent = "";
+      body.appendChild(el("div", { class: "meta", text: error.message }));
+    });
+    renderGit();
+  }
+  function closeDiff() {
+    git.diff = null;
+    $("git-diff").hidden = true;
+    $("git-diff").textContent = "";
+    $("side-git").classList.remove("showing-diff");
+  }
+  renderSide();
+  renderGit();
+
   function openFile(path, entry) {
     files.file = path;
-    document.querySelectorAll("#files-list .file-row").forEach(function (row) { row.classList.toggle("current", row.title === path); });
     var name = path.split("/").pop();
     var raw = "api/files/raw?" + fileQuery(path);
     var head = el("div", { class: "preview-head" }, [
-      el("button", { class: "link back", text: "← Files", onclick: function () { files.file = ""; showPreview(null); } }),
-      el("strong", { class: "preview-name", text: name }),
+      el("button", { class: "side-icon", text: "←", title: "Back to the files", "aria-label": "Back to the files", onclick: function () { files.file = ""; showPreview(null); renderTree(); } }),
+      el("strong", { class: "preview-name", text: name, title: path }),
       el("span", { class: "muted small", text: entry ? size(entry.size) : "" }),
       el("span", { class: "grow" }),
+      el("button", { class: "side-icon", text: "⤢", title: "Wider", "aria-label": "Wider", onclick: widenSide }),
       el("a", { class: "button-like", href: raw + "&download=1", download: name, text: "Download" }),
     ]);
     var body = el("div", { class: "preview-body" }, [el("p", { class: "muted", text: "Opening " + name + "…" })]);
@@ -2121,19 +2558,29 @@
     }
     return box;
   }
-  // openPath opens a file of the tree a Markdown link points at, or its folder.
-  function openPath(target) {
-    var dir = target.split("/").slice(0, -1).join("/");
-    api("GET", "files/list?" + fileQuery(dir)).then(function (entries) {
-      var name = target.split("/").pop();
-      var entry = entries.filter(function (e) { return e.name === name; })[0];
-      listDir(entry && entry.dir ? target : dir);
-      if (entry && !entry.dir) openFile(target, entry);
-      if (!entry) toast(target + " isn't there.");
-    }).catch(function (error) { toast(error.message); });
+  // openPath opens a file of the tree a Markdown link points at, or its
+  // folder, in the panel beside the chat.
+  function openPath(where) {
+    var path = where.replace(/^\/+/, "");
+    revealSide("files");
+    var parts = path.split("/"), dir = parts.slice(0, -1).join("/"), name = parts[parts.length - 1];
+    (function wait(tries) {
+      if (!files.root || !files.lists[""]) { if (tries < 40) setTimeout(function () { wait(tries + 1); }, 100); return; }
+      for (var i = 1; i < parts.length; i++) files.open[parts.slice(0, i).join("/")] = true;
+      keepFiles();
+      loadTree().then(function () {
+        var entry = (files.lists[dir] || []).filter(function (e) { return e.name === name; })[0];
+        if (!entry) { toast(path + " isn't there."); return; }
+        files.dir = entry.dir ? path : dir;
+        if (entry.dir) { if (!files.open[path]) toggleDir(path); } else openFile(path, entry);
+        target();
+        var row = document.querySelector('#files-list [data-path="' + CSS.escape(path) + '"]');
+        if (row) row.scrollIntoView({ block: "center" });
+      });
+    })(0);
   }
 
-  // Upload: picked, or dropped on the Files tab; a file that's there
+  // Upload: picked, or dropped on the files; a file that's there
   // already is replaced only when you say so.
   function upload(list, overwrite) {
     if (!list.length) return Promise.resolve();
@@ -2153,7 +2600,7 @@
         if (!response.ok) throw new Error(data.error || response.statusText);
         toast("Uploaded " + written.join(", ") + " into /" + files.dir + ".");
       });
-    }).catch(function (error) { toast(error.message); }).then(function () { listDir(files.dir); });
+    }).catch(function (error) { toast(error.message); }).then(function () { if (files.dir) files.open[files.dir] = true; keepFiles(); loadTree(); });
   }
   $("files-upload").addEventListener("change", function () {
     var list = [].slice.call(this.files);
@@ -2641,7 +3088,8 @@
   if (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) $("spaces-box").open = false;
   var tab = "tasks";
   try { tab = localStorage.getItem("hi-dev-tab") || "tasks"; } catch (e) { /* private window */ }
-  show(["tasks", "decisions", "terminal", "files", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
+  if (tab === "files") { tab = "terminal"; side.view = "files"; side.open = true; } // the Files tab, before it moved beside the chat
+  show(["tasks", "decisions", "terminal", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
   refresh().then(function () {
     if ($("locked").hidden && !vibe()) connect();
   });

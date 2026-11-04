@@ -1034,6 +1034,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 		return true
 	}
 	b.devFileRoutes(mux, builder, reply, failure)
+	b.devGitRoutes(mux, builder, reply, failure)
 	b.devChatRoutes(mux, builder, reply, failure)
 	b.devCodeRoutes(mux, builder, reply, failure)
 	b.devDecisionRoutes(mux, builder, reply, failure, decode)

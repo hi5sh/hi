@@ -1,7 +1,8 @@
 package cli
 
-// The dev page's Files tab: the project in the dev box, its clone and each
-// piece of work's worktree, to browse, preview, download, and upload into.
+// The dev page's Files view, beside the chat: the project in the dev box,
+// its clone and each piece of work's worktree, to browse, preview,
+// download, and upload into.
 // Every path goes through an os.Root at the worktree, so nothing reaches
 // outside it, through .. or a symlink.
 
