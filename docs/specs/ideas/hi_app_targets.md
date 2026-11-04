@@ -236,8 +236,8 @@ depend only on the target.
 6. **One app with `https` per target** until targets share a front
    (release 3). Behind a proxy, any number of apps, each on a port.
 7. **The dev box stays home.** It holds the agents' sign-ins through its
-   proxy, owners reach it over SSH on the app's peer, and the dev page's
-   chat talks to it directly. Moving it means moving the proxy and the
+   proxy, owners reach it over SSH on the app's peer, and the dev page
+   runs its chat and terminal in it with `podman exec`. Moving it means moving the proxy and the
    sign-ins, which is a different decision from where production runs.
    [hi_cluster.md](hi_cluster.md) covers more room for boxes on the
    organization's own machines.
