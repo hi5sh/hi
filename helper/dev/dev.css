@@ -270,6 +270,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .chat-entries { max-width: 860px; margin: 0 auto; padding: 18px 18px 8px; display: flex; flex-direction: column; gap: 12px; }
 .msg-user { align-self: flex-end; max-width: 80%; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 8px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .msg-user.pending { opacity: .6; }
+.msg-user.queued::after { content: "Queued: Claude reads it when its current step ends"; display: block; margin-top: 4px; font-size: 12px; opacity: .8; }
 .msg-text .md { max-width: none; }
 .msg-text .md > :first-child { margin-top: 0; }
 .msg-text .md > :last-child { margin-bottom: 0; }

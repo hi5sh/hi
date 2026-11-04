@@ -29,8 +29,9 @@ hi dev agy "a logo in the style of this sketch, as logo.svg and logo-512.png" --
 hi dev agy show a-3
 ```
 
-The agent waits for the run, a minute or two (longer for a video), and
-what it made lands in the box's `~/hi/agy/<id>/`, with Antigravity's
+The agent waits for the run, a minute or two for pictures, often 5 to 10
+for music, video, or deep research, which it runs in the background so
+you can talk to it meanwhile. What it made lands in the box's `~/hi/agy/<id>/`, with Antigravity's
 summary. The agent looks at it, puts what you keep into the project, and
 commits it with the work. Files it's given with `--file` come from the
 box's home or the clone, up to 20.

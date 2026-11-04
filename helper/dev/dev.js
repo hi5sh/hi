@@ -1138,7 +1138,7 @@
   // read from its transcript; what you write goes to the agent, so the chat
   // and the terminal are one session
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
-  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: null, turn: 0, spin: 0, composing: false, askSig: "" };
+  var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
   // The rewind timeline's messages, what the page last saw, and the one open.
   var rewind = { points: [], seen: "", open: "" };
   try {
@@ -1422,6 +1422,7 @@
     if (state) { chat.sitesSig = null; chatSites(); }
     chat.tools = {};
     chat.group = null;
+    chat.pending = [];
     $("chat-title").textContent = "";
   }
   var verbs = {
@@ -1470,7 +1471,8 @@
     chat.group = null;
     if (entry.t === "user") {
       if (entry.at) chat.turn = Date.parse(entry.at);
-      if (chat.pending) { chat.pending.remove(); chat.pending = null; }
+      var sent = chat.pending.shift();
+      if (sent) sent.node.remove();
       box.appendChild(el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [linked(entry.text)]));
     } else if (entry.t === "text") {
       box.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
@@ -1497,6 +1499,21 @@
     $("chat-input").disabled = stopped || !!view.note;
     $("chat-send").disabled = stopped || !!view.note;
     $("chat-stop").hidden = !(agent.running && agent.status === "working");
+    chatPending(agent);
+  }
+  // chatPending keeps what was sent until the transcript has it. Claude
+  // Code holds a message sent while a tool runs until the tool ends, which
+  // can be many minutes, so it waits as queued while Claude works; one
+  // that hasn't come 20 seconds after Claude stopped working never will.
+  function chatPending(agent) {
+    var working = agent.running && (agent.status === "working" || agent.status === "blocked");
+    chat.pending = chat.pending.filter(function (sent) {
+      if (working) sent.since = Date.now();
+      sent.node.classList.toggle("queued", !!working);
+      if (Date.now() - sent.since < 20000) return true;
+      sent.node.remove();
+      return false;
+    });
   }
   // chatActivity is the conversation's last line while Claude works, as in
   // its terminal: "✻ Crafting… (7s · ↓ 556 tokens)", from the terminal when
@@ -1709,11 +1726,11 @@
       input.value = "";
       chatFiles.clear();
       sizeChatInput();
-      if (chat.pending) chat.pending.remove();
-      chat.pending = el("div", { class: "msg-user pending", text: shown || "Attached files" });
-      $("chat-entries").appendChild(chat.pending);
+      var node = el("div", { class: "msg-user pending", text: shown || "Attached files" });
+      chat.pending.push({ node: node, since: Date.now() });
+      chatPending(chat.agent || {});
+      $("chat-entries").insertBefore(node, $("chat-activity"));
       $("chat-log").scrollTop = $("chat-log").scrollHeight;
-      setTimeout(function () { if (chat.pending) { chat.pending.remove(); chat.pending = null; } }, 20000);
       pollChat();
     }).catch(function (error) { toast(error.message); }).then(function () { $("chat-send").disabled = false; });
   }
