@@ -4291,10 +4291,24 @@ Linux machine hi can SSH into runs an app's production, while the lead,
 the dev box, the dev page, the keys, and the snapshots stay on the app's
 machine.
 
-- [ ] First, decide the draft's open questions (data kept on the target,
-  how fresh the mirror is, model calls while the app's machine is down,
-  who may move production, Docker targets) and move it to
-  `specs/approved/`.
+- [ ] First, review the draft and move it to `specs/approved/`. Its
+  [open questions](specs/ideas/hi_app_targets.md#open-questions):
+  - [ ] Data that must stay on the target: may a target keep its
+    snapshots on its own side, with no mirror at home, so Stage forks and
+    rollbacks happen only there?
+  - [ ] How fresh the mirror is: daily and before each release, as
+    snapshots are now, or more often for a slot on a target?
+  - [ ] Model calls while the app's machine is down: is it acceptable
+    that the app's AI stops then, or does release 1 need a key of the
+    target's own as an option?
+  - [ ] Who may move production: an admin only, or also an owner from
+    the dev page once a target is set up?
+  - [ ] Docker targets: accept rootful Docker with a warning, or refuse
+    it and ask for Podman?
+  - [ ] And the seven [proposed decisions](specs/ideas/hi_app_targets.md#decisions-proposed):
+    home keeps the control, raw SSH first, model keys stay home, a
+    public front on the target, only an admin sets a target, one app
+    with `https` per target, the dev box stays home.
 - [ ] Release 1: production on an SSH target. `hi app target`, the
   runner on the target, the one SSH connection, `https` and
   `behind-proxy` fronts, the mirror at home, releases, rollbacks,
