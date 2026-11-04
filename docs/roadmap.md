@@ -2713,6 +2713,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.70 — A message sent while Claude works waits as queued
+
+- [x] The dev page's chat keeps each message sent while Claude works,
+  marked queued, until the transcript has it, in order; Claude Code holds
+  such a message until its current step ends, which can take minutes, and
+  the chat used to drop its copy after 20 seconds. One that hasn't come 20
+  seconds after Claude stopped working is dropped. Checked in headless
+  Chromium with the page's own Content-Security-Policy.
+- [x] Antigravity's skill and guide say how long a run takes, and the dev
+  box's agents run a long one in the background.
+
 ### v2.6.69 — Projects hide every .env but .env.example from Claude
 
 - [x] The templates' Claude Code settings deny `.env`, `.env.*`, and
