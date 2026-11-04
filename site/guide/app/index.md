@@ -22,6 +22,36 @@ build the app with coding agents and decide what reaches production.
 One app has one channel, one Slack app, and one machine. A new project is a
 new app.
 
+## The app's boxes
+
+Dev, Stage, and production are separate boxes, each a container with its
+own data, all on the app's one machine:
+
+| Box | What runs there | Its data |
+|---|---|---|
+| **The lead** | Hermes, in the channel | Its memory, in `lead/` and `memory/` |
+| **The dev box** | Where the owners build, with the project, Claude Code, Codex, and herdr, over SSH or from the dev page | Its home, in `dev/` |
+| **Stage** | The `dev` branch, or a branch put up with `hi dev preview`, on Stage's link | A fork of production's data, renewed at each release |
+| **Production** | The last release, on the app's link | `app/`, which only production writes |
+
+- **Dev** is also the name of a branch: `hi dev ship` takes work from
+  the dev box into the `dev` branch, and Stage runs it. Production is the
+  `production` branch, and it moves only at a Release.
+- **The dev box can't touch production.** Its connection to the app's
+  service has no command to release, roll back, restore, or change
+  production's settings, and Stage never writes production's data.
+- **They share the machine and the app's folder.** A snapshot takes them
+  all together, and when the machine is down, so is each box. To move
+  the app, the whole folder moves.
+- **A release starts a new production box** beside the old one, on the
+  same data, and moves the link to it once it answers. See
+  [Dev and production](/guide/app/releases/).
+
+Each box gets its own settings with `hi app env <app> --production`,
+`--stage`, or `--dev`, and its own memory limit with `hi app limit`:
+16g for the dev box and 4g for Stage's and production's, unless the
+app sets its own.
+
 [See it in action](/app/): a short demo, then how it works.
 
 {% include diagram.html name="app" %}

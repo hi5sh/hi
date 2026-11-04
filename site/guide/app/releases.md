@@ -13,6 +13,10 @@ The project has two versions:
   Pro Dev, or a Vibe Dev releases it from the dev page. Each release gets the next number: v1,
   v2, and so on, tagged `release-1`, `release-2`.
 
+Each runs in a box of its own on the app's machine: the dev box where
+the work is built, Stage, and production, each with its own data. See
+[The app's boxes](/guide/app/#the-apps-boxes).
+
 ## Release
 
 On the dev page's Release tab, **Release v4** shows in Production's row
