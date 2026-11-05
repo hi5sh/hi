@@ -4042,6 +4042,11 @@ the last commit, staging, discarding, and a commit.
   `script-src 'none'`, 512 MB per team), filebrowser/filebrowser
   (archived), dufs and miniserve (no previews), SFTPGo and Filestash
   (AGPL, their own accounts), Cloudreve, Nextcloud, and Seafile.
+- [x] Tasks in the panel too (2026-11-05): the chat's workspace's
+  task, to read, add a note to, and close, and the open tasks, short,
+  with the count on its icon. The Tasks tab stays while the two are
+  compared; one of them may go. The panel's icons narrow to fit, so
+  eight fit in its narrowest width.
 - [x] Search, Checks, Logs, and Preview in the panel (2026-11-05):
   `git grep` in the workspace, its make checks or package scripts run
   in the dev box with Stop and Fix with Claude, production's and

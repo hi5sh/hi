@@ -361,6 +361,7 @@
       toast(r.text);
       refreshTickets(true);
       if ($("view-dialog").open) openTicket(ticket.number);
+      if (stask.ticket && stask.ticket.number === ticket.number) showSideTask(ticket.number, true);
     }).catch(function (error) { toast(error.message); });
   }
 
@@ -1113,6 +1114,7 @@
       renderOwnerActions();
       renderWorkspaces();
       renderTickets();
+      if (side.view === "tasks" && sideOpen()) renderSideTasks(); // its workspace's task, now that it's known
       openLinkedTask();
       $("release-count").textContent = String((data.changes || []).length || "");
     }).catch(function () {});
@@ -1138,6 +1140,7 @@
     return api("GET", "tickets" + (query ? "?" + query : "")).then(function (data) {
       tickets = data;
       renderTickets();
+      if (side.view === "tasks" && sideOpen()) renderSideTasks(); else renderTaskBadge();
     }).catch(function (error) { $("tickets-where").textContent = error.message; });
   }
   $("tickets-refresh").addEventListener("click", function () { refreshTickets(true); });
@@ -1153,7 +1156,7 @@
   // wide. On a narrow screen it lies over the chat, so it starts hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
   var side = { view: "rewind", open: true, width: 340 };
-  var sideViews = ["rewind", "files", "search", "git", "checks", "logs", "preview"];
+  var sideViews = ["rewind", "files", "search", "git", "checks", "logs", "preview", "tasks"];
   try {
     // Rewind first since hi 2.6.72: the view kept before it was Files, by default.
     var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
@@ -2152,6 +2155,7 @@
     if (side.view === "checks") loadChecks();
     if (side.view === "logs") loadLogs();
     if (side.view === "preview") loadPreview(false);
+    if (side.view === "tasks") { renderSideTasks(); if (stask.ticket && !$("stask-one").hidden) showSideTask(stask.ticket.number, true); }
     if (side.view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
   function setSide(view, open) {
@@ -3729,6 +3733,148 @@
         refreshDecisions();
       }).catch(function (error) { $("decision-error").textContent = error.message; });
     });
+  });
+
+  // ---- Tasks in the panel: the chat's workspace's task, to read, add a
+  // note to, and close; and the open tasks, short, to open or start. The
+  // Tasks tab stays, for the whole list.
+  var stask = { mode: "auto", number: 0, ticket: null, loading: 0, space: "", error: "" };
+  var staskFiles = pictureBox($("stask-note"), $("stask-attached"), $("stask-files"));
+  function ticketOf(space) {
+    var match = space && /^(\d+)(-|$)/.exec(space.branch || "");
+    return match ? Number(match[1]) : 0;
+  }
+  function openTickets() {
+    return ((tickets && tickets.tickets) || []).filter(function (ticket) { return ticket.state !== "closed"; });
+  }
+  function renderTaskBadge() {
+    var badge = $("stasks-count");
+    var n = tickets ? openTickets().length : 0;
+    badge.textContent = n > 99 ? "99+" : String(n);
+    badge.hidden = !n;
+    badge.title = n + (n === 1 ? " open task" : " open tasks");
+  }
+  // renderSideTasks shows the list, or one task: the workspace's, unless
+  // you went back to the list or opened another.
+  function renderSideTasks() {
+    renderTaskBadge();
+    if (stask.space !== chat.space) { stask.space = chat.space; stask.mode = "auto"; }
+    var mine = ticketOf(chatSpace());
+    var number = stask.mode === "one" ? stask.number : stask.mode === "auto" ? mine : 0;
+    $("stask-list-box").hidden = !!number;
+    $("stask-one").hidden = !number;
+    if (number) return showSideTask(number, false);
+    renderSideList(mine);
+  }
+  function renderSideList(mine) {
+    var box = $("stask-mine");
+    box.textContent = "";
+    var space = chatSpace();
+    if (space && !mine && space.id) box.appendChild(el("div", {}, [
+      el("div", { text: space.label || space.branch || "This workspace" }),
+      el("div", { class: "muted", text: "Has no task: it was started without one." })]));
+    var list = $("stask-list");
+    list.textContent = "";
+    if (!tickets) { list.appendChild(el("li", { class: "empty", text: "Fetching the tasks…" })); return; }
+    var words = $("stask-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    var shown = openTickets().filter(function (ticket) {
+      var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.asked || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
+      return words.every(function (word) { return hay.indexOf(word) >= 0; });
+    });
+    if (!shown.length) list.appendChild(el("li", { class: "empty", text: words.length ? "No open task matches." : "No open tasks. + files one." }));
+    shown.forEach(function (ticket) {
+      var space = spaceFor(ticket);
+      var who = ticket.asked || ticket.author || "";
+      list.appendChild(el("li", { class: ticket.number === mine ? "mine" : "" }, [
+        space ? statusDot(space.status) : null,
+        el("button", { type: "button", class: "stask-row", title: "#" + ticket.number + " " + ticket.title + (who ? " · " + who : "") + (ticket.updated ? " · " + ago(ticket.updated) : ""), onclick: function () { stask.mode = "one"; stask.number = ticket.number; renderSideTasks(); } }, [
+          el("span", { class: "stask-num", text: "#" + ticket.number }),
+          el("span", { class: "stask-title", text: ticket.title })]),
+        space
+          ? el("button", { type: "button", class: "stask-go", text: "Open", title: "Show its workspace", onclick: function () { focus(space); } })
+          : el("button", { type: "button", class: "stask-go", text: "Start", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } }),
+      ]));
+    });
+  }
+  // showSideTask fetches a task when it isn't the one shown, or with fresh.
+  function showSideTask(number, fresh) {
+    if (!fresh && stask.ticket && stask.ticket.number === number) { renderSideTask(stask.ticket); return Promise.resolve(); }
+    if (!stask.ticket || stask.ticket.number !== number) {
+      stask.ticket = null;
+      $("stask-id").textContent = "#" + number;
+      $("stask-acts").textContent = "";
+      $("stask-body").textContent = "";
+      $("stask-body").appendChild(el("p", { class: "muted small", text: "Fetching the task…" }));
+    }
+    var asked = ++stask.loading;
+    return api("GET", "ticket?number=" + number).then(function (ticket) {
+      if (asked !== stask.loading) return;
+      stask.ticket = ticket;
+      renderSideTask(ticket);
+    }).catch(function (error) {
+      if (asked !== stask.loading) return;
+      $("stask-body").textContent = "";
+      $("stask-body").appendChild(el("p", { class: "error small", text: error.message }));
+    });
+  }
+  function renderSideTask(ticket) {
+    var closed = ticket.state === "closed";
+    var space = closed ? null : spaceFor(ticket);
+    $("stask-id").textContent = "#" + ticket.number + (closed ? " · closed" : "");
+    var acts = $("stask-acts");
+    acts.textContent = "";
+    if (!closed) {
+      // Open its workspace, unless the chat is in it already; or Start it.
+      if (space && space.id !== chat.space) acts.appendChild(el("button", { type: "button", text: "Open", title: "Show its workspace", onclick: function () { focus(space); } }));
+      if (!space) acts.appendChild(el("button", { type: "button", text: "Start", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } }));
+      acts.appendChild(el("button", { type: "button", class: "done", text: "Done ✓", busy: space ? "finish:" + space.id : "", title: space ? "Finish its work and close the task" : "Close the task", onclick: function () { taskDone(ticket, space); } }));
+    }
+    var items = [["View in full", function () { openTicket(ticket.number); }],
+      ["Copy text", function () { copyText(ticket.body || ""); }]];
+    if (ticket.url) items.push(["Open where it's kept", function () { window.open(ticket.url, "_blank", "noopener"); }]);
+    if (closed) items.push(["Reopen", function () { setTaskState(ticket, false); }]);
+    acts.appendChild(menu(items));
+    var body = $("stask-body");
+    body.textContent = "";
+    body.appendChild(el("p", { class: "stask-title-full", text: ticket.title }));
+    body.appendChild(el("p", { class: "muted small", text: [ticket.asked || ticket.author, when(ticket.created)].filter(Boolean).join(" · ") }));
+    var text = ticket.body ? renderMarkdown(ticket.body, "", true) : el("p", { class: "muted small", text: "No description." });
+    body.appendChild(text);
+    if ((ticket.files || []).length) {
+      body.appendChild(el("h3", { text: "Files" }));
+      body.appendChild(el("ul", { class: "stask-pics" }, ticket.files.map(function (name) {
+        var url = fileURL(ticket.number, name);
+        return el("li", {}, [/\.(png|jpe?g|gif|webp)$/i.test(name)
+          ? el("a", { href: url, target: "_blank", rel: "noopener", title: name }, [el("img", { src: url, alt: name, loading: "lazy" })])
+          : el("a", { href: url, target: "_blank", rel: "noopener", text: name })]);
+      })));
+    }
+    var comments = ticket.comments || [];
+    body.appendChild(el("h3", { text: comments.length ? "Comments (" + comments.length + ")" : "Comments" }));
+    body.appendChild(comments.length ? el("ul", { class: "stask-comments" }, comments.map(function (comment) {
+      return el("li", {}, [el("div", { class: "muted small", text: [comment.author, when(comment.at)].filter(Boolean).join(" · ") }), renderMarkdown(comment.body, "", true)]);
+    })) : el("p", { class: "muted small", text: "None yet." }));
+  }
+  $("stask-back").addEventListener("click", function () { stask.mode = "list"; renderSideTasks(); });
+  $("stask-search").addEventListener("input", function () { renderSideList(ticketOf(chatSpace())); });
+  $("stask-new").addEventListener("click", function () { $("ticket-new").click(); });
+  $("stask-refresh").addEventListener("click", function () { refreshTickets(true); });
+  $("stask-note-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var ticket = stask.ticket;
+    if (!ticket) return;
+    $("stask-note-go").disabled = true;
+    $("stask-error").textContent = "";
+    staskFiles.read().then(function (files) {
+      return api("POST", "ticket/note", { number: ticket.number, body: staskFiles.value(), files: files });
+    }).then(function () {
+      staskFiles.clear();
+      toast("Added to #" + ticket.number + ".");
+      refreshTickets(true);
+      return showSideTask(ticket.number, true);
+    }).catch(function (error) {
+      $("stask-error").textContent = error.message;
+    }).then(function () { $("stask-note-go").disabled = false; });
   });
 
   // On a phone, the workspaces start folded, and the terminal has the room.

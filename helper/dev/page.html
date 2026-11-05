@@ -175,7 +175,7 @@
     </div>
     <div id="editor" class="editor" hidden></div>
     </div>
-        <aside id="chat-side" class="side" aria-label="Files, source control, and rewind" hidden>
+        <aside id="chat-side" class="side" aria-label="The side panel" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
             <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
@@ -185,6 +185,7 @@
             <button data-side="checks" role="tab" aria-selected="false" title="Checks: the project's tests and lint, run in the dev box" aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
             <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and Stage print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg></button>
             <button data-side="preview" role="tab" aria-selected="false" title="Preview: Stage or production, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button data-side="tasks" role="tab" aria-selected="false" title="Tasks: this workspace's, and the app's others" aria-label="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 2 2 4-4"/><path d="m3 13 2 2 4-4"/><path d="M13 6h8"/><path d="M13 13h8"/><path d="M13 20h8"/><path d="M4 20h5"/></svg><span id="stasks-count" class="side-badge" hidden></span></button>
             <span class="grow"></span>
             <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
@@ -269,6 +270,35 @@
             </div>
             <p id="preview-note" class="muted small logs-note"></p>
             <iframe id="preview-frame" class="preview-frame" title="Preview" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
+          </section>
+          <section id="side-tasks" class="side-view tasks-view" role="tabpanel" aria-label="Tasks" hidden>
+            <div id="stask-list-box">
+              <div class="logs-tools">
+                <input id="stask-search" type="search" placeholder="Search the open tasks" aria-label="Search the open tasks" autocomplete="off">
+                <button id="stask-new" class="side-icon" title="New task" aria-label="New task">+</button>
+                <button id="stask-refresh" class="side-icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
+              </div>
+              <div id="stask-mine" class="stask-mine"></div>
+              <ul id="stask-list" class="stask-list"></ul>
+            </div>
+            <div id="stask-one" class="stask-one" hidden>
+              <div class="logs-tools">
+                <button id="stask-back" class="side-icon" title="All the tasks" aria-label="All the tasks">←</button>
+                <strong id="stask-id" class="stask-id"></strong>
+                <span class="grow"></span>
+                <span id="stask-acts" class="stask-acts"></span>
+              </div>
+              <div id="stask-body" class="stask-body"></div>
+              <form id="stask-note-form" class="stask-note" autocomplete="off">
+                <div class="pic-box note-box">
+                  <div id="stask-note" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="A note" data-placeholder="Add a note. Paste or drop pictures here."></div>
+                  <div id="stask-attached" class="pic-previews" hidden></div>
+                </div>
+                <input type="file" id="stask-files" multiple hidden>
+                <p id="stask-error" class="error small"></p>
+                <div class="buttons"><label for="stask-files" class="link small stask-attach">Attach files</label><span class="grow"></span><button id="stask-note-go" class="primary">Add the note</button></div>
+              </form>
+            </div>
           </section>
           <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind">
             <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>

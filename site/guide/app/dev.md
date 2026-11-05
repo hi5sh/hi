@@ -268,10 +268,10 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
   shows its last session, with **Resume this session**. Beside the chat,
-  and beside the terminal, is a panel with seven views, by the icons
+  and beside the terminal, is a panel with eight views, by the icons
   along its top: **Rewind** (the first, until you pick another),
-  **Files**, **Search**, **Source control**, **Checks**, **Logs**, and
-  **Preview** ([below](#beside-the-chat)). Its
+  **Files**, **Search**, **Source control**, **Checks**, **Logs**,
+  **Preview**, and **Tasks** ([below](#beside-the-chat)). Its
   left edge drags it wider; the panel button at the end of the bar
   shows and hides it, and on a narrow screen it lies over the chat or
   the terminal. Beside the terminal it follows the workspace you open in
@@ -349,6 +349,11 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
     makes the panel wider. It loads again when something new goes on
     Stage. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it.
+  - **Tasks** opens on the task the chat's workspace was started for:
+    its text, pictures, and comments, a note to add, and **Done ✓**.
+    **←** goes to the open tasks, short, to search, open, or **Start**;
+    **+** files one. The icon has the number of open tasks, as the Tasks
+    tab does, which stays for the whole list, closed ones too.
 - **VS Code**, the third view on a wide screen, is VS Code in the
   browser ([code-server](https://github.com/coder/code-server)) on the
   workspace's worktree: the same files the agent works on, to edit by
