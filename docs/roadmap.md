@@ -2713,6 +2713,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.74 — Search, Checks, Logs, and Preview in the panel
+
+- [x] The dev page's panel gains Search (`git grep` in the workspace,
+  matches open the file at the line), Checks (the project's make or
+  package scripts run in the dev box, streamed, with Fix with Claude),
+  Logs (Stage or production output from the journal and the address's
+  request log, errors only, sent to Claude), and Preview (Stage or
+  production in a frame, reloaded when Stage changes).
+
 ### v2.6.73 — Files open in tabs to edit and save, the tree in git's colours
 
 - [x] On the dev page a file opens in a tab after Chat, Terminal, and VS
