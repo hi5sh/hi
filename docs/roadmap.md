@@ -2713,6 +2713,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.73 — Files open in tabs to edit and save, the tree in git's colours
+
+- [x] On the dev page a file opens in a tab after Chat, Terminal, and VS
+  Code, several at once, kept across reloads; text and code are edited
+  there with line numbers and saved with Save or Ctrl+S
+  (`api/files/save`), keeping line endings and a BOM. A save is against
+  the SHA-256 the page read: a file changed since, by Claude or anyone,
+  isn't overwritten unless you choose to, and a tab with nothing to save
+  follows the disk. Nothing in `.git`, through a link, or new is written.
+  Markdown has a preview.
+- [x] The Files tree shows changed files in git's colours with their lines
+  added and removed, and a dot on folders with changes; it asks git as
+  soon as it shows. Checked in headless Chromium at 1600 and 400 pixels.
+
 ### v2.6.72 — The panel beside the terminal too, Rewind first
 
 - [x] The dev page's panel (Rewind, Files, Source control) is beside the
