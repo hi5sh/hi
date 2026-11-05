@@ -593,6 +593,45 @@ func TestTeamDevFiles(t *testing.T) {
 	if data, _ := os.ReadFile(filepath.Join(appDevDir("payments"), "secret.txt")); string(data) != "not the project's" {
 		t.Fatal("the file outside changed")
 	}
+	// The editor: a save against what it read, and never over a change since.
+	read := get("api/files/raw?root=repo&path=README.md")
+	base := read.Header().Get("X-Hi-Sha256")
+	if len(base) != 64 {
+		t.Fatalf("no SHA-256 with a text file: %v", read.Header())
+	}
+	save := func(key string, body map[string]any) (int, string) {
+		return appTestDevPageCall(t, handler, key, "POST", "api/files/save?root=repo", body)
+	}
+	if code, body := save(appTestOwnerKey, map[string]any{"path": "README.md", "content": "# Payments, edited\n", "base": base}); code != 200 || !strings.Contains(body, `"sha256"`) {
+		t.Fatalf("%d %s", code, body)
+	}
+	if data, _ := os.ReadFile(filepath.Join(repo, "README.md")); string(data) != "# Payments, edited\n" {
+		t.Fatal(string(data))
+	}
+	if code, body := save(appTestOwnerKey, map[string]any{"path": "README.md", "content": "stale", "base": base}); code != http.StatusConflict || !strings.Contains(body, `"changed":true`) {
+		t.Fatalf("saved over a change since: %d %s", code, body)
+	}
+	if code, _ := save(appTestOwnerKey, map[string]any{"path": "README.md", "content": "# Mine\n", "base": base, "force": true}); code != 200 {
+		t.Fatal("force didn't save")
+	}
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/files/stat?root=repo&path=README.md", nil); code != 200 || !strings.Contains(body, `"size":7`) {
+		t.Fatalf("%d %s", code, body)
+	}
+	os.WriteFile(filepath.Join(repo, ".git", "config"), []byte("[core]\n"), 0o644)
+	for _, path := range []string{".git/config", "docs/../.git/config", "../secret.txt", "escape.txt", "docs", "new.txt", ""} {
+		if code, _ := save(appTestOwnerKey, map[string]any{"path": path, "content": "x", "force": true}); code == 200 {
+			t.Fatalf("saved %q", path)
+		}
+	}
+	if data, _ := os.ReadFile(filepath.Join(appDevDir("payments"), "secret.txt")); string(data) != "not the project's" {
+		t.Fatal("a save went through a link out of the tree")
+	}
+	if fileExists(filepath.Join(repo, "new.txt")) {
+		t.Fatal("a save made a file")
+	}
+	if code, _ := save(appTestAskerKey, map[string]any{"path": "README.md", "content": "x", "force": true}); code == 200 {
+		t.Fatal("someone who isn't an owner saved")
+	}
 	request := httptest.NewRequest("GET", appDevPagePrefix+"api/files/list?root=repo", nil)
 	request.Header.Set(netExposeUserHeader, appTestAskerKey)
 	recorder := httptest.NewRecorder()

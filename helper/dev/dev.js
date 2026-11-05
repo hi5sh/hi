@@ -119,7 +119,7 @@
     if (socket && socket.readyState === 1) socket.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
   }
   function hiddenTermSize() {
-    var shown = [$("chat"), $("vscode")].filter(function (other) { return other.offsetParent; })[0];
+    var shown = [$("chat"), $("vscode"), $("editor")].filter(function (other) { return other.offsetParent; })[0];
     // Another tab: the window, less the page's tabs, the bar and the workspaces.
     var width = shown ? shown.clientWidth : window.innerWidth - (window.innerWidth < 760 ? 24 : 310);
     var height = shown ? shown.clientHeight : window.innerHeight - 110;
@@ -141,7 +141,7 @@
     probe.remove();
     return { width: rect.width / 40, height: Math.ceil(rect.height) };
   }
-  [".term-panel", "#chat", "#vscode"].forEach(function (panel) { new ResizeObserver(fitTerminal).observe(document.querySelector(panel)); });
+  [".term-panel", "#chat", "#vscode", "#editor"].forEach(function (panel) { new ResizeObserver(fitTerminal).observe(document.querySelector(panel)); });
   window.addEventListener("resize", fitTerminal);
   // An on-screen keyboard covers the page's bottom on iOS: the page keeps
   // to what is visible, so the keys and the terminal's last line sit just
@@ -1164,6 +1164,15 @@
   // The source control view: what git last said of the chat's workspace,
   // and the file whose diff is open.
   var git = { view: null, space: "", busy: false, at: 0, diff: null, error: "" };
+  // The files open in tabs, beside Chat, Terminal, and VS Code; the one
+  // shown, and the view to go back to when the last closes.
+  var opened = { tabs: [], current: "", back: "chat" };
+  try {
+    var keptTabs = JSON.parse(localStorage.getItem("hi-dev-open-files") || "{}");
+    (keptTabs.tabs || []).forEach(function (t) { if (t && t.root && t.path && !tabOf(tabKey(t.root, t.path))) newTab(t.root, t.path); });
+    if (tabOf(keptTabs.current)) opened.current = keptTabs.current;
+    else if (opened.tabs.length) opened.current = opened.tabs[0].key;
+  } catch (e) { /* private window */ }
   try {
     // Chat is the default since hi 2.5.24; the choice before it isn't kept.
     chat.view = localStorage.getItem("hi-dev-code-view-2") || chat.view;
@@ -1171,18 +1180,23 @@
     chat.space = localStorage.getItem("hi-dev-chat-space") || "";
   } catch (e) { /* private window */ }
   function setCodeView(view) {
+    if (view === "file" && !tabOf(opened.current)) view = opened.back || "chat";
+    if (view !== "file") opened.back = view;
     chat.view = view;
     try { localStorage.setItem("hi-dev-code-view-2", view); } catch (e) { /* private window */ }
     document.querySelectorAll("#code-view button").forEach(function (button) { button.setAttribute("aria-pressed", button.dataset.view === view ? "true" : "false"); });
     $("chat").hidden = view !== "chat";
     document.querySelector(".term-panel").hidden = view !== "terminal";
     $("vscode").hidden = view !== "code";
+    $("editor").hidden = view !== "file";
     $("chat-space").hidden = view !== "chat" && view !== "code";
     showChatStart();
     $("chat-title").hidden = view !== "chat";
     $("chat-status").hidden = view !== "chat";
     renderSide();
-    if (view === "terminal") { setTimeout(function () { fitTerminal(); term.focus(); }, 0); sideShown(); }
+    renderTabs();
+    if (view === "file") { showTab(opened.current); sideShown(); }
+    else if (view === "terminal") { setTimeout(function () { fitTerminal(); term.focus(); }, 0); sideShown(); }
     else if (view === "code") openVSCode();
     else { pollChat(); sideShown(); }
   }
@@ -1870,7 +1884,8 @@
       }).catch(function (error) { toast(error.message); });
     });
   });
-  setCodeView(chat.view);
+  var startView = chat.view;
+  setCodeView(startView === "file" ? "chat" : startView);
 
   // ---- Files, in the panel beside the chat: the chat's workspace's tree
   // (or dev's clone, or another worktree), its folders opening in place.
@@ -1934,7 +1949,6 @@
     files.sig = "";
     files.file = "";
     files.dir = "";
-    showPreview(null);
     $("files-list").textContent = "";
     if (files.roots.some(function (r) { return r.id === root; })) $("files-root").value = root;
   }
@@ -1952,6 +1966,8 @@
   function filesShown() { return sideOpen() && side.view === "files"; }
   function openFiles() {
     if (!files.loaded) {
+      // Not before the workspaces are known: the tree is the chat's workspace's.
+      if (!state) { setTimeout(function () { if (filesShown()) openFiles(); }, 300); return; }
       files.loaded = true;
       loadRoots().then(function () {
         var want = spaceRoot();
@@ -2016,11 +2032,30 @@
   }
   // gitMarks are the source control view's letters for the tree, when it
   // has looked at this tree's workspace.
-  function gitMarks() {
+  // Each is the file's status and its lines added and removed, staged and
+  // not together; full has them for any tree, not only the one shown.
+  function gitMarks(full) {
     var marks = {};
-    if (!git.view || git.space !== chat.space || spaceRoot() !== files.root) return marks;
-    git.view.staged.concat(git.view.changes, git.view.conflicts || []).forEach(function (file) { marks[file.path] = file.status; });
+    if (!git.view || git.space !== chat.space || (!full && spaceRoot() !== files.root)) return marks;
+    git.view.staged.concat(git.view.changes, git.view.conflicts || []).forEach(function (file) {
+      var mark = marks[file.path] || (marks[file.path] = { status: file.status, added: 0, removed: 0, binary: false });
+      // A conflict says so first; otherwise what's not staged, as git shows it.
+      if (file.status === "!" || mark.status !== "!") mark.status = file.status;
+      mark.added += file.added || 0;
+      mark.removed += file.removed || 0;
+      mark.binary = mark.binary || !!file.binary;
+    });
     return marks;
+  }
+  // A folder's colour: of what changed in it, green when all of it is new,
+  // red when all of it went.
+  function folderMark(marks, path) {
+    var kinds = {};
+    Object.keys(marks).forEach(function (p) { if (p.indexOf(path + "/") === 0) kinds[gitClass(marks[p].status)] = true; });
+    var list = Object.keys(kinds);
+    if (!list.length) return "";
+    if (kinds["git-conflict"]) return "git-conflict";
+    return list.length === 1 ? list[0] : "git-M";
   }
   function renderTree() {
     var list = $("files-list"), top = list.scrollTop, marks = gitMarks();
@@ -2030,19 +2065,23 @@
     (function rows(dir, depth) {
       (files.lists[dir] || []).forEach(function (entry) {
         var path = joinPath(dir, entry.name), open = entry.dir && files.open[path];
-        var mark = marks[path];
-        var changed = !entry.dir ? mark : Object.keys(marks).some(function (p) { return p.indexOf(path + "/") === 0; }) ? "dot" : "";
+        var mark = !entry.dir && marks[path];
+        var colour = entry.dir ? folderMark(marks, path) : mark ? gitClass(mark.status) : "";
         list.appendChild(el("button", {
           class: "file-row" + (open ? " open" : "") + (path === files.file ? " current" : "") + (entry.dir && path === files.dir ? " target" : ""),
           role: "treeitem", "aria-level": String(depth + 1), "aria-expanded": entry.dir ? String(!!open) : null, "data-path": path,
           title: path + (entry.dir ? "" : " · " + size(entry.size)) + (entry.modified ? " · " + ago(entry.modified) : ""),
           style: "padding-left:" + (8 + depth * 14) + "px",
-          onclick: function () { if (entry.dir) toggleDir(path); else { files.dir = dir; target(); openFile(path, entry); } },
+          onclick: function () { if (entry.dir) toggleDir(path); else { files.dir = dir; target(); openTab(files.root, path); } },
         }, [
           el("span", { class: "file-chevron" }, entry.dir ? [icon("chevron").firstChild] : []),
           icon(entry.dir ? "dir" : "file"),
-          el("span", { class: "file-name" + (changed && changed !== "dot" ? " " + gitClass(changed) : ""), text: entry.name }),
-          changed ? el("span", { class: "file-git " + gitClass(changed === "dot" ? "M" : changed), text: changed === "dot" ? "•" : gitLetter(changed) }) : null,
+          el("span", { class: "file-name" + (colour ? " " + colour : ""), text: entry.name }),
+          mark && !mark.binary && (mark.added || mark.removed) ? el("span", { class: "file-lines", title: mark.added + " lines added, " + mark.removed + " removed" }, [
+            mark.added ? el("span", { class: "plus", text: "+" + mark.added }) : null,
+            mark.removed ? el("span", { class: "minus", text: "−" + mark.removed }) : null,
+          ]) : null,
+          colour ? el("span", { class: "file-git " + colour, title: mark ? gitWords[mark.status] || "" : "Changes in it", text: mark ? gitLetter(mark.status) : "•" }) : null,
         ]));
         if (open) {
           if (files.lists[path]) rows(path, depth + 1);
@@ -2066,12 +2105,7 @@
     renderTree();
     if (files.open[path] && !files.lists[path]) listOf(path).then(renderTree).catch(function (error) { toast(error.message); delete files.open[path]; renderTree(); });
   }
-  function showPreview(nodes) {
-    var preview = $("files-preview");
-    preview.textContent = "";
-    $("files-main").classList.toggle("showing-file", !!nodes);
-    (nodes || []).forEach(function (node) { if (node) preview.appendChild(node); });
-  }
+
   // widenSide gives a preview or a diff room: half the chat's width, at least.
   function widenSide() {
     var room = Math.round(document.querySelector(".code-body").clientWidth * 0.55);
@@ -2085,8 +2119,8 @@
   function keepSide() {
     try { localStorage.setItem("hi-dev-side", JSON.stringify({ v: 2, view: side.view, open: side.open, width: side.width })); } catch (e) { /* private window */ }
   }
-  // It is beside the chat and the terminal; VS Code has its own.
-  function sideBeside() { return chat.view === "chat" || chat.view === "terminal"; }
+  // It is beside the chat, the terminal, and the open files; VS Code has its own.
+  function sideBeside() { return chat.view === "chat" || chat.view === "terminal" || chat.view === "file"; }
   function sideOpen() {
     return !$("chat-side").hidden && !$("tab-terminal").hidden && sideBeside() && !document.hidden;
   }
@@ -2107,7 +2141,7 @@
   // sideShown brings the open view up to date, when it's on the screen.
   function sideShown() {
     if (!sideOpen()) return;
-    if (side.view === "files") openFiles();
+    if (side.view === "files") { openFiles(); if (!git.view || git.space !== chat.space || Date.now() - git.at > 5000) refreshGit(); }
     if (side.view === "git") refreshGit();
     if (side.view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
@@ -2191,7 +2225,7 @@
     if (gitShown() && Date.now() - git.at > 4000) refreshGit();
     else if (filesShown() && files.loaded && Date.now() - files.at > 8000) {
       // The tree, and its letters, as the agent changes files.
-      if (Date.now() - git.at > 15000) refreshGit(); else loadTree();
+      if (Date.now() - git.at > 6000) refreshGit(); else loadTree();
     }
   }, 1000);
   function count(n, one, many) { return n + " " + (n === 1 ? one : many); }
@@ -2363,7 +2397,7 @@
       el("span", { class: "muted small", text: list === "staged" ? "staged" : "" }),
       el("span", { class: "grow" }),
     ].concat(acts, [
-      file.status !== "D" ? el("button", { class: "side-icon", text: "↗", title: "Open it in Files", "aria-label": "Open it in Files", onclick: function () { openPath(file.path); } }) : null,
+      file.status !== "D" ? el("button", { class: "side-icon", text: "↗", title: "Open the file, to edit it", "aria-label": "Open the file", onclick: function () { openPath(file.path); } }) : null,
       el("button", { class: "side-icon", text: "⤢", title: "Wider", "aria-label": "Wider", onclick: widenSide }),
     ]));
     var body = el("pre", { class: "diff" }, again && box.querySelector(".diff") ? [].slice.call(box.querySelector(".diff").childNodes) : [el("div", { class: "meta", text: "Loading the diff…" })]);
@@ -2397,52 +2431,6 @@
   }
   renderSide();
   renderGit();
-
-  function openFile(path, entry) {
-    files.file = path;
-    var name = path.split("/").pop();
-    var raw = "api/files/raw?" + fileQuery(path);
-    var head = el("div", { class: "preview-head" }, [
-      el("button", { class: "side-icon", text: "←", title: "Back to the files", "aria-label": "Back to the files", onclick: function () { files.file = ""; showPreview(null); renderTree(); } }),
-      el("strong", { class: "preview-name", text: name, title: path }),
-      el("span", { class: "muted small", text: entry ? size(entry.size) : "" }),
-      el("span", { class: "grow" }),
-      el("button", { class: "side-icon", text: "⤢", title: "Wider", "aria-label": "Wider", onclick: widenSide }),
-      el("a", { class: "button-like", href: raw + "&download=1", download: name, text: "Download" }),
-    ]);
-    var body = el("div", { class: "preview-body" }, [el("p", { class: "muted", text: "Opening " + name + "…" })]);
-    showPreview([head, body]);
-    var ext = (name.match(/\.([a-z0-9]+)$/i) || [])[1];
-    ext = (ext || "").toLowerCase();
-    if (["png", "jpg", "jpeg", "gif", "webp", "avif", "svg"].indexOf(ext) >= 0 && ext !== "svg") {
-      body.textContent = "";
-      body.appendChild(el("img", { class: "preview-image", src: raw, alt: name }));
-      return;
-    }
-    if (ext === "pdf") {
-      body.textContent = "";
-      body.appendChild(el("p", {}, [el("a", { href: raw, target: "_blank", rel: "noopener", text: "Open the PDF in a new tab" })]));
-      return;
-    }
-    fetch(raw, { credentials: "same-origin" }).then(function (response) {
-      return response.text().then(function (text) {
-        if (!response.ok) throw new Error(text.trim() || response.statusText);
-        return text;
-      });
-    }).then(function (text) {
-      if (files.file !== path) return;
-      body.textContent = "";
-      if (ext === "md" || ext === "markdown") {
-        var dir = path.split("/").slice(0, -1).join("/");
-        body.appendChild(renderMarkdown(text, dir));
-      } else {
-        body.appendChild(el("pre", { class: "preview-text", text: text }));
-      }
-    }).catch(function (error) {
-      body.textContent = "";
-      body.appendChild(el("p", { class: "muted", text: error.message }));
-    });
-  }
 
   // renderMarkdown builds a Markdown file's page from DOM nodes, never
   // from its HTML: headings, lists, quotes, code, tables, links, and the
@@ -2570,6 +2558,17 @@
   // folder, in the panel beside the chat.
   function openPath(where) {
     var path = where.replace(/^\/+/, "");
+    var root = spaceRoot();
+    // A file opens in a tab; a folder in Files.
+    api("GET", "files/stat?root=" + encodeURIComponent(root) + "&path=" + encodeURIComponent(path)).then(function () {
+      if ($("tab-terminal").hidden) show("terminal");
+      openTab(root, path);
+    }).catch(function (error) {
+      if (/folder/.test(error.message)) revealPath(path);
+      else toast(path + " isn't there.");
+    });
+  }
+  function revealPath(path) {
     revealSide("files");
     var parts = path.split("/"), dir = parts.slice(0, -1).join("/"), name = parts[parts.length - 1];
     (function wait(tries) {
@@ -2580,13 +2579,289 @@
         var entry = (files.lists[dir] || []).filter(function (e) { return e.name === name; })[0];
         if (!entry) { toast(path + " isn't there."); return; }
         files.dir = entry.dir ? path : dir;
-        if (entry.dir) { if (!files.open[path]) toggleDir(path); } else openFile(path, entry);
+        if (entry.dir) { if (!files.open[path]) toggleDir(path); } else openTab(files.root, path);
         target();
         var row = document.querySelector('#files-list [data-path="' + CSS.escape(path) + '"]');
         if (row) row.scrollIntoView({ block: "center" });
       });
     })(0);
   }
+
+  // ---- Open files: each a tab beside Chat, Terminal, and VS Code, to read
+  // and edit. A text file saves with Save or Ctrl+S, against the file as it
+  // was read: one that changed since, by Claude or anyone, isn't
+  // overwritten unless you say so. One open and unchanged follows the disk.
+  function tabKey(root, path) { return root + "\n" + path; }
+  function tabOf(key) { return opened.tabs.filter(function (t) { return t.key === key; })[0]; }
+  function keepTabs() {
+    try {
+      localStorage.setItem("hi-dev-open-files", JSON.stringify({
+        tabs: opened.tabs.map(function (t) { return { root: t.root, path: t.path }; }),
+        current: opened.current,
+      }));
+    } catch (e) { /* private window */ }
+  }
+  function newTab(root, path) {
+    var tab = { key: tabKey(root, path), root: root, path: path, name: path.split("/").pop(), pane: null, loaded: false,
+      kind: "", base: "", eol: "\n", bom: false, saved: "", dirty: false, at: 0, busy: false, changed: null, preview: false };
+    opened.tabs.push(tab);
+    return tab;
+  }
+  function openTab(root, path) {
+    var tab = tabOf(tabKey(root, path)) || newTab(root, path);
+    keepTabs();
+    showTab(tab.key);
+    closeOver();
+  }
+  function showTab(key) {
+    opened.current = key;
+    keepTabs();
+    if (chat.view !== "file") { setCodeView("file"); return; } // which shows it
+    renderTabs();
+    var tab = tabOf(key);
+    if (!tab) return;
+    if (!tab.pane) tab.pane = buildPane(tab);
+    var box = $("editor");
+    if (tab.pane.parentNode !== box) box.appendChild(tab.pane);
+    opened.tabs.forEach(function (t) { if (t.pane) t.pane.hidden = t !== tab; });
+    if (!tab.loaded) loadTab(tab);
+    else checkTab(tab);
+    if (tab.text && !tab.preview) tab.text.focus({ preventScroll: true });
+    if (tab.root === files.root && files.file !== tab.path) { files.file = tab.path; if (filesShown()) renderTree(); }
+  }
+  function closeTab(key) {
+    var tab = tabOf(key);
+    if (!tab) return;
+    (tab.dirty ? ask(tab.name + " has changes not saved. Close it, and lose them?") : Promise.resolve("")).then(function (ok) {
+      if (ok === null) return;
+      var at = opened.tabs.indexOf(tab);
+      opened.tabs.splice(at, 1);
+      if (tab.pane) tab.pane.remove();
+      if (opened.current === key) {
+        var next = opened.tabs[Math.min(at, opened.tabs.length - 1)];
+        opened.current = next ? next.key : "";
+        if (chat.view === "file") { if (next) showTab(next.key); else setCodeView(opened.back || "chat"); }
+      }
+      if (files.file === tab.path && tab.root === files.root) { files.file = ""; if (filesShown()) renderTree(); }
+      keepTabs();
+      renderTabs();
+    });
+  }
+  function renderTabs() {
+    var strip = $("edit-tabs");
+    strip.textContent = "";
+    strip.hidden = !opened.tabs.length;
+    var names = {};
+    opened.tabs.forEach(function (t) { names[t.name] = (names[t.name] || 0) + 1; });
+    opened.tabs.forEach(function (t) {
+      var current = chat.view === "file" && t.key === opened.current;
+      var dir = t.path.split("/").slice(0, -1).join("/");
+      var tab = el("button", {
+        class: "edit-tab" + (current ? " current" : "") + (t.dirty ? " dirty" : ""), role: "tab", "aria-selected": String(current),
+        title: t.path + (t.root !== spaceRoot() ? " · " + t.root : "") + (t.dirty ? " · not saved" : ""), "data-key": t.key,
+        onclick: function (event) { if (!event.target.closest(".edit-close")) showTab(t.key); },
+        onauxclick: function (event) { if (event.button === 1) { event.preventDefault(); closeTab(t.key); } },
+      }, [
+        el("span", { class: "edit-tab-name" + (fileMark(t) ? " " + gitClass(fileMark(t).status) : ""), text: t.name }),
+        names[t.name] > 1 && dir ? el("span", { class: "edit-tab-dir", text: dir.split("/").pop() }) : null,
+        el("span", { class: "edit-close", role: "button", "aria-label": "Close " + t.name, title: t.dirty ? "Not saved; close" : "Close",
+          onclick: function () { closeTab(t.key); } }, [el("span", { class: "edit-dot", text: "●" }), el("span", { class: "edit-x", text: "×" })]),
+      ]);
+      strip.appendChild(tab);
+      if (current) setTimeout(function () { tab.scrollIntoView({ block: "nearest", inline: "nearest" }); }, 0);
+    });
+  }
+  // fileMark is git's word on an open file, when it's of the chat's
+  // workspace's tree, as Source control has it.
+  function fileMark(tab) {
+    if (!git.view || git.space !== chat.space || spaceRoot() !== tab.root) return null;
+    return gitMarks(true)[tab.path] || null;
+  }
+  function tabQuery(tab, extra) { return "root=" + encodeURIComponent(tab.root) + "&path=" + encodeURIComponent(tab.path) + (extra || ""); }
+  function buildPane(tab) {
+    var raw = "api/files/raw?" + tabQuery(tab);
+    tab.status = el("span", { class: "muted small edit-status" });
+    tab.saveButton = el("button", { class: "primary small", text: "Save", disabled: "", title: "Save (Ctrl+S)", onclick: function () { saveTab(tab, false); } });
+    tab.previewButton = el("button", { class: "small", text: "Preview", hidden: "", onclick: function () { setPreview(tab, !tab.preview); } });
+    var crumbs = tab.path.split("/");
+    tab.bar = el("div", { class: "edit-bar", hidden: "" });
+    tab.body = el("div", { class: "edit-body" }, [el("p", { class: "muted edit-note", text: "Opening " + tab.name + "…" })]);
+    return el("div", { class: "edit-pane" }, [
+      el("div", { class: "edit-head" }, [
+        el("span", { class: "edit-path", title: tab.path + " · " + tab.root }, [
+          el("span", { class: "muted", text: crumbs.slice(0, -1).map(function (c) { return c + " / "; }).join("") }),
+          el("strong", { text: tab.name }),
+        ]),
+        tab.status,
+        el("span", { class: "grow" }),
+        tab.previewButton,
+        el("a", { class: "button-like small", href: raw + "&download=1", download: tab.name, text: "Download" }),
+        tab.saveButton,
+      ]),
+      tab.bar,
+      tab.body,
+    ]);
+  }
+  function loadTab(tab, keepView) {
+    var raw = "api/files/raw?" + tabQuery(tab);
+    var ext = ((tab.name.match(/\.([a-z0-9]+)$/i) || [])[1] || "").toLowerCase();
+    tab.at = Date.now();
+    if (["png", "jpg", "jpeg", "gif", "webp", "avif"].indexOf(ext) >= 0) {
+      tab.kind = "image";
+      tab.loaded = true;
+      tab.body.textContent = "";
+      tab.body.appendChild(el("div", { class: "edit-media" }, [el("img", { class: "preview-image", src: raw + "&at=" + tab.at, alt: tab.name })]));
+      return Promise.resolve();
+    }
+    if (ext === "pdf") {
+      tab.kind = "pdf";
+      tab.loaded = true;
+      tab.body.textContent = "";
+      tab.body.appendChild(el("p", { class: "edit-note" }, [el("a", { href: raw, target: "_blank", rel: "noopener", text: "Open the PDF in a new tab" })]));
+      return Promise.resolve();
+    }
+    return fetch(raw, { credentials: "same-origin", cache: "no-store" }).then(function (response) {
+      return response.arrayBuffer().then(function (data) {
+        if (!response.ok) throw new Error(new TextDecoder().decode(data).trim() || response.statusText);
+        return { data: data, sha: response.headers.get("X-Hi-Sha256") || "" };
+      });
+    }).then(function (got) {
+      var text = new TextDecoder("utf-8", { ignoreBOM: true }).decode(got.data);
+      tab.bom = text.charCodeAt(0) === 0xfeff;
+      if (tab.bom) text = text.slice(1);
+      tab.eol = text.indexOf("\r\n") >= 0 ? "\r\n" : "\n";
+      text = text.replace(/\r\n/g, "\n");
+      tab.kind = "text";
+      tab.base = got.sha;
+      tab.saved = text;
+      tab.loaded = true;
+      tab.changed = null;
+      if (!tab.text) buildEditor(tab, ext);
+      var scroll = tab.text.scrollTop, start = tab.text.selectionStart, end = tab.text.selectionEnd;
+      tab.text.value = text;
+      if (keepView) { tab.text.scrollTop = scroll; tab.text.setSelectionRange(Math.min(start, text.length), Math.min(end, text.length)); }
+      edited(tab);
+      if (tab.preview) setPreview(tab, true);
+      if (opened.current === tab.key && chat.view === "file" && !tab.preview && !keepView) tab.text.focus({ preventScroll: true });
+    }).catch(function (error) {
+      tab.loaded = true;
+      tab.kind = "other";
+      tab.body.textContent = "";
+      tab.body.appendChild(el("p", { class: "muted edit-note", text: error.message }));
+    });
+  }
+  function buildEditor(tab, ext) {
+    tab.gutter = el("pre", { class: "edit-gutter", "aria-hidden": "true" });
+    tab.text = el("textarea", { class: "edit-text", spellcheck: "false", wrap: "off", autocapitalize: "off", autocomplete: "off", "aria-label": tab.path });
+    tab.md = ext === "md" || ext === "markdown";
+    tab.mdBox = el("div", { class: "edit-md", hidden: "" });
+    tab.previewButton.hidden = !tab.md;
+    tab.body.textContent = "";
+    tab.body.appendChild(el("div", { class: "edit-area" }, [tab.gutter, tab.text]));
+    tab.body.appendChild(tab.mdBox);
+    // A file indented with tabs keeps them; otherwise Tab puts spaces, as many as it uses.
+    var lead = (tab.saved.match(/^[ \t]+/m) || [""])[0];
+    tab.indent = lead.charAt(0) === "\t" ? "\t" : lead.length === 4 ? "    " : "  ";
+    tab.text.addEventListener("input", function () { edited(tab); });
+    tab.text.addEventListener("scroll", function () { tab.gutter.scrollTop = tab.text.scrollTop; });
+    tab.text.addEventListener("keydown", function (event) {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "s") { event.preventDefault(); saveTab(tab, false); return; }
+      if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        document.execCommand("insertText", false, tab.indent); // keeps undo
+      }
+    });
+  }
+  var lineFrame = 0;
+  function edited(tab) {
+    tab.dirty = tab.text.value !== tab.saved;
+    var lines = tab.text.value.split("\n").length;
+    if (tab.lines !== lines) {
+      tab.lines = lines;
+      cancelAnimationFrame(lineFrame);
+      lineFrame = requestAnimationFrame(function () {
+        var out = [];
+        for (var i = 1; i <= tab.lines; i++) out.push(i);
+        tab.gutter.textContent = out.join("\n") + "\n";
+        tab.gutter.scrollTop = tab.text.scrollTop;
+      });
+    }
+    tab.saveButton.disabled = !tab.dirty || tab.busy;
+    tab.status.textContent = tab.busy ? "Saving…" : tab.dirty ? "Not saved" : "";
+    var shown = document.querySelector('#edit-tabs [data-key="' + CSS.escape(tab.key) + '"]');
+    if (shown && shown.classList.contains("dirty") !== tab.dirty) renderTabs();
+  }
+  function setPreview(tab, on) {
+    tab.preview = on;
+    tab.previewButton.textContent = on ? "Edit" : "Preview";
+    tab.body.querySelector(".edit-area").hidden = on;
+    tab.mdBox.hidden = !on;
+    if (on) {
+      tab.mdBox.textContent = "";
+      var dir = tab.path.split("/").slice(0, -1).join("/");
+      tab.mdBox.appendChild(renderMarkdown(tab.text.value, dir));
+    } else tab.text.focus({ preventScroll: true });
+  }
+  function saveTab(tab, force) {
+    if (tab.kind !== "text" || tab.busy || (!tab.dirty && !force)) return;
+    var value = tab.text.value;
+    tab.busy = true;
+    edited(tab);
+    api("POST", "files/save?" + tabQuery(tab), {
+      path: tab.path, base: tab.base, force: !!force,
+      content: (tab.bom ? "﻿" : "") + (tab.eol === "\n" ? value : value.replace(/\n/g, tab.eol)),
+    }).then(function (state) {
+      tab.base = state.sha256;
+      tab.saved = value;
+      tab.changed = null;
+      tab.bar.hidden = true;
+      toast("Saved " + tab.name + ".");
+      afterSave(tab);
+    }).catch(function (error) {
+      if (/changed since you opened it/.test(error.message)) changedBar(tab, true);
+      else toast("Not saved: " + error.message);
+    }).then(function () {
+      tab.busy = false;
+      edited(tab);
+    });
+  }
+  // afterSave has the tree, its colours, and Source control see the save.
+  function afterSave(tab) {
+    if (tab.root !== spaceRoot()) { if (filesShown()) loadTree(); return; }
+    git.at = 0;
+    refreshGit();
+    if (git.diff && git.diff.file.path === tab.path) openDiff(git.diff.file, git.diff.kind, git.diff.list, true);
+  }
+  // The file changed on disk: a tab with nothing to save follows it; one
+  // with changes asks.
+  function changedBar(tab, saving) {
+    tab.bar.textContent = "";
+    tab.bar.hidden = false;
+    tab.bar.appendChild(el("span", { text: saving
+      ? "Not saved: " + tab.name + " changed since you opened it, by Claude or someone else."
+      : tab.name + " changed on disk, by Claude or someone else, and you have changes here." }));
+    tab.bar.appendChild(el("span", { class: "grow" }));
+    tab.bar.appendChild(el("button", { class: "small", text: "Take theirs", title: "Show the file as it is now; your changes here go", onclick: function () {
+      ask("Take the file as it is now? Your changes here are lost.").then(function (ok) { if (ok !== null) { tab.bar.hidden = true; loadTab(tab, true); } });
+    } }));
+    tab.bar.appendChild(el("button", { class: "small danger", text: "Save mine over it", title: "Write your version, replacing the change", onclick: function () { saveTab(tab, true); } }));
+  }
+  function checkTab(tab) {
+    if (tab.kind !== "text" || tab.busy || !tab.loaded) return;
+    tab.at = Date.now();
+    api("GET", "files/stat?" + tabQuery(tab)).then(function (state) {
+      if (state.sha256 === tab.base || tab.busy) return;
+      if (!tab.dirty) loadTab(tab, true);
+      else if (tab.changed !== state.sha256) { tab.changed = state.sha256; changedBar(tab, false); }
+    }).catch(function () { /* gone, or the box is busy: the next check */ });
+  }
+  setInterval(function () {
+    var tab = chat.view === "file" && !document.hidden && !$("tab-terminal").hidden && tabOf(opened.current);
+    if (tab && Date.now() - tab.at > 3000) checkTab(tab);
+  }, 1000);
+  window.addEventListener("beforeunload", function (event) {
+    if (opened.tabs.some(function (t) { return t.dirty; })) { event.preventDefault(); event.returnValue = ""; }
+  });
 
   // Upload: picked, or dropped on the files; a file that's there
   // already is replaced only when you say so.
@@ -3098,6 +3373,7 @@
   try { tab = localStorage.getItem("hi-dev-tab") || "tasks"; } catch (e) { /* private window */ }
   if (tab === "files") { tab = "terminal"; side.view = "files"; side.open = true; } // the Files tab, before it moved beside the chat
   show(["tasks", "decisions", "terminal", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
+  if (startView === "file") setCodeView("file");
   refresh().then(function () {
     if ($("locked").hidden && !vibe()) connect();
   });

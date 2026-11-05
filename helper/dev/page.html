@@ -80,6 +80,7 @@
         <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
         <button data-view="code" aria-pressed="false" class="wide-only pro-only" title="VS Code on the workspace's files, in the dev box">VS Code</button>
       </div>
+      <div id="edit-tabs" class="edit-tabs" role="tablist" aria-label="Open files" hidden></div>
       <select id="chat-space" aria-label="Which workspace's session"></select>
       <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
       <span id="chat-title" class="chat-title"></span>
@@ -172,6 +173,7 @@
       </div>
       <iframe id="vscode-frame" title="VS Code" allow="clipboard-read; clipboard-write"></iframe>
     </div>
+    <div id="editor" class="editor" hidden></div>
     </div>
         <aside id="chat-side" class="side" aria-label="Files, source control, and rewind" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
@@ -193,7 +195,6 @@
               </div>
               <div id="files-main" class="files-main">
                 <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
-                <div id="files-preview" class="files-preview"></div>
               </div>
               <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
             </div>

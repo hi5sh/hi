@@ -298,14 +298,23 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   - **Rewind**, as above.
   - **Files** is the chat's workspace's files, a tree whose folders
     open in place: its worktree, or dev's clone for the project's own
-    workspace; the list at the top picks another. A file opens in the
-    panel, with **←** back to the tree: Markdown (with the project's own
-    pictures, and its links to other files), text and code, and
-    pictures; anything else, and any file, downloads. A file the chat
-    links to opens here too. **Upload**, or files dropped on it, go
-    into the folder last opened; a file that's there already is
-    replaced only when you say so. A changed file has git's letter
-    beside it. It shows nothing outside the project, nor its `.git`.
+    workspace; the list at the top picks another. A changed file is in
+    git's colour (orange changed, green new, red deleted) with its lines
+    added and removed and git's letter, and a folder with changes in it
+    has a dot. A file opens in a tab of its own after **Chat**,
+    **Terminal**, and **VS Code**, as many as you like, and the page
+    keeps them open: text and code to edit, Markdown with **Preview**
+    (the project's own pictures, and its links to other files), and
+    pictures; anything else downloads. **Save**, or Ctrl+S, writes it,
+    keeping its line endings, and the tree and **Source control** show
+    the change. A tab you haven't changed follows the file as Claude
+    edits it; one with changes not saved says so when the file changes
+    under it, and a save never replaces a change it hasn't seen unless
+    you choose **Save mine over it**. A file the chat links to opens in
+    a tab too. **Upload**, or files dropped on the tree, go into the
+    folder last opened; a file that's there already is replaced only
+    when you say so. It shows nothing outside the project, nor writes
+    in its `.git`.
   - **Source control** is the workspace's branch, how it stands against
     dev, and its changes not committed: **Staged** and **Changes**, each
     file with its lines added and removed and git's letter (M changed,

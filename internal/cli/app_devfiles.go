@@ -2,12 +2,15 @@ package cli
 
 // The dev page's Files view, beside the chat: the project in the dev box,
 // its clone and each piece of work's worktree, to browse, preview,
-// download, and upload into.
+// download, upload into, and edit in a tab of its own.
 // Every path goes through an os.Root at the worktree, so nothing reaches
 // outside it, through .. or a symlink.
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -42,6 +45,7 @@ type appDevFileEntry struct {
 
 const (
 	appDevFilePreviewMax = 1 << 20   // text the page previews
+	appDevFileEditMax    = 2 << 20   // a file the page saves
 	appDevFileUploadMax  = 200 << 20 // one upload's files together
 )
 
@@ -217,12 +221,112 @@ func serveDevFile(w http.ResponseWriter, r *http.Request, root *os.Root, name st
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		// What the editor saves against: a save over a file changed since
+		// is refused.
+		hash := sha256.New()
+		if _, err := io.Copy(hash, file); err == nil {
+			w.Header().Set("X-Hi-Sha256", hex.EncodeToString(hash.Sum(nil)))
+		}
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	}
 	if kind != "application/pdf" { // Chromium's PDF viewer doesn't open in a sandbox
 		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'")
 	}
 	http.ServeContent(w, r, "", info.ModTime(), file)
+}
+
+// appDevEditPath is a file the editor may write: in the tree, not in a
+// .git anywhere in it.
+func appDevEditPath(p string) (string, error) {
+	clean := strings.Trim(path.Clean("/"+p), "/")
+	if p == "" || clean == "" || strings.ContainsRune(p, 0) {
+		return "", fmt.Errorf("%q isn't a file of the project", p)
+	}
+	for _, part := range strings.Split(clean, "/") {
+		if part == ".git" {
+			return "", fmt.Errorf("hi doesn't write in .git: %s", p)
+		}
+	}
+	return filepath.FromSlash(clean), nil
+}
+
+// appDevFileState is what the editor knows of a file on disk: its content's
+// SHA-256, to tell when it changed under it.
+type appDevFileState struct {
+	Sha256   string    `json:"sha256"`
+	Size     int64     `json:"size"`
+	Modified time.Time `json:"modified"`
+}
+
+func appDevStatFile(root *os.Root, name string) (appDevFileState, error) {
+	file, err := root.Open(name)
+	if err != nil {
+		return appDevFileState{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return appDevFileState{}, err
+	}
+	if info.IsDir() {
+		return appDevFileState{}, fmt.Errorf("%s is a folder", filepath.ToSlash(name))
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, io.LimitReader(file, appDevFileEditMax+1)); err != nil {
+		return appDevFileState{}, err
+	}
+	return appDevFileState{Sha256: hex.EncodeToString(hash.Sum(nil)), Size: info.Size(), Modified: info.ModTime()}, nil
+}
+
+// appDevFileChanged is a save over a file that changed since the editor
+// read it.
+type appDevFileChanged struct{ State appDevFileState }
+
+func (e *appDevFileChanged) Error() string {
+	return "the file changed since you opened it, by Claude or someone else"
+}
+
+// saveDevFile writes an edited file in place, keeping its mode, unless it
+// changed since base, its SHA-256 when the editor read it; force writes
+// anyway. A file that isn't there, a folder, or a link isn't written.
+func saveDevFile(root *os.Root, p string, content []byte, base string, force bool) (appDevFileState, error) {
+	name, err := appDevEditPath(p)
+	if err != nil {
+		return appDevFileState{}, err
+	}
+	if len(content) > appDevFileEditMax {
+		return appDevFileState{}, fmt.Errorf("that's %s, more than the %s hi saves", formatDataSize(int64(len(content))), formatDataSize(appDevFileEditMax))
+	}
+	info, err := root.Lstat(name)
+	if err != nil {
+		return appDevFileState{}, fmt.Errorf("%s isn't there any more", p)
+	}
+	if !info.Mode().IsRegular() {
+		return appDevFileState{}, fmt.Errorf("%s is a folder or a link; hi doesn't write those", p)
+	}
+	now, err := appDevStatFile(root, name)
+	if err != nil {
+		return appDevFileState{}, err
+	}
+	if !force && now.Sha256 != base {
+		return now, &appDevFileChanged{State: now}
+	}
+	file, err := root.OpenFile(name, os.O_WRONLY|os.O_TRUNC, 0)
+	if err != nil {
+		return appDevFileState{}, err
+	}
+	_, err = file.Write(content)
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return appDevFileState{}, fmt.Errorf("writing %s: %w", p, err)
+	}
+	return appDevStatFile(root, name)
 }
 
 // appDevUploadName is a file's name as an upload gives it, for the
@@ -296,7 +400,8 @@ type appDevFileExists struct{ Name string }
 func (e *appDevFileExists) Error() string { return e.Name + " is there already" }
 
 // devFileRoutes are the File view's: the trees, a folder's listing, a
-// file to view or download, and an upload. For the owners only.
+// file to view or download, an upload, and the editor's state of a file
+// and its save. For the owners and developers only.
 func (b *appBroker) devFileRoutes(mux *http.ServeMux, builder func(http.ResponseWriter, *http.Request) (appPersonKey, bool),
 	reply func(http.ResponseWriter, int, any), failure func(http.ResponseWriter, int, error)) {
 	open := func(w http.ResponseWriter, r *http.Request) (*os.Root, bool) {
@@ -335,6 +440,46 @@ func (b *appBroker) devFileRoutes(mux *http.ServeMux, builder func(http.Response
 		}
 		defer root.Close()
 		serveDevFile(w, r, root, r.URL.Query().Get("path"), r.URL.Query().Get("download") != "")
+	})
+	mux.HandleFunc("GET "+appDevPagePrefix+"api/files/stat", func(w http.ResponseWriter, r *http.Request) {
+		root, ok := open(w, r)
+		if !ok {
+			return
+		}
+		defer root.Close()
+		state, err := appDevStatFile(root, appDevFilePath(r.URL.Query().Get("path")))
+		if err != nil {
+			failure(w, http.StatusNotFound, err)
+			return
+		}
+		reply(w, http.StatusOK, state)
+	})
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/files/save", func(w http.ResponseWriter, r *http.Request) {
+		root, ok := open(w, r)
+		if !ok {
+			return
+		}
+		defer root.Close()
+		var request struct {
+			Path    string `json:"path"`
+			Content string `json:"content"`
+			Base    string `json:"base"`
+			Force   bool   `json:"force"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4*appDevFileEditMax)).Decode(&request); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		state, err := saveDevFile(root, request.Path, []byte(request.Content), request.Base, request.Force)
+		var changed *appDevFileChanged
+		switch {
+		case errors.As(err, &changed):
+			reply(w, http.StatusConflict, map[string]any{"error": err.Error(), "changed": true, "state": changed.State})
+		case err != nil:
+			failure(w, http.StatusBadRequest, err)
+		default:
+			reply(w, http.StatusOK, state)
+		}
 	})
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/files/upload", func(w http.ResponseWriter, r *http.Request) {
 		root, ok := open(w, r)

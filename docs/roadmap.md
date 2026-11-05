@@ -4019,6 +4019,9 @@ the last commit, staging, discarding, and a commit.
   `script-src 'none'`, 512 MB per team), filebrowser/filebrowser
   (archived), dufs and miniserve (no previews), SFTPGo and Filestash
   (AGPL, their own accounts), Cloudreve, Nextcloud, and Seafile.
+- [x] Changed 2026-11-05: a file opens in a tab beside Chat, Terminal,
+  and VS Code, and a text file is edited and saved there, against the
+  file as it was read; new folder, rename, and delete stay in VS Code.
 
 ### v2.5.17 — The task's ⋯ menu shows whole
 

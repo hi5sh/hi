@@ -207,6 +207,45 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .code-views { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .code-bar { display: flex; align-items: center; gap: 8px; padding: 0 4px var(--gap); background: var(--shell); min-width: 0; }
 .code-bar select { max-width: 240px; }
+/* The files open in tabs, after Chat, Terminal, and VS Code. */
+.edit-tabs { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; padding-left: 6px; border-left: 1px solid var(--line); }
+.edit-tabs[hidden] { display: none; }
+.edit-tabs::-webkit-scrollbar { display: none; }
+.edit-tab { flex: none; display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 4px 4px 4px 10px; border-radius: var(--r-sm); border-color: transparent; background: none; color: var(--muted); }
+.edit-tab:hover { background: var(--hover); color: var(--text); }
+.edit-tab.current { background: var(--active); color: var(--bright); }
+.edit-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.edit-tab-dir { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.edit-close { flex: none; width: 18px; height: 18px; border-radius: var(--r-sm); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; }
+.edit-close:hover { background: var(--secondary-hover); }
+.edit-close .edit-dot { display: none; font-size: 9px; }
+.edit-tab.dirty .edit-close .edit-dot { display: inline; }
+.edit-tab.dirty .edit-close .edit-x { display: none; }
+.edit-tab.dirty .edit-close:hover .edit-dot { display: none; }
+.edit-tab.dirty .edit-close:hover .edit-x { display: inline; }
+.edit-tab:not(.current):not(.dirty) .edit-close { visibility: hidden; }
+.edit-tab:not(.current):hover .edit-close { visibility: visible; }
+/* An open file: its path, Save, and the text with its line numbers. */
+.editor { flex: 1; min-height: 0; display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.editor[hidden] { display: none; }
+.edit-pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.edit-pane[hidden] { display: none; }
+.edit-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); min-width: 0; }
+.edit-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 13px; }
+.edit-status { white-space: nowrap; }
+.edit-head .button-like, .edit-head button { padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+.edit-bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: rgba(204, 167, 0, .12); border-bottom: 1px solid var(--line); font-size: 13px; }
+.edit-bar[hidden] { display: none; }
+.edit-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.edit-area { flex: 1; min-height: 0; display: flex; }
+.edit-area[hidden] { display: none; }
+.edit-gutter, .edit-text { margin: 0; padding: 8px 0 40px; font: 13px/1.5 var(--mono); tab-size: 4; }
+.edit-gutter { flex: none; min-width: 3ch; padding-left: 12px; padding-right: 12px; text-align: right; color: var(--dim); overflow: hidden; user-select: none; }
+.edit-text { flex: 1; min-width: 0; resize: none; border: 0; border-radius: 0; outline: none; background: none; color: var(--text); padding-left: 4px; padding-right: 12px; white-space: pre; overflow: auto; }
+.edit-md { flex: 1; min-height: 0; overflow: auto; padding: 12px 18px 32px; }
+.edit-md[hidden] { display: none; }
+.edit-media { flex: 1; overflow: auto; padding: 16px; }
+.edit-note { padding: 16px; margin: 0; }
 .chat-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .chat-status { white-space: nowrap; display: flex; align-items: center; gap: 6px; }
 .chat-status .dot { margin-top: 0; }
@@ -385,8 +424,6 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .button-like:hover { background: var(--secondary-hover); text-decoration: none; }
 .files-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .file-browser { flex: 1; min-height: 0; overflow: auto; padding: 2px 0 12px; }
-.files-main.showing-file .file-browser { display: none; }
-.files-main:not(.showing-file) .files-preview { display: none; }
 .file-row { display: flex; gap: 5px; align-items: center; width: 100%; height: 24px; border: 0; border-radius: 0; background: none; text-align: left; padding: 0 8px; white-space: nowrap; font-size: 13px; }
 .file-row:hover { background: var(--hover); }
 .file-row.current { background: var(--selected); color: var(--bright); }
@@ -398,10 +435,11 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .file-icon.dir { color: var(--accent); }
 .file-icon svg { width: 16px; height: 16px; }
 .file-row .file-name { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.file-row .file-git { margin-left: auto; padding-left: 8px; font-size: 11px; font-weight: 600; }
+.file-row .file-lines { margin-left: auto; padding-left: 8px; display: inline-flex; gap: 4px; font: 11px var(--mono); }
+.file-row .file-git { margin-left: auto; padding-left: 8px; font-size: 11px; font-weight: 600; flex: none; width: 10px; text-align: center; }
+.file-row .file-lines + .file-git { margin-left: 0; padding-left: 6px; }
 .tree-note { padding: 3px 8px; font-size: 12px; white-space: nowrap; }
 .empty-preview { padding: 16px; }
-.files-preview { flex: 1; min-height: 0; overflow: auto; min-width: 0; }
 .preview-head { position: sticky; top: 0; display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); z-index: 1; min-width: 0; }
 .preview-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .preview-head > .small { white-space: nowrap; }
