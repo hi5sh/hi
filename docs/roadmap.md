@@ -2713,6 +2713,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.75 — Tasks in the panel, the icons narrowed to fit
+
+- [x] The dev page's panel gains Tasks: the chat's workspace's task, to
+  read, add a note to, and close, and the open tasks, short, to search,
+  open, or start, with the open count on its icon. The Tasks tab stays,
+  to compare the two. The panel's icons narrow so eight fit at its
+  narrowest.
+
 ### v2.6.74 — Search, Checks, Logs, and Preview in the panel
 
 - [x] The dev page's panel gains Search (`git grep` in the workspace,
