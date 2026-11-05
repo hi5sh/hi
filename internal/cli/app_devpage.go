@@ -1005,7 +1005,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			if path == "" {
-				w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data: blob:; frame-ancestors 'none'")
+				w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data: blob:; "+b.devPageFrames()+"; frame-ancestors 'none'")
 				w.Header().Set("Referrer-Policy", "no-referrer")
 			}
 			w.Write(data)
@@ -1035,6 +1035,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 	}
 	b.devFileRoutes(mux, builder, reply, failure)
 	b.devGitRoutes(mux, builder, reply, failure)
+	b.devToolRoutes(mux, builder, reply, failure)
 	b.devChatRoutes(mux, builder, reply, failure)
 	b.devCodeRoutes(mux, builder, reply, failure)
 	b.devDecisionRoutes(mux, builder, reply, failure, decode)

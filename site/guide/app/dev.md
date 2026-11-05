@@ -268,9 +268,10 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
   shows its last session, with **Resume this session**. Beside the chat,
-  and beside the terminal, is a panel with three views, by the icons
+  and beside the terminal, is a panel with seven views, by the icons
   along its top: **Rewind** (the first, until you pick another),
-  **Files**, and **Source control** ([below](#beside-the-chat)). Its
+  **Files**, **Search**, **Source control**, **Checks**, **Logs**, and
+  **Preview** ([below](#beside-the-chat)). Its
   left edge drags it wider; the panel button at the end of the bar
   shows and hides it, and on a narrow screen it lies over the chat or
   the terminal. Beside the terminal it follows the workspace you open in
@@ -326,6 +327,28 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
     agents commit. Under it, the branch's last commits, those dev
     hasn't in green. Once it has commits dev hasn't, **Try on Stage**
     and **Ship to Dev** are there too, as in the workspaces' list.
+  - **Search** finds a word, or with **.\*** a regular expression, in
+    the workspace's files, new ones too, not those git ignores; **Aa**
+    matches case. The matches are by file, and one opens its file in a
+    tab at its line. It shows the first 500.
+  - **Checks** are the project's `make check`, `test`, `lint`,
+    `typecheck`, and `fix`, or without a Makefile those scripts of its
+    `package.json`, run in the dev box on the workspace, one at a time,
+    for at most half an hour. Their output comes as they run, and
+    **Stop** ends one. One that fails has **Fix with Claude**, which
+    puts the end of its output in the chat's box for you to send; the
+    icon has a red dot until one passes.
+  - **Logs** are what production or Stage prints (**Output**, its
+    errors in red) and the requests its address served (**Requests**,
+    with their status: a 5xx in red, a 4xx in yellow), as they come;
+    **!** shows the errors only. **↗** puts the lines you selected, or
+    the last 40, in the chat's box. A release starts a new box, and its
+    output from the start. Paths only: a link's key is never in them.
+  - **Preview** is Stage or production, on its own address, in the
+    panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
+    makes the panel wider. It loads again when something new goes on
+    Stage. An app that doesn't let other pages show it stays blank
+    here; **↗** still opens it.
 - **VS Code**, the third view on a wide screen, is VS Code in the
   browser ([code-server](https://github.com/coder/code-server)) on the
   workspace's worktree: the same files the agent works on, to edit by

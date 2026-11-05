@@ -180,7 +180,11 @@
           <nav class="side-tabs" role="tablist" aria-label="Views">
             <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
             <button data-side="files" role="tab" aria-selected="false" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
+            <button data-side="search" role="tab" aria-selected="false" title="Search: the workspace's files, for a word or a pattern" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
             <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
+            <button data-side="checks" role="tab" aria-selected="false" title="Checks: the project's tests and lint, run in the dev box" aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and Stage print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg></button>
+            <button data-side="preview" role="tab" aria-selected="false" title="Preview: Stage or production, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
             <span class="grow"></span>
             <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
@@ -219,6 +223,52 @@
               <ol id="git-commits" class="git-commits"></ol>
             </details>
             <div id="git-diff" class="git-diff" hidden></div>
+          </section>
+          <section id="side-search" class="side-view search-view" role="tabpanel" aria-label="Search" hidden>
+            <form id="search-form" class="search-form" autocomplete="off">
+              <input id="search-input" type="search" placeholder="Search the files" aria-label="Search the workspace's files" spellcheck="false">
+              <button type="button" id="search-case" class="side-icon search-toggle" aria-pressed="false" title="Match case" aria-label="Match case">Aa</button>
+              <button type="button" id="search-regex" class="side-icon search-toggle" aria-pressed="false" title="A regular expression" aria-label="Regular expression">.*</button>
+            </form>
+            <p id="search-note" class="muted small search-note">Searches the workspace's files, new ones too, not those git ignores.</p>
+            <div id="search-results" class="search-results"></div>
+          </section>
+          <section id="side-checks" class="side-view checks-view" role="tabpanel" aria-label="Checks" hidden>
+            <div class="side-head">
+              <div><strong>Checks</strong><div class="muted small">run in the dev box, on this workspace</div></div>
+              <span class="grow"></span>
+              <button id="checks-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
+            </div>
+            <div id="checks-list" class="checks-list"><p class="muted small">Loading…</p></div>
+            <div id="checks-run" class="checks-run" hidden>
+              <div class="checks-status"><span id="checks-state"></span><span class="grow"></span><span id="checks-acts"></span></div>
+              <pre id="checks-output" class="log-text"></pre>
+            </div>
+          </section>
+          <section id="side-logs" class="side-view logs-view" role="tabpanel" aria-label="Logs" hidden>
+            <div class="logs-tools">
+              <select id="logs-slot" aria-label="Whose logs"><option value="production">Production</option><option value="preview">Stage</option></select>
+              <div id="logs-source" class="chips small-chips" role="group" aria-label="Which log">
+                <button data-source="output" aria-pressed="true" title="What the app prints">Output</button>
+                <button data-source="requests" aria-pressed="false" title="The requests its address served">Requests</button>
+              </div>
+              <span class="grow"></span>
+              <button id="logs-errors" class="side-icon" aria-pressed="false" title="Errors only" aria-label="Errors only">!</button>
+              <button id="logs-send" class="side-icon" title="Send what you selected, or the last lines, to Claude" aria-label="Send to Claude">↗</button>
+            </div>
+            <p id="logs-note" class="muted small logs-note"></p>
+            <div id="logs-lines" class="logs-lines log-text" tabindex="0"></div>
+          </section>
+          <section id="side-preview" class="side-view preview-view" role="tabpanel" aria-label="Preview" hidden>
+            <div class="logs-tools">
+              <select id="preview-slot" aria-label="What to show"></select>
+              <span class="grow"></span>
+              <button id="preview-reload" class="side-icon" title="Load it again" aria-label="Load it again">↻</button>
+              <a id="preview-open" class="side-icon" target="_blank" rel="noopener" title="Open it in a new tab" aria-label="Open it in a new tab">↗</a>
+              <button id="preview-wide" class="side-icon" title="Wider" aria-label="Wider">⤢</button>
+            </div>
+            <p id="preview-note" class="muted small logs-note"></p>
+            <iframe id="preview-frame" class="preview-frame" title="Preview" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
           </section>
           <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind">
             <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>

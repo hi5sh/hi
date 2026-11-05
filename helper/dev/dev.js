@@ -1153,10 +1153,11 @@
   // wide. On a narrow screen it lies over the chat, so it starts hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
   var side = { view: "rewind", open: true, width: 340 };
+  var sideViews = ["rewind", "files", "search", "git", "checks", "logs", "preview"];
   try {
     // Rewind first since hi 2.6.72: the view kept before it was Files, by default.
     var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
-    if (keptSide.v === 2 && ["files", "git", "rewind"].indexOf(keptSide.view) >= 0) side.view = keptSide.view;
+    if (keptSide.v === 2 && sideViews.indexOf(keptSide.view) >= 0) side.view = keptSide.view;
     if (keptSide.open === false) side.open = false;
     if (keptSide.width >= 240) side.width = keptSide.width;
   } catch (e) { /* private window */ }
@@ -1265,6 +1266,9 @@
     clearChat();
     showChatStart();
     git.view = null;
+    search.view = null;
+    search.asked = "";
+    renderSearch();
     closeDiff();
     renderGit();
     syncFilesRoot();
@@ -2134,15 +2138,20 @@
     document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
       button.setAttribute("aria-selected", String(button.dataset.side === side.view));
     });
-    $("side-files").hidden = side.view !== "files";
-    $("side-git").hidden = side.view !== "git";
-    $("side-rewind").hidden = side.view !== "rewind";
+    sideViews.forEach(function (view) { $("side-" + view).hidden = side.view !== view; });
   }
   // sideShown brings the open view up to date, when it's on the screen.
   function sideShown() {
     if (!sideOpen()) return;
     if (side.view === "files") { openFiles(); if (!git.view || git.space !== chat.space || Date.now() - git.at > 5000) refreshGit(); }
     if (side.view === "git") refreshGit();
+    if (side.view === "search") {
+      if (search.space && search.space !== chat.space) runSearch(true);
+      if (!sideOver.matches) $("search-input").focus({ preventScroll: true });
+    }
+    if (side.view === "checks") loadChecks();
+    if (side.view === "logs") loadLogs();
+    if (side.view === "preview") loadPreview(false);
     if (side.view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
   function setSide(view, open) {
@@ -2607,8 +2616,9 @@
     opened.tabs.push(tab);
     return tab;
   }
-  function openTab(root, path) {
+  function openTab(root, path, line) {
     var tab = tabOf(tabKey(root, path)) || newTab(root, path);
+    tab.goto = line || 0;
     keepTabs();
     showTab(tab.key);
     closeOver();
@@ -2625,7 +2635,7 @@
     if (tab.pane.parentNode !== box) box.appendChild(tab.pane);
     opened.tabs.forEach(function (t) { if (t.pane) t.pane.hidden = t !== tab; });
     if (!tab.loaded) loadTab(tab);
-    else checkTab(tab);
+    else { checkTab(tab); gotoLine(tab); }
     if (tab.text && !tab.preview) tab.text.focus({ preventScroll: true });
     if (tab.root === files.root && files.file !== tab.path) { files.file = tab.path; if (filesShown()) renderTree(); }
   }
@@ -2743,6 +2753,7 @@
       edited(tab);
       if (tab.preview) setPreview(tab, true);
       if (opened.current === tab.key && chat.view === "file" && !tab.preview && !keepView) tab.text.focus({ preventScroll: true });
+      gotoLine(tab);
     }).catch(function (error) {
       tab.loaded = true;
       tab.kind = "other";
@@ -2771,6 +2782,26 @@
         document.execCommand("insertText", false, tab.indent); // keeps undo
       }
     });
+  }
+  // gotoLine selects a line the tab was opened at, as Search does, and
+  // brings it to a third of the way down.
+  function gotoLine(tab) {
+    var line = tab.goto;
+    if (!line || !tab.text) return;
+    tab.goto = 0;
+    if (tab.preview) setPreview(tab, false);
+    var value = tab.text.value, start = 0;
+    for (var i = 1; i < line; i++) {
+      var next = value.indexOf("\n", start);
+      if (next < 0) { start = value.length; break; }
+      start = next + 1;
+    }
+    var end = value.indexOf("\n", start);
+    tab.text.focus({ preventScroll: true });
+    tab.text.setSelectionRange(start, end < 0 ? value.length : end);
+    var height = parseFloat(getComputedStyle(tab.text).lineHeight) || 19.5;
+    tab.text.scrollTop = Math.max(0, (line - 1) * height - tab.text.clientHeight / 3);
+    tab.text.scrollLeft = 0;
   }
   var lineFrame = 0;
   function edited(tab) {
@@ -2862,6 +2893,339 @@
   window.addEventListener("beforeunload", function (event) {
     if (opened.tabs.some(function (t) { return t.dirty; })) { event.preventDefault(); event.returnValue = ""; }
   });
+
+  // toChat puts text in the chat's box, for you to add to and send: what
+  // Logs and Checks hand Claude.
+  function toChat(text) {
+    if (!chat.space) { toast("Open a workspace's chat first."); return; }
+    if ($("tab-terminal").hidden) show("terminal");
+    setCodeView("chat");
+    var input = $("chat-input");
+    input.value = (input.value.trim() ? input.value.replace(/\s+$/, "") + "\n\n" : "") + text;
+    input.dispatchEvent(new Event("input"));
+    closeOver();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+  function plainLog(text) {
+    // Colours and cursor moves out; a line redrawn with \r keeps its last.
+    return text.replace(/\x1b\[[0-9;?]*[ -\/]*[@-~]/g, "").replace(/\x1b[()][A-Z0-9]/g, "")
+      .split("\n").map(function (line) { var parts = line.split("\r"); return parts[parts.length - 1] || parts[parts.length - 2] || ""; }).join("\n");
+  }
+  function seconds(from, to) {
+    var s = Math.max(0, Math.round(((to ? new Date(to) : new Date()) - new Date(from)) / 1000));
+    return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+  }
+
+  // ---- Search: git grep in the workspace, its files tracked or new; a
+  // match opens its file in a tab, at the line.
+  var search = { q: "", matchCase: false, regex: false, busy: false, timer: 0, asked: "", space: "", view: null, shut: {} };
+  function searchShown() { return sideOpen() && side.view === "search"; }
+  function runSearch(now) {
+    clearTimeout(search.timer);
+    var q = $("search-input").value;
+    if (!q.trim() || (!now && q.trim().length < 2)) { search.view = null; search.asked = ""; renderSearch(); return; }
+    var key = [chat.space, q, search.matchCase, search.regex].join("\n");
+    if (key === search.asked && !now) return;
+    search.asked = key;
+    search.busy = true;
+    $("search-note").textContent = "Searching…";
+    api("GET", "search?workspace=" + encodeURIComponent(chat.space) + "&q=" + encodeURIComponent(q) + (search.matchCase ? "&case=1" : "") + (search.regex ? "&regex=1" : "")).then(function (view) {
+      if (search.asked !== key) return;
+      search.view = view;
+      search.q = q;
+      search.space = chat.space;
+      search.shut = {};
+      renderSearch();
+    }).catch(function (error) {
+      if (search.asked !== key) return;
+      search.view = null;
+      renderSearch(error.message);
+    }).then(function () { search.busy = false; });
+  }
+  function renderSearch(error) {
+    var box = $("search-results");
+    box.textContent = "";
+    var view = search.view;
+    if (error) { $("search-note").textContent = error; return; }
+    if (!view) { $("search-note").textContent = chat.space ? "Searches the workspace's files, new ones too, not those git ignores." : "Open a workspace's chat first."; return; }
+    var matches = view.matches || [];
+    var byFile = [], files = {};
+    matches.forEach(function (m) {
+      if (!files[m.path]) { files[m.path] = []; byFile.push(m.path); }
+      files[m.path].push(m);
+    });
+    $("search-note").textContent = matches.length
+      ? count(matches.length, "match", "matches") + " in " + count(byFile.length, "file", "files") + (view.more ? ", the first " + matches.length + ": say more to find fewer" : "")
+      : "Nothing found.";
+    var pattern = null;
+    try {
+      pattern = new RegExp(search.regex ? search.q : search.q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), search.matchCase ? "g" : "gi");
+    } catch (e) { pattern = null; }
+    var root = spaceRoot();
+    byFile.forEach(function (path) {
+      var parts = path.split("/"), name = parts.pop(), shut = !!search.shut[path];
+      box.appendChild(el("button", { class: "search-file" + (shut ? "" : " open"), title: path, onclick: function () { search.shut[path] = !shut; renderSearch(); } }, [
+        el("span", { class: "file-chevron" }, [icon("chevron").firstChild]),
+        icon("file"),
+        el("span", { class: "search-name", text: name }),
+        el("span", { class: "muted search-dir", text: parts.join("/") }),
+        el("span", { class: "count", text: String(files[path].length) }),
+      ]));
+      if (shut) return;
+      files[path].forEach(function (m) {
+        box.appendChild(el("button", { class: "search-line", title: path + ":" + m.line, onclick: function () { openTab(root, path, m.line); } }, [
+          el("span", { class: "search-num", text: String(m.line) }),
+          el("span", { class: "search-text" }, marked(m.text.replace(/^\s+/, ""), pattern)),
+        ]));
+      });
+    });
+  }
+  function marked(text, pattern) {
+    if (!pattern) return [document.createTextNode(text)];
+    var nodes = [], at = 0, m;
+    pattern.lastIndex = 0;
+    while ((m = pattern.exec(text)) && nodes.length < 40) {
+      if (!m[0]) { pattern.lastIndex++; continue; }
+      if (m.index > at) nodes.push(document.createTextNode(text.slice(at, m.index)));
+      nodes.push(el("mark", { text: m[0] }));
+      at = m.index + m[0].length;
+    }
+    nodes.push(document.createTextNode(text.slice(at)));
+    return nodes;
+  }
+  $("search-input").addEventListener("input", function () { clearTimeout(search.timer); search.timer = setTimeout(function () { runSearch(false); }, 350); });
+  $("search-form").addEventListener("submit", function (event) { event.preventDefault(); runSearch(true); });
+  [["search-case", "matchCase"], ["search-regex", "regex"]].forEach(function (pair) {
+    $(pair[0]).addEventListener("click", function () {
+      search[pair[1]] = !search[pair[1]];
+      $(pair[0]).setAttribute("aria-pressed", String(search[pair[1]]));
+      runSearch(true);
+    });
+  });
+
+  // ---- Checks: make check, test, lint (or the package's scripts), run in
+  // the dev box on the workspace, their output as it comes.
+  var checks = { list: null, run: null, offset: 0, out: "", busy: false, at: 0, space: "", error: "" };
+  function checksShown() { return sideOpen() && side.view === "checks"; }
+  function loadChecks() {
+    if (!chat.space || checks.busy) return;
+    if (checks.space !== chat.space) { checks.space = chat.space; checks.list = null; checks.run = null; checks.offset = 0; checks.out = ""; renderChecks(); }
+    var asked = chat.space;
+    checks.busy = true;
+    api("GET", "checks?workspace=" + encodeURIComponent(asked) + "&after=" + checks.offset).then(function (view) {
+      if (asked !== chat.space) return;
+      checks.list = view.checks || [];
+      checks.error = "";
+      takeRun(view.run);
+    }).catch(function (error) {
+      checks.error = error.message;
+    }).then(function () {
+      checks.busy = false;
+      checks.at = Date.now();
+      if (asked === chat.space) renderChecks();
+    });
+  }
+  function takeRun(run) {
+    if (!run) { checks.run = null; checks.out = ""; checks.offset = 0; return; }
+    if (run.reset || !checks.run || checks.run.started !== run.started) checks.out = "";
+    checks.out += run.output || "";
+    if (checks.out.length > 400000) checks.out = checks.out.slice(-300000);
+    checks.offset = run.offset;
+    checks.run = run;
+  }
+  function renderChecks() {
+    var list = $("checks-list"), run = checks.run;
+    list.textContent = "";
+    if (!chat.space) list.appendChild(el("p", { class: "muted small", text: "Open a workspace's chat first." }));
+    else if (checks.error) list.appendChild(el("p", { class: "error small", text: checks.error }));
+    else if (!checks.list) list.appendChild(el("p", { class: "muted small", text: "Loading…" }));
+    else if (!checks.list.length) list.appendChild(el("p", { class: "muted small", text: "The project has no make check, test, or lint, nor such scripts in package.json. Ask Claude for a Makefile with them." }));
+    (checks.list || []).forEach(function (check, i) {
+      list.appendChild(el("div", { class: "check-row" }, [
+        el("div", { class: "check-what" }, [el("code", { text: check.command }), check.about ? el("div", { class: "muted small", text: check.about }) : null]),
+        el("button", { class: "small" + (i === 0 ? " primary" : ""), text: "Run", disabled: run && run.running ? "" : null, onclick: function () { startCheck(check.name); } }),
+      ]));
+    });
+    var box = $("checks-run");
+    box.hidden = !run;
+    var badge = $("checks-badge");
+    badge.hidden = !run || (!run.running && run.exit === 0 && !run.error);
+    badge.classList.toggle("running", !!(run && run.running));
+    badge.classList.toggle("failed", !!(run && !run.running && (run.exit !== 0 || run.error)));
+    if (!run) return;
+    var state = $("checks-state"), acts = $("checks-acts");
+    acts.textContent = "";
+    if (run.running) {
+      state.className = "";
+      state.textContent = "Running " + run.command + "… " + seconds(run.started);
+      acts.appendChild(el("button", { class: "small danger", text: "Stop", onclick: function () { checkAct({ action: "stop" }); } }));
+    } else if (run.stopped) {
+      state.className = "muted";
+      state.textContent = "Stopped " + run.command + " after " + seconds(run.started, run.finished);
+    } else if (run.exit === 0 && !run.error) {
+      state.className = "git-new";
+      state.textContent = "✓ " + run.command + " passed, in " + seconds(run.started, run.finished);
+    } else {
+      state.className = "git-conflict";
+      state.textContent = "✗ " + run.command + (run.error ? ": " + run.error : " failed (exit " + run.exit + ")") + ", in " + seconds(run.started, run.finished);
+      acts.appendChild(el("button", { class: "small primary", text: "Fix with Claude", title: "Put the end of its output in the chat, to send", onclick: function () {
+        var tail = plainLog(checks.out).trim().split("\n").slice(-60).join("\n");
+        toChat("`" + run.command + "` failed in the dev box (exit " + run.exit + "). The end of its output:\n\n```\n" + tail + "\n```\n\nFind out why and fix it, then run it again.");
+      } }));
+    }
+    var out = $("checks-output");
+    var atBottom = out.scrollHeight - out.scrollTop - out.clientHeight < 40;
+    var text = plainLog(checks.out);
+    if (out.textContent !== text) { out.textContent = text; if (atBottom || run.running) out.scrollTop = out.scrollHeight; }
+  }
+  function startCheck(name) { checkAct({ action: "run", name: name }); }
+  function checkAct(body) {
+    body.workspace = chat.space;
+    api("POST", "checks", body).then(function (view) {
+      if (body.action === "run") { checks.out = ""; checks.offset = 0; checks.run = null; }
+      takeRun(view.run);
+      renderChecks();
+      checks.at = 0;
+    }).catch(function (error) { toast(error.message); });
+  }
+  $("checks-refresh").addEventListener("click", loadChecks);
+
+  // ---- Logs: what production's and Stage's boxes print, and the requests
+  // their addresses serve, as they come.
+  var logs = { slot: "production", source: "output", errors: false, cursor: "", key: "", lines: [], busy: false, at: 0, label: "" };
+  try {
+    var keptLogs = JSON.parse(localStorage.getItem("hi-dev-logs") || "{}");
+    if (keptLogs.slot === "preview") logs.slot = "preview";
+    if (keptLogs.source === "requests") logs.source = "requests";
+    logs.errors = !!keptLogs.errors;
+  } catch (e) { /* private window */ }
+  function keepLogs() { try { localStorage.setItem("hi-dev-logs", JSON.stringify({ slot: logs.slot, source: logs.source, errors: logs.errors })); } catch (e) { /* private window */ } }
+  function logsShown() { return sideOpen() && side.view === "logs"; }
+  function loadLogs() {
+    if (logs.busy) return;
+    var key = logs.slot + "/" + logs.source;
+    if (key !== logs.key) { logs.key = key; logs.cursor = ""; logs.lines = []; $("logs-lines").textContent = ""; }
+    logs.busy = true;
+    api("GET", "logs?slot=" + logs.slot + "&source=" + logs.source + "&after=" + encodeURIComponent(logs.cursor)).then(function (view) {
+      if (key !== logs.key) return;
+      var fresh = view.reset;
+      if (fresh) logs.lines = [];
+      logs.lines = logs.lines.concat(view.lines || []);
+      var cut = logs.lines.length > 2000;
+      if (cut) logs.lines = logs.lines.slice(-2000);
+      logs.cursor = view.cursor || "";
+      logs.label = view.label || "";
+      $("logs-note").textContent = view.note || (logs.label ? logs.label + (logs.source === "output" ? ": what it prints" : ": the requests it served") : "");
+      renderLogs(fresh || cut ? logs.lines : view.lines || [], fresh || cut);
+    }).catch(function (error) {
+      $("logs-note").textContent = error.message;
+    }).then(function () { logs.busy = false; logs.at = Date.now(); });
+  }
+  function logLine(line) {
+    var at = line.at ? new Date(line.at) : null;
+    var kind = line.error ? " err" : line.status >= 400 ? " warn" : "";
+    return el("div", { class: "log-line" + kind }, [
+      at ? el("span", { class: "log-at", text: at.toTimeString().slice(0, 8), title: at.toLocaleString() }) : null,
+      // The relay pads its columns for a terminal; the panel is narrower.
+      document.createTextNode(line.status ? line.text.replace(/ {2,}/g, "  ") : plainLog(line.text)),
+    ]);
+  }
+  function renderLogs(lines, fresh) {
+    var box = $("logs-lines");
+    var atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    if (fresh) box.textContent = "";
+    var frag = document.createDocumentFragment();
+    lines.forEach(function (line) { frag.appendChild(logLine(line)); });
+    box.appendChild(frag);
+    while (box.childNodes.length > 2000) box.removeChild(box.firstChild);
+    if (!box.childNodes.length) box.appendChild(el("p", { class: "muted small log-empty", text: "Nothing yet." }));
+    else { var empty = box.querySelector(".log-empty"); if (empty) empty.remove(); }
+    if (atBottom || fresh) box.scrollTop = box.scrollHeight;
+  }
+  function renderLogTools() {
+    $("logs-slot").value = logs.slot;
+    document.querySelectorAll("#logs-source button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.source === logs.source)); });
+    $("logs-errors").setAttribute("aria-pressed", String(logs.errors));
+    $("logs-lines").classList.toggle("errors-only", logs.errors);
+  }
+  $("logs-slot").addEventListener("change", function () { logs.slot = $("logs-slot").value; keepLogs(); renderLogTools(); loadLogs(); });
+  document.querySelectorAll("#logs-source button").forEach(function (b) {
+    b.addEventListener("click", function () { logs.source = b.dataset.source; keepLogs(); renderLogTools(); loadLogs(); });
+  });
+  $("logs-errors").addEventListener("click", function () {
+    logs.errors = !logs.errors;
+    keepLogs();
+    renderLogTools();
+    var box = $("logs-lines");
+    box.scrollTop = box.scrollHeight;
+  });
+  $("logs-send").addEventListener("click", function () {
+    var box = $("logs-lines"), picked = window.getSelection ? String(window.getSelection()) : "";
+    var inside = picked && window.getSelection().rangeCount && box.contains(window.getSelection().getRangeAt(0).commonAncestorContainer);
+    var text = inside ? picked : logs.lines.filter(function (l) { return !logs.errors || l.error || l.status >= 400; }).slice(-40).map(function (l) {
+      return (l.at ? new Date(l.at).toISOString().slice(11, 19) + " " : "") + plainLog(l.text);
+    }).join("\n");
+    if (!text.trim()) { toast("Nothing to send yet."); return; }
+    var whose = logs.slot === "production" ? "production" : "Stage";
+    toChat("From " + (logs.label || whose) + ", " + (logs.source === "output" ? "what it printed" : "the requests it served") + ":\n\n```\n" + text.replace(/\s+$/, "") + "\n```\n\n");
+  });
+  renderLogTools();
+
+  // ---- Preview: Stage or production, in the panel, on its own address.
+  var preview = { slot: "", url: "", label: "" };
+  try { preview.slot = localStorage.getItem("hi-dev-preview") || ""; } catch (e) { /* private window */ }
+  function previewShown() { return sideOpen() && side.view === "preview"; }
+  function previewSlots() {
+    var s = (state && state.status) || {};
+    var slots = [];
+    if (s.preview_url) slots.push({ id: "preview", url: s.preview_url, label: "Stage: " + (s.preview_branch || (s.preview || "").replace(/^dev, /, "dev: ")) });
+    if (s.production_url) slots.push({ id: "production", url: s.production_url, label: "Production" + (s.production ? " v" + s.production : "") });
+    return slots;
+  }
+  function loadPreview(again) {
+    var slots = previewSlots(), select = $("preview-slot");
+    if (!slots.some(function (o) { return o.id === preview.slot; })) preview.slot = slots.length ? slots[0].id : "";
+    var sig = slots.map(function (o) { return o.id + o.label; }).join("|");
+    if (select.dataset.sig !== sig) {
+      select.dataset.sig = sig;
+      select.textContent = "";
+      slots.forEach(function (o) { select.appendChild(el("option", { value: o.id, text: o.label })); });
+    }
+    select.value = preview.slot;
+    select.hidden = !slots.length;
+    var slot = slots.filter(function (o) { return o.id === preview.slot; })[0];
+    var frame = $("preview-frame");
+    $("preview-open").hidden = !slot;
+    frame.hidden = !slot;
+    if (!slot) {
+      $("preview-note").textContent = "Nothing to show yet: release, or Try on Stage a workspace's branch.";
+      return;
+    }
+    $("preview-open").href = slot.url;
+    $("preview-note").textContent = "";
+    // A new release, or another branch on Stage, loads again.
+    if (again || preview.url !== slot.url || preview.label !== slot.label) {
+      preview.url = slot.url;
+      preview.label = slot.label;
+      frame.src = slot.url;
+    }
+  }
+  $("preview-slot").addEventListener("change", function () {
+    preview.slot = $("preview-slot").value;
+    try { localStorage.setItem("hi-dev-preview", preview.slot); } catch (e) { /* private window */ }
+    loadPreview(true);
+  });
+  $("preview-reload").addEventListener("click", function () { loadPreview(true); });
+  $("preview-wide").addEventListener("click", widenSide);
+
+  setInterval(function () {
+    if (document.hidden) return;
+    var now = Date.now();
+    if (checksShown() ? now - checks.at > 1500 : checks.run && checks.run.running && now - checks.at > 5000) loadChecks();
+    if (logsShown() && now - logs.at > 3000) loadLogs();
+    if (previewShown()) loadPreview(false);
+  }, 1000);
 
   // Upload: picked, or dropped on the files; a file that's there
   // already is replaced only when you say so.

@@ -4033,6 +4033,11 @@ the last commit, staging, discarding, and a commit.
   `script-src 'none'`, 512 MB per team), filebrowser/filebrowser
   (archived), dufs and miniserve (no previews), SFTPGo and Filestash
   (AGPL, their own accounts), Cloudreve, Nextcloud, and Seafile.
+- [x] Search, Checks, Logs, and Preview in the panel (2026-11-05):
+  `git grep` in the workspace, its make checks or package scripts run
+  in the dev box with Stop and Fix with Claude, production's and
+  Stage's output from the journal and requests from the relay's log, and
+  their addresses in an iframe (the page's `frame-src`).
 - [x] Changed 2026-11-05: a file opens in a tab beside Chat, Terminal,
   and VS Code, and a text file is edited and saved there, against the
   file as it was read; new folder, rename, and delete stay in VS Code.
