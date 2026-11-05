@@ -2713,6 +2713,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.72 — The panel beside the terminal too, Rewind first
+
+- [x] The dev page's panel (Rewind, Files, Source control) is beside the
+  terminal as well as the chat, on the workspace opened in the list; VS
+  Code, which has its own, has none. Rewind is its first icon and its
+  view until you pick another: the Files kept by default before is
+  forgotten. Beside the terminal, Rewind asks for its messages itself.
+  Checked in headless Chromium at 1600 and 900 pixels.
+
 ### v2.6.71 — A panel beside the chat: Files, Source control, and Rewind
 
 - [x] The dev page's chat has a panel on its right with three icon tabs,
