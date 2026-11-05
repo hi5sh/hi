@@ -1148,14 +1148,15 @@
   var narrow = window.matchMedia && window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
   // The rewind timeline's messages, what the page last saw, and the one open.
-  var rewind = { points: [], seen: "", open: "" };
+  var rewind = { points: [], seen: "", open: "", at: 0 };
   // The panel beside the chat: its open view, whether it's shown, and how
   // wide. On a narrow screen it lies over the chat, so it starts hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
-  var side = { view: "files", open: true, width: 340 };
+  var side = { view: "rewind", open: true, width: 340 };
   try {
+    // Rewind first since hi 2.6.72: the view kept before it was Files, by default.
     var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
-    if (["files", "git", "rewind"].indexOf(keptSide.view) >= 0) side.view = keptSide.view;
+    if (keptSide.v === 2 && ["files", "git", "rewind"].indexOf(keptSide.view) >= 0) side.view = keptSide.view;
     if (keptSide.open === false) side.open = false;
     if (keptSide.width >= 240) side.width = keptSide.width;
   } catch (e) { /* private window */ }
@@ -1180,7 +1181,8 @@
     showChatStart();
     $("chat-title").hidden = view !== "chat";
     $("chat-status").hidden = view !== "chat";
-    if (view === "terminal") setTimeout(function () { fitTerminal(); term.focus(); }, 0);
+    renderSide();
+    if (view === "terminal") { setTimeout(function () { fitTerminal(); term.focus(); }, 0); sideShown(); }
     else if (view === "code") openVSCode();
     else { pollChat(); sideShown(); }
   }
@@ -2072,7 +2074,7 @@
   }
   // widenSide gives a preview or a diff room: half the chat's width, at least.
   function widenSide() {
-    var room = Math.round($("chat").clientWidth * 0.55);
+    var room = Math.round(document.querySelector(".code-body").clientWidth * 0.55);
     if (side.width >= room) return;
     side.width = room;
     keepSide();
@@ -2081,18 +2083,20 @@
   // ---- the panel beside the chat: Files, Source control, and Rewind, by
   // the icons along its top.
   function keepSide() {
-    try { localStorage.setItem("hi-dev-side", JSON.stringify({ view: side.view, open: side.open, width: side.width })); } catch (e) { /* private window */ }
+    try { localStorage.setItem("hi-dev-side", JSON.stringify({ v: 2, view: side.view, open: side.open, width: side.width })); } catch (e) { /* private window */ }
   }
+  // It is beside the chat and the terminal; VS Code has its own.
+  function sideBeside() { return chat.view === "chat" || chat.view === "terminal"; }
   function sideOpen() {
-    return !$("chat-side").hidden && !$("tab-terminal").hidden && chat.view === "chat" && !document.hidden;
+    return !$("chat-side").hidden && !$("tab-terminal").hidden && sideBeside() && !document.hidden;
   }
   function renderSide() {
-    var starting = !$("chat-start").hidden;
+    var starting = chat.view === "chat" && !$("chat-start").hidden;
     var panel = $("chat-side");
-    panel.hidden = !side.open || starting;
+    panel.hidden = !side.open || starting || !sideBeside();
     panel.style.setProperty("--side-width", side.width + "px");
     $("side-toggle").setAttribute("aria-pressed", String(side.open));
-    $("side-toggle").hidden = starting || chat.view !== "chat";
+    $("side-toggle").hidden = starting || !sideBeside();
     document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
       button.setAttribute("aria-selected", String(button.dataset.side === side.view));
     });
@@ -2105,7 +2109,7 @@
     if (!sideOpen()) return;
     if (side.view === "files") openFiles();
     if (side.view === "git") refreshGit();
-    if (side.view === "rewind") renderPoints();
+    if (side.view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
   function setSide(view, open) {
     if (view) side.view = view;
@@ -2118,7 +2122,7 @@
   // chat, the panel.
   function revealSide(view) {
     if ($("tab-terminal").hidden) show("terminal");
-    if (chat.view !== "chat") setCodeView("chat");
+    if (!sideBeside()) setCodeView("chat");
     setSide(view, true);
   }
   document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
@@ -2140,7 +2144,7 @@
     });
     handle.addEventListener("pointermove", function (event) {
       if (!handle.classList.contains("dragging")) return;
-      var most = Math.max(240, $("chat").clientWidth - 320);
+      var most = Math.max(240, document.querySelector(".code-body").clientWidth - 320);
       side.width = Math.round(Math.min(most, Math.max(240, width + from - event.clientX)));
       $("chat-side").style.setProperty("--side-width", side.width + "px");
     });
@@ -2154,7 +2158,9 @@
     handle.addEventListener("dblclick", function () { side.width = 340; keepSide(); renderSide(); });
   })();
   // A narrow screen's panel lies over the chat: tapping the chat closes it.
-  $("chat-log").addEventListener("click", function () { if (sideOver.matches && side.open) setSide(null, false); });
+  function closeOver() { if (sideOver.matches && side.open) setSide(null, false); }
+  $("chat-log").addEventListener("click", closeOver);
+  $("term").addEventListener("pointerdown", closeOver, true); // xterm keeps its clicks
 
   // ---- Source control: the chat's workspace's changes, staged or not,
   // each file's diff, a commit, and its branch's commits. Try on Stage and
@@ -2180,6 +2186,8 @@
     });
   }
   setInterval(function () {
+    // Beside the terminal, the chat's poll is off: Rewind asks itself.
+    if (sideOpen() && side.view === "rewind" && chat.view === "terminal" && Date.now() - rewind.at > 5000) { rewind.at = Date.now(); loadPoints(); }
     if (gitShown() && Date.now() - git.at > 4000) refreshGit();
     else if (filesShown() && files.loaded && Date.now() - files.at > 8000) {
       // The tree, and its letters, as the agent changes files.

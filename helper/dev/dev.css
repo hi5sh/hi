@@ -202,6 +202,9 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .vscode iframe { flex: 1; width: calc(100% + 2 * var(--gap)); margin: 0 calc(-1 * var(--gap)) calc(-1 * var(--gap)); border: 0; background: var(--shell); }
 .term-panel { background: var(--term); border: 1px solid var(--line); border-radius: var(--r-lg); position: relative; overflow: hidden; min-height: 0; flex: 1; }
 .code-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+/* The chat, the terminal or VS Code, with the side panel beside the first two. */
+.code-body { flex: 1; min-height: 0; display: flex; gap: 6px; position: relative; }
+.code-views { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .code-bar { display: flex; align-items: center; gap: 8px; padding: 0 4px var(--gap); background: var(--shell); min-width: 0; }
 .code-bar select { max-width: 240px; }
 .chat-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -218,9 +221,9 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 /* The panel beside the chat, full height, as VS Code's secondary side
    bar: its views' icons along the top, the open one underlined. Its left
    edge drags it wider. On a narrow screen it lies over the chat. */
-.side { flex: none; width: var(--side-width, 340px); min-width: 240px; max-width: 75%; position: relative; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--panel); }
+.side { flex: none; width: var(--side-width, 340px); min-width: 240px; max-width: 75%; position: relative; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }
 .side[hidden] { display: none; }
-.side-resize { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 4; }
+.side-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 4; }
 .side-resize:hover, .side-resize.dragging { background: var(--focus); }
 .side-tabs { flex: none; display: flex; align-items: stretch; gap: 2px; padding: 0 6px; border-bottom: 1px solid var(--line); }
 .side-tabs > button[data-side] { position: relative; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
@@ -243,7 +246,7 @@ button.side-toggle[aria-pressed="true"] { color: var(--bright); }
   .side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; max-width: calc(100% - 24px); box-shadow: -8px 0 24px var(--shadow); }
 }
 @media (max-width: 760px) {
-  .side { width: 100%; max-width: none; min-width: 0; border-left: 0; }
+  .side { width: 100%; max-width: none; min-width: 0; }
   .side-resize { display: none; }
 }
 /* Rewind: the conversation's messages as a timeline, newest last; a

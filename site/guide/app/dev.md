@@ -267,11 +267,14 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   your own words, and hi presses the keys for you. It works for Codex's
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
-  shows its last session, with **Resume this session**. Beside the chat
-  is a panel with three views, by the icons along its top: **Files**,
-  **Source control**, and **Rewind** ([below](#beside-the-chat)). Its
-  left edge drags it wider; the panel button at the end of the chat's
-  bar shows and hides it, and on a narrow screen it lies over the chat.
+  shows its last session, with **Resume this session**. Beside the chat,
+  and beside the terminal, is a panel with three views, by the icons
+  along its top: **Rewind** (the first, until you pick another),
+  **Files**, and **Source control** ([below](#beside-the-chat)). Its
+  left edge drags it wider; the panel button at the end of the bar
+  shows and hides it, and on a narrow screen it lies over the chat or
+  the terminal. Beside the terminal it follows the workspace you open in
+  the list.
   **Rewind** is a Claude Code conversation's messages
   as a timeline, newest last: each with when, and what the code did
   after it (green when it changed: `sand.ts +20`). A message opens to go
@@ -291,7 +294,8 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   and starts the agent on it. It ships, and is done, like any task. The chat is the
   default; the page remembers your choice. Codex's sessions
   are in the terminal.
-- <a id="beside-the-chat"></a>**Beside the chat**, the panel's views:
+- <a id="beside-the-chat"></a>**Beside the chat** and the terminal, the panel's views:
+  - **Rewind**, as above.
   - **Files** is the chat's workspace's files, a tree whose folders
     open in place: its worktree, or dev's clone for the project's own
     workspace; the list at the top picks another. A file opens in the
@@ -313,7 +317,6 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
     agents commit. Under it, the branch's last commits, those dev
     hasn't in green. Once it has commits dev hasn't, **Try on Stage**
     and **Ship to Dev** are there too, as in the workspaces' list.
-  - **Rewind**, as above.
 - **VS Code**, the third view on a wide screen, is VS Code in the
   browser ([code-server](https://github.com/coder/code-server)) on the
   workspace's worktree: the same files the agent works on, to edit by

@@ -85,8 +85,10 @@
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
-      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Files, source control, and rewind, beside the chat" aria-label="The panel beside the chat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Files, source control, and rewind" aria-label="The side panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
     </div>
+    <div class="code-body">
+    <div class="code-views">
     <div id="chat" class="chat" hidden>
       <div class="chat-col">
       <div id="chat-start" class="chat-start" hidden>
@@ -135,58 +137,6 @@
         </form>
       </div>
       </div>
-      <aside id="chat-side" class="side" aria-label="Beside the chat" hidden>
-        <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
-        <nav class="side-tabs" role="tablist" aria-label="Views">
-          <button data-side="files" role="tab" aria-selected="true" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
-          <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
-          <button data-side="rewind" role="tab" aria-selected="false" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
-          <span class="grow"></span>
-          <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
-        </nav>
-        <section id="side-files" class="side-view" role="tabpanel" aria-label="Files">
-          <div id="files-box" class="files-box">
-            <div class="files-tools">
-              <select id="files-root" aria-label="Which tree"></select>
-              <span class="grow"></span>
-              <label id="files-upload-label" class="side-icon" title="Upload files into this folder; or drop them here" aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
-              <button id="files-collapse" class="side-icon" title="Fold every folder" aria-label="Fold every folder"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
-              <button id="files-refresh" class="side-icon" title="List the folders again" aria-label="List the folders again">↻</button>
-            </div>
-            <div id="files-main" class="files-main">
-              <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
-              <div id="files-preview" class="files-preview"></div>
-            </div>
-            <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
-          </div>
-        </section>
-        <section id="side-git" class="side-view git-view" role="tabpanel" aria-label="Source control" hidden>
-          <div class="side-head">
-            <div class="git-where">
-              <strong id="git-branch" class="git-branch"></strong>
-              <div id="git-base" class="muted small"></div>
-            </div>
-            <button id="git-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
-          </div>
-          <div id="git-ship" class="git-ship"></div>
-          <form id="git-form" class="git-form" autocomplete="off">
-            <textarea id="git-message" rows="2" placeholder="Message: what the change does" aria-label="The commit's message"></textarea>
-            <button id="git-commit" class="primary" title="Commit what's staged; with nothing staged, every change (Ctrl+Enter)">Commit</button>
-          </form>
-          <p id="git-error" class="error small git-error"></p>
-          <div id="git-lists" class="git-lists"><p class="muted small">Loading…</p></div>
-          <details id="git-commits-box" class="git-commits-box">
-            <summary>Commits</summary>
-            <ol id="git-commits" class="git-commits"></ol>
-          </details>
-          <div id="git-diff" class="git-diff" hidden></div>
-        </section>
-        <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind" hidden>
-          <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>
-          <p id="rewind-empty" class="muted small" hidden></p>
-          <ol id="rewind-points" class="rewind-points"></ol>
-        </section>
-      </aside>
     </div>
     <div class="term-panel">
       <div id="term"></div>
@@ -221,6 +171,60 @@
         <a id="vscode-open" href="code/" target="_blank" rel="noopener">Open in a new tab</a>
       </div>
       <iframe id="vscode-frame" title="VS Code" allow="clipboard-read; clipboard-write"></iframe>
+    </div>
+    </div>
+        <aside id="chat-side" class="side" aria-label="Files, source control, and rewind" hidden>
+          <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+          <nav class="side-tabs" role="tablist" aria-label="Views">
+            <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
+            <button data-side="files" role="tab" aria-selected="false" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
+            <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
+            <span class="grow"></span>
+            <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
+          </nav>
+          <section id="side-files" class="side-view" role="tabpanel" aria-label="Files" hidden>
+            <div id="files-box" class="files-box">
+              <div class="files-tools">
+                <select id="files-root" aria-label="Which tree"></select>
+                <span class="grow"></span>
+                <label id="files-upload-label" class="side-icon" title="Upload files into this folder; or drop them here" aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
+                <button id="files-collapse" class="side-icon" title="Fold every folder" aria-label="Fold every folder"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
+                <button id="files-refresh" class="side-icon" title="List the folders again" aria-label="List the folders again">↻</button>
+              </div>
+              <div id="files-main" class="files-main">
+                <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
+                <div id="files-preview" class="files-preview"></div>
+              </div>
+              <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
+            </div>
+          </section>
+          <section id="side-git" class="side-view git-view" role="tabpanel" aria-label="Source control" hidden>
+            <div class="side-head">
+              <div class="git-where">
+                <strong id="git-branch" class="git-branch"></strong>
+                <div id="git-base" class="muted small"></div>
+              </div>
+              <button id="git-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
+            </div>
+            <div id="git-ship" class="git-ship"></div>
+            <form id="git-form" class="git-form" autocomplete="off">
+              <textarea id="git-message" rows="2" placeholder="Message: what the change does" aria-label="The commit's message"></textarea>
+              <button id="git-commit" class="primary" title="Commit what's staged; with nothing staged, every change (Ctrl+Enter)">Commit</button>
+            </form>
+            <p id="git-error" class="error small git-error"></p>
+            <div id="git-lists" class="git-lists"><p class="muted small">Loading…</p></div>
+            <details id="git-commits-box" class="git-commits-box">
+              <summary>Commits</summary>
+              <ol id="git-commits" class="git-commits"></ol>
+            </details>
+            <div id="git-diff" class="git-diff" hidden></div>
+          </section>
+          <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind">
+            <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>
+            <p id="rewind-empty" class="muted small" hidden></p>
+            <ol id="rewind-points" class="rewind-points"></ol>
+          </section>
+        </aside>
     </div>
     </div>
   </section>
