@@ -2713,6 +2713,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.71 — A panel beside the chat: Files, Source control, and Rewind
+
+- [x] The dev page's chat has a panel on its right with three icon tabs,
+  in place of the Files tab: Files, the chat's workspace as a tree with
+  git's letters, previews, uploads, and the files the chat links to;
+  Source control, the branch against dev, the staged and changed files
+  with their diffs, stage, unstage, discard, commit (all, when nothing is
+  staged), the recent commits, Try on Stage and Ship to Dev; and Rewind.
+  The panel resizes, remembers its view, and slides over the chat on a
+  narrow screen. Source control runs git in the dev box on the
+  workspace's worktree (`api/git`), and refuses paths outside it or in
+  `.git`. Checked in headless Chromium at 1600, 900, and 400 pixels.
+
 ### v2.6.70 — A message sent while Claude works waits as queued
 
 - [x] The dev page's chat keeps each message sent while Claude works,
