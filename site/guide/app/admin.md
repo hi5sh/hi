@@ -131,6 +131,29 @@ only whether one is set, and whose.
   adopted project's upstream; and **Remove…**. `hi app env`, `helper`,
   `watch`, `heartbeat`, `github`, `gitlab`, `upstream`, `rm`.
 
+- **Network:** its NetBird peer, and **Join** with a setup key (kept in
+  a file the command reads once and deletes); how its addresses are named,
+  and **Move them** (the app restarts); its name on the machine's domain;
+  the addresses let in; the sign-in on top, with a provider, email
+  domains, and groups; and what to ask your IT team for it, to copy.
+  `hi app dev … netbird`, `addresses`, `domain`, `allow-ip`, `sso`.
+- **Data:** its snapshots, each with **Restore…**, and **Snapshot now**;
+  its releases, with **Roll back…** and each one's bill of materials;
+  Stage's data: a new fork, starting empty at every release, or **Copy
+  Stage's to production…**; its backups, how many are kept, and copying
+  them offsite to an S3 bucket; its jobs. A restore, a rollback, and a
+  copy to production each need the app's name typed, and say what they do
+  first. `hi app snapshots`, `restore`, `rollback`, `data`, `backups`,
+  `jobs`, `bom`.
+
+On the left, **Network** has the apps' domain, the sign-in providers
+(**Add one**), each app's peer and addresses, the org server's public
+address for cloud runs on its machine, and **What to ask your IT team**:
+every policy and record the admin page and the apps need, as text to
+send. On the right, **Advisories** has the open app's, or every app's,
+worst first: exploited, then to act on, then for the weekly report,
+then ignored; **Ignore…** asks why, and the app's people see it.
+
 On the left, **People** has everyone with a level in any app, a column
 per app: change a level where it stands, or give someone the same level
 in several apps at once, each the app's own change, said in its channel.
@@ -280,5 +303,6 @@ hi admin admins [add <name> [--slack <member ID>] | remove <name>]
 hi admin address [<host> [--https] | default]
 ```
 
-Coming next: each app's Network and Data on the page, the machine's
-Network, what to ask your IT team, and Advisories.
+Later: hi5.sh as a service, with an admin page for each customer's apps;
+help on the page; sign-in by email; and the org's machines from its
+server's admin page.

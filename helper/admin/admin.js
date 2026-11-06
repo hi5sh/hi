@@ -87,7 +87,7 @@ const panes = {
   left: { view: "apps", open: true, width: 300 },
   right: { view: "logs", open: true, width: 340 },
 };
-const paneViews = { left: ["apps", "org", "people", "keys", "machine", "activity"], right: ["requests", "running", "spend", "jobs", "logs", "incidents"] };
+const paneViews = { left: ["apps", "org", "people", "keys", "network", "machine", "activity"], right: ["requests", "running", "spend", "jobs", "logs", "incidents", "advisories"] };
 const paneIds = {
   left: { panel: "left-side", toggle: "left-toggle", close: "left-close", resize: "left-resize" },
   right: { panel: "right-side", toggle: "right-toggle", close: "right-close", resize: "right-resize" },
@@ -205,6 +205,8 @@ function freshView(view) {
   if (view === "requests" || view === "running") refreshOrg();
   if (view === "spend") refreshSpend();
   if (view === "people") { renderPeople(); refreshPeopleApps(); }
+  if (view === "network") { renderMachineNetwork(); refreshMachineNetwork(); }
+  if (view === "advisories") { renderAdvisories(); refreshAdvisories(); }
   if (view === "keys") { renderKeys(); refreshMachineKeys(); }
   if ((view === "org" || view === "people" || view === "keys") && state && state.org) {
     if (orgSettings && view === "org") renderOrg();
@@ -217,7 +219,7 @@ function freshView(view) {
 function hasView(view) {
   if (!state) return true;
   if (["org", "requests", "running", "spend"].includes(view)) return !!state.org;
-  if (view === "incidents") return !state.org || state.apps.length > 0;
+  if (view === "incidents" || view === "advisories") return !state.org || state.apps.length > 0;
   return true;
 }
 function renderTabs() {
@@ -427,6 +429,7 @@ async function openView(name, section) {
   else if (name) await refreshDetail();
   if (viewShown("logs")) refreshLogs(true);
   if (viewShown("incidents")) refreshIncidents();
+  if (viewShown("advisories")) refreshAdvisories(); else if (advisories) renderAdvisories();
   if (viewShown("jobs")) { if (jobOpen) { jobOpen = ""; $("job-one").hidden = true; $("jobs-list").hidden = false; } refreshJobs(); }
   else renderJobsBadge();
 }
@@ -2048,16 +2051,21 @@ function showSection(section) {
   for (const chip of document.querySelectorAll("#sections [data-section]")) chip.setAttribute("aria-pressed", String(chip.dataset.section === section));
   if (openApp) history.replaceState(null, "", "#" + encodeURIComponent(openApp) + (section === "overview" ? "" : "/" + section));
   if (section === "overview") { if (detail) renderOverview(); else refreshDetail(); return; }
-  if (settings && settings.name === openApp) renderSection(); else $("overview").replaceChildren(el("p", { class: "muted" }, "…"));
+  if (settings && settings.name === openApp && settings._section === sectionSource(section)) renderSection(); else $("overview").replaceChildren(el("p", { class: "muted" }, "…"));
   refreshSettings();
 }
+
+// sectionSource is where a section reads from.
+function sectionSource(section) { return { network: "/api/app/network", data: "/api/app/data" }[section] || "/api/app/settings"; }
 
 async function refreshSettings() {
   if (!openApp || appSection === "overview") return;
   const name = openApp;
   try {
-    const fresh = await api("/api/app/settings?name=" + encodeURIComponent(name));
-    if (openApp !== name) return;
+    const source = sectionSource(appSection);
+    const fresh = await api(source + "?name=" + encodeURIComponent(name));
+    if (openApp !== name || sectionSource(appSection) !== source) return;
+    fresh._section = source;
     const same = settings && JSON.stringify(settings) === JSON.stringify(fresh);
     settings = fresh;
     const typing = document.activeElement && $("overview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
@@ -2083,12 +2091,14 @@ const firstLine = (text) => String(text || "").split("\n")[0];
 function renderSection() {
   const s = settings;
   const box = $("overview");
-  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings" }[appSection]));
+  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings", network: "Network", data: "Data" }[appSection]));
   const parts = [head];
   if (appSection === "people") parts.push(...sectionPeople(s));
   if (appSection === "agents") parts.push(...sectionAgents(s));
   if (appSection === "slack") parts.push(...sectionSlack(s));
   if (appSection === "settings") parts.push(...sectionSettings(s));
+  if (appSection === "network") parts.push(...sectionNetwork(s));
+  if (appSection === "data") parts.push(...sectionData(s));
   box.replaceChildren(...parts);
 }
 
@@ -2324,6 +2334,197 @@ function machineKeysBlock() {
 }
 
 // ---------------------------------------------------------------------------
+// An app's Network and Data, the machine's Network, and Advisories.
+
+function sectionNetwork(s) {
+  const parts = [el("p", { class: "purpose" }, "Where the app is reached, and who may: its NetBird peer, how its addresses are named, the addresses let in, and the sign-in on top.")];
+  // NetBird.
+  const nb = el("input", { type: "password", placeholder: "A NetBird setup key", "aria-label": "NetBird setup key", class: "wide-input" });
+  parts.push(el("h2", {}, "NetBird"), el("p", { class: "small incident-head" }, el("span", { class: "dot " + (s.joined ? "idle" : "blocked"), "aria-hidden": "true" }), s.joined ? "Its peer " + s.peer + " is on NetBird." : "Its peer " + s.peer + " hasn't joined NetBird."),
+    el("pre", { class: "job-output short" }, s.dev),
+    el("div", { class: "data-actions" }, nb, el("button", { class: "small", onclick: () => change("netbird", { key: nb.value.trim() }, "The dev box joins NetBird in a minute.") }, s.joined ? "Join again" : "Join")),
+    el("p", { class: "muted small" }, "In NetBird's dashboard: Add Peer → Server, a one-off key with the auto-group hi-" + s.name + ". It's used once and deleted."));
+  // Addresses.
+  let mode = s.mode;
+  const host = el("input", { value: s.host || "", placeholder: "demo.corp.example", class: "wide-input", "aria-label": "Host name" });
+  const production = el("input", { value: s.names ? s.names.production || "" : "", placeholder: "demo.example.com", class: "wide-input", "aria-label": "Production's name" });
+  const https = el("input", { type: "checkbox" }); https.checked = s.names ? !!s.names.https : true;
+  const extra = el("div", { class: "stack" });
+  const draw = () => {
+    extra.replaceChildren();
+    if (mode === "host") extra.append(field("The name your IT team keeps, an A record to its NetBird address", host));
+    if (mode === "names") extra.append(field("Production's name; Stage and the dev page go under it", production), el("label", { class: "check small" }, https, " Their proxy ends TLS: the links say https"));
+  };
+  const options = [];
+  if (s.domain) options.push(["domain", "This machine's domain, on https"]);
+  options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", "The NetBird name, " + s.peer + ", on plain http"]);
+  parts.push(el("h2", {}, "Addresses"), el("p", { class: "small" }, "Now: " + s.addresses + "."),
+    el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, shown(u.url)))))),
+    radios("n-addr", options, mode, (v) => { mode = v; draw(); }), extra,
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
+      if (!(await ask({ title: "Move " + s.name + "'s addresses?", text: "The app restarts to move them, and the owners get the dev page's new link in Slack. Links people have to the old addresses stop working.", ok: "Move them" }))) return;
+      change("addresses", { mode, host: host.value.trim(), production: production.value.trim(), https: https.checked }, "Moving the addresses");
+    } }, "Move them")));
+  draw();
+  if (s.domain) {
+    const on = el("input", { type: "checkbox" }); on.checked = s.domain_on;
+    on.addEventListener("change", () => change("domain", { on: on.checked }));
+    parts.push(el("label", { class: "check small" }, on, " Production at " + s.name + "." + s.domain + " and Stage at " + s.name + "-preview." + s.domain + ", names that stay"));
+  }
+  // Who gets in.
+  const ips = el("input", { value: s.allow_ips.join(","), placeholder: "any address with its link", class: "wide-input", "aria-label": "Addresses let in" });
+  parts.push(el("h2", {}, "Addresses let in"), el("p", { class: "muted small" }, "The only addresses Stage and production let in, as IPs or ranges (NetBird's Access Control, with the domain's token). Empty: any address that has its link."),
+    el("div", { class: "data-actions" }, ips, el("button", { class: "small", onclick: () => change("allowip", { ips: ips.value.trim() }) }, "Save")));
+  // Sign-in.
+  const provider = el("select", { "aria-label": "Sign-in provider" });
+  provider.append(el("option", { value: "" }, "None: the link is enough"), ...s.providers.map((p) => el("option", { value: p }, p)));
+  const domains = el("input", { placeholder: "example.com (optional)", class: "wide-input", "aria-label": "Email domains" });
+  const groups = el("input", { placeholder: "a group (optional)", class: "wide-input", "aria-label": "Groups" });
+  const anyone = el("input", { type: "checkbox" });
+  parts.push(el("h2", {}, "Sign-in"), el("pre", { class: "job-output short" }, s.sso),
+    s.providers.length ? el("div", { class: "stack" }, field("Provider", provider), field("Only these email domains", domains), field("Only these groups", groups), el("label", { class: "check small" }, anyone, " Anyone who signs in with it"),
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sso", { sso: provider.value, domains: domains.value.trim(), groups: groups.value.trim(), anyone: anyone.checked }) }, "Save"))) : el("p", { class: "muted small" }, "No sign-in provider on this machine yet: Network, on the left."));
+  parts.push(el("h2", {}, "What to ask your IT team"), el("pre", { class: "job-output copyable" }, s.ask),
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(s.ask) }, "Copy")));
+  return parts;
+}
+async function copyText(text) { try { await navigator.clipboard.writeText(text); toast("Copied."); } catch (e) { toast("Select it and copy it.", true); } }
+
+function sectionData(s) {
+  const parts = [el("p", { class: "purpose" }, "The app's snapshots and releases, Stage's data, and its backups. What can't be undone needs the app's name typed, and says what it does first.")];
+  const snaps = el("ul", { class: "list" });
+  for (const snap of s.snapshots.slice(0, 40)) {
+    snaps.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, snap.id), " ", el("span", { class: "muted small" }, new Date(snap.time).toLocaleString() + " · " + (snap.label || snap.kind) + (snap.size ? " · " + size(snap.size) : "")), snap.warning ? el("span", { class: "warn small block" }, snap.warning) : ""),
+      el("button", { class: "small", onclick: () => restore(s.name, snap.id) }, "Restore…")));
+  }
+  if (!s.snapshots.length) snaps.append(el("li", { class: "plain muted small" }, s.snap_error || "None yet."));
+  parts.push(el("h2", { class: "with-action" }, "Snapshots", el("span", { class: "grow" }), el("button", { class: "small", onclick: () => act("snapshot") }, "Snapshot now")), snaps);
+  const releases = el("ul", { class: "list" });
+  for (const r of s.releases) {
+    releases.append(el("li", {}, el("span", { class: "what clamp2" }, el("strong", {}, "v" + r.version), " ", r.version === s.production ? el("span", { class: "pill open" }, "production") : "", " ", el("span", { class: "muted small" }, r.notes || "")),
+      el("span", { class: "actions" }, r.version !== s.production ? el("button", { class: "small", onclick: () => rollback(s.name, r.version) }, "Roll back…") : "",
+        el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) + "&release=v" + r.version }, "BOM"))));
+  }
+  if (!s.releases.length) releases.append(el("li", { class: "plain muted small" }, "Nothing released yet."));
+  parts.push(el("h2", {}, "Releases"), releases);
+  // Stage's data.
+  const empty = el("input", { type: "checkbox" }); empty.checked = s.stage_empty;
+  empty.addEventListener("change", () => change("stagedata", { on: empty.checked }));
+  parts.push(el("h2", {}, "Stage's data"), el("pre", { class: "job-output short" }, s.data),
+    el("label", { class: "check small" }, empty, " Stage starts empty at every release, for an app whose people's data Stage shouldn't show"),
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("fork", {}, "Stage has a new fork of production's data.") }, "A new fork for Stage"),
+      el("button", { class: "small danger", onclick: async () => {
+        const answer = await ask({ title: "Copy Stage's data to production?", text: "Production starts from what Stage gathered. Its own data is snapshotted first, so a restore brings it back. Type the app's name to say so.", ok: "Copy it", typed: s.name });
+        if (answer) change("copy", { confirm: s.name }, "Copying Stage's data to production");
+      } }, "Copy Stage's to production…")));
+  // Backups.
+  const keep = el("input", { placeholder: "7,4,6", class: "small-input", "aria-label": "Daily, weekly, monthly" });
+  parts.push(el("h2", {}, "Backups"), el("pre", { class: "job-output short" }, s.backups),
+    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "Keep daily, weekly, monthly"), keep, el("button", { class: "small", onclick: () => change("keep", { keep: keep.value.trim() }) }, "Save")),
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: offsite }, "Copy them offsite…"), el("button", { class: "small", onclick: () => change("offsite", { offsite: "off" }) }, "Stop copying offsite")),
+    el("p", { class: "muted small" }, "The key they're encrypted with stays on the machine: hi app backups " + s.name + " --show-key."));
+  parts.push(el("h2", {}, "Jobs"), el("pre", { class: "job-output short" }, s.jobs),
+    el("div", { class: "data-actions" }, el("a", { class: "button-like small", href: "/api/app/bom?name=" + encodeURIComponent(s.name) }, "Production's bill of materials (CycloneDX)")));
+  return parts;
+}
+
+async function restore(app, snapshot) {
+  const answer = await ask({ title: "Restore " + app + " from " + snapshot + "?", text: "The lead's memory, the app's record, and its data go back to how they were then. hi takes a snapshot of how it is first. Type the app's name to say so.", ok: "Restore", typed: app, check: "The code (repo/) too" });
+  if (answer) change("restore", { snapshot, code: answer.checked, confirm: app }, "Restoring " + app);
+}
+async function rollback(app, version) {
+  const answer = await ask({ title: "Roll " + app + " back to v" + version + "?", text: "Production goes back to v" + version + ", with its data as v" + version + " left it; what was entered since is kept in a snapshot. Type the app's name to say so.", ok: "Roll back", typed: app, check: "The code only: production's data stays as it is" });
+  if (answer) change("rollback", { version, code: answer.checked, confirm: app }, "Rolling " + app + " back");
+}
+async function offsite() {
+  const answer = await ask({ title: "Copy the snapshots offsite", text: "An S3-compatible bucket, as s3:https://<host>/<bucket>. Its keys come next.", ok: "Next", field: "s3:https://s3.example.com/backups", fieldCheck: (v) => (v.startsWith("s3:") ? "" : "It starts with s3:") });
+  if (!answer) return;
+  const id = await ask({ title: "The bucket's access key ID", text: "Kept on the machine, never shown again.", ok: "Next", field: "Access key ID" });
+  if (!id) return;
+  const secret = await ask({ title: "Its secret access key", text: "Kept on the machine, never shown again.", ok: "Save", field: "Secret access key" });
+  if (!secret) return;
+  change("offsite", { offsite: answer.field, key_id: id.field, secret: secret.field }, "The snapshots go offsite too.");
+}
+
+// The machine's Network.
+let machineNet = null;
+async function refreshMachineNetwork() {
+  try { machineNet = await api("/api/network"); } catch (e) { return; }
+  if (viewShown("network")) renderMachineNetwork();
+}
+function renderMachineNetwork() {
+  const box = $("network-view");
+  const n = machineNet;
+  if (!n) { box.replaceChildren(el("p", { class: "muted pad" }, "…")); return; }
+  const domain = el("input", { value: n.domain || "", placeholder: "apps.example.com", "aria-label": "The apps' domain" });
+  const token = el("input", { type: "password", placeholder: n.has_token ? "NetBird's token is kept; a new one replaces it" : "NetBird API token", "aria-label": "NetBird token" });
+  const apps = el("ul", { class: "list" });
+  for (const a of n.apps) {
+    apps.append(el("li", {}, el("span", { class: "what" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("network"); } }, a.name),
+      el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + a.peer + " · " + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")))));
+  }
+  const pName = el("input", { placeholder: "Its name, such as google", "aria-label": "Provider's name" });
+  const pIssuer = el("input", { placeholder: "Its issuer, https://…", "aria-label": "Issuer" });
+  const pClient = el("input", { placeholder: "Client ID", "aria-label": "Client ID" });
+  const pSecret = el("input", { type: "password", placeholder: "Client secret (kept, never shown)", "aria-label": "Client secret" });
+  const parts = [
+    el("h2", {}, "The apps' domain"), el("p", { class: "muted small" }, n.domain ? "Apps can have names that stay under " + n.domain + "." : "The apps get addresses NetBird makes up. A domain verified in NetBird gives them names that stay."),
+    el("div", { class: "stack" }, domain, token, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { await netChange("domain", { name: domain.value.trim(), key: token.value.trim() }); } }, "Save"), n.domain ? el("button", { class: "small", onclick: () => netChange("domain", { name: "off" }) }, "Off") : "")),
+    el("h2", {}, "Each app's peer"), apps,
+    el("h2", {}, "Sign-in providers"), el("pre", { class: "job-output short" }, n.sso),
+    el("details", { class: "small" }, el("summary", {}, "Add one"), el("div", { class: "stack" }, pName, pIssuer, pClient, pSecret,
+      el("button", { class: "small", onclick: () => netChange("provider", { sso: pName.value.trim(), host: pIssuer.value.trim(), name: pClient.value.trim(), secret: pSecret.value.trim() }) }, "Check and add"))),
+  ];
+  if (n.expose) parts.push(el("h2", {}, "The org server for cloud runs"), el("p", { class: "small" }, el("code", {}, shown(n.expose))));
+  parts.push(el("h2", {}, "What to ask your IT team"), el("p", { class: "muted small" }, "As text to send: the policies and records the admin page and the apps need."),
+    el("pre", { class: "job-output copyable" }, n.ask || "Nothing."), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(n.ask) }, "Copy")));
+  box.replaceChildren(...parts);
+}
+async function netChange(what, fields) {
+  try { const answer = await api("/api/network", Object.assign({ what }, fields)); toast(firstLine(answer.text) || "Done.", true); refreshMachineNetwork(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+// Advisories: every app's, worst first.
+let advisories = null;
+async function refreshAdvisories() {
+  try { advisories = await api("/api/advisories"); } catch (e) { return; }
+  renderAdvisories();
+}
+function renderAdvisories() {
+  const list = $("advisories-list");
+  if (!advisories) return;
+  const all = advisories.advisories.filter((a) => !openApp || a.app === openApp);
+  badge("advisories-count", advisories.advisories.filter((a) => (a.tier === "kev" || a.tier === "incident") && (!openApp || a.app === openApp)).length);
+  if (!viewShown("advisories")) return;
+  list.replaceChildren();
+  if (!openApp) list.append(el("li", { class: "empty" }, "Every app's. Open an app for its own."));
+  if (!all.length) list.append(el("li", { class: "empty" }, "No advisories for what production runs." + Object.entries(advisories.notes || {}).filter(([app]) => !openApp || app === openApp).map(([app, note]) => " " + app + ": " + note + ".").join("")));
+  const words = { kev: "exploited", incident: "act on it", report: "for the weekly report", "": "ignored" };
+  for (const a of all) {
+    const cls = a.tier === "kev" ? "bad" : a.tier === "incident" ? "blocked" : a.tier === "" ? "done" : "";
+    list.append(el("li", { class: "incident" },
+      el("div", { class: "incident-head" }, el("span", { class: "dot " + cls, "aria-hidden": "true" }), openApp ? null : el("button", { class: "link-button", onclick: () => openView(a.app) }, a.app), el("strong", {}, a.id), el("span", { class: "muted small" }, words[a.tier])),
+      el("div", { class: "small" }, a.package + " " + a.version + " (" + a.part + ")" + ((a.fixed || []).length ? ", fixed in " + a.fixed.join(", ") : "") + (a.epss >= 0.01 ? ", EPSS " + a.epss.toFixed(2) : "")),
+      a.summary ? el("div", { class: "muted small clamp2", title: a.summary }, a.summary) : null,
+      a.ignored ? el("div", { class: "muted small" }, "Ignored: " + a.ignored) : null,
+      el("div", { class: "data-actions" }, a.tier === "" ? el("button", { class: "small", onclick: () => advisoryChange(a, true) }, "Raise it again") : el("button", { class: "small", onclick: () => advisoryChange(a, false) }, "Ignore…"))));
+  }
+}
+async function advisoryChange(a, unignore) {
+  let because = "";
+  if (!unignore) {
+    const answer = await ask({ title: "Ignore " + a.id + " in " + a.app + "?", text: "Your word that it doesn't apply, until the advisory changes. The app's people see why.", ok: "Ignore it", why: "Why it doesn't apply" });
+    if (!answer) return;
+    because = typeof answer === "string" ? answer : "";
+  }
+  try {
+    await api("/api/app/settings", { app: a.app, what: "advisory", id: a.id, package: a.package, because, remove: unignore });
+    toast(unignore ? a.id + " is raised again if it matches." : a.id + " is ignored.");
+    refreshAdvisories();
+  } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+// ---------------------------------------------------------------------------
 // reading again
 
 async function refreshState() {
@@ -2363,13 +2564,15 @@ function renderOrgBadges() {
 
 let pollTimer = 0;
 let settingsShownAt = 0;
+let advisoriesAt = 0;
 let settingsAt = 0;
 async function poll() {
   clearTimeout(pollTimer);
   const ok = await refreshState();
   if (ok) {
     if (openApp && appSection === "overview") refreshDetail();
-    if (openApp && appSection !== "overview" && Date.now() - settingsShownAt > 10000) { settingsShownAt = Date.now(); refreshSettings(); }
+    if (openApp && appSection !== "overview" && appSection !== "data" && Date.now() - settingsShownAt > 10000) { settingsShownAt = Date.now(); refreshSettings(); }
+    if (Date.now() - advisoriesAt > 60000) { advisoriesAt = Date.now(); refreshAdvisories(); }
     for (const view of [panes.right.view]) if (viewShown(view) && view !== "logs" && view !== "spend") freshView(view);
     // The org's settings: every fifteen seconds while one is open.
     if ((["org", "people", "keys"].some(viewShown) || middle === ":policy") && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
@@ -2400,7 +2603,7 @@ async function boot() {
   renderHome();
   renderOrgBadges();
   const [wantedApp, wantedSection] = wanted.split("/");
-  if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings"].includes(wantedSection) ? wantedSection : "");
+  if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings", "network", "data"].includes(wantedSection) ? wantedSection : "");
   else if (wanted === ":policy" && state.org) openPolicy();
   else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));
   for (const which of ["left", "right"]) if (panes[which].open) freshView(panes[which].view);

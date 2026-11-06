@@ -254,6 +254,7 @@ type adminSettingChange struct {
 	Repo     string `json:"repo"`
 	URL      string `json:"url"`
 	Every    string `json:"every"`
+	adminNetworkChange
 }
 
 // adminRunHi runs a hi command now, with what it asks for on stdin, as
@@ -504,7 +505,21 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 	case "upstream":
 		args, asJob = []string{"app", "upstream", app}, true
 	default:
-		return nil, fmt.Errorf("no such change: %q", change.What)
+		handled, netArgs, netStdin, netSaid, title, err := s.adminChangeNetworkData(admin, change, config)
+		if !handled {
+			return nil, fmt.Errorf("no such change: %q", change.What)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if title != "" {
+			job, err := s.startJob(adminJob{Title: title, App: app, By: admin.Name, Args: netArgs, Said: netSaid, Tried: strings.ToLower(title[:1]) + title[1:]})
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"job": job}, nil
+		}
+		args, stdin, said = netArgs, netStdin, netSaid
 	}
 	if asJob {
 		titles := map[string]string{"chatgpt": "Sign " + app + " in to ChatGPT", "github": "Put " + app + " on GitHub", "gitlab": "Put " + app + " on GitLab", "upstream": "Fetch " + app + "'s upstream"}

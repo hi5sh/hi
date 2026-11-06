@@ -40,6 +40,8 @@
           <button data-section="agents" aria-pressed="false">Agents</button>
           <button data-section="slack" aria-pressed="false">Slack</button>
           <button data-section="settings" aria-pressed="false">Settings</button>
+          <button data-section="network" aria-pressed="false">Network</button>
+          <button data-section="data" aria-pressed="false">Data</button>
         </div>
         <span class="grow"></span>
         <span id="bar-note" class="muted small bar-note"></span>
@@ -57,6 +59,7 @@
             <button data-side="org" role="tab" aria-selected="false" title="Org: the org server, its owner, policy, templates, data, models, and wall screens" aria-label="Org" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg><span id="org-badge" class="side-badge dot" hidden></span></button>
             <button data-side="people" role="tab" aria-selected="false" title="People: everyone with a level in the apps, and the org's users" aria-label="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
             <button data-side="keys" role="tab" aria-selected="false" title="Keys: the machine's keys and sign-ins, which apps have their own, and the org's" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
+            <button data-side="network" role="tab" aria-selected="false" title="Network: the apps' domain, sign-in providers, each app's peer, and what to ask your IT team" aria-label="Network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg></button>
             <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and its admins" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
             <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins did here, and hi's own, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
             <span class="grow"></span>
@@ -90,6 +93,9 @@
           </section>
           <section id="side-keys" class="side-view page-view" role="tabpanel" aria-label="Keys" hidden>
             <div id="keys-view"></div>
+          </section>
+          <section id="side-network" class="side-view page-view" role="tabpanel" aria-label="Network" hidden>
+            <div id="network-view"></div>
           </section>
           <section id="side-machine" class="side-view page-view" role="tabpanel" aria-label="Machine" hidden>
             <h2>hi</h2>
@@ -149,6 +155,7 @@
             <button data-side="jobs" role="tab" aria-selected="false" title="Jobs: the open app's long actions, running and done, with their output" aria-label="Jobs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="jobs-badge" class="side-badge dot" hidden></span></button>
             <button data-side="logs" role="tab" aria-selected="false" title="Logs: the open app's lead and service, as they come" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
             <button data-side="incidents" data-apps role="tab" aria-selected="false" title="Incidents: the open app's, the open ones first" aria-label="Incidents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span id="incidents-count" class="side-badge" hidden></span></button>
+            <button data-side="advisories" role="tab" aria-selected="false" title="Advisories: the open app's, or every app's, worst first" aria-label="Advisories"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg><span id="advisories-count" class="side-badge" hidden></span></button>
             <span class="grow"></span>
             <button id="right-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
@@ -191,6 +198,9 @@
           </section>
           <section id="side-incidents" class="side-view" role="tabpanel" aria-label="Incidents" hidden>
             <ul id="incidents-list" class="feed"></ul>
+          </section>
+          <section id="side-advisories" class="side-view" role="tabpanel" aria-label="Advisories" hidden>
+            <ul id="advisories-list" class="feed"></ul>
           </section>
         </aside>
       </div>

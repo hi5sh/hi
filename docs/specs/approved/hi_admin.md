@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -467,6 +467,19 @@ hi admin address [<host> [--https] | default]
    notes there.
 5. **Network and data:** each app's Network and Data sections, the
    machine's Network view, What to ask your IT team, Advisories.
+   As built: changes run the `hi app` commands as in release 4; moving
+   the addresses, a restore, a rollback, and a copy to production are
+   jobs, and the last three need the app's name typed, on the page and
+   again by the server. The NetBird setup key goes in a 0600 file that
+   `hi app dev … netbird` reads and deletes; the offsite bucket's keys on
+   stdin. Where a command says it best (the dev box, the sign-in rules,
+   Stage's data, the backups, the jobs), the section shows its words.
+   Whether an address is public stays the owners', on the dev page.
+   What to ask the IT team is written from each app's addressing and
+   peer, and the admin page's and the org server's. Advisories carry
+   their app, sorted exploited, to act on, the report, then ignored;
+   Ignore asks why. The org server's public URL for cloud runs is shown,
+   and `hi org expose` stays on the command line.
 
 ## Later
 

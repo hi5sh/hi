@@ -2713,6 +2713,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.84 — Network, data, and advisories on the admin page
+
+Spec: [hi_admin.md](specs/approved/hi_admin.md), release 5, the last.
+
+- [x] An app's Network: its NetBird peer and joining it, how its
+  addresses are named and moving them, its name on the domain, the
+  addresses let in, the sign-in, and what to ask the IT team for it.
+- [x] An app's Data: snapshots and **Restore…**, releases and **Roll
+  back…** with each one's bill of materials, Stage's data (a fork, empty
+  at every release, or copied to production), backups (how many kept,
+  offsite), jobs. Restore, rollback, and a copy to production need the
+  app's name typed.
+- [x] The machine's Network: the apps' domain, the sign-in providers,
+  each app's peer, the org server's public URL, and **What to ask your IT
+  team** as text to send. Advisories: every app's, worst first, with
+  **Ignore…** and a reason.
+
 ### v2.6.83 — Each app's settings on the admin page
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md), release 4.
@@ -4487,14 +4504,6 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
-
-### Next — the admin page, release 5
-
-Spec: [hi_admin.md](specs/approved/hi_admin.md). Releases 1 to 4 shipped
-in v2.6.77, v2.6.78, v2.6.81, and v2.6.83.
-
-- [ ] Release 5: each app's Network and Data sections, the machine's
-  Network view, What to ask your IT team, Advisories.
 
 ### Next — production on a machine of your own (`hi app target`)
 

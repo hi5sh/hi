@@ -447,6 +447,7 @@ func (s *adminServer) routes() http.Handler {
 	s.orgRoutes(mux, reply, decode, signedIn)
 	s.newRoutes(mux, reply, decode, signedIn)
 	s.settingsRoutes(mux, reply, decode, signedIn)
+	s.networkRoutes(mux, reply, decode, signedIn)
 	return adminHeaders(mux)
 }
 

@@ -187,3 +187,7 @@ code.big-code { font-size: 18px; letter-spacing: 0.08em; color: var(--bright); }
 .matrix-scroll { overflow-x: auto; margin-bottom: 14px; }
 .wide-input { width: 14em; }
 #side-people { overflow-y: auto; }
+
+/* Network, Data, Advisories. */
+pre.short { max-height: 220px; flex: none; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); }
+.copyable { user-select: all; }
