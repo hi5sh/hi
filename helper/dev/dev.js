@@ -65,25 +65,6 @@
     $("locked").hidden = false;
   }
 
-  // ---- tabs: Tasks, Code (herdr), System; the page remembers the last one.
-  // Files are beside the chat, in its panel.
-  function show(tab) {
-    document.querySelectorAll(".tabs button").forEach(function (button) {
-      button.setAttribute("aria-selected", button.dataset.tab === tab ? "true" : "false");
-    });
-    document.querySelectorAll("#page > .panel").forEach(function (panel) {
-      panel.hidden = panel.id !== "tab-" + tab;
-    });
-    try { localStorage.setItem("hi-dev-tab", tab); } catch (e) { /* private window */ }
-    if (tab === "terminal") setTimeout(function () { if (chat.view === "terminal") { fitTerminal(); term.focus(); } else { pollChat(); sideShown(); } }, 0);
-    if (tab === "decisions") refreshDecisions();
-    if (tab === "data") refreshData();
-    if (tab === "security" && !developer()) refreshPeople();
-  }
-  document.querySelectorAll(".tabs button").forEach(function (button) {
-    button.addEventListener("click", function () { show(button.dataset.tab); });
-  });
-
   // ---- the terminal
   var term = new Terminal({
     cursorBlink: true,
@@ -293,7 +274,7 @@
     // The chat follows the workspace you open, as the terminal does.
     chooseChatSpace(space.id);
     working("focus:" + space.id, api("POST", "focus", { workspace: space.id })).then(function () {
-      show("terminal");
+      closeOver();
       if (chat.view === "terminal") term.focus();
     }).catch(function (error) { toast(error.message); });
   }
@@ -325,8 +306,8 @@
     api("POST", "start", { ticket: ticket.number, agent: agent }).then(function (answer) {
       $("start-dialog").close();
       toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + (agent ? " with " + agent : "") + ".");
-      show("terminal");
-      refresh().then(renderTickets);
+      closeOver();
+      refresh().then(renderSideTasks);
     }).catch(function (error) {
       $("start-error").textContent = error.message;
       $("start-go").disabled = false;
@@ -349,7 +330,7 @@
     if (space && space.ahead) left.push(space.ahead + (space.ahead === 1 ? " commit" : " commits") + " not in dev");
     if (space && space.dirty) left.push("changes not committed");
     var question = left.length
-      ? "Close " + name + "? Its workspace still has " + left.join(" and ") + "; they stay there, for Ship to Dev or Discard in the Code tab. A note for the task, if you like:"
+      ? "Close " + name + "? Its workspace still has " + left.join(" and ") + "; they stay there, for Ship to Dev or Discard in Workspaces. A note for the task, if you like:"
       : "Close " + name + "? A note for the task, if you like:";
     ask(question, "why it's done (optional)").then(function (note) {
       if (note === null) return;
@@ -382,71 +363,22 @@
     }
     return "";
   }
-  // The task filter's own chips: the Code tab has chips of its own.
-  document.querySelectorAll(".tasks-tools .chips button").forEach(function (button) {
+  // Open or Closed, in the panel's Tasks.
+  document.querySelectorAll("#stask-show button").forEach(function (button) {
     button.addEventListener("click", function () {
       showing = button.dataset.show;
-      document.querySelectorAll(".tasks-tools .chips button").forEach(function (other) { other.setAttribute("aria-pressed", other === button ? "true" : "false"); });
+      document.querySelectorAll("#stask-show button").forEach(function (other) { other.setAttribute("aria-pressed", other === button ? "true" : "false"); });
+      $("stask-search").placeholder = showing === "closed" ? "Search the closed tasks" : "Search: words, #number, who filed it";
+      renderSideTasks();
       refreshTickets(false);
     });
   });
-  $("tasks-search").addEventListener("input", renderTickets);
-
-  function renderTickets() {
-    var list = $("tickets");
-    list.textContent = "";
-    if (!tickets) return;
-    var where = tickets.forge === "hi" ? "hi's own tasks, in the app's folder" : "Issues in " + (tickets.where || tickets.forge);
-    $("tickets-where").textContent = where;
-    var all = (tickets.tickets || []).filter(function (ticket) {
-      return showing === "all" || (showing === "closed" ? ticket.state === "closed" : ticket.state !== "closed");
-    });
-    $("tasks-count").textContent = showing === "open" ? String(all.length || "") : "";
-    var words = $("tasks-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    var shown = all.filter(function (ticket) {
-      var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.asked || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
-      return words.every(function (word) { return hay.indexOf(word) >= 0; });
-    });
-    if (!shown.length) {
-      list.appendChild(el("div", { class: "row empty muted", text: words.length ? "No task matches." : showing === "closed" ? "No closed tasks." : "No open tasks. + files one; the lead files what people ask for in the channel." }));
-      return;
-    }
-    shown.forEach(function (ticket) {
-      var space = ticket.state === "closed" ? null : spaceFor(ticket);
-      var status = ticket.state === "closed" ? ["closed", "Closed"] : space ? ["working", "In progress"] : ["open", "Open"];
-      // Who asked for it, not the forge's account the lead filed it as;
-      // and who started its work.
-      var who = ticket.asked || ticket.author;
-      var context = [who ? el("span", { text: who, title: ticket.asked && ticket.author && ticket.asked !== ticket.author ? "Filed as " + ticket.author : "" }) : null,
-        space && space.by && space.by !== who ? el("span", { text: "· started by " + space.by }) : null].concat((ticket.labels || []).map(function (label) {
-        return el("span", { class: "label", text: label });
-      }));
-      var items = [["View", function () { openTicket(ticket.number); }]];
-      if (ticket.url) items.push(["Open where it's kept", function () { window.open(ticket.url, "_blank", "noopener"); }]);
-      if (space) items.push(["Show its workspace", function () { focus(space); }]);
-      if (ticket.state === "closed") items.push(["Reopen", function () { setTaskState(ticket, false); }]);
-      var doneButton = ticket.state === "closed" ? null : el("button", { class: "done", text: "Done ✓", busy: space ? "finish:" + space.id : "", title: space ? "Finish its work and close the task" : "Close the task", onclick: function () { taskDone(ticket, space); } });
-      var action = ticket.state === "closed" ? el("span") : space
-        ? el("button", { class: "go", text: "Open →", title: "Show its workspace in the terminal", onclick: function () { focus(space); } })
-        : el("button", { class: "go", text: "Start →", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } });
-      list.appendChild(el("div", { class: "row", role: "row" }, [
-        el("span", { class: "id", role: "cell" }, [el("button", { class: "id-pill", text: "#" + ticket.number, title: "View the task", onclick: function () { openTicket(ticket.number); } })]),
-        el("span", { class: "title", role: "cell" }, [
-          el("button", { class: "open-ticket", text: ticket.title, title: "View the task: its text, files, and comments", onclick: function () { openTicket(ticket.number); } }),
-          el("span", { class: "context muted small" }, context),
-        ]),
-        el("span", { class: "status", role: "cell" }, [el("span", { class: "pill " + status[0] }, [space ? statusDot(space.status) : null, document.createTextNode(status[1])])]),
-        el("span", { class: "updated muted small", role: "cell", title: ticket.updated ? when(ticket.updated) : "", text: ago(ticket.updated || ticket.created) }),
-        el("span", { class: "actions", role: "cell" }, [action, doneButton, menu(items)]),
-      ]));
-    });
-  }
 
   function renderWorkspaces() {
     renderChatSpaces();
     var list = $("workspaces");
     list.textContent = "";
-    $("spaces-count").textContent = String(workSpaces().length || "");
+    badge("spaces-count", workSpaces().length, " workspaces");
     if (!workSpaces().length) list.appendChild(el("li", { class: "muted small", text: "No work yet. Start a task in Tasks, or + New in the chat." }));
     $("box").textContent = state.box === "running" ? "" : state.box;
     workSpaces().forEach(function (space) {
@@ -776,7 +708,7 @@
   }
   function renderSites() {
     var access = state.access || {};
-    $("security-count").textContent = String((access.asks || []).length || "");
+    badge("security-count", (access.asks || []).length, (access.asks || []).length === 1 ? " site asked for" : " sites asked for");
     chatSites();
     renderKeys();
     var list = $("sites");
@@ -854,7 +786,7 @@
     });
   }
 
-  // ---- the Data tab: production's and Stage's data, and the
+  // ---- Data: production's and Stage's data, and the
   // snapshots; asked for when the tab opens, as sizing a folder takes a
   // moment.
   function size(bytes) {
@@ -1098,25 +1030,24 @@
     return api("GET", "state").then(function (data) {
       state = data;
       // A developer's page: the owners' buttons go (the server refuses
-      // them anyway), and so does the Data tab.
+      // them anyway), and so does Data.
       document.body.classList.toggle("developer", developer());
       document.body.classList.toggle("vibe", vibe());
       if (vibe() && chat.view !== "chat") setCodeView("chat");
       document.querySelectorAll(".owners-control").forEach(function (control) { control.disabled = developer(); });
-      if (developer() && !$("tab-data").hidden) show("tasks");
+      if (developer() && panes.right.view === "data") setSide("release", null);
       renderSSHKey();
       document.title = "Dev · " + data.team;
       $("team").textContent = data.team;
-      $("you").textContent = data.you;
+      $("team").title = data.you ? "Signed in as " + data.you : "";
       renderSystem();
       renderSites();
       renderSettings();
       renderOwnerActions();
       renderWorkspaces();
-      renderTickets();
-      if (side.view === "tasks" && sideOpen()) renderSideTasks(); // its workspace's task, now that it's known
+      if (viewShown("tasks")) renderSideTasks(); // its workspace's task, now that it's known
       openLinkedTask();
-      $("release-count").textContent = String((data.changes || []).length || "");
+      badge("release-count", (data.changes || []).length, " changes to release");
     }).catch(function () {});
   }
   // A link to a task's work, #task-12, as the lead posts when it starts
@@ -1125,7 +1056,7 @@
     if (location.hash === "#sites") {
       // The channel's link to an agent's ask for a site.
       history.replaceState(null, "", location.pathname + location.search);
-      show("security");
+      revealSide("security");
       return;
     }
     var match = /^#task-(\d+)$/.exec(location.hash);
@@ -1139,11 +1070,11 @@
     var query = [fresh ? "fresh=1" : "", showing !== "open" ? "closed=1" : ""].filter(Boolean).join("&");
     return api("GET", "tickets" + (query ? "?" + query : "")).then(function (data) {
       tickets = data;
-      renderTickets();
-      if (side.view === "tasks" && sideOpen()) renderSideTasks(); else renderTaskBadge();
+      $("tickets-where").textContent = tickets.forge === "hi" ? "hi's own tasks" : "Issues in " + (tickets.where || tickets.forge);
+      $("tickets-where").title = tickets.forge === "hi" ? "hi's own tasks, in the app's folder" : "";
+      if (viewShown("tasks")) renderSideTasks(); else renderTaskBadge();
     }).catch(function (error) { $("tickets-where").textContent = error.message; });
   }
-  $("tickets-refresh").addEventListener("click", function () { refreshTickets(true); });
 
   // ---- the chat: a workspace's Claude Code session as a conversation,
   // read from its transcript; what you write goes to the agent, so the chat
@@ -1152,19 +1083,47 @@
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
   // The rewind timeline's messages, what the page last saw, and the one open.
   var rewind = { points: [], seen: "", open: "", at: 0 };
-  // The panel beside the chat: its open view, whether it's shown, and how
-  // wide. On a narrow screen it lies over the chat, so it starts hidden.
+  // The two panels beside the work, as VS Code's side bars: on the left
+  // what goes into the app (tasks, workspaces, files, search, checks,
+  // decisions, security); on the right what comes out of it (rewind,
+  // source control, logs, preview, release, data, system). Each has its
+  // open view, whether it's shown, and how wide. On a narrow screen they
+  // lie over the chat, one at a time, so they start hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
-  var side = { view: "rewind", open: true, width: 340 };
-  var sideViews = ["rewind", "files", "search", "git", "checks", "logs", "preview", "tasks"];
+  var panes = { left: { view: "tasks", open: true, width: 300 }, right: { view: "rewind", open: true, width: 340 } };
+  var paneViews = {
+    left: ["tasks", "spaces", "files", "search", "checks", "decisions", "security"],
+    right: ["rewind", "git", "logs", "preview", "release", "data", "system"],
+  };
+  var paneIds = {
+    left: { panel: "left-side", toggle: "left-toggle", close: "left-close", resize: "left-resize", width: 300 },
+    right: { panel: "chat-side", toggle: "side-toggle", close: "side-close", resize: "side-resize", width: 340 },
+  };
+  function paneOf(view) { return paneViews.left.indexOf(view) >= 0 ? "left" : "right"; }
   try {
-    // Rewind first since hi 2.6.72: the view kept before it was Files, by default.
-    var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
-    if (keptSide.v === 2 && sideViews.indexOf(keptSide.view) >= 0) side.view = keptSide.view;
-    if (keptSide.open === false) side.open = false;
-    if (keptSide.width >= 240) side.width = keptSide.width;
+    var keptPanes = JSON.parse(localStorage.getItem("hi-dev-panes") || "null");
+    if (keptPanes && keptPanes.v === 1) {
+      ["left", "right"].forEach(function (which) {
+        var kept = keptPanes[which] || {};
+        if (paneViews[which].indexOf(kept.view) >= 0) panes[which].view = kept.view;
+        if (kept.open === false) panes[which].open = false;
+        if (kept.width >= 240) panes[which].width = kept.width;
+      });
+    } else {
+      // Before hi 2.6.76: one panel on the right, and the page's tabs.
+      var keptSide = JSON.parse(localStorage.getItem("hi-dev-side") || "{}");
+      if (keptSide.v === 2 && keptSide.view) panes[paneOf(keptSide.view)].view = keptSide.view;
+      if (keptSide.open === false) panes.right.open = false;
+      if (keptSide.width >= 240) panes.right.width = keptSide.width;
+      var keptTab = localStorage.getItem("hi-dev-tab") || "";
+      if (keptTab === "files") panes.left.view = "files";
+      else if (keptTab && keptTab !== "terminal" && paneViews[paneOf(keptTab)].indexOf(keptTab) >= 0) {
+        panes[paneOf(keptTab)].view = keptTab;
+        panes[paneOf(keptTab)].open = true;
+      }
+    }
   } catch (e) { /* private window */ }
-  if (sideOver.matches) side.open = false;
+  if (sideOver.matches) { panes.left.open = false; panes.right.open = false; }
   // The source control view: what git last said of the chat's workspace,
   // and the file whose diff is open.
   var git = { view: null, space: "", busy: false, at: 0, diff: null, error: "" };
@@ -1700,7 +1659,7 @@
   }
   function pollChat() {
     clearTimeout(chat.timer);
-    var visible = !$("tab-terminal").hidden && chat.view === "chat" && !document.hidden && !chat.composing;
+    var visible = chat.view === "chat" && !document.hidden && !chat.composing;
     if (!visible || !chat.space || chat.busy) { chat.timer = setTimeout(pollChat, 1500); return; }
     chat.busy = true;
     var log = $("chat-log");
@@ -1970,7 +1929,7 @@
     }
     setRoot(want);
   }
-  function filesShown() { return sideOpen() && side.view === "files"; }
+  function filesShown() { return viewShown("files"); }
   function openFiles() {
     if (!files.loaded) {
       // Not before the workspaces are known: the tree is the chat's workspace's.
@@ -2116,84 +2075,116 @@
   // widenSide gives a preview or a diff room: half the chat's width, at least.
   function widenSide() {
     var room = Math.round(document.querySelector(".code-body").clientWidth * 0.55);
-    if (side.width >= room) return;
-    side.width = room;
+    if (panes.right.width >= room) return;
+    panes.right.width = room;
     keepSide();
     renderSide();
   }
-  // ---- the panel beside the chat: Files, Source control, and Rewind, by
-  // the icons along its top.
+  // ---- the panels, each its views by the icons along its top
   function keepSide() {
-    try { localStorage.setItem("hi-dev-side", JSON.stringify({ v: 2, view: side.view, open: side.open, width: side.width })); } catch (e) { /* private window */ }
+    try {
+      localStorage.setItem("hi-dev-panes", JSON.stringify({ v: 1,
+        left: { view: panes.left.view, open: panes.left.open, width: panes.left.width },
+        right: { view: panes.right.view, open: panes.right.open, width: panes.right.width } }));
+    } catch (e) { /* private window */ }
   }
-  // It is beside the chat, the terminal, and the open files; VS Code has its own.
+  // The right panel is beside the chat, the terminal, and the open files;
+  // VS Code has its own. The left is beside them all.
   function sideBeside() { return chat.view === "chat" || chat.view === "terminal" || chat.view === "file"; }
-  function sideOpen() {
-    return !$("chat-side").hidden && !$("tab-terminal").hidden && sideBeside() && !document.hidden;
-  }
+  function paneShown(which) { return !$(paneIds[which].panel).hidden && !document.hidden; }
+  function viewShown(view) { var which = paneOf(view); return paneShown(which) && panes[which].view === view; }
   function renderSide() {
     var starting = chat.view === "chat" && !$("chat-start").hidden;
-    var panel = $("chat-side");
-    panel.hidden = !side.open || starting || !sideBeside();
-    panel.style.setProperty("--side-width", side.width + "px");
-    $("side-toggle").setAttribute("aria-pressed", String(side.open));
-    $("side-toggle").hidden = starting || !sideBeside();
-    document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
-      button.setAttribute("aria-selected", String(button.dataset.side === side.view));
+    ["left", "right"].forEach(function (which) {
+      var pane = panes[which], ids = paneIds[which], panel = $(ids.panel);
+      var beside = which === "left" || (!starting && sideBeside());
+      panel.hidden = !pane.open || !beside;
+      panel.style.setProperty("--side-width", pane.width + "px");
+      $(ids.toggle).setAttribute("aria-pressed", String(pane.open));
+      $(ids.toggle).hidden = !beside;
+      panel.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
+        button.setAttribute("aria-selected", String(button.dataset.side === pane.view));
+      });
+      paneViews[which].forEach(function (view) { $("side-" + view).hidden = pane.view !== view; });
     });
-    sideViews.forEach(function (view) { $("side-" + view).hidden = side.view !== view; });
   }
-  // sideShown brings the open view up to date, when it's on the screen.
+  // sideShown brings the open views up to date, when they're on the screen.
+  // Not before the page has started: their views' code comes later.
+  var booted = false;
   function sideShown() {
-    if (!sideOpen()) return;
-    if (side.view === "files") { openFiles(); if (!git.view || git.space !== chat.space || Date.now() - git.at > 5000) refreshGit(); }
-    if (side.view === "git") refreshGit();
-    if (side.view === "search") {
+    if (!booted) return;
+    ["left", "right"].forEach(function (which) { if (paneShown(which)) viewNow(panes[which].view); });
+  }
+  function viewNow(view) {
+    if (view === "files") { openFiles(); if (!git.view || git.space !== chat.space || Date.now() - git.at > 5000) refreshGit(); }
+    if (view === "git") refreshGit();
+    if (view === "search") {
       if (search.space && search.space !== chat.space) runSearch(true);
       if (!sideOver.matches) $("search-input").focus({ preventScroll: true });
     }
-    if (side.view === "checks") loadChecks();
-    if (side.view === "logs") loadLogs();
-    if (side.view === "preview") loadPreview(false);
-    if (side.view === "tasks") { renderSideTasks(); if (stask.ticket && !$("stask-one").hidden) showSideTask(stask.ticket.number, true); }
-    if (side.view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
+    if (view === "checks") loadChecks();
+    if (view === "logs") { logs.news = ""; renderLogsBadge(); loadLogs(); }
+    if (view === "preview") loadPreview(false);
+    if (view === "tasks") { renderSideTasks(); if (stask.ticket && !$("stask-one").hidden) showSideTask(stask.ticket.number, true); }
+    if (view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
-  function setSide(view, open) {
-    if (view) side.view = view;
-    if (open != null) side.open = open;
+  // freshView fetches what a view shows only when it comes up: Decisions,
+  // Data, and the people in Security.
+  function freshView(view) {
+    if (view === "decisions") refreshDecisions();
+    if (view === "data") refreshData();
+    if (view === "security" && !developer()) refreshPeople();
+  }
+  // setSide opens a view in its panel, or with view null, shows or hides
+  // the panel which. On a narrow screen, opening one hides the other.
+  function setSide(view, open, which) {
+    which = view ? paneOf(view) : which || "right";
+    var pane = panes[which];
+    var was = paneShown(which) ? pane.view : "";
+    if (view) pane.view = view;
+    if (open != null) pane.open = open;
+    if (pane.open && sideOver.matches) panes[which === "left" ? "right" : "left"].open = false;
     keepSide();
     renderSide();
     sideShown();
+    if (paneShown(which) && was !== pane.view) freshView(pane.view);
   }
-  // revealSide opens a view from anywhere on the page: the Code tab, its
-  // chat, the panel.
+  // revealSide opens a view from anywhere on the page: the chat, a link,
+  // the other panel.
   function revealSide(view) {
-    if ($("tab-terminal").hidden) show("terminal");
-    if (!sideBeside()) setCodeView("chat");
+    if (paneOf(view) === "right" && !sideBeside()) setCodeView("chat");
     setSide(view, true);
   }
   document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
     button.addEventListener("click", function () { setSide(button.dataset.side, true); });
   });
-  $("side-close").addEventListener("click", function () { setSide(null, false); });
-  $("side-toggle").addEventListener("click", function () { setSide(null, !side.open); });
-  // The panel's left edge drags it wider or narrower; a double click puts
-  // it back.
-  (function () {
-    var handle = $("side-resize"), from = 0, width = 0;
+  ["left", "right"].forEach(function (which) {
+    var ids = paneIds[which], pane = panes[which];
+    $(ids.close).addEventListener("click", function () { setSide(null, false, which); });
+    $(ids.toggle).addEventListener("click", function () {
+      var opening = !pane.open;
+      setSide(null, opening, which);
+      if (opening) freshView(pane.view);
+    });
+    // The panel's inner edge drags it wider or narrower; a double click
+    // puts it back.
+    var handle = $(ids.resize), from = 0, width = 0;
     handle.addEventListener("pointerdown", function (event) {
       if (event.button !== 0) return;
       event.preventDefault();
       from = event.clientX;
-      width = $("chat-side").getBoundingClientRect().width;
+      width = $(ids.panel).getBoundingClientRect().width;
       handle.setPointerCapture(event.pointerId);
       handle.classList.add("dragging");
     });
     handle.addEventListener("pointermove", function (event) {
       if (!handle.classList.contains("dragging")) return;
-      var most = Math.max(240, document.querySelector(".code-body").clientWidth - 320);
-      side.width = Math.round(Math.min(most, Math.max(240, width + from - event.clientX)));
-      $("chat-side").style.setProperty("--side-width", side.width + "px");
+      var other = which === "left" ? "right" : "left";
+      var beside = paneShown(other) ? $(paneIds[other].panel).getBoundingClientRect().width : 0;
+      var most = Math.max(240, document.querySelector(".code-body").clientWidth - beside - 320);
+      var moved = which === "left" ? event.clientX - from : from - event.clientX;
+      pane.width = Math.round(Math.min(most, Math.max(240, width + moved)));
+      $(ids.panel).style.setProperty("--side-width", pane.width + "px");
     });
     function done() {
       if (!handle.classList.contains("dragging")) return;
@@ -2202,17 +2193,23 @@
     }
     handle.addEventListener("pointerup", done);
     handle.addEventListener("pointercancel", done);
-    handle.addEventListener("dblclick", function () { side.width = 340; keepSide(); renderSide(); });
-  })();
+    handle.addEventListener("dblclick", function () { pane.width = ids.width; keepSide(); renderSide(); });
+  });
   // A narrow screen's panel lies over the chat: tapping the chat closes it.
-  function closeOver() { if (sideOver.matches && side.open) setSide(null, false); }
+  function closeOver() {
+    if (!sideOver.matches || (!panes.left.open && !panes.right.open)) return;
+    panes.left.open = false;
+    panes.right.open = false;
+    keepSide();
+    renderSide();
+  }
   $("chat-log").addEventListener("click", closeOver);
   $("term").addEventListener("pointerdown", closeOver, true); // xterm keeps its clicks
 
   // ---- Source control: the chat's workspace's changes, staged or not,
   // each file's diff, a commit, and its branch's commits. Try on Stage and
   // Ship to Dev too, once it has commits dev hasn't.
-  function gitShown() { return sideOpen() && side.view === "git"; }
+  function gitShown() { return viewShown("git"); }
   function refreshGit() {
     if (!chat.space || git.busy) return;
     var asked = chat.space;
@@ -2234,7 +2231,7 @@
   }
   setInterval(function () {
     // Beside the terminal, the chat's poll is off: Rewind asks itself.
-    if (sideOpen() && side.view === "rewind" && chat.view === "terminal" && Date.now() - rewind.at > 5000) { rewind.at = Date.now(); loadPoints(); }
+    if (viewShown("rewind") && chat.view === "terminal" && Date.now() - rewind.at > 5000) { rewind.at = Date.now(); loadPoints(); }
     if (gitShown() && Date.now() - git.at > 4000) refreshGit();
     else if (filesShown() && files.loaded && Date.now() - files.at > 8000) {
       // The tree, and its letters, as the agent changes files.
@@ -2574,7 +2571,6 @@
     var root = spaceRoot();
     // A file opens in a tab; a folder in Files.
     api("GET", "files/stat?root=" + encodeURIComponent(root) + "&path=" + encodeURIComponent(path)).then(function () {
-      if ($("tab-terminal").hidden) show("terminal");
       openTab(root, path);
     }).catch(function (error) {
       if (/folder/.test(error.message)) revealPath(path);
@@ -2891,7 +2887,7 @@
     }).catch(function () { /* gone, or the box is busy: the next check */ });
   }
   setInterval(function () {
-    var tab = chat.view === "file" && !document.hidden && !$("tab-terminal").hidden && tabOf(opened.current);
+    var tab = chat.view === "file" && !document.hidden && tabOf(opened.current);
     if (tab && Date.now() - tab.at > 3000) checkTab(tab);
   }, 1000);
   window.addEventListener("beforeunload", function (event) {
@@ -2902,7 +2898,6 @@
   // Logs and Checks hand Claude.
   function toChat(text) {
     if (!chat.space) { toast("Open a workspace's chat first."); return; }
-    if ($("tab-terminal").hidden) show("terminal");
     setCodeView("chat");
     var input = $("chat-input");
     input.value = (input.value.trim() ? input.value.replace(/\s+$/, "") + "\n\n" : "") + text;
@@ -2924,7 +2919,7 @@
   // ---- Search: git grep in the workspace, its files tracked or new; a
   // match opens its file in a tab, at the line.
   var search = { q: "", matchCase: false, regex: false, busy: false, timer: 0, asked: "", space: "", view: null, shut: {} };
-  function searchShown() { return sideOpen() && side.view === "search"; }
+  function searchShown() { return viewShown("search"); }
   function runSearch(now) {
     clearTimeout(search.timer);
     var q = $("search-input").value;
@@ -3011,7 +3006,7 @@
   // ---- Checks: make check, test, lint (or the package's scripts), run in
   // the dev box on the workspace, their output as it comes.
   var checks = { list: null, run: null, offset: 0, out: "", busy: false, at: 0, space: "", error: "" };
-  function checksShown() { return sideOpen() && side.view === "checks"; }
+  function checksShown() { return viewShown("checks"); }
   function loadChecks() {
     if (!chat.space || checks.busy) return;
     if (checks.space !== chat.space) { checks.space = chat.space; checks.list = null; checks.run = null; checks.offset = 0; checks.out = ""; renderChecks(); }
@@ -3097,7 +3092,7 @@
 
   // ---- Logs: what production's and Stage's boxes print, and the requests
   // their addresses serve, as they come.
-  var logs = { slot: "production", source: "output", errors: false, cursor: "", key: "", lines: [], busy: false, at: 0, label: "" };
+  var logs = { slot: "production", source: "output", errors: false, cursor: "", key: "", lines: [], busy: false, at: 0, label: "", news: "" };
   try {
     var keptLogs = JSON.parse(localStorage.getItem("hi-dev-logs") || "{}");
     if (keptLogs.slot === "preview") logs.slot = "preview";
@@ -3105,7 +3100,13 @@
     logs.errors = !!keptLogs.errors;
   } catch (e) { /* private window */ }
   function keepLogs() { try { localStorage.setItem("hi-dev-logs", JSON.stringify({ slot: logs.slot, source: logs.source, errors: logs.errors })); } catch (e) { /* private window */ } }
-  function logsShown() { return sideOpen() && side.view === "logs"; }
+  function logsShown() { return viewShown("logs"); }
+  function renderLogsBadge() {
+    var dot = $("logs-badge");
+    dot.hidden = !logs.news;
+    dot.className = "side-badge dot pulse " + logs.news;
+    dot.title = logs.news === "failed" ? "New errors in the logs" : logs.news ? "New lines in the logs" : "";
+  }
   function loadLogs() {
     if (logs.busy) return;
     var key = logs.slot + "/" + logs.source;
@@ -3122,6 +3123,14 @@
       logs.label = view.label || "";
       $("logs-note").textContent = view.note || (logs.label ? logs.label + (logs.source === "output" ? ": what it prints" : ": the requests it served") : "");
       renderLogs(fresh || cut ? logs.lines : view.lines || [], fresh || cut);
+      // Behind another view, new lines pulse a dot on Logs' icon: red
+      // when one of them is an error.
+      if (logsShown()) logs.news = "";
+      else if (!fresh && (view.lines || []).length) {
+        var bad = view.lines.some(function (line) { return line.error || line.status >= 500; });
+        logs.news = bad || logs.news === "failed" ? "failed" : "running";
+      }
+      renderLogsBadge();
     }).catch(function (error) {
       $("logs-note").textContent = error.message;
     }).then(function () { logs.busy = false; logs.at = Date.now(); });
@@ -3179,7 +3188,7 @@
   // ---- Preview: Stage or production, in the panel, on its own address.
   var preview = { slot: "", url: "", label: "" };
   try { preview.slot = localStorage.getItem("hi-dev-preview") || ""; } catch (e) { /* private window */ }
-  function previewShown() { return sideOpen() && side.view === "preview"; }
+  function previewShown() { return viewShown("preview"); }
   function previewSlots() {
     var s = (state && state.status) || {};
     var slots = [];
@@ -3227,7 +3236,7 @@
     if (document.hidden) return;
     var now = Date.now();
     if (checksShown() ? now - checks.at > 1500 : checks.run && checks.run.running && now - checks.at > 5000) loadChecks();
-    if (logsShown() && now - logs.at > 3000) loadLogs();
+    if (logsShown() ? now - logs.at > 3000 : now - logs.at > 15000) loadLogs();
     if (previewShown()) loadPreview(false);
   }, 1000);
 
@@ -3417,7 +3426,7 @@
 
   // ---- a new ticket
   var newFiles = pictureBox($("ticket-body"), $("ticket-attached"), $("ticket-files"));
-  $("ticket-new").addEventListener("click", function () {
+  $("stask-new").addEventListener("click", function () {
     $("ticket-error").textContent = "";
     $("ticket-go").disabled = false;
     $("ticket-dialog").showModal();
@@ -3736,8 +3745,8 @@
   });
 
   // ---- Tasks in the panel: the chat's workspace's task, to read, add a
-  // note to, and close; and the open tasks, short, to open or start. The
-  // Tasks tab stays, for the whole list.
+  // note to, and close; and the open tasks, short, to open or start, or
+  // the closed ones, to read or reopen.
   var stask = { mode: "auto", number: 0, ticket: null, loading: 0, space: "", error: "" };
   var staskFiles = pictureBox($("stask-note"), $("stask-attached"), $("stask-files"));
   function ticketOf(space) {
@@ -3748,11 +3757,15 @@
     return ((tickets && tickets.tickets) || []).filter(function (ticket) { return ticket.state !== "closed"; });
   }
   function renderTaskBadge() {
-    var badge = $("stasks-count");
     var n = tickets ? openTickets().length : 0;
-    badge.textContent = n > 99 ? "99+" : String(n);
-    badge.hidden = !n;
-    badge.title = n + (n === 1 ? " open task" : " open tasks");
+    badge("stasks-count", n, n === 1 ? " open task" : " open tasks");
+  }
+  // badge puts a number on a panel's icon, or takes it off at none.
+  function badge(id, n, what) {
+    var mark = $(id);
+    mark.textContent = n > 99 ? "99+" : String(n || "");
+    mark.hidden = !n;
+    mark.title = n ? n + what : "";
   }
   // renderSideTasks shows the list, or one task: the workspace's, unless
   // you went back to the list or opened another.
@@ -3777,20 +3790,22 @@
     list.textContent = "";
     if (!tickets) { list.appendChild(el("li", { class: "empty", text: "Fetching the tasks…" })); return; }
     var words = $("stask-search").value.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    var shown = openTickets().filter(function (ticket) {
+    var closed = showing === "closed";
+    var pool = closed ? (tickets.tickets || []).filter(function (ticket) { return ticket.state === "closed"; }) : openTickets();
+    var shown = pool.filter(function (ticket) {
       var hay = ("#" + ticket.number + " " + ticket.title + " " + (ticket.author || "") + " " + (ticket.asked || "") + " " + (ticket.labels || []).join(" ")).toLowerCase();
       return words.every(function (word) { return hay.indexOf(word) >= 0; });
     });
-    if (!shown.length) list.appendChild(el("li", { class: "empty", text: words.length ? "No open task matches." : "No open tasks. + files one." }));
+    if (!shown.length) list.appendChild(el("li", { class: "empty", text: words.length ? "No task matches." : closed ? "No closed tasks." : "No open tasks. + files one; the lead files what people ask for in the channel." }));
     shown.forEach(function (ticket) {
-      var space = spaceFor(ticket);
+      var space = closed ? null : spaceFor(ticket);
       var who = ticket.asked || ticket.author || "";
       list.appendChild(el("li", { class: ticket.number === mine ? "mine" : "" }, [
         space ? statusDot(space.status) : null,
         el("button", { type: "button", class: "stask-row", title: "#" + ticket.number + " " + ticket.title + (who ? " · " + who : "") + (ticket.updated ? " · " + ago(ticket.updated) : ""), onclick: function () { stask.mode = "one"; stask.number = ticket.number; renderSideTasks(); } }, [
           el("span", { class: "stask-num", text: "#" + ticket.number }),
           el("span", { class: "stask-title", text: ticket.title })]),
-        space
+        closed ? null : space
           ? el("button", { type: "button", class: "stask-go", text: "Open", title: "Show its workspace", onclick: function () { focus(space); } })
           : el("button", { type: "button", class: "stask-go", text: "Start", title: "A branch, a worktree, and an agent told to read the task", onclick: function () { startDialog(ticket); } }),
       ]));
@@ -3857,7 +3872,6 @@
   }
   $("stask-back").addEventListener("click", function () { stask.mode = "list"; renderSideTasks(); });
   $("stask-search").addEventListener("input", function () { renderSideList(ticketOf(chatSpace())); });
-  $("stask-new").addEventListener("click", function () { $("ticket-new").click(); });
   $("stask-refresh").addEventListener("click", function () { refreshTickets(true); });
   $("stask-note-form").addEventListener("submit", function (event) {
     event.preventDefault();
@@ -3877,12 +3891,9 @@
     }).then(function () { $("stask-note-go").disabled = false; });
   });
 
-  // On a phone, the workspaces start folded, and the terminal has the room.
-  if (window.matchMedia && window.matchMedia("(max-width: 900px)").matches) $("spaces-box").open = false;
-  var tab = "tasks";
-  try { tab = localStorage.getItem("hi-dev-tab") || "tasks"; } catch (e) { /* private window */ }
-  if (tab === "files") { tab = "terminal"; side.view = "files"; side.open = true; } // the Files tab, before it moved beside the chat
-  show(["tasks", "decisions", "terminal", "release", "system"].indexOf(tab) >= 0 ? tab : "tasks");
+  booted = true;
+  sideShown();
+  ["left", "right"].forEach(function (which) { if (paneShown(which)) freshView(panes[which].view); });
   if (startView === "file") setCodeView("file");
   refresh().then(function () {
     if ($("locked").hidden && !vibe()) connect();

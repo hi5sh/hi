@@ -327,7 +327,7 @@ func TestBoxPublicDialer(t *testing.T) {
 	}
 }
 
-// The Security tab says whose each key is, never what it is.
+// Security says whose each key is, never what it is.
 func TestTeamDevKeys(t *testing.T) {
 	setupTeamTest(t)
 	newTeamTestBroker(t)

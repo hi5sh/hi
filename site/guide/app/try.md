@@ -23,7 +23,7 @@ address, so the people can try the work, on their phones too:
    Stage at `https://<app>-preview.<domain>/`, still reached only on
    the network (see [The addresses on https](/guide/app/dev/#the-addresses-on-https)).
 4. **Public too**, when an owner makes it so under **Where things run**
-   in the [dev page](/guide/app/dev/#the-dev-page)'s Release tab:
+   in the [dev page](/guide/app/dev/#the-dev-page)'s Release view:
    `hi net expose --link` puts it on an HTTPS address through this
    machine's NetBird (see [hi net](/guide/workstation/expose/)), which
    only the link with its key opens, from the addresses `hi app allow-ip`

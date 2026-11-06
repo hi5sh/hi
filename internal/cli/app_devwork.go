@@ -516,7 +516,7 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 			}
 		}
 		fmt.Fprintln(stdout, "Production moves when an owner or a developer releases dev. In the box, git fetch origin brings dev into the clone.")
-		fmt.Fprintln(stdout, "Done with this branch? Done ✓ beside its workspace on the dev page (the Code tab) removes its worktree, workspace, and branch, and closes its task.")
+		fmt.Fprintln(stdout, "Done with this branch? Done ✓ beside its workspace on the dev page (in Workspaces) removes its worktree, workspace, and branch, and closes its task.")
 		return nil
 	case "say":
 		request := appDevSayRequest{}

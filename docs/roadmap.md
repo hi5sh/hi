@@ -4050,6 +4050,15 @@ the last commit, staging, discarding, and a commit.
   `script-src 'none'`, 512 MB per team), filebrowser/filebrowser
   (archived), dufs and miniserve (no previews), SFTPGo and Filestash
   (AGPL, their own accounts), Cloudreve, Nextcloud, and Seafile.
+- [x] Two panels, no tabs (2026-11-06): the page's tabs go. A panel
+  on each side of the work, as VS Code's side bars, each dragged
+  wider, hidden, and remembered: on the left what goes into the app
+  (Tasks, Workspaces, Files, Search, Checks, Decisions, Security), on
+  the right what comes out of it (Rewind, Source control, Logs,
+  Preview, Release, Data, System). The Tasks table goes for the
+  panel's Tasks, with Open and Closed. Tasks, Workspaces, Release, and
+  Security have counts on their icons; Logs pulses a dot for new lines
+  behind another view, red for an error.
 - [x] Tasks in the panel too (2026-11-05): the chat's workspace's
   task, to read, add a note to, and close, and the open tasks, short,
   with the count on its icon. The Tasks tab stays while the two are

@@ -211,28 +211,44 @@ site for what the work needs, and say no to one nobody can explain.
 `/hi-<app> dev` in the app's Slack channel sends an owner or a developer
 a private link to the app's **dev page**, in a DM; their links from
 `/hi-<app>` have it too. They work for 14 days, and asking again ends the
-old ones. A developer's page has no Data tab and none of the owners'
+old ones. A developer's page has no Data view and none of the owners'
 buttons ([below](#owners-developers-and-contributors)).
 
-Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
-**Data**, **System**, and **Security**; the page remembers the last one.
+The page is the work, Chat, the terminal, or VS Code, with a panel on
+each side of it, as VS Code's side bars, their views by the icons along
+their tops. The left has what goes into the app: **Tasks**,
+**Workspaces**, **Files**, **Search**, **Checks**, **Decisions**, and
+**Security**. The right has what comes out of it: **Rewind**, **Source
+control**, **Logs**, **Preview**, **Release**, **Data**, and
+**System**. Each panel's inner edge drags it wider (a double click puts
+it back), its ✕ hides it, and the buttons at either end of the bar
+show and hide them; the page remembers each one's view, width, and
+whether it's shown. On a narrow screen they lie over the work, one at a
+time. An icon has a number for what's waiting: the open tasks, the
+workspaces, the changes to release, and the sites the dev box asked
+for; Checks and Logs have a dot.
 
-- **Tasks:** the app's tasks as a table: each one's number, title,
-  who asked for it (the one who asked the lead in the channel, or filed
-  it on the page, not the account the forge shows) and its labels,
-  whether it's open, in progress (it has a workspace, with its agent's
-  state, and who started it), or closed, and when it last
-  changed; **Open**, **Closed**, and **All**, and a search. **Start →**
+- **Tasks:** the app's tasks: it opens on the task the chat's
+  workspace was started for (its text, pictures, and comments, a note
+  to add, and **Done ✓**), and **←** goes to the list, each task's
+  number and title, with **Open** and **Closed** and a search by words,
+  number, or who asked for it (the one who asked the lead in the
+  channel, or filed it on the page, not the account the forge shows); a
+  dot shows a task with a workspace, and its agent's state. **Start**
   asks which agent (Claude Code, Codex, or a shell; it remembers your
   last) and gives the task its branch (its number and a few words of its
   title), a worktree, and a herdr workspace, with the agent told to read
   it, and a note on the task saying who started it. Each workspace in
   **Code** says who started it too. `hi app dev <app> start <task>
-  --agent claude` does the same on the machine. A task that has a workspace has **Open →** instead.
+  --agent claude` does the same on the machine. A task that has a workspace has **Open** instead;
+  **+** files one.
   **Done ✓** closes a task once it's done: when its work is all in dev,
   it finishes the workspace too (worktree, workspace, branch); when the
   workspace still has work dev hasn't got, that stays there, and only
   the task closes. A closed task's ⋯ has **Reopen**.
+- **Workspaces:** the pieces of work in the dev box, each with what dev
+  has of it, **Open**, **Try on Stage**, **Ship to Dev**, and **Done ✓**
+  ([below](#beside-the-chat)), and what Stage shows at the top.
 - **Decisions:** the project's `docs/decisions/`, the technical choices
   nobody should undo by accident, as cards: each one's number, when it
   was written, its title, and its first paragraph, newest first, with a
@@ -242,8 +258,8 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   with who made it, as the specs are: no review, and the agents read it
   from there. A save over a change someone made since you opened it is
   refused, so open it again and make yours on theirs.
-- **Code:** herdr, the dev box's workspaces and agents, in the
-  browser, the same ones as over SSH, with the workspaces beside it.
+- **The work:** herdr, the dev box's workspaces and agents, in the
+  browser, the same ones as over SSH.
   Closing the tab leaves the agents working. Ctrl+V pastes there as in
   a desktop terminal, a picture too: the page puts it in the box and
   pastes its path, which Claude Code shows as `[Image #1]`. **Chat** shows a
@@ -267,15 +283,10 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   your own words, and hi presses the keys for you. It works for Codex's
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
-  shows its last session, with **Resume this session**. Beside the chat,
-  and beside the terminal, is a panel with eight views, by the icons
-  along its top: **Rewind** (the first, until you pick another),
-  **Files**, **Search**, **Source control**, **Checks**, **Logs**,
-  **Preview**, and **Tasks** ([below](#beside-the-chat)). Its
-  left edge drags it wider; the panel button at the end of the bar
-  shows and hides it, and on a narrow screen it lies over the chat or
-  the terminal. Beside the terminal it follows the workspace you open in
-  the list.
+  shows its last session, with **Resume this session**. The right
+  panel is beside the chat, the terminal, and the open files; VS Code
+  has its own. Beside the terminal it follows the workspace you open in
+  Workspaces ([below](#beside-the-chat)).
   **Rewind** is a Claude Code conversation's messages
   as a timeline, newest last: each with when, and what the code did
   after it (green when it changed: `sand.ts +20`). A message opens to go
@@ -295,7 +306,7 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   and starts the agent on it. It ships, and is done, like any task. The chat is the
   default; the page remembers your choice. Codex's sessions
   are in the terminal.
-- <a id="beside-the-chat"></a>**Beside the chat** and the terminal, the panel's views:
+- <a id="beside-the-chat"></a>**The panels' views** for the work:
   - **Rewind**, as above.
   - **Files** is the chat's workspace's files, a tree whose folders
     open in place: its worktree, or dev's clone for the project's own
@@ -344,16 +355,13 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
     **!** shows the errors only. **↗** puts the lines you selected, or
     the last 40, in the chat's box. A release starts a new box, and its
     output from the start. Paths only: a link's key is never in them.
+    Behind another view, new lines pulse a dot on its icon, red when
+    one of them is an error; opening Logs clears it.
   - **Preview** is Stage or production, on its own address, in the
     panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
     makes the panel wider. It loads again when something new goes on
     Stage. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it.
-  - **Tasks** opens on the task the chat's workspace was started for:
-    its text, pictures, and comments, a note to add, and **Done ✓**.
-    **←** goes to the open tasks, short, to search, open, or **Start**;
-    **+** files one. The icon has the number of open tasks, as the Tasks
-    tab does, which stays for the whole list, closed ones too.
 - **VS Code**, the third view on a wide screen, is VS Code in the
   browser ([code-server](https://github.com/coder/code-server)) on the
   workspace's worktree: the same files the agent works on, to edit by
@@ -376,7 +384,7 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   box. Stage is one address, and it shows one thing at a time:
   dev, or a branch being tried. Trying a branch puts it there alone,
   with a fresh copy of production's data, and changes nothing in dev;
-  **Show dev**, beside "Stage:" at the top of the Code tab and in
+  **Show dev**, beside "Stage:" at the top of Workspaces and in
   Release, puts dev back (`hi dev preview --dev` in the box). Ship to
   Dev merges the branch's commits into dev (with a title for the
   release notes; the last commit's by default) and puts dev on
@@ -388,14 +396,14 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
   Ship to Dev      your branch joins dev; Stage shows dev
   Release          dev becomes production
   ```
-- **Done ✓**, beside a workspace in the Code tab (and beside its task),
+- **Done ✓**, beside a workspace in Workspaces (and beside its task),
   ends it once it's shipped: its worktree, its herdr workspace with the agent in it, and its
   branch go, and its task closes ("Shipped into dev as t-31"). Each
   workspace says how much dev has: "everything in dev", or commits not
   shipped and changes not committed, when the button is **Discard…**
   instead and asks first. `hi app dev <app> finish <branch>` does the
   same on the machine.
-- **Addresses**, in the Release tab's Where things run: each address's internal link and whether
+- **Addresses**, in Release's Where things run: each address's internal link and whether
   its NetBird peer has joined; **Make public** puts one on the internet
   too, with its link's key, and **Internal only** takes it off again. Both
   are an owner's click, said in the channel.
@@ -444,7 +452,7 @@ Seven tabs along the top, **Tasks**, **Decisions**, **Code**, **Release**,
     Claude and ChatGPT sign-ins, and the Slack tokens are the app's own
     or the machine's, and the command an admin runs to change each.
 
-On a phone, the workspaces fold above the terminal. On a phone or a tablet, a bar of keys
+On a phone or a tablet, a bar of keys
 under the terminal has what a touch keyboard may lack: Paste, Esc, Tab,
 Shift+Tab, Enter, the arrows, Space, Backspace, Del, Ctrl+C, Ctrl+D, and
 a Ctrl that goes with the next key you type, such as Ctrl then R. It
@@ -581,7 +589,7 @@ The page says so when an owner makes someone a developer, and the channel
 hears every change ("Olga made Bo a Pro Dev").
 
 Nobody has a level for being in the app's channel. The dev page's
-Security tab has a **People** table: everyone with a level and everyone
+Security view has a **People** table: everyone with a level and everyone
 in the channel, owners first, with a radio per level and a search box.
 Without a level, someone can use the app and ask the lead questions, but
 the lead files no tasks for them, doesn't answer their DMs, and
@@ -599,7 +607,7 @@ hi app access orbit key U083YSQFD0B "$(cat ~/.ssh/id_ed25519.pub)"
 
 Taking away someone's level counts at once: their next click is refused,
 and an open terminal or VS Code closes within seconds. Pro Devs paste
-their own SSH key on the dev page's Security tab; NetBird's policy for the
+their own SSH key on the dev page's Security view; NetBird's policy for the
 dev box has to let them reach it, as for the owners. Vibe Devs have no SSH.
 
 ### Owners and their keys

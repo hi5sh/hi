@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// The dev page's Decisions tab: the project's docs/decisions/, one file
+// The dev page's Decisions: the project's docs/decisions/, one file
 // per decision, as cards to read at a glance and open to edit or delete.
 // As with the specs, a change is committed to the team's branch with no
 // review: documentation, not code. The agents read them from there.

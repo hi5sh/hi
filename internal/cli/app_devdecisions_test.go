@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The Decisions tab reads docs/decisions/ from the team's branch, and an
+// Decisions reads docs/decisions/ from the team's branch, and an
 // edit, a new one, or a delete is a commit there.
 func TestTeamDevPageDecisions(t *testing.T) {
 	b, _ := appTestDevPage(t)

@@ -700,7 +700,7 @@ func appDevParen(text string) string {
 }
 
 // appDevKeyStatus is one of the team's keys or sign-ins, for the dev
-// page's Security tab: whose it is, and the command that changes it.
+// page's Security view: whose it is, and the command that changes it.
 type appDevKeyStatus struct {
 	Name    string `json:"name"`
 	State   string `json:"state"`

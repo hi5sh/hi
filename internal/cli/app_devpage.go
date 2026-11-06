@@ -957,7 +957,7 @@ func init() {
 // whether its person may still have it; tests shorten it.
 var appDevAccessCheck = 15 * time.Second
 
-// appDevPageSnapshot is a snapshot as the Data tab lists it.
+// appDevPageSnapshot is a snapshot as Data lists it.
 type appDevPageSnapshot struct {
 	ID   string    `json:"id"`
 	Time time.Time `json:"time"`
@@ -965,7 +965,7 @@ type appDevPageSnapshot struct {
 	Size int64     `json:"size,omitempty"`
 }
 
-// devPageData is the Data tab: production's and the preview's data
+// devPageData is Data: production's and the preview's data
 // folders, and the newest snapshots.
 func (b *appBroker) devPageData() map[string]any {
 	data := map[string]any{"folders": appDataFolders(b.team, b.running)}

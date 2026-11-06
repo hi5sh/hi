@@ -87,54 +87,32 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); }
 input::placeholder, textarea::placeholder { color: var(--dim); opacity: 1; }
 select option { background: var(--widget); }
-/* The title bar's height and colors. */
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 35px;
-  padding: 0 12px;
-  background: var(--shell);
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.bar #team { color: var(--text); }
-.bar .links { display: flex; gap: 10px; overflow: hidden; }
 .grow { flex: 1; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 .error { color: var(--bad); min-height: 1em; }
-/* Tabs along the top: Tasks, Code, System. In the shell, as the activity
-   bar's views: quiet, and the open one on a rounded wash. */
-.tabs { display: flex; gap: 2px; padding: 0 var(--gap) var(--gap); background: var(--shell); overflow-x: auto; }
-.tabs button { border: 0; border-radius: var(--r-sm); background: none; padding: 5px 12px; color: var(--muted); font-weight: 400; white-space: nowrap; }
-.tabs button:hover { color: var(--text); background: var(--hover); }
-.tabs button[aria-selected="true"] { color: var(--bright); background: var(--active); }
 .count:empty { display: none; }
 .count { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 11px; background: var(--badge); font-size: 11px; line-height: 18px; text-align: center; color: var(--on-accent); }
 #page { flex: 1; min-height: 0; position: relative; }
-/* Each tab is a card, as VS Code's editor is. */
-#page > .panel {
-  position: absolute; inset: 0 var(--gap) var(--gap); overflow: auto;
-  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg);
-}
+/* One page: its bar, then the panels on either side of the work. */
+#page > .code-page { position: absolute; inset: var(--gap); display: flex; flex-direction: column; min-width: 0; }
+.team { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; flex: none; }
+.code-bar .links { display: flex; gap: 10px; white-space: nowrap; flex: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* Decisions: cards, each its title and first paragraph, opened to read
    all of it and edit it. */
-.decisions-panel { padding: 16px; }
-.decisions-box { max-width: 1200px; margin: 0 auto 120px; display: flex; flex-direction: column; gap: 12px; }
-.decisions-head { display: flex; align-items: flex-start; gap: 16px; }
+.decisions-box { display: flex; flex-direction: column; gap: 10px; }
+.decisions-head { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .decisions-head h2 { margin-top: 0; }
 .decisions-head p { margin: 0; max-width: 760px; }
-.decisions-box .search { flex: none; max-width: 420px; }
-.decision-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.decisions-box .search { flex: none; }
+.decision-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 button.decision-card {
-  display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; padding: 14px 16px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--text); font-weight: 400;
+  display: flex; flex-direction: column; gap: 6px; text-align: left; min-width: 0; padding: 10px 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--text); font-weight: 400;
 }
-button.decision-card:hover { border-color: var(--focus); background: var(--panel); }
+button.decision-card:hover { border-color: var(--focus); background: var(--bg); }
 .decision-top { display: flex; align-items: center; gap: 8px; }
 .decision-top .id-pill { padding: 0; }
 .decision-card-title { font-size: 14px; font-weight: 600; color: var(--bright); overflow-wrap: anywhere; }
@@ -145,13 +123,6 @@ button.decision-card:hover { border-color: var(--focus); background: var(--panel
 #decision-dialog .buttons { align-items: center; }
 button.danger { color: var(--bad); }
 
-/* Tasks: a table, as in Orca's. */
-.tasks-panel { padding: 16px; }
-/* Not overflow: hidden, which would cut off a row's ⋯ menu; the last row
-   rounds its own corners. */
-.tasks-box { max-width: 1200px; margin: 0 auto 120px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); }
-#tickets > .row:last-child { border-radius: 0 0 7px 7px; }
-.tasks-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 12px 4px; }
 .chips { display: flex; gap: 4px; }
 .chips button { border-radius: var(--r-sm); padding: 4px 11px; background: none; border-color: transparent; color: var(--muted); }
 .chips button:hover { background: var(--hover); color: var(--text); }
@@ -160,14 +131,7 @@ button.danger { color: var(--bad); }
 .search input { flex: 1; border: 0; background: none; padding: 6px 0; outline: none; }
 .search:focus-within { border-color: var(--focus); }
 button.icon { width: 32px; height: 32px; padding: 0; font-size: 17px; line-height: 1; }
-.where { margin: 2px 14px 8px; }
-.table .row { display: grid; grid-template-columns: 84px minmax(0, 1fr) 130px 120px 230px; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
-.table .row:not(.head):not(.empty):hover { background: var(--hover); }
-.table .head { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding-top: 8px; padding-bottom: 8px; }
-.table .empty { display: block; padding: 22px 14px; }
 .id-pill { font: 12px var(--mono); color: var(--muted); padding: 2px 8px; border-radius: 4px; }
-.table .title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.table .title .open-ticket { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
 .context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .label { border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 11px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid currentColor; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 500; }
@@ -175,7 +139,6 @@ button.icon { width: 32px; height: 32px; padding: 0; font-size: 17px; line-heigh
 .pill.working { color: var(--accent); }
 .pill.closed { color: var(--muted); }
 .pill .dot { margin-top: 0; width: 7px; height: 7px; }
-.table .actions { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 button.go { font-weight: 600; padding: 4px 12px; }
 button.done { padding: 4px 10px; white-space: nowrap; }
 .start-task { font-weight: 600; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); overflow-wrap: anywhere; }
@@ -187,13 +150,9 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 /* As VS Code lays itself out: the workspaces a side bar card, the chat and
    the terminal an editor card, under their bar in the shell. VS Code itself
    draws its own cards, so it sits in the shell bare. */
-#page > .terminal-panel { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: var(--gap); background: none; border: 0; border-radius: 0; overflow: visible; }
-.spaces { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: auto; padding: 4px 14px 16px; }
 .preview-line { padding: 10px 0 8px; border-bottom: 1px solid var(--line); display: flex; gap: 4px; flex-wrap: wrap; overflow-wrap: anywhere; }
 .preview-what { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .preview-what .show-dev { margin-top: 4px; font-size: 12px; padding: 1px 8px; }
-.spaces summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 0 6px; list-style: none; }
-.spaces summary::-webkit-details-marker { display: none; }
 .vscode { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .vscode-bar { display: flex; align-items: center; gap: 12px; padding: 2px 8px 4px; background: var(--shell); white-space: nowrap; overflow: hidden; }
 .vscode-bar #vscode-status { overflow: hidden; text-overflow: ellipsis; }
@@ -201,10 +160,10 @@ button.done { padding: 4px 10px; white-space: nowrap; }
    workspaces' card, it is the page's gap and no more. */
 .vscode iframe { flex: 1; width: calc(100% + 2 * var(--gap)); margin: 0 calc(-1 * var(--gap)) calc(-1 * var(--gap)); border: 0; background: var(--shell); }
 .term-panel { background: var(--term); border: 1px solid var(--line); border-radius: var(--r-lg); position: relative; overflow: hidden; min-height: 0; flex: 1; }
-.code-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.code-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 /* The chat, the terminal or VS Code, with the side panel beside the first two. */
 .code-body { flex: 1; min-height: 0; display: flex; gap: 6px; position: relative; }
-.code-views { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.code-views { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .code-bar { display: flex; align-items: center; gap: 8px; padding: 0 4px var(--gap); background: var(--shell); min-width: 0; }
 .code-bar select { max-width: 240px; }
 /* The files open in tabs, after Chat, Terminal, and VS Code. */
@@ -257,12 +216,14 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .chat-main { flex: 1; min-height: 0; display: flex; }
 .chat-main[hidden] { display: none; }
 .chat-log { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
-/* The panel beside the chat, full height, as VS Code's secondary side
-   bar: its views' icons along the top, the open one underlined. Its left
-   edge drags it wider. On a narrow screen it lies over the chat. */
-.side { flex: none; width: var(--side-width, 340px); min-width: 240px; max-width: 75%; position: relative; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }
+/* The panels either side of the work, full height, as VS Code's side
+   bars: their views' icons along the top, the open one underlined. The
+   inner edge drags one wider; each gives way when the window narrows.
+   On a narrow screen they lie over the chat. */
+.side { flex: 0 1 auto; width: var(--side-width, 340px); min-width: 240px; max-width: 75%; container-type: inline-size; position: relative; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--panel); }
 .side[hidden] { display: none; }
 .side-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 4; }
+.side-left .side-resize { left: auto; right: 0; }
 .side-resize:hover, .side-resize.dragging { background: var(--focus); }
 .side-tabs { flex: none; display: flex; align-items: stretch; gap: 0; padding: 0 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
 .side-tabs::-webkit-scrollbar { display: none; }
@@ -282,9 +243,28 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .side-head { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px 4px 10px; }
 button.side-toggle { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--muted); }
 button.side-toggle[aria-pressed="true"] { color: var(--bright); }
+@media (min-width: 1101px) {
+  .code-views { min-width: 320px; }
+}
 @media (max-width: 1100px) {
   .side { position: absolute; top: 0; right: 0; bottom: 0; z-index: 5; max-width: calc(100% - 24px); box-shadow: -8px 0 24px var(--shadow); }
+  .side-left { right: auto; left: 0; box-shadow: 8px 0 24px var(--shadow); }
 }
+/* A view that was a page of its own: Workspaces, Decisions, Security,
+   Release, Data, System. One column; two when the panel is wide. */
+.page-view { overflow: auto; padding: 4px 12px 24px; }
+.side .system-box { max-width: none; margin: 0; grid-template-columns: minmax(0, 1fr); gap: 0; }
+@container (min-width: 720px) { .side .system-box { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 32px; } }
+.side .release-wrap { gap: 10px; padding-top: 8px; }
+.side .where-card, .side .releases-card { background: var(--bg); padding: 2px 12px 10px; }
+.side .where-row { padding-left: 10px; }
+.spaces-view { padding-top: 4px; }
+.spaces-view .preview-line { margin-bottom: 4px; }
+/* Logs' dot pulses while new lines come in behind another view. */
+.side-badge.dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .side-badge.dot.pulse { animation: none; } }
+.stask-show { padding-top: 0; gap: 8px; }
+.stask-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-left: auto; }
 @media (max-width: 760px) {
   .side { width: 100%; max-width: none; min-width: 0; }
   .side-resize { display: none; }
@@ -522,8 +502,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .view-text.md > :last-child, #view-comments .md > :last-child { margin-bottom: 0; }
 
 /* Release: how work moves, drawn, then releasing, releases, addresses. */
-.release-panel { padding: 16px; }
-.release-wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.release-wrap { display: flex; flex-direction: column; gap: 16px; }
 .where-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 20px 12px; }
 .where { list-style: none; margin: 0; padding: 0; }
 .where-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0 12px 14px; border-top: 1px solid var(--line); border-left: 3px solid var(--line); margin-left: -2px; }
@@ -549,8 +528,7 @@ button.small { font-size: 12px; padding: 2px 9px; }
 .releases-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 20px 20px; }
 .data-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
 
-/* System: two columns. */
-.system-panel { padding: 8px 16px 32px; }
+/* System: two columns, in a wide panel. */
 .system-box { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
 .system-col { min-width: 0; }
 #term { position: absolute; inset: 6px 4px 4px 8px; }
@@ -676,14 +654,10 @@ button.open-ticket:hover { color: var(--accent); text-decoration: underline; }
 dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 900px) {
   .system-box { grid-template-columns: 1fr; }
-  #page > .terminal-panel { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .spaces { max-height: 40vh; }
 }
 @media (max-width: 760px) {
   .where-work li > :last-child { grid-column: 2; justify-self: start; }
-  .tabs { gap: 0; }
-  .tabs button { padding: 9px 6px; font-size: 13px; }
-  .tabs .count { margin-left: 2px; padding: 0 4px; min-width: 14px; }
+  .code-bar .links, .code-bar .team { display: none; }
   .code-bar { flex-wrap: wrap; row-gap: 4px; }
   .code-bar select { flex: 1; max-width: none; }
   .code-bar .grow { display: none; }
@@ -696,18 +670,7 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
   .wide-only { display: none; }
   .md ul, .md ol { padding-left: 20px; }
   .ask-typed { margin-left: 0; }
-  .tasks-panel { padding: 8px; }
-  .decisions-panel { padding: 8px; }
-  .decisions-head { flex-direction: column; gap: 8px; }
   .decision-cards { grid-template-columns: 1fr; }
-  .tabs button { flex: 1; }
-  .table .head { display: none; }
-  .table .row { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: "id title title actions" ". status updated updated"; gap: 4px 10px; padding: 10px; }
-  .table .id { grid-area: id; align-self: start; }
-  .table .title { grid-area: title; }
-  .table .status { grid-area: status; }
-  .table .updated { grid-area: updated; align-self: center; }
-  .table .actions { grid-area: actions; align-self: start; }
   .id-pill { padding: 2px 4px; }
 }
 #sshkey-form input { grid-column: 1 / -1; }

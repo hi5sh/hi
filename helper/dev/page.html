@@ -10,71 +10,12 @@
 <link rel="stylesheet" href="dev.css">
 </head>
 <body>
-<header class="bar">
-  <strong id="team">hi app</strong>
-  <span id="links" class="links"></span>
-  <span class="grow"></span>
-  <span id="you" class="muted"></span>
-</header>
-<nav class="tabs" role="tablist">
-  <button data-tab="tasks" role="tab" aria-selected="true">Tasks <span id="tasks-count" class="count"></span></button>
-  <button data-tab="decisions" role="tab">Decisions</button>
-  <button data-tab="terminal" role="tab">Code</button>
-  <button data-tab="release" role="tab">Release <span id="release-count" class="count"></span></button>
-  <button data-tab="data" role="tab" class="owners-only">Data</button>
-  <button data-tab="system" role="tab">System</button>
-  <button data-tab="security" role="tab">Security <span id="security-count" class="count"></span></button>
-</nav>
 <main id="page">
-  <section id="tab-tasks" class="panel tasks-panel">
-    <div class="tasks-box">
-      <div class="tasks-tools">
-        <div class="chips" role="group" aria-label="Which tasks">
-          <button data-show="open" aria-pressed="true">Open</button>
-          <button data-show="closed" aria-pressed="false">Closed</button>
-          <button data-show="all" aria-pressed="false">All</button>
-        </div>
-        <label class="search"><span aria-hidden="true">⌕</span><input id="tasks-search" type="search" placeholder="Search tasks: words, #number, who filed it" autocomplete="off"></label>
-        <button id="ticket-new" class="icon" title="New task" aria-label="New task">+</button>
-        <button id="tickets-refresh" class="icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
-      </div>
-      <p id="tickets-where" class="muted small where"></p>
-      <div class="table" role="table" aria-label="Tasks">
-        <div class="row head" role="row">
-          <span role="columnheader">ID</span>
-          <span role="columnheader">Title / context</span>
-          <span role="columnheader">Status</span>
-          <span role="columnheader">Updated</span>
-          <span role="columnheader"><span class="sr">Actions</span></span>
-        </div>
-        <div id="tickets" role="rowgroup"></div>
-      </div>
-    </div>
-  </section>
-  <section id="tab-decisions" class="panel decisions-panel" hidden>
-    <div class="decisions-box">
-      <div class="decisions-head">
-        <div class="grow">
-          <h2>Decisions</h2>
-          <p class="muted small">The app's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the app's branch.</p>
-        </div>
-        <button id="decision-new" class="primary">New decision</button>
-      </div>
-      <label class="search"><span aria-hidden="true">⌕</span><input id="decisions-search" type="search" placeholder="Find a decision…" aria-label="Find a decision" autocomplete="off"></label>
-      <div id="decisions" class="decision-cards"><p class="muted small">Loading…</p></div>
-    </div>
-  </section>
-  <section id="tab-terminal" class="panel terminal-panel" hidden>
-    <aside class="spaces">
-      <div id="preview-line" class="preview-line small" hidden></div>
-      <details id="spaces-box" open>
-        <summary>Workspaces <span id="spaces-count" class="count"></span></summary>
-        <ul id="workspaces" class="list"></ul>
-        <p id="box" class="muted small"></p>
-      </details>
-    </aside>
+  <section id="tab-terminal" class="code-page">
     <div class="code-main">
     <div class="code-bar">
+      <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Tasks, workspaces, files, search, checks, decisions, and security" aria-label="The left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+      <strong id="team" class="team">hi app</strong>
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
         <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
@@ -86,9 +27,176 @@
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
-      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Files, source control, and rewind" aria-label="The side panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+      <span id="links" class="links small"></span>
+      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Rewind, source control, logs, preview, release, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
     </div>
     <div class="code-body">
+        <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
+          <div id="left-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+          <nav class="side-tabs" role="tablist" aria-label="Views">
+            <button data-side="tasks" role="tab" aria-selected="false" title="Tasks: this workspace's, and the app's others" aria-label="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 2 2 4-4"/><path d="m3 13 2 2 4-4"/><path d="M13 6h8"/><path d="M13 13h8"/><path d="M13 20h8"/><path d="M4 20h5"/></svg><span id="stasks-count" class="side-badge" hidden></span></button>
+            <button data-side="spaces" role="tab" aria-selected="false" title="Workspaces: the work going on, each its branch and worktree, to open, try, ship, or finish" aria-label="Workspaces"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="spaces-count" class="side-badge" hidden></span></button>
+            <button data-side="files" role="tab" aria-selected="false" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
+            <button data-side="search" role="tab" aria-selected="false" title="Search: the workspace's files, for a word or a pattern" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+            <button data-side="checks" role="tab" aria-selected="false" title="Checks: the project's tests and lint, run in the dev box" aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="decisions" role="tab" aria-selected="false" title="Decisions: the app's technical choices, and why" aria-label="Decisions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M5 21h14"/><path d="M5 7h14"/><path d="m5 7-3 7a3 3 0 0 0 6 0z"/><path d="m19 7-3 7a3 3 0 0 0 6 0z"/></svg></button>
+            <button data-side="security" role="tab" aria-selected="false" title="Security: who may do what, the app's settings and keys, and the sites the dev box reaches" aria-label="Security"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg><span id="security-count" class="side-badge" hidden></span></button>
+            <span class="grow"></span>
+            <button id="left-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
+          </nav>
+          <section id="side-tasks" class="side-view tasks-view" role="tabpanel" aria-label="Tasks" hidden>
+            <div id="stask-list-box">
+              <div class="logs-tools">
+                <input id="stask-search" type="search" placeholder="Search: words, #number, who filed it" aria-label="Search the tasks" autocomplete="off">
+                <button id="stask-new" class="side-icon" title="New task" aria-label="New task">+</button>
+                <button id="stask-refresh" class="side-icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
+              </div>
+              <div class="logs-tools stask-show">
+                <div id="stask-show" class="chips small-chips" role="group" aria-label="Which tasks">
+                  <button data-show="open" aria-pressed="true">Open</button>
+                  <button data-show="closed" aria-pressed="false">Closed</button>
+                </div>
+                <span id="tickets-where" class="muted small stask-where"></span>
+              </div>
+              <div id="stask-mine" class="stask-mine"></div>
+              <ul id="stask-list" class="stask-list"></ul>
+            </div>
+            <div id="stask-one" class="stask-one" hidden>
+              <div class="logs-tools">
+                <button id="stask-back" class="side-icon" title="All the tasks" aria-label="All the tasks">←</button>
+                <strong id="stask-id" class="stask-id"></strong>
+                <span class="grow"></span>
+                <span id="stask-acts" class="stask-acts"></span>
+              </div>
+              <div id="stask-body" class="stask-body"></div>
+              <form id="stask-note-form" class="stask-note" autocomplete="off">
+                <div class="pic-box note-box">
+                  <div id="stask-note" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="A note" data-placeholder="Add a note. Paste or drop pictures here."></div>
+                  <div id="stask-attached" class="pic-previews" hidden></div>
+                </div>
+                <input type="file" id="stask-files" multiple hidden>
+                <p id="stask-error" class="error small"></p>
+                <div class="buttons"><label for="stask-files" class="link small stask-attach">Attach files</label><span class="grow"></span><button id="stask-note-go" class="primary">Add the note</button></div>
+              </form>
+            </div>
+          </section>
+          <section id="side-spaces" class="side-view page-view spaces-view" role="tabpanel" aria-label="Workspaces" hidden>
+            <div id="preview-line" class="preview-line small" hidden></div>
+            <ul id="workspaces" class="list"></ul>
+            <p id="box" class="muted small"></p>
+          </section>
+          <section id="side-files" class="side-view" role="tabpanel" aria-label="Files" hidden>
+            <div id="files-box" class="files-box">
+              <div class="files-tools">
+                <select id="files-root" aria-label="Which tree"></select>
+                <span class="grow"></span>
+                <label id="files-upload-label" class="side-icon" title="Upload files into this folder; or drop them here" aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
+                <button id="files-collapse" class="side-icon" title="Fold every folder" aria-label="Fold every folder"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
+                <button id="files-refresh" class="side-icon" title="List the folders again" aria-label="List the folders again">↻</button>
+              </div>
+              <div id="files-main" class="files-main">
+                <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
+              </div>
+              <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
+            </div>
+          </section>
+          <section id="side-search" class="side-view search-view" role="tabpanel" aria-label="Search" hidden>
+            <form id="search-form" class="search-form" autocomplete="off">
+              <input id="search-input" type="search" placeholder="Search the files" aria-label="Search the workspace's files" spellcheck="false">
+              <button type="button" id="search-case" class="side-icon search-toggle" aria-pressed="false" title="Match case" aria-label="Match case">Aa</button>
+              <button type="button" id="search-regex" class="side-icon search-toggle" aria-pressed="false" title="A regular expression" aria-label="Regular expression">.*</button>
+            </form>
+            <p id="search-note" class="muted small search-note">Searches the workspace's files, new ones too, not those git ignores.</p>
+            <div id="search-results" class="search-results"></div>
+          </section>
+          <section id="side-checks" class="side-view checks-view" role="tabpanel" aria-label="Checks" hidden>
+            <div class="side-head">
+              <div><strong>Checks</strong><div class="muted small">run in the dev box, on this workspace</div></div>
+              <span class="grow"></span>
+              <button id="checks-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
+            </div>
+            <div id="checks-list" class="checks-list"><p class="muted small">Loading…</p></div>
+            <div id="checks-run" class="checks-run" hidden>
+              <div class="checks-status"><span id="checks-state"></span><span class="grow"></span><span id="checks-acts"></span></div>
+              <pre id="checks-output" class="log-text"></pre>
+            </div>
+          </section>
+          <section id="side-decisions" class="side-view page-view" role="tabpanel" aria-label="Decisions" hidden>
+            <div class="decisions-box">
+              <div class="decisions-head">
+                <div class="grow">
+                  <h2>Decisions</h2>
+                  <p class="muted small">The app's technical choices, from <code>docs/decisions/</code> in the project: what was decided and why, so nobody undoes it by accident. The agents read them before calling something a mistake. A change here is committed to the app's branch.</p>
+                </div>
+                <button id="decision-new" class="primary">New decision</button>
+              </div>
+              <label class="search"><span aria-hidden="true">⌕</span><input id="decisions-search" type="search" placeholder="Find a decision…" aria-label="Find a decision" autocomplete="off"></label>
+              <div id="decisions" class="decision-cards"><p class="muted small">Loading…</p></div>
+            </div>
+          </section>
+          <section id="side-security" class="side-view page-view" role="tabpanel" aria-label="Security" hidden>
+            <div class="system-box">
+              <div class="system-col">
+                <section id="people-box" class="owners-only">
+                  <h2>People</h2>
+                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+                  <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
+                  <div class="people-wrap">
+                    <table id="people-table" class="people-table">
+                      <thead><tr>
+                        <th scope="col">Person</th>
+                        <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
+                        <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; releases">Pro Dev</th>
+                        <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH; releases">Vibe Dev</th>
+                        <th scope="col" title="Reports bugs as tasks">Contributor</th>
+                        <th scope="col" title="Uses the app, asks the lead questions">None</th>
+                      </tr></thead>
+                      <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
+                    </table>
+                  </div>
+                  <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>). The channel hears every change made here.</p>
+                  <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (in Data).</p>
+                </section>
+                <section id="sshkey-box" class="pro-only">
+                  <h2>Your SSH key</h2>
+                  <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
+                  <p id="sshkey-now" class="small"></p>
+                  <form id="sshkey-form" class="setting-form">
+                    <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
+                    <button type="submit">Save the key</button>
+                  </form>
+                </section>
+                <section id="sites-box">
+                  <h2>Sites the dev box reaches</h2>
+                  <p class="muted small">Besides what development needs (GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, the agents' services). Agents ask with <code>hi dev allow</code>; the box never reaches the machine or the network it's on.</p>
+                  <ul id="sites" class="list"></ul>
+                </section>
+              </div>
+              <div class="system-col">
+                <h2>The app's settings</h2>
+                <p class="muted small">API keys and other settings the app reads as environment variables. A file's variable holds its path in the app's box. Names only: values are never shown. A change reaches the next preview, and production within a minute. The dev box gets only its own, such as a test database's, from its next restart.</p>
+                <ul id="settings" class="list"></ul>
+                <form id="setting-form" class="setting-form owners-only">
+                  <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
+                  <input id="setting-value" type="password" placeholder="value" autocomplete="new-password" required>
+                  <label class="setting-file muted small">or a file, such as a certificate with its key: <input id="setting-file" type="file"></label>
+                  <select id="setting-slot">
+                    <option value="">Stage and production</option>
+                    <option value="preview">Stage only</option>
+                    <option value="production">production only</option>
+                    <option value="dev">the dev box only, from its next restart</option>
+                  </select>
+                  <button type="submit">Set</button>
+                </form>
+                <div class="owners-only">
+                <h2>The app's keys and sign-ins</h2>
+                <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
+                <ul id="team-keys" class="list"></ul>
+                </div>
+              </div>
+            </div>
+          </section>
+        </aside>
     <div class="code-views">
     <div id="chat" class="chat" hidden>
       <div class="chat-col">
@@ -175,35 +283,19 @@
     </div>
     <div id="editor" class="editor" hidden></div>
     </div>
-        <aside id="chat-side" class="side" aria-label="The side panel" hidden>
+        <aside id="chat-side" class="side side-right" aria-label="The right panel" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
           <nav class="side-tabs" role="tablist" aria-label="Views">
             <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
-            <button data-side="files" role="tab" aria-selected="false" title="Files: the workspace's, to look at, open, and upload into" aria-label="Files"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M3 7v13a2 2 0 0 0 2 2h10"/></svg></button>
-            <button data-side="search" role="tab" aria-selected="false" title="Search: the workspace's files, for a word or a pattern" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
             <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
-            <button data-side="checks" role="tab" aria-selected="false" title="Checks: the project's tests and lint, run in the dev box" aria-label="Checks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6.5L4.6 18.2A1.8 1.8 0 0 0 6.1 21h11.8a1.8 1.8 0 0 0 1.5-2.8L14 9.5V3"/><path d="M7.5 15h9"/></svg><span id="checks-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and Stage print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and Stage print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
             <button data-side="preview" role="tab" aria-selected="false" title="Preview: Stage or production, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button data-side="tasks" role="tab" aria-selected="false" title="Tasks: this workspace's, and the app's others" aria-label="Tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 2 2 4-4"/><path d="m3 13 2 2 4-4"/><path d="M13 6h8"/><path d="M13 13h8"/><path d="M13 20h8"/><path d="M4 20h5"/></svg><span id="stasks-count" class="side-badge" hidden></span></button>
+            <button data-side="release" role="tab" aria-selected="false" title="Release: where things run, and releasing to production" aria-label="Release"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="release-count" class="side-badge" hidden></span></button>
+            <button data-side="data" class="owners-only" role="tab" aria-selected="false" title="Data: production's and Stage's, and the snapshots" aria-label="Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+            <button data-side="system" role="tab" aria-selected="false" title="System: what runs where, incidents, the helper, and the jobs' rules" aria-label="System"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/><path d="m7 11 2-2 2 3 2-4 2 3h2"/></svg></button>
             <span class="grow"></span>
             <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
           </nav>
-          <section id="side-files" class="side-view" role="tabpanel" aria-label="Files" hidden>
-            <div id="files-box" class="files-box">
-              <div class="files-tools">
-                <select id="files-root" aria-label="Which tree"></select>
-                <span class="grow"></span>
-                <label id="files-upload-label" class="side-icon" title="Upload files into this folder; or drop them here" aria-label="Upload"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg><input type="file" id="files-upload" multiple hidden></label>
-                <button id="files-collapse" class="side-icon" title="Fold every folder" aria-label="Fold every folder"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg></button>
-                <button id="files-refresh" class="side-icon" title="List the folders again" aria-label="List the folders again">↻</button>
-              </div>
-              <div id="files-main" class="files-main">
-                <div id="files-list" class="file-browser" role="tree" aria-label="Files"></div>
-              </div>
-              <div id="files-drop" class="files-drop" hidden><p>Drop to upload into <strong id="files-drop-where"></strong></p></div>
-            </div>
-          </section>
           <section id="side-git" class="side-view git-view" role="tabpanel" aria-label="Source control" hidden>
             <div class="side-head">
               <div class="git-where">
@@ -224,27 +316,6 @@
               <ol id="git-commits" class="git-commits"></ol>
             </details>
             <div id="git-diff" class="git-diff" hidden></div>
-          </section>
-          <section id="side-search" class="side-view search-view" role="tabpanel" aria-label="Search" hidden>
-            <form id="search-form" class="search-form" autocomplete="off">
-              <input id="search-input" type="search" placeholder="Search the files" aria-label="Search the workspace's files" spellcheck="false">
-              <button type="button" id="search-case" class="side-icon search-toggle" aria-pressed="false" title="Match case" aria-label="Match case">Aa</button>
-              <button type="button" id="search-regex" class="side-icon search-toggle" aria-pressed="false" title="A regular expression" aria-label="Regular expression">.*</button>
-            </form>
-            <p id="search-note" class="muted small search-note">Searches the workspace's files, new ones too, not those git ignores.</p>
-            <div id="search-results" class="search-results"></div>
-          </section>
-          <section id="side-checks" class="side-view checks-view" role="tabpanel" aria-label="Checks" hidden>
-            <div class="side-head">
-              <div><strong>Checks</strong><div class="muted small">run in the dev box, on this workspace</div></div>
-              <span class="grow"></span>
-              <button id="checks-refresh" class="side-icon" title="Look again" aria-label="Look again">↻</button>
-            </div>
-            <div id="checks-list" class="checks-list"><p class="muted small">Loading…</p></div>
-            <div id="checks-run" class="checks-run" hidden>
-              <div class="checks-status"><span id="checks-state"></span><span class="grow"></span><span id="checks-acts"></span></div>
-              <pre id="checks-output" class="log-text"></pre>
-            </div>
           </section>
           <section id="side-logs" class="side-view logs-view" role="tabpanel" aria-label="Logs" hidden>
             <div class="logs-tools">
@@ -271,170 +342,79 @@
             <p id="preview-note" class="muted small logs-note"></p>
             <iframe id="preview-frame" class="preview-frame" title="Preview" referrerpolicy="no-referrer" allow="clipboard-write"></iframe>
           </section>
-          <section id="side-tasks" class="side-view tasks-view" role="tabpanel" aria-label="Tasks" hidden>
-            <div id="stask-list-box">
-              <div class="logs-tools">
-                <input id="stask-search" type="search" placeholder="Search the open tasks" aria-label="Search the open tasks" autocomplete="off">
-                <button id="stask-new" class="side-icon" title="New task" aria-label="New task">+</button>
-                <button id="stask-refresh" class="side-icon" title="Fetch the tasks again" aria-label="Fetch the tasks again">↻</button>
-              </div>
-              <div id="stask-mine" class="stask-mine"></div>
-              <ul id="stask-list" class="stask-list"></ul>
-            </div>
-            <div id="stask-one" class="stask-one" hidden>
-              <div class="logs-tools">
-                <button id="stask-back" class="side-icon" title="All the tasks" aria-label="All the tasks">←</button>
-                <strong id="stask-id" class="stask-id"></strong>
-                <span class="grow"></span>
-                <span id="stask-acts" class="stask-acts"></span>
-              </div>
-              <div id="stask-body" class="stask-body"></div>
-              <form id="stask-note-form" class="stask-note" autocomplete="off">
-                <div class="pic-box note-box">
-                  <div id="stask-note" class="pic-edit" contenteditable="true" role="textbox" aria-multiline="true" aria-label="A note" data-placeholder="Add a note. Paste or drop pictures here."></div>
-                  <div id="stask-attached" class="pic-previews" hidden></div>
-                </div>
-                <input type="file" id="stask-files" multiple hidden>
-                <p id="stask-error" class="error small"></p>
-                <div class="buttons"><label for="stask-files" class="link small stask-attach">Attach files</label><span class="grow"></span><button id="stask-note-go" class="primary">Add the note</button></div>
-              </form>
-            </div>
-          </section>
           <section id="side-rewind" class="side-view rewind" role="tabpanel" aria-label="Rewind">
             <div class="rewind-head"><span class="rewind-title">Rewind</span><span class="muted small">to before a message</span></div>
             <p id="rewind-empty" class="muted small" hidden></p>
             <ol id="rewind-points" class="rewind-points"></ol>
           </section>
+          <section id="side-release" class="side-view page-view" role="tabpanel" aria-label="Release" hidden>
+            <div class="release-wrap">
+              <section class="where-card">
+                <h2>Where things run</h2>
+                <p class="muted small">Each address and what it shows now. On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
+                <ul id="addresses" class="where"></ul>
+              </section>
+              <section class="releases-card">
+                <h2>Releases</h2>
+                <p class="developers-only muted small">Ship your work into dev, then release it to production. The owners roll it back.</p>
+                <ul id="releases" class="list"></ul>
+              </section>
+            </div>
+          </section>
+          <section id="side-data" class="side-view page-view" role="tabpanel" aria-label="Data" hidden>
+            <div class="system-box">
+              <div class="system-col">
+                <h2>Production's data</h2>
+                <p class="muted small">What everyone's use of the app has written. Copying Stage's here replaces it, with a snapshot of production's first.</p>
+                <dl id="data-production" class="facts"></dl>
+                <div class="data-actions">
+                  <button id="data-snapshot">Take a snapshot now</button>
+                  <button id="data-copy">Copy Stage's data to production</button>
+                </div>
+                <h2>Snapshots</h2>
+                <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every release, and before data is copied to production.</p>
+                <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
+                <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.</p>
+              </div>
+              <div class="system-col">
+                <h2>Stage's data</h2>
+                <p class="muted small">Stage works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old.</p>
+                <dl id="data-preview" class="facts"></dl>
+                <div class="data-actions">
+                  <button id="data-fork">Copy production's data to Stage</button>
+                </div>
+                <label class="check"><input type="checkbox" id="data-empty"> Start Stage empty at every release, for an app whose people's data Stage shouldn't show</label>
+              </div>
+            </div>
+          </section>
+          <section id="side-system" class="side-view page-view" role="tabpanel" aria-label="System" hidden>
+            <div class="system-box">
+              <div class="system-col">
+                <h2>System</h2>
+                <dl id="system" class="facts"></dl>
+                <section id="incidents-box" hidden>
+                  <h2>Incidents</h2>
+                  <ul id="incidents" class="list"></ul>
+                </section>
+              </div>
+              <div class="system-col">
+                <h2>The helper</h2>
+                <p class="muted small">Help and feedback on the app's pages. Feedback reaches the channel for people to handle; someone signed in with their link reports a bug, which hi files as a task.</p>
+                <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On Stage</label>
+                <label class="check"><input type="checkbox" id="helper-production" class="owners-control"> In production</label>
+                <h2>Rules for the app's jobs</h2>
+                <p class="muted small">Decisions the lead follows when a job fails, in the people's words.</p>
+                <ul id="rules" class="list"></ul>
+                <form id="rule-form" class="setting-form owners-only">
+                  <input id="rule-job" placeholder="job" autocomplete="off" spellcheck="false" required>
+                  <input id="rule-text" placeholder="the rule" autocomplete="off" required>
+                  <button type="submit">Add the rule</button>
+                </form>
+              </div>
+            </div>
+          </section>
         </aside>
     </div>
-    </div>
-  </section>
-  <section id="tab-release" class="panel release-panel" hidden>
-    <div class="release-wrap">
-      <section class="where-card">
-        <h2>Where things run</h2>
-        <p class="muted small">Each address and what it shows now. On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
-        <ul id="addresses" class="where"></ul>
-      </section>
-      <section class="releases-card">
-        <h2>Releases</h2>
-        <p class="developers-only muted small">Ship your work into dev, then release it to production. The owners roll it back.</p>
-        <ul id="releases" class="list"></ul>
-      </section>
-    </div>
-  </section>
-  <section id="tab-data" class="panel system-panel" hidden>
-    <div class="system-box">
-      <div class="system-col">
-        <h2>Production's data</h2>
-        <p class="muted small">What everyone's use of the app has written. Copying Stage's here replaces it, with a snapshot of production's first.</p>
-        <dl id="data-production" class="facts"></dl>
-        <div class="data-actions">
-          <button id="data-snapshot">Take a snapshot now</button>
-          <button id="data-copy">Copy Stage's data to production</button>
-        </div>
-        <h2>Snapshots</h2>
-        <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every release, and before data is copied to production.</p>
-        <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
-        <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.</p>
-      </div>
-      <div class="system-col">
-        <h2>Stage's data</h2>
-        <p class="muted small">Stage works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old.</p>
-        <dl id="data-preview" class="facts"></dl>
-        <div class="data-actions">
-          <button id="data-fork">Copy production's data to Stage</button>
-        </div>
-        <label class="check"><input type="checkbox" id="data-empty"> Start Stage empty at every release, for an app whose people's data Stage shouldn't show</label>
-      </div>
-    </div>
-  </section>
-  <section id="tab-system" class="panel system-panel" hidden>
-    <div class="system-box">
-      <div class="system-col">
-        <h2>System</h2>
-        <dl id="system" class="facts"></dl>
-        <section id="incidents-box" hidden>
-          <h2>Incidents</h2>
-          <ul id="incidents" class="list"></ul>
-        </section>
-      </div>
-      <div class="system-col">
-        <h2>The helper</h2>
-        <p class="muted small">Help and feedback on the app's pages. Feedback reaches the channel for people to handle; someone signed in with their link reports a bug, which hi files as a task.</p>
-        <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On Stage</label>
-        <label class="check"><input type="checkbox" id="helper-production" class="owners-control"> In production</label>
-        <h2>Rules for the app's jobs</h2>
-        <p class="muted small">Decisions the lead follows when a job fails, in the people's words.</p>
-        <ul id="rules" class="list"></ul>
-        <form id="rule-form" class="setting-form owners-only">
-          <input id="rule-job" placeholder="job" autocomplete="off" spellcheck="false" required>
-          <input id="rule-text" placeholder="the rule" autocomplete="off" required>
-          <button type="submit">Add the rule</button>
-        </form>
-      </div>
-    </div>
-  </section>
-  <section id="tab-security" class="panel system-panel" hidden>
-    <div class="system-box">
-      <div class="system-col">
-        <section id="people-box" class="owners-only">
-          <h2>People</h2>
-          <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
-          <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
-          <div class="people-wrap">
-            <table id="people-table" class="people-table">
-              <thead><tr>
-                <th scope="col">Person</th>
-                <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
-                <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; releases">Pro Dev</th>
-                <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH; releases">Vibe Dev</th>
-                <th scope="col" title="Reports bugs as tasks">Contributor</th>
-                <th scope="col" title="Uses the app, asks the lead questions">None</th>
-              </tr></thead>
-              <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
-            </table>
-          </div>
-          <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>). The channel hears every change made here.</p>
-          <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (the Data tab).</p>
-        </section>
-        <section id="sshkey-box" class="pro-only">
-          <h2>Your SSH key</h2>
-          <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
-          <p id="sshkey-now" class="small"></p>
-          <form id="sshkey-form" class="setting-form">
-            <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
-            <button type="submit">Save the key</button>
-          </form>
-        </section>
-        <section id="sites-box">
-          <h2>Sites the dev box reaches</h2>
-          <p class="muted small">Besides what development needs (GitHub, npm, PyPI, Go modules, crates.io, Hugging Face, the agents' services). Agents ask with <code>hi dev allow</code>; the box never reaches the machine or the network it's on.</p>
-          <ul id="sites" class="list"></ul>
-        </section>
-      </div>
-      <div class="system-col">
-        <h2>The app's settings</h2>
-        <p class="muted small">API keys and other settings the app reads as environment variables. A file's variable holds its path in the app's box. Names only: values are never shown. A change reaches the next preview, and production within a minute. The dev box gets only its own, such as a test database's, from its next restart.</p>
-        <ul id="settings" class="list"></ul>
-        <form id="setting-form" class="setting-form owners-only">
-          <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
-          <input id="setting-value" type="password" placeholder="value" autocomplete="new-password" required>
-          <label class="setting-file muted small">or a file, such as a certificate with its key: <input id="setting-file" type="file"></label>
-          <select id="setting-slot">
-            <option value="">Stage and production</option>
-            <option value="preview">Stage only</option>
-            <option value="production">production only</option>
-            <option value="dev">the dev box only, from its next restart</option>
-          </select>
-          <button type="submit">Set</button>
-        </form>
-        <div class="owners-only">
-        <h2>The app's keys and sign-ins</h2>
-        <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
-        <ul id="team-keys" class="list"></ul>
-        </div>
-      </div>
     </div>
   </section>
 </main>

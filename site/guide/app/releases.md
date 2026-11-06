@@ -19,7 +19,7 @@ the work is built, Stage, and production, each with its own data. See
 
 ## Release
 
-On the dev page's Release tab, **Release v4** shows in Production's row
+In the dev page's Release view, **Release v4** shows in Production's row
 when dev has work production hasn't. It opens the release notes, drafted from dev's changes; edit them
 in the people's words and click Release. hi takes a snapshot, moves
 production, gives Stage a new fork of production's data, and posts

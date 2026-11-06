@@ -920,7 +920,7 @@ func TestTeamLeadStart(t *testing.T) {
 	}
 }
 
-// The Data tab: both data folders, the snapshots, and whether the preview
+// Data: both data folders, the snapshots, and whether the preview
 // starts empty, for owners only.
 func TestTeamDevPageData(t *testing.T) {
 	b, _ := appTestDevPage(t)
