@@ -2713,6 +2713,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.80 — The machine's health on the admin page
+
+- [x] Home shows the machine's CPU, load, memory, swap, and disks, and
+  each app's card its CPU, memory (its lead and boxes together, from
+  their cgroups), and folder on disk; an app's Overview says the same.
+  The page samples every five seconds while it's open.
+- [x] A click on the machine's name leaves no focus ring on the bar.
+
 ### v2.6.79 — Jobs follow the open app
 
 - [x] The admin page's Jobs show the open app's jobs, as Logs and

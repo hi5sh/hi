@@ -300,7 +300,65 @@ function renderApps() {
 }
 $("apps-search").addEventListener("input", renderApps);
 
+// ---------------------------------------------------------------------------
+// what the machine and its apps use
+
+function size(bytes) {
+  const n = Number(bytes) || 0;
+  const units = [["TB", 2 ** 40], ["GB", 2 ** 30], ["MB", 2 ** 20], ["KB", 2 ** 10]];
+  for (const [unit, value] of units) if (n >= value) return (n / value).toFixed(n / value >= 100 ? 0 : 1) + " " + unit;
+  return n + " B";
+}
+const percent = (share) => (share < 0.01 && share > 0 ? "<1" : Math.round(share * 100)) + "%";
+function level(share) { return share >= 0.9 ? "bad" : share >= 0.75 ? "warn" : ""; }
+function meter(label, share, text, title) {
+  const bar = el("span", { class: "meter-bar " + level(share) });
+  bar.style.setProperty("--share", (Math.min(Math.max(share, 0), 1) * 100).toFixed(1) + "%");
+  return el("div", { class: "meter", title: title || "" }, el("div", { class: "meter-head" }, el("span", {}, label), el("span", { class: "muted small" }, text)), bar);
+}
+function uptime(seconds) {
+  const s = Number(seconds) || 0;
+  if (s >= 86400) return Math.floor(s / 86400) + " d";
+  if (s >= 3600) return Math.floor(s / 3600) + " h";
+  return Math.max(1, Math.floor(s / 60)) + " min";
+}
+
+function renderHomeMachine() {
+  const box = $("home-machine-card");
+  const u = state.usage;
+  if (!u) { box.replaceChildren(); return; }
+  const head = el("div", { class: "card-head pad" }, el("span", { class: "dot " + (level(Math.max(u.cpu || 0, u.mem_total ? u.mem_used / u.mem_total : 0, ...u.disks.map((d) => d.used / d.total))) === "bad" ? "bad" : "idle"), "aria-hidden": "true" }),
+    el("strong", { class: "card-name" }, state.machine), el("span", { class: "muted small" }, "up " + uptime(u.uptime)), el("span", { class: "grow" }),
+    el("span", { class: "muted small", title: "The load: how many things wanted a core, over 1, 5, and 15 minutes" }, u.cores + " cores · load " + u.load.map((l) => l.toFixed(2)).join(" ")));
+  const meters = el("div", { class: "meters pad" });
+  meters.append(u.cpu === undefined || u.cpu === null ? meter("CPU", 0, "…") : meter("CPU", u.cpu, percent(u.cpu) + " busy", "The share of all " + u.cores + " cores busy, over the last few seconds"));
+  if (u.mem_total) meters.append(meter("Memory", u.mem_used / u.mem_total, size(u.mem_used) + " of " + size(u.mem_total), "What isn't available to start something new; the kernel's cache is counted as free"));
+  if (u.swap_total) meters.append(meter("Swap", u.swap_used / u.swap_total, size(u.swap_used) + " of " + size(u.swap_total)));
+  for (const d of u.disks) meters.append(meter("Disk " + d.mount, d.used / d.total, size(d.used) + " of " + size(d.total), size(d.total - d.used) + " free on " + d.mount));
+  box.replaceChildren(el("div", { class: "card-box machine-card" }, head, meters));
+}
+
+// usageOf is an app's use as a card shows it.
+function usageOf(name) {
+  const u = state.usage;
+  const app = u && u.apps ? u.apps[name] : null;
+  if (!app) return null;
+  const row = el("div", { class: "card-usage" });
+  row.append(meter("CPU", app.cpu || 0, app.cpu === undefined || app.cpu === null ? "…" : percent(app.cpu), "Its share of the machine's " + u.cores + " cores: its lead and its boxes"));
+  row.append(meter("Memory", u.mem_total ? app.memory / u.mem_total : 0, size(app.memory), "Its lead and its " + app.boxes + " running boxes, of the machine's " + size(u.mem_total)));
+  row.append(el("div", { class: "meter", title: "Its folder, measured every ten minutes" }, el("div", { class: "meter-head" }, el("span", {}, "Disk"), el("span", { class: "muted small" }, app.disk >= 0 ? size(app.disk) : "…"))));
+  return row;
+}
+function usageLine(name) {
+  const u = state && state.usage;
+  const app = u && u.apps ? u.apps[name] : null;
+  if (!app) return "";
+  const cpu = app.cpu === undefined || app.cpu === null ? "" : percent(app.cpu) + " of the machine's CPU, ";
+  return cpu + size(app.memory) + " of memory (its lead and " + app.boxes + " running box" + (app.boxes === 1 ? "" : "es") + ")" + (app.disk >= 0 ? ", " + size(app.disk) + " on disk (its folder)" : "");
+}
+
 function renderHome() {
+  renderHomeMachine();
   renderHomeOrg();
   $("home-what").textContent = state.org && !state.apps.length ? "The org" : "Apps";
   const cards = $("home-cards");
@@ -325,12 +383,16 @@ function renderHome() {
         el("span", { class: "muted small" }, app.production ? "production v" + app.production : "nothing released")),
       app.purpose ? el("p", { class: "card-purpose" }, app.purpose) : null,
       app.error ? el("p", { class: "error small" }, app.error) : null,
-      app.incidents ? el("p", { class: "warn small" }, app.incidents + " open incident" + (app.incidents === 1 ? "" : "s")) : null);
+      app.incidents ? el("p", { class: "warn small" }, app.incidents + " open incident" + (app.incidents === 1 ? "" : "s")) : null,
+      usageOf(app.name));
     cards.append(el("div", { class: "card-box" }, card, app.addresses.length ? addresses : null));
   }
 }
 
-$("home-button").addEventListener("click", () => openView(""));
+$("home-button").addEventListener("click", (event) => {
+  if (event.detail) event.currentTarget.blur(); // a click, not a key: no focus ring left on the bar
+  openView("");
+});
 
 function setMiddle(what) {
   middle = what;
@@ -437,6 +499,7 @@ function renderOverview() {
   fact("Owners", (d.owners || []).join(", ") || "none");
   fact("You", d.level === "none" ? "no level in this app" : d.level);
   fact("Dev", d.dev);
+  facts.append(el("dt", {}, "Uses"), el("dd", { id: "overview-usage" }, usageLine(d.name) || "…"));
   parts.push(el("h2", {}, "The app"), facts);
   const lines = [d.snapshot, d.heartbeat].filter(Boolean);
   if (lines.length) parts.push(el("div", { class: "muted small lines" }, lines.map((line) => el("p", {}, line))));
@@ -1425,6 +1488,7 @@ async function refreshState() {
   if (!middle) renderHome();
   renderOrgBadges();
   renderJobsBadge();
+  if (openApp && $("overview-usage")) $("overview-usage").textContent = usageLine(openApp) || "…";
   if (viewShown("machine")) renderMachine();
   else badge("machine-badge", state.latest ? 1 : 0);
   return true;

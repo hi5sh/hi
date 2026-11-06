@@ -55,6 +55,8 @@ type adminServer struct {
 	askedAll []time.Time
 	lingers  bool
 	lingerAt time.Time
+	// sampler is what the machine and its apps use (admin_usage.go).
+	sampler adminSampler
 }
 
 // lingering says whether the account's services run without a login,
@@ -691,13 +693,15 @@ type adminStateView struct {
 	User     string         `json:"user"`
 	// Org is the org server, on its machine.
 	Org *adminOrgSummary `json:"org,omitempty"`
+	// Usage is what the machine and each app use.
+	Usage *adminLoad `json:"usage,omitempty"`
 }
 
 func (s *adminServer) state(admin adminPerson) adminStateView {
 	config, _ := loadAdminConfig()
 	view := adminStateView{Machine: adminMachineName(), Version: version, Latest: s.latestVersion(), Me: admin, Address: adminURL(config),
 		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName(),
-		Org: adminOrgSummaryOf()}
+		Org: adminOrgSummaryOf(), Usage: s.usage()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
 		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())

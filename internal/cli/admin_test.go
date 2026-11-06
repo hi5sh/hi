@@ -63,11 +63,14 @@ func setupAdminTest(t *testing.T) adminTest {
 	appSystemctl = func(args ...string) (string, error) { return "inactive", nil }
 	adminLatest = func() (string, error) { return "v99.0.0", nil }
 	appLingers = func() bool { return true }
-	orgDir := adminOrgDir
+	orgDir, boxes, folder, every := adminOrgDir, adminBoxCgroups, adminFolderSize, adminUsageEvery
 	adminOrgDir = func() string { return "" }
+	adminBoxCgroups = func() map[string]string { return map[string]string{} }
+	adminFolderSize = func(string) int64 { return 42 }
+	adminUsageEvery = time.Hour // one sample per test
 	t.Cleanup(func() {
 		adminLaunch, adminPost, adminDM, adminJobAlive, adminJournal, appSystemctl, adminLatest, appLingers = launch, post, dm, alive, journal, systemctl, latest, lingers
-		adminOrgDir = orgDir
+		adminOrgDir, adminBoxCgroups, adminFolderSize, adminUsageEvery = orgDir, boxes, folder, every
 	})
 	s := newAdminServer("/usr/local/bin/hi", io.Discard)
 	server := httptest.NewServer(s.handler)

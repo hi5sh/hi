@@ -24,8 +24,12 @@ The dev page's design: the same dark colours and bar, with a panel on
 each side of the middle. Each panel can be dragged wider, hidden, and
 remembered. On a phone they lie over the middle, one at a time.
 
-- **Home:** every app as a card, with its state, production's version,
-  its open incidents, and its addresses.
+- **Home:** the machine's health: how busy its CPU is, its load, its
+  memory, swap, and each disk, filling up green, then yellow, then red.
+  Then every app as a card, with its state, production's version, its
+  open incidents, its addresses, and what it uses: its share of the CPU
+  and the memory of its lead and its boxes together, and its folder on
+  disk (measured every ten minutes). The page measures while it's open.
 - **Apps** (left): the apps, the ones that are down or frozen counted on
   the icon. Pick one to open it in the middle.
 - **An app's Overview:** its state, addresses, members, owners, latest
