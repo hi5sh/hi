@@ -2713,6 +2713,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.76 — Two panels beside the work, the tabs gone
+
+- [x] The dev page's tabs go: a panel on each side of the work, each
+  dragged wider, hidden, and remembered. The left has what goes into
+  the app (Tasks, Workspaces, Files, Search, Checks, Decisions,
+  Security), the right what comes out of it (Rewind, Source control,
+  Logs, Preview, Release, Data, System). The panel's Tasks replaces the
+  table, with Open and Closed. Counts on Tasks, Workspaces, Release,
+  and Security; a pulsing dot on Logs for new lines, red for an error.
+
 ### v2.6.75 — Tasks in the panel, the icons narrowed to fit
 
 - [x] The dev page's panel gains Tasks: the chat's workspace's task, to
