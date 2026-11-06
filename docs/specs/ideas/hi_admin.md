@@ -1,7 +1,7 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
 Status: Draft (2026-11-06). Decided 2026-11-06: admins only; at
-`admin.<domain>` unless the IT team names it; port 888; the org server's
+`admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one.
 
 Dependencies: [hi_app.md](../approved/hi_app.md) (apps, their services,
@@ -160,34 +160,29 @@ Requests until it runs an org server.
 The admin page can do anything the account that runs hi can do, so it
 is internal only, and asks for a sign-in on top of that.
 
-Port 888, one of two ways, whichever the machine has:
+Port 1984, one of two ways, whichever the machine has. It is above
+1024, so the account that runs hi listens there itself, with no root:
 
 - **On a NetBird peer of its own,** on a machine with apps: the small
   rootless container each app's addresses already use, named
-  `<machine>-admin` (`ws1-admin.corp.example:888`). It needs a NetBird
+  `<machine>-admin` (`ws1-admin.corp.example:1984`). It needs a NetBird
   setup key once, and works whether or not the machine itself is on
-  NetBird, as apps' addresses do. The port is in the peer's own network,
-  so no root is needed.
+  NetBird, as apps' addresses do.
 - **On the machine's NetBird address,** on a machine that is on NetBird
-  and has no podman, such as an org server's VM: `ws1.corp.example:888`,
-  as the org server listens on that address only. 888 is below 1024, so
-  this way runs as a system unit beside `hi-org.service`, with the one
-  capability to listen there (`CAP_NET_BIND_SERVICE`). `hi admin start`
-  installs it with `sudo` once, as `hi org init` prints the org
-  server's unit.
+  and has no podman, such as an org server's VM: `ws1.corp.example:1984`,
+  as the org server listens on that address only.
 
 Either way, NetBird's Access Control decides who reaches it: a policy
-from the admins' group, TCP 888 (and 443 with a domain). hi prints what
+from the admins' group, TCP 1984 (and 443 with a domain). hi prints what
 to ask the IT team for.
 - **`admin.<domain>`,** on https, with the machine's domain
   (`hi app domain`). The app name `admin` is then refused.
 - **A name the IT team picks,** as for apps' addresses:
   `hi admin address <host>` (or on the page, Machine). hi serves it on
-  port 888 and on the peer's port 80, for an A record to the peer or the
+  port 1984 and on the peer's port 80, for an A record to the peer or the
   IT team's proxy, and `--https` when their proxy ends TLS.
-- **On this machine only** (`--local`): `http://127.0.0.1:8880/`, for a
-  machine someone sits at, or an SSH tunnel: an unprivileged port, so no
-  root.
+- **On this machine only** (`--local`): `http://127.0.0.1:1984/`, for a
+  machine someone sits at, or an SSH tunnel.
 
 It is never public: `hi net expose` refuses it, and so does the admin
 page's own Network view.
@@ -298,9 +293,10 @@ it's up. **From a file** takes answers someone wrote before, as
 ## How it works
 
 - **One process per machine account:** `hi admin serve`, run by
-  `hi-admin.service`, so it stays up after a reboot: a user service, as
-  the apps' are, or a system service beside the org server's, on a
-  machine without podman ([Reaching it](#reaching-it)). Its files are in `~/.local/share/hi/admin/`: `admin.json` (its
+  `hi-admin.service`, a user service, as the apps' are, so it stays up
+  after a reboot. On a machine that doesn't keep the account's services
+  running without a login (an org server's VM, maybe), `hi admin start`
+  says the one command to change that (`sudo loginctl enable-linger`). Its files are in `~/.local/share/hi/admin/`: `admin.json` (its
   address and admins), `keys.json` (the admins' keys, 0600),
   `activity.jsonl`, and `jobs/`.
 - **The page** is `helper/admin/`, embedded in hi as the dev page is.
@@ -324,8 +320,7 @@ it's up. **From a file** takes answers someone wrote before, as
   - **Restarting the org server** after an update needs root, since
     `hi-org.service` is a system unit; the page can't `sudo`.
     `hi admin start` offers, with `sudo` once, a rule that lets the
-    account restart `hi-org.service` and `hi-admin.service`, and nothing
-    else. Without it, the page updates hi and shows the command to
+    account restart `hi-org.service`, and nothing else. Without it, the page updates hi and shows the command to
     restart them.
     A job's secrets go in a 0600 file the command deletes once read, as
     `hi app dev <app> netbird <file>` does now.
@@ -347,7 +342,7 @@ hi admin                         whether it runs, its address, its admins
 hi admin start                   start it and keep it up, also after a reboot; the
                                  first time, makes you its first admin and prints your link
     [--netbird <setup key file>] the peer's setup key, the first time (or on the page)
-    [--local]                    on this machine only, 127.0.0.1:8880
+    [--local]                    on this machine only, 127.0.0.1:1984
 hi admin stop                    stop it; nothing else changes
 hi admin link [<admin>]          a new sign-in link, for 14 days; the old one ends
 hi admin admins                  the admins
@@ -359,7 +354,7 @@ hi admin address [<host> [--https] | default]
 ## Releases
 
 1. **Running and reaching it:** `hi admin` and its commands; the peer,
-   port 888, `admin.<domain>`, and a name of the IT team's; admins'
+   port 1984, `admin.<domain>`, and a name of the IT team's; admins'
    links and **Send me a new link**; Home, Apps, Overview's actions,
    Open ▾ with the dev page; Activity, Jobs, Logs, Incidents; Machine's
    version and **Update**.
@@ -393,8 +388,8 @@ hi admin address [<host> [--https] | default]
    page's Running view in a browser, read-only, for a viewer?
 2. **The org server's VM's admins:** the admin page's own list, or the
    org's users in an admin group, so one list serves both?
-3. **The restart rule:** a polkit rule or a `sudoers` line, for the two
-   units? polkit needs no password prompt from `sudo`; `sudoers` is what
+3. **The restart rule:** a polkit rule or a `sudoers` line, for
+   `hi-org.service`? polkit needs no password prompt from `sudo`; `sudoers` is what
    admins know.
 
 ## Acceptance criteria
