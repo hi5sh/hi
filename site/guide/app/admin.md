@@ -42,13 +42,16 @@ remembered. On a phone they lie over the middle, one at a time.
 - **Machine** (left): hi's version and **Update**, with a dot on the
   icon when a new hi is out; the admin page's address and what to ask
   your IT team for; its admins.
-- **Activity** (right): what admins did here, with who and when.
+- **Activity** (left): what admins did here, with who and when, and on
+  the org server's machine the org's audit.
 - **Jobs** (right): the long actions, running and done, with their
   output. A blue dot while one runs, a red one when one failed.
-- **Logs** (right): an app's lead and service, as `hi app logs` shows
-  them, or the admin page's own. Its dot pulses when new lines come in
-  behind another view, red when one says something failed.
-- **Incidents** (right): every app's, the open ones first.
+- **Logs** (right): the open app's lead and service, as `hi app logs`
+  shows them; on Home, the admin page's own, or the org server's on its
+  machine. Its dot pulses when new lines come in behind another view, red
+  when one says something failed.
+- **Incidents** (right): the open app's, the open ones first; on Home,
+  every app's.
 
 Every change is said: in Activity, with the admin's name, and in the
 app's ops channel, as the app's bot: "Olga restarted the app, from the
@@ -82,7 +85,7 @@ and no apps.
 - **Keys** (left): the provider keys (RunPod, Shadeform) and the org's
   OpenRouter key for `hi q`, each checked before it's kept, and shown only
   as set or not.
-- **Activity** has the org's audit, and **Logs** the org server's.
+- **Activity** has the org's audit, and **Logs** on Home the org server's.
 
 **Its admins are the org's:** the owner and the admins `hi org admins`
 lists. Each is an approver too, in Slack and here, and the page keeps no

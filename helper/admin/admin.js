@@ -85,9 +85,9 @@ let waitFor = "";       // the version an update left behind
 
 const panes = {
   left: { view: "apps", open: true, width: 300 },
-  right: { view: "activity", open: true, width: 340 },
+  right: { view: "logs", open: true, width: 340 },
 };
-const paneViews = { left: ["apps", "org", "people", "keys", "machine"], right: ["requests", "running", "spend", "activity", "jobs", "logs", "incidents"] };
+const paneViews = { left: ["apps", "org", "people", "keys", "machine", "activity"], right: ["requests", "running", "spend", "jobs", "logs", "incidents"] };
 const paneIds = {
   left: { panel: "left-side", toggle: "left-toggle", close: "left-close", resize: "left-resize" },
   right: { panel: "right-side", toggle: "right-toggle", close: "right-close", resize: "right-resize" },
@@ -296,7 +296,7 @@ function renderApps() {
     list.append(li);
   }
   badge("apps-count", state.apps.filter((a) => a.state !== "up").length);
-  badge("incidents-count", state.apps.reduce((n, a) => n + (a.incidents || 0), 0));
+  badge("incidents-count", state.apps.reduce((n, a) => n + (!openApp || a.name === openApp ? a.incidents || 0 : 0), 0));
 }
 $("apps-search").addEventListener("input", renderApps);
 
@@ -354,6 +354,7 @@ async function openView(name) {
   }
   if (name) await refreshDetail();
   if (viewShown("logs")) refreshLogs(true);
+  if (viewShown("incidents")) refreshIncidents();
 }
 
 async function refreshDetail() {
@@ -780,18 +781,14 @@ async function refreshJob() {
 const logs = { app: null, cursor: "", lines: 0, at: 0, news: "" };
 const errorLine = /\b(error|failed|fail|panic|fatal|refused|denied|traceback|exception)\b|\b5\d\d\b/i;
 const warnLine = /\bwarn(ing)?\b/i;
+// Logs are the open app's; on Home, the org server's on its machine, or
+// the admin page's own.
 function logsApp() {
-  const select = $("logs-app");
-  const wanted = openApp || select.value || (state && state.apps[0] ? state.apps[0].name : "");
-  const options = [["", "The admin page"], ...(state && state.org ? [[":org", "The org server"]] : []), ...(state ? state.apps.map((a) => [a.name, a.name]) : [])];
-  if (select.options.length !== options.length || [...select.options].some((o, i) => o.value !== options[i][0])) {
-    select.replaceChildren(...options.map(([value, label]) => el("option", { value }, label)));
-  }
-  if (openApp && select.value !== openApp) select.value = openApp;
-  else if (logs.app === null) select.value = wanted;
-  return select.value;
+  const app = openApp || (state && state.org ? ":org" : "");
+  $("logs-whose").textContent = openApp ? openApp : app === ":org" ? "The org server" : "The admin page";
+  $("logs-whose").title = openApp ? openApp + "'s lead and service" : "Open an app for its logs";
+  return app;
 }
-$("logs-app").addEventListener("change", () => refreshLogs(true));
 $("logs-errors").addEventListener("click", () => {
   const on = $("logs-errors").getAttribute("aria-pressed") !== "true";
   $("logs-errors").setAttribute("aria-pressed", String(on));
@@ -836,15 +833,17 @@ function clearLogsDot() { logs.news = ""; renderLogsDot(); }
 
 async function refreshIncidents() {
   try {
-    const list = await api("/api/incidents");
+    const all = await api("/api/incidents");
+    const list = openApp ? all.filter((i) => i.app === openApp) : all;
     const box = $("incidents-list");
     box.replaceChildren();
-    if (!list.length) box.append(el("li", { class: "empty" }, "No incidents in the last month."));
+    if (!openApp && all.length) box.append(el("li", { class: "empty" }, "Every app's. Open an app for its own."));
+    if (!list.length) box.append(el("li", { class: "empty" }, (openApp ? openApp + " has had no incidents" : "No incidents") + " in the last month."));
     for (const incident of list) {
       const cls = incident.status === "closed" ? "done" : incident.status === "waiting" ? "blocked" : "bad";
       box.append(el("li", { class: "incident" },
         el("div", { class: "incident-head" }, el("span", { class: "dot " + cls, "aria-hidden": "true" }),
-          el("button", { class: "link-button", onclick: () => openView(incident.app) }, incident.app), el("span", { class: "muted small" }, incident.id + " · " + incident.status + " · " + ago(incident.opened))),
+          openApp ? null : el("button", { class: "link-button", onclick: () => openView(incident.app) }, incident.app), el("span", { class: "muted small" }, incident.id + " · " + incident.status + " · " + ago(incident.opened))),
         el("div", { class: "clamp3", title: incident.title }, incident.title),
         el("div", { class: "muted small clamp2", title: incident.last || "" }, incident.where + (incident.last ? " · " + incident.last : ""))));
     }
@@ -1055,7 +1054,7 @@ function orgServerBlock() {
   } else {
     block.append(el("p", { class: "warn small" }, "No service runs it. On the machine: ", el("code", {}, "hi org init"), " makes one."));
   }
-  block.append(el("button", { class: "small", onclick: () => { showView("logs"); $("logs-app").value = ":org"; refreshLogs(true); } }, "Its logs"));
+  block.append(el("button", { class: "small", onclick: async () => { if (middle) await openView(""); showView("logs"); } }, "Its logs"));
   return block;
 }
 
