@@ -33,6 +33,8 @@ type staleServer struct {
 	unit string // such as hi-org.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
 	team string // the team's name; "" for a hi server
+	// admin is the admin page (hi admin serve), a user service.
+	admin bool
 	// front is the served thing whose front this is (hi serve, on this
 	// machine): hi run in a container, from the host's binary.
 	front string
@@ -42,6 +44,9 @@ type staleServer struct {
 func (s staleServer) what() string {
 	if s.team != "" {
 		return "App " + s.team
+	}
+	if s.admin {
+		return "The admin page"
 	}
 	if s.front != "" {
 		return "The front of " + s.front
@@ -97,6 +102,8 @@ func staleServers(path string) []staleServer {
 		case len(args) >= 3 && (args[1] == "org" || args[1] == "server") && args[2] == "run":
 		case len(args) == 4 && (args[1] == "app" || args[1] == "team") && args[2] == "__serve":
 			server.team = args[3]
+		case len(args) == 3 && args[1] == "admin" && args[2] == "serve":
+			server.admin = true
 		default:
 			continue
 		}
@@ -156,6 +163,9 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 		if server.team != "" {
 			down = "Its lead restarts, which takes about half a minute; the app stays up, and moves to new boxes with the new hi in the next few minutes."
+		}
+		if server.admin {
+			down = "The page is down for a second; its jobs go on."
 		}
 		command := []string{"systemctl", "restart", server.unit}
 		switch {

@@ -47,6 +47,18 @@ var AppDevPageScript []byte
 //go:embed helper/dev/dev.css
 var AppDevPageStyle []byte
 
+// AdminPageHTML, AdminPageScript, and AdminPageStyle are the admin page
+// (hi admin), which loads the dev page's stylesheet too.
+//
+//go:embed helper/admin/page.html
+var AdminPageHTML []byte
+
+//go:embed helper/admin/admin.js
+var AdminPageScript []byte
+
+//go:embed helper/admin/admin.css
+var AdminPageStyle []byte
+
 // AppXtermScript, AppXtermStyle, and AppXtermFit are the dev page's terminal.
 //
 //go:embed third_party/xterm/xterm.js

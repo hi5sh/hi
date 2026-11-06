@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Admin page</title>
+<link rel="stylesheet" href="dev.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<main id="page">
+  <section id="signin" class="signin" hidden>
+    <div class="signin-card">
+      <h1 class="signin-title">Admin page</h1>
+      <p id="signin-ended" class="warn" hidden>That link has ended, or isn't one of this page's.</p>
+      <p>Sign in with your link. <code>hi admin start</code> printed the first one, and an admin of the machine makes one for each new admin.</p>
+      <form id="newlink-form" class="signin-form" autocomplete="off">
+        <label for="newlink-who">Your link ended? Your name, or your Slack member ID:</label>
+        <div class="signin-row">
+          <input id="newlink-who" required maxlength="60" placeholder="Olga, or U012AB3CD">
+          <button class="primary" type="submit">Send me a new link</button>
+        </div>
+        <p id="newlink-said" class="muted small"></p>
+      </form>
+      <p class="muted small">It comes by Slack DM, from the bot of an app on this machine. Without Slack, an admin makes one on the machine: <code>hi admin link &lt;your name&gt;</code>.</p>
+    </div>
+  </section>
+
+  <section id="work" class="code-page" hidden>
+    <div class="code-main">
+      <div class="code-bar">
+        <button id="left-toggle" class="icon side-toggle" aria-pressed="true" title="Apps and the machine" aria-label="The left panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
+        <button id="home-button" class="team home-button" title="Home: every app on the machine">hi on <span id="machine">…</span></button>
+        <span id="crumb" class="crumb" hidden><span class="muted" aria-hidden="true">▸</span> <strong id="crumb-app"></strong></span>
+        <div id="sections" class="chips" role="group" aria-label="The app's sections" hidden>
+          <button data-section="overview" aria-pressed="true">Overview</button>
+        </div>
+        <span class="grow"></span>
+        <span id="bar-note" class="muted small bar-note"></span>
+        <div id="open-box" class="menu-box" hidden>
+          <button id="open-button" aria-haspopup="menu" aria-expanded="false">Open ▾</button>
+          <div id="open-menu" class="menu" role="menu" hidden></div>
+        </div>
+        <button id="right-toggle" class="icon side-toggle" aria-pressed="true" title="Activity, jobs, logs, and incidents" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+      </div>
+      <div class="code-body">
+        <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
+          <div id="left-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+          <nav class="side-tabs" role="tablist" aria-label="Views">
+            <button data-side="apps" role="tab" aria-selected="false" title="Apps: every app on the machine, and its state" aria-label="Apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="apps-count" class="side-badge" hidden></span></button>
+            <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and its admins" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
+            <span class="grow"></span>
+            <button id="left-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
+          </nav>
+          <section id="side-apps" class="side-view" role="tabpanel" aria-label="Apps" hidden>
+            <div class="logs-tools">
+              <input id="apps-search" type="search" placeholder="Find an app" aria-label="Find an app" autocomplete="off">
+            </div>
+            <ul id="apps-list" class="stask-list app-list"></ul>
+          </section>
+          <section id="side-machine" class="side-view page-view" role="tabpanel" aria-label="Machine" hidden>
+            <h2>hi</h2>
+            <div id="machine-version" class="machine-block"></div>
+            <h2>The admin page</h2>
+            <div id="machine-reach" class="machine-block"></div>
+            <form id="netbird-form" class="machine-block stack" autocomplete="off" hidden>
+              <label for="netbird-key">Its NetBird peer's setup key, once: in NetBird's dashboard, Setup Keys. It is kept until the peer has joined, and never shown again.</label>
+              <div class="signin-row">
+                <input id="netbird-key" type="password" required placeholder="Setup key" autocomplete="off">
+                <button class="primary" type="submit">Join</button>
+              </div>
+            </form>
+            <h2 class="with-action">Admins <span class="grow"></span><button id="admin-add-open" class="side-icon" title="Add an admin" aria-label="Add an admin">+</button></h2>
+            <form id="admin-add" class="machine-block stack" autocomplete="off" hidden>
+              <input id="admin-add-name" required maxlength="60" placeholder="Their name" aria-label="Their name">
+              <input id="admin-add-slack" maxlength="20" placeholder="Their Slack member ID (optional)" aria-label="Their Slack member ID">
+              <label class="check"><input id="admin-add-send" type="checkbox"> Send their link by Slack DM, not shown here</label>
+              <div class="buttons"><button type="button" id="admin-add-cancel">Cancel</button><button class="primary" type="submit">Add</button></div>
+            </form>
+            <ul id="admins-list" class="list admins-list"></ul>
+            <p class="muted small">An admin can do on this page what anyone logged in to the machine as <span id="machine-user"></span> can, except what needs <code>sudo</code>.</p>
+            <div class="machine-block"><button id="signout" class="small">Sign out here</button></div>
+          </section>
+        </aside>
+
+        <div class="code-views">
+          <div id="middle" class="admin-area">
+            <section id="home" class="admin-section" aria-label="Home">
+              <div class="admin-head">
+                <h1 class="admin-title">Apps on <span id="home-machine"></span></h1>
+                <span id="home-summary" class="muted"></span>
+              </div>
+              <div id="home-cards" class="app-cards"></div>
+            </section>
+            <section id="overview" class="admin-section" aria-label="Overview" hidden></section>
+          </div>
+        </div>
+
+        <aside id="right-side" class="side side-right" aria-label="The right panel" hidden>
+          <div id="right-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>
+          <nav class="side-tabs" role="tablist" aria-label="Views">
+            <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins did here, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
+            <button data-side="jobs" role="tab" aria-selected="false" title="Jobs: the long actions, running and done, with their output" aria-label="Jobs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="jobs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: an app's lead and service, or the admin page's, as they come" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="incidents" role="tab" aria-selected="false" title="Incidents: every app's, the open ones first" aria-label="Incidents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span id="incidents-count" class="side-badge" hidden></span></button>
+            <span class="grow"></span>
+            <button id="right-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
+          </nav>
+          <section id="side-activity" class="side-view" role="tabpanel" aria-label="Activity" hidden>
+            <ul id="activity-list" class="feed"></ul>
+          </section>
+          <section id="side-jobs" class="side-view" role="tabpanel" aria-label="Jobs" hidden>
+            <ul id="jobs-list" class="stask-list"></ul>
+            <div id="job-one" class="job-one" hidden>
+              <div class="logs-tools">
+                <button id="job-back" class="side-icon" title="All the jobs" aria-label="All the jobs">←</button>
+                <strong id="job-title" class="stask-id"></strong>
+                <span class="grow"></span>
+                <span id="job-state" class="muted small"></span>
+              </div>
+              <pre id="job-output" class="job-output" tabindex="0"></pre>
+            </div>
+          </section>
+          <section id="side-logs" class="side-view logs-view" role="tabpanel" aria-label="Logs" hidden>
+            <div class="logs-tools">
+              <select id="logs-app" aria-label="Whose logs"></select>
+              <span class="grow"></span>
+              <button id="logs-errors" class="side-icon" aria-pressed="false" title="Errors only" aria-label="Errors only">!</button>
+            </div>
+            <p id="logs-note" class="muted small logs-note"></p>
+            <div id="logs-lines" class="logs-lines log-text" tabindex="0"></div>
+          </section>
+          <section id="side-incidents" class="side-view" role="tabpanel" aria-label="Incidents" hidden>
+            <ul id="incidents-list" class="feed"></ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="ask">
+  <form id="ask-form" method="dialog">
+    <h2 id="ask-title"></h2>
+    <p id="ask-text"></p>
+    <textarea id="ask-why" rows="2" maxlength="500" hidden></textarea>
+    <p id="ask-error" class="error small"></p>
+    <div class="buttons">
+      <button type="button" id="ask-cancel">Cancel</button>
+      <button class="primary" type="submit" id="ask-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="link-dialog">
+  <h2 id="link-title">The link</h2>
+  <p id="link-text" class="muted"></p>
+  <div class="signin-row"><input id="link-value" readonly aria-label="The link"><button id="link-copy" class="primary">Copy</button></div>
+  <p class="muted small">Whoever opens it can do what an admin of the machine does. Give it only to them.</p>
+  <div class="buttons"><button id="link-close">Done</button></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="admin.js"></script>
+</body>
+</html>

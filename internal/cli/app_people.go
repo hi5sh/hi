@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -181,6 +182,45 @@ func (b *appBroker) webLink(user string, dev bool) (string, error) {
 		return fmt.Sprintf("I've sent you your private link to the %s app's dev page in a DM, %s, with the app's. They work for %d days.", appBotName(b.team), key.Name, int(appKeyLasts.Hours()/24)), nil
 	}
 	return fmt.Sprintf("I've sent you your private links to the %s app in a DM, %s. They work for %d days.", appBotName(b.team), key.Name, int(appKeyLasts.Hours()/24)), nil
+}
+
+// devPageLinkFor is a new link to the dev page for an owner or developer,
+// for the admin page to open: a key of their own, beside the ones /hi sent
+// them, which keep working. Someone who doesn't build gets none.
+func (b *appBroker) devPageLinkFor(user string) (string, error) {
+	if !slackIDPattern.MatchString(user) {
+		return "", fmt.Errorf("%q isn't a Slack member ID", user)
+	}
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return "", err
+	}
+	if !appBuilds(config, user) {
+		return "", fmt.Errorf("the dev page is for the %s app's owners and developers", appBotName(b.team))
+	}
+	page, ok := loadTeamDevPage(b.team)
+	if !ok || page.URL == "" {
+		return "", errors.New("the dev page has no address yet; it has one a minute after the app starts")
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	now := time.Now().UTC()
+	name := user
+	if b.channel != nil {
+		name = firstNonEmpty(b.channel.userName(user), user)
+	}
+	key := appPersonKey{Key: base64.RawURLEncoding.EncodeToString(raw), User: user, Name: name, Made: now, Ends: now.Add(appKeyLasts)}
+	b.peopleMu.Lock()
+	defer b.peopleMu.Unlock()
+	people := loadTeamPeople(b.team)
+	people.Keys = slices.DeleteFunc(people.Keys, func(old appPersonKey) bool { return now.After(old.Ends.Add(30 * 24 * time.Hour)) })
+	people.Keys = append(people.Keys, key)
+	if err := saveTeamPeople(b.team, people); err != nil {
+		return "", err
+	}
+	return appDevPageLink(page, key.Key), nil
 }
 
 // appLinkText is the DM with a person's links: preview's and production's,

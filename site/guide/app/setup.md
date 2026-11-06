@@ -144,6 +144,9 @@ hi app rename payments billing   # give it another name
 restarts the app if it stops. For it to run while you're logged out and
 start at boot, run `sudo loginctl enable-linger $USER` once.
 
+[The admin page](/guide/app/admin/) does the same from a browser, for
+every app on the machine: `hi admin start` prints its link.
+
 An app made before hi v2.6.67 keeps running after `hi update`, under its
 old names. Its next `hi app up <name>` moves it to the new ones: the
 service, the boxes, the folder (`app-<name>`), and `app.json`. Stage's,

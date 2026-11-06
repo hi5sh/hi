@@ -96,7 +96,11 @@ func (b *appBroker) say(request appSayRequest) (appSaid, error) {
 	if err != nil {
 		return appSaid{}, err
 	}
-	said := appSaid{Who: firstNonEmpty(strings.TrimSpace(request.Who), "someone") + " on the machine", Text: text, At: time.Now().UTC()}
+	who := firstNonEmpty(strings.TrimSpace(request.Who), "someone")
+	if !strings.HasSuffix(who, " on the admin page") {
+		who += " on the machine"
+	}
+	said := appSaid{Who: who, Text: text, At: time.Now().UTC()}
 	quoted := "> " + strings.ReplaceAll(appSlackEscape(text), "\n", "\n> ")
 	if said.TS, err = b.channel.post(config.Channel, fmt.Sprintf(":desktop_computer: *%s* to the lead, with hi app say:\n%s", appSlackEscape(said.Who), quoted)); err != nil {
 		return appSaid{}, err
@@ -185,7 +189,11 @@ func appSayCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	var said appSaid
-	asked, err := appHostCall(team, "/say", appSayRequest{Text: text, Who: currentUserName(), Wait: wait}, &said)
+	who := currentUserName()
+	if by := strings.TrimSpace(os.Getenv(adminByEnv)); by != "" {
+		who = by + " on the admin page"
+	}
+	asked, err := appHostCall(team, "/say", appSayRequest{Text: text, Who: who, Wait: wait}, &said)
 	if !asked {
 		return fmt.Errorf("app %s isn't up, or runs a hi from before hi app say; hi app up %s, then try again", team, team)
 	}

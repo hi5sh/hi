@@ -231,7 +231,7 @@ func appStopCommand(action string, args []string, stdout io.Writer) error {
 	if (action == "freeze" || action == "pause") && strings.TrimSpace(because) == "" {
 		return fmt.Errorf("say why, for the ops channel: hi app %s %s --why \"<why>\"", action, name)
 	}
-	want := appWatchWant{Action: action, By: firstNonEmpty(os.Getenv("USER"), "an admin") + " on the machine", Because: because, At: time.Now().UTC()}
+	want := appWatchWant{Action: action, By: appActor(), Because: because, At: time.Now().UTC()}
 	data, _ := json.Marshal(want)
 	if err := os.MkdirAll(filepath.Dir(appWatchWantPath(name)), 0o700); err != nil {
 		return err

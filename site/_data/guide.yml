@@ -17,6 +17,8 @@
       url: /guide/app/setup/
     - title: Start from someone else's project
       url: /guide/app/adopt/
+    - title: The admin page
+      url: /guide/app/admin/
     - title: How the app works
       url: /guide/app/how-it-works/
     - title: Build in the dev box

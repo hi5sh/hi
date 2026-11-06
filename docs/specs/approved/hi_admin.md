@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Draft (2026-11-06). Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 ships as v2.6.77. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -8,20 +8,20 @@ view replaces them; every org has an owner, set at `hi org init`, whose
 admins are the org VM's admin page's admins; the org server becomes a user
 service, so no root rule is needed to restart it.
 
-Dependencies: [hi_app.md](../approved/hi_app.md) (apps, their services,
-the setup), [hi_app_adopt.md](../approved/hi_app_adopt.md),
-[hi_app_internal.md](../approved/hi_app_internal.md) (an app's NetBird
-peer and its relay), [hi_app_addresses.md](../approved/hi_app_addresses.md)
+Dependencies: [hi_app.md](hi_app.md) (apps, their services,
+the setup), [hi_app_adopt.md](hi_app_adopt.md),
+[hi_app_internal.md](hi_app_internal.md) (an app's NetBird
+peer and its relay), [hi_app_addresses.md](hi_app_addresses.md)
 (names the IT team picks),
-[hi_app_dev_access.md](../approved/hi_app_dev_access.md) (owners and
-developers, people's links), [hi_app_dev.md](../approved/hi_app_dev.md)
+[hi_app_dev_access.md](hi_app_dev_access.md) (owners and
+developers, people's links), [hi_app_dev.md](hi_app_dev.md)
 (the dev page, whose design this takes),
-[hi_app_sso.md](../approved/hi_app_sso.md),
-[hi_app_snapshots.md](../approved/hi_app_snapshots.md),
-[hi_org.md](../approved/hi_org.md) and [hi_server.md](../approved/hi_server.md)
+[hi_app_sso.md](hi_app_sso.md),
+[hi_app_snapshots.md](hi_app_snapshots.md),
+[hi_org.md](hi_org.md) and [hi_server.md](hi_server.md)
 (the org server and its admin socket),
-[hi_update.md](../approved/hi_update.md), and later
-[hi_app_sso_hi5.md](hi_app_sso_hi5.md).
+[hi_update.md](hi_update.md), and later
+[hi_app_sso_hi5.md](../ideas/hi_app_sso_hi5.md).
 
 ## Goal
 
@@ -395,6 +395,15 @@ hi admin address [<host> [--https] | default]
    links and **Send me a new link**; Home, Apps, Overview's actions,
    Open ▾ with the dev page; Activity, Jobs, Logs, Incidents; Machine's
    version and **Update**.
+   As built: until the peer has joined (or without a setup key), the page
+   is on the machine's own NetBird address, so it works at once on a
+   machine that is on NetBird; and every way, it is also on the
+   machine's 127.0.0.1:1984, for an SSH tunnel. `hi admin start` takes
+   `--name` and `--slack` for the first admin without a terminal. A
+   link keeps working for 14 days on more than one device; each sign-in
+   it makes lasts 14 days from its last use; `hi admin link` ends the
+   old links, not the sign-ins. The dev page's notes linking back to the
+   admin page come with release 4, beside each app's settings.
 2. **The org server:** Requests, Running, Spend, the org's people,
    keys, policy, templates, data, and models, its audit in Activity; the
    org's owner and admins; wall links. `hi org live`, `hi org viewer`, and

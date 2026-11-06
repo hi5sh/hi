@@ -1,0 +1,101 @@
+/* The admin page: the dev page's stylesheet (dev.css) is loaded first,
+   so its colours, bar, panels, chips, dialogs, and toasts are the same;
+   this is only what the admin page has that the dev page hasn't. */
+
+.dot.bad { background: var(--bad); border-color: var(--bad); }
+.block { display: block; }
+code { font: 12px var(--mono); color: var(--code); overflow-wrap: anywhere; }
+
+/* Signing in. */
+.signin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+.signin[hidden] { display: none; }
+.signin-card { width: min(520px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 22px 24px 18px; }
+.signin-title { font-size: 20px; color: var(--bright); margin: 0 0 12px; font-weight: 600; }
+.signin-form { display: flex; flex-direction: column; gap: 6px; margin: 16px 0 10px; }
+.signin-row { display: flex; gap: 6px; }
+.signin-row input { flex: 1; }
+
+/* The bar: the machine's name goes Home; the open app after it. */
+button.home-button { border: 0; background: none; padding: 4px 6px; border-radius: var(--r-sm); font-weight: 600; max-width: 220px; }
+button.home-button:hover { background: var(--hover); }
+.crumb { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.crumb strong { color: var(--bright); }
+.bar-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* The middle: a card, as the dev page's chat is. */
+.admin-area { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.admin-section { max-width: 980px; margin: 0 auto; padding: 18px 24px 40px; }
+.admin-section[hidden] { display: none; }
+.admin-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+.admin-title { font-size: 20px; font-weight: 600; color: var(--bright); margin: 0; overflow-wrap: anywhere; }
+.purpose { margin: 4px 0 8px; font-size: 14px; }
+.note { margin: 8px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--hover); }
+.lines p { margin: 2px 0; }
+
+/* Home: every app as a card. */
+.app-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 14px; }
+.card-box { display: flex; flex-direction: column; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.card-box:hover { border-color: var(--focus); }
+button.app-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px 14px 10px; border: 0; border-radius: 0; background: none; color: var(--text); flex: 1; }
+button.app-card:hover { background: none; }
+.app-card.empty-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; grid-column: 1 / -1; }
+.app-card.empty-card p { margin: 0 0 6px; }
+.card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.card-head .dot { margin-top: 0; }
+.card-name { font-size: 15px; color: var(--bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-purpose { margin: 0; color: var(--text); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.card-box .card-links { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 14px 10px; font-size: 12px; }
+.card-box .app-card p { margin: 0; }
+
+/* An app's Overview. */
+.where-list li { align-items: center; }
+.where-list .what .muted { overflow-wrap: anywhere; }
+a.button-like { display: inline-flex; align-items: center; border: 1px solid var(--input-line); background: var(--secondary); color: var(--text); border-radius: var(--r-sm); padding: 2px 9px; font-size: 12px; white-space: nowrap; }
+a.button-like:hover { background: var(--secondary-hover); text-decoration: none; }
+.say-form { display: flex; gap: 6px; align-items: flex-end; margin: 10px 0 4px; }
+.say-form textarea { flex: 1; resize: vertical; min-height: 34px; }
+.admin-section .facts { margin-top: 4px; }
+.admin-section .facts dt { text-transform: capitalize; }
+
+/* The panels' lists. */
+#apps-search { flex: 1; min-width: 0; }
+.clamp2, .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp2 { -webkit-line-clamp: 2; line-clamp: 2; }
+.clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
+.app-list li.current { background: var(--selected); }
+.app-list .count { flex: none; background: var(--bad); }
+.feed { list-style: none; margin: 0; padding: 4px 0 16px; overflow-y: auto; flex: 1; min-height: 0; }
+.feed li { padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.feed li.empty { color: var(--muted); font-size: 12px; border: 0; }
+.incident { display: flex; flex-direction: column; gap: 2px; }
+.incident-head { display: flex; align-items: center; gap: 6px; }
+.incident-head .dot { margin-top: 0; }
+button.link-button { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; }
+button.link-button:hover { text-decoration: underline; background: none; }
+#jobs-list { flex: 1; min-height: 0; overflow-y: auto; }
+#jobs-list[hidden] { display: none; }
+.job-one { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.job-one[hidden] { display: none; }
+.job-output { flex: 1; min-height: 0; margin: 0; padding: 6px 12px 24px; overflow: auto; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
+
+/* Machine. */
+.machine-block { margin: 0 0 10px; }
+.machine-block p { margin: 4px 0; overflow-wrap: anywhere; }
+.machine-block > button { margin: 4px 0; }
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.stack .buttons { display: flex; justify-content: flex-end; gap: 6px; }
+.admins-list li { flex-wrap: wrap; }
+.admins-list li.plain { display: block; border-bottom: 0; }
+.slack-form label { font-size: 12px; color: var(--muted); }
+.copyable { user-select: all; }
+
+@media (max-width: 760px) {
+  /* The dev page hides its bar's title on a phone; here it is the way Home. */
+  .code-bar button.home-button { display: inline-block; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .code-bar #sections { display: none; }
+  .code-bar { flex-wrap: nowrap; }
+  .admin-section { padding: 12px 14px 32px; }
+  .bar-note { display: none; }
+  .say-form { flex-direction: column; align-items: stretch; }
+  .crumb { max-width: 40vw; overflow: hidden; }
+}

@@ -696,6 +696,20 @@ func (b *appBroker) hostHandler() http.Handler {
 		result, err := b.copyData(request)
 		reply(w, result, err)
 	})
+	// The admin page opens the dev page for an admin as they are in the
+	// app (hi_admin.md): a link of their own, not sent in a DM.
+	mux.HandleFunc("POST /devlink", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			User string `json:"user"`
+			By   string `json:"by"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		link, err := b.devPageLinkFor(request.User)
+		reply(w, map[string]string{"link": link}, err)
+	})
 	mux.HandleFunc("POST /say", func(w http.ResponseWriter, r *http.Request) {
 		var request appSayRequest
 		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&request); err != nil {
