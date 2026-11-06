@@ -57,6 +57,8 @@ type adminServer struct {
 	lingerAt time.Time
 	// sampler is what the machine and its apps use (admin_usage.go).
 	sampler adminSampler
+	// names are people's names from Slack, for a while (admin_settings.go).
+	names adminNameCache
 }
 
 // lingering says whether the account's services run without a login,
@@ -444,6 +446,7 @@ func (s *adminServer) routes() http.Handler {
 	}))
 	s.orgRoutes(mux, reply, decode, signedIn)
 	s.newRoutes(mux, reply, decode, signedIn)
+	s.settingsRoutes(mux, reply, decode, signedIn)
 	return adminHeaders(mux)
 }
 

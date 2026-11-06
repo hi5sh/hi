@@ -36,6 +36,10 @@
         <span id="crumb" class="crumb" hidden><span class="muted" aria-hidden="true">▸</span> <strong id="crumb-app"></strong></span>
         <div id="sections" class="chips" role="group" aria-label="The app's sections" hidden>
           <button data-section="overview" aria-pressed="true">Overview</button>
+          <button data-section="people" aria-pressed="false">People</button>
+          <button data-section="agents" aria-pressed="false">Agents</button>
+          <button data-section="slack" aria-pressed="false">Slack</button>
+          <button data-section="settings" aria-pressed="false">Settings</button>
         </div>
         <span class="grow"></span>
         <span id="bar-note" class="muted small bar-note"></span>
@@ -51,8 +55,8 @@
           <nav class="side-tabs" role="tablist" aria-label="Views">
             <button data-side="apps" role="tab" aria-selected="false" title="Apps: every app on the machine, and its state" aria-label="Apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span id="apps-count" class="side-badge" hidden></span></button>
             <button data-side="org" role="tab" aria-selected="false" title="Org: the org server, its owner, policy, templates, data, models, and wall screens" aria-label="Org" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg><span id="org-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="people" role="tab" aria-selected="false" title="People: the org's users, their groups and devices" aria-label="People" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
-            <button data-side="keys" role="tab" aria-selected="false" title="Keys: the org's provider keys and its OpenRouter key, set or not" aria-label="Keys" data-org hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
+            <button data-side="people" role="tab" aria-selected="false" title="People: everyone with a level in the apps, and the org's users" aria-label="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
+            <button data-side="keys" role="tab" aria-selected="false" title="Keys: the machine's keys and sign-ins, which apps have their own, and the org's" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
             <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and its admins" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
             <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins did here, and hi's own, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
             <span class="grow"></span>
@@ -73,6 +77,8 @@
               <input id="people-search" type="search" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
               <button id="user-add-open" class="side-icon" title="Add a user" aria-label="Add a user">+</button>
             </div>
+            <div id="people-apps"></div>
+            <h2 id="people-org" class="pad" hidden>The org's users</h2>
             <form id="user-add" class="machine-block stack pad" autocomplete="off" hidden>
               <input id="user-add-name" required maxlength="32" pattern="[a-z0-9._\-]+" placeholder="Their hi user name, such as olga" aria-label="Their hi user name">
               <input id="user-add-group" required maxlength="32" list="org-groups" placeholder="Their group, such as staff" aria-label="Their group">

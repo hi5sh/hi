@@ -2713,6 +2713,22 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.83 — Each app's settings on the admin page
+
+Spec: [hi_admin.md](specs/approved/hi_admin.md), release 4.
+
+- [x] An app's People, Agents, Slack, and Settings, in the bar after
+  Overview: levels and SSH keys; each role's model, who pays, fallback,
+  and effort, the app's own keys and sign-ins or the machine's, Stage's
+  daily limit, the boxes' memory; the ops channel, the tokens, the
+  manifest; settings by name, the helper, the watcher's freeze, the
+  heartbeat, GitHub or GitLab, upstream. Each runs its hi app command,
+  secrets on stdin, and is said in the app's ops channel.
+- [x] People across apps, a column per app, and someone in several apps
+  at once; Keys, the machine's and which apps use their own.
+- [x] The dev page's notes that send people to an admin link to the
+  admin page for its admins.
+
 ### v2.6.82 — An app's project on GitLab
 
 - [x] `hi app gitlab <name> <group/project | host/group/project>`: a new
@@ -4472,14 +4488,11 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
-### Next — the admin page, releases 4 and 5
+### Next — the admin page, release 5
 
-Spec: [hi_admin.md](specs/approved/hi_admin.md). Releases 1 to 3 shipped
-in v2.6.77, v2.6.78, and v2.6.81.
+Spec: [hi_admin.md](specs/approved/hi_admin.md). Releases 1 to 4 shipped
+in v2.6.77, v2.6.78, v2.6.81, and v2.6.83.
 
-- [ ] Release 4: each app's settings: People, Agents, Slack, Settings;
-  Keys; People across apps; the dev page's notes linking to the admin
-  page for admins.
 - [ ] Release 5: each app's Network and Data sections, the machine's
   Network view, What to ask your IT team, Advisories.
 

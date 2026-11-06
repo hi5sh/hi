@@ -154,7 +154,7 @@
                       <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
                     </table>
                   </div>
-                  <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>). The channel hears every change made here.</p>
+                  <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>).<span id="admin-owners" hidden> <a target="_blank" rel="noopener noreferrer">You're one: change them on the admin page ↗</a></span> The channel hears every change made here.</p>
                   <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (in Data).</p>
                 </section>
                 <section id="sshkey-box" class="pro-only">
@@ -190,7 +190,7 @@
                 </form>
                 <div class="owners-only">
                 <h2>The app's keys and sign-ins</h2>
-                <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.</p>
+                <p class="muted small">What the app's models and Slack run on. They stay on the machine, where hi puts them on the calls: no agent and no app ever sees them. An admin of the machine changes them.<span id="admin-keys" hidden> <a target="_blank" rel="noopener noreferrer">You're one: on the admin page ↗</a></span></p>
                 <ul id="team-keys" class="list"></ul>
                 </div>
               </div>
@@ -374,7 +374,7 @@
                 <h2>Snapshots</h2>
                 <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every release, and before data is copied to production.</p>
                 <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
-                <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.</p>
+                <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.<span id="admin-restore" hidden> <a target="_blank" rel="noopener noreferrer">You're an admin: the admin page ↗</a></span></p>
               </div>
               <div class="system-col">
                 <h2>Stage's data</h2>

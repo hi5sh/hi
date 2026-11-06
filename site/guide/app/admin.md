@@ -103,6 +103,45 @@ aren't apps here (one removed with its folder kept, or moved, or copied
 from another machine), or takes a folder's path, and starts it:
 `hi app up <folder>`.
 
+## Each app's settings
+
+An app open in the middle has its sections in the bar, after Overview.
+Each change runs the `hi app` command it stands for, under your name,
+and the app's ops channel hears it: "Olga made Sam a Pro Dev, from the
+admin page." A secret is sent once and never shown again: the page says
+only whether one is set, and whose.
+
+- **People:** the owners, Pro Devs, Vibe Devs, and contributors, each one's
+  level as a list to change, and their SSH keys for the dev box; **Add**
+  someone by their Slack member ID. `hi app owners`, `hi app access`.
+- **Agents:** each role's model, who pays for it, its fallback on
+  OpenRouter, and its effort (the app restarts); the app's own OpenRouter
+  key or the machine's; its ChatGPT sign-in (the code to type shows in
+  Jobs) and its Claude token, or the machine's; what Stage's model calls
+  may cost a day; the boxes' memory. `hi app member`, `key`, `signin`,
+  `limit`.
+- **Slack:** the bot, the channel, the ops channel, the tokens again when
+  Slack gave new ones, the manifest to paste into the Slack app after an
+  update or a rename, and **Rename…**. `hi app ops`, `key slack`,
+  `manifest`, `rename`.
+- **Settings:** the settings the app's boxes get, by name only, to add,
+  give a new value, or remove, for Stage and production, production's
+  own, Stage's own, or the dev box's; the helper on Stage and production;
+  the watcher's automatic freeze; the heartbeat; GitHub or GitLab, and an
+  adopted project's upstream; and **Remove…**. `hi app env`, `helper`,
+  `watch`, `heartbeat`, `github`, `gitlab`, `upstream`, `rm`.
+
+On the left, **People** has everyone with a level in any app, a column
+per app: change a level where it stands, or give someone the same level
+in several apps at once, each the app's own change, said in its channel.
+On the org server's machine the org's users are there too. **Keys** has
+the machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's,
+and Codex's), and which apps use their own.
+
+On an app's dev page, the notes that send people to an admin of the
+machine (owners, the app's keys, restoring a snapshot) link to the admin
+page, at the app's section, for someone who is one of its admins.
+
 In an app's Overview, **Rename…** and **Remove…** each need the app's
 name typed. Remove keeps the app's folder unless you say otherwise, so
 it can come back.
@@ -241,5 +280,5 @@ hi admin admins [add <name> [--slack <member ID>] | remove <name>]
 hi admin address [<host> [--https] | default]
 ```
 
-Coming next: each app's settings on the page: its people, agents, Slack,
-and settings, and the machine's keys.
+Coming next: each app's Network and Data on the page, the machine's
+Network, what to ask your IT team, and Advisories.

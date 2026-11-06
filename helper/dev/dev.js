@@ -775,13 +775,25 @@
     });
     if (fresh) $("chat-log").scrollTop = $("chat-log").scrollHeight;
   }
+  // For an admin of the machine, the notes that send people to an admin
+  // link to the admin page, at the app's section.
+  function renderAdminLinks() {
+    [["admin-owners", "people"], ["admin-keys", "agents"], ["admin-restore", ""]].forEach(function (pair) {
+      var box = $(pair[0]);
+      if (!box) return;
+      box.hidden = !state.admin;
+      if (state.admin) box.querySelector("a").href = state.admin + "#" + encodeURIComponent(state.team) + (pair[1] ? "/" + pair[1] : "");
+    });
+  }
   function renderKeys() {
+    renderAdminLinks();
     var list = $("team-keys");
     list.textContent = "";
     (state.keys || []).forEach(function (key) {
       list.appendChild(el("li", {}, [
         el("div", { class: "what" }, [document.createTextNode(key.name + ": "), el("strong", { text: key.state }),
-          el("div", { class: "muted small" }, [document.createTextNode("To change it, an admin runs "), el("code", { text: key.command }), document.createTextNode(" on the machine.")])]),
+          el("div", { class: "muted small" }, [document.createTextNode("To change it, an admin runs "), el("code", { text: key.command }), document.createTextNode(" on the machine."),
+            state.admin ? el("a", { href: state.admin + "#" + encodeURIComponent(state.team) + "/agents", target: "_blank", rel: "noopener noreferrer", text: " Or on the admin page ↗" }) : document.createTextNode("")])]),
       ]));
     });
   }

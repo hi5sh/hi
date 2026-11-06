@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -452,6 +452,19 @@ hi admin address [<host> [--https] | default]
    app's manifest has had.
 4. **Each app's settings:** People, Agents, Slack, Settings; Keys;
    People across apps.
+   As built: each change runs the `hi app` command as the admin
+   (`HI_ADMIN_BY`), its secret on stdin, never in its arguments, and the
+   page says it in the app's ops channel and Activity; signing in to
+   ChatGPT, GitHub, GitLab, and fetching upstream are jobs (the ChatGPT
+   code shows in Jobs). An agent's kind isn't changed here, as the
+   command doesn't; the main channel isn't either. File settings are
+   listed, and set on the machine (`--file`). Advisories to ignore come
+   with Advisories, in release 5. The Slack app's manifest is to copy into
+   Slack (Slack has no link that updates an app). The machine's own keys
+   are shown, set or not, with the command that sets each; the apps' own
+   are in their Agents. The dev page gets the admin page's address for a
+   person whose Slack member ID is one of its admins', and links its
+   notes there.
 5. **Network and data:** each app's Network and Data sections, the
    machine's Network view, What to ask your IT team, Advisories.
 

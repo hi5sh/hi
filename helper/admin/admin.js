@@ -204,8 +204,10 @@ function freshView(view) {
   if (view === "machine") renderMachine(true);
   if (view === "requests" || view === "running") refreshOrg();
   if (view === "spend") refreshSpend();
-  if (view === "org" || view === "people" || view === "keys") {
-    if (orgSettings) { if (view === "org") renderOrg(); if (view === "people") renderPeople(); if (view === "keys") renderKeys(); }
+  if (view === "people") { renderPeople(); refreshPeopleApps(); }
+  if (view === "keys") { renderKeys(); refreshMachineKeys(); }
+  if ((view === "org" || view === "people" || view === "keys") && state && state.org) {
+    if (orgSettings && view === "org") renderOrg();
     refreshOrgSettings();
   }
 }
@@ -214,7 +216,7 @@ function freshView(view) {
 // not on an org server's machine without apps.
 function hasView(view) {
   if (!state) return true;
-  if (["org", "people", "keys", "requests", "running", "spend"].includes(view)) return !!state.org;
+  if (["org", "requests", "running", "spend"].includes(view)) return !!state.org;
   if (view === "incidents") return !state.org || state.apps.length > 0;
   return true;
 }
@@ -410,13 +412,19 @@ function setMiddle(what) {
   if (!what) renderHome();
 }
 
-async function openView(name) {
+async function openView(name, section) {
+  if (name !== openApp || section) {
+    appSection = section || "overview";
+    settings = null;
+    for (const chip of document.querySelectorAll("#sections [data-section]")) chip.setAttribute("aria-pressed", String(chip.dataset.section === appSection));
+  }
   setMiddle(name);
   if (name) {
     $("overview").replaceChildren(el("p", { class: "muted" }, "…"));
     if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
   }
-  if (name) await refreshDetail();
+  if (name && appSection !== "overview") showSection(appSection);
+  else if (name) await refreshDetail();
   if (viewShown("logs")) refreshLogs(true);
   if (viewShown("incidents")) refreshIncidents();
   if (viewShown("jobs")) { if (jobOpen) { jobOpen = ""; $("job-one").hidden = true; $("jobs-list").hidden = false; } refreshJobs(); }
@@ -431,7 +439,7 @@ async function refreshDetail() {
     if (openApp !== name) return;
     const same = detail && JSON.stringify(detail) === JSON.stringify(fresh);
     detail = fresh;
-    if (!same) renderOverview();
+    if (!same && appSection === "overview") renderOverview();
   } catch (e) {
     if (e instanceof SignIn) return;
     if (openApp === name) $("overview").replaceChildren(el("p", { class: "error" }, e.message));
@@ -1281,7 +1289,11 @@ function groupLine(g) {
 
 // People: the org's users, their groups and devices.
 function renderPeople() {
+  $("people-apps").replaceChildren(peopleAppsBlock());
+  $("people-org").hidden = !state.org;
+  $("user-add-open").hidden = !state.org;
   const box = $("people-list");
+  if (!state.org) { box.replaceChildren(); return; }
   const users = (orgSettings && orgSettings.users) || [];
   const query = $("people-search").value.trim().toLowerCase();
   box.replaceChildren();
@@ -1312,8 +1324,8 @@ $("user-add").addEventListener("submit", async (event) => {
 function renderKeys() {
   const box = $("keys-view");
   const s = orgSettings;
-  if (!s) return;
-  const parts = [el("h2", {}, "Compute providers"), el("p", { class: "muted small" }, "The org server starts machines with these. Each key is checked with its provider before it's kept, and never shown again.")];
+  if (!state.org || !s) { box.replaceChildren(machineKeysBlock()); return; }
+  const parts = [machineKeysBlock(), el("h2", {}, "The org's compute providers"), el("p", { class: "muted small" }, "The org server starts machines with these. Each key is checked with its provider before it's kept, and never shown again.")];
   const list = el("ul", { class: "list" });
   for (const p of s.providers || []) {
     const form = inlineForm([{ name: "key", type: "password", placeholder: p.name + "'s API key", required: true }], (v) => orgDo({ what: "provider", action: "set", name: p.name, key: v.key }, p.name + "'s key is kept."), "Check and keep");
@@ -1325,7 +1337,7 @@ function renderKeys() {
   parts.push(list);
 
   const ai = s.ai || {};
-  parts.push(el("h2", {}, "Models for hi q"), el("p", { class: "muted small" }, "hi q on the org's devices asks models through the org server, with the org's key."));
+  parts.push(el("h2", {}, "The org's models for hi q"), el("p", { class: "muted small" }, "hi q on the org's devices asks models through the org server, with the org's key."));
   const aiBlock = el("div", { class: "machine-block" });
   aiBlock.append(el("p", {}, ai.has_key ? (ai.on ? "On" : "Off") : "No key yet", ai.model ? el("span", { class: "muted small" }, " · " + ai.model + (ai.url ? " at " + shown(ai.url).replace(/^https?:\/\//, "") : "")) : null));
   if (ai.usage) aiBlock.append(el("p", { class: "muted small" }, "This month: " + ai.usage));
@@ -2020,6 +2032,298 @@ async function removeApp(app) {
 }
 
 // ---------------------------------------------------------------------------
+// An app's sections: People, Agents, Slack, and Settings. What's shown is
+// read from the machine, never a secret's value; each change runs the hi
+// app command, and the app's ops channel hears it.
+
+let appSection = "overview";
+let settings = null; // /api/app/settings for the open app
+
+for (const chip of document.querySelectorAll("#sections [data-section]")) {
+  chip.addEventListener("click", () => showSection(chip.dataset.section));
+}
+
+function showSection(section) {
+  appSection = section;
+  for (const chip of document.querySelectorAll("#sections [data-section]")) chip.setAttribute("aria-pressed", String(chip.dataset.section === section));
+  if (openApp) history.replaceState(null, "", "#" + encodeURIComponent(openApp) + (section === "overview" ? "" : "/" + section));
+  if (section === "overview") { if (detail) renderOverview(); else refreshDetail(); return; }
+  if (settings && settings.name === openApp) renderSection(); else $("overview").replaceChildren(el("p", { class: "muted" }, "…"));
+  refreshSettings();
+}
+
+async function refreshSettings() {
+  if (!openApp || appSection === "overview") return;
+  const name = openApp;
+  try {
+    const fresh = await api("/api/app/settings?name=" + encodeURIComponent(name));
+    if (openApp !== name) return;
+    const same = settings && JSON.stringify(settings) === JSON.stringify(fresh);
+    settings = fresh;
+    const typing = document.activeElement && $("overview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (!same && !typing) renderSection();
+  } catch (e) { if (!(e instanceof SignIn) && openApp === name) $("overview").replaceChildren(el("p", { class: "error" }, e.message)); }
+}
+
+// change sends one change, and shows what the command said.
+async function change(what, fields, done) {
+  try {
+    const answer = await api("/api/app/settings", Object.assign({ app: openApp, what }, fields));
+    if (answer.job) { toast((done || "Started") + ". Jobs has its output.", true); followJob(answer.job); }
+    else toast(done || firstLine(answer.text) || "Done.", true);
+    await refreshSettings();
+    return true;
+  } catch (e) {
+    if (!(e instanceof SignIn)) toast(e.message, true);
+    return false;
+  }
+}
+const firstLine = (text) => String(text || "").split("\n")[0];
+
+function renderSection() {
+  const s = settings;
+  const box = $("overview");
+  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings" }[appSection]));
+  const parts = [head];
+  if (appSection === "people") parts.push(...sectionPeople(s));
+  if (appSection === "agents") parts.push(...sectionAgents(s));
+  if (appSection === "slack") parts.push(...sectionSlack(s));
+  if (appSection === "settings") parts.push(...sectionSettings(s));
+  box.replaceChildren(...parts);
+}
+
+const levelOptions = [["owner", "Owner"], ["pro", "Pro Dev"], ["vibe", "Vibe Dev"], ["contributor", "Contributor"], ["none", "None"]];
+function levelSelect(value, label, onchange) {
+  const select = el("select", { "aria-label": label });
+  for (const [v, text] of levelOptions) select.append(el("option", { value: v, selected: v === value }, text));
+  select.addEventListener("change", () => onchange(select.value, select));
+  return select;
+}
+async function setLevel(app, person, name, level, select, before) {
+  const words = { owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor", none: "nobody in it" };
+  if (!(await ask({ title: "Make " + (name || person) + " " + words[level] + " of " + app + "?", text: level === "none" ? "Their level goes, and their private links and SSH key with it. The app's channel hears it." : "The app's channel hears it." + (level === "owner" ? " An owner is an owner only: a level they had goes." : ""), ok: "Change it" }))) { if (select) select.value = before; return false; }
+  try {
+    await api("/api/app/settings", { app, what: "level", person, level });
+    toast((name || person) + " is " + words[level] + " of " + app + ".");
+    return true;
+  } catch (e) { if (select) select.value = before; if (!(e instanceof SignIn)) toast(e.message, true); return false; }
+}
+
+function sectionPeople(s) {
+  const list = el("ul", { class: "list" });
+  for (const p of s.people) {
+    const keyButtons = el("span", { class: "actions" },
+      el("button", { class: "small", onclick: async () => {
+        const answer = await ask({ title: (p.name || p.id) + "'s SSH key for the dev box", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. A key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
+        if (answer) change("sshkey", { person: p.id, key: answer.field }, (p.name || p.id) + "'s SSH key is in the dev box.");
+      } }, p.key ? "New key" : "Set key"),
+      p.key ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Take " + (p.name || p.id) + "'s SSH key out?", text: "They can no longer SSH into the dev box.", ok: "Take it out" })) change("sshkey", { person: p.id, remove: true }); } }, "Remove key") : null);
+    list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, p.name || p.id), " ", el("span", { class: "muted small" }, p.id), el("span", { class: "muted small block" }, p.key ? "SSH key " + p.key : p.level === "owner" || p.level === "pro" ? "no SSH key" : "")),
+      levelSelect(p.level, (p.name || p.id) + "'s level", async (level, select) => { if (await setLevel(s.name, p.id, p.name, level, select, p.level)) refreshSettings(); }), keyButtons));
+  }
+  if (!s.people.length) list.append(el("li", { class: "plain muted small" }, "Nobody yet."));
+  const id = el("input", { maxlength: "20", placeholder: "Their Slack member ID, U…", "aria-label": "Their Slack member ID" });
+  let level = "pro";
+  const add = el("form", { class: "say-form", autocomplete: "off" }, id, levelSelect("pro", "Their level", (v) => { level = v; }), el("button", { type: "submit" }, "Add"));
+  add.addEventListener("submit", async (event) => { event.preventDefault(); if (await setLevel(s.name, id.value.trim(), "", level, null, "none")) { id.value = ""; refreshSettings(); } });
+  return [el("p", { class: "purpose" }, "Owners build in the dev box and release; Pro Devs too, except rollbacks, production's data and settings, keys, and who is who; Vibe Devs in the dev page's Chat only; contributors report bugs. The same as hi app owners and hi app access, and owners change all but owners on the dev page."),
+    list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "In Slack: their profile, ⋮, Copy member ID. People in several apps: People, on the left.")];
+}
+
+function sectionAgents(s) {
+  const parts = [el("p", { class: "purpose" }, "Each role's model, who pays for it, and how hard it thinks; the app restarts when one changes. The same as hi app member.")];
+  for (const m of s.members) {
+    const provider = el("select", { "aria-label": m.role + ": who pays", disabled: m.agent !== "hermes" });
+    for (const [v, text] of [["openrouter", "OpenRouter, per call"], ["chatgpt", "A ChatGPT plan, falling back to OpenRouter"], ["claude", "Claude's plan"]]) {
+      if (v === "claude" && m.agent !== "claude") continue;
+      if (v !== "claude" && m.agent === "claude") continue;
+      provider.append(el("option", { value: v, selected: m.provider === v }, text));
+    }
+    const model = el("input", { value: m.model || "", placeholder: "the agent's own", "aria-label": m.role + "'s model" });
+    const fallback = el("input", { value: m.fallback || "", placeholder: "the usual one", "aria-label": m.role + "'s fallback" });
+    const effort = el("select", { "aria-label": m.role + "'s effort" });
+    for (const e of ["low", "medium", "high", "xhigh", "max"]) effort.append(el("option", { value: e, selected: m.effort === e }, e));
+    parts.push(el("div", { class: "card-box member-card" }, el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, m.role), el("span", { class: "muted small" }, m.label)),
+      el("div", { class: "policy-fields" }, field("Who pays", provider), field("Model", model), field("Fallback on OpenRouter", fallback), field("Effort", effort)),
+      el("div", { class: "data-actions pad" }, el("button", { class: "small", onclick: () => {
+        const fields = { role: m.role };
+        if (m.agent === "hermes" && provider.value !== m.provider) fields.provider = provider.value;
+        if (model.value.trim() !== (m.model || "")) fields.model = model.value.trim();
+        if (fallback.value.trim() !== (m.fallback || "")) fields.fallback = fallback.value.trim();
+        if (effort.value !== m.effort) fields.effort = effort.value;
+        if (Object.keys(fields).length === 1) { toast("Nothing changed."); return; }
+        change("member", fields, "The " + m.role + " is changed; the app restarts.");
+      } }, "Save"))));
+  }
+  // Keys and sign-ins.
+  const or = el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "OpenRouter: "), s.own_openrouter ? "the app's own key" : "this machine's key" + (s.machine_openrouter ? "" : ", which it hasn't got")));
+  or.append(el("div", { class: "data-actions" },
+    el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own OpenRouter key", text: "Its use is billed and limited apart. It's checked, kept on the machine, and never shown again.", ok: "Check and keep", field: "sk-or-…" }); if (answer) change("openrouter", { key: answer.field }, "The app has its own OpenRouter key."); } }, s.own_openrouter ? "Replace the key" : "Give it its own key"),
+    s.own_openrouter ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use this machine's OpenRouter key?", text: "The app's own key is forgotten.", ok: "Use the machine's" })) change("openrouter", { remove: true }); } }, "Use this machine's") : null));
+  parts.push(el("h2", {}, "Keys and sign-ins"), or);
+  if (s.uses_chatgpt) {
+    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "ChatGPT: "), s.chatgpt ? "the app's own sign-in, " + s.chatgpt : "this machine's sign-in, Codex's" + (s.machine_chatgpt ? "" : ", which isn't signed in")),
+      s.chatgpt_failed ? el("p", { class: "error small" }, "It stopped working: " + s.chatgpt_failed + ". Sign in again.") : "",
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("chatgpt", {}, "Signing in: the code to type is in Jobs") }, s.chatgpt ? "Sign in again" : "Sign the app in"),
+        s.chatgpt ? el("button", { class: "small", onclick: () => change("chatgpt", { machine: true }) }, "Use this machine's") : "")));
+  }
+  if (s.uses_claude) {
+    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.own_claude ? "the app's own token" : "this machine's sign-in" + (s.machine_claude ? "" : ", which isn't there")),
+      el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own Claude token", text: "From claude setup-token, signed in to the account that pays; it lasts a year. Kept on the machine, never shown again.", ok: "Keep it", field: "sk-ant-oat…" }); if (answer) change("claude", { key: answer.field }, "The app has its own Claude token."); } }, s.own_claude ? "Replace the token" : "Give it its own token"),
+        s.own_claude ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use this machine's") : "")));
+  }
+  // Stage's limit, and the boxes' memory.
+  const usd = el("input", { value: s.stage_limit > 0 ? String(s.stage_limit) : "", placeholder: "off", "aria-label": "Dollars a day", class: "small-input" });
+  parts.push(el("h2", {}, "Stage's model calls"), el("p", { class: "small" }, (s.stage_limit > 0 ? "Up to $" + s.stage_limit.toFixed(2) + " a day" : "No daily limit") + "; today $" + s.stage_spent.toFixed(2) + " in " + s.stage_calls + " call" + (s.stage_calls === 1 ? "" : "s") + ". Production has no limit from hi."),
+    el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "$ a day"), usd, el("button", { class: "small", onclick: () => change("limit", { usd: usd.value.trim() || "off" }) }, "Save"), el("button", { class: "small", onclick: () => change("limit", { usd: "off" }) }, "No limit")));
+  const dev = el("input", { value: s.memory_dev, class: "small-input", "aria-label": "The dev box's memory" });
+  const app = el("input", { value: s.memory_app, class: "small-input", "aria-label": "The app's boxes' memory" });
+  parts.push(el("h2", {}, "Memory"), el("div", { class: "data-actions" }, el("span", { class: "muted small" }, "The dev box"), dev, el("button", { class: "small", onclick: () => change("memory", { box: "dev", size: dev.value.trim() }) }, "Save"),
+    el("span", { class: "muted small" }, "Stage's and production's boxes"), app, el("button", { class: "small", onclick: () => change("memory", { box: "app", size: app.value.trim() }) }, "Save"),
+    s.memory_own ? el("button", { class: "small", onclick: () => change("memory", { box: "default" }) }, "hi's default") : ""), el("p", { class: "muted small" }, "Such as 24g or 512m. Running boxes get it at once."));
+  return parts;
+}
+
+function sectionSlack(s) {
+  const ops = el("input", { value: s.ops_channel || "", placeholder: "C… (empty: none)", "aria-label": "The ops channel's ID", class: "small-input wide-input" });
+  const bot = el("input", { type: "password", placeholder: "xoxb-… (empty keeps the one it has)", "aria-label": "Bot token" });
+  const appToken = el("input", { type: "password", placeholder: "xapp-… (empty keeps the one it has)", "aria-label": "App token" });
+  const copy = el("button", { class: "small", onclick: async () => { try { await navigator.clipboard.writeText(s.manifest); toast("Copied."); } catch (e) { toast("Select it and copy it.", true); } } }, "Copy the manifest");
+  return [
+    el("dl", { class: "facts" }, el("dt", {}, "Bot"), el("dd", {}, "@" + s.handle + " · " + s.slash), el("dt", {}, "Channel"), el("dd", {}, s.channel), el("dt", {}, "Tokens"), el("dd", {}, (s.has_bot ? "bot token set" : "no bot token") + ", " + (s.has_app ? "app token set" : "no app token"))),
+    el("h2", {}, "Ops channel"), el("p", { class: "muted small" }, "A second channel for incidents, warnings, security, keys, and access, for the people with the know-how. Invite the app there first: /invite @" + s.handle + "."),
+    el("div", { class: "data-actions" }, ops, el("button", { class: "small", onclick: () => change("ops", { channel: ops.value.trim() }) }, "Save")),
+    el("h2", {}, "Tokens"), el("p", { class: "muted small" }, "When Slack gave new ones: the bot token under OAuth & Permissions, the app token under Basic Information. Each is checked; the app restarts."),
+    field("Bot token", bot), field("App token", appToken), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("slack", { bot: bot.value.trim(), app_token: appToken.value.trim() }, "The tokens are kept; the app restarts.") }, "Check and keep")),
+    el("h2", {}, "The Slack app's manifest"), el("p", { class: "muted small" }, "To update the Slack app after a hi update, or a rename: at api.slack.com/apps, open the app, App Manifest, paste this over it, Save, and reinstall if Slack asks."),
+    el("div", { class: "data-actions" }, copy, el("a", { class: "button-like", href: "https://api.slack.com/apps", target: "_blank", rel: "noopener noreferrer" }, "Your Slack apps ↗")),
+    el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest"), el("pre", { class: "job-output manifest" }, s.manifest)),
+    el("h2", {}, "Its name"), el("div", { class: "data-actions" }, el("button", { onclick: () => renameApp(s.name) }, "Rename…"))];
+}
+
+function sectionSettings(s) {
+  const scopes = { all: "Stage and production", production: "production's own", stage: "Stage's own", dev: "the dev box's own" };
+  const list = el("ul", { class: "list" });
+  for (const e of s.env) {
+    list.append(el("li", {}, el("span", { class: "what" }, el("code", {}, e.name), " ", el("span", { class: "muted small" }, scopes[e.scope] + (e.file ? ", a file" : ""))),
+      el("span", { class: "actions" }, e.file ? "" : el("button", { class: "small", onclick: () => setEnv(e.name, e.scope) }, "New value"),
+        el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "The app's boxes no longer get it, from their next start.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
+  }
+  if (!s.env.length) list.append(el("li", { class: "plain muted small" }, "None yet."));
+  const helper = (slot, label) => {
+    const box = el("input", { type: "checkbox" });
+    box.checked = !!s.helper[slot];
+    box.addEventListener("change", () => change("helper", { slot, on: box.checked }));
+    return el("label", { class: "check" }, box, " " + label);
+  };
+  const freeze = el("input", { type: "checkbox" });
+  freeze.checked = s.auto_freeze;
+  freeze.addEventListener("change", () => change("watch", { on: freeze.checked }));
+  const beat = el("input", { placeholder: s.heartbeat ? "Set; a new URL replaces it" : "https://hc-ping.com/…", "aria-label": "The heartbeat URL" });
+  const every = el("input", { value: s.every || "", placeholder: "1m", class: "small-input", "aria-label": "Every" });
+  const parts = [
+    el("h2", {}, "Settings, by name"), el("p", { class: "muted small" }, "Environment variables in the app's boxes. Their values stay on the machine: the page never shows one. Files (certificates) are set on the machine: hi app env " + s.name + " --file KEY=<path>."),
+    list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => setEnv("", "all") }, "+ A setting")),
+    el("h2", {}, "The helper"), el("p", { class: "muted small" }, "Help and feedback on the app's pages, from the next page load."), el("div", { class: "radios" }, helper("preview", "On Stage"), helper("production", "On production")),
+    el("h2", {}, "The watcher"), el("label", { class: "check" }, freeze, " It freezes the app on its own for an exploited advisory in the app's packages, or a burst to a watched host; off, each waits for an owner."),
+    el("h2", {}, "Heartbeat"), el("p", { class: "muted small" }, s.heartbeat ? "The app sends one" + (s.every ? " every " + s.every : " every minute") + "." : "None, so nobody would hear that the app stopped."),
+    el("div", { class: "data-actions" }, beat, every, el("button", { class: "small", onclick: () => change("heartbeat", { url: beat.value.trim(), every: every.value.trim() }) }, "Save"), s.heartbeat ? el("button", { class: "small", onclick: () => change("heartbeat", { remove: true }) }, "Off") : ""),
+  ];
+  parts.push(el("h2", {}, "Code"));
+  if (s.remote) parts.push(el("p", { class: "small" }, "It pushes every merge to ", el("code", {}, shown(s.remote)), s.forge !== "hi" ? "; its tasks are " + (s.forge === "github" ? "GitHub" : "GitLab") + " issues." : "."));
+  else {
+    const repo = el("input", { placeholder: "owner/name, or for GitLab group/name or host/group/name", "aria-label": "The repository" });
+    parts.push(el("p", { class: "muted small" }, "It stays on this machine. Put it on GitHub or GitLab: a new private repository, or an empty one, with this machine's sign-in."),
+      el("div", { class: "data-actions" }, repo, el("button", { class: "small", onclick: () => change("github", { repo: repo.value.trim() }, "Putting it on GitHub") }, "On GitHub"), el("button", { class: "small", onclick: () => change("gitlab", { repo: repo.value.trim() }, "Putting it on GitLab") }, "On GitLab")));
+  }
+  if (s.adopted) parts.push(el("p", { class: "small" }, "Adopted from ", el("code", {}, s.adopted.from), s.adopted.local ? ", a folder here." : ", following " + (s.adopted.follow || "its default branch") + "."),
+    s.adopted.local ? "" : el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("upstream", {}, "Fetching its upstream") }, "Fetch what's new there")));
+  parts.push(el("h2", {}, "Remove the app"), el("div", { class: "data-actions" }, el("button", { class: "danger", onclick: () => removeApp(s.name) }, "Remove…")));
+  return parts;
+}
+
+async function setEnv(name, scope) {
+  const answer = await ask({ title: name ? "A new value for " + name : "A setting", text: (name ? "" : "Its name, then its value. ") + "The value goes to the machine once and is never shown again. The app's boxes get it from their next start.", ok: "Save", field: name ? "Its value" : "NAME=value", fieldCheck: (v) => (name ? (v ? "" : "Give its value.") : /^[A-Za-z_][A-Za-z0-9_]*=/.test(v) ? "" : "NAME=value, such as STRIPE_KEY=sk_live_…"), check: name ? "" : "Production's own, which Stage mustn't use" });
+  if (!answer) return;
+  let key = name, value = answer.field;
+  if (!name) { key = answer.field.slice(0, answer.field.indexOf("=")); value = answer.field.slice(answer.field.indexOf("=") + 1); scope = answer.checked ? "production" : "all"; }
+  change("env", { name: key, value, scope }, key + " is set.");
+}
+
+// ---------------------------------------------------------------------------
+// People across apps, and the machine's keys
+
+let peopleApps = null;
+async function refreshPeopleApps() {
+  try { peopleApps = await api("/api/people"); } catch (e) { return; }
+  if (viewShown("people")) renderPeople();
+}
+function peopleAppsBlock() {
+  const p = peopleApps;
+  const box = el("div", { class: "pad" });
+  if (!p) return box;
+  box.append(el("h2", {}, "In the apps"));
+  if (!p.apps.length) { box.append(el("p", { class: "muted small" }, "No apps on this machine.")); return box; }
+  const query = $("people-search").value.trim().toLowerCase();
+  const table = el("table", { class: "people-matrix" });
+  table.append(el("tr", {}, el("th", {}, ""), ...p.apps.map((a) => el("th", { title: a }, a))));
+  const named = {};
+  for (const x of p.people) named[x.name] = (named[x.name] || 0) + 1;
+  for (const person of p.people.filter((x) => !query || (x.name + " " + x.id).toLowerCase().includes(query))) {
+    table.append(el("tr", {}, el("th", { scope: "row", title: person.id }, (person.name || person.id) + (person.name && named[person.name] > 1 ? " (" + person.id + ")" : "")),
+      ...p.apps.map((app) => el("td", {}, levelSelect(person.levels[app] || "none", (person.name || person.id) + " in " + app, async (level, select) => { if (await setLevel(app, person.id, person.name, level, select, person.levels[app] || "none")) refreshPeopleApps(); })))));
+  }
+  box.append(el("div", { class: "matrix-scroll" }, table));
+  // Someone in several apps at once.
+  const id = el("input", { maxlength: "20", placeholder: "Slack member ID, U…", "aria-label": "Their Slack member ID" });
+  let level = "pro";
+  const checks = p.apps.map((app) => { const c = el("input", { type: "checkbox", value: app }); return [app, c]; });
+  const form = el("form", { class: "stack", autocomplete: "off" }, el("strong", {}, "Someone in several apps"), id, levelSelect("pro", "Their level", (v) => { level = v; }),
+    el("div", { class: "radios" }, ...checks.map(([app, c]) => el("label", { class: "check small" }, c, " " + app))), el("button", { type: "submit" }, "Give them the level"));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const levels = {};
+    for (const [app, c] of checks) if (c.checked) levels[app] = level;
+    if (!id.value.trim() || !Object.keys(levels).length) { toast("Their member ID, and the apps."); return; }
+    if (!(await ask({ title: "Give " + id.value.trim() + " that level in " + Object.keys(levels).length + " app" + (Object.keys(levels).length === 1 ? "" : "s") + "?", text: "Each is the app's own change, said in its channel.", ok: "Give it" }))) return;
+    try {
+      const answer = await api("/api/people", { person: id.value.trim(), levels });
+      toast((answer.done.length ? "Done in " + answer.done.join(", ") + ". " : "") + (answer.failed.length ? "Not in " + answer.failed.join("; ") : ""), true);
+      refreshPeopleApps();
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  });
+  box.append(form);
+  return box;
+}
+
+let machineKeys = null;
+async function refreshMachineKeys() {
+  try { machineKeys = await api("/api/keys"); } catch (e) { return; }
+  if (viewShown("keys")) renderKeys();
+}
+function machineKeysBlock() {
+  const k = machineKeys;
+  const box = el("div", {});
+  if (!k) return box;
+  const line = (label, ok, how) => el("p", { class: "small incident-head" }, el("span", { class: "dot " + (ok ? "idle" : ""), "aria-hidden": "true" }), el("strong", {}, label), ": " + (ok ? "set" : "not set"), ok ? "" : el("span", { class: "muted" }, " · " + how));
+  box.append(el("h2", {}, "This machine's"), el("div", { class: "machine-block" },
+    line("OpenRouter, Hermes'", k.openrouter, "hermes setup, on the machine"),
+    line("Claude Code's sign-in", k.claude, "claude, then /login, on the machine"),
+    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine")),
+    el("p", { class: "muted small" }, "Apps without their own use these. An app's own are in its Agents section."));
+  if (k.apps.length) {
+    const table = el("table", { class: "people-matrix" });
+    table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT")));
+    for (const a of k.apps) {
+      table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
+        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : "—"))));
+    }
+    box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
+  }
+  return box;
+}
+
+// ---------------------------------------------------------------------------
 // reading again
 
 async function refreshState() {
@@ -2058,12 +2362,14 @@ function renderOrgBadges() {
 }
 
 let pollTimer = 0;
+let settingsShownAt = 0;
 let settingsAt = 0;
 async function poll() {
   clearTimeout(pollTimer);
   const ok = await refreshState();
   if (ok) {
-    if (openApp) refreshDetail();
+    if (openApp && appSection === "overview") refreshDetail();
+    if (openApp && appSection !== "overview" && Date.now() - settingsShownAt > 10000) { settingsShownAt = Date.now(); refreshSettings(); }
     for (const view of [panes.right.view]) if (viewShown(view) && view !== "logs" && view !== "spend") freshView(view);
     // The org's settings: every fifteen seconds while one is open.
     if ((["org", "people", "keys"].some(viewShown) || middle === ":policy") && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
@@ -2093,7 +2399,8 @@ async function boot() {
   renderApps();
   renderHome();
   renderOrgBadges();
-  if (wanted && state.apps.some((a) => a.name === wanted)) await openView(wanted);
+  const [wantedApp, wantedSection] = wanted.split("/");
+  if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings"].includes(wantedSection) ? wantedSection : "");
   else if (wanted === ":policy" && state.org) openPolicy();
   else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));
   for (const which of ["left", "right"]) if (panes[which].open) freshView(panes[which].view);

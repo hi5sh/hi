@@ -244,6 +244,9 @@ type appDevPageView struct {
 	Access appDevAccessView `json:"access"`
 	// Keys is what the team's keys and sign-ins are, never their values.
 	Keys []appDevKeyStatus `json:"keys,omitempty"`
+	// Admin is the machine's admin page, for someone who is one of its
+	// admins: the notes that send people to an admin link there.
+	Admin string `json:"admin,omitempty"`
 	// PreviewData says the preview has data production could get.
 	PreviewData bool `json:"preview_data,omitempty"`
 	// Addresses are production's, the preview's, and the dev page's:
@@ -594,7 +597,7 @@ func appDevFinish(config appConfig, workspace, by string, discard bool) (string,
 
 // devPageView gathers what the page shows.
 func (b *appBroker) devPageView(person appPersonKey, level string) appDevPageView {
-	view := appDevPageView{Team: b.team, You: person.Name, Channel: appSlashCommand(b.team), Level: level}
+	view := appDevPageView{Team: b.team, You: person.Name, Channel: appSlashCommand(b.team), Level: level, Admin: adminPageFor(person.User)}
 	if data, err := os.ReadFile(appDevKeyPath(b.team, person.User)); err == nil {
 		view.SSHKey = appSSHKeyLabel(string(data))
 	}

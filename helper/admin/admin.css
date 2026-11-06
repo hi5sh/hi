@@ -178,3 +178,12 @@ pre.manifest { max-height: 240px; }
 code.big-code { font-size: 18px; letter-spacing: 0.08em; color: var(--bright); }
 .danger-row { margin-top: 6px; }
 #ask-field { width: 100%; margin-top: 6px; }
+
+/* An app's sections, people across apps, the machine's keys. */
+.people-matrix { border-collapse: collapse; font-size: 12px; }
+.people-matrix th, .people-matrix td { padding: 3px 6px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.people-matrix th[scope=row] { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.people-matrix select { font-size: 12px; padding: 1px 2px; }
+.matrix-scroll { overflow-x: auto; margin-bottom: 14px; }
+.wide-input { width: 14em; }
+#side-people { overflow-y: auto; }
