@@ -1,6 +1,7 @@
 # Sign-in through hi5.sh
 
-Status: Draft (2026-11-06)
+Status: Draft (2026-11-06). Decided 2026-11-06: free for anyone, run
+by Himode AB, no logs, private apps only (below).
 
 Dependencies: [hi_app_sso.md](../approved/hi_app_sso.md) (the relay's
 OIDC sign-in, `sso.json`, `sso-providers.json`),
@@ -8,7 +9,29 @@ OIDC sign-in, `sso.json`, `sso-providers.json`),
 developers, contributors, viewers; people by email, which waits for
 sign-in), [hi_app_addresses.md](../approved/hi_app_addresses.md)
 (production, Stage, and the dev page, under any names the IT team picks),
-[hi_org.md](../approved/hi_org.md) (the machine's device key).
+[hi_org.md](../approved/hi_org.md) (the machine's device key, where it
+has one).
+
+## Decided
+
+- **Free for anyone** who installs hi, with or without a hi org.
+- **Run by Himode AB**, which registers hi5.sh with Google and Microsoft,
+  goes through their verification, and publishes the terms and the
+  privacy policy.
+- **No logs.** hi5.sh keeps no record of who signed in, to which app, or
+  when, and says so plainly on the sign-in page and in the privacy
+  policy. It keeps only what it needs to work: each app's registration
+  (client ID, return addresses, the machine's key) and a block list.
+- **Himode AB may block or approve** an app, a machine, a domain, or a
+  person's account, where it sees malicious intent: phishing, an app
+  that turns out to be public, abuse of the emailed codes. The terms say
+  so. Blocks come from what hi5.sh sees at registration and at the
+  moment of a sign-in, and from reports, not from logs.
+- **Private apps only.** hi5.sh signs people in to apps behind NAT and
+  reached through a VPN (NetBird or the organisation's own), never to an
+  app open to the internet. A public app uses the bring-your-own
+  provider mode of hi_app_sso.md. How hi5.sh holds that line is under
+  [Private apps only](#private-apps-only).
 
 ## Goal
 
@@ -19,7 +42,7 @@ addresses for every app, and hands hi the client ID and secret. The app
 also needs a name that stays, since Google and Entra allow no wildcards
 in return addresses. Many teams never get past that step, and an app
 reached only inside a network (`http://demo.corp.example/`) can't use it
-at all.
+at all. Those private apps are exactly the ones hi5.sh is for.
 
 hi5.sh can do that step once, for everyone: it becomes an **identity
 broker**. hi5.sh registers itself with Google, Microsoft, and GitHub,
@@ -75,9 +98,11 @@ issuer `https://hi5.sh`. The relay's code (`net_expose_sso.go`) already
 speaks OIDC to any issuer, so most of it stays. What changes:
 
 - **No client secret to type.** `hi app sso <app> on hi5` registers the
-  app with hi5.sh, signed with the machine's device key, and gets a
+  app with hi5.sh, signed with the machine's key (the hi org device key
+  where there is one, otherwise a key hi makes on first use), and gets a
   client ID and secret back (OAuth dynamic client registration, RFC
-  7591, behind the device key). The app's return addresses are the ones
+  7591, behind that key). hi5.sh refuses a public address (below), and
+  `on` says why and points to the bring-your-own mode. The app's return addresses are the ones
   `hi app addresses` gives it, one per address that signs in; a change of
   addresses updates them at hi5.sh.
 - **No name that stays needed** when the provider is `hi5`. `on` still
@@ -160,8 +185,8 @@ first service.
 - **Return addresses match exactly.** No wildcards, no prefixes: a loose
   match is an open redirect that hands codes to someone else.
 - **Registration is tied to a machine.** An app's client belongs to the
-  device key that made it, so a machine or org can be cut off, and
-  `off` or `hi app rm` cleans up.
+  key that made it, so a machine can be blocked, and `off` or
+  `hi app rm` cleans up.
 - **Plain http** return addresses are allowed (internal names often have
   no TLS) with a warning on the dev page: the code crosses the network
   in the clear (PKCE still keeps it useless on its own) and the cookie
@@ -169,15 +194,53 @@ first service.
 - **Down means no new sign-ins.** Sessions already made keep working,
   since the relay checks its own cookie for 14 days. `hi app sso <app>`
   shows when hi5.sh last answered.
-- **Privacy.** hi5.sh sees who signs in to which app, and when. It keeps
-  the registrations and a short abuse log, hosted in the EU, and states
-  this in a privacy policy. Google and Microsoft verification need that
-  policy, a verified domain, and a legal entity behind them.
+- **Privacy.** hi5.sh sees who signs in to which app, and when, while
+  the sign-in happens, and writes none of it down: no request logs, no
+  sign-in records, no analytics. The web server and Dex run with their
+  access logs off; errors are logged without addresses, emails, or
+  tokens. Rate limits (per app, per email for the codes) are counters in
+  memory that expire. What is stored is the registrations and the block
+  list, hosted in the EU. The privacy policy, from Himode AB, says
+  exactly this, and the sign-in page says "hi5.sh keeps no record of
+  this sign-in". Google and Microsoft verification need that policy, a
+  verified domain, and Himode AB as the entity behind them.
+
+## Private apps only
+
+hi5.sh signs in to apps behind NAT, reached through a VPN. It checks
+each return address when an app registers, again when its addresses
+change, and from time to time after (daily), and refuses or blocks an
+app that fails:
+
+- **The address is private.** A literal IP must be loopback, RFC 1918
+  (`10/8`, `172.16/12`, `192.168/16`), CGNAT `100.64/10` (NetBird's
+  addresses), or IPv6 ULA (`fc00::/7`). A name must not resolve, in
+  public DNS from hi5.sh, to anything else: it either has no public
+  record (an internal name, `.internal`, `.lan`, a NetBird name) or
+  resolves only to private addresses (as the machine's domain does,
+  pointing at the team's NetBird address).
+- **It doesn't answer from the internet.** hi5.sh tries the address
+  from outside (TCP on its port, and 80 and 443); an answer means it is
+  public, whatever DNS says.
+- **The relay says so too.** The relay refuses to start the hi5 sign-in
+  when `hi net expose --public` or a public NetBird reverse-proxy
+  service serves the app, so the honest case is caught on the machine
+  before hi5.sh has to.
+
+These keep honest setups honest and make abuse take effort; they can't
+prove an address is private (a name can resolve differently inside and
+out, a firewall can let only hi5.sh's prober out). The terms forbid a
+public app, and a block is the answer when one is found or reported.
+
+The machine's https names (`demo.hi.example`) pass: they point at the
+team's NetBird address. The NetBird reverse proxy's public addresses
+and `--public` don't.
 
 ## Releases
 
 1. hi5.sh with Google, Microsoft, and GitHub, identity only;
-   `hi app sso <app> on hi5`; registration with the device key; the
+   `hi app sso <app> on hi5`; registration with the machine's key; the
+   private-address checks and the block list; no logs; the
    rules as hi_app_sso.md has them (`--domain`, matched by `hd` and
    `tid`, and `--anyone`).
 2. The dev page's Sign-in section: rules per address, people by email,
@@ -200,13 +263,14 @@ first service.
 
 ## Open questions
 
-1. Who runs hi5.sh as a service, and which legal entity goes through
-   Google's and Microsoft's verification.
-2. Free for anyone who installs hi, or for machines in a hi org only
-   (and with what limits per app).
-3. What hi5.sh keeps: no sign-in log at all, or a short one for abuse
-   and for `hi app sso <app>` to show.
-4. Whether to support machines with no outbound HTTPS (`form_post` and
+Who runs it, what it costs, and what it keeps are decided (above).
+
+1. What limits a free app has (sign-ins a minute, emailed codes an
+   hour), so one app can't spend the service for everyone.
+2. Whether to support machines with no outbound HTTPS (`form_post` and
    keys fetched ahead of time), or require it.
-5. Whether key links stay on for production when hi5 sign-in is on
+3. Whether key links stay on for production when hi5 sign-in is on
    (hi_app_sso.md's Open question 2 applies here too).
+4. How an app that was blocked hears about it and appeals: a message
+   in `hi app sso <app>` and on the dev page, and an address at Himode
+   AB to write to.
