@@ -2,7 +2,11 @@
 
 Status: Draft (2026-11-06). Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
-management is here too, on a machine that runs one.
+management is here too, on a machine that runs one. Decided later the
+same day: `hi org live` and the terminal wall go, and the page's Running
+view replaces them; every org has an owner, set at `hi org init`, whose
+admins are the org VM's admin page's admins; the org server becomes a user
+service, so no root rule is needed to restart it.
 
 Dependencies: [hi_app.md](../approved/hi_app.md) (apps, their services,
 the setup), [hi_app_adopt.md](../approved/hi_app_adopt.md),
@@ -15,7 +19,7 @@ developers, people's links), [hi_app_dev.md](../approved/hi_app_dev.md)
 [hi_app_sso.md](../approved/hi_app_sso.md),
 [hi_app_snapshots.md](../approved/hi_app_snapshots.md),
 [hi_org.md](../approved/hi_org.md) and [hi_server.md](../approved/hi_server.md)
-(the org server, its admin socket, its live dashboard),
+(the org server and its admin socket),
 [hi_update.md](../approved/hi_update.md), and later
 [hi_app_sso_hi5.md](hi_app_sso_hi5.md).
 
@@ -118,7 +122,7 @@ incidents, and spend.
 | **New** | Create an app, or adopt a project (the steps, [below](#new-app)) | `hi app new`, `hi app adopt` |
 | **People** | Everyone with a level in any app, a column per app: give someone the same level in several apps at once, each change the app's own, said in its channel. With an org server, the org's users too: their group and devices, **Add**, **Remove**, and the Slack approvers | `hi app owners`, `hi app access`, `hi org user`, `hi org approvers` |
 | **Keys** | The machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's and Codex's sign-ins), and which apps use the machine's or their own. With an org server, its provider keys (RunPod, Shadeform) and the org's OpenRouter key | `hi app key`, `hi app signin`, `hi org provider`, `hi org ai set` |
-| **Org** | With an org server: its policy (each group's limits, auto-approval, and budgets, as a form, checked before it's saved), its templates, its Hugging Face data, the models served on the org's machines, its Slack app, and its viewers and wall screens. Without one: **Join an org** for this machine, or **Start an org server here** | `hi org policy`, `templates`, `data`, `ai`, `slack setup`, `viewer`, `wall`, `hi org join`, `hi org init` |
+| **Org** | With an org server: its policy (each group's limits, auto-approval, and budgets, as a form, checked before it's saved), its templates, its Hugging Face data, the models served on the org's machines, its Slack app, its admins, and its wall screens' links. Without one: **Join an org** for this machine, or **Start an org server here** | `hi org policy`, `templates`, `data`, `ai`, `slack setup`, `admins`, `hi org join`, `hi org init` |
 | **Network** | The machine's domain, the sign-in providers, each app's NetBird peer, the org server's public URL for cloud runs, and **What to ask your IT team**: the records and policies needed, as text to send | `hi app domain`, `hi app sso provider`, `hi app addresses`, `hi org expose` |
 | **Machine** | hi's version and **Update**, with which apps and servers restart; memory, disk, and CPU, each app's boxes too; the machine's heartbeat; the admin page's own address and admins | `hi update`, `hi app limit … memory` |
 
@@ -143,7 +147,7 @@ app's own or the machine's).
 | View | What it has |
 |---|---|
 | **Requests** | With an org server: devices waiting to join and compute waiting for an approval, each with **Approve** (and the group, for a device) and **Deny** with a reason, recorded under the admin's name as `hi org approve` is |
-| **Running** | With an org server: everything running, for every user, with its cost so far and **Stop**: the live dashboard (`hi org live`), on the page |
+| **Running** | With an org server: everything running, for every user, with its cost so far and **Stop**. It replaces `hi org live`, which goes |
 | **Spend** | With an org server: spend per user and group, compute and models, over a week or a month |
 | **Activity** | What admins did on the admin page, newest first, with who and when; each app's releases, rollbacks, and freezes; with an org server, its audit (`hi org audit`) |
 | **Jobs** | The long actions, running and recent: creating an app, a rebuild, a restore, an update. Their output as it comes, as the dev page's Checks |
@@ -192,7 +196,9 @@ page's own Network view.
 - **An admin's link,** as a person's link to the dev page: a key that
   becomes a cookie, for 14 days, and a session that stays while it's
   used. `hi admin start` makes the first admin (it asks their name and,
-  optionally, their Slack member ID) and prints their link.
+  optionally, their Slack member ID) and prints their link. On the org
+  server's machine it asks nothing: the org's owner is the first admin
+  ([the org's owner](#the-orgs-owner)).
 - **More admins** are added on the admin page (Machine) or with
   `hi admin admins add`. Each new admin gets their link the way the
   person who added them picks: shown once to copy, or sent by Slack.
@@ -201,9 +207,9 @@ page's own Network view.
   bot of any app in their Slack workspace, or the org server's Slack
   app, as links are sent now. So the command line is needed only for an
   admin who has no Slack.
-- **The org's admins:** on a machine with an org server, its Slack
-  approvers who are admins here too approve on the page under their own
-  names, as they do in Slack.
+- **The org's admins:** on the org server's machine, the admin page's
+  admins are the org's owner and admins, one list. Approving on the page
+  is under the admin's own name, as in Slack.
 - **Later, sign-in with the organisation's provider** (hi_app_sso.md, or
   hi5.sh): admins by email, links only as a way back in.
 - **Opening an app's dev page** opens it as the admin is in that app,
@@ -215,6 +221,33 @@ page's own Network view.
   "an admin of the machine" (owners, the app's keys and sign-ins,
   restoring a snapshot) stay for everyone. For someone who is an admin
   too, each also links to its place on the admin page.
+
+## The org's owner
+
+Every org has an owner: one person, with their Slack member ID and their
+email.
+
+- **Set at `hi org init`:** it asks for both (`--owner <Slack ID>
+  --email <address>` without a terminal) and won't make an org without
+  them. The owner is the first approver, so their Slack ID is the one
+  the Slack app knows, and the first admin of the org server's admin
+  page.
+- **The org's admins:** the owner adds and removes admins
+  (`hi org admins add <Slack ID> --name <name> --email <address>`, or on
+  the page). An admin is an approver too, and an admin of the org
+  server's admin page. Approvers who aren't admins stay as now: they
+  approve and stop in Slack, and nothing more. One list, so the admin
+  page on the org's VM keeps no list of its own.
+- **Email** is for sign-in by email later, and for the owner's link when
+  Slack isn't set up yet or a Slack app is gone. Until there is email
+  sign-in, a link to the owner by email is printed to send, not sent.
+- **An org made before this:** `hi org status`, `hi update`, and the
+  admin page say it has no owner and give the command, `hi org owner
+  <Slack ID> --email <address>`, run on the server's machine. Until then
+  the first `hi admin start` there asks for them.
+- **Handing it on:** the owner, or anyone logged in as the account the
+  server runs as, runs `hi org owner` with the new owner. It is in the
+  audit and said in the approvers' channel.
 
 ## New app
 
@@ -308,8 +341,8 @@ it's up. **From a file** takes answers someone wrote before, as
   - **Reads** (the apps, their state, members, snapshots, incidents) call
     what `hi app ls`, `status`, and the others call, in the process.
   - **The org server** is asked through its admin socket, as the
-    `hi org` commands on its machine ask it, and its live stream is the
-    one `hi org live` reads.
+    `hi org` commands on its machine ask it, and Running reads the live
+    stream `hi org live` read.
   - **Quick changes** (a member's model, a setting, a level, an
     approval) call the function the command calls once it has its
     answers.
@@ -317,11 +350,15 @@ it's up. **From a file** takes answers someone wrote before, as
     run the `hi` command itself as a job, in a user unit of its own
     (`systemd-run --user`). A job outlives the admin page: `hi update`
     restarts the page, and the page waits for the new version to answer.
-  - **Restarting the org server** after an update needs root, since
-    `hi-org.service` is a system unit; the page can't `sudo`.
-    `hi admin start` offers, with `sudo` once, a rule that lets the
-    account restart `hi-org.service`, and nothing else. Without it, the page updates hi and shows the command to
-    restart them.
+  - **The org server becomes a user service.** `hi-org.service` is a
+    system unit now, though it runs as the account that keeps its state
+    and listens on a port above 1024, so restarting it after an update
+    needs `sudo`, which the page can't do. As a user service, beside
+    `hi-admin.service`, the page restarts it as it restarts apps. `hi
+    update` offers the move once, as it moved `hi-server.service` to
+    `hi-org.service`: it writes the user unit from the system one, turns
+    on lingering, and removes the system unit, with `sudo` that one
+    time. Down for about a second.
     A job's secrets go in a 0600 file the command deletes once read, as
     `hi app dev <app> netbird <file>` does now.
   - A command the admin page runs takes all its answers without a
@@ -359,8 +396,12 @@ hi admin address [<host> [--https] | default]
    Open ▾ with the dev page; Activity, Jobs, Logs, Incidents; Machine's
    version and **Update**.
 2. **The org server:** Requests, Running, Spend, the org's people,
-   keys, policy, templates, data, and models, its audit in Activity.
-   An org server's VM can be run from the page from here on.
+   keys, policy, templates, data, and models, its audit in Activity; the
+   org's owner and admins; wall links. `hi org live`, `hi org viewer`, and
+   the terminal wall (`hi org wall`, `hi-wall-live`) go, and `hi update`
+   says so on a machine that still has a wall session. The org server
+   moves to a user service. An org server's VM can be run from the page
+   from here on.
 3. **New apps:** the ten steps with the Slack link, the pickers, and the
    sign-ins on the page; adopting; **Bring one back**; Rename and Remove.
 4. **Each app's settings:** People, Agents, Slack, Settings; Keys;
@@ -381,16 +422,19 @@ hi admin address [<host> [--https] | default]
 - **Several machines:** the org server's admin page lists the org's
   machines and their apps' states, and opens each one's admin page.
 
+## Wall screens
+
+A wall screen opens a **wall link** in a browser, full screen: Running
+and Requests, read-only, with names as initials or in full and reasons
+shown or not, as `--wall` had. Admins make and end wall links on the page
+(Org). A wall link can't approve, stop, or open anything else, and ends
+when it's ended, not after 14 days. It replaces the tmux session the
+screens showed over SSH, so a screen needs no `sudo` setup, only a
+browser on NetBird.
+
 ## Open questions
 
-1. **`hi org live` and `hi org wall`:** do the terminal dashboard and
-   the wall screens stay as they are, or does the wall show the admin
-   page's Running view in a browser, read-only, for a viewer?
-2. **The org server's VM's admins:** the admin page's own list, or the
-   org's users in an admin group, so one list serves both?
-3. **The restart rule:** a polkit rule or a `sudoers` line, for
-   `hi-org.service`? polkit needs no password prompt from `sudo`; `sudoers` is what
-   admins know.
+None yet.
 
 ## Acceptance criteria
 
@@ -411,10 +455,15 @@ hi admin address [<host> [--https] | default]
 7. `hi net expose` refuses the admin page, and nothing reaches it from
    outside NetBird or the machine.
 8. `hi update` from the admin page updates hi, restarts the apps and
-   the admin page (and the org server, with the rule), and the page
+   the admin page (and the org server), and the page
    comes back on the new version by itself.
 9. A change made with a command while the page is open shows on it
    within a few seconds.
 10. Removing an app, a restore, and a rollback each need the app's name
     typed.
 11. It works on a phone: the panels lie over the middle, one at a time.
+12. `hi org init` makes no org without an owner's Slack ID and email,
+    and that owner signs in to the org server's admin page with no other
+    step.
+13. A wall link shows Running and Requests in a browser and can change
+    nothing.
