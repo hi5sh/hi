@@ -355,6 +355,8 @@ async function openView(name) {
   if (name) await refreshDetail();
   if (viewShown("logs")) refreshLogs(true);
   if (viewShown("incidents")) refreshIncidents();
+  if (viewShown("jobs")) { if (jobOpen) { jobOpen = ""; $("job-one").hidden = true; $("jobs-list").hidden = false; } refreshJobs(); }
+  else renderJobsBadge();
 }
 
 async function refreshDetail() {
@@ -715,10 +717,13 @@ let jobOpen = "";
 let jobFrom = 0;
 function jobsSeen() { return Number(localStorage.getItem("hi-admin-jobs-seen") || 0); }
 function markJobsSeen() { try { localStorage.setItem("hi-admin-jobs-seen", String(Date.now())); } catch (e) { /* private mode */ } renderJobsBadge(); }
+// Jobs are the open app's; on Home, every job, the machine's too.
+const jobsShown = () => (openApp ? jobs.filter((j) => j.app === openApp) : jobs);
 function renderJobsBadge() {
   const node = $("jobs-badge");
-  const running = jobs.some((j) => j.state === "running") || (state && state.running > 0);
-  const failed = jobs.some((j) => j.state === "failed" && new Date(j.ended).getTime() > jobsSeen());
+  const mine = jobsShown();
+  const running = mine.some((j) => j.state === "running") || (!openApp && state && state.running > 0);
+  const failed = mine.some((j) => j.state === "failed" && new Date(j.ended).getTime() > jobsSeen());
   node.hidden = !running && !failed;
   node.classList.toggle("running", running);
   node.classList.toggle("failed", !running && failed);
@@ -729,12 +734,14 @@ async function refreshJobs() {
   renderJobsBadge();
   const list = $("jobs-list");
   list.replaceChildren();
-  if (!jobs.length) list.append(el("li", { class: "empty" }, "No jobs yet: a restart, a rebuild, a snapshot, or an update runs here, with its output."));
-  for (const job of jobs) {
+  const shownJobs = jobsShown();
+  if (!openApp && jobs.length) list.append(el("li", { class: "empty" }, "Every job, the machine's too. Open an app for its own."));
+  if (!shownJobs.length) list.append(el("li", { class: "empty" }, openApp ? "No jobs for " + openApp + " in the last two weeks: a restart, a rebuild, or a snapshot runs here, with its output." : "No jobs yet: a restart, a rebuild, a snapshot, or an update runs here, with its output."));
+  for (const job of shownJobs) {
     const cls = job.state === "running" ? "working" : job.state === "done" ? "done" : "bad";
     list.append(el("li", {}, el("span", { class: "dot " + cls, "aria-hidden": "true" }),
       el("button", { class: "stask-row", onclick: () => openJob(job.id) }, el("span", { class: "stask-title" }, job.title),
-        el("span", { class: "stask-num" }, job.by + " · " + ago(job.started)))));
+        el("span", { class: "stask-num" }, (openApp || !job.app ? "" : job.app + " · ") + job.by + " · " + ago(job.started)))));
   }
   if (jobOpen) refreshJob();
 }

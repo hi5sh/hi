@@ -2713,6 +2713,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.79 — Jobs follow the open app
+
+- [x] The admin page's Jobs show the open app's jobs, as Logs and
+  Incidents do; on Home, every job, the machine's too.
+
 ### v2.6.78 — The org server on the admin page
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md), release 2.

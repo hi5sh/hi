@@ -44,8 +44,9 @@ remembered. On a phone they lie over the middle, one at a time.
   your IT team for; its admins.
 - **Activity** (left): what admins did here, with who and when, and on
   the org server's machine the org's audit.
-- **Jobs** (right): the long actions, running and done, with their
-  output. A blue dot while one runs, a red one when one failed.
+- **Jobs** (right): the open app's long actions, running and done, with
+  their output; on Home, every job, the machine's too, such as an update.
+  A blue dot while one runs, a red one when one failed.
 - **Logs** (right): the open app's lead and service, as `hi app logs`
   shows them; on Home, the admin page's own, or the org server's on its
   machine. Its dot pulses when new lines come in behind another view, red
