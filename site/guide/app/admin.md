@@ -85,8 +85,8 @@ new apps under way are listed to carry on with, or discard.
 7. **Models:** the app's own OpenRouter key, or the machine's.
 8. **Code:** a new web app, an empty repository, a template, or someone's
    project to adopt (GitHub, a URL, or a folder here), with **Look at it**
-   first: what GitHub says of it, or what the folder holds. GitHub too,
-   if you like.
+   first: what GitHub says of it, or what the folder holds. Kept on
+   GitHub or GitLab too, if you like.
 9. **Network:** the NetBird setup key, or later, and how the addresses
    are named.
 10. **Heartbeats:** the app's, and the machine's if it has none.

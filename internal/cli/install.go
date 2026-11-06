@@ -47,6 +47,8 @@ var installItems = []installItem{
 		commands: []string{"uv"}, essential: true},
 	{id: "gh", title: "GitHub CLI", description: "gh, for repositories, pull requests, and sign-in",
 		packages: []string{"gh"}, essential: true},
+	{id: "glab", title: "GitLab CLI", description: "glab, for apps whose project is on GitLab, gitlab.com or your own",
+		packages: []string{"glab"}},
 	{id: "node", title: "Node.js", description: "node and npm from Ubuntu",
 		packages: []string{"nodejs", "npm"}},
 	{id: "bun", title: "Bun", description: "installs, runs, and tests JavaScript; the web template uses it",

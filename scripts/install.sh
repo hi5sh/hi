@@ -186,6 +186,7 @@ remove_tool() {
       apt_remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
       sudo rm -f /etc/apt/sources.list.d/docker.sources /etc/apt/keyrings/docker.asc
       ;;
+    glab) apt_remove glab ;;
     podman) apt_remove podman ;;
     restic) apt_remove restic ;;
     claude)
@@ -277,6 +278,7 @@ fi
 
 packages=()
 installing terminal && packages+=(tmux btop timg)
+installing glab && packages+=(glab)
 if installing gh; then
   log "Configuring the GitHub CLI repository"
   add_github_repo

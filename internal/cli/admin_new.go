@@ -176,6 +176,7 @@ type adminDraftCode struct {
 	Push     bool   `json:"push,omitempty"`
 	NoSurvey bool   `json:"no_survey,omitempty"`
 	GitHub   string `json:"github,omitempty"`
+	GitLab   string `json:"gitlab,omitempty"`
 }
 
 // adminNewMachine is what this machine offers a new app.
@@ -189,6 +190,8 @@ type adminNewMachine struct {
 	Efforts    []string           `json:"efforts"`
 	Templates  []adminNewTemplate `json:"templates"`
 	Peer       string             `json:"peer"` // the app's NetBird name
+	GH         bool               `json:"gh"`   // gh is here, for GitHub
+	Glab       bool               `json:"glab"` // glab is here, for GitLab
 	DevName    string             `json:"dev_name,omitempty"`
 }
 
@@ -211,6 +214,9 @@ func adminNewMachineOf(name string) adminNewMachine {
 		machine.CodexKey = true
 	}
 	_, machine.Heartbeat = loadMachineHeartbeat()
+	_, ghErr := appGHLookPath()
+	_, glabErr := appGlabLookPath()
+	machine.GH, machine.Glab = ghErr == nil, glabErr == nil
 	if domain, ok := loadHiDomain(); ok {
 		machine.Domain = domain.addressName(name, appAddressDev)
 	}
@@ -256,7 +262,7 @@ func adminDraftViewOf(draft adminDraft) adminDraftView {
 	default:
 		view.Code.Kind = "new"
 	}
-	view.Code.GitHub = answers.GitHub
+	view.Code.GitHub, view.Code.GitLab = answers.GitHub, answers.GitLab
 	return view
 }
 
@@ -735,7 +741,10 @@ func adminSaveCode(draft *adminDraft, code adminDraftCode) error {
 	answers := &draft.Answers
 	answers.Clone, answers.Empty, answers.Template = "", false, ""
 	answers.Adopt, answers.Ref, answers.Shallow, answers.Full, answers.PushToSource, answers.NoSurvey = "", "", false, false, false, false
-	github := strings.TrimSpace(code.GitHub)
+	github, gitlab := strings.TrimSpace(code.GitHub), strings.TrimSpace(code.GitLab)
+	if github != "" && gitlab != "" {
+		return errors.New("the project goes to GitHub or GitLab, not both")
+	}
 	switch code.Kind {
 	case "new":
 	case "empty":
@@ -766,11 +775,11 @@ func adminSaveCode(draft *adminDraft, code adminDraftCode) error {
 		// Over 1 GB the terminal asks: its latest commit only, or its whole
 		// history. Here the page says which.
 		answers.Full = draft.Look.Big && draft.Look.Folder == "" && !answers.Shallow
-		if answers.Shallow && github != "" {
-			return errors.New("a copy with only the latest commit can't go to a new GitHub repository; leave out GitHub, or fetch the whole history")
+		if answers.Shallow && (github != "" || gitlab != "") {
+			return errors.New("a copy with only the latest commit can't go to a new repository; leave it on this machine, or fetch the whole history")
 		}
 		if answers.PushToSource {
-			github = ""
+			github, gitlab = "", ""
 		}
 	default:
 		return errors.New("choose what the project starts from")
@@ -780,7 +789,12 @@ func adminSaveCode(draft *adminDraft, code adminDraftCode) error {
 			return err
 		}
 	}
-	answers.GitHub = github
+	if gitlab != "" {
+		if err := appCheckGitLab(gitlab); err != nil {
+			return err
+		}
+	}
+	answers.GitHub, answers.GitLab = github, gitlab
 	draft.Done["code"] = true
 	return nil
 }

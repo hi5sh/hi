@@ -385,6 +385,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
 | `hi app manifest <name>`                 | The Slack app manifest again |
 | `hi app github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the app pushes every merge there |
+| `hi app gitlab <name> <group/project>`   | The same on GitLab, gitlab.com or `host/group/project` on your own, with `glab` |
 | `hi app upstream <name>`                 | For an adopted project: fetch the project it came from, and say which of its versions dev has, how many commits are the app's own, and what it has added since, with its new tags |
 
 In its box, the lead runs `task [list|show|add|comment|edit]` (it files what

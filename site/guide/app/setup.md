@@ -182,6 +182,20 @@ box: the pushes run on the machine, so nobody can talk an agent into
 revealing a token. An app whose project was cloned from a URL of yours pushes there
 already; an adopted project never pushes to the one it came from.
 
+### Or on GitLab
+
+```sh
+hi app gitlab payments example-group/payments            # gitlab.com
+hi app gitlab payments gitlab.example.com/team/payments  # a GitLab of your own
+```
+
+The same, with this machine's GitLab sign-in (`glab`; `hi install glab`,
+then `glab auth login`, with `--hostname` for your own GitLab): a new
+private project, or an existing empty one. The app's repository signs in
+through glab for that host only. Its tasks are then GitLab issues. In
+`hi app new`, and on the [admin page](/guide/app/admin/), the Code step
+asks for GitHub or GitLab; in a file of answers, it's `"gitlab"`.
+
 The specs go with the code, in the project's `docs/specs/`: the owners'
 agents write them before larger work, agreed with the owner, and the lead
 reads them to answer people.

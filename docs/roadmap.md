@@ -2713,6 +2713,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.82 — An app's project on GitLab
+
+- [x] `hi app gitlab <name> <group/project | host/group/project>`: a new
+  private project on gitlab.com or a GitLab of one's own, or an empty one,
+  with the machine's `glab` sign-in, which the app's repository uses for
+  that host only. `hi app new` asks GitHub or GitLab, `--from` takes
+  `"gitlab"`, and the admin page's Code step offers both. `hi install
+  glab`.
+
 ### v2.6.81 — New apps on the admin page
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md), release 3.

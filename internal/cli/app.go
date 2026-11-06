@@ -441,6 +441,17 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = appIncidentsCommand(rest, stdout)
 	case "job":
 		err = appJobCommand(rest, stdout)
+	case "gitlab":
+		if len(rest) != 2 {
+			err = usageError{"usage: hi app gitlab <name> <group/project | host/group/project>"}
+			break
+		}
+		config, loadErr := loadTeam(rest[0])
+		if err = loadErr; err == nil {
+			if err = appCheckGitLab(rest[1]); err == nil {
+				err = appConnectGitLab(&config, rest[1], stdout)
+			}
+		}
 	case "github":
 		if len(rest) != 2 {
 			err = usageError{"usage: hi app github <name> <owner/repository>"}
@@ -695,6 +706,8 @@ usage:
   hi app manifest <name>           the Slack app manifest again
   hi app github <name> <owner/repo>  put the project on GitHub (a new private repository, or an
                                    empty one); the app pushes every merge there
+  hi app gitlab <name> <group/project | host/group/project>
+                                   the same on GitLab, gitlab.com or your own, with glab
   hi app jobs <name> [--stage]     the app's long work: each job's state, count, rate a day, last error
   hi app incidents <name> [<id>]   what went wrong while nobody looked, and what the lead did about it
                                    (--rules: the decisions the people made about the app's jobs)
@@ -809,6 +822,9 @@ type appAnswers struct {
 	appConfig
 	Clone  string `json:"clone,omitempty"`
 	GitHub string `json:"github,omitempty"` // owner/name of a new private repository
+	// GitLab is group/name on gitlab.com, or host/group/name on a GitLab
+	// of one's own: a new private project there instead (app_gitlab.go).
+	GitLab string `json:"gitlab,omitempty"`
 	// Empty starts a new repository with only a README and the team's rules,
 	// instead of a web app on Bun.
 	Empty bool `json:"empty,omitempty"`
@@ -964,6 +980,17 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 			return err
 		}
 	}
+	if answers.GitLab != "" {
+		switch {
+		case answers.GitHub != "":
+			return errors.New("the project goes to GitHub or GitLab, not both")
+		case answers.adoption != nil && answers.adoption.Shallow:
+			return errors.New("a copy with only the latest commit can't go to a new GitLab project; leave out gitlab, or fetch the whole history")
+		}
+		if err := appCheckGitLab(answers.GitLab); err != nil {
+			return err
+		}
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
@@ -979,6 +1006,11 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	if answers.GitHub != "" {
 		if err := appConnectGitHub(&config, answers.GitHub, stdout); err != nil {
 			fmt.Fprintf(stdout, "The app is set up, but not on GitHub: %v\nTry again with: hi app github %s %s\n", err, name, answers.GitHub)
+		}
+	}
+	if answers.GitLab != "" {
+		if err := appConnectGitLab(&config, answers.GitLab, stdout); err != nil {
+			fmt.Fprintf(stdout, "The app is set up, but not on GitLab: %v\nTry again with: hi app gitlab %s %s\n", err, name, answers.GitLab)
 		}
 	}
 	applyTeamHeartbeats(name, answers, stdout)
@@ -1430,19 +1462,30 @@ func appWizard(name, dir string, adopt *appAdoption, stdin io.Reader, stdout io.
 		}
 	case adoption != nil:
 		appSay(stdout, styled, "Keep the app's copy on GitHub too? Give owner/name, and hi creates a private repository with",
-			"the project's history, with this machine's GitHub sign-in (gh); the app pushes every merge there.")
+			"the project's history, with this machine's GitHub sign-in (gh); the app pushes every merge there.",
+			"For GitLab, give gitlab.com/group/name, or your GitLab's host/group/name, with its sign-in (glab).")
 	case answers.Clone == "":
 		appSay(stdout, styled, "Put it on GitHub too? Give owner/name, such as octocat/world-clock, and hi creates a private",
-			"repository with this machine's GitHub sign-in (gh); the app pushes every merge there.")
+			"repository with this machine's GitHub sign-in (gh); the app pushes every merge there.",
+			"For GitLab, give gitlab.com/group/name, or your GitLab's host/group/name, with its sign-in (glab).")
 	}
 	if answers.Clone == "" && !(adoption != nil && (adoption.GitHub != "" || adoption.Shallow)) {
-		if answers.GitHub, err = appAskUntil(stdin, stdout, "GitHub [Enter: none, it stays on this machine]", false, func(name string) error {
-			if name == "" {
+		var place string
+		if place, err = appAskUntil(stdin, stdout, "GitHub or GitLab [Enter: none, it stays on this machine]", false, func(name string) error {
+			switch {
+			case name == "":
 				return nil
+			case appIsGitLabAnswer(name):
+				return appCheckGitLab(name)
 			}
 			return appCheckGitHub(name)
 		}); err != nil {
 			return answers, secrets, err
+		}
+		if appIsGitLabAnswer(place) {
+			answers.GitLab = place
+		} else {
+			answers.GitHub = place
 		}
 	}
 

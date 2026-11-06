@@ -1912,9 +1912,21 @@ function renderCode(body, d) {
   const source = input({ value: code.source || "", placeholder: "github.com/owner/name, a URL, or a folder's path" });
   const ref = input({ value: code.ref || "", placeholder: "its default branch" });
   const shallow = el("input", { type: "checkbox" }); shallow.checked = !!code.shallow;
-  const push = el("input", { type: "checkbox" }); push.checked = !!code.push;
+  const push = el("input", { type: "checkbox", id: "s-push" }); push.checked = !!code.push;
+  push.addEventListener("change", () => drawForge());
   const nosurvey = el("input", { type: "checkbox" }); nosurvey.checked = !!code.no_survey;
-  const github = input({ value: code.github || "", placeholder: "owner/name (optional)" });
+  // Where the project is kept too: nowhere else, GitHub, or GitLab.
+  let forge = code.gitlab ? "gitlab" : code.github ? "github" : "";
+  const repoName = input({ value: code.gitlab || code.github || "", "aria-label": "The repository" });
+  const forgeBox = el("div", { class: "stack" });
+  const drawForge = () => {
+    const push = kind === "adopt" && d.look && d.look.can_push && document.querySelector("#s-push") && document.querySelector("#s-push").checked;
+    forgeBox.replaceChildren(el("h2", {}, "Kept on GitHub or GitLab too"),
+      radios("s-forge", [["", "No: it stays on this machine"], ["github", "GitHub: a new private repository, with this machine's GitHub sign-in (gh)" + (m.gh ? "" : "; gh isn't here: hi install gh"), !m.gh], ["gitlab", "GitLab, gitlab.com or your own: a new private project, with this machine's GitLab sign-in (glab)" + (m.glab ? "" : "; glab isn't here: hi install glab, then glab auth login"), !m.glab]], forge, (v) => { forge = v; drawForge(); }));
+    if (forge === "github") { repoName.placeholder = "owner/name, such as octocat/world-clock"; forgeBox.append(field("The repository", repoName, "It's made if it isn't there; an empty one that's there is used. The app pushes every merge there.")); }
+    if (forge === "gitlab") { repoName.placeholder = "group/name on gitlab.com, or host/group/name, such as gitlab.example.com/team/billing"; forgeBox.append(field("The project", repoName, "It's made if it isn't there; an empty one that's there is used. The app pushes every merge there.")); }
+    forgeBox.hidden = !!push;
+  };
   const adoptBox = el("div", { class: "stack" });
   const look = el("div", {});
   const drawLook = () => {
@@ -1951,11 +1963,11 @@ function renderCode(body, d) {
     try { draft = await api("/api/new", { action: "look", name: d.name, source: source.value.trim() }); d.look = draft.look; drawAdopt(); } catch (e) { if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
   };
   source.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); lookNow(); } });
-  body.append(el("p", {}, "The app keeps its own copy of the project in " + d.folder + "/repo."), radios("s-code", options, kind, (v) => { kind = v; drawAdopt(); }), adoptBox,
-    field("Put it on GitHub too: a new private repository, with this machine's GitHub sign-in (gh); the app pushes every merge there", github));
+  body.append(el("p", {}, "The app keeps its own copy of the project in " + d.folder + "/repo."), radios("s-code", options, kind, (v) => { kind = v; drawAdopt(); drawForge(); }), adoptBox, forgeBox);
   drawAdopt();
+  drawForge();
   return () => {
-    const answer = { kind: kind.startsWith("template:") ? "template" : kind, template: kind.startsWith("template:") ? kind.slice(9) : "", source: source.value.trim(), ref: ref.value.trim(), shallow: shallow.checked, push: push.checked, no_survey: nosurvey.checked, github: github.value.trim() };
+    const answer = { kind: kind.startsWith("template:") ? "template" : kind, template: kind.startsWith("template:") ? kind.slice(9) : "", source: source.value.trim(), ref: ref.value.trim(), shallow: shallow.checked, push: push.checked, no_survey: nosurvey.checked, github: forge === "github" ? repoName.value.trim() : "", gitlab: forge === "gitlab" ? repoName.value.trim() : "" };
     return { code: answer };
   };
 }
@@ -1977,6 +1989,7 @@ function renderReview(body, d) {
   fact("OpenRouter", d.own_key ? "the app's own key" : "this machine's key");
   fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
+  if (d.code.gitlab) fact("GitLab", d.code.gitlab);
   fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later") + "; addresses " + (c.addresses || "on this machine's domain"));
   fact("Heartbeat", d.heartbeat || "none");
   body.append(el("p", {}, "Create makes it as hi app new would with these answers, then starts it. Jobs follows it, and the app opens here when it's up."), facts);
