@@ -2713,6 +2713,30 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.77 — The admin page
+
+Spec: [hi_admin.md](specs/approved/hi_admin.md), release 1.
+
+- [x] `hi admin start` gives the machine one web page for its admins,
+  in the dev page's design: Home with every app as a card; Apps, with
+  the apps that are down or frozen counted; an app's Overview with
+  **Restart**, **Stop**, **Rebuild**, **Snapshot now**, **Freeze…**,
+  **Pause…**, and **Tell the lead**, each the `hi app` command run as a
+  job of its own (`systemd-run --user`), said in the app's ops channel
+  with the admin's name; **Open ▾** with production, Stage, and the dev
+  page as the admin is in the app, or **Make me an owner**; Machine,
+  with hi's version and **Update**, the page's address, and its admins;
+  Activity, Jobs, Logs, and Incidents on the right.
+- [x] Admins sign in with a link, for 14 days, kept as a hash; **Send me
+  a new link** by Slack DM through an app's bot. `hi admin link`,
+  `hi admin admins add|remove`, `hi admin address`, `hi admin stop`.
+- [x] Port 1984, with no root: a NetBird peer of its own
+  (`<machine>-admin`) where podman runs, with its setup key given once;
+  the machine's NetBird address without podman, or until the peer has
+  joined; `admin.<domain>` on https with the machine's domain; a name of
+  the IT team's; `--local`. `hi net expose` refuses 1984, and no app
+  may be called `admin`. `hi update` restarts the page.
+
 ### v2.6.76 — Two panels beside the work, the tabs gone
 
 - [x] The dev page's tabs go: a panel on each side of the work, each
