@@ -2713,6 +2713,24 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.81 — New apps on the admin page
+
+Spec: [hi_admin.md](specs/approved/hi_admin.md), release 3.
+
+- [x] **+ New app**: hi app new's ten steps as pages, each answer checked
+  as the terminal checks it and kept in a draft (carry on or discard).
+  **Create the Slack app** opens Slack with the manifest filled in; the
+  channel and the owners are picked from Slack; a ChatGPT sign-in of the
+  app's own shows its code on the page; a Claude token is pasted, or the
+  machine's sign-in used; each role's fallback is checked.
+- [x] Adopting from the Code step or the start page, with **Look at it**
+  first; From a file, answers as `--from` takes them.
+- [x] Create runs `hi app new --from` and `hi app up` as one job, with
+  the tokens in a file only the job reads once; the app opens when it's
+  up. `--from` takes `full` for a project over 1 GB.
+- [x] **Bring one back**, and **Rename…** and **Remove…** in an app's
+  Overview, each with the app's name typed.
+
 ### v2.6.80 — The machine's health on the admin page
 
 - [x] Home shows the machine's CPU, load, memory, swap, and disks, and
@@ -4445,15 +4463,11 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
-### Next — the admin page, releases 3 to 5
+### Next — the admin page, releases 4 and 5
 
-Spec: [hi_admin.md](specs/approved/hi_admin.md). Release 1, running
-and reaching it, shipped in v2.6.77; release 2, the org server on the
-page, ships in v2.6.78.
+Spec: [hi_admin.md](specs/approved/hi_admin.md). Releases 1 to 3 shipped
+in v2.6.77, v2.6.78, and v2.6.81.
 
-- [ ] Release 3: new apps on the page: the ten steps with the Slack
-  manifest link, the channel and people pickers, and the sign-ins;
-  adopting; **Bring one back**; Rename and Remove.
 - [ ] Release 4: each app's settings: People, Agents, Slack, Settings;
   Keys; People across apps; the dev page's notes linking to the admin
   page for admins.

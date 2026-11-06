@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77; release 2 is built. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -432,6 +432,24 @@ hi admin address [<host> [--https] | default]
    live`, a user's own machines in the terminal, stays.
 3. **New apps:** the ten steps with the Slack link, the pickers, and the
    sign-ins on the page; adopting; **Bring one back**; Rename and Remove.
+   As built: a draft per new app in the page's `drafts/` (0600), with the
+   tokens given for it; the page gets only whether each is there. The
+   folder is asked first, beside the machine's other apps' by default.
+   Create writes the answers as `--from` takes them and the tokens in a
+   0600 file the job's runner reads once and deletes, and runs `hi app
+   new` then `hi app up` as one job (a job can run more than one hi
+   command now); the draft goes when it went well, and stays to fix and
+   try again when it didn't. `--from` gained `full`, the whole history of
+   a project over 1 GB, which the terminal asks about. Adopting is the
+   Code step's, or the start page's project field; **Look at it** asks
+   GitHub (description, size, licence, whether this machine can push
+   there) or counts the folder, and the full look runs in the job. Bring
+   one back lists app folders beside the apps' folders that aren't apps
+   here. Remove keeps the folder unless unticked, and is said in the app's
+   channel before it goes; Rename too. The People step picks owners from
+   the workspace's people (`users:read`), the Channel step from the
+   channels the bot is in (`channels:read`, `groups:read`), scopes every
+   app's manifest has had.
 4. **Each app's settings:** People, Agents, Slack, Settings; Keys;
    People across apps.
 5. **Network and data:** each app's Network and Data sections, the

@@ -61,6 +61,7 @@
           <section id="side-apps" class="side-view" role="tabpanel" aria-label="Apps" hidden>
             <div class="logs-tools">
               <input id="apps-search" type="search" placeholder="Find an app" aria-label="Find an app" autocomplete="off">
+              <button id="apps-new" class="side-icon" title="New app: make one, adopt a project, or bring one back" aria-label="New app">+</button>
             </div>
             <ul id="apps-list" class="stask-list app-list"></ul>
           </section>
@@ -120,6 +121,8 @@
               <div class="admin-head">
                 <h1 class="admin-title"><span id="home-what">Apps</span> on <span id="home-machine"></span></h1>
                 <span id="home-summary" class="muted"></span>
+                <span class="grow"></span>
+                <button id="home-new" class="small">+ New app</button>
               </div>
               <div id="home-machine-card"></div>
               <div id="home-org"></div>
@@ -127,6 +130,7 @@
             </section>
             <section id="overview" class="admin-section" aria-label="Overview" hidden></section>
             <section id="policy" class="admin-section" aria-label="The org's policy" hidden></section>
+            <section id="newapp" class="admin-section" aria-label="New app" hidden></section>
           </div>
         </div>
 
@@ -193,7 +197,9 @@
     <h2 id="ask-title"></h2>
     <p id="ask-text"></p>
     <textarea id="ask-why" rows="2" maxlength="500" hidden></textarea>
+    <input id="ask-field" autocomplete="off" hidden>
     <input id="ask-typed" autocomplete="off" hidden>
+    <label id="ask-check-label" class="check small" hidden><input id="ask-check" type="checkbox"> <span id="ask-check-text"></span></label>
     <p id="ask-error" class="error small"></p>
     <div class="buttons">
       <button type="button" id="ask-cancel">Cancel</button>

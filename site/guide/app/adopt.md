@@ -205,7 +205,9 @@ a task.
 ## From a file
 
 Without a terminal, give the answers in a file, as for `hi app new`, with
-`"adopt"` for the project, and `"ref"` and `"shallow"` if you need them. A `"clone"` address this machine can't push to is adopted
+`"adopt"` for the project, and `"ref"` and `"shallow"` if you need them;
+`"full": true` fetches the whole history of a project over 1 GB, which a
+terminal asks about. A `"clone"` address this machine can't push to is adopted
 too, unless `"push_to_source": true` says it's yours to push to.
 
 ```sh

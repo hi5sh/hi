@@ -39,6 +39,16 @@ type adminJob struct {
 	State   string    `json:"state"` // running, done, or failed
 	Code    int       `json:"code,omitempty"`
 	Error   string    `json:"error,omitempty"`
+	// Then are more hi commands to run after Args, each when the one
+	// before it went well.
+	Then [][]string `json:"then,omitempty"`
+	// Env is a 0600 file of secrets for the commands, as environment
+	// variables, which the runner reads and deletes at once; Remove are
+	// files the runner deletes when the job ends; Draft is the new app's
+	// draft (admin_new.go), dropped once the job went well.
+	Env    string   `json:"env,omitempty"`
+	Remove []string `json:"remove,omitempty"`
+	Draft  string   `json:"draft,omitempty"`
 }
 
 func adminJobsDir() string             { return filepath.Join(adminDir(), "jobs") }
@@ -203,13 +213,30 @@ func adminJobMain(args []string, stderr io.Writer) int {
 		return 1
 	}
 	defer log.Close()
+	env := append(os.Environ(), adminByEnv+"="+job.By)
+	if job.Env != "" {
+		// The secrets are read once, and the file goes.
+		data, readErr := os.ReadFile(job.Env)
+		os.Remove(job.Env)
+		var secrets map[string]string
+		if readErr == nil && json.Unmarshal(data, &secrets) == nil {
+			for name, value := range secrets {
+				env = append(env, name+"="+value)
+			}
+		}
+	}
+	defer func() {
+		for _, path := range job.Remove {
+			os.Remove(path)
+		}
+	}()
 	executable, err := adminExecutable()
-	if err == nil {
-		fmt.Fprintf(log, "$ hi %s\n", strings.Join(adminQuoteArgs(job.Args), " "))
-		command := exec.Command(executable, job.Args...)
-		command.Stdout, command.Stderr = log, log
-		command.Env = append(os.Environ(), adminByEnv+"="+job.By)
-		err = command.Run()
+	for _, args := range append([][]string{job.Args}, job.Then...) {
+		if err != nil {
+			break
+		}
+		fmt.Fprintf(log, "$ hi %s\n", strings.Join(adminQuoteArgs(args), " "))
+		err = adminRunCommand(executable, args, env, log)
 	}
 	job.Ended, job.State = time.Now().UTC(), "done"
 	if err != nil {
@@ -220,9 +247,20 @@ func adminJobMain(args []string, stderr io.Writer) int {
 		}
 		fmt.Fprintf(log, "\nhi: %v\n", err)
 	}
+	if err == nil && job.Draft != "" && appNamePattern.MatchString(job.Draft) {
+		os.Remove(adminDraftPath(job.Draft))
+	}
 	saveAdminJob(job)
 	adminTellApp(job)
 	return 0
+}
+
+// adminRunCommand runs one of a job's hi commands; tests replace it.
+var adminRunCommand = func(executable string, args, env []string, out io.Writer) error {
+	command := exec.Command(executable, args...)
+	command.Stdout, command.Stderr = out, out
+	command.Env = env
+	return command.Run()
 }
 
 // adminQuoteArgs quotes the arguments a shell would split.

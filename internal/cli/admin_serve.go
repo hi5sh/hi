@@ -443,6 +443,7 @@ func (s *adminServer) routes() http.Handler {
 		reply(w, http.StatusOK, adminIncidents())
 	}))
 	s.orgRoutes(mux, reply, decode, signedIn)
+	s.newRoutes(mux, reply, decode, signedIn)
 	return adminHeaders(mux)
 }
 

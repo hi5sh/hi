@@ -159,3 +159,22 @@ body.wall { overflow: hidden; }
 .card-usage { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-top: 4px; }
 .card-usage .meter-head { font-size: 12px; }
 .card-usage .meter-bar { height: 4px; }
+
+/* New app. */
+.new-start { max-width: 640px; margin: 12px 0 20px; }
+.new-steps { flex-wrap: wrap; margin: 10px 0 14px; }
+.new-steps button.done { color: var(--good); }
+.new-step { max-width: 760px; display: flex; flex-direction: column; gap: 10px; }
+.new-step > p { margin: 0; }
+.new-step input:not([type=checkbox]):not([type=radio]), .new-step select, .new-step textarea { width: 100%; }
+.radios { display: flex; flex-direction: column; gap: 4px; }
+ol.how { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+pre.manifest { max-height: 240px; }
+.people-pick { max-height: 320px; overflow: auto; }
+.people-pick li { border-bottom: 0; padding: 2px 0; }
+.chosen-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chosen { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.member-card .policy-fields { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+code.big-code { font-size: 18px; letter-spacing: 0.08em; color: var(--bright); }
+.danger-row { margin-top: 6px; }
+#ask-field { width: 100%; margin-top: 6px; }

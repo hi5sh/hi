@@ -62,6 +62,51 @@ Every change is said: in Activity, with the admin's name, and in the
 app's ops channel, as the app's bot: "Olga restarted the app, from the
 admin page."
 
+## New apps
+
+**+ New app** (on Home, or **+** in Apps) makes one without a terminal:
+hi app new's ten steps as pages, with **Back** and **Next**. Each answer
+is checked by the machine as it's given, the same checks as the
+terminal's, and kept, so a reload or a closed laptop loses nothing: the
+new apps under way are listed to carry on with, or discard.
+
+1. **Lead:** its name, and the bot's handle it gives.
+2. **Purpose:** one sentence.
+3. **Slack app:** **Create the Slack app** opens Slack with the manifest
+   filled in; then **Install to Workspace**, and the two tokens, each
+   checked as it's given.
+4. **Channel:** after `/invite @bot` in it, picked from the channels the
+   bot is in, and an ops channel the same way.
+5. **People:** the owners, picked by name from the workspace's people.
+6. **Members:** each role's agent, model, who pays, and effort. A ChatGPT
+   sign-in of the app's own shows its code and link on the page, and the
+   page sees when it's done; a Claude token is pasted, or the machine's
+   sign-in used. Each role's fallback on OpenRouter is checked.
+7. **Models:** the app's own OpenRouter key, or the machine's.
+8. **Code:** a new web app, an empty repository, a template, or someone's
+   project to adopt (GitHub, a URL, or a folder here), with **Look at it**
+   first: what GitHub says of it, or what the folder holds. GitHub too,
+   if you like.
+9. **Network:** the NetBird setup key, or later, and how the addresses
+   are named.
+10. **Heartbeats:** the app's, and the machine's if it has none.
+
+**Create** makes it as `hi app new --from` would with the same answers,
+then starts it, as a job: Jobs follows it, and the app opens when it's
+up. A token is sent to the machine once, never shown again, and kept for
+the job in a file only it reads, which it deletes. If creating it fails,
+the answers stay: fix the step and **Create** again. **From a file**
+starts from answers someone wrote before, as `--from` takes them.
+
+**Bring one back** lists the app folders beside the apps' folders that
+aren't apps here (one removed with its folder kept, or moved, or copied
+from another machine), or takes a folder's path, and starts it:
+`hi app up <folder>`.
+
+In an app's Overview, **Rename…** and **Remove…** each need the app's
+name typed. Remove keeps the app's folder unless you say otherwise, so
+it can come back.
+
 ## On the org server's machine
 
 A machine that runs the org server has the org on its admin page too. A
@@ -196,4 +241,5 @@ hi admin admins [add <name> [--slack <member ID>] | remove <name>]
 hi admin address [<host> [--https] | default]
 ```
 
-Coming next: creating apps on the page, and each app's settings.
+Coming next: each app's settings on the page: its people, agents, Slack,
+and settings, and the machine's keys.

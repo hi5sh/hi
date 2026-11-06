@@ -816,11 +816,14 @@ type appAnswers struct {
 	// Ref; Shallow fetches only its latest commit, and NoSurvey skips the
 	// first task. PushToSource makes a clone or an adoption push its
 	// merges back to where it came from, as a project of your own does.
-	Adopt        string `json:"adopt,omitempty"`
-	Ref          string `json:"ref,omitempty"`
-	Shallow      bool   `json:"shallow,omitempty"`
-	NoSurvey     bool   `json:"no_survey,omitempty"`
-	PushToSource bool   `json:"push_to_source,omitempty"`
+	Adopt   string `json:"adopt,omitempty"`
+	Ref     string `json:"ref,omitempty"`
+	Shallow bool   `json:"shallow,omitempty"`
+	// Full fetches the whole history of a project over 1 GB, which the
+	// terminal asks about.
+	Full         bool `json:"full,omitempty"`
+	NoSurvey     bool `json:"no_survey,omitempty"`
+	PushToSource bool `json:"push_to_source,omitempty"`
 	// NetBirdKey is the setup key the dev box joins the team's NetBird
 	// network with, once (app_dev.go).
 	NetBirdKey string `json:"netbird_key,omitempty"`

@@ -271,7 +271,7 @@ function stateDot(s) { return el("span", { class: "dot " + stateClass(s), "aria-
 function renderBar() {
   $("machine").textContent = state.machine;
   $("home-machine").textContent = state.machine;
-  const named = openApp || (middle === ":policy" ? "The org's policy" : "");
+  const named = openApp || (middle === ":policy" ? "The org's policy" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : "");
   $("crumb").hidden = !named;
   $("sections").hidden = !openApp;
   $("open-box").hidden = !openApp;
@@ -402,6 +402,8 @@ function setMiddle(what) {
   $("home").hidden = !!what;
   $("overview").hidden = !app;
   $("policy").hidden = what !== ":policy";
+  $("newapp").hidden = !what.startsWith(":new");
+  if (!what.startsWith(":new")) clearTimeout(draftPoll);
   history.replaceState(null, "", what ? "#" + encodeURIComponent(what) : "/");
   renderBar();
   renderApps();
@@ -478,6 +480,7 @@ function renderOverview() {
   if (stopped && stopped.paused) actions.append(button("Unpause", "unpause", { class: "primary" }));
   else if (up && !(stopped && stopped.frozen)) actions.append(button("Pause…", "pause"));
   parts.push(el("h2", {}, "Actions"), actions);
+  parts.push(el("div", { class: "data-actions danger-row" }, el("button", { onclick: () => renameApp(d.name) }, "Rename…"), el("button", { class: "danger", onclick: () => removeApp(d.name) }, "Remove…")));
 
   // Tell the lead.
   const say = el("form", { class: "say-form", autocomplete: "off" },
@@ -597,7 +600,7 @@ async function act(action, extra) {
 }
 
 // ask is the dialog for a yes: it answers false, true, or the why typed.
-function ask({ title, text, ok, why, whyOptional, typed }) {
+function ask({ title, text, ok, why, whyOptional, typed, field, fieldCheck, check, checked }) {
   return new Promise((resolve) => {
     const dialog = $("ask");
     $("ask-title").textContent = title;
@@ -612,6 +615,13 @@ function ask({ title, text, ok, why, whyOptional, typed }) {
     typedBox.hidden = !typed;
     typedBox.value = "";
     typedBox.placeholder = typed ? "Type " + typed : "";
+    const fieldBox = $("ask-field");
+    fieldBox.hidden = !field;
+    fieldBox.value = "";
+    fieldBox.placeholder = field || "";
+    $("ask-check-label").hidden = !check;
+    $("ask-check-text").textContent = check || "";
+    $("ask-check").checked = !!checked;
     const done = (value) => {
       dialog.close();
       $("ask-form").onsubmit = null;
@@ -620,7 +630,13 @@ function ask({ title, text, ok, why, whyOptional, typed }) {
     };
     $("ask-form").onsubmit = (event) => {
       event.preventDefault();
+      if (field) {
+        const value = fieldBox.value.trim();
+        const problem = fieldCheck ? fieldCheck(value) : value ? "" : "Fill it in.";
+        if (problem) { $("ask-error").textContent = problem; return; }
+      }
       if (typed && typedBox.value.trim() !== typed) { $("ask-error").textContent = "Type " + typed + " to say so."; return; }
+      if (field || check) { done({ field: fieldBox.value.trim(), checked: $("ask-check").checked }); return; }
       if (why) {
         if (!reason.value.trim() && !whyOptional) { $("ask-error").textContent = "Say why: the app's people are told."; return; }
         done(reason.value.trim() || true);
@@ -629,7 +645,7 @@ function ask({ title, text, ok, why, whyOptional, typed }) {
     $("ask-cancel").onclick = () => done(false);
     dialog.onclose = () => resolve(false);
     dialog.showModal();
-    (typed ? typedBox : why ? reason : $("ask-ok")).focus();
+    (field ? fieldBox : typed ? typedBox : why ? reason : $("ask-ok")).focus();
   });
 }
 
@@ -842,7 +858,12 @@ async function refreshJob() {
     jobFrom = answer.next;
     if (atEnd) out.scrollTop = out.scrollHeight;
     if (answer.job.state === "running") jobTimer = setTimeout(refreshJob, 1500);
-    else { refreshState(); if (openApp && answer.job.app === openApp) refreshDetail(); }
+    else {
+      refreshState();
+      if (openApp && answer.job.app === openApp) refreshDetail();
+      // A new app, or a renamed one, opens once its job is done.
+      if (creating && creating.job === id && answer.job.state === "done") { const name = creating.name; creating = null; openView(name); }
+    }
   } catch (e) { /* the next round */ }
 }
 
@@ -1466,6 +1487,526 @@ function renderHomeOrg() {
 }
 
 // ---------------------------------------------------------------------------
+// New app: hi app new's ten steps as pages, each answer checked by the
+// machine as it's given and kept there, so a reload loses nothing. The
+// page holds no secret: a token is sent once, and the machine says only
+// whether it has one.
+
+const newSteps = [
+  ["lead", "Lead"], ["purpose", "Purpose"], ["slack", "Slack app"], ["channel", "Channel"], ["people", "People"],
+  ["members", "Members"], ["models", "Models"], ["code", "Code"], ["network", "Network"], ["heartbeats", "Heartbeats"],
+];
+let draft = null;      // the open new app, as the machine keeps it
+let newStep = 0;       // its step on the page; newSteps.length is the review
+let newHome = null;    // /api/new
+let slackLists = { channels: null, people: null, error: "" };
+let draftPoll = 0;
+
+function openNew(name) {
+  setMiddle(name ? ":new/" + name : ":new");
+  if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
+  draft = null;
+  slackLists = { channels: null, people: null, error: "" };
+  if (name) loadDraft(name, true); else loadNewHome();
+}
+$("apps-new").addEventListener("click", () => openNew(""));
+$("home-new").addEventListener("click", () => openNew(""));
+
+async function loadNewHome() {
+  $("newapp").replaceChildren(el("p", { class: "muted" }, "…"));
+  try { newHome = await api("/api/new"); } catch (e) { if (!(e instanceof SignIn)) $("newapp").replaceChildren(el("p", { class: "error" }, e.message)); return; }
+  renderNewHome();
+}
+
+function renderNewHome() {
+  const box = $("newapp");
+  const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "New app"))];
+  parts.push(el("p", { class: "purpose" }, "An app for the people in one Slack channel, with its lead, its members, and its project. Ten steps, as hi app new asks them; what's done is kept, so you can stop and carry on."));
+  const name = el("input", { id: "new-name", required: true, maxlength: "20", pattern: "[a-z][a-z0-9-]*", placeholder: "Its name, such as payments", "aria-label": "The app's name", autocomplete: "off" });
+  const folder = el("input", { id: "new-folder", maxlength: "300", placeholder: (newHome.folder || "~") + "/app-<name>", "aria-label": "Its folder", autocomplete: "off" });
+  const adopt = el("input", { id: "new-adopt", maxlength: "300", placeholder: "github.com/owner/name, a URL, or a folder here (optional)", "aria-label": "A project to adopt", autocomplete: "off" });
+  const file = el("input", { id: "new-file", type: "file", accept: ".json,application/json", "aria-label": "Answers from a file" });
+  const error = el("p", { class: "error small" });
+  name.addEventListener("input", () => { folder.placeholder = (newHome.folder || "~") + "/app-" + (name.value.trim() || "<name>"); });
+  const form = el("form", { class: "new-start stack", autocomplete: "off" },
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Its name: lowercase letters, digits, and dashes. Its folder and its Slack command are named after it."), name),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Its folder, where its project, tasks, and memory live"), folder),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Start from someone's project, to adopt it: the app keeps its own copy and never pushes to theirs"), adopt),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "From a file: answers someone wrote before, as hi app new --from takes them (no secrets in it)"), file),
+    error,
+    el("div", { class: "data-actions" }, el("button", { class: "primary", type: "submit" }, "Start")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    error.textContent = "";
+    let from = null;
+    if (file.files && file.files[0]) {
+      try { from = JSON.parse(await file.files[0].text()); } catch (e) { error.textContent = "That file isn't JSON: " + e.message; return; }
+    }
+    try {
+      draft = await api("/api/new", { action: "start", name: name.value.trim(), folder: folder.value.trim(), adopt: adopt.value.trim(), from });
+      setMiddle(":new/" + draft.name);
+      newStep = 0;
+      renderDraft();
+    } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
+  });
+  parts.push(form);
+
+  if (newHome.drafts.length) {
+    const list = el("ul", { class: "list" });
+    for (const d of newHome.drafts) {
+      const done = newSteps.filter(([key]) => d.done && d.done[key]).length;
+      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, d.name), " ", el("span", { class: "muted small" }, d.job_state === "running" ? "being created" : d.job_state === "failed" ? "creating it failed: see Jobs" : done + " of 10 steps"),
+        el("span", { class: "muted small block" }, (d.by || "?") + " started it " + ago(d.started) + " · " + d.folder)),
+        el("span", { class: "actions" }, el("button", { onclick: () => openNew(d.name) }, "Carry on"),
+          el("button", { class: "danger", onclick: async () => {
+            if (!(await ask({ title: "Discard the new app " + d.name + "?", text: "Its answers and the tokens given for it are forgotten. Nothing was made yet.", ok: "Discard" }))) return;
+            try { await api("/api/new", { action: "discard", name: d.name }); loadNewHome(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+          } }, "Discard"))));
+    }
+    parts.push(el("h2", {}, "Under way"), list);
+  }
+
+  parts.push(el("h2", {}, "Bring one back"));
+  parts.push(el("p", { class: "muted small" }, "An app's folder that's here but isn't an app on this machine: one removed with its folder kept, or moved, or copied from another machine. It starts again from what its folder holds."));
+  const back = el("ul", { class: "list" });
+  for (const b of newHome.back || []) {
+    back.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, b.name), el("span", { class: "muted small block" }, b.folder + (b.purpose ? " · " + b.purpose : ""))),
+      el("span", { class: "actions" }, el("button", { onclick: () => bringBack(b.folder, b.name) }, "Bring back"))));
+  }
+  if (!(newHome.back || []).length) back.append(el("li", { class: "plain muted small" }, "None beside the apps' folders."));
+  parts.push(back);
+  const typed = el("input", { maxlength: "300", placeholder: "Or its folder's full path", "aria-label": "An app's folder" });
+  const backForm = el("form", { class: "say-form", autocomplete: "off" }, typed, el("button", { type: "submit" }, "Bring back"));
+  backForm.addEventListener("submit", (event) => { event.preventDefault(); if (typed.value.trim()) bringBack(typed.value.trim(), ""); });
+  parts.push(backForm);
+  box.replaceChildren(...parts);
+  name.focus();
+}
+
+async function bringBack(folder, name) {
+  if (!(await ask({ title: "Bring back " + (name || "the app in " + folder) + "?", text: "It becomes an app on this machine again, by its name, and starts: hi app up " + folder + ".", ok: "Bring it back" }))) return;
+  try { const job = await api("/api/apps", { action: "back", folder }); toast("Bringing it back. Jobs has its output."); followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+async function loadDraft(name, first) {
+  if (first) $("newapp").replaceChildren(el("p", { class: "muted" }, "…"));
+  try {
+    const fresh = await api("/api/new/draft?name=" + encodeURIComponent(name));
+    if (middle !== ":new/" + name) return;
+    const same = draft && JSON.stringify(draft) === JSON.stringify(fresh);
+    draft = fresh;
+    if (first) newStep = Math.max(0, newSteps.findIndex(([key]) => !(draft.done || {})[key]));
+    if (first && newSteps.every(([key]) => (draft.done || {})[key])) newStep = newSteps.length;
+    if (!same && !(first === false && document.activeElement && $("newapp").contains(document.activeElement) && document.activeElement.tagName !== "BUTTON")) renderDraft();
+  } catch (e) {
+    if (e instanceof SignIn) return;
+    if (first) $("newapp").replaceChildren(el("p", { class: "error" }, e.message), el("button", { onclick: () => openNew("") }, "New app"));
+  }
+}
+
+// A step's answers go to the machine, which checks them as the terminal
+// does; on to the next when it took them.
+async function saveStep(answers) {
+  const key = newSteps[newStep][0];
+  const error = $("step-error");
+  if (error) error.textContent = "";
+  const busy = $("step-next");
+  if (busy) { busy.disabled = true; busy.textContent = "Checking…"; }
+  try {
+    draft = await api("/api/new", Object.assign({ action: "step", name: draft.name, step: key }, answers));
+    newStep = Math.min(newStep + 1, newSteps.length);
+    renderDraft();
+  } catch (e) {
+    if (e instanceof SignIn) return;
+    if (busy) { busy.disabled = false; busy.textContent = "Next"; }
+    if ($("step-error")) $("step-error").textContent = e.message;
+  }
+}
+
+function stepNav() {
+  const nav = el("div", { class: "chips new-steps", role: "group", "aria-label": "The steps" });
+  newSteps.forEach(([key, label], i) => {
+    const done = draft.done && draft.done[key];
+    nav.append(el("button", { "aria-pressed": String(i === newStep), class: done ? "done" : "", onclick: () => { newStep = i; renderDraft(); } }, (done ? "✓ " : (i + 1) + " ") + label));
+  });
+  const all = newSteps.every(([key]) => draft.done && draft.done[key]);
+  nav.append(el("button", { "aria-pressed": String(newStep === newSteps.length), disabled: !all, onclick: () => { newStep = newSteps.length; renderDraft(); } }, "Create"));
+  return nav;
+}
+
+const field = (label, input, help) => el("label", { class: "field" }, el("span", { class: "muted small" }, label), input, help ? el("span", { class: "muted small" }, help) : null);
+function input(attrs) { return el("input", Object.assign({ autocomplete: "off", maxlength: "300" }, attrs)); }
+function radios(name, options, value, onchange) {
+  const box = el("div", { class: "radios" });
+  for (const [v, label, disabled] of options) {
+    const r = el("input", { type: "radio", name, value: v, disabled: !!disabled });
+    r.checked = v === value;
+    r.addEventListener("change", () => onchange && onchange(v));
+    box.append(el("label", { class: "check" + (disabled ? " muted" : "") }, r, " " + label));
+  }
+  return box;
+}
+const picked = (name) => { const r = document.querySelector('input[name="' + name + '"]:checked'); return r ? r.value : ""; };
+
+function renderDraft() {
+  if (!draft) return;
+  clearTimeout(draftPoll);
+  const d = draft;
+  const box = $("newapp");
+  const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "New app " + d.name), el("span", { class: "muted small" }, d.folder))];
+  if (d.job) {
+    const words = { running: "It's being created now: Jobs has its output.", failed: "Creating it failed: Jobs has why. Fix the step it names, and Create again.", done: "It's made." };
+    parts.push(el("p", { class: "note " + (d.job_state === "failed" ? "error" : "") }, words[d.job_state] || ""));
+  }
+  parts.push(stepNav());
+  const body = el("div", { class: "new-step" });
+  const error = el("p", { id: "step-error", class: "error" }, (d.errors && Object.values(d.errors)[0]) || "");
+  let collect = null; // the step's answers, for Next
+  const c = d.config;
+  const m = d.machine;
+  const key = newStep < newSteps.length ? newSteps[newStep][0] : "review";
+  switch (key) {
+    case "lead": {
+      const lead = input({ id: "s-lead", maxlength: "40", value: (c.members.lead && c.members.lead.name) || "", placeholder: d.name });
+      body.append(el("p", {}, "The lead talks with the people in the app's Slack channel. Give it a name of its own, such as a person's, or leave it as " + d.name + "."),
+        field("The lead's name", lead, "In Slack it's @" + d.handle + (d.done.lead ? "" : " (after Next, by the name you give)") + "; its command is " + d.slash + "."));
+      collect = () => ({ lead_name: lead.value.trim() });
+      break;
+    }
+    case "purpose": {
+      const purpose = el("textarea", { id: "s-purpose", rows: "3", maxlength: "400", placeholder: "What is this app for? The lead starts from it." });
+      purpose.value = c.purpose || "";
+      body.append(el("p", {}, "In one sentence, what is this app for? The lead starts from it."), purpose);
+      collect = () => ({ purpose: purpose.value.trim() });
+      break;
+    }
+    case "slack": {
+      const bot = input({ id: "s-bot", type: "password", placeholder: d.has_bot ? "Kept; paste again to change it" : "xoxb-…" });
+      const app = input({ id: "s-app", type: "password", placeholder: d.has_app ? "Kept; paste again to change it" : "xapp-…" });
+      body.append(el("p", {}, "Each app has a Slack app of its own, made from a manifest hi writes for it."),
+        el("ol", { class: "how" },
+          el("li", {}, el("a", { class: "button-like", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
+          el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it."),
+          el("li", {}, "The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
+          el("li", {}, "The app token is under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…).")),
+        el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest, to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"), el("pre", { class: "job-output manifest" }, d.manifest)),
+        field("Bot token", bot), field("App token", app),
+        d.workspace ? el("p", { class: "muted small" }, "Both work, in the workspace " + d.workspace + ".") : "");
+      collect = () => ({ bot_token: bot.value.trim(), app_token: app.value.trim() });
+      break;
+    }
+    case "channel": {
+      const main = el("select", { id: "s-channel", "aria-label": "The app's channel" });
+      const ops = el("select", { id: "s-ops", "aria-label": "The ops channel" });
+      const fill = () => {
+        const list = slackLists.channels || [];
+        const options = (value, none) => [none ? el("option", { value: "" }, none) : el("option", { value: "" }, "Choose a channel"), ...list.map((ch) => el("option", { value: ch.id, selected: ch.id === value }, (ch.private ? "🔒 " : "#") + ch.name))];
+        main.replaceChildren(...options(c.channel, ""));
+        ops.replaceChildren(...options(c.ops_channel, "None: everything goes to the main channel"));
+        if (c.channel && !list.some((ch) => ch.id === c.channel)) main.append(el("option", { value: c.channel, selected: true }, c.channel));
+      };
+      fill();
+      const refresh = el("button", { type: "button", class: "small", onclick: async () => { await loadSlack("channels"); fill(); note.textContent = slackLists.error || (slackLists.channels || []).length + " channels the app is in."; } }, "Read again");
+      const note = el("p", { class: "muted small" }, slackLists.error || (slackLists.channels ? slackLists.channels.length + " channels the app is in." : "…"));
+      body.append(el("p", {}, "Invite the Slack app to the app's channel first: in the channel, ", el("code", {}, "/invite @" + d.handle), ". Then read the channels it's in again, and pick it."),
+        el("div", { class: "data-actions" }, refresh), note,
+        field("The app's channel", main),
+        field("An ops channel, for operations and security (optional)", ops, "Incidents, warnings, downtime, advisories, keys, and access, for the people with the know-how. A private one, for owners and Pro Devs. Invite the app there too."));
+      if (!slackLists.channels) loadSlack("channels").then(() => { if (key === "channel" && newSteps[newStep][0] === "channel") { fill(); note.textContent = slackLists.error || slackLists.channels.length + " channels the app is in."; } });
+      collect = () => ({ channel: main.value, ops_channel: ops.value });
+      break;
+    }
+    case "people": {
+      const chosen = new Set(c.owners || []);
+      if (!chosen.size && state.me.slack) chosen.add(state.me.slack);
+      const search = input({ type: "search", placeholder: "Find someone", "aria-label": "Find someone" });
+      const list = el("ul", { class: "list people-pick" });
+      const chips = el("div", { class: "chosen" });
+      const draw = () => {
+        const people = slackLists.people || [];
+        const q = search.value.trim().toLowerCase();
+        list.replaceChildren();
+        for (const p of people.filter((p) => !q || (p.name + " " + (p.real_name || "")).toLowerCase().includes(q)).slice(0, 60)) {
+          const box = el("input", { type: "checkbox" });
+          box.checked = chosen.has(p.id);
+          box.addEventListener("change", () => { if (box.checked) chosen.add(p.id); else chosen.delete(p.id); drawChips(); });
+          list.append(el("li", {}, el("label", { class: "check" }, box, " ", el("strong", {}, p.real_name || p.name), p.real_name ? el("span", { class: "muted small" }, " @" + p.name) : null)));
+        }
+        if (!people.length) list.append(el("li", { class: "plain muted small" }, slackLists.error || "…"));
+      };
+      const drawChips = () => {
+        const people = slackLists.people || [];
+        chips.replaceChildren(...[...chosen].map((id) => { const p = people.find((x) => x.id === id); return el("span", { class: "pill" }, p ? p.real_name || p.name : id); }));
+        if (!chosen.size) chips.append(el("span", { class: "muted small" }, "Nobody yet."));
+      };
+      search.addEventListener("input", draw);
+      body.append(el("p", {}, "Owners build the app in the dev box and release it from the dev page. Pick them from the workspace's people."), el("div", { class: "chosen-row" }, el("span", { class: "muted small" }, "Owners: "), chips), search, list);
+      draw(); drawChips();
+      if (!slackLists.people) loadSlack("people").then(() => { draw(); drawChips(); });
+      collect = () => ({ owners: [...chosen] });
+      break;
+    }
+    case "members":
+      collect = renderMembers(body, d);
+      break;
+    case "models": {
+      let own = d.own_key || !m.openrouter;
+      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…", disabled: !own });
+      body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; no box ever holds it."),
+        radios("s-or", [["machine", "This machine's key, Hermes'", !m.openrouter], ["own", "A key of the app's own (openrouter.ai/settings/keys)"]], own ? "own" : "machine", (v) => { own = v === "own"; key.disabled = !own; if (own) key.focus(); }),
+        field("The app's OpenRouter key", key));
+      collect = () => ({ own_key: own, openrouter_key: key.value.trim() });
+      break;
+    }
+    case "code":
+      collect = renderCode(body, d);
+      break;
+    case "network": {
+      const nb = input({ id: "s-netbird", type: "password", placeholder: d.has_netbird ? "Kept; paste again to change it" : "A NetBird setup key (optional)" });
+      const current = c.addresses || "";
+      const addresses = current === "" ? (m.domain ? "domain" : "netbird") : current === "netbird" || current === "names" ? current : "host";
+      let choice = addresses;
+      const production = input({ value: c.names ? c.names.production || "" : "", placeholder: "demo.example.com" });
+      const https = el("input", { type: "checkbox" });
+      https.checked = c.names ? !!c.names.https : true;
+      const host = input({ value: choice === "host" ? current : "", placeholder: "demo.corp.example" });
+      const extra = el("div", { class: "stack" });
+      const drawExtra = () => {
+        extra.replaceChildren();
+        if (choice === "names") extra.append(field("Production's name; Stage and the dev page go under it", production), el("label", { class: "check small" }, https, " Your IT team's proxy ends TLS in front of them: the links say https"));
+        if (choice === "host") extra.append(field("The name your IT team keeps, pointing at the app's NetBird address", host, "Production is http://<name>/, the preview :8080, and the dev page :8888."));
+      };
+      const options = [];
+      if (m.domain) options.push(["domain", "This machine's domain, on https: " + m.domain + " and the like"]);
+      options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", "The NetBird name, " + m.peer + ", on plain http"]);
+      body.append(el("p", {}, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there. The dev box joins with a setup key, once: in NetBird's dashboard, Setup Keys. Without one now: hi app dev " + d.name + " netbird, later."),
+        field("NetBird setup key", nb), el("h2", {}, "What the addresses are named"), radios("s-addr", options, choice, (v) => { choice = v; drawExtra(); }), extra);
+      drawExtra();
+      collect = () => ({ netbird_key: nb.value.trim(), addresses: choice, production: production.value.trim(), https: https.checked, host: host.value.trim() });
+      break;
+    }
+    case "heartbeats": {
+      const beat = input({ value: d.heartbeat || "", placeholder: "https://hc-ping.com/… (optional)" });
+      const every = input({ value: c.heartbeat_every || "", placeholder: "1m" });
+      const machine = input({ value: d.machine_heartbeat || "", placeholder: "https://hc-ping.com/… (optional)" });
+      body.append(el("p", {}, "Heartbeats tell an outside service, such as healthchecks.io (free for 20 checks), that the app runs; it alerts when they stop. Make a check there, and set there who hears of a stop: your IT team, or the ops channel."),
+        field("The app's heartbeat URL", beat, "One is sent now, to see that it arrives."), field("Every", every, "Between 30s and 1h; 1m unless you say."));
+      if (!m.heartbeat) body.append(field("This machine's heartbeat URL", machine, "This machine has none: one says it's up, whichever of its apps run."));
+      collect = () => ({ heartbeat: beat.value.trim(), every: every.value.trim(), machine_heartbeat: machine.value.trim() });
+      break;
+    }
+    case "review":
+      renderReview(body, d);
+      break;
+  }
+  parts.push(body, error);
+  if (key !== "review") {
+    const buttons = el("div", { class: "data-actions" });
+    if (newStep > 0) buttons.append(el("button", { type: "button", onclick: () => { newStep--; renderDraft(); } }, "Back"));
+    buttons.append(el("button", { id: "step-next", class: "primary", type: "button", onclick: () => collect && saveStep(collect()) }, "Next"));
+    buttons.append(el("span", { class: "grow" }), el("button", { type: "button", onclick: () => openNew("") }, "Later"));
+    parts.push(buttons);
+  }
+  box.replaceChildren(...parts);
+  const first = body.querySelector("input:not([type=radio]):not([type=checkbox]):not(:disabled), textarea, select");
+  if (first && !narrow()) first.focus();
+  // A ChatGPT code waits for someone to sign in: read again until it's done.
+  if (d.chatgpt_code || d.job_state === "running") draftPoll = setTimeout(() => loadDraft(d.name, false), 3000);
+}
+
+async function loadSlack(what) {
+  try {
+    const list = await api("/api/new/slack?name=" + encodeURIComponent(draft.name) + "&what=" + what);
+    slackLists[what] = list || [];
+    slackLists.error = "";
+  } catch (e) {
+    if (e instanceof SignIn) return;
+    slackLists[what] = [];
+    slackLists.error = e.message;
+  }
+}
+
+// Members: each role's agent, model, who pays, and effort, and the
+// sign-ins they need.
+function renderMembers(body, d) {
+  const c = d.config, m = d.machine;
+  const roles = ["lead", ...Object.keys(c.members).filter((r) => r !== "lead").sort()];
+  const rows = {};
+  body.append(el("p", {}, "Each role's agent and model, and for Hermes who pays: OpenRouter, or a ChatGPT plan (falling back to OpenRouter), and how hard it thinks."));
+  const signin = el("div", { class: "card-box pad stack" });
+  const claude = el("div", { class: "card-box pad stack" });
+  let chatgptChoice = d.chatgpt_signin || (m.chatgpt ? "machine" : "app");
+  let claudeMachine = !d.has_claude && m.claude;
+  const claudeToken = input({ type: "password", placeholder: d.has_claude ? "Kept; paste again to change it" : "sk-ant-oat…, from claude setup-token" });
+  const needs = () => {
+    let chatgpt = false, cl = false;
+    for (const role of roles) {
+      const r = rows[role];
+      if (r.agent.value === "hermes" && r.provider.value === "chatgpt") chatgpt = true;
+      if (r.agent.value === "codex" && !(m.codex_key && chatgptChoice !== "app")) chatgpt = true;
+      if (r.agent.value === "claude") cl = true;
+    }
+    return { chatgpt, claude: cl };
+  };
+  const drawSignins = () => {
+    const n = needs();
+    signin.hidden = !n.chatgpt;
+    claude.hidden = !n.claude;
+    signin.replaceChildren(el("strong", {}, "ChatGPT sign-in"), el("p", { class: "muted small" }, "The roles on ChatGPT sign in once, for all of them: the app's own, with a code on any device (only the app refreshes it), or this machine's, Codex's."),
+      radios("s-chatgpt", [["app", "The app's own"], ["machine", "This machine's, Codex's" + (m.chatgpt ? "" : ": not signed in"), !m.chatgpt]], chatgptChoice, (v) => { chatgptChoice = v; drawSignins(); }));
+    if (chatgptChoice === "app") {
+      if (d.chatgpt) signin.append(el("p", { class: "small" }, "Signed in: " + d.chatgpt + "."));
+      if (d.chatgpt_code) signin.append(el("p", {}, "Open ", el("a", { href: d.chatgpt_url, target: "_blank", rel: "noopener noreferrer" }, d.chatgpt_url + " ↗"), ", sign in to the ChatGPT account that pays, and type ", el("code", { class: "big-code" }, d.chatgpt_code), ". This page sees when it's done."));
+      if (d.chatgpt_error) signin.append(el("p", { class: "error small" }, d.chatgpt_error));
+      signin.append(el("button", { type: "button", class: "small", onclick: async () => {
+        try { draft = await api("/api/new", { action: "chatgpt", name: d.name }); renderDraft(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+      } }, d.chatgpt ? "Sign in again" : d.chatgpt_code ? "A new code" : "Sign in"));
+    }
+    claude.replaceChildren(el("strong", {}, "Claude"), el("p", { class: "muted small" }, "A token of the app's own, from claude setup-token signed in to the account that pays (it lasts a year), or this machine's sign-in."),
+      radios("s-claude", [["machine", "This machine's sign-in" + (m.claude ? "" : ": none here"), !m.claude], ["own", "The app's own token"]], claudeMachine ? "machine" : "own", (v) => { claudeMachine = v === "machine"; claudeToken.disabled = claudeMachine; if (!claudeMachine) claudeToken.focus(); }),
+      claudeToken);
+    claudeToken.disabled = claudeMachine;
+  };
+  for (const role of roles) {
+    const member = c.members[role];
+    const agent = el("select", { "aria-label": role + "'s agent", disabled: role === "lead" });
+    for (const [v, label] of [["hermes", "Hermes"], ["claude", "Claude Code"], ["codex", "Codex"]]) agent.append(el("option", { value: v, selected: member.agent === v }, label));
+    const model = input({ value: member.model || "", placeholder: "the agent's own" , "aria-label": role + "'s model" });
+    const provider = el("select", { "aria-label": role + ": who pays" });
+    provider.append(el("option", { value: "openrouter", selected: member.provider !== "chatgpt" }, "OpenRouter, per call"), el("option", { value: "chatgpt", selected: member.provider === "chatgpt" }, "A ChatGPT plan, falling back to OpenRouter"));
+    const effort = el("select", { "aria-label": role + "'s effort" });
+    for (const e of m.efforts) effort.append(el("option", { value: e, selected: (member.effort || "medium") === e }, e));
+    const fallback = input({ value: member.fallback || "", placeholder: "the usual one", "aria-label": role + "'s fallback on OpenRouter" });
+    const models = el("datalist", { id: "models-" + role });
+    for (const name of d.chatgpt_models || []) models.append(el("option", { value: name }));
+    model.setAttribute("list", "models-" + role);
+    const providerField = field("Who pays", provider);
+    const sync = () => { providerField.hidden = agent.value !== "hermes"; drawSignins(); };
+    agent.addEventListener("change", () => { model.value = ""; sync(); });
+    provider.addEventListener("change", sync);
+    rows[role] = { agent, model, provider, effort, fallback };
+    body.append(el("div", { class: "card-box member-card" }, el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, role)),
+      el("div", { class: "policy-fields" }, field("Agent", agent), field("Model", model), providerField, field("Effort", effort), field("Fallback on OpenRouter", fallback, "Only if OpenRouter lacks the usual one")), models));
+    providerField.hidden = agent.value !== "hermes";
+  }
+  body.append(signin, claude);
+  drawSignins();
+  return () => {
+    const members = {};
+    for (const role of roles) {
+      const r = rows[role];
+      members[role] = { agent: r.agent.value, model: r.model.value.trim(), provider: r.agent.value === "hermes" ? r.provider.value : "", effort: r.effort.value, fallback: r.fallback.value.trim() };
+    }
+    return { members, chatgpt_signin: chatgptChoice, claude_token: claudeMachine ? "" : claudeToken.value.trim(), claude_machine: claudeMachine };
+  };
+}
+
+// Code: what the project starts from.
+function renderCode(body, d) {
+  const code = Object.assign({}, d.code);
+  const m = d.machine;
+  const options = [["new", "A new web app: a blank page on Bun, with a database, tests, and the helper's chat"], ["empty", "A repository with only a README"]];
+  for (const t of m.templates) options.push(["template:" + t.name, t.name + (t.summary ? ": " + t.summary : "")]);
+  options.push(["adopt", "Someone's project, such as github.com/owner/name, or a folder here: adopted"]);
+  let kind = code.kind === "template" ? "template:" + code.template : code.kind;
+  const source = input({ value: code.source || "", placeholder: "github.com/owner/name, a URL, or a folder's path" });
+  const ref = input({ value: code.ref || "", placeholder: "its default branch" });
+  const shallow = el("input", { type: "checkbox" }); shallow.checked = !!code.shallow;
+  const push = el("input", { type: "checkbox" }); push.checked = !!code.push;
+  const nosurvey = el("input", { type: "checkbox" }); nosurvey.checked = !!code.no_survey;
+  const github = input({ value: code.github || "", placeholder: "owner/name (optional)" });
+  const adoptBox = el("div", { class: "stack" });
+  const look = el("div", {});
+  const drawLook = () => {
+    const l = d.look;
+    look.replaceChildren();
+    if (!l || l.source !== source.value.trim()) return;
+    if (l.error) { look.append(el("p", { class: "error small" }, l.error)); return; }
+    const facts = el("dl", { class: "facts" });
+    const fact = (t, v) => { if (v) facts.append(el("dt", {}, t), el("dd", {}, v)); };
+    fact("Project", l.folder || l.github || l.source);
+    fact("About", l.description);
+    fact("Size", l.size_mb ? l.size_mb + " MB" + (l.files ? ", " + l.files + " files" : "") : l.files ? l.files + " files" : "");
+    fact("Branch", l.branch);
+    fact("Licence", l.licence || (l.github ? "none said" : ""));
+    look.append(el("div", { class: "card-box pad" }, facts,
+      l.archived ? el("p", { class: "warn small" }, "It's archived: nobody works on it now.") : null,
+      l.private ? el("p", { class: "muted small" }, "It's private: fetched with this machine's GitHub sign-in.") : null,
+      l.folder ? el("p", { class: "muted small" }, "A folder here is copied without its history or its secrets; nothing in it changes.") : null));
+  };
+  const drawAdopt = () => {
+    adoptBox.hidden = kind !== "adopt";
+    const l = d.look && d.look.source === source.value.trim() ? d.look : null;
+    adoptBox.replaceChildren(field("The project", source), el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: lookNow }, "Look at it")), look);
+    if (l && !l.folder && !l.error) {
+      adoptBox.append(field("Branch, tag, or commit (optional)", ref));
+      if (l.big) adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit: it's over 1 GB. Without it, its whole history, so the members see why code is the way it is."));
+      else adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit (smaller and quicker; the copy stays on this machine)"));
+      if (l.can_push) adoptBox.append(el("label", { class: "check small" }, push, " It's yours: this machine's GitHub sign-in can push there. The app pushes its merges there, and the branch production and tags release-1, release-2, …"));
+    }
+    if (l && !l.error) adoptBox.append(el("label", { class: "check small" }, nosurvey, " Skip the first task, the survey that makes it run and maps it"));
+    drawLook();
+  };
+  const lookNow = async () => {
+    try { draft = await api("/api/new", { action: "look", name: d.name, source: source.value.trim() }); d.look = draft.look; drawAdopt(); } catch (e) { if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
+  };
+  source.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); lookNow(); } });
+  body.append(el("p", {}, "The app keeps its own copy of the project in " + d.folder + "/repo."), radios("s-code", options, kind, (v) => { kind = v; drawAdopt(); }), adoptBox,
+    field("Put it on GitHub too: a new private repository, with this machine's GitHub sign-in (gh); the app pushes every merge there", github));
+  drawAdopt();
+  return () => {
+    const answer = { kind: kind.startsWith("template:") ? "template" : kind, template: kind.startsWith("template:") ? kind.slice(9) : "", source: source.value.trim(), ref: ref.value.trim(), shallow: shallow.checked, push: push.checked, no_survey: nosurvey.checked, github: github.value.trim() };
+    return { code: answer };
+  };
+}
+
+function renderReview(body, d) {
+  const c = d.config;
+  const facts = el("dl", { class: "facts" });
+  const fact = (t, v) => facts.append(el("dt", {}, t), el("dd", {}, v || "—"));
+  fact("Name", d.name + " · @" + d.handle + " · " + d.slash);
+  fact("Folder", d.folder);
+  fact("Purpose", c.purpose);
+  fact("Slack", d.workspace ? "the workspace " + d.workspace : "");
+  fact("Channel", c.channel + (c.ops_channel ? ", ops " + c.ops_channel : ""));
+  fact("Owners", (c.owners || []).join(", "));
+  for (const role of Object.keys(c.members).sort((a, b) => (a === "lead" ? -1 : b === "lead" ? 1 : a.localeCompare(b)))) {
+    const x = c.members[role];
+    fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · falls back to " + x.fallback : ""));
+  }
+  fact("OpenRouter", d.own_key ? "the app's own key" : "this machine's key");
+  fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
+  if (d.code.github) fact("GitHub", d.code.github);
+  fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later") + "; addresses " + (c.addresses || "on this machine's domain"));
+  fact("Heartbeat", d.heartbeat || "none");
+  body.append(el("p", {}, "Create makes it as hi app new would with these answers, then starts it. Jobs follows it, and the app opens here when it's up."), facts);
+  const create = el("button", { class: "primary", disabled: d.job_state === "running", onclick: async () => {
+    create.disabled = true;
+    try {
+      const job = await api("/api/new", { action: "create", name: d.name });
+      toast("Creating " + d.name + ". Jobs has its output; it opens here when it's up.", true);
+      creating = { job: job.id, name: d.name };
+      followJob(job);
+      loadDraft(d.name, false);
+    } catch (e) { create.disabled = false; if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
+  } }, "Create " + d.name);
+  body.append(el("div", { class: "data-actions" }, el("button", { onclick: () => { newStep = newSteps.length - 1; renderDraft(); } }, "Back"), create));
+}
+let creating = null;
+
+// Rename and Remove, from an app's Overview.
+async function renameApp(app) {
+  const answer = await ask({ title: "Rename " + app + "?", text: "Its Slack bot, its command, its service, and its folder (when it's named after the app) take the new name; its memory, tasks, and snapshots stay. It stops while it's done and starts again. Afterwards, update its Slack app's manifest (Slack shows the new name only then). Type the app's name to say so.", ok: "Rename", field: "The new name", fieldCheck: (v) => (/^[a-z][a-z0-9-]{0,19}$/.test(v) && v !== app ? "" : "A new name: lowercase letters, digits, and dashes, up to 20."), typed: app });
+  if (!answer) return;
+  try { const job = await api("/api/apps", { action: "rename", app, to: answer.field }); toast("Renaming " + app + " to " + answer.field + ". Jobs has its output."); creating = { job: job.id, name: answer.field }; followJob(job); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+async function removeApp(app) {
+  const answer = await ask({ title: "Remove " + app + "?", text: "It stops, and its service, its name here, and its members' boxes are deleted. Its snapshots stay. Its Slack app and channel, and a GitHub repository if it has one, stay too. Type the app's name to say so.", ok: "Remove", typed: app, check: "Keep its folder, so it can come back (Bring one back)", checked: true });
+  if (!answer) return;
+  try { const job = await api("/api/apps", { action: "remove", app, keep_folder: answer.checked }); toast("Removing " + app + ". Jobs has its output."); followJob(job); openView(""); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+// ---------------------------------------------------------------------------
 // reading again
 
 async function refreshState() {
@@ -1541,6 +2082,7 @@ async function boot() {
   renderOrgBadges();
   if (wanted && state.apps.some((a) => a.name === wanted)) await openView(wanted);
   else if (wanted === ":policy" && state.org) openPolicy();
+  else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));
   for (const which of ["left", "right"]) if (panes[which].open) freshView(panes[which].view);
   refreshJobs();
   pollTimer = setTimeout(poll, 3000);

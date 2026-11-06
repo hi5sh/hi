@@ -213,6 +213,7 @@ func appAdoptFromAnswers(adopt *appAdoption, answers appAnswers) *appAdoption {
 	adopt.Ref = firstNonEmpty(adopt.Ref, answers.Ref)
 	adopt.GitHub = firstNonEmpty(adopt.GitHub, answers.GitHub)
 	adopt.Shallow = adopt.Shallow || answers.Shallow
+	adopt.Full = adopt.Full || answers.Full
 	adopt.NoSurvey = adopt.NoSurvey || answers.NoSurvey
 	adopt.Push = adopt.Push || answers.PushToSource
 	adopt.Yes = true // answers from a file are the owner's yes
