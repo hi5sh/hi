@@ -35,6 +35,8 @@ var (
 	adminPageHTML   = hi.AdminPageHTML
 	adminPageScript = hi.AdminPageScript
 	adminPageStyle  = hi.AdminPageStyle
+	adminWallHTML   = hi.AdminWallHTML
+	adminWallScript = hi.AdminWallScript
 )
 
 var adminJobID = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[a-z0-9]{6}$`)
@@ -373,12 +375,13 @@ func (s *adminServer) routes() http.Handler {
 			Action string `json:"action"` // add, remove, link, or slack
 			Name   string `json:"name"`
 			Slack  string `json:"slack"`
+			Email  string `json:"email"`
 			Send   bool   `json:"send"` // the link by Slack DM, not shown
 		}
 		if !decode(w, r, &request) {
 			return
 		}
-		answer, err := s.changeAdmins(admin, request.Action, request.Name, request.Slack, request.Send)
+		answer, err := s.changeAdmins(admin, request.Action, request.Name, request.Slack, request.Email, request.Send)
 		if err != nil {
 			failure(w, http.StatusBadRequest, err)
 			return
@@ -432,11 +435,12 @@ func (s *adminServer) routes() http.Handler {
 		reply(w, http.StatusOK, map[string]any{"lines": lines, "cursor": cursor})
 	}))
 	mux.HandleFunc("GET /api/activity", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
-		reply(w, http.StatusOK, adminActivities(300))
+		reply(w, http.StatusOK, adminActivitiesWithOrg(300))
 	}))
 	mux.HandleFunc("GET /api/incidents", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		reply(w, http.StatusOK, adminIncidents())
 	}))
+	s.orgRoutes(mux, reply, decode, signedIn)
 	return adminHeaders(mux)
 }
 
@@ -508,7 +512,7 @@ func (s *adminServer) sendNewLink(who string) {
 
 // changeAdmins is Machine's admins: add, remove, a new link, or an
 // admin's Slack member ID.
-func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID string, send bool) (map[string]string, error) {
+func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email string, send bool) (map[string]string, error) {
 	who := by.Name + " on the admin page"
 	link := func(admin adminPerson) (map[string]string, error) {
 		config, _ := loadAdminConfig()
@@ -527,14 +531,24 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID string,
 		}
 		return map[string]string{"link": adminLinkURL(config, key), "text": admin.Name + "'s link, for 14 days. It is shown only now."}, nil
 	}
+	config, _ := loadAdminConfig()
+	if config.org != "" && (action == "add" || action == "remove") && !by.Owner {
+		return nil, errors.New("on the org server's machine the admins are the org's, and its owner adds and removes them")
+	}
 	switch action {
 	case "add":
-		admin, err := adminAdd(name, slackID, who)
+		if config.org != "" {
+			who = by.Name // the org's audit records the hi user name
+		}
+		admin, err := adminAdd(name, slackID, email, who)
 		if err != nil {
 			return nil, err
 		}
 		return link(admin)
 	case "remove":
+		if config.org != "" {
+			who = by.Name
+		}
 		admin, err := adminRemove(name, who)
 		if err != nil {
 			return nil, err
@@ -552,6 +566,9 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID string,
 		}
 		return answer, err
 	case "slack":
+		if config.org != "" {
+			return nil, errors.New("the org's admins have their Slack member IDs already: hi org admins")
+		}
 		slackID = strings.TrimSpace(strings.Trim(strings.TrimSpace(slackID), "<@>"))
 		if slackID != "" && !slackIDPattern.MatchString(slackID) {
 			return nil, fmt.Errorf("%q isn't a Slack member ID, such as U012AB3CD", slackID)
@@ -672,12 +689,15 @@ type adminStateView struct {
 	Failed   int            `json:"failed"`  // jobs that failed in the last day
 	Lingers  bool           `json:"lingers"`
 	User     string         `json:"user"`
+	// Org is the org server, on its machine.
+	Org *adminOrgSummary `json:"org,omitempty"`
 }
 
 func (s *adminServer) state(admin adminPerson) adminStateView {
 	config, _ := loadAdminConfig()
 	view := adminStateView{Machine: adminMachineName(), Version: version, Latest: s.latestVersion(), Me: admin, Address: adminURL(config),
-		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName()}
+		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName(),
+		Org: adminOrgSummaryOf()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
 		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())
@@ -852,9 +872,20 @@ var adminJournal = func(args ...string) ([]byte, error) {
 
 // adminLogs are an app's lead and service, as hi app logs shows them, or
 // the admin page's own, after a cursor.
+// adminOrgLogs is the org server's logs, in Logs.
+const adminOrgLogs = ":org"
+
 func adminLogs(app, cursor string) ([]adminLogLine, string, error) {
 	args := []string{"--user", "-u", adminUnit}
-	if app != "" {
+	if app == adminOrgLogs {
+		if adminOrgDir() == "" {
+			return nil, cursor, errors.New("this machine runs no org server")
+		}
+		args = []string{"--user", "-u", orgUnit}
+		if adminOrgService() == "system" {
+			args = []string{"-u", systemOrgUnit()}
+		}
+	} else if app != "" {
 		if !appNamePattern.MatchString(app) {
 			return nil, cursor, fmt.Errorf("no app %q on this machine", app)
 		}

@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 ships as v2.6.77. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77; release 2 is built. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -411,6 +411,25 @@ hi admin address [<host> [--https] | default]
    says so on a machine that still has a wall session. The org server
    moves to a user service. An org server's VM can be run from the page
    from here on.
+   As built: the org's owner and admins are in the org's `people.json`,
+   and the page maps them in as its admins on the server's machine; an
+   admin's name there is their hi user name, as approvals record it. Only
+   the owner adds and removes them on the page; on the command line,
+   anyone logged in as the server's account can (`hi org admins`). An
+   admin added or removed is an approver, or not, in `slack.json` at once,
+   and `hi org slack setup` adds the owner and admins to the approvers.
+   Handing the org on keeps the owner before as an admin. `hi org init`
+   takes `--owner-name` for the owner's hi user name (otherwise the first
+   part of their email), and installs and starts the user service itself,
+   unless `--dir` or `--no-start`. The policy is a form per group in the
+   middle (limits, hardware, approval without a person, budgets, the
+   reports), with **As text** for the rest; template sources and data per
+   group stay as they are in the form. Keys holds the provider keys and
+   the org's OpenRouter key; Org the models served on the team's machines.
+   Wall links are kept as hashes in the page's `keys.json`, served at
+   `/wall/<key>` with the page's own stylesheet, and say when each was last
+   open. The org server's Restart is synchronous, not a job. `hi compute
+   live`, a user's own machines in the terminal, stays.
 3. **New apps:** the ten steps with the Slack link, the pickers, and the
    sign-ins on the page; adopting; **Bring one back**; Rename and Remove.
 4. **Each app's settings:** People, Agents, Slack, Settings; Keys;

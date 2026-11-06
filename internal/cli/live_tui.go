@@ -26,32 +26,6 @@ type liveSource interface {
 	canDecide() bool
 }
 
-// adminLiveSource reads through the server's admin socket, on the server box.
-type adminLiveSource struct {
-	dir   string
-	actor string
-}
-
-func (a adminLiveSource) snapshot() (liveSnapshot, error) {
-	var snapshot liveSnapshot
-	err := adminCall(a.dir, http.MethodGet, "/admin/live", nil, &snapshot)
-	return snapshot, err
-}
-
-func (a adminLiveSource) approve(id string) error {
-	return adminCall(a.dir, http.MethodPost, "/admin/requests/"+id+"/approve", map[string]string{"as": a.actor}, nil)
-}
-
-func (a adminLiveSource) deny(id, reason string) error {
-	return adminCall(a.dir, http.MethodPost, "/admin/requests/"+id+"/deny", map[string]string{"as": a.actor, "reason": reason}, nil)
-}
-
-func (a adminLiveSource) stop(name string) error {
-	return adminCall(a.dir, http.MethodPost, "/admin/stop", map[string]any{"as": a.actor, "name": name}, nil)
-}
-
-func (adminLiveSource) canDecide() bool { return true }
-
 // clientLiveSource reads through this device: a viewer sees everything, a
 // user their own part.
 type clientLiveSource struct{ client *serverClient }
@@ -546,44 +520,6 @@ func runLive(source liveSource, options liveOptions, once bool, width int, stdin
 
 // ---------------------------------------------------------------------------
 // commands
-
-func orgLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
-	flags, dirFlag := orgFlags("live", stderr)
-	wall := flags.Bool("wall", false, "read-only, for a shared screen")
-	names := flags.String("names", "initials", "on a wall: initials or full")
-	reasons := flags.Bool("reasons", false, "on a wall: show why each machine was requested")
-	as := flags.String("as", currentUserName(), "who is acting")
-	once := flags.Bool("once", false, "print one frame and exit")
-	width := flags.Int("width", 100, "with --once: the width to draw")
-	positional, err := flags.parse(args)
-	if err != nil {
-		return err
-	}
-	if len(positional) != 0 || (*names != "initials" && *names != "full") {
-		return usageError{"usage: hi org live [--wall [--names initials|full] [--reasons]] [--once]"}
-	}
-	options := liveOptions{wall: *wall, fullNames: *names == "full", reasons: *reasons}
-	// On the server box, read through the admin socket; anywhere else, through
-	// this device's connection, which must be a viewer to see everything.
-	var source liveSource
-	if dir, err := orgDirectory(*dirFlag); err == nil {
-		if _, err := adminClient(dir); err == nil {
-			source = adminLiveSource{dir: *dirFlag, actor: *as}
-		}
-	}
-	if source == nil {
-		client, err := connectedClient()
-		if err != nil {
-			return fmt.Errorf("run this on the server box, or on a device connected as a viewer: %w", err)
-		}
-		source = clientLiveSource{client: client}
-	}
-	options.decide = source.canDecide()
-	if !*wall && !options.decide {
-		options.title = "hi compute · live (stop only; approve in Slack)"
-	}
-	return runLive(source, options, *once, *width, stdin, stdout)
-}
 
 func computeLiveCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags := &flagSet{newComputeFlags("live", stderr)}

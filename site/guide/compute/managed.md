@@ -19,9 +19,9 @@ and then use the same `hi compute` commands as before.
 > your own Google sign-in.
 {: .note}
 
-hi manages RunPod and Shadeform. Admins approve from Slack or the server box,
-groups can have budgets, and `hi compute live` and `hi org live` show what
-is running.
+hi manages RunPod and Shadeform. Admins approve from Slack or the
+[admin page](/guide/app/admin/) on the server's machine, groups can have
+budgets, and `hi compute live` and the admin page show what is running.
 
 [See it in action](/org/): a short demo, then how it works.
 
@@ -241,16 +241,48 @@ until they stop.
 On a small always-on Linux machine, enrolled in NetBird with `hi net`:
 
 ```sh
-hi org init                    # listens on this machine's NetBird address, port 7373
+hi org init --owner U0123456789 --email olga@example.com
 hi org provider add runpod     # asks for the key without echoing it
 hi org provider add shadeform  # the same for Shadeform, if you use it
-hi org run
+hi admin start                 # the admin page, where the owner and the admins run the org
 ```
 
-`hi org init` prints a systemd unit to run the server as a service. The
-server keeps its state, audit log, and provider keys in
-`~/.local/state/hi/org`, readable only by the user it runs as. Change that
-with `--dir` or `HI_ORG_DIR`.
+`hi org init` listens on this machine's NetBird address, port 7373, and
+starts the server as a user service, `hi-org.service`, beside the admin
+page and any apps. It keeps its state, audit log, and provider keys in
+`~/.local/state/hi/org`, readable only by the account it runs as. Change
+that with `--dir` or `HI_ORG_DIR`; with `--dir` it prints the service
+instead of starting it. On a machine that doesn't keep the account's
+services running without a login, it says the one command to change that
+(`sudo loginctl enable-linger <user>`).
+
+### The org's owner and admins
+
+Every org has an owner: one person, with their Slack member ID and their
+email. `hi org init` asks for them at a terminal, or takes `--owner` and
+`--email`, and makes no org without them. The owner is the first approver
+and the first admin of the [admin page](/guide/app/admin/) on the server's
+machine. Their hi user name is the first part of their email, unless
+`--owner-name` says another.
+
+```sh
+hi org admins                                    # the owner and the admins
+hi org admins add U0123456789 --name sam [--email sam@example.com]
+hi org admins remove sam
+hi org owner U0987654321 --email noor@example.com   # hand the org on
+```
+
+An admin is an approver too, in Slack and on the admin page, and signs in
+to the admin page on the server's machine: one list, so that page keeps
+none of its own. The owner adds and removes them on the page; on the
+machine, anyone logged in as the account the server runs as can. Handing
+the org on keeps the owner before as an admin, and is said in the
+approvers' channel. Every change is in the audit.
+
+An org made before owners has none: `hi org status` on the server's
+machine and the admin page say so, with the command, `hi org owner <Slack
+member ID> --email <address>`. Until then, the first `hi admin start` there
+asks for them.
 
 It listens only on its NetBird address. Clients sign every request, so a
 forged, altered, or replayed request is refused, even from inside the VPN.
@@ -264,8 +296,8 @@ hi update
 ```
 
 After installing the new binary, `hi update` finds the running server, which
-still runs the old one, and asks to restart its systemd service with
-`sudo systemctl restart hi-org.service`. It is down for about a second.
+still runs the old one, and asks to restart its service with
+`systemctl --user restart hi-org.service`. It is down for about a second.
 It also asks when the binary is already current but the server was never
 restarted. `--restart` restarts without asking, for scripts, and
 `--no-restart` only prints the command. A server started by hand, outside
@@ -276,9 +308,22 @@ Devices on an older `hi` keep working, and get new features when they run
 `hi update` themselves.
 
 If systemd warns that `hi-org.service` changed on disk, compare
-`systemctl cat hi-org` with what you meant to change, then run
-`sudo systemctl daemon-reload` and restart. The reload alone doesn't restart
-the server.
+`systemctl --user cat hi-org` with what you meant to change, then run
+`systemctl --user daemon-reload` and restart. The reload alone doesn't
+restart the server.
+
+#### From a system service to a user service
+
+Until hi 2.6.78 the org server ran as a system service, in
+`/etc/systemd/system`, so restarting it needed `sudo`, which the admin page
+can't do. On a terminal, `hi update` offers to move it, with `sudo` this
+once: it writes `hi-org.service` in `~/.config/systemd/user` from the system
+unit (without `User=`, and anything else you added kept), keeps the
+account's services running without a login (`loginctl enable-linger`),
+stops the system unit and starts the user one, then removes the system
+unit. If the user service doesn't come up, the system unit runs again.
+Without a terminal, or with `--no-restart`, it only says so, and the server
+runs as before.
 
 #### From `hi-server.service` to `hi-org.service`
 
@@ -337,7 +382,12 @@ an outbound connection, so the server needs no public address.
    hi org approvers add U0123456789 --name bob
    ```
 
-5. Restart the server: `sudo systemctl restart hi-org`.
+   The org's owner and admins are approvers already
+   ([above](#the-orgs-owner-and-admins)); this is for someone who only
+   approves.
+
+5. Restart the server: `systemctl --user restart hi-org`, or **Restart** on
+   the admin page (Org).
 
 An app made before hi 2.6.57 is called *hi compute*. It works as it is; to
 rename it, change its name and the bot's display name under **App Home** at
@@ -437,72 +487,27 @@ The Home tab needs two settings in the Slack app that older setups lack. At
 Manifest**, replace it with the output of `hi org slack manifest`, save,
 and reinstall if Slack asks.
 
-### Live dashboard
+### What runs, and a wall screen
 
-On the server box:
+The [admin page](/guide/app/admin/) on the server's machine shows
+everything running, for every user, with its cost so far and **Stop**
+(Running), what waits for an approval, with **Approve** and **Deny**
+(Requests), and spend per user and group (Spend). Each decision there is
+under the admin's own name, as in Slack, and nobody approves their own.
+Connected clients report when they open `ssh`, a tunnel, `logs`, or
+`serve` on a machine, with the command and instance names only, and
+Running shows it.
 
-```sh
-hi org live
-```
+A **wall link** shows Running and Requests on a shared screen, in a
+browser, full screen. Admins make one on the admin page (Org, Wall
+screens): it shows initials instead of names and hides reasons, unless the
+link says otherwise, and it can approve, stop, or open nothing. It works
+until an admin ends it. A screen needs only a browser on NetBird.
 
-```text
-hi compute · live                                        Tue 29 Sep 14:32:05
-3 running   $2.07/h now   $4.10 today   $41.20 this month of $2500.00
-────────────────────────────────────────────────────────────────────────────
-Running
-▸ train     noor via Claude Code staff  runpod l4    48m  $0.39  ████████░░ stops 14:44
-    fine-tune pricing model   ssh · tunnel
-  sweep     sam        students  runpod rtx-4090@community  12m  $0.07 ██░░░░░░░░ stops 15:20
-    thesis LoRA sweep   community cloud
-Waiting
-  dana      students  a100 2h                waiting 3m
-Budgets this month
-  staff      ███░░░░░░░░░░░░░  $38.10 of $2000.00
-Activity
-  14:31  sam opened ssh to sweep
-  14:29  dana requested runpod/big
-↑↓ select · a approve · d deny · s stop · q quit
-```
-
-It updates every second. `a` approves the selected request, `d` asks for a
-reason and denies it, and `s` stops the selected machine after a yes; each
-is logged and posted in Slack like a button click. The second line of each
-machine shows the reason it was requested and what its user is doing:
-connected clients report when they open `ssh`, a tunnel, `logs`, or
-`serve`, with the command and instance names only.
-
-### A wall screen
-
-`hi org live --wall` is the same dashboard, read-only, for a shared
-screen. It shows initials instead of names and hides reasons (`--names full`
-and `--reasons` turn them on), fills whatever screen it gets, and takes
-turns showing what doesn't fit. If the server stops answering, it dims and
-says `Reconnecting…` instead of going blank.
-
-To show it on screens without installing anything on them, run it once in a
-tmux session on the server box that screens attach to over SSH:
-
-```sh
-sudo ~/.local/bin/hi org wall setup
-sudo ~/.local/bin/hi org wall add office-tv ~/office-tv.pub
-```
-
-Then on the screen: `ssh -t hi-wall@<server box>`.
-
-- The session runs as a separate `hi-wall` account with a viewer key: it can
-  watch the dashboard and nothing else, and cannot read the server's state
-  or provider keys.
-- A screen's key can only attach read-only (`tmux attach -r`): asking for a
-  shell or another command still gives only the dashboard, and port
-  forwarding is refused.
-- A systemd service (`hi-wall-live`) keeps the session running across
-  crashes and reboots. Rerun `setup` after updating `hi`.
-- All screens on one session share its size. For a screen of another size,
-  add a session: `sudo hi org wall setup --session tv --size 240x67`, and
-  `wall add … --session tv`.
-
-A device elsewhere can also run `hi org live --wall` itself, if an admin
-makes it a viewer with `hi org viewer add <name> --key <key from hi org key>`.
+`hi org live`, `hi org viewer`, and the terminal wall (`hi org wall` and
+its `hi-wall-live` sessions) are gone since hi 2.6.78: the admin page and
+wall links replace them. `hi update` says so on a machine that still has a
+wall session, with the commands to remove it.
 
 ### Serve private project templates
 
@@ -616,7 +621,7 @@ hi org ai remove                    # stop and delete the key
   shows it under "Models through hi q".
 - Nothing in hi limits spending on models. Set a credit limit on the key at
   OpenRouter as the backstop.
-- `hi org live` and the Slack Home tab show this month's model spend next
+- The admin page and the Slack Home tab show this month's model spend next
   to compute.
 - Prompts carry the user's shell history and folder names. The server
   passes them on and stores none of them, but whoever runs it could read

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<title>Wall</title>
+<link rel="stylesheet" href="/dev.css">
+<link rel="stylesheet" href="/admin.css">
+</head>
+<body class="wall">
+<main id="wall" class="wall-page">
+  <header class="wall-head">
+    <strong id="wall-title">hi</strong>
+    <span id="wall-totals" class="wall-totals"></span>
+    <span class="grow"></span>
+    <span id="wall-stale" class="warn" hidden>The org server doesn't answer: this is from <span id="wall-stale-at"></span>.</span>
+    <span id="wall-clock" class="wall-clock"></span>
+  </header>
+  <div id="wall-budgets" class="wall-budgets"></div>
+  <div class="wall-columns">
+    <section class="wall-column">
+      <h2>Running <span id="wall-running-n" class="muted"></span></h2>
+      <ul id="wall-running" class="wall-list"></ul>
+    </section>
+    <section class="wall-column">
+      <h2>Waiting <span id="wall-waiting-n" class="muted"></span></h2>
+      <ul id="wall-waiting" class="wall-list"></ul>
+      <h2>Lately</h2>
+      <ul id="wall-activity" class="wall-list wall-activity"></ul>
+    </section>
+  </div>
+  <p id="wall-ended" class="wall-ended" hidden>This wall link has ended. An admin makes a new one on the admin page, in Org.</p>
+</main>
+<script src="/wall.js"></script>
+</body>
+</html>

@@ -367,10 +367,17 @@ func (s *orgServer) aiAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/ai", func(w http.ResponseWriter, _ *http.Request) {
 		settings, key, on := s.aiConfig()
 		now := computeNow()
+		served := s.servedList()
+		list := []apiServeUpstream{}
+		for _, one := range served {
+			one.Key = "" // the admin page lists them; no key goes with them
+			list = append(list, one)
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"on": on, "has_key": key != "" || settings.NoKey, "url": settings.URL, "model": settings.Model,
-			"usage":  describeAIUsage(readAIUsage(s.dir, monthStart(now), now)),
-			"served": describeServed(s.servedList()),
+			"on": on, "has_key": key != "" || settings.NoKey, "url": settings.URL, "model": settings.Model, "off": settings.Off,
+			"usage":       describeAIUsage(readAIUsage(s.dir, monthStart(now), now)),
+			"served":      describeServed(served),
+			"served_list": list,
 		})
 	})
 	mux.HandleFunc("DELETE /admin/ai/served/{name}", func(w http.ResponseWriter, r *http.Request) {

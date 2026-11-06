@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -342,58 +341,4 @@ func (s *orgServer) handleActivity(w http.ResponseWriter, _ *http.Request, devic
 	verb := map[bool]string{true: "opened", false: "closed"}[input.Open]
 	s.feed.add(liveEvent{Time: computeNow(), Text: fmt.Sprintf("%s %s %s to %s", device.User, verb, input.Command, input.Instance), User: device.User})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-}
-
-// ---------------------------------------------------------------------------
-// viewers: devices that may only watch, such as a wall screen
-
-func (s *orgServer) addViewer(name, key, actor string) error {
-	if !validServerName(name) {
-		return fmt.Errorf("invalid viewer name %q", name)
-	}
-	public, err := decodeDeviceKey(key)
-	if err != nil {
-		return err
-	}
-	s.mu.Lock()
-	if existing, ok := s.state.Users[name]; ok && existing.Kind != "viewer" {
-		s.mu.Unlock()
-		return fmt.Errorf("%s is already a user; choose another name for the viewer", name)
-	}
-	s.state.Users[name] = &serverUser{Name: name, Group: "viewers", Kind: "viewer", Added: computeNow()}
-	fingerprint := keyFingerprint(public)
-	s.state.Devices[fingerprint] = &serverDevice{Fingerprint: fingerprint, PublicKey: key, User: name,
-		Hostname: "(viewer)", Added: computeNow()}
-	err = s.saveLocked()
-	s.mu.Unlock()
-	if err == nil {
-		s.audit(actor, "added viewer", name, "")
-	}
-	return err
-}
-
-func orgViewerCommand(args []string, stdout, stderr io.Writer) error {
-	flags, dirFlag := orgFlags("viewer", stderr)
-	key := flags.String("key", "", "the device key from `hi org key` on the viewing machine")
-	as := flags.String("as", currentUserName(), "who is acting")
-	positional, err := flags.parse(args)
-	if err != nil {
-		return err
-	}
-	switch {
-	case len(positional) == 2 && positional[0] == "add" && *key != "":
-		body := map[string]string{"as": *as, "name": positional[1], "key": *key}
-		if err := adminCall(*dirFlag, http.MethodPost, "/admin/viewers", body, nil); err != nil {
-			return err
-		}
-		fmt.Fprintf(stdout, "%s can now watch the dashboard, and do nothing else.\n", positional[1])
-		return nil
-	case len(positional) == 2 && positional[0] == "remove":
-		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/users/"+positional[1]+"?as="+*as, nil, nil); err != nil {
-			return err
-		}
-		fmt.Fprintf(stdout, "Removed the viewer %s.\n", positional[1])
-		return nil
-	}
-	return usageError{"usage: hi org viewer add <name> --key <device key> | remove <name>"}
 }

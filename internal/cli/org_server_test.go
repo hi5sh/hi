@@ -584,7 +584,7 @@ func TestProviderAddWorksBeforeTheServerRuns(t *testing.T) {
 	defer func() { serverKeyCheck = previous }()
 	t.Setenv("RUNPOD_API_KEY", "")
 
-	if code, _, stderr := runHi("server", "init", "--listen", "127.0.0.1:7474", "--dir", dir); code != 0 {
+	if code, _, stderr := runHi("server", "init", "--listen", "127.0.0.1:7474", "--dir", dir, "--owner", "U07OWNER1", "--email", "olga@example.com"); code != 0 {
 		t.Fatalf("init: %s", stderr)
 	}
 	var stdout, stderr bytes.Buffer

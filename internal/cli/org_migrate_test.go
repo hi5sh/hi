@@ -137,59 +137,74 @@ func TestOrgUnitFromAnOldUnit(t *testing.T) {
 	}
 }
 
-// hi update replaces hi-server.service with hi-org.service, which restarts
-// the server; without a terminal it only says so.
-func TestUpdateMovesTheOrgUnit(t *testing.T) {
+// hi update makes the org server's system unit a user service, with
+// sudo this once; without a terminal it only says so.
+func TestUpdateMovesTheOrgUnitToAUserService(t *testing.T) {
 	requireLinux(t)
 	if os.Geteuid() == 0 {
 		t.Skip("as root, systemctl runs without sudo")
 	}
 	installedBinary(t, "v0.9.0")
 	fakeReleases(t, "v0.9.0", false)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	path, _ := updateExecutable()
 	fakeProc(t, map[string][3]string{
 		"101": {path + " (deleted)", path + "\x00server\x00run\x00", "0::/system.slice/hi-server.service\n"},
 	})
-	os.WriteFile(filepath.Join(systemdUnitDir, oldOrgUnit), []byte("[Service]\nExecStart=/usr/local/bin/hi server run\n"), 0o644)
+	os.WriteFile(filepath.Join(systemdUnitDir, oldOrgUnit), []byte("[Unit]\nDescription=hi compute server\n\n[Service]\nUser="+currentUserName()+
+		"\nExecStart=/usr/local/bin/hi server run\nRestart=always\n\n[Install]\nWantedBy=multi-user.target\n"), 0o644)
 	var runs []string
-	installed := ""
-	previous := updateRun
+	previous, terminal, lingers := updateRun, updateIsTerminal, appLingers
 	updateRun = func(_ io.Reader, _, _ io.Writer, name string, args ...string) error {
 		runs = append(runs, strings.Join(append([]string{name}, args...), " "))
-		if len(args) == 5 && args[0] == "install" {
-			data, _ := os.ReadFile(args[3])
-			installed = string(data)
-			args[3] = "<unit>"
-			runs[len(runs)-1] = strings.Join(append([]string{name}, args...), " ")
-		}
 		return nil
 	}
-	t.Cleanup(func() { updateRun = previous })
+	appLingers = func() bool { return false }
+	t.Cleanup(func() { updateRun, updateIsTerminal, appLingers = previous, terminal, lingers })
 
-	code, stdout, _ := runUpdateTest()
-	if code != 0 || !strings.Contains(stdout, "hi-server.service is now called hi-org.service; run `hi update` on a terminal") || len(runs) != 0 {
+	code, stdout, _ := runUpdateTest("--restart")
+	if code != 0 || !strings.Contains(stdout, "Run hi update on a terminal on this machine to move hi-server.service") || fileExists(orgUserUnitPath()) {
 		t.Fatalf("without a terminal: %d %q\n%s", code, runs, stdout)
 	}
+	runs = nil
+	updateIsTerminal = func(io.Reader) bool { return true }
 	code, stdout, stderr := runUpdateTest("--restart")
 	want := []string{
-		"sudo install -m 0644 <unit> " + filepath.Join(systemdUnitDir, orgUnit),
-		"sudo systemctl daemon-reload",
+		"sudo loginctl enable-linger " + currentUserName(),
 		"sudo systemctl disable --now hi-server.service",
-		"sudo systemctl enable --now hi-org.service",
-		"systemctl is-active --quiet hi-org.service",
+		"systemctl --user daemon-reload",
+		"systemctl --user enable --now hi-org.service",
+		"systemctl --user is-active --quiet hi-org.service",
+		"sudo rm " + filepath.Join(systemdUnitDir, oldOrgUnit),
+		"sudo systemctl daemon-reload",
 	}
 	if code != 0 || strings.Join(runs, "|") != strings.Join(want, "|") || !strings.Contains(stdout, "hi-org.service runs v0.9.0.") {
 		t.Fatalf("move: %d %q\n%s%s", code, runs, stdout, stderr)
 	}
-	if !strings.Contains(installed, "ExecStart=/usr/local/bin/hi org run\n") {
-		t.Fatalf("installed unit:\n%s", installed)
+	unit, _ := os.ReadFile(orgUserUnitPath())
+	for _, line := range []string{"ExecStart=/usr/local/bin/hi org run\n", "WantedBy=default.target\n", "Description=hi org server\n", "RestartSec=5\n"} {
+		if !strings.Contains(string(unit), line) {
+			t.Errorf("the user unit lacks %q:\n%s", line, unit)
+		}
+	}
+	if strings.Contains(string(unit), "User=") {
+		t.Errorf("the user unit names a user:\n%s", unit)
 	}
 
-	// Once hi-org.service is there, nothing more is offered.
-	os.WriteFile(filepath.Join(systemdUnitDir, orgUnit), []byte(installed), 0o644)
-	runs = nil
-	if _, stdout, _ := runUpdateTest("--no-restart"); strings.Contains(stdout, "now called") {
+	// Once it's a user service, nothing more is offered.
+	os.Remove(filepath.Join(systemdUnitDir, oldOrgUnit))
+	if _, stdout, _ := runUpdateTest("--no-restart"); strings.Contains(stdout, "user service") {
 		t.Fatalf("offered again:\n%s", stdout)
+	}
+}
+
+// A system unit that runs the server as another account isn't moved.
+func TestOrgUnitMoveRefusesAnotherAccount(t *testing.T) {
+	systemdUnitDir = t.TempDir()
+	t.Cleanup(func() { systemdUnitDir = "/etc/systemd/system" })
+	os.WriteFile(filepath.Join(systemdUnitDir, orgUnit), []byte("[Service]\nUser=someone-else\nExecStart=/usr/local/bin/hi org run\n"), 0o644)
+	if err := moveOrgUnit(nil, io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), "as someone-else") {
+		t.Fatalf("moved: %v", err)
 	}
 }
 
@@ -225,5 +240,33 @@ func TestOldNamesHintOnATerminal(t *testing.T) {
 	}
 	if _, _, stderr := runHi("org", "status"); strings.Contains(stderr, "is now") {
 		t.Errorf("hint on hi org: %s", stderr)
+	}
+}
+
+// After an update on the org server's machine, hi update says what it
+// still needs: an owner, and the old wall sessions removed.
+func TestUpdateNotesOnTheOrgMachine(t *testing.T) {
+	orgMigrateTest(t)
+	dir := t.TempDir()
+	t.Setenv("HI_ORG_DIR", dir)
+	os.WriteFile(filepath.Join(dir, "config.json"), []byte("{}"), 0o600)
+	systemdUnitDir = t.TempDir()
+	t.Cleanup(func() { systemdUnitDir = "/etc/systemd/system" })
+	os.WriteFile(filepath.Join(systemdUnitDir, "hi-wall-live.service"), []byte("[Service]\n"), 0o644)
+	var out bytes.Buffer
+	orgUpdateNotes(&out)
+	for _, want := range []string{"The org has no owner yet", "sudo systemctl disable --now hi-wall-live.service", "sudo userdel -r hi-wall"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("no %q in:\n%s", want, out.String())
+		}
+	}
+	applyOrgPeople(dir, orgPeopleInput{As: "t", Action: "owner", Slack: "U07OWNER1", Email: "olga@example.com"})
+	out.Reset()
+	orgUpdateNotes(&out)
+	if strings.Contains(out.String(), "no owner") {
+		t.Errorf("an owner, and still: %s", out.String())
+	}
+	if _, stdout, _ := runHi("org", "status"); !strings.Contains(stdout, "owned by olga") {
+		t.Errorf("status: %s", stdout)
 	}
 }

@@ -59,6 +59,15 @@ var AdminPageScript []byte
 //go:embed helper/admin/admin.css
 var AdminPageStyle []byte
 
+// AdminWallHTML and AdminWallScript are a wall screen's page: the org's
+// Running and Requests, read-only, from a wall link.
+//
+//go:embed helper/admin/wall.html
+var AdminWallHTML []byte
+
+//go:embed helper/admin/wall.js
+var AdminWallScript []byte
+
 // AppXtermScript, AppXtermStyle, and AppXtermFit are the dev page's terminal.
 //
 //go:embed third_party/xterm/xterm.js

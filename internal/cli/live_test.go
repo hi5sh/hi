@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"net"
-	"net/http"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -156,29 +153,6 @@ func TestLiveKeysStopAndDenyWithConfirmation(t *testing.T) {
 	}
 }
 
-func TestViewersWatchEverythingAndCanDoNothingElse(t *testing.T) {
-	ts := liveFixture(t)
-	runHi("connect", "key")
-	key, err := loadDeviceKey(false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := ts.server.addViewer("wall", devicePublicKey(key), "admin"); err != nil {
-		t.Fatal(err)
-	}
-	if code, stdout, stderr := runHi("connect", ts.url, "--user", "wall"); code != 0 {
-		t.Fatalf("viewer connect: %d %s%s", code, stdout, stderr)
-	}
-	code, stdout, stderr := runHi("server", "live", "--wall", "--once", "--width", "140", "--dir", filepath.Join(t.TempDir(), "none"))
-	if code != 0 || !strings.Contains(stdout, "train") || !strings.Contains(stdout, "rtx-4090@community") {
-		t.Fatalf("viewer wall: %d\n%s%s", code, stdout, stderr)
-	}
-	code, _, stderr = runHi("compute", "up", "--on", "runpod", "--gpu", "l4", "--max", "1h", "--reason", "x", "--yes", "--no-wait")
-	if code == 0 || !strings.Contains(stderr, "a viewer can only watch") {
-		t.Fatalf("a viewer requested compute: %d %s", code, stderr)
-	}
-}
-
 func TestUsersSeeOnlyTheirOwnLiveViewAndReportActivity(t *testing.T) {
 	ts := liveFixture(t)
 	ts.connectAs(t, "carol", "staff")
@@ -207,47 +181,6 @@ func TestUsersSeeOnlyTheirOwnLiveViewAndReportActivity(t *testing.T) {
 	}
 }
 
-func TestServerLiveOnTheServerBoxUsesTheAdminSocket(t *testing.T) {
-	ts := liveFixture(t)
-	listener, err := net.Listen("unix", filepath.Join(ts.dir, "admin.sock"))
-	if err != nil {
-		t.Skip(err)
-	}
-	admin := &http.Server{Handler: ts.server.adminHandler()}
-	go admin.Serve(listener)
-	defer admin.Close()
-	code, stdout, stderr := runHi("server", "live", "--once", "--width", "140", "--dir", ts.dir)
-	if code != 0 || !strings.Contains(stdout, "a approve · d deny") || !strings.Contains(stdout, "alice") {
-		t.Fatalf("admin live: %d\n%s%s", code, stdout, stderr)
-	}
-}
-
-func TestWallUnitAndKeysLockScreensDown(t *testing.T) {
-	unit := wallUnit("live", "")
-	for _, want := range []string{"User=hi-wall", "tmux -L wall-live new-session -d -s live", "org live --wall", "Restart=always"} {
-		if !strings.Contains(unit, want) {
-			t.Fatalf("unit is missing %q:\n%s", want, unit)
-		}
-	}
-	if sized := wallUnit("tv", "240x67"); !strings.Contains(sized, "-x 240 -y 67") || !strings.Contains(sized, "window-size manual") {
-		t.Fatalf("sized unit:\n%s", sized)
-	}
-	line, err := wallKeyLine("live", "office-tv", "ssh-ed25519 AAAAKEY someone@tv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := `restrict,pty,command="/usr/bin/tmux -L wall-live attach -r -t live" ssh-ed25519 AAAAKEY hi-wall:live:office-tv`
-	if line != want {
-		t.Fatalf("key line:\n%s\nwant\n%s", line, want)
-	}
-	if _, err := wallKeyLine("live", "tv", "not a key"); err == nil {
-		t.Fatal("accepted a non-key")
-	}
-	if code, _, stderr := runHi("server", "wall", "list"); code == 0 || !strings.Contains(stderr, "sudo") {
-		t.Fatalf("wall without root: %d %s", code, stderr)
-	}
-}
-
 func TestWallInitialsAreOnlyForPeople(t *testing.T) {
 	event := auditEvent(auditEntry{Time: time.Now(), Actor: "limit", Action: "stopped", Subject: "train"})
 	if event.User != "" || event.Text != "train stopped at its time limit" {
@@ -260,8 +193,5 @@ func TestWallInitialsAreOnlyForPeople(t *testing.T) {
 	if !strings.Contains(out, "train stopped at its time limit") || !strings.Contains(out, "N. stopped train") ||
 		!strings.Contains(out, "started noor-job") {
 		t.Fatalf("activity:\n%s", out)
-	}
-	if !strings.Contains(wallUnit("live", ""), "status off") {
-		t.Fatal("the wall shows tmux's status bar")
 	}
 }

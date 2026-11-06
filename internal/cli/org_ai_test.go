@@ -259,7 +259,7 @@ func TestServerAIAdmin(t *testing.T) {
 
 func TestServerAISetCommand(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "server")
-	if code, _, stderr := runHi("server", "init", "--dir", dir); code != 0 {
+	if code, _, stderr := runHi("server", "init", "--dir", dir, "--owner", "U07OWNER1", "--email", "olga@example.com"); code != 0 {
 		t.Fatalf("init: %s", stderr)
 	}
 	upstream := newFakeUpstream(t, "ls")
@@ -321,7 +321,7 @@ func TestServerAIWithoutKey(t *testing.T) {
 	}
 
 	dir := filepath.Join(t.TempDir(), "server")
-	runHi("server", "init", "--dir", dir)
+	runHi("server", "init", "--dir", dir, "--owner", "U07OWNER1", "--email", "olga@example.com")
 	code, out, errOut := runHi("server", "ai", "set", "--dir", dir, "--url", local.server.URL, "--model", "local-model", "--no-key")
 	if code != 0 || !strings.Contains(out, "hi q's default is local-model") || !readServerAISettings(dir).NoKey {
 		t.Fatalf("set --no-key: %d %s %s", code, out, errOut)

@@ -298,6 +298,14 @@ func connectStatusCommand(args []string, stdout io.Writer) error {
 	if len(args) != 0 {
 		return usageError{"usage: hi org status"}
 	}
+	// On the org server's machine: whether the org has its owner.
+	if dir, err := orgDirectory(""); err == nil && fileExists(filepath.Join(dir, "config.json")) {
+		if people := loadOrgPeople(dir); people.Owner == nil {
+			fmt.Fprintln(stdout, orgNoOwnerLine+".")
+		} else {
+			fmt.Fprintf(stdout, "This machine runs the org server, owned by %s.\n", people.Owner.Name)
+		}
+	}
 	connection, err := loadServerConnection()
 	if err != nil {
 		return err

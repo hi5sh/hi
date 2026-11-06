@@ -68,11 +68,15 @@ On any device:
   hi org key                           This device's public key, for an admin to pre-approve
   hi org slack link <code>             Link your Slack account, with the code from /hi link
   hi org leave                         Forget the server and delete this device's key
-  hi org live                          Live dashboard, on a device added as a viewer
 
 On the server box:
-  hi org init [--listen ADDR]          Create the server's state here
-  hi org run                           Serve clients (run it as a systemd service)
+  hi org init --owner <Slack ID> --email <address> [--listen ADDR]
+                                       Create the server and its owner here, and start it as a user service
+  hi org run                           Serve clients (hi-org.service runs it)
+  hi org owner [<Slack ID> --email <address>]
+                                       The org's owner, or hand it on
+  hi org admins [add <Slack ID> --name <user> [--email E] | remove <user>]
+                                       The org's admins: approvers, and admins of the admin page here
   hi org provider add|remove <p>       Store or remove a provider key (runpod, shadeform)
   hi org provider list                 Show managed providers
   hi org user add <u> --group G [--key K]
@@ -96,9 +100,6 @@ On the server box:
   hi org ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key,
                                        and to models served on the team's machines (hi serve --org)
   hi org ai remove local/<name>        Stop passing requests to a model served on a team's machine
-  hi org live [--wall]                 Live dashboard; --wall is read-only for a shared screen
-  hi org wall setup|add|remove|list    Show the wall dashboard on screens over SSH (needs sudo)
-  hi org viewer add <name> --key K     A device that may only watch the dashboard
   hi org templates add <name> <git-url> [--ref R]
                                        Serve a private repository's templates and skills
   hi org templates list|sync|remove    Show, fetch now, or stop serving template sources
@@ -111,6 +112,8 @@ On the server box:
 
 Commands on the server box talk to the running server through its admin
 socket. Decisions are recorded under your login name; change it with --as.
+The admin page (hi admin start) does all of this in a browser, and shows
+what runs and what waits; a wall link shows that on a shared screen.
 
 Options:
   --dir <dir>    State directory (default: $HI_ORG_DIR or ~/.local/state/hi/org)`)

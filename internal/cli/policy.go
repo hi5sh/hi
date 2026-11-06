@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -513,6 +514,48 @@ func (s *orgServer) maybeReport(now time.Time) {
 	if today.Day() == 1 && due("monthly", today.Format("2006-01")) {
 		s.notifyChannel(s.report("monthly", today))
 	}
+}
+
+// ---------------------------------------------------------------------------
+// admin API: the admin page reads and saves the policy, checked first
+
+func (s *orgServer) policyAdminRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /admin/policy", func(w http.ResponseWriter, _ *http.Request) {
+		data, err := os.ReadFile(policyPath(s.dir))
+		answer := map[string]any{"exists": err == nil, "text": string(data), "example": policyExample}
+		if err == nil {
+			if policy, err := parsePolicy(data); err != nil {
+				answer["error"] = err.Error()
+			} else {
+				answer["policy"] = policy
+			}
+		}
+		writeJSON(w, http.StatusOK, answer)
+	})
+	mux.HandleFunc("POST /admin/policy", func(w http.ResponseWriter, r *http.Request) {
+		var input struct {
+			As   string `json:"as"`
+			Text string `json:"text"`
+		}
+		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
+		policy, err := parsePolicy([]byte(input.Text))
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		data, _ := json.MarshalIndent(policy, "", "  ")
+		if err := writeFileAtomic(policyPath(s.dir), append(data, '\n'), 0o600); err != nil {
+			writeAPIError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		groups := make([]string, 0, len(policy.Groups))
+		for name := range policy.Groups {
+			groups = append(groups, name)
+		}
+		sort.Strings(groups)
+		s.audit(input.As, "changed policy", "policy.json", strings.Join(groups, ", "))
+		writeJSON(w, http.StatusOK, map[string]any{"policy": policy})
+	})
 }
 
 // ---------------------------------------------------------------------------

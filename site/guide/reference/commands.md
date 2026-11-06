@@ -118,7 +118,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org key`                                                      | This device's public key, for an admin to pre-approve                                  |
 | `hi org slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
 | `hi org leave`                                                    | Forget the server and delete the device key                                            |
-| `hi org init [--listen <addr>]`                                   | Create the server's state                                                              |
+| `hi org init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service                       |
 | `hi org run`                                                      | Serve clients                                                                          |
 | `hi org provider add|remove|list [<provider>]`                    | Provider keys (RunPod, Shadeform)                                                      |
 | `hi org user add <u> --group <g> [--key <k>]`                     | Add a user; `--key` pre-approves a device                                              |
@@ -131,13 +131,12 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org audit [--since <d>]`                                      | The audit log                                                                          |
 | `hi org slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
 | `hi org approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
+| `hi org owner [<Slack ID> --email <addr>]`                        | The org's owner, or hand it on                                                         |
+| `hi org admins [add <Slack ID> --name <user> \| remove <user>]`   | The org's admins: approvers, and admins of the admin page on its machine              |
 | `hi org policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
 | `hi org spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
 | `hi org ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
 | `hi org ai remove local/<name>` | Stop passing requests to a model served on an app's machine                              |
-| `hi org live [--wall] [--names full] [--reasons]`                 | Live dashboard; `--wall` is read-only                                                  |
-| `sudo hi org wall setup|add|remove|list`                          | Show the wall on screens over SSH                                                      |
-| `hi org viewer add <name> --key <k>`                              | A device that may only watch                                                           |
 | `hi org templates add <name> <git-url> [--ref <r>]`               | Serve a private repository's templates and skills                                      |
 | `hi org templates list|sync|remove [<name>]`                      | Show, fetch now, or stop serving template sources                                      |
 | `hi org templates rename <name> <new-name>`                       | Rename a source; keeps its token and history                                           |

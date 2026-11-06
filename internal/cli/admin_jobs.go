@@ -292,6 +292,15 @@ func adminSendDM(user, text string) error {
 	tried := false
 	var last error
 	seen := map[string]bool{}
+	// The org server's Slack app first, on its machine.
+	if dir := adminOrgDir(); dir != "" {
+		if config, err := loadSlackConfig(dir); err == nil && config != nil && config.BotToken != "" {
+			seen[config.BotToken], tried = true, true
+			if last = adminDM(config.BotToken, user, text); last == nil {
+				return nil
+			}
+		}
+	}
 	for _, entry := range entries {
 		if !appNamePattern.MatchString(entry.Name()) {
 			continue
@@ -307,7 +316,7 @@ func adminSendDM(user, text string) error {
 		}
 	}
 	if !tried {
-		return errors.New("no app on this machine has a Slack bot to send it with")
+		return errors.New("no app on this machine, nor the org server, has a Slack bot to send it with")
 	}
 	return fmt.Errorf("no app's Slack bot could send it: %w", last)
 }

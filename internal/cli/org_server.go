@@ -1632,22 +1632,11 @@ func (s *orgServer) adminHandler() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"removed": name})
 	})
 	s.approversHandler(mux)
+	s.peopleAdminRoutes(mux)
+	s.policyAdminRoutes(mux)
 	s.aiAdminRoutes(mux)
 	mux.HandleFunc("GET /admin/live", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, s.liveSnapshot(""))
-	})
-	mux.HandleFunc("POST /admin/viewers", func(w http.ResponseWriter, r *http.Request) {
-		var input struct {
-			As   string `json:"as"`
-			Name string `json:"name"`
-			Key  string `json:"key"`
-		}
-		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
-		if err := s.addViewer(input.Name, input.Key, input.As); err != nil {
-			writeAPIError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]string{"viewer": input.Name})
 	})
 	mux.HandleFunc("GET /admin/spend", func(w http.ResponseWriter, r *http.Request) {
 		seconds, _ := strconv.ParseInt(r.URL.Query().Get("seconds"), 10, 64)
@@ -1823,7 +1812,7 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		printOrgUsage(stdout)
 		return 0
 	case "init":
-		return exitCode(orgInitCommand(rest, stdout, stderr), stderr)
+		return exitCode(orgInitCommand(rest, stdin, stdout, stderr), stderr)
 	case "run":
 		return exitCode(orgRunCommand(rest, stdout, stderr), stderr)
 	case "provider":
@@ -1844,18 +1833,19 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		return exitCode(orgSlackCommand(rest, stdin, stdout, stderr), stderr)
 	case "approvers":
 		return exitCode(orgApproversCommand(rest, stdout, stderr), stderr)
+	case "owner":
+		return exitCode(orgOwnerCommand(rest, stdout, stderr), stderr)
+	case "admins":
+		return exitCode(orgAdminsCommand(rest, stdout, stderr), stderr)
 	case "policy":
 		return exitCode(orgPolicyCommand(rest, stdin, stdout, stderr), stderr)
 	case "spend":
 		return exitCode(orgSpendCommand(rest, stdout, stderr), stderr)
 	case "ai":
 		return exitCode(orgAICommand(rest, stdin, stdout, stderr), stderr)
-	case "viewer":
-		return exitCode(orgViewerCommand(rest, stdout, stderr), stderr)
-	case "live":
-		return exitCode(orgLiveCommand(rest, stdin, stdout, stderr), stderr)
-	case "wall":
-		return exitCode(orgWallCommand(rest, stdout, stderr), stderr)
+	case "live", "viewer", "wall":
+		fmt.Fprintf(stderr, "hi: hi org %s is gone: the admin page shows what runs and what waits (Running and Requests), and a wall screen opens a wall link from it, in a browser. On this machine: hi admin start.\n", command)
+		return 1
 	case "templates":
 		return exitCode(orgTemplatesCommand(rest, stdin, stdout, stderr), stderr)
 	case "data":
@@ -1878,9 +1868,13 @@ func orgFlags(name string, stderr io.Writer) (*flagSet, *string) {
 	return &flagSet{flags}, dir
 }
 
-func orgInitCommand(args []string, stdout, stderr io.Writer) error {
+func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags, dirFlag := orgFlags("init", stderr)
 	listen := flags.String("listen", "", "address to listen on")
+	ownerSlack := flags.String("owner", "", "the org owner's Slack member ID")
+	ownerEmail := flags.String("email", "", "the org owner's email")
+	ownerName := flags.String("owner-name", "", "the owner's hi user name (default: from their email)")
+	noStart := flags.Bool("no-start", false, "don't install and start the org server's user service")
 	if _, err := flags.parse(args); err != nil {
 		return err
 	}
@@ -1898,6 +1892,24 @@ func orgInitCommand(args []string, stdout, stderr io.Writer) error {
 	if _, _, err := net.SplitHostPort(*listen); err != nil {
 		return usageError{fmt.Sprintf("--listen %q is not host:port", *listen)}
 	}
+	// Every org has an owner: asked at a terminal, or given as flags.
+	owner := orgPeopleInput{As: currentUserName(), Action: "owner", Slack: *ownerSlack, Email: *ownerEmail, Name: *ownerName}
+	hasOwner := loadOrgPeople(dir).Owner != nil
+	if !hasOwner {
+		if owner.Slack == "" && interactive(stdin, stdout) {
+			fmt.Fprintln(stdout, "Every org has an owner: the first approver, and the first admin of its admin page.")
+			owner.Slack = adminAsk(stdin, stdout, "The owner's Slack member ID (in Slack: their profile, ⋮, Copy member ID)", "")
+			if owner.Email == "" {
+				owner.Email = adminAsk(stdin, stdout, "The owner's email", "")
+			}
+		}
+		if owner.Slack == "" || owner.Email == "" {
+			return usageError{"an org has an owner: hi org init --owner <Slack member ID> --email <address>"}
+		}
+		if _, err := orgCheckPerson(owner, true); err != nil {
+			return err
+		}
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
@@ -1914,19 +1926,54 @@ func orgInitCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
+	if !hasOwner {
+		result, err := orgChangePeople(dir, owner)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, result.Text)
+	}
 	executable, _ := os.Executable()
+	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
+		executable = resolved
+	}
 	fmt.Fprintf(stdout, "The server's state is in %s, readable only by you.\n", dir)
 	fmt.Fprintf(stdout, "Devices join with: hi org join %s\n\n", *listen)
-	fmt.Fprintln(stdout, "Next:")
-	fmt.Fprintln(stdout, "  hi org provider add runpod    (or shadeform)")
-	fmt.Fprintln(stdout, "  hi org run          (or as a service, below)")
-	if _, set := loadMachineHeartbeat(); !set {
-		fmt.Fprintln(stdout, "  hi heartbeat <url>     so someone hears if this machine stops: a check at a service such as healthchecks.io")
+	started := false
+	switch system := systemOrgUnit(); {
+	case system != "":
+		fmt.Fprintf(stdout, "%s runs it, as a system service; hi update moves it to a user service.\n", system)
+		started = true
+	case *noStart || *dirFlag != "":
+		fmt.Fprintf(stdout, "Its user service, for %s:\n\n%s\n", orgUserUnitPath(), orgUserUnitText(executable, dir))
+	default:
+		if err := os.MkdirAll(filepath.Dir(orgUserUnitPath()), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(orgUserUnitPath(), []byte(orgUserUnitText(executable, dir)), 0o644); err != nil {
+			return err
+		}
+		for _, step := range [][]string{{"daemon-reload"}, {"enable", orgUnit}, {"restart", orgUnit}} {
+			if out, err := appSystemctl(step...); err != nil {
+				return fmt.Errorf("systemctl --user %s: %s", strings.Join(step, " "), qFirstLine(out, err.Error()))
+			}
+		}
+		fmt.Fprintf(stdout, "The org server runs, as the user service %s (journalctl --user -u %s says how it goes).\n", orgUnit, orgUnit)
+		started = true
+		if !appLingers() {
+			fmt.Fprintf(stdout, "It stops when you log out, and doesn't start at boot, until you run:\n  sudo loginctl enable-linger %s\n", currentUserName())
+		}
 	}
-	fmt.Fprintf(stdout, "\nA systemd unit, for /etc/systemd/system/%s:\n\n", orgUnit)
-	fmt.Fprintf(stdout, "[Unit]\nDescription=hi org server\nAfter=network-online.target netbird.service\nWants=network-online.target\n\n")
-	fmt.Fprintf(stdout, "[Service]\nUser=%s\nEnvironment=HI_ORG_DIR=%s\nExecStart=%s org run\nRestart=always\n\n", currentUserName(), dir, executable)
-	fmt.Fprintf(stdout, "[Install]\nWantedBy=multi-user.target\n")
+	fmt.Fprintln(stdout, "\nNext:")
+	fmt.Fprintln(stdout, "  hi org provider add runpod    (or shadeform)")
+	if !started {
+		fmt.Fprintln(stdout, "  hi org run")
+	}
+	fmt.Fprintln(stdout, "  hi org slack setup            approvals in Slack")
+	fmt.Fprintln(stdout, "  hi admin start                the admin page, where the owner and the admins run the org")
+	if _, set := loadMachineHeartbeat(); !set {
+		fmt.Fprintln(stdout, "  hi heartbeat <url>            so someone hears if this machine stops: a check at a service such as healthchecks.io")
+	}
 	return nil
 }
 

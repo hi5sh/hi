@@ -143,14 +143,15 @@ func systemdUnit(cgroupPath string) (string, bool) {
 func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout, stderr io.Writer) error {
 	offered := false
 	for _, server := range staleServers(path) {
-		if server.team == "" && !server.user && server.unit == oldOrgUnit && installedOrgUnit() == oldOrgUnit {
+		if server.team == "" && !server.admin && server.front == "" && !server.user && (server.unit == orgUnit || server.unit == oldOrgUnit) && systemOrgUnit() != "" {
 			offered = true
 			moved, err := offerOrgUnitMove(mode, stdin, stdout, stderr)
-			if err != nil || moved {
-				if err == nil {
-					fmt.Fprintf(stdout, "%s runs %s.\n", orgUnit, newVersion)
-				}
+			if err != nil {
 				return err
+			}
+			if moved {
+				fmt.Fprintf(stdout, "%s runs %s.\n", orgUnit, newVersion)
+				continue
 			}
 		}
 		if server.unit == "" {
@@ -211,23 +212,24 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			fmt.Fprintf(stdout, "  It still has the names from before v2.6.67; hi app up %s moves it to the new ones (its addresses change).\n", server.team)
 		}
 	}
-	if !offered && installedOrgUnit() == oldOrgUnit {
+	if !offered && systemOrgUnit() != "" {
 		_, err := offerOrgUnitMove(mode, stdin, stdout, stderr)
 		return err
 	}
 	return nil
 }
 
-// offerOrgUnitMove offers to replace hi-server.service with hi-org.service
-// (org_migrate.go), which restarts the server. It says how, rather than
-// asking, without a terminal or with --no-restart.
+// offerOrgUnitMove offers to make the org server a user service
+// (org_migrate.go), which restarts it. It needs sudo this once, so it
+// says how, rather than asking, without a terminal or with --no-restart.
 func offerOrgUnitMove(mode string, stdin io.Reader, stdout, stderr io.Writer) (bool, error) {
-	if mode == "no" || (mode == "ask" && !updateIsTerminal(stdin)) {
-		fmt.Fprintf(stdout, "%s is now called %s; run `hi update` on a terminal to move it. The old name keeps working until then.\n", oldOrgUnit, orgUnit)
+	system := systemOrgUnit()
+	if mode == "no" || !updateIsTerminal(stdin) {
+		fmt.Fprintf(stdout, "The org server becomes a user service in this hi, so the admin page can restart it. Run hi update on a terminal on this machine to move %s, with sudo this once. Until then it runs as before.\n", system)
 		return false, nil
 	}
 	if mode == "ask" {
-		fmt.Fprintf(stdout, "%s is now called %s. Move it now? This restarts the org server, which is down for about a second, and moves its state to ~/.local/state/hi/org. [Y/n] ", oldOrgUnit, orgUnit)
+		fmt.Fprintf(stdout, "The org server becomes a user service, beside the admin page and the apps, so the admin page can restart it. Move %s now? It needs sudo this once, and the server is down for about a second. [Y/n] ", system)
 		answer, _ := readLine(stdin)
 		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "" && answer != "y" && answer != "yes" {
 			fmt.Fprintln(stdout, "Not moved; hi update asks again next time.")

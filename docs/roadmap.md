@@ -4399,17 +4399,12 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
-### Next — the admin page, releases 2 to 5
+### Next — the admin page, releases 3 to 5
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md). Release 1, running
-and reaching it, ships in v2.6.77.
+and reaching it, shipped in v2.6.77; release 2, the org server on the
+page, ships in v2.6.78.
 
-- [ ] Release 2: the org server on the page. Requests, Running, Spend,
-  the org's people, keys, policy, templates, data, and models, its audit
-  in Activity; the org's owner (`hi org init --owner --email`,
-  `hi org owner`) and admins (`hi org admins`), one list with the admin
-  page's on the org's VM; wall links. `hi org live`, `hi org viewer`,
-  and the terminal wall go. The org server moves to a user service.
 - [ ] Release 3: new apps on the page: the ten steps with the Slack
   manifest link, the channel and people pickers, and the sign-ins;
   adopting; **Bring one back**; Rename and Remove.

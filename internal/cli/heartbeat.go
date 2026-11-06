@@ -239,7 +239,7 @@ func machineRunsHiServices() bool {
 	if entries, err := os.ReadDir(appsDir()); err == nil && len(entries) > 0 {
 		return true
 	}
-	return fileExists(filepath.Join(systemdUnitDir, orgUnit)) || fileExists(filepath.Join(systemdUnitDir, oldOrgUnit))
+	return fileExists(orgUserUnitPath()) || systemOrgUnit() != ""
 }
 
 // installMachineHeartbeatTimer writes and starts the timer and its

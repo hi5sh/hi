@@ -304,7 +304,7 @@ func TestSlackWarnsNearTheLimitAndReportsUnleasedPods(t *testing.T) {
 func TestSlackSetupAndApproversWorkWithoutTheServerRunning(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "server")
-	if code, _, stderr := runHi("server", "init", "--listen", "127.0.0.1:7475", "--dir", dir); code != 0 {
+	if code, _, stderr := runHi("server", "init", "--listen", "127.0.0.1:7475", "--dir", dir, "--owner", "U07OWNER1", "--email", "olga@example.com"); code != 0 {
 		t.Fatal(stderr)
 	}
 	if code, _, stderr := runHi("server", "approvers", "add", "U123", "--name", "bob", "--dir", dir); code == 0 ||

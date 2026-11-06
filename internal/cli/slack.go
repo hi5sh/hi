@@ -943,6 +943,10 @@ func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	if existing != nil {
 		config.Approvers = existing.Approvers
 	}
+	// The org's owner and admins approve.
+	for _, person := range loadOrgPeople(dir).all() {
+		config.Approvers[person.Slack] = person.Name
+	}
 	if isTerminal(stdin) {
 		fmt.Fprintln(stdout, "Create the Slack app from the manifest (`hi org slack manifest`) first.")
 	}
@@ -982,7 +986,7 @@ func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	if len(config.Approvers) == 0 {
 		fmt.Fprintln(stdout, "Add approvers: hi org approvers add <Slack member ID> --name <hi user name>")
 	}
-	fmt.Fprintf(stdout, "Restart the server to connect: sudo systemctl restart %s (or restart `hi org run`)\n", strings.TrimSuffix(installedOrgUnit(), ".service"))
+	fmt.Fprintf(stdout, "Restart the server to connect: %s\n", orgRestartLine())
 	return nil
 }
 

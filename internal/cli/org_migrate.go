@@ -105,13 +105,15 @@ func moveOrgConnection() {
 	}
 }
 
-// installedOrgUnit is the org server's system unit on this machine:
-// hi-org.service, or hi-server.service where only that is installed.
-func installedOrgUnit() string {
-	if !fileExists(filepath.Join(systemdUnitDir, orgUnit)) && fileExists(filepath.Join(systemdUnitDir, oldOrgUnit)) {
-		return oldOrgUnit
+// orgRestartLine is how to restart the org server on this machine.
+func orgRestartLine() string {
+	switch system := systemOrgUnit(); {
+	case fileExists(orgUserUnitPath()):
+		return "systemctl --user restart " + orgUnit
+	case system != "":
+		return "sudo systemctl restart " + system
 	}
-	return orgUnit
+	return "restart `hi org run`"
 }
 
 // orgUnitFrom rewrites a hi-server.service for hi-org.service: its
@@ -163,58 +165,145 @@ func orgUnitFrom(unit string) string {
 	return strings.Join(lines, "\n")
 }
 
-// moveOrgUnit replaces hi-server.service with hi-org.service, which also
-// restarts the server on the new binary. If the new unit doesn't come up,
-// the old one is started again.
+// orgUserUnitPath is hi-org.service as a user service, beside the admin
+// page's and the apps'.
+func orgUserUnitPath() string {
+	base := os.Getenv("XDG_CONFIG_HOME")
+	if base == "" {
+		home, _ := os.UserHomeDir()
+		base = filepath.Join(home, ".config")
+	}
+	return filepath.Join(base, "systemd", "user", orgUnit)
+}
+
+// systemOrgUnit is the org server's system unit on this machine, from
+// before it was a user service, or "".
+func systemOrgUnit() string {
+	for _, unit := range []string{orgUnit, oldOrgUnit} {
+		if fileExists(filepath.Join(systemdUnitDir, unit)) {
+			return unit
+		}
+	}
+	return ""
+}
+
+// orgUserUnitText is the org server's user service. It can't wait for
+// netbird.service, a system one, so it starts again until NetBird's
+// address is there.
+func orgUserUnitText(executable, dir string) string {
+	return fmt.Sprintf(`[Unit]
+Description=hi org server
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Environment=HI_ORG_DIR=%s
+ExecStart=%s org run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+`, dir, executable)
+}
+
+// orgUserUnitFrom turns the system unit into a user service: as
+// orgUnitFrom names it, without User= and Group=, started with the
+// account's services. Anything else an admin added stays.
+func orgUserUnitFrom(system string) string {
+	var lines []string
+	for _, line := range strings.Split(orgUnitFrom(system), "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "User="), strings.HasPrefix(trimmed, "Group="):
+			continue
+		case strings.HasPrefix(trimmed, "WantedBy="):
+			line = "WantedBy=default.target"
+		case trimmed == "[Unit]":
+			lines = append(lines, line, "StartLimitIntervalSec=0")
+			continue
+		}
+		lines = append(lines, line)
+	}
+	unit := strings.Join(lines, "\n")
+	if !strings.Contains(unit, "RestartSec=") {
+		unit = strings.Replace(unit, "[Service]\n", "[Service]\nRestartSec=5\n", 1)
+	}
+	return unit
+}
+
+// orgUnitAccount is the account the system unit runs the server as.
+func orgUnitAccount(unit string) string {
+	for _, line := range strings.Split(unit, "\n") {
+		if name, ok := strings.CutPrefix(strings.TrimSpace(line), "User="); ok {
+			return strings.TrimSpace(name)
+		}
+	}
+	return "root"
+}
+
+// moveOrgUnit makes the org server a user service: hi-org.service in
+// ~/.config/systemd/user from the system unit, the account's services kept
+// running without a login, and the system unit removed, with sudo this
+// once. If the user service doesn't come up, the system unit runs again.
 func moveOrgUnit(stdin io.Reader, stdout, stderr io.Writer) error {
-	oldPath := filepath.Join(systemdUnitDir, oldOrgUnit)
-	data, err := os.ReadFile(oldPath)
+	system := systemOrgUnit()
+	systemPath := filepath.Join(systemdUnitDir, system)
+	data, err := os.ReadFile(systemPath)
 	if err != nil {
 		return err
 	}
-	temporary, err := os.CreateTemp("", "hi-org-*.service")
-	if err != nil {
+	if account := orgUnitAccount(string(data)); account != currentUserName() {
+		return fmt.Errorf("%s runs the org server as %s; run hi update as %s to move it", system, account, account)
+	}
+	userPath := orgUserUnitPath()
+	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
 		return err
 	}
-	defer os.Remove(temporary.Name())
-	if _, err := temporary.WriteString(orgUnitFrom(string(data))); err != nil {
-		temporary.Close()
+	if err := os.WriteFile(userPath, []byte(orgUserUnitFrom(string(data))), 0o644); err != nil {
 		return err
 	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	sudo := []string{}
-	if os.Geteuid() != 0 {
-		sudo = []string{"sudo"}
-	}
-	run := func(args ...string) error {
-		command := append(append([]string{}, sudo...), args...)
+	run := func(sudo bool, args ...string) error {
+		command := args
+		if sudo && os.Geteuid() != 0 {
+			command = append([]string{"sudo"}, args...)
+		}
 		fmt.Fprintf(stdout, "$ %s\n", strings.Join(command, " "))
 		if err := updateRun(stdin, stdout, stderr, command[0], command[1:]...); err != nil {
 			return fmt.Errorf("%s failed: %w", strings.Join(command, " "), err)
 		}
 		return nil
 	}
-	steps := [][]string{
-		{"install", "-m", "0644", temporary.Name(), filepath.Join(systemdUnitDir, orgUnit)},
-		{"systemctl", "daemon-reload"},
-		{"systemctl", "disable", "--now", oldOrgUnit},
-		{"systemctl", "enable", "--now", orgUnit},
-	}
-	for i, step := range steps {
-		if err := run(step...); err != nil {
-			if i >= 2 {
-				run("systemctl", "enable", "--now", oldOrgUnit)
-			}
+	if !appLingers() {
+		if err := run(true, "loginctl", "enable-linger", currentUserName()); err != nil {
+			os.Remove(userPath)
 			return err
 		}
 	}
-	if err := updateRun(nil, io.Discard, io.Discard, "systemctl", "is-active", "--quiet", orgUnit); err != nil {
-		run("systemctl", "disable", "--now", orgUnit)
-		run("systemctl", "enable", "--now", oldOrgUnit)
-		return fmt.Errorf("%s did not come up, so %s runs again; check `journalctl -u %s`", orgUnit, oldOrgUnit, orgUnit)
+	if err := run(true, "systemctl", "disable", "--now", system); err != nil {
+		os.Remove(userPath)
+		return err
 	}
-	fmt.Fprintf(stdout, "%s runs the org server now. %s stays, disabled; remove it when you like: sudo rm %s\n", orgUnit, oldOrgUnit, oldPath)
+	back := func(err error) error {
+		run(false, "systemctl", "--user", "disable", "--now", orgUnit)
+		os.Remove(userPath)
+		run(false, "systemctl", "--user", "daemon-reload")
+		run(true, "systemctl", "enable", "--now", system)
+		return err
+	}
+	for _, step := range [][]string{{"systemctl", "--user", "daemon-reload"}, {"systemctl", "--user", "enable", "--now", orgUnit}} {
+		if err := run(false, step...); err != nil {
+			return back(err)
+		}
+	}
+	if err := updateRun(nil, io.Discard, io.Discard, "systemctl", "--user", "is-active", "--quiet", orgUnit); err != nil {
+		return back(fmt.Errorf("the user service %s did not come up, so %s runs again; check `journalctl --user -u %s`", orgUnit, system, orgUnit))
+	}
+	removed := run(true, "rm", systemPath) == nil && run(true, "systemctl", "daemon-reload") == nil
+	fmt.Fprintf(stdout, "The org server is a user service now, %s, beside the admin page: the admin page can restart it, and hi update does without sudo.\n", orgUnit)
+	if !removed {
+		fmt.Fprintf(stdout, "%s stays, disabled; remove it when you like: sudo rm %s\n", system, systemPath)
+	}
 	return nil
 }

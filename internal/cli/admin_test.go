@@ -63,8 +63,11 @@ func setupAdminTest(t *testing.T) adminTest {
 	appSystemctl = func(args ...string) (string, error) { return "inactive", nil }
 	adminLatest = func() (string, error) { return "v99.0.0", nil }
 	appLingers = func() bool { return true }
+	orgDir := adminOrgDir
+	adminOrgDir = func() string { return "" }
 	t.Cleanup(func() {
 		adminLaunch, adminPost, adminDM, adminJobAlive, adminJournal, appSystemctl, adminLatest, appLingers = launch, post, dm, alive, journal, systemctl, latest, lingers
+		adminOrgDir = orgDir
 	})
 	s := newAdminServer("/usr/local/bin/hi", io.Discard)
 	server := httptest.NewServer(s.handler)
@@ -336,7 +339,7 @@ func TestAdminJobThatStoppedFailed(t *testing.T) {
 
 func TestAdminSendsANewLinkByDM(t *testing.T) {
 	a := setupAdminTest(t)
-	adminAdd("Sam", "", "test") // no Slack: nothing to send
+	adminAdd("Sam", "", "", "test") // no Slack: nothing to send
 	var answer map[string]string
 	for _, who := range []string{"nobody", "Sam", "olga", "olga"} {
 		if code := a.post(t, nil, "/api/new-link", map[string]string{"who": who}, &answer); code != http.StatusOK || !strings.Contains(answer["text"], "If you're one") {
@@ -428,7 +431,7 @@ func TestAdminOpensTheDevPageAsTheAdminIs(t *testing.T) {
 		t.Fatalf("%d %v", code, answer)
 	}
 	// Someone with no level gets no link, and is offered to be an owner.
-	adminAdd("Sam", "U07SAM", "test")
+	adminAdd("Sam", "U07SAM", "", "test")
 	sam := a.signIn(t, "Sam")
 	if code := a.post(t, sam, "/api/devpage", map[string]string{"app": "payments"}, &answer); code != http.StatusOK || answer["builds"] != false || answer["link"] != nil {
 		t.Fatalf("%d %v", code, answer)
@@ -438,7 +441,7 @@ func TestAdminOpensTheDevPageAsTheAdminIs(t *testing.T) {
 		t.Fatalf("%d %+v", code, job)
 	}
 	// Without a Slack member ID, the app can't tell who someone is.
-	adminAdd("Kim", "", "test")
+	adminAdd("Kim", "", "", "test")
 	kim := a.signIn(t, "Kim")
 	a.post(t, kim, "/api/devpage", map[string]string{"app": "payments"}, &answer)
 	if answer["builds"] != false || !strings.Contains(fmt.Sprint(answer["why"]), "Slack member ID") {
@@ -536,6 +539,9 @@ func TestAdminLogs(t *testing.T) {
 func TestAdminStartMakesTheFirstAdmin(t *testing.T) {
 	dir := setupTeamTest(t)
 	t.Setenv("HI_ADMIN_DIR", filepath.Join(dir, "admin"))
+	orgDir := adminOrgDir
+	adminOrgDir = func() string { return "" }
+	t.Cleanup(func() { adminOrgDir = orgDir })
 	var calls []string
 	systemctl, lingers, reach, wait := appSystemctl, appLingers, adminDetectReach, adminStartWait
 	adminStartWait = 0

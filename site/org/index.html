@@ -47,13 +47,13 @@ fallback: |
     <h2 id="try-h">A server and its first user.</h2>
     <p class="sub">On a small always-on Linux machine in your NetBird network (see <a href="/net/">hi net</a>), then on each person's machine.</p>
     <ol class="try">
-      <li><div><p><b>On the server box: create its state.</b> It listens on the machine's NetBird address, port 7373, and prints a systemd unit to run it as a service.</p>
-        <div class="cmdline"><span class="ps">$</span><code>hi org init</code><button class="copy" type="button" data-copy="hi org init">copy</button></div></div></li>
+      <li><div><p><b>On the server box: create it, with its owner.</b> It listens on the machine's NetBird address, port 7373, and runs as a user service. The owner is the first approver.</p>
+        <div class="cmdline"><span class="ps">$</span><code>hi org init --owner U0123456789 --email olga@example.com</code><button class="copy" type="button" data-copy="hi org init --owner U0123456789 --email olga@example.com">copy</button></div></div></li>
       <li><div><p><b>Store a provider key</b>, for RunPod or Shadeform. hi asks for it without echoing it.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi org provider add runpod</code><button class="copy" type="button" data-copy="hi org provider add runpod">copy</button></div></div></li>
       <li><div><p><b>On a person's machine: join.</b> hi makes a key for this device and waits for an admin.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi org join hi.example.com</code><button class="copy" type="button" data-copy="hi org join hi.example.com">copy</button></div></div></li>
-      <li><div><p><b>On the server box: let them in</b>, into a group.</p>
+      <li><div><p><b>Let them in</b>, into a group: on the server's <a href="/guide/app/admin/">admin page</a> (<code>hi admin start</code>), in Slack, or on the server box.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi org approve e-3f09a1 --group staff</code><button class="copy" type="button" data-copy="hi org approve e-3f09a1 --group staff">copy</button></div></div></li>
       <li><div><p><b>Check it</b> from the person's machine.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi org status</code><button class="copy" type="button" data-copy="hi org status">copy</button></div></div></li>
@@ -114,8 +114,8 @@ fallback: |
         <h3>Watch it</h3>
         <div class="snip"><span class="c">$ hi org ls</span>              <span class="d"># everything running, for every user</span>
 <span class="c">$ hi org audit --since 7d</span>
-<span class="c">$ hi org live --wall</span>       <span class="d"># read-only, for a shared screen</span></div>
-        <p>People see their own machines and budget with <code>hi compute live</code>.</p>
+<span class="c">$ hi admin start</span>           <span class="d"># the admin page: what runs, what waits, spend</span></div>
+        <p>The <a href="/guide/app/admin/">admin page</a> shows it all in a browser, and a wall link shows it, read-only, on a shared screen. People see their own machines and budget with <code>hi compute live</code>.</p>
       </div>
       <div class="detail">
         <h3>Agents and the team's model</h3>

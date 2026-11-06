@@ -64,9 +64,28 @@ func runUpdate(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		if output, err := exec.Command(path, "version").Output(); err == nil {
 			installed = strings.TrimPrefix(strings.TrimSpace(string(output)), "hi ")
 		}
-		return exitCode(restartStaleServers(path, installed, mode, stdin, stdout, stderr), stderr)
+		err := restartStaleServers(path, installed, mode, stdin, stdout, stderr)
+		orgUpdateNotes(stdout)
+		return exitCode(err, stderr)
 	}
 	return 0
+}
+
+// orgUpdateNotes says, after an update on the org server's machine, what
+// it still needs: an owner, and the terminal wall's sessions removed.
+func orgUpdateNotes(stdout io.Writer) {
+	if dir, err := orgDirectory(""); err == nil && fileExists(filepath.Join(dir, "config.json")) && loadOrgPeople(dir).Owner == nil {
+		fmt.Fprintln(stdout, orgNoOwnerLine+".")
+	}
+	walls, _ := filepath.Glob(filepath.Join(systemdUnitDir, "hi-wall-*.service"))
+	for _, path := range walls {
+		unit := filepath.Base(path)
+		fmt.Fprintf(stdout, "The terminal wall is gone from hi: %s still shows the old dashboard. Make a wall link on the admin page (Org, Wall screens), then remove it:\n"+
+			"  sudo systemctl disable --now %s && sudo rm %s\n", unit, unit, path)
+	}
+	if len(walls) > 0 {
+		fmt.Fprintln(stdout, "  and, with no wall session left, its account: sudo userdel -r hi-wall")
+	}
 }
 
 func update(requested string, check bool, stdout io.Writer) error {
