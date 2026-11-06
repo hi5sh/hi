@@ -2713,6 +2713,39 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.78 — The org server on the admin page
+
+Spec: [hi_admin.md](specs/approved/hi_admin.md), release 2.
+
+- [x] Every org has an owner, with their Slack member ID and email:
+  `hi org init --owner <Slack ID> --email <address>` makes no org without
+  one, and `hi org owner` hands it on (the owner before stays an admin).
+  `hi org admins add|remove`: the org's admins, who approve, in Slack and
+  on the admin page, and are the admins of the admin page on the
+  server's machine, one list. An org made before owners gets one with
+  `hi org owner`, or at the first `hi admin start` there; `hi org status`
+  and `hi update` say so.
+- [x] The admin page on the org server's machine: Home has the org's
+  day; Requests with **Approve** and **Deny…**, under the admin's own
+  name; Running with **Stop** and **Stop all** of someone's; Spend over a
+  week or a month; Org (the server and **Restart**, the owner, Slack, the
+  policy as a form per group in the middle, checked before it's saved,
+  templates, data, the models served on the team's machines, wall
+  screens); People; Keys (provider keys and the OpenRouter key, set or
+  not, never shown); the org's audit in Activity, its logs in Logs. New
+  links come by DM from the org's Slack app.
+- [x] Activity moved to the left panel; Logs and Incidents follow the app
+  open in the middle.
+- [x] Wall links: Running and Requests on a shared screen, in a browser,
+  read-only, with initials and no reasons unless the link says
+  otherwise, until an admin ends it.
+- [x] `hi org live`, `hi org viewer`, and the terminal wall (`hi org wall`,
+  `hi-wall-live`) are gone; `hi update` says how to remove a wall
+  session. `hi compute live` stays.
+- [x] The org server is a user service, `hi-org.service`, beside the
+  admin page: `hi org init` starts it, the page restarts it, and on a
+  terminal `hi update` moves a system one, with `sudo` once.
+
 ### v2.6.77 — The admin page
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md), release 1.
