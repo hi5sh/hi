@@ -505,8 +505,15 @@ func (p *shadeformProvider) create(request upRequest, stdout, stderr io.Writer) 
 	}
 	fmt.Fprintf(stdout, "Created %s on %s (%s); waiting for it to boot (usually 3-8 minutes)...\n",
 		created.ID, body["cloud"], body["region"])
-	if _, err := p.waitReady(created.ID, stdout); err != nil {
+	if machine, err := p.waitReady(created.ID, stdout); err != nil {
 		fmt.Fprintf(stderr, "hi: %v\n", err)
+		if machine.Status == "error" {
+			// It never ran, and its record would stay on the account, looking
+			// like a machine nobody asked for: delete it.
+			if p.request(http.MethodPost, "/instances/"+url.PathEscape(created.ID)+"/delete", nil, nil) == nil {
+				return err
+			}
+		}
 		fmt.Fprintf(stderr, "hi: it may still bill; stop it with `hi compute stop %s`\n", request.name)
 		return err
 	}

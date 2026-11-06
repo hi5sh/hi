@@ -82,6 +82,9 @@ type serverState struct {
 	// Served are models on the team's machines named to the org, which
 	// devices reach through hi org ai (org_serve.go).
 	Served map[string]*serverServed `json:"served,omitempty"`
+	// Unleased are the instances on the organization's accounts that no
+	// request started, as provider/name, each said once, across restarts.
+	Unleased map[string]time.Time `json:"unleased,omitempty"`
 }
 
 type serverUser struct {
@@ -176,7 +179,6 @@ type orgServer struct {
 	keys      map[string]string
 	providers map[string]computeProvider
 	nonces    map[string]time.Time
-	unleased  map[string]bool
 	log       io.Writer
 	// fallback bounds replacements for sold-out hardware.
 	fallback priceBound
@@ -254,7 +256,6 @@ func openServer(dir string, log io.Writer) (*orgServer, error) {
 		keys:      map[string]string{},
 		providers: map[string]computeProvider{},
 		nonces:    map[string]time.Time{},
-		unleased:  map[string]bool{},
 		log:       log,
 
 		fallback: priceBound{factor: serverFallbackFactor, extra: serverFallbackExtra},
@@ -1267,6 +1268,7 @@ func (s *orgServer) start(request serverRequest) {
 		}
 	}
 	if err != nil {
+		s.cleanUpFailedStart(provider, request, started)
 		fail(err)
 		return
 	}
@@ -1371,6 +1373,17 @@ func (s *orgServer) reconcile() {
 			}
 			leased[lease.Name] = true
 			switch {
+			case lease.State == "cleanup":
+				// What a failed start left: stop it until it's gone.
+				if !running[lease.Name] {
+					s.endLease(lease.Name, "gone")
+					s.audit("server", "cleaned up", lease.Name, lease.Request+" failed to start; it's gone from the provider")
+				} else if provider, err := s.provider(lease.Provider); err == nil {
+					if err := provider.stop(lease.Name, io.Discard, io.Discard); err == nil {
+						s.endLease(lease.Name, "cleanup")
+						s.audit("server", "cleaned up", lease.Name, lease.Request+" failed to start; what the provider had made is deleted")
+					}
+				}
 			case !running[lease.Name] && now.Sub(lease.Started) > time.Minute:
 				s.endLease(lease.Name, "gone")
 				s.audit("server", "lease ended", lease.Name, "the instance is no longer running")
@@ -1390,19 +1403,97 @@ func (s *orgServer) reconcile() {
 					lease.Name, int(slackWarnAt*100), lease.Deadline.Local().Format("15:04")))
 			}
 		}
+		listed := map[string]bool{}
 		for _, instance := range instances {
 			key := name + "/" + instance.name
-			if leased[instance.name] || starting[instance.name] || s.unleased[key] {
+			listed[key] = true
+			// A machine that failed to start never ran, and costs nothing.
+			if leased[instance.name] || starting[instance.name] || instance.state == "error" {
 				continue
 			}
-			s.unleased[key] = true
-			s.audit("server", "unleased instance", key, "running on the organization's account without a request")
-			s.notifyChannel(fmt.Sprintf("⚠️ `%s` is running on the organization's %s account without a request. "+
-				"Stop it on the provider's website if nobody expects it.", instance.name, name))
+			s.mu.Lock()
+			if s.state.Unleased == nil {
+				s.state.Unleased = map[string]time.Time{}
+			}
+			_, said := s.state.Unleased[key]
+			if !said {
+				s.state.Unleased[key] = now
+				s.saveLocked()
+			}
+			whose := s.requestNamedLocked(name, instance.name)
+			s.mu.Unlock()
+			if said {
+				continue
+			}
+			where := "running on the organization's account"
+			if state := strings.ToLower(instance.state); state != "" && state != "running" && state != "active" {
+				where = "on the organization's account (" + state + ")"
+			}
+			s.audit("server", "unleased instance", key, where+" without a request"+whose)
+			s.notifyChannel(fmt.Sprintf("⚠️ `%s` is %s without a request%s. Stop it on the provider's website if nobody expects it.",
+				instance.name, strings.Replace(where, "the organization's account", "the organization's "+name+" account", 1), whose))
 		}
+		// One that's gone may be said again if it comes back.
+		s.mu.Lock()
+		for key := range s.state.Unleased {
+			if strings.HasPrefix(key, name+"/") && !listed[key] {
+				delete(s.state.Unleased, key)
+				s.saveLocked()
+			}
+		}
+		s.mu.Unlock()
 	}
 	s.checkBudgets(now)
 	s.maybeReport(now)
+}
+
+// cleanUpFailedStart stops what a failed start left on the provider's
+// account: the provider may have made the machine before the start failed,
+// as when it ends in an error or isn't reachable in time. When the stop
+// fails too, a cleanup lease keeps it tracked, and reconcile tries again
+// until it's gone.
+func (s *orgServer) cleanUpFailedStart(provider computeProvider, request serverRequest, started time.Time) {
+	instances, err := provider.list()
+	if err != nil {
+		return
+	}
+	found := false
+	for _, instance := range instances {
+		found = found || instance.name == request.Name
+	}
+	if !found {
+		return
+	}
+	if err := provider.stop(request.Name, io.Discard, io.Discard); err == nil {
+		s.audit("server", "cleaned up", request.Name, request.ID+" failed to start; what the provider had made is deleted")
+		return
+	} else {
+		s.audit("server", "could not clean up", request.Name, err.Error()+"; trying again every half minute")
+	}
+	s.mu.Lock()
+	s.state.Leases[request.Name] = &serverLease{Name: request.Name, Provider: request.Provider, Hardware: request.Hardware,
+		Rate: request.Rate, User: request.User, Device: request.Device, Request: request.ID,
+		Started: started, Deadline: computeNow(), State: "cleanup"}
+	s.saveLocked()
+	s.mu.Unlock()
+}
+
+// requestNamedLocked says which request last named an instance, so an
+// unleased one can be traced: ", named by r-1eec1d of sam (failed to
+// start)", or "".
+func (s *orgServer) requestNamedLocked(provider, name string) string {
+	var found *serverRequest
+	for _, request := range s.state.Requests {
+		if request.Name == name && (request.Provider == provider || found == nil) {
+			if found == nil || request.Created.After(found.Created) || request.Provider == provider && found.Provider != provider {
+				found = request
+			}
+		}
+	}
+	if found == nil {
+		return ""
+	}
+	return fmt.Sprintf(", named by %s of %s (%s)", found.ID, found.User, found.State)
 }
 
 // ---------------------------------------------------------------------------

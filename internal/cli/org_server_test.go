@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -24,6 +25,10 @@ type fakeManaged struct {
 	instances map[string]upRequest
 	stopped   []string
 	soldOut   map[string]bool
+	// failAfterCreate makes the machine, then fails the start, as when it
+	// ends in an error or isn't reachable in time; stopFails fails stops.
+	failAfterCreate bool
+	stopFails       bool
 }
 
 func newFakeManaged() *fakeManaged {
@@ -78,6 +83,9 @@ func (f *fakeManaged) create(request upRequest, stdout, _ io.Writer) error {
 	}
 	f.instances[request.name] = request
 	io.WriteString(stdout, "Created pod abc; waiting for it to start\n")
+	if f.failAfterCreate {
+		return errors.New("the machine ended while starting (error (no deployable capacity))")
+	}
 	return nil
 }
 
@@ -94,6 +102,9 @@ func (f *fakeManaged) list() ([]computeInstance, error) {
 func (f *fakeManaged) stop(name string, _, _ io.Writer) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.stopFails {
+		return errors.New("the provider didn't answer")
+	}
 	delete(f.instances, name)
 	f.stopped = append(f.stopped, name)
 	return nil
@@ -450,6 +461,25 @@ func TestReconcileStopsAtTheLimitAndReportsUnleasedInstances(t *testing.T) {
 	if strings.Count(string(audit2), "runpod/rogue") != 1 {
 		t.Fatal("the same unleased instance was reported twice")
 	}
+	// Nor after a restart: what was said is kept.
+	restarted, err := openServer(ts.dir, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted.providers["runpod"] = ts.fake
+	restarted.reconcile()
+	audit3, _ := os.ReadFile(filepath.Join(ts.dir, "audit.jsonl"))
+	if strings.Count(string(audit3), "runpod/rogue") != 1 {
+		t.Fatal("the unleased instance was reported again after a restart")
+	}
+	// One a request named is traced to it.
+	ts.server.state.Requests["r-traced"] = &serverRequest{ID: "r-traced", Kind: "compute", State: "failed", User: "sam", Provider: "runpod", Name: "orphan", Created: now}
+	ts.fake.instances["orphan"] = upRequest{}
+	ts.server.reconcile()
+	audit4, _ := os.ReadFile(filepath.Join(ts.dir, "audit.jsonl"))
+	if !strings.Contains(string(audit4), "named by r-traced of sam (failed)") {
+		t.Fatalf("not traced:\n%s", audit4)
+	}
 }
 
 func TestServerAdminCommandsUseTheSocket(t *testing.T) {
@@ -706,3 +736,40 @@ type namedFake struct {
 }
 
 func (n *namedFake) name() string { return n.label }
+
+// A start that fails after the provider made the machine leaves nothing
+// behind: hi stops it, or keeps it tracked and stops it once it can, and
+// never says it runs without a request.
+func TestFailedStartIsCleanedUp(t *testing.T) {
+	ts := newTestServer(t)
+	now := time.Now()
+	ts.fake.failAfterCreate = true
+	request := serverRequest{ID: "r-fail", Kind: "compute", State: "starting", User: "sam", Provider: "runpod", Hardware: "l4", Rate: "$0.49/h", Name: "orphan", MaxSeconds: 3600, Created: now}
+	ts.server.state.Requests["r-fail"] = &request
+	ts.server.start(request)
+	if _, there := ts.fake.instances["orphan"]; there || ts.server.state.Requests["r-fail"].State != "failed" {
+		t.Fatalf("left behind: %v %s", ts.fake.instances, ts.server.state.Requests["r-fail"].State)
+	}
+	// The stop fails too: a cleanup lease keeps it, and reconcile stops it.
+	ts.fake.stopFails = true
+	request2 := request
+	request2.ID, request2.Name = "r-fail2", "orphan2"
+	ts.server.state.Requests["r-fail2"] = &request2
+	ts.server.start(request2)
+	if lease := ts.server.state.Leases["orphan2"]; lease == nil || lease.State != "cleanup" {
+		t.Fatalf("no cleanup lease: %+v", ts.server.state.Leases)
+	}
+	ts.server.reconcile()
+	if _, there := ts.fake.instances["orphan2"]; !there {
+		t.Fatal("gone while the provider refused")
+	}
+	ts.fake.stopFails = false
+	ts.server.reconcile()
+	if _, there := ts.fake.instances["orphan2"]; there || ts.server.state.Leases["orphan2"] != nil {
+		t.Fatalf("not cleaned up: %v %v", ts.fake.instances, ts.server.state.Leases)
+	}
+	audit, _ := os.ReadFile(filepath.Join(ts.dir, "audit.jsonl"))
+	if strings.Contains(string(audit), "unleased instance") || strings.Count(string(audit), `"cleaned up"`) != 2 {
+		t.Fatalf("audit:\n%s", audit)
+	}
+}

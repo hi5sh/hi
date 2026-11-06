@@ -2713,6 +2713,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.85 — A failed managed start leaves nothing behind
+
+- [x] When a managed start fails after the provider made the machine (it
+  ended in an error, or wasn't reachable in time), the org server stops
+  it; when the stop fails too, a cleanup lease keeps it tracked and
+  reconcile stops it once it can. A Shadeform start that ends in an error
+  deletes its record. (Reported for an agent's start on Shadeform.)
+- [x] The warning for an instance no request started skips one that
+  failed to start, says its state when it isn't running, names the
+  request and user that last used its name, and is said once, also
+  across the server's restarts.
+
 ### v2.6.84 — Network, data, and advisories on the admin page
 
 Spec: [hi_admin.md](specs/approved/hi_admin.md), release 5, the last.
