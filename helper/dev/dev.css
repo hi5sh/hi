@@ -352,6 +352,12 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .chat-form { display: flex; gap: 8px; align-items: flex-end; }
 .chat-form textarea { flex: 1; resize: none; max-height: 200px; min-height: 38px; padding: 8px 12px; border-radius: 6px; line-height: 1.4; }
 .chat-form button { height: 38px; padding: 0 14px; }
+/* The model and effort, quiet beside the message box. */
+.chat-pick { display: flex; gap: 2px; align-self: center; }
+.chat-pick[hidden] { display: none; }
+.chat-pick select { height: 32px; padding: 0 22px 0 8px; border: 0; background-color: transparent; color: var(--muted); font-size: 14px; cursor: pointer; border-radius: 6px; }
+.chat-pick select:hover:not(:disabled), .chat-pick select:focus-visible { color: var(--text); background-color: var(--panel-2, rgba(255,255,255,0.05)); }
+.chat-pick select:disabled { opacity: 0.5; cursor: default; }
 .chat-attach { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--input-line); border-radius: var(--r-sm); color: var(--muted); cursor: pointer; }
 .chat-attach:hover { color: var(--text); }
 /* What goes with a message: pictures as thumbnails, long pastes folded. */
@@ -780,3 +786,8 @@ a.side-icon { text-decoration: none; }
 .stask-note .error:empty { display: none; }
 .stask-note .note-box { min-height: 0; }
 .stask-note .pic-edit { padding: 5px 8px; }
+/* On a phone, the picker has a row of its own above the message. */
+@media (max-width: 700px) {
+  .chat-form { flex-wrap: wrap; }
+  .chat-pick { order: -1; width: 100%; justify-content: flex-end; }
+}

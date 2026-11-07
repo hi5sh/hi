@@ -57,6 +57,7 @@ type adminAppSettings struct {
 	Env        []adminEnvName  `json:"env"`
 	Helper     map[string]bool `json:"helper"`
 	AutoFreeze bool            `json:"auto_freeze"`
+	Models     bool            `json:"models"` // developers pick the chat's model and effort
 	Remote     string          `json:"remote,omitempty"`
 	Forge      string          `json:"forge"` // github, gitlab, or hi
 	Adopted    *adminAdopted   `json:"adopted,omitempty"`
@@ -168,7 +169,7 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 	view := adminAppSettings{Name: name, People: []adminAppPerson{}, Members: []adminMemberSetting{}, Env: []adminEnvName{},
 		Channel: config.Channel, OpsChannel: config.OpsChannel, Handle: appBotHandle(config), Slash: appSlashCommand(name),
 		Manifest: appManifest(config), HasBot: secrets.SlackBotToken != "", HasApp: secrets.SlackAppToken != "",
-		Remote: config.Remote, Forge: appTicketForge(name).Kind, AutoFreeze: adminAutoFreeze(name),
+		Remote: config.Remote, Forge: appTicketForge(name).Kind, AutoFreeze: adminAutoFreeze(name), Models: !config.LockModels,
 		Heartbeat: secrets.HeartbeatURL != "", Every: config.HeartbeatEvery,
 		Helper: map[string]bool{appSlotPreview: appHelperOn(config, appSlotPreview), appSlotProduction: appHelperOn(config, appSlotProduction)}}
 	ids := slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors)
@@ -480,6 +481,10 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 		on := map[bool]string{true: "on", false: "off"}[change.On]
 		args = []string{"app", "helper", app, change.Slot, on}
 		said = "turned the helper " + on + " in " + appAddressLabel(change.Slot)
+	case "models":
+		on := map[bool]string{true: "on", false: "off"}[change.On]
+		args = []string{"app", "models", app, on}
+		said = map[bool]string{true: "let the developers pick the chat's model and effort", false: "kept the chat's model and effort as the sessions start"}[change.On]
 	case "watch":
 		on := map[bool]string{true: "on", false: "off"}[change.On]
 		args = []string{"app", "watch", app, "--auto-freeze", on}

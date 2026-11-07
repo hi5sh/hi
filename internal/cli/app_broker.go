@@ -181,8 +181,12 @@ type appBroker struct {
 	// putting it on one last failed.
 	devPageMu     sync.Mutex
 	devPageFailed time.Time
-	exposed       func(name string) (netExposeState, bool)
-	running       func(container string) bool
+	// devChoices are the models and efforts picked in the dev page's chat,
+	// by session, until its transcript catches up.
+	devChoiceMu sync.Mutex
+	devChoices  map[string]appDevChoice
+	exposed     func(name string) (netExposeState, bool)
+	running     func(container string) bool
 	// oldImage says an app's box runs hi's base image as it was before
 	// hi app rebuild built it again; tests replace it.
 	oldImage func(container string) bool

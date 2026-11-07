@@ -21,6 +21,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -67,6 +68,12 @@ type appDevChatView struct {
 	// Turns are the conversation's messages the page has (appDevTurns):
 	// after a rewind, a branch they aren't the start of is drawn again.
 	Turns string `json:"turns,omitempty"`
+	// Model and Effort are what Claude Code answers with now, and Choose
+	// says the person may pick them: the app's admin lets them
+	// (hi app models), and Claude Code runs here.
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	Choose bool   `json:"choose,omitempty"`
 }
 
 const (
@@ -540,7 +547,121 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		view.Hidden, entries = cut, entries[cut:]
 	}
 	view.Entries = entries
+	view.Model, view.Effort = b.devChatModel(view.ID, host)
+	if config, err := loadTeam(b.team); err == nil {
+		view.Choose = !config.LockModels && agent.Running
+	}
 	return view, nil
+}
+
+// appDevModels are the models the chat picks from, as Claude Code's
+// /model takes them: each the latest of its kind.
+var appDevModels = []string{"fable", "opus", "sonnet", "haiku"}
+
+// appDevChoice is a model or effort picked in the chat, and when.
+type appDevChoice struct {
+	Model, Effort string
+	At            time.Time
+}
+
+// devChatModel is the model and effort Claude Code answers with in a
+// session: its last answer's, or what was picked since.
+func (b *appBroker) devChatModel(session, host string) (model, effort string) {
+	model, effort, at := appDevChatModel(host)
+	b.devChoiceMu.Lock()
+	defer b.devChoiceMu.Unlock()
+	if choice, ok := b.devChoices[session]; ok {
+		if choice.At.After(at) {
+			model, effort = firstNonEmpty(choice.Model, model), firstNonEmpty(choice.Effort, effort)
+		} else {
+			delete(b.devChoices, session)
+		}
+	}
+	return model, effort
+}
+
+// appDevChatModel reads the transcript's last answer for its model and
+// effort.
+func appDevChatModel(host string) (model, effort string, at time.Time) {
+	file, err := os.Open(host)
+	if err != nil {
+		return "", "", at
+	}
+	defer file.Close()
+	const tail = 256 << 10
+	if info, err := file.Stat(); err == nil && info.Size() > tail {
+		file.Seek(info.Size()-tail, io.SeekStart)
+	}
+	data, _ := io.ReadAll(file)
+	lines := strings.Split(string(data), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !strings.Contains(lines[i], `"type":"assistant"`) {
+			continue
+		}
+		var entry struct {
+			Type      string    `json:"type"`
+			Timestamp time.Time `json:"timestamp"`
+			Effort    string    `json:"effort"`
+			Message   struct {
+				Model string `json:"model"`
+			} `json:"message"`
+		}
+		if json.Unmarshal([]byte(lines[i]), &entry) != nil || entry.Type != "assistant" || !strings.HasPrefix(entry.Message.Model, "claude-") {
+			continue
+		}
+		return entry.Message.Model, entry.Effort, entry.Timestamp
+	}
+	return "", "", at
+}
+
+// devChatChoose picks the session's model or effort, with Claude Code's
+// own /model and /effort, as someone would type them.
+func (b *appBroker) devChatChoose(agent appDevChatAgent, session, model, effort string) error {
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return err
+	}
+	switch {
+	case config.LockModels:
+		return errors.New("the app's admin keeps the chat's model and effort as they are")
+	case !agent.Running || agent.Agent != "claude":
+		return errors.New("the model and effort are picked for Claude Code, and it isn't running here")
+	case agent.Status == "working" || agent.Status == "blocked":
+		return errors.New("Claude is busy: pick it when it's done")
+	case model == "" && effort == "":
+		return errors.New("a model or an effort")
+	case model != "" && !slices.Contains(appDevModels, model):
+		return fmt.Errorf("the model is %s, not %q", strings.Join(appDevModels, ", "), model)
+	case effort != "" && !slices.Contains(agentEfforts, effort):
+		return fmt.Errorf("the effort is %s, not %q", strings.Join(agentEfforts, ", "), effort)
+	}
+	if model != "" {
+		if err := appDevHerdrDo(b.team, "agent", "prompt", agent.Pane, "/model "+model); err != nil {
+			return err
+		}
+	}
+	if effort != "" {
+		if err := appDevHerdrDo(b.team, "agent", "prompt", agent.Pane, "/effort "+effort); err != nil {
+			return err
+		}
+	}
+	if session != "" {
+		b.devChoiceMu.Lock()
+		if b.devChoices == nil {
+			b.devChoices = map[string]appDevChoice{}
+		}
+		choice := b.devChoices[session]
+		if model != "" {
+			choice.Model = "claude-" + model
+		}
+		if effort != "" {
+			choice.Effort = effort
+		}
+		choice.At = time.Now()
+		b.devChoices[session] = choice
+		b.devChoiceMu.Unlock()
+	}
+	return nil
 }
 
 // devChatScreen is what an agent's terminal shows, as text and with its
@@ -691,6 +812,14 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 			return
 		}
 		reply(w, http.StatusOK, map[string]any{"paths": paths})
+	})
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/model", func(w http.ResponseWriter, r *http.Request) {
+		act(w, r, func(agent appDevChatAgent, session string, body map[string]any) error {
+			model, _ := body["model"].(string)
+			effort, _ := body["effort"].(string)
+			id, _ := body["session"].(string)
+			return b.devChatChoose(agent, firstNonEmpty(id, path.Base(strings.TrimSuffix(session, ".jsonl"))), model, effort)
+		})
 	})
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/keys", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {

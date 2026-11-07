@@ -2713,6 +2713,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.87 — The chat's model and effort
+
+- [x] The dev page's chat has the model and effort Claude answers with
+  beside the message box (Opus 5.5, Med), read from the session's last
+  answer; picking another sends Claude Code's own `/model` or `/effort`,
+  from the next message, while Claude isn't busy.
+- [x] Per app, the admin keeps them as they are: `hi app models <name>
+  off`, or in the admin page's Agents; the picker is then gone and the
+  dev page refuses a pick.
+
 ### v2.6.86 — A machine that runs both: the org as a card
 
 - [x] The admin page has no modes: the left panel is the same on every

@@ -104,6 +104,9 @@ type appConfig struct {
 	// settings (hooks, MCP servers), off by default (app_adopt.go).
 	Adopted              *appAdopted `json:"adopted,omitempty"`
 	ProjectAgentSettings bool        `json:"project_agent_settings,omitempty"`
+	// LockModels keeps the dev page's chat on the model and effort the
+	// sessions start with: its developers don't pick them (hi app models).
+	LockModels bool `json:"lock_models,omitempty"`
 	// MadeAs is the name the team was made with, when hi app rename has
 	// given it another since: its memory bank and its snapshots keep it.
 	MadeAs  string    `json:"made_as,omitempty"`
@@ -517,6 +520,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runTeamLeadAPI(rest, stderr)
 	case "helper":
 		err = appHelperCommand(rest, stdout)
+	case "models":
+		err = appModelsCommand(rest, stdout)
 	case "domain":
 		err = appDomainCommand(rest, stdin, stdout)
 	case "addresses":
@@ -688,6 +693,7 @@ usage:
       [--show-key]                 the key they are encrypted with; keep a copy elsewhere
   hi app helper <name>             whether the app's pages have the helper, help and feedback
       [stage|production on|off]    turn it on or off for an address, from the next page load
+  hi app models <name> [on|off]    whether its developers pick the dev page chat's model and effort
   hi app addresses <name>          what its addresses on NetBird are named: this machine's domain
       [domain|netbird|<host>]      on https (hi net domain), the NetBird name, or a host name IT
                                    keeps in its DNS; asked in hi app new

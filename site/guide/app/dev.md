@@ -268,7 +268,12 @@ for; Checks and Logs have a dot.
   folded into a line ("Ran 3 commands, read 2 files") that opens to the
   commands and what they gave, and what it's doing now. What you write
   goes to the agent as if typed in the terminal, so the chat and the
-  terminal are one session; **Stop** presses Esc. Paste a picture
+  terminal are one session; **Stop** presses Esc. Beside the box, the
+  model and the effort Claude answers with (Opus 5.5, Med) pick another
+  from the next message, with Claude Code's own `/model` and `/effort`,
+  which also make it the dev box's default for new sessions. They're
+  there unless the app's admin keeps them as they are (`hi app models
+  <name> off`, or in the admin page's Agents). Paste a picture
   (Ctrl+V), drop a file on the box, or pick one with the clip, and it
   goes with the message: a small preview over the box until you send,
   then a file in the box's `~/hi/chat/<workspace>/` that the agent is

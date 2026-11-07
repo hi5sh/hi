@@ -2278,6 +2278,10 @@ function sectionAgents(s) {
   or.append(el("div", { class: "data-actions" },
     el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own OpenRouter key", text: "Its use is billed and limited apart. It's checked, kept on the machine, and never shown again.", ok: "Check and keep", field: "sk-or-…" }); if (answer) change("openrouter", { key: answer.field }, "The app has its own OpenRouter key."); } }, s.own_openrouter ? "Replace the key" : "Give it its own key"),
     s.own_openrouter ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use this machine's OpenRouter key?", text: "The app's own key is forgotten.", ok: "Use the machine's" })) change("openrouter", { remove: true }); } }, "Use this machine's") : null));
+  const models = el("input", { type: "checkbox" });
+  models.checked = s.models;
+  models.addEventListener("change", () => change("models", { on: models.checked }));
+  parts.push(el("h2", {}, "The dev page's chat"), el("label", { class: "check" }, models, " Developers pick its model and effort, beside the message box; a pick is also the dev box's default for new sessions. Off, the picker isn't there, and each session keeps what it starts with (hi app models)."));
   parts.push(el("h2", {}, "Keys and sign-ins"), or);
   if (s.uses_chatgpt) {
     parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "ChatGPT: "), s.chatgpt ? "the app's own sign-in, " + s.chatgpt : "this machine's sign-in, Codex's" + (s.machine_chatgpt ? "" : ", which isn't signed in")),

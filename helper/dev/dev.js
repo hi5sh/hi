@@ -1521,8 +1521,58 @@
     $("chat-input").disabled = stopped || !!view.note;
     $("chat-send").disabled = stopped || !!view.note;
     $("chat-stop").hidden = !(agent.running && agent.status === "working");
+    chatPick(view, agent);
     chatPending(agent);
   }
+  // The model and effort, beside the message box, when the app's admin
+  // lets its developers pick them: Claude Code's /model and /effort,
+  // from the next message.
+  var chatModels = [["fable", "Fable"], ["opus", "Opus"], ["sonnet", "Sonnet"], ["haiku", "Haiku"]];
+  var chatEfforts = [["low", "Low"], ["medium", "Med"], ["high", "High"], ["xhigh", "XHigh"], ["max", "Max"]];
+  function chatPick(view, agent) {
+    var shown = !!view.choose && agent.agent === "claude" && !view.note;
+    $("chat-pick").hidden = !shown;
+    if (!shown) return;
+    var busy = agent.status === "working" || agent.status === "blocked";
+    var now = /^claude-([a-z]+)-(\d+)-(\d+)/.exec(view.model || "");
+    fillPick($("chat-model"), chatModels, now ? now[1] : "", "Model", function (value, label) { return now && value === now[1] ? label + " " + now[2] + "." + now[3] : label; }, busy);
+    fillPick($("chat-effort"), chatEfforts, view.effort || "", "Effort", null, busy);
+  }
+  function fillPick(select, options, current, empty, label, busy) {
+    select.disabled = busy;
+    select.title = busy ? "Claude is busy: pick it when it's done" : select.getAttribute("aria-label") === "The model" ? "The model Claude answers with, from the next message" : "How hard Claude thinks, from the next message";
+    if (document.activeElement === select) return;
+    var key = current + "|" + options.map(function (o) { return label ? label(o[0], o[1]) : o[1]; }).join(",");
+    if (select.dataset.key === key) return;
+    select.dataset.key = key;
+    select.textContent = "";
+    if (!current) select.appendChild(el("option", { value: "", text: empty }));
+    options.forEach(function (o) {
+      var option = el("option", { value: o[0], text: label ? label(o[0], o[1]) : o[1] });
+      if (o[0] === current) option.selected = true;
+      select.appendChild(option);
+    });
+    if (!current) select.value = "";
+  }
+  ["chat-model", "chat-effort"].forEach(function (id) {
+    $(id).addEventListener("change", function () {
+      var select = $(id);
+      if (!select.value) return;
+      var body = { workspace: chat.space, session: chat.id };
+      body[id === "chat-model" ? "model" : "effort"] = select.value;
+      select.disabled = true;
+      api("POST", "chat/model", body).then(function () {
+        select.dataset.key = "";
+        select.blur();
+        pollChat();
+      }).catch(function (error) {
+        select.dataset.key = "";
+        toast(error.message);
+        select.blur();
+        pollChat();
+      });
+    });
+  });
   // chatPending keeps what was sent until the transcript has it. Claude
   // Code holds a message sent while a tool runs until the tool ends, which
   // can be many minutes, so it waits as queued while Claude works; one

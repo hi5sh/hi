@@ -349,6 +349,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app sso <name> on <provider> [--domain <d>] [--group <g>] [--anyone]` | People without the link sign in to the app and Stage, if the rules let them in; needs `hi app domain <name> on`; prints the return addresses to register |
 | `hi app sso [<name> [off]]` | The providers and the apps using them; an app's rules and last sign-ins; `off` signs everyone out |
 | `hi app sso provider rm <name>` | Forget a provider no app uses |
+| `hi app models <name> [on|off]` | Whether the developers pick the dev page chat's model and effort; off, the picker isn't there and sessions keep what they start with |
 | `hi app helper <name> [stage|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
 | `hi app snapshot <name>`                 | Take a snapshot now of the lead's memory, the app's record, and production's data; the app keeps running. It takes one daily and before every release too |
 | `hi app snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |

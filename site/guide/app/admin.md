@@ -127,8 +127,9 @@ only whether one is set, and whose.
   OpenRouter, and its effort (the app restarts); the app's own OpenRouter
   key or the machine's; its ChatGPT sign-in (the code to type shows in
   Jobs) and its Claude token, or the machine's; what Stage's model calls
-  may cost a day; the boxes' memory. `hi app member`, `key`, `signin`,
-  `limit`.
+  may cost a day; the boxes' memory; whether the developers pick the dev
+  page chat's model and effort (off, the picker isn't there). `hi app
+  member`, `key`, `signin`, `limit`, `models`.
 - **Slack:** the bot, the channel, the ops channel, the tokens again when
   Slack gave new ones, the manifest to paste into the Slack app after an
   update or a rename, and **Rename…**. `hi app ops`, `key slack`,
