@@ -2713,6 +2713,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.92 — An app with its own OpenRouter key needs no machine key
+
+- [x] `hi app new`, `hi app up`, and the app's server check the app's
+  OpenRouter key, its own or else this machine's, instead of asking
+  Hermes here for one; the lead's box mounts Hermes' .env only when
+  there is one.
+
 ### v2.6.91 — Create the Slack app glows
 
 - [x] The new-app steps' Create the Slack app has a thin rainbow border

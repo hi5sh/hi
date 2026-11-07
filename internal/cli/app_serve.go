@@ -52,6 +52,9 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	if err := hermesInstalled(); err != nil {
 		return err
 	}
+	if err := appHasOpenRouterKey(name); err != nil {
+		return err
+	}
 	runtime, err := loadHermesRuntime()
 	if err != nil {
 		return err

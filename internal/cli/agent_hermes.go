@@ -259,14 +259,25 @@ func readHermesModelConfig(path string) hermesModelConfig {
 	return config
 }
 
-// hermesInstalled checks that Hermes is installed and has an OpenRouter
-// key for the proxy to put in place of a box's placeholder.
+// hermesInstalled checks that Hermes is installed, for an app's lead. The
+// OpenRouter key the proxy puts in place of the box's placeholder is the
+// app's own or else this machine's: appHasOpenRouterKey checks it.
 func hermesInstalled() error {
 	if !hermesPresent() {
 		return errors.New("Hermes is not installed on this machine; install it with hi install hermes")
 	}
-	if _, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil {
-		return errors.New("Hermes has no OpenRouter key in ~/.hermes/.env; run hermes setup")
+	return nil
+}
+
+// appNoOpenRouterKey is what an app without an OpenRouter key is told: its
+// own, or this machine's in Hermes' .env.
+var appNoOpenRouterKey = errors.New("the app has no OpenRouter key: give it one with hi app key <name> openrouter, or put this machine's in ~/.hermes/.env with hermes setup")
+
+// appHasOpenRouterKey checks that an app has an OpenRouter key: its own,
+// or this machine's.
+func appHasOpenRouterKey(name string) error {
+	if key, err := appOpenRouterKey(name); err != nil || key == "" {
+		return errors.New(strings.ReplaceAll(appNoOpenRouterKey.Error(), "<name>", name))
 	}
 	return nil
 }

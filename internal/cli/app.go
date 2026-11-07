@@ -981,6 +981,11 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	if err := validateTeam(config); err != nil {
 		return err
 	}
+	if secrets.OpenRouterAPIKey == "" {
+		if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil || key == "" {
+			return errors.New(strings.ReplaceAll(appNoOpenRouterKey.Error(), "<name>", name))
+		}
+	}
 	if !answers.checked {
 		if err := appCheckSlack(config, secrets, stdout); err != nil {
 			return err
@@ -2203,6 +2208,9 @@ func appUp(name string, stdout io.Writer) error {
 		return err
 	}
 	if err := hermesInstalled(); err != nil {
+		return err
+	}
+	if err := appHasOpenRouterKey(name); err != nil {
 		return err
 	}
 	if err := appMigrate(name, stdout); err != nil {

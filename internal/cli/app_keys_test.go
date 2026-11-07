@@ -400,3 +400,33 @@ func TestRunTeamAppRelaysModels(t *testing.T) {
 		t.Fatal("the app's exit status:", code)
 	}
 }
+
+// An app with a key of its own doesn't need this machine's: hi app new and
+// hi app up check the app's key, and only refuse when there is none at all.
+func TestAppWithItsOwnKeyNeedsNoMachineKey(t *testing.T) {
+	setupTeamTest(t)
+	saved := appCheckOpenRouterKey
+	appCheckOpenRouterKey = func(string) error { return nil }
+	t.Cleanup(func() { appCheckOpenRouterKey = saved })
+	writeSkillTestFile(t, hermesEnvPath(), "SLACK_BOT_TOKEN=x\n", 0o600) // Hermes here has no OpenRouter key
+	file := filepath.Join(t.TempDir(), "app.json")
+	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"]}`, 0o600)
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_OPENROUTER_API_KEY", "")
+	err := appNew([]string{"orders", "--from", file}, strings.NewReader(""), io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "the app has no OpenRouter key") || !strings.Contains(err.Error(), "hi app key orders openrouter") {
+		t.Fatalf("no key anywhere: %v", err)
+	}
+	t.Setenv("HI_APP_OPENROUTER_API_KEY", "sk-or-own")
+	if err := appNew([]string{"payments", "--from", file}, strings.NewReader(""), io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if err := appHasOpenRouterKey("payments"); err != nil {
+		t.Fatal(err)
+	}
+	saveTeamSecrets("payments", appSecrets{})
+	if err := appHasOpenRouterKey("payments"); err == nil {
+		t.Fatal("up with no key anywhere")
+	}
+}

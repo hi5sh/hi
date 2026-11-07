@@ -801,9 +801,14 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		secret = "openrouter:/secrets/hermes.env"
 	}
 	if keys, ok := strings.CutPrefix(kind, "team:"); ok {
-		// A team's own OpenRouter key comes first, then this machine's.
-		args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro", "-v", keys+":/secrets/team:ro")
-		secret = "openrouter:/secrets/team/openrouter.env,/secrets/hermes.env"
+		// A team's own OpenRouter key comes first, then this machine's,
+		// when Hermes here has a .env.
+		args = append(args, "-v", keys+":/secrets/team:ro")
+		secret = "openrouter:/secrets/team/openrouter.env"
+		if fileExists(hermesEnvPath()) {
+			args = append(args, "-v", hermesEnvPath()+":/secrets/hermes.env:ro")
+			secret += ",/secrets/hermes.env"
+		}
 		// And the lead's Slack tokens, when hi put them there, and the
 		// team's ChatGPT access token, when it has roles on ChatGPT.
 		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+appChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent")
