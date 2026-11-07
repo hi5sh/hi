@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), proposed 2026-11-07, waits for approval. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -249,6 +249,91 @@ email.
   server runs as, runs `hi org owner` with the new owner. It is in the
   audit and said in the approvers' channel.
 
+## A machine that runs both
+
+Release 6. A machine runs apps, an org server, or both, and the page is
+the same on each: no modes. Until release 6 the page turns the org's
+views on beside the apps' when there is an org server. That works, but
+on a machine with both it mixes what the icons mean, and two things
+conflict.
+
+**What conflicts now:**
+
+- **Who the admins are.** With an org server, the page's admins are the
+  org's owner and admins, in place of the machine's own list. On a
+  machine with apps, its admins who aren't the org's lose the page, and
+  making someone an admin to restart an app makes them an approver of
+  the org's spend in Slack. Running apps and approving spend are
+  different jobs.
+- **Two orgs.** A machine with apps is usually joined to an org. `hi org
+  init` there starts a second one, while the machine's apps still get
+  their compute from the first: the page shows one org, the apps use
+  another.
+
+**What only confuses:** People has the apps' people (Slack members, a
+level per app) and the org's users (hi user names, devices, groups),
+and the same person is in both, unlinked. Keys has the machine's keys
+and the org's provider keys. In the right panel, Jobs, Logs, Incidents,
+and Advisories follow the open app, while Requests, Running, and Spend
+are the org's. The Org icon is there on some machines and not others,
+and moves the others along.
+
+**What doesn't conflict:** the ports (1984, 7373, the apps'), NetBird,
+and one Activity for both.
+
+### The org is a card, as an app is
+
+- **Home:** the machine, then the org's card if the machine runs an org
+  server (requests waiting, what runs, today's spend), then the apps'.
+  A machine with only the org has one card.
+- **The left panel is the same on every machine,** each icon meaning one
+  thing: **Home**, **People** (the apps' people only), **Keys** (the
+  machine's only), **Network**, **Machine**, **Activity**. The Org view
+  goes.
+- **The org opened** has its sections in the middle and on the bar, as
+  an app's: **Overview** (its state, requests, what runs, spend,
+  Restart), **Users** (their groups, devices, Add, Remove, the Slack
+  approvers), **Admins** (the owner and admins), **Policy**, **Keys**
+  (the provider keys, the org's OpenRouter key), **Templates**,
+  **Data**, **Models**, **Slack**, **Wall screens**. The org's users
+  leave People, and its keys leave Keys.
+- **The right panel is about what's open:** with the org, **Requests**,
+  **Running**, **Spend**, **Logs**, **Incidents**; with an app, **Jobs**,
+  **Logs**, **Incidents**, **Advisories**; with nothing open, as with an
+  app, every app's. The org's incidents are what its reconcile warns of:
+  an instance on the org's account that no request started, a cleanup
+  that hasn't worked. Requests waiting are a number on the org's card
+  and on Home's icon wherever the page is, and in Slack as now.
+
+### Two lists of admins
+
+- **The machine's admins** (the page's `admin.json`) sign in to the page
+  and run the machine and its apps.
+- **The org's owner and admins** (`people.json`) approve, set the
+  policy, and change the org's users, keys, and admins.
+- **On a machine with only the org,** its owner and admins are the
+  machine's admins too, as now: nothing changes on the org's VM.
+- **On a machine with both,** `hi org init` adds the owner to the
+  machine's admins and leaves the others there. A machine admin who
+  isn't the org's sees the org's card and sections, and changes nothing
+  in them; an org admin who isn't the machine's signs in and sees the
+  machine and the org, and changes only the org. Making someone a
+  machine admin never makes them an approver.
+
+### Starting an org where there are apps
+
+- **`hi org init` on a machine joined to another org** refuses, and says
+  `hi org leave` first. The machine's apps would otherwise ask the other
+  org for compute.
+- **On a machine with apps and no org,** it joins the machine to the
+  new org, as `hi org join` does, so its apps' compute goes through it,
+  under the owner's hi user name.
+- **The org server holds the keys that spend money,** and the apps run
+  agents, under the same account, and restart with it on `hi update`.
+  `hi org init` on a machine with apps says so, and the guide says
+  that an org of more than a few people puts its server on a small VM
+  of its own. A machine with both is for a small org, or to try one.
+
 ## New app
 
 `hi app new`'s ten steps, as pages with **Back** and **Next**. Each
@@ -481,6 +566,14 @@ hi admin address [<host> [--https] | default]
    Ignore asks why. The org server's public URL for cloud runs is shown,
    and `hi org expose` stays on the command line.
 
+6. **A machine that runs both:** the org as a card on Home with its
+   own sections; the left panel the same on every machine; the right
+   panel following what's open, the org or an app; the machine's admins
+   and the org's apart; `hi org init` refusing on a machine joined to
+   another org, joining a machine with apps to the new one, and saying
+   what sharing the machine means.
+   [A machine that runs both](#a-machine-that-runs-both) has it.
+
 ## Later
 
 - **hi5.sh as a service:** people who host their apps with hi5.sh manage
@@ -539,3 +632,10 @@ None yet.
     step.
 13. A wall link shows Running and Requests in a browser and can change
     nothing.
+14. The left panel has the same views, in the same order, on a machine
+    with apps, one with only an org server, and one with both.
+15. On a machine with apps, `hi org init` keeps the machine's admins;
+    making one of them an admin of the page doesn't make them an
+    approver; and a machine admin who isn't the org's can't approve.
+16. `hi org init` refuses on a machine joined to another org, and on a
+    machine with apps it joins the machine to the new org.
