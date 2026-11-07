@@ -372,7 +372,7 @@ function renderHome() {
   if (!state.apps.length) {
     cards.append(el("div", { class: "app-card empty-card" },
       el("p", {}, state.org ? "No apps on this machine: it runs the org server." : "No apps on this machine yet."),
-      el("p", { class: "muted" }, "Creating one here comes in a later hi. Until then, on the machine: ", el("code", {}, "hi app new <name>"), ".")));
+      el("p", { class: "muted" }, "Make one with + New app, or on the machine with ", el("code", {}, "hi app new <name>"), ".")));
     return;
   }
   for (const app of state.apps) {
