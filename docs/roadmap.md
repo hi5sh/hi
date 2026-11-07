@@ -2713,6 +2713,29 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.86 — A machine that runs both: the org as a card
+
+- [x] The admin page has no modes: the left panel is the same on every
+  machine (Home, People, Keys, Network, Machine, Activity), and the org
+  is a card on Home, first in Home on the left, with its own sections on
+  the bar as an app's: Overview, Users, Admins, Policy, Keys, Templates,
+  Data, Models, Slack, Wall screens. The org's users leave People and its
+  keys leave Keys.
+- [x] The right panel is about what's open: Requests, Running, Spend,
+  Logs, and Incidents with the org; Jobs, Logs, Incidents, and Advisories
+  with an app; on Home, every app's, or the org's on a machine with only
+  the org. The org's incidents are what its check warns of: an instance
+  no request started, a failed start's machine not deleted yet.
+- [x] On a machine with apps and an org server, the machine's admins and
+  the org's are two lists: each sees everything and changes only their
+  own, enforced by the page's server, and making someone an admin of the
+  machine doesn't make them an approver. The org's owner adds and
+  removes the org's admins in its Admins.
+- [x] `hi org init` refuses on a machine joined to another org; beside
+  apps, it joins the machine to the new org under the owner's name,
+  keeps the admin page's admins with the owner added, and says what
+  sharing the machine means.
+
 ### v2.6.85 — A failed managed start leaves nothing behind
 
 - [x] When a managed start fails after the provider made the machine (it

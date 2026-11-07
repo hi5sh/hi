@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1983,6 +1984,19 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	if _, _, err := net.SplitHostPort(*listen); err != nil {
 		return usageError{fmt.Sprintf("--listen %q is not host:port", *listen)}
 	}
+	// A machine joined to another org stays there until it leaves: its
+	// apps would ask that one for compute while the page showed this one.
+	// An org in a folder of its own (--dir) isn't the machine's.
+	ownURL, _ := normalizeServerURL(*listen)
+	var apps []string
+	if *dirFlag == "" {
+		if existing, err := loadServerConnection(); err != nil {
+			return err
+		} else if existing != nil && existing.URL != ownURL {
+			return fmt.Errorf("this machine is joined to the org at %s, and its apps get their compute there; to run an org of its own, leave that one first: hi org leave", existing.URL)
+		}
+		apps = orgMachineApps()
+	}
 	// Every org has an owner: asked at a terminal, or given as flags.
 	owner := orgPeopleInput{As: currentUserName(), Action: "owner", Slack: *ownerSlack, Email: *ownerEmail, Name: *ownerName}
 	hasOwner := loadOrgPeople(dir).Owner != nil
@@ -2008,7 +2022,9 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	if err := os.WriteFile(filepath.Join(dir, "config.json"), append(data, '\n'), 0o600); err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(dir, "state.json")); errors.Is(err, os.ErrNotExist) {
+	_, err = os.Stat(filepath.Join(dir, "state.json"))
+	fresh := errors.Is(err, os.ErrNotExist)
+	if fresh {
 		server, err := openServer(dir, io.Discard)
 		if err != nil {
 			return err
@@ -2023,6 +2039,11 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 			return err
 		}
 		fmt.Fprintln(stdout, result.Text)
+	}
+	if len(apps) > 0 {
+		if err := orgInitBesideApps(dir, ownURL, fresh, apps, stdout); err != nil {
+			return err
+		}
 	}
 	executable, _ := os.Executable()
 	if resolved, err := filepath.EvalSymlinks(executable); err == nil {
@@ -2067,6 +2088,83 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	}
 	return nil
 }
+
+// orgMachineApps are the apps on this machine; tests replace it.
+var orgMachineApps = func() []string {
+	var names []string
+	for _, app := range adminApps() {
+		names = append(names, app.Name)
+	}
+	return names
+}
+
+// orgInitBesideApps is hi org init on a machine with apps: the machine
+// joins its own org, under the owner's name, so its apps' compute goes
+// through it; the admin page keeps the machine's admins, and the owner
+// is one of them; and it says what sharing the machine means.
+func orgInitBesideApps(dir, url string, fresh bool, apps []string, stdout io.Writer) error {
+	owner := loadOrgPeople(dir).Owner
+	if owner == nil {
+		return nil
+	}
+	if connection, _ := loadServerConnection(); connection == nil && fresh {
+		key, err := loadDeviceKey(true)
+		if err != nil {
+			return err
+		}
+		public := devicePublicKey(key)
+		decoded, err := decodeDeviceKey(public)
+		if err != nil {
+			return err
+		}
+		server, err := openServer(dir, io.Discard)
+		if err != nil {
+			return err
+		}
+		hostname, _ := os.Hostname()
+		fingerprint := keyFingerprint(decoded)
+		server.mu.Lock()
+		if server.state.Users[owner.Name] == nil {
+			server.state.Users[owner.Name] = &serverUser{Name: owner.Name, Group: orgInitGroup, Added: computeNow()}
+		}
+		server.state.Devices[fingerprint] = &serverDevice{Fingerprint: fingerprint, PublicKey: public, User: owner.Name, Hostname: hostname, Added: computeNow()}
+		err = server.saveLocked()
+		server.mu.Unlock()
+		if err != nil {
+			return err
+		}
+		server.audit(currentUserName(), "added user", owner.Name, orgInitGroup+", with "+hostname+", at hi org init beside the machine's apps")
+		if err := saveServerConnection(serverConnection{URL: url, User: owner.Name, Group: orgInitGroup}); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "This machine joined the org as %s (%s), so its apps get their compute through it.\n", owner.Name, orgInitGroup)
+	} else if connection == nil {
+		fmt.Fprintf(stdout, "So this machine's apps get their compute through the org: hi org join %s\n", url)
+	}
+	// The admin page's admins stay the machine's, and the owner is one.
+	if data, err := os.ReadFile(adminConfigPath()); err == nil {
+		unlock := adminLock()
+		var config adminConfig
+		if json.Unmarshal(data, &config) == nil && !config.OrgApart {
+			config.OrgApart = true
+			if !slices.ContainsFunc(config.Admins, func(a adminPerson) bool { return a.Slack == owner.Slack }) {
+				config.Admins = append(config.Admins, adminPerson{Name: owner.Name, Slack: owner.Slack, Added: time.Now().UTC(), By: currentUserName()})
+			}
+			if err := saveAdminConfig(config); err != nil {
+				unlock()
+				return err
+			}
+			fmt.Fprintf(stdout, "The admin page keeps the machine's admins, and %s is one too; the org's admins sign in there for the org.\n", owner.Name)
+		}
+		unlock()
+	}
+	fmt.Fprintf(stdout, "\nThis machine runs %d app%s too. The org server keeps the keys that start machines on the org's accounts, and the apps' agents run beside it, as the same account; hi update restarts them together. That suits a small org, or trying one: for more than a few people, put the org server on a small machine of its own.\n\n",
+		len(apps), map[bool]string{true: "", false: "s"}[len(apps) == 1])
+	return nil
+}
+
+// orgInitGroup is the group the machine joins its own org in.
+const orgInitGroup = "staff"
 
 func orgRunCommand(args []string, stdout, stderr io.Writer) error {
 	flags, dirFlag := orgFlags("run", stderr)

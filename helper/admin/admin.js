@@ -72,7 +72,8 @@ async function api(path, body) {
 
 let state = null;      // /api/state
 let openApp = "";      // the app in the middle; "" is Home
-let middle = "";       // what the middle shows: "", an app's name, or ":policy"
+let middle = "";       // what the middle shows: "", an app's name, ":org", or ":new…"
+let orgSection = "overview"; // the org's section, with ":org" open
 let detail = null;     // its /api/app
 let booted = false;
 let restarting = false; // the server didn't answer: an update restarts it
@@ -87,7 +88,7 @@ const panes = {
   left: { view: "apps", open: true, width: 300 },
   right: { view: "logs", open: true, width: 340 },
 };
-const paneViews = { left: ["apps", "org", "people", "keys", "network", "machine", "activity"], right: ["requests", "running", "spend", "jobs", "logs", "incidents", "advisories"] };
+const paneViews = { left: ["apps", "people", "keys", "network", "machine", "activity"], right: ["requests", "running", "spend", "jobs", "logs", "incidents", "advisories"] };
 const paneIds = {
   left: { panel: "left-side", toggle: "left-toggle", close: "left-close", resize: "left-resize" },
   right: { panel: "right-side", toggle: "right-toggle", close: "right-close", resize: "right-resize" },
@@ -208,25 +209,31 @@ function freshView(view) {
   if (view === "network") { renderMachineNetwork(); refreshMachineNetwork(); }
   if (view === "advisories") { renderAdvisories(); refreshAdvisories(); }
   if (view === "keys") { renderKeys(); refreshMachineKeys(); }
-  if ((view === "org" || view === "people" || view === "keys") && state && state.org) {
-    if (orgSettings && view === "org") renderOrg();
-    refreshOrgSettings();
-  }
 }
 
-// The views a machine has: the org's only with an org server; Incidents
-// not on an org server's machine without apps.
-function hasView(view) {
-  if (!state) return true;
-  if (["org", "requests", "running", "spend"].includes(view)) return !!state.org;
-  if (view === "incidents" || view === "advisories") return !state.org || state.apps.length > 0;
-  return true;
+// The left panel is the same on every machine. The right is about what's
+// open: the org's views with the org, an app's with an app; on Home,
+// every app's, or the org's on a machine that runs only the org.
+const orgOpen = () => middle === ":org";
+function rightViews() {
+  const orgViews = ["requests", "running", "spend", "logs", "incidents"];
+  if (state && state.org && orgOpen()) return orgViews;
+  if (state && state.org && !openApp && !state.apps.length) return ["requests", "running", "spend", "jobs", "logs", "incidents"];
+  return ["jobs", "logs", "incidents", "advisories"];
 }
+function hasView(view) {
+  if (!state || paneOf(view) === "left") return true;
+  return rightViews().includes(view);
+}
+// renderTabs shows the views there are; a panel on one that went shows
+// Logs, which every place has. It says whether the right one moved.
 function renderTabs() {
   for (const button of document.querySelectorAll(".side-tabs > button[data-side]")) button.hidden = !hasView(button.dataset.side);
+  let moved = false;
   for (const which of ["left", "right"]) {
-    if (!hasView(panes[which].view)) { panes[which].view = paneViews[which].find(hasView); renderPanes(); }
+    if (!hasView(panes[which].view)) { panes[which].view = hasView("logs") ? "logs" : paneViews[which].find(hasView); moved = moved || which === "right"; renderPanes(); }
   }
+  return moved;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,9 +282,10 @@ function stateDot(s) { return el("span", { class: "dot " + stateClass(s), "aria-
 function renderBar() {
   $("machine").textContent = state.machine;
   $("home-machine").textContent = state.machine;
-  const named = openApp || (middle === ":policy" ? "The org's policy" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : "");
+  const named = openApp || (orgOpen() ? "The org" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : "");
   $("crumb").hidden = !named;
   $("sections").hidden = !openApp;
+  $("org-sections").hidden = !orgOpen();
   $("open-box").hidden = !openApp;
   $("crumb-app").textContent = named;
   document.title = (named ? named + " · " : "") + "Admin page · " + state.machine;
@@ -289,7 +297,16 @@ function renderApps() {
   const list = $("apps-list");
   list.replaceChildren();
   const apps = state.apps.filter((a) => !query || a.name.includes(query) || (a.purpose || "").toLowerCase().includes(query));
-  if (!state.apps.length) list.append(el("li", { class: "empty" }, "No apps on this machine yet."));
+  // The org first, on a machine that runs it: opened as an app is.
+  const o = state.org;
+  if (o && (!query || "the org".includes(query))) {
+    const li = el("li", { class: orgOpen() ? "current" : "" }, el("span", { class: "dot " + (o.up && !o.no_owner ? "idle" : "bad"), "aria-hidden": "true" }),
+      el("button", { class: "stask-row", onclick: () => openOrg(""), title: "The org server: its requests, users, admins, policy, and keys" },
+        el("span", { class: "stask-title" }, "The org"), el("span", { class: "stask-num" }, o.up ? (o.running ? o.running + " running" : "") : "doesn't answer")));
+    if (o.waiting) li.append(el("span", { class: "count", title: o.waiting + " request" + (o.waiting === 1 ? "" : "s") + " wait" + (o.waiting === 1 ? "s" : "") }, o.waiting));
+    list.append(li);
+  }
+  if (!state.apps.length) list.append(el("li", { class: "empty" }, o ? "No apps on this machine." : "No apps on this machine yet."));
   else if (!apps.length) list.append(el("li", { class: "empty" }, "No app matches."));
   for (const app of apps) {
     const row = el("button", { class: "stask-row", onclick: () => openView(app.name), title: app.purpose || app.name },
@@ -299,8 +316,10 @@ function renderApps() {
     if (app.incidents) li.append(el("span", { class: "count", title: app.incidents + " open incident" + (app.incidents === 1 ? "" : "s") }, app.incidents));
     list.append(li);
   }
-  badge("apps-count", state.apps.filter((a) => a.state !== "up").length);
-  badge("incidents-count", state.apps.reduce((n, a) => n + (!openApp || a.name === openApp ? a.incidents || 0 : 0), 0));
+  // Home's number: apps that aren't up, and the org's requests waiting.
+  badge("apps-count", state.apps.filter((a) => a.state !== "up").length + (o ? o.waiting + (o.up ? 0 : 1) : 0));
+  const orgIncidents = o ? o.incidents || 0 : 0;
+  badge("incidents-count", orgOpen() ? orgIncidents : state.apps.reduce((n, a) => n + (!openApp || a.name === openApp ? a.incidents || 0 : 0), openApp ? 0 : orgIncidents));
 }
 $("apps-search").addEventListener("input", renderApps);
 
@@ -365,6 +384,10 @@ function renderHome() {
   renderHomeMachine();
   renderHomeOrg();
   $("home-what").textContent = state.org && !state.apps.length ? "The org" : "Apps";
+  $("home-new").hidden = !state.me.machine;
+  const note = $("home-note");
+  note.hidden = !!state.me.machine;
+  note.textContent = state.me.machine ? "" : "You're an admin of the org: you see the machine and its apps here, and the machine's admins change them.";
   const cards = $("home-cards");
   cards.replaceChildren();
   const up = state.apps.filter((a) => a.state === "up").length;
@@ -405,13 +428,27 @@ function setMiddle(what) {
   openApp = app;
   $("home").hidden = !!what;
   $("overview").hidden = !app;
-  $("policy").hidden = what !== ":policy";
+  $("orgview").hidden = what !== ":org" || orgSection === "policy";
+  $("policy").hidden = what !== ":org" || orgSection !== "policy";
   $("newapp").hidden = !what.startsWith(":new");
   if (!what.startsWith(":new")) clearTimeout(draftPoll);
-  history.replaceState(null, "", what ? "#" + encodeURIComponent(what) : "/");
+  history.replaceState(null, "", what ? "#" + encodeURIComponent(what).replace(/^%3A/, ":") + (what === ":org" && orgSection !== "overview" ? "/" + orgSection : "") : "/");
   renderBar();
   renderApps();
   if (!what) renderHome();
+}
+
+// moved: the right panel follows what's open now.
+function moved() {
+  renderTabs();
+  if (viewShown("logs")) refreshLogs(true);
+  if (viewShown("incidents")) refreshIncidents();
+  if (viewShown("requests") || viewShown("running")) refreshOrg();
+  if (viewShown("spend")) refreshSpend();
+  if (viewShown("advisories")) refreshAdvisories(); else if (advisories) renderAdvisories();
+  if (viewShown("jobs")) { if (jobOpen) { jobOpen = ""; $("job-one").hidden = true; $("jobs-list").hidden = false; } refreshJobs(); }
+  else renderJobsBadge();
+  renderApps();
 }
 
 async function openView(name, section) {
@@ -425,13 +462,9 @@ async function openView(name, section) {
     $("overview").replaceChildren(el("p", { class: "muted" }, "…"));
     if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
   }
+  moved();
   if (name && appSection !== "overview") showSection(appSection);
   else if (name) await refreshDetail();
-  if (viewShown("logs")) refreshLogs(true);
-  if (viewShown("incidents")) refreshIncidents();
-  if (viewShown("advisories")) refreshAdvisories(); else if (advisories) renderAdvisories();
-  if (viewShown("jobs")) { if (jobOpen) { jobOpen = ""; $("job-one").hidden = true; $("jobs-list").hidden = false; } refreshJobs(); }
-  else renderJobsBadge();
 }
 
 async function refreshDetail() {
@@ -700,26 +733,29 @@ function renderMachine(force) {
 
   const list = $("admins-list");
   list.replaceChildren();
-  const orgAdmins = !!(state.org && !state.org.no_owner);
-  const canChange = !orgAdmins || state.me.owner;
+  // One list, the org's, on a machine that runs only the org; the
+  // machine's own beside an org that keeps its admins apart.
+  const orgAdmins = !!(state.org && !state.org.no_owner && !state.org_apart);
+  const canChange = (!orgAdmins || state.me.owner) && state.me.machine;
   $("admin-add-open").hidden = !canChange;
   $("admin-add-email").hidden = !orgAdmins;
   $("admin-add-slack").required = orgAdmins;
   $("admin-add-slack").placeholder = orgAdmins ? "Their Slack member ID" : "Their Slack member ID (optional)";
   $("admin-add-name").placeholder = orgAdmins ? "Their hi user name, such as olga" : "Their name";
-  $("admins-note").hidden = !orgAdmins;
-  $("admins-note").textContent = orgAdmins ? "They are the org's owner and admins: each approves too, in Slack and here." + (state.me.owner ? "" : " The owner adds and removes them.") : "";
-  for (const admin of state.admins) {
+  $("admins-note").hidden = !orgAdmins && !state.org_apart;
+  $("admins-note").textContent = orgAdmins ? "They are the org's owner and admins: each approves too, in Slack and here." + (state.me.owner ? "" : " The owner adds and removes them.")
+    : state.org_apart ? "The machine's admins: they run it and its apps. The org's owner and admins run the org, in the org's Admins; making someone an admin here doesn't make them an approver." : "";
+  for (const admin of state.admins.filter((a) => !state.org_apart || a.machine)) {
     const me = admin.name === state.me.name;
     const acts = el("span", { class: "actions" });
     acts.append(el("button", { onclick: () => newLink(admin, false), title: "A new link, shown to copy; their old one ends" }, "New link"));
     if (admin.slack) acts.append(el("button", { onclick: () => newLink(admin, true), title: "A new link in their Slack DMs; their old one ends" }, "By Slack"));
-    if (!me && canChange && !admin.owner) acts.append(el("button", { class: "danger", onclick: () => removeAdmin(admin) }, "Remove"));
-    const what = el("span", { class: "what" }, el("strong", {}, admin.name), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · the org's owner") : null,
+    if (!me && canChange && (!admin.owner || state.org_apart)) acts.append(el("button", { class: "danger", onclick: () => removeAdmin(admin) }, "Remove"));
+    const what = el("span", { class: "what" }, el("strong", {}, admin.name), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · the org's owner") : state.org_apart && admin.org ? el("span", { class: "muted" }, " · an admin of the org too") : null,
       el("span", { class: "muted small block" }, (admin.slack ? "Slack " + admin.slack : "no Slack member ID") + (admin.email ? " · " + admin.email : "")));
     const li = el("li", {}, what, acts);
     list.append(li);
-    if (me && !admin.slack && !orgAdmins) {
+    if (me && !admin.slack && !orgAdmins && !admin.org) {
       const form = el("form", { class: "stack slack-form", autocomplete: "off" },
         el("label", { for: "my-slack" }, "Your Slack member ID, so you open apps' dev pages as yourself and get new links by DM (in Slack: your profile, ⋮, Copy member ID):"),
         el("div", { class: "signin-row" }, el("input", { id: "my-slack", required: true, maxlength: "20", placeholder: "U012AB3CD" }), el("button", { class: "primary", type: "submit" }, "Save")));
@@ -837,6 +873,7 @@ async function refreshJobs() {
 }
 
 function followJob(job) {
+  if (!hasView("jobs")) openView("");
   refreshState();
   if (!narrow()) { showView("jobs"); openJob(job.id); } else refreshJobs();
 }
@@ -883,12 +920,12 @@ async function refreshJob() {
 const logs = { app: null, cursor: "", lines: 0, at: 0, news: "" };
 const errorLine = /\b(error|failed|fail|panic|fatal|refused|denied|traceback|exception)\b|\b5\d\d\b/i;
 const warnLine = /\bwarn(ing)?\b/i;
-// Logs are the open app's; on Home, the org server's on its machine, or
-// the admin page's own.
+// Logs are what's open: an app's, or the org server's; on Home, the org
+// server's on a machine that runs only the org, or the admin page's own.
 function logsApp() {
-  const app = openApp || (state && state.org ? ":org" : "");
+  const app = openApp || (state && state.org && (orgOpen() || !state.apps.length) ? ":org" : "");
   $("logs-whose").textContent = openApp ? openApp : app === ":org" ? "The org server" : "The admin page";
-  $("logs-whose").title = openApp ? openApp + "'s lead and service" : "Open an app for its logs";
+  $("logs-whose").title = openApp ? openApp + "'s lead and service" : app === ":org" ? "hi-org.service" : "Open an app, or the org, for its logs";
   return app;
 }
 $("logs-errors").addEventListener("click", () => {
@@ -936,16 +973,17 @@ function clearLogsDot() { logs.news = ""; renderLogsDot(); }
 async function refreshIncidents() {
   try {
     const all = await api("/api/incidents");
-    const list = openApp ? all.filter((i) => i.app === openApp) : all;
+    const whose = orgOpen() ? ":org" : openApp;
+    const list = whose ? all.filter((i) => i.app === whose) : all;
     const box = $("incidents-list");
     box.replaceChildren();
-    if (!openApp && all.length) box.append(el("li", { class: "empty" }, "Every app's. Open an app for its own."));
-    if (!list.length) box.append(el("li", { class: "empty" }, (openApp ? openApp + " has had no incidents" : "No incidents") + " in the last month."));
+    if (!whose && all.length) box.append(el("li", { class: "empty" }, state && state.org ? "Every app's, and the org's. Open one for its own." : "Every app's. Open an app for its own."));
+    if (!list.length) box.append(el("li", { class: "empty" }, (whose === ":org" ? "The org has had no incidents: an instance on its accounts that no request started, or a failed start's machine left behind, shows here" : whose ? whose + " has had no incidents" : "No incidents") + (whose === ":org" ? "." : " in the last month.")));
     for (const incident of list) {
       const cls = incident.status === "closed" ? "done" : incident.status === "waiting" ? "blocked" : "bad";
       box.append(el("li", { class: "incident" },
         el("div", { class: "incident-head" }, el("span", { class: "dot " + cls, "aria-hidden": "true" }),
-          openApp ? null : el("button", { class: "link-button", onclick: () => openView(incident.app) }, incident.app), el("span", { class: "muted small" }, incident.id + " · " + incident.status + " · " + ago(incident.opened))),
+          whose ? null : el("button", { class: "link-button", onclick: () => (incident.app === ":org" ? openOrg("") : openView(incident.app)) }, incident.app === ":org" ? "the org" : incident.app), el("span", { class: "muted small" }, (incident.app === ":org" ? "" : incident.id + " · ") + incident.status + " · " + ago(incident.opened))),
         el("div", { class: "clamp3", title: incident.title }, incident.title),
         el("div", { class: "muted small clamp2", title: incident.last || "" }, incident.where + (incident.last ? " · " + incident.last : ""))));
     }
@@ -1101,14 +1139,15 @@ async function refreshOrgSettings() {
   try { orgSettings = await api("/api/org/settings"); } catch (e) {
     if (e instanceof SignIn) return;
     orgSettings = null;
-    for (const id of ["org-view", "keys-view"]) $(id).replaceChildren(el("p", { class: "error pad" }, e.message));
-    renderOrgServerOnly();
+    if (orgOpen() && orgSection !== "overview" && orgSection !== "policy") $("orgview").replaceChildren(orgHead(), el("p", { class: "error" }, e.message));
+    else if (orgOpen() && orgSection === "overview") renderOrgSection();
     return;
   }
-  if (viewShown("org")) renderOrg();
-  if (viewShown("people")) renderPeople();
-  if (viewShown("keys")) renderKeys();
-  if (middle === ":policy" && !policyEdited) renderPolicy();
+  if (orgOpen() && orgSection === "policy") { if (!policyEdited) renderPolicy(); }
+  else if (orgOpen()) {
+    const typing = document.activeElement && $("orgview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if (!typing) renderOrgSection();
+  }
 }
 
 // A small form that opens under its button.
@@ -1118,7 +1157,7 @@ function inlineForm(fields, submit, label) {
   for (const f of fields) {
     const input = f.type === "checkbox"
       ? el("input", { type: "checkbox" })
-      : el("input", { type: f.type || "text", required: f.required, maxlength: f.max || "200", placeholder: f.placeholder, "aria-label": f.placeholder || f.label, autocomplete: "off", value: f.value });
+      : el("input", { type: f.type || "text", required: f.required, maxlength: f.max || "200", placeholder: f.placeholder, "aria-label": f.placeholder || f.label, autocomplete: "off", value: f.value, list: f.list, pattern: f.pattern });
     inputs[f.name] = input;
     form.append(f.type === "checkbox" ? el("label", { class: "check" }, input, " " + f.label) : input);
   }
@@ -1134,17 +1173,83 @@ function inlineForm(fields, submit, label) {
 function heading(text, button) { return el("h2", { class: "with-action" }, text, el("span", { class: "grow" }), button || null); }
 function plus(title, form) { return el("button", { class: "side-icon", title, "aria-label": title, onclick: () => { form.hidden = !form.hidden; const first = form.querySelector("input"); if (first && !form.hidden) first.focus(); } }, "+"); }
 
-function renderOrgServerOnly() {
-  const box = $("org-view");
-  box.prepend(orgServerBlock());
+// ---------------------------------------------------------------------------
+// the org, opened: its sections in the middle and on the bar, as an app's.
+// Someone who isn't one of the org's admins sees them, and changes nothing.
+
+const orgSectionNames = { overview: "Overview", users: "Users", admins: "Admins", policy: "Policy", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
+for (const chip of document.querySelectorAll("#org-sections [data-org-section]")) {
+  chip.addEventListener("click", () => openOrg(chip.dataset.orgSection));
 }
 
-function orgServerBlock() {
+function openOrg(section) {
+  if (!state || !state.org) return;
+  const was = orgOpen();
+  orgSection = orgSectionNames[section] ? section : "overview";
+  for (const chip of document.querySelectorAll("#org-sections [data-org-section]")) chip.setAttribute("aria-pressed", String(chip.dataset.orgSection === orgSection));
+  if (orgSection === "policy") { policyEdited = false; policyText = false; policyDraft = null; }
+  setMiddle(":org");
+  if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
+  if (!was) moved();
+  if (orgSection === "policy") renderPolicy(); else renderOrgSection();
+  if (orgSection !== "overview" || !orgSettings) refreshOrgSettings();
+}
+
+function orgHead() {
+  const o = state.org;
+  return el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "The org"),
+    el("span", { class: "pill " + (o.up ? "open" : "closed") }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "runs" : "doesn't answer"),
+    el("span", { class: "muted" }, orgSection === "overview" ? (o.owner ? "owned by " + o.owner : "") : orgSectionNames[orgSection]));
+}
+const orgCanChange = () => !!(state && state.me && state.me.org);
+function orgReadOnlyNote() {
+  return orgCanChange() ? null : el("p", { class: "note muted small" }, "You see the org: its owner and admins change it.");
+}
+
+function renderOrgSection() {
+  if (!orgOpen() || orgSection === "policy") return;
+  const box = $("orgview");
+  const parts = [orgHead()];
+  const note = orgReadOnlyNote();
+  if (note) parts.push(note);
+  const s = orgSettings;
+  if (orgSection === "overview") parts.push(...orgOverview(s));
+  else if (!s) parts.push(el("p", { class: "muted" }, "…"));
+  else {
+    const build = { users: orgUsers, admins: orgAdmins, keys: orgKeys, templates: orgTemplates, data: orgData, models: orgModels, slack: orgSlack, walls: orgWalls }[orgSection];
+    parts.push(...build(s));
+    if ((s.problems || []).length) parts.push(el("p", { class: "warn small" }, s.problems.join(" · ")));
+  }
+  box.replaceChildren(...parts);
+}
+
+function orgStats(o) {
+  const stats = el("div", { class: "org-stats pad" });
+  const stat = (n, label, view, warn) => el("button", { class: "org-stat" + (warn ? " warn" : ""), "data-nav": "", onclick: (e) => { e.stopPropagation(); if (!orgOpen()) openOrg(""); showView(view); } }, el("strong", {}, n), el("span", { class: "muted small" }, label));
+  stats.append(stat(o.waiting, o.waiting === 1 ? "request waits" : "requests wait", "requests", o.waiting > 0),
+    stat(o.running, (o.running === 1 ? "machine runs" : "machines run") + (o.running ? ", " + dollars(o.rate_per_hour) + "/h" : ""), "running"),
+    stat(dollars(o.today), "today", "spend"),
+    stat(dollars(o.month), "this month" + (o.month_budget ? " of " + dollars(o.month_budget) : ""), "spend", o.month_budget && o.month > o.month_budget));
+  if (o.incidents) stats.append(stat(o.incidents, o.incidents === 1 ? "incident" : "incidents", "incidents", true));
+  return stats;
+}
+
+function orgOverview(s) {
+  const o = state.org;
+  const parts = [];
+  if (o.no_owner) parts.push(el("p", { class: "warn" }, "No owner yet. On the machine: ", el("code", {}, "hi org owner <Slack member ID> --email <address>")));
+  if (o.up) parts.push(el("div", { class: "card-box org-card" }, orgStats(o)));
+  parts.push(heading("The org server"), orgServerBlock(s));
+  if (state.org_apart) parts.push(el("p", { class: "muted small" }, "This machine runs apps too. Its admins run the apps; the org's owner and admins (Admins) run the org."));
+  return parts;
+}
+
+function orgServerBlock(s) {
   const o = state.org;
   const block = el("div", { class: "machine-block" });
   block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "The org server runs." : "The org server doesn't answer."));
   if (o.error) block.append(el("p", { class: "error small" }, o.error));
-  if (orgSettings && orgSettings.listen) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi org join " + orgSettings.listen)));
+  if (s && s.listen) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi org join " + s.listen)));
   if (o.service === "user") {
     block.append(el("p", { class: "muted small" }, "A user service, hi-org.service, beside this page."));
     block.append(el("button", { class: "small", onclick: async () => {
@@ -1156,18 +1261,49 @@ function orgServerBlock() {
   } else {
     block.append(el("p", { class: "warn small" }, "No service runs it. On the machine: ", el("code", {}, "hi org init"), " makes one."));
   }
-  block.append(el("button", { class: "small", onclick: async () => { if (middle) await openView(""); showView("logs"); } }, "Its logs"));
+  block.append(el("button", { class: "small", "data-nav": "", onclick: () => showView("logs") }, "Its logs"));
   return block;
 }
 
-function renderOrg() {
-  const box = $("org-view");
-  const s = orgSettings;
-  if (!s) { box.replaceChildren(el("p", { class: "muted pad" }, "…")); return; }
-  const parts = [el("h2", {}, "The org server"), orgServerBlock()];
+// Users: the org's users, their groups and devices.
+function orgUsers(s) {
+  const users = s.users || [];
+  const search = el("input", { type: "search", placeholder: "Find someone", "aria-label": "Find someone", autocomplete: "off", "data-nav": "" });
+  const list = el("ul", { class: "list people-list" });
+  const show = () => {
+    const query = search.value.trim().toLowerCase();
+    const shownUsers = users.filter((u) => !query || u.name.includes(query) || (u.group || "").includes(query));
+    list.replaceChildren();
+    if (!users.length) list.append(el("li", { class: "empty" }, "Nobody yet: devices ask to join with hi org join, and show up in Requests."));
+    else if (!shownUsers.length) list.append(el("li", { class: "empty" }, "Nobody matches."));
+    for (const u of shownUsers) {
+      const devices = (u.devices || []).map((d) => d.hostname + (d.last_seen && new Date(d.last_seen).getTime() > 0 ? " (" + ago(d.last_seen) + ")" : ""));
+      list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, u.name), " ", el("span", { class: "muted small" }, (u.group || "no group") + (u.kind === "agent" ? " · an agent of " + u.owner : u.kind === "viewer" ? " · a viewer" : "")),
+        el("span", { class: "muted small block" }, devices.length ? devices.join(", ") : "no devices")),
+        el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => {
+          const ok = await ask({ title: "Remove " + u.name + "?", text: "They and their " + (u.devices || []).length + " devices leave the org: nothing more starts for them. What runs keeps running until it's stopped (Running). Type their name to say so.", ok: "Remove", typed: u.name });
+          if (ok) orgDo({ what: "user", action: "remove", name: u.name }, u.name + " has left the org.");
+        } }, "Remove"))));
+    }
+  };
+  search.addEventListener("input", show);
+  show();
+  const add = inlineForm([
+    { name: "name", placeholder: "Their hi user name, such as olga", required: true, max: "32", pattern: "[a-z0-9._\\-]+" },
+    { name: "group", placeholder: "Their group, such as staff", required: true, max: "32", list: "org-groups" },
+    { name: "key", placeholder: "A device's key, from hi org key on it (optional)" },
+  ], async (v) => ((await orgDo({ what: "user", action: "add", name: v.name, group: v.group, key: v.key }, v.name + " is in the org.")) === null ? false : undefined), "Add");
+  $("org-groups").replaceChildren(...((org && org.groups) || []).map((g) => el("option", { value: g })));
+  return [el("p", { class: "purpose" }, "Everyone whose devices and agents ask the org for compute, by their hi user name, each in a group the policy sets limits for. They aren't the apps' people (People), nor this page's admins."),
+    heading("Users", plus("Add a user", add)), add, el("div", { class: "logs-tools" }, search), list];
+}
 
-  // The owner.
+// Admins: the owner, and the admins, who approve and run the org.
+function orgAdmins(s) {
   const owner = s.people.owner;
+  const owns = !!(state.me && state.me.owner);
+  const parts = [el("p", { class: "purpose" }, "The owner and the admins approve, in Slack and here, and change the org's users, policy, and keys. " +
+    (state.org_apart ? "They sign in to this page for the org; the machine's admins (Machine) run the apps." : "On this machine they are the page's admins too."))];
   const handOn = inlineForm([
     { name: "slack", placeholder: "The new owner's Slack member ID", required: true, max: "20" },
     { name: "email", type: "email", placeholder: "Their email", required: true },
@@ -1177,42 +1313,74 @@ function renderOrg() {
   if (!owner) parts.push(el("p", { class: "warn small" }, "The org has no owner yet. On the machine: ", el("code", {}, "hi org owner <Slack member ID> --email <address>")));
   else {
     parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, owner.name), " ", el("span", { class: "muted small" }, "Slack " + owner.slack + (owner.email ? " · " + owner.email : ""))),
-      el("div", { class: "data-actions" }, state.me.owner ? el("button", { class: "small", onclick: () => { handOn.hidden = !handOn.hidden; } }, "Hand it on…") : null,
-        el("button", { class: "small", onclick: () => showView("machine") }, "The admins"))));
+      owns ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { handOn.hidden = !handOn.hidden; } }, "Hand it on…")) : null));
     parts.push(handOn);
   }
-
-  // Slack.
-  parts.push(heading("Slack"));
-  const slack = el("div", { class: "machine-block" });
-  if (s.slack.set) slack.append(el("p", { class: "small" }, "Approvals go to the channel ", el("code", {}, s.slack.channel || "?"), ", and to each approver's Home tab."));
-  else slack.append(el("p", { class: "warn small" }, "Not set up, so approvals are only here and on the machine. On the machine: ", el("code", {}, "hi org slack setup"), " (its app: ", el("code", {}, "hi org slack manifest"), ")."));
-  const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
-  if (approvers.length) slack.append(el("p", { class: "muted small" }, "Approvers: " + approvers.map(([id, name]) => name).join(", ") + ". The owner and the admins approve; someone who only approves: ", el("code", {}, "hi org approvers add"), "."));
-  parts.push(slack);
-
-  // The policy.
-  parts.push(heading("Policy"));
-  const policy = el("div", { class: "machine-block" });
-  const p = s.policy || {};
-  if (p.error) policy.append(el("p", { class: "error small" }, p.error + ". Until it's fixed, every start needs a person."));
-  else if (!p.exists) policy.append(el("p", { class: "muted small" }, "No policy: every start needs a person, and there are no budgets."));
-  else {
-    const groups = Object.entries((p.policy && p.policy.groups) || {});
-    if (!groups.length) policy.append(el("p", { class: "muted small" }, "No groups in it."));
-    for (const [name, g] of groups) policy.append(el("p", { class: "small" }, el("strong", {}, name), ": " + groupLine(g)));
+  const add = inlineForm([
+    { name: "name", placeholder: "Their hi user name, such as olga", required: true, max: "32" },
+    { name: "slack", placeholder: "Their Slack member ID", required: true, max: "20" },
+    { name: "email", type: "email", placeholder: "Their email (optional)" },
+  ], async (v) => {
+    const answer = await orgDo({ what: "admins", action: "add", name: v.name, slack: v.slack, email: v.email });
+    if (answer === null) return false;
+    if (answer.link) showLink(v.name + " is an admin of the org", answer.text, answer.link); else toast(answer.text || "Done.");
+  }, "Add");
+  parts.push(heading("Admins", owns ? plus("Add an admin of the org", add) : null), add);
+  const list = el("ul", { class: "list admins-list" });
+  for (const a of s.people.admins || []) {
+    list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, a.name), el("span", { class: "muted small block" }, "Slack " + a.slack + (a.email ? " · " + a.email : "") + (a.by ? " · added by " + a.by : ""))),
+      owns ? el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => {
+        if (await ask({ title: "Take " + a.name + " off the org's admins?", text: "They no longer approve, nor change the org." + (state.org_apart ? " If they're one of the machine's admins, they still run it." : " Their links to this page end."), ok: "Remove" })) {
+          const answer = await orgDo({ what: "admins", action: "remove", name: a.slack });
+          if (answer) toast(answer.text || "Done.");
+        }
+      } }, "Remove")) : null));
   }
-  policy.append(el("button", { class: "small", onclick: openPolicy }, p.exists ? "Edit the policy" : "Make one"));
-  parts.push(policy);
+  if (!(s.people.admins || []).length) list.append(el("li", { class: "plain muted small" }, "None besides the owner."));
+  parts.push(list);
+  const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
+  if (approvers.length) parts.push(el("p", { class: "muted small" }, "Approvers in Slack: " + approvers.map(([id, name]) => name).join(", ") + ". Someone who only approves: ", el("code", {}, "hi org approvers add"), "."));
+  return parts;
+}
 
-  // Templates.
+// Keys: the providers' and the org's OpenRouter key, set or not, never shown.
+function orgKeys(s) {
+  const parts = [heading("Compute providers"), el("p", { class: "muted small" }, "The org server starts machines with these. Each key is checked with its provider before it's kept, and never shown again.")];
+  const list = el("ul", { class: "list" });
+  for (const p of s.providers || []) {
+    const form = inlineForm([{ name: "key", type: "password", placeholder: p.name + "'s API key", required: true }], (v) => orgDo({ what: "provider", action: "set", name: p.name, key: v.key }, p.name + "'s key is kept."), "Check and keep");
+    list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, p.name), " ", el("span", { class: p.set ? "muted small" : "warn small" }, p.set ? "set" : "not set")),
+      el("span", { class: "actions" }, el("button", { onclick: () => { form.hidden = !form.hidden; } }, p.set ? "Replace" : "Set"),
+        p.set ? el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Remove " + p.name + "'s key?", text: "Nothing new starts on " + p.name + ". What runs there now keeps running, and still stops at its time.", ok: "Remove" })) orgDo({ what: "provider", action: "remove", name: p.name }, p.name + "'s key is gone."); } }, "Remove") : null)));
+    list.append(el("li", { class: "plain" }, form));
+  }
+  parts.push(list);
+  const ai = s.ai || {};
+  parts.push(heading("Models for hi q"), el("p", { class: "muted small" }, "hi q on the org's devices asks models through the org server, with the org's key."));
+  const aiBlock = el("div", { class: "machine-block" });
+  aiBlock.append(el("p", {}, ai.has_key ? (ai.on ? "On" : "Off") : "No key yet", ai.model ? el("span", { class: "muted small" }, " · " + ai.model + (ai.url ? " at " + shown(ai.url).replace(/^https?:\/\//, "") : "")) : null));
+  if (ai.usage) aiBlock.append(el("p", { class: "muted small" }, "This month: " + ai.usage));
+  const aiForm = inlineForm([
+    { name: "key", type: "password", placeholder: ai.has_key ? "A new OpenRouter key (empty keeps the one there)" : "The OpenRouter key", required: !ai.has_key },
+    { name: "model", placeholder: "The default model", value: ai.model || "" },
+  ], (v) => orgDo({ what: "ai", action: "set", key: v.key, model: v.model }, "Checked and kept: hi q uses it now."), "Check and keep");
+  aiBlock.append(el("button", { class: "small", onclick: () => { aiForm.hidden = !aiForm.hidden; } }, ai.has_key ? "Change…" : "Set the key…"));
+  if (ai.has_key) {
+    aiBlock.append(el("button", { class: "small", onclick: () => orgDo({ what: "ai", action: ai.on ? "off" : "on" }, ai.on ? "Turned off." : "Turned on.") }, ai.on ? "Turn off" : "Turn on"));
+    aiBlock.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the org's devices can no longer ask models through the org.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "The key is gone."); } }, "Remove the key"));
+  }
+  parts.push(aiBlock, aiForm);
+  parts.push(el("p", { class: "muted small" }, "This machine's own keys, for its apps, are in Keys on the left."));
+  return parts;
+}
+
+function orgTemplates(s) {
   const tForm = inlineForm([
     { name: "name", placeholder: "Its name, such as team", required: true, max: "32" },
     { name: "url", placeholder: "Its git URL, https://…", required: true },
     { name: "ref", placeholder: "The branch or tag (optional)" },
     { name: "token", type: "password", placeholder: "A token that reads it, if it's private (kept, never shown)" },
   ], (v) => orgDo({ what: "template", action: "add", name: v.name, url: v.url, ref: v.ref, token: v.token }, "Serving " + v.name + "'s templates."), "Add");
-  parts.push(heading("Templates", plus("Serve a repository's templates", tForm)), tForm);
   const templates = el("ul", { class: "list" });
   for (const t of s.templates || []) {
     templates.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, t.name), el("span", { class: "muted small block" }, shown(t.url) + (t.ref ? " @ " + t.ref : "")),
@@ -1222,14 +1390,14 @@ function renderOrg() {
         el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + t.name + "?", text: "Devices no longer see its templates and skills. Projects made from them keep what they have.", ok: "Stop serving" })) orgDo({ what: "template", action: "remove", name: t.name }, "Stopped serving " + t.name + "."); } }, "Remove"))));
   }
   if (!(s.templates || []).length) templates.append(el("li", { class: "plain muted small" }, "None: hi init offers only hi's own."));
-  parts.push(templates);
+  return [el("p", { class: "purpose" }, "Repositories of templates and skills that hi init offers on the org's devices."), heading("Templates", plus("Serve a repository's templates", tForm)), tForm, templates];
+}
 
-  // Data.
+function orgData(s) {
   const dForm = inlineForm([
     { name: "orgs", placeholder: "Hugging Face organizations, space between them", required: true },
     { name: "token", type: "password", placeholder: "A Hugging Face token that reads them (kept, never shown)", required: true },
   ], (v) => orgDo({ what: "data", action: "add", orgs: v.orgs.split(/[\s,]+/).filter(Boolean), token: v.token }, "Serving their data."), "Add");
-  parts.push(heading("Data", plus("Serve a Hugging Face organization", dForm)), dForm);
   const data = el("ul", { class: "list" });
   for (const d of s.data || []) {
     data.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, d.org),
@@ -1239,10 +1407,10 @@ function renderOrg() {
         el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop serving " + d.org + "?", text: "hi data no longer reaches its datasets and models. Its token is forgotten.", ok: "Stop serving" })) orgDo({ what: "data", action: "remove", name: d.org }, "Stopped serving " + d.org + "."); } }, "Remove"))));
   }
   if (!(s.data || []).length) data.append(el("li", { class: "plain muted small" }, "None."));
-  parts.push(data);
+  return [el("p", { class: "purpose" }, "Hugging Face organizations whose datasets and models hi data reaches on the org's devices."), heading("Data", plus("Serve a Hugging Face organization", dForm)), dForm, data];
+}
 
-  // Models served on the team's machines.
-  parts.push(heading("Models on the team's machines"));
+function orgModels(s) {
   const served = el("ul", { class: "list" });
   const list = (s.ai && s.ai.served_list) || [];
   for (const m of list) {
@@ -1250,9 +1418,19 @@ function renderOrg() {
       el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Stop passing requests to " + m.name + "?", text: "hi q stops sending the org's requests to it. The machine keeps serving it.", ok: "Stop" })) orgDo({ what: "served", name: m.name }, "Stopped passing requests to " + m.name + "."); } }, "Remove"))));
   }
   if (!list.length) served.append(el("li", { class: "plain muted small" }, "None: hi serve llm --org on a machine names one to the org."));
-  parts.push(served);
+  return [el("p", { class: "purpose" }, "Models served on the team's machines, which hi q passes the org's requests to."), served];
+}
 
-  // Wall screens.
+function orgSlack(s) {
+  const slack = el("div", { class: "machine-block" });
+  if (s.slack.set) slack.append(el("p", { class: "small" }, "Approvals go to the channel ", el("code", {}, s.slack.channel || "?"), ", and to each approver's Home tab."));
+  else slack.append(el("p", { class: "warn small" }, "Not set up, so approvals are only here and on the machine. On the machine: ", el("code", {}, "hi org slack setup"), " (its app: ", el("code", {}, "hi org slack manifest"), ")."));
+  const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
+  if (approvers.length) slack.append(el("p", { class: "muted small" }, "Approvers: " + approvers.map(([id, name]) => name).join(", ") + ". The owner and the admins approve; someone who only approves: ", el("code", {}, "hi org approvers add"), "."));
+  return [el("p", { class: "purpose" }, "The org's Slack app: where approvals, warnings, and reports go."), slack];
+}
+
+function orgWalls(s) {
   const wForm = inlineForm([
     { name: "name", placeholder: "Where the screen is, such as Office TV", required: true, max: "40" },
     { name: "full", type: "checkbox", label: "Names in full, not initials" },
@@ -1264,16 +1442,13 @@ function renderOrg() {
       refreshOrgSettings();
     } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return false; }
   }, "Make the link");
-  parts.push(heading("Wall screens", plus("A wall link for a screen", wForm)), wForm);
   const walls = el("ul", { class: "list" });
   for (const w of s.walls || []) {
     walls.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, w.name), el("span", { class: "muted small block" }, (w.full ? "names in full" : "initials") + (w.reasons ? ", with reasons" : "") + " · by " + (w.by || "?") + " " + ago(w.made) + (w.seen ? " · open " + ago(w.seen) : " · not opened yet"))),
       el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => { if (await ask({ title: "End " + w.name + "'s wall link?", text: "The screen stops showing anything at once.", ok: "End it" })) wallEnd(w.name); } }, "End"))));
   }
   if (!(s.walls || []).length) walls.append(el("li", { class: "plain muted small" }, "None: a screen opens a wall link in a browser, read-only."));
-  parts.push(walls);
-  if ((s.problems || []).length) parts.push(el("p", { class: "warn small" }, s.problems.join(" · ")));
-  box.replaceChildren(...parts);
+  return [el("p", { class: "purpose" }, "Running and Requests on a screen, read-only, from a link that works until it's ended."), heading("Wall screens", plus("A wall link for a screen", wForm)), wForm, walls];
 }
 
 async function wallEnd(name) {
@@ -1290,71 +1465,17 @@ function groupLine(g) {
   return bits.join(", ") || "no limits; every start needs a person";
 }
 
-// People: the org's users, their groups and devices.
+// People: everyone with a level in the apps. The org's users are the org's.
 function renderPeople() {
   $("people-apps").replaceChildren(peopleAppsBlock());
-  $("people-org").hidden = !state.org;
-  $("user-add-open").hidden = !state.org;
-  const box = $("people-list");
-  if (!state.org) { box.replaceChildren(); return; }
-  const users = (orgSettings && orgSettings.users) || [];
-  const query = $("people-search").value.trim().toLowerCase();
-  box.replaceChildren();
-  const shownUsers = users.filter((u) => !query || u.name.includes(query) || (u.group || "").includes(query));
-  if (!users.length) box.append(el("li", { class: "empty" }, "Nobody yet: devices ask to join with hi org join, and show up in Requests."));
-  else if (!shownUsers.length) box.append(el("li", { class: "empty" }, "Nobody matches."));
-  for (const u of shownUsers) {
-    const devices = (u.devices || []).map((d) => d.hostname + (d.last_seen && new Date(d.last_seen).getTime() > 0 ? " (" + ago(d.last_seen) + ")" : ""));
-    box.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, u.name), " ", el("span", { class: "muted small" }, (u.group || "no group") + (u.kind === "agent" ? " · an agent of " + u.owner : u.kind === "viewer" ? " · a viewer" : "")),
-      el("span", { class: "muted small block" }, devices.length ? devices.join(", ") : "no devices")),
-      el("span", { class: "actions" }, el("button", { class: "danger", onclick: async () => {
-        const ok = await ask({ title: "Remove " + u.name + "?", text: "They and their " + (u.devices || []).length + " devices leave the org: nothing more starts for them. What runs keeps running until it's stopped (Running). Type their name to say so.", ok: "Remove", typed: u.name });
-        if (ok) orgDo({ what: "user", action: "remove", name: u.name }, u.name + " has left the org.");
-      } }, "Remove"))));
-  }
 }
 $("people-search").addEventListener("input", renderPeople);
-$("user-add-open").addEventListener("click", () => { $("user-add").hidden = !$("user-add").hidden; $("user-add-name").focus(); });
-$("user-add-cancel").addEventListener("click", () => { $("user-add").hidden = true; });
-$("user-add").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = $("user-add-name").value.trim();
-  const done = await orgDo({ what: "user", action: "add", name, group: $("user-add-group").value.trim(), key: $("user-add-key").value.trim() }, name + " is in the org.");
-  if (done) { $("user-add").reset(); $("user-add").hidden = true; }
-});
 
-// Keys: set or not, never shown.
+// Keys: the machine's, set or not, never shown. The org's are the org's.
 function renderKeys() {
-  const box = $("keys-view");
-  const s = orgSettings;
-  if (!state.org || !s) { box.replaceChildren(machineKeysBlock()); return; }
-  const parts = [machineKeysBlock(), el("h2", {}, "The org's compute providers"), el("p", { class: "muted small" }, "The org server starts machines with these. Each key is checked with its provider before it's kept, and never shown again.")];
-  const list = el("ul", { class: "list" });
-  for (const p of s.providers || []) {
-    const form = inlineForm([{ name: "key", type: "password", placeholder: p.name + "'s API key", required: true }], (v) => orgDo({ what: "provider", action: "set", name: p.name, key: v.key }, p.name + "'s key is kept."), "Check and keep");
-    list.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, p.name), " ", el("span", { class: p.set ? "muted small" : "warn small" }, p.set ? "set" : "not set")),
-      el("span", { class: "actions" }, el("button", { onclick: () => { form.hidden = !form.hidden; } }, p.set ? "Replace" : "Set"),
-        p.set ? el("button", { class: "danger", onclick: async () => { if (await ask({ title: "Remove " + p.name + "'s key?", text: "Nothing new starts on " + p.name + ". What runs there now keeps running, and still stops at its time.", ok: "Remove" })) orgDo({ what: "provider", action: "remove", name: p.name }, p.name + "'s key is gone."); } }, "Remove") : null)));
-    list.append(el("li", { class: "plain" }, form));
-  }
-  parts.push(list);
-
-  const ai = s.ai || {};
-  parts.push(el("h2", {}, "The org's models for hi q"), el("p", { class: "muted small" }, "hi q on the org's devices asks models through the org server, with the org's key."));
-  const aiBlock = el("div", { class: "machine-block" });
-  aiBlock.append(el("p", {}, ai.has_key ? (ai.on ? "On" : "Off") : "No key yet", ai.model ? el("span", { class: "muted small" }, " · " + ai.model + (ai.url ? " at " + shown(ai.url).replace(/^https?:\/\//, "") : "")) : null));
-  if (ai.usage) aiBlock.append(el("p", { class: "muted small" }, "This month: " + ai.usage));
-  const aiForm = inlineForm([
-    { name: "key", type: "password", placeholder: ai.has_key ? "A new OpenRouter key (empty keeps the one there)" : "The OpenRouter key", required: !ai.has_key },
-    { name: "model", placeholder: "The default model", value: ai.model || "" },
-  ], (v) => orgDo({ what: "ai", action: "set", key: v.key, model: v.model }, "Checked and kept: hi q uses it now."), "Check and keep");
-  aiBlock.append(el("button", { class: "small", onclick: () => { aiForm.hidden = !aiForm.hidden; } }, ai.has_key ? "Change…" : "Set the key…"));
-  if (ai.has_key) {
-    aiBlock.append(el("button", { class: "small", onclick: () => orgDo({ what: "ai", action: ai.on ? "off" : "on" }, ai.on ? "Turned off." : "Turned on.") }, ai.on ? "Turn off" : "Turn on"));
-    aiBlock.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the org's devices can no longer ask models through the org.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "The key is gone."); } }, "Remove the key"));
-  }
-  parts.push(aiBlock, aiForm);
-  box.replaceChildren(...parts);
+  const parts = [machineKeysBlock()];
+  if (state && state.org) parts.push(el("p", { class: "muted small" }, "The org's keys, for its compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "the org's Keys"), "."));
+  $("keys-view").replaceChildren(...parts);
 }
 
 // ---------------------------------------------------------------------------
@@ -1365,14 +1486,7 @@ let policyDraft = null;
 let policyEdited = false;
 let policyText = false;
 
-function openPolicy() {
-  setMiddle(":policy");
-  policyEdited = false;
-  policyText = false;
-  policyDraft = null;
-  if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
-  renderPolicy();
-}
+function openPolicy() { openOrg("policy"); }
 
 function renderPolicy() {
   const box = $("policy");
@@ -1383,8 +1497,9 @@ function renderPolicy() {
     if (!policyDraft.groups) policyDraft.groups = {};
   }
   const changed = () => { policyEdited = true; };
-  const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "The org's policy"),
-    el("span", { class: "muted" }, p.exists ? "" : "none yet: this is the example to start from"))];
+  const parts = [orgHead()];
+  if (orgReadOnlyNote()) parts.push(orgReadOnlyNote());
+  if (!p.exists) parts.push(el("p", { class: "muted small" }, "None yet: this is the example to start from."));
   parts.push(el("p", { class: "purpose" }, "Per group: how long a start may run, what hardware, what is approved without a person, and monthly budgets. Budgets never block: going over warns, and the request goes to a person. It applies to the next request."));
   if (p.error) parts.push(el("p", { class: "error" }, "The policy on the machine doesn't read: " + p.error));
   const error = el("p", { class: "error", id: "policy-error" });
@@ -1420,9 +1535,8 @@ function renderPolicy() {
   parts.push(error);
   parts.push(el("div", { class: "data-actions" },
     el("button", { class: "primary", onclick: savePolicy }, "Check and save"),
-    el("button", { onclick: () => { if (policyText) { try { policyDraft = JSON.parse($("policy-text").value); } catch (e) { error.textContent = "That isn't JSON: " + e.message; return; } } policyText = !policyText; renderPolicy(); } }, policyText ? "As a form" : "As text"),
-    el("button", { onclick: () => { policyDraft = null; policyEdited = false; renderPolicy(); } }, "Undo my changes"),
-    el("button", { onclick: () => setMiddle("") }, "Close")));
+    el("button", { "data-nav": "", onclick: () => { if (policyText) { try { policyDraft = JSON.parse($("policy-text").value); } catch (e) { error.textContent = "That isn't JSON: " + e.message; return; } } policyText = !policyText; renderPolicy(); } }, policyText ? "As a form" : "As text"),
+    el("button", { onclick: () => { policyDraft = null; policyEdited = false; renderPolicy(); } }, "Undo my changes")));
   box.replaceChildren(...parts);
 }
 
@@ -1478,26 +1592,20 @@ async function savePolicy() {
   }
 }
 
-// Home's card: the org's day.
+// Home's card: the org's day. It opens the org, as an app's card opens
+// the app.
 function renderHomeOrg() {
   const box = $("home-org");
   const o = state.org;
   if (!o) { box.replaceChildren(); return; }
   const card = el("div", { class: "card-box org-card" });
-  const head = el("div", { class: "card-head pad" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", { class: "card-name" }, "The org"),
+  const head = el("button", { class: "card-head pad org-open", onclick: () => openOrg(""), title: "Open the org: its requests, users, admins, policy, and keys" },
+    el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", { class: "card-name" }, "The org"),
     el("span", { class: "muted small" }, o.up ? "runs" : "doesn't answer"), el("span", { class: "grow" }), o.owner ? el("span", { class: "muted small" }, "owned by " + o.owner) : null);
   card.append(head);
   if (o.no_owner) card.append(el("p", { class: "warn small pad" }, "No owner yet. On the machine: ", el("code", {}, "hi org owner <Slack member ID> --email <address>")));
   if (!o.up) card.append(el("p", { class: "error small pad" }, o.error || "The org server doesn't answer."));
-  else {
-    const stats = el("div", { class: "org-stats pad" });
-    const stat = (n, label, view, warn) => el("button", { class: "org-stat" + (warn ? " warn" : ""), onclick: () => showView(view) }, el("strong", {}, n), el("span", { class: "muted small" }, label));
-    stats.append(stat(o.waiting, o.waiting === 1 ? "request waits" : "requests wait", "requests", o.waiting > 0),
-      stat(o.running, (o.running === 1 ? "machine runs" : "machines run") + (o.running ? ", " + dollars(o.rate_per_hour) + "/h" : ""), "running"),
-      stat(dollars(o.today), "today", "spend"),
-      stat(dollars(o.month), "this month" + (o.month_budget ? " of " + dollars(o.month_budget) : ""), "spend", o.month_budget && o.month > o.month_budget));
-    card.append(stats);
-  }
+  else card.append(orgStats(o));
   box.replaceChildren(card);
 }
 
@@ -2541,7 +2649,8 @@ async function refreshState() {
     return false;
   }
   if (!booted) return true;
-  renderTabs();
+  if (orgOpen() && !state.org) setMiddle("");
+  if (renderTabs() && panes.right.open) freshView(panes.right.view);
   renderBar();
   renderApps();
   if (!middle) renderHome();
@@ -2557,9 +2666,9 @@ function renderOrgBadges() {
   const o = state.org;
   badge("requests-count", o ? o.waiting : 0);
   badge("running-count", o ? o.running : 0);
-  const bad = !!(o && (!o.up || o.no_owner));
-  $("org-badge").hidden = !bad;
-  $("org-badge").classList.toggle("failed", bad);
+  // Who may change what: the page shows the rest, and changes nothing.
+  document.body.classList.toggle("no-org-changes", !!o && !(state.me && state.me.org));
+  document.body.classList.toggle("no-machine-changes", !(state.me && state.me.machine));
 }
 
 let pollTimer = 0;
@@ -2575,7 +2684,8 @@ async function poll() {
     if (Date.now() - advisoriesAt > 60000) { advisoriesAt = Date.now(); refreshAdvisories(); }
     for (const view of [panes.right.view]) if (viewShown(view) && view !== "logs" && view !== "spend") freshView(view);
     // The org's settings: every fifteen seconds while one is open.
-    if ((["org", "people", "keys"].some(viewShown) || middle === ":policy") && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
+    if (orgOpen() && orgSection !== "overview" && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
+    if (orgOpen() && orgSection === "overview") renderOrgSection();
     // Logs: every three seconds in view, every fifteen behind another,
     // for the dot.
     if (viewShown("logs") || Date.now() - logs.at > 15000) refreshLogs(false);
@@ -2604,7 +2714,8 @@ async function boot() {
   renderOrgBadges();
   const [wantedApp, wantedSection] = wanted.split("/");
   if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings", "network", "data"].includes(wantedSection) ? wantedSection : "");
-  else if (wanted === ":policy" && state.org) openPolicy();
+  else if (wantedApp === ":org" && state.org) openOrg(wantedSection || "");
+  else if (wanted === ":policy" && state.org) openOrg("policy");
   else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));
   for (const which of ["left", "right"]) if (panes[which].open) freshView(panes[which].view);
   refreshJobs();

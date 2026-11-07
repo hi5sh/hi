@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), proposed 2026-11-07, waits for approval. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -115,6 +115,10 @@ incidents, and spend.
   new hi is out.
 
 ### The left panel: what you set
+
+Since release 6 the org isn't a view here: it is a card on Home, with its
+sections in the middle, and the org's users and keys are there, not in
+People and Keys ([a machine that runs both](#a-machine-that-runs-both)).
 
 | View | What it has | The commands it replaces |
 |---|---|---|
@@ -573,6 +577,24 @@ hi admin address [<host> [--https] | default]
    another org, joining a machine with apps to the new one, and saying
    what sharing the machine means.
    [A machine that runs both](#a-machine-that-runs-both) has it.
+   As built: the org's row is first in Home on the left, as "The org",
+   with its requests waiting, and Home's icon counts them with the apps
+   that are down. `admin.json` keeps `org_apart`, set by `hi org init`
+   when the page already had admins on a machine with apps; without it,
+   the org's owner and admins are the machine's, as on the org's VM, also
+   once that machine gets an app. Each admin carries `machine` and `org`,
+   and the page's server refuses a change outside them (`/api/org` and
+   `/api/walls` are the org's, the rest the machine's), so what the page
+   greys out is refused there too. An admin of the org who isn't the
+   machine's opens no dev page. The org's admins are changed in its
+   Admins, by its owner, with `what: admins`; a new one's link is shown
+   once. The org's incidents are read from its `state.json` (cleanup
+   leases, `unleased`) and its audit, a month back, as app `:org`. `hi org
+   init` joins the machine only when it makes the org, in the group
+   `staff`, with the machine's device key written into the new state
+   before the server starts; an org in `--dir` isn't the machine's, and
+   skips these steps. Jobs isn't among the org's views: following a job
+   from there opens Home.
 
 ## Later
 

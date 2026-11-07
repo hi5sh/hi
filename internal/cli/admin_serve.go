@@ -182,6 +182,23 @@ func (s *adminServer) admin(r *http.Request) (adminPerson, bool) {
 	return adminSessionAdmin(cookie.Value)
 }
 
+// adminMay says whether an admin may make a change: the org's admins
+// change the org, the machine's the machine and its apps. On a machine
+// whose lists are one, each admin is both.
+func adminMay(admin adminPerson, path string) error {
+	switch {
+	case path == "/api/signout":
+		return nil
+	case path == "/api/org" || path == "/api/walls":
+		if !admin.Org {
+			return errors.New("you aren't one of the org's admins: you see the org, and its owner and admins change it")
+		}
+	case !admin.Machine:
+		return errors.New("you are an admin of the org, not of the machine: you see the machine and its apps, and the machine's admins change them")
+	}
+	return nil
+}
+
 // adminSameOrigin says a change comes from the page itself: its Origin is
 // the address it was asked at. A browser sends Sec-Fetch-Site only over
 // https and to localhost; it sends Origin on every POST.
@@ -272,6 +289,12 @@ func (s *adminServer) routes() http.Handler {
 			}
 			if r.Method != http.MethodGet && !change(w, r) {
 				return
+			}
+			if r.Method != http.MethodGet {
+				if err := adminMay(admin, r.URL.Path); err != nil {
+					failure(w, http.StatusForbidden, err)
+					return
+				}
 			}
 			handle(w, r, admin)
 		}
@@ -539,13 +562,14 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		return map[string]string{"link": adminLinkURL(config, key), "text": admin.Name + "'s link, for 14 days. It is shown only now."}, nil
 	}
 	config, _ := loadAdminConfig()
-	if config.org != "" && (action == "add" || action == "remove") && !by.Owner {
+	merged := config.org != "" && !config.OrgApart
+	if merged && (action == "add" || action == "remove") && !by.Owner {
 		return nil, errors.New("on the org server's machine the admins are the org's, and its owner adds and removes them")
 	}
 	switch action {
 	case "add":
-		if config.org != "" {
-			who = by.Name // the org's audit records the hi user name
+		if merged {
+			who = by.orgName() // the org's audit records the hi user name
 		}
 		admin, err := adminAdd(name, slackID, email, who)
 		if err != nil {
@@ -553,8 +577,8 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		}
 		return link(admin)
 	case "remove":
-		if config.org != "" {
-			who = by.Name
+		if merged {
+			who = by.orgName()
 		}
 		admin, err := adminRemove(name, who)
 		if err != nil {
@@ -573,7 +597,7 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		}
 		return answer, err
 	case "slack":
-		if config.org != "" {
+		if merged {
 			return nil, errors.New("the org's admins have their Slack member IDs already: hi org admins")
 		}
 		slackID = strings.TrimSpace(strings.Trim(strings.TrimSpace(slackID), "<@>"))
@@ -698,6 +722,8 @@ type adminStateView struct {
 	User     string         `json:"user"`
 	// Org is the org server, on its machine.
 	Org *adminOrgSummary `json:"org,omitempty"`
+	// OrgApart says the machine's admins and the org's are two lists.
+	OrgApart bool `json:"org_apart,omitempty"`
 	// Usage is what the machine and each app use.
 	Usage *adminLoad `json:"usage,omitempty"`
 }
@@ -706,7 +732,7 @@ func (s *adminServer) state(admin adminPerson) adminStateView {
 	config, _ := loadAdminConfig()
 	view := adminStateView{Machine: adminMachineName(), Version: version, Latest: s.latestVersion(), Me: admin, Address: adminURL(config),
 		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName(),
-		Org: adminOrgSummaryOf(), Usage: s.usage()}
+		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
 		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())
@@ -952,8 +978,8 @@ type adminIncident struct {
 	Last   string    `json:"last,omitempty"` // what was done last
 }
 
-// adminIncidents are every app's: the open ones first, then the last
-// month's.
+// adminIncidents are every app's, and the org's (app ":org"): the open
+// ones first, then the last month's.
 func adminIncidents() []adminIncident {
 	now := time.Now()
 	list := []adminIncident{}
@@ -967,6 +993,7 @@ func adminIncidents() []adminIncident {
 			list = append(list, view)
 		}
 	}
+	list = append(list, adminOrgIncidents(now)...)
 	sort.SliceStable(list, func(i, j int) bool {
 		openI, openJ := list[i].Status != "closed", list[j].Status != "closed"
 		if openI != openJ {

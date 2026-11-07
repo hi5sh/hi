@@ -73,11 +73,17 @@ type adminConfig struct {
 	Host   string        `json:"host,omitempty"`
 	HTTPS  bool          `json:"https,omitempty"`
 	Admins []adminPerson `json:"admins"`
+	// OrgApart keeps the machine's admins apart from the org's, on a
+	// machine that runs apps and an org server: hi org init sets it there.
+	// Without it, the org's owner and admins are the machine's admins too.
+	OrgApart bool `json:"org_apart,omitempty"`
 	// org is the org server's state, on its machine once it has an owner:
-	// the admins are then the org's owner and admins, kept in its
-	// people.json, not here.
+	// its owner and admins, kept in its people.json, sign in too.
 	org string
 }
+
+// apart says the machine's admins and the org's are two lists.
+func (c adminConfig) apart() bool { return c.org != "" && c.OrgApart }
 
 // adminPerson is one of the machine's admins on the page.
 type adminPerson struct {
@@ -88,7 +94,17 @@ type adminPerson struct {
 	// Email and Owner are the org's, on the org server's machine.
 	Email string `json:"email,omitempty"`
 	Owner bool   `json:"owner,omitempty"`
+	// Machine and Org say what they run, as the page reads them: the
+	// machine and its apps, the org, or both. Neither is kept.
+	Machine bool `json:"machine,omitempty"`
+	Org     bool `json:"org,omitempty"`
+	// OrgName is their hi user name in the org, which its audit records,
+	// when the machine knows them by another name.
+	OrgName string `json:"org_name,omitempty"`
 }
+
+// orgName is the name the org knows an admin by.
+func (a adminPerson) orgName() string { return firstNonEmpty(a.OrgName, a.Name) }
 
 func loadAdminConfig() (adminConfig, bool) {
 	var config adminConfig
@@ -97,9 +113,33 @@ func loadAdminConfig() (adminConfig, bool) {
 	if !ok {
 		config = adminConfig{}
 	}
+	for i := range config.Admins {
+		config.Admins[i].Machine, config.Admins[i].Org, config.Admins[i].Owner, config.Admins[i].OrgName = true, false, false, ""
+	}
 	if dir := adminOrgDir(); dir != "" {
 		if people := loadOrgPeople(dir); people.Owner != nil {
-			config.org, config.Admins = dir, adminOrgAdmins(people)
+			config.org = dir
+			org := adminOrgAdmins(people)
+			if !config.OrgApart {
+				// One list: the org's owner and admins run the machine too.
+				for i := range org {
+					org[i].Machine = true
+				}
+				config.Admins = org
+			} else {
+				// Two: someone in both is one admin, by their Slack member ID.
+				for _, person := range org {
+					i := slices.IndexFunc(config.Admins, func(a adminPerson) bool { return a.Slack != "" && a.Slack == person.Slack })
+					if i < 0 {
+						config.Admins = append(config.Admins, person)
+						continue
+					}
+					config.Admins[i].Org, config.Admins[i].Owner, config.Admins[i].Email = true, person.Owner, person.Email
+					if !strings.EqualFold(config.Admins[i].Name, person.Name) {
+						config.Admins[i].OrgName = person.Name
+					}
+				}
+			}
 		}
 	}
 	return config, ok
@@ -120,7 +160,7 @@ func adminOrgAdmins(people orgPeople) []adminPerson {
 	admins := []adminPerson{}
 	for _, person := range people.all() {
 		admins = append(admins, adminPerson{Name: person.Name, Slack: person.Slack, Email: person.Email, Added: person.Added, By: person.By,
-			Owner: people.isOwner(person.Slack)})
+			Owner: people.isOwner(person.Slack), Org: true})
 	}
 	return admins
 }
@@ -129,13 +169,27 @@ func saveAdminConfig(config adminConfig) error {
 	if err := os.MkdirAll(adminDir(), 0o700); err != nil {
 		return err
 	}
-	if config.org != "" {
+	if config.org != "" && !config.OrgApart {
 		// The org keeps its admins; admin.json keeps what it had.
 		var own adminConfig
 		if data, err := os.ReadFile(adminConfigPath()); err == nil {
 			json.Unmarshal(data, &own)
 		}
 		config.Admins = own.Admins
+	} else {
+		// Only the machine's own: the org keeps its admins.
+		var own []adminPerson
+		for _, admin := range config.Admins {
+			if config.org != "" && !admin.Machine && admin.Org {
+				continue
+			}
+			if admin.Org {
+				admin.Email = ""
+			}
+			admin.Machine, admin.Org, admin.Owner, admin.OrgName = false, false, false, ""
+			own = append(own, admin)
+		}
+		config.Admins = own
 	}
 	if config.Admins == nil {
 		config.Admins = []adminPerson{}
@@ -158,6 +212,9 @@ func (c adminConfig) admin(who string) (adminPerson, bool) {
 func adminNames(config adminConfig) string {
 	var names []string
 	for _, admin := range config.Admins {
+		if config.OrgApart && !admin.Machine {
+			continue
+		}
 		names = append(names, admin.Name)
 	}
 	return strings.Join(names, ", ")
@@ -659,7 +716,9 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 	} else {
 		fmt.Fprintf(stdout, "Admins: %s. hi admin link <admin> makes a new sign-in link.\n", adminNames(config))
 	}
-	if config.org != "" {
+	if config.apart() {
+		fmt.Fprintln(stdout, "\nThis machine runs the org server too: the org's owner and admins sign in for the org (hi org admins), the machine's admins for the machine (hi admin admins).")
+	} else if config.org != "" {
 		fmt.Fprintln(stdout, "\nThis machine runs the org server: the page's admins are the org's owner and admins (hi org admins), and it runs the org too.")
 	}
 	if config.Reach != adminReachLocal {
@@ -724,12 +783,20 @@ func adminStatus(stdout io.Writer) error {
 			slack = "Slack " + admin.Slack
 		}
 		owner := ""
-		if admin.Owner {
+		switch {
+		case admin.Owner:
 			owner = ", the org's owner"
+		case config.apart() && admin.Org:
+			owner = ", the org's admin"
+		}
+		if config.apart() && !admin.Machine {
+			owner += " (the org only)"
 		}
 		fmt.Fprintf(stdout, "  %-24s %s%s\n", admin.Name, slack, owner)
 	}
-	if config.org != "" {
+	if config.apart() {
+		fmt.Fprintln(stdout, "The machine's admins run its apps (hi admin admins); the org's run the org (hi org admins).")
+	} else if config.org != "" {
 		fmt.Fprintln(stdout, "They are the org's owner and admins: hi org admins changes them.")
 	} else if dir := adminOrgDir(); dir != "" {
 		fmt.Fprintln(stdout, orgNoOwnerLine)
@@ -838,7 +905,7 @@ func adminAdminsCommand(args []string, stdout io.Writer) error {
 // adminAdd adds an admin, as hi admin admins add and the page's Machine
 // view do.
 func adminAdd(name, slackID, email, by string) (adminPerson, error) {
-	if config, _ := loadAdminConfig(); config.org != "" {
+	if config, _ := loadAdminConfig(); config.org != "" && !config.OrgApart {
 		if _, err := orgChangePeople(config.org, orgPeopleInput{As: by, Action: "add", Name: name, Slack: slackID, Email: email}); err != nil {
 			return adminPerson{}, err
 		}
@@ -861,16 +928,19 @@ func adminAdd(name, slackID, email, by string) (adminPerson, error) {
 		unlock()
 		return adminPerson{}, errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
 	}
-	if _, taken := config.admin(name); taken {
+	// One of the org's admins becomes the machine's too.
+	if other, taken := config.admin(name); taken && other.Org && !other.Machine && (slackID == "" || slackID == other.Slack) {
+		name, slackID = other.Name, other.Slack
+	} else if taken {
 		unlock()
 		return adminPerson{}, fmt.Errorf("%s is an admin already", name)
-	}
-	if slackID != "" {
-		if other, taken := config.admin(slackID); taken {
+	} else if slackID != "" {
+		if other, taken := config.admin(slackID); taken && !(other.Org && !other.Machine) {
 			unlock()
 			return adminPerson{}, fmt.Errorf("%s is %s's Slack member ID", slackID, other.Name)
 		}
 	}
+	config.Admins = slices.DeleteFunc(config.Admins, func(a adminPerson) bool { return !a.Machine && a.Slack != "" && a.Slack == slackID })
 	admin := adminPerson{Name: name, Slack: slackID, Added: time.Now().UTC(), By: by}
 	config.Admins = append(config.Admins, admin)
 	err = saveAdminConfig(config)
@@ -884,7 +954,7 @@ func adminAdd(name, slackID, email, by string) (adminPerson, error) {
 // adminRemove takes an admin off the list, and ends their links and
 // sign-ins. The last admin stays: the page would have nobody.
 func adminRemove(name, by string) (adminPerson, error) {
-	if config, _ := loadAdminConfig(); config.org != "" {
+	if config, _ := loadAdminConfig(); config.org != "" && !config.OrgApart {
 		admin, ok := config.admin(name)
 		if !ok {
 			return adminPerson{}, fmt.Errorf("%s isn't an admin; the admins are %s", name, adminNames(config))
@@ -903,11 +973,11 @@ func adminRemove(name, by string) (adminPerson, error) {
 		return adminPerson{}, errors.New("the admin page isn't set up on this machine")
 	}
 	admin, found := config.admin(name)
-	if !found {
+	if !found || !admin.Machine {
 		unlock()
-		return adminPerson{}, fmt.Errorf("%s isn't an admin; the admins are %s", name, adminNames(config))
+		return adminPerson{}, fmt.Errorf("%s isn't an admin of the machine; they are %s", name, adminNames(config))
 	}
-	if len(config.Admins) == 1 {
+	if machine := slices.DeleteFunc(slices.Clone(config.Admins), func(a adminPerson) bool { return !a.Machine }); len(machine) == 1 {
 		unlock()
 		return adminPerson{}, fmt.Errorf("%s is the only admin; add another first", admin.Name)
 	}
@@ -917,7 +987,10 @@ func adminRemove(name, by string) (adminPerson, error) {
 	if err != nil {
 		return admin, err
 	}
-	adminEndAll(admin.Name)
+	// One of the org's admins still signs in, for the org.
+	if !admin.Org {
+		adminEndAll(admin.Name)
+	}
 	adminRecord(by, "", "took "+admin.Name+" off the admins")
 	return admin, nil
 }

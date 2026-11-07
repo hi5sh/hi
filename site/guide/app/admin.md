@@ -26,12 +26,14 @@ remembered. On a phone they lie over the middle, one at a time.
 
 - **Home:** the machine's health: how busy its CPU is, its load, its
   memory, swap, and each disk, filling up green, then yellow, then red.
-  Then every app as a card, with its state, production's version, its
+  Then the org's card, on a machine that runs an org server, and every
+  app as a card, with its state, production's version, its
   open incidents, its addresses, and what it uses: its share of the CPU
   and the memory of its lead and its boxes together, and its folder on
   disk (measured every ten minutes). The page measures while it's open.
-- **Apps** (left): the apps, the ones that are down or frozen counted on
-  the icon. Pick one to open it in the middle.
+- **Home** (left): the org, on a machine that runs one, and the apps;
+  the apps that are down or frozen, and the org's requests waiting,
+  counted on the icon. Pick one to open it in the middle.
 - **An app's Overview:** its state, addresses, members, owners, latest
   releases, snapshots, and heartbeat. **Restart** (or **Start**),
   **Stop**, **Rebuild**, **Snapshot now**, **Freeze…**, **Pause…**, and
@@ -48,6 +50,13 @@ remembered. On a phone they lie over the middle, one at a time.
   your IT team for; its admins.
 - **Activity** (left): what admins did here, with who and when, and on
   the org server's machine the org's audit.
+
+The left panel is the same on every machine: Home, People, Keys,
+Network, Machine, Activity. The right panel is about what's open: an
+app's Jobs, Logs, Incidents, and Advisories with an app; the org's
+Requests, Running, Spend, Logs, and Incidents with the org; on Home,
+every app's.
+
 - **Jobs** (right): the open app's long actions, running and done, with
   their output; on Home, every job, the machine's too, such as an update.
   A blue dot while one runs, a red one when one failed.
@@ -56,7 +65,7 @@ remembered. On a phone they lie over the middle, one at a time.
   machine. Its dot pulses when new lines come in behind another view, red
   when one says something failed.
 - **Incidents** (right): the open app's, the open ones first; on Home,
-  every app's.
+  every app's, and the org's.
 
 Every change is said: in Activity, with the admin's name, and in the
 app's ops channel, as the app's bot: "Olga restarted the app, from the
@@ -157,9 +166,10 @@ then ignored; **Ignore…** asks why, and the app's people see it.
 On the left, **People** has everyone with a level in any app, a column
 per app: change a level where it stands, or give someone the same level
 in several apps at once, each the app's own change, said in its channel.
-On the org server's machine the org's users are there too. **Keys** has
+The org's users are the org's (its **Users**), not here. **Keys** has
 the machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's,
-and Codex's), and which apps use their own.
+and Codex's), and which apps use their own; the org's are in its
+**Keys**.
 
 On an app's dev page, the notes that send people to an admin of the
 machine (owners, the app's keys, restoring a snapshot) link to the admin
@@ -171,42 +181,70 @@ it can come back.
 
 ## On the org server's machine
 
-A machine that runs the org server has the org on its admin page too. A
-machine with only the org server, such as the org's own VM, has the org
-and no apps.
+A machine that runs the org server has the org on its admin page, as a
+card on Home and first in Home on the left. A machine with only the org
+server, such as the org's own VM, has the org and no apps; one can run
+both.
 
-- **Home:** the org's day: requests waiting, what runs and at what rate,
-  today's spend and the month's against its budgets.
-- **Requests** (right): devices that want to join and compute waiting for
-  an approval, each with **Approve** (and the group, for someone new) and
-  **Deny…** with a reason. It is the same as `hi org approve`, under the
-  admin's own name, and nobody approves their own.
+- **Home:** the org's card: requests waiting, what runs and at what rate,
+  today's spend and the month's against its budgets, and its open
+  incidents. It opens the org, as an app's card opens the app.
+- **The org opened** has its sections on the bar, as an app's:
+  - **Overview:** the same numbers, the org server, and **Restart**.
+  - **Users:** the org's users, by their hi user name, their groups and
+    devices; **Add**, and **Remove** with their name typed.
+  - **Admins:** the owner, and **Hand it on…** for the owner; the admins,
+    whom the owner adds and removes. Each approves, in Slack and here.
+  - **Policy:** each group's limits, hardware, approvals without a
+    person, and budgets, as a form, checked by the server before it's
+    saved, or **As text**.
+  - **Keys:** the provider keys (RunPod, Shadeform) and the org's
+    OpenRouter key for `hi q`, each checked before it's kept, and shown
+    only as set or not.
+  - **Templates**, **Data** (Hugging Face), **Models** (served on the
+    team's machines), **Slack**, and **Wall screens**.
+- **Requests** (right, with the org open): devices that want to join and
+  compute waiting for an approval, each with **Approve** (and the group,
+  for someone new) and **Deny…** with a reason. It is the same as `hi org
+  approve`, under the admin's own name, and nobody approves their own.
 - **Running** (right): everything running, for every user, with its cost
   so far, when it stops, and **Stop**; and **Stop all** of someone's,
   with their name typed.
 - **Spend** (right): per user and group, compute and models, over a week
   or a month.
-- **Org** (left): the org server, and **Restart**; its owner, and **Hand
-  it on…** for the owner; Slack; the policy, with each group's limits,
-  hardware, approvals without a person, and budgets as a form in the
-  middle, checked by the server before it's saved; the private templates,
-  the Hugging Face data, the models served on the team's machines; and
-  the wall screens' links.
-- **People** (left): the org's users, their groups and devices; **Add**,
-  and **Remove** with their name typed.
-- **Keys** (left): the provider keys (RunPod, Shadeform) and the org's
-  OpenRouter key for `hi q`, each checked before it's kept, and shown only
-  as set or not.
-- **Activity** has the org's audit, and **Logs** on Home the org server's.
+- **Incidents** (right): what the org server's check warns of: an
+  instance on the org's accounts that no request started, and a failed
+  start's machine it hasn't deleted yet, while they last.
+- **Logs** (right): the org server's. On a machine with only the org,
+  Home has the org's views on the right.
+- **Activity** has the org's audit.
 
-**Its admins are the org's:** the owner and the admins `hi org admins`
-lists. Each is an approver too, in Slack and here, and the page keeps no
-list of its own. The owner adds and removes them, in Machine. A new link
-comes by DM from the org's Slack app.
+**Its admins:** on a machine with only the org, the page's admins are the
+org's owner and admins, as `hi org admins` lists them, and the page keeps
+no list of its own. A new link comes by DM from the org's Slack app.
 
-**Wall screens:** in Org, **+** by Wall screens makes a link for a screen.
-Opened in a browser, full screen, it shows Running and Requests, with
-initials for names and no reasons unless the link says otherwise. It
+**A machine with apps and the org:** the machine's admins and the org's
+are two lists. The machine's (Machine, `hi admin admins`) run the machine
+and its apps; the org's (the org's Admins, `hi org admins`) approve and
+run the org. Someone in both is one admin. Each sees everything, and
+changes only their own: the rest shows, and does nothing. Making someone
+an admin of the machine never makes them an approver. `hi org init` on a
+machine with apps:
+
+- refuses while the machine is joined to another org, whose compute its
+  apps use: `hi org leave` first;
+- joins the machine to the new org, under the owner's hi user name, so
+  its apps' compute goes through it;
+- keeps the admin page's admins, and adds the owner to them;
+- says what sharing the machine means. The org server keeps the keys that
+  start machines on the org's accounts, and the apps' agents run beside
+  it, as the same account, restarted together by `hi update`. That suits
+  a small org, or trying one; for more than a few people, put the org
+  server on a small machine of its own.
+
+**Wall screens:** in the org's Wall screens, **+** makes a link for a
+screen. Opened in a browser, full screen, it shows Running and Requests,
+with initials for names and no reasons unless the link says otherwise. It
 can't approve, stop, or open anything, and it works until an admin ends
 it. It replaces `hi org live --wall` and the screens that showed it over
 SSH: a screen needs only a browser on NetBird.

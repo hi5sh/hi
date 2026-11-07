@@ -256,6 +256,16 @@ instead of starting it. On a machine that doesn't keep the account's
 services running without a login, it says the one command to change that
 (`sudo loginctl enable-linger <user>`).
 
+**On a machine with apps:** the org server can run beside them, for a
+small org or to try one. `hi org init` there refuses while the machine is
+joined to another org (`hi org leave` first), joins the machine to the
+new org under the owner's hi user name, so its apps' compute goes through
+it, and keeps the admin page's admins apart from the org's
+([admin page](/guide/app/admin/#on-the-org-servers-machine)). The org
+server keeps the keys that spend money, and the apps' agents run beside
+it as the same account: for more than a few people, give it a small
+machine of its own.
+
 ### The org's owner and admins
 
 Every org has an owner: one person, with their Slack member ID and their

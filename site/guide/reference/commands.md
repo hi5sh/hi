@@ -118,7 +118,7 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi org key`                                                      | This device's public key, for an admin to pre-approve                                  |
 | `hi org slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
 | `hi org leave`                                                    | Forget the server and delete the device key                                            |
-| `hi org init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service                       |
+| `hi org init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service; beside apps, join the machine to it |
 | `hi org run`                                                      | Serve clients                                                                          |
 | `hi org provider add|remove|list [<provider>]`                    | Provider keys (RunPod, Shadeform)                                                      |
 | `hi org user add <u> --group <g> [--key <k>]`                     | Add a user; `--key` pre-approves a device                                              |

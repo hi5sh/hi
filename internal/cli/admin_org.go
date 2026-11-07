@@ -51,8 +51,9 @@ type adminOrgSummary struct {
 	Today       float64 `json:"today"`
 	Month       float64 `json:"month"`
 	MonthBudget float64 `json:"month_budget"`
-	Service     string  `json:"service"` // user, system, or none
-	Restart     string  `json:"restart"` // how to restart it on the machine
+	Service     string  `json:"service"`   // user, system, or none
+	Restart     string  `json:"restart"`   // how to restart it on the machine
+	Incidents   int     `json:"incidents"` // open: what its check warns of
 }
 
 func adminOrgService() string {
@@ -81,6 +82,11 @@ func adminOrgSummaryOf() *adminOrgSummary {
 		return summary
 	}
 	summary.Up = true
+	for _, incident := range adminOrgIncidents(time.Now()) {
+		if incident.Status == "open" {
+			summary.Incidents++
+		}
+	}
 	summary.Running, summary.RatePerHour = len(live.Running), live.RatePerHour
 	summary.Today, summary.Month, summary.MonthBudget = live.Today, live.Month+live.ModelsMonth, live.MonthBudget
 	for _, waiting := range live.Waiting {
@@ -126,7 +132,7 @@ func adminOrgLiveOf(admin adminPerson) (adminOrgLive, error) {
 	}
 	answer.Requests = []adminOrgRequest{}
 	for _, request := range requests {
-		row := adminOrgRequest{serverRequest: request, Mine: request.User == admin.Name, Seconds: request.MaxSeconds,
+		row := adminOrgRequest{serverRequest: request, Mine: request.User == admin.orgName(), Seconds: request.MaxSeconds,
 			NewUser: request.Kind == "enroll" && !known[request.User], Describe: describeServerRequest(&request)}
 		row.PublicKey = "" // a device's key is no secret, but the page has no use for it
 		answer.Requests = append(answer.Requests, row)
@@ -225,7 +231,7 @@ type adminOrgChange struct {
 }
 
 func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
-	as := admin.Name
+	as := admin.orgName()
 	escape := url.PathEscape
 	var result any
 	call := func(method, path string, body any) (any, error) {
@@ -315,6 +321,43 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 		}
 	case "served":
 		return call(http.MethodDelete, "/admin/ai/served/"+escape(change.Name)+"?as="+url.QueryEscape(as), nil)
+	case "admins":
+		// The org's admins, in the org's own section: its owner adds and
+		// removes them; each is an approver, and signs in here for the org.
+		if !admin.Owner {
+			return nil, errors.New("the org's owner adds and removes its admins")
+		}
+		switch change.Action {
+		case "add":
+			if _, err := call(http.MethodPost, "/admin/people", orgPeopleInput{As: as, Action: "add", Slack: change.Slack, Email: change.Email, Name: change.Name}); err != nil {
+				return nil, err
+			}
+			config, _ := loadAdminConfig()
+			added, ok := config.admin(change.Slack)
+			if !ok {
+				return map[string]string{"text": "They are an admin of the org."}, nil
+			}
+			key, err := adminMakeLink(added.Name, false)
+			if err != nil {
+				return nil, err
+			}
+			adminRecord(admin.Name, "", "made "+added.Name+" an admin of the org")
+			return map[string]string{"link": adminLinkURL(config, key), "text": added.Name + " is an admin of the org, and approves. Their link to this page, for 14 days, is shown only now."}, nil
+		case "remove":
+			config, _ := loadAdminConfig()
+			gone, ok := config.admin(change.Name)
+			if !ok || !gone.Org {
+				return nil, fmt.Errorf("%s isn't an admin of the org", change.Name)
+			}
+			if _, err := call(http.MethodPost, "/admin/people", orgPeopleInput{As: as, Action: "remove", Slack: gone.Slack}); err != nil {
+				return nil, err
+			}
+			if !gone.Machine || !config.OrgApart {
+				adminEndAll(gone.Name)
+			}
+			adminRecord(admin.Name, "", "took "+gone.Name+" off the org's admins")
+			return map[string]string{"text": gone.Name + " isn't an admin of the org any more."}, nil
+		}
 	case "owner":
 		if !admin.Owner {
 			return nil, errors.New("only the org's owner hands it on")
@@ -331,6 +374,74 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 		return map[string]string{"text": "The org server restarted."}, nil
 	}
 	return result, fmt.Errorf("no such change to the org: %s %s", change.What, change.Action)
+}
+
+// adminOrgIncidents are the org's incidents: what its check every half
+// minute warns of. An instance on the org's accounts that no request
+// started, and a failed start's machine not deleted yet, are open while
+// they last; those of the last month that are gone are closed.
+func adminOrgIncidents(now time.Time) []adminIncident {
+	dir := adminOrgDir()
+	if dir == "" {
+		return nil
+	}
+	var state struct {
+		Leases   map[string]*serverLease `json:"leases"`
+		Unleased map[string]time.Time    `json:"unleased"`
+	}
+	if data, err := os.ReadFile(filepath.Join(dir, "state.json")); err == nil {
+		json.Unmarshal(data, &state)
+	}
+	list := []adminIncident{}
+	seen := map[string]bool{}
+	for _, lease := range state.Leases {
+		if lease.State != "cleanup" {
+			continue
+		}
+		key := lease.Provider + "/" + lease.Name
+		seen[key] = true
+		list = append(list, adminIncident{App: ":org", ID: key, Status: "open", Opened: lease.Started,
+			Title: lease.Name + ": a failed start left it on " + lease.Provider + ", and it isn't deleted yet",
+			Where: "the org server tries again every half minute · " + lease.Request + " of " + lease.User})
+	}
+	// What the audit said of each, newest last.
+	said := map[string]auditEntry{}
+	if file, err := os.Open(filepath.Join(dir, "audit.jsonl")); err == nil {
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 64<<10), 1<<20)
+		for scanner.Scan() {
+			var entry auditEntry
+			if json.Unmarshal(scanner.Bytes(), &entry) == nil && entry.Actor == "server" && now.Sub(entry.Time) < 30*24*time.Hour {
+				switch entry.Action {
+				case "unleased instance":
+					said[entry.Subject] = entry
+				case "cleaned up":
+					said["cleaned up "+entry.Subject] = entry
+				}
+			}
+		}
+		file.Close()
+	}
+	for key, since := range state.Unleased {
+		seen[key] = true
+		entry := said[key]
+		list = append(list, adminIncident{App: ":org", ID: key, Status: "open", Opened: since,
+			Title: key + " is on the org's account without a request", Where: firstNonEmpty(entry.Detail, "no request started it") + " · stop it on the provider's website if nobody expects it"})
+	}
+	for key, entry := range said {
+		if strings.Contains(key, " ") || seen[key] {
+			continue
+		}
+		list = append(list, adminIncident{App: ":org", ID: key, Status: "closed", Opened: entry.Time,
+			Title: key + " was on the org's account without a request", Where: entry.Detail, Last: "gone from the provider"})
+	}
+	for key, entry := range said {
+		if name, ok := strings.CutPrefix(key, "cleaned up "); ok {
+			list = append(list, adminIncident{App: ":org", ID: name, Status: "closed", Opened: entry.Time,
+				Title: name + ": what a failed start left", Where: entry.Detail, Last: "the org server cleaned it up"})
+		}
+	}
+	return list
 }
 
 // adminOrgSpend is spend per user and group over a week or a month.
