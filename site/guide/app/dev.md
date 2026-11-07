@@ -214,6 +214,16 @@ a private link to the app's **dev page**, in a DM; their links from
 old ones. A developer's page has no Data view and none of the owners'
 buttons ([below](#owners-developers-and-contributors)).
 
+The page installs as an app of its own, named for the app, with hi5's
+icon: in Chrome or Edge, **Install** in the address bar or the menu (on
+Android, **Add to home screen**, then **Install**); in Safari on an
+iPhone or iPad, **Share**, then **Add to Home Screen**; in Safari on a
+Mac, **File**, then **Add to Dock**. It opens in its own window, signed
+in as the link left you. When the link's 14 days are over, open your new
+link once and the app is signed in again. A browser installs only a page
+on https, such as the dev page on the machine's domain or a public
+address; a NetBird address on plain http stays a page in the browser.
+
 The page is the work, Chat, the terminal, or VS Code, with a panel on
 each side of it, as VS Code's side bars, their views by the icons along
 their tops. The left has what goes into the app: **Tasks**,

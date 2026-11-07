@@ -47,6 +47,11 @@ var AppDevPageScript []byte
 //go:embed helper/dev/dev.css
 var AppDevPageStyle []byte
 
+// AppIcons are hi5's icons, for a page people install as an app.
+//
+//go:embed helper/icons/*.png
+var AppIcons embed.FS
+
 // AdminPageHTML, AdminPageScript, and AdminPageStyle are the admin page
 // (hi admin), which loads the dev page's stylesheet too.
 //

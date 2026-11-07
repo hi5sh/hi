@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.89 — The dev page installs as an app
+
+- [x] The dev page has a web app manifest, named for the app, with
+  hi5's icons (192, 512, maskable, and Apple's): Chrome, Edge, and
+  Safari install it on phones, tablets, and desktops, in its own window.
+
 ### v2.6.88 — Stage follows its internal or public setting
 
 - [x] Stage moves to its internal or public address on its own when the

@@ -949,3 +949,29 @@ func TestTeamDevPageData(t *testing.T) {
 		t.Fatal("the preview still starts empty")
 	}
 }
+
+// The dev page installs as an app: a manifest named for the app, on the
+// page's own path, with icons, which load without a sign-in, as the
+// browser asks for them.
+func TestDevPageInstallable(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	handler := b.devPageHandler()
+	status, body := appTestDevPageCall(t, handler, "", "GET", "manifest.webmanifest", nil)
+	var manifest struct {
+		Name, StartURL, Scope, Display string
+		Icons                          []struct{ Src, Sizes, Purpose string }
+	}
+	json.Unmarshal([]byte(strings.NewReplacer("start_url", "StartURL").Replace(body)), &manifest)
+	if status != http.StatusOK || manifest.Name != "payments · dev" || manifest.StartURL != "./" || manifest.Scope != "./" || manifest.Display != "standalone" || len(manifest.Icons) != 3 {
+		t.Fatalf("%d %s", status, body)
+	}
+	for _, icon := range append(manifest.Icons, struct{ Src, Sizes, Purpose string }{Src: "apple-touch-icon.png"}) {
+		status, body := appTestDevPageCall(t, handler, "", "GET", icon.Src, nil)
+		if status != http.StatusOK || !strings.HasPrefix(body, "\x89PNG") {
+			t.Fatalf("%s: %d", icon.Src, status)
+		}
+	}
+	if _, page := appTestDevPageCall(t, handler, "", "GET", "", nil); !strings.Contains(page, `rel="manifest" href="manifest.webmanifest"`) || !strings.Contains(page, "apple-touch-icon") {
+		t.Fatal("the page doesn't link its manifest")
+	}
+}

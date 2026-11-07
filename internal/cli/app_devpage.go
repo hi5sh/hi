@@ -989,6 +989,31 @@ func (b *appBroker) devPageData() map[string]any {
 	return data
 }
 
+// appDevPageManifest makes the dev page an app people install, on a
+// phone, a tablet, or a desktop: its own window, named for the app, and
+// on the dev page's own path, so each app's dev page is an app of its own.
+func appDevPageManifest(team string) []byte {
+	icon := func(src, size, purpose string) map[string]string {
+		return map[string]string{"src": src, "sizes": size, "type": "image/png", "purpose": purpose}
+	}
+	data, _ := json.MarshalIndent(map[string]any{
+		"id":               "./",
+		"name":             team + " · dev",
+		"short_name":       team,
+		"description":      "The dev page of " + team + ", a hi app",
+		"start_url":        "./",
+		"scope":            "./",
+		"display":          "standalone",
+		"background_color": "#191a1b",
+		"theme_color":      "#191a1b",
+		"icons": []map[string]string{
+			icon("icon-192.png", "192x192", "any"), icon("icon-512.png", "512x512", "any"),
+			icon("icon-maskable-512.png", "512x512", "maskable"),
+		},
+	}, "", "  ")
+	return data
+}
+
 func (b *appBroker) devPageHandler() http.Handler {
 	mux := http.NewServeMux()
 	reply := func(w http.ResponseWriter, status int, value any) {
@@ -1020,6 +1045,16 @@ func (b *appBroker) devPageHandler() http.Handler {
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
 	asset("addon-fit.js", "text/javascript; charset=utf-8", appXtermFit)
+	for _, icon := range []string{"icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"} {
+		data, _ := hi.AppIcons.ReadFile("helper/icons/" + icon)
+		asset(icon, "image/png", data)
+	}
+	assets["GET "+appDevPagePrefix+"manifest.webmanifest"] = true
+	mux.HandleFunc("GET "+appDevPagePrefix+"manifest.webmanifest", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/manifest+json")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Write(appDevPageManifest(b.team))
+	})
 
 	builder := func(w http.ResponseWriter, r *http.Request) (appPersonKey, bool) {
 		person, _, err := b.devPagePerson(r)
