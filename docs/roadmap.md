@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.90 — A lead on ChatGPT takes the plan's first model
+
+- [x] On the admin page's new-app steps, Hermes on a ChatGPT plan with
+  no model takes the plan's first, as `hi app new` offers it; a plan
+  that lists none is told at Members, not at Create.
+
 ### v2.6.89 — The dev page installs as an app
 
 - [x] The dev page has a web app manifest, named for the app, with

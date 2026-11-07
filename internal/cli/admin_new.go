@@ -664,6 +664,26 @@ func adminSaveMembers(draft *adminDraft, input adminStepInput) error {
 			return errors.New("choose whose ChatGPT sign-in the roles on it use: the app's own, or this machine's")
 		}
 		draft.ChatGPTSignIn = input.ChatGPTSignIn
+		// Hermes on ChatGPT names its model; without one it takes the
+		// plan's first, as the terminal offers it.
+		models := draft.ChatGPTModels
+		if draft.ChatGPTSignIn == "machine" {
+			models = nil
+			if grant, err := readCodexChatGPT(); err == nil {
+				models, _ = chatGPTModels(grant)
+			}
+		}
+		for _, role := range appRoles(trial) {
+			member := members[role]
+			if member.Agent != "hermes" || member.Provider != appProviderChatGPT || member.Model != "" {
+				continue
+			}
+			if len(models) == 0 {
+				return fmt.Errorf("%s: name the ChatGPT model, such as gpt-6.1-sol", role)
+			}
+			member.Model = models[0]
+			members[role] = member
+		}
 	}
 	// Claude: the app's own token, or this machine's sign-in.
 	usesClaude := false

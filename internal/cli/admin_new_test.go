@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -223,5 +224,58 @@ func TestAdminBringBackRenameRemove(t *testing.T) {
 	a.mu.Unlock()
 	if !strings.Contains(posts, "Olga is renaming the app to billing") || !strings.Contains(posts, "Olga is removing the app from this machine; its folder stays") {
 		t.Fatalf("posts: %s", posts)
+	}
+}
+
+// Hermes on ChatGPT with no model takes the plan's first, as the terminal
+// offers it, and the Members step says so when the plan lists none,
+// rather than Create.
+func TestAdminNewLeadOnChatGPTTakesThePlansFirstModel(t *testing.T) {
+	a, olga := newAppTest(t)
+	fakeChatGPTChoices(t, map[string]bool{"openai/gpt-6.1-sol": true, "openai/gpt-5.5": true, "anthropic/claude-opus-5.5": true})
+	claims := base64.RawURLEncoding.EncodeToString([]byte(`{"https://api.openai.com/auth":{"chatgpt_account_id":"acct-1"}}`))
+	writeSkillTestFile(t, codexAuthPath(), `{"auth_mode":"chatgpt","tokens":{"access_token":"h.`+claims+`.s","refresh_token":"rt"}}`, 0o600)
+	var view adminDraftView
+	if code := a.post(t, olga, "/api/new", map[string]any{"action": "start", "name": "orders"}, &view); code != http.StatusOK {
+		t.Fatalf("start: %d %+v", code, view)
+	}
+	step := func(answers map[string]any) (int, string) {
+		t.Helper()
+		answers["action"], answers["name"] = "step", "orders"
+		var out map[string]any
+		code := a.post(t, olga, "/api/new", answers, &out)
+		if code != http.StatusOK {
+			return code, out["error"].(string)
+		}
+		return code, ""
+	}
+	for _, s := range []map[string]any{
+		{"step": "lead", "lead_name": "Ada"},
+		{"step": "purpose", "purpose": "Take the orders"},
+		{"step": "slack", "bot_token": "xoxb-orders", "app_token": "xapp-orders"},
+		{"step": "channel", "channel": "C07ORDERS", "ops_channel": "C07OPS"},
+		{"step": "people", "owners": []string{"U07OWNER1"}},
+	} {
+		if code, err := step(s); code != http.StatusOK {
+			t.Fatalf("%s: %s", s["step"], err)
+		}
+	}
+	members := map[string]any{
+		"lead":     map[string]any{"agent": "hermes", "provider": "chatgpt"},
+		"coder":    map[string]any{"agent": "claude", "model": "opus"},
+		"reviewer": map[string]any{"agent": "codex"},
+	}
+	saved := chatGPTModels
+	chatGPTModels = func(appChatGPTGrant) ([]string, error) { return nil, nil }
+	code, err := step(map[string]any{"step": "members", "members": members, "chatgpt_signin": "machine", "claude_token": "sk-ant-oat-orders"})
+	chatGPTModels = saved
+	if code == http.StatusOK || !strings.Contains(err, "lead: name the ChatGPT model") {
+		t.Fatalf("a plan that lists no models: %d %s", code, err)
+	}
+	if code, err := step(map[string]any{"step": "members", "members": members, "chatgpt_signin": "machine", "claude_token": "sk-ant-oat-orders"}); code != http.StatusOK {
+		t.Fatal(err)
+	}
+	if code := a.get(t, olga, "/api/new/draft?name=orders", &view); code != http.StatusOK || view.Config.Members["lead"].Model != "gpt-6.1-sol" {
+		t.Fatalf("the lead's model: %d %+v", code, view.Config.Members["lead"])
 	}
 }

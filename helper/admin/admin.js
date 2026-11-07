@@ -1994,7 +1994,7 @@ function renderMembers(body, d) {
     const member = c.members[role];
     const agent = el("select", { "aria-label": role + "'s agent", disabled: role === "lead" });
     for (const [v, label] of [["hermes", "Hermes"], ["claude", "Claude Code"], ["codex", "Codex"]]) agent.append(el("option", { value: v, selected: member.agent === v }, label));
-    const model = input({ value: member.model || "", placeholder: "the agent's own" , "aria-label": role + "'s model" });
+    const model = input({ value: member.model || "", placeholder: member.agent === "hermes" && member.provider === "chatgpt" ? "the plan's first" : "the agent's own", "aria-label": role + "'s model" });
     const provider = el("select", { "aria-label": role + ": who pays" });
     provider.append(el("option", { value: "openrouter", selected: member.provider !== "chatgpt" }, "OpenRouter, per call"), el("option", { value: "chatgpt", selected: member.provider === "chatgpt" }, "A ChatGPT plan, falling back to OpenRouter"));
     const effort = el("select", { "aria-label": role + "'s effort" });
@@ -2004,7 +2004,11 @@ function renderMembers(body, d) {
     for (const name of d.chatgpt_models || []) models.append(el("option", { value: name }));
     model.setAttribute("list", "models-" + role);
     const providerField = field("Who pays", provider);
-    const sync = () => { providerField.hidden = agent.value !== "hermes"; drawSignins(); };
+    const sync = () => {
+      providerField.hidden = agent.value !== "hermes";
+      model.placeholder = agent.value === "hermes" && provider.value === "chatgpt" ? "the plan's first" : "the agent's own";
+      drawSignins();
+    };
     agent.addEventListener("change", () => { model.value = ""; sync(); });
     provider.addEventListener("change", sync);
     rows[role] = { agent, model, provider, effort, fallback };
