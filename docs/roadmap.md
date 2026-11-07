@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.91 — Create the Slack app glows
+
+- [x] The new-app steps' Create the Slack app has a thin rainbow border
+  that turns, with a short glow around it; it stays still for whoever
+  asks for less motion.
+
 ### v2.6.90 — A lead on ChatGPT takes the plan's first model
 
 - [x] On the admin page's new-app steps, Hermes on a ChatGPT plan with

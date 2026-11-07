@@ -1808,7 +1808,7 @@ function renderDraft() {
       const app = input({ id: "s-app", type: "password", placeholder: d.has_app ? "Kept; paste again to change it" : "xapp-…" });
       body.append(el("p", {}, "Each app has a Slack app of its own, made from a manifest hi writes for it."),
         el("ol", { class: "how" },
-          el("li", {}, el("a", { class: "button-like", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
+          el("li", {}, el("a", { class: "button-like rainbow", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
           el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it."),
           el("li", {}, "The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
           el("li", {}, "The app token is under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…).")),
