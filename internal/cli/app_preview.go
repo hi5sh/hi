@@ -665,7 +665,10 @@ func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 						previewFailed = time.Now()
 					}
 				}
-			} else if (preview.Settings != appSettingsStamp(b.team) || appRelayOutdated(preview, appSlotDomain(b.team, appSlotPreview), appRelayStamp(b.team, appSlotPreview)) ||
+			} else if config, _ := loadTeam(b.team); (preview.Settings != appSettingsStamp(b.team) ||
+				// Made internal or public since: the same version on its
+				// new kind of address, as production and the dev page do.
+				appExposeKindOutdated(config, appSlotPreview, preview.Expose) || appRelayOutdated(preview, appSlotDomain(b.team, appSlotPreview), appRelayStamp(b.team, appSlotPreview)) ||
 				appAccessOutdated(b.team, preview) || b.oldImage != nil && b.oldImage(preview.Container)) &&
 				time.Since(previewFailed) > 30*time.Minute {
 				// A new hi, new settings, or a rebuilt image: the same

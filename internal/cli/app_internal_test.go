@@ -141,6 +141,23 @@ func TestTeamInternalAddresses(t *testing.T) {
 	if config, _ := loadTeam("payments"); config.Public == nil || config.Public.Preview {
 		t.Fatalf("%+v", config.Public)
 	}
+	// Made internal in app.json, not on the dev page: the keep loop moves
+	// the preview there, as it does production and the dev page.
+	if err := b.devPagePublic(appSlotPreview, true, "Olga"); err != nil {
+		t.Fatal(err)
+	}
+	state, _ = loadTeamSlot("payments", appSlotPreview)
+	public = state.Expose
+	config, _ = loadTeam("payments")
+	config.Public = &appPublic{}
+	saveTeam(config)
+	done := make(chan struct{})
+	close(done)
+	b.keepLinks(done, io.Discard)
+	state, _ = loadTeamSlot("payments", appSlotPreview)
+	if state.Expose != "internal:preview" || !strings.Contains(strings.Join(b.calls, "\n"), "net expose stop "+public) {
+		t.Fatalf("%+v %v", state, b.calls)
+	}
 }
 
 // The dev page that isn't public is on the dev box's peer.

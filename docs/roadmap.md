@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.88 — Stage follows its internal or public setting
+
+- [x] Stage moves to its internal or public address on its own when the
+  app's setting changes outside the dev page, as production and the dev
+  page already did; before, it waited for its next version.
+
 ### v2.6.87 — The chat's model and effort
 
 - [x] The dev page's chat has the model and effort Claude answers with
