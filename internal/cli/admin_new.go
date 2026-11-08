@@ -9,6 +9,7 @@ package cli
 // their hi app commands as jobs too.
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -250,7 +251,14 @@ func adminDraftViewOf(draft adminDraft) adminDraftView {
 		}
 	}
 	view.Manifest = appManifest(config)
-	view.ManifestURL = "https://api.slack.com/apps?new_app=1&manifest_json=" + url.QueryEscape(view.Manifest)
+	// Slack's dialog turns a link's newlines into spaces and keeps the
+	// indent, so the link carries the manifest compact.
+	compact := view.Manifest
+	var buffer bytes.Buffer
+	if json.Compact(&buffer, []byte(view.Manifest)) == nil {
+		compact = buffer.String()
+	}
+	view.ManifestURL = "https://api.slack.com/apps?new_app=1&manifest_json=" + url.QueryEscape(compact)
 	answers := draft.Answers
 	switch {
 	case answers.Adopt != "":

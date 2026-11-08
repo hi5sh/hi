@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,6 +56,12 @@ func TestAdminNewAppThroughItsSteps(t *testing.T) {
 	// Its folder goes beside the machine's other apps'.
 	if view.Folder != filepath.Join(filepath.Dir(appDir("payments")), "app-orders") || view.Handle == "" || !strings.Contains(view.ManifestURL, "manifest_json=") {
 		t.Fatalf("draft: %+v", view)
+	}
+	// Slack's dialog turns newlines into spaces: the link's manifest is compact.
+	link, _ := url.Parse(view.ManifestURL)
+	if manifest := link.Query().Get("manifest_json"); !json.Valid([]byte(manifest)) || strings.ContainsAny(manifest, "\n\t") ||
+		strings.Contains(manifest, "  ") || !strings.Contains(view.Manifest, "\n") {
+		t.Fatalf("the link's manifest: %s", view.ManifestURL)
 	}
 	step := func(answers map[string]any) (int, string) {
 		t.Helper()

@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.98 — Slack's manifest link reads cleanly
+
+- [x] The admin page's **Create the Slack app** link carries the manifest
+  as compact JSON: Slack's dialog turns a link's newlines into spaces
+  and kept the indent, so the manifest read as scattered runs of spaces.
+
 ### v2.6.97 — What an app needs, installed from the page
 
 - [x] hi_admin.md release 8: New app checks what every app needs on the
