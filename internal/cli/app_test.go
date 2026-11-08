@@ -1375,6 +1375,38 @@ print(note(tool_name="read_file", result="r", turn_id="t2") is None)
 	}
 }
 
+// Hermes 0.23's Slack adapter passes thread_id to its DM check; hi's
+// guard in front of it passes on what it doesn't read.
+func TestTeamLeadPluginGuardsDMsWithThreads(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("no python3")
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "plugin.py"), appLeadPluginSource, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := exec.Command("python3", "-I", "-c", `
+import importlib.util, sys, types
+spec = importlib.util.spec_from_file_location("plugin", sys.argv[1])
+plugin = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(plugin)
+seen = []
+class SlackAdapter:
+    def _early_reject_unauthorized(self, user_id, channel_id, is_dm, thread_id=None):
+        seen.append(thread_id)
+        return False
+fake = types.ModuleType("fake_slack")
+fake.SlackAdapter = SlackAdapter
+sys.modules["fake_slack"] = fake
+plugin._guard_dms()
+print(SlackAdapter()._early_reject_unauthorized("U1", "C1", False, thread_id="1.2"), seen)
+print(SlackAdapter()._early_reject_unauthorized("U1", "C1", False), seen)
+`, filepath.Join(dir, "plugin.py")).CombinedOutput()
+	if err != nil || string(out) != "False ['1.2']\nFalse ['1.2', None]\n" {
+		t.Fatalf("%s: %v", out, err)
+	}
+}
+
 func TestTeamManifestYAML(t *testing.T) {
 	config := testTeamConfig()
 	lead := config.Members["lead"]

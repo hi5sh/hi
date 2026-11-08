@@ -238,11 +238,13 @@ def _guard_dms():
             continue
 
         def make(original):
-            def reject(self, user_id, channel_id, is_dm):
+            # Hermes 0.23 passes thread_id too; what comes after is_dm
+            # goes on as it came.
+            def reject(self, user_id, channel_id, is_dm, *args, **kwargs):
                 if is_dm and not (user_id and _may_ask(user_id)):
                     log.info("hi-team: dropped a DM from %s, who may not ask the team for work", user_id)
                     return True
-                return original(self, user_id, channel_id, is_dm)
+                return original(self, user_id, channel_id, is_dm, *args, **kwargs)
             reject.hi_app = True
             return reject
 
