@@ -155,6 +155,12 @@ only whether one is set, and whose.
   copy to production each need the app's name typed, and say what they do
   first. `hi app snapshots`, `restore`, `rollback`, `data`, `backups`,
   `jobs`, `bom`.
+- **Terminal:** a shell in one of the app's boxes that run (the lead's,
+  production's, Stage's, the dev box, the memory's), as the box's own
+  user, for the machine's owner only. Each one is said in Activity and
+  the app's ops channel, and closes after 30 minutes without a key. Not
+  on the machine itself: the boxes hold none of the app's keys.
+  `hi admin owner` says who owns the machine, or hands it on.
 
 On the left, **Network** has the apps' domain, the sign-in providers
 (**Add one**), each app's peer and addresses, the org server's public
@@ -304,7 +310,8 @@ port 1984, which needs no root:
 
 - **No secret comes out.** The page shows whether something is set,
   never its value; an app's addresses are shown without their keys.
-- **No shell, no file browser.**
+- **No shell on the machine, no file browser.** The one terminal is in
+  an app's boxes, for the machine's owner.
 - **What can't be undone asks first**, and says what it does.
 - **Only from the page itself:** every change is a POST from the page's
   own address, as JSON; another site's page can't make one.
@@ -339,6 +346,7 @@ hi admin start                   start it and keep it up; the first time, your l
 hi admin stop                    stop it; nothing else changes
 hi admin link [<admin>]          a new sign-in link, for 14 days; the old one ends
 hi admin admins [add <name> [--slack <member ID>] | remove <name>]
+hi admin owner [<admin>]         the machine's owner, who opens terminals; or hand it on
 hi admin address [<host> [--https] | default]
 ```
 

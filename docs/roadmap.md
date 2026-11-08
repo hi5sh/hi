@@ -2713,6 +2713,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.96 — A terminal in an app's boxes
+
+- [x] hi_admin.md release 7: an app's **Terminal** section on the admin
+  page opens a shell in one of its running boxes (the lead's,
+  production's, Stage's, the dev box, the memory's), as the box's user,
+  for the machine's owner only; said in Activity and the ops channel,
+  closed after 30 idle minutes or when the sign-in ends, and what it
+  left running ends with it. `hi admin owner` names the machine's owner.
+
 ### v2.6.95 — hi install asks for sudo only when it needs it
 
 - [x] Installing or removing only tools that go in the home folder (uv,

@@ -77,6 +77,11 @@ type adminConfig struct {
 	// machine that runs apps and an org server: hi org init sets it there.
 	// Without it, the org's owner and admins are the machine's admins too.
 	OrgApart bool `json:"org_apart,omitempty"`
+	// MachineOwner is the machine's owner, by name, as hi admin owner
+	// sets it: the one admin who opens a terminal in an app's boxes.
+	// Without it, the org's owner where the lists are one, else the first
+	// admin.
+	MachineOwner string `json:"machine_owner,omitempty"`
 	// org is the org server's state, on its machine once it has an owner:
 	// its owner and admins, kept in its people.json, sign in too.
 	org string
@@ -98,6 +103,9 @@ type adminPerson struct {
 	// machine and its apps, the org, or both. Neither is kept.
 	Machine bool `json:"machine,omitempty"`
 	Org     bool `json:"org,omitempty"`
+	// MachineOwner says they are the machine's owner, as the page reads
+	// it; not kept.
+	MachineOwner bool `json:"machine_owner,omitempty"`
 	// OrgName is their hi user name in the org, which its audit records,
 	// when the machine knows them by another name.
 	OrgName string `json:"org_name,omitempty"`
@@ -115,6 +123,7 @@ func loadAdminConfig() (adminConfig, bool) {
 	}
 	for i := range config.Admins {
 		config.Admins[i].Machine, config.Admins[i].Org, config.Admins[i].Owner, config.Admins[i].OrgName = true, false, false, ""
+		config.Admins[i].MachineOwner = false
 	}
 	if dir := adminOrgDir(); dir != "" {
 		if people := loadOrgPeople(dir); people.Owner != nil {
@@ -142,7 +151,41 @@ func loadAdminConfig() (adminConfig, bool) {
 			}
 		}
 	}
+	if owner := config.machineOwner(); owner != "" {
+		for i := range config.Admins {
+			config.Admins[i].MachineOwner = config.Admins[i].Name == owner
+		}
+	}
 	return config, ok
+}
+
+// machineOwner is the name of the machine's owner: the one hi admin owner
+// named, while they are one of its admins; else the org's owner, where
+// the org's admins are the machine's; else the first admin added.
+func (c adminConfig) machineOwner() string {
+	var first *adminPerson
+	for i, admin := range c.Admins {
+		if !admin.Machine {
+			continue
+		}
+		if c.MachineOwner != "" && strings.EqualFold(admin.Name, c.MachineOwner) {
+			return admin.Name
+		}
+		if first == nil || admin.Added.Before(first.Added) {
+			first = &c.Admins[i]
+		}
+	}
+	if c.org != "" && !c.OrgApart {
+		for _, admin := range c.Admins {
+			if admin.Owner {
+				return admin.Name
+			}
+		}
+	}
+	if first == nil {
+		return ""
+	}
+	return first.Name
 }
 
 // adminOrgDir is the org server's state on this machine, or "" without
@@ -186,7 +229,7 @@ func saveAdminConfig(config adminConfig) error {
 			if admin.Org {
 				admin.Email = ""
 			}
-			admin.Machine, admin.Org, admin.Owner, admin.OrgName = false, false, false, ""
+			admin.Machine, admin.Org, admin.Owner, admin.OrgName, admin.MachineOwner = false, false, false, "", false
 			own = append(own, admin)
 		}
 		config.Admins = own
@@ -498,6 +541,8 @@ const adminUsage = `usage: hi admin                         whether the admin pa
        hi admin link [<admin>]          a new sign-in link, for 14 days; the old one ends
        hi admin admins [add <name> [--slack <member ID>] | remove <name>]
                                         the admins
+       hi admin owner [<admin>]         the machine's owner, the one who opens a terminal in an
+                                        app's boxes; or hand it on
        hi admin address [<host> [--https] | default]
                                         the name the IT team keeps for it; admin.<domain> by default`
 
@@ -523,6 +568,8 @@ func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = adminAdminsCommand(rest, stdout)
 	case "address":
 		err = adminAddressCommand(rest, stdout)
+	case "owner":
+		err = adminOwnerCommand(rest, stdout)
 	case "serve":
 		err = adminServe(stderr)
 	case "__job":
@@ -842,6 +889,38 @@ func adminLinkCommand(args []string, stdout io.Writer) error {
 	adminRecord(adminActor(), "", "made a new link for "+admin.Name)
 	fmt.Fprintf(stdout, "%s's link, for %d days; their old one has ended. Whoever opens it can do what an admin of the machine does.\n  %s\n",
 		admin.Name, int(adminLinkLasts.Hours()/24), adminLinkURL(config, key))
+	return nil
+}
+
+// adminOwnerCommand says who the machine's owner is, or hands it on to
+// another of its admins.
+func adminOwnerCommand(args []string, stdout io.Writer) error {
+	config, ok := loadAdminConfig()
+	if !ok {
+		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
+	}
+	if len(args) == 0 {
+		owner := config.machineOwner()
+		if owner == "" {
+			return errors.New("the machine has no admins yet; hi admin start makes the first")
+		}
+		fmt.Fprintf(stdout, "%s owns the machine: only they open a terminal in an app's boxes, on the admin page. hi admin owner <admin> hands it on.\n", owner)
+		return nil
+	}
+	name := strings.Join(args, " ")
+	admin, found := config.admin(name)
+	if !found || !admin.Machine {
+		return fmt.Errorf("%s isn't one of the machine's admins (hi admin admins)", name)
+	}
+	unlock := adminLock()
+	defer unlock()
+	config, _ = loadAdminConfig()
+	config.MachineOwner = admin.Name
+	if err := saveAdminConfig(config); err != nil {
+		return err
+	}
+	adminRecord(adminActor(), "", "made "+admin.Name+" the machine's owner")
+	fmt.Fprintf(stdout, "%s owns the machine now.\n", admin.Name)
 	return nil
 }
 

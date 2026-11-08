@@ -7,6 +7,7 @@
 <link rel="icon" href="data:,">
 <title>Admin page</title>
 <link rel="stylesheet" href="dev.css">
+<link rel="stylesheet" href="xterm.css">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -54,6 +55,7 @@
           <button data-section="settings" aria-pressed="false">Settings</button>
           <button data-section="network" aria-pressed="false">Network</button>
           <button data-section="data" aria-pressed="false">Data</button>
+          <button data-section="terminal" aria-pressed="false">Terminal</button>
         </div>
         <span class="grow"></span>
         <span id="bar-note" class="muted small bar-note"></span>
@@ -234,6 +236,8 @@
 
 <datalist id="org-groups"></datalist>
 <div id="toast" class="toast" role="status" hidden></div>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

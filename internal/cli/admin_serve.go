@@ -267,6 +267,9 @@ func (s *adminServer) routes() http.Handler {
 	asset("admin.js", "text/javascript; charset=utf-8", adminPageScript)
 	asset("admin.css", "text/css; charset=utf-8", adminPageStyle)
 	asset("dev.css", "text/css; charset=utf-8", appDevPageStyle)
+	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
+	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
+	asset("addon-fit.js", "text/javascript; charset=utf-8", appXtermFit)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, http.StatusOK, map[string]string{"version": version})
 	})
@@ -331,6 +334,15 @@ func (s *adminServer) routes() http.Handler {
 		}
 		reply(w, http.StatusOK, detail)
 	}))
+	mux.HandleFunc("GET /api/app/terminal", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		view, err := adminTermViewOf(r.URL.Query().Get("name"), admin)
+		if err != nil {
+			failure(w, http.StatusNotFound, err)
+			return
+		}
+		reply(w, http.StatusOK, view)
+	}))
+	mux.HandleFunc("GET /api/app/term", signedIn(s.terminal))
 	mux.HandleFunc("POST /api/action", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		var request struct {
 			App    string `json:"app"`

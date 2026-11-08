@@ -452,6 +452,7 @@ function moved() {
 }
 
 async function openView(name, section) {
+  if (name !== openApp || (section && section !== "terminal")) closeTerm();
   if (name !== openApp || section) {
     appSection = section || "overview";
     settings = null;
@@ -2166,6 +2167,7 @@ for (const chip of document.querySelectorAll("#sections [data-section]")) {
 }
 
 function showSection(section) {
+  if (section !== "terminal") closeTerm();
   appSection = section;
   for (const chip of document.querySelectorAll("#sections [data-section]")) chip.setAttribute("aria-pressed", String(chip.dataset.section === section));
   if (openApp) history.replaceState(null, "", "#" + encodeURIComponent(openApp) + (section === "overview" ? "" : "/" + section));
@@ -2175,7 +2177,7 @@ function showSection(section) {
 }
 
 // sectionSource is where a section reads from.
-function sectionSource(section) { return { network: "/api/app/network", data: "/api/app/data" }[section] || "/api/app/settings"; }
+function sectionSource(section) { return { network: "/api/app/network", data: "/api/app/data", terminal: "/api/app/terminal" }[section] || "/api/app/settings"; }
 
 async function refreshSettings() {
   if (!openApp || appSection === "overview") return;
@@ -2210,7 +2212,7 @@ const firstLine = (text) => String(text || "").split("\n")[0];
 function renderSection() {
   const s = settings;
   const box = $("overview");
-  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings", network: "Network", data: "Data" }[appSection]));
+  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings", network: "Network", data: "Data", terminal: "Terminal" }[appSection]));
   const parts = [head];
   if (appSection === "people") parts.push(...sectionPeople(s));
   if (appSection === "agents") parts.push(...sectionAgents(s));
@@ -2218,7 +2220,88 @@ function renderSection() {
   if (appSection === "settings") parts.push(...sectionSettings(s));
   if (appSection === "network") parts.push(...sectionNetwork(s));
   if (appSection === "data") parts.push(...sectionData(s));
+  if (appSection === "terminal") parts.push(...sectionTerminal(s));
   box.replaceChildren(...parts);
+}
+
+// ---------------------------------------------------------------------------
+// an app's Terminal: a shell in one of its boxes, for the machine's owner
+// (hi_admin.md, release 7), as the dev page's terminal is.
+
+let adminTerm = null; // the open terminal: { app, box, term, fit, socket, node }
+
+function closeTerm() {
+  if (!adminTerm) return;
+  const t = adminTerm;
+  adminTerm = null;
+  t.closing = true;
+  if (t.socket) t.socket.close();
+  if (t.observer) t.observer.disconnect();
+  t.term.dispose();
+}
+
+function sectionTerminal(s) {
+  const parts = [el("p", {}, "A shell in one of " + s.name + "'s boxes that run, as the box's own user. Not on the machine: the boxes hold none of the app's keys. Each terminal is said in Activity and the app's ops channel, and closes after 30 minutes without a key.")];
+  if (!s.you) parts.push(el("p", { class: "note" }, "Only the machine's owner" + (s.owner ? ", " + s.owner + "," : "") + " opens a terminal here. On the machine, hi admin owner <admin> hands it on."));
+  if (!s.boxes.length) {
+    if (adminTerm && adminTerm.app === s.name) closeTerm();
+    parts.push(el("p", { class: "muted" }, "None of " + s.name + "'s boxes runs now."));
+    return parts;
+  }
+  if (!s.you) {
+    parts.push(el("ul", { class: "list" }, ...s.boxes.map((b) => el("li", {}, b.label))));
+    return parts;
+  }
+  const mine = adminTerm && adminTerm.app === s.name;
+  const select = el("select", { "aria-label": "The box" });
+  for (const b of s.boxes) select.append(el("option", { value: b.id, selected: mine && adminTerm.box === b.id }, b.label));
+  parts.push(el("div", { class: "data-actions" }, select, el("button", { onclick: () => openTerm(s.name, select.value) }, mine ? "Open again" : "Open")));
+  if (mine) parts.push(adminTerm.node);
+  return parts;
+}
+
+function openTerm(app, box) {
+  closeTerm();
+  const screen = el("div", { class: "admin-term-screen" });
+  const why = el("p", { class: "muted small" });
+  const node = el("div", { class: "admin-term" }, why, screen);
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 13,
+    fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
+    // The dev page's colours: VS Code's 2026 Dark.
+    theme: {
+      background: "#121314", foreground: "#bfbfbf", cursor: "#bfbfbf", selectionBackground: "#3994bc33",
+      black: "#000000", red: "#cd3131", green: "#0dbc79", yellow: "#e5e510",
+      blue: "#2472c8", magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5",
+      brightBlack: "#666666", brightRed: "#f14c4c", brightGreen: "#23d18b", brightYellow: "#f5f543",
+      brightBlue: "#3b8eea", brightMagenta: "#d670d6", brightCyan: "#29b8db", brightWhite: "#e5e5e5",
+    },
+  });
+  const fit = new FitAddon.FitAddon();
+  term.loadAddon(fit);
+  const t = adminTerm = { app, box, term, fit, node, socket: null };
+  renderSection();
+  term.open(screen);
+  try { fit.fit(); } catch (e) { /* not drawn yet */ }
+  const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/app/term?name=" + encodeURIComponent(app) +
+    "&box=" + encodeURIComponent(box) + "&cols=" + term.cols + "&rows=" + term.rows;
+  const socket = t.socket = new WebSocket(url);
+  socket.binaryType = "arraybuffer";
+  const encoder = new TextEncoder();
+  socket.onopen = () => { why.textContent = ""; term.focus(); };
+  socket.onmessage = (event) => term.write(typeof event.data === "string" ? event.data : new Uint8Array(event.data));
+  socket.onclose = (event) => {
+    if (t.closing) return;
+    why.textContent = "The terminal closed" + (event.reason ? ": " + event.reason : "") + ". Open again opens a new one.";
+  };
+  term.onData((data) => { if (socket.readyState === 1) socket.send(encoder.encode(data)); });
+  const resize = () => {
+    try { fit.fit(); } catch (e) { return; }
+    if (socket.readyState === 1) socket.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
+  };
+  t.observer = new ResizeObserver(resize);
+  t.observer.observe(screen);
 }
 
 const levelOptions = [["owner", "Owner"], ["pro", "Pro Dev"], ["vibe", "Vibe Dev"], ["contributor", "Contributor"], ["none", "None"]];
