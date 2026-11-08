@@ -2713,6 +2713,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.95 — hi install asks for sudo only when it needs it
+
+- [x] Installing or removing only tools that go in the home folder (uv,
+  omp, claude, codex, agy, gemini-api, herdr) asks for no password, so
+  `hi install herdr` works over SSH without a terminal.
+- [x] Without herdr, an app's dev box and its NetBird peer say an admin
+  runs `hi install herdr`, not to fetch it from herdr.dev.
+
 ### v2.6.94 — No group-DM warning at the lead's start
 
 - [x] Hermes 0.23 warns at every start that group DMs won't work, since

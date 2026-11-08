@@ -449,7 +449,7 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 	}
 	herdr, err := boxHostBinary("herdr")
 	if err != nil {
-		return errors.New("herdr isn't installed on this machine, so the app has no dev box; install it from herdr.dev, then hi app dev " + name + " restart")
+		return errors.New("herdr isn't installed on this machine, so the app has no dev box, and no NetBird peer for its addresses; an admin runs hi install herdr there, then hi app dev " + name + " restart")
 	}
 	claude, err := boxHostBinary("claude")
 	if err != nil {

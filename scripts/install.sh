@@ -250,8 +250,23 @@ case ":$PATH:" in
   *) local_bin_on_path=0 ;;
 esac
 
-log "Requesting administrator access"
-sudo -v
+# Tools that go in the home folder, from their own installers, need no
+# root: installing or removing only these asks for no password, so it
+# works where sudo can't ask, as over SSH without a terminal.
+home_only=" uv omp claude codex agy gemini-api herdr "
+needs_root=0
+[[ -n "$requested_hostname" || "$upgrade" == "1" ]] && needs_root=1
+for id in "${install_ids[@]}" "${remove_ids[@]}"; do
+  [[ "$home_only" == *" $id "* ]] || needs_root=1
+done
+if [[ "$needs_root" == "0" ]] && ! command -v curl >/dev/null; then
+  needs_root=1 # curl comes with the base packages
+fi
+
+if [[ "$needs_root" == "1" ]]; then
+  log "Requesting administrator access"
+  sudo -v
+fi
 
 if [[ -n "$requested_hostname" ]]; then
   log "Changing hostname from $current_hostname to $requested_hostname"
@@ -265,7 +280,7 @@ for ((i = ${#remove_ids[@]} - 1; i >= 0; i--)); do
   remove_tool "${remove_ids[i]}"
 done
 
-if ((${#install_ids[@]} > 0)) || [[ "$upgrade" == "1" ]]; then
+if [[ "$needs_root" == "1" ]] && { ((${#install_ids[@]} > 0)) || [[ "$upgrade" == "1" ]]; }; then
   log "Installing base packages"
   sudo apt-get update
   apt_install ca-certificates curl wget gnupg python3-setuptools python3-wheel pipx wtmpdb
