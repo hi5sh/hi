@@ -540,6 +540,15 @@ func appKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
 		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	fmt.Fprintf(stdout, "App %s's Slack app tokens, from its settings at api.slack.com/apps. Enter keeps the one the app has.\n", name)
+	app, err := appAskKeep(stdin, stdout, "App-Level Token (Basic Information, xapp-…)", func(token string) error {
+		if token == "" {
+			return nil
+		}
+		return appCheckAppToken(token)
+	})
+	if err != nil {
+		return err
+	}
 	bot, err := appAskKeep(stdin, stdout, "Bot User OAuth Token (OAuth & Permissions, xoxb-…)", func(token string) error {
 		if token == "" {
 			return nil
@@ -549,15 +558,6 @@ func appKeySlack(name string, stdin io.Reader, stdout io.Writer) error {
 		}
 		_, err := appCheckChannel(appBotHandle(config), token, config.Channel)
 		return err
-	})
-	if err != nil {
-		return err
-	}
-	app, err := appAskKeep(stdin, stdout, "App-Level Token (Basic Information, xapp-…)", func(token string) error {
-		if token == "" {
-			return nil
-		}
-		return appCheckAppToken(token)
 	})
 	if err != nil {
 		return err

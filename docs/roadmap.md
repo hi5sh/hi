@@ -2713,6 +2713,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.99 — The app token first, then the bot token
+
+- [x] `hi app new`, `hi app key <app> slack`, `hi org slack setup`, and
+  the admin page's New app and Slack section ask for the app token
+  before the bot token: it's on the Basic Information page Slack opens
+  after Create, and the bot token comes after Install to Workspace.
+
 ### v2.6.98 — Slack's manifest link reads cleanly
 
 - [x] The admin page's **Create the Slack app** link carries the manifest

@@ -1819,11 +1819,10 @@ function renderDraft() {
       body.append(el("p", {}, "Each app has a Slack app of its own, made from a manifest hi writes for it."),
         el("ol", { class: "how" },
           el("li", {}, el("a", { class: "button-like rainbow", href: d.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
-          el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it."),
-          el("li", {}, "The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
-          el("li", {}, "The app token is under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…).")),
+          el("li", {}, "The app token is on the page Slack opens, under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…)."),
+          el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it. The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…).")),
         el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest, to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"), el("pre", { class: "job-output manifest" }, d.manifest)),
-        field("Bot token", bot), field("App token", app),
+        field("App token", app), field("Bot token", bot),
         d.workspace ? el("p", { class: "muted small" }, "Both work, in the workspace " + d.workspace + ".") : "");
       collect = () => ({ bot_token: bot.value.trim(), app_token: app.value.trim() });
       break;
@@ -2469,8 +2468,8 @@ function sectionSlack(s) {
     el("dl", { class: "facts" }, el("dt", {}, "Bot"), el("dd", {}, "@" + s.handle + " · " + s.slash), el("dt", {}, "Channel"), el("dd", {}, s.channel), el("dt", {}, "Tokens"), el("dd", {}, (s.has_bot ? "bot token set" : "no bot token") + ", " + (s.has_app ? "app token set" : "no app token"))),
     el("h2", {}, "Ops channel"), el("p", { class: "muted small" }, "A second channel for incidents, warnings, security, keys, and access, for the people with the know-how. Invite the app there first: /invite @" + s.handle + "."),
     el("div", { class: "data-actions" }, ops, el("button", { class: "small", onclick: () => change("ops", { channel: ops.value.trim() }) }, "Save")),
-    el("h2", {}, "Tokens"), el("p", { class: "muted small" }, "When Slack gave new ones: the bot token under OAuth & Permissions, the app token under Basic Information. Each is checked; the app restarts."),
-    field("Bot token", bot), field("App token", appToken), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("slack", { bot: bot.value.trim(), app_token: appToken.value.trim() }, "The tokens are kept; the app restarts.") }, "Check and keep")),
+    el("h2", {}, "Tokens"), el("p", { class: "muted small" }, "When Slack gave new ones: the app token under Basic Information, the bot token under OAuth & Permissions. Each is checked; the app restarts."),
+    field("App token", appToken), field("Bot token", bot), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("slack", { bot: bot.value.trim(), app_token: appToken.value.trim() }, "The tokens are kept; the app restarts.") }, "Check and keep")),
     el("h2", {}, "The Slack app's manifest"), el("p", { class: "muted small" }, "To update the Slack app after a hi update, or a rename: at api.slack.com/apps, open the app, App Manifest, paste this over it, Save, and reinstall if Slack asks."),
     el("div", { class: "data-actions" }, copy, el("a", { class: "button-like", href: "https://api.slack.com/apps", target: "_blank", rel: "noopener noreferrer" }, "Your Slack apps ↗")),
     el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest"), el("pre", { class: "job-output manifest" }, s.manifest)),

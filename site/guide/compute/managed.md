@@ -381,9 +381,9 @@ an outbound connection, so the server needs no public address.
    `hi org slack manifest`. Install it to your workspace.
 2. Create a private channel, such as `#compute-approvals`, and invite the
    app with `/invite @hi org`.
-3. On the server box, run `hi org slack setup`. It asks for the **Bot User
-   OAuth Token** (`xoxb-…`), an **App-Level Token** with `connections:write`
-   (`xapp-…`, under Basic Information), and the channel's ID (at the bottom
+3. On the server box, run `hi org slack setup`. It asks for an **App-Level
+   Token** with `connections:write` (`xapp-…`, under Basic Information),
+   the **Bot User OAuth Token** (`xoxb-…`), and the channel's ID (at the bottom
    of the channel's details). It posts a test message, then saves them.
 4. Add each approver by Slack member ID (profile → ⋮ → Copy member ID) and
    the `hi` user name they request compute as:

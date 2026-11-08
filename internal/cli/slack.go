@@ -950,20 +950,20 @@ func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	if isTerminal(stdin) {
 		fmt.Fprintln(stdout, "Create the Slack app from the manifest (`hi org slack manifest`) first.")
 	}
-	if config.BotToken, err = readSetting("Bot User OAuth Token (xoxb-…)", true, stdin, stdout); err != nil {
+	if config.AppToken, err = readSetting("App-Level Token with connections:write (xapp-…)", true, stdin, stdout); err != nil {
 		return err
 	}
-	if config.AppToken, err = readSetting("App-Level Token with connections:write (xapp-…)", true, stdin, stdout); err != nil {
+	if config.BotToken, err = readSetting("Bot User OAuth Token (xoxb-…)", true, stdin, stdout); err != nil {
 		return err
 	}
 	if config.Channel, err = readSetting("Channel ID of the private approvals channel (C…)", false, stdin, stdout); err != nil {
 		return err
 	}
 	switch {
-	case !strings.HasPrefix(config.BotToken, "xoxb-"):
-		return errors.New("the bot token starts with xoxb-; find it under OAuth & Permissions")
 	case !strings.HasPrefix(config.AppToken, "xapp-"):
 		return errors.New("the app-level token starts with xapp-; create one under Basic Information with connections:write")
+	case !strings.HasPrefix(config.BotToken, "xoxb-"):
+		return errors.New("the bot token starts with xoxb-; find it under OAuth & Permissions")
 	case !strings.HasPrefix(config.Channel, "C") && !strings.HasPrefix(config.Channel, "G"):
 		return errors.New("use the channel's ID, such as C0123456789, not its name; it is at the bottom of the channel's details")
 	}

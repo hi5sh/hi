@@ -200,7 +200,7 @@ func TestTeamWizard(t *testing.T) {
 	answers := strings.Join([]string{
 		"Åsa Berg", // the lead's name
 		"Track supplier payments for the finance admins",
-		"xoxb-bot", "xapp-app",
+		"xapp-app", "xoxb-bot",
 		"\x1b[201~C07PAYMENTS", // the end of a pasted token's marker, left over
 		"C07PAYOPS",            // the ops channel
 		"U07OWNER1, U07OWNER2",
@@ -826,7 +826,7 @@ func TestTeamMovedFolder(t *testing.T) {
 
 func TestTeamWizardRefusesAWrongAnswer(t *testing.T) {
 	setupTeamTest(t)
-	answers := "\nx\nxoxb-bot\nxapp-app\n#payments\n"
+	answers := "\nx\nxapp-app\nxoxb-bot\n#payments\n"
 	var out bytes.Buffer
 	err := appNew([]string{"payments"}, strings.NewReader(answers), &out)
 	if err == nil || !strings.Contains(err.Error(), `a channel ID looks like C07ABC123, not "#payments"`) {

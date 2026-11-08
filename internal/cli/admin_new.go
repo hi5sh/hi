@@ -488,7 +488,7 @@ func adminSaveStep(input adminStepInput) (adminDraft, error) {
 		case "slack":
 			bot, app := strings.TrimSpace(firstNonEmpty(input.BotToken, draft.BotToken)), strings.TrimSpace(firstNonEmpty(input.AppToken, draft.AppToken))
 			if bot == "" || app == "" {
-				return errors.New("give both tokens: the bot token (xoxb-…) and the app token (xapp-…)")
+				return errors.New("give both tokens: the app token (xapp-…) and the bot token (xoxb-…)")
 			}
 			workspace, err := appCheckBotToken(bot)
 			if err != nil {

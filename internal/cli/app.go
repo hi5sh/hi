@@ -1333,21 +1333,21 @@ func appWizard(name, dir string, adopt *appAdoption, stdin io.Reader, stdout io.
 
 	appStep(stdout, styled, "3/10 Slack app")
 	appSay(stdout, styled, "Each app has a Slack app of its own. Create it from this manifest:",
-		"  api.slack.com/apps → Create New App → From a manifest → YAML → paste it → Create,",
-		"  then Install to Workspace.")
+		"  api.slack.com/apps → Create New App → From a manifest → YAML → paste it → Create.")
 	if err := appShowManifest(stdin, stdout, styled, *config); err != nil {
 		return answers, secrets, err
 	}
-	appSay(stdout, styled, "The bot token is under OAuth & Permissions (xoxb-…). The app token is under",
-		"Basic Information → App-Level Tokens: generate one with the connections:write scope (xapp-…).")
+	appSay(stdout, styled, "The app token is on the page Slack opens, Basic Information → App-Level Tokens:",
+		"generate one with the connections:write scope (xapp-…).")
+	if secrets.SlackAppToken, err = appAskUntil(stdin, stdout, "App token", true, appCheckAppToken); err != nil {
+		return answers, secrets, err
+	}
+	appSay(stdout, styled, "Then Install to Workspace; the bot token is under OAuth & Permissions (xoxb-…).")
 	workspace := ""
 	if secrets.SlackBotToken, err = appAskUntil(stdin, stdout, "Bot token", true, func(token string) error {
 		workspace, err = appCheckBotToken(token)
 		return err
 	}); err != nil {
-		return answers, secrets, err
-	}
-	if secrets.SlackAppToken, err = appAskUntil(stdin, stdout, "App token", true, appCheckAppToken); err != nil {
 		return answers, secrets, err
 	}
 	appSay(stdout, styled, fmt.Sprintf("Slack: both tokens work, in workspace %s.", workspace))

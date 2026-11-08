@@ -422,7 +422,7 @@ hi team discard dev --approval <id>              dev's code back to production's
    events, and slash commands are those Hermes needs, from
    `hermes slack manifest` with hi's additions. hi tells the user to
    create the app from it (Create New App → From a manifest) and install
-   it, then asks for the bot token and the app token without echo, and
+   it, then asks for the app token and the bot token without echo, and
    checks both.
 3. **Channel.** The channel ID; hi checks the bot is in it.
 4. **People.** Owners and who may ask for work, as Slack members.
