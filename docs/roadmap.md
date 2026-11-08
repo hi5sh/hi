@@ -2713,6 +2713,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.97 — What an app needs, installed from the page
+
+- [x] hi_admin.md release 8: New app checks what every app needs on the
+  machine before its steps (Podman, Hermes, herdr, restic, start at
+  boot), and Create what the answers add (Claude Code, Codex, gh,
+  glab); **Install** and **Install all** run `hi install` as a job, and
+  the machine's view has the same list. What needs root takes the sudo
+  password typed on the page, which the job's sudo asks the page for
+  over its own socket: never on disk, in an argument, or in a log.
+- [x] `hi install linger` lets the account's services run after logout
+  and start at boot.
+
 ### v2.6.96 — A terminal in an app's boxes
 
 - [x] hi_admin.md release 7: an app's **Terminal** section on the admin

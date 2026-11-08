@@ -188,6 +188,7 @@ remove_tool() {
       ;;
     glab) apt_remove glab ;;
     podman) apt_remove podman ;;
+    linger) sudo loginctl disable-linger "$target_user" ;;
     restic) apt_remove restic ;;
     claude)
       rm -f "$HOME/.local/bin/claude"
@@ -367,6 +368,12 @@ if installing podman; then
     fi
   done
   podman system migrate >/dev/null 2>&1 || true
+fi
+# The account's services, hi's apps among them, run without a login and
+# start at boot.
+if installing linger; then
+  log "Letting $target_user's services run after logout and at boot"
+  sudo loginctl enable-linger "$target_user"
 fi
 if installing strix; then
   log "Installing amd-debug-tools"

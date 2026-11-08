@@ -85,6 +85,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | Bun                | `bun`      | `bun` and `bunx`, the latest release, checked against its sums |
 | Docker             | `docker`   | Docker Engine, Buildx, Docker Compose                     |
 | Podman             | `podman`   | Rootless Podman with `crun`, `uidmap`, and `passt`; a subordinate ID range if the user has none |
+| Start at boot      | `linger`   | `loginctl enable-linger` for you: your services, hi's apps among them, run after logout and start at boot |
 | Claude Code        | `claude`   | `claude`                                                  |
 | Codex CLI          | `codex`    | `codex`                                                   |
 | Antigravity CLI    | `agy`      | `agy`, Google's coding agent (sign in with `agy`)         |
@@ -99,8 +100,9 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | Strix Halo support | `strix`    | AMD ROCm 10 for `gfx1151`, amd-debug-tools, `render` and `video` group membership |
 | Update everything  | `upgrade`  | All available Ubuntu upgrades; reinstalls checked tools   |
 
-Any install also sets up curl, wget, gnupg, pipx, and wtmpdb, which are never
-removed.
+Any install that needs sudo also sets up curl, wget, gnupg, pipx, and wtmpdb,
+which are never removed. Installing only tools that go in your home folder (uv,
+omp, Claude Code, Codex, Antigravity, Gemini API, herdr) asks for no password.
 
 The AI coding tools, Bun, and the compute CLIs are installed for your user in
 `~/.local/bin`; the rest are system packages. Open a new shell afterwards so

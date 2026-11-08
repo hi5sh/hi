@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Release 7, [a terminal in an app's boxes](#a-terminal-in-an-apps-boxes), approved 2026-11-08 and shipped as v2.6.96, and release 8, [what an app needs, installed from the page](#what-an-app-needs-installed-from-the-page), approved the same day. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Release 7, [a terminal in an app's boxes](#a-terminal-in-an-apps-boxes), approved 2026-11-08 and shipped as v2.6.96, and release 8, [what an app needs, installed from the page](#what-an-app-needs-installed-from-the-page), approved the same day and shipped as v2.6.97. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running

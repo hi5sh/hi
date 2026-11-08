@@ -68,6 +68,9 @@ func setupAdminTest(t *testing.T) adminTest {
 	adminBoxCgroups = func() map[string]string { return map[string]string{} }
 	adminFolderSize = func(string) int64 { return 42 }
 	adminUsageEvery = time.Hour // one sample per test
+	present := adminNeedPresent
+	adminNeedPresent = func(string) bool { return true }
+	t.Cleanup(func() { adminNeedPresent = present })
 	t.Cleanup(func() {
 		adminLaunch, adminPost, adminDM, adminJobAlive, adminJournal, appSystemctl, adminLatest, appLingers = launch, post, dm, alive, journal, systemctl, latest, lingers
 		adminOrgDir, adminBoxCgroups, adminFolderSize, adminUsageEvery = orgDir, boxes, folder, every

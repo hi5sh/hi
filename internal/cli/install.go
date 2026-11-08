@@ -38,6 +38,9 @@ type installItem struct {
 	keeps string
 	// action items run every time they are checked and are never installed.
 	action bool
+	// present, when set, says whether it is installed, for what is neither
+	// a command nor a package.
+	present func() bool
 }
 
 var installItems = []installItem{
@@ -57,6 +60,8 @@ var installItems = []installItem{
 		packages: []string{"docker-ce"}, keeps: "Docker keeps its images and volumes in /var/lib/docker."},
 	{id: "podman", title: "Podman", description: "rootless containers that run as you, for hi box",
 		packages: []string{"podman"}, keeps: "Podman keeps your images and containers in ~/.local/share/containers."},
+	{id: "linger", title: "Start at boot", description: "your services, hi's apps among them, run after you log out and start at boot (loginctl enable-linger)",
+		present: func() bool { return appLingers() }},
 	{id: "claude", title: "Claude Code", description: "Anthropic's coding agent (claude)",
 		commands: []string{"claude"}, keeps: "Claude Code keeps its settings in ~/.claude."},
 	{id: "codex", title: "Codex CLI", description: "OpenAI's coding agent (codex)",
@@ -101,6 +106,9 @@ func findInstallItem(id string) (installItem, bool) {
 var itemInstalled = func(item installItem) bool {
 	if item.action {
 		return false
+	}
+	if item.present != nil {
+		return item.present()
 	}
 	for _, name := range item.packages {
 		if !packageInstalled(name) {

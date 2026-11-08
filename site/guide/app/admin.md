@@ -79,6 +79,16 @@ is checked by the machine as it's given, the same checks as the
 terminal's, and kept, so a reload or a closed laptop loses nothing: the
 new apps under way are listed to carry on with, or discard.
 
+Before the steps, the page checks what every app needs on the machine:
+Podman, Hermes, herdr (the dev box, and with it the app's NetBird peer),
+restic (the snapshots), and **Start at boot** (lingering). At Create it
+checks what the answers add: Claude Code, Codex, gh, or glab. Whatever
+is missing has **Install**, and **Install all** installs the lot as one
+job. What needs root takes the sudo password of the account that runs
+hi, typed on the page: it goes to `sudo` for that job alone, and is
+never written to disk or a log. Start and Create wait until nothing is
+missing. The machine's view has the same list.
+
 1. **Lead:** its name, and the bot's handle it gives.
 2. **Purpose:** one sentence.
 3. **Slack app:** **Create the Slack app** opens Slack with the manifest
@@ -315,10 +325,10 @@ port 1984, which needs no root:
 - **What can't be undone asks first**, and says what it does.
 - **Only from the page itself:** every change is a POST from the page's
   own address, as JSON; another site's page can't make one.
-- **What needs root or the IT team** is never done: the page says the
-  command, or what to ask for. On a machine that doesn't keep the
-  account's services running without a login, that is
-  `sudo loginctl enable-linger <user>`.
+- **What needs root or the IT team** is never done, but for the tools
+  an app needs: those install with the sudo password typed on the page,
+  used once and not kept. For the rest, the page says the command, or
+  what to ask for.
 
 ## How it runs
 

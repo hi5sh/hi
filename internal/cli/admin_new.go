@@ -930,6 +930,10 @@ func (s *adminServer) adminCreate(name string, admin adminPerson) (adminJob, err
 			return adminJob{}, fmt.Errorf("app %s is being created already", name)
 		}
 	}
+	if err := adminNeedsMissingError(adminNeedsOf(name)); err != nil {
+		adminDraftMu.Unlock()
+		return adminJob{}, err
+	}
 	adminDraftMu.Unlock()
 	for _, step := range adminNewSteps {
 		if !draft.Done[step] {
@@ -1159,6 +1163,10 @@ func (s *adminServer) newRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 		var draft adminDraft
 		switch request.Action {
 		case "start":
+			// What every app needs comes first (hi_admin.md, release 8).
+			if err = adminNeedsMissingError(adminNeedsViewOf(adminNeedsBase())); err != nil {
+				break
+			}
 			draft, err = adminStartDraft(request.Name, request.Folder, admin.Name, request.From, request.Adopt)
 			if err == nil {
 				adminRecord(admin.Name, request.Name, "started a new app")

@@ -231,6 +231,13 @@ func adminJobMain(args []string, stderr io.Writer) int {
 		}
 	}()
 	executable, err := adminExecutable()
+	if err == nil {
+		// A job that installs what needs root: its sudo asks the page.
+		var done func()
+		if env, done, err = adminJobSudo(env, executable); err == nil {
+			defer done()
+		}
+	}
 	for _, args := range append([][]string{job.Args}, job.Then...) {
 		if err != nil {
 			break

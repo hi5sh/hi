@@ -239,3 +239,7 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 /* An app's Terminal: a shell in one of its boxes. */
 .admin-term { margin-top: 10px; }
 .admin-term-screen { height: min(70vh, 640px); background: #121314; border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px; }
+
+/* What an app needs on this machine. */
+.needs-list li { align-items: center; }
+.needs-list .dot { display: inline-block; vertical-align: middle; margin: 0 4px 2px 0; }

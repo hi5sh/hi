@@ -574,6 +574,8 @@ func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = adminServe(stderr)
 	case "__job":
 		return adminJobMain(rest, stderr)
+	case "__askpass":
+		return adminAskpassMain(rest, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "hi: unknown admin command %q\n\n%s\n", command, adminUsage)
 		return 2

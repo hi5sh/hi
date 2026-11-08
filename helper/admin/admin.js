@@ -733,9 +733,9 @@ function renderMachine(force) {
     el("p", {}, el("a", { href: state.address }, state.address)),
     el("p", { class: "muted small" }, state.line));
   if (state.policy) reach.append(el("p", { class: "small" }, "What to ask your IT team: ", el("span", { class: "copyable" }, state.policy), "."));
-  if (!state.lingers) {
-    reach.append(el("p", { class: "warn small" }, "The page and the apps stop when " + state.user + " logs out, and don't start at boot, until someone runs this on the machine: ", el("code", {}, "sudo loginctl enable-linger " + state.user)));
-  }
+  // What the apps need on this machine, Start at boot among it, with
+  // Install (hi_admin.md, release 8).
+  reach.append(el("h2", {}, "What the apps need here"), needsBox("", null));
   $("netbird-form").hidden = !state.needs_key;
   $("machine-user").textContent = state.user;
 
@@ -1665,7 +1665,7 @@ function renderNewHome() {
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Start from someone's project, to adopt it: the app keeps its own copy and never pushes to theirs"), adopt),
     el("label", { class: "field" }, el("span", { class: "muted small" }, "From a file: answers someone wrote before, as hi app new --from takes them (no secrets in it)"), file),
     error,
-    el("div", { class: "data-actions" }, el("button", { class: "primary", type: "submit" }, "Start")));
+    el("div", { class: "data-actions" }, el("button", { class: "primary", type: "submit", id: "new-start", disabled: true }, "Start")));
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     error.textContent = "";
@@ -1680,6 +1680,8 @@ function renderNewHome() {
       renderDraft();
     } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
   });
+  parts.push(el("h2", {}, "What every app needs on this machine"),
+    needsBox("", (ready) => { const start = $("new-start"); if (start) start.disabled = !ready; }));
   parts.push(form);
 
   if (newHome.drafts.length) {
@@ -2107,6 +2109,62 @@ function renderCode(body, d) {
   };
 }
 
+// What an app needs on this machine (hi_admin.md, release 8): each tool,
+// with Install, and Install all; what needs root takes the machine's
+// sudo password, which the page passes to that install alone. ready says
+// whether nothing is missing, each time the list is drawn.
+function needsBox(name, ready) {
+  const box = el("div", { class: "needs" }, el("p", { class: "muted small" }, "Checking what an app needs on this machine…"));
+  let busy = "";
+  const draw = async () => {
+    let view;
+    try { view = await api("/api/needs" + (name ? "?name=" + encodeURIComponent(name) : "")); } catch (e) {
+      // The server checks again at Start and Create: the buttons stay usable.
+      if (!(e instanceof SignIn)) box.replaceChildren(el("p", { class: "error small" }, e.message));
+      if (ready) ready(true);
+      return;
+    }
+    const missing = view.needs.filter((n) => !n.present);
+    const password = missing.some((n) => n.root) ? input({ type: "password", placeholder: "The sudo password of the account that runs hi", "aria-label": "The machine's sudo password", autocomplete: "new-password" }) : null;
+    const error = el("p", { class: "error small" });
+    const install = async (ids) => {
+      error.textContent = "";
+      const root = view.needs.some((n) => ids.includes(n.id) && n.root);
+      if (root && password && !password.value) { error.textContent = "What needs root takes the machine's sudo password."; password.focus(); return; }
+      try {
+        const job = await api("/api/needs", { ids, password: root && password ? password.value : "" });
+        busy = job.id;
+        toast("Installing. Jobs has its output.", true);
+        draw();
+        const wait = async () => {
+          let answer;
+          try { answer = await api("/api/job?id=" + encodeURIComponent(job.id) + "&from=0"); } catch (e) { setTimeout(wait, 2000); return; }
+          if (answer.job.state === "running") { setTimeout(wait, 2000); return; }
+          busy = "";
+          if (answer.job.state === "failed") toast("Installing failed: Jobs has why.", true);
+          draw();
+        };
+        setTimeout(wait, 2000);
+      } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
+    };
+    const rows = view.needs.map((n) => el("li", {},
+      el("span", { class: "what" }, el("span", { class: "dot " + (n.present ? "idle" : "bad"), "aria-hidden": "true" }), " ", el("strong", {}, n.title), " ",
+        el("span", { class: "muted small" }, n.for + (n.present ? "" : n.root ? " · missing, needs the sudo password" : " · missing"))),
+      n.present || busy ? "" : el("button", { class: "small", onclick: () => install([n.id]) }, "Install")));
+    const parts = [el("ul", { class: "list needs-list" }, ...rows)];
+    if (busy) parts.push(el("p", { class: "muted small" }, "Installing: Jobs follows it, and this list checks again when it's done."));
+    else if (missing.length) {
+      if (password) parts.push(field("For what needs root, the sudo password of the account that runs hi: used for this install alone, never kept", password));
+      if (missing.length > 1) parts.push(el("div", { class: "data-actions" }, el("button", { class: "primary", onclick: () => install(missing.map((n) => n.id)) }, "Install all")));
+      parts.push(error);
+    }
+    box.replaceChildren(...parts);
+    if (ready) ready(missing.length === 0 && !busy);
+  };
+  draw();
+  return box;
+}
+
 function renderReview(body, d) {
   const c = d.config;
   const facts = el("dl", { class: "facts" });
@@ -2128,7 +2186,7 @@ function renderReview(body, d) {
   fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later: its addresses don't work until it does, with a setup key in its Network") + "; addresses " + (c.addresses || "on this machine's domain"));
   fact("Heartbeat", d.heartbeat || "none");
   body.append(el("p", {}, "Create makes it as hi app new would with these answers, then starts it. Jobs follows it, and the app opens here when it's up."), facts);
-  const create = el("button", { class: "primary", disabled: d.job_state === "running", onclick: async () => {
+  const create = el("button", { class: "primary", disabled: true, onclick: async () => {
     create.disabled = true;
     try {
       const job = await api("/api/new", { action: "create", name: d.name });
@@ -2138,6 +2196,8 @@ function renderReview(body, d) {
       loadDraft(d.name, false);
     } catch (e) { create.disabled = false; if (!(e instanceof SignIn)) $("step-error").textContent = e.message; }
   } }, "Create " + d.name);
+  body.append(el("h2", {}, "What it needs on this machine"),
+    needsBox(d.name, (ready) => { create.disabled = !ready || d.job_state === "running"; }));
   body.append(el("div", { class: "data-actions" }, el("button", { onclick: () => { newStep = newSteps.length - 1; renderDraft(); } }, "Back"), create));
 }
 let creating = null;

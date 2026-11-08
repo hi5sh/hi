@@ -55,6 +55,9 @@ type adminServer struct {
 	askedAll []time.Time
 	lingers  bool
 	lingerAt time.Time
+	// askpass keeps the sudo password of a job that installs what needs
+	// root, for that job alone (admin_needs.go).
+	askpass adminAskpass
 	// sampler is what the machine and its apps use (admin_usage.go).
 	sampler adminSampler
 	// names are people's names from Slack, for a while (admin_settings.go).
@@ -118,6 +121,12 @@ func adminServe(stderr io.Writer) error {
 		return err
 	}
 	go s.serveOn(serveHTTPS(secure, &s.certs))
+	// The jobs' sudo asks here for the password typed on the page.
+	if askpass, err := listen(adminAskpassSocket()); err != nil {
+		s.logf("the password socket: %v", err)
+	} else {
+		go s.serveAskpass(askpass)
+	}
 	// On the machine itself, for an SSH tunnel; another account's admin
 	// page may have the port.
 	if local, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", adminPort)); err != nil {
@@ -333,6 +342,24 @@ func (s *adminServer) routes() http.Handler {
 			return
 		}
 		reply(w, http.StatusOK, detail)
+	}))
+	mux.HandleFunc("GET /api/needs", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		reply(w, http.StatusOK, adminNeedsOf(r.URL.Query().Get("name")))
+	}))
+	mux.HandleFunc("POST /api/needs", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			IDs      []string `json:"ids"`
+			Password string   `json:"password"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		job, err := s.installJob(request.IDs, request.Password, admin)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, job)
 	}))
 	mux.HandleFunc("GET /api/app/terminal", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		view, err := adminTermViewOf(r.URL.Query().Get("name"), admin)
