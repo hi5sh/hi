@@ -2713,6 +2713,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.94 — No group-DM warning at the lead's start
+
+- [x] Hermes 0.23 warns at every start that group DMs won't work, since
+  an app's Slack app has no group-DM scopes; it has none on purpose
+  (people talk to the lead in the channel or one to one), so hi's plugin
+  in the lead drops that one line.
+
 ### v2.6.93 — Addresses wait for NetBird; the lead gets Slack from Hermes 0.23
 
 - [x] An app's Overview says its addresses aren't reachable until it

@@ -189,6 +189,7 @@ def _note_reads(tool_name="", result=None, turn_id="", session_id="", **_):
 def register(ctx):
     for name in COMMANDS:
         ctx.register_command(name, handler=_hi, description=DESCRIPTION)
+    _quiet_group_dms()
     register_action = getattr(ctx, "register_slack_action_handler", None)
     if register_action:  # a Hermes without it: the dev page's buttons still answer
         register_action("hi_site_allow", _site_button(True))
@@ -203,6 +204,25 @@ def register(ctx):
             commands_platforms.slack_native_slashes = _put_first(commands_platforms.slack_native_slashes)
     except Exception:
         pass
+
+
+GROUP_DM_WARNING = "[Slack] Group DMs (multi-person DMs) will not work"
+
+
+def _quiet_group_dms():
+    """An app's Slack app asks for no group-DM scopes on purpose: people
+    talk to the lead in the channel or one to one. Hermes 0.23 warns at
+    every start that group DMs won't work; that one line goes."""
+    import logging
+
+    def keep(record):
+        return not str(record.msg).startswith(GROUP_DM_WARNING)
+
+    for name in ("hermes_plugins.platforms__slack.adapter", "plugins.platforms.slack.adapter"):
+        logger = logging.getLogger(name)
+        if not any(getattr(f, "hi_app", False) for f in logger.filters):
+            keep.hi_app = True
+            logger.addFilter(keep)
 
 
 def _guard_dms():
