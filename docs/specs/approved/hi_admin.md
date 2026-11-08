@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Release 7, [a terminal in an app's boxes](#a-terminal-in-an-apps-boxes), proposed 2026-11-08, waits for approval. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Release 7, [a terminal in an app's boxes](#a-terminal-in-an-apps-boxes), proposed 2026-11-08, and release 8, [what an app needs, installed from the page](#what-an-app-needs-installed-from-the-page), proposed the same day, wait for approval. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -378,6 +378,53 @@ isn't kept: the people's data that a terminal shows stays theirs.
 boxes), none in the box proxies or the NetBird peer (their keys and
 the network are the machine's), and none from a wall link.
 
+## What an app needs, installed from the page
+
+Release 8. An app needs tools on its machine that a fresh machine may
+lack, and today the first anyone hears of one is a failed Create or an
+alert hours later: a test machine's first app had no herdr (so no dev box, and
+no NetBird peer for its addresses) and no restic (so no snapshots). The
+page checks first, and installs what's missing when an admin presses
+**Install**.
+
+**What it checks.** At the start of **New app**, before the steps, what
+every app needs:
+
+| Needs | For | Root |
+|---|---|---|
+| podman | every box | yes |
+| Hermes, with its Slack support | the lead | no |
+| herdr | the dev box, and so the NetBird peer and the addresses | no |
+| restic | the snapshots | yes |
+| Lingering (`loginctl enable-linger`) | the app running after logout and at boot | yes |
+
+And at **Create**, what the answers need: Claude Code for a role on
+Claude, Codex for one on Codex, gh or glab for a copy on GitHub or
+GitLab. The same list is on the machine's view, for the apps it has.
+
+**What it looks like.** A list, each with a dot and what it's for;
+what's missing has **Install**. **Install all** installs every missing
+one in one job, which Jobs follows as it follows Create. The steps
+start once nothing required is missing; Create waits the same way for
+what the answers need.
+
+**Root, with the machine's password.** For what needs root, the page
+asks for the sudo password of the account that runs hi, in a password
+field beside Install. It goes in the job's request, to `sudo` through a
+pipe for that job alone: never written to disk, never in the job's
+arguments, its log, or Activity, and gone when the job ends. A wrong
+password is said as sudo says it. The page can't do more than the
+password lets anyone do in a terminal. Installing only what needs no
+root asks for nothing (`hi install` asks for sudo only when it needs
+it, since v2.6.95). This replaces, for these tools only, "what needs
+root is never done" in [Safety](#safety).
+
+**Who.** Any of the machine's admins: the password is what decides,
+not the page.
+
+**Every install is said** in Activity: "Olga installed herdr and restic
+from the admin page", without the password.
+
 ## New app
 
 `hi app new`'s ten steps, as pages with **Back** and **Next**. Each
@@ -440,7 +487,10 @@ it's up. **From a file** takes answers someone wrote before, as
 - **What needs root or the IT team** (podman, lingering, packages,
   NetBird's policies, DNS records, the wall's screens) is never done.
   The page says which command an admin runs on the machine, or what to
-  ask the IT team, with the text to copy.
+  ask the IT team, with the text to copy. From release 8, the tools an
+  app needs are the exception: installed with the sudo password typed
+  on the page, used once and not kept (see [What an app needs,
+  installed from the page](#what-an-app-needs-installed-from-the-page)).
 
 ## What stays on the command line
 
@@ -643,6 +693,12 @@ hi admin address [<host> [--https] | default]
    said in Activity and the ops channel, closed after 30 idle minutes;
    `hi admin owner`.
    [A terminal in an app's boxes](#a-terminal-in-an-apps-boxes) has it.
+
+8. **What an app needs, installed from the page:** the check at New
+   app's start and at Create, and on the machine's view; Install and
+   Install all as a job; the sudo password for what needs root, piped
+   to sudo for that job and never kept.
+   [What an app needs, installed from the page](#what-an-app-needs-installed-from-the-page) has it.
 
 ## Later
 
