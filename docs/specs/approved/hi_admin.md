@@ -1,6 +1,6 @@
 # `hi admin`: a machine's apps and its org server, without the command line
 
-Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Decided 2026-11-06: admins only; at
+Status: Approved (2026-11-06). Release 1 shipped as v2.6.77, release 2 as v2.6.78, release 3 as v2.6.81, release 4 as v2.6.83, release 5 as v2.6.84. Release 6, [a machine that runs both](#a-machine-that-runs-both), approved 2026-11-07 and shipped as v2.6.86. Release 7, [a terminal in an app's boxes](#a-terminal-in-an-apps-boxes), proposed 2026-11-08, waits for approval. Decided 2026-11-06: admins only; at
 `admin.<domain>` unless the IT team names it; port 1984; the org server's
 management is here too, on a machine that runs one. Decided later the
 same day: `hi org live` and the terminal wall go, and the page's Running
@@ -338,6 +338,46 @@ and one Activity for both.
   that an org of more than a few people puts its server on a small VM
   of its own. A machine with both is for a small org, or to try one.
 
+## A terminal in an app's boxes
+
+Release 7. An admin who fixes an app sometimes needs to look inside one
+of its boxes: why the lead won't start, what production's data folder
+holds, whether a package is there. Today that is `podman exec` over SSH,
+which an admin who has never used a terminal can't do, and the dev
+page's terminal reaches only the dev box, and only for the app's owners
+and Pro Devs.
+
+**What it reaches.** An app's boxes, one at a time: the lead's,
+production's, Stage's, the dev box, and the memory's (each as it runs;
+one that doesn't run isn't offered). Not the machine: the account that
+runs hi holds every app's keys and the org's provider keys, so there is
+still no shell on it (see [Safety](#safety)). The boxes hold no keys of
+the app's: the proxy beside each adds them, so a terminal in a box shows
+what the app and its agents see, and nothing more.
+
+**Who.** The machine's owner only: the org's owner on a machine that
+runs the org with its admins not apart, else the first admin `hi admin
+start` made, as `admin.json` records. Other admins see the section, and
+that the owner can open one. Handing the machine on (`hi admin owner
+<name>`) is a command, as the org's owner's is.
+
+**What it looks like.** A **Terminal** section in the app, after Data:
+a picker of the boxes that run, and the terminal below it, xterm.js
+over a WebSocket, as the dev page's terminal is. It runs a shell in the
+box (`bash`, else `sh`) as the box's own user, not root, in the box's
+working folder. It closes when its tab does, after 30 minutes without a
+key, and when the owner's sign-in ends; the shell goes with it, nothing
+keeps running.
+
+**Every terminal is said**, as every change is: in Activity and in the
+app's ops channel (or its channel), "Olga opened a terminal in demo's
+production box, from the admin page", and when it closed. What's typed
+isn't kept: the people's data that a terminal shows stays theirs.
+
+**What it doesn't do:** no terminal in the org server (it runs no
+boxes), none in the box proxies or the NetBird peer (their keys and
+the network are the machine's), and none from a wall link.
+
 ## New app
 
 `hi app new`'s ten steps, as pages with **Back** and **Next**. Each
@@ -382,7 +422,9 @@ it's up. **From a file** takes answers someone wrote before, as
   the command line (`hi app backups <app> --show-key`).
 - **No shell, no file browser.** The account that runs hi holds more
   than the apps. The admin page has no terminal on the machine and lists
-  no folders. The one path anyone types is a folder to adopt, which is
+  no folders. Its one terminal, from release 7, is inside an app's box,
+  for the machine's owner (see [A terminal in an app's
+  boxes](#a-terminal-in-an-apps-boxes)). The one path anyone types is a folder to adopt, which is
   copied without its secrets, as `hi app adopt` does.
 - **What can't be undone asks first,** with the app's name typed:
   removing an app, a restore, a rollback, copying Stage's data to
@@ -595,6 +637,12 @@ hi admin address [<host> [--https] | default]
    before the server starts; an org in `--dir` isn't the machine's, and
    skips these steps. Jobs isn't among the org's views: following a job
    from there opens Home.
+
+7. **A terminal in an app's boxes:** the app's Terminal section, its
+   picker of the boxes that run, a shell in one for the machine's owner,
+   said in Activity and the ops channel, closed after 30 idle minutes;
+   `hi admin owner`.
+   [A terminal in an app's boxes](#a-terminal-in-an-apps-boxes) has it.
 
 ## Later
 
