@@ -2713,6 +2713,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.93 — Addresses wait for NetBird; the lead gets Slack from Hermes 0.23
+
+- [x] An app's Overview says its addresses aren't reachable until it
+  joins NetBird, with the way to its Network, and offers no Open for
+  them until then; the new-app steps say so when the key is left out.
+- [x] An app's lead on Hermes 0.23 or later, whose gateways' packages
+  are extras installed on first use, gets Slack's: hi installs the
+  extra once before the lead starts, and makes the leases folder of an
+  environment Hermes hasn't run from yet, which the box can't.
+
 ### v2.6.92 — An app with its own OpenRouter key needs no machine key
 
 - [x] `hi app new`, `hi app up`, and the app's server check the app's

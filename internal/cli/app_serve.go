@@ -59,6 +59,10 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// The lead talks in Slack.
+	if runtime, err = hermesWithExtra(runtime, "slack", stderr); err != nil {
+		return err
+	}
 	engine, warning, err := detectBoxEngine()
 	if err != nil {
 		return err

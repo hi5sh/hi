@@ -504,14 +504,21 @@ function renderOverview() {
   if (d.error) parts.push(el("p", { class: "error" }, d.error));
 
   // Where it is.
+  // Every address goes through the app's NetBird peer: until it joins,
+  // they're names nobody reaches, so they don't open.
   const where = el("ul", { class: "list where-list" });
   for (const address of d.addresses) {
     where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, address.what), " ", el("span", { class: "muted small" }, shown(address.url))),
-      el("a", { class: "button-like small", href: address.url, target: "_blank", rel: "noopener noreferrer" }, "Open ↗")));
+      d.joined ? el("a", { class: "button-like small", href: address.url, target: "_blank", rel: "noopener noreferrer" }, "Open ↗") : ""));
   }
   where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_page || "while the app runs")),
-    el("button", { class: "small", onclick: () => openDevPage(d.name) }, "Open ↗")));
-  parts.push(el("h2", {}, "Addresses"), where);
+    d.joined ? el("button", { class: "small", onclick: () => openDevPage(d.name) }, "Open ↗") : ""));
+  parts.push(el("h2", {}, "Addresses"));
+  if (!d.joined) {
+    parts.push(el("p", { class: "note warn" }, "Not reachable yet: " + d.name + " hasn't joined NetBird, which its addresses go through. Give it a setup key in ",
+      el("button", { class: "link-button", onclick: () => showSection("network") }, "Network"), "."));
+  }
+  parts.push(where);
 
   // What it can do.
   const actions = el("div", { class: "data-actions" });
@@ -1902,7 +1909,7 @@ function renderDraft() {
       const options = [];
       if (m.domain) options.push(["domain", "This machine's domain, on https: " + m.domain + " and the like"]);
       options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", "The NetBird name, " + m.peer + ", on plain http"]);
-      body.append(el("p", {}, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there. The dev box joins with a setup key, once: in NetBird's dashboard, Setup Keys. Without one now: hi app dev " + d.name + " netbird, later."),
+      body.append(el("p", {}, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there. The dev box joins with a setup key, once: in NetBird's dashboard, Setup Keys. Without one now, nobody reaches its addresses or its dev page until it joins, with a key in the app's Network, or hi app dev " + d.name + " netbird."),
         field("NetBird setup key", nb), el("h2", {}, "What the addresses are named"), radios("s-addr", options, choice, (v) => { choice = v; drawExtra(); }), extra);
       drawExtra();
       collect = () => ({ netbird_key: nb.value.trim(), addresses: choice, production: production.value.trim(), https: https.checked, host: host.value.trim() });
@@ -2117,7 +2124,7 @@ function renderReview(body, d) {
   fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
   if (d.code.gitlab) fact("GitLab", d.code.gitlab);
-  fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later") + "; addresses " + (c.addresses || "on this machine's domain"));
+  fact("Network", (d.has_netbird ? "joins NetBird now" : "joins NetBird later: its addresses don't work until it does, with a setup key in its Network") + "; addresses " + (c.addresses || "on this machine's domain"));
   fact("Heartbeat", d.heartbeat || "none");
   body.append(el("p", {}, "Create makes it as hi app new would with these answers, then starts it. Jobs follows it, and the app opens here when it's up."), facts);
   const create = el("button", { class: "primary", disabled: d.job_state === "running", onclick: async () => {

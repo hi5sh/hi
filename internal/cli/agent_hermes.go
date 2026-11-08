@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -152,10 +154,48 @@ func hermesMounts(runtime hermesRuntime, hermesHome string, run *[]string) error
 	}
 	inBox := boxState + "/environments/" + name
 	*run = append(*run, "-v", runtime.Environment+":"+inBox+":ro")
-	if leases := filepath.Join(runtime.Environment, ".leases"); fileExists(leases) {
-		*run = append(*run, "-v", leases+":"+inBox+"/.leases")
+	// An environment Hermes made but hasn't run from yet has no leases
+	// folder, and Hermes in the box can't make one in a read-only mount.
+	leases := filepath.Join(runtime.Environment, ".leases")
+	if err := os.MkdirAll(leases, 0o700); err != nil {
+		return err
 	}
+	*run = append(*run, "-v", leases+":"+inBox+"/.leases")
 	return nil
+}
+
+// hermesExtras are the dependency extras a Hermes with its own Python
+// has installed, from its facts.json.
+func hermesExtras(runtime hermesRuntime) []string {
+	var facts struct {
+		Packages struct {
+			Venv struct {
+				Extras []string `json:"extras"`
+			} `json:"venv"`
+		} `json:"packages"`
+	}
+	json.Unmarshal(runtime.Facts, &facts)
+	return facts.Packages.Venv.Extras
+}
+
+// hermesInstallExtra runs Hermes' own installer; tests replace it.
+var hermesInstallExtra = func(extra string) ([]byte, error) {
+	return exec.Command(hermesLauncher(), "pm", "install", "--extra", extra).CombinedOutput()
+}
+
+// hermesWithExtra makes sure Hermes has a dependency extra, such as slack
+// for an app's lead, and returns the runtime to run. Since Hermes 0.23
+// its gateways' packages are extras it installs on first use, which the
+// box's read-only mounts don't allow; so hi installs it here first, once.
+func hermesWithExtra(runtime hermesRuntime, extra string, stdout io.Writer) (hermesRuntime, error) {
+	if runtime.Environment == "" || slices.Contains(hermesExtras(runtime), extra) {
+		return runtime, nil
+	}
+	fmt.Fprintf(stdout, "hi: installing Hermes' %s support (hermes pm install --extra %s)\n", extra, extra)
+	if out, err := hermesInstallExtra(extra); err != nil {
+		return runtime, fmt.Errorf("installing Hermes' %s support: %s", extra, qFirstLine(strings.TrimSpace(string(out)), err.Error()))
+	}
+	return loadHermesRuntime()
 }
 
 // hermesWithSite puts a folder of packages on Hermes' path. Its own

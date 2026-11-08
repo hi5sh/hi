@@ -642,6 +642,7 @@ type adminAppView struct {
 	Production int            `json:"production"`
 	Incidents  int            `json:"incidents"`
 	Addresses  []adminAddress `json:"addresses"`
+	Joined     bool           `json:"joined"` // its peer is on NetBird, which every address goes through
 	Error      string         `json:"error,omitempty"`
 }
 
@@ -671,7 +672,7 @@ func adminAppOf(name string) adminAppView {
 		view.State, view.Error = "broken", err.Error()
 		return view
 	}
-	view.State, view.Purpose = adminAppState(name), config.Purpose
+	view.State, view.Purpose, view.Joined = adminAppState(name), config.Purpose, appPeerJoined(name)
 	if versions, err := loadTeamVersions(name); err == nil {
 		view.Production = versions.Production
 	}

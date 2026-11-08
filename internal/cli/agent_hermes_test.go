@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -171,8 +172,7 @@ func TestHermesRuntimeFromLauncher(t *testing.T) {
 	key := hex.EncodeToString(sum[:])[:16]
 	state := filepath.Join(hermes, "installs", key)
 	environment := filepath.Join(state, "environments", "g1")
-	os.MkdirAll(filepath.Join(environment, "venv"), 0o755)
-	os.MkdirAll(filepath.Join(environment, ".leases"), 0o755)
+	os.MkdirAll(filepath.Join(environment, "venv"), 0o755) // no .leases: Hermes hasn't run from it yet
 	writeSkillTestFile(t, filepath.Join(state, "facts.json"), `{"packages": {"venv": {"environment": "`+environment+`/venv", "resolved_lock": "`+environment+`/workspace/uv.lock"}}, "schema": 1}`, 0o600)
 	runtime, err := loadHermesRuntime()
 	if err != nil {
@@ -198,12 +198,37 @@ func TestHermesRuntimeFromLauncher(t *testing.T) {
 		"-v", environment + ":" + inBox + ":ro", "-v", environment + "/.leases:" + inBox + "/.leases"}; strings.Join(run, " ") != strings.Join(want, " ") {
 		t.Fatal(run)
 	}
+	if !fileExists(filepath.Join(environment, ".leases")) {
+		t.Fatal("no leases folder for the box to write in")
+	}
 	facts, _ := os.ReadFile(filepath.Join(lead, "installs", key, "facts.json"))
 	if !strings.Contains(string(facts), `"`+inBox+`/venv"`) || !strings.Contains(string(facts), inBox+"/workspace/uv.lock") || strings.Contains(string(facts), state) {
 		t.Fatal(string(facts))
 	}
 	if fileExists(filepath.Join(lead, "installs", key, "environments", "g0")) {
 		t.Fatal("an older environment's place is still there")
+	}
+
+	// An app's lead needs Hermes' Slack extra: hi installs it once, then
+	// runs on the environment Hermes made with it.
+	installs := 0
+	saved := hermesInstallExtra
+	hermesInstallExtra = func(extra string) ([]byte, error) {
+		installs++
+		if extra != "slack" {
+			t.Fatal(extra)
+		}
+		writeSkillTestFile(t, filepath.Join(state, "facts.json"), `{"packages": {"venv": {"environment": "`+environment+`/venv", "extras": ["all", "slack"]}}, "schema": 1}`, 0o600)
+		return nil, nil
+	}
+	t.Cleanup(func() { hermesInstallExtra = saved })
+	var said strings.Builder
+	slack, err := hermesWithExtra(runtime, "slack", &said)
+	if err != nil || installs != 1 || !slices.Contains(hermesExtras(slack), "slack") || !strings.Contains(said.String(), "pm install --extra slack") {
+		t.Fatal(installs, hermesExtras(slack), said.String(), err)
+	}
+	if _, err := hermesWithExtra(slack, "slack", &said); err != nil || installs != 1 {
+		t.Fatal("installed again:", installs, err)
 	}
 
 	with, ok := hermesWithSite(runtime.Command, "/home/u/.local/share/hi/hindsight")

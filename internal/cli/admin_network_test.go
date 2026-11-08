@@ -3,6 +3,7 @@ package cli
 import (
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -98,5 +99,18 @@ func TestAdminNetworkAndDataChanges(t *testing.T) {
 	var machine adminMachineNetwork
 	if code := a.get(t, olga, "/api/network", &machine); code != http.StatusOK || len(machine.Apps) != 1 || !strings.Contains(machine.Ask, "App payments") {
 		t.Fatalf("machine network: %d %+v", code, machine)
+	}
+}
+
+// The Overview knows whether the app's peer is on NetBird, which every
+// address goes through, so it doesn't offer addresses nobody reaches.
+func TestAdminOverviewSaysWhenTheAppIsntOnNetBird(t *testing.T) {
+	newAppTest(t)
+	if adminAppOf("payments").Joined {
+		t.Fatal("joined without a peer")
+	}
+	writeSkillTestFile(t, filepath.Join(appDevDir("payments"), "netbird", "default.json"), "{}", 0o600)
+	if !adminAppOf("payments").Joined {
+		t.Fatal("not joined with a peer")
 	}
 }
