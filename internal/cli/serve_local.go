@@ -969,7 +969,9 @@ func serveUnits(record servedModel, executable, modelsDir string, autostart bool
 		// At boot the NetBird address may come up after it: try again until then.
 		retry = "RestartSec=10\n"
 	}
-	front := header + "[Unit]\nDescription=hi serve " + record.Name + ": its front\nRequires=" + name + ".service\nAfter=" + name + ".service\nStartLimitIntervalSec=0\n\n[Container]\n" +
+	// BindsTo: a box that stopped on its own, killed for memory, takes its
+	// front with it, which Requires didn't, and the front held the port.
+	front := header + "[Unit]\nDescription=hi serve " + record.Name + ": its front\nBindsTo=" + name + ".service\nAfter=" + name + ".service\nStartLimitIntervalSec=0\n\n[Container]\n" +
 		"ContainerName=" + name + "-front\n" +
 		"Image=" + record.Image + "\n" +
 		"Pull=never\n" +
@@ -1151,6 +1153,9 @@ func serveStartCommand(args []string, stdout, stderr io.Writer) error {
 			return err
 		}
 	}
+	// A front left from before, by a box that ended on its own, holds the
+	// port: it goes first.
+	serveSystemctl("stop", "hi-serve-"+record.Name+"-front.service")
 	if !portsFree(record.Port, record.Address) {
 		return fmt.Errorf("port %d on %s, where %s is served, is in use by something else", record.Port, portPlaces(record.Address), record.Name)
 	}

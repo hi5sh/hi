@@ -505,6 +505,10 @@ func installSkillPlans(plans []skillPlan, options skillOptions, stdin io.Reader,
 				return err
 			}
 			if err := installSkillFiles(base, skill); err != nil {
+				// The ones installed before it stay recorded.
+				if writeErr := lock.write(); writeErr != nil {
+					return fmt.Errorf("%w; and the lock: %v", err, writeErr)
+				}
 				return err
 			}
 			lock.set(skill.Name, entry)
@@ -758,6 +762,13 @@ func skillUpdate(options skillOptions, stdin io.Reader, stdout io.Writer) error 
 		entry, _ := lock.entry(name)
 		result, err := updateOneSkill(name, entry, base, lockDir, commits, options, stdin, stdout)
 		if err != nil {
+			// The skills already updated on disk keep their records: the
+			// lock is written before the error is.
+			if changed {
+				if writeErr := lock.write(); writeErr != nil {
+					return fmt.Errorf("%w; and the lock: %v", err, writeErr)
+				}
+			}
 			return err
 		}
 		switch result.outcome {

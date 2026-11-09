@@ -2713,6 +2713,51 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.107 — Boxes, addresses, agents, and skills, put right
+
+- [x] `hi box rm` keeps a worktree when `git status` fails there, such as
+  when the project moved: a failure read as nothing uncommitted, and the
+  work was removed.
+- [x] The `hooks` and `config` of every git folder in the project, a
+  submodule's included, are read-only in a box, and a missing `hooks`
+  folder is made first, so the box can't plant a hook git runs here.
+- [x] A devcontainer's `build` from outside the project (`"context":
+  "../.."`) is refused: the image would have held the home folder.
+- [x] A repository's `"network": "open"` and `"data": true` ask once, as
+  its extra domains do.
+- [x] A box that failed to start takes its unused branch with it, so the
+  next start isn't refused.
+- [x] `hi box ls` no longer stops the proxy of a box still pulling its
+  image; `hi box diff` marks a risky file under a path with a space or an
+  accent.
+- [x] A box's proxy shares one connection pool for `http://`; each request
+  kept one open. A line the box sends can't be two in the network log,
+  where a forged one could add a spend. Gemini paths with `..` are
+  refused.
+- [x] `hi net expose`: no open redirect through a path of `//host`; the
+  app's own `Authorization` and cookies Go can't parse reach it; a
+  person's key goes only to a route that answers; a block named twice in
+  `--allow-ip` is one rule; one wait on `netbird expose`, not two.
+- [x] `hi agent best-of resume` runs in the run's project from anywhere;
+  it started the agents in the folder it was typed in.
+- [x] Two best-ofs, reviews, or brainstorms started at once get their own
+  numbers; they shared one run.
+- [x] best-of reads a move as both its sides (a file moved out of
+  `--edit` counts), and `café.py` as itself; a keep or rm in another
+  terminal while it waits stays; a failed winner's commit isn't counted
+  twice against `--budget`; an agent killed after its timeout ran out of
+  time, not failed.
+- [x] A brainstorm's idea that couldn't be written is failed, not done;
+  a review's findings are read as the box's other files are.
+- [x] `hi skill`: a lock file's URL, branch, or commit can't reach git as
+  an option (`--upload-pack=`), nor its names or paths leave the skills'
+  folders; `update` records the skills it updated before an error, and the
+  lock and bundles are written whole.
+- [x] `hi init --update` with a file named `docs` no longer hangs, and a
+  `hi:end` before `hi:begin` no longer makes the whole file hi's.
+- [x] `hi serve start` after the box was killed for memory: its front
+  stops with it now, and a front left from before goes first.
+
 ### v2.6.106 — An app's production, settings, and watch hold
 
 - [x] The lead's production tools: a call is passed on as hi read it.

@@ -180,7 +180,11 @@ that ignore `HTTPS_PROXY` fail instead of escaping.
 A repository can ask for more domains in `customizations.hi` of its
 `devcontainer.json`, but cannot grant
 them: the first use asks the user once, as direnv does, or the server policy
-allows them per group. When an agent hits a blocked domain, the proxy records
+allows them per group. The same goes for `"network": "open"` and
+`"data": true` (v2.6.107); without a yes the box gets `dev` and no data.
+A `build` whose context or Dockerfile is outside the project is refused,
+and every git folder's `hooks` and `config`, submodules' under `modules/`
+included, are read-only in the box. When an agent hits a blocked domain, the proxy records
 it and, with a server, posts it to Slack: *"fix-flaky-test (noor via Claude
 Code) wants files.pythonhosted.org — Allow once / Allow for project /
 Deny"*. The rule reloads without restarting the sandbox.

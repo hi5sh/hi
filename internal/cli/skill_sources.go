@@ -109,8 +109,31 @@ func skillGit(dir string, args ...string) (string, error) {
 	return out.String(), nil
 }
 
+// skillCommitPattern is a commit as a lock file records it.
+var skillCommitPattern = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
+
+// checkSkillGitWords refuses what would reach git as an option: a lock
+// file is a project's, and anyone can commit one whose sourceUrl is
+// --upload-pack=<command>, which git would run.
+func checkSkillGitWords(source skillSource, commits ...string) error {
+	for _, word := range []string{source.URL, source.Ref} {
+		if strings.HasPrefix(strings.TrimSpace(word), "-") {
+			return fmt.Errorf("%s: %q isn't a repository or a branch hi takes", source.Source, word)
+		}
+	}
+	for _, commit := range commits {
+		if !skillCommitPattern.MatchString(commit) {
+			return fmt.Errorf("%s: %q isn't a commit", source.Source, commit)
+		}
+	}
+	return nil
+}
+
 // resolveSkillCommit is the commit a source's branch or tag points at now.
 func resolveSkillCommit(source skillSource) (string, error) {
+	if err := checkSkillGitWords(source); err != nil {
+		return "", err
+	}
 	ref := firstNonEmpty(source.Ref, "HEAD")
 	out, err := skillGit("", "ls-remote", source.URL, ref)
 	if err != nil {
@@ -136,6 +159,9 @@ func resolveSkillCommit(source skillSource) (string, error) {
 // fetchSkillCommits checks out the last of commits into a temporary folder,
 // fetching the others too so they can be compared. Nothing in it runs.
 func fetchSkillCommits(source skillSource, commits ...string) (string, func(), error) {
+	if err := checkSkillGitWords(source, commits...); err != nil {
+		return "", nil, err
+	}
 	dir, err := os.MkdirTemp("", "hi-skill-")
 	if err != nil {
 		return "", nil, err
@@ -475,6 +501,18 @@ func readSkillLock(global bool) (*skillLock, error) {
 	if file.Skills != nil {
 		lock.skills = file.Skills
 	}
+	// The names are folders hi replaces and removes: a lock file is the
+	// project's, and a name of ../../src would have hi remove src.
+	for name := range lock.skills {
+		if !skillNamePattern.MatchString(name) {
+			return nil, fmt.Errorf("%s: %q isn't a skill's name hi takes; fix or remove it", path, name)
+		}
+		if entry, ok := lock.entry(name); ok && entry.SkillPath != "" {
+			if clean := filepath.Clean(filepath.FromSlash(entry.SkillPath)); !filepath.IsLocal(clean) {
+				return nil, fmt.Errorf("%s: %s's skillPath %q is outside its repository; fix or remove it", path, name, entry.SkillPath)
+			}
+		}
+	}
 	return lock, nil
 }
 
@@ -526,7 +564,7 @@ func (l *skillLock) write() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.path, append(data, '\n'), 0o644)
+	return writeFileAtomic(l.path, append(data, '\n'), 0o644) // a crash mid-write left a lock every command refused
 }
 
 // skillSource turns an entry back into a source to fetch from.

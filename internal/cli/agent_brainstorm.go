@@ -344,7 +344,8 @@ func startBrainstorm(question string, flags brainstormFlags, stdin io.Reader, st
 		return err
 	}
 	bs.Created = time.Now().UTC()
-	if err := os.MkdirAll(brainstormStateFile(bs.ID), 0o700); err != nil {
+	// Claimed, so two starts that asked at once don't share one.
+	if err := claimStateID(brainstormStateFile(), &bs.ID, nextBrainstormID); err != nil {
 		return err
 	}
 	os.Chmod(brainstormStateFile(), 0o700)
@@ -867,11 +868,12 @@ func collectBrainstormRun(bs *brainstorm, run *brainstormRun) {
 		if run.Kind == "proposal" {
 			folder = brainstormStateFile(bs.ID)
 		}
-		if err := os.MkdirAll(folder, 0o700); err == nil {
+		err := os.MkdirAll(folder, 0o700)
+		if err == nil {
 			err = os.WriteFile(filepath.Join(folder, name), data, 0o600)
 		}
 		if err != nil {
-			run.State, run.Note = "failed", err.Error()
+			run.State, run.Note = "failed", err.Error() // a write that failed is no idea kept
 			break
 		}
 		run.State = "done"

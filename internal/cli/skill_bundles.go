@@ -198,7 +198,7 @@ func writeSkillBundle(path string, bundle skillBundle) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	return writeFileAtomic(path, append(data, '\n'), 0o644)
 }
 
 // skillUpdateBundles moves each bundle skill to its source's newest commit,
@@ -410,6 +410,9 @@ func updateBundleSkill(bundleName string, skill bundleSkill, newest map[string]s
 // printSkillNumstat lists the files a skill changed between two commits,
 // and says whether git could compare them.
 func printSkillNumstat(root, from, to, pathInRepo string, stdout io.Writer) bool {
+	if !skillCommitPattern.MatchString(from) || !skillCommitPattern.MatchString(to) {
+		return false // a lock's commit, which git would take for an option otherwise
+	}
 	stat, err := skillGit(root, "diff", "--numstat", from, to, "--", pathInRepo)
 	if err != nil {
 		return false

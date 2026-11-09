@@ -504,7 +504,7 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 				clean.RawQuery = query.Encode()
 				if r.Method == http.MethodGet || r.Method == http.MethodHead {
 					w.Header().Set("Referrer-Policy", "no-referrer")
-					http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
+					http.Redirect(w, r, netExposeLocalTarget(clean), http.StatusSeeOther)
 					return
 				}
 				r.URL = &clean
@@ -524,8 +524,11 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 				io.WriteString(w, netExposeNoKeyPage)
 				return
 			}
-			// The service sees neither the key nor its cookie.
-			r.Header.Del("Authorization")
+			// The service sees neither the key nor its cookie; the app's own
+			// Authorization, a bearer token or Basic, goes on.
+			if matches(bearer) {
+				r.Header.Del("Authorization")
+			}
 			netExposeDropCookie(r, netExposeKeyCookie)
 			sso.drop(r)
 		}
@@ -598,12 +601,30 @@ func netExposeFollow(file, host string, port int) func() string {
 	}
 }
 
+// netExposeLocalTarget is where a redirect to the same page goes: its path
+// and query on this address. A path of //evil.example/ is a redirect to
+// evil.example for a browser, so the path starts with one slash.
+func netExposeLocalTarget(u url.URL) string {
+	target := "/" + strings.TrimLeft(u.EscapedPath(), "/\\")
+	if u.RawQuery != "" {
+		target += "?" + u.RawQuery
+	}
+	return target
+}
+
 // netExposeDropCookie removes one cookie from a request's Cookie header.
+//
+// The header is cut by hand, the rest kept byte for byte: Go's parser
+// drops a cookie it doesn't read, such as prefs={"theme":"dark"}, and the
+// app would never get it.
 func netExposeDropCookie(r *http.Request, name string) {
 	var kept []string
-	for _, cookie := range r.Cookies() {
-		if cookie.Name != name {
-			kept = append(kept, cookie.String())
+	for _, header := range r.Header.Values("Cookie") {
+		for _, part := range strings.Split(header, ";") {
+			key, _, _ := strings.Cut(strings.TrimSpace(part), "=")
+			if strings.TrimSpace(part) != "" && strings.TrimSpace(key) != name {
+				kept = append(kept, strings.TrimSpace(part))
+			}
 		}
 	}
 	r.Header.Del("Cookie")
@@ -676,6 +697,10 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	relayPort := listener.Addr().(*net.TCPAddr).Port
 
 	var cmd *exec.Cmd
+	// waited closes once netbird expose has ended: one Wait, which the stop
+	// and the loop both read (two raced, and one of them failed).
+	var waited chan struct{}
+	var waitErr error
 	var publicURL, name string
 	var stop func()
 	var ensure func() (bool, error)
@@ -696,12 +721,12 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 		if cmd, publicURL, name, err = startNetbirdExpose(netExposeArgs(options, relayPort), netExposeReadyAfter); err != nil {
 			return err
 		}
+		waited = make(chan struct{})
+		go func() { waitErr = cmd.Wait(); close(waited) }()
 		stop = func() {
 			cmd.Process.Signal(os.Interrupt)
-			done := make(chan struct{})
-			go func() { cmd.Wait(); close(done) }()
 			select {
-			case <-done:
+			case <-waited:
 			case <-time.After(5 * time.Second):
 				cmd.Process.Kill()
 			}
@@ -764,7 +789,7 @@ func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.W
 	defer signal.Stop(signals)
 	exited := make(chan error, 1)
 	if cmd != nil {
-		go func() { exited <- cmd.Wait() }()
+		go func() { <-waited; exited <- waitErr }()
 	}
 	timer := time.NewTimer(options.Max)
 	defer timer.Stop()

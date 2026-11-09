@@ -42,6 +42,11 @@ var geminiAllowed = regexp.MustCompile(`^/(upload/)?v1[a-z0-9]*/(interactions|fi
 var geminiAgentsRead = regexp.MustCompile(`^/v1[a-z0-9]*/agents([/:?]|$)`)
 
 func geminiPathAllowed(method, path string) bool {
+	// The path as it is sent, with no ./.. in it: /v1beta/models/../webhooks
+	// starts like an allowed one, and Google's front may resolve it.
+	if strings.Contains(path, "..") || strings.Contains(path, "//") || strings.Contains(path, "/./") || strings.Contains(strings.ToLower(path), "%2e") {
+		return false
+	}
 	return geminiAllowed.MatchString(path) || method == http.MethodGet && geminiAgentsRead.MatchString(path)
 }
 
@@ -76,7 +81,7 @@ func newBoxGeminiInjector(keyFile, upstream string, log *boxNetworkLog) http.Han
 		return nil
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !geminiPathAllowed(r.Method, r.URL.Path) {
+		if !geminiPathAllowed(r.Method, r.URL.Path) || !geminiPathAllowed(r.Method, r.URL.EscapedPath()) {
 			log.record("gemini-refused", r.Method+" "+r.URL.Path)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)

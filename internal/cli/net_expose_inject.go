@@ -120,13 +120,13 @@ func (h *netExposeHelper) signIn(w http.ResponseWriter, r *http.Request) bool {
 	if h == nil || len(h.Routes) == 0 {
 		return false
 	}
+	// Only to a route that will answer: a path that only starts like one
+	// (/llms.txt/x), or a route that is off, goes to the app, which must
+	// never see a person's key.
+	served := h.route(r.URL.Path, h.on()) != nil
 	for cookieName, header := range map[string]string{netExposeUserCookie: netExposeUserHeader, netExposeVisitorCookie: netExposeVisitorHeader} {
-		if cookie, err := r.Cookie(cookieName); err == nil && netExposeUserKey.MatchString(cookie.Value) {
-			for _, route := range h.Routes {
-				if strings.HasPrefix(r.URL.Path, route.Prefix) {
-					r.Header.Set(header, cookie.Value)
-				}
-			}
+		if cookie, err := r.Cookie(cookieName); err == nil && netExposeUserKey.MatchString(cookie.Value) && served {
+			r.Header.Set(header, cookie.Value)
 		}
 		netExposeDropCookie(r, cookieName)
 	}
@@ -149,7 +149,7 @@ func (h *netExposeHelper) signIn(w http.ResponseWriter, r *http.Request) bool {
 	}
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Cache-Control", "no-store")
-	http.Redirect(w, r, clean.RequestURI(), http.StatusSeeOther)
+	http.Redirect(w, r, netExposeLocalTarget(clean), http.StatusSeeOther)
 	return true
 }
 

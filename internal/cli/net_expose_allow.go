@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 )
@@ -46,7 +47,11 @@ func parseNetExposeAllow(text string) ([]string, error) {
 			address = address.Unmap()
 			prefix = netip.PrefixFrom(address, address.BitLen())
 		}
-		cidrs = append(cidrs, prefix.Masked().String())
+		// Once each: a block named twice, or an address and its /32, is one
+		// rule, and NetBird keeps it once.
+		if block := prefix.Masked().String(); !slices.Contains(cidrs, block) {
+			cidrs = append(cidrs, block)
+		}
 	}
 	if len(cidrs) == 0 {
 		return nil, errors.New("--allow-ip names at least one address")

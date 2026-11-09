@@ -114,9 +114,18 @@ type boxNetworkLog struct {
 }
 
 func (l *boxNetworkLog) record(decision, host string) {
+	// One line each: what the box sent (a path, a host) can't hold a line
+	// break, or it could write a line of its own, such as a spend the
+	// watch adds up.
+	line := strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, decision+" "+host)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	fmt.Fprintf(l.file, "%s %s %s\n", time.Now().UTC().Format(time.RFC3339), decision, host)
+	fmt.Fprintf(l.file, "%s %s\n", time.Now().UTC().Format(time.RFC3339), line)
 }
 
 // runBoxProxy is `hi box __proxy`, run inside the proxy container.
@@ -215,6 +224,11 @@ type boxEgressProxy struct {
 	slack *boxSlackSwap
 	// ask, for a team's dev box, says how its agents ask for a site.
 	ask string
+	// plain is the transport for http:// requests, one for the proxy: one
+	// a request kept an idle connection open each, until the remote
+	// closed it, and the box's proxy has 256 MB.
+	plainOnce sync.Once
+	plain     *http.Transport
 }
 
 const (
@@ -322,7 +336,10 @@ func (p *boxEgressProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "hi box: only http:// requests and CONNECT tunnels", http.StatusBadRequest)
 		return
 	}
-	transport := &http.Transport{DialContext: p.dialer(), Proxy: nil}
+	p.plainOnce.Do(func() {
+		p.plain = &http.Transport{DialContext: p.dialer(), Proxy: nil, MaxIdleConnsPerHost: 4, IdleConnTimeout: 60 * time.Second}
+	})
+	transport := p.plain
 	r.RequestURI = ""
 	started := time.Now()
 	sent := &boxCounter{Reader: r.Body}

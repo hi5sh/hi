@@ -186,7 +186,7 @@ func runBestOfFold(run bestOfRun, fold int, log io.Writer) (string, error) {
 	if err := boxCommand(nil, &out, &out, "git", "-C", dir, "add", "-A"); err != nil {
 		return "", fmt.Errorf("git add: %s", qFirstLine(out.String(), err.Error()))
 	}
-	changed := splitLines(boxGit(dir, "diff", "--cached", "--name-only"))
+	changed := splitLines(boxGit(dir, "-c", "core.quotePath=false", "diff", "--no-renames", "--cached", "--name-only"))
 	if len(changed) == 0 {
 		fmt.Fprintf(log, "%s: fold %d changed nothing in the project\n", time.Now().Format(time.DateTime), fold)
 		return "", nil

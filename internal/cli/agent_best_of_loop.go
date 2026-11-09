@@ -114,6 +114,14 @@ var (
 		}
 		defer log.Close()
 		command := exec.Command(executable, "agent", "best-of", "__loop", id)
+		// In the run's project, as review's and brainstorm's are: its
+		// boxes start from the folder they run in, and best-of resume can
+		// be run from anywhere.
+		run, err := loadBestOf(id)
+		if err != nil {
+			return err
+		}
+		command.Dir = run.Root
 		command.Stdout, command.Stderr = log, log
 		command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 		if err := command.Start(); err != nil {
@@ -760,6 +768,9 @@ func settleBestOfRound(run *bestOfRun, log io.Writer) error {
 				}
 			}
 			if err != nil {
+				// The discard counts the round's spend itself: taken back
+				// here, it isn't counted twice against --budget.
+				loop.Spend, loop.Billed = loop.Spend-round.Spend, loop.Billed-round.Billed
 				bestOfDiscardRound(run, "crash")
 				return err
 			}

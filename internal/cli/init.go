@@ -460,10 +460,16 @@ func sha256Hex(data []byte) string {
 func managedBlock(data []byte) []byte {
 	text := string(data)
 	start := strings.Index(text, "hi:begin")
-	end := strings.Index(text, "hi:end")
-	if start < 0 || end < start {
+	if start < 0 {
 		return data
 	}
+	// The end after the start: a hi:end in the text before it, the
+	// owner's own, made the whole file hi's block, and --force replaced it.
+	end := strings.Index(text[start:], "hi:end")
+	if end < 0 {
+		return data
+	}
+	end += start
 	start = strings.LastIndex(text[:start], "\n") + 1
 	if newline := strings.Index(text[end:], "\n"); newline >= 0 {
 		end += newline + 1

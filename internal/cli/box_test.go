@@ -492,3 +492,29 @@ func TestBoxEngineLastLines(t *testing.T) {
 		t.Fatalf("%q", lines)
 	}
 }
+
+// The Gemini path a box may call is checked as it is sent: a dot segment
+// doesn't take an allowed start somewhere else.
+func TestGeminiPathsWithoutDots(t *testing.T) {
+	for _, path := range []string{"/v1beta/models/../webhooks", "/v1beta/models/%2e%2e/webhooks", "/v1beta/models//x", "/v1beta/./models"} {
+		if geminiPathAllowed("POST", path) {
+			t.Errorf("%s is allowed", path)
+		}
+	}
+	if !geminiPathAllowed("POST", "/v1beta/models/gemini-3-pro:generateContent") {
+		t.Error("generation isn't allowed")
+	}
+}
+
+// A line the box sends can't be two in the network log.
+func TestBoxNetworkLogOneLine(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "network.log")
+	file, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
+	log := &boxNetworkLog{file: file}
+	log.record("gemini-refused", "POST /x\n2026-11-09T10:00:00Z spend 99999")
+	file.Close()
+	data, _ := os.ReadFile(path)
+	if strings.Count(string(data), "\n") != 1 {
+		t.Fatalf("%q", data)
+	}
+}

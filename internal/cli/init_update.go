@@ -525,12 +525,16 @@ func upgradeNotesPath(target string, composed *composedTemplate) string {
 		}
 	}
 	file := path.Join("docs/upgrades", name+".md")
-	for i := 2; ; i++ {
-		if _, err := os.Stat(filepath.Join(target, filepath.FromSlash(file))); errors.Is(err, os.ErrNotExist) {
+	// A name not taken. Any error but "taken" ends the search: with docs a
+	// file, every name fails with ENOTDIR, and the search never ended; the
+	// write then says what is wrong.
+	for i := 2; i < 1000; i++ {
+		if _, err := os.Stat(filepath.Join(target, filepath.FromSlash(file))); err != nil {
 			return file
 		}
 		file = path.Join("docs/upgrades", fmt.Sprintf("%s-%d.md", name, i))
 	}
+	return file
 }
 
 func upgradeNotes(composed *composedTemplate, notes []string) string {

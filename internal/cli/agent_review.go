@@ -386,7 +386,7 @@ func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stde
 		// A repository from elsewhere is cloned into the review's folder,
 		// running nothing from it, and goes with the review.
 		source = folder
-		if err := os.MkdirAll(reviewStateFile(id), 0o700); err != nil {
+		if err := claimStateID(reviewStateFile(), &id, nextReviewID); err != nil {
 			return err
 		}
 		os.Chmod(reviewStateFile(), 0o700)
@@ -409,7 +409,12 @@ func startReview(folder string, flags reviewFlags, stdin io.Reader, stdout, stde
 	}
 	// The review starts now, not when the question was asked.
 	rv.Created = time.Now().UTC()
-	if err := os.MkdirAll(reviewStateFile(rv.ID), 0o700); err != nil {
+	if source == "" {
+		// Claimed, so two reviews that asked at once don't share one.
+		if err := claimStateID(reviewStateFile(), &rv.ID, nextReviewID); err != nil {
+			return err
+		}
+	} else if err := os.MkdirAll(reviewStateFile(rv.ID), 0o700); err != nil {
 		return err
 	}
 	os.Chmod(reviewStateFile(), 0o700)
@@ -1124,7 +1129,7 @@ func collectReviewRun(rv *review, run *reviewRun) {
 	report := collectAgentReport(engine, meta)
 	run.CostUSD, run.Seconds = report.CostUSD, report.Seconds
 	run.Model = firstNonEmpty(report.Model, run.Model)
-	if data, err := os.ReadFile(boxStateFile(meta.Name, "home", agentResultDir, "agent.json")); err == nil {
+	if data, err := boxedReadFileLimit(boxStateFile(meta.Name, "home"), boxStateFile(meta.Name, "home", agentResultDir, "agent.json"), 1<<20); err == nil {
 		var timed struct {
 			Exit    int `json:"agent_exit"`
 			Seconds int `json:"agent_seconds"`
@@ -1138,7 +1143,10 @@ func collectReviewRun(rv *review, run *reviewRun) {
 	if run.Kind == "adjudicate" {
 		name = "verdicts.json"
 	}
-	data, err := os.ReadFile(boxStateFile(meta.Name, "home", agentResultDir, name))
+	// The box's home is the box's: a link there, or a file without end, is
+	// not what the review reads (app_boxed.go).
+	home := boxStateFile(meta.Name, "home")
+	data, err := boxedReadFile(home, filepath.Join(home, agentResultDir, name))
 	switch {
 	case err != nil:
 		run.State, run.Note = "failed", "it wrote no "+name

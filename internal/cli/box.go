@@ -401,6 +401,16 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 	if _, ok := boxPresets[network]; !ok {
 		return meta, fmt.Errorf("devcontainer.json asks for network %q; use locked, dev, or open", network)
 	}
+	// A repository asks for more, and the user grants it, once: an open
+	// network is every site, and the team's data is what the org lends.
+	if options.network == "" && network == "open" && !boxDomainDecision(root+" (network: open)", []string{"every site (network: open)"}, stdin, stdout) {
+		fmt.Fprintln(stdout, "The box gets the dev network instead; --network open gives it every site.")
+		network = "dev"
+	}
+	if !options.data && custom.Data && !boxDomainDecision(root+" (data)", []string{"your team's data, through the org server (data: true)"}, stdin, stdout) {
+		fmt.Fprintln(stdout, "The box gets no team data; --data gives it.")
+		custom.Data = false
+	}
 	gpu := options.gpu || custom.GPU
 	if gpu {
 		if _, err := os.Stat("/dev/kfd"); err != nil {
@@ -524,10 +534,16 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 	mounts = append(mounts, options.mounts...)
 	if gitCommon != "" {
 		mounts = append(mounts, gitCommon+":"+gitCommon)
-		// The agent may commit, but not plant hooks or change git's settings.
-		for _, part := range []string{"hooks", "config"} {
-			if _, err := os.Stat(filepath.Join(gitCommon, part)); err == nil {
-				mounts = append(mounts, filepath.Join(gitCommon, part)+":"+filepath.Join(gitCommon, part)+":ro")
+		// The agent may commit, but not plant hooks or change git's settings,
+		// in the project's git folder or a submodule's (modules/…), which
+		// git on this machine reads too. A missing hooks folder is made
+		// first, so the box can't make one.
+		for _, gitDir := range boxGitDirs(gitCommon) {
+			os.MkdirAll(filepath.Join(gitDir, "hooks"), 0o755)
+			for _, part := range []string{"hooks", "config"} {
+				if _, err := os.Stat(filepath.Join(gitDir, part)); err == nil {
+					mounts = append(mounts, filepath.Join(gitDir, part)+":"+filepath.Join(gitDir, part)+":ro")
+				}
 			}
 		}
 	}
@@ -572,7 +588,17 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 	case devcontainer != nil && devcontainer.Build.Dockerfile != "":
 		dir := filepath.Dir(devcontainer.path)
 		context := filepath.Join(dir, firstNonEmpty(devcontainer.Build.Context, "."))
-		if meta.Image, err = engine.ensureProjectImage(filepath.Join(dir, devcontainer.Build.Dockerfile), context, devcontainer.Build.Args, stdout, stderr); err != nil {
+		dockerfile := filepath.Join(dir, devcontainer.Build.Dockerfile)
+		// The image is built on this machine from the project's own files:
+		// a context of ../.. would put the home folder in it.
+		for _, path := range []string{context, dockerfile} {
+			if !boxInside(path, root) {
+				removeBoxWorktree(meta, true)
+				cleanup()
+				return meta, fmt.Errorf("devcontainer.json builds from %s, outside the project; hi builds only from the project's own files", path)
+			}
+		}
+		if meta.Image, err = engine.ensureProjectImage(dockerfile, context, devcontainer.Build.Args, stdout, stderr); err != nil {
 			removeBoxWorktree(meta, true)
 			cleanup()
 			return meta, err
@@ -878,6 +904,48 @@ func boxProjectRoot() (string, bool) {
 	return wd, false
 }
 
+// boxInside says path is root or under it, links followed.
+func boxInside(path, root string) bool {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+	base, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(base, resolved)
+	return err == nil && (rel == "." || filepath.IsLocal(rel))
+}
+
+// boxGitDirs are a repository's git folder and its submodules' (each a
+// folder under modules/ with a config of its own, nested as submodules
+// nest).
+func boxGitDirs(gitCommon string) []string {
+	dirs := []string{gitCommon}
+	filepath.WalkDir(filepath.Join(gitCommon, "modules"), func(path string, entry os.DirEntry, err error) error {
+		if err != nil || !entry.IsDir() {
+			return nil
+		}
+		if info, err := os.Lstat(filepath.Join(path, "config")); err == nil && info.Mode().IsRegular() && fileExists(filepath.Join(path, "HEAD")) {
+			dirs = append(dirs, path)
+		}
+		return nil
+	})
+	return dirs
+}
+
+// boxWorktreeClean says a worktree has nothing uncommitted. A git that
+// fails to say, such as on a worktree whose project moved, isn't clean:
+// boxGit's "" for a failure read as no changes, and rm removed the work.
+func boxWorktreeClean(dir string) bool {
+	var out bytes.Buffer
+	if err := boxCommand(nil, &out, io.Discard, "git", "-C", dir, "status", "--porcelain"); err != nil {
+		return false
+	}
+	return strings.TrimSpace(out.String()) == ""
+}
+
 func boxGit(dir string, args ...string) string {
 	var out bytes.Buffer
 	if err := boxCommand(nil, &out, io.Discard, "git", append([]string{"-C", dir}, args...)...); err != nil {
@@ -955,7 +1023,9 @@ func listBoxes(stdout io.Writer) error {
 		if path, err := boxLookPath(meta.Engine); err == nil {
 			engine := boxEngine{name: meta.Engine, bin: path}
 			state = firstNonEmpty(engine.state("hi-box-"+meta.Name), "gone")
-			if state != "running" && engine.state("hi-box-"+meta.Name+"-proxy") == "running" {
+			// A box that ended leaves its proxy to stop; one with no
+			// container yet, still pulling its image, needs it.
+			if (state == "exited" || state == "stopped") && engine.state("hi-box-"+meta.Name+"-proxy") == "running" {
 				engine.output("stop", "-t", "2", "hi-box-"+meta.Name+"-proxy")
 			}
 		}
@@ -1048,7 +1118,9 @@ func diffBox(meta boxMeta, full bool, stdout io.Writer) error {
 		return fmt.Errorf("the worktree %s is gone", meta.Workdir)
 	}
 	commits := boxGit(meta.Workdir, "log", "--oneline", meta.Base+"..HEAD")
-	files := boxGit(meta.Workdir, "diff", "--name-status", meta.Base)
+	// Unquoted, tab-separated, and no renames: a path with a space, an
+	// accent, or moved is read whole, so its warning shows.
+	files := boxGit(meta.Workdir, "-c", "core.quotePath=false", "diff", "--no-renames", "--name-status", meta.Base)
 	for _, path := range boxUntracked(meta.Workdir) {
 		files = strings.TrimSpace(files + "\nnew\t" + path)
 	}
@@ -1066,11 +1138,11 @@ func diffBox(meta boxMeta, full bool, stdout io.Writer) error {
 	fmt.Fprintln(stdout, "\nFiles")
 	var risky []string
 	for _, line := range strings.Split(files, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		status, path, ok := strings.Cut(line, "\t")
+		if !ok || path == "" {
 			continue
 		}
-		path := fields[len(fields)-1]
+		fields := []string{status}
 		mark := ""
 		if boxRiskyFiles.MatchString(path) {
 			mark = "   ⚠ runs on the host later"
@@ -1105,8 +1177,8 @@ func teardownBox(engine boxEngine, meta boxMeta) {
 
 func removeBox(engine boxEngine, meta boxMeta, force bool, stdout io.Writer) error {
 	if meta.Worktree && fileExists(meta.Workdir) && !force {
-		if dirty := boxGit(meta.Workdir, "status", "--porcelain"); dirty != "" {
-			return fmt.Errorf("%s has work that isn't committed in %s; commit it on the branch, or remove the box anyway with --force", meta.Name, meta.Workdir)
+		if !boxWorktreeClean(meta.Workdir) {
+			return fmt.Errorf("%s has work that isn't committed in %s, or git can't say (git -C %s status); commit it on the branch, or remove the box anyway with --force", meta.Name, meta.Workdir, meta.Workdir)
 		}
 	}
 	teardownBox(engine, meta)
@@ -1137,6 +1209,11 @@ func removeBoxWorktree(meta boxMeta, force bool) {
 	}
 	boxGit(meta.Root, args...)
 	boxGit(meta.Root, "worktree", "prune")
+	// A box that never started, or is removed by force, takes its branch
+	// when nothing was committed on it: the next start makes the same one.
+	if force && meta.Branch != "" && meta.Base != "" && boxGit(meta.Root, "rev-parse", "--verify", "-q", meta.Branch) == meta.Base {
+		boxGit(meta.Root, "branch", "-D", meta.Branch)
+	}
 }
 
 var boxDomainPattern = regexp.MustCompile(`^(\*\.)?([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$`)
@@ -1194,7 +1271,7 @@ func allowBox(options boxOptions, stdout io.Writer) error {
 // boxUntracked lists new files the box hasn't added to git, without
 // touching its index.
 func boxUntracked(dir string) []string {
-	out := boxGit(dir, "ls-files", "--others", "--exclude-standard")
+	out := boxGit(dir, "-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard")
 	if out == "" {
 		return nil
 	}
@@ -1222,7 +1299,7 @@ func removeAllBoxes(options boxOptions, stdin io.Reader, stdout io.Writer) error
 	var remove, keep []boxMeta
 	fmt.Fprintln(stdout, "hi box rm --all removes these boxes, with their containers and worktrees:")
 	for _, meta := range boxes {
-		dirty := meta.Worktree && fileExists(meta.Workdir) && boxGit(meta.Workdir, "status", "--porcelain") != ""
+		dirty := meta.Worktree && fileExists(meta.Workdir) && !boxWorktreeClean(meta.Workdir)
 		note := ""
 		switch {
 		case dirty && !options.force:

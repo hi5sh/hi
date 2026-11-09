@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -463,8 +464,14 @@ func startBestOf(options boxOptions, flags bestOfFlags, stdin io.Reader, stdout,
 	if err := confirmBestOf(run, options, stdin, info); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(bestOfStateFile(id), 0o700); err != nil {
+	// The run's folder is claimed, not just made: another start that sat at
+	// its question as long had the same number, and both wrote one run.json.
+	if err := claimStateID(bestOfStateFile(), &run.ID, nextBestOfID); err != nil {
 		return err
+	}
+	id = run.ID
+	if loop != nil {
+		loop.Branch = "best-of/" + id + "/best"
 	}
 	if loop != nil {
 		return startBestOfLoop(&run, options, stdin, stdout, stderr)
@@ -746,6 +753,25 @@ func bestOfNameBase(project string) string {
 	return base
 }
 
+// claimStateID makes the folder of a run's ID under dir, which no other
+// start has made: when *id is taken meanwhile, the next one, from next.
+func claimStateID(dir string, id *string, next func() string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	for range 1000 {
+		err := os.Mkdir(filepath.Join(dir, *id), 0o700)
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return err
+		}
+		*id = next()
+	}
+	return errors.New("no free run number")
+}
+
 func nextBestOfID() string {
 	entries, _ := os.ReadDir(bestOfStateFile())
 	highest := 0
@@ -813,6 +839,13 @@ func waitBestOf(run *bestOfRun, w io.Writer) error {
 		case i := <-finished:
 			box := &run.Boxes[i]
 			measureBestOfBox(run, box)
+			// The run as it is on disk now, with this box's measure in it:
+			// a keep or rm in another terminal meanwhile stays.
+			if current, err := loadBestOf(run.ID); err == nil && len(current.Boxes) == len(run.Boxes) {
+				current.Boxes[i] = *box
+				*run = current
+				box = &run.Boxes[i]
+			}
 			if err := saveBestOf(run); err != nil {
 				return err
 			}
@@ -913,7 +946,7 @@ func measureBestOfBox(run *bestOfRun, box *bestOfBox) {
 	}
 	if data, err := os.ReadFile(filepath.Join(results, "check.json")); err == nil && json.Unmarshal(data, &times) == nil {
 		box.AgentSeconds = times.AgentSeconds
-		if times.AgentExit == 124 && run.MaxSeconds > 0 {
+		if (times.AgentExit == 124 || times.AgentExit == 137) && run.MaxSeconds > 0 { // 137: killed after timeout's grace
 			box.AgentStatus = "timed_out"
 		}
 		if run.Check != "" {
@@ -938,7 +971,9 @@ func measureBestOfBox(run *bestOfRun, box *bestOfBox) {
 	if data, err := os.ReadFile(filepath.Join(results, "tree.txt")); err == nil && meta.Base != "" {
 		if tree := strings.TrimSpace(string(data)); boxGit(meta.Root, "cat-file", "-t", tree) == "tree" {
 			box.Snapshot = tree
-			box.ChangedFiles = splitLines(boxGit(meta.Root, "diff", "--name-only", meta.Base, tree))
+			// Both sides of a move, unquoted: a file moved in from outside
+			// --edit is a change outside it, and café.py is itself.
+			box.ChangedFiles = splitLines(boxGit(meta.Root, "-c", "core.quotePath=false", "diff", "--no-renames", "--name-only", meta.Base, tree))
 			box.Added, box.Removed = numstatTotals(boxGit(meta.Root, "diff", "--numstat", meta.Base, tree))
 		}
 	}

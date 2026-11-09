@@ -460,3 +460,28 @@ func writeSkillTestFile(t *testing.T, path, content string, mode os.FileMode) {
 	os.MkdirAll(filepath.Dir(path), 0o755)
 	writeTestFile(t, path, content, mode)
 }
+
+// A project's lock file can't steer hi outside the skills' folders, or
+// hand git an option.
+func TestSkillLockFromAProjectIsChecked(t *testing.T) {
+	for name, lock := range map[string]string{
+		"a name that climbs": `{"version":1,"skills":{"../../src":{"source":"./x","sourceType":"local","skillPath":"SKILL.md"}}}`,
+		"a path that climbs": `{"version":1,"skills":{"ok":{"source":"./x","sourceType":"local","skillPath":"../../SKILL.md"}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			os.WriteFile(skillLockFile, []byte(lock), 0o644)
+			if _, err := readSkillLock(false); err == nil {
+				t.Fatal("read it")
+			}
+		})
+	}
+	for _, source := range []skillSource{{Source: "x", URL: "--upload-pack=touch /tmp/pwned"}, {Source: "x", URL: "https://example.com/r.git", Ref: "--output=/tmp/x"}} {
+		if _, err := resolveSkillCommit(source); err == nil || !strings.Contains(err.Error(), "isn't") {
+			t.Errorf("%+v: %v", source, err)
+		}
+	}
+	if _, _, err := fetchSkillCommits(skillSource{Source: "x", URL: "https://example.com/r.git"}, "--output=/tmp/x"); err == nil || !strings.Contains(err.Error(), "isn't a commit") {
+		t.Errorf("a commit that is an option: %v", err)
+	}
+}
