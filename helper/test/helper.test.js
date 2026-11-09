@@ -164,12 +164,15 @@ test("keeps a link the lead writes inside its own attribute", async () => {
   open();
   type("Anything?");
   const answer = await until(() => $$(".msg.lead")[0]);
+  // No element has an event handler, and the link has only its own three.
   for (const node of answer.querySelectorAll("*")) {
     for (const attribute of Array.from(node.attributes)) {
-      expect(["href", "target", "rel"]).toContain(attribute.name);
+      expect(attribute.name.startsWith("on")).toBe(false);
     }
   }
-  expect(answer.querySelectorAll("a").length).toBe(1);
+  const links = Array.from(answer.querySelectorAll("a"));
+  expect(links.length).toBe(1);
+  expect(links[0].getAttributeNames().sort()).toEqual(["href", "rel", "target"]);
 });
 
 test("puts a question back when the help fails", async () => {
