@@ -122,8 +122,10 @@ install` already provides. Outside tmux the user pipes it in. Recording all
 output through a wrapper, as Butterfish does, is out of scope.
 
 **Redaction** runs before anything leaves the machine. It removes values in
-`export X=`, `-p`/`--password`/`--token` style flags, `Authorization:`
-headers, URL userinfo, and known key shapes (`sk-`, `ghp_`, `hf_`,
+`export X=`, `-p`/`--password`/`--token` style flags (`mysql -p…`,
+`sshpass -p`, `docker login -p`, `curl -u user:…`), `Authorization:`
+headers, keys named like secrets in JSON, YAML, TOML, and INI
+(`"api_key": …`, `password: …`), URL userinfo, and known key shapes (`sk-`, `ghp_`, `hf_`,
 `xox[bp]-`, AWS keys, private key blocks). History lines that start with a
 space are already dropped by `HISTCONTROL=ignoreboth`. Lines that contain the
 words `password` or `secret` are left out entirely. It never sends file
@@ -137,9 +139,9 @@ These are the only tools the model gets. hi runs them, never the provider.
 |---|---|---|
 | `list(path, pattern?)` | yes | names, sizes, and types; no recursion beyond 2 levels or 200 entries |
 | `read(path, lines?)` | yes, within the current folder and below, up to 200 lines; elsewhere asks | read a config or log |
-| `help(command)` | yes | `--help`, then `man -P cat` trimmed, for the installed version |
+| `help(command)` | yes, for a program's name and its subcommands (`git log`), never an interpreter, a runner, or a command that changes files | `--help`, then `man -P cat` trimmed, for the installed version |
 | `which(command)` | yes | is it installed, and where |
-| `run(command)` | only if classed read-only | look before proposing, e.g. `git status`, `du -sh *`, `find . -name '*.md'` |
+| `run(command)` | only if classed read-only, under bash; never a network lookup (`dig`, `ping`), `$…` or `$(…)`, or a credential file; a path outside the current folder asks, as `read` does | look before proposing, e.g. `git status`, `du -sh *`, `find . -name '*.md'` |
 | `propose(command, reason, risk)` | ends the turn | the answer the user confirms |
 
 **Risk classes**, decided by hi from the parsed command (`mvdan.cc/sh`
@@ -148,7 +150,15 @@ model's own risk label can only raise the class, never lower it:
 
 - **read-only**: an allowlist of commands with safe flags (`ls`, `cat`,
   `head`, `grep`, `rg`, `find` without `-delete`/`-exec`, `git status|log|diff`,
-  `du`, `df`, `ps`, `jq`, ...) and no output redirect.
+  `du`, `df`, `ps`, `jq`, ...) and no output redirect. Words are read as
+  the shell reads them, quotes and backslashes out (`su\do` is `sudo`).
+  Wrappers (`env`, `command`, `xargs`, `nice`, `timeout`) are judged by
+  what they run. A program named by its path (`./ls`), settings before a
+  command other than locale and display ones (`PATH=`, `LD_PRELOAD=`,
+  `GIT_EXTERNAL_DIFF=`), zsh glob qualifiers, and flags that write or run
+  (`sed -i` in any cluster, sed's `w` and `e`, `sort -o`, `fd -x`,
+  `rg --pre`, `xxd in out`, `git log --output`, `git stash`) are not
+  read-only (v2.6.103).
 - **changes files**: anything else in the user's own folders. It needs
   Enter. Where possible hi shows the effect first, for example which files a
   glob in `mv`, `rm`, or `cp` matches.

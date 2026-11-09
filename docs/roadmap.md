@@ -2713,6 +2713,34 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.103 — hi q runs only what is read-only
+
+- [x] `hi q`'s check reads words as the shell does, quotes and
+  backslashes out, so `su\do`, `\rm`, and `~/.s"s"h` are what they are.
+- [x] `env`, `command`, and `builtin` are judged by what they run, as
+  `xargs` and `timeout` were; `env rm -rf ~` is dangerous, not read-only.
+- [x] A program named by its path (`./ls`), settings before a command
+  other than locale and display ones (`PATH=`, `LD_PRELOAD=`,
+  `GIT_EXTERNAL_DIFF=`), and zsh's glob qualifiers aren't read-only.
+- [x] `>&file` and `<>file` count as writes; `>&2` still doesn't.
+- [x] Flags that write or run make a command change files: `sed -i` in
+  any cluster (`-Ei`), sed's `w`, `W`, and `e` and `s///w`, `sed -f`,
+  `sort -o` in a cluster, `gawk -i`, `fd -x`, `rg --pre`, `xxd in out`,
+  `uniq in out`, `tree -o`, `man -P`, `date -s`, `git log --output`,
+  `git stash`, and `git reflog expire` (dangerous).
+- [x] `rm --recu` is `rm --recursive`.
+- [x] The `help` tool takes a program's name and its subcommands only:
+  it ran `<words> --help`, so `help sh cleanup.sh` ran the script.
+- [x] The `run` tool runs under bash, never the user's zsh, refuses
+  network lookups, `$…` and `$(…)`, and credential files, and asks first
+  for a file outside the current folder, as `read` does; `read` follows a
+  link to where it leads before deciding.
+- [x] A saved OpenAI-compatible endpoint without a key is sent none:
+  `OPENAI_API_KEY` went to it, over plain HTTP for a local one.
+- [x] Redaction takes out `mysql -p…`, `sshpass -p`, `docker login -p`,
+  `curl -u user:…`, and keys named like secrets in JSON, YAML, TOML, and
+  INI.
+
 ### v2.6.102 — The dev box stays in its folders
 
 From a review of the whole codebase on 2026-11-09.

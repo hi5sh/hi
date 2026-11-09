@@ -130,7 +130,12 @@ func assessCommandInto(a *qAssessment, command, home string, depth int) {
 				}
 			}
 		case *syntax.CallExpr:
+			assessAssigns(a, n.Assigns, len(n.Args) == 0)
 			assessCall(a, qWords(n.Args), home, depth)
+		case *syntax.ExtGlob:
+			// zsh, the user's shell, reads *(…) as a glob qualifier,
+			// which can run code; bash's parser sees a pattern.
+			a.raise(qChanges, "")
 		case *syntax.FuncDecl:
 			a.raise(qChanges, "")
 		case *syntax.DeclClause:
@@ -141,12 +146,17 @@ func assessCommandInto(a *qAssessment, command, home string, depth int) {
 }
 
 func assessRedirect(a *qAssessment, redirect *syntax.Redirect, home string) {
+	target := qWordText(redirect.Word)
 	switch redirect.Op {
-	case syntax.RdrOut, syntax.AppOut, syntax.RdrAll, syntax.AppAll, syntax.ClbOut:
+	case syntax.RdrOut, syntax.AppOut, syntax.RdrAll, syntax.AppAll, syntax.ClbOut, syntax.RdrInOut:
+	case syntax.DplOut:
+		// >&2 and >&- move a descriptor; >&file writes file, as &> does.
+		if target == "-" || strings.Trim(target, "0123456789") == "" {
+			return
+		}
 	default:
 		return
 	}
-	target := qWordText(redirect.Word)
 	if target == "/dev/null" || target == "/dev/stdout" || target == "/dev/stderr" {
 		return
 	}
@@ -165,16 +175,70 @@ func qWords(words []*syntax.Word) []string {
 	return out
 }
 
+// qWordText is a word as the shell reads it: quotes and backslashes
+// taken out, so su\do is sudo and .s"s"h is .ssh; $VAR, $(…), and globs
+// stay as written.
 func qWordText(word *syntax.Word) string {
 	if word == nil {
 		return ""
 	}
-	if literal := word.Lit(); literal != "" {
-		return literal
-	}
 	var text strings.Builder
-	syntax.NewPrinter().Print(&text, word)
-	return strings.Trim(text.String(), `"'`)
+	for _, part := range word.Parts {
+		qPartText(&text, part, false)
+	}
+	return text.String()
+}
+
+func qPartText(text *strings.Builder, part syntax.WordPart, quoted bool) {
+	switch p := part.(type) {
+	case *syntax.Lit:
+		text.WriteString(qUnescape(p.Value, quoted))
+	case *syntax.SglQuoted:
+		text.WriteString(p.Value)
+	case *syntax.DblQuoted:
+		for _, inner := range p.Parts {
+			qPartText(text, inner, true)
+		}
+	default:
+		syntax.NewPrinter().Print(text, part)
+	}
+}
+
+// qUnescape takes out the backslashes the shell would: before any
+// character outside quotes, before $ ` " \ and a newline inside them.
+func qUnescape(value string, quoted bool) string {
+	if !strings.Contains(value, `\`) {
+		return value
+	}
+	var out strings.Builder
+	for i := 0; i < len(value); i++ {
+		if value[i] == '\\' && i+1 < len(value) && (!quoted || strings.IndexByte("$`\"\\\n", value[i+1]) >= 0) {
+			i++
+			if value[i] == '\n' {
+				continue // a line continued
+			}
+		}
+		out.WriteByte(value[i])
+	}
+	return out.String()
+}
+
+// qSafeAssigns are variables a command may be given without changing what
+// it runs or reads: language, time zone, colour, and the terminal's size.
+var qSafeAssigns = map[string]bool{"LANG": true, "LANGUAGE": true, "TZ": true, "NO_COLOR": true, "COLUMNS": true, "LINES": true, "TERM": true, "CLICOLOR": true, "FORCE_COLOR": true}
+
+// assessAssigns: FOO=bar before a command, or alone, can change what runs
+// (PATH, LD_PRELOAD, GIT_EXTERNAL_DIFF, PAGER) or what later commands do.
+func assessAssigns(a *qAssessment, assigns []*syntax.Assign, alone bool) {
+	for _, assign := range assigns {
+		name := ""
+		if assign.Name != nil {
+			name = assign.Name.Value
+		}
+		if alone || !(qSafeAssigns[name] || strings.HasPrefix(name, "LC_")) {
+			a.raise(qChanges, "")
+		}
+	}
 }
 
 func qCallName(stmt *syntax.Stmt) string {
@@ -209,6 +273,10 @@ func assessCall(a *qAssessment, args []string, home string, depth int) {
 	}
 	name := filepath.Base(args[0])
 	rest := args[1:]
+	if strings.Contains(args[0], "/") {
+		// ./ls, or a program named by its path: not the one hi knows.
+		a.raise(qChanges, "")
+	}
 	if reason, ok := qDangerousCommands[name]; ok {
 		a.raise(qDangerous, name+" "+reason)
 		return
@@ -243,6 +311,37 @@ func assessCall(a *qAssessment, args []string, home string, depth int) {
 			return
 		}
 		assessCall(a, inner, home, depth)
+	case "env":
+		// env runs the command after its settings: assess that one, and
+		// the settings as FOO=bar before a command.
+		inner := rest
+		for len(inner) > 0 {
+			word := inner[0]
+			if word == "-i" || word == "--ignore-environment" || word == "-0" || word == "--null" || word == "--" {
+				inner = inner[1:]
+				continue
+			}
+			if strings.HasPrefix(word, "-") {
+				a.raise(qChanges, "") // -S, -u, -C, and the rest change what runs, or how
+				inner = inner[1:]
+				continue
+			}
+			if variable, _, ok := strings.Cut(word, "="); ok && variable != "" {
+				if !(qSafeAssigns[variable] || strings.HasPrefix(variable, "LC_")) {
+					a.raise(qChanges, "")
+				}
+				inner = inner[1:]
+				continue
+			}
+			break
+		}
+		assessCall(a, inner, home, depth)
+	case "command", "builtin":
+		// command -v and -V only say what a name is; otherwise it runs it.
+		if qHasFlag(rest, "-v", "-V") {
+			return
+		}
+		assessCall(a, qSkipFlags(rest), home, depth)
 	case "nice", "time", "timeout", "nohup", "stdbuf", "watch":
 		inner := qSkipFlags(rest)
 		if name == "timeout" && len(inner) > 0 {
@@ -252,18 +351,53 @@ func assessCall(a *qAssessment, args []string, home string, depth int) {
 	case "find":
 		assessFind(a, rest, home, depth)
 	case "sed":
-		if qHasFlag(rest, "-i", "--in-place") {
-			a.raise(qChanges, "")
-		}
+		assessSed(a, rest)
 	case "awk", "gawk", "mawk":
 		for _, arg := range rest {
-			if strings.Contains(arg, "system(") || strings.Contains(arg, ">") || strings.Contains(arg, "|") {
+			if strings.Contains(arg, "system(") || strings.Contains(arg, ">") || strings.Contains(arg, "|") || strings.Contains(arg, "@load") {
 				a.raise(qChanges, "")
 			}
 		}
-	case "sort":
-		if qHasFlag(rest, "-o", "--output") {
+		// -i inplace edits files; -f, -E, and -l load programs hi can't see.
+		if qHasShortFlag(rest, 'i', 'f', 'E', 'l') || qHasFlag(rest, "--include", "--file", "--exec", "--load") {
 			a.raise(qChanges, "")
+		}
+	case "sort":
+		if qHasShortFlag(rest, 'o') || qHasFlag(rest, "--output", "--compress-program") {
+			a.raise(qChanges, "")
+		}
+	case "fd", "fdfind":
+		if qHasShortFlag(rest, 'x', 'X') || qHasFlag(rest, "--exec", "--exec-batch") {
+			a.raise(qChanges, "")
+		}
+	case "rg":
+		if qHasFlag(rest, "--pre") {
+			a.raise(qChanges, "")
+		}
+	case "xxd", "uniq":
+		// xxd in out, xxd -r in out, and uniq in out write out.
+		if len(qOperands(rest)) > 1 {
+			a.raise(qChanges, "")
+		}
+	case "tree":
+		if qHasShortFlag(rest, 'o') {
+			a.raise(qChanges, "")
+		}
+	case "man":
+		if qHasShortFlag(rest, 'P', 'H') || qHasFlag(rest, "--pager", "--html") {
+			a.raise(qChanges, "")
+		}
+	case "date":
+		if qHasShortFlag(rest, 's') || qHasFlag(rest, "--set") {
+			a.raise(qChanges, "")
+		}
+	case "hostname":
+		if len(qOperands(rest)) > 0 || qHasFlag(rest, "-F", "--file") {
+			a.raise(qChanges, "")
+		}
+	case "history":
+		if len(rest) > 0 {
+			a.raise(qChanges, "") // -c, -d, -w, -a, -r: the history itself
 		}
 	case "git":
 		assessGit(a, rest)
@@ -367,13 +501,29 @@ func assessGit(a *qAssessment, args []string) {
 		rest = rest[1:]
 	}
 	switch sub {
-	case "status", "log", "diff", "show", "blame", "ls-files", "rev-parse", "describe", "shortlog", "grep", "reflog", "ls-remote", "cat-file", "whatchanged":
-	case "branch", "tag", "remote", "stash", "config", "worktree":
-		if len(qOperands(rest)) > 0 || qHasFlag(rest, "-d", "-D", "--delete", "-m", "-M", "--unset", "--add") {
+	case "status", "log", "diff", "show", "blame", "ls-files", "rev-parse", "describe", "shortlog", "grep", "ls-remote", "cat-file", "whatchanged":
+		// --output writes the diff or log to a file; --ext-diff and
+		// --textconv run programs the repository's config names.
+		if qHasFlag(rest, "--output", "--ext-diff", "--textconv") {
 			a.raise(qChanges, "")
 		}
-		if sub == "stash" && qOneOf(qFirstWord(rest), "drop", "clear") {
+	case "reflog":
+		if word := qFirstWord(rest); word != "" && word != "show" {
+			a.raise(qChanges, "")
+			if word == "expire" || word == "delete" {
+				a.raise(qDangerous, "git reflog "+word+" throws away what undoes mistakes")
+			}
+		}
+	case "stash":
+		if word := qFirstWord(rest); word != "list" && word != "show" {
+			a.raise(qChanges, "") // git stash, push, pop, apply: the working tree changes
+		}
+		if qOneOf(qFirstWord(rest), "drop", "clear") {
 			a.raise(qDangerous, "git stash "+qFirstWord(rest)+" throws work away")
+		}
+	case "branch", "tag", "remote", "config", "worktree":
+		if len(qOperands(rest)) > 0 || qHasFlag(rest, "-d", "-D", "--delete", "-m", "-M", "--unset", "--add") {
+			a.raise(qChanges, "")
 		}
 	case "push":
 		a.raise(qChanges, "")
@@ -537,13 +687,34 @@ func qHasFlag(args []string, flags ...string) bool {
 	return false
 }
 
+// qHasShortFlag says whether a cluster of short flags, such as -Ei or
+// -uo, holds one of letters. It doesn't stop at a letter that takes a
+// value, so -e's script can read as flags too: a false yes is the safe
+// side.
+func qHasShortFlag(args []string, letters ...byte) bool {
+	for _, arg := range args {
+		if arg == "--" {
+			return false
+		}
+		if len(arg) < 2 || arg[0] != '-' || arg[1] == '-' {
+			continue
+		}
+		for _, letter := range letters {
+			if strings.IndexByte(arg[1:], letter) >= 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func qHasRecursive(args []string) bool {
 	for _, arg := range args {
 		if arg == "--" {
 			return false
 		}
-		if arg == "--recursive" {
-			return true
+		if len(arg) > 4 && strings.HasPrefix("--recursive", arg) {
+			return true // --recursive, and GNU's abbreviations of it
 		}
 		if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") && strings.ContainsAny(arg, "rR") {
 			return true
@@ -559,4 +730,170 @@ func qOneOf(value string, options ...string) bool {
 		}
 	}
 	return false
+}
+
+// assessSed: sed is read-only unless it edits in place (-i, in any cluster
+// such as -Ei), reads its script from a file, or its script writes (w, W,
+// s///w) or runs (e, s///e) something.
+func assessSed(a *qAssessment, args []string) {
+	var scripts []string
+	explicit, operands := false, false
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case operands || arg == "-" || !strings.HasPrefix(arg, "-"):
+			if !explicit && len(scripts) == 0 {
+				scripts = append(scripts, arg)
+			}
+		case arg == "--":
+			operands = true
+		case arg == "--expression":
+			if i+1 < len(args) {
+				scripts, explicit, i = append(scripts, args[i+1]), true, i+1
+			}
+		case strings.HasPrefix(arg, "--expression="):
+			scripts, explicit = append(scripts, strings.TrimPrefix(arg, "--expression=")), true
+		case arg == "--file" || strings.HasPrefix(arg, "--file=") || arg == "--in-place" || strings.HasPrefix(arg, "--in-place="):
+			a.raise(qChanges, "")
+			explicit = true
+		case strings.HasPrefix(arg, "--"):
+		default:
+			// A cluster of short flags: -n, -E, -i[SUFFIX], -e SCRIPT, -f FILE.
+			for j := 1; j < len(arg); j++ {
+				switch arg[j] {
+				case 'i', 'f':
+					a.raise(qChanges, "")
+					explicit = explicit || arg[j] == 'f'
+					j = len(arg)
+				case 'e':
+					script := arg[j+1:]
+					if script == "" && i+1 < len(args) {
+						script, i = args[i+1], i+1
+					}
+					scripts, explicit = append(scripts, script), true
+					j = len(arg)
+				case 'l':
+					if j == len(arg)-1 {
+						i++ // -l N
+					}
+					j = len(arg)
+				}
+			}
+		}
+	}
+	for _, script := range scripts {
+		if qSedScriptWrites(script) {
+			a.raise(qChanges, "")
+		}
+	}
+}
+
+// qSedScriptWrites says whether a sed script writes a file or runs a
+// command: w, W, e, or s///w and s///e. A command hi doesn't know counts
+// as one that does.
+func qSedScriptWrites(script string) bool {
+	i := 0
+	more := func() bool { return i < len(script) }
+	skipSpace := func() {
+		for more() && (script[i] == ' ' || script[i] == '\t') {
+			i++
+		}
+	}
+	toEnd := func(stops string) {
+		for more() && strings.IndexByte(stops, script[i]) < 0 {
+			if script[i] == '\\' {
+				i++
+			}
+			i++
+		}
+	}
+	// delimited reads up to an unescaped delimiter, past it.
+	delimited := func(delimiter byte) {
+		for more() && script[i] != delimiter {
+			if script[i] == '\\' {
+				i++
+			}
+			i++
+		}
+		i++
+	}
+	address := func() {
+		switch {
+		case !more():
+		case script[i] >= '0' && script[i] <= '9':
+			for more() && (script[i] >= '0' && script[i] <= '9' || script[i] == '~') {
+				i++
+			}
+		case script[i] == '$':
+			i++
+		case script[i] == '/':
+			i++
+			delimited('/')
+		case script[i] == '\\' && i+1 < len(script):
+			delimiter := script[i+1]
+			i += 2
+			delimited(delimiter)
+		case script[i] == '+' || script[i] == '~':
+			i++
+			for more() && script[i] >= '0' && script[i] <= '9' {
+				i++
+			}
+		}
+		for more() && (script[i] == 'I' || script[i] == 'M') {
+			i++
+		}
+	}
+	for {
+		for more() && strings.IndexByte(" \t\n;", script[i]) >= 0 {
+			i++
+		}
+		if !more() {
+			return false
+		}
+		address()
+		skipSpace()
+		if more() && script[i] == ',' {
+			i++
+			skipSpace()
+			address()
+		}
+		skipSpace()
+		if more() && script[i] == '!' {
+			i++
+			skipSpace()
+		}
+		if !more() {
+			return false
+		}
+		command := script[i]
+		i++
+		switch command {
+		case '{', '}', 'p', 'P', 'd', 'D', 'n', 'N', 'g', 'G', 'h', 'H', 'x', '=', 'z', 'F':
+		case 'q', 'Q', 'l', 'L':
+			skipSpace()
+			for more() && script[i] >= '0' && script[i] <= '9' {
+				i++
+			}
+		case '#', 'a', 'i', 'c', 'r', 'R':
+			toEnd("\n") // text, or a file read
+		case ':', 'b', 't', 'T', 'v':
+			toEnd(";\n}")
+		case 's', 'y':
+			if !more() {
+				return false
+			}
+			delimiter := script[i]
+			i++
+			delimited(delimiter)
+			delimited(delimiter)
+			for more() && strings.IndexByte(";\n}", script[i]) < 0 {
+				if command == 's' && (script[i] == 'w' || script[i] == 'e') {
+					return true
+				}
+				i++
+			}
+		default: // w, W, e, and what hi doesn't know
+			return true
+		}
+	}
 }

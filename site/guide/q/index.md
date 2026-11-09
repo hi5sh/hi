@@ -82,9 +82,13 @@ It has five tools, all read-only, which `hi` runs itself:
 | `run`   | A read-only command such as `wc -l` or `git status`, for 10 seconds at most |
 
 `run` takes only commands `hi` classes as read-only (see below); anything
-else is refused, and the model has to propose it to you instead. `read`
-never opens credential files, such as `.env`, `~/.ssh`, `.netrc`, or `hi`'s
-own settings. What a tool returns is redacted like the rest of the context.
+else is refused, and the model has to propose it to you instead. It also
+refuses network lookups such as `dig` and `ping`, and commands with `$…`
+or `$(…)` in them, and asks you first when a command names a file outside
+the current folder, as `read` does. `help` takes a program's name and its
+subcommands, such as `git log`, never a script. `read` and `run` never open
+credential files, such as `.env`, `~/.ssh`, `.netrc`, or `hi`'s own
+settings. What a tool returns is redacted like the rest of the context.
 
 ## Choose a model
 

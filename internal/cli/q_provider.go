@@ -801,7 +801,10 @@ func qProviderByName(name, model string, config qConfig, key string) (qChoice, e
 			config = qConfig{}
 		}
 		base := firstNonEmpty(config.BaseURL, os.Getenv("OPENAI_BASE_URL"), qOpenAIURL)
-		if config.Provider != "openai" || key == "" {
+		// OPENAI_API_KEY is for OpenAI, or for OPENAI_BASE_URL: an endpoint
+		// saved without a key (Ollama, hi serve llm) is sent none.
+		envBase := strings.TrimSuffix(firstNonEmpty(os.Getenv("OPENAI_BASE_URL"), qOpenAIURL), "/")
+		if (config.Provider != "openai" || key == "") && strings.TrimSuffix(base, "/") == envBase {
 			key = os.Getenv("OPENAI_API_KEY")
 		}
 		chosen := firstNonEmpty(model, config.Model, qOpenAIModel)

@@ -337,7 +337,15 @@ var qRedactions = []struct {
 	{regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)`), "[private key removed]"},
 	{regexp.MustCompile(`(?i)\b(export\s+|set\s+-x\s+|setenv\s+)?([A-Z0-9_]*(KEY|TOKEN|SECRET|PASS|PASSWORD|PWD|AUTH|CREDENTIALS?)[A-Z0-9_]*)=("[^"]*"|'[^']*'|\S+)`), "$1$2=[removed]"},
 	{regexp.MustCompile(`(?i)(--password|--pass|--token|--api-key|--apikey|--secret|--key|--auth)(=|\s+)("[^"]*"|'[^']*'|\S+)`), "$1$2[removed]"},
-	{regexp.MustCompile(`(?i)(authorization|x-api-key|api-key|cookie)\s*:\s*[^'"\n]+`), "$1: [removed]"},
+	{regexp.MustCompile(`(?i)(authorization|x-api-key|api-key|cookie)(["']?\s*[:=]\s*["']?)[^'"\n]+`), "$1$2[removed]"},
+	// "api_key": "…", password: …, aws_secret_access_key = …: a file's or
+	// a pipe's, in JSON, YAML, TOML, or INI.
+	{regexp.MustCompile(`(?i)(["']?[A-Za-z0-9_.-]*(key|token|secret|passwd|password|credentials?)["']?\s*[:=]\s*)(\[removed\]|"[^"\n]*"|'[^'\n]*'|[^\s,;}\]]+)`), "$1[removed]"},
+	// Passwords given with -p: mysql -pS3cret, sshpass -p S3cret, docker
+	// login -p S3cret; and curl -u user:S3cret.
+	{regexp.MustCompile(`(?i)\b((?:mysql|mariadb|mysqldump|mysqladmin|sshpass)\b[^\n|;&]*?\s-p)(\S+|\s+\S+)`), "$1[removed]"},
+	{regexp.MustCompile(`(?i)\b((?:docker|podman|helm|nerdctl)\s+(?:registry\s+)?login\b[^\n|;&]*?\s(?:-p|--password)(?:=|\s+))\S+`), "$1[removed]"},
+	{regexp.MustCompile(`(\s(?:-u|--user)(?:=|\s+)[^\s:'"]+:)("[^"]*"|'[^']*'|\S+)`), "$1[removed]"},
 	{regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+.-]*://)[^/\s:@]+:[^/\s@]+@`), "$1[removed]@"},
 	{regexp.MustCompile(`\b(sk-(ant-|proj-)?[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|hf_[A-Za-z0-9]{20,}|xox[abpors]-[A-Za-z0-9-]{10,}|xapp-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|glpat-[A-Za-z0-9_-]{20,}|rpa_[A-Za-z0-9]{20,})\b`), "[removed]"},
 	{regexp.MustCompile(`\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b`), "[removed]"},

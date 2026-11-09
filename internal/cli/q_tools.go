@@ -9,9 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	"mvdan.cc/sh/v3/syntax"
 )
 
 const (
@@ -132,6 +135,10 @@ func (s *qSession) runTool(ctx context.Context, call qToolCall) string {
 			s.note("run " + args.Command + " (refused: " + assessment.risk.String() + ")")
 			return "not run: only read-only commands run while looking. This one is classed " + assessment.risk.String() + "; propose it instead if it is what the user wants."
 		}
+		if why, ask := qRunRefusal(args.Command); why != "" && !(ask && s.mayRun(args.Command, why)) {
+			s.note("run " + args.Command + " (refused: " + why + ")")
+			return "not run: " + why + ". Propose it instead if it is what the user wants."
+		}
 		s.note("run " + args.Command)
 		return qRunTool(ctx, args.Command)
 	}
@@ -145,12 +152,20 @@ func (s *qSession) mayRead(path string) bool {
 	if err != nil {
 		return false
 	}
+	// Where a link leads is what is read: a link in the folder to
+	// ~/.aws/credentials is that file.
+	if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+		absolute = resolved
+	}
 	for _, name := range qSensitiveNames {
 		if strings.Contains(absolute+"/", "/"+name) || strings.HasSuffix(absolute, "/"+strings.TrimSuffix(name, "/")) {
 			return false
 		}
 	}
 	folder, _ := os.Getwd()
+	if resolved, err := filepath.EvalSymlinks(folder); err == nil {
+		folder = resolved
+	}
 	if absolute == folder || strings.HasPrefix(absolute, folder+string(filepath.Separator)) {
 		return true
 	}
@@ -285,9 +300,16 @@ func qHelpTool(ctx context.Context, command string) string {
 	if len(words) == 0 {
 		return "error: no command"
 	}
-	for _, word := range words {
-		if strings.ContainsAny(word, "/;&|$`<>(){}\\'\"") {
-			return "error: give a command name, not a path or a script"
+	// hi runs the program itself, with --help after the words: only a
+	// program's name and its subcommands, such as git log, so nothing
+	// can make it a script's run (sh cleanup.sh --help runs cleanup.sh)
+	// or an operand's (BSD's rm build --help removes build).
+	if !qHelpName.MatchString(words[0]) || qHelpRefused[words[0]] || qShells[words[0]] || qDangerousCommands[words[0]] != "" || strings.HasPrefix(words[0], "python") {
+		return "error: give a program's name, such as git or tar; help doesn't run interpreters, runners, or commands that change files"
+	}
+	for _, word := range words[1:] {
+		if !qHelpSubcommand.MatchString(word) {
+			return "error: give a command name and its subcommands, such as git log, not options, paths, or a script"
 		}
 	}
 	if _, err := exec.LookPath(words[0]); err != nil {
@@ -314,12 +336,135 @@ func qHelpTool(ctx context.Context, command string) string {
 	return qClip(text)
 }
 
+var (
+	qHelpName       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._+-]*$`)
+	qHelpSubcommand = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	// qHelpRefused run what they are given, or change the files named
+	// after them; help's model asks about them with read or man instead.
+	qHelpRefused = map[string]bool{
+		"node": true, "deno": true, "bun": true, "ruby": true, "perl": true, "php": true, "lua": true, "java": true,
+		"go": true, "cargo": true, "npx": true, "npm": true, "pnpm": true, "yarn": true, "uv": true, "uvx": true, "pipx": true,
+		"make": true, "just": true, "env": true, "command": true, "exec": true, "xargs": true, "nohup": true, "timeout": true,
+		"nice": true, "watch": true, "time": true, "rm": true, "rmdir": true, "mv": true, "cp": true, "ln": true,
+		"chmod": true, "chown": true, "chgrp": true, "touch": true, "mkdir": true, "truncate": true, "install": true,
+		"tee": true, "unlink": true, "trash": true, "trash-put": true,
+	}
+	// qNetworkCommands reach other machines, so a lookup could carry what
+	// it read out in a name it looks up; they run only when proposed.
+	qNetworkCommands = map[string]bool{"dig": true, "host": true, "nslookup": true, "ping": true}
+)
+
+// qRunRefusal says why the run tool won't run a read-only command on its
+// own, or "": one that reaches the network, one whose words hi can't see
+// until the shell expands them ($HOME, $(…)), or one that names a file
+// holding credentials. ask is true when the user may let it run anyway:
+// a command that names a file outside the current folder, as read asks.
+func qRunRefusal(command string) (why string, ask bool) {
+	file, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(strings.NewReader(command), "")
+	if err != nil {
+		return "hi could not parse it", false
+	}
+	folder, _ := os.Getwd()
+	if resolved, err := filepath.EvalSymlinks(folder); err == nil {
+		folder = resolved
+	}
+	outside := ""
+	syntax.Walk(file, func(node syntax.Node) bool {
+		if why != "" {
+			return false
+		}
+		switch n := node.(type) {
+		case *syntax.ParamExp, *syntax.CmdSubst, *syntax.ProcSubst, *syntax.ArithmExp:
+			why = "it expands $… or $(…), so hi can't see what it reads"
+		case *syntax.CallExpr:
+			words := qWords(n.Args)
+			if len(words) > 0 && qNetworkCommands[filepath.Base(words[0])] {
+				why = filepath.Base(words[0]) + " reaches the network"
+				return false
+			}
+			for _, word := range words {
+				qSortPath(word, folder, &why, &outside)
+			}
+		case *syntax.Redirect:
+			qSortPath(qWordText(n.Word), folder, &why, &outside)
+		}
+		return true
+	})
+	if why != "" {
+		return why, false
+	}
+	return outside, outside != ""
+}
+
+// qSortPath puts a word's reason where it goes: credentials refuse, a
+// path outside the folder asks.
+func qSortPath(word, folder string, why, outside *string) {
+	reason := qOutsideFolder(word, folder)
+	switch {
+	case reason == "":
+	case strings.HasSuffix(reason, "holds credentials"):
+		if *why == "" {
+			*why = reason
+		}
+	case *outside == "":
+		*outside = reason
+	}
+}
+
+// mayRun asks the user to let a lookup read outside the current folder.
+func (s *qSession) mayRun(command, why string) bool {
+	if s.keys == nil {
+		return false
+	}
+	fmt.Fprint(s.stdout, s.style(colorAmber, false).Render(fmt.Sprintf("  Let the model run %s? (%s) [y/N] ", command, why)))
+	answer, _ := readLine(s.keys)
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	return answer == "y" || answer == "yes"
+}
+
+// qOutsideFolder says why a word that may be a path is one the run tool
+// leaves to read: outside the folder, or a credential file.
+func qOutsideFolder(word, folder string) string {
+	if word == "" || strings.HasPrefix(word, "-") && !strings.Contains(word, "/") {
+		return ""
+	}
+	if _, value, ok := strings.Cut(word, "="); ok && strings.HasPrefix(word, "-") {
+		word = value // --file=~/.netrc
+	}
+	path := qExpandHome(word)
+	for _, name := range qSensitiveNames {
+		if strings.Contains("/"+path+"/", "/"+name) || strings.HasSuffix(path, "/"+strings.TrimSuffix(name, "/")) || path == strings.TrimSuffix(name, "/") {
+			return word + " holds credentials"
+		}
+	}
+	if !strings.ContainsAny(word, "/~") && !strings.HasPrefix(word, ".") {
+		if _, err := os.Lstat(word); err != nil {
+			return "" // not a file here: a pattern, a name, a subcommand
+		}
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return word + " isn't a path hi can check"
+	}
+	if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+		absolute = resolved
+	} else if resolved, err := filepath.EvalSymlinks(filepath.Dir(absolute)); err == nil {
+		absolute = filepath.Join(resolved, filepath.Base(absolute)) // a glob, or a file not there yet
+	}
+	if absolute != folder && !strings.HasPrefix(absolute, folder+string(filepath.Separator)) {
+		return word + " is outside the current folder"
+	}
+	return ""
+}
+
 func qRunTool(ctx context.Context, command string) string {
 	ctx, cancel := context.WithTimeout(ctx, qToolRunTimeout)
 	defer cancel()
+	// bash, which hi's check parses, never the user's zsh, whose globs
+	// can run code bash reads as a pattern.
 	process := exec.CommandContext(ctx, "/bin/sh", "-c", command)
-	if shell := os.Getenv("SHELL"); filepath.Base(shell) == "bash" || filepath.Base(shell) == "zsh" {
-		process = exec.CommandContext(ctx, shell, "-c", command)
+	if bash, err := exec.LookPath("bash"); err == nil {
+		process = exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-c", command)
 	}
 	var output bytes.Buffer
 	process.Stdout = &output
