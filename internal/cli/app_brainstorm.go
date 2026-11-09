@@ -221,7 +221,7 @@ func (b *appBroker) endBrainstorm(id, state string, bs *brainstorm) {
 	}
 	// The dev box's own go into its home, for the agent that asked.
 	if record.Dev {
-		appCopyTree(folder, appDevResultsDir(b.team, "brainstorms", id))
+		appCopyTreeIn(appDevHome(b.team), folder, appDevResultsDir(b.team, "brainstorms", id))
 		record.Told = true
 		saveTeamBrainstorm(b.team, *record)
 		return
@@ -251,7 +251,10 @@ func appDeliverPlace(deliver string) (channel, thread string) {
 	return channel, thread
 }
 
-// appCopyTree copies a folder's regular files.
+// appCopyTree copies a folder's regular files into a folder of the
+// team's that no box writes in; appCopyTreeIn copies into one a box does.
+// The files are an agent's, so links among them are skipped, and each is
+// read once it is known to be a regular file.
 func appCopyTree(from, to string) {
 	filepath.WalkDir(from, func(path string, entry os.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || !entry.Type().IsRegular() {
@@ -261,7 +264,13 @@ func appCopyTree(from, to string) {
 		if err != nil {
 			return nil
 		}
-		if data, err := os.ReadFile(path); err == nil {
+		source, err := os.OpenRoot(filepath.Dir(path))
+		if err != nil {
+			return nil
+		}
+		data, err := boxedReadRoot(source, filepath.Base(path), appBoxedMaxRead)
+		source.Close()
+		if err == nil {
 			target := filepath.Join(to, rel)
 			if os.MkdirAll(filepath.Dir(target), 0o700) == nil {
 				os.WriteFile(target, data, 0o600)

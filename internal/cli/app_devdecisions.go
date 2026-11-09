@@ -190,8 +190,12 @@ func (b *appBroker) saveDecision(file, blob, text, who string) (string, error) {
 		}
 		message = "Delete the decision " + file
 	} else {
-		os.MkdirAll(filepath.Dir(path), 0o755)
-		if err := os.WriteFile(path, []byte(text+"\n"), 0o644); err != nil {
+		// Through a root: the folder is the repository's, and a commit can
+		// make it a link.
+		if err := boxedMkdirAll(b.repo, filepath.Dir(path), 0o755); err != nil {
+			return "", err
+		}
+		if err := boxedWriteFile(b.repo, path, []byte(text+"\n"), 0o644); err != nil {
 			return "", err
 		}
 		if boxGit(b.repo, "status", "--porcelain", "--", rel) == "" {

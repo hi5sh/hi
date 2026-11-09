@@ -535,8 +535,21 @@ On gpu1, in a rootless Podman box (Alpine) with NetBird 0.80.0:
   `podman exec -it <box> herdr` under a pseudo-terminal of its own and
   passes bytes both ways, with the page's size. Closing the tab ends that
   herdr client; herdr's server and the agents stay. A WebSocket whose
-  Origin isn't the page's address is refused (the key's cookie is
-  SameSite=Strict too). xterm.js 5.5 and its fit addon are embedded
+  Origin isn't the page's address is refused. So is every change (each
+  POST) whose Sec-Fetch-Site isn't same-origin or whose Origin isn't the
+  page's (v2.6.102): the key's cookie is SameSite=Strict, but the app's
+  preview and production are on the same site, at another port or a
+  sibling name, and run code from the dev box, so the cookie goes with
+  their requests too.
+- **The box's folders** (v2.6.102): the box's home and clone are the
+  box's to fill with links, FIFOs, and huge files. hi reads and writes
+  there only through an `os.Root` at the folder (`app_boxed.go`): no link
+  out of it is followed, a read takes regular files up to 16 MB, a write
+  goes to a fresh name and is renamed into place, and a file hi adds to
+  that is a link out (a dotfiles manager's) is left as it is. Results
+  hi copies in (reviews, brainstorms, Antigravity runs, a chat's files),
+  the Files view's trees, the chat's transcripts and the timeline's files
+  all go that way. xterm.js 5.5 and its fit addon are embedded
   (`third_party/xterm`), so the page loads nothing from elsewhere.
 - **Left:** the team's tickets (cached 30 s) and herdr's workspaces with
   each agent's state (`herdr workspace list`, `herdr agent list`). A

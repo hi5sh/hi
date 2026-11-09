@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -59,6 +58,10 @@ type appDevRewindIndex struct {
 	cut, cutLeaf string
 }
 
+// appDevRewindMaxFile is the largest file the timeline compares; a larger
+// one shows no lines added or taken out.
+const appDevRewindMaxFile = 4 << 20
+
 var appDevRewindIndexes = struct {
 	sync.Mutex
 	byPath map[string]*appDevRewindIndex
@@ -66,7 +69,7 @@ var appDevRewindIndexes = struct {
 
 // appDevRewindIndexFor is a transcript's index, brought up to date; it
 // comes locked.
-func appDevRewindIndexFor(host string) (*appDevRewindIndex, error) {
+func appDevRewindIndexFor(home, host string) (*appDevRewindIndex, error) {
 	appDevRewindIndexes.Lock()
 	index := appDevRewindIndexes.byPath[host]
 	if index == nil {
@@ -78,15 +81,15 @@ func appDevRewindIndexFor(host string) (*appDevRewindIndex, error) {
 	}
 	appDevRewindIndexes.Unlock()
 	index.mu.Lock()
-	if err := index.update(host); err != nil {
+	if err := index.update(home, host); err != nil {
 		index.mu.Unlock()
 		return nil, err
 	}
 	return index, nil
 }
 
-func (x *appDevRewindIndex) update(host string) error {
-	f, err := os.Open(host)
+func (x *appDevRewindIndex) update(home, host string) error {
+	f, err := boxedOpenFile(home, host)
 	if err != nil {
 		return err
 	}
@@ -105,12 +108,14 @@ func (x *appDevRewindIndex) update(host string) error {
 	}
 	reader := bufio.NewReaderSize(f, 1<<20)
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, n, err := appReadBoxLine(reader)
 		if err != nil {
 			return nil // a line still being written waits for the next read
 		}
-		x.add(bytes.TrimSpace(line), x.size)
-		x.size += int64(len(line))
+		if line != nil {
+			x.add(bytes.TrimSpace(line), x.size)
+		}
+		x.size += n
 	}
 }
 
@@ -218,8 +223,8 @@ func appDevTurnsFollow(known string, active []appDevPrompt) bool {
 	count, last, _ := strings.Cut(known, ":")
 	n := 0
 	fmt.Sscan(count, &n)
-	if n == 0 {
-		return true
+	if n <= 0 {
+		return true // none yet, or not a count the page sends
 	}
 	return n <= len(active) && active[n-1].UUID == last
 }
@@ -265,11 +270,11 @@ func (x *appDevRewindIndex) points(team, session string) []appDevRewindPoint {
 			return "", false
 		}
 		where = path.Join(history, *backup.Name)
-		host, ok := appDevHostPath(team, where)
+		base, host, ok := appDevBoxBase(team, where)
 		if !ok {
 			return "", false
 		}
-		data, err := os.ReadFile(host)
+		data, err := boxedReadFileLimit(base, host, appDevRewindMaxFile)
 		return string(data), err == nil
 	}
 	now := func(file string, backup appDevBackup) (string, bool) {
@@ -277,11 +282,11 @@ func (x *appDevRewindIndex) points(team, session string) []appDevRewindPoint {
 		if !path.IsAbs(where) {
 			where = path.Join(backup.Dir, file)
 		}
-		host, ok := appDevHostPath(team, where)
+		base, host, ok := appDevBoxBase(team, where)
 		if !ok {
 			return "", false
 		}
-		data, err := os.ReadFile(host)
+		data, err := boxedReadFileLimit(base, host, appDevRewindMaxFile)
 		return string(data), err == nil
 	}
 	// at is every tracked file as it was at a message: its checkpoint, or
@@ -429,7 +434,7 @@ func (b *appBroker) devChatPoints(workspace string) (appDevRewindView, error) {
 	if !ok {
 		return view, nil
 	}
-	index, err := appDevRewindIndexFor(host)
+	index, err := appDevRewindIndexFor(appDevHome(b.team), host)
 	if err != nil {
 		return view, err
 	}
@@ -489,7 +494,7 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 	if !ok {
 		return "", fmt.Errorf("%s isn't in the dev box", session)
 	}
-	index, err := appDevRewindIndexFor(host)
+	index, err := appDevRewindIndexFor(appDevHome(b.team), host)
 	if err != nil {
 		return "", err
 	}
@@ -585,7 +590,7 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 	// The conversation's rewind puts the message back in Claude Code's
 	// prompt; it goes to the chat's box instead, so a message sent from the
 	// chat isn't typed after it. Esc Esc clears it.
-	index, err = appDevRewindIndexFor(host)
+	index, err = appDevRewindIndexFor(appDevHome(b.team), host)
 	if err == nil {
 		if index.leaf == leaf {
 			index.cut, index.cutLeaf = target.UUID, leaf
@@ -642,8 +647,8 @@ func appDevRewindKey(text string) string {
 // appDevChatBranch is which of a transcript's records the chat shows
 // (nil: all), the conversation's turns, and whether the page's turns are
 // still its start.
-func appDevChatBranch(host, known string) (func(offset int64) bool, string, bool) {
-	index, err := appDevRewindIndexFor(host)
+func appDevChatBranch(home, host, known string) (func(offset int64) bool, string, bool) {
+	index, err := appDevRewindIndexFor(home, host)
 	if err != nil {
 		return nil, "", true
 	}

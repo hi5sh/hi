@@ -127,29 +127,25 @@ type appAgyInput struct {
 // devAgy starts a run the dev box asked for, with files from its home or
 // clone, read through os.Root so a link in the box can't reach past them.
 func (b *appBroker) devAgy(request appAgyRequest) (appAgy, error) {
+	// The limits before any reading: a file's size is the box's to choose.
+	if len(request.Files) > appAgyMaxFiles {
+		return appAgy{}, fmt.Errorf("a run takes up to %d files, not %d", appAgyMaxFiles, len(request.Files))
+	}
 	var inputs []appAgyInput
+	left := int64(appAgyMaxBytes)
 	for _, boxPath := range request.Files {
-		host, ok := appDevHostPath(b.team, boxPath)
+		base, host, ok := appDevBoxBase(b.team, boxPath)
 		if !ok {
 			return appAgy{}, fmt.Errorf("%s isn't in the dev box's home or clone (/box/home, /box/repo)", boxPath)
 		}
-		base := filepath.Join(appDevDir(b.team), "home")
-		if clean := path.Clean(boxPath); clean == "/box/repo" || strings.HasPrefix(clean, "/box/repo/") {
-			base = filepath.Join(appDevDir(b.team), "repo")
+		data, err := boxedReadFileLimit(base, host, left)
+		if errors.Is(err, errBoxedTooLarge) {
+			return appAgy{}, fmt.Errorf("the files come to more than %d MB", appAgyMaxBytes>>20)
 		}
-		rel, err := filepath.Rel(base, host)
-		if err != nil {
-			return appAgy{}, err
-		}
-		root, err := os.OpenRoot(base)
-		if err != nil {
-			return appAgy{}, err
-		}
-		data, err := root.ReadFile(rel)
-		root.Close()
 		if err != nil {
 			return appAgy{}, fmt.Errorf("%s: %w", boxPath, err)
 		}
+		left -= int64(len(data))
 		inputs = append(inputs, appAgyInput{name: path.Base(boxPath), data: data})
 	}
 	return b.startAgy(appAgy{Task: request.Task, By: appDevBy, Dev: true}, inputs)
@@ -303,7 +299,7 @@ func (b *appBroker) watchAgy(id string) {
 		os.WriteFile(filepath.Join(folder, "summary.md"), []byte(record.Summary+"\n"), 0o600)
 	}
 	if record.Dev {
-		appCopyTree(folder, appDevResultsDir(b.team, "agy", id))
+		appCopyTreeIn(appDevHome(b.team), folder, appDevResultsDir(b.team, "agy", id))
 	}
 	saveTeamAgy(b.team, record)
 	if !record.Dev {

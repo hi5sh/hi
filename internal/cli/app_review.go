@@ -323,7 +323,7 @@ func (b *appBroker) endDeepReview(id, state string, rv *review) {
 	}
 	// The dev box's own goes into its home, for the agent that asked.
 	if record.Dev {
-		appCopyTree(folder, appDevResultsDir(b.team, "reviews", id))
+		appCopyTreeIn(appDevHome(b.team), folder, appDevResultsDir(b.team, "reviews", id))
 		record.Told = true
 		saveTeamDeepReview(b.team, *record)
 		return

@@ -98,17 +98,43 @@ func appDevHostPath(team, boxPath string) (string, bool) {
 	return "", false
 }
 
+// appDevBoxBase is the folder of the team's dev/ that a path in the dev
+// box is in, the box's home or its clone, which the box writes in: read
+// or write the path only through it (app_boxed.go).
+func appDevBoxBase(team, boxPath string) (base, host string, ok bool) {
+	host, ok = appDevHostPath(team, boxPath)
+	if !ok {
+		return "", "", false
+	}
+	clean := path.Clean(boxPath)
+	if clean == "/box/repo" || strings.HasPrefix(clean, "/box/repo/") {
+		return filepath.Join(appDevDir(team), "repo"), host, true
+	}
+	return appDevHome(team), host, true
+}
+
 // appDevOpenRoot opens one of the File view's trees, as an os.Root.
 func appDevOpenRoot(team, id string) (*os.Root, error) {
 	for _, root := range appDevFileRoots(team) {
 		if root.ID != id {
 			continue
 		}
-		host, ok := appDevHostPath(team, root.Path)
+		base, host, ok := appDevBoxBase(team, root.Path)
 		if !ok {
 			return nil, fmt.Errorf("%s isn't in the dev box's home or clone", root.Path)
 		}
-		return os.OpenRoot(host)
+		// The tree's path is the box's to report, and its folders the box's
+		// to replace with links: it is opened inside the home or the clone,
+		// never through a link out of them.
+		outer, rel, err := boxedOpen(base, host)
+		if err != nil {
+			return nil, err
+		}
+		if rel == "." {
+			return outer, nil
+		}
+		defer outer.Close()
+		return outer.OpenRoot(rel)
 	}
 	return nil, fmt.Errorf("the dev box has no %s to look into", id)
 }

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -111,9 +112,9 @@ func appDevChatFiles(body map[string]any) ([]appAttachment, error) {
 // ~/hi/chat/<workspace>, and says where they are in the box, for the
 // agent to read them.
 func appDevSaveChatFiles(team, workspace string, files []appAttachment) ([]string, error) {
-	dir := appDevResultsDir(team, "chat", workspace)
+	home, dir := appDevHome(team), appDevResultsDir(team, "chat", workspace)
 	if len(files) > 0 {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if err := boxedMkdirAll(home, dir, 0o700); err != nil {
 			return nil, err
 		}
 	}
@@ -122,7 +123,16 @@ func appDevSaveChatFiles(team, workspace string, files []appAttachment) ([]strin
 		// One word, so the path reads as one in the message.
 		name := strings.Join(strings.Fields(filepath.Base(strings.TrimSpace(file.Name))), "-")
 		name = appUniqueFileName(dir, strings.TrimLeft(name, "."))
-		if err := os.WriteFile(filepath.Join(dir, name), file.Data, 0o600); err != nil {
+		// A new file, never one there already: a name the box took, with
+		// a link or a file, moves on to the next.
+		ext := filepath.Ext(name)
+		stem := strings.TrimSuffix(name, ext)
+		err := boxedCreateFile(home, filepath.Join(dir, name), file.Data, 0o600)
+		for i := 2; errors.Is(err, fs.ErrExist) && i < 100; i++ {
+			name = fmt.Sprintf("%s-%d%s", stem, i, ext)
+			err = boxedCreateFile(home, filepath.Join(dir, name), file.Data, 0o600)
+		}
+		if err != nil {
 			return nil, err
 		}
 		paths = append(paths, "/box/home/hi/chat/"+workspace+"/"+name)
@@ -431,8 +441,8 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 // readDevChat reads a transcript's entries from offset to its last whole
 // line, and where to read from next; shown, when not nil, says which
 // records (by where they start) are the conversation's.
-func readDevChat(file string, offset int64, shown func(int64) bool) ([]appDevChatEntry, int64, bool, error) {
-	f, err := os.Open(file)
+func readDevChat(home, file string, offset int64, shown func(int64) bool) ([]appDevChatEntry, int64, bool, error) {
+	f, err := boxedOpenFile(home, file)
 	if err != nil {
 		return nil, offset, false, err
 	}
@@ -451,14 +461,14 @@ func readDevChat(file string, offset int64, shown func(int64) bool) ([]appDevCha
 	reader := bufio.NewReaderSize(f, 1<<20)
 	var entries []appDevChatEntry
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, n, err := appReadBoxLine(reader)
 		if err != nil {
 			break // a line still being written waits for the next read
 		}
-		if shown == nil || shown(offset) {
+		if line != nil && (shown == nil || shown(offset)) {
 			entries = append(entries, appDevChatEntries(bytes.TrimSpace(line))...)
 		}
-		offset += int64(len(line))
+		offset += n
 	}
 	return entries, offset, reset, nil
 }
@@ -525,12 +535,12 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 	if session != known {
 		offset, view.Reset = 0, true
 	}
-	shown, now, follows := appDevChatBranch(host, turns)
+	shown, now, follows := appDevChatBranch(appDevHome(b.team), host, turns)
 	if !follows {
 		offset, view.Reset = 0, true // a rewind: the conversation's branch again
 	}
 	view.Turns = now
-	entries, next, shrank, err := readDevChat(host, offset, shown)
+	entries, next, shrank, err := readDevChat(appDevHome(b.team), host, offset, shown)
 	if err != nil {
 		return view, err
 	}

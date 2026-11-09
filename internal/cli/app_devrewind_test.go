@@ -62,7 +62,7 @@ func appTestRewindSession(t *testing.T, team string) (session, host, cwd string)
 func TestTeamDevRewindBranch(t *testing.T) {
 	b, _ := appTestDevPage(t)
 	_, host, cwd := appTestRewindSession(t, "payments")
-	index, err := appDevRewindIndexFor(host)
+	index, err := appDevRewindIndexFor(appDevHome("payments"), host)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,8 +74,8 @@ func TestTeamDevRewindBranch(t *testing.T) {
 	if strings.Join(ids, ",") != "p1,p4" {
 		t.Fatal(ids)
 	}
-	shown, turns, _ := appDevChatBranch(host, "")
-	entries, _, _, _ := readDevChat(host, 0, shown)
+	shown, turns, _ := appDevChatBranch(appDevHome("payments"), host, "")
+	entries, _, _, _ := readDevChat(appDevHome("payments"), host, 0, shown)
 	var said []string
 	for _, entry := range entries {
 		said = append(said, entry.Text)
@@ -84,17 +84,17 @@ func TestTeamDevRewindBranch(t *testing.T) {
 		t.Fatal(said, turns)
 	}
 	// A page that had "Write b" and "Two and two" starts again.
-	if _, _, follows := appDevChatBranch(host, "3:p3"); follows {
+	if _, _, follows := appDevChatBranch(appDevHome("payments"), host, "3:p3"); follows {
 		t.Fatal("the old branch still follows")
 	}
-	if _, _, follows := appDevChatBranch(host, "1:p1"); !follows {
+	if _, _, follows := appDevChatBranch(appDevHome("payments"), host, "1:p1"); !follows {
 		t.Fatal("the start doesn't follow")
 	}
 
 	// b.txt was made in the turn rewound, and taken out again: no changes.
 	// Made again since (by hand), "Say ok" has it, and restoring takes it out.
 	points := func() []appDevRewindPoint {
-		index, _ := appDevRewindIndexFor(host)
+		index, _ := appDevRewindIndexFor(appDevHome("payments"), host)
 		defer index.mu.Unlock()
 		return index.points("payments", "/box/home/.claude/projects/x/5461d4d9-b597-4501-af42-1fc7079f507f.jsonl")
 	}
@@ -114,16 +114,16 @@ func TestTeamDevRewindBranch(t *testing.T) {
 
 	// Rewound again, to before "Say ok": the transcript says nothing until
 	// the next message, so hi keeps the cut.
-	index, _ = appDevRewindIndexFor(host)
+	index, _ = appDevRewindIndexFor(appDevHome("payments"), host)
 	index.cut, index.cutLeaf = "p4", index.leaf
 	index.mu.Unlock()
-	if _, turns, _ := appDevChatBranch(host, "2:p4"); turns != "1:p1" {
+	if _, turns, _ := appDevChatBranch(appDevHome("payments"), host, "2:p4"); turns != "1:p1" {
 		t.Fatal(turns)
 	}
 	f, _ := os.OpenFile(host, os.O_APPEND|os.O_WRONLY, 0o600)
 	f.WriteString(`{"type":"user","uuid":"p5","parentUuid":"s1","message":{"role":"user","content":"Say hi"}}` + "\n")
 	f.Close()
-	if _, turns, _ := appDevChatBranch(host, ""); turns != "2:p5" {
+	if _, turns, _ := appDevChatBranch(appDevHome("payments"), host, ""); turns != "2:p5" {
 		t.Fatal(turns)
 	}
 	_ = b

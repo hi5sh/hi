@@ -352,7 +352,7 @@ func (b *appBroker) devPeopleView(config appConfig) appDevPeopleView {
 		}
 	}
 	seen := map[string]bool{}
-	for _, id := range slices.Concat(config.Owners, config.Developers, config.Contributors, sortedKeys(members)) {
+	for _, id := range slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors, sortedKeys(members)) {
 		if seen[id] {
 			continue
 		}

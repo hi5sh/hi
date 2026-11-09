@@ -860,26 +860,30 @@ const appAdoptedRules = `- This project came from elsewhere; hi app adopted it, 
 // appWriteAdoptedFiles puts the team's rules around the project's own:
 // a hi block at the top of AGENTS.md with the project's text below it,
 // the lead's specs folder, and where the project came from.
+//
+// The repository is one hi has just fetched, so its files go through a
+// root: a link it committed in place of AGENTS.md, .hi5, or the specs
+// folder is replaced, never written through.
 func appWriteAdoptedFiles(config appConfig, repo string) error {
 	block := "<!-- hi:begin -->\n" + appAgentsFile + appAdoptedRules + "<!-- hi:end -->\n"
 	agents := filepath.Join(repo, "AGENTS.md")
 	text := block
-	if data, err := os.ReadFile(agents); err == nil {
+	if data, err := boxedReadFile(repo, agents); err == nil {
 		if _, ok := findManagedBlock(data); ok {
 			text = string(replaceManagedBlock(data, []byte(block)))
 		} else if own := strings.TrimSpace(string(data)); own != "" {
 			text = block + "\n## The project's own notes\n\n" + own + "\n"
 		}
 	}
-	if err := os.WriteFile(agents, []byte(text), 0o644); err != nil {
+	if err := boxedWriteFile(repo, agents, []byte(text), 0o644); err != nil {
 		return err
 	}
 	specs := filepath.Join(repo, filepath.FromSlash(appSpecsPath))
-	if err := os.MkdirAll(specs, 0o755); err != nil {
+	if err := boxedMkdirAll(repo, specs, 0o755); err != nil {
 		return err
 	}
-	if readme := filepath.Join(specs, "README.md"); !fileExists(readme) {
-		if err := os.WriteFile(readme, []byte(appSpecsReadme(config)), 0o644); err != nil {
+	if readme := filepath.Join(specs, "README.md"); !boxedExists(repo, readme) {
+		if err := boxedWriteFile(repo, readme, []byte(appSpecsReadme(config)), 0o644); err != nil {
 			return err
 		}
 	}
@@ -889,10 +893,10 @@ func appWriteAdoptedFiles(config appConfig, repo string) error {
 		record["github"] = adopted.GitHub
 	}
 	data, _ := json.MarshalIndent(record, "", "  ")
-	if err := os.MkdirAll(filepath.Join(repo, ".hi5"), 0o755); err != nil {
+	if err := boxedMkdirAll(repo, filepath.Join(repo, ".hi5"), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(repo, filepath.FromSlash(appAdoptedFile)), append(data, '\n'), 0o644)
+	return boxedWriteFile(repo, filepath.Join(repo, filepath.FromSlash(appAdoptedFile)), append(data, '\n'), 0o644)
 }
 
 // ---------------------------------------------------------------------------

@@ -926,7 +926,8 @@ func init() {
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
 		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev", "POST api/release",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
-		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "POST api/files/upload",
+		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
+		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs",
 		"POST api/code/start", "POST api/sshkey", "GET api/decisions", "POST api/decision",
 	} {
 		method, path, _ := strings.Cut(route, " ")
@@ -1746,6 +1747,14 @@ func (b *appBroker) devPageHandler() http.Handler {
 			mux.ServeHTTP(w, r)
 			return
 		}
+		// A change comes from the page itself. The person's cookie goes with
+		// a request from the app's preview or production too, on the same
+		// machine at another port or a sibling name, where code from the dev
+		// box runs: that one is refused.
+		if !appDevFromPage(b.team, r) {
+			failure(w, http.StatusForbidden, errors.New("that came from another page than the dev page; open the dev page itself"))
+			return
+		}
 		record := &appDevPageRecorder{ResponseWriter: w, status: http.StatusOK}
 		mux.ServeHTTP(record, r)
 		who := "someone"
@@ -1795,6 +1804,22 @@ var appDevTermCommand = func(team string) []string {
 	return []string{engine.bin, "exec", "-it", "-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor", appDevContainer(team), "herdr"}
 }
 
+// appDevFromPage says a change comes from the dev page: a browser says
+// where a request comes from, in Sec-Fetch-Site and Origin, and both must
+// be the page. A request with neither is no browser's (hi's tests, curl),
+// and needs the person's key all the same.
+func appDevFromPage(team string, r *http.Request) bool {
+	site := r.Header.Get("Sec-Fetch-Site")
+	if site != "" && site != "same-origin" {
+		fmt.Fprintf(os.Stderr, "hi: the dev page refused %s from a %s page\n", r.URL.Path, site)
+		return false
+	}
+	if r.Header.Get("Origin") == "" {
+		return true
+	}
+	return appDevSameOrigin(team, r)
+}
+
 // appDevSameOrigin says a WebSocket comes from the page itself: its
 // Origin is the page's address, as hi exposed it, or the host the request
 // came for. NetBird's proxy needn't pass on the host the browser asked
@@ -1815,7 +1840,7 @@ func appDevSameOrigin(team string, r *http.Request) bool {
 			return true
 		}
 	}
-	fmt.Fprintf(os.Stderr, "hi: the dev page refused a terminal from %s (the request was for %s)\n", origin.Host, strings.Join(hosts, ", "))
+	fmt.Fprintf(os.Stderr, "hi: the dev page refused %s from %s (the request was for %s)\n", r.URL.Path, origin.Host, strings.Join(hosts, ", "))
 	return false
 }
 

@@ -164,8 +164,48 @@ func TestTeamDevPageRoutesByLevel(t *testing.T) {
 			t.Errorf("%s is a developer's", owners)
 		}
 	}
+	// The views the page shows a developer: source control, search,
+	// checks, logs, and the editor.
+	for _, builders := range []string{"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs", "GET api/files/stat", "POST api/files/save"} {
+		method, path, _ := strings.Cut(builders, " ")
+		if !appDevDeveloperRoutes[method+" "+appDevPagePrefix+path] {
+			t.Errorf("%s isn't a developer's", builders)
+		}
+	}
 	if developerRoutes < 20 {
 		t.Fatalf("only %d of the routes are a developer's", developerRoutes)
+	}
+}
+
+// A change made from another page is refused, the owner's cookie or not:
+// the app's preview, on the same machine at another port, is code from
+// the dev box.
+func TestTeamDevPageRefusesOtherPages(t *testing.T) {
+	b := appTestDevPageWithDeveloper(t)
+	b.running = func(string) bool { return true }
+	handler := b.devPageHandler()
+	post := func(headers map[string]string) int {
+		request := httptest.NewRequest("POST", "http://peer.example:8888"+appDevPagePrefix+"api/people", strings.NewReader(`{"user":"U07ASKER1","level":"developer"}`))
+		request.Header.Set(netExposeUserHeader, appTestOwnerKey)
+		for key, value := range headers {
+			request.Header.Set(key, value)
+		}
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		return recorder.Code
+	}
+	for name, headers := range map[string]map[string]string{
+		"the preview":     {"Origin": "http://peer.example:8080", "Sec-Fetch-Site": "same-site"},
+		"a sibling name":  {"Origin": "https://payments.example.com", "Sec-Fetch-Site": "same-site"},
+		"no Origin":       {"Sec-Fetch-Site": "cross-site"},
+		"a forged origin": {"Origin": "http://evil.example"},
+	} {
+		if code := post(headers); code != http.StatusForbidden {
+			t.Errorf("%s: %d", name, code)
+		}
+	}
+	if code := post(map[string]string{"Origin": "http://peer.example:8888", "Sec-Fetch-Site": "same-origin"}); code == http.StatusForbidden || code == http.StatusUnauthorized {
+		t.Errorf("the page itself: %d", code)
 	}
 }
 
@@ -414,4 +454,19 @@ func TestTeamDevPageDeveloperReleases(t *testing.T) {
 	if versions.Production != 2 || last.Approval == nil || last.Approval.Name != "Dev on the dev page" {
 		t.Fatalf("%+v", versions)
 	}
+}
+
+// A Vibe Dev is on the People table even when Slack can't list the
+// channel, as the other levels are.
+func TestTeamDevPeopleHasVibeDevs(t *testing.T) {
+	b := appTestDevPageWithDeveloper(t)
+	b.channel = nil
+	config, _ := loadTeam("payments")
+	config.VibeDevelopers = []string{"U07VIBE01"}
+	for _, person := range b.devPeopleView(config).People {
+		if person.ID == "U07VIBE01" {
+			return
+		}
+	}
+	t.Fatal("the Vibe Dev isn't on the People table")
 }

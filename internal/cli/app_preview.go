@@ -919,10 +919,27 @@ func appShell(dir, script string) (string, error) {
 }
 
 // writeFileAtomic writes path whole or not at all, so a reader never sees
-// half of it.
+// half of it, through a temporary file of its own, so two writers of one
+// file never write into each other's. It is for hi's own folders; a folder
+// a box writes in takes boxedWriteFile.
 func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
-	if err := os.WriteFile(path+".tmp", data, mode); err != nil {
+	file, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
 		return err
 	}
-	return os.Rename(path+".tmp", path)
+	tmp := file.Name()
+	_, err = file.Write(data)
+	if err == nil {
+		err = file.Chmod(mode)
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(tmp, path)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
 }

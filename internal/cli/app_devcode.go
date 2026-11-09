@@ -114,7 +114,8 @@ var (
 // installTeamDevCode puts code-server in the box's home, once.
 func installTeamDevCode(team string) error {
 	dir, _ := appDevCodeHome(team)
-	if fileExists(filepath.Join(dir, "bin", "code-server")) {
+	home := filepath.Join(appDevDir(team), "home")
+	if boxedExists(home, filepath.Join(dir, "bin", "code-server")) {
 		return nil
 	}
 	arch := map[string]string{"amd64": "amd64", "arm64": "arm64"}[runtime.GOARCH]
@@ -130,18 +131,37 @@ func installTeamDevCode(team string) error {
 		return fmt.Errorf("fetching VS Code (code-server): %w", err)
 	}
 	defer body.Close()
-	tmp := dir + ".part"
-	os.RemoveAll(tmp)
-	if err := untarTeamDevCode(body, tmp, name+"/"); err != nil {
-		os.RemoveAll(tmp)
+	// The box's home is the box's: the folder is made, unpacked into, and
+	// moved through a root, so a link the box left on the way never takes
+	// hi's writes, or its RemoveAll, outside it.
+	root, rel, err := boxedOpen(home, dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	tmp := rel + ".part"
+	root.RemoveAll(tmp)
+	if err := root.MkdirAll(tmp, 0o755); err != nil {
+		return err
+	}
+	part, err := root.OpenRoot(tmp)
+	if err != nil {
+		return err
+	}
+	err = untarTeamDevCode(body, part, name+"/")
+	part.Close()
+	if err != nil {
+		root.RemoveAll(tmp)
 		return fmt.Errorf("unpacking VS Code (code-server): %w", err)
 	}
-	return os.Rename(tmp, dir)
+	root.RemoveAll(rel)
+	return root.Rename(tmp, rel)
 }
 
-// untarTeamDevCode unpacks a .tar.gz into dir, taking prefix off each
-// name, and nothing outside dir.
-func untarTeamDevCode(r io.Reader, dir, prefix string) error {
+// untarTeamDevCode unpacks a .tar.gz into root, taking prefix off each
+// name, and nothing outside it.
+func untarTeamDevCode(r io.Reader, root *os.Root, prefix string) error {
+	dir := "/" // names are checked as if under /, then made relative
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return err
@@ -157,19 +177,20 @@ func untarTeamDevCode(r io.Reader, dir, prefix string) error {
 		}
 		rel := strings.TrimPrefix(header.Name, prefix)
 		target := filepath.Join(dir, rel)
-		if rel == "" || rel == header.Name || !strings.HasPrefix(target, filepath.Clean(dir)+string(os.PathSeparator)) {
+		if rel == "" || rel == header.Name || !strings.HasPrefix(target, dir) || target == dir {
 			continue
 		}
+		target = strings.TrimPrefix(target, dir)
 		switch header.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := root.MkdirAll(target, 0o755); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := root.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return err
 			}
-			file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode)&0o755|0o600)
+			file, err := root.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(header.Mode)&0o755|0o600)
 			if err != nil {
 				return err
 			}
@@ -179,11 +200,11 @@ func untarTeamDevCode(r io.Reader, dir, prefix string) error {
 				return err
 			}
 		case tar.TypeSymlink:
-			if filepath.IsAbs(header.Linkname) || !strings.HasPrefix(filepath.Join(filepath.Dir(target), header.Linkname), filepath.Clean(dir)) {
+			if filepath.IsAbs(header.Linkname) || !filepath.IsLocal(filepath.Join(filepath.Dir(target), header.Linkname)) {
 				continue
 			}
-			os.MkdirAll(filepath.Dir(target), 0o755)
-			if err := os.Symlink(header.Linkname, target); err != nil {
+			root.MkdirAll(filepath.Dir(target), 0o755)
+			if err := root.Symlink(header.Linkname, target); err != nil {
 				return err
 			}
 		}
@@ -225,16 +246,17 @@ var (
 // time, and moves older ones to the theme. A running VS Code reads them
 // again by itself.
 func writeTeamDevCodeSettings(team string) error {
-	user := filepath.Join(appDevDir(team), "home", ".local", "share", "code-server", "User")
-	if err := os.MkdirAll(user, 0o700); err != nil {
+	home := filepath.Join(appDevDir(team), "home")
+	user := filepath.Join(home, ".local", "share", "code-server", "User")
+	if err := boxedMkdirAll(home, user, 0o700); err != nil {
 		return err
 	}
 	settings := filepath.Join(user, "settings.json")
-	old, err := os.ReadFile(settings)
+	old, err := boxedReadFile(home, settings)
 	if errors.Is(err, fs.ErrNotExist) {
-		return os.WriteFile(settings, []byte(appDevCodeSettings), 0o600)
+		return boxedWriteFile(home, settings, []byte(appDevCodeSettings), 0o600)
 	} else if err != nil {
-		return err
+		return nil // the owners' to keep as they made it
 	}
 	text := string(old)
 	for _, line := range appDevCodeOldThemes {
@@ -243,7 +265,7 @@ func writeTeamDevCodeSettings(team string) error {
 	if text == string(old) {
 		return nil
 	}
-	return os.WriteFile(settings, []byte(text), 0o600)
+	return boxedWriteFile(home, settings, []byte(text), 0o600)
 }
 
 // appDevCodeAlive is whether code-server answers on its socket.
@@ -316,9 +338,10 @@ func (b *appBroker) devCodeStart() error {
 // devCodeExtensions installs the extensions once, through the box's
 // proxy, and again when hi's list changes.
 func (b *appBroker) devCodeExtensions(bin string) {
-	marker := filepath.Join(appDevDir(b.team), "home", ".hi", "code-server-extensions")
+	home := filepath.Join(appDevDir(b.team), "home")
+	marker := filepath.Join(home, ".hi", "code-server-extensions")
 	want := strings.Join(appDevCodeExtensions, "\n") + "\n"
-	if have, _ := os.ReadFile(marker); string(have) == want || !appDevCodeInstalling.TryLock() {
+	if have, _ := boxedReadFile(home, marker); string(have) == want || !appDevCodeInstalling.TryLock() {
 		return
 	}
 	defer appDevCodeInstalling.Unlock()
@@ -332,8 +355,8 @@ func (b *appBroker) devCodeExtensions(bin string) {
 		fmt.Fprintf(os.Stderr, "hi: VS Code's extensions in the dev box: %s\n", qFirstLine(strings.TrimSpace(out), err.Error()))
 		return
 	}
-	os.MkdirAll(filepath.Dir(marker), 0o700)
-	os.WriteFile(marker, []byte(want), 0o600)
+	boxedMkdirAll(home, filepath.Dir(marker), 0o700)
+	boxedWriteFile(home, marker, []byte(want), 0o600)
 }
 
 // shellQuoteAll quotes words for sh.

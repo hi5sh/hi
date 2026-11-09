@@ -2713,6 +2713,41 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.102 — The dev box stays in its folders
+
+From a review of the whole codebase on 2026-11-09.
+
+- [x] hi reads and writes the dev box's home and clone only through an
+  `os.Root` (`app_boxed.go`): a link the box made is never followed out
+  of them, a read takes regular files up to 16 MB and never waits on a
+  FIFO, and a write goes to a fresh name and is renamed into place. Until
+  now, a link the box left at `~/.claude/CLAUDE.md.tmp`, `~/hi/agy/a-2`,
+  or `~/hi/chat/w3` took hi's next write, as hi's user, wherever it
+  pointed. That covers the box's start (its dotfiles, Claude Code's and
+  Codex's settings, the skills, the instructions block), VS Code's
+  install and settings, results copied back (reviews, brainstorms,
+  Antigravity runs), a chat's and the terminal's files, the Files view's
+  trees, the chat's transcripts and the timeline's files. A dotfile the
+  owner linked elsewhere is left as it is.
+- [x] The dev page refuses a change from another page: each POST's
+  Sec-Fetch-Site and Origin must be the dev page's. The app's preview and
+  production run code from the dev box on the same site, and the owner's
+  cookie went with their requests.
+- [x] A transcript line over 32 MB is passed over instead of read whole,
+  and the timeline compares files up to 4 MB.
+- [x] `hi dev agy --file` checks the count and the 200 MB total before
+  reading, not after.
+- [x] A decision is written through a root too, and so are AGENTS.md,
+  the specs folder and `.hi5/adopted.json` in a project hi adopts: a link
+  the repository committed in their place is replaced.
+- [x] Pro Devs and Vibe Devs get source control, search, checks, logs,
+  and saving in the editor, which the page showed them and the server
+  refused.
+- [x] Vibe Devs are on the People table when they aren't in the channel.
+- [x] A malformed turn count from the page no longer panics the chat.
+- [x] `writeFileAtomic` writes through a temporary file of its own, so two
+  writers of one file don't write into each other's.
+
 ### v2.6.101 — Send me a new link, one button
 
 - [x] The admin page's sign-in is one button, **Send me a new link**:

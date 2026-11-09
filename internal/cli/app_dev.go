@@ -55,6 +55,10 @@ const (
 
 func appDevDir(team string) string { return filepath.Join(appDir(team), "dev") }
 
+// appDevHome is the dev box's home, which the box writes in: hi reads and
+// writes there only through app_boxed.go.
+func appDevHome(team string) string { return filepath.Join(appDevDir(team), "home") }
+
 // appDevBox is the dev box's name: its network and proxy are named after
 // it, as a box's are.
 func appDevBox(team string) string       { return "app-" + team + "-dev" }
@@ -242,22 +246,22 @@ const appDevSourceLine = `[ -f "$HOME/.hi-env" ] && . "$HOME/.hi-env"`
 func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	home := filepath.Join(appDevDir(team), "home")
 	for _, dir := range []string{".tmp", ".claude", ".codex"} {
-		if err := os.MkdirAll(filepath.Join(home, dir), 0o700); err != nil {
+		if err := boxedMkdirAll(home, filepath.Join(home, dir), 0o700); err != nil {
 			return err
 		}
 	}
-	if err := writeFileAtomic(filepath.Join(home, ".hi-env"), []byte(appDevEnvFile(env)), 0o600); err != nil {
+	if err := boxedWriteFile(home, filepath.Join(home, ".hi-env"), []byte(appDevEnvFile(env)), 0o600); err != nil {
 		return err
 	}
 	for _, name := range []string{".bashrc", ".profile"} {
 		path := filepath.Join(home, name)
-		data, _ := os.ReadFile(path)
-		if !strings.Contains(string(data), appDevSourceLine) {
+		data, ok := boxedReadToUpdate(home, path)
+		if ok && !strings.Contains(string(data), appDevSourceLine) {
 			text := string(data)
 			if text != "" && !strings.HasSuffix(text, "\n") {
 				text += "\n"
 			}
-			if err := os.WriteFile(path, []byte(text+appDevSourceLine+"\n"), 0o600); err != nil {
+			if err := boxedWriteFile(home, path, []byte(text+appDevSourceLine+"\n"), 0o600); err != nil {
 				return err
 			}
 		}
@@ -267,7 +271,8 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	}
 	// Claude Code: no first-run questions, and no permission prompts.
 	state := map[string]any{}
-	if data, err := os.ReadFile(filepath.Join(home, ".claude.json")); err == nil {
+	data, ok := boxedReadToUpdate(home, filepath.Join(home, ".claude.json"))
+	if len(data) > 0 {
 		json.Unmarshal(data, &state)
 	}
 	state["hasCompletedOnboarding"], state["bypassPermissionsModeAccepted"] = true, true
@@ -281,8 +286,10 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	}
 	repo["hasTrustDialogAccepted"] = true
 	projects["/box/repo"], state["projects"] = repo, projects
-	data, _ := json.MarshalIndent(state, "", "  ")
-	if err := writeFileAtomic(filepath.Join(home, ".claude.json"), data, 0o600); err != nil {
+	data, _ = json.MarshalIndent(state, "", "  ")
+	if !ok {
+		// Left as the owner linked it.
+	} else if err := boxedWriteFile(home, filepath.Join(home, ".claude.json"), data, 0o600); err != nil {
 		return err
 	}
 	if err := appDevClaudeSettings(home); err != nil {
@@ -291,7 +298,7 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	// Codex: ChatGPT through the proxy, no approvals, no sandbox of its own.
 	if appCodexViaProxy(team) {
 		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + codexBoxConfig(proxyIP)
-		if err := writeFileAtomic(filepath.Join(home, ".codex", "config.toml"), []byte(codex), 0o600); err != nil {
+		if err := boxedWriteFile(home, filepath.Join(home, ".codex", "config.toml"), []byte(codex), 0o600); err != nil {
 			return err
 		}
 	}
@@ -304,7 +311,11 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 func appDevClaudeSettings(home string) error {
 	settingsPath := filepath.Join(home, ".claude", "settings.json")
 	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil {
+	data, ok := boxedReadToUpdate(home, settingsPath)
+	if !ok {
+		return nil
+	}
+	if len(data) > 0 {
 		json.Unmarshal(data, &settings)
 	}
 	permissions, _ := settings["permissions"].(map[string]any)
@@ -340,7 +351,7 @@ func appDevClaudeSettings(home string) error {
 	if changed {
 		settings["permissions"] = permissions
 		data, _ := json.MarshalIndent(settings, "", "  ")
-		if err := writeFileAtomic(settingsPath, data, 0o600); err != nil {
+		if err := boxedWriteFile(home, settingsPath, data, 0o600); err != nil {
 			return err
 		}
 	}
@@ -1120,28 +1131,28 @@ func installTeamDevKit(config appConfig, home string) error {
 	}
 	write := func(name string, data []byte) error {
 		dir := filepath.Join(home, ".agents", "skills", name)
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if err := boxedMkdirAll(home, dir, 0o700); err != nil {
 			return err
 		}
-		if err := writeFileAtomic(filepath.Join(dir, "SKILL.md"), data, 0o600); err != nil {
+		if err := boxedWriteFile(home, filepath.Join(dir, "SKILL.md"), data, 0o600); err != nil {
 			return err
 		}
 		// Claude Code reads .claude/skills: a link to the same folder, as
 		// hi skill makes.
 		link := filepath.Join(home, ".claude", "skills", name)
-		if err := os.MkdirAll(filepath.Dir(link), 0o700); err != nil {
+		if err := boxedMkdirAll(home, filepath.Dir(link), 0o700); err != nil {
 			return err
 		}
-		if target, err := os.Readlink(link); err != nil || target != filepath.Join("..", "..", ".agents", "skills", name) {
-			os.RemoveAll(link)
-			return os.Symlink(filepath.Join("..", "..", ".agents", "skills", name), link)
+		if target, err := boxedReadlink(home, link); err != nil || target != filepath.Join("..", "..", ".agents", "skills", name) {
+			boxedRemoveAll(home, link)
+			return boxedSymlink(home, filepath.Join("..", "..", ".agents", "skills", name), link)
 		}
 		return nil
 	}
 	// Skills an older hi wrote under another name.
 	for _, retired := range []string{"hi-dev-tickets"} {
-		os.RemoveAll(filepath.Join(home, ".agents", "skills", retired))
-		os.Remove(filepath.Join(home, ".claude", "skills", retired))
+		boxedRemoveAll(home, filepath.Join(home, ".agents", "skills", retired))
+		boxedRemoveAll(home, filepath.Join(home, ".claude", "skills", retired))
 	}
 	for _, entry := range entries {
 		data, err := fs.ReadFile(skills, entry.Name()+"/SKILL.md")
@@ -1167,11 +1178,14 @@ func installTeamDevKit(config appConfig, home string) error {
 		block = strings.Replace(block, appDevBlockEnd, fmt.Sprintf("- **Adopted:** this project came from %s (%s), and keeps it as upstream: the hi-dev-upstream skill keeps up with it. When docs/map.md is missing, offer a survey first (the hi-dev-survey skill).\n", adopted.Name, adopted.From)+appDevBlockEnd, 1)
 	}
 	for _, path := range []string{filepath.Join(home, ".claude", "CLAUDE.md"), filepath.Join(home, ".codex", "AGENTS.md")} {
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		if err := boxedMkdirAll(home, filepath.Dir(path), 0o700); err != nil {
 			return err
 		}
-		data, _ := os.ReadFile(path)
-		if err := writeFileAtomic(path, []byte(appDevWithBlock(string(data), block)), 0o600); err != nil {
+		data, ok := boxedReadToUpdate(home, path)
+		if !ok {
+			continue
+		}
+		if err := boxedWriteFile(home, path, []byte(appDevWithBlock(string(data), block)), 0o600); err != nil {
 			return err
 		}
 	}
@@ -1184,8 +1198,11 @@ func installTeamDevKit(config appConfig, home string) error {
 // own [user], in either of git's files in the home, stays.
 func appDevGitIdentity(home, team string) error {
 	path := filepath.Join(home, ".gitconfig")
-	data, _ := os.ReadFile(path)
-	xdg, _ := os.ReadFile(filepath.Join(home, ".config", "git", "config"))
+	data, ok := boxedReadToUpdate(home, path)
+	if !ok {
+		return nil
+	}
+	xdg, _ := boxedReadFile(home, filepath.Join(home, ".config", "git", "config"))
 	if strings.Contains(string(data), "[user]") || strings.Contains(string(xdg), "[user]") {
 		return nil
 	}
@@ -1194,7 +1211,7 @@ func appDevGitIdentity(home, team string) error {
 		text += "\n"
 	}
 	text += fmt.Sprintf("[user]\n\tname = %s dev box\n\temail = dev-box@%s.invalid\n", team, team)
-	return writeFileAtomic(path, []byte(text), 0o600)
+	return boxedWriteFile(home, path, []byte(text), 0o600)
 }
 
 // appDevHerdrSkill is herdr's own skill, from herdr --skill; tests
