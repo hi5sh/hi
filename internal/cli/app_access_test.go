@@ -273,7 +273,7 @@ func TestTeamDevPageTerminalEndsWithAccess(t *testing.T) {
 	appDevAccessCheck = 50 * time.Millisecond
 	t.Cleanup(func() { appDevTermCommand, appDevAccessCheck = previousCommand, previousCheck })
 	server := httptest.NewServer(b.devPageHandler())
-	t.Cleanup(server.Close)
+	t.Cleanup(func() { server.CloseClientConnections(); server.Close(); appDevSocketsOpen.Wait() })
 	state := `{"url":"https://app-payments-dev.example.net/?hi_key=k","expose":"app-payments-dev"}`
 	os.MkdirAll(appDir("payments")+"/run", 0o700)
 	os.WriteFile(appDevPageStatePath("payments"), []byte(state), 0o600)

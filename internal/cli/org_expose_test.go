@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -143,16 +144,22 @@ func TestDataRunProxyWrapper(t *testing.T) {
 	if err != nil {
 		t.Skip("no python3")
 	}
+	// The wrapper downloads in parallel: the fakes' handlers run at once.
+	var authMu sync.Mutex
 	var cdnAuth []string
 	cdn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authMu.Lock()
 		cdnAuth = append(cdnAuth, r.Header.Get("Authorization"))
+		authMu.Unlock()
 		w.Write([]byte(strings.Repeat("p", 4000)))
 	}))
 	defer cdn.Close()
 	var proxyAuth []string
 	var proxy *httptest.Server
 	proxy = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authMu.Lock()
 		proxyAuth = append(proxyAuth, r.Header.Get("Authorization"))
+		authMu.Unlock()
 		switch {
 		case r.URL.Path == "/hf/api/datasets/o/bars/tree/abc" && r.URL.Query().Get("cursor") == "":
 			w.Header().Set("Link", `<`+proxy.URL+`/hf/api/datasets/o/bars/tree/abc?recursive=true&cursor=2>; rel="next"`)

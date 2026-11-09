@@ -146,7 +146,7 @@ func TestTeamDevCodeExtensions(t *testing.T) {
 	}
 	t.Cleanup(func() { appDevBoxExec = previous })
 
-	b.devCodeExtensions("/code")
+	b.devCodeExtensions("/code", appDevCodeExtensions)
 	if len(calls) != 1 {
 		t.Fatalf("%d installs, want 1", len(calls))
 	}
@@ -162,14 +162,14 @@ func TestTeamDevCodeExtensions(t *testing.T) {
 		}
 	}
 
-	b.devCodeExtensions("/code")
+	b.devCodeExtensions("/code", appDevCodeExtensions)
 	if len(calls) != 1 {
 		t.Error("the same list was installed again")
 	}
 	saved := appDevCodeExtensions
 	t.Cleanup(func() { appDevCodeExtensions = saved })
 	appDevCodeExtensions = append(append([]string{}, saved...), "example.viewer@1.0.0")
-	b.devCodeExtensions("/code")
+	b.devCodeExtensions("/code", appDevCodeExtensions)
 	if len(calls) != 2 {
 		t.Error("a changed list wasn't installed")
 	}

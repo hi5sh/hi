@@ -1729,6 +1729,8 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			appDevSocketsOpen.Add(1)
+			defer appDevSocketsOpen.Done()
 			// A terminal, or VS Code: it ends when its person may no
 			// longer have it, not only at their next click.
 			ctx, cancel := context.WithCancel(r.Context())
@@ -1810,6 +1812,10 @@ var appDevTermCommand = func(team string) []string {
 	}
 	return []string{engine.bin, "exec", "-it", "-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor", appDevContainer(team), "herdr"}
 }
+
+// appDevSocketsOpen counts the dev page's terminals and VS Code sockets
+// open, so a test waits for them to end before it puts its settings back.
+var appDevSocketsOpen sync.WaitGroup
 
 // appDevFromPage says a change comes from the dev page: a browser says
 // where a request comes from, in Sec-Fetch-Site and Origin, and both must

@@ -67,8 +67,10 @@ for candidate in /app/llama-server "$(command -v llama-server 2>/dev/null)" "$LL
 done
 
 # A prebuilt llama-server downloads the model itself with -hf. Otherwise
-# llama.cpp is built here, and the hf CLI downloads in parallel.
-if [[ -n $server ]]; then download=server; else download=hf; fi
+# llama.cpp is built here, and the hf CLI downloads in parallel. The one
+# built here before is built without curl (-DLLAMA_CURL=OFF), so a second
+# run with it takes the model hf already put in $MODELS.
+if [[ -n $server && $server != "$LLAMA/build/bin/llama-server" ]]; then download=server; else download=hf; fi
 
 (
   if [[ -z $server ]]; then

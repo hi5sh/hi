@@ -78,6 +78,8 @@ func setupAdminTest(t *testing.T) adminTest {
 	s := newAdminServer("/usr/local/bin/hi", io.Discard)
 	server := httptest.NewServer(s.handler)
 	t.Cleanup(server.Close)
+	// A terminal outlives its test's requests: it ends before the next test.
+	t.Cleanup(func() { server.CloseClientConnections(); adminTermsOpen.Wait() })
 	return adminTest{server: server, s: s, jobs: &jobs, posts: &posts, dms: &dms, mu: &mu}
 }
 

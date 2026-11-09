@@ -152,6 +152,9 @@ func TestAdminTerminalClosesWhenIdle(t *testing.T) {
 	adminTermEnd = func(container, mark string) {}
 	adminTermIdle = 300 * time.Millisecond
 	t.Cleanup(func() { adminBoxRunning, adminTermCommand, adminTermEnd, adminTermIdle = running, command, end, idle })
+	// Before those are put back: the terminals end, which outlive the test's
+	// requests.
+	t.Cleanup(func() { a.server.CloseClientConnections(); adminTermsOpen.Wait() })
 	olga := a.signIn(t, "Olga")
 	header := http.Header{"Origin": {a.server.URL}}
 	header.Set("Cookie", olga.String())

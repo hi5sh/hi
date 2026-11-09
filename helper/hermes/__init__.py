@@ -101,8 +101,10 @@ def _may_ask(user):
     if known and known[1] > time.monotonic():
         return known[0]
     try:
+        # A few seconds at most: this runs in Hermes' synchronous check, which
+        # may be on its event loop, and every Slack event would wait.
         done = subprocess.run(["/usr/local/bin/hi", "app", "web", "may", "--user", user],
-                              capture_output=True, text=True, timeout=30)
+                              capture_output=True, text=True, timeout=5)
         may = done.returncode == 0
     except Exception:
         return False  # not now; the next message asks again

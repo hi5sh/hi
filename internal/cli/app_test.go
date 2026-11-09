@@ -57,6 +57,10 @@ func setupTeamTest(t *testing.T) string {
 	savedStopDev := appStopDevBox
 	appStopDevBox = func(string) {}
 	t.Cleanup(func() { appStopDevBox = savedStopDev })
+	// The peer's watchers run minutes after a test ends, on its fakes.
+	savedPeerWatch := appDevPeerWatch
+	appDevPeerWatch = func(func()) {}
+	t.Cleanup(func() { appDevPeerWatch = savedPeerWatch })
 	// Not this machine's org server: no server templates.
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))

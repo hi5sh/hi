@@ -5,12 +5,14 @@ on:
     paths:
       - "templates/**"
       - "internal/cli/templates*.go"
-      - "internal/cli/team.go"
+      - "internal/cli/init*.go"
+      - "internal/cli/app.go"
   pull_request:
     paths:
       - "templates/**"
       - "internal/cli/templates*.go"
-      - "internal/cli/team.go"
+      - "internal/cli/init*.go"
+      - "internal/cli/app.go"
 
 jobs:
   templates:

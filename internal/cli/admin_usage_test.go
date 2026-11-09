@@ -41,7 +41,9 @@ func TestAdminUsageOfTheMachineAndItsApps(t *testing.T) {
 	}
 
 	a.s.sample()
+	a.s.sampler.mu.Lock()
 	first := a.s.sampler.latest
+	a.s.sampler.mu.Unlock()
 	if first.CPU != nil || first.MemTotal != 16000000*1024 || first.MemUsed != 12000000*1024 || first.SwapUsed != 500000*1024 || first.Load[0] != 1.5 || first.Uptime != 3600.5 {
 		t.Fatalf("the machine: %+v", first)
 	}
@@ -57,7 +59,9 @@ func TestAdminUsageOfTheMachineAndItsApps(t *testing.T) {
 	a.s.sampler.at = time.Now().Add(-time.Second)
 	a.s.sampler.mu.Unlock()
 	a.s.sample()
+	a.s.sampler.mu.Lock()
 	second := a.s.sampler.latest
+	a.s.sampler.mu.Unlock()
 	if second.CPU == nil || *second.CPU != 0.5 || second.Apps["payments"].CPU == nil || *second.Apps["payments"].CPU <= 0 {
 		t.Fatalf("CPU: %+v %+v", second.CPU, second.Apps["payments"])
 	}

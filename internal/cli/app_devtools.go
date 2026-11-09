@@ -316,18 +316,20 @@ func appDevStartCheck(team, workspace, name string) error {
 		appDevChecks.Unlock()
 		return err
 	}
+	// The box's hooks as they are now: the run goes on after this returns.
+	stream, exec := appDevBoxStream, appDevBoxExec
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), appDevCheckLasts+time.Minute)
 		defer cancel()
 		fmt.Fprintf(run, "$ %s\n", check.Command)
-		exit, err := appDevBoxStream(ctx, team, run, "sh", "-c", appDevCheckScript, "sh", dir, "/tmp/hi-checks/"+run.id+".pid", check.Command)
+		exit, err := stream(ctx, team, run, "sh", "-c", appDevCheckScript, "sh", dir, "/tmp/hi-checks/"+run.id+".pid", check.Command)
 		appDevChecks.Lock()
 		run.Running, run.Exit, run.Finished = false, exit, time.Now()
 		if err != nil {
 			run.Error = err.Error()
 		}
 		appDevChecks.Unlock()
-		appDevBoxExec(team, "rm", "-f", "/tmp/hi-checks/"+run.id+".pid")
+		exec(team, "rm", "-f", "/tmp/hi-checks/"+run.id+".pid")
 	}()
 	return nil
 }

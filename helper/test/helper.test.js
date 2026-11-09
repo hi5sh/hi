@@ -153,6 +153,25 @@ test("shows what the lead writes as text, not as the page's HTML", async () => {
   expect(window.hacked).toBeUndefined();
 });
 
+test("keeps a link the lead writes inside its own attribute", async () => {
+  // The link rule's markup was the auto-link rule's text: a crafted link
+  // ended its href and added an event handler of its own.
+  await start({
+    ...anyone,
+    "POST help": () =>
+      sse([["done", { text: "[a](https://x.com/(https://y.com/style=animation-name:spin;animation-duration:1s/onanimationstart=window.hacked=1//)" }]]),
+  });
+  open();
+  type("Anything?");
+  const answer = await until(() => $$(".msg.lead")[0]);
+  for (const node of answer.querySelectorAll("*")) {
+    for (const attribute of Array.from(node.attributes)) {
+      expect(["href", "target", "rel"]).toContain(attribute.name);
+    }
+  }
+  expect(answer.querySelectorAll("a").length).toBe(1);
+});
+
 test("puts a question back when the help fails", async () => {
   await start({ ...anyone, "POST help": () => json({ error: "The help is off for this app" }, 503) });
   open();

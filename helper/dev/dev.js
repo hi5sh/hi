@@ -801,7 +801,9 @@
   // ---- Data: production's and Stage's data, and the
   // snapshots; asked for when the tab opens, as sizing a folder takes a
   // moment.
-  function size(bytes) {
+  // dataSize, not size: the Files view's size() below, a function of the
+  // same name in the same scope, replaced this one everywhere.
+  function dataSize(bytes) {
     var units = ["bytes", "KB", "MB", "GB", "TB"], i = 0;
     while (bytes >= 1000 && i < units.length - 1) { bytes /= 1000; i++; }
     return (i ? bytes.toFixed(bytes < 10 ? 1 : 0) : bytes) + " " + units[i];
@@ -824,10 +826,10 @@
         facts.appendChild(el("dd", { text: value }));
       }
       if (folder.slot === "preview" && folder.fork) {
-        fact("A copy of", "production's" + (folder.fork.version ? " v" + folder.fork.version : "") + ", " + stamp(folder.fork.at) + " (" + size(folder.fork.bytes) + ")");
-        fact("Written since", folder.files ? size(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing");
+        fact("A copy of", "production's" + (folder.fork.version ? " v" + folder.fork.version : "") + ", " + stamp(folder.fork.at) + " (" + dataSize(folder.fork.bytes) + ")");
+        fact("Written since", folder.files ? dataSize(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing");
       } else {
-        fact("Holds", folder.files ? size(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing yet");
+        fact("Holds", folder.files ? dataSize(folder.bytes) + " in " + folder.files + " file" + (folder.files === 1 ? "" : "s") : "nothing yet");
       }
       if (folder.changed) fact("Last written", ago(folder.changed) || stamp(folder.changed));
       fact("The app", folder.running ? "running" : "not running");
@@ -840,7 +842,7 @@
     (data.snapshots || []).forEach(function (snapshot) {
       list.appendChild(el("li", {}, [el("div", { class: "what" }, [
         document.createTextNode(stamp(snapshot.time) + " · " + snapshot.why),
-        el("div", { class: "muted small", text: snapshot.id + (snapshot.size ? " · " + size(snapshot.size) : "") }),
+        el("div", { class: "muted small", text: snapshot.id + (snapshot.size ? " · " + dataSize(snapshot.size) : "") }),
       ])]));
     });
     $("data-restore").textContent = "hi app restore " + (state.team || "<app>") + " <snapshot>";
@@ -2774,7 +2776,7 @@
       tab.body,
     ]);
   }
-  function loadTab(tab, keepView) {
+  function loadTab(tab, keepView, unlessTyped) {
     var raw = "api/files/raw?" + tabQuery(tab);
     var ext = ((tab.name.match(/\.([a-z0-9]+)$/i) || [])[1] || "").toLowerCase();
     tab.at = Date.now();
@@ -2798,6 +2800,12 @@
         return { data: data, sha: response.headers.get("X-Hi-Sha256") || "" };
       });
     }).then(function (got) {
+      // Following the disk, while someone typed since it was asked for:
+      // their typing stays, and the bar says the file changed.
+      if (unlessTyped && tab.text && tab.text.value !== tab.saved) {
+        if (tab.changed !== got.sha) { tab.changed = got.sha; changedBar(tab, false); }
+        return;
+      }
       var text = new TextDecoder("utf-8", { ignoreBOM: true }).decode(got.data);
       tab.bom = text.charCodeAt(0) === 0xfeff;
       if (tab.bom) text = text.slice(1);
@@ -2944,7 +2952,7 @@
     tab.at = Date.now();
     api("GET", "files/stat?" + tabQuery(tab)).then(function (state) {
       if (state.sha256 === tab.base || tab.busy) return;
-      if (!tab.dirty) loadTab(tab, true);
+      if (!tab.dirty) loadTab(tab, true, true);
       else if (tab.changed !== state.sha256) { tab.changed = state.sha256; changedBar(tab, false); }
     }).catch(function () { /* gone, or the box is busy: the next check */ });
   }

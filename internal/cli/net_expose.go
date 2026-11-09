@@ -644,6 +644,9 @@ func clipPath(path string) string {
 // running an exposure
 
 func netExposeRun(options netExposeOptions, background bool, stdout, stderr io.Writer) error {
+	// The relay logs each request to stdout from its own goroutines while
+	// this says the address there: one lock for both.
+	stdout = &syncWriter{w: stdout}
 	address, err := netExposeAddress()
 	if err != nil {
 		return errors.New("NetBird isn't connected on this machine; connect with `hi net` first")
@@ -1073,4 +1076,16 @@ func netExposeUntil(t time.Time) string {
 		return t.Local().Format("Jan 2 15:04")
 	}
 	return t.Local().Format("15:04")
+}
+
+// syncWriter is a writer several goroutines write to, one at a time.
+type syncWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (s *syncWriter) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.w.Write(p)
 }

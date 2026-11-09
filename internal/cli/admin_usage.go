@@ -97,15 +97,15 @@ func (s *adminServer) usage() *adminLoad {
 			latest = sampler.latest
 			sampler.mu.Unlock()
 		}
-		go s.keepSampling()
+		go s.keepSampling(adminUsageEvery) // read now: tests put it back after
 	}
 	return latest
 }
 
-func (s *adminServer) keepSampling() {
+func (s *adminServer) keepSampling(every time.Duration) {
 	sampler := &s.sampler
 	for {
-		time.Sleep(adminUsageEvery)
+		time.Sleep(every)
 		sampler.mu.Lock()
 		if time.Since(sampler.asked) > 2*time.Minute {
 			sampler.running = false
@@ -194,15 +194,15 @@ func (s *adminServer) sample() {
 	sampler.latest = usage
 	if !sampler.measured && (sampler.diskAt.IsZero() || now.Sub(sampler.diskAt) > adminDiskEvery) {
 		sampler.measured = true
-		go s.measureFolders(names)
+		go s.measureFolders(names, adminFolderSize)
 	}
 }
 
 // measureFolders measures each app's folder, which can take a while.
-func (s *adminServer) measureFolders(names []string) {
+func (s *adminServer) measureFolders(names []string, folderSize func(string) int64) {
 	sizes := map[string]int64{}
 	for _, name := range names {
-		sizes[name] = adminFolderSize(appDir(name))
+		sizes[name] = folderSize(appDir(name))
 	}
 	sampler := &s.sampler
 	sampler.mu.Lock()

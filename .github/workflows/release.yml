@@ -16,6 +16,10 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+      - name: Vet and test, before anything is published
+        run: |
+          go vet ./...
+          go test ./...
       - name: Build Linux binaries
         env:
           VERSION: ${{ github.ref_name }}

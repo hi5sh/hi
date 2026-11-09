@@ -2713,6 +2713,29 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.108 — Tested before it ships, and race-free
+
+- [x] A release runs `go vet` and `go test` before it builds, and a Test
+  workflow runs them, with the race detector, on every push of Go code.
+  The Helper and Templates workflows' paths name the files as they are
+  since the rename to `app_*`; they no longer ran on helper or app changes.
+- [x] `go test -race` is clean: the races it found in hi (the admin
+  page's usage figures, two waits on one `netbird expose`, a relay's log
+  and its address on one writer) are fixed, and the tests no longer leave
+  goroutines that outlive them on the next test's fakes.
+- [x] The helper's Markdown sets each link aside as it makes it, so the
+  auto-link rule no longer runs over the link rule's markup, where a
+  crafted link could end its `href` and add an attribute of its own; `'`
+  is escaped too.
+- [x] The dev page's Data view shows sizes as it was written to (two
+  functions had one name, and the Files view's won), and a file that
+  follows the disk keeps what was typed while it reloaded.
+- [x] `serve-llama-cpp.sh` run a second time takes the model it already
+  downloaded: its own earlier build, made without curl, was taken for a
+  prebuilt server that downloads with `-hf`.
+- [x] The lead's DM guard asks hi for at most five seconds, not thirty,
+  since Hermes may run it on its event loop.
+
 ### v2.6.107 — Boxes, addresses, agents, and skills, put right
 
 - [x] `hi box rm` keeps a worktree when `git status` fails there, such as

@@ -5,12 +5,18 @@ on:
     paths:
       - "helper/**"
       - "third_party/finder/**"
-      - "internal/cli/team_helper*.go"
+      - "internal/cli/app_helper*.go"
+      - "internal/cli/app_web*.go"
+      - "internal/cli/app_feedback*.go"
+      - "internal/cli/net_expose_inject*.go"
   pull_request:
     paths:
       - "helper/**"
       - "third_party/finder/**"
-      - "internal/cli/team_helper*.go"
+      - "internal/cli/app_helper*.go"
+      - "internal/cli/app_web*.go"
+      - "internal/cli/app_feedback*.go"
+      - "internal/cli/net_expose_inject*.go"
 
 jobs:
   helper:

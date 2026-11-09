@@ -307,7 +307,7 @@ func (b *appBroker) devCodeStart() error {
 		if err := writeTeamDevAllow(b.team, ""); err != nil {
 			return err
 		}
-		go b.devCodeExtensions(bin)
+		go b.devCodeExtensions(bin, appDevCodeExtensions)
 		return nil
 	}
 	if err := installTeamDevCode(b.team); err != nil {
@@ -328,7 +328,7 @@ func (b *appBroker) devCodeStart() error {
 	}
 	for deadline := time.Now().Add(appDevCodeWait); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
 		if appDevCodeAlive(b.team) {
-			go b.devCodeExtensions(bin)
+			go b.devCodeExtensions(bin, appDevCodeExtensions)
 			return nil
 		}
 	}
@@ -337,17 +337,18 @@ func (b *appBroker) devCodeStart() error {
 
 // devCodeExtensions installs the extensions once, through the box's
 // proxy, and again when hi's list changes.
-func (b *appBroker) devCodeExtensions(bin string) {
+// extensions is hi's list, read by the caller: this runs on its own, after.
+func (b *appBroker) devCodeExtensions(bin string, extensions []string) {
 	home := filepath.Join(appDevDir(b.team), "home")
 	marker := filepath.Join(home, ".hi", "code-server-extensions")
-	want := strings.Join(appDevCodeExtensions, "\n") + "\n"
+	want := strings.Join(extensions, "\n") + "\n"
 	if have, _ := boxedReadFile(home, marker); string(have) == want || !appDevCodeInstalling.TryLock() {
 		return
 	}
 	defer appDevCodeInstalling.Unlock()
 	data := "/box/home/.local/share/code-server"
 	command := []string{bin + "/bin/code-server", "--user-data-dir", data, "--extensions-dir", data + "/extensions"}
-	for _, extension := range appDevCodeExtensions {
+	for _, extension := range extensions {
 		command = append(command, "--install-extension", extension)
 	}
 	out, err := appDevBoxExec(b.team, command...)

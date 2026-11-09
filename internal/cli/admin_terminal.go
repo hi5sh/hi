@@ -122,7 +122,13 @@ func adminTermTell(admin adminPerson, app, what string) {
 // of its own on this machine, its output to the page, and the page's keys
 // to it. Binary messages are the terminal's bytes; a text message is
 // {"cols":..,"rows":..} when the page's size changes.
+// adminTermsOpen counts the terminals open, so a test waits for them to
+// end before it puts its settings back.
+var adminTermsOpen sync.WaitGroup
+
 func (s *adminServer) terminal(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+	adminTermsOpen.Add(1)
+	defer adminTermsOpen.Done()
 	query := r.URL.Query()
 	view, err := adminTermViewOf(query.Get("name"), admin)
 	if err != nil {
@@ -232,7 +238,9 @@ func (s *adminServer) terminal(w http.ResponseWriter, r *http.Request, admin adm
 	// It closes after a while without a key, and when its admin's sign-in
 	// ends or they aren't the owner any more.
 	input := make(chan struct{}, 1)
+	adminTermsOpen.Add(1)
 	go func() {
+		defer adminTermsOpen.Done()
 		idle := time.NewTimer(adminTermIdle)
 		check := time.NewTicker(adminTermCheck)
 		defer idle.Stop()

@@ -649,7 +649,7 @@ func startTeamDevNet(engine boxEngine, team, hi string, stderr io.Writer) error 
 	// port 80 goes to the dev page's internal relay.
 	script := appPeerScript(team, fmt.Sprintf("%s:%d", appDevBoxIP(state.ProxyIP, 3), appDevSSHPort), joined)
 	if engine.state(appDevNetContainer(team)) == "running" && appContainerLabel(engine, appDevNetContainer(team), "hi.peer") == appPeerStamp(script) {
-		go appRefreshPeerName(engine, team, time.Minute)
+		appDevPeerWatch(func() { appRefreshPeerName(engine, team, time.Minute) })
 		return nil
 	}
 	if !joined {
@@ -675,11 +675,15 @@ func startTeamDevNet(engine boxEngine, team, hi string, stderr io.Writer) error 
 	}
 	if !joined {
 		// The key goes as soon as the peer exists.
-		go appDevJoined(team, 5*time.Minute)
+		appDevPeerWatch(func() { appDevJoined(team, 5*time.Minute) })
 	}
-	go appRefreshPeerName(engine, team, 5*time.Minute)
+	appDevPeerWatch(func() { appRefreshPeerName(engine, team, 5*time.Minute) })
 	return nil
 }
+
+// appDevPeerWatch runs what watches the peer after it starts, minutes of
+// it, in the background; tests, which watch nothing, turn it off.
+var appDevPeerWatch = func(watch func()) { go watch() }
 
 // stopTeamDev removes the dev box, its peer, its proxy, and its network;
 // what it keeps is in the team's folder.

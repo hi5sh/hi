@@ -52,16 +52,16 @@ func TestTeamSigninChatGPTFromSlack(t *testing.T) {
 	if _, err := b.webSignin("U07OWNER1", "chatgpt"); err == nil || !strings.Contains(err.Error(), "already waiting") {
 		t.Fatal(err)
 	}
-	if dm := channel.calls[0]; !strings.HasPrefix(dm, "dm U07OWNER1 ") || !strings.Contains(dm, "/codex/device>") || !strings.Contains(dm, "*ABCD-1234*") {
+	if dm := channel.callsNow()[0]; !strings.HasPrefix(dm, "dm U07OWNER1 ") || !strings.Contains(dm, "/codex/device>") || !strings.Contains(dm, "*ABCD-1234*") {
 		t.Fatal(dm)
 	}
 	<-signedIn
 	deadline := time.Now().Add(5 * time.Second)
-	for !strings.Contains(strings.Join(channel.calls, "\n"), "signed in to ChatGPT") && time.Now().Before(deadline) {
+	for !strings.Contains(strings.Join(channel.callsNow(), "\n"), "signed in to ChatGPT") && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if last := channel.calls[len(channel.calls)-1]; !strings.HasPrefix(last, "update DU07OWNER1 ") || !strings.Contains(last, "ChatGPT Pro plan") {
-		t.Fatal(channel.calls)
+	if calls := channel.callsNow(); !strings.HasPrefix(calls[len(calls)-1], "update DU07OWNER1 ") || !strings.Contains(calls[len(calls)-1], "ChatGPT Pro plan") {
+		t.Fatal(calls)
 	}
 	secrets, _ := loadTeamSecrets("payments")
 	if secrets.ChatGPT == nil || secrets.ChatGPT.RefreshToken != "rt-authorization_code-0" || secrets.SlackBotToken != "xoxb" {

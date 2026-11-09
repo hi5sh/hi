@@ -21,11 +21,17 @@ func appTestRelay(t *testing.T, dir, box string, grace time.Duration, follows bo
 	file = filepath.Join(t.TempDir(), "hi", "workers")
 	done := make(chan struct{})
 	var once sync.Once
-	stop = func() { once.Do(func() { close(done) }) }
+	var running sync.WaitGroup
+	// Stopping waits for the relay to end: it reads appWorkersPoll, which
+	// the test puts back after.
+	stop = func() { once.Do(func() { close(done) }); running.Wait() }
 	t.Cleanup(stop)
-	go appWorkersRelay(dir, box, file, grace, done, io.Discard)
+	running.Add(1)
+	go func() { defer running.Done(); appWorkersRelay(dir, box, file, grace, done, io.Discard) }()
 	if follows {
+		running.Add(1)
 		go func() {
+			defer running.Done()
 			had := false
 			for {
 				select {

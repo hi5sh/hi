@@ -191,16 +191,22 @@ textarea:focus { border-color: var(--accent); }
   // a safe subset of Markdown: everything is escaped first, then
   // paragraphs, lists, bold, italics, code, and http(s) links
 
-  const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const escape = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+  // Code and links are set aside as they are made, as placeholders, so no
+  // later rule runs over markup an earlier one made: the link rule's href
+  // was the auto-link rule's text, which could end the attribute and add
+  // one (an event handler) of its own.
   function inline(text) {
-    const codes = [];
-    let html = escape(text).replace(/`([^`]+)`/g, (_, code) => { codes.push("<code>" + code + "</code>"); return "\u0001" + (codes.length - 1) + "\u0001"; });
+    const kept = [];
+    const keep = (html) => { kept.push(html); return "\u0001" + (kept.length - 1) + "\u0001"; };
+    let html = escape(text).replace(/`([^`]+)`/g, (_, code) => keep("<code>" + code + "</code>"));
     html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     html = html.replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?!\w)/g, "$1<em>$2</em>");
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-    html = html.replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:!?])/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
-    return html.replace(/\u0001(\d+)\u0001/g, (_, i) => codes[+i]);
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)<\u0001]+)\)/g, (_, label, href) => keep('<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + label + "</a>"));
+    html = html.replace(/(^|[\s(])(https?:\/\/[^\s<)\u0001]+[^\s<).,;:!?\u0001])/g, (_, before, href) => before + keep('<a href="' + href + '" target="_blank" rel="noopener noreferrer">' + href + "</a>"));
+    for (let i = kept.length - 1; i >= 0; i--) html = html.split("\u0001" + i + "\u0001").join(kept[i]);
+    return html;
   }
 
   function markdown(text) {

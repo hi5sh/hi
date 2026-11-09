@@ -150,7 +150,7 @@ func TestServeFrontChecksKeysAndWritesAccessLines(t *testing.T) {
 	keysDir := t.TempDir()
 	os.WriteFile(filepath.Join(keysDir, "shared"), []byte("key-one\n"), 0o600)
 	os.WriteFile(filepath.Join(keysDir, "org"), []byte("key-org\n"), 0o600)
-	var log bytes.Buffer
+	var log syncBuffer // the front writes its lines after each answer
 	access := &serveAccessLog{out: &log}
 	proxy := newServeFront(address, io.Discard)
 	local := httptest.NewServer(access.wrap(proxy, nil))
@@ -197,6 +197,10 @@ func TestServeFrontChecksKeysAndWritesAccessLines(t *testing.T) {
 		if request.Header.Get("Authorization") != "" || request.Header.Get(serveUserHeader) != "" {
 			t.Fatalf("the key or user reached the box: %v", request.Header)
 		}
+	}
+	// Each line is written once its answer has gone: wait for the four.
+	for deadline := time.Now().Add(2 * time.Second); strings.Count(log.String(), "\naccess") < 3 && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
 	}
 	lines := log.String()
 	for _, want := range []string{" local POST /v1/chat/completions 200 ", " no-key POST /v1/chat/completions 401 ",

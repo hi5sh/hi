@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,12 +20,15 @@ type fakeTeamChannel struct {
 	messages []slack.Message
 	threads  map[string][]slack.Message
 	calls    []string
+	// mu guards calls: the broker's goroutines, such as a sign-in's, write
+	// them while a test reads.
+	mu sync.Mutex
 	// updateErr is what updateBlocks answers, such as message_not_found.
 	updateErr string
 }
 
 func (f *fakeTeamChannel) history(channel, oldest string) ([]slack.Message, error) {
-	f.calls = append(f.calls, "history "+channel)
+	f.record("history " + channel)
 	var out []slack.Message
 	for _, message := range f.messages {
 		if appTSBefore(oldest, message.Timestamp) {
@@ -35,7 +39,7 @@ func (f *fakeTeamChannel) history(channel, oldest string) ([]slack.Message, erro
 }
 
 func (f *fakeTeamChannel) replies(channel, thread, oldest string) ([]slack.Message, error) {
-	f.calls = append(f.calls, "replies "+thread+" "+oldest)
+	f.record("replies " + thread + " " + oldest)
 	return f.threads[thread], nil
 }
 
@@ -44,22 +48,22 @@ func (f *fakeTeamChannel) userName(id string) string {
 }
 
 func (f *fakeTeamChannel) post(channel, text string) (string, error) {
-	f.calls = append(f.calls, "post "+channel+" "+text)
-	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+	f.record("post " + channel + " " + text)
+	return fmt.Sprintf("1700000000.%06d", f.count()), nil
 }
 
 func (f *fakeTeamChannel) postIn(channel, thread, text string) (string, error) {
-	f.calls = append(f.calls, "postIn "+channel+" "+thread+" "+text)
-	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+	f.record("postIn " + channel + " " + thread + " " + text)
+	return fmt.Sprintf("1700000000.%06d", f.count()), nil
 }
 
 func (f *fakeTeamChannel) upload(channel, thread, path, title string) error {
-	f.calls = append(f.calls, "upload "+channel+" "+thread+" "+filepath.Base(path)+" "+title)
+	f.record("upload " + channel + " " + thread + " " + filepath.Base(path) + " " + title)
 	return nil
 }
 
 func (f *fakeTeamChannel) update(channel, ts, text string) error {
-	f.calls = append(f.calls, "update "+channel+" "+ts+" "+text)
+	f.record("update " + channel + " " + ts + " " + text)
 	return nil
 }
 
@@ -68,12 +72,12 @@ func (f *fakeTeamChannel) postButtons(channel, text string, buttons []appSlackBu
 	for _, b := range buttons {
 		labels = append(labels, "["+b.Label+" "+b.Action+"="+b.Value+"]")
 	}
-	f.calls = append(f.calls, "postButtons "+channel+" "+text+" "+strings.Join(labels, " "))
-	return fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+	f.record("postButtons " + channel + " " + text + " " + strings.Join(labels, " "))
+	return fmt.Sprintf("1700000000.%06d", f.count()), nil
 }
 
 func (f *fakeTeamChannel) settle(channel, ts, text string) error {
-	f.calls = append(f.calls, "settle "+channel+" "+ts+" "+text)
+	f.record("settle " + channel + " " + ts + " " + text)
 	return nil
 }
 
@@ -82,8 +86,8 @@ func (f *fakeTeamChannel) permalink(channel, ts string) (string, error) {
 }
 
 func (f *fakeTeamChannel) dm(user, text string) (string, string, error) {
-	f.calls = append(f.calls, "dm "+user+" "+text)
-	return "D" + user, fmt.Sprintf("1700000000.%06d", len(f.calls)), nil
+	f.record("dm " + user + " " + text)
+	return "D" + user, fmt.Sprintf("1700000000.%06d", f.count()), nil
 }
 
 func (f *fakeTeamChannel) inChannel(channel, user string) bool {
@@ -263,4 +267,24 @@ func TestTeamMemorySettings(t *testing.T) {
 	if err != nil || catalog.Subdir != "hindsight-integrations/hermes" || catalog.SHA != "d56c4acdf59c41957613d399094cdf8c489b060c" {
 		t.Fatal(catalog, err)
 	}
+}
+
+func (f *fakeTeamChannel) record(call string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, call)
+}
+
+func (f *fakeTeamChannel) count() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+// callsNow is what the channel was asked so far, for a test that reads
+// while the broker still works.
+func (f *fakeTeamChannel) callsNow() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.calls...)
 }
