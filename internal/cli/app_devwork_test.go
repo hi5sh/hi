@@ -232,7 +232,17 @@ func TestTeamDevKit(t *testing.T) {
 	home := t.TempDir()
 	previous := appDevHerdrSkill
 	appDevHerdrSkill = func(string) (string, error) { return "---\nname: herdr\n---\n# Herdr\n", nil }
-	t.Cleanup(func() { appDevHerdrSkill = previous })
+	// A herdr for the kit to find, on a machine that has none (CI).
+	bin := t.TempDir()
+	os.WriteFile(filepath.Join(bin, "herdr"), []byte("#!/bin/sh\n"), 0o755)
+	previousLook := boxLookPath
+	boxLookPath = func(name string) (string, error) {
+		if name == "herdr" {
+			return filepath.Join(bin, "herdr"), nil
+		}
+		return previousLook(name)
+	}
+	t.Cleanup(func() { appDevHerdrSkill, boxLookPath = previous, previousLook })
 	os.MkdirAll(filepath.Join(home, ".claude"), 0o700)
 	os.WriteFile(filepath.Join(home, ".claude", "CLAUDE.md"), []byte("My own notes.\n"), 0o600)
 	// A skill hi wrote under its name before 2.5.14 goes.
