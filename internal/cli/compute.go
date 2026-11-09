@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -25,8 +26,10 @@ import (
 const (
 	defaultInstanceMax = 4 * time.Hour
 	defaultRunMax      = time.Hour
-	watchInterval      = 30 * time.Second
 )
+
+// watchInterval is how often the lifetime watcher looks; tests shorten it.
+var watchInterval = 30 * time.Second
 
 // computeProvider is the provider-specific part of `hi compute`. Everything
 // else (limits, state, confirmation, SSH, tunnels) is shared.
@@ -164,7 +167,15 @@ type computeRecord struct {
 	Deadline   time.Time `json:"deadline"`
 	WatcherPID int       `json:"watcher_pid,omitempty"`
 	Namespace  string    `json:"namespace,omitempty"`
+	// Starting is set while the provider creates the machine: the record
+	// and its watcher come first, so a wait that fails, or Ctrl-C, never
+	// leaves a paid machine without its --max.
+	Starting bool `json:"starting,omitempty"`
 }
+
+// computeStartingFor is how long a record still starting is kept while
+// its provider doesn't list the machine yet.
+const computeStartingFor = time.Hour
 
 var (
 	computeProviders = []computeProvider{colabProvider{}, newHFProvider(), newRunpodProvider(), newShadeformProvider()}
@@ -671,11 +682,11 @@ func startInstance(
 
 	// Billing starts when the machine is created, not when it is ready.
 	created := computeNow()
-	if err := provider.create(request, stdout, stderr); err != nil {
-		return err
-	}
 	if isManaged(provider) {
 		// The server keeps the record and enforces the limit.
+		if err := provider.create(request, stdout, stderr); err != nil {
+			return err
+		}
 		if err := installData(); err != nil {
 			return err
 		}
@@ -683,13 +694,17 @@ func startInstance(
 		return nil
 	}
 
+	// The record and its watcher before the machine: creating can wait
+	// minutes for it to be ready (RunPod's SSH), and a wait that fails, or
+	// Ctrl-C, still leaves a machine that bills until --max.
 	record := computeRecord{
 		Name:      request.name,
 		Provider:  provider.name(),
 		Hardware:  request.hardware.name,
 		Created:   created,
 		Deadline:  deadline,
-		Namespace: request.namespace,
+		Namespace: computeBilledNamespace(provider, request),
+		Starting:  true,
 	}
 	if err := saveComputeRecord(record); err != nil {
 		return err
@@ -704,6 +719,24 @@ func startInstance(
 		if err := saveComputeRecord(record); err != nil {
 			return err
 		}
+	}
+	if err := provider.create(request, stdout, stderr); err != nil {
+		if listed, ok := computeInstanceListed(provider, request.name); ok && !listed {
+			removeComputeRecord(request.name) // nothing was made; its watcher ends with it
+		} else if !deadline.IsZero() {
+			fmt.Fprintf(stderr, "hi: %s may still be starting, or failed after it was made; hi stops it at %s, or stop it now with `hi compute stop %s`\n",
+				request.name, deadline.Local().Format("15:04"), request.name)
+		}
+		return err
+	}
+	record.Starting = false
+	if records, err := loadComputeRecords(); err == nil {
+		if saved, ok := records[request.name]; ok {
+			record.WatcherPID = saved.WatcherPID
+		}
+	}
+	if err := saveComputeRecord(record); err != nil {
+		return err
 	}
 	if err := installData(); err != nil {
 		return err
@@ -732,24 +765,30 @@ func parseLifetime(value string) (time.Duration, error) {
 		return noLimit, nil
 	}
 	invalid := fmt.Errorf("invalid lifetime %q; use hours such as 2 or 1.5, or 30m, 1h30m, 2d, or none", value)
-	if hours, err := strconv.ParseFloat(value, 64); err == nil {
-		if hours <= 0 {
+	// At least a second, which doesn't round to 0, noLimit, and at most a
+	// year; inf and nan aren't a time at all. A machine's --max is a minute
+	// or more (validateLifetime).
+	hours := func(count float64) (time.Duration, error) {
+		if math.IsNaN(count) || math.IsInf(count, 0) || count*float64(time.Hour) < float64(time.Second) || count > 366*24 {
 			return 0, invalid
 		}
-		return time.Duration(hours * float64(time.Hour)).Round(time.Second), nil
+		return time.Duration(count * float64(time.Hour)).Round(time.Second), nil
+	}
+	if count, err := strconv.ParseFloat(value, 64); err == nil {
+		return hours(count)
 	}
 	if days, ok := strings.CutSuffix(value, "d"); ok {
 		count, err := strconv.ParseFloat(days, 64)
-		if err != nil || count <= 0 {
+		if err != nil {
 			return 0, invalid
 		}
-		return time.Duration(count * 24 * float64(time.Hour)).Round(time.Second), nil
+		return hours(count * 24)
 	}
 	duration, err := time.ParseDuration(value)
-	if err != nil || duration <= 0 {
+	if err != nil {
 		return 0, invalid
 	}
-	return duration, nil
+	return hours(duration.Hours())
 }
 
 // lifetimeFlag is --max as a flag.Value.
@@ -793,6 +832,9 @@ func validateLifetime(provider computeProvider, lifetime time.Duration) error {
 	if lifetime < 0 {
 		return usageError{"--max must be greater than zero"}
 	}
+	if lifetime != noLimit && lifetime < time.Minute {
+		return usageError{"--max is at least a minute, such as 30m or 2"}
+	}
 	if limit := provider.maxLifetime(); limit > 0 && lifetime > limit {
 		return usageError{fmt.Sprintf("--max %s exceeds the %s limit of %s",
 			formatDuration(lifetime), provider.name(), formatDuration(limit))}
@@ -806,13 +848,37 @@ func chooseInstanceName(name, hardware string) (string, error) {
 		if _, err := rand.Read(suffix); err != nil {
 			return "", err
 		}
-		return strings.ToLower(hardware) + "-" + hex.EncodeToString(suffix), nil
+		return computeNameFrom(hardware) + "-" + hex.EncodeToString(suffix), nil
 	}
 	if !validInstanceName(name) {
 		return "", usageError{fmt.Sprintf(
 			"invalid name %q; use 1-32 lowercase letters, digits, or hyphens, starting with a letter", name)}
 	}
 	return name, nil
+}
+
+// computeNameFrom is the start of a name hi makes from the hardware's: up
+// to the @ of its region or cloud (rtx-4090@community), in the letters,
+// digits, and dashes a name takes, at most 27 of them so the suffix fits.
+func computeNameFrom(hardware string) string {
+	hardware, _, _ = strings.Cut(strings.ToLower(hardware), "@")
+	var name strings.Builder
+	for _, char := range hardware {
+		switch {
+		case char >= 'a' && char <= 'z' || char >= '0' && char <= '9':
+			name.WriteRune(char)
+		case name.Len() > 0 && !strings.HasSuffix(name.String(), "-"):
+			name.WriteByte('-')
+		}
+	}
+	text := strings.Trim(name.String(), "-")
+	if len(text) > 27 {
+		text = strings.TrimRight(text[:27], "-")
+	}
+	if text == "" || text[0] < 'a' || text[0] > 'z' {
+		text = "gpu-" + text
+	}
+	return strings.TrimRight(text, "-")
 }
 
 func validInstanceName(name string) bool {
@@ -918,10 +984,18 @@ func stopsInText(deadline, now time.Time) string {
 // listInstances reconciles provider listings with local records. It forgets
 // records whose instance is gone and stops instances past their deadline.
 func listInstances(stdout, stderr io.Writer) ([]listedInstance, error) {
+	listed, _, err := listInstancesFrom(stdout, stderr)
+	return listed, err
+}
+
+// listInstancesFrom is listInstances, and the providers it listed: one it
+// couldn't ask says nothing about what is gone.
+func listInstancesFrom(stdout, stderr io.Writer) ([]listedInstance, map[string]bool, error) {
 	records, err := loadComputeRecords()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	asked := map[string]bool{}
 	now := computeNow()
 	var listed []listedInstance
 	for _, provider := range computeProviders {
@@ -935,6 +1009,7 @@ func listInstances(stdout, stderr io.Writer) ([]listedInstance, error) {
 			fmt.Fprintf(stderr, "hi: list %s instances: %v; the other providers' are listed\n", provider.name(), err)
 			continue
 		}
+		asked[provider.name()] = true
 		seen := map[string]bool{}
 		for _, instance := range instances {
 			item := listedInstance{provider: provider.name(), instance: instance}
@@ -952,16 +1027,25 @@ func listInstances(stdout, stderr io.Writer) ([]listedInstance, error) {
 			}
 			listed = append(listed, item)
 		}
+		if isManaged(provider) {
+			// The server lists its own; a record here is a machine this
+			// device started itself before it joined, which its watcher
+			// stops with the provider's own sign-in (computeDirectProvider).
+			continue
+		}
 		for name, record := range records {
 			if record.Provider == provider.name() && !seen[name] {
+				if record.Starting && now.Sub(record.Created) < computeStartingFor {
+					continue // still being made: not listed yet
+				}
 				if err := removeComputeRecord(name); err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 			}
 		}
 	}
 	sort.Slice(listed, func(i, j int) bool { return listed[i].instance.name < listed[j].instance.name })
-	return listed, nil
+	return listed, asked, nil
 }
 
 func computeStatusCommand(args []string, stdout, stderr io.Writer) error {
@@ -1657,27 +1741,70 @@ func spawnComputeWatcher(name string) (int, error) {
 
 // watchComputeInstance stops an instance at its deadline. It compares wall
 // clock time on every tick so a suspended laptop still stops it on resume.
+//
+// A stop that fails, such as on a resume before the network is back, is
+// tried again on the next tick: the watcher ends only once the machine
+// is stopped, or its provider lists it no more.
 func watchComputeInstance(name string, stdout, stderr io.Writer) error {
 	for {
 		records, err := loadComputeRecords()
 		if err != nil {
-			return err
+			fmt.Fprintf(stderr, "%s: %v; trying again\n", computeNow().Format(time.RFC3339), err)
+			time.Sleep(watchInterval)
+			continue
 		}
 		record, ok := records[name]
 		if !ok || record.Deadline.IsZero() {
 			return nil
 		}
 		if !computeNow().Before(record.Deadline) {
-			provider, err := providerByName(record.Provider)
+			provider, err := computeDirectProvider(record.Provider)
 			if err != nil {
 				return err
 			}
 			fmt.Fprintf(stdout, "%s: %s reached its maximum lifetime; stopping it\n",
 				computeNow().Format(time.RFC3339), name)
-			return stopInstance(provider, name, stdout, stderr)
+			err = stopInstance(provider, name, stdout, stderr)
+			if err == nil {
+				return nil
+			}
+			if listed, ok := computeInstanceListed(provider, name); ok && !listed {
+				fmt.Fprintf(stdout, "%s: %s isn't there any more\n", computeNow().Format(time.RFC3339), name)
+				return removeComputeRecord(name)
+			}
+			fmt.Fprintf(stderr, "%s: %v; trying again\n", computeNow().Format(time.RFC3339), err)
 		}
 		time.Sleep(watchInterval)
 	}
+}
+
+// computeInstanceListed says whether a provider lists an instance; ok is
+// false when it couldn't list.
+func computeInstanceListed(provider computeProvider, name string) (listed, ok bool) {
+	instances, err := provider.list()
+	if err != nil {
+		return false, false
+	}
+	for _, instance := range instances {
+		if instance.name == name {
+			return true, true
+		}
+	}
+	return false, true
+}
+
+// computeDirectProviders are the providers before an org server took any
+// over (withManagedProviders): a record is always a machine this device
+// started itself, and stops with its own sign-in.
+var computeDirectProviders []computeProvider
+
+func computeDirectProvider(name string) (computeProvider, error) {
+	for _, provider := range computeDirectProviders {
+		if provider.name() == strings.ToLower(name) {
+			return provider, nil
+		}
+	}
+	return providerByName(name)
 }
 
 // ---------------------------------------------------------------------------
@@ -1859,4 +1986,17 @@ func formatDuration(d time.Duration) string {
 	default:
 		return fmt.Sprintf("%dm", minutes)
 	}
+}
+
+// computeBilledNamespace is the account a start bills, as the provider
+// resolves it now: kept in the record, so the machine is still found when
+// the default changes later (hi compute billing, a shell without
+// HI_HF_NAMESPACE).
+func computeBilledNamespace(provider computeProvider, request upRequest) string {
+	if hf, ok := provider.(*hfProvider); ok {
+		if namespace, err := hf.defaultNamespace(request.namespace); err == nil {
+			return namespace
+		}
+	}
+	return request.namespace
 }

@@ -593,6 +593,17 @@ draft.
   clock every 30 seconds, surviving closed terminals and suspend. It does not
   survive a reboot or a powered-off laptop; `hi compute ls` and Colab's own
   24-hour session limit are the backstops.
+- The record, with its deadline, and the watcher come before the machine
+  (v2.6.104): creating can wait minutes for it to be ready, and a wait that
+  fails, or Ctrl-C, still leaves a machine that stops at `--max`. A record
+  still starting is kept for an hour while the provider doesn't list it
+  yet; a start that made nothing leaves none.
+- The watcher tries a stop that fails again on its next tick, such as on a
+  resume before the network is back, until the machine is stopped or its
+  provider lists it no more. It stops with the device's own sign-in, also
+  once an org server manages that provider.
+- `--max` is a minute to a year; what would round to no limit, `inf`, and
+  `nan` are refused.
 - `stop --all` lists what it will stop and asks for confirmation.
 
 ## Errors and output

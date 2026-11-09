@@ -287,6 +287,9 @@ func prepareDataRun(request *runRequest, values []string, provider string, stder
 		if size := base64.StdEncoding.EncodedLen(len(wrapper)); provider == "hf" && size > dataRunMaxScript {
 			return nil, dataRunTooLarge(repos, size)
 		}
+	} else if size := base64.StdEncoding.EncodedLen(len(wrapper)); size > dataRunMaxScript {
+		// The proxy's wrapper carries the script too, base64'd once more.
+		return nil, fmt.Errorf("%s comes to %s wrapped for the data proxy, and Hugging Face Jobs carry at most %s; make the script smaller, or have it read the rest from the data", filepath.Base(request.script), formatDataSize(int64(size)), formatDataSize(dataRunMaxScript))
 	}
 	dir, err := os.MkdirTemp("", "hi-run-")
 	if err != nil {

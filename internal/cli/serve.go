@@ -239,11 +239,13 @@ func serveListCommand(args []string, stdout, stderr io.Writer) error {
 		rented = rented || model.Provider != "local"
 	}
 	var up map[string]listedInstance
+	asked := map[string]bool{}
 	if rented {
-		listed, err := listInstances(io.Discard, stderr)
+		listed, providers, err := listInstancesFrom(io.Discard, stderr)
 		if err != nil {
 			return err
 		}
+		asked = providers
 		up = map[string]listedInstance{}
 		for _, item := range listed {
 			up[item.provider+"/"+item.instance.name] = item
@@ -256,6 +258,11 @@ func serveListCommand(args []string, stdout, stderr io.Writer) error {
 			continue
 		}
 		item, ok := up[model.Provider+"/"+name]
+		if !ok && !asked[model.Provider] {
+			// Its provider couldn't be listed: kept, as it may still bill.
+			rows = append(rows, row{servedModel: model, State: "unknown: " + model.Provider + " couldn't be listed"})
+			continue
+		}
 		if !ok {
 			delete(served, name)
 			forgot = true

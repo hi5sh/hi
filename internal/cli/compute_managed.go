@@ -40,6 +40,7 @@ func withManagedProviders() (func(), error) {
 		return func() {}, err
 	}
 	original := computeProviders
+	computeDirectProviders = original
 	providers := make([]computeProvider, 0, len(original)+len(connection.Providers))
 	managed := map[string]bool{}
 	for _, info := range connection.Providers {
@@ -66,7 +67,7 @@ func withManagedProviders() (func(), error) {
 		}
 	}
 	computeProviders = providers
-	return func() { computeProviders = original }, nil
+	return func() { computeProviders, computeDirectProviders = original, nil }, nil
 }
 
 func isManaged(provider computeProvider) bool {

@@ -200,6 +200,11 @@ func dataRestore(client *serverClient, connection *serverConnection, stdin io.Re
 	var failed []string
 	for _, record := range records.Data {
 		item, err := resolveDataItem(catalog, record.Kind+":"+record.ID)
+		if err == nil && !filepath.IsLocal(filepath.FromSlash(record.To)) && record.To != "." {
+			// data.json is the project's, committed by anyone: a folder
+			// outside it isn't one to fill.
+			err = fmt.Errorf("its folder %s is outside the project", record.To)
+		}
 		if err == nil {
 			to := filepath.Join(root, record.To)
 			if cwd, err := os.Getwd(); err == nil {

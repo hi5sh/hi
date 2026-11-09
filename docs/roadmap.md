@@ -2713,6 +2713,30 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.104 — A paid machine always has its limit
+
+- [x] `hi compute up` saves the machine's record, with its `--max`, and
+  starts the watcher before the provider makes the machine. RunPod's
+  create waits up to 15 minutes for SSH; a wait that failed, or Ctrl-C,
+  left a pod billing with no record and no limit.
+- [x] The watcher tries a failed stop again on its next tick instead of
+  ending, so one network error at the deadline no longer leaves the
+  machine running; it ends once the machine is stopped or gone. It stops
+  with the device's own sign-in when an org server manages the provider,
+  and `hi compute ls` no longer forgets a machine started before joining.
+- [x] `--max 0.0001` rounded to no limit, and `inf` and `nan` passed: a
+  machine's `--max` is a minute to a year.
+- [x] A name hi makes from the hardware drops its `@region` and anything a
+  name can't hold, so `rtx-4090@community` gives a name `hi compute ssh`
+  and `stop` take.
+- [x] A Hugging Face job's record keeps the account it bills, not the
+  flag, so changing the default later doesn't lose the job.
+- [x] `hi serve ls` keeps a rented server whose provider couldn't be
+  listed, instead of forgetting a machine that still bills.
+- [x] `hi data get` refuses a folder in `.hi5/data.json` outside the
+  project, and the data proxy's wrapped script is held to Hugging Face
+  Jobs' size limit too.
+
 ### v2.6.103 — hi q runs only what is read-only
 
 - [x] `hi q`'s check reads words as the shell does, quotes and
