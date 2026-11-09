@@ -176,6 +176,9 @@ type watchTeam struct {
 type watchSample struct {
 	At    time.Time `json:"at"`
 	Value float64   `json:"value"`
+	// Sent marks a connection's close, with the bytes it sent: the burst
+	// rule counts connections by their opening only.
+	Sent bool `json:"sent,omitempty"`
 }
 
 type watchIncident struct {

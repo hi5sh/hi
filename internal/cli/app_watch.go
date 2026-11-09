@@ -282,7 +282,7 @@ func appOOMCounts(team string) map[string]int {
 	if err != nil {
 		return counts
 	}
-	for _, name := range strings.Fields(out) {
+	for _, name := range appTeamContainers(team, strings.Fields(out), false) { // the filter is a substring
 		path, err := b.engineOutput("inspect", "-f", "{{.State.CgroupPath}}", name)
 		if err != nil || strings.TrimSpace(path) == "" {
 			continue

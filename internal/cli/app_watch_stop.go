@@ -16,9 +16,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -143,7 +146,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 					return err
 				}
 			}
-			state.Apps = appRunningContainers(appPreviewContainer(b.team) + "-")
+			state.Apps = appTeamContainers(b.team, appRunningContainers(appPreviewContainer(b.team)+"-"), true)
 			for _, app := range state.Apps {
 				appWatchEngine("pause", app)
 			}
@@ -167,7 +170,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 		text = ":sunny: *The org server unfroze the app*"
 	case "pause":
 		if !state.Paused {
-			running := appRunningContainers("hi-box-app-"+b.team, "hi-box-"+b.team+"-t-")
+			running := appTeamContainers(b.team, appRunningContainers("hi-box-app-"+b.team, "hi-box-"+b.team+"-t-"), false)
 			for _, name := range running {
 				appWatchEngine("pause", name)
 			}
@@ -317,4 +320,86 @@ func appSitePackages(dir string) []string {
 // appPyName is a Python package's name as PyPI compares them.
 func appPyName(name string) string {
 	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(name))
+}
+
+// appSlotContainerPattern is an app box by its whole name: an app's
+// containers are told by their whole names. A prefix isn't one: pausing pay paused
+// pay-ops, whose names start with pay's, and pay-app's start like pay's
+// production box.
+var appSlotContainerPattern = regexp.MustCompile(`^hi-box-app-(.+)-app-(preview|production)-[0-9]+$`)
+
+// appSlotContainer says a container is one of team's app boxes, the
+// preview's or production's.
+func appSlotContainer(team, name string) bool {
+	match := appSlotContainerPattern.FindStringSubmatch(name)
+	return match != nil && match[1] == team
+}
+
+// appTeamContainer says a container is team's: its lead, the lead's proxy
+// and memory, its dev box with its proxy and peer, an app box, or a
+// member's box (hi-box-<team>-t-…).
+func appTeamContainer(team, name string) bool {
+	if appSlotContainer(team, name) || strings.HasPrefix(name, "hi-box-"+team+"-t-") {
+		return true
+	}
+	for _, suffix := range []string{"", "-proxy", "-memory", "-dev", "-dev-proxy", "-dev-net"} {
+		if name == "hi-box-app-"+team+suffix {
+			return true
+		}
+	}
+	return false
+}
+
+// appTeamContainers keeps those of names that are team's.
+func appTeamContainers(team string, names []string, slotsOnly bool) []string {
+	var kept []string
+	for _, name := range names {
+		if slotsOnly && appSlotContainer(team, name) || !slotsOnly && appTeamContainer(team, name) {
+			kept = append(kept, name)
+		}
+	}
+	return kept
+}
+
+// holdWatchStop puts the org server's freeze or pause back on what the
+// service's start made anew: the lead's box is a new one, and member
+// boxes started since have their own allowlists.
+func (b *appBroker) holdWatchStop(stderr io.Writer) {
+	state := loadTeamWatchStop(b.team)
+	if !state.Frozen && !state.Paused {
+		return
+	}
+	if state.Frozen {
+		if state.Allow == nil {
+			state.Allow = map[string]string{}
+		}
+		for _, box := range appWatchBoxes(b.team) {
+			path := boxStateFile(box, "allow")
+			data, err := os.ReadFile(path)
+			if err != nil || len(data) == 0 {
+				continue
+			}
+			if _, kept := state.Allow[path]; !kept {
+				state.Allow[path] = string(data)
+			}
+			writeFileAtomic(path, nil, 0o600)
+		}
+		for _, app := range appTeamContainers(b.team, appRunningContainers(appPreviewContainer(b.team)+"-"), true) {
+			appWatchEngine("pause", app)
+			if !slices.Contains(state.Apps, app) {
+				state.Apps = append(state.Apps, app)
+			}
+		}
+	}
+	if state.Paused {
+		for _, name := range appTeamContainers(b.team, appRunningContainers("hi-box-app-"+b.team, "hi-box-"+b.team+"-t-"), false) {
+			appWatchEngine("pause", name)
+			if !slices.Contains(state.Boxes, name) {
+				state.Boxes = append(state.Boxes, name)
+			}
+		}
+	}
+	if err := saveTeamWatchStop(b.team, state); err != nil {
+		fmt.Fprintf(stderr, "hi: the org server's freeze: %v\n", err)
+	}
 }

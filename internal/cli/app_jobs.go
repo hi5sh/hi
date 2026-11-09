@@ -264,13 +264,13 @@ func (b *appBroker) checkJobs(now time.Time) error {
 			case !b.started.IsZero() && now.Sub(b.started) < appJobSettle:
 				// Held: asked again next minute, once the team has settled.
 			default:
-				watch.Alerted = key
 				incident, err := b.openJobIncident(slot, job, condition, now)
 				if err != nil {
+					// Not alerted yet: the next minute tries again.
 					failed = append(failed, fmt.Sprintf("%s's job %s: %v", slot, job.Job, err))
 					continue
 				}
-				watch.Open = incident.ID
+				watch.Alerted, watch.Open = key, incident.ID
 			}
 		}
 	}
@@ -355,11 +355,21 @@ func (b *appBroker) checkUnreported() error {
 				return err
 			}
 			deliver += ":" + ts
+			// Said once: the channel heard it, whether or not the lead's
+			// box is up yet to be woken.
+			if err := appMarkDone(path); err != nil {
+				return err
+			}
 		}
 		if err := b.wakeLead("hi-jobs-check", appUnreportedPrompt(), deliver); err != nil {
 			return err
 		}
 	}
+	return appMarkDone(path)
+}
+
+// appMarkDone writes a marker that something was done, and when.
+func appMarkDone(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}

@@ -245,6 +245,9 @@ func (b *appBroker) preview(request appPreviewRequest) (appPreview, error) {
 // is work in it, or for a project cloned or started empty, the lead makes
 // the previews.
 func (b *appBroker) startPreview(stderr io.Writer) {
+	if b.stopped() {
+		return // frozen or paused: nothing new starts
+	}
 	if state, ok := loadTeamSlot(b.team, appSlotPreview); ok {
 		if _, exposed := b.exposed(state.Expose); exposed {
 			return
@@ -465,8 +468,13 @@ func (b *appBroker) show(next appPreview, ref string, keep time.Duration) (appPr
 // when there is no address at all.
 func (b *appBroker) newAddress(next *appPreview, current appPreview, exposed, outdated bool, wanted, relay string, keep time.Duration) error {
 	// An address that isn't public is the team's internal one: its peer
-	// on the NetBird network, and the internal relay behind it.
-	if config, err := loadTeam(b.team); err == nil && !appPublicOn(config, next.Slot) {
+	// on the NetBird network, and the internal relay behind it. Settings
+	// that can't be read make nothing public.
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return fmt.Errorf("the app's settings can't be read, so its address stays as it is: %w", err)
+	}
+	if !appPublicOn(config, next.Slot) {
 		if exposed && current.Expose != "" && !appIsInternal(current.Expose) {
 			b.run("net", "expose", "stop", current.Expose)
 		}
@@ -652,6 +660,16 @@ func (b *appBroker) postProductionLink(state *appPreview) string {
 func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 	var failed, previewFailed time.Time
 	for {
+		// A frozen or paused app stays as the watcher left it: a box in a
+		// new one, or one put back on its address, would undo that.
+		if b.stopped() {
+			select {
+			case <-done:
+				return
+			case <-time.After(time.Minute):
+			}
+			continue
+		}
 		if preview, ok := loadTeamSlot(b.team, appSlotPreview); ok {
 			if _, exposed := b.exposed(preview.Expose); !exposed {
 				switch {
@@ -738,7 +756,10 @@ func (b *appBroker) productionNeedsWork() bool {
 		return true
 	}
 	_, exposed := b.exposed(state.Expose)
-	config, _ := loadTeam(b.team)
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return false // settings that can't be read move nothing
+	}
 	wanted := appSlotDomain(b.team, appSlotProduction)
 	if !appPublicOn(config, appSlotProduction) {
 		wanted = ""

@@ -2713,6 +2713,56 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.106 — An app's production, settings, and watch hold
+
+- [x] The lead's production tools: a call is passed on as hi read it.
+  `{"name":"pay_supplier","NAME":"list_suppliers"}` passed the read-only
+  check as `list_suppliers`, and an app that reads keys exactly ran
+  `pay_supplier` on production.
+- [x] `app.json` is written whole or not at all, and a value JSON can't
+  hold (`hi app limit <app> preview inf`) is refused instead of leaving it
+  empty. Settings that can't be read leave an internal address internal:
+  they made it public.
+- [x] `secrets.json` is written under the lock the ChatGPT refresh takes,
+  and only with what the command changed, so a `hi app key …` that waited
+  at a prompt no longer puts back a spent refresh token.
+- [x] The org server's freeze and pause hold across a restart of the
+  app's service: the restart unpaused production and the preview and gave
+  the lead its full allowlist back. Nothing new starts, and no box is
+  replaced, while the app is frozen or paused.
+- [x] An app's containers are told by their whole names: pausing `pay`
+  paused `pay-ops`'s boxes too, and `pay-app`'s look like `pay`'s.
+- [x] The burst rule counts a connection once: it froze an app at three
+  connections, not five.
+- [x] A job's incident that couldn't be opened is tried again the next
+  minute; an incident's Slack post is tried again before giving up; a
+  workers incident is closed when they run again, not forgotten during the
+  deploy that fixes it; the one-time notices are said once.
+- [x] `hi app restore` stops the dev box first, keeps the NetBird
+  identities and the dev box's setup key (no snapshot holds them; they
+  were deleted), and forgets incidents the restore took away.
+- [x] `hi app rename` takes the watcher's state, its incidents and
+  history, to the new name.
+- [x] The ship gate reads a `package.json` under a path with a space or
+  an accent: git's list was split on spaces.
+- [x] A report's title is its start, not its end with "(earlier messages
+  left out)"; its uploads aren't kept twice.
+- [x] Files sent to Slack keep their names (`hero-banner.png` was
+  `banner.png`).
+- [x] hi's own tasks are added and changed one at a time, across the
+  service and the commands: two adds took one number.
+- [x] Two Antigravity runs asked for at once no longer share an ID.
+- [x] `/docs/raw` serves only kinds that can't run (images, PDF, JSON,
+  text); `.xml` and `.xhtml` ran as pages of the app's address.
+- [x] The Claude sign-in link goes to an address whose helper is on.
+- [x] Slack's answer without the token's scopes, such as a 429, is
+  unknown, not every scope missing.
+- [x] The helper's limits on an internal address are each person's or
+  visitor's, not one for everyone.
+- [x] The helper's routes share a connection pool per socket; each
+  request left one open.
+- [x] The Slack channel's name cache is safe from two goroutines at once.
+
 ### v2.6.105 — The admin page and the org server, put right
 
 - [x] Another admin's new link goes to their Slack DMs: any machine admin

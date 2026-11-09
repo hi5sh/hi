@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -183,7 +184,7 @@ var appUpdateMemory = func(team, box, size string) ([]string, error) {
 	for _, name := range strings.Fields(out) {
 		mine := name == appDevContainer(team)
 		if box == appBoxApp {
-			mine = strings.HasPrefix(name, appPreviewContainer(team)+"-")
+			mine = appSlotContainer(team, name)
 		}
 		if !mine {
 			continue
@@ -275,7 +276,7 @@ func appLimitCommand(args []string, stdout io.Writer) error {
 		value := strings.TrimPrefix(args[2], "$")
 		if value == "off" {
 			config.PreviewModelUSD = -1
-		} else if usd, err := strconv.ParseFloat(value, 64); err != nil || usd <= 0 {
+		} else if usd, err := strconv.ParseFloat(value, 64); err != nil || usd <= 0 || math.IsInf(usd, 0) || math.IsNaN(usd) {
 			return fmt.Errorf("%q isn't an amount of dollars a day, or off", args[2])
 		} else {
 			config.PreviewModelUSD = usd

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -951,7 +952,7 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	} else {
 		fmt.Fprintln(stdout, "The code (repo/) stays as it is; --code puts it back too.")
 	}
-	fmt.Fprintln(stdout, "The app's settings (app.json, secrets.json) stay. The app stops while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
+	fmt.Fprintln(stdout, "The app's settings (app.json, secrets.json) and its NetBird identities stay. The app and its dev box stop while it's done, and hi takes a snapshot of how it is now first, so this can be undone.")
 	if err := confirm(stdin, stdout, yes, "Restore app "+team+"?"); err != nil {
 		return err
 	}
@@ -971,6 +972,9 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 	}
 	appStopProduction(team)
+	// The dev box runs on dev/'s folders, which the restore swaps: it
+	// stops, and the app's start brings it back on the restored ones.
+	appStopDevBox(team)
 	before, err := appTakeSnapshot(team, appSnapshotRestore, snapshot.ID, appNoPause)
 	if err != nil {
 		start()
@@ -992,6 +996,9 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if err := appSwapRestored(dir, restored, code); err != nil {
 		start()
 		return err
+	}
+	if err := appForgetRestoredIncidents(team); err != nil {
+		fmt.Fprintf(stdout, "hi: the app's watch on its jobs: %v\n", err)
 	}
 	if wasUp {
 		fmt.Fprintf(stdout, "Starting app %s…\n", team)
@@ -1016,51 +1023,68 @@ func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 // secrets.json) and run/ stay, and repo/ unless code. On failure it moves
 // the old back.
 func appSwapRestored(dir, restored string, code bool) error {
-	stays := func(name string) bool {
-		return name == "secrets.json" || name == appConfigFile || name == legacyAppConfigFile || name == "run" || strings.HasPrefix(name, ".restore-") || name == "repo" && !code
+	// What no snapshot holds stays: the settings, run/, the peers'
+	// NetBird identities (net/, and the dev box's in dev/), and the dev
+	// box's setup key. dev/ is swapped one level down, around those.
+	stays := func(rel string) bool {
+		switch rel {
+		case "secrets.json", appConfigFile, legacyAppConfigFile, "run", "net", "dev",
+			filepath.Join("dev", "netbird"), filepath.Join("dev", appDevSetupKey):
+			return true
+		}
+		return strings.HasPrefix(rel, ".restore-") || rel == "repo" && !code
 	}
 	old := restored + "-old"
 	os.RemoveAll(old)
-	if err := os.Mkdir(old, 0o700); err != nil {
-		return err
-	}
-	current, err := os.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-	incoming, err := os.ReadDir(restored)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Join(old, "dev"), 0o700); err != nil {
 		return err
 	}
 	var movedOut, movedIn []string
 	undo := func(cause error) error {
-		for _, name := range movedIn {
-			os.RemoveAll(filepath.Join(dir, name))
+		for _, rel := range movedIn {
+			os.RemoveAll(filepath.Join(dir, rel))
 		}
-		for _, name := range movedOut {
-			os.Rename(filepath.Join(old, name), filepath.Join(dir, name))
+		for _, rel := range movedOut {
+			os.Rename(filepath.Join(old, rel), filepath.Join(dir, rel))
 		}
 		os.RemoveAll(old)
 		os.RemoveAll(restored)
 		return fmt.Errorf("nothing was restored: %w", cause)
 	}
-	for _, entry := range current {
-		if stays(entry.Name()) {
-			continue
-		}
-		if err := os.Rename(filepath.Join(dir, entry.Name()), filepath.Join(old, entry.Name())); err != nil {
+	for _, level := range []string{"", "dev"} {
+		current, err := os.ReadDir(filepath.Join(dir, level))
+		if err != nil && !(level == "dev" && errors.Is(err, fs.ErrNotExist)) {
 			return undo(err)
 		}
-		movedOut = append(movedOut, entry.Name())
+		for _, entry := range current {
+			rel := filepath.Join(level, entry.Name())
+			if stays(rel) {
+				continue
+			}
+			if err := os.Rename(filepath.Join(dir, rel), filepath.Join(old, rel)); err != nil {
+				return undo(err)
+			}
+			movedOut = append(movedOut, rel)
+		}
 	}
-	for _, entry := range incoming {
-		if stays(entry.Name()) {
-			continue
-		}
-		if err := os.Rename(filepath.Join(restored, entry.Name()), filepath.Join(dir, entry.Name())); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "dev"), 0o700); err != nil {
+		return undo(err)
+	}
+	for _, level := range []string{"", "dev"} {
+		incoming, err := os.ReadDir(filepath.Join(restored, level))
+		if err != nil && !(level == "dev" && errors.Is(err, fs.ErrNotExist)) {
 			return undo(err)
 		}
-		movedIn = append(movedIn, entry.Name())
+		for _, entry := range incoming {
+			rel := filepath.Join(level, entry.Name())
+			if stays(rel) {
+				continue
+			}
+			if err := os.Rename(filepath.Join(restored, rel), filepath.Join(dir, rel)); err != nil {
+				return undo(err)
+			}
+			movedIn = append(movedIn, rel)
+		}
 	}
 	os.RemoveAll(old)
 	os.RemoveAll(restored)
@@ -1324,4 +1348,27 @@ func appRollbackCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		fmt.Fprintln(stdout, result.Warning)
 	}
 	return nil
+}
+
+// appForgetRestoredIncidents takes out of run/ the incidents a restore
+// took away: run/ stays across a restore, and a job, a silent app, or the
+// workers whose incident is gone would never have one opened again.
+func appForgetRestoredIncidents(team string) error {
+	there := func(id string) bool {
+		_, err := loadTeamIncident(team, id)
+		return err == nil
+	}
+	state := loadTeamJobsState(team)
+	for _, watch := range state.Jobs {
+		if watch.Open != "" && !there(watch.Open) {
+			watch.Open, watch.Alerted = "", ""
+		}
+	}
+	if state.SilentIncident != "" && !there(state.SilentIncident) {
+		state.SilentIncident = ""
+	}
+	if state.WorkersIncident != "" && !there(state.WorkersIncident) {
+		state.WorkersIncident = ""
+	}
+	return saveTeamJobsState(team, state)
 }

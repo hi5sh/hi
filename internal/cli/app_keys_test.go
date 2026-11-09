@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -428,5 +429,47 @@ func TestAppWithItsOwnKeyNeedsNoMachineKey(t *testing.T) {
 	saveTeamSecrets("payments", appSecrets{})
 	if err := appHasOpenRouterKey("payments"); err == nil {
 		t.Fatal("up with no key anywhere")
+	}
+}
+
+// A command that loaded the secrets, then waited at a prompt, writes only
+// what it changed: the service's ChatGPT refresh meanwhile stays.
+func TestTeamSecretsKeepWhatChangedMeanwhile(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1", ChatGPT: &appChatGPTGrant{RefreshToken: "rt-old"}})
+	stale, err := loadTeamSecrets("payments")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The service refreshes the grant while the command waits.
+	updateTeamSecrets("payments", func(s *appSecrets) error {
+		s.ChatGPT = &appChatGPTGrant{RefreshToken: "rt-new"}
+		return nil
+	})
+	stale.OpenRouterAPIKey = "sk-or-new"
+	if err := saveTeamSecrets("payments", stale); err != nil {
+		t.Fatal(err)
+	}
+	now, _ := loadTeamSecrets("payments")
+	if now.ChatGPT == nil || now.ChatGPT.RefreshToken != "rt-new" || now.OpenRouterAPIKey != "sk-or-new" || now.SlackBotToken != "xoxb-1" {
+		t.Fatalf("secrets: %+v %+v", now, now.ChatGPT)
+	}
+}
+
+// app.json is never left empty: a value JSON can't hold is refused.
+func TestTeamSaveRefusesWhatJSONCantHold(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	config, err := loadTeam("payments")
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.PreviewModelUSD = math.Inf(1)
+	if err := saveTeam(config); err == nil {
+		t.Fatal("saved inf")
+	}
+	if _, err := loadTeam("payments"); err != nil {
+		t.Fatalf("app.json after: %v", err)
 	}
 }

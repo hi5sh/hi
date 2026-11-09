@@ -24,7 +24,8 @@ type appMCPTestApp struct {
 	stream  bool
 	session string
 	calls   []string
-	extra   string // a third tool, once the app has it
+	raws    []string // each call's params as they came
+	extra   string   // a third tool, once the app has it
 	// starting is how many more requests it answers 503, as an app does
 	// while it starts.
 	starting int
@@ -74,6 +75,7 @@ func (a *appMCPTestApp) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var params struct{ Name string }
 		json.Unmarshal(message.Params, &params)
 		a.calls = append(a.calls, "call "+params.Name)
+		a.raws = append(a.raws, string(message.Params))
 		result = map[string]any{"content": []map[string]string{{"type": "text", "text": "done " + params.Name}}}
 	}
 	data, _ := json.Marshal(result)
@@ -145,9 +147,18 @@ func TestTeamMCPLead(t *testing.T) {
 	if text := string(appMCPTestCall(t, b, appSlotProduction, "tools/call", `{"name":"pay_supplier","arguments":{}}`).Result); !strings.Contains(text, `"isError":true`) || !strings.Contains(text, "app_preview") {
 		t.Fatal(text)
 	}
+	// Nor when the call names it twice, as "name" and "NAME": hi reads
+	// them as one, an app written in another language may not, so the
+	// app gets the call hi checked.
+	appMCPTestCall(t, b, appSlotProduction, "tools/call", `{"name":"pay_supplier","NAME":"list_suppliers","arguments":{}}`)
 	for _, call := range production.calls {
 		if call == "call pay_supplier" {
 			t.Fatal("production paid a supplier", production.calls)
+		}
+	}
+	for _, raw := range production.raws {
+		if strings.Contains(raw, "pay_supplier") {
+			t.Fatalf("production was passed %s", raw)
 		}
 	}
 

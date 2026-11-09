@@ -75,10 +75,22 @@ func (c *appWebCounts) take(kind, address string, perAddress, perDay int) error 
 	return nil
 }
 
-// appWebAddress is where a request comes from, as the relays say.
+// appWebAddress is where a request comes from, as the relays say. An
+// internal address's relay is reached through the peer's forward, which
+// gives it no client address, so everyone had one: there, the person, or
+// the browser's visitor cookie, is who asks.
 func appWebAddress(r *http.Request) string {
 	first, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
-	return firstNonEmpty(strings.TrimSpace(first), r.RemoteAddr)
+	if first = strings.TrimSpace(first); first != "" {
+		return first
+	}
+	if user := r.Header.Get(netExposeUserHeader); user != "" {
+		return "person " + user
+	}
+	if visitor := r.Header.Get(netExposeVisitorHeader); visitor != "" {
+		return "visitor " + visitor
+	}
+	return r.RemoteAddr
 }
 
 // ---------------------------------------------------------------------------

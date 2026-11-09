@@ -669,3 +669,29 @@ func TestTeamRollbackNeedsTheDataSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A restore swaps what the snapshot holds and nothing else: the peers'
+// NetBird identities and the dev box's setup key, which no snapshot has,
+// stay where they are.
+func TestTeamRestoreKeepsTheIdentities(t *testing.T) {
+	dir, restored := t.TempDir(), t.TempDir()
+	write := func(root, rel, text string) {
+		os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o700)
+		os.WriteFile(filepath.Join(root, rel), []byte(text), 0o600)
+	}
+	write(dir, "net/production/key", "peer")
+	write(dir, "dev/netbird/config.json", "dev peer")
+	write(dir, filepath.Join("dev", appDevSetupKey), "setup key")
+	write(dir, "dev/home/notes.md", "now")
+	write(dir, "app/data.db", "now")
+	write(restored, "dev/home/notes.md", "then")
+	write(restored, "app/data.db", "then")
+	if err := appSwapRestored(dir, restored, false); err != nil {
+		t.Fatal(err)
+	}
+	for rel, want := range map[string]string{"net/production/key": "peer", "dev/netbird/config.json": "dev peer", filepath.Join("dev", appDevSetupKey): "setup key", "dev/home/notes.md": "then", "app/data.db": "then"} {
+		if data, _ := os.ReadFile(filepath.Join(dir, rel)); string(data) != want {
+			t.Errorf("%s: %q, want %q", rel, data, want)
+		}
+	}
+}

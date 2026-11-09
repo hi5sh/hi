@@ -370,9 +370,18 @@ func (b *appBroker) leadMCP(ctx context.Context, slot string, message appMCPMess
 		return answer(map[string]any{"tools": appMCPLeadTools(slot, tools)})
 	case "tools/call":
 		var params struct {
-			Name string `json:"name"`
+			Name      string          `json:"name"`
+			Arguments json.RawMessage `json:"arguments,omitempty"`
+			Meta      json.RawMessage `json:"_meta,omitempty"`
 		}
-		json.Unmarshal(message.Params, &params)
+		if err := json.Unmarshal(message.Params, &params); err != nil {
+			return failure(-32602, "tools/call takes a tool's name and its arguments")
+		}
+		// What goes on is what was checked: Go reads "name" and "NAME"
+		// as one, an app may not, so the call is rebuilt from the name hi
+		// read, never passed on as it came.
+		rebuilt, _ := json.Marshal(params)
+		message.Params = rebuilt
 		if slot == appSlotProduction {
 			tools, err := b.appMCPTools(ctx, slot)
 			if err != nil {

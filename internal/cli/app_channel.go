@@ -105,6 +105,9 @@ type appChannelSource interface {
 type liveTeamChannel struct {
 	api   *slack.Client
 	token string
+	// mu guards names and bots: the channel's watch and the broker's
+	// handlers ask at once.
+	mu    sync.Mutex
 	names map[string]string
 	bots  map[string]bool // bots, apps, and deactivated accounts
 }
@@ -148,16 +151,29 @@ func (l *liveTeamChannel) replies(channel, thread, oldest string) ([]slack.Messa
 }
 
 func (l *liveTeamChannel) userName(id string) string {
-	if name, ok := l.names[id]; ok {
+	l.mu.Lock()
+	name, ok := l.names[id]
+	l.mu.Unlock()
+	if ok {
 		return name
 	}
-	name := id
-	if user, err := l.api.GetUserInfo(id); err == nil {
+	name = id
+	user, err := l.api.GetUserInfo(id) // outside the lock: Slack can be slow
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if err == nil {
 		name = firstNonEmpty(user.Profile.DisplayName, user.RealName, user.Name, id)
 		l.bots[id] = user.IsBot || user.IsAppUser || user.Deleted || id == "USLACKBOT"
 	}
 	l.names[id] = name
 	return name
+}
+
+// isBot says whether an ID userName has looked up is a bot's.
+func (l *liveTeamChannel) isBot(id string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.bots[id]
 }
 
 func (l *liveTeamChannel) download(url string, w io.Writer) error { return l.api.GetFile(url, w) }
@@ -172,14 +188,26 @@ func (l *liveTeamChannel) postIn(channel, thread, text string) (string, error) {
 	return ts, err
 }
 
+// appUploadName is a file's name in Slack: its own, but for the helper's
+// uploads, which are kept as <message>-<name> in a web …-files folder.
+// An Antigravity run's hero-banner.png stays that.
+func appUploadName(path string) string {
+	name := filepath.Base(path)
+	if strings.HasSuffix(filepath.Base(filepath.Dir(path)), "-files") {
+		if number, rest, ok := strings.Cut(name, "-"); ok && rest != "" && strings.Trim(number, "0123456789") == "" {
+			return rest
+		}
+	}
+	return name
+}
+
 func (l *liveTeamChannel) upload(channel, thread, path, title string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
-	_, name, _ := strings.Cut(filepath.Base(path), "-") // web files are <message>-<name>
 	_, err = l.api.UploadFileV2(slack.UploadFileV2Parameters{Channel: channel, ThreadTimestamp: thread, File: path, FileSize: int(info.Size()),
-		Filename: firstNonEmpty(name, filepath.Base(path)), Title: title})
+		Filename: appUploadName(path), Title: title})
 	return err
 }
 
@@ -250,7 +278,7 @@ func (l *liveTeamChannel) members(channel string) ([]string, error) {
 			return nil, err
 		}
 		for _, id := range members {
-			if l.userName(id); !l.bots[id] {
+			if l.userName(id); !l.isBot(id) {
 				all = append(all, id)
 			}
 		}

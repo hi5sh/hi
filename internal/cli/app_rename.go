@@ -146,6 +146,9 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 		os.WriteFile(filepath.Join(folder, "slack-manifest.json"), []byte(appManifest(config)+"\n"), 0o600)
 	}
 	appRenameMemoryContext(filepath.Join(folder, "lead"), old)
+	if err := appRenameWatch(folder, old, name); err != nil {
+		return fmt.Errorf("the app's watch: %w", err)
+	}
 	if err := os.Remove(filepath.Join(appsDir(), old)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -221,4 +224,33 @@ func appRenameNotes(lead, old, name string) {
 	if notes != string(data) {
 		os.WriteFile(path, []byte(notes), 0o600)
 	}
+}
+
+// appRenameWatch moves the app's own watcher's state to its new name: it
+// is kept by name, and a fresh one would open its open incidents again,
+// never close the old ones, and lose the disk, spend, and bill history.
+func appRenameWatch(folder, old, name string) error {
+	w := openTeamWatcher(folder)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	team := w.state.Teams[old]
+	if team == nil {
+		return nil
+	}
+	delete(w.state.Teams, old)
+	team.Team = name
+	w.state.Teams[name] = team
+	for _, incident := range w.state.Incidents {
+		if incident.Team == old {
+			incident.Team = name
+		}
+	}
+	if from := w.advisoriesPath(old); fileExists(from) {
+		to := w.advisoriesPath(name)
+		os.MkdirAll(filepath.Dir(to), 0o700)
+		if err := os.Rename(from, to); err != nil {
+			return err
+		}
+	}
+	return w.saveLocked()
 }

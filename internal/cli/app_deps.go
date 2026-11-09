@@ -51,7 +51,11 @@ func (p appDependencyProject) empty() bool {
 // changed between two commits.
 func appDependencyChanges(repo, from, to string) []appDependencyProject {
 	dirs := map[string]bool{}
-	for _, file := range strings.Fields(boxGit(repo, "diff", "--name-only", from, to)) {
+	// -z: a path with a space, or one git would quote, is one name.
+	for _, file := range strings.Split(boxGit(repo, "diff", "--name-only", "--no-renames", "-z", from, to), "\x00") {
+		if file == "" {
+			continue
+		}
 		name := path.Base(file)
 		if strings.Contains("/"+file, "/node_modules/") || (name != "package.json" && name != "bun.lock" && name != "package-lock.json") {
 			continue

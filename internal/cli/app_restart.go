@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -103,7 +104,21 @@ func appUnpauseLeftovers(engine boxEngine, team string, stderr io.Writer) {
 			containers = append(containers, state.Container)
 		}
 	}
+	// What the org server's freeze or pause holds stays held: those are
+	// undone by an unfreeze, not by the service starting again.
 	seen := map[string]bool{}
+	if stop := loadTeamWatchStop(team); stop.Frozen || stop.Paused {
+		for _, held := range slices.Concat(stop.Apps, stop.Boxes) {
+			seen[held] = true
+		}
+		if stop.Paused {
+			for _, slot := range []string{appSlotProduction, appSlotPreview} {
+				if state, ok := loadTeamSlot(team, slot); ok {
+					seen[state.Container] = true
+				}
+			}
+		}
+	}
 	for _, container := range containers {
 		if container = strings.TrimSpace(container); container == "" || seen[container] {
 			continue

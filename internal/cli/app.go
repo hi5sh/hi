@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -135,6 +136,10 @@ type appMember struct {
 
 // appSecrets is secrets.json, readable only by its owner.
 type appSecrets struct {
+	// loaded is the file as loadTeamSecrets read it, so saveTeamSecrets
+	// writes only what the caller changed; not kept.
+	loaded *appSecrets
+
 	SlackBotToken string `json:"slack_bot_token"`
 	SlackAppToken string `json:"slack_app_token"`
 	// OpenRouterAPIKey is the team's own; without it the team uses this
@@ -338,9 +343,15 @@ func loadTeam(name string) (appConfig, error) {
 	return config, nil
 }
 
+// saveTeam writes app.json whole, or not at all: a reader never sees half
+// of it, and one that can't be written as JSON (a dollar amount of inf)
+// is refused, not written empty.
 func saveTeam(config appConfig) error {
-	data, _ := json.MarshalIndent(config, "", "  ")
-	return os.WriteFile(filepath.Join(appDir(config.Name), appConfigFile), append(data, '\n'), 0o600)
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("the app's settings: %w", err)
+	}
+	return writeFileAtomic(filepath.Join(appDir(config.Name), appConfigFile), append(data, '\n'), 0o600)
 }
 
 func loadTeamSecrets(name string) (appSecrets, error) {
@@ -349,12 +360,39 @@ func loadTeamSecrets(name string) (appSecrets, error) {
 	if err != nil {
 		return secrets, err
 	}
-	return secrets, json.Unmarshal(data, &secrets)
+	if err := json.Unmarshal(data, &secrets); err != nil {
+		return secrets, err
+	}
+	var loaded appSecrets
+	json.Unmarshal(data, &loaded)
+	secrets.loaded = &loaded
+	return secrets, nil
 }
 
+// saveTeamSecrets writes secrets.json whole, under the lock the service's
+// sign-in refreshes take (updateTeamSecrets). For secrets that came from
+// loadTeamSecrets, only what the caller changed is written, over the file
+// as it is now: a command that waited at a prompt doesn't put back a
+// ChatGPT grant the service refreshed meanwhile.
 func saveTeamSecrets(name string, secrets appSecrets) error {
-	data, _ := json.MarshalIndent(secrets, "", "  ")
-	return os.WriteFile(filepath.Join(appDir(name), "secrets.json"), append(data, '\n'), 0o600)
+	if secrets.loaded == nil {
+		return updateTeamSecretsFile(name, func(current *appSecrets) error {
+			*current = secrets
+			return nil
+		}, true)
+	}
+	return updateTeamSecretsFile(name, func(current *appSecrets) error {
+		now, before, after := reflect.ValueOf(current).Elem(), reflect.ValueOf(secrets.loaded).Elem(), reflect.ValueOf(&secrets).Elem()
+		for i := range after.NumField() {
+			if !after.Type().Field(i).IsExported() {
+				continue
+			}
+			if !reflect.DeepEqual(before.Field(i).Interface(), after.Field(i).Interface()) {
+				now.Field(i).Set(after.Field(i))
+			}
+		}
+		return nil
+	}, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -756,7 +794,13 @@ func (liveTeamSlack) scopes(botToken string) ([]string, error) {
 		return nil, err
 	}
 	response.Body.Close()
-	return strings.Split(response.Header.Get("X-OAuth-Scopes"), ","), nil
+	// A 429 or a 5xx has no scopes header: Slack couldn't say, which isn't
+	// every scope missing.
+	header := response.Header.Get("X-OAuth-Scopes")
+	if response.StatusCode != http.StatusOK || header == "" {
+		return nil, fmt.Errorf("Slack answered %s without the token's scopes", response.Status)
+	}
+	return strings.Split(header, ","), nil
 }
 
 // appSlackScopes are what a team's Slack app asks for in its manifest.
@@ -2380,7 +2424,10 @@ var appRemoveContainers = func(name string, boxes []string) {
 	}
 	if out, err := engine.output("ps", "-a", "--format", "{{.Names}}"); err == nil {
 		for _, container := range strings.Fields(out) {
-			if strings.HasPrefix(container, appPreviewContainer(name)) {
+			// An older hi's one app box was hi-box-app-<name>-app, which is
+			// also the lead of an app called <name>-app.
+			legacy := container == appPreviewContainer(name) && !fileExists(filepath.Join(appsDir(), name+"-app"))
+			if appSlotContainer(name, container) || legacy {
 				engine.output("rm", "-f", container)
 			}
 		}

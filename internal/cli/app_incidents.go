@@ -204,14 +204,29 @@ func (b *appBroker) openIncident(incident appIncident, alert, thread string, pro
 	// In a work's thread, in the main channel where that thread is; on its
 	// own, in the ops channel.
 	if b.channel != nil && (thread != "" || incident.Kind != "task") {
-		var ts string
 		channel := config.Channel
-		if thread != "" {
-			ts, err = b.channel.postIn(channel, thread, text)
-		} else {
-			channel = config.opsChannel()
-			ts, err = b.channel.post(channel, text)
-			thread = ts
+		// An incident nobody hears of is none: a refusal or a blip, likely
+		// when the incident is the network's, is tried again.
+		for attempt := range appIncidentPostTries {
+			if attempt > 0 {
+				time.Sleep(appIncidentPostWait * time.Duration(attempt))
+			}
+			if thread != "" {
+				_, err = b.channel.postIn(channel, thread, text)
+			} else {
+				channel = config.opsChannel()
+				var ts string
+				ts, err = b.channel.post(channel, text)
+				if err == nil {
+					thread = ts
+				}
+			}
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			b.addIncidentEvent(incident.ID, appIncidentEvent{Who: "hi", Action: "note", Result: "couldn't say it in Slack: " + err.Error()})
 		}
 		if err == nil {
 			if channel == config.Channel {
@@ -228,6 +243,13 @@ func (b *appBroker) openIncident(incident appIncident, alert, thread string, pro
 	}
 	return incident, nil
 }
+
+// appIncidentPostTries and appIncidentPostWait are how an incident's post
+// is tried again; tests shorten the wait.
+var (
+	appIncidentPostTries = 3
+	appIncidentPostWait  = 3 * time.Second
+)
 
 func appIncidentWhere(incident appIncident) string {
 	switch incident.Kind {

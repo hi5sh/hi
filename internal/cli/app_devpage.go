@@ -156,7 +156,10 @@ func (b *appBroker) applyDevPage(now bool, stderr io.Writer) error {
 	defer b.devPageMu.Unlock()
 	state, had := loadTeamDevPage(b.team)
 	_, exposed := b.exposed(state.Expose)
-	config, _ := loadTeam(b.team)
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return nil // settings that can't be read move nothing
+	}
 	kind := had && (appExposeKindOutdated(config, appAddressDev, state.Expose) || appInternalMoved(b.team, appAddressDev, state.Expose, state.URL))
 	if had && exposed && !kind && time.Until(state.Expires) > appLinkRenew {
 		return nil
@@ -181,7 +184,11 @@ func (b *appBroker) applyDevPage(now bool, stderr io.Writer) error {
 
 func (b *appBroker) exposeDevPage(current appDevPageState) (appDevPageState, error) {
 	// Not public: the dev page's internal address, on the dev box's peer.
-	if config, err := loadTeam(b.team); err == nil && !appPublicOn(config, appAddressDev) {
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return current, fmt.Errorf("the app's settings can't be read, so the dev page's address stays as it is: %w", err)
+	}
+	if !appPublicOn(config, appAddressDev) {
 		next := appDevPageState{URL: appInternalURL(b.team, appAddressDev), Expose: appInternalExpose + appAddressDev, Expires: time.Now().AddDate(10, 0, 0).UTC()}
 		data, _ := json.MarshalIndent(next, "", "  ")
 		return next, writeFileAtomic(appDevPageStatePath(b.team), append(data, '\n'), 0o600)

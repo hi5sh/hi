@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -561,6 +562,23 @@ func (f appForge) gitlab(request appTicketRequest, result *appTicketResult) erro
 
 func appTicketsDir(team string) string { return filepath.Join(appDir(team), "tickets") }
 
+// appFlock takes an exclusive lock on path, made if missing, until the
+// function it gives back is called.
+func appFlock(path string) (func(), error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return func() {
+		syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		file.Close()
+	}, nil
+}
+
 func loadTeamLocalTickets(team string) []appTicket {
 	entries, _ := os.ReadDir(appTicketsDir(team))
 	var tickets []appTicket
@@ -583,6 +601,17 @@ func saveTeamLocalTicket(team string, ticket appTicket) error {
 }
 
 func appLocalTickets(team string, request appTicketRequest, result *appTicketResult) error {
+	// One at a time, across the service's handlers and the commands in
+	// other processes: two adds took one number, and the second replaced
+	// the first; two comments kept one.
+	if err := os.MkdirAll(appTicketsDir(team), 0o700); err != nil {
+		return err
+	}
+	unlock, err := appFlock(filepath.Join(appTicketsDir(team), ".lock"))
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	tickets := loadTeamLocalTickets(team)
 	find := func() (appTicket, error) {
 		for _, ticket := range tickets {

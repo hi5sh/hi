@@ -585,9 +585,11 @@ func (b *appBroker) docsHandler(slot string) http.Handler {
 				http.NotFound(w, r)
 				return
 			}
+			// Files are shown, never run as a page of the app's address: a
+			// kind that can't hold a script, or plain text. XML and XHTML
+			// can, as HTML and SVG can.
 			kind := mime.TypeByExtension(path.Ext(at))
-			if strings.HasSuffix(at, ".md") || kind == "" || strings.HasPrefix(kind, "text/html") || strings.Contains(kind, "svg") {
-				// Files are shown, never run as a page of the app's address.
+			if base, _, _ := strings.Cut(kind, ";"); strings.HasSuffix(at, ".md") || !appDocsInertTypes[strings.TrimSpace(base)] {
 				kind = "text/plain; charset=utf-8"
 			}
 			w.Header().Set("Content-Type", kind)
@@ -716,4 +718,12 @@ func appDocsUserText(repo, commit string) string {
 		fmt.Fprintf(&text, "<!-- page %s -->\n%s\n\n", page.URL(), strings.TrimSpace(string(version.Files[page.File])))
 	}
 	return text.String()
+}
+
+// appDocsInertTypes are the kinds /docs/raw serves as themselves: none can
+// hold a script.
+var appDocsInertTypes = map[string]bool{
+	"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true, "image/avif": true,
+	"application/pdf": true, "application/json": true, "text/plain": true, "text/csv": true,
+	"video/mp4": true, "video/webm": true, "audio/mpeg": true, "audio/ogg": true, "audio/wav": true,
 }

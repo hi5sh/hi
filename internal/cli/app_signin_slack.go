@@ -119,7 +119,13 @@ func (b *appBroker) signinChatGPT(user string) (string, error) {
 // paste a token from claude setup-token.
 func (b *appBroker) signinClaude(user string) (string, error) {
 	base := ""
+	config, _ := loadTeam(b.team)
 	for _, slot := range []string{appSlotProduction, appSlotPreview} {
+		// The page is the helper's: on an address whose helper is off,
+		// the link would land on the app itself.
+		if !appHelperOn(config, slot) {
+			continue
+		}
 		if state, ok := loadTeamSlot(b.team, slot); ok && state.URL != "" {
 			if _, exposed := b.exposed(state.Expose); exposed {
 				base, _, _ = strings.Cut(state.URL, "?")
@@ -128,7 +134,7 @@ func (b *appBroker) signinClaude(user string) (string, error) {
 		}
 	}
 	if base == "" {
-		return "", fmt.Errorf("the app has no address yet, so there is no page to paste the token on; an admin runs hi app signin %s claude on the app's machine", b.team)
+		return "", fmt.Errorf("the app has no address with its helper on, so there is no page to paste the token on; an admin runs hi app signin %s claude on the app's machine", b.team)
 	}
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {

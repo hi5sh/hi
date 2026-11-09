@@ -185,6 +185,10 @@ func (b *appBroker) startAgy(record appAgy, inputs []appAgyInput) (appAgy, error
 	if err := agentReady("agy"); err != nil {
 		return appAgy{}, fmt.Errorf("Antigravity isn't set up on the app's machine (%v). Ask your IT team: an admin of the machine runs hi install agy, then agy once to sign in with Google", err)
 	}
+	// From the check that none runs to the record that this one does: the
+	// lead and the dev box asking at once got one ID and one folder.
+	appAgyStartMu.Lock()
+	defer appAgyStartMu.Unlock()
 	for _, earlier := range loadTeamAgys(b.team) {
 		if earlier.Status == "running" {
 			return appAgy{}, fmt.Errorf("Antigravity run %s is still going; wait for it (one at a time per app)", earlier.ID)
@@ -228,6 +232,9 @@ func (b *appBroker) startAgy(record appAgy, inputs []appAgyInput) (appAgy, error
 	go b.watchAgy(record.ID)
 	return record, nil
 }
+
+// appAgyStartMu makes starting a run one at a time.
+var appAgyStartMu sync.Mutex
 
 // appAgyTask is what Antigravity is asked: the task, for whom, and where
 // things go.

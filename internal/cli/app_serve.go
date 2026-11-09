@@ -97,7 +97,11 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	teardownBox(engine, meta)
 	appUnpauseLeftovers(engine, name, stderr)
 	memorySite := ""
-	if err := os.WriteFile(filepath.Join(proxyDir, "allow"), []byte(strings.Join(appLeadHosts, "\n")+"\n"), 0o600); err != nil {
+	leadHosts := appLeadHosts
+	if stop := loadTeamWatchStop(name); stop.Frozen {
+		leadHosts = appLeadFrozenHosts // the freeze holds across a restart
+	}
+	if err := os.WriteFile(filepath.Join(proxyDir, "allow"), []byte(strings.Join(leadHosts, "\n")+"\n"), 0o600); err != nil {
 		return err
 	}
 	if meta.Image, err = engine.ensureBaseImage(stdout, stderr); err != nil {
@@ -241,6 +245,9 @@ func appServe(name string, stdout, stderr io.Writer) error {
 		if err := startTeamDev(config, hi, stderr, stderr); err != nil {
 			fmt.Fprintf(stderr, "hi: the dev box: %v\n", err)
 		}
+		// The org server's freeze or pause holds across the restart: the
+		// boxes this start made, and the dev box, are held again.
+		broker.holdWatchStop(stderr)
 		// v2.5.0's production and preview peers: the team's one peer has
 		// every address now.
 		if engine, _, err := detectBoxEngine(); err == nil {

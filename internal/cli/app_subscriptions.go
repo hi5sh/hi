@@ -495,6 +495,12 @@ func appChatGPTGrantFor(name string) (grant appChatGPTGrant, own bool, err error
 // updateTeamSecrets changes secrets.json under a lock, so the server's
 // refresh and a command on the machine don't write over each other.
 func updateTeamSecrets(name string, change func(*appSecrets) error) error {
+	return updateTeamSecretsFile(name, change, false)
+}
+
+// updateTeamSecretsFile is updateTeamSecrets; fresh starts from nothing,
+// for a file that may not be there yet.
+func updateTeamSecretsFile(name string, change func(*appSecrets) error, fresh bool) error {
 	lock, err := os.OpenFile(filepath.Join(appDir(name), ".secrets.lock"), os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return err
@@ -504,14 +510,19 @@ func updateTeamSecrets(name string, change func(*appSecrets) error) error {
 		return err
 	}
 	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
-	secrets, err := loadTeamSecrets(name)
-	if err != nil {
-		return fmt.Errorf("the app's secrets: %w", err)
+	var secrets appSecrets
+	if !fresh {
+		if secrets, err = loadTeamSecrets(name); err != nil {
+			return fmt.Errorf("the app's secrets: %w", err)
+		}
 	}
 	if err := change(&secrets); err != nil {
 		return err
 	}
-	data, _ := json.MarshalIndent(secrets, "", "  ")
+	data, err := json.MarshalIndent(secrets, "", "  ")
+	if err != nil {
+		return fmt.Errorf("the app's secrets: %w", err)
+	}
 	return writeFileAtomic(filepath.Join(appDir(name), "secrets.json"), append(data, '\n'), 0o600)
 }
 

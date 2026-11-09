@@ -297,14 +297,20 @@ func (b *appBroker) checkWorkers(now time.Time) error {
 	jobs := loadTeamJobsState(b.team)
 	open := jobs.WorkersIncident
 	if !waits {
-		changed := !jobs.WorkersWait.IsZero() || open != ""
-		jobs.WorkersWait, jobs.WorkersIncident = time.Time{}, ""
+		// The incident is kept until the workers run again: during a
+		// deploy, the fix it asked for, there is no box, or a handover.
+		runs := view != nil && view.State == "runs"
+		changed := !jobs.WorkersWait.IsZero() || open != "" && runs
+		jobs.WorkersWait = time.Time{}
+		if runs {
+			jobs.WorkersIncident = ""
+		}
 		var err error
 		if changed {
 			err = saveTeamJobsState(b.team, jobs)
 		}
 		b.jobsMu.Unlock()
-		if open != "" && b.incidentOpen(open) && view != nil && view.State == "runs" {
+		if open != "" && runs && b.incidentOpen(open) {
 			b.recovered(open, "Production's box has the app's workers again.")
 		}
 		return err
@@ -376,15 +382,15 @@ func (b *appBroker) checkWorkersRule() error {
 				return err
 			}
 			deliver += ":" + ts
+			if err := appMarkDone(path); err != nil { // said once
+				return err
+			}
 		}
 		if err := b.wakeLead("hi-workers-check", appWorkersRulePrompt(), deliver); err != nil {
 			return err
 		}
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0o600)
+	return appMarkDone(path)
 }
 
 func appWorkersRulePrompt() string {

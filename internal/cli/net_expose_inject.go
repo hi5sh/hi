@@ -13,6 +13,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -184,9 +185,7 @@ func (h *netExposeHelper) route(path string, on bool) http.Handler {
 						out.Out.Header.Set(netExposePlainHeader, "1")
 					}
 				},
-				Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-					return netExposeDial(ctx, "unix", socket)
-				}},
+				Transport: netExposeSocketTransport(socket),
 				ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 					netExposeDown(w, r, socket)
 				},
@@ -387,4 +386,29 @@ func netExposeCSP(policy string) (string, string) {
 		allow(i)
 	}
 	return strings.TrimSpace(strings.Join(directives, ";")), nonce
+}
+
+// netExposeSocketTransports are the routes' transports, one a socket: a
+// new one each request kept each one's idle connection, and its
+// goroutines on both ends, until the process ended.
+var netExposeSocketTransports = struct {
+	sync.Mutex
+	bySocket map[string]*http.Transport
+}{bySocket: map[string]*http.Transport{}}
+
+func netExposeSocketTransport(socket string) *http.Transport {
+	netExposeSocketTransports.Lock()
+	defer netExposeSocketTransports.Unlock()
+	if transport := netExposeSocketTransports.bySocket[socket]; transport != nil {
+		return transport
+	}
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return netExposeDial(ctx, "unix", socket)
+		},
+		MaxIdleConnsPerHost: 8,
+		IdleConnTimeout:     90 * time.Second,
+	}
+	netExposeSocketTransports.bySocket[socket] = transport
+	return transport
 }

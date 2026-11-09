@@ -287,7 +287,7 @@ func (w *appWatcher) networkRulesLocked(team *watchTeam, log string, lines []str
 				up, _ = strconv.ParseInt(fields[3], 10, 64)
 			}
 			if watchHostMatches(hosts, host) {
-				state.burst = append(state.burst, watchSample{At: at, Value: float64(up)})
+				state.burst = append(state.burst, watchSample{At: at, Value: float64(up), Sent: true})
 			}
 			if exempted(host) {
 				continue
@@ -319,11 +319,15 @@ func (w *appWatcher) networkRulesLocked(team *watchTeam, log string, lines []str
 		state.burst = state.burst[1:]
 	}
 	sent := 0.0
+	connections := 0
 	for _, sample := range state.burst {
 		sent += sample.Value
+		if !sample.Sent {
+			connections++
+		}
 	}
-	if len(state.burst) >= watchBurstSends || sent >= watchBurstBytes {
-		because := fmt.Sprintf("%d connections and %.1f MB to paste, file-drop, or tunnel hosts in 10 minutes", len(state.burst), sent/(1<<20))
+	if connections >= watchBurstSends || sent >= watchBurstBytes {
+		because := fmt.Sprintf("%d connections and %.1f MB to paste, file-drop, or tunnel hosts in 10 minutes", connections, sent/(1<<20))
 		fire("burst", true, func() watchIncident {
 			return watchIncident{Title: fmt.Sprintf("%s sent to paste, file-drop, or tunnel hosts: %s", team.Team, because)}
 		})

@@ -105,3 +105,34 @@ func TestTeamDependencyChanges(t *testing.T) {
 		t.Fatalf("%+v", projects)
 	}
 }
+
+// A package.json under a path with a space, or one git would quote, is
+// looked at like any other: the ship gates read its trusted dependencies.
+func TestTeamDependencyChangesOddPaths(t *testing.T) {
+	repo := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		if out, err := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	os.WriteFile(filepath.Join(repo, "README.md"), []byte("x\n"), 0o644)
+	git("add", "-A")
+	git("commit", "-q", "-m", "base")
+	for _, dir := range []string{"web app", "café"} {
+		os.MkdirAll(filepath.Join(repo, dir), 0o755)
+		os.WriteFile(filepath.Join(repo, dir, "package.json"), []byte(`{"dependencies": {"sharp": "^0.34.0"}, "trustedDependencies": ["sharp"]}`), 0o644)
+	}
+	git("add", "-A")
+	git("commit", "-q", "-m", "two apps")
+	var dirs []string
+	for _, project := range appDependencyChanges(repo, "HEAD^", "HEAD") {
+		if strings.Join(project.Trusted, ",") == "sharp" {
+			dirs = append(dirs, project.Dir)
+		}
+	}
+	if strings.Join(dirs, "|") != "café|web app" && strings.Join(dirs, "|") != "web app|café" {
+		t.Fatalf("projects with trusted dependencies: %q", dirs)
+	}
+}

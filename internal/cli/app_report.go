@@ -77,6 +77,8 @@ func (b *appBroker) webReport(r *http.Request, slot string, send appFeedbackSend
 	// Its files, checked and kept as feedback's are, go with the task.
 	id := fmt.Sprintf("r-%s-%d", person.User, time.Now().UnixNano())
 	files, err := appSaveWebFiles(b.team, id, 1, send.Files, len(send.Refs))
+	// Read into the task's attachments, and gone: the task keeps them.
+	defer os.RemoveAll(appWebFilesDir(b.team, id))
 	if err != nil {
 		return appReportSent{}, http.StatusBadRequest, err
 	}
@@ -104,9 +106,9 @@ func (b *appBroker) webReport(r *http.Request, slot string, send appFeedbackSend
 		where += ", " + send.Page.Path
 	}
 	title, _, _ := strings.Cut(send.Text, "\n")
-	title = appClipText(strings.TrimSpace(title), appReportTitleMax)
+	title = appClipStart(strings.TrimSpace(title), appReportTitleMax) // a title is its start
 	body := send.Text + "\n\n" + fmt.Sprintf("Reported by %s from the app's helper, on %s.", person.Name, where)
-	if browser := appClipText(r.UserAgent(), 200); browser != "" {
+	if browser := appClipStart(r.UserAgent(), 200); browser != "" {
 		body += "\nBrowser: " + browser
 	}
 	if len(send.Refs) > 0 {

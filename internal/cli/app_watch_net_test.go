@@ -239,8 +239,18 @@ func TestWatchNetworkRules(t *testing.T) {
 		t.Fatal("a freeze for what isn't a burst")
 	}
 
+	// Three small connections aren't a burst: each counts once, not at its
+	// opening and again at its close.
+	small := network("", lead.To, testWatchLines(now.Add(30*time.Second),
+		"allowed pastebin.com", "closed pastebin.com 100 100 1.0",
+		"allowed pastebin.com", "closed pastebin.com 100 100 1.0",
+		"allowed pastebin.com", "closed pastebin.com 100 100 1.0"))
+	if reply = send(now.Add(30*time.Second), small); reply.Do != nil {
+		t.Fatalf("three connections froze it: %+v", reply.Do)
+	}
+
 	// A burst of sends to a paste site: an incident, and the team freezes.
-	burst := network("", lead.To, testWatchLines(now.Add(time.Minute), "allowed pastebin.com", "closed pastebin.com 2000000 100 1.0"))
+	burst := network("", small.To, testWatchLines(now.Add(time.Minute), "allowed pastebin.com", "closed pastebin.com 2000000 100 1.0"))
 	reply = send(now.Add(time.Minute), burst)
 	if reply.Do == nil || reply.Do.Action != "freeze" || reply.Do.By != "watch" || !strings.Contains(reply.Do.Because, "paste, file-drop, or tunnel hosts") {
 		t.Fatalf("%+v", reply.Do)
