@@ -206,8 +206,10 @@ page's own Network view.
 - **More admins** are added on the admin page (Machine) or with
   `hi admin admins add`. Each new admin gets their link the way the
   person who added them picks: shown once to copy, or sent by Slack.
-- **A link that ended:** an admin with a Slack member ID gets **Send me
-  a new link** on the sign-in page. The admin page DMs it through the
+- **A link that ended:** the sign-in page is one button, **Send me a
+  new link**, nothing to type. It goes to the admin the browser last
+  signed in as (a cookie that holds their name, no key), else to the
+  machine's owner. The admin page DMs it through the
   bot of any app in their Slack workspace, or the org server's Slack
   app, as links are sent now. So the command line is needed only for an
   admin who has no Slack.

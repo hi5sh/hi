@@ -345,39 +345,63 @@ func TestAdminJobThatStoppedFailed(t *testing.T) {
 
 func TestAdminSendsANewLinkByDM(t *testing.T) {
 	a := setupAdminTest(t)
-	adminAdd("Sam", "", "", "test") // no Slack: nothing to send
+	adminAdd("Sam", "U07SAM", "", "test")
+	dmsNow := func(want int) []string {
+		t.Helper()
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			a.mu.Lock()
+			dms := append([]string{}, *a.dms...)
+			a.mu.Unlock()
+			if len(dms) >= want || time.Now().After(deadline) {
+				time.Sleep(100 * time.Millisecond)
+				a.mu.Lock()
+				dms = append([]string{}, *a.dms...)
+				a.mu.Unlock()
+				return dms
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	// A browser the page doesn't know: the machine's owner, Olga, once in
+	// two minutes.
 	var answer map[string]string
-	for _, who := range []string{"nobody", "Sam", "olga", "olga"} {
-		if code := a.post(t, nil, "/api/new-link", map[string]string{"who": who}, &answer); code != http.StatusOK || !strings.Contains(answer["text"], "If you're one") {
-			t.Fatalf("%s: %d %v", who, code, answer)
+	for range 2 {
+		if code := a.post(t, nil, "/api/new-link", map[string]string{}, &answer); code != http.StatusOK || !strings.Contains(answer["text"], "Slack DMs") {
+			t.Fatalf("%d %v", code, answer)
 		}
 	}
-	// It goes in the background, once in two minutes.
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		a.mu.Lock()
-		n := len(*a.dms)
-		a.mu.Unlock()
-		if n >= 1 || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	time.Sleep(100 * time.Millisecond)
-	a.mu.Lock()
-	dms := append([]string{}, *a.dms...)
-	a.mu.Unlock()
+	dms := dmsNow(1)
 	if len(dms) != 1 || !strings.HasPrefix(dms[0], "xoxb-payments U07OWNER1 :key: Your link to the admin page") {
 		t.Fatalf("%q", dms)
 	}
-	// The link in it signs in.
+	// The link in it signs in, and the browser is remembered as Olga's.
 	link := dms[0][strings.Index(dms[0], "<")+1 : strings.Index(dms[0], "|")]
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	parsed, _ := url.Parse(link)
-	if _, _, err := adminSignIn(parsed.Query().Get(adminKeyParam)); err != nil {
+	response, err := client.Get(a.server.URL + "/?" + parsed.RawQuery)
+	if err != nil {
 		t.Fatal(err)
 	}
+	response.Body.Close()
+	var who *http.Cookie
+	for _, cookie := range response.Cookies() {
+		if cookie.Name == adminWhoCookie {
+			who = cookie
+		}
+	}
+	if who == nil || who.Value != "Olga" || who.MaxAge < 300*24*3600 || !who.HttpOnly {
+		t.Fatalf("remembered: %+v", who)
+	}
+	// A browser Sam signed in on gets Sam's.
+	if code := a.post(t, &http.Cookie{Name: adminWhoCookie, Value: "Sam"}, "/api/new-link", map[string]string{}, &answer); code != http.StatusOK {
+		t.Fatal(code)
+	}
+	if dms := dmsNow(2); len(dms) != 2 || !strings.HasPrefix(dms[1], "xoxb-payments U07SAM :key:") {
+		t.Fatalf("%q", dms)
+	}
 	// From another site, nothing.
-	if code := a.post(t, nil, "/api/new-link", map[string]string{"who": "olga"}, nil, "http://evil.example"); code != http.StatusForbidden {
+	if code := a.post(t, nil, "/api/new-link", map[string]string{}, nil, "http://evil.example"); code != http.StatusForbidden {
 		t.Fatal(code)
 	}
 }

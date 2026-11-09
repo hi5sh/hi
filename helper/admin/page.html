@@ -16,16 +16,10 @@
     <div class="signin-card">
       <h1 class="signin-title">Admin page</h1>
       <p id="signin-ended" class="warn" hidden>That link has ended, or isn't one of this page's.</p>
-      <p>Sign in with your link. <code>hi admin start</code> printed the first one, and an admin of the machine makes one for each new admin.</p>
       <form id="newlink-form" class="signin-form" autocomplete="off">
-        <label for="newlink-who">Your link ended? Your name, or your Slack member ID:</label>
-        <div class="signin-row">
-          <input id="newlink-who" required maxlength="60" placeholder="Olga, or U012AB3CD">
-          <button class="primary" type="submit">Send me a new link</button>
-        </div>
-        <p id="newlink-said" class="muted small"></p>
+        <button class="primary" type="submit">Send me a new link</button>
+        <p id="newlink-said" class="muted small">It comes by Slack DM.</p>
       </form>
-      <p class="muted small">It comes by Slack DM, from the bot of an app on this machine, or the org's Slack app. Without Slack, an admin makes one on the machine: <code>hi admin link &lt;your name&gt;</code>.</p>
     </div>
   </section>
 

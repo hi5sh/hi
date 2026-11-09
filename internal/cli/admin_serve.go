@@ -316,14 +316,12 @@ func (s *adminServer) routes() http.Handler {
 		if !change(w, r) {
 			return
 		}
-		var request struct {
-			Who string `json:"who"`
+		who := ""
+		if cookie, err := r.Cookie(adminWhoCookie); err == nil {
+			who, _ = url.QueryUnescape(cookie.Value)
 		}
-		if !decode(w, r, &request) {
-			return
-		}
-		go s.sendNewLink(request.Who)
-		reply(w, http.StatusOK, map[string]string{"text": "If you're one of this machine's admins and the page knows your Slack member ID, your new link is in your Slack DMs in a moment. If it doesn't come, an admin makes one on the machine: hi admin link <your name>."})
+		go s.sendNewLink(who)
+		reply(w, http.StatusOK, map[string]string{"text": "It's in your Slack DMs in a moment."})
 	})
 	mux.HandleFunc("POST /api/signout", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		if cookie, err := r.Cookie(adminCookie); err == nil {
@@ -535,9 +533,13 @@ func (s *adminServer) page(w http.ResponseWriter, r *http.Request) {
 		}
 		http.SetCookie(w, &http.Cookie{Name: adminCookie, Value: session, Path: "/", MaxAge: int(adminSessionLasts / time.Second),
 			HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: adminSecure(r)})
+		adminRememberWho(w, r, admin.Name)
 		adminRecord(admin.Name, "", "signed in")
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
+	}
+	if admin, ok := s.admin(r); ok {
+		adminRememberWho(w, r, admin.Name)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -545,15 +547,26 @@ func (s *adminServer) page(w http.ResponseWriter, r *http.Request) {
 	w.Write(adminPageHTML)
 }
 
+// adminRememberWho keeps, for a year, which admin this browser signs in
+// as: Send me a new link sends theirs. It holds a name, no key: changed
+// by hand, it sends another admin their own link, and no more.
+func adminRememberWho(w http.ResponseWriter, r *http.Request, name string) {
+	http.SetCookie(w, &http.Cookie{Name: adminWhoCookie, Value: url.QueryEscape(name), Path: "/", MaxAge: 365 * 24 * 3600,
+		HttpOnly: true, SameSite: http.SameSiteStrictMode, Secure: adminSecure(r)})
+}
+
 // sendNewLink is Send me a new link: a new link, by Slack DM, to the
-// admin with that name or member ID, once every two minutes at most, and
-// twenty an hour for everyone. Nobody is told whether it went.
+// admin this browser last signed in as, else to the machine's owner;
+// once every two minutes at most, and twenty an hour for everyone.
 func (s *adminServer) sendNewLink(who string) {
 	config, ok := loadAdminConfig()
 	if !ok {
 		return
 	}
 	admin, ok := config.admin(who)
+	if !ok {
+		admin, ok = config.admin(config.machineOwner())
+	}
 	if !ok || admin.Slack == "" {
 		return
 	}

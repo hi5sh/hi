@@ -36,6 +36,7 @@ const (
 	adminLinkLasts    = 14 * 24 * time.Hour
 	adminSessionLasts = 14 * 24 * time.Hour
 	adminCookie       = "hi_admin"
+	adminWhoCookie    = "hi_admin_who" // the admin this browser last signed in as, for Send me a new link
 	adminKeyParam     = "key"
 )
 

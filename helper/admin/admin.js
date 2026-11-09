@@ -252,10 +252,8 @@ function showSignin() {
 
 $("newlink-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const who = $("newlink-who").value.trim();
-  if (!who) return;
   try {
-    const answer = await api("/api/new-link", { who });
+    const answer = await api("/api/new-link", {});
     $("newlink-said").textContent = answer.text;
   } catch (e) {
     $("newlink-said").textContent = e.message;

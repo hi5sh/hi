@@ -2713,6 +2713,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.101 — Send me a new link, one button
+
+- [x] The admin page's sign-in is one button, **Send me a new link**:
+  the link goes by Slack DM to the admin the browser last signed in as,
+  else to the machine's owner. Nothing to type.
+
 ### v2.6.100 — The lead answers on Hermes 0.23
 
 - [x] hi's guard on the lead's DMs passes on the thread Hermes 0.23's

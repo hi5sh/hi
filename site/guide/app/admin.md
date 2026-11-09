@@ -280,10 +280,11 @@ whoever opens it can do what you can on the machine.
 - **More admins:** in Machine, **+** adds one. Their link is shown once
   to copy, or sent by Slack DM. On the machine: `hi admin admins add
   <name> --slack <member ID>`.
-- **A link that ended:** the sign-in page has **Send me a new link**. An
-  admin whose Slack member ID the page knows gets one by DM, from the
-  bot of an app on the machine. Without Slack, an admin makes one on the
-  machine: `hi admin link <name>`.
+- **A link that ended:** the sign-in page has one button, **Send me a
+  new link**. It goes by Slack DM, from the bot of an app on the
+  machine, to the admin who last signed in on that browser, or to the
+  machine's owner on a browser the page doesn't know. Without Slack, an
+  admin makes one on the machine: `hi admin link <name>`.
 - **Your Slack member ID** also tells each app who you are, so Open ▾
   opens its dev page as you. Add yours in Machine if you didn't give it
   at the start (in Slack: your profile, ⋮, **Copy member ID**).
