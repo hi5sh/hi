@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -142,6 +143,7 @@ func systemdUnit(cgroupPath string) (string, bool) {
 // mode is "ask", "yes", or "no".
 func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout, stderr io.Writer) error {
 	offered := false
+	var failed []string
 	for _, server := range staleServers(path) {
 		if server.team == "" && !server.admin && server.front == "" && !server.user && (server.unit == orgUnit || server.unit == oldOrgUnit) && systemOrgUnit() != "" {
 			offered = true
@@ -175,6 +177,12 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		case os.Geteuid() != 0:
 			command = append([]string{"sudo"}, command...)
 		}
+		// sudo can't ask without a terminal, such as from the admin page's
+		// Update hi: -n fails at once where it would ask, and the rest are
+		// restarted all the same.
+		if command[0] == "sudo" && !updateIsTerminal(stdin) {
+			command = append([]string{"sudo", "-n"}, command[1:]...)
+		}
 		line := strings.Join(command, " ")
 		if mode == "no" || (mode == "ask" && !updateIsTerminal(stdin)) {
 			fmt.Fprintf(stdout, "%s still runs the old version. Restart it to run %s:\n  %s\n", server.unit, newVersion, line)
@@ -194,7 +202,8 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 		fmt.Fprintf(stdout, "$ %s\n", line)
 		if err := updateRun(stdin, stdout, stderr, command[0], command[1:]...); err != nil {
-			return fmt.Errorf("%s failed: %w", line, err)
+			failed = append(failed, fmt.Sprintf("%s failed: %v", line, err))
+			continue // one that fails doesn't keep the others on the old hi
 		}
 		check := []string{"is-active", "--quiet", server.unit}
 		if server.user {
@@ -205,7 +214,8 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			if server.user {
 				logs = "journalctl --user -u " + server.unit
 			}
-			return fmt.Errorf("%s did not come back up; check `%s`", server.unit, logs)
+			failed = append(failed, fmt.Sprintf("%s did not come back up; check `%s`", server.unit, logs))
+			continue
 		}
 		fmt.Fprintf(stdout, "%s runs %s.\n", server.unit, newVersion)
 		if server.team != "" && server.unit == legacyAppUnit(server.team) {
@@ -213,8 +223,12 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 	}
 	if !offered && systemOrgUnit() != "" {
-		_, err := offerOrgUnitMove(mode, stdin, stdout, stderr)
-		return err
+		if _, err := offerOrgUnitMove(mode, stdin, stdout, stderr); err != nil {
+			failed = append(failed, err.Error())
+		}
+	}
+	if len(failed) > 0 {
+		return errors.New(strings.Join(failed, "\n"))
 	}
 	return nil
 }

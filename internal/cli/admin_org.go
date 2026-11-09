@@ -270,16 +270,23 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 		case "set":
 			dir := adminOrgDir()
 			settings := readServerAISettings(dir)
+			sameHost := true
 			if change.URL != "" {
 				if err := qValidBaseURL(change.URL); err != nil {
 					return nil, err
 				}
+				sameHost = strings.EqualFold(qHost(strings.TrimRight(change.URL, "/")), qHost(settings.URL))
 				settings.URL = strings.TrimRight(change.URL, "/")
 			}
 			settings.Model = firstNonEmpty(strings.TrimSpace(change.Model), settings.Model)
 			key := strings.TrimSpace(change.Key)
 			check := key
-			if check == "" {
+			// The kept key is for the kept endpoint's host; checking another
+			// host with it would send it there.
+			if check == "" && !sameHost && !settings.NoKey {
+				return nil, fmt.Errorf("give the key for %s: the one kept is for %s", qHost(change.URL), qHost(readServerAISettings(dir).URL))
+			}
+			if check == "" && sameHost {
 				keys := map[string]string{}
 				if data, err := os.ReadFile(filepath.Join(dir, "keys.json")); err == nil {
 					json.Unmarshal(data, &keys)

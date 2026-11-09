@@ -2,10 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -61,7 +63,7 @@ func TestUpdateRestartsStaleServers(t *testing.T) {
 		t.Fatalf("code %d: %s", code, stderr)
 	}
 	want := []string{
-		"sudo systemctl restart hi-server.service", "systemctl is-active --quiet hi-server.service",
+		"sudo -n systemctl restart hi-server.service", "systemctl is-active --quiet hi-server.service",
 		"systemctl --user restart hi-test.service", "systemctl --user is-active --quiet hi-test.service",
 	}
 	if strings.Join(*runs, "|") != strings.Join(want, "|") {
@@ -145,5 +147,38 @@ func TestUpdateRestartsStaleTeams(t *testing.T) {
 	appWarnOldHi("timmai", &said)
 	if said.Len() != 0 {
 		t.Fatal(said.String())
+	}
+}
+
+// A restart that fails, such as sudo with no password to ask for, doesn't
+// keep the others on the old hi.
+func TestUpdateRestartGoesOnAfterAFailure(t *testing.T) {
+	requireLinux(t)
+	if os.Geteuid() == 0 {
+		t.Skip("as root, systemctl runs without sudo")
+	}
+	fakeReleases(t, "v0.9.0", false)
+	path := installedBinary(t, "v0.7.0")
+	fakeProc(t, map[string][3]string{
+		"101": {path + " (deleted)", path + "\x00org\x00run\x00", "0::/system.slice/hi-server.service\n"},
+		"102": {path + " (deleted)", path + "\x00server\x00run\x00", "0::/user.slice/user-1000.slice/user@1000.service/app.slice/hi-test.service\n"},
+	})
+	var runs []string
+	previous := updateRun
+	updateRun = func(_ io.Reader, _, _ io.Writer, name string, args ...string) error {
+		line := strings.Join(append([]string{name}, args...), " ")
+		runs = append(runs, line)
+		if strings.HasPrefix(line, "sudo") {
+			return errors.New("a password is required")
+		}
+		return nil
+	}
+	t.Cleanup(func() { updateRun = previous })
+	code, _, stderr := runUpdateTest("--restart")
+	if code == 0 || !strings.Contains(stderr, "hi-server.service failed") {
+		t.Fatalf("code %d: %s", code, stderr)
+	}
+	if !slices.Contains(runs, "systemctl --user restart hi-test.service") {
+		t.Fatalf("the next one wasn't restarted: %q", runs)
 	}
 }

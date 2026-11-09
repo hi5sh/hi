@@ -109,6 +109,9 @@ func (s *orgServer) aiConfig() (serverAISettings, string, bool) {
 	s.mu.Lock()
 	key := s.keys[serverAIKeyName]
 	s.mu.Unlock()
+	if settings.NoKey {
+		key = "" // an endpoint that takes none is sent none, a key kept from before neither
+	}
 	return settings, key, (key != "" || settings.NoKey) && !settings.Off
 }
 
@@ -171,7 +174,7 @@ func (s *orgServer) handleAIModels(w http.ResponseWriter, r *http.Request, devic
 		defer cancel()
 		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(settings.URL, "/")+"/models", nil)
 		setAIAuthorization(request, key)
-		response, err := http.DefaultClient.Do(request)
+		response, err := orgUpstreamClient.Do(request)
 		if err != nil {
 			writeAIError(w, http.StatusBadGateway, "the model list could not be fetched: "+err.Error())
 			return
@@ -232,7 +235,7 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 		upstream.Header.Set("HTTP-Referer", "https://hi5.sh")
 		upstream.Header.Set("X-Title", "hi q via the org server")
 	}
-	response, err := http.DefaultClient.Do(upstream)
+	response, err := orgUpstreamClient.Do(upstream)
 	if err != nil {
 		s.recordAIUsage(device, model, nil, http.StatusBadGateway)
 		writeAIError(w, http.StatusBadGateway, "the upstream could not be reached: "+err.Error())
@@ -398,6 +401,9 @@ func (s *orgServer) aiAdminRoutes(mux *http.ServeMux) {
 		}
 		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
 		settings := readServerAISettings(s.dir)
+		// The key kept is for its endpoint's host: another host gets the
+		// key it is given, or none.
+		otherHost := input.URL != "" && !strings.EqualFold(qHost(strings.TrimRight(input.URL, "/")), qHost(settings.URL))
 		if input.URL != "" {
 			settings.URL = strings.TrimRight(input.URL, "/")
 		}
@@ -413,6 +419,8 @@ func (s *orgServer) aiAdminRoutes(mux *http.ServeMux) {
 		s.mu.Lock()
 		if input.Key != "" {
 			s.keys[serverAIKeyName] = strings.TrimSpace(input.Key)
+		} else if otherHost {
+			delete(s.keys, serverAIKeyName)
 		}
 		hasKey := s.keys[serverAIKeyName] != "" || settings.NoKey
 		err := s.saveKeysLocked()

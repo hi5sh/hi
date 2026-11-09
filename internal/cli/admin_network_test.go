@@ -2,7 +2,6 @@ package cli
 
 import (
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -56,18 +55,16 @@ func TestAdminNetworkAndDataChanges(t *testing.T) {
 			t.Fatalf("%v ran %+v", c.change["what"], runs)
 		}
 	}
-	// The NetBird key goes in a file the command reads and deletes, never
-	// in its arguments.
+	// The NetBird key goes on the command's stdin, never in its arguments
+	// or a file left on the disk.
 	runs = nil
 	var answer map[string]any
-	if code := a.post(t, olga, "/api/app/settings", map[string]any{"app": "payments", "what": "netbird", "key": "NB-SECRET"}, &answer); code != http.StatusOK || len(runs) != 1 || strings.Contains(runs[0].args, "NB-SECRET") || !strings.HasPrefix(runs[0].args, "app dev payments netbird ") {
+	if code := a.post(t, olga, "/api/app/settings", map[string]any{"app": "payments", "what": "netbird", "key": "NB-SECRET"}, &answer); code != http.StatusOK || len(runs) != 1 || strings.Contains(runs[0].args, "NB-SECRET") || runs[0].args != "app dev payments netbird" || runs[0].stdin != "NB-SECRET\n" {
 		t.Fatalf("netbird: %d %+v", code, runs)
 	}
-	keyFile := strings.Fields(runs[0].args)[4]
-	if data, _ := os.ReadFile(keyFile); strings.TrimSpace(string(data)) != "NB-SECRET" {
-		t.Fatalf("the key file: %q", data)
+	if files, _ := filepath.Glob(filepath.Join(adminDir(), "netbird-*")); len(files) > 0 {
+		t.Fatalf("a key file is left: %v", files)
 	}
-	os.Remove(keyFile)
 	// What can't be undone needs the app's name typed.
 	for _, what := range []map[string]any{{"what": "restore", "snapshot": "abc123"}, {"what": "rollback", "version": 2}, {"what": "copy"}} {
 		what["app"] = "payments"

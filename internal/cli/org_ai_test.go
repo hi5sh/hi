@@ -354,3 +354,17 @@ func TestHiQFallsBackWhenTheServersKeyIsRefused(t *testing.T) {
 	}
 	_ = ts
 }
+
+// An endpoint that takes no key is sent none, even with a key kept from
+// before it.
+func TestServerAINoKeyKeepsTheOldKeyBack(t *testing.T) {
+	ts, _ := newAIServer(t)
+	local := newFakeUpstream(t, "uptime")
+	writeServerAISettings(ts.dir, serverAISettings{URL: local.server.URL, Model: "local-model", NoKey: true})
+	if status, _, stderr := askQ(t, "--print", "uptime?"); status != 0 {
+		t.Fatalf("status %d: %s", status, stderr)
+	}
+	if len(local.auth) == 0 || local.auth[0] != "" {
+		t.Fatalf("the no-key endpoint got %q", local.auth)
+	}
+}

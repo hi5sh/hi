@@ -699,3 +699,31 @@ func TestUpdateRestartsTheAdminPage(t *testing.T) {
 		t.Fatalf("%q\n%s%s", *runs, out.String(), errOut.String())
 	}
 }
+
+// Another admin's link signs in as them: only the machine's owner sees it,
+// or sets where it goes; anyone sends it to their own Slack DMs.
+func TestAdminOthersLinks(t *testing.T) {
+	a := setupAdminTest(t)
+	owner := a.signIn(t, "Olga")
+	var answer map[string]string
+	if code := a.post(t, owner, "/api/admins", map[string]any{"action": "add", "name": "Sam", "slack": "U07SAM"}, &answer); code != http.StatusOK {
+		t.Fatalf("%d %v", code, answer)
+	}
+	sam := a.signIn(t, "Sam")
+	answer = nil
+	if code := a.post(t, sam, "/api/admins", map[string]any{"action": "link", "name": "Olga"}, &answer); code != http.StatusBadRequest || answer["link"] != "" {
+		t.Fatalf("Sam saw Olga's link: %d %v", code, answer)
+	}
+	answer = nil
+	if code := a.post(t, sam, "/api/admins", map[string]any{"action": "slack", "name": "Olga", "slack": "U07SAM2"}, &answer); code != http.StatusBadRequest {
+		t.Fatalf("Sam moved Olga's links: %d %v", code, answer)
+	}
+	answer = nil
+	if code := a.post(t, sam, "/api/admins", map[string]any{"action": "link", "name": "Sam"}, &answer); code != http.StatusOK || answer["link"] == "" {
+		t.Fatalf("Sam's own link: %d %v", code, answer)
+	}
+	answer = nil
+	if code := a.post(t, owner, "/api/admins", map[string]any{"action": "link", "name": "Sam"}, &answer); code != http.StatusOK || answer["link"] == "" {
+		t.Fatalf("the owner's view of Sam's link: %d %v", code, answer)
+	}
+}

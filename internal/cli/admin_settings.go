@@ -444,7 +444,7 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 			return nil, errors.New("paste the token Slack gave anew")
 		}
 		args = []string{"app", "key", app, "slack"}
-		stdin = strings.TrimSpace(change.Bot) + "\n" + strings.TrimSpace(change.AppKey) + "\n"
+		stdin = strings.TrimSpace(change.AppKey) + "\n" + strings.TrimSpace(change.Bot) + "\n" // as hi app key asks, since v2.6.99
 		said = "gave the app its Slack tokens anew"
 	case "env":
 		key := strings.TrimSpace(change.Name)

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"os"
@@ -672,6 +673,12 @@ func (s *orgServer) handleMe(w http.ResponseWriter, _ *http.Request, device serv
 	policy := s.policy()
 	s.mu.Lock()
 	user := s.state.Users[device.User]
+	if user == nil {
+		// Removed since the request was checked.
+		s.mu.Unlock()
+		writeAPIError(w, http.StatusForbidden, "this device's user isn't in the org any more")
+		return
+	}
 	me := apiMe{User: user.Name, Group: user.Group, Device: device.Fingerprint,
 		ServerKey: base64.StdEncoding.EncodeToString(s.serverKey.Public().(ed25519.PublicKey))}
 	if budget := s.budgetLocked(policy, user.Name, computeNow()); budget.IsSet || budget.UserSpend > 0 {
@@ -1331,6 +1338,16 @@ func (s *orgServer) endLease(name, stoppedBy string) {
 
 // reconcile expires old requests, stops instances past their limit, ends
 // leases whose instance is gone, and reports instances with no lease.
+// leaseStillDue says a lease is still past its deadline as the state has
+// it now: the copy reconcile took is from before the providers were
+// listed, and an approver may have extended it since.
+func (s *orgServer) leaseStillDue(name string, now time.Time) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, ok := s.state.Leases[name]
+	return ok && !now.Before(current.Deadline)
+}
+
 func (s *orgServer) reconcile() {
 	now := computeNow()
 	s.mu.Lock()
@@ -1388,7 +1405,7 @@ func (s *orgServer) reconcile() {
 			case !running[lease.Name] && now.Sub(lease.Started) > time.Minute:
 				s.endLease(lease.Name, "gone")
 				s.audit("server", "lease ended", lease.Name, "the instance is no longer running")
-			case !now.Before(lease.Deadline):
+			case !now.Before(lease.Deadline) && s.leaseStillDue(lease.Name, now):
 				if err := s.stopLease(lease, "limit"); err != nil {
 					s.audit("server", "could not stop", lease.Name, err.Error())
 					s.notifyThread(lease.Request, "Could not stop it at its limit: "+err.Error())
@@ -1708,7 +1725,18 @@ func (s *orgServer) adminHandler() http.Handler {
 	})
 	mux.HandleFunc("DELETE /admin/providers/{name}", func(w http.ResponseWriter, r *http.Request) {
 		name := r.PathValue("name")
+		// A provider's key, and only one: the AI's, the data's, and the
+		// templates' keys are in the same file under other names.
+		if _, ok := serverProviderFactories[name]; !ok {
+			writeAPIError(w, http.StatusBadRequest, fmt.Sprintf("%q isn't a provider; the providers are %s", name, strings.Join(slices.Sorted(maps.Keys(serverProviderFactories)), ", ")))
+			return
+		}
 		s.mu.Lock()
+		if _, ok := s.keys[name]; !ok {
+			s.mu.Unlock()
+			writeAPIError(w, http.StatusNotFound, "the org keeps no "+name+" key")
+			return
+		}
 		delete(s.keys, name)
 		delete(s.providers, name)
 		if env := serverKeyEnv[name]; env != "" {

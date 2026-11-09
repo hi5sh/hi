@@ -141,6 +141,12 @@ func loadAdminConfig() (adminConfig, bool) {
 				for _, person := range org {
 					i := slices.IndexFunc(config.Admins, func(a adminPerson) bool { return a.Slack != "" && a.Slack == person.Slack })
 					if i < 0 {
+						// Links and sign-ins name their admin: an org admin
+						// with a machine admin's name, and another Slack ID,
+						// is told apart, and keeps their name in the org.
+						if name := adminFreeName(config.Admins, person.Name); name != person.Name {
+							person.OrgName, person.Name = person.Name, name
+						}
 						config.Admins = append(config.Admins, person)
 						continue
 					}
@@ -243,6 +249,22 @@ func saveAdminConfig(config adminConfig) error {
 }
 
 // admin finds an admin by name, any case, or by Slack member ID.
+// adminFreeName is name, or name (org), (org 2), and on, when an admin is
+// called that already.
+func adminFreeName(admins []adminPerson, name string) string {
+	taken := func(candidate string) bool {
+		return slices.ContainsFunc(admins, func(a adminPerson) bool { return strings.EqualFold(a.Name, candidate) })
+	}
+	if !taken(name) {
+		return name
+	}
+	candidate := name + " (org)"
+	for i := 2; taken(candidate); i++ {
+		candidate = fmt.Sprintf("%s (org %d)", name, i)
+	}
+	return candidate
+}
+
 func (c adminConfig) admin(who string) (adminPerson, bool) {
 	who = strings.TrimSpace(strings.Trim(strings.TrimSpace(who), "<@>"))
 	for _, admin := range c.Admins {

@@ -208,11 +208,18 @@ func (s *adminServer) measureFolders(names []string) {
 	sampler.mu.Lock()
 	sampler.disk, sampler.diskAt, sampler.measured = sizes, time.Now().UTC(), false
 	if sampler.latest != nil {
+		// A new sample, never the one handed out: the page encodes that
+		// without the lock.
+		latest := *sampler.latest
+		latest.Apps = make(map[string]*adminAppUsage, len(sampler.latest.Apps))
 		for name, app := range sampler.latest.Apps {
+			copied := *app
 			if size, ok := sizes[name]; ok {
-				app.Disk, app.DiskAt = size, sampler.diskAt
+				copied.Disk, copied.DiskAt = size, sampler.diskAt
 			}
+			latest.Apps[name] = &copied
 		}
+		sampler.latest = &latest
 	}
 	sampler.mu.Unlock()
 }

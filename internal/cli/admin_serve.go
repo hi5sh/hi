@@ -592,6 +592,21 @@ func (s *adminServer) sendNewLink(who string) {
 	adminRecord(admin.Name, "", "asked for a new link, sent by Slack DM")
 }
 
+// adminMayActFor says why by may not see admin's link or set where it
+// goes, or "": themselves, or the machine's owner for an admin with no
+// role the owner lacks (the org's, its ownership).
+func adminMayActFor(by, admin adminPerson) string {
+	switch {
+	case strings.EqualFold(by.Name, admin.Name):
+		return ""
+	case !by.MachineOwner && !(by.Owner && by.Machine):
+		return "only the machine's owner sees another admin's link or sets their Slack member ID"
+	case admin.Org && !by.Org, admin.Owner && !by.Owner:
+		return admin.Name + " runs the org too, which you don't"
+	}
+	return ""
+}
+
 // changeAdmins is Machine's admins: add, remove, a new link, or an
 // admin's Slack member ID.
 func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email string, send bool) (map[string]string, error) {
@@ -643,6 +658,14 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		if !ok {
 			return nil, fmt.Errorf("%s isn't an admin", name)
 		}
+		// Someone else's link signs in as them: it goes to their own Slack
+		// DMs, or is shown only to the machine's owner, for an admin who
+		// can't do more than the owner can.
+		if !send {
+			if why := adminMayActFor(by, admin); why != "" {
+				return nil, errors.New(why + "; send it to their Slack DMs instead")
+			}
+		}
 		answer, err := link(admin)
 		if err == nil {
 			adminRecord(by.Name, "", "made a new link for "+admin.Name)
@@ -662,6 +685,11 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		if !ok {
 			unlock()
 			return nil, fmt.Errorf("%s isn't an admin", name)
+		}
+		// Where someone else's new links go is the machine owner's to set.
+		if why := adminMayActFor(by, admin); why != "" {
+			unlock()
+			return nil, errors.New(why)
 		}
 		if other, taken := config.admin(slackID); slackID != "" && taken && other.Name != admin.Name {
 			unlock()

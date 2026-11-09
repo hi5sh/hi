@@ -2713,6 +2713,48 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   `off` end the sessions at once. `hi team sso <team>` shows the last
   sign-ins and refusals.
 
+### v2.6.105 — The admin page and the org server, put right
+
+- [x] Another admin's new link goes to their Slack DMs: any machine admin
+  could have it shown and sign in as them, the owner included, or change
+  their Slack member ID and have it sent there. Only the machine's owner
+  sees it or sets the ID, and not for an admin who runs the org when the
+  owner doesn't.
+- [x] A machine admin and an org admin with one name are told apart
+  (`Anna (org)`), so a link or a sign-in never lands on the other one.
+- [x] **Slack tokens anew** on the page gives `hi app key slack` the
+  App-Level Token first, as it has asked since v2.6.99; the page's action
+  always failed.
+- [x] A dev box's NetBird setup key from the page goes on the command's
+  stdin; each one stayed on the disk in a file.
+- [x] A failed form on the Org tab keeps what was typed, token included,
+  and a malformed `#…` in the address no longer leaves the page blank.
+- [x] The page's usage figures are never changed after they are handed
+  out (a data race the race detector found).
+- [x] `hi update --restart` without a terminal runs `sudo -n`, and one
+  restart that fails no longer keeps the other services on the old hi.
+- [x] The org's AI key is never sent to another host: a new endpoint gets
+  the key given with it, and `--no-key` sends none, not the one kept.
+- [x] The org server doesn't follow a redirect from a served model or the
+  AI endpoint, which could send it, and the request, anywhere.
+- [x] `/v1/me` for a user removed a moment before no longer panics with
+  the server's lock held, which stopped it for good.
+- [x] `hi org slack setup` keeps everyone's `/hi link`.
+- [x] A member's activity on the dashboard is theirs, and what is done to
+  their requests and machines; it was any event with their name in its
+  text, so `al` saw `alice`'s.
+- [x] `hi org provider remove` takes only a provider's key, and says when
+  there is none; `remove ai` deleted the AI's key.
+- [x] A run's data links stop fetching once the files kept in git pass
+  the 32 MB limit, instead of holding them all first.
+- [x] A lease extended while the server listed the providers isn't
+  stopped at its old deadline.
+- [x] The Slack connection's event reader ends with each connection; one
+  more stayed on every reconnect.
+- [x] Long lists in the Home tab, `/hi users`, and `/hi audit` are split
+  under Slack's 3000-character limit, which stopped the Home tab updating
+  past about fifty devices.
+
 ### v2.6.104 — A paid machine always has its limit
 
 - [x] `hi compute up` saves the machine's record, with its `--max`, and

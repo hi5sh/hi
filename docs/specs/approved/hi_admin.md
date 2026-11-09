@@ -206,6 +206,11 @@ page's own Network view.
 - **More admins** are added on the admin page (Machine) or with
   `hi admin admins add`. Each new admin gets their link the way the
   person who added them picks: shown once to copy, or sent by Slack.
+- **Another admin's new link** signs in as them, so it goes to their own
+  Slack DMs; only the machine's owner sees it, or sets their Slack
+  member ID, and not for an admin who runs the org when the owner
+  doesn't (v2.6.105). Two admins with one name, one the machine's and
+  one the org's, are told apart as `Anna` and `Anna (org)`.
 - **A link that ended:** the sign-in page is one button, **Send me a
   new link**, nothing to type. It goes to the admin the browser last
   signed in as (a cookie that holds their name, no key), else to the

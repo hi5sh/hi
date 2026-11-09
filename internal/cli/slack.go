@@ -812,14 +812,14 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 		return respond(text, slack.NewSectionBlock(slackText(slackEscape(text)), nil, nil))
 	case fields[0] == "users" && len(fields) == 1:
 		text := s.usersSummary(now)
-		return respond(text, slack.NewSectionBlock(slackText(slackEscape(text)), nil, nil))
+		return respond(text, slackLineSections(strings.Split(slackEscape(text), "\n"), 40)...)
 	case fields[0] == "audit" && len(fields) <= 2:
 		who := ""
 		if len(fields) == 2 {
 			who = fields[1]
 		}
 		text := s.recentAudit(who, 15)
-		return respond(text, slack.NewSectionBlock(slackText(slackEscape(text)), nil, nil))
+		return respond(text, slackLineSections(strings.Split(slackEscape(text), "\n"), 40)...)
 	case fields[0] == "budget" && (len(fields) == 3 || (len(fields) == 4 && fields[2] == "total")):
 		actor, _ := b.approver(command.UserID)
 		text, err := s.setBudget(fields[1], fields[len(fields)-1], len(fields) == 4, actor)
@@ -840,8 +840,18 @@ func (b *slackBridge) slashResponse(command slack.SlashCommand) map[string]any {
 func (b *slackBridge) run(ctx context.Context) {
 	for ctx.Err() == nil {
 		client := socketmode.New(b.client)
+		// Each connection's events end with it: the SDK never closes
+		// Events, so a reader ranging over it would stay for good, one more
+		// on every reconnect.
+		round, cancel := context.WithCancel(ctx)
 		go func() {
-			for event := range client.Events {
+			for {
+				var event socketmode.Event
+				select {
+				case <-round.Done():
+					return
+				case event = <-client.Events:
+				}
 				switch event.Type {
 				case socketmode.EventTypeConnected:
 					fmt.Fprintln(b.server.log, "slack: connected")
@@ -885,7 +895,9 @@ func (b *slackBridge) run(ctx context.Context) {
 				}
 			}
 		}()
-		if err := client.RunContext(ctx); err != nil && ctx.Err() == nil {
+		err := client.RunContext(round)
+		cancel()
+		if err != nil && ctx.Err() == nil {
 			fmt.Fprintf(b.server.log, "slack: %v; reconnecting in 10s\n", err)
 			select {
 			case <-ctx.Done():
@@ -941,7 +953,8 @@ func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	}
 	config := slackConfig{Approvers: map[string]string{}}
 	if existing != nil {
-		config.Approvers = existing.Approvers
+		// New tokens keep who approves, and everyone's /hi link.
+		config.Approvers, config.Links = existing.Approvers, existing.Links
 	}
 	// The org's owner and admins approve.
 	for _, person := range loadOrgPeople(dir).all() {

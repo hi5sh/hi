@@ -322,7 +322,42 @@ func renderApproverHome(snapshot liveSnapshot, devices []deviceRow, now time.Tim
 	if len(lines) == 0 {
 		lines = []string{"No devices yet."}
 	}
-	blocks = append(blocks, slack.NewSectionBlock(slackText(strings.Join(lines, "\n")), nil, nil))
+	blocks = append(blocks, slackLineSections(lines, 100-len(blocks))...)
+	return blocks
+}
+
+// slackSectionMax is the most text Slack takes in one section block.
+const slackSectionMax = 3000
+
+// slackLineSections puts lines in as many sections as they need, each
+// under Slack's limit, in at most most of them; what doesn't fit says how
+// many more there are. Slack refuses a view with a longer section, and
+// the Home tab would stop updating.
+func slackLineSections(lines []string, most int) []slack.Block {
+	var blocks []slack.Block
+	var chunk []string
+	size := 0
+	flush := func() {
+		if len(chunk) > 0 {
+			blocks = append(blocks, slack.NewSectionBlock(slackText(strings.Join(chunk, "\n")), nil, nil))
+			chunk, size = nil, 0
+		}
+	}
+	most = max(most, 2)
+	for i, line := range lines {
+		if len(line) > slackSectionMax-100 {
+			line = line[:slackSectionMax-100] + "…"
+		}
+		if size+len(line)+1 > slackSectionMax-100 && len(chunk) > 0 {
+			flush()
+			if len(blocks) >= most-1 {
+				// One block left: it says what doesn't fit.
+				return append(blocks, slack.NewSectionBlock(slackText(fmt.Sprintf("…and %d more.", len(lines)-i)), nil, nil))
+			}
+		}
+		chunk, size = append(chunk, line), size+len(line)+1
+	}
+	flush()
 	return blocks
 }
 

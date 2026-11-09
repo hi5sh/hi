@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -279,16 +278,9 @@ func (s *adminServer) adminChangeNetworkData(admin adminPerson, change adminSett
 		if key == "" {
 			return true, nil, "", "", "", errors.New("paste the NetBird setup key")
 		}
-		file, ferr := os.CreateTemp(adminDir(), "netbird-*.key")
-		if ferr != nil {
-			return true, nil, "", "", "", ferr
-		}
-		file.Chmod(0o600)
-		file.WriteString(key + "\n")
-		file.Close()
-		// hi app dev <name> netbird reads the key from the file, once, and
-		// deletes it.
-		return true, []string{"app", "dev", app, "netbird", file.Name()}, "", "gave the dev box its NetBird setup key", "", nil
+		// On stdin, which hi app dev <name> netbird asks it on: a file would
+		// stay on the disk after.
+		return true, []string{"app", "dev", app, "netbird"}, key + "\n", "gave the dev box its NetBird setup key", "", nil
 	case "addresses":
 		switch n.Mode {
 		case "domain", "netbird":

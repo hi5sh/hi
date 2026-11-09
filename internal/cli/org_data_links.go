@@ -240,20 +240,33 @@ func (s *orgServer) handleDataLinks(w http.ResponseWriter, _ *http.Request, devi
 	}
 
 	// Resolve the files a few at a time; the Hub limits calls per token.
+	// The files kept in git come whole into memory: they are counted as
+	// they come, and the fetching stops once they pass the run's limit.
 	var wait sync.WaitGroup
 	var mu sync.Mutex
 	var firstErr error
+	inline := 0
+	errTooMuchInline := fmt.Errorf("%s has too many files without download links to send; name a folder or pattern", id)
 	queue := make(chan int)
 	for range dataLinksWorkers {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
 			for i := range queue {
-				if err := hubLink(token, kind, id, links.Revision, &links.Files[i]); err != nil {
-					mu.Lock()
-					firstErr = cmpOr(firstErr, err)
-					mu.Unlock()
+				mu.Lock()
+				stopped := firstErr != nil
+				mu.Unlock()
+				if stopped {
+					continue
 				}
+				err := hubLink(token, kind, id, links.Revision, &links.Files[i])
+				mu.Lock()
+				if err != nil {
+					firstErr = cmpOr(firstErr, err)
+				} else if inline += len(links.Files[i].Content); inline > dataLinksInlineSum {
+					firstErr = cmpOr(firstErr, errTooMuchInline)
+				}
+				mu.Unlock()
 			}
 		}()
 	}
@@ -262,16 +275,12 @@ func (s *orgServer) handleDataLinks(w http.ResponseWriter, _ *http.Request, devi
 	}
 	close(queue)
 	wait.Wait()
-	if firstErr != nil {
-		writeAPIError(w, http.StatusBadGateway, firstErr.Error())
+	if firstErr == errTooMuchInline {
+		writeAPIError(w, http.StatusBadRequest, firstErr.Error())
 		return
 	}
-	inline := 0
-	for _, file := range links.Files {
-		inline += len(file.Content)
-	}
-	if inline > dataLinksInlineSum {
-		writeAPIError(w, http.StatusBadRequest, fmt.Sprintf("%s has too many files without download links to send; name a folder or pattern", id))
+	if firstErr != nil {
+		writeAPIError(w, http.StatusBadGateway, firstErr.Error())
 		return
 	}
 	at := ""

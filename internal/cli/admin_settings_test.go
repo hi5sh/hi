@@ -40,7 +40,9 @@ func TestAdminAppSettingsRunTheCommands(t *testing.T) {
 		{map[string]any{"what": "limit", "usd": "$3"}, "app limit payments preview 3", ""},
 		{map[string]any{"what": "memory", "box": "dev", "size": "24g"}, "app limit payments memory dev 24g", ""},
 		{map[string]any{"what": "ops", "channel": ""}, "app ops payments off", ""},
-		{map[string]any{"what": "slack", "bot": "xoxb-NEW", "app_token": ""}, "app key payments slack", "xoxb-NEW\n\n"},
+		// hi app key slack asks for the App-Level Token first (v2.6.99).
+		{map[string]any{"what": "slack", "bot": "xoxb-NEW", "app_token": ""}, "app key payments slack", "\nxoxb-NEW\n"},
+		{map[string]any{"what": "slack", "bot": "xoxb-NEW", "app_token": "xapp-NEW"}, "app key payments slack", "xapp-NEW\nxoxb-NEW\n"},
 		{map[string]any{"what": "env", "name": "STRIPE_KEY", "value": "sk_live_SECRET", "scope": "production"}, "app env payments STRIPE_KEY --production", "sk_live_SECRET\n"},
 		{map[string]any{"what": "env", "name": "STRIPE_KEY", "remove": true, "scope": "production"}, "app env payments --unset STRIPE_KEY --production", ""},
 		{map[string]any{"what": "helper", "slot": "preview", "on": false}, "app helper payments preview off", ""},

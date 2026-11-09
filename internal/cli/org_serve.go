@@ -327,7 +327,7 @@ func (s *orgServer) checkServed(name string) string {
 	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, served.URL+"/models", nil)
 	request.Header.Set("Authorization", "Bearer "+key)
 	problem := ""
-	response, err := http.DefaultClient.Do(request)
+	response, err := orgUpstreamClient.Do(request)
 	switch {
 	case err != nil:
 		problem = err.Error()
@@ -364,7 +364,7 @@ func (s *orgServer) handleServedChat(w http.ResponseWriter, r *http.Request, dev
 	upstream.Header.Set("Content-Type", "application/json")
 	upstream.Header.Set("Authorization", "Bearer "+key)
 	upstream.Header.Set(serveUserHeader, device.User)
-	response, err := http.DefaultClient.Do(upstream)
+	response, err := orgUpstreamClient.Do(upstream)
 	if err != nil {
 		s.recordAIUsage(device, model, nil, http.StatusBadGateway)
 		writeAIError(w, http.StatusBadGateway, fmt.Sprintf("%s on %s isn't answering: %v", model, served.Hostname, err))
@@ -452,3 +452,9 @@ func describeServed(list []apiServeUpstream) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// orgUpstreamClient calls the models the org serves and the org's AI
+// endpoint without following redirects: a member's machine answering a
+// call with a redirect would send the org server, and the body, wherever
+// it named (hi_serve.md: the server reaches only NetBird addresses).
+var orgUpstreamClient = &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

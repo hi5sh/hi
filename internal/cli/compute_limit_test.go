@@ -22,8 +22,10 @@ type startingProvider struct {
 	seen      []bool // whether a record existed when create ran
 }
 
-func (p *startingProvider) name() string              { return "runpod" }
-func (p *startingProvider) check() providerStatus      { return providerStatus{installed: true, signedIn: true} }
+func (p *startingProvider) name() string { return "runpod" }
+func (p *startingProvider) check() providerStatus {
+	return providerStatus{installed: true, signedIn: true}
+}
 func (p *startingProvider) maxLifetime() time.Duration { return 0 }
 func (p *startingProvider) enforcesLifetime() bool     { return false }
 func (p *startingProvider) create(request upRequest, stdout, stderr io.Writer) error {

@@ -1172,7 +1172,9 @@ function inlineForm(fields, submit, label) {
     event.preventDefault();
     const values = {};
     for (const [name, input] of Object.entries(inputs)) values[name] = input.type === "checkbox" ? input.checked : input.value.trim();
-    if (await submit(values) !== false) { form.reset(); form.hidden = true; }
+    // false or null (orgDo's failure, already toasted) keeps what was typed.
+    const result = await submit(values);
+    if (result !== false && result !== null) { form.reset(); form.hidden = true; }
   });
   return form;
 }
@@ -2862,7 +2864,8 @@ async function boot() {
   booted = true;
   renderTabs();
   renderPanes();
-  const wanted = decodeURIComponent(location.hash.slice(1));
+  let wanted = "";
+  try { wanted = decodeURIComponent(location.hash.slice(1)); } catch (e) { /* a malformed #… opens Home */ }
   renderBar();
   renderApps();
   renderHome();

@@ -84,6 +84,9 @@ type liveEvent struct {
 	Time time.Time `json:"time"`
 	Text string    `json:"text"`
 	User string    `json:"user,omitempty"`
+	// Subject is what an audit entry is about, a request or an instance,
+	// so a member sees what is done to theirs; not sent.
+	Subject string `json:"-"`
 }
 
 // liveFeed keeps recent events in memory for the dashboard.
@@ -149,7 +152,7 @@ func auditEvent(entry auditEntry) liveEvent {
 	case user == "server", user == "limit", user == "gone", strings.HasPrefix(user, "policy"), strings.HasPrefix(user, "slack:"):
 		user = ""
 	}
-	return liveEvent{Time: entry.Time, Text: text, User: user}
+	return liveEvent{Time: entry.Time, Text: text, User: user, Subject: entry.Subject}
 }
 
 func (f *liveFeed) setDoing(instance, command string, open bool) {
@@ -241,6 +244,22 @@ func (s *orgServer) liveSnapshot(user string) liveSnapshot {
 		snapshot.MonthBudget = budget.UserBudget
 		snapshot.Budgets = []liveBudget{{Group: user, Spend: budget.UserSpend, Budget: budget.UserBudget}}
 	}
+	// A member's own requests and instances, by ID and name: what is done
+	// to them is theirs to see, whoever did it.
+	owned := map[string]bool{}
+	if user != "" {
+		for _, request := range s.state.Requests {
+			if request.User == user {
+				owned[request.ID], owned[request.Name] = true, true
+			}
+		}
+		for _, lease := range s.state.Leases {
+			if lease.User == user {
+				owned[lease.Name] = true
+			}
+		}
+		delete(owned, "")
+	}
 	s.mu.Unlock()
 
 	for _, row := range readAIUsage(s.dir, monthStart(now), now) {
@@ -258,7 +277,7 @@ func (s *orgServer) liveSnapshot(user string) liveSnapshot {
 	s.feed.mu.Lock()
 	for i := len(s.feed.events) - 1; i >= 0 && len(snapshot.Activity) < 20; i-- {
 		event := s.feed.events[i]
-		if user == "" || event.User == user || strings.Contains(event.Text, user) {
+		if user == "" || event.User == user || owned[event.Subject] {
 			snapshot.Activity = append(snapshot.Activity, event)
 		}
 	}

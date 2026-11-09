@@ -17,6 +17,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/slack-go/slack"
 )
 
 // fakeManaged is a provider the test server manages in place of RunPod.
@@ -771,5 +773,85 @@ func TestFailedStartIsCleanedUp(t *testing.T) {
 	audit, _ := os.ReadFile(filepath.Join(ts.dir, "audit.jsonl"))
 	if strings.Contains(string(audit), "unleased instance") || strings.Count(string(audit), `"cleaned up"`) != 2 {
 		t.Fatalf("audit:\n%s", audit)
+	}
+}
+
+// A long list goes in sections Slack takes, under 3000 characters each,
+// with what doesn't fit counted.
+func TestSlackLineSections(t *testing.T) {
+	var lines []string
+	for i := range 1000 {
+		lines = append(lines, fmt.Sprintf("*user%03d* · laptop-%03d · seen 2h ago · hi v2.6.104", i, i))
+	}
+	blocks := slackLineSections(lines, 10)
+	if len(blocks) != 10 {
+		t.Fatalf("%d blocks", len(blocks))
+	}
+	total := 0
+	for _, block := range blocks {
+		text := block.(*slack.SectionBlock).Text.Text
+		if len(text) >= slackSectionMax {
+			t.Fatalf("a section of %d characters", len(text))
+		}
+		total += strings.Count(text, "\n") + 1
+	}
+	if last := blocks[9].(*slack.SectionBlock).Text.Text; !strings.HasPrefix(last, "…and ") {
+		t.Fatalf("the last block: %q", last)
+	}
+	if got := slackLineSections(lines[:3], 10); len(got) != 1 {
+		t.Fatalf("three lines in %d blocks", len(got))
+	}
+}
+
+// Removing a provider removes its key, and only a provider's: the AI's
+// key is in the same file, and a name that isn't there says so.
+func TestServerProviderRemoveTakesOnlyProviders(t *testing.T) {
+	ts := newTestServer(t)
+	ts.server.mu.Lock()
+	ts.server.keys[serverAIKeyName] = "sk-or-team"
+	ts.server.keys["runpod"] = "rpa_team"
+	ts.server.mu.Unlock()
+	handler := ts.server.adminHandler()
+	remove := func(name string) int {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/admin/providers/"+name+"?as=olga", nil))
+		return recorder.Code
+	}
+	if code := remove(serverAIKeyName); code != http.StatusBadRequest {
+		t.Fatalf("removing the AI's key as a provider: %d", code)
+	}
+	if code := remove("runpdo"); code != http.StatusBadRequest {
+		t.Fatalf("a misspelt provider: %d", code)
+	}
+	if code := remove("shadeform"); code != http.StatusNotFound {
+		t.Fatalf("a provider with no key: %d", code)
+	}
+	if code := remove("runpod"); code != http.StatusOK {
+		t.Fatalf("runpod: %d", code)
+	}
+	ts.server.mu.Lock()
+	defer ts.server.mu.Unlock()
+	if ts.server.keys[serverAIKeyName] != "sk-or-team" || ts.server.keys["runpod"] != "" {
+		t.Fatalf("keys: %v", ts.server.keys)
+	}
+}
+
+// A member's activity is theirs and what is done to theirs: not another
+// user's because a name has theirs in it.
+func TestServerLiveActivityIsTheMembers(t *testing.T) {
+	ts := newTestServer(t)
+	ts.server.mu.Lock()
+	ts.server.state.Leases["al-run"] = &serverLease{Name: "al-run", User: "al", Provider: "runpod"}
+	ts.server.mu.Unlock()
+	ts.server.feed.add(liveEvent{Time: computeNow(), Text: "alice requested runpod/rtx-4090", User: "alice", Subject: "r-9"})
+	ts.server.feed.add(liveEvent{Time: computeNow(), Text: "olga stopped al-run", User: "olga", Subject: "al-run"})
+	ts.server.feed.add(liveEvent{Time: computeNow(), Text: "al opened ssh", User: "al"})
+	snapshot := ts.server.liveSnapshot("al")
+	var texts []string
+	for _, event := range snapshot.Activity {
+		texts = append(texts, event.Text)
+	}
+	if strings.Join(texts, "|") != "al opened ssh|olga stopped al-run" {
+		t.Fatalf("al's activity: %q", texts)
 	}
 }
