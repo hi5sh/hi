@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.123 — The New app button is as tall as Find an app again, with a bold +
+
+- [x] Back to v2.6.121's square, as tall as the search box beside it;
+  the 24px one was a step too far. The + on it is bold.
+
 ### v2.6.122 — The New app button is smaller than Find an app
 
 - [x] The blue + is a 24px square, centred beside the search box. A
