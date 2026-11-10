@@ -374,9 +374,14 @@ func (s *adminServer) routes() http.Handler {
 			Action string `json:"action"`
 			Why    string `json:"why"`
 			Text   string `json:"text"`
+			// Machine is where Move… moves the app.
+			Machine string `json:"machine"`
 		}
 		if !decode(w, r, &request) {
 			return
+		}
+		if request.Action == "move" {
+			request.Text = request.Machine
 		}
 		job, err := adminActionJob(request.App, request.Action, request.Why, request.Text, admin)
 		if err != nil {
@@ -425,6 +430,45 @@ func (s *adminServer) routes() http.Handler {
 			return
 		}
 		reply(w, http.StatusOK, job)
+	}))
+	mux.HandleFunc("GET /api/machines", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		view, err := adminMachines()
+		if err != nil {
+			failure(w, http.StatusInternalServerError, err)
+			return
+		}
+		reply(w, http.StatusOK, view)
+	}))
+	mux.HandleFunc("POST /api/machines", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			Action string `json:"action"` // to, forget, take, or untake
+			Name   string `json:"name"`
+			Key    string `json:"key"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		answer, err := adminChangeMachines(admin, request.Action, request.Name, request.Key)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, answer)
+	}))
+	mux.HandleFunc("POST /api/move/check", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			App     string `json:"app"`
+			Machine string `json:"machine"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		view, err := adminMoveCheck(request.App, request.Machine)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, view)
 	}))
 	mux.HandleFunc("POST /api/update", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		job, err := s.startJob(adminJob{Title: "Update hi", By: admin.Name, Args: []string{"update", "--restart"}})
@@ -930,6 +974,13 @@ func adminActionJob(app, action, why, text string, admin adminPerson) (adminJob,
 		job.Title, job.Args = appCapitalize(action)+" "+app, []string{"app", action, app, "--why", why}
 	case "unfreeze", "unpause":
 		job.Title, job.Args = appCapitalize(action)+" "+app, []string{"app", action, app}
+	case "move":
+		target, err := newAppMoveTarget(strings.TrimSpace(text))
+		if err != nil {
+			return job, err
+		}
+		job.Title, job.Args = "Move "+app+" to "+target.machine, []string{"app", "move", app, target.machine, "--yes"}
+		job.Said, job.Tried = "moved the app to "+target.machine, "move the app to "+target.machine
 	case "say":
 		text = strings.TrimSpace(text)
 		if text == "" {

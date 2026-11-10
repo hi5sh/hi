@@ -245,3 +245,15 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 /* What an app needs on this machine. */
 .needs-list li { align-items: center; }
 .needs-list .dot { display: inline-block; vertical-align: middle; margin: 0 4px 2px 0; }
+
+/* Other machines, and an app's Move…. */
+.move-dialog { width: min(560px, calc(100vw - 32px)); }
+.move-list li { cursor: pointer; align-items: center; }
+.move-list li[aria-selected="true"] { background: var(--hover); border-radius: var(--r-md); }
+.move-list .dot, .machines-list .dot { display: inline-block; vertical-align: middle; margin: 0 4px 2px 0; }
+.move-check { margin: 10px 0; }
+.move-check ul { margin: 4px 0 0; padding-left: 18px; }
+.machines-list li { align-items: center; }
+.key-line { display: flex; gap: 6px; align-items: flex-start; }
+.key-line code { flex: 1; user-select: all; }
+#machines-view h3 { font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: var(--text); }

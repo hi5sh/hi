@@ -16,6 +16,7 @@ package cli
 // reports; it gives no shell.
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -136,6 +137,13 @@ func appMachinesCommand(args []string, stdout io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "This machine's key for moving apps:\n  %s\n\n", key)
 		fmt.Fprintf(stdout, "To let it move apps to another machine with hi, run there, as the account that runs hi:\n  hi app machines add %s %s\n", appMoveThisMachine(), key)
+		var to []string
+		for _, machine := range loadAppMoveTo() {
+			to = append(to, machine.Name)
+		}
+		if len(to) > 0 {
+			fmt.Fprintf(stdout, "\nThis machine moves apps to: %s.\n", strings.Join(to, ", "))
+		}
 		from := appMachinesFrom()
 		if len(from) == 0 {
 			fmt.Fprintln(stdout, "\nThis machine takes apps from no other machine.")
@@ -794,36 +802,14 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 			return err
 		}
 	}
-	key, err := appEnsureMoveKey()
-	if err != nil {
-		return err
-	}
 
 	// 1. What the machine has and lacks.
 	fmt.Fprintf(stdout, "Checking %s for app %s...\n", target.machine, name)
-	needs := appMoveNeedsOf(name, destFolder)
-	data, _ := json.Marshal(needs)
-	out, err := target.output(strings.NewReader(string(data)), "check")
-	if errors.Is(err, appMoveNoAccess) {
-		return fmt.Errorf("%s doesn't take apps from this machine yet. On %s, as the account that runs hi, run:\n  hi app machines add %s %s\nthen move the app again", target.machine, target.machine, appMoveThisMachine(), key)
-	}
+	report, needs, err := appMoveCheck(name, target, destFolder)
 	if err != nil {
-		return fmt.Errorf("asking %s: %v", target.machine, err)
-	}
-	var report appMoveReport
-	if err := json.Unmarshal([]byte(out), &report); err != nil {
-		return fmt.Errorf("%s answered something hi doesn't read (%s): is hi there older? hi update there", target.machine, qFirstLine(out, "nothing"))
+		return err
 	}
 	appMovePrintReport(report, target, needs, stdout)
-	var exposed []string
-	for _, slot := range []string{appSlotProduction, appSlotPreview} {
-		if state, ok := loadTeamSlot(name, slot); ok && state.Expose != "" && !strings.HasPrefix(state.Expose, appInternalExpose) {
-			exposed = append(exposed, slot)
-		}
-	}
-	if len(exposed) > 0 {
-		fmt.Fprintf(stdout, "  Note: %s %s on a public address; it starts again from %s, and keeps its link only with a name that stays (hi app domain).\n", strings.Join(exposed, " and "), map[bool]string{true: "is", false: "are"}[len(exposed) == 1], target.machine)
-	}
 	if len(report.Problems) > 0 {
 		return fmt.Errorf("app %s can't move to %s until the above is done", name, target.machine)
 	}
@@ -942,6 +928,116 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "Its folder here, %s, stays as it was at the move, with a note of where the app went; delete it when you no longer want it.\n", folder)
 	fmt.Fprintf(stdout, "Manage it on %s now (its admin page, or hi app status %s there). To bring it back: hi app move %s %s, on %s.\n", target.machine, name, name, appMoveThisMachine(), target.machine)
 	return nil
+}
+
+// appMoveCheck asks the other machine what it has and lacks for the app,
+// adding what this machine knows (a public address starts again there),
+// and remembers the machine for the next move.
+func appMoveCheck(name string, target appMoveTarget, destFolder string) (appMoveReport, appMoveNeeds, error) {
+	var report appMoveReport
+	key, err := appEnsureMoveKey()
+	if err != nil {
+		return report, appMoveNeeds{}, err
+	}
+	needs := appMoveNeedsOf(name, destFolder)
+	data, _ := json.Marshal(needs)
+	out, err := target.output(strings.NewReader(string(data)), "check")
+	if errors.Is(err, appMoveNoAccess) {
+		return report, needs, fmt.Errorf("%s doesn't take apps from this machine yet. On %s, as the account that runs hi, run:\n  hi app machines add %s %s\nor add it on %s's admin page (Machine, Other machines, Takes apps from); then move the app again", target.machine, target.machine, appMoveThisMachine(), key, target.machine)
+	}
+	if err != nil {
+		return report, needs, fmt.Errorf("asking %s: %v", target.machine, err)
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		return report, needs, fmt.Errorf("%s answered something hi doesn't read (%s): is hi there older? hi update there", target.machine, qFirstLine(out, "nothing"))
+	}
+	var exposed []string
+	for _, slot := range []string{appSlotProduction, appSlotPreview} {
+		if state, ok := loadTeamSlot(name, slot); ok && state.Expose != "" && !strings.HasPrefix(state.Expose, appInternalExpose) {
+			exposed = append(exposed, map[string]string{appSlotProduction: "production", appSlotPreview: "Stage"}[slot])
+		}
+	}
+	if len(exposed) > 0 {
+		report.Warnings = append(report.Warnings, fmt.Sprintf("%s %s on a public address; it starts again from %s, and keeps its link only with a name that stays (hi app domain)", strings.Join(exposed, " and "), map[bool]string{true: "is", false: "are"}[len(exposed) == 1], target.machine))
+	}
+	appMoveRemember(target.machine)
+	return report, needs, nil
+}
+
+// appMoveTo is a machine this one moves apps to, as move/to.json keeps it.
+type appMoveTo struct {
+	Name  string    `json:"name"`
+	Added time.Time `json:"added"`
+}
+
+func appMoveToPath() string { return filepath.Join(appMoveDir(), "to.json") }
+
+func loadAppMoveTo() []appMoveTo {
+	var machines []appMoveTo
+	if data, err := os.ReadFile(appMoveToPath()); err == nil {
+		json.Unmarshal(data, &machines)
+	}
+	return machines
+}
+
+func saveAppMoveTo(machines []appMoveTo) error {
+	if err := os.MkdirAll(appMoveDir(), 0o700); err != nil {
+		return err
+	}
+	data, _ := json.MarshalIndent(machines, "", "  ")
+	return writeFileAtomic(appMoveToPath(), append(data, '\n'), 0o600)
+}
+
+// appMoveRemember adds a machine to the ones this one moves apps to.
+func appMoveRemember(machine string) {
+	machines := loadAppMoveTo()
+	for _, known := range machines {
+		if known.Name == machine {
+			return
+		}
+	}
+	saveAppMoveTo(append(machines, appMoveTo{Name: machine, Added: time.Now().UTC()}))
+}
+
+// appMoveForget takes a machine off them.
+func appMoveForget(machine string) bool {
+	machines := loadAppMoveTo()
+	for i, known := range machines {
+		if known.Name == machine {
+			saveAppMoveTo(append(machines[:i], machines[i+1:]...))
+			return true
+		}
+	}
+	return false
+}
+
+// appMoveProbe says whether a machine takes apps from this one, and the
+// hi it runs; it gives up after a few seconds.
+var appMoveProbe = func(machine string) (takes bool, version string, problem string) {
+	target, err := newAppMoveTarget(machine)
+	if err != nil {
+		return false, "", err.Error()
+	}
+	if _, err := appEnsureMoveKey(); err != nil {
+		return false, "", err.Error()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	args := append(target.sshOptions(), "-o", "ConnectTimeout=6", "--", target.dest, "version")
+	var out, errOut strings.Builder
+	command := exec.CommandContext(ctx, "ssh", args...)
+	command.Stdout, command.Stderr = &out, &errOut
+	if err := command.Run(); err != nil {
+		text := strings.TrimSpace(errOut.String())
+		switch {
+		case strings.Contains(text, "Permission denied"):
+			return false, "", "doesn't take apps from this machine yet"
+		case ctx.Err() != nil || strings.Contains(text, "timed out") || strings.Contains(text, "No route") || strings.Contains(text, "Could not resolve"):
+			return false, "", "doesn't answer"
+		}
+		return false, "", qFirstLine(lastLines(text, 1), err.Error())
+	}
+	return true, strings.TrimSpace(out.String()), ""
 }
 
 func appMovePrintReport(report appMoveReport, target appMoveTarget, needs appMoveNeeds, stdout io.Writer) {

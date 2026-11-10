@@ -2736,6 +2736,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.112 — Moving an app from the admin page
+
+- [x] **Move…** among an app's Actions on the admin page: the machines
+  this one moves apps to, each with whether it takes apps from here and
+  the hi it runs, a field for another one, and, for the one picked, what
+  it lacks first and what works differently there (the same check as
+  `hi app move --check`). **Move** runs `hi app move` as a job. A machine
+  that doesn't take apps from here yet shows the line to paste on its
+  admin page.
+- [x] **Other machines** in the Machine view: the machines this one moves
+  apps to (Add, Remove), this machine's key with Copy, and the machines it
+  takes apps from (paste the other machine's line, Remove). `hi app
+  machines` also lists the machines this one moves apps to.
+
 ### v2.6.111 — Moving an app to another machine
 
 - [x] `hi app move <app> <machine>` moves an app to another machine with

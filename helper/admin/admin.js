@@ -203,7 +203,7 @@ function freshView(view) {
   if (view === "jobs") { refreshJobs(); markJobsSeen(); }
   if (view === "logs") { refreshLogs(true); clearLogsDot(); }
   if (view === "incidents") refreshIncidents();
-  if (view === "machine") renderMachine(true);
+  if (view === "machine") { renderMachine(true); refreshMachines(); }
   if (view === "requests" || view === "running") refreshOrg();
   if (view === "spend") refreshSpend();
   if (view === "people") { renderPeople(); refreshPeopleApps(); }
@@ -534,6 +534,7 @@ function renderOverview() {
   else if (up) actions.append(button("Freeze…", "freeze"));
   if (stopped && stopped.paused) actions.append(button("Unpause", "unpause", { class: "primary" }));
   else if (up && !(stopped && stopped.frozen)) actions.append(button("Pause…", "pause"));
+  actions.append(el("button", { onclick: () => moveApp(d.name) }, "Move…"));
   parts.push(el("h2", {}, "Actions"), actions);
   parts.push(el("div", { class: "data-actions danger-row" }, el("button", { onclick: () => renameApp(d.name) }, "Rename…"), el("button", { class: "danger", onclick: () => removeApp(d.name) }, "Remove…")));
 
@@ -862,6 +863,155 @@ $("netbird-form").addEventListener("submit", async (event) => {
     await refreshState();
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 });
+
+// ---------------------------------------------------------------------------
+// Other machines, and an app's Move… (hi_app_move.md): this machine's key,
+// the machines it moves apps to, and the ones it takes apps from.
+
+let machines = null;
+
+async function refreshMachines() {
+  const box = $("machines-view");
+  if (!machines) box.replaceChildren(el("p", { class: "muted small" }, "Asking the other machines…"));
+  try { machines = await api("/api/machines"); } catch (e) { if (!(e instanceof SignIn)) box.replaceChildren(el("p", { class: "error small" }, e.message)); return; }
+  renderMachines();
+}
+
+function machineState(m) {
+  if (m.takes) return el("span", { class: "muted small" }, " takes apps from here" + (m.version ? " · hi " + m.version : ""));
+  return el("span", { class: "warn small" }, " " + (m.problem || "doesn't answer"));
+}
+
+function renderMachines() {
+  const box = $("machines-view");
+  if (!machines) return;
+  const parts = [el("p", { class: "muted small" }, "Apps move between machines with hi, at the same addresses. A machine takes apps from another once it has that machine's key; the key lets it only receive and start apps, not log in.")];
+
+  // Where this machine moves apps to.
+  const to = el("ul", { class: "list machines-list" });
+  for (const m of machines.to) {
+    to.append(el("li", {}, el("span", { class: "what" }, el("span", { class: "dot " + (m.takes ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", {}, m.name), machineState(m)),
+      el("span", { class: "actions" }, el("button", { class: "small", onclick: () => forgetMachine(m.name) }, "Remove"))));
+  }
+  if (!machines.to.length) to.append(el("li", { class: "empty" }, "None yet: add one here, or in an app's Move…."));
+  const addTo = el("form", { class: "signin-row", autocomplete: "off" }, input({ placeholder: "A machine with hi, such as ws2.corp.example", "aria-label": "A machine to move apps to", required: true }), el("button", { type: "submit" }, "Add"));
+  addTo.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try { await api("/api/machines", { action: "to", name: addTo.querySelector("input").value.trim() }); addTo.reset(); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  });
+  parts.push(el("h3", {}, "Moves apps to"), to, addTo);
+
+  // This machine's key, for another machine to take apps from it.
+  parts.push(el("h3", {}, "This machine's key"),
+    el("p", { class: "muted small" }, "For a machine to take apps from this one, paste this on its admin page, under Takes apps from, or run it there as the account that runs hi:"),
+    el("div", { class: "key-line" }, el("code", {}, machines.line), el("button", { class: "small", onclick: () => copyText(machines.line) }, "Copy")));
+
+  // Where this machine takes apps from.
+  const from = el("ul", { class: "list machines-list" });
+  for (const name of machines.from) {
+    from.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, name)), el("span", { class: "actions" }, el("button", { class: "small danger", onclick: () => untakeMachine(name) }, "Remove"))));
+  }
+  if (!machines.from.length) from.append(el("li", { class: "empty" }, "None: no machine can move apps here."));
+  const pasted = el("textarea", { rows: "2", maxlength: "800", placeholder: "The other machine's key: the line its admin page shows under This machine's key", "aria-label": "The other machine's key", required: true });
+  const take = el("form", { class: "stack", autocomplete: "off" }, pasted, el("div", { class: "buttons" }, el("button", { class: "primary", type: "submit" }, "Take apps from it")));
+  take.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try { toast((await api("/api/machines", { action: "take", key: pasted.value })).text); take.reset(); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  });
+  parts.push(el("h3", {}, "Takes apps from"), from, take);
+  box.replaceChildren(...parts);
+}
+
+async function forgetMachine(name) {
+  try { await api("/api/machines", { action: "forget", name }); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+async function untakeMachine(name) {
+  const ok = await ask({ title: "Stop taking apps from " + name + "?", text: name + " can no longer move apps here. Apps it moved here already stay.", ok: "Stop" });
+  if (!ok) return;
+  try { toast((await api("/api/machines", { action: "untake", name })).text); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
+// moveApp is Move…: pick a machine, see what it has and lacks for the app,
+// then move it as a job.
+async function moveApp(app) {
+  const dialog = $("move-dialog");
+  let picked = "";
+  let checking = 0;
+  $("move-title").textContent = "Move " + app + " to another machine";
+  $("move-text").textContent = "The lead, production, Stage, and the dev page stop for about a minute, then run on the other machine at the same addresses, with the app's data, snapshots, and secrets. The folder here stays, with a note of where the app went.";
+  $("move-ok").disabled = true;
+  $("move-check").replaceChildren();
+  const list = $("move-list");
+  const draw = () => {
+    list.replaceChildren();
+    const known = machines ? machines.to : [];
+    for (const m of known) {
+      const li = el("li", { role: "option", "aria-selected": String(m.name === picked), tabindex: "0" },
+        el("span", { class: "what" }, el("span", { class: "dot " + (m.takes ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", {}, m.name), machineState(m)));
+      li.addEventListener("click", () => pick(m.name));
+      li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(m.name); } });
+      list.append(li);
+    }
+    if (!machines) list.append(el("li", { class: "empty" }, "Asking the other machines…"));
+    else if (!known.length) list.append(el("li", { class: "empty" }, "No machine yet: add the one to move it to."));
+  };
+  const pick = async (name) => {
+    picked = name;
+    draw();
+    $("move-ok").disabled = true;
+    const box = $("move-check");
+    box.replaceChildren(el("p", { class: "muted small" }, "Checking " + name + " for " + app + "…"));
+    const mine = ++checking;
+    let view;
+    try { view = await api("/api/move/check", { app, machine: name }); } catch (e) { if (mine === checking && !(e instanceof SignIn)) box.replaceChildren(el("p", { class: "error small" }, e.message)); return; }
+    if (mine !== checking) return;
+    const parts = [];
+    if (view.error) {
+      parts.push(el("p", { class: "error small" }, view.error + "."));
+      if (view.access) {
+        parts.push(el("p", { class: "small" }, "On " + view.machine + "'s admin page, in Machine, Other machines, paste this under Takes apps from (or run it there as the account that runs hi), then pick it again:"),
+          el("div", { class: "key-line" }, el("code", {}, view.access), el("button", { class: "small", onclick: () => copyText(view.access) }, "Copy")));
+      }
+    } else {
+      parts.push(el("p", { class: "small" }, view.machine + " runs hi " + view.version + "; the folder goes to ", el("code", {}, view.folder), " there."));
+      if (view.problems.length) parts.push(el("p", { class: "error small" }, "What it lacks first:"), el("ul", { class: "small" }, ...view.problems.map((p) => el("li", {}, p))));
+      if (view.warnings.length) parts.push(el("p", { class: "warn small" }, "What works differently there:"), el("ul", { class: "small" }, ...view.warnings.map((w) => el("li", {}, w))));
+      if (!view.problems.length) parts.push(el("p", { class: "muted small" }, "Nothing stops the move."));
+      $("move-ok").disabled = view.problems.length > 0;
+    }
+    box.replaceChildren(...parts);
+    // What the check found about the machine shows in the list too.
+    if (machines) { const m = machines.to.find((x) => x.name === name); if (m) { m.takes = !view.access && !(view.error || "").includes("doesn't answer"); if (view.version) m.version = view.version; m.problem = view.access ? "doesn't take apps from this machine yet" : m.takes ? "" : view.error; draw(); } }
+  };
+  $("move-add").onsubmit = async (event) => {
+    event.preventDefault();
+    const name = $("move-add-name").value.trim();
+    if (!name) return;
+    try {
+      const answer = await api("/api/machines", { action: "to", name });
+      $("move-add-name").value = "";
+      if (machines && !machines.to.some((m) => m.name === answer.machine.name)) machines.to.push(answer.machine);
+      pick(answer.machine.name);
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  };
+  const close = () => { checking++; dialog.close(); };
+  $("move-cancel").onclick = close;
+  $("move-ok").onclick = async () => {
+    if (!picked) return;
+    const machine = picked;
+    close();
+    try {
+      const job = await api("/api/action", { app, action: "move", machine });
+      toast("Moving " + app + " to " + machine + ". Jobs has its output; when it's done, " + app + " is on " + machine + "'s admin page.", true);
+      followJob(job);
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  };
+  draw();
+  dialog.showModal();
+  if (!machines) refreshMachines().then(draw);
+  else api("/api/machines").then((fresh) => { machines = fresh; draw(); }).catch(() => {});
+}
 
 // ---------------------------------------------------------------------------
 // Activity, Jobs, Logs, Incidents

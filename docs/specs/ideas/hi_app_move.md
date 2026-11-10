@@ -489,8 +489,10 @@ as good work, within minutes. Going back in time is what snapshots are for.
 
 Release 1, with these differences from the draft:
 
-- **No admin page yet.** **Move…** and **Move all to…** come later; the
-  command line has it all.
+- **The admin page** (v2.6.112): **Move…** among an app's Actions, and
+  **Other machines** in the Machine view, where each machine's key is
+  shown to copy and another machine's is pasted, so pairing two machines
+  needs no terminal. **Move all to…** comes later.
 - **The whole folder goes,** `run/` too, but for sockets and PostgreSQL's
   `postmaster.pid`: what's in it (people's link keys, subscriptions,
   Stage's record) is the app's, and `hi app up` copes with boxes that

@@ -103,6 +103,8 @@
                 <button class="primary" type="submit">Join</button>
               </div>
             </form>
+            <h2 class="with-action">Other machines <span class="grow"></span></h2>
+            <div id="machines-view" class="machine-block"></div>
             <h2 class="with-action">Admins <span class="grow"></span><button id="admin-add-open" class="side-icon" title="Add an admin" aria-label="Add an admin">+</button></h2>
             <form id="admin-add" class="machine-block stack" autocomplete="off" hidden>
               <input id="admin-add-name" required maxlength="60" placeholder="Their name" aria-label="Their name">
@@ -218,6 +220,21 @@
       <button class="primary" type="submit" id="ask-ok">OK</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="move-dialog" class="move-dialog">
+  <h2 id="move-title">Move the app</h2>
+  <p id="move-text" class="muted"></p>
+  <ul id="move-list" class="list move-list"></ul>
+  <form id="move-add" class="signin-row" autocomplete="off">
+    <input id="move-add-name" maxlength="200" placeholder="Another machine with hi, such as ws2.corp.example" aria-label="Another machine">
+    <button type="submit">Add</button>
+  </form>
+  <div id="move-check" class="move-check"></div>
+  <div class="buttons">
+    <button type="button" id="move-cancel">Cancel</button>
+    <button type="button" class="primary" id="move-ok" disabled>Move</button>
+  </div>
 </dialog>
 
 <dialog id="link-dialog">
