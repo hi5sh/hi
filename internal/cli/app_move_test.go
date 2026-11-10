@@ -111,6 +111,10 @@ func setupMoveTest(t *testing.T) (*moveTestMachines, string) {
 		t.Skip("rsync isn't installed")
 	}
 	t.Setenv("HOME", filepath.Join(dir, "home"))
+	t.Setenv("HI_ADMIN_DIR", filepath.Join(dir, "admin"))
+	name := appMoveThisMachine
+	appMoveThisMachine = func() string { return "ws1.corp.example" }
+	t.Cleanup(func() { appMoveThisMachine = name })
 	m := &moveTestMachines{ws1Apps: os.Getenv("HI_APPS_DIR"), ws1Config: os.Getenv("XDG_CONFIG_HOME"),
 		ws2Apps: filepath.Join(dir, "ws2", "apps"), ws2Config: filepath.Join(dir, "ws2", "config"), running: true}
 	saved := []any{appSystemctl, appRemoveContainers, appLingers, appMoveCall, appMoveRsync, appMovePost, appMoveReachable, appPeerIP, appMoveContainerRunning, appMoveStartPatience, appMovePoll}
@@ -217,6 +221,31 @@ func TestAppMove(t *testing.T) {
 	}
 	if len(m.posts) != 2 || !strings.Contains(m.posts[1], "another machine") {
 		t.Fatal(m.posts)
+	}
+	// ws1 keeps a record of how it went, for its admin page.
+	record, ok := loadAppMovedRecord("payments")
+	if !ok || record.To != "ws2" || record.Folder != folder || record.Size == 0 || record.By == "" {
+		t.Fatalf("%+v", record)
+	}
+	if list := appsMovedAway(); len(list) != 1 || list[0].App != "payments" {
+		t.Fatalf("%+v", list)
+	}
+	if !strings.Contains(out.String(), "The move copied") {
+		t.Fatal(out.String())
+	}
+	// ws2's Activity says the app came, from where.
+	m.on(m.ws2Apps, m.ws2Config, func() {
+		if list := adminActivities(5); len(list) == 0 || !strings.Contains(list[0].What, "moved the app here from ws1") || list[0].App != "payments" {
+			t.Errorf("%+v", list)
+		}
+	})
+}
+
+func TestAppStartWarningsKeepTheirCommands(t *testing.T) {
+	out := "App demo is starting.\n\nWarning: the app sends no heartbeat: hi app heartbeat demo <url>.\n\nWarning: hi is in the docker group. An admin runs:\n  sudo gpasswd -d hi docker\n\n  hi app status demo\n"
+	got := appStartWarnings(out)
+	if len(got) != 2 || !strings.HasSuffix(got[1], "An admin runs: sudo gpasswd -d hi docker") {
+		t.Fatalf("%q", got)
 	}
 }
 

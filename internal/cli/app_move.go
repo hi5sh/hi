@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,10 +57,53 @@ func appMoveIncoming(name string) string {
 	return filepath.Join(appMoveDir(), "incoming", name+".json")
 }
 
-// appMoved is moved.json: where a folder's app went.
+// appMoved is moved.json: where a folder's app went, and how the move
+// went. The sending machine keeps a copy in move/moved/<app>.json, since
+// the app's link here goes with the move.
 type appMoved struct {
-	To string    `json:"to"`
-	At time.Time `json:"at"`
+	App      string    `json:"app,omitempty"`
+	To       string    `json:"to"`
+	At       time.Time `json:"at"`
+	By       string    `json:"by,omitempty"`
+	Folder   string    `json:"folder,omitempty"`   // what it left here
+	Size     int64     `json:"size,omitempty"`     // the folder and its snapshots, copied
+	Took     int       `json:"took,omitempty"`     // seconds, the whole move
+	Stopped  int       `json:"stopped,omitempty"`  // seconds the app was stopped
+	Snapshot string    `json:"snapshot,omitempty"` // taken just before it
+	Admin    string    `json:"admin,omitempty"`    // the other machine's admin page
+}
+
+func appMovedRecordPath(name string) string {
+	return filepath.Join(appMoveDir(), "moved", name+".json")
+}
+
+// loadAppMovedRecord is this machine's record of an app it moved away.
+func loadAppMovedRecord(name string) (appMoved, bool) {
+	var moved appMoved
+	if !appNamePattern.MatchString(name) {
+		return moved, false
+	}
+	data, err := os.ReadFile(appMovedRecordPath(name))
+	if err != nil || json.Unmarshal(data, &moved) != nil || moved.To == "" {
+		return moved, false
+	}
+	moved.App = name
+	return moved, true
+}
+
+// appsMovedAway are the apps this machine moved away and doesn't run
+// again, newest first.
+func appsMovedAway() []appMoved {
+	entries, _ := os.ReadDir(filepath.Join(appMoveDir(), "moved"))
+	list := []appMoved{}
+	for _, entry := range entries {
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		if moved, ok := loadAppMovedRecord(name); ok && !fileExists(filepath.Join(appsDir(), name)) {
+			list = append(list, moved)
+		}
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].At.After(list[j].At) })
+	return list
 }
 
 // appMovedAway says where the app in folder went, or "" when it didn't.
@@ -371,7 +415,12 @@ func appReceive(from string, words []string, stdin io.Reader, stdout, stderr io.
 			return err
 		}
 		os.Remove(appMoveIncoming(name))
-		return nil
+		// Where this machine's admin page is, for the other's to link to.
+		answer := map[string]string{}
+		if config, ok := loadAdminConfig(); ok && config.Reach != adminReachLocal {
+			answer["admin"] = adminURL(config)
+		}
+		return json.NewEncoder(stdout).Encode(answer)
 	}
 	return fmt.Errorf("hi app __receive doesn't do %q", command)
 }
@@ -638,6 +687,9 @@ func appReceiveStart(name string, stdout io.Writer) error {
 		os.WriteFile(filepath.Join(incoming.Folder, appReceivingFile), []byte("start failed\n"), 0o600)
 		return err
 	}
+	// It runs here again, if it had moved away from here before.
+	os.Remove(appMovedRecordPath(name))
+	adminRecord("hi app move", name, "moved the app here from "+incoming.From)
 	return nil
 }
 
@@ -886,6 +938,7 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	began := time.Now()
 	destFolder := folder
 	if options.dir != "" {
 		if destFolder, err = filepath.Abs(options.dir); err != nil {
@@ -950,9 +1003,11 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	}
 
 	// 4. A snapshot, to go back to.
+	snapshotID := ""
 	if appState(name) == "up" && appResticInstalled() {
 		var snapshot appSnapshot
 		if asked, err := appHostCall(name, "/snapshot", appSnapshotRequest{Kind: appSnapshotManual}, &snapshot); asked && err == nil {
+			snapshotID = snapshot.ID
 			fmt.Fprintf(stdout, "Snapshot %s taken first.\n", snapshot.ID)
 		} else if err != nil {
 			fmt.Fprintf(stdout, "Warning: no snapshot before the move: %v\n", err)
@@ -984,11 +1039,9 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "Starting app %s on %s...\n", name, target.machine)
 	if out, err := target.output(nil, "start", name); err != nil {
 		return goBack(fmt.Errorf("starting it on %s: %v", target.machine, err))
-	} else if text := strings.TrimSpace(out); text != "" {
-		for _, line := range strings.Split(text, "\n") {
-			if strings.HasPrefix(line, "Warning") {
-				fmt.Fprintf(stdout, "  %s: %s\n", target.machine, line)
-			}
+	} else {
+		for _, warning := range appStartWarnings(out) {
+			fmt.Fprintf(stdout, "  %s: %s\n", target.machine, warning)
 		}
 	}
 	if err := appMoveWaitUp(target, name, stdout); err != nil {
@@ -997,17 +1050,30 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	down := time.Since(stopped).Round(time.Second)
 
 	// 7. It runs there: here, only the folder stays, which says where it went.
-	target.output(nil, "done", name)
+	var done struct {
+		Admin string `json:"admin"`
+	}
+	if out, err := target.output(nil, "done", name); err == nil {
+		json.Unmarshal([]byte(out), &done)
+	}
 	os.Remove(appUnitPath(name))
 	appRemoveSnapshotTimer(name)
 	appSystemctl("daemon-reload")
-	moved, _ := json.MarshalIndent(appMoved{To: target.machine, At: time.Now().UTC()}, "", "  ")
+	record := appMoved{App: name, To: target.machine, At: time.Now().UTC(), By: firstNonEmpty(os.Getenv(adminByEnv), adminActor()), Folder: folder,
+		Size: needs.Size, Took: int(time.Since(began).Seconds() + 0.5), Stopped: int(down.Seconds()), Snapshot: snapshotID, Admin: done.Admin}
+	moved, _ := json.MarshalIndent(record, "", "  ")
 	if err := writeFileAtomic(filepath.Join(folder, appMovedFile), append(moved, '\n'), 0o600); err != nil {
 		fmt.Fprintf(stdout, "Warning: %v\n", err)
 	}
+	os.MkdirAll(filepath.Dir(appMovedRecordPath(name)), 0o700)
+	writeFileAtomic(appMovedRecordPath(name), append(moved, '\n'), 0o600)
 	os.Remove(filepath.Join(appsDir(), name))
 	appMovePost(config, secrets, "I'm back, on another machine. Nothing changes for you: the same links and the same channel.")
-	fmt.Fprintf(stdout, "\nApp %s runs on %s now, at the same addresses; it was stopped for %s.\n", name, target.machine, down)
+	fmt.Fprintf(stdout, "\nApp %s runs on %s now, at the same addresses. The move copied %s and took %s; the app was stopped for %s.\n",
+		name, target.machine, qSize(needs.Size), time.Since(began).Round(time.Second), down)
+	if done.Admin != "" {
+		fmt.Fprintf(stdout, "%s's admin page: %s\n", target.machine, done.Admin)
+	}
 	if peerErr == nil {
 		if appMoveReachable(peerIP.String()) {
 			fmt.Fprintf(stdout, "Its NetBird address, %s, answers from here: its dev page is at %s.\n", peerIP, appInternalURL(name, appAddressDev))
@@ -1128,6 +1194,35 @@ var appMoveProbe = func(machine string) (takes bool, version string, problem str
 		return false, "", qFirstLine(lastLines(text, 1), err.Error())
 	}
 	return true, strings.TrimSpace(out.String()), ""
+}
+
+// appStartWarnings are the warnings hi app up printed on the other
+// machine, each with the lines that go with it (a command to run), up to
+// the next blank line.
+func appStartWarnings(out string) []string {
+	var warnings []string
+	current := ""
+	for _, line := range strings.Split(out, "\n") {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "Warning"):
+			if current != "" {
+				warnings = append(warnings, current)
+			}
+			current = trimmed
+		case current != "" && trimmed != "":
+			current += " " + trimmed
+		default:
+			if current != "" {
+				warnings = append(warnings, current)
+			}
+			current = ""
+		}
+	}
+	if current != "" {
+		warnings = append(warnings, current)
+	}
+	return warnings
 }
 
 func appMovePrintReport(report appMoveReport, target appMoveTarget, needs appMoveNeeds, stdout io.Writer) {

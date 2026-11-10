@@ -7,6 +7,7 @@ package cli
 import (
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -106,6 +107,16 @@ func adminChangeMachines(admin adminPerson, action, name, key string) (map[strin
 		}
 		adminRecord(admin.Name, "", "let "+machine+" move apps to this machine")
 		return map[string]any{"text": "This machine takes apps from " + machine + " now. Its key runs only hi's receiving end here, not a shell."}, nil
+	case "forget-moved":
+		moved, ok := loadAppMovedRecord(strings.TrimSpace(name))
+		if !ok {
+			return nil, fmt.Errorf("this machine has no app %q that moved away", name)
+		}
+		if err := os.Remove(appMovedRecordPath(moved.App)); err != nil {
+			return nil, err
+		}
+		adminRecord(admin.Name, moved.App, "took the app off the list of apps moved away")
+		return map[string]any{"text": moved.App + " is off the list. Its folder here stays, in " + moved.Folder + "."}, nil
 	case "untake":
 		removed, err := appMachinesRemove(strings.TrimSpace(name))
 		if err != nil {

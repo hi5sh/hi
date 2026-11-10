@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAdminMoveIsTheCommand(t *testing.T) {
@@ -86,5 +88,35 @@ func TestAdminOtherMachines(t *testing.T) {
 	}
 	if !strings.HasPrefix(check.Access, "hi app machines add ") || !strings.Contains(check.Error, "doesn't take apps") {
 		t.Fatalf("%+v", check)
+	}
+}
+
+func TestAdminShowsAnAppThatMovedAway(t *testing.T) {
+	a := setupAdminTest(t)
+	cookie := a.signIn(t, "Olga")
+	os.Remove(filepath.Join(appsDir(), "payments"))
+	record := appMoved{App: "payments", To: "ws2.corp.example", At: time.Now().UTC(), By: "Olga", Folder: "/srv/app-payments", Size: 1 << 20, Took: 41, Stopped: 23,
+		Admin: "http://ws2.corp.example:1984/"}
+	os.MkdirAll(filepath.Dir(appMovedRecordPath("payments")), 0o700)
+	data, _ := json.Marshal(record)
+	os.WriteFile(appMovedRecordPath("payments"), data, 0o600)
+
+	var state adminStateView
+	a.get(t, cookie, "/api/state", &state)
+	if len(state.Moved) != 1 || state.Moved[0].To != "ws2.corp.example" || state.Moved[0].Stopped != 23 {
+		t.Fatalf("%+v", state.Moved)
+	}
+	var detail struct {
+		Name  string   `json:"name"`
+		Moved appMoved `json:"moved"`
+	}
+	if code := a.get(t, cookie, "/api/app?name=payments", &detail); code != http.StatusOK || detail.Moved.Admin != "http://ws2.corp.example:1984/" {
+		t.Fatalf("%d %+v", code, detail)
+	}
+	if code := a.post(t, cookie, "/api/machines", map[string]string{"action": "forget-moved", "name": "payments"}, nil); code != http.StatusOK {
+		t.Fatal(code)
+	}
+	if code := a.get(t, cookie, "/api/app?name=payments", nil); code != http.StatusNotFound {
+		t.Fatal("still shown after it was taken off the list:", code)
 	}
 }

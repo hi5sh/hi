@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -336,6 +337,11 @@ func (s *adminServer) routes() http.Handler {
 	mux.HandleFunc("GET /api/app", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		detail, err := adminAppDetailOf(r.URL.Query().Get("name"), admin)
 		if err != nil {
+			// An app moved to another machine: where, and how it went.
+			if moved, ok := loadAppMovedRecord(r.URL.Query().Get("name")); ok && !fileExists(filepath.Join(appsDir(), moved.App)) {
+				reply(w, http.StatusOK, map[string]any{"name": moved.App, "moved": moved})
+				return
+			}
 			failure(w, http.StatusNotFound, err)
 			return
 		}
@@ -851,13 +857,17 @@ type adminStateView struct {
 	OrgApart bool `json:"org_apart,omitempty"`
 	// Usage is what the machine and each app use.
 	Usage *adminLoad `json:"usage,omitempty"`
+	// Moved are the apps this machine moved to another (hi app move).
+	Moved []appMoved `json:"moved"`
+	// MoveName is this machine as others reach it, for moving apps.
+	MoveName string `json:"move_name"`
 }
 
 func (s *adminServer) state(admin adminPerson) adminStateView {
 	config, _ := loadAdminConfig()
 	view := adminStateView{Machine: adminMachineName(), Version: version, Latest: s.latestVersion(), Me: admin, Address: adminURL(config),
 		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName(),
-		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart()}
+		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart(), Moved: appsMovedAway(), MoveName: appMoveThisMachine()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
 		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())

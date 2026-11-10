@@ -2736,6 +2736,22 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.116 — Where an app went
+
+- [x] An app moved to another machine stays on the admin page it left,
+  marked moved: in the apps list and on Home as "→ <machine>", and when
+  opened, where it runs now, when and by whom it moved, what was copied,
+  how long the move took and how long the app was stopped, the snapshot
+  taken before, the folder left here, a link to the other machine's admin
+  page, and how to bring it back. **Take it off this list** keeps the
+  folder. It said "no app on this machine" before.
+- [x] When Move… finishes, the page says whether the app moved and runs
+  there, or didn't and runs here as before.
+- [x] The machine an app arrives on says so in its Activity, with where it
+  came from. `hi app move` prints how much it copied and how long it took,
+  and the other machine's admin page; a warning from there keeps its
+  command.
+
 ### v2.6.115 — A move into a folder a box wrote in
 
 - [x] `hi app move` back to a machine that still has the app's old folder

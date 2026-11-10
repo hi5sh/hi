@@ -278,14 +278,20 @@ function stateClass(s) {
 }
 function stateDot(s) { return el("span", { class: "dot " + stateClass(s), "aria-hidden": "true" }); }
 
+// movedOpen says the open app moved to another machine: it has no
+// sections, menu, or logs here.
+function movedOpen() {
+  return !!(openApp && state && (state.moved || []).some((m) => m.app === openApp) && !state.apps.some((a) => a.name === openApp));
+}
+
 function renderBar() {
   $("machine").textContent = state.machine;
   $("home-machine").textContent = state.machine;
   const named = openApp || (orgOpen() ? "The org" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : "");
   $("crumb").hidden = !named;
-  $("sections").hidden = !openApp;
+  $("sections").hidden = !openApp || movedOpen();
   $("org-sections").hidden = !orgOpen();
-  $("open-box").hidden = !openApp;
+  $("open-box").hidden = !openApp || movedOpen();
   $("crumb-app").textContent = named;
   document.title = (named ? named + " · " : "") + "Admin page · " + state.machine;
   $("bar-note").textContent = restarting ? "The admin page is restarting…" : state.running ? (state.running === 1 ? "A job runs" : state.running + " jobs run") : "";
@@ -307,7 +313,7 @@ function renderApps() {
     if (o.waiting) li.append(el("span", { class: "count", title: o.waiting + " request" + (o.waiting === 1 ? "" : "s") + " wait" + (o.waiting === 1 ? "s" : "") }, o.waiting));
     list.append(li);
   }
-  if (!state.apps.length) list.append(el("li", { class: "empty" }, o ? "No apps on this machine." : "No apps on this machine yet."));
+  if (!state.apps.length) list.append(el("li", { class: "empty" }, (state.moved || []).length ? "No apps run on this machine now." : o ? "No apps on this machine." : "No apps on this machine yet."));
   else if (!apps.length) list.append(el("li", { class: "empty" }, "No app matches."));
   for (const app of apps) {
     const row = el("button", { class: "stask-row", onclick: () => openView(app.name), title: app.purpose || app.name },
@@ -316,6 +322,12 @@ function renderApps() {
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
     if (app.incidents) li.append(el("span", { class: "count", title: app.incidents + " open incident" + (app.incidents === 1 ? "" : "s") }, app.incidents));
     if (app.name === openApp) li.dataset.app = app.name;
+    list.append(li);
+  }
+  for (const m of (state.moved || []).filter((x) => !query || x.app.includes(query))) {
+    const row = el("button", { class: "stask-row", onclick: () => openView(m.app), title: m.app + " moved to " + m.to + ", " + ago(m.at) },
+      el("span", { class: "stask-title muted" }, m.app), el("span", { class: "stask-num" }, "→ " + m.to));
+    const li = el("li", { class: m.app === openApp ? "current" : "" }, el("span", { class: "dot", "aria-hidden": "true" }), row);
     list.append(li);
   }
   placeOpenBox();
@@ -395,6 +407,11 @@ function renderHome() {
   cards.replaceChildren();
   const up = state.apps.filter((a) => a.state === "up").length;
   $("home-summary").textContent = state.apps.length ? `${up} of ${state.apps.length} up` : "";
+  for (const m of state.moved || []) {
+    cards.append(el("div", { class: "card-box" }, el("button", { class: "app-card moved-card", onclick: () => openView(m.app) },
+      el("div", { class: "card-head" }, el("span", { class: "dot", "aria-hidden": "true" }), el("strong", { class: "card-name" }, m.app),
+        el("span", { class: "muted small" }, "moved to " + m.to), el("span", { class: "grow" }), el("span", { class: "muted small" }, ago(m.at))))));
+  }
   if (!state.apps.length) {
     cards.append(el("div", { class: "app-card empty-card" },
       el("p", {}, state.org ? "No apps on this machine: it runs the org server." : "No apps on this machine yet."),
@@ -492,6 +509,7 @@ async function refreshDetail() {
 function renderOverview() {
   const d = detail;
   const box = $("overview");
+  if (d.moved) { box.replaceChildren(...movedView(d.moved)); return; }
   // What's being typed to the lead stays.
   const typing = $("say-text") ? { text: $("say-text").value, focus: document.activeElement === $("say-text") } : null;
   const stopped = d.stopped;
@@ -938,6 +956,32 @@ function machineFix(m) {
     el("div", { class: "data-actions" }, again));
 }
 
+// movedView is an app that moved to another machine: where, and how the
+// move went.
+function movedView(m) {
+  const seconds = (n) => (n >= 90 ? Math.round(n / 60) + " minutes" : n + " seconds");
+  const facts = el("dl", { class: "facts" });
+  const fact = (term, value) => { if (value) facts.append(el("dt", {}, term), el("dd", {}, value)); };
+  fact("Moved", new Date(m.at).toLocaleString() + " (" + ago(m.at) + ")" + (m.by ? ", by " + m.by : ""));
+  fact("Copied", m.size ? size(m.size) + ": its folder, secrets, NetBird identity, and snapshots" : "");
+  fact("Took", m.took ? seconds(m.took) : "");
+  fact("Stopped for", m.stopped ? seconds(m.stopped) + ", while the last changes were copied and it started there" : "");
+  fact("Snapshot", m.snapshot ? m.snapshot + ", taken here just before" : "");
+  fact("Its folder here", m.folder ? el("code", {}, m.folder) : "");
+  const actions = el("div", { class: "data-actions" });
+  if (m.admin) actions.append(el("a", { class: "button-like primary", href: m.admin, target: "_blank", rel: "noopener noreferrer" }, "Open " + m.to + "'s admin page ↗"));
+  actions.append(el("button", { onclick: () => forgetMoved(m.app) }, "Take it off this list"));
+  return [
+    el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, m.app), el("span", { class: "pill open" }, "moved"), el("span", { class: "muted" }, "to " + m.to)),
+    el("p", { class: "note" }, m.app + " runs on " + m.to + " now, at the same addresses: its people, links, and Slack channel are as they were. Manage it on " + m.to + "'s admin page."),
+    facts, actions,
+    el("p", { class: "muted small" }, "To bring it back: on " + m.to + "'s admin page, open " + m.app + ", Move…, and pick this machine, " + (state && state.move_name ? state.move_name : "this one") + ". Its folder here is kept, so a move back copies only what changed. Taking it off this list keeps the folder.")];
+}
+
+async function forgetMoved(app) {
+  try { toast((await api("/api/machines", { action: "forget-moved", name: app })).text); await refreshState(); openView(""); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+}
+
 async function forgetMachine(name) {
   try { await api("/api/machines", { action: "forget", name }); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -1020,8 +1064,18 @@ async function moveApp(app) {
     close();
     try {
       const job = await api("/api/action", { app, action: "move", machine });
-      toast("Moving " + app + " to " + machine + ". Jobs has its output; when it's done, " + app + " is on " + machine + "'s admin page.", true);
+      toast("Moving " + app + " to " + machine + ": Jobs follows it.", true);
       followJob(job);
+      const wait = async () => {
+        let answer;
+        try { answer = await api("/api/job?id=" + encodeURIComponent(job.id) + "&from=0"); } catch (e) { setTimeout(wait, 3000); return; }
+        if (answer.job.state === "running") { setTimeout(wait, 3000); return; }
+        await refreshState();
+        if (openApp === app) { detail = null; refreshDetail(); }
+        if (answer.job.state === "done") toast(app + " moved to " + machine + ", and runs there now.", true);
+        else toast(app + " didn't move, and runs here as before: Jobs has why.", true);
+      };
+      setTimeout(wait, 3000);
     } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
   };
   draw();
@@ -1131,9 +1185,10 @@ const warnLine = /\bwarn(ing)?\b/i;
 // Logs are what's open: an app's, or the org server's; on Home, the org
 // server's on a machine that runs only the org, or the admin page's own.
 function logsApp() {
-  const app = openApp || (state && state.org && (orgOpen() || !state.apps.length) ? ":org" : "");
-  $("logs-whose").textContent = openApp ? openApp : app === ":org" ? "The org server" : "The admin page";
-  $("logs-whose").title = openApp ? openApp + "'s lead and service" : app === ":org" ? "hi-org.service" : "Open an app, or the org, for its logs";
+  const here = openApp && !movedOpen() ? openApp : "";
+  const app = here || (state && state.org && (orgOpen() || !state.apps.length) ? ":org" : "");
+  $("logs-whose").textContent = here ? here : app === ":org" ? "The org server" : "The admin page";
+  $("logs-whose").title = here ? here + "'s lead and service" : app === ":org" ? "hi-org.service" : "Open an app, or the org, for its logs";
   return app;
 }
 $("logs-errors").addEventListener("click", () => {
