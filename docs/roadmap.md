@@ -2736,6 +2736,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.125 — The Apps panel's New app button says + New app
+
+- [x] The button beside Find an app is the home page's own + New app
+  button, words and all, as tall as the search box, in place of a bare
+  +. Its title still says what it does.
+
 ### v2.6.124 — The New app button has a blue outline
 
 - [x] The + beside Find an app is outlined in the blue a field takes
