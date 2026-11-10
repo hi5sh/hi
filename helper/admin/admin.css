@@ -257,3 +257,5 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .key-line { display: flex; gap: 6px; align-items: flex-start; }
 .key-line code { flex: 1; user-select: all; }
 #machines-view h3 { font-size: 13px; font-weight: 600; margin: 14px 0 6px; color: var(--text); }
+.machine-fix { padding: 2px 0 10px 14px; color: var(--muted, inherit); }
+.machine-fix p { margin: 0 0 6px; }

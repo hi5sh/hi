@@ -29,6 +29,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -85,14 +86,31 @@ func appMovedError(name, folder string) error {
 	return nil
 }
 
-// appMoveThisMachine is this machine's name, as other machines reach it.
-func appMoveThisMachine() string {
-	name, _ := os.Hostname()
-	if name == "" {
-		name = "this machine"
-	}
-	return name
+// appMoveThisMachine is this machine's name as other machines reach it:
+// its name on NetBird (ws1.corp.example), or its hostname without one.
+// Tests replace it.
+var appMoveThisMachine = func() string {
+	appMoveNameOnce.Do(func() {
+		appMoveName, _ = os.Hostname()
+		if out, err := exec.Command("netbird", "status", "--json").Output(); err == nil {
+			var status struct {
+				FQDN string `json:"fqdn"`
+			}
+			if json.Unmarshal(out, &status) == nil && strings.Contains(status.FQDN, ".") {
+				appMoveName = strings.TrimSuffix(status.FQDN, ".")
+			}
+		}
+		if appMoveName == "" {
+			appMoveName = "this machine"
+		}
+	})
+	return appMoveName
 }
+
+var (
+	appMoveNameOnce sync.Once
+	appMoveName     string
+)
 
 // appEnsureMoveKey makes this machine's key for moving apps once, and
 // returns its public half.

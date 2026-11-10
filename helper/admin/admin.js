@@ -892,9 +892,10 @@ function renderMachines() {
   for (const m of machines.to) {
     to.append(el("li", {}, el("span", { class: "what" }, el("span", { class: "dot " + (m.takes ? "idle" : "bad"), "aria-hidden": "true" }), el("strong", {}, m.name), machineState(m)),
       el("span", { class: "actions" }, el("button", { class: "small", onclick: () => forgetMachine(m.name) }, "Remove"))));
+    if (!m.takes) to.append(el("li", { class: "plain" }, machineFix(m)));
   }
   if (!machines.to.length) to.append(el("li", { class: "empty" }, "None yet: add one here, or in an app's Move…."));
-  const addTo = el("form", { class: "signin-row", autocomplete: "off" }, input({ placeholder: "A machine with hi, such as ws2.corp.example", "aria-label": "A machine to move apps to", required: true }), el("button", { type: "submit" }, "Add"));
+  const addTo = el("form", { class: "signin-row", autocomplete: "off" }, input({ placeholder: "Its name on NetBird, as this one's is " + machines.machine, title: "The other machine's name on NetBird, as this one's is " + machines.machine, "aria-label": "A machine to move apps to", required: true }), el("button", { type: "submit" }, "Add"));
   addTo.addEventListener("submit", async (event) => {
     event.preventDefault();
     try { await api("/api/machines", { action: "to", name: addTo.querySelector("input").value.trim() }); addTo.reset(); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
@@ -922,6 +923,21 @@ function renderMachines() {
   box.replaceChildren(...parts);
 }
 
+// machineFix says what to do about a machine that doesn't take apps from
+// this one: the line to paste there, or why it may not answer.
+function machineFix(m) {
+  const again = el("button", { class: "small", onclick: () => refreshMachines() }, "Check again");
+  if ((m.problem || "").includes("doesn't take apps")) {
+    return el("div", { class: "machine-fix small" },
+      el("p", {}, "On " + m.name + "'s admin page, in Machine, Other machines, paste this under Takes apps from (or run it there as the account that runs hi):"),
+      el("div", { class: "key-line" }, el("code", {}, machines.line), el("button", { class: "small", onclick: () => copyText(machines.line) }, "Copy")),
+      el("div", { class: "data-actions" }, again));
+  }
+  return el("div", { class: "machine-fix small" },
+    el("p", {}, "Check its name: it's the machine's name on NetBird, as this one's is " + machines.machine + ". The machine needs to be on, on NetBird, and to have hi."),
+    el("div", { class: "data-actions" }, again));
+}
+
 async function forgetMachine(name) {
   try { await api("/api/machines", { action: "forget", name }); await refreshMachines(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
 }
@@ -945,6 +961,7 @@ async function moveApp(app) {
   const list = $("move-list");
   const draw = () => {
     list.replaceChildren();
+    if (machines) $("move-add-name").placeholder = "Another machine: its name on NetBird, as this one's is " + machines.machine;
     const known = machines ? machines.to : [];
     for (const m of known) {
       const li = el("li", { role: "option", "aria-selected": String(m.name === picked), tabindex: "0" },

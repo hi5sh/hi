@@ -2736,6 +2736,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.113 — Machines by their names on NetBird
+
+- [x] A machine names itself to others by its name on NetBird, not its
+  hostname: in the line another machine pastes to take apps from it, and
+  in the command a move prints to bring an app back. A machine's
+  hostname and its NetBird name may differ.
+- [x] A machine in Other machines that doesn't take apps from this one
+  says what to do under it: the line to paste on that machine's admin
+  page, with Copy and Check again; one that doesn't answer, to check its
+  name. The fields to add one say to give its name on NetBird, with this
+  machine's own as the example.
+
 ### v2.6.112 — Moving an app from the admin page
 
 - [x] **Move…** among an app's Actions on the admin page: the machines
