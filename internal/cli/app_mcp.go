@@ -361,7 +361,10 @@ func (b *appBroker) leadMCP(ctx context.Context, slot string, message appMCPMess
 		return answer(map[string]any{})
 	case "tools/list":
 		tools, err := b.appMCPTools(ctx, slot)
-		if errors.Is(err, errTeamNoMCP) {
+		// No MCP, or not yet: no tools. The bridge asks every minute and
+		// tells Hermes when they come, so the lead's Hermes connects now
+		// rather than waiting on an app that may take hours.
+		if errors.Is(err, errTeamNoMCP) || appMCPAppStarting("", nil, err) {
 			return answer(map[string]any{"tools": []any{}})
 		}
 		if err != nil {
@@ -522,7 +525,11 @@ func runTeamMCPBridge(args []string, stdin io.Reader, stdout io.Writer, client *
 		go func() {
 			defer wait.Done()
 			answer, err := post(ctx, message)
-			for start := time.Now(); appMCPAppStarting(message.Method, answer, err) && time.Since(start) < appMCPStartWait; {
+			// A call waits a little for an app that is starting, as after a
+			// release. initialize and tools/list don't: Hermes gives up on a
+			// server that takes a minute to connect, and the tools come
+			// later (notifications/tools/list_changed).
+			for start := time.Now(); message.Method == "tools/call" && appMCPAppStarting(message.Method, answer, err) && time.Since(start) < appMCPStartWait; {
 				select {
 				case <-ctx.Done():
 					return

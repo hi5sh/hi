@@ -262,22 +262,21 @@ func TestTeamMCPBridgeWaitsForTheApp(t *testing.T) {
 	}
 	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}` + "\n"
 
-	// An app that doesn't come up is reported once the wait is over.
-	appMCPStartWait = 50 * time.Millisecond
-	if text := bridge(initialize); !strings.Contains(text, "isn't answering now") || !strings.Contains(text, "503") {
-		t.Fatalf("an app that doesn't start: %s", text)
-	}
-	// One that does is waited for.
+	// Hermes gives up on a server that takes a minute to connect: while the
+	// app starts, initialize answers at once and says so, and tools/list
+	// has no tools yet (the bridge says when they come).
 	appMCPStartWait = time.Second
-	starting(3)
-	if text := bridge(initialize); !strings.Contains(text, `"id":1,"result":{`) || strings.Contains(text, "isn't answering") {
-		t.Fatalf("while the app started: %s", text)
-	}
-	// tools/list too: the broker answers it with the app's 503 as an error.
-	starting(2)
+	started := time.Now()
 	list := initialize + `{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n" + `{"jsonrpc":"2.0","id":2,"method":"tools/list"}` + "\n"
-	if text := bridge(list); !strings.Contains(text, `"id":2,"result":{"tools":[`) {
-		t.Fatalf("tools/list: %s", text)
+	text := bridge(list)
+	if !strings.Contains(text, "isn't answering now") || !strings.Contains(text, `"id":2,"result":{"tools":[]}`) || time.Since(started) > 500*time.Millisecond {
+		t.Fatalf("while the app starts (%s): %s", time.Since(started), text)
+	}
+	// A call waits for an app that comes up, as after a release.
+	starting(3)
+	call := `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"pay_supplier","arguments":{}}}` + "\n"
+	if text := bridge(call); !strings.Contains(text, `"id":3,"result":{`) || strings.Contains(text, "503") {
+		t.Fatalf("a call while the app started: %s", text)
 	}
 }
 

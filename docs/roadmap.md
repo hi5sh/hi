@@ -2736,6 +2736,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.109 — The lead connects to an app that says it is starting
+
+- [x] While an app answers its MCP path with "starting" (503), the lead's
+  MCP bridge answers `initialize` and `tools/list` at once, with no tools
+  yet, and says when they come; only a `tools/call` waits for the app.
+  Hermes gave up on a server that took a minute to connect, so an app
+  whose unknown paths kept answering 503 after it had started cost the
+  lead its app tools every day.
+- [x] hi's health check counts an answer of 5xx as no answer: an app that
+  says "starting" for longer than five minutes serves nobody, and opens
+  an incident as a silent one does.
+- [x] The tests pass without herdr or NetBird on the machine, as on CI,
+  and the helper's link test checks handlers and the link's attributes.
+
 ### v2.6.107 — Boxes, addresses, agents, and skills, put right
 
 - [x] `hi box rm` keeps a worktree when `git status` fails there, such as

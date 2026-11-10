@@ -2,6 +2,9 @@ package cli
 
 import (
 	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -123,5 +126,17 @@ func TestTeamAppSilentIncident(t *testing.T) {
 	b.checkAnswers(now.Add(9 * time.Minute))
 	if len(loadTeamIncidents("payments")) != 1 {
 		t.Fatal("old silence opened an incident at once")
+	}
+}
+
+// An app that only says 503, starting, serves nobody: it doesn't answer.
+func TestAppBoxAnswersNotWithAServerError(t *testing.T) {
+	for status, want := range map[int]bool{200: true, 302: true, 404: true, 503: false, 500: false} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) }))
+		port := server.Listener.Addr().(*net.TCPAddr).Port
+		if got := appBoxAnswers(port); got != want {
+			t.Errorf("%d: answers %v", status, got)
+		}
+		server.Close()
 	}
 }

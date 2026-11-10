@@ -23,7 +23,9 @@ const (
 	appBoxSilentAfter = 5 * time.Minute
 )
 
-// appBoxAnswers says the app on hostPort answers at all.
+// appBoxAnswers says the app on hostPort answers, with anything but a
+// server error: an app that says 503, "starting", for longer than
+// appBoxSilentAfter serves nobody, as one that says nothing doesn't.
 func appBoxAnswers(hostPort int) bool {
 	client := &http.Client{Timeout: appBoxAnswerTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	response, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/", hostPort))
@@ -31,7 +33,7 @@ func appBoxAnswers(hostPort int) bool {
 		return false
 	}
 	response.Body.Close()
-	return true
+	return response.StatusCode < 500
 }
 
 // checkAnswers is one look at whether production's app answers.
@@ -70,7 +72,7 @@ func (b *appBroker) checkAnswers(now time.Time) error {
 
 	runs := b.running(state.Container)
 	minutes := int(now.Sub(since).Round(time.Minute) / time.Minute)
-	title := fmt.Sprintf("Production's app hasn't answered for %d minutes", minutes)
+	title := fmt.Sprintf("Production's app hasn't answered for %d minutes, or only with an error", minutes)
 	var running []string
 	for _, job := range readTeamJobs(b.team, appSlotProduction) {
 		if job.State == "running" {
@@ -80,8 +82,8 @@ func (b *appBroker) checkAnswers(now time.Time) error {
 	if len(running) > 0 {
 		title += "; it is running " + strings.Join(running, ", ")
 	}
-	detail := fmt.Sprintf("hi asks / on the app's port (%d) every minute, and nothing has answered within %s since %s UTC. ",
-		state.HostPort, appBoxAnswerTimeout, since.Format("15:04"))
+	detail := fmt.Sprintf("hi asks / on the app's port (%d) every minute, and since %s UTC nothing has answered within %s but a server error (5xx), such as 503 while the app says it is starting. ",
+		state.HostPort, since.Format("15:04"), appBoxAnswerTimeout)
 	alert := title + "."
 	if runs {
 		detail += "Its box still runs, so hi doesn't start it again. The app may be blocked by its own work, such as a job on the thread that serves requests; a restart starts the same work again, so look at what the app does before restarting it."
