@@ -54,6 +54,8 @@ type adminOrgSummary struct {
 	Service     string  `json:"service"`   // user, system, or none
 	Restart     string  `json:"restart"`   // how to restart it on the machine
 	Incidents   int     `json:"incidents"` // open: what its check warns of
+	// IncidentsOpened is when each open one opened, as on an app.
+	IncidentsOpened []time.Time `json:"incidents_opened"`
 }
 
 func adminOrgService() string {
@@ -85,6 +87,7 @@ func adminOrgSummaryOf() *adminOrgSummary {
 	for _, incident := range adminOrgIncidents(time.Now()) {
 		if incident.Status == "open" {
 			summary.Incidents++
+			summary.IncidentsOpened = append(summary.IncidentsOpened, incident.Opened)
 		}
 	}
 	summary.Running, summary.RatePerHour = len(live.Running), live.RatePerHour

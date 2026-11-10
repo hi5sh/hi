@@ -320,7 +320,8 @@ function renderApps() {
       el("span", { class: "stask-title" }, app.name),
       el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state));
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
-    if (app.incidents) li.append(el("span", { class: "count", title: app.incidents + " open incident" + (app.incidents === 1 ? "" : "s") }, app.incidents));
+    const unseen = unseenIncidents(app.name, app.incidents_opened);
+    if (unseen) li.append(el("span", { class: "count", title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
     if (app.name === openApp) li.dataset.app = app.name;
     list.append(li);
   }
@@ -333,8 +334,8 @@ function renderApps() {
   placeOpenBox();
   // Home's number: apps that aren't up, and the org's requests waiting.
   badge("apps-count", state.apps.filter((a) => a.state !== "up").length + (o ? o.waiting + (o.up ? 0 : 1) : 0));
-  const orgIncidents = o ? o.incidents || 0 : 0;
-  badge("incidents-count", orgOpen() ? orgIncidents : state.apps.reduce((n, a) => n + (!openApp || a.name === openApp ? a.incidents || 0 : 0), openApp ? 0 : orgIncidents));
+  const orgIncidents = o ? unseenIncidents(":org", o.incidents_opened) : 0;
+  badge("incidents-count", orgOpen() ? orgIncidents : state.apps.reduce((n, a) => n + (!openApp || a.name === openApp ? unseenIncidents(a.name, a.incidents_opened) : 0), openApp ? 0 : orgIncidents));
 }
 $("apps-search").addEventListener("input", renderApps);
 
@@ -1233,6 +1234,28 @@ function renderLogsDot() {
 }
 function clearLogsDot() { logs.news = ""; renderLogsDot(); }
 
+// Incidents seen: for each app (":org" for the org), when the newest open
+// incident Incidents has shown opened. The red counts are the open ones
+// opened since; this browser's own, as Jobs' dot is.
+function incidentsSeen() {
+  try { return JSON.parse(localStorage.getItem("hi-admin-incidents-seen") || "{}") || {}; } catch (e) { return {}; }
+}
+function unseenIncidents(whose, opened) {
+  const seen = incidentsSeen()[whose] || 0;
+  return (opened || []).filter((t) => new Date(t).getTime() > seen).length;
+}
+function markIncidentsSeen(list) {
+  const seen = incidentsSeen();
+  let changed = false;
+  for (const incident of list) {
+    const t = new Date(incident.opened).getTime();
+    if (incident.status !== "closed" && t > (seen[incident.app] || 0)) { seen[incident.app] = t; changed = true; }
+  }
+  if (!changed) return;
+  try { localStorage.setItem("hi-admin-incidents-seen", JSON.stringify(seen)); } catch (e) { /* private mode */ }
+  if (state) renderApps();
+}
+
 async function refreshIncidents() {
   try {
     const all = await api("/api/incidents");
@@ -1250,6 +1273,7 @@ async function refreshIncidents() {
         el("div", { class: "clamp3", title: incident.title }, incident.title),
         el("div", { class: "muted small clamp2", title: incident.last || "" }, incident.where + (incident.last ? " · " + incident.last : ""))));
     }
+    if (viewShown("incidents")) markIncidentsSeen(list);
   } catch (e) { /* the next round */ }
 }
 

@@ -2736,6 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.126 — An app's red count goes once its incidents are seen
+
+- [x] The red count beside an app in Apps, and on the Incidents tab,
+  is its open incidents not yet seen: once Incidents has shown them,
+  the count goes, and comes back only for one that opens after. The
+  page keeps, per app and for the org, when the newest one it showed
+  opened, in this browser, as Jobs' dot does; the state now carries
+  when each open incident opened (`incidents_opened`). The org's
+  overview still counts every open incident.
+
 ### v2.6.125 — The Apps panel's New app button says + New app
 
 - [x] The button beside Find an app is the home page's own + New app

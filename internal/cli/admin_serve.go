@@ -766,14 +766,17 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 
 // adminAppView is an app as Apps and Home show it.
 type adminAppView struct {
-	Name       string         `json:"name"`
-	State      string         `json:"state"` // up, down, frozen, paused, or what systemd says
-	Purpose    string         `json:"purpose,omitempty"`
-	Production int            `json:"production"`
-	Incidents  int            `json:"incidents"`
-	Addresses  []adminAddress `json:"addresses"`
-	Joined     bool           `json:"joined"` // its peer is on NetBird, which every address goes through
-	Error      string         `json:"error,omitempty"`
+	Name       string `json:"name"`
+	State      string `json:"state"` // up, down, frozen, paused, or what systemd says
+	Purpose    string `json:"purpose,omitempty"`
+	Production int    `json:"production"`
+	Incidents  int    `json:"incidents"`
+	// IncidentsOpened is when each open incident opened: the page counts
+	// those opened since the admin last looked at Incidents.
+	IncidentsOpened []time.Time    `json:"incidents_opened"`
+	Addresses       []adminAddress `json:"addresses"`
+	Joined          bool           `json:"joined"` // its peer is on NetBird, which every address goes through
+	Error           string         `json:"error,omitempty"`
 }
 
 type adminAddress struct {
@@ -809,6 +812,7 @@ func adminAppOf(name string) adminAppView {
 	for _, incident := range loadTeamIncidents(name) {
 		if incident.Status != "closed" {
 			view.Incidents++
+			view.IncidentsOpened = append(view.IncidentsOpened, incident.Opened)
 		}
 	}
 	for _, slot := range []string{appSlotProduction, appSlotPreview} {
