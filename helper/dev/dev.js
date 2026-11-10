@@ -2157,11 +2157,13 @@
   function sideBeside() { return chat.view === "chat" || chat.view === "terminal" || chat.view === "file"; }
   function paneShown(which) { return !$(paneIds[which].panel).hidden && !document.hidden; }
   function viewShown(view) { var which = paneOf(view); return paneShown(which) && panes[which].view === view; }
+  // Both stay on Start something new: the right one has Stage, Release,
+  // Logs, and the rest, which need no conversation. Until hi 2.6.118 it
+  // hid there, from when its only views were the workspace's.
   function renderSide() {
-    var starting = chat.view === "chat" && !$("chat-start").hidden;
     ["left", "right"].forEach(function (which) {
       var pane = panes[which], ids = paneIds[which], panel = $(ids.panel);
-      var beside = which === "left" || (!starting && sideBeside());
+      var beside = which === "left" || sideBeside();
       panel.hidden = !pane.open || !beside;
       panel.style.setProperty("--side-width", pane.width + "px");
       $(ids.toggle).setAttribute("aria-pressed", String(pane.open));

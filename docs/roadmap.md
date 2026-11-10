@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.118 — The dev page's right panel stays beside Start something new
+
+- [x] The dev page's right panel (Rewind, Source control, Logs, Stage,
+  Release, Data, System) stays beside Start something new, with its
+  button, as beside a conversation. It disappeared a second after
+  opening Chat when there was no conversation yet, and its button went
+  with it: a rule from when its only views were the workspace's.
+
 ### v2.6.117 — Stage starts again when its box is gone
 
 - [x] An app's service starts Stage again in a new box, at the same
