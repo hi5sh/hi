@@ -193,13 +193,13 @@
   }
   /* Presentation mode: the π in the footer (or #present in the address) shows
      the hero and each section as a slide of its own. The arrow keys, Page Up
-     and Page Down, and the space bar move between them, Home and End jump to
-     the first and the last, and Escape leaves. A slide too tall for the screen
-     is zoomed out to fit. */
+     and Page Down, the space bar, and a swipe move between them, Home and End
+     jump to the first and the last, and Escape leaves. A slide too tall for
+     the screen is zoomed out to fit. */
   .pi { margin-left: 16px; padding: 0 4px; border: 0; background: none; color: var(--dim); opacity: .35; font: inherit; cursor: pointer; }
   .pi:hover, .pi:focus-visible { opacity: 1; color: var(--text); }
   .deck-bar { display: none; }
-  body.present { overflow: hidden; }
+  body.present { overflow: hidden; overscroll-behavior: none; }
   body.present header.top, body.present footer { display: none; }
   body.present main > .slide { display: none; }
   body.present main > .slide.on { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding-block: 48px; }
@@ -481,6 +481,18 @@
       else return;
       e.preventDefault();
     });
+    // A swipe on a touch screen: left or up for the next slide, right or down
+    // for the one before.
+    let touch = null;
+    document.addEventListener("touchstart", e => { touch = on() && e.touches.length === 1 ? e.touches[0] : null; }, { passive: true });
+    document.addEventListener("touchend", e => {
+      if (!touch) return;
+      const t = e.changedTouches[0], dx = t.clientX - touch.clientX, dy = t.clientY - touch.clientY;
+      touch = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 50) return;
+      show(at + ((Math.abs(dx) > Math.abs(dy) ? dx : dy) < 0 ? 1 : -1));
+    }, { passive: true });
+    document.addEventListener("touchmove", e => { if (on() && e.touches.length === 1) e.preventDefault(); }, { passive: false });
     addEventListener("resize", () => on() && fit());
     document.fonts.ready.then(() => on() && fit());
     const fromHash = () => {
