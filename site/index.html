@@ -191,6 +191,24 @@
     .hero-install { flex-wrap: nowrap; font-size: 12.5px; gap: 8px; padding-left: 12px; } .hero-install code { flex-basis: auto; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
     section { padding-top: 72px; }
   }
+  /* Presentation mode: the π in the footer (or #present in the address) shows
+     the hero and each section as a slide of its own. The arrow keys, Page Up
+     and Page Down, and the space bar move between them, Home and End jump to
+     the first and the last, and Escape leaves. A slide too tall for the screen
+     is zoomed out to fit. */
+  .pi { margin-left: 16px; padding: 0 4px; border: 0; background: none; color: var(--dim); opacity: .35; font: inherit; cursor: pointer; }
+  .pi:hover, .pi:focus-visible { opacity: 1; color: var(--text); }
+  .deck-bar { display: none; }
+  body.present { overflow: hidden; }
+  body.present header.top, body.present footer { display: none; }
+  body.present main > .slide { display: none; }
+  body.present main > .slide.on { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding-block: 48px; }
+  body.present .banner { display: none; }
+  body.present.on-hero .banner { display: block; position: fixed; height: 100vh; }
+  body.present .hero.on { padding-block: 0 72px; justify-content: flex-end; align-items: center; }
+  body.present .deck-bar { display: flex; position: fixed; right: 18px; bottom: 14px; z-index: 20; align-items: center; gap: 4px; font: 12px var(--mono); color: var(--dim); }
+  .deck-bar button { padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
+  .deck-bar button:hover { color: var(--text); background: rgba(255,255,255,.06); }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
 <link rel="stylesheet" href="assets/site-menu.css">
@@ -213,7 +231,7 @@
 </header>
 
 <main id="top">
-  <div class="wrap hero">
+  <div class="wrap hero slide">
     <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
     <p class="kicker"><span class="h">HI</span> + <span class="a">AI</span> = hi5</p>
     <h1>The software factory <em>for your business.</em></h1>
@@ -225,7 +243,7 @@
     <div class="hero-install cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div>
   </div>
 
-  <section id="factory" class="wrap" aria-labelledby="factory-h">
+  <section id="factory" class="wrap slide" aria-labelledby="factory-h">
     <div class="eyebrow">What it is</div>
     <h2 id="factory-h">What is a software factory?</h2>
     <p class="sub">A software factory is an automated, repeatable production system that transforms engineering requests or ideas into verified, deployed software. hi5 is one for your company's internal apps.</p>
@@ -237,7 +255,7 @@
     </div>
   </section>
 
-  <section id="why" class="wrap" aria-labelledby="why-h">
+  <section id="why" class="wrap slide" aria-labelledby="why-h">
     <div class="eyebrow">Why inside</div>
     <h2 id="why-h">Ideas will get built. The question is where.</h2>
     <p class="sub">People already build their own tools with AI. On a public vibe-coding platform, that tool lives outside everything IT runs. hi5 gives them the same zero-friction start, inside.</p>
@@ -265,7 +283,7 @@
     </div>
   </section>
 
-  <section id="lifecycle" class="wrap" aria-labelledby="lifecycle-h">
+  <section id="lifecycle" class="wrap slide" aria-labelledby="lifecycle-h">
     <div class="eyebrow">The whole lifecycle</div>
     <h2 id="lifecycle-h">One path, from idea to mission-critical.</h2>
     <p class="sub">One hi app goes the whole way, so nothing has to be rebuilt when it starts to matter.</p>
@@ -279,7 +297,7 @@
     </ol>
   </section>
 
-  <section id="templates" class="wrap" aria-labelledby="templates-h">
+  <section id="templates" class="wrap slide" aria-labelledby="templates-h">
     <div class="eyebrow">Templates</div>
     <h2 id="templates-h">Your developers set the rules. Everyone builds within them.</h2>
     <p class="sub">A template is the mould every project is pressed from. Your developers keep them in a private repository, and your org server hands them to every machine. Prefer MongoDB, or Postgres? That's a line in how projects start.</p>
@@ -310,7 +328,7 @@
     <div class="more"><a href="/init/">How templates work →</a><a href="/org/">hi org →</a></div>
   </section>
 
-  <section id="team" class="wrap" aria-labelledby="team-h">
+  <section id="team" class="wrap slide" aria-labelledby="team-h">
     <div class="eyebrow">Fits your organisation</div>
     <h2 id="team-h">Every role gets what it needs. Nothing more.</h2>
     <p class="sub">A hi app lives in one Slack channel. People bring the ideas, developers build with coding agents, and IT, DevOps, and security keep the controls they already have.</p>
@@ -334,7 +352,7 @@
     </div>
   </section>
 
-  <section id="components" class="wrap" aria-labelledby="components-h">
+  <section id="components" class="wrap slide" aria-labelledby="components-h">
     <div class="eyebrow">Components</div>
     <h2 id="components-h">Built from components. Each one works alone.</h2>
     <p class="sub">The factory is put together from standard components: a box, an agent, compute, a server, the network. A hi app uses them all, and each one is also a command you can use on its own, in your terminal.</p>
@@ -368,7 +386,7 @@
     </div>
   </section>
 
-  <section id="community" class="wrap" aria-labelledby="community-h">
+  <section id="community" class="wrap slide" aria-labelledby="community-h">
     <div class="eyebrow">Open source</div>
     <h2 id="community-h">Built in the open. Built together.</h2>
     <p class="sub">hi5 is open source under the Apache License 2.0. The roadmap, the specs, and the guide are public, and the project is built with the same agents it runs.</p>
@@ -390,8 +408,9 @@
 
 <footer><div class="wrap">
   <span>hi5 · the software factory for businesses · Apache-2.0</span>
-  <span><a href="https://github.com/hi5sh/hi">Source</a><a href="https://github.com/hi5sh/hi/releases">Releases</a><a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a><a href="/install.sh">install.sh</a><a href="/llms.txt">llms.txt</a></span>
+  <span><a href="https://github.com/hi5sh/hi">Source</a><a href="https://github.com/hi5sh/hi/releases">Releases</a><a href="https://github.com/hi5sh/hi/blob/main/docs/roadmap.md">Roadmap</a><a href="/install.sh">install.sh</a><a href="/llms.txt">llms.txt</a><button class="pi" type="button" id="present" title="Presentation mode" aria-label="Presentation mode">π</button></span>
 </div></footer>
+<div class="deck-bar" aria-label="Slides"><button type="button" data-go="-1" aria-label="Previous slide">←</button><span id="deck-count" aria-live="polite"></span><button type="button" data-go="1" aria-label="Next slide">→</button><button type="button" id="deck-exit" aria-label="Leave presentation mode">✕</button></div>
 
 
 <script>
@@ -417,6 +436,58 @@
     .then(r => r.ok ? r.json() : null)
     .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
     .catch(() => {});
+  // Presentation mode: see the styles. #present in the address opens it, so a
+  // reload keeps the slide.
+  (() => {
+    const slides = [...document.querySelectorAll("main > .slide")];
+    const count = document.getElementById("deck-count");
+    let at = 0;
+    const fit = () => {
+      const el = slides[at];
+      el.style.zoom = ""; el.style.minHeight = "";
+      const z = Math.min(1, innerHeight / el.offsetHeight);
+      if (z < 1) { el.style.zoom = z; el.style.minHeight = innerHeight / z + "px"; }
+    };
+    const show = n => {
+      at = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((el, i) => { el.classList.toggle("on", i === at); if (i !== at) { el.style.zoom = ""; el.style.minHeight = ""; } });
+      document.body.classList.toggle("on-hero", at === 0);
+      count.textContent = at + 1 + " / " + slides.length;
+      history.replaceState(null, "", "#present-" + (at + 1));
+      fit();
+    };
+    const open = n => { document.body.classList.add("present"); scrollTo(0, 0); show(n); };
+    const close = () => {
+      const el = slides[at];
+      document.body.classList.remove("present", "on-hero");
+      slides.forEach(s => { s.classList.remove("on"); s.style.zoom = ""; s.style.minHeight = ""; });
+      history.replaceState(null, "", location.pathname + location.search);
+      if (at) el.scrollIntoView({ behavior: "instant" });
+    };
+    const on = () => document.body.classList.contains("present");
+    document.getElementById("present").addEventListener("click", () => open(0));
+    document.getElementById("deck-exit").addEventListener("click", close);
+    document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => show(at + Number(b.dataset.go))));
+    document.querySelector(".logo").addEventListener("click", e => { if (on()) { e.preventDefault(); show(0); } });
+    document.addEventListener("keydown", e => {
+      if (!on() || e.altKey || e.ctrlKey || e.metaKey || e.target.closest("input, textarea, [contenteditable]")) return;
+      const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, " ": 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[e.key];
+      if (step) show(at + (e.shiftKey && e.key === " " ? -1 : step));
+      else if (e.key === "Home") show(0);
+      else if (e.key === "End") show(slides.length - 1);
+      else if (e.key === "Escape") close();
+      else return;
+      e.preventDefault();
+    });
+    addEventListener("resize", () => on() && fit());
+    document.fonts.ready.then(() => on() && fit());
+    const fromHash = () => {
+      const m = location.hash.match(/^#present(?:-(\d+))?$/);
+      if (m) open((Number(m[1]) || 1) - 1);
+    };
+    addEventListener("hashchange", fromHash);
+    fromHash();
+  })();
 </script>
 </body>
 </html>
