@@ -88,8 +88,10 @@ a.button-like:hover { background: var(--secondary-hover); text-decoration: none;
 
 /* The panels' lists. */
 #apps-search { flex: 1; min-width: 0; }
-/* New app: a blue square as tall as the search beside it, like Next, with a bold +. */
-#apps-new { align-self: stretch; height: auto; width: auto; aspect-ratio: 1; font-size: 16px; font-weight: 700; }
+/* New app: a square as tall as the search beside it, outlined in the
+   blue a field takes when it has focus, with a bold +. */
+#apps-new { align-self: stretch; height: auto; width: auto; aspect-ratio: 1; font-size: 16px; font-weight: 700; border: 1px solid var(--focus); background: var(--input); color: var(--text); }
+#apps-new:hover { background: var(--hover); }
 .clamp2, .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp2 { -webkit-line-clamp: 2; line-clamp: 2; }
 .clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
