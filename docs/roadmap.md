@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.110 — Open, next to the app
+
+- [x] The admin page's Open ▾ menu (production, Stage, the dev page) sits
+  on the open app's row in the apps list, where the app was picked, not
+  at the far right of the bar. With the list not shown (another view, the
+  panel closed, or a search that leaves the app out) it is in the bar, as
+  before. In the list it opens over the panel's edge, which would clip it.
+
 ### v2.6.109 — The lead connects to an app that says it is starting
 
 - [x] While an app answers its MCP path with "starting" (503), the lead's

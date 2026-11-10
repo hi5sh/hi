@@ -127,6 +127,7 @@ function renderPanes() {
     }
     for (const view of paneViews[which]) $("side-" + view).hidden = view !== p.view;
   }
+  placeOpenBox();
 }
 
 function viewShown(view) {
@@ -293,6 +294,8 @@ function renderBar() {
 function renderApps() {
   const query = $("apps-search").value.trim().toLowerCase();
   const list = $("apps-list");
+  // The Open menu may sit on a row: out first, or it goes with the row.
+  if (list.contains($("open-box"))) $("right-toggle").before($("open-box"));
   list.replaceChildren();
   const apps = state.apps.filter((a) => !query || a.name.includes(query) || (a.purpose || "").toLowerCase().includes(query));
   // The org first, on a machine that runs it: opened as an app is.
@@ -312,8 +315,10 @@ function renderApps() {
       el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state));
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
     if (app.incidents) li.append(el("span", { class: "count", title: app.incidents + " open incident" + (app.incidents === 1 ? "" : "s") }, app.incidents));
+    if (app.name === openApp) li.dataset.app = app.name;
     list.append(li);
   }
+  placeOpenBox();
   // Home's number: apps that aren't up, and the org's requests waiting.
   badge("apps-count", state.apps.filter((a) => a.state !== "up").length + (o ? o.waiting + (o.up ? 0 : 1) : 0));
   const orgIncidents = o ? o.incidents || 0 : 0;
@@ -573,7 +578,34 @@ function renderOverview() {
   renderOpenMenu();
 }
 
-// The Open ▾ menu: production, Stage, and the dev page.
+// The Open ▾ menu: production, Stage, and the dev page. It sits on the open
+// app's row in the apps list, next to where the app was picked; with the
+// list not shown (another view, the panel closed, or a search that leaves
+// the app out), in the bar, where it was before.
+function placeOpenBox() {
+  const openBox = $("open-box"), openBoxHome = $("right-toggle");
+  const row = viewShown("apps") ? $("apps-list").querySelector("li[data-app]") : null;
+  if (row) {
+    if (openBox.parentNode !== row) row.append(openBox);
+  } else if (openBox.nextSibling !== openBoxHome) {
+    openBoxHome.before(openBox);
+  }
+  openBox.classList.toggle("in-list", Boolean(row));
+  if (!$("open-menu").hidden) placeOpenMenu();
+}
+// In the list, the menu opens fixed under its button: the panel would clip it.
+function placeOpenMenu() {
+  const menu = $("open-menu");
+  if (!$("open-box").classList.contains("in-list")) {
+    menu.style.position = menu.style.top = menu.style.left = menu.style.right = "";
+    return;
+  }
+  const at = $("open-button").getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.right = "auto";
+  menu.style.top = at.bottom + 4 + "px";
+  menu.style.left = Math.max(8, Math.min(at.left, window.innerWidth - menu.offsetWidth - 8)) + "px";
+}
 function renderOpenMenu() {
   const menu = $("open-menu");
   menu.replaceChildren();
@@ -588,7 +620,10 @@ $("open-button").addEventListener("click", (event) => {
   const menu = $("open-menu");
   menu.hidden = !menu.hidden;
   $("open-button").setAttribute("aria-expanded", String(!menu.hidden));
+  if (!menu.hidden) placeOpenMenu();
 });
+$("apps-list").addEventListener("scroll", closeMenu);
+window.addEventListener("resize", closeMenu);
 document.addEventListener("click", (event) => { if (!$("open-box").contains(event.target)) closeMenu(); });
 
 // openDevPage opens the dev page as the admin is in the app. The window
