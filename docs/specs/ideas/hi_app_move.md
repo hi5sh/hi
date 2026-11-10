@@ -2,7 +2,9 @@
 
 Status: Draft (2026-11-10), for review. An exploration first: what high
 availability can mean for a hi app, what it can't, and the order to build
-it in.
+it in. Release 1, moving an app, was asked for the same day and built as
+v2.6.111 (see [As built](#as-built-v26111)); releases 2 and 3 are still a
+draft.
 
 Dependencies: [hi_app.md](../approved/hi_app.md) (the app is a folder; its
 service, broker, and boxes), [hi_app_internal.md](../approved/hi_app_internal.md)
@@ -482,3 +484,25 @@ as good work, within minutes. Going back in time is what snapshots are for.
 6. **Stage and the dev box in the copy.** The copy has everything, the dev
    box's home too, where owners' unmerged work is. Is that wanted, or only
    production and the lead?
+
+## As built (v2.6.111)
+
+Release 1, with these differences from the draft:
+
+- **No admin page yet.** **Move…** and **Move all to…** come later; the
+  command line has it all.
+- **The whole folder goes,** `run/` too, but for sockets and PostgreSQL's
+  `postmaster.pid`: what's in it (people's link keys, subscriptions,
+  Stage's record) is the app's, and `hi app up` copes with boxes that
+  aren't there.
+- **The receiving machine says where snapshots go** when the move starts,
+  rather than the sender assuming the same path.
+- **Without a domain there,** the app's https names stop and it stays on
+  http at its NetBird name: the app's service already falls back so, and
+  leaves the DNS records alone, so they work again on a machine with the
+  domain.
+- **Checked on two machines (2026-11-10):** an app of 408 MB moved in 40
+  seconds, stopped for 24. Its peer came up there with the same NetBird
+  address and name (Verify 1, for a planned move), Hermes and Hindsight
+  started from the copied folder at the same path (part of Verify 3), and
+  the lead was back on Slack's Socket Mode 16 seconds after the start.

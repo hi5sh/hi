@@ -462,6 +462,12 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		})
 	case "down":
 		err = withTeamName(rest, func(name string) error { return appDown(name, stdout) })
+	case "move":
+		err = appMoveCommand(rest, stdin, stdout)
+	case "machines":
+		err = appMachinesCommand(rest, stdout)
+	case "__receive":
+		return runAppReceive(rest, stdin, stdout, stderr)
 	case "rebuild":
 		err = withTeamName(rest, func(name string) error { return appRebuild(name, stdout, stderr) })
 	case "rm", "remove":
@@ -622,6 +628,15 @@ usage:
                                    without a name, pick it from a list
   hi app up <folder>               the same for an app whose folder moved or was copied here
   hi app down <name>               stop it; its folder stays
+  hi app move <name> <machine>     move it to another machine with hi: a stop of about a minute,
+                                   the same addresses, its snapshots with it
+      [--check]                    only what the machine has and lacks for it
+      [--now]                      don't wait for running tasks; their commits stay on their branches
+      [--dir <folder>]             its folder there; the same path by default
+      [--yes]                      don't ask first
+  hi app machines                  this machine's key for moving apps, and the machines it takes them from
+  hi app machines add <machine> <key>  take apps from that machine (its key runs only hi's receiving end)
+  hi app machines rm <machine>     no longer take apps from it
   hi app rebuild <name>            hi's base image again, with Ubuntu's current packages, and the
                                    app on it: what fixes the image's advisories
   hi app rm [<name>]               stop it and remove it from this machine: its service, boxes,
@@ -2251,6 +2266,9 @@ func appUp(name string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if err := appMovedError(name, appDir(name)); err != nil {
+		return err
+	}
 	if err := hermesInstalled(); err != nil {
 		return err
 	}
@@ -2328,6 +2346,9 @@ func appAdopt(folder string, stdout io.Writer) (string, error) {
 	}
 	if !appNamePattern.MatchString(config.Name) {
 		return "", fmt.Errorf("app.json has no valid name: %q", config.Name)
+	}
+	if err := appMovedError(config.Name, dir); err != nil {
+		return "", err
 	}
 	if current := appDir(config.Name); current != dir && fileExists(filepath.Join(current, appConfigFile)) {
 		return "", fmt.Errorf("another app named %s is in %s", config.Name, current)

@@ -2736,6 +2736,28 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.111 — Moving an app to another machine
+
+- [x] `hi app move <app> <machine>` moves an app to another machine with
+  hi, at the same addresses: it checks the machine (hi's version, Podman,
+  rsync, Hermes, room, the machine's keys and domain, the org) and says
+  what's missing with the command for each, copies the folder while the
+  app runs, takes a snapshot, says so in the app's channel, stops
+  everything of the app here (its NetBird peer too), copies the last
+  changes with the secrets, the peer's identity, and the snapshots, and
+  starts it there. If it doesn't come up there within 10 minutes, it
+  starts here again. The folder left here says where the app went, and
+  `hi app up` refuses it. `--check`, `--now`, `--dir`, `--yes`.
+- [x] `hi app machines` prints this machine's key for moving apps;
+  `hi app machines add <machine> <key>` on the receiving machine lets it
+  send apps there. The key runs only hi's receiving end (`hi app
+  __receive`, a forced command), never a shell.
+- [x] Live-tested: an app of 408 MB moved between two machines in 40
+  seconds, stopped for 24, with the same NetBird address and name, Stage
+  started again, and the lead back on Slack.
+  Spec: [hi_app_move.md](specs/ideas/hi_app_move.md), release 1 (releases
+  2 and 3, the standby, are still a draft).
+
 ### v2.6.110 — Open, next to the app
 
 - [x] The admin page's Open ▾ menu (production, Stage, the dev page) sits
