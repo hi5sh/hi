@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.117 — Stage starts again when its box is gone
+
+- [x] An app's service starts Stage again in a new box, at the same
+  address, when its box is gone, as it already did for production: after
+  `hi app move` brought the app from another machine (boxes don't move),
+  or when the box stopped. Stage answered "Just a moment" after a move
+  until something else, such as new settings, restarted it.
+
 ### v2.6.116 — Where an app went
 
 - [x] An app moved to another machine stays on the admin page it left,

@@ -684,13 +684,17 @@ func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 					}
 				}
 			} else if config, _ := loadTeam(b.team); (preview.Settings != appSettingsStamp(b.team) ||
+				// Its box is gone: the app moved here from another
+				// machine (hi app move), or the box stopped. Production
+				// is checked the same way (productionNeedsWork).
+				!b.running(preview.Container) ||
 				// Made internal or public since: the same version on its
 				// new kind of address, as production and the dev page do.
 				appExposeKindOutdated(config, appSlotPreview, preview.Expose) || appRelayOutdated(preview, appSlotDomain(b.team, appSlotPreview), appRelayStamp(b.team, appSlotPreview)) ||
 				appAccessOutdated(b.team, preview) || b.oldImage != nil && b.oldImage(preview.Container)) &&
 				time.Since(previewFailed) > 30*time.Minute {
-				// A new hi, new settings, or a rebuilt image: the same
-				// version in a new box, on the same address.
+				// A new hi, new settings, a rebuilt image, or no box: the
+				// same version in a new box, on the same address.
 				if _, err := b.refreshPreview(preview); err != nil {
 					fmt.Fprintf(stderr, "hi: the preview in a new box: %v\n", err)
 					previewFailed = time.Now()

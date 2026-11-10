@@ -906,6 +906,28 @@ func TestWriteTeamSkillKeepsTheLeadsEdits(t *testing.T) {
 	}
 }
 
+// A preview whose box is gone, as after hi app move brought the app here,
+// starts again in a new box, at the same address.
+func TestTeamPreviewWithoutItsBoxStartsAgain(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	os.WriteFile(filepath.Join(b.repo, "Makefile"), []byte("run:\n\t./serve\n"), 0o644)
+	exec.Command("git", "-C", b.repo, "add", "-A").Run()
+	exec.Command("git", "-C", b.repo, "commit", "-q", "-m", "Makefile").Run()
+	first, err := b.preview(appPreviewRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.removeApp(first.Container) // the box didn't come along
+	done := make(chan struct{})
+	close(done)
+	b.keepLinks(done, io.Discard)
+	second, ok := loadTeamSlot("payments", appSlotPreview)
+	if !ok || second.Container == first.Container || !b.running(second.Container) || second.URL != first.URL {
+		t.Fatalf("%+v, after %+v", second, first)
+	}
+}
+
 func TestTeamPreview(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)
