@@ -743,7 +743,7 @@ function showLink(title, text, link) {
   $("link-value").select();
 }
 $("link-copy").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("link-value").value); toast("Copied."); } catch (e) { $("link-value").select(); document.execCommand("copy"); toast("Copied."); }
+  await copyText($("link-value").value);
 });
 $("link-close").addEventListener("click", () => { $("link-value").value = ""; $("link-dialog").close(); });
 
@@ -2665,7 +2665,7 @@ function sectionSlack(s) {
   const ops = el("input", { value: s.ops_channel || "", placeholder: "C… (empty: none)", "aria-label": "The ops channel's ID", class: "small-input wide-input" });
   const bot = el("input", { type: "password", placeholder: "xoxb-… (empty keeps the one it has)", "aria-label": "Bot token" });
   const appToken = el("input", { type: "password", placeholder: "xapp-… (empty keeps the one it has)", "aria-label": "App token" });
-  const copy = el("button", { class: "small", onclick: async () => { try { await navigator.clipboard.writeText(s.manifest); toast("Copied."); } catch (e) { toast("Select it and copy it.", true); } } }, "Copy the manifest");
+  const copy = el("button", { class: "small", onclick: () => copyText(s.manifest) }, "Copy the manifest");
   return [
     el("dl", { class: "facts" }, el("dt", {}, "Bot"), el("dd", {}, "@" + s.handle + " · " + s.slash), el("dt", {}, "Channel"), el("dd", {}, s.channel), el("dt", {}, "Tokens"), el("dd", {}, (s.has_bot ? "bot token set" : "no bot token") + ", " + (s.has_app ? "app token set" : "no app token"))),
     el("h2", {}, "Ops channel"), el("p", { class: "muted small" }, "A second channel for incidents, warnings, security, keys, and access, for the people with the know-how. Invite the app there first: /invite @" + s.handle + "."),
@@ -2855,7 +2855,22 @@ function sectionNetwork(s) {
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(s.ask) }, "Copy")));
   return parts;
 }
-async function copyText(text) { try { await navigator.clipboard.writeText(text); toast("Copied."); } catch (e) { toast("Select it and copy it.", true); } }
+// copyText copies text. On plain http, where browsers offer no clipboard
+// API, it copies the old way, from a text box it selects for a moment, in
+// the open dialog when there is one (a modal dialog makes the rest inert).
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try { await navigator.clipboard.writeText(text); toast("Copied."); return; } catch (e) { /* the old way */ }
+  }
+  const box = el("textarea", { readonly: "", "aria-hidden": "true", style: "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0" });
+  box.value = text;
+  (document.querySelector("dialog[open]") || document.body).append(box);
+  box.select();
+  let copied = false;
+  try { copied = document.execCommand("copy"); } catch (e) { /* not copied */ }
+  box.remove();
+  if (copied) toast("Copied."); else toast("Select it and copy it.", true);
+}
 
 function sectionData(s) {
   const parts = [el("p", { class: "purpose" }, "The app's snapshots and releases, Stage's data, and its backups. What can't be undone needs the app's name typed, and says what it does first.")];

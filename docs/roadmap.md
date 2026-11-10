@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.114 — Copy on an admin page over plain http
+
+- [x] The admin page's Copy buttons (another machine's line, the Slack
+  manifest, a new link) copy on a page over plain http too, such as one
+  at its NetBird name and port 1984: browsers offer no clipboard API
+  there, so the page copies from a text box it selects for a moment. Each
+  button only said "Select it and copy it" before.
+
 ### v2.6.113 — Machines by their names on NetBird
 
 - [x] A machine names itself to others by its name on NetBird, not its
