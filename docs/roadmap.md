@@ -2736,6 +2736,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.120 — The admin page's New app button is blue
+
+- [x] The + beside Find an app is a blue button with a white +, like
+  Next, in place of v2.6.119's rainbow ring, which was too loud for a
+  button always on screen. Create the Slack app keeps the ring.
+
 ### v2.6.119 — The admin page's New app button wears the rainbow ring
 
 - [x] The + beside Find an app on the admin page's Apps panel has the
