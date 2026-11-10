@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/netip"
 	"os"
@@ -273,5 +274,19 @@ func TestAppMoveCheckSaysWhatsMissing(t *testing.T) {
 	json.Unmarshal(out.Bytes(), &report)
 	if len(report.Problems) != 0 || !strings.Contains(strings.Join(report.Warnings, "\n"), "https names under hi.example stop working there") {
 		t.Fatal(report)
+	}
+}
+
+func TestAppRsyncErrorsSayWhichFiles(t *testing.T) {
+	text := `rsync: [generator] chgrp "/srv/app-demo/run/home/.hermes" failed: Operation not permitted (1)
+hi on ws2: exit status 23
+rsync error: some files/attrs were not transferred (see previous errors) (code 23) at main.c(1338) [sender=3.4.1]
+`
+	got := appRsyncErrors(text, errors.New("exit status 23"))
+	if !strings.Contains(got, `chgrp "/srv/app-demo/run/home/.hermes" failed`) || strings.Contains(got, "hi on ws2") || strings.Contains(got, "code 23") {
+		t.Fatal(got)
+	}
+	if got := appRsyncErrors("", errors.New("exit status 12")); got != "exit status 12" {
+		t.Fatal(got)
 	}
 }

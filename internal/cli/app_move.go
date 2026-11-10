@@ -311,6 +311,10 @@ func runAppReceive(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		return 2
 	}
 	if err := appReceive(from, words, stdin, stdout, stderr); err != nil {
+		var exit appReceiveExit
+		if errors.As(err, &exit) {
+			return int(exit)
+		}
 		fmt.Fprintf(stderr, "hi on %s: %v\n", appMoveThisMachine(), err)
 		return 1
 	}
@@ -508,6 +512,13 @@ func appReceivePrepare(from, name, folder string, stdout io.Writer) error {
 	if err := os.MkdirAll(folder, 0o700); err != nil {
 		return err
 	}
+	// A copy the app left here may hold what a box made under another of
+	// this account's ids, which rsync can't change or delete.
+	for _, dir := range []string{folder, appSnapshotsDir(name)} {
+		if err := appOwnAll(dir); err != nil {
+			return err
+		}
+	}
 	marker := fmt.Sprintf("from %s, %s\n", from, time.Now().UTC().Format(time.RFC3339))
 	if err := os.WriteFile(filepath.Join(folder, appReceivingFile), []byte(marker), 0o600); err != nil {
 		return err
@@ -523,6 +534,33 @@ func appReceivePrepare(from, name, folder string, stdout io.Writer) error {
 		return err
 	}
 	fmt.Fprintln(stdout, appSnapshotsDir(name))
+	return nil
+}
+
+// appOwnAll gives this account back what in dir a box made under another
+// of its ids (a container's root is this account; its other users are the
+// account's subordinate ids), so rsync can update and delete it.
+var appOwnAll = func(dir string) error {
+	uid := os.Getuid()
+	others := false
+	filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || others {
+			return filepath.SkipDir
+		}
+		if info, err := entry.Info(); err == nil {
+			if stat, ok := info.Sys().(*syscall.Stat_t); ok && int(stat.Uid) != uid {
+				others = true
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	if !others {
+		return nil
+	}
+	if out, err := exec.Command("podman", "unshare", "chown", "-R", "0:0", dir).CombinedOutput(); err != nil {
+		return fmt.Errorf("%s holds files of a box's, under another id, which hi couldn't make this account's (podman unshare chown): %s", dir, qFirstLine(string(out), err.Error()))
+	}
 	return nil
 }
 
@@ -566,8 +604,21 @@ func appReceiveRsync(words []string, stdin io.Reader, stdout, stderr io.Writer) 
 	}
 	command := exec.Command("rsync", words[1:]...)
 	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
-	return command.Run()
+	if err := command.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			return appReceiveExit(exit.ExitCode())
+		}
+		return err
+	}
+	return nil
 }
+
+// appReceiveExit is rsync's exit code, passed on as it is: rsync on the
+// other end has said what went wrong.
+type appReceiveExit int
+
+func (e appReceiveExit) Error() string { return fmt.Sprintf("exit status %d", int(e)) }
 
 func appReceiveStart(name string, stdout io.Writer) error {
 	incoming, ok := loadAppIncoming(name)
@@ -735,7 +786,9 @@ var appMoveNoAccess = errors.New("the machine doesn't take apps from this one ye
 // only means something on this machine while it runs.
 var appMoveRsync = func(t appMoveTarget, from, to string, stdout io.Writer) error {
 	ssh := "ssh " + strings.Join(t.sshOptions(), " ")
-	args := []string{"-aH", "--delete", "--exclude=*.sock", "--exclude=postmaster.pid", "--exclude=/" + appReceivingFile, "--exclude=/" + appMovedFile,
+	// Owners and groups aren't kept: an account that isn't root can't set
+	// them, and the boxes run as that account on both machines.
+	args := []string{"-aH", "--no-owner", "--no-group", "--delete", "--exclude=*.sock", "--exclude=postmaster.pid", "--exclude=/" + appReceivingFile, "--exclude=/" + appMovedFile,
 		"-e", ssh, strings.TrimSuffix(from, "/") + "/", t.dest + ":" + strings.TrimSuffix(to, "/") + "/"}
 	var errOut strings.Builder
 	command := exec.Command("rsync", args...)
@@ -747,9 +800,28 @@ var appMoveRsync = func(t appMoveTarget, from, to string, stdout io.Writer) erro
 		if errors.As(err, &exit) && exit.ExitCode() == 24 {
 			return nil
 		}
-		return fmt.Errorf("copying %s: %s", from, qFirstLine(lastLines(errOut.String(), 2), err.Error()))
+		return fmt.Errorf("copying %s: %s", from, appRsyncErrors(errOut.String(), err))
 	}
 	return nil
+}
+
+// appRsyncErrors is what rsync said went wrong: its first few lines about
+// files, not its summary or hi's own line from the other end.
+func appRsyncErrors(text string, err error) string {
+	var lines []string
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "rsync:") || strings.HasPrefix(line, "rsync warning:") {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) > 3 {
+		lines = append(lines[:3], fmt.Sprintf("and %d more", len(lines)-3))
+	}
+	if len(lines) == 0 {
+		return qFirstLine(lastLines(text, 1), err.Error())
+	}
+	return strings.Join(lines, "; ")
 }
 
 func appMoveSize(dir string) int64 {

@@ -2736,6 +2736,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.115 — A move into a folder a box wrote in
+
+- [x] `hi app move` back to a machine that still has the app's old folder
+  works when a box made something there under another of the account's
+  ids (Podman's mapped users): the receiving machine makes it the
+  account's again first (`podman unshare chown`), and rsync no longer
+  copies owners and groups, which an account that isn't root can't set.
+  It failed with rsync's exit 23 on `run/home/.hermes`.
+- [x] A copy that fails says what rsync said about which files, not hi's
+  own line from the other end.
+
 ### v2.6.114 — Copy on an admin page over plain http
 
 - [x] The admin page's Copy buttons (another machine's line, the Slack
