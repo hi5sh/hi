@@ -2736,6 +2736,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.119 — The admin page's New app button wears the rainbow ring
+
+- [x] The + beside Find an app on the admin page's Apps panel has the
+  same turning rainbow border and glow as Create the Slack app, so the
+  way to make the first app stands out. The ring is now a `.rainbow`
+  class any button or link can take.
+
 ### v2.6.118 — The dev page's right panel stays beside Start something new
 
 - [x] The dev page's right panel (Rewind, Source control, Logs, Stage,

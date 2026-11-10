@@ -57,30 +57,30 @@ a.button-like:hover { background: var(--secondary-hover); text-decoration: none;
    glow out into the page. Still for whoever asks for less motion. */
 @property --rainbow-turn { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes rainbow-turn { to { --rainbow-turn: 360deg; } }
-a.button-like.rainbow, a.button-like.rainbow:hover {
+.rainbow, .rainbow:hover {
   --rainbow: hsl(225 85% 58%), hsl(280 70% 58%), hsl(330 75% 56%), hsl(8 80% 56%), hsl(45 85% 52%), hsl(110 60% 46%), hsl(180 70% 46%), hsl(225 85% 58%);
   --rainbow-fill: var(--secondary);
   position: relative; isolation: isolate;
   border-color: transparent; background: none;
 }
-a.button-like.rainbow:hover { --rainbow-fill: var(--secondary-hover); }
+.rainbow:hover { --rainbow-fill: var(--secondary-hover); }
 /* Under it all, the glow; over the glow, the border and the fill. */
-a.button-like.rainbow::before, a.button-like.rainbow::after {
+.rainbow::before, .rainbow::after {
   content: ""; position: absolute; z-index: -1; border-radius: inherit;
   animation: rainbow-turn 6s linear infinite;
 }
-a.button-like.rainbow::before {
+.rainbow::before {
   inset: -1.5px;
   background: conic-gradient(from var(--rainbow-turn), var(--rainbow));
   filter: blur(7px); opacity: .6;
 }
-a.button-like.rainbow::after {
+.rainbow::after {
   inset: -1px; border: 1px solid transparent;
   background: linear-gradient(var(--rainbow-fill), var(--rainbow-fill)) padding-box,
               linear-gradient(var(--bg), var(--bg)) padding-box,
               conic-gradient(from var(--rainbow-turn), var(--rainbow)) border-box;
 }
-@media (prefers-reduced-motion: reduce) { a.button-like.rainbow::before, a.button-like.rainbow::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rainbow::before, .rainbow::after { animation: none; } }
 .say-form { display: flex; gap: 6px; align-items: flex-end; margin: 10px 0 4px; }
 .say-form textarea { flex: 1; resize: vertical; min-height: 34px; }
 .admin-section .facts { margin-top: 4px; }
@@ -88,6 +88,8 @@ a.button-like.rainbow::after {
 
 /* The panels' lists. */
 #apps-search { flex: 1; min-width: 0; }
+/* New app: the same ring as the next step, a square beside the search. */
+#apps-new.rainbow { width: 30px; height: 30px; border-radius: var(--r-sm); color: var(--text); font-size: 16px; }
 .clamp2, .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp2 { -webkit-line-clamp: 2; line-clamp: 2; }
 .clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
