@@ -88,8 +88,8 @@ a.button-like:hover { background: var(--secondary-hover); text-decoration: none;
 
 /* The panels' lists. */
 #apps-search { flex: 1; min-width: 0; }
-/* New app: a blue square as tall as the search beside it, like Next. */
-#apps-new { align-self: stretch; height: auto; width: auto; aspect-ratio: 1; font-size: 15px; }
+/* New app: a small blue square beside the search, like Next. */
+#apps-new { width: 24px; height: 24px; margin: 0 2px; font-size: 15px; }
 .clamp2, .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp2 { -webkit-line-clamp: 2; line-clamp: 2; }
 .clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
