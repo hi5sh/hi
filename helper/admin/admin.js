@@ -3060,12 +3060,59 @@ async function refreshAdvisories() {
   try { advisories = await api("/api/advisories"); } catch (e) { return; }
   renderAdvisories();
 }
+// checkPending says an app's ask to check its advisories waits or runs.
+function checkPending(c) { return !!(c && c.asked && !c.error); }
+// advisoriesChecked is the line above the list: when production's packages
+// were last matched, or that a check waits, runs, or failed.
+function advisoriesChecked() {
+  const checks = advisories.checks || {};
+  if (openApp) {
+    const c = checks[openApp];
+    if (!c) return "";
+    if (c.error) return "The check failed: " + c.error + ".";
+    if (c.started && !c.error) return "Checking production " + c.bom + "'s packages, since " + ago(c.started) + "…";
+    if (c.asked) return "Asked " + ago(c.asked) + ": the app starts the check within a minute.";
+    if (!c.bom) return "Nothing released, so nothing to check.";
+    if (!c.matched) return "Production " + c.bom + " isn't checked yet.";
+    return "Production " + c.bom + " checked " + ago(c.matched) + "; again every day.";
+  }
+  const all = Object.values(checks);
+  const pending = all.filter(checkPending).length;
+  const failed = Object.entries(checks).filter(([, c]) => c.error).map(([app]) => app);
+  if (pending) return "Checking " + pending + (pending === 1 ? " app" : " apps") + "…";
+  const times = all.map((c) => c.matched).filter(Boolean).sort();
+  let text = times.length ? "Oldest check " + ago(times[0]) + ", newest " + ago(times[times.length - 1]) + "." : "";
+  if (failed.length) text += " Failed: " + failed.join(", ") + ".";
+  return text.trim();
+}
+let advisoriesPoll = 0;
+async function checkAdvisories() {
+  const button = $("advisories-check");
+  button.disabled = true;
+  try {
+    const answer = await api("/api/advisories/check", { app: openApp || "" });
+    const skipped = Object.entries(answer.skipped || {}).map(([app, why]) => app + ": " + why);
+    toast((answer.asked.length ? "Checking " + answer.asked.join(", ") + ": a few minutes." : "Nothing to check.") + (skipped.length ? " Not " + skipped.join("; ") + "." : ""), skipped.length > 0);
+  } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  refreshAdvisories();
+}
 function renderAdvisories() {
   const list = $("advisories-list");
   if (!advisories) return;
   const all = advisories.advisories.filter((a) => !openApp || a.app === openApp);
   badge("advisories-count", advisories.advisories.filter((a) => (a.tier === "kev" || a.tier === "incident") && (!openApp || a.app === openApp)).length);
   if (!viewShown("advisories")) return;
+  const checks = advisories.checks || {};
+  const pending = openApp ? checkPending(checks[openApp]) : Object.values(checks).some(checkPending);
+  const c = openApp ? checks[openApp] : null;
+  $("advisories-checked").textContent = advisoriesChecked();
+  const button = $("advisories-check");
+  button.textContent = pending ? "Checking…" : "Check now";
+  button.disabled = pending || (openApp ? !c || !c.bom || !c.up : !Object.values(checks).some((x) => x.bom && x.up));
+  button.title = openApp && c && !c.up ? openApp + " isn't running: its watcher checks once it starts" : (openApp ? "Match " + openApp : "Match every app") + "'s production packages against the advisories now, not at the day's check";
+  button.onclick = checkAdvisories;
+  clearTimeout(advisoriesPoll);
+  if (pending) advisoriesPoll = setTimeout(() => { if (viewShown("advisories")) refreshAdvisories(); }, 5000);
   list.replaceChildren();
   if (!openApp) list.append(el("li", { class: "empty" }, "Every app's. Open an app for its own."));
   if (!all.length) list.append(el("li", { class: "empty" }, "No advisories for what production runs." + Object.entries(advisories.notes || {}).filter(([app]) => !openApp || app === openApp).map(([app, note]) => " " + app + ": " + note + ".").join("")));

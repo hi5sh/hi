@@ -50,6 +50,33 @@ func appWatchWantPath(team string) string {
 	return filepath.Join(appDir(team), "run", "watch-want.json")
 }
 
+// appAdvisoriesCheck is run/advisories-check.json: an admin's ask to
+// match production's bill against the advisories now, not at the day's
+// match. The broker takes it at its next beat, marks it started, and
+// removes it once the match is done, or keeps why it failed.
+type appAdvisoriesCheck struct {
+	By      string    `json:"by"`
+	Asked   time.Time `json:"asked"`
+	Started time.Time `json:"started,omitzero"`
+	Error   string    `json:"error,omitempty"`
+}
+
+func appAdvisoriesCheckPath(team string) string {
+	return filepath.Join(appDir(team), "run", "advisories-check.json")
+}
+
+func loadAppAdvisoriesCheck(team string) (appAdvisoriesCheck, bool) {
+	var check appAdvisoriesCheck
+	data, err := os.ReadFile(appAdvisoriesCheckPath(team))
+	return check, err == nil && json.Unmarshal(data, &check) == nil && !check.Asked.IsZero()
+}
+
+func saveAppAdvisoriesCheck(team string, check appAdvisoriesCheck) error {
+	data, _ := json.Marshal(check)
+	os.MkdirAll(filepath.Dir(appAdvisoriesCheckPath(team)), 0o700)
+	return writeFileAtomic(appAdvisoriesCheckPath(team), data, 0o600)
+}
+
 // localBeat runs the team's watcher on a heartbeat: what to do, and the
 // incidents that opened or closed. A heartbeat's network lines are read
 // from where the watcher left off; production's bill is handed over.
@@ -88,7 +115,13 @@ func (b *appBroker) localBeat(beat apiHeartbeat, bomPath string, now time.Time) 
 		}
 	}
 	reply, events, confirmed, weekly := w.beatLocked(team, beat, now)
-	due := team.Bom != "" && now.Sub(team.Matched) >= advisoryMatchEvery && now.Sub(team.MatchTried) >= time.Hour
+	check, asked := loadAppAdvisoriesCheck(b.team)
+	asked = asked && check.Started.IsZero() && check.Error == ""
+	if asked && team.Bom == "" {
+		check.Error, asked = "nothing is released, so production runs no packages to match", false
+		saveAppAdvisoriesCheck(b.team, check)
+	}
+	due := team.Bom != "" && (asked || now.Sub(team.Matched) >= advisoryMatchEvery && now.Sub(team.MatchTried) >= time.Hour)
 	w.saveLocked()
 	w.mu.Unlock()
 	if confirmed != "" {
@@ -99,16 +132,37 @@ func (b *appBroker) localBeat(beat apiHeartbeat, bomPath string, now time.Time) 
 	}
 	// Production's bill against the advisories, once a day, apart: the
 	// first match takes minutes.
+	// An admin's ask waits for a match that already runs.
 	if due && w.matching.CompareAndSwap(false, true) {
+		if asked {
+			check.Started = now
+			saveAppAdvisoriesCheck(b.team, check)
+		}
 		go func() {
 			defer w.matching.Store(false)
 			events, _, err := w.matchTeam(b.team, time.Now())
+			if asked {
+				if err != nil {
+					check.Error = err.Error()
+					saveAppAdvisoriesCheck(b.team, check)
+				} else {
+					os.Remove(appAdvisoriesCheckPath(b.team))
+				}
+			}
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "hi: matching production's bill against advisories: %v\n", err)
 				return
 			}
+			w.mu.Lock()
+			var advisories []apiAdvisory
+			if team := w.state.Teams[b.team]; team != nil {
+				advisories = team.Advisories
+			}
+			w.mu.Unlock()
 			appWatchStateMu.Lock()
 			state := loadTeamWatchState(b.team)
+			// What matched shows at once, not at the next beat.
+			state.Advisories, state.AdvisoryCounts = appFacingAdvisories(advisories)
 			b.tellLocal(&state, events)
 			saveTeamWatchState(b.team, state)
 			appWatchStateMu.Unlock()

@@ -157,7 +157,7 @@ app's own or the machine's).
 | **Jobs** | The long actions, running and recent: creating an app, a rebuild, a restore, an update. Their output as it comes, as the dev page's Checks |
 | **Logs** | The open app's lead and service, or the org server's, as they come; **!** for errors only |
 | **Incidents** | Every app's open incidents first, and what the lead did about them |
-| **Advisories** | Every app's, worst first, with **Ignore** and a reason |
+| **Advisories** | Every app's, worst first, with **Ignore** and a reason, what fixes each one to act on, when production was last checked, and **Check now**, which has the app's watcher match production's packages at its next beat rather than at the day's match (since v2.6.129) |
 
 A view a machine has no use for isn't there: an org server's own VM has
 no Incidents until it has an app, and a machine with apps has no

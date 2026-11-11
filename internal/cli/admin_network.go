@@ -7,12 +7,16 @@ package cli
 // as the admin, and what can't be undone needs the app's name typed.
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // adminNetworkChange is the Network and Data sections' and Advisories'
@@ -238,12 +242,87 @@ type adminAdvisory struct {
 	Action string `json:"action,omitempty"`
 }
 
+// adminAdvisoryCheck is when an app's watcher last matched production's
+// bill, and an admin's ask to match it now, while it waits or runs, or
+// why it failed.
+type adminAdvisoryCheck struct {
+	Bom     string    `json:"bom,omitempty"` // production's version, v11
+	Matched time.Time `json:"matched,omitzero"`
+	Up      bool      `json:"up"`
+	Asked   time.Time `json:"asked,omitzero"`
+	Started time.Time `json:"started,omitzero"`
+	Error   string    `json:"error,omitempty"`
+}
+
+// adminAdvisoryCheckStale is how long a started check may run before
+// the page takes it for one that won't end (its broker restarted).
+const adminAdvisoryCheckStale = 20 * time.Minute
+
+func adminAdvisoryCheckOf(name, bom string) adminAdvisoryCheck {
+	check := adminAdvisoryCheck{Bom: bom, Up: appState(name) == "up"}
+	var watch watchState
+	if data, err := os.ReadFile(filepath.Join(appDir(name), "watch", "state.json")); err == nil && json.Unmarshal(data, &watch) == nil {
+		if team := watch.Teams[name]; team != nil {
+			check.Matched = team.Matched
+		}
+	}
+	if ask, ok := loadAppAdvisoriesCheck(name); ok {
+		check.Asked, check.Started, check.Error = ask.Asked, ask.Started, ask.Error
+		if check.Error == "" && !ask.Started.IsZero() && time.Since(ask.Started) > adminAdvisoryCheckStale {
+			check.Error = "the check didn't finish: the app may have restarted while it ran"
+		}
+		// A match after the ask answered it, whoever started it.
+		if check.Matched.After(ask.Asked) {
+			check.Asked, check.Started, check.Error = time.Time{}, time.Time{}, ""
+		}
+	}
+	return check
+}
+
+// adminCheckAdvisories asks an app's watcher, or every app's, to match
+// production's bill against the advisories at its next beat: within a
+// minute, and a few minutes for the match.
+func adminCheckAdvisories(admin adminPerson, app string) (map[string]any, error) {
+	names := adminAppNames()
+	if app != "" {
+		if _, err := loadTeam(app); err != nil || !appNamePattern.MatchString(app) {
+			return nil, fmt.Errorf("no app %q on this machine", app)
+		}
+		names = []string{app}
+	}
+	var asked []string
+	skipped := map[string]string{}
+	now := time.Now().UTC()
+	for _, name := range names {
+		switch versions, err := loadTeamVersions(name); {
+		case err != nil || versions.Production == 0:
+			skipped[name] = "nothing is released"
+			continue
+		case appState(name) != "up":
+			skipped[name] = "it isn't running: its watcher checks once it starts"
+			continue
+		}
+		if err := saveAppAdvisoriesCheck(name, appAdvisoriesCheck{By: admin.Name, Asked: now}); err != nil {
+			skipped[name] = err.Error()
+			continue
+		}
+		adminRecord(admin.Name, name, "asked for an advisory check")
+		asked = append(asked, name)
+	}
+	if len(asked) == 0 && app != "" {
+		return nil, fmt.Errorf("%s: %s", app, skipped[app])
+	}
+	return map[string]any{"asked": asked, "skipped": skipped}, nil
+}
+
 func adminAdvisories() map[string]any {
 	list := []adminAdvisory{}
 	notes := map[string]string{}
+	checks := map[string]adminAdvisoryCheck{}
 	machine := adminMachineName()
 	for _, name := range adminAppNames() {
 		report := appAdvisoriesReport(name)
+		checks[name] = adminAdvisoryCheckOf(name, report.Bom)
 		switch {
 		case report.Bom == "":
 			notes[name] = "nothing released yet"
@@ -265,7 +344,7 @@ func adminAdvisories() map[string]any {
 		}
 		return list[i].EPSS > list[j].EPSS
 	})
-	return map[string]any{"advisories": list, "notes": notes}
+	return map[string]any{"advisories": list, "notes": notes, "checks": checks}
 }
 
 // adminChangeNetworkData makes a Network, Data, or advisory change: the
@@ -520,5 +599,19 @@ func (s *adminServer) networkRoutes(mux *http.ServeMux, reply func(http.Response
 	}))
 	mux.HandleFunc("GET /api/advisories", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		reply(w, http.StatusOK, adminAdvisories())
+	}))
+	mux.HandleFunc("POST /api/advisories/check", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			App string `json:"app"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		answer, err := adminCheckAdvisories(admin, request.App)
+		if err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, answer)
 	}))
 }

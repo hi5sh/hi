@@ -2736,6 +2736,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.129 — Check now in the admin page's Advisories
+
+- [x] Above the Advisories list, a line says when production's packages
+  were last matched against the advisories ("Production v11 checked 3 h
+  ago; again every day"), or, with no app open, the oldest and newest
+  check of every app's.
+- [x] **Check now** asks the open app's watcher, or every running app's
+  with none open, to match at its next beat (within a minute) rather
+  than a day after the last match: the admin page leaves
+  `run/advisories-check.json` in the app's folder, the broker marks it
+  started and removes it once the match is done, or keeps why it failed.
+  The page shows it waiting, running, and failed, and reads the list
+  again every 5 s until it ends; what matched shows at once, not at the
+  next beat. An app that isn't running, or has nothing released, isn't
+  asked, and says why. A check that ran over 20 minutes is said not to
+  have finished. The ask is in the machine's activity.
+
 ### v2.6.128 — A kernel advisory says the machine needs an update
 
 - [x] The bill lists the machine's running kernel as part `machine`: the
