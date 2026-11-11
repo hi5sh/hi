@@ -2736,6 +2736,31 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.130 — Budgets and approval, and why a request waits
+
+- [x] The org's Policy is **Budgets and approval**. Each group shows its
+  users and this month's spend, the group's and each user's, as bars
+  against their budgets; its auto-approval first, in plain words ("A
+  start at up to $0.80/h for up to 2 h starts without a person, while
+  its user and group are under their monthly budgets"), with how many
+  of the group's last 30 days' requests a person decided and how many
+  the rule as drawn starts by itself, redrawn as it's typed; **Cover
+  what it asked lately** sets it to the dearest rate and longest start
+  the group asked for, rounded up; then its budgets and limits. Above
+  the groups: how many requests a person decided that the rules still
+  send to a person, and the users in a group the policy doesn't name.
+  The org server's `GET /admin/policy` carries the spend and the last
+  30 days' compute requests (at most 500) for it.
+- [x] A request the policy leaves for a person says why
+  (`waits`, with the user's `policy_group`): no auto-approval for the
+  group, the group not in the policy, over a budget, or a rate or length
+  over the group's auto-approval. Slack's approval message says it and
+  where to change it; Requests on the admin page says it too.
+- [x] **Approve, and the like by itself…** in Requests approves a
+  compute request and widens its group's auto-approval to cover its rate
+  and length (rounded up to the cent and half hour; a rule that allows
+  more stays), after a confirmation that says what changes.
+
 ### v2.6.129 — Check now in the admin page's Advisories
 
 - [x] Above the Advisories list, a line says when production's packages

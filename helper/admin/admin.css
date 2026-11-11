@@ -157,6 +157,9 @@ button.org-stat.warn strong { color: var(--warn); }
 .policy-group { margin: 10px 0; padding-bottom: 8px; }
 .policy-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; padding: 4px 12px 8px; }
 .policy-fields[hidden] { display: none; }
+.policy-sub { margin: 10px 0 2px; font-size: 13px; font-weight: 600; }
+.policy-words { margin: 2px 0; }
+.meters.policy-spend { padding-top: 4px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 .field { display: flex; flex-direction: column; gap: 3px; }
 .field.wide { grid-column: 1 / -1; }
 .policy-text { width: 100%; font: 12px/1.45 var(--mono); }

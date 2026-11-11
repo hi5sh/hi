@@ -314,7 +314,7 @@ func aboutDollars(amount float64) string {
 func renderSlackRequest(request serverRequest, lease *serverLease, group string, knownUser bool, now time.Time) (string, []slack.Block) {
 	for _, field := range []*string{&request.Hostname, &request.Reason, &request.DenyReason, &request.Error,
 		&request.Image, &request.Progress, &request.Approved, &request.Name, &request.Hardware, &request.Agent,
-		&request.Budget} {
+		&request.Budget, &request.Waits} {
 		*field = slackEscape(*field)
 	}
 	who := fmt.Sprintf("*%s*", request.User)
@@ -432,6 +432,9 @@ func renderSlackRequest(request serverRequest, lease *serverLease, group string,
 			mark = "⚠️"
 		}
 		text += "\n" + mark + " " + request.Budget
+	}
+	if request.Waits != "" && request.State == "pending" {
+		text += "\n🧑‍⚖️ Waits for a person: " + request.Waits + ". To approve the like by itself: the admin page, Org, Budgets and approval."
 	}
 	blocks := []slack.Block{slack.NewSectionBlock(slackText(text), nil, nil)}
 	if len(actions) > 0 {

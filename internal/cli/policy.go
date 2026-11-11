@@ -278,6 +278,36 @@ func (s *orgServer) checkRequestLocked(policy serverPolicy, user, hardware, rate
 	return "", budget, nil
 }
 
+// policyWaits says why the policy didn't approve a request by itself,
+// for the approvers: what to change so the like is approved without a
+// person next time. "" for a user in no group, whose first request
+// places them in one.
+func policyWaits(policy serverPolicy, group string, budget budgetStatus, rate string, totalHours float64) string {
+	if group == "" {
+		return ""
+	}
+	rules, ok := policy.Groups[group]
+	auto := rules.AutoApprove
+	price := hourlyRate(rate)
+	switch {
+	case !ok:
+		return fmt.Sprintf("the %s group isn't in the policy, so a person approves all it asks", group)
+	case auto == nil:
+		return fmt.Sprintf("the %s group has no auto-approval", group)
+	case budget.over():
+		return "it's over a monthly budget"
+	case price > auto.MaxPricePerHour+1e-9 && totalHours > auto.MaxHours+1e-9:
+		return fmt.Sprintf("$%.2f/h for %s is over the %s group's auto-approval, up to $%.2f/h and %s", price,
+			formatDuration(time.Duration(totalHours*float64(time.Hour))), group, auto.MaxPricePerHour, formatDuration(time.Duration(auto.MaxHours*float64(time.Hour))))
+	case price > auto.MaxPricePerHour+1e-9:
+		return fmt.Sprintf("$%.2f/h is over the %s group's auto-approval, up to $%.2f/h", price, group, auto.MaxPricePerHour)
+	case totalHours > auto.MaxHours+1e-9:
+		return fmt.Sprintf("%s is over the %s group's auto-approval, up to %s", formatDuration(time.Duration(totalHours*float64(time.Hour))), group,
+			formatDuration(time.Duration(auto.MaxHours*float64(time.Hour))))
+	}
+	return ""
+}
+
 // checkBudgets tells the approvers, once a month, when a user or group has
 // gone over its budget.
 func (s *orgServer) checkBudgets(now time.Time) {
@@ -519,10 +549,67 @@ func (s *orgServer) maybeReport(now time.Time) {
 // ---------------------------------------------------------------------------
 // admin API: the admin page reads and saves the policy, checked first
 
+// policySpendView is what the admin page's Budgets and approval shows
+// beside the policy: each user's group and spend this month, each
+// group's, and the last 30 days' requests, to show what a rule would
+// have approved by itself.
+type policySpendView struct {
+	Users  map[string]policySpendUser `json:"users"`
+	Groups map[string]float64         `json:"groups"`
+	Asked  []policyAsked              `json:"asked"`
+}
+
+type policySpendUser struct {
+	Group string  `json:"group"`
+	Spend float64 `json:"spend"`
+}
+
+type policyAsked struct {
+	User     string    `json:"user"`
+	Group    string    `json:"group"`
+	Hardware string    `json:"hardware"`
+	Rate     float64   `json:"rate"` // $ an hour
+	Hours    float64   `json:"hours"`
+	By       string    `json:"by,omitempty"`
+	At       time.Time `json:"at"`
+}
+
+// policyAskedMax caps the requests the page gets for its previews.
+const policyAskedMax = 500
+
+func (s *orgServer) policySpend(now time.Time) policySpendView {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	from := monthStart(now)
+	view := policySpendView{Users: map[string]policySpendUser{}, Groups: map[string]float64{}, Asked: []policyAsked{}}
+	for name, record := range s.state.Users {
+		spend := s.spendLocked(from, now, func(request *serverRequest) bool { return request.User == name })
+		view.Users[name] = policySpendUser{Group: record.Group, Spend: spend}
+		view.Groups[record.Group] += spend
+	}
+	for _, request := range s.state.Requests {
+		if request.Kind != "compute" || now.Sub(request.Created) > 30*24*time.Hour {
+			continue
+		}
+		group := request.PolicyGroup
+		if record, ok := s.state.Users[request.User]; ok && group == "" {
+			group = record.Group
+		}
+		hours := float64(request.MaxSeconds) / 3600
+		view.Asked = append(view.Asked, policyAsked{User: request.User, Group: group, Hardware: request.Hardware, Rate: hourlyRate(request.Rate),
+			Hours: hours, By: request.DecidedBy, At: request.Created})
+	}
+	sort.Slice(view.Asked, func(i, j int) bool { return view.Asked[i].At.After(view.Asked[j].At) })
+	if len(view.Asked) > policyAskedMax {
+		view.Asked = view.Asked[:policyAskedMax]
+	}
+	return view
+}
+
 func (s *orgServer) policyAdminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/policy", func(w http.ResponseWriter, _ *http.Request) {
 		data, err := os.ReadFile(policyPath(s.dir))
-		answer := map[string]any{"exists": err == nil, "text": string(data), "example": policyExample}
+		answer := map[string]any{"exists": err == nil, "text": string(data), "example": policyExample, "spend": s.policySpend(computeNow())}
 		if err == nil {
 			if policy, err := parsePolicy(data); err != nil {
 				answer["error"] = err.Error()

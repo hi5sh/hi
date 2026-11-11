@@ -1356,6 +1356,7 @@ function renderRequests() {
       el("div", { class: "muted small" }, r.id + " · " + ago(r.created) + (r.agent ? " · sent by " + r.agent : "")));
     if (r.reason) li.append(el("div", { class: "small clamp3", title: r.reason }, "Why: " + r.reason));
     if (r.budget) li.append(el("div", { class: (r.over_budget ? "warn" : "muted") + " small" }, r.budget));
+    if (r.waits && r.state === "pending") li.append(el("div", { class: "muted small" }, "Waits for a person: " + r.waits + "."));
     if (r.state === "starting") {
       li.append(el("div", { class: "muted small" }, "Approved by " + (r.decided_by || "?") + "; starting" + (r.progress ? ": " + r.progress : "…")));
     } else if (r.mine) {
@@ -1371,6 +1372,9 @@ function renderRequests() {
         if (group && !group.value.trim()) { group.focus(); toast(r.user + " is new: choose their group first."); return; }
         orgDo({ what: "decide", action: "approve", id: r.id, group: group ? group.value.trim() : "" }, "Approved " + r.id + ".");
       } }, "Approve"));
+      if (r.kind === "compute" && r.rate && r.policy_group && !r.over_budget && r.waits) {
+        acts.append(el("button", { class: "small", title: "Approve it, and widen " + r.policy_group + "'s auto-approval so the like of it starts by itself", onclick: () => approveAndAllow(r) }, "Approve, and the like by itself…"));
+      }
       acts.append(el("button", { class: "small", onclick: async () => {
         const why = await ask({ title: "Deny " + r.id + "?", text: r.user + " is told it was denied, and why if you say.", ok: "Deny", why: "Why (optional): " + r.user + " is told", whyOptional: true });
         if (why === false) return;
@@ -1475,7 +1479,7 @@ function plus(title, form) { return el("button", { class: "side-icon", title, "a
 // the org, opened: its sections in the middle and on the bar, as an app's.
 // Someone who isn't one of the org's admins sees them, and changes nothing.
 
-const orgSectionNames = { overview: "Overview", users: "Users", admins: "Admins", policy: "Policy", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
+const orgSectionNames = { overview: "Overview", users: "Users", admins: "Admins", policy: "Budgets and approval", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
 for (const chip of document.querySelectorAll("#org-sections [data-org-section]")) {
   chip.addEventListener("click", () => openOrg(chip.dataset.orgSection));
 }
@@ -1777,14 +1781,49 @@ function renderKeys() {
 }
 
 // ---------------------------------------------------------------------------
-// the policy, in the middle: each group's limits as a form, checked by
-// the org server before it's saved.
+// Budgets and approval, in the middle: each group's people and this
+// month's spend, its limits and budgets, and what is approved without a
+// person, with what the last 30 days' requests say a rule approves. The
+// org server checks the policy before it's saved.
 
 let policyDraft = null;
 let policyEdited = false;
 let policyText = false;
 
 function openPolicy() { openOrg("policy"); }
+
+function hoursText(h) {
+  h = Number(h) || 0;
+  if (h < 1) return Math.round(h * 60) + " min";
+  return (Number.isInteger(h) ? h : h.toFixed(1)) + " h";
+}
+// policyCovers says whether an auto-approval covers a request the like
+// of one asked (budgets aside).
+function policyCovers(auto, a) {
+  return !!auto && a.rate <= (auto.max_price_per_hour || 0) + 1e-9 && a.hours <= (auto.max_hours || 0) + 1e-9;
+}
+const byPolicy = (a) => (a.by || "").startsWith("policy");
+const byPerson = (a) => !!a.by && !byPolicy(a);
+const groupsOf = (name) => name + (name.endsWith("s") ? "'" : "'s");
+// policyAsked is a group's requests of the last 30 days.
+function policyAsked(spend, name) { return ((spend && spend.asked) || []).filter((a) => a.group === name); }
+
+function policyRuleWords(g) {
+  const a = g.auto_approve;
+  if (!a) return "Every request waits for a person.";
+  return "A start at up to " + dollars(a.max_price_per_hour) + "/h for up to " + hoursText(a.max_hours) + " starts without a person" +
+    (g.user_monthly_budget_usd || g.group_monthly_budget_usd ? ", while its user and group are under their monthly budgets" : "") + "; more waits for a person.";
+}
+
+function policyPreviewWords(name, g, spend) {
+  const asked = policyAsked(spend, name);
+  if (!asked.length) return "No requests from this group in the last 30 days.";
+  const people = asked.filter(byPerson).length;
+  const covered = asked.filter((a) => policyCovers(g.auto_approve, a)).length;
+  let text = "Last 30 days: " + asked.length + (asked.length === 1 ? " request" : " requests") + ", " + people + " of them decided by a person. ";
+  text += g.auto_approve ? "This rule starts " + covered + " of the " + asked.length + " by itself." : "With no auto-approval, a person decides all of them.";
+  return text;
+}
 
 function renderPolicy() {
   const box = $("policy");
@@ -1794,12 +1833,20 @@ function renderPolicy() {
     try { policyDraft = JSON.parse(JSON.stringify(p.policy || JSON.parse(p.exists && p.text ? p.text : p.example))); } catch (e) { policyDraft = { groups: {} }; }
     if (!policyDraft.groups) policyDraft.groups = {};
   }
+  const spend = p.spend || { users: {}, groups: {}, asked: [] };
   const changed = () => { policyEdited = true; };
   const parts = [orgHead()];
   if (orgReadOnlyNote()) parts.push(orgReadOnlyNote());
   if (!p.exists) parts.push(el("p", { class: "muted small" }, "None yet: this is the example to start from."));
-  parts.push(el("p", { class: "purpose" }, "Per group: how long a start may run, what hardware, what is approved without a person, and monthly budgets. Budgets never block: going over warns, and the request goes to a person. It applies to the next request."));
+  parts.push(el("p", { class: "purpose" }, "Each group's monthly budgets, its limits, and what starts without a person. A request within the group's auto-approval starts at once while its user and group are under budget; the rest wait for an approver, in Slack and in Requests. Going over a budget never stops what runs: it warns, and new requests go to a person. It applies to the next request."));
   if (p.error) parts.push(el("p", { class: "error" }, "The policy on the machine doesn't read: " + p.error));
+  // Where the approvals come from: the groups a person still decides for.
+  const waiting = Object.keys(policyDraft.groups).map((name) => [name, policyAsked(spend, name).filter((a) => byPerson(a) && !policyCovers(policyDraft.groups[name].auto_approve, a)).length]).filter(([, n]) => n > 0);
+  if (waiting.length) {
+    parts.push(el("p", { class: "warn small" }, "In the last 30 days, a person decided " + waiting.map(([name, n]) => n + " of " + groupsOf(name)).join(", ") + " requests that the rules below still send to a person."));
+  }
+  const outside = Object.entries(spend.users || {}).filter(([, u]) => u.group && !policyDraft.groups[u.group]).map(([name, u]) => name + " (" + u.group + ")");
+  if (outside.length) parts.push(el("p", { class: "muted small" }, "In a group the policy doesn't name, so a person approves all they ask: " + outside.join(", ") + "."));
   const error = el("p", { class: "error", id: "policy-error" });
   if (policyText) {
     const area = el("textarea", { id: "policy-text", class: "policy-text", rows: "24", spellcheck: "false", "aria-label": "The policy, as JSON" });
@@ -1807,7 +1854,7 @@ function renderPolicy() {
     area.addEventListener("input", changed);
     parts.push(area);
   } else {
-    for (const [name, g] of Object.entries(policyDraft.groups)) parts.push(policyGroup(name, g, changed));
+    for (const [name, g] of Object.entries(policyDraft.groups)) parts.push(policyGroup(name, g, spend, changed));
     const add = el("form", { class: "say-form", autocomplete: "off" },
       el("input", { id: "policy-new-group", maxlength: "32", placeholder: "A new group's name, such as students", "aria-label": "A new group's name" }),
       el("button", { type: "submit" }, "Add the group"));
@@ -1838,40 +1885,98 @@ function renderPolicy() {
   box.replaceChildren(...parts);
 }
 
-function policyGroup(name, g, changed) {
+function policyGroup(name, g, spend, changed) {
   const card = el("div", { class: "card-box policy-group" });
-  const num = (label, get, set, step) => {
-    const input = el("input", { type: "number", min: "0", step: step || "any", value: get() ?? "", placeholder: "none", "aria-label": name + ": " + label });
-    input.addEventListener("input", () => { set(input.value === "" ? undefined : Number(input.value)); changed(); });
+  const words = el("p", { class: "small pad policy-words" });
+  const preview = el("p", { class: "muted small pad" });
+  const budgets = el("div", { class: "meters pad policy-spend" });
+  const members = Object.entries(spend.users || {}).filter(([, u]) => u.group === name).sort((a, b) => b[1].spend - a[1].spend);
+  const drawSpend = () => {
+    const groupSpend = (spend.groups || {})[name] || 0;
+    const rows = [g.group_monthly_budget_usd
+      ? meter("The group this month", groupSpend / g.group_monthly_budget_usd, dollars(groupSpend) + " of " + dollars(g.group_monthly_budget_usd))
+      : el("div", { class: "meter" }, el("div", { class: "meter-head" }, el("span", {}, "The group this month"), el("span", { class: "muted small" }, dollars(groupSpend) + ", no group budget")))];
+    for (const [user, u] of members.slice(0, 12)) {
+      rows.push(g.user_monthly_budget_usd
+        ? meter(user, u.spend / g.user_monthly_budget_usd, dollars(u.spend) + " of " + dollars(g.user_monthly_budget_usd))
+        : el("div", { class: "meter" }, el("div", { class: "meter-head" }, el("span", {}, user), el("span", { class: "muted small" }, dollars(u.spend)))));
+    }
+    if (members.length > 12) rows.push(el("p", { class: "muted small" }, "And " + (members.length - 12) + " more: Users lists them."));
+    budgets.replaceChildren(...rows);
+  };
+  const redraw = () => { words.textContent = policyRuleWords(g); preview.textContent = policyPreviewWords(name, g, spend); drawSpend(); changed(); };
+  const num = (label, get, set, step, hint) => {
+    const input = el("input", { type: "number", min: "0", step: step || "any", value: get() ?? "", placeholder: hint || "none", "aria-label": name + ": " + label });
+    input.addEventListener("input", () => { set(input.value === "" ? undefined : Number(input.value)); redraw(); });
     return el("label", { class: "field" }, el("span", { class: "muted small" }, label), input);
   };
   const setKey = (key) => (value) => { if (value === undefined || value === 0) delete g[key]; else g[key] = value; };
   const hardware = el("input", { value: (g.hardware || []).join(", "), placeholder: "any", "aria-label": name + ": only this hardware" });
   hardware.addEventListener("input", () => { const list = hardware.value.split(/[\s,]+/).filter(Boolean); if (list.length) g.hardware = list; else delete g.hardware; changed(); });
-  const auto = el("input", { type: "checkbox" });
+  const auto = el("input", { type: "checkbox", "aria-label": name + ": approved without a person" });
   auto.checked = !!g.auto_approve;
   const autoFields = el("div", { class: "policy-fields", hidden: !g.auto_approve },
-    num("Up to $ an hour", () => g.auto_approve && g.auto_approve.max_price_per_hour, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_price_per_hour: v || 0 }); }),
-    num("For up to hours", () => g.auto_approve && g.auto_approve.max_hours, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_hours: v || 0 }); }));
+    num("Up to $ an hour", () => g.auto_approve && g.auto_approve.max_price_per_hour, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_price_per_hour: v || 0 }); }, "0.01"),
+    num("For up to hours a start", () => g.auto_approve && g.auto_approve.max_hours, (v) => { g.auto_approve = Object.assign({}, g.auto_approve, { max_hours: v || 0 }); }, "0.5"));
   auto.addEventListener("change", () => {
     if (auto.checked) g.auto_approve = g.auto_approve || { max_price_per_hour: 1, max_hours: 2 };
     else delete g.auto_approve;
     changed();
     renderPolicy();
   });
+  // Cover what the group asked in the last 30 days, rounded up.
+  const asked = policyAsked(spend, name);
+  const cover = asked.length ? el("button", { class: "small", title: "Set the auto-approval to the dearest rate and the longest start the group asked for in the last 30 days", onclick: () => {
+    const rate = Math.ceil(Math.max(...asked.map((a) => a.rate)) * 100 - 1e-6) / 100;
+    const hours = Math.ceil(Math.max(...asked.map((a) => a.hours)) * 2 - 1e-6) / 2;
+    g.auto_approve = { max_price_per_hour: Math.max(rate, (g.auto_approve && g.auto_approve.max_price_per_hour) || 0), max_hours: Math.max(hours, (g.auto_approve && g.auto_approve.max_hours) || 0) };
+    changed();
+    renderPolicy();
+  } }, "Cover what it asked lately") : null;
   const kept = [];
   if (g.template_sources) kept.push("its template sources");
   if (g.data) kept.push("its data");
-  card.append(el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, name), el("span", { class: "grow" }),
+  card.append(el("div", { class: "card-head pad" }, el("strong", { class: "card-name" }, name),
+    el("span", { class: "muted small" }, members.length + (members.length === 1 ? " user" : " users")), el("span", { class: "grow" }),
     el("button", { class: "small danger", onclick: () => { delete policyDraft.groups[name]; changed(); renderPolicy(); } }, "Remove the group")));
+  card.append(budgets);
+  card.append(el("h3", { class: "pad policy-sub" }, "Approved without a person"));
+  card.append(el("div", { class: "data-actions pad" }, el("label", { class: "check small" }, auto, " On, within:"), el("span", { class: "grow" }), cover));
+  card.append(autoFields, words, preview);
+  card.append(el("h3", { class: "pad policy-sub" }, "Budgets and limits"));
   card.append(el("div", { class: "policy-fields" },
-    num("Up to hours a start", () => g.max_hours, setKey("max_hours")),
     num("$ a user a month", () => g.user_monthly_budget_usd, setKey("user_monthly_budget_usd")),
     num("$ for the group a month", () => g.group_monthly_budget_usd, setKey("group_monthly_budget_usd")),
+    num("Up to hours a start", () => g.max_hours, setKey("max_hours")),
     el("label", { class: "field wide" }, el("span", { class: "muted small" }, "Only this hardware"), hardware)));
-  card.append(el("label", { class: "check pad small" }, auto, " Approved without a person, within:"), autoFields);
   if (kept.length) card.append(el("p", { class: "muted small pad" }, "Also " + kept.join(" and ") + ", kept as they are; change them as text."));
+  words.textContent = policyRuleWords(g);
+  preview.textContent = policyPreviewWords(name, g, spend);
+  drawSpend();
   return card;
+}
+
+// approveAndAllow approves a request and widens its group's
+// auto-approval to cover the like of it from now on.
+async function approveAndAllow(r) {
+  const rate = Math.ceil((parseFloat(String(r.rate || "").replace(/[^0-9.]/g, "")) || 0) * 100 - 1e-6) / 100;
+  const hours = Math.ceil(((r.max_seconds || 0) / 3600) * 2 - 1e-6) / 2;
+  const group = r.policy_group;
+  const ok = await ask({ title: "Approve the like of " + r.id + " by itself?", ok: "Approve and save",
+    text: "From now on, what the " + group + " group asks for at up to " + dollars(rate) + "/h, for up to " + hoursText(hours) + " a start, starts without a person while its user and group are under budget. A rule that already allows more stays as it is. " + r.id + " is approved now. Org, Budgets and approval changes it later." });
+  if (!ok) return;
+  try {
+    const settings = await api("/api/org/settings");
+    const p = settings.policy || {};
+    const policy = JSON.parse(JSON.stringify(p.policy || JSON.parse(p.exists && p.text ? p.text : p.example)));
+    policy.groups = policy.groups || {};
+    const g = policy.groups[group] = policy.groups[group] || {};
+    const was = g.auto_approve || {};
+    g.auto_approve = { max_price_per_hour: Math.max(rate, was.max_price_per_hour || 0), max_hours: Math.max(hours, was.max_hours || 0) };
+    await api("/api/org", { what: "policy", text: JSON.stringify(policy, null, 2) });
+    if (!policyEdited) policyDraft = null;
+  } catch (e) { if (!(e instanceof SignIn)) toast("The policy wasn't saved: " + e.message, true); return; }
+  orgDo({ what: "decide", action: "approve", id: r.id, group: "" }, "Approved " + r.id + "; the like of it starts by itself from now on.");
 }
 
 async function savePolicy() {

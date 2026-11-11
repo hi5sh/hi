@@ -151,6 +151,10 @@ type serverRequest struct {
 	// Budget is the user's and group's spend this month when it was sent.
 	Budget     string `json:"budget,omitempty"`
 	OverBudget bool   `json:"over_budget,omitempty"`
+	// PolicyGroup is the user's group when it was sent, and Waits why
+	// the policy didn't approve it by itself.
+	PolicyGroup string `json:"policy_group,omitempty"`
+	Waits       string `json:"waits,omitempty"`
 	// Owner is the person responsible for an agent that enrolls itself.
 	// A request of kind "extend" asks for MaxSeconds more on the running
 	// instance Name.
@@ -848,6 +852,10 @@ func (s *orgServer) handleCreateRequest(w http.ResponseWriter, _ *http.Request, 
 	if budget.IsSet {
 		request.Budget, request.OverBudget = budget.text(), budget.over()
 	}
+	request.PolicyGroup = budget.Group
+	if autoApproved == "" {
+		request.Waits = policyWaits(policy, budget.Group, budget, hardware.rate, hours)
+	}
 	s.state.Requests[request.ID] = request
 	err = s.saveLocked()
 	copy := *request
@@ -928,6 +936,10 @@ func (s *orgServer) handleExtend(w http.ResponseWriter, r *http.Request, device 
 	}
 	if budget.IsSet {
 		request.Budget, request.OverBudget = budget.text(), budget.over()
+	}
+	request.PolicyGroup = budget.Group
+	if autoApproved == "" {
+		request.Waits = policyWaits(policy, budget.Group, budget, lease.Rate, total)
 	}
 	s.state.Requests[request.ID] = request
 	err = s.saveLocked()

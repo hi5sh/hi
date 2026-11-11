@@ -126,7 +126,7 @@ People and Keys ([a machine that runs both](#a-machine-that-runs-both)).
 | **New** | Create an app, or adopt a project (the steps, [below](#new-app)) | `hi app new`, `hi app adopt` |
 | **People** | Everyone with a level in any app, a column per app: give someone the same level in several apps at once, each change the app's own, said in its channel. With an org server, the org's users too: their group and devices, **Add**, **Remove**, and the Slack approvers | `hi app owners`, `hi app access`, `hi org user`, `hi org approvers` |
 | **Keys** | The machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's and Codex's sign-ins), and which apps use the machine's or their own. With an org server, its provider keys (RunPod, Shadeform) and the org's OpenRouter key | `hi app key`, `hi app signin`, `hi org provider`, `hi org ai set` |
-| **Org** | With an org server: its policy (each group's limits, auto-approval, and budgets, as a form, checked before it's saved), its templates, its Hugging Face data, the models served on the org's machines, its Slack app, its admins, and its wall screens' links. Without one: **Join an org** for this machine, or **Start an org server here** | `hi org policy`, `templates`, `data`, `ai`, `slack setup`, `admins`, `hi org join`, `hi org init` |
+| **Org** | With an org server: its **Budgets and approval** (the policy: each group's users and this month's spend against its budgets, its auto-approval in plain words with how many of the last 30 days' requests it starts by itself, and its limits, as a form, checked before it's saved; since v2.6.130), its templates, its Hugging Face data, the models served on the org's machines, its Slack app, its admins, and its wall screens' links. Without one: **Join an org** for this machine, or **Start an org server here** | `hi org policy`, `templates`, `data`, `ai`, `slack setup`, `admins`, `hi org join`, `hi org init` |
 | **Network** | The machine's domain, the sign-in providers, each app's NetBird peer, the org server's public URL for cloud runs, and **What to ask your IT team**: the records and policies needed, as text to send | `hi app domain`, `hi app sso provider`, `hi app addresses`, `hi org expose` |
 | **Machine** | hi's version and **Update**, with which apps and servers restart; memory, disk, and CPU, each app's boxes too; the machine's heartbeat; the admin page's own address and admins | `hi update`, `hi app limit … memory` |
 
@@ -304,7 +304,7 @@ and one Activity for both.
 - **The org opened** has its sections in the middle and on the bar, as
   an app's: **Overview** (its state, requests, what runs, spend,
   Restart), **Users** (their groups, devices, Add, Remove, the Slack
-  approvers), **Admins** (the owner and admins), **Policy**, **Keys**
+  approvers), **Admins** (the owner and admins), **Budgets and approval**, **Keys**
   (the provider keys, the org's OpenRouter key), **Templates**,
   **Data**, **Models**, **Slack**, **Wall screens**. The org's users
   leave People, and its keys leave Keys.
