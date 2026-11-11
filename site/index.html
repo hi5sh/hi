@@ -208,6 +208,9 @@
   body.present.on-hero .banner { display: block; position: fixed; height: 100vh; }
   body.present .hero.on { padding-block: 0 72px; justify-content: flex-end; align-items: center; }
   body.present h1 em { background: none; color: var(--text); }
+  body.present .hero-text { background: rgba(10,12,17,.5); border: 1px solid var(--line-strong); border-radius: 18px; padding: 22px clamp(18px, 4vw, 36px) 26px; margin-top: 14px; max-width: 920px; }
+  body.present .hero-text .kicker { margin-top: 0; }
+  body.present .hero-text h1 { margin-top: 10px; }
   body.present .hero .lede { color: var(--text); text-shadow: 0 1px 3px rgba(10,12,17,.9), 0 2px 18px rgba(10,12,17,.9); }
   body.present .deck-bar { display: flex; position: fixed; right: 18px; bottom: 14px; z-index: 20; align-items: center; gap: 4px; font: 12px var(--mono); color: var(--dim); }
   .deck-bar button { padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
@@ -236,9 +239,11 @@
 <main id="top">
   <div class="wrap hero slide">
     <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
+    <div class="hero-text">
     <p class="kicker white">THE AGENT-ASSISTED SOFTWARE&nbsp;FACTORY</p>
     <h1>Think it. Ship it.</h1>
     <p class="lede white">Internal apps built by AI agents, from idea to production.<br>On your infrastructure, your stack and your data.</p>
+    </div>
     <div class="ctas">
       <a class="btn primary" href="#lifecycle">How it works ↓</a>
       <a class="btn ghost" href="https://github.com/hi5sh/hi">View on GitHub ↗</a>
