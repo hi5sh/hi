@@ -2736,6 +2736,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.132 — Rebuild says every app moves
+
+- [x] `hi app rebuild`, the admin page's Rebuild dialog, the help, and
+  an image advisory's text say what happens: every app on the machine
+  moves its production and stage to the new image by itself within a
+  few minutes, on the same addresses, and dev boxes move when they
+  restart. Before, rebuild told owners to run `hi app up` for each
+  other app, which their own services already do.
+
 ### v2.6.131 — A bill lists the image production runs
 
 - [x] Production's bill lists the packages of the image its box runs,

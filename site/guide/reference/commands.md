@@ -327,7 +327,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app adopt <name> <folder> [--github <owner/name>] [--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same for a folder on this machine, copied without its history: what git would commit, leaving `.git`, files that look like secrets, and links outside it behind; the folder doesn't change, and there's no upstream |
 | `hi app up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
 | `hi app down <name>`                     | Stop it; its folder stays |
-| `hi app rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages, and restart the app on it; what fixes the image's advisories |
+| `hi app rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages; every app on the machine moves to it within a few minutes (dev boxes at their next restart); what fixes the image's advisories |
 | `hi app rename <name> <new> [--yes]`     | Another name, after its Slack app's: its bot, `/hi-<name>` command, and service; memory and snapshots stay |
 | `hi app rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder |
 | `hi app ls`                              | Apps on this machine |

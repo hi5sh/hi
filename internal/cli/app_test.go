@@ -1206,7 +1206,7 @@ func TestTeamRebuild(t *testing.T) {
 	if len(calls) < 4 || calls[0] != "build" || !slices.Contains(calls, "restart hi-app-payments.service") {
 		t.Fatal(calls)
 	}
-	if !strings.Contains(out.String(), "hi app dev payments restart") || !strings.Contains(out.String(), "so billing still run the old one") {
+	if !strings.Contains(out.String(), "hi app dev payments restart") || !strings.Contains(out.String(), "so billing move to it too, by themselves") {
 		t.Fatal(out.String())
 	}
 	// A failed build restarts nothing.

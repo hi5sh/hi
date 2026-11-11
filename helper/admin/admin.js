@@ -676,7 +676,7 @@ async function openDevPage(app) {
 // The confirmations, each saying what the action does.
 const actionAsks = {
   stop: (app) => ({ title: "Stop " + app + "?", text: "Its lead, Stage, and production stop, and it doesn't answer in Slack, until it's started again. Its folder and data stay.", ok: "Stop" }),
-  rebuild: (app) => ({ title: "Rebuild " + app + "?", text: "hi builds its box image again, with Ubuntu's current packages (a few minutes), and restarts the app on it. Production keeps its address.", ok: "Rebuild" }),
+  rebuild: (app) => ({ title: "Rebuild " + app + "?", text: "hi builds the machine's box image again, with Ubuntu's current packages (a few minutes). Every app on this machine moves to it by itself within a few minutes, on the same addresses; dev boxes move when they restart.", ok: "Rebuild" }),
   freeze: (app) => ({ title: "Freeze " + app + "?", text: "Its boxes stop, and its lead reaches nothing but Slack, until someone unfreezes it. The ops channel is told why.", ok: "Freeze", why: "Why: the ops channel is told" }),
   pause: (app) => ({ title: "Pause " + app + "?", text: "Its work stops where it is, until someone unpauses it. The ops channel is told why.", ok: "Pause", why: "Why: the ops channel is told" }),
 };

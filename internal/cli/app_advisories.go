@@ -613,7 +613,7 @@ func advisoryAction(team, machine string, advisory apiAdvisory) string {
 	case advisory.Part == "machine":
 		return advisoryMachineAction(machine, advisory, fixed)
 	case strings.HasPrefix(advisory.Part, "image:base"):
-		return fmt.Sprintf("In hi's base image, which the app and the lead run in: %s %s (%s). The lead can't change it: someone at the machine runs hi app rebuild %s, which builds the image again with Ubuntu's current packages and restarts the app on it. The image is the machine's, so its other apps have the same advisory.", advisory.Package, advisory.Version, fixed, team)
+		return fmt.Sprintf("In hi's base image, which the app and the lead run in: %s %s (%s). The lead can't change it: someone at the machine runs hi app rebuild %s, which builds the image again with Ubuntu's current packages and restarts the app on it. The image is the machine's, so its other apps have the same advisory, and move to the new image too.", advisory.Package, advisory.Version, fixed, team)
 	case strings.HasPrefix(advisory.Part, "image:"):
 		return fmt.Sprintf("In the image of the lead's memory (Hindsight): %s %s (%s). A fix comes with a hi that uses a newer image: hi update on the machine.", advisory.Package, advisory.Version, fixed)
 	case advisory.Part == "agent":

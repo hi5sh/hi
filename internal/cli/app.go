@@ -638,7 +638,7 @@ usage:
   hi app machines add <machine> <key>  take apps from that machine (its key runs only hi's receiving end)
   hi app machines rm <machine>     no longer take apps from it
   hi app rebuild <name>            hi's base image again, with Ubuntu's current packages, and the
-                                   app on it: what fixes the image's advisories
+                                   machine's apps on it: what fixes the image's advisories
   hi app rm [<name>]               stop it and remove it from this machine: its service, boxes,
                                    and folder; without a name, pick it from a list
       [--keep-folder]              keep the folder; hi app up <folder> brings the app back
@@ -2408,7 +2408,7 @@ func appRebuild(name string, stdout, stderr io.Writer) error {
 		}
 	}
 	if len(others) > 0 {
-		fmt.Fprintf(stdout, "The image is this machine's, so %s still run the old one: hi app up <name> restarts each on the new one.\n", strings.Join(others, ", "))
+		fmt.Fprintf(stdout, "The image is this machine's, so %s move to it too, by themselves in a few minutes; their dev boxes move when they restart.\n", strings.Join(others, ", "))
 	}
 	return nil
 }
