@@ -95,6 +95,10 @@ a.button-like:hover { background: var(--secondary-hover); text-decoration: none;
 .clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
 .app-list li.current { background: var(--selected); }
 .app-list .count { flex: none; background: var(--bad); }
+/* Seen: the count narrows to nothing and fades. */
+@keyframes count-leave { to { transform: scaleX(0); opacity: 0; } }
+.app-list .count.leaving { animation: count-leave .4s ease-in forwards; }
+@media (prefers-reduced-motion: reduce) { .app-list .count.leaving { animation-duration: .15s; } }
 .app-list .menu-box { flex: none; }
 .app-list #open-button { padding: 1px 8px; font-size: 12px; }
 .feed { list-style: none; margin: 0; padding: 4px 0 16px; overflow-y: auto; flex: 1; min-height: 0; }

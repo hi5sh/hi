@@ -321,7 +321,7 @@ function renderApps() {
       el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state));
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
     const unseen = unseenIncidents(app.name, app.incidents_opened);
-    if (unseen) li.append(el("span", { class: "count", title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
+    if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
     if (app.name === openApp) li.dataset.app = app.name;
     list.append(li);
   }
@@ -1246,14 +1246,23 @@ function unseenIncidents(whose, opened) {
 }
 function markIncidentsSeen(list) {
   const seen = incidentsSeen();
-  let changed = false;
+  const changed = new Set();
   for (const incident of list) {
     const t = new Date(incident.opened).getTime();
-    if (incident.status !== "closed" && t > (seen[incident.app] || 0)) { seen[incident.app] = t; changed = true; }
+    if (incident.status !== "closed" && t > (seen[incident.app] || 0)) { seen[incident.app] = t; changed.add(incident.app); }
   }
-  if (!changed) return;
+  if (!changed.size) return;
   try { localStorage.setItem("hi-admin-incidents-seen", JSON.stringify(seen)); } catch (e) { /* private mode */ }
-  if (state) renderApps();
+  if (!state) return;
+  // The seen apps' red counts shrink and fade first, then the list
+  // draws without them.
+  const going = [...$("apps-list").querySelectorAll(".count[data-app]")].filter((n) => changed.has(n.dataset.app));
+  if (!going.length) { renderApps(); return; }
+  for (const n of going) n.classList.add("leaving");
+  let done = false;
+  const finish = () => { if (!done) { done = true; renderApps(); } };
+  going[0].addEventListener("animationend", finish, { once: true });
+  setTimeout(finish, 600);
 }
 
 async function refreshIncidents() {

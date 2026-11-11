@@ -2736,6 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.127 — A seen red count narrows and fades away
+
+- [x] When Incidents shows an app's incidents, its red count in Apps
+  narrows to nothing and fades over 0.4 s before the list draws without
+  it, in place of vanishing at once; quicker for whoever asks for less
+  motion.
+- [x] The admin page's check for a newer hi reads its hook before it
+  starts the goroutine that asks GitHub: a test put the hook back while
+  the goroutine still read it, which the race detector failed CI on.
+
 ### v2.6.126 — An app's red count goes once its incidents are seen
 
 - [x] The red count beside an app in Apps, and on the Incidents tab,

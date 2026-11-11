@@ -166,8 +166,11 @@ func (s *adminServer) latestVersion() string {
 	}
 	s.mu.Unlock()
 	if stale {
+		// Read now: a test puts adminLatest back once its server closes,
+		// which doesn't wait for this goroutine.
+		ask := adminLatest
 		go func() {
-			if tag, err := adminLatest(); err == nil {
+			if tag, err := ask(); err == nil {
 				s.mu.Lock()
 				s.latest = tag
 				s.mu.Unlock()
