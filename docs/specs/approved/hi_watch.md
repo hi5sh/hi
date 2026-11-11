@@ -594,7 +594,10 @@ dependency review in `team_deps.go`.
   the app's own packages; an image's, the agents', and hi's go to the
   watch channel with what fixes them (for hi's base image: `hi team
   rebuild`, which builds it again with Ubuntu's current packages and
-  restarts the team on it; since v2.6.10).
+  restarts the team on it; since v2.6.10). The bill lists the image
+  production's box runs, by ID, so an app still on the old image after
+  a rebuild keeps the old image's advisories until it moves (since
+  v2.6.131).
 - **The kernel is the machine's** (since v2.6.128). A box runs on the
   machine's kernel, so an image's kernel packages (`linux-libc-dev`,
   headers) aren't matched; the bill lists the running kernel as part

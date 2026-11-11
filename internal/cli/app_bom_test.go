@@ -101,6 +101,52 @@ func TestTeamBomListsWhatProductionRuns(t *testing.T) {
 	}
 }
 
+// After hi app rebuild production's box runs the old image for a few
+// minutes, and another app's until hi app up: the bill lists what the box
+// runs, and moves when the box does.
+func TestTeamBomFollowsTheImageProductionRuns(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	exec.Command("git", "-C", b.repo, "commit", "-q", "--allow-empty", "-m", "x").Run()
+	saveTeamVersions("payments", appVersions{Production: 4, Releases: []appRelease{{Version: 4, Commit: boxGit(b.repo, "rev-parse", "HEAD")}}})
+	tools := appTestBomTools()
+	list := tools.image
+	tools.image = func(image string) (appImageList, error) {
+		got, err := list(image)
+		switch image {
+		case tools.baseImage(), "sha256:rebuilt", "rebuilt":
+			got.ID, got.Packages = "sha256:rebuilt", [][4]string{{"openssl", "3.0.13-0ubuntu3.6", "libssl3t64", "3.0.13-0ubuntu3.6"}}
+		case "sha256:old":
+			got.ID = "sha256:old"
+		}
+		return got, err
+	}
+	running := "sha256:old"
+	tools.running = func(team string) string { return running }
+	path, _, err := appProductionBom("payments", tools)
+	data, _ := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), "sha256:old") || strings.Contains(string(data), "3.0.13-0ubuntu3.6") || !strings.Contains(string(data), "localhost/hi-box") {
+		t.Fatal("the bill lists the rebuilt image production doesn't run yet", err)
+	}
+	if appBomMoved("payments", path, tools) {
+		t.Fatal("made again while production runs the same image")
+	}
+	// Production moved to the new image.
+	running = "rebuilt"
+	if !appBomMoved("payments", path, tools) {
+		t.Fatal("the bill stays on the old image")
+	}
+	path, _, _ = appProductionBom("payments", tools)
+	data, _ = os.ReadFile(path)
+	if !strings.Contains(string(data), "3.0.13-0ubuntu3.6") {
+		t.Fatal("the bill doesn't list the new image's packages")
+	}
+	running = "sha256:rebuilt"
+	if appBomMoved("payments", path, tools) {
+		t.Fatal("made again for the same image")
+	}
+}
+
 func TestTeamBomParsers(t *testing.T) {
 	for in, want := range map[[2]string]string{{"ubuntu", "24.04"}: "Ubuntu:24.04:LTS", {"ubuntu", "26.04"}: "Ubuntu:26.04:LTS", {"ubuntu", "25.10"}: "Ubuntu:25.10", {"debian", "12.7"}: "Debian:12", {"alpine", "3.20.3"}: "Alpine:v3.20"} {
 		if got := appOSVEcosystem(in[0], in[1]); got != want {

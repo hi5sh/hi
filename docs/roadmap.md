@@ -2736,6 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.131 — A bill lists the image production runs
+
+- [x] Production's bill lists the packages of the image its box runs,
+  not of hi's base image as the machine has it now. After `hi app
+  rebuild` production runs the old image for a few minutes, and the
+  machine's other apps until `hi app up <name>`; their bills and
+  advisories stay on the old image until the box moves, and are made
+  again within a minute after. With no production box, the bill lists
+  the base image as before.
+
 ### v2.6.130 — Budgets and approval, and why a request waits
 
 - [x] The org's Policy is **Budgets and approval**. Each group shows its

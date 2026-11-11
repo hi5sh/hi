@@ -145,6 +145,10 @@ type appBomMachine struct {
 	tool func(name string, args ...string) string
 	// baseImage is the image the app and the lead run in.
 	baseImage func() string
+	// running is the ID of the image production's box runs, or "" when
+	// it has none. After hi app rebuild it runs the old image for a few
+	// minutes, and another app's box until hi app up <name>.
+	running func(team string) string
 	// kernel is the Linux kernel the machine runs, which every box runs
 	// on; nil or zero where dpkg doesn't know it.
 	kernel func() appKernel
@@ -184,7 +188,40 @@ var appBomTools = appBomMachine{
 		return appBomVersionPattern.FindString(string(out))
 	},
 	baseImage: boxBaseImage,
+	running:   appProductionImage,
 	kernel:    appMachineKernel,
+}
+
+// appProductionImage is the ID of the image production's box runs, or
+// "" when it has no box.
+func appProductionImage(team string) string {
+	state, ok := loadTeamSlot(team, appSlotProduction)
+	if !ok || state.Container == "" {
+		return ""
+	}
+	b := &appBroker{}
+	out, err := b.engineOutput("container", "inspect", "-f", "{{.Image}}", state.Container)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+// appBomBaseImage is the image whose packages the bill lists as hi's
+// base image: the one production's box runs, or hi's base image as it is
+// now when production has no box. The name is the base image's either
+// way; the ID says which build.
+func appBomBaseImage(team string, tools appBomMachine) (name, image string) {
+	name = tools.baseImage()
+	if name == "" {
+		return "", ""
+	}
+	if tools.running != nil {
+		if id := tools.running(team); id != "" {
+			return name, id
+		}
+	}
+	return name, name
 }
 
 // appMachineKernel reads the running kernel's package: the image named
@@ -511,8 +548,8 @@ func appMakeBom(team, version, commit string, tools appBomMachine) (cdxBom, erro
 			Component:  &cdxComponent{Type: "application", Ref: "team:" + team, Name: team, Version: version},
 			Properties: []cdxProperty{{"hi:team", team}, {"hi:commit", commit}}}}
 	bom.Components = append(bom.Components, appBomLockfiles(repo, commit)...)
-	if base := tools.baseImage(); base != "" {
-		if list, err := tools.image(base); err == nil {
+	if base, image := appBomBaseImage(team, tools); base != "" {
+		if list, err := tools.image(image); err == nil {
 			bom.Components = append(bom.Components, appBomImage("image:base", base, list)...)
 		} else {
 			bom.Metadata.Properties = append(bom.Metadata.Properties, cdxProperty{"hi:missing", err.Error()})
@@ -600,9 +637,10 @@ func appWriteBom(team, version, commit string, tools appBomMachine) (string, err
 }
 
 // appProductionBom is production's bill, made the first time it's
-// asked for after a release, and again when hi's base image is built
-// again (hi app rebuild) or the machine runs another kernel (after an
-// upgrade and a reboot), and its version.
+// asked for after a release, and again when production's box runs
+// another build of hi's base image (it moved after hi app rebuild) or
+// the machine runs another kernel (after an upgrade and a reboot), and
+// its version.
 func appProductionBom(team string, tools appBomMachine) (string, string, error) {
 	versions, err := loadTeamVersions(team)
 	if err != nil || versions.Production == 0 {
@@ -610,7 +648,7 @@ func appProductionBom(team string, tools appBomMachine) (string, string, error) 
 	}
 	version := fmt.Sprintf("v%d", versions.Production)
 	path := appBomPath(team, version)
-	if fileExists(path) && !appBomMoved(path, tools) {
+	if fileExists(path) && !appBomMoved(team, path, tools) {
 		return path, version, nil
 	}
 	commit := ""
@@ -626,10 +664,11 @@ func appProductionBom(team string, tools appBomMachine) (string, string, error) 
 	return path, version, err
 }
 
-// appBomMoved says a bill names hi's base image by another ID than the
-// image has now, or another kernel than the machine runs, or none where
-// the machine has one (a bill made before hi listed it).
-func appBomMoved(path string, tools appBomMachine) bool {
+// appBomMoved says a bill names hi's base image by another ID than
+// production's box runs (or, with no box, than the image has now), or
+// another kernel than the machine runs, or none where the machine has
+// one (a bill made before hi listed it).
+func appBomMoved(team, path string, tools appBomMachine) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
@@ -651,14 +690,18 @@ func appBomMoved(path string, tools appBomMachine) bool {
 	if kernel.Version != "" && !listed {
 		return true
 	}
-	base := tools.baseImage()
+	base, image := appBomBaseImage(team, tools)
 	if base == "" {
 		return false
 	}
+	id := func(s string) string { return strings.TrimPrefix(strings.TrimSpace(s), "sha256:") }
 	for _, component := range bom.Components {
 		if component.Type == "container" && component.property(bomPart) == "image:base" {
+			if image != base {
+				return id(image) != id(component.property("hi:image:id"))
+			}
 			list, err := tools.image(base)
-			return err == nil && list.ID != component.property("hi:image:id")
+			return err == nil && id(list.ID) != id(component.property("hi:image:id"))
 		}
 	}
 	return false

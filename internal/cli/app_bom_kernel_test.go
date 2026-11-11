@@ -32,7 +32,7 @@ func TestTeamBomListsTheMachinesKernel(t *testing.T) {
 	}
 	kernel := appKernel{Release: "7.0.0-42-generic", OS: "ubuntu", OSRelease: "26.04", Binary: "linux-image-7.0.0-42-generic", Source: "linux", Version: "7.0.0-42.42"}
 	tools.kernel = func() appKernel { return kernel }
-	if !appBomMoved(before, tools) {
+	if !appBomMoved("payments", before, tools) {
 		t.Fatal("a bill without the kernel stays")
 	}
 	path, _, err := appProductionBom("payments", tools)
@@ -58,17 +58,17 @@ func TestTeamBomListsTheMachinesKernel(t *testing.T) {
 	if headers == nil || headers.property(bomOSVName) != "" || headers.property(bomPart) != "image:base" {
 		t.Fatalf("the image's kernel headers are matched: %+v", headers)
 	}
-	if appBomMoved(path, tools) {
+	if appBomMoved("payments", path, tools) {
 		t.Fatal("made again for the same kernel")
 	}
 	// Upgraded and restarted.
 	kernel = appKernel{Release: "7.0.0-43-generic", OS: "ubuntu", OSRelease: "26.04", Binary: "linux-image-7.0.0-43-generic", Source: "linux", Version: "7.0.0-43.43"}
-	if !appBomMoved(path, tools) {
+	if !appBomMoved("payments", path, tools) {
 		t.Fatal("the bill names the old kernel")
 	}
 	// A machine whose kernel dpkg doesn't know keeps its bill.
 	tools.kernel = func() appKernel { return appKernel{} }
-	if appBomMoved(path, tools) {
+	if appBomMoved("payments", path, tools) {
 		t.Fatal("made again without a kernel")
 	}
 }
