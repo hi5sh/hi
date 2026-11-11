@@ -753,7 +753,7 @@ func appManifestData(config appConfig) map[string]any {
 func appPeople(ids []string) string {
 	var mentions []string
 	for _, id := range ids {
-		mentions = append(mentions, "<@"+id+">")
+		mentions = append(mentions, appMention(id))
 	}
 	return strings.Join(mentions, ", ")
 }

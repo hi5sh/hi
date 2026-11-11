@@ -124,7 +124,7 @@ func (b *appBroker) webReport(r *http.Request, slot string, send appFeedbackSend
 	ticket := *result.Ticket
 	link := firstNonEmpty(ticket.URL, appDevTaskLink(b.team, ticket.Number))
 	if b.channel != nil {
-		text := fmt.Sprintf(":lady_beetle: <@%s> reported #%d from the app's helper (%s): %s", person.User, ticket.Number, appSlackEscape(where), appSlackEscape(ticket.Title))
+		text := fmt.Sprintf(":lady_beetle: %s reported #%d from the app's helper (%s): %s", appMention(person.User), ticket.Number, appSlackEscape(where), appSlackEscape(ticket.Title))
 		if link != "" {
 			text += fmt.Sprintf(" <%s|the task>", link)
 		}

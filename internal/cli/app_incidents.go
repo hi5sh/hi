@@ -483,7 +483,7 @@ func (b *appBroker) remindIncidents(now time.Time) error {
 	}
 	var owners []string
 	for _, owner := range config.Owners {
-		owners = append(owners, "<@"+owner+">")
+		owners = append(owners, appMention(owner))
 	}
 	for _, incident := range loadTeamIncidents(b.team) {
 		if appIncidentStands(incident, now) {

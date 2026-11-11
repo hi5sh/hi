@@ -711,6 +711,24 @@ func (b *appBroker) hostHandler() http.Handler {
 		link, err := b.devPageLinkFor(request.User)
 		reply(w, map[string]string{"link": link}, err)
 	})
+	// The admin page's invitations (hi_people.md): a sign-in link for
+	// someone with a level, which the admin page puts in its email.
+	mux.HandleFunc("POST /emailinvite", func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Email string `json:"email"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		email, err := appCheckEmail(request.Email)
+		if err != nil {
+			reply(w, nil, err)
+			return
+		}
+		invite, err := b.mailInvite(email)
+		reply(w, invite, err)
+	})
 	mux.HandleFunc("POST /say", func(w http.ResponseWriter, r *http.Request) {
 		var request appSayRequest
 		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&request); err != nil {

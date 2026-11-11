@@ -57,7 +57,7 @@ func (b *appBroker) webSignin(user, provider string) (string, error) {
 	if !containsString(config.Owners, user) {
 		var owners []string
 		for _, owner := range config.Owners {
-			owners = append(owners, "<@"+owner+">")
+			owners = append(owners, appMention(owner))
 		}
 		return "", fmt.Errorf("only the app's owners may sign it in, since a sign-in decides whose subscription pays. Ask an owner: %s", strings.Join(owners, ", "))
 	}

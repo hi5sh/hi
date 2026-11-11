@@ -431,6 +431,29 @@ func adminSignIn(linkKey string) (session string, admin adminPerson, err error) 
 	return session, admin, saveAdminKeys(keys)
 }
 
+// adminNewSession signs an admin in, by name, without a link: a sign-in
+// by email (mail_signin.go).
+func adminNewSession(name string) (string, adminPerson, error) {
+	config, ok := loadAdminConfig()
+	if !ok {
+		return "", adminPerson{}, errors.New("the admin page isn't set up")
+	}
+	admin, ok := config.admin(name)
+	if !ok {
+		return "", admin, errors.New("you aren't an admin of this machine any more")
+	}
+	session, err := adminNewKey()
+	if err != nil {
+		return "", admin, err
+	}
+	unlock := adminLock()
+	defer unlock()
+	keys := loadAdminKeys()
+	now := time.Now().UTC()
+	keys.Sessions = append(keys.Sessions, adminKey{Hash: adminHash(session), Admin: admin.Name, Made: now, Used: now, Ends: now.Add(adminSessionLasts)})
+	return session, admin, saveAdminKeys(keys)
+}
+
 // adminSessionAdmin is the admin a sign-in belongs to. A sign-in used
 // keeps going: its end moves on, once a day at most.
 func adminSessionAdmin(session string) (adminPerson, bool) {
@@ -567,7 +590,10 @@ const adminUsage = `usage: hi admin                         whether the admin pa
        hi admin owner [<admin>]         the machine's owner, the one who opens a terminal in an
                                         app's boxes; or hand it on
        hi admin address [<host> [--https] | default]
-                                        the name the IT team keeps for it; admin.<domain> by default`
+                                        the name the IT team keeps for it; admin.<domain> by default
+       hi admin mail [set ... | test <address> | off]
+                                        how the machine sends email: sign-in links and invitations
+                                        (hi admin mail help)`
 
 func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -593,6 +619,8 @@ func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = adminAddressCommand(rest, stdout)
 	case "owner":
 		err = adminOwnerCommand(rest, stdout)
+	case "mail", "email":
+		err = adminMailCommand(rest, stdin, stdout)
 	case "serve":
 		err = adminServe(stderr)
 	case "__job":

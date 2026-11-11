@@ -273,3 +273,24 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .machine-fix { padding: 2px 0 10px 14px; color: var(--muted, inherit); }
 .machine-fix p { margin: 0 0 6px; }
 .moved-card { opacity: .75; }
+
+/* People (hi_people.md) */
+.people-tools { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.people-tools select { font-size: 12px; }
+.person-list .person-row { display: flex; flex-direction: column; align-items: stretch; gap: 1px; }
+.person-line { display: flex; gap: 6px; align-items: baseline; }
+.person-line .stask-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.person-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.person-signed { white-space: nowrap; }
+.people-grid .level-badge { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid transparent; background: none; color: var(--muted); }
+.people-grid .level-badge:hover { border-color: var(--line); }
+.people-grid .level-owner { color: var(--text); background: var(--widget); border-color: var(--line); font-weight: 600; }
+.people-grid .level-pro, .people-grid .level-vibe { color: var(--text); }
+.person-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 8px; }
+.person-facts dt { color: var(--muted); }
+.person-facts dd { margin: 0; overflow-wrap: anywhere; }
+.person-apps th[scope=row] { min-width: 120px; }
+.person-add { max-width: 560px; }
+.email-signin { margin-top: 14px; }
+.email-signin label { display: block; margin-bottom: 4px; }
+#people-add { white-space: nowrap; }

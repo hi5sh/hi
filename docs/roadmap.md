@@ -2736,6 +2736,38 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.133 — People by email, and signing in by email
+
+Spec: [hi_people.md](specs/approved/hi_people.md).
+
+- [x] A person is an email: the machine keeps one list of people (name,
+  email, Slack accounts, SSH key) in `people.json` beside the apps'
+  links. Each app keeps its levels, and its lists take an email as well
+  as a Slack member ID, for people outside its workspace.
+- [x] The apps' Slack apps ask for `users:read.email`: hi finds each
+  member's email, so someone in two workspaces is one person, and finds
+  someone's Slack account in each app's workspace by their email. `hi
+  app up` says when the scope is missing.
+- [x] hi sends email over SMTP, the machine's one setting (`hi admin
+  mail`, or Keys, Email on the admin page), with a test: sign-in links
+  and codes, and invitations, nothing else.
+- [x] Signing in by email on the dev page, in the helper (Feedback: "Sign
+  in with your email"), and on the admin page: the same answer for
+  anyone, a link and a six-digit code good once for 15 minutes, the link
+  built from the address's own setting and opening a page with a button
+  (mail scanners open links), the code typed in the tab that asked. It
+  ends in the sign-in a Slack link gives. The first one is said in the
+  app's ops channel.
+- [x] The admin page's People is a list of people, with a filter by app
+  and a Grid; a person opens in the middle with their level in each
+  app, their email and Slack accounts, one SSH key for every dev box,
+  their sign-ins, Email a sign-in link, and Remove from everything. Add
+  someone by email, picked from the apps' workspaces or typed, with a
+  level in each app and an invitation. The organisation's email domains
+  keep out other addresses unless an admin says they're outside.
+- [x] `hi people` (add, rm, key, link, domains) does the same on the
+  command line; `hi app access` and `hi app owners` take an email.
+
 ### v2.6.132 — Rebuild says every app moves
 
 - [x] `hi app rebuild`, the admin page's Rebuild dialog, the help, and

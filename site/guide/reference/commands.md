@@ -26,6 +26,8 @@ description: Every hi command and option in one place.
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
 | `hi net domain [<domain> --dns <provider> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
+| `hi people …`                    | Everyone on this machine, by email: their level in each app, their SSH key; see below |
+| `hi admin mail …`                | How the machine sends email: sign-in links and invitations; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and app services still on the old version |
 | `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi app` below |
@@ -364,11 +366,11 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app freeze\|unfreeze\|pause\|unpause <name> --why "…"` | Cut the app's boxes off from the internet and pause it, or pause every box, within a minute; and undo it. Said in the ops channel |
 | `hi app ops <name> [<channel ID>\|off]` | A second Slack channel for incidents, warnings, security, keys, access, and the dev box's site asks; without one they go to the main channel. A running app's lead restarts to talk in both |
 | `hi app dev <name> allow [<site> [--why <what for>] \| --remove <site>]` | The sites the dev box reaches, a database's name too, as the owners allow them on the dev page; with no site, the list and the asks waiting |
-| `hi app owners <name> [add\|remove <member ID>]` | The app's owners, who build in the dev box; removing one ends their SSH key and links |
-| `hi app owners <name> key <member ID> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
+| `hi app owners <name> [add\|remove <member ID>\|<email>]` | The app's owners, who build in the dev box; removing one ends their SSH key and links. Someone outside the app's Slack workspace is their email |
+| `hi app owners <name> key <member ID>\|<email> <public key>\|--remove` | An owner's SSH key for the dev box; a new one replaces the old |
 | `hi app access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |
-| `hi app access <name> <member ID> pro\|vibe\|contributor\|none` | An owner's change, also on the dev page's People table: a Pro Dev builds with Chat, terminal, VS Code, and SSH, and releases; a Vibe Dev builds in Chat only, and releases; a contributor reports bugs as tasks; none takes the level away |
-| `hi app access <name> key <member ID> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
+| `hi app access <name> <member ID>\|<email> pro\|vibe\|contributor\|none` | An owner's change, also on the dev page's People table: a Pro Dev builds with Chat, terminal, VS Code, and SSH, and releases; a Vibe Dev builds in Chat only, and releases; a contributor reports bugs as tasks; none takes the level away |
+| `hi app access <name> key <member ID>\|<email> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
 | `hi app task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]]` | The app's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
 | `hi dev preview\|ship\|status\|say\|task\|allow` | In an app's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/app/dev/) |
 | `hi dev review\|deep-review\|brainstorm` | In an app's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
@@ -488,6 +490,30 @@ hi net status | down | reconnect
 | `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, an app's Stage and dev page too |
 
 See [Share a local service](/guide/workstation/expose/).
+
+## hi people
+
+See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_people.md). A person is an email: their Slack accounts in the apps' workspaces are found by it (the apps' Slack apps need `users:read.email`), so someone in two workspaces is one person. Each app keeps its own levels; the admin page's People shows them all.
+
+| Command | What it does |
+|---|---|
+| `hi people` | Everyone, with their email, Slack accounts, SSH key, last sign-in by email, and level in each app |
+| `hi people add <email> [--name <name>] [--slack <member ID>] [--outside] [--app <app>=owner\|pro\|vibe\|contributor ...] [--invite]` | Add someone, with or without Slack; `--app` gives them a level (as their Slack account where the app's workspace has one); `--invite` emails them a sign-in link to each app |
+| `hi people rm <email>` | Remove them from everything: every app's level, their SSH keys, their sign-ins, and the list |
+| `hi people key <email> <public key>\|--remove` | Their SSH key, put into the dev box of every app where they're an owner or a Pro Dev |
+| `hi people link <email> <member ID>` | Their Slack account, where Slack has another email for them |
+| `hi people domains [<domain>[,<domain>]\|--none]` | The organisation's email domains: someone else is added with `--outside` |
+
+## hi admin mail
+
+| Command | What it does |
+|---|---|
+| `hi admin mail` | How the machine sends email, or that it sends none |
+| `hi admin mail set --host <host> --from <address> [--port <port>] [--security starttls\|tls\|none] [--user <name>] [--name <from name>]` | Send through an SMTP server: the organisation's relay, Google Workspace's, Microsoft 365's, Postmark, SES, Resend; the password on standard input. hi sends sign-in links and codes, and invitations, nothing else |
+| `hi admin mail test <address>` | Send a test email |
+| `hi admin mail off` | Send none: people sign in with Slack links |
+
+With email set up, the dev page, the helper, and the admin page each take an email to sign in with: a link and a six-digit code, each good once, for 15 minutes.
 
 ## hi adduser
 

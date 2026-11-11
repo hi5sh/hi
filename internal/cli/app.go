@@ -257,8 +257,8 @@ func validateTeam(config appConfig) error {
 		return errors.New("an app needs at least one owner")
 	}
 	for _, id := range slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors) {
-		if !slackIDPattern.MatchString(id) {
-			return fmt.Errorf("people are Slack member IDs, such as U07ABC123, not %q", id)
+		if !slackIDPattern.MatchString(id) && !appIsEmail(id) {
+			return fmt.Errorf("people are Slack member IDs, such as U07ABC123, or email addresses, not %q", id)
 		}
 	}
 	if config.Members["lead"].Agent != "hermes" {
@@ -825,6 +825,9 @@ func (liveTeamSlack) scopes(botToken string) ([]string, error) {
 var appSlackScopes = []string{
 	"app_mentions:read", "channels:history", "channels:read", "chat:write", "commands", "files:read", "files:write",
 	"groups:history", "groups:read", "im:history", "im:read", "im:write", "reactions:read", "reactions:write", "users:read",
+	// Finding people by email: the same person in every app, and sign-in
+	// by email (hi_people.md).
+	"users:read.email",
 }
 
 // appMissingScopes are the scopes the team's app needs that the bot token
@@ -857,6 +860,10 @@ func appScopesAdvice(missing []string) string {
 	}
 	if containsString(missing, "im:history") || containsString(missing, "im:read") {
 		lost = append(lost, "talking to the lead in a DM")
+	}
+	if containsString(missing, "users:read.email") && len(missing) == 1 {
+		// A scope alone: no command or event to add.
+		return "the Slack app lacks users:read.email, so hi can't find people by their email (one person across the apps, and signing in by email as the Slack account they are). In Slack's app settings (api.slack.com/apps), add it under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace"
 	}
 	if len(lost) > 0 {
 		// These need the manifest's command and events too, not just
@@ -1812,8 +1819,13 @@ func appCheckPeople(answer string) error {
 		return errors.New("give at least one member ID")
 	}
 	for _, id := range ids {
+		// Someone outside Slack, or not in the app's workspace, is their
+		// email (hi_people.md).
+		if appIsEmail(appPersonID(id)) {
+			continue
+		}
 		if !slackIDPattern.MatchString(id) || (!strings.HasPrefix(id, "U") && !strings.HasPrefix(id, "W")) {
-			return fmt.Errorf("a member ID looks like U07ABC123, not %q", id)
+			return fmt.Errorf("a member ID looks like U07ABC123, or an email address, not %q", id)
 		}
 	}
 	return nil

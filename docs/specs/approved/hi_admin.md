@@ -716,7 +716,10 @@ hi admin address [<host> [--https] | default]
 - **Help:** a chat on the right that answers how to do something in hi
   from hi's guide, on the machine's OpenRouter key. It can point at the
   button or fill in the form, but an admin presses it.
-- **Sign-in by email** through the organisation's provider or hi5.sh.
+- ~~**Sign-in by email**~~ built in v2.6.133, through the machine's own
+  SMTP: [hi_people.md](hi_people.md), which also makes People a list of
+  people by email. Through the organisation's provider or hi5.sh is
+  still Later.
 - **Several machines:** the org server's admin page lists the org's
   machines and their apps' states, and opens each one's admin page.
 

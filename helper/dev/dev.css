@@ -610,6 +610,13 @@ button.danger { color: var(--bad); }
   position: fixed; inset: 0; background: var(--shell);
   display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 16px;
 }
+.locked[hidden] { display: none; }
+.locked-card { max-width: 440px; width: 100%; }
+.email-signin { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; text-align: left; font-size: 13px; }
+.email-signin[hidden] { display: none; }
+.email-row { display: flex; gap: 6px; }
+.email-row input { flex: 1; min-width: 0; }
+#email-said { margin-top: 10px; text-align: left; font-size: 13px; min-height: 1em; }
 .toast {
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   background: var(--widget); color: var(--text); border: 1px solid var(--line); box-shadow: 0 0 12px var(--shadow);

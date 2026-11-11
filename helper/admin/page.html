@@ -20,6 +20,15 @@
         <button class="primary" type="submit">Send me a new link</button>
         <p id="newlink-said" class="muted small">It comes by Slack DM.</p>
       </form>
+      <form id="email-form" class="signin-form email-signin" autocomplete="on" novalidate>
+        <label for="email-address" class="muted small">Or sign in with your email</label>
+        <div class="signin-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email"><button type="submit">Email me a link</button></div>
+      </form>
+      <form id="code-form" class="signin-form email-signin" autocomplete="off" novalidate hidden>
+        <label for="email-code" class="muted small">The six digits in the email</label>
+        <div class="signin-row"><input id="email-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code"><button type="submit" class="primary">Sign in</button></div>
+      </form>
+      <p id="email-said" class="muted small" aria-live="polite"></p>
     </div>
   </section>
 
@@ -82,6 +91,7 @@
           <section id="side-people" class="side-view" role="tabpanel" aria-label="People" hidden>
             <div class="logs-tools">
               <input id="people-search" data-nav type="search" placeholder="Find someone" aria-label="Find someone" autocomplete="off">
+              <button id="people-add" class="small" title="Add someone: by email, with Slack or without">+ Add</button>
             </div>
             <div id="people-apps"></div>
           </section>
@@ -141,6 +151,7 @@
             <section id="orgview" class="admin-section" aria-label="The org" hidden></section>
             <section id="policy" class="admin-section" aria-label="Budgets and approval" hidden></section>
             <section id="newapp" class="admin-section" aria-label="New app" hidden></section>
+            <section id="person" class="admin-section" aria-label="A person" hidden></section>
           </div>
         </div>
 

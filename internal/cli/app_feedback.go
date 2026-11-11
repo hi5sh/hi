@@ -671,7 +671,7 @@ func (b *appBroker) postFeedback(config appConfig, feedback appFeedback) {
 	}
 	from := "someone who didn't say who they are"
 	if feedback.User != "" {
-		from = "<@" + feedback.User + "> (signed in with " + appSlashCommand(b.team) + ")"
+		from = appMention(feedback.User) + map[bool]string{true: " (signed in by email)", false: " (signed in with " + appSlashCommand(b.team) + ")"}[appIsEmail(feedback.User)]
 	} else if feedback.Name != "" {
 		from = "“" + appSlackEscape(feedback.Name) + "” (a name they typed, not checked)"
 	}

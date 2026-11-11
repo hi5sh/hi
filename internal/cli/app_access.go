@@ -186,7 +186,7 @@ func appDevKeyLabel(team, user string) string {
 
 // appAccessCommand is hi app access.
 func appAccessCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi app access <app> [<member ID> pro|vibe|contributor|none | key <member ID> <public key>|--remove]"}
+	usage := usageError{"usage: hi app access <app> [<member ID>|<email> pro|vibe|contributor|none | key <member ID>|<email> <public key>|--remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -199,7 +199,7 @@ func appAccessCommand(args []string, stdout io.Writer) error {
 		printTeamAccess(config, stdout)
 		return nil
 	case len(args) >= 4 && args[1] == "key":
-		user := strings.Trim(args[2], "<@>")
+		user := appPersonID(args[2])
 		if err := appCheckPeople(user); err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func appAccessCommand(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "%s's SSH key for app %s's dev box is %s; a key they had before no longer works.\n", user, config.Name, appSSHKeyLabel(key))
 		return nil
 	case len(args) == 3:
-		text, err := appSetLevel(&config, strings.Trim(args[1], "<@>"), args[2])
+		text, err := appSetLevel(&config, appPersonID(args[1]), args[2])
 		if err != nil {
 			return err
 		}
@@ -298,9 +298,17 @@ func appPeopleNames(config appConfig, ids []string) map[string]string {
 			names[key.User] = key.Name
 		}
 	}
+	// The machine's list of people names everyone it knows, by email
+	// too (hi_people.md).
+	directory := loadMachinePeople()
+	for _, id := range ids {
+		if person, ok := directory.person(id); ok && person.Name != "" && names[id] == "" {
+			names[id] = person.Name
+		}
+	}
 	secrets, _ := loadTeamSecrets(config.Name)
 	for _, id := range ids {
-		if names[id] == "" && secrets.SlackBotToken != "" {
+		if names[id] == "" && secrets.SlackBotToken != "" && !appIsEmail(id) {
 			if name := appSlackUserName(secrets.SlackBotToken, id); name != "" {
 				names[id] = name
 			}
@@ -416,9 +424,9 @@ func (b *appBroker) devPeopleRoutes(mux *http.ServeMux, builder func(http.Respon
 		}
 		// A level is a grant of power: the channel hears who gave it.
 		if now := appLevel(config, request.User); b.channel != nil && was != now {
-			text := fmt.Sprintf(":busts_in_silhouette: <@%s> made <@%s> %s.", person.User, request.User, appLevelWords(now))
+			text := fmt.Sprintf(":busts_in_silhouette: %s made %s %s.", appMention(person.User), appMention(request.User), appLevelWords(now))
 			if now == appLevelNone {
-				text = fmt.Sprintf(":busts_in_silhouette: <@%s> took away <@%s>'s level: no reports, and the lead doesn't take their requests.", person.User, request.User)
+				text = fmt.Sprintf(":busts_in_silhouette: %s took away %s's level: no reports, and the lead doesn't take their requests.", appMention(person.User), appMention(request.User))
 			}
 			b.channel.post(config.opsChannel(), text)
 		}

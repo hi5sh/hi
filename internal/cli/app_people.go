@@ -188,7 +188,7 @@ func (b *appBroker) webLink(user string, dev bool) (string, error) {
 // for the admin page to open: a key of their own, beside the ones /hi sent
 // them, which keep working. Someone who doesn't build gets none.
 func (b *appBroker) devPageLinkFor(user string) (string, error) {
-	if !slackIDPattern.MatchString(user) {
+	if !slackIDPattern.MatchString(user) && !appIsEmail(user) {
 		return "", fmt.Errorf("%q isn't a Slack member ID", user)
 	}
 	config, err := loadTeam(b.team)
@@ -208,7 +208,9 @@ func (b *appBroker) devPageLinkFor(user string) (string, error) {
 	}
 	now := time.Now().UTC()
 	name := user
-	if b.channel != nil {
+	if person, ok := loadMachinePeople().person(user); ok && person.Name != "" {
+		name = person.Name
+	} else if b.channel != nil && !appIsEmail(user) {
 		name = firstNonEmpty(b.channel.userName(user), user)
 	}
 	key := appPersonKey{Key: base64.RawURLEncoding.EncodeToString(raw), User: user, Name: name, Made: now, Ends: now.Add(appKeyLasts)}

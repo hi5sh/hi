@@ -209,7 +209,7 @@ function freshView(view) {
   if (view === "people") { renderPeople(); refreshPeopleApps(); }
   if (view === "network") { renderMachineNetwork(); refreshMachineNetwork(); }
   if (view === "advisories") { renderAdvisories(); refreshAdvisories(); }
-  if (view === "keys") { renderKeys(); refreshMachineKeys(); }
+  if (view === "keys") { renderKeys(); refreshMachineKeys(); refreshMail(); }
 }
 
 // The left panel is the same on every machine. The right is about what's
@@ -251,6 +251,31 @@ function showSignin() {
   document.title = "Admin page: sign in";
 }
 
+// Signing in by email (hi_people.md): an admin whose email the machine
+// knows gets a link and a code.
+let emailRequest = "";
+$("email-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const address = $("email-address").value.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Give your email address."; $("email-address").focus(); return; }
+  try {
+    const answer = await api("/api/email", { email: address });
+    emailRequest = answer.request;
+    $("email-said").textContent = answer.text;
+    $("code-form").hidden = false;
+    $("email-code").focus();
+  } catch (e) { $("email-said").textContent = e.message; }
+});
+$("code-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = $("email-code").value.replace(/\s/g, "");
+  if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the email."; $("email-code").focus(); return; }
+  try {
+    await api("/api/email/code", { request: emailRequest, code });
+    location.href = "/";
+  } catch (e) { $("email-said").textContent = e.message; }
+});
+
 $("newlink-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -287,7 +312,8 @@ function movedOpen() {
 function renderBar() {
   $("machine").textContent = state.machine;
   $("home-machine").textContent = state.machine;
-  const named = openApp || (orgOpen() ? "The org" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : "");
+  const person = middle.startsWith(":person/") ? (personOpen === "new" ? "Add someone" : ((peopleApps && peopleApps.people.find((x) => x.key === personOpen)) || {}).name || personOpen) : "";
+  const named = openApp || (orgOpen() ? "The org" : middle === ":new" ? "New app" : middle.startsWith(":new/") ? "New app " + middle.slice(5) : person ? "People ▸ " + person : "");
   $("crumb").hidden = !named;
   $("sections").hidden = !openApp || movedOpen();
   $("org-sections").hidden = !orgOpen();
@@ -452,6 +478,8 @@ function setMiddle(what) {
   $("orgview").hidden = what !== ":org" || orgSection === "policy";
   $("policy").hidden = what !== ":org" || orgSection !== "policy";
   $("newapp").hidden = !what.startsWith(":new");
+  $("person").hidden = !what.startsWith(":person/");
+  if (!what.startsWith(":person/")) personOpen = "";
   if (!what.startsWith(":new")) clearTimeout(draftPoll);
   history.replaceState(null, "", what ? "#" + encodeURIComponent(what).replace(/^%3A/, ":") + (what === ":org" && orgSection !== "overview" ? "/" + orgSection : "") : "/");
   renderBar();
@@ -1772,10 +1800,11 @@ function renderPeople() {
   $("people-apps").replaceChildren(peopleAppsBlock());
 }
 $("people-search").addEventListener("input", renderPeople);
+$("people-add").addEventListener("click", () => openPerson("new"));
 
 // Keys: the machine's, set or not, never shown. The org's are the org's.
 function renderKeys() {
-  const parts = [machineKeysBlock()];
+  const parts = [machineKeysBlock(), mailBlock()];
   if (state && state.org) parts.push(el("p", { class: "muted small" }, "The org's keys, for its compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "the org's Keys"), "."));
   $("keys-view").replaceChildren(...parts);
 }
@@ -2788,12 +2817,28 @@ function sectionPeople(s) {
       levelSelect(p.level, (p.name || p.id) + "'s level", async (level, select) => { if (await setLevel(s.name, p.id, p.name, level, select, p.level)) refreshSettings(); }), keyButtons));
   }
   if (!s.people.length) list.append(el("li", { class: "plain muted small" }, "Nobody yet."));
-  const id = el("input", { maxlength: "20", placeholder: "Their Slack member ID, U…", "aria-label": "Their Slack member ID" });
+  const id = el("input", { maxlength: "200", placeholder: "Their email, or Slack member ID", "aria-label": "Their email, or Slack member ID" });
   let level = "pro";
   const add = el("form", { class: "say-form", autocomplete: "off" }, id, levelSelect("pro", "Their level", (v) => { level = v; }), el("button", { type: "submit" }, "Add"));
-  add.addEventListener("submit", async (event) => { event.preventDefault(); if (await setLevel(s.name, id.value.trim(), "", level, null, "none")) { id.value = ""; refreshSettings(); } });
+  add.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const who = id.value.trim();
+    if (!who) return;
+    // By email: the machine's list finds their Slack account (hi_people.md).
+    if (who.includes("@")) {
+      if (!(await ask({ title: "Make " + who + " " + ({ owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" })[level] + " of " + s.name + "?", text: "The app's channel hears it.", ok: "Add" }))) return;
+      try {
+        const answer = await api("/api/person", { action: "add", email: who, levels: { [s.name]: level } });
+        toast(answer.text, true);
+        id.value = "";
+        refreshSettings();
+      } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+      return;
+    }
+    if (await setLevel(s.name, who, "", level, null, "none")) { id.value = ""; refreshSettings(); }
+  });
   return [el("p", { class: "purpose" }, "Owners build in the dev box and release; Pro Devs too, except rollbacks, production's data and settings, keys, and who is who; Vibe Devs in the dev page's Chat only; contributors report bugs. The same as hi app owners and hi app access, and owners change all but owners on the dev page."),
-    list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "In Slack: their profile, ⋮, Copy member ID. People in several apps: People, on the left.")];
+    list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "By email, with Slack or without: someone in the app's Slack workspace is added as their Slack account there. Their SSH key, sign-ins, and other apps: People, on the left.")];
 }
 
 function sectionAgents(s) {
@@ -2923,50 +2968,256 @@ async function setEnv(name, scope) {
 // ---------------------------------------------------------------------------
 // People across apps, and the machine's keys
 
-let peopleApps = null;
+// People: one row a person, joined by email across the apps and their
+// Slack workspaces (hi_people.md). A person opens in the middle, as an
+// app does, with their level in each app, their SSH key, their sign-ins,
+// and Remove from everything. The grid shows every level at once.
+let peopleApps = null;   // /api/people
+let peopleGrid = false;  // the grid instead of the list
+let peopleFilter = "";   // an app, or ""
+let personOpen = "";     // the person in the middle: their key, or "new"
+let slackPeople = null;  // the workspaces' people, for Add person
 async function refreshPeopleApps() {
   try { peopleApps = await api("/api/people"); } catch (e) { return; }
   if (viewShown("people")) renderPeople();
+  if (middle.startsWith(":person/")) renderPerson();
+}
+const levelWords = { owner: "Owner", pro: "Pro Dev", vibe: "Vibe Dev", contributor: "Contributor" };
+function personTitle(person) { return person.name || person.email || person.key; }
+function personSummary(person) {
+  const apps = Object.keys(person.levels).sort();
+  if (!apps.length) return "no level in any app";
+  const counts = {};
+  for (const app of apps) counts[person.levels[app]] = (counts[person.levels[app]] || 0) + 1;
+  if (apps.length > 2) return Object.entries(counts).map(([level, n]) => levelWords[level] + " in " + n).join(" · ");
+  return apps.map((app) => app + ": " + levelWords[person.levels[app]]).join(" · ");
 }
 function peopleAppsBlock() {
   const p = peopleApps;
   const box = el("div", { class: "pad" });
   if (!p) return box;
-  box.append(el("h2", {}, "In the apps"));
-  if (!p.apps.length) { box.append(el("p", { class: "muted small" }, "No apps on this machine.")); return box; }
+  const tools = el("div", { class: "people-tools" });
+  const filter = el("select", { "aria-label": "Which app" }, el("option", { value: "" }, "Every app"), ...p.apps.map((app) => el("option", { value: app, selected: app === peopleFilter }, app)));
+  filter.addEventListener("change", () => { peopleFilter = filter.value; renderPeople(); });
+  const toggle = el("div", { class: "chips", role: "group", "aria-label": "How to show them" },
+    el("button", { "aria-pressed": String(!peopleGrid), onclick: () => { peopleGrid = false; renderPeople(); } }, "List"),
+    el("button", { "aria-pressed": String(peopleGrid), onclick: () => { peopleGrid = true; renderPeople(); } }, "Grid"));
+  tools.append(filter, el("span", { class: "grow" }), toggle);
+  box.append(tools);
+  if (!p.mail) box.append(el("p", { class: "note muted small" }, "The machine sends no email, so people sign in with Slack links only. ", el("button", { class: "link-button", "data-nav": "", onclick: () => showView("keys") }, "Set up email"), "."));
+  if ((p.no_email || []).length) box.append(el("p", { class: "note muted small" }, "The Slack apps of " + p.no_email.join(", ") + " lack users:read.email, so hi can't find their people's email: someone there may show twice, and signs in by email only once you give their address. Add the scope, then Reinstall to Workspace."));
   const query = $("people-search").value.trim().toLowerCase();
-  const table = el("table", { class: "people-matrix" });
-  table.append(el("tr", {}, el("th", {}, ""), ...p.apps.map((a) => el("th", { title: a }, a))));
-  const named = {};
-  for (const x of p.people) named[x.name] = (named[x.name] || 0) + 1;
-  for (const person of p.people.filter((x) => !query || (x.name + " " + x.id).toLowerCase().includes(query))) {
-    table.append(el("tr", {}, el("th", { scope: "row", title: person.id }, (person.name || person.id) + (person.name && named[person.name] > 1 ? " (" + person.id + ")" : "")),
-      ...p.apps.map((app) => el("td", {}, levelSelect(person.levels[app] || "none", (person.name || person.id) + " in " + app, async (level, select) => { if (await setLevel(app, person.id, person.name, level, select, person.levels[app] || "none")) refreshPeopleApps(); })))));
+  const people = p.people.filter((x) => (!query || [x.name, x.email, x.key, ...x.slack].join(" ").toLowerCase().includes(query)) && (!peopleFilter || x.levels[peopleFilter]));
+  if (peopleGrid) box.append(peopleGridBlock(p, people));
+  else {
+    const list = el("ul", { class: "stask-list person-list" });
+    for (const person of people) {
+      const bits = [personSummary(person)];
+      if (person.admin) bits.push("admin");
+      list.append(el("li", { class: middle === ":person/" + person.key ? "current" : "" },
+        el("button", { class: "stask-row person-row", onclick: () => openPerson(person.key), title: person.email || person.key },
+          el("span", { class: "person-line" }, el("span", { class: "stask-title" }, personTitle(person)),
+            el("span", { class: "muted small person-signed" }, person.signed_in ? ago(person.signed_in) : "")),
+          el("span", { class: "muted small person-sub" }, (person.email || "no email yet") + " · " + bits.join(" · ")))));
+    }
+    if (!people.length) list.append(el("li", { class: "empty" }, p.people.length ? "No one matches." : "No one yet."));
+    box.append(list);
   }
-  box.append(el("div", { class: "matrix-scroll" }, table));
-  // Someone in several apps at once.
-  const id = el("input", { maxlength: "20", placeholder: "Slack member ID, U…", "aria-label": "Their Slack member ID" });
-  let level = "pro";
-  const checks = p.apps.map((app) => { const c = el("input", { type: "checkbox", value: app }); return [app, c]; });
-  const form = el("form", { class: "stack", autocomplete: "off" }, el("strong", {}, "Someone in several apps"), id, levelSelect("pro", "Their level", (v) => { level = v; }),
-    el("div", { class: "radios" }, ...checks.map(([app, c]) => el("label", { class: "check small" }, c, " " + app))), el("button", { type: "submit" }, "Give them the level"));
+  const domains = (p.domains || []).join(", ");
+  box.append(el("p", { class: "muted small" }, "The organisation's email domains: " + (domains || "any") + " ",
+    el("button", { class: "link-button", onclick: async () => {
+      const answer = await ask({ title: "The organisation's email domains", text: "People are added with an address in one of these, unless you say they're outside the organisation. Empty lets in any address.", ok: "Save", field: domains || "corp.example, corp-labs.example", fieldCheck: () => "" });
+      if (answer === false) return;
+      try { toast((await api("/api/person", { action: "domains", domains: answer.field })).text); refreshPeopleApps(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+    } }, "Change")));
+  return box;
+}
+function peopleGridBlock(p, people) {
+  const table = el("table", { class: "people-matrix people-grid" });
+  table.append(el("tr", {}, el("th", {}, ""), ...p.apps.map((a) => el("th", { title: a }, a))));
+  for (const person of people) {
+    table.append(el("tr", {}, el("th", { scope: "row", title: person.email || person.key }, el("button", { class: "link-button", onclick: () => openPerson(person.key) }, personTitle(person))),
+      ...p.apps.map((app) => {
+        const level = person.levels[app] || "none";
+        return el("td", {}, el("button", { class: "level-badge level-" + level, title: personTitle(person) + " in " + app + ": " + (levelWords[level] || "no level") + ". Change it.", onclick: () => openPerson(person.key) }, level === "none" ? "·" : levelWords[level]));
+      })));
+  }
+  return el("div", { class: "matrix-scroll" }, table);
+}
+
+function openPerson(key) {
+  personOpen = key;
+  setMiddle(":person/" + key);
+  if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
+  moved();
+  if (viewShown("people")) renderPeople();
+  if (!peopleApps) refreshPeopleApps(); else renderPerson();
+}
+
+async function personDo(change, said) {
+  try {
+    const answer = await api("/api/person", change);
+    toast(said || answer.text, true);
+    if (answer.key && personOpen !== "new" && answer.key !== personOpen) openPerson(answer.key);
+    await refreshPeopleApps();
+    return answer;
+  } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return null; }
+}
+
+function renderPerson() {
+  const box = $("person");
+  if (personOpen === "new") { box.replaceChildren(...addPersonView()); return; }
+  const p = peopleApps;
+  if (!p) { box.replaceChildren(el("p", { class: "muted" }, "…")); return; }
+  const person = p.people.find((x) => x.key === personOpen);
+  if (!person) { box.replaceChildren(el("p", { class: "muted" }, "No one " + personOpen + " on this machine any more.")); return; }
+  const title = personTitle(person);
+  const parts = [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, title), person.admin ? el("span", { class: "pill open" }, "admin") : null, person.outside ? el("span", { class: "pill" }, "outside the organisation") : null,
+    el("span", { class: "grow" }),
+    el("button", { class: "small", disabled: !person.email || !p.mail, title: !person.email ? "Give them an email first" : !p.mail ? "The machine sends no email yet: Keys, Email" : "One email with a link to each app they have a level in", onclick: async () => {
+      if (await ask({ title: "Email " + person.email + " their way in?", text: "One email, with a sign-in link to the dev page or the app of each app they have a level in" + (person.admin ? ", and to this page" : "") + ". Each link works once, within three days.", ok: "Send it" })) personDo({ action: "invite", key: person.key });
+    } }, "Email a sign-in link"))];
+  // Who they are.
+  const who = el("dl", { class: "person-facts" });
+  const editEmail = el("button", { class: "link-button", onclick: async () => {
+    const answer = await ask({ title: person.email ? title + "'s name" : "An email for " + title, text: person.email ? "As people call them; it shows here and in the apps' links." : "Their email ties their Slack accounts together and lets them sign in by email. hi takes it from Slack when the app's Slack app has users:read.email.", ok: "Save", field: person.email ? title : "anna@corp.example", check: person.email ? "" : "Outside the organisation's domains, and that's right" });
+    if (!answer) return;
+    personDo(person.email ? { action: "update", key: person.key, name: answer.field } : { action: "update", key: person.key, email: answer.field, name: person.name, outside: answer.checked });
+  } }, person.email ? "Rename" : "Give an email");
+  who.append(el("dt", {}, "Email"), el("dd", {}, person.email || el("span", { class: "muted" }, "none yet"), " ", editEmail));
+  who.append(el("dt", {}, "Slack"), el("dd", {}, person.slack.length ? person.slack.join(", ") : el("span", { class: "muted" }, "not found in the apps' workspaces"),
+    person.email ? el("span", {}, " ", el("button", { class: "link-button", onclick: async () => {
+      const answer = await ask({ title: "Their Slack account", text: "Their member ID in a workspace where Slack has another email for them. In Slack: their profile, ⋮, Copy member ID.", ok: "Link it", field: "U07ABC123" });
+      if (answer) personDo({ action: "update", key: person.key, slack: answer.field });
+    } }, "Link one")) : null));
+  who.append(el("dt", {}, "SSH key"), el("dd", {}, person.ssh_key || el("span", { class: "muted" }, "none"), " ",
+    person.email ? el("button", { class: "link-button", onclick: async () => {
+      const answer = await ask({ title: title + "'s SSH key", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. It goes into the dev box of every app where they're an owner or a Pro Dev, now and when they become one; a key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
+      if (answer) personDo({ action: "key", key: person.key, ssh_key: answer.field });
+    } }, person.ssh_key ? "New key" : "Set key") : null,
+    person.ssh_key && person.email ? el("button", { class: "link-button", onclick: async () => { if (await ask({ title: "Take " + title + "'s SSH key out?", text: "Out of every app's dev box: they can no longer SSH in.", ok: "Take it out" })) personDo({ action: "key", key: person.key, ssh_key: "" }); } }, "Remove") : null));
+  who.append(el("dt", {}, "Signed in"), el("dd", {}, person.signed_in ? "by email " + ago(person.signed_in) : "never by email", person.invited ? el("span", { class: "muted" }, " · invited " + ago(person.invited)) : null));
+  parts.push(who);
+  // Their level in each app.
+  parts.push(el("h2", {}, "Apps"));
+  const table = el("table", { class: "people-matrix person-apps" });
+  for (const app of p.apps) {
+    const level = person.levels[app] || "none";
+    table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: () => openView(app, "people") }, app)),
+      el("td", {}, levelSelect(level, title + " in " + app, async (next, select) => {
+        const words = { owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor", none: "nobody in it" };
+        if (!(await ask({ title: "Make " + title + " " + words[next] + " of " + app + "?", text: next === "none" ? "Their level goes, and their private links and SSH key there with it. The app's channel hears it." : "The app's channel hears it." + (next === "owner" ? " An owner is an owner only: a level they had goes." : "") + (person.email || person.slack.length ? "" : ""), ok: "Change it" }))) { select.value = level; return; }
+        if (!(await personDo({ action: "levels", key: person.key, levels: { [app]: next } }))) select.value = level;
+      })),
+      el("td", { class: "muted small" }, person.ids[app] && person.ids[app] !== person.email ? "as " + person.ids[app] : "")));
+  }
+  parts.push(el("div", { class: "matrix-scroll" }, table),
+    el("p", { class: "muted small" }, "Each change is the app's own, said in its channel. Someone with a Slack account in an app's workspace is added there by it, so the lead and Slack know them; anyone else by their email."));
+  // Leaving.
+  parts.push(el("h2", {}, "Remove"), el("div", { class: "data-actions" }, el("button", { class: "danger", onclick: async () => {
+    const typed = person.email || person.key;
+    if (await ask({ title: "Remove " + title + " from everything?", text: "No level in any app, so their links and sign-ins end at their next click; their SSH key out of every dev box; and off this machine's list. Each app's channel hears it. An app's only owner stays until it has another.", ok: "Remove", typed })) {
+      const answer = await personDo({ action: "remove", key: person.key });
+      if (answer) openView("");
+    }
+  } }, "Remove from everything…")));
+  box.replaceChildren(...parts);
+}
+
+async function loadSlackPeople() {
+  if (slackPeople) return slackPeople;
+  try { slackPeople = await api("/api/people/slack"); } catch (e) { slackPeople = []; }
+  return slackPeople;
+}
+
+function addPersonView() {
+  const p = peopleApps || { apps: [], mail: false };
+  const email = el("input", { type: "email", required: true, maxlength: "200", placeholder: "anna@corp.example", "aria-label": "Their email", autocomplete: "off", list: "slack-people" });
+  const name = el("input", { maxlength: "80", placeholder: "Their name, as people call them", "aria-label": "Their name", autocomplete: "off" });
+  const options = el("datalist", { id: "slack-people" });
+  loadSlackPeople().then((list) => {
+    for (const x of list) if (x.email) options.append(el("option", { value: x.email }, (x.real_name || x.name) + " · " + x.app + "'s Slack"));
+  });
+  email.addEventListener("change", () => {
+    const found = (slackPeople || []).find((x) => x.email === email.value.trim().toLowerCase());
+    if (found && !name.value.trim()) name.value = found.real_name || found.name;
+  });
+  const outside = el("input", { type: "checkbox" });
+  const invite = el("input", { type: "checkbox", checked: p.mail, disabled: !p.mail });
+  const levels = {};
+  const table = el("table", { class: "people-matrix person-apps" });
+  for (const app of p.apps) table.append(el("tr", {}, el("th", { scope: "row" }, app), el("td", {}, levelSelect("none", "Their level in " + app, (v) => { levels[app] = v; }))));
+  const error = el("p", { class: "error small" });
+  const form = el("form", { class: "stack person-add", autocomplete: "off" },
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Their email: who they are, in every app and Slack workspace. Pick someone from Slack, or type any address."), email, options),
+    el("label", { class: "field" }, el("span", { class: "muted small" }, "Their name"), name),
+    el("label", { class: "check small" }, outside, " Outside the organisation's domains, and that's right"),
+    p.apps.length ? el("div", { class: "field" }, el("span", { class: "muted small" }, "Their level in each app; each the app's own change, said in its channel"), el("div", { class: "matrix-scroll" }, table)) : null,
+    el("label", { class: "check small" }, invite, " " + (p.mail ? "Email them their way in: a sign-in link to each app" : "Email them their way in (the machine sends no email yet: Keys, Email)")),
+    error, el("div", { class: "buttons" }, el("button", { type: "button", onclick: () => openView("") }, "Cancel"), el("button", { class: "primary", type: "submit" }, "Add")));
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const levels = {};
-    for (const [app, c] of checks) if (c.checked) levels[app] = level;
-    if (!id.value.trim() || !Object.keys(levels).length) { toast("Their member ID, and the apps."); return; }
-    if (!(await ask({ title: "Give " + id.value.trim() + " that level in " + Object.keys(levels).length + " app" + (Object.keys(levels).length === 1 ? "" : "s") + "?", text: "Each is the app's own change, said in its channel.", ok: "Give it" }))) return;
+    error.textContent = "";
+    if (!email.value.trim()) { error.textContent = "Their email."; email.focus(); return; }
+    const chosen = Object.fromEntries(Object.entries(levels).filter(([, v]) => v !== "none"));
     try {
-      const answer = await api("/api/people", { person: id.value.trim(), levels });
-      toast((answer.done.length ? "Done in " + answer.done.join(", ") + ". " : "") + (answer.failed.length ? "Not in " + answer.failed.join("; ") : ""), true);
-      refreshPeopleApps();
-    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+      const answer = await api("/api/person", { action: "add", email: email.value.trim(), name: name.value.trim(), outside: outside.checked, levels: chosen, invite: invite.checked });
+      toast(answer.text, true);
+      await refreshPeopleApps();
+      openPerson(answer.key);
+    } catch (e) { if (!(e instanceof SignIn)) error.textContent = e.message; }
   });
-  box.append(form);
-  return box;
+  return [el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, "Add someone")),
+    el("p", { class: "purpose" }, "Someone on this machine, by email: with Slack or without. Their Slack accounts in the apps' workspaces are found by the email."), form];
 }
 
 let machineKeys = null;
+// Email: how the machine sends sign-in links and invitations
+// (hi_people.md). The password is never shown.
+let mailSettings = null;
+async function refreshMail() {
+  try { mailSettings = await api("/api/mail"); } catch (e) { return; }
+  if (viewShown("keys")) renderKeys();
+}
+function mailBlock() {
+  const m = mailSettings;
+  const box = el("div", {});
+  box.append(el("h2", {}, "Email"));
+  if (!m) return box;
+  box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (m.on ? "idle" : ""), "aria-hidden": "true" }),
+    m.on ? "From " + (m.name ? m.name + " <" + m.from + ">" : m.from) + ", through " + m.host + ":" + m.port + " (" + m.security + ")" : "Not set up: people sign in with Slack links only."));
+  const field = (name, placeholder, value, type) => el("input", { name, type: type || "text", placeholder, value: value || "", "aria-label": placeholder, autocomplete: "off", maxlength: "200" });
+  const host = field("host", "SMTP server, such as smtp.corp.example", m.host);
+  const port = field("port", "Port: 587, or 465 for tls", m.port ? String(m.port) : "");
+  const security = el("select", { "aria-label": "Security" }, ...[["starttls", "STARTTLS (587)"], ["tls", "TLS from the start (465)"], ["none", "None: a relay on the network"]].map(([v, t]) => el("option", { value: v, selected: (m.security || "starttls") === v }, t)));
+  const user = field("user", "User name, if it asks for one", m.username);
+  const password = field("password", m.password_set ? "Password: kept; type to change it" : "Password", "", "password");
+  const from = field("from", "From address, such as hi@corp.example", m.from);
+  const name = field("name", "From name, such as hi on " + (state ? state.machine : "this machine"), m.name);
+  const form = el("form", { class: "machine-block stack", autocomplete: "off" }, host, el("div", { class: "signin-row" }, port, security), user, password, from, name,
+    el("div", { class: "buttons" }, el("button", { class: "primary", type: "submit" }, "Save")));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      toast((await api("/api/mail", { host: host.value.trim(), port: Number(port.value.trim()) || 0, security: security.value, username: user.value.trim(), password: password.value, from: from.value.trim(), name: name.value.trim() })).text);
+      refreshMail();
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  });
+  box.append(form);
+  if (m.on) box.append(el("div", { class: "data-actions" },
+    el("button", { class: "small", onclick: async () => {
+      const answer = await ask({ title: "Send a test email", text: "To check the machine can send: a short email, to this address.", ok: "Send", field: "you@corp.example" });
+      if (!answer) return;
+      try { toast((await api("/api/mail", { test: answer.field })).text, true); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+    } }, "Send a test"),
+    el("button", { class: "small danger", onclick: async () => {
+      if (!(await ask({ title: "Stop sending email?", text: "Nobody can sign in by email until it's set up again; Slack links keep working.", ok: "Stop" }))) return;
+      try { toast((await api("/api/mail", { off: true })).text); refreshMail(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+    } }, "Turn off")));
+  box.append(el("p", { class: "muted small" }, "hi sends sign-in links and codes, and invitations: nothing else, and nothing that tracks who opened them. Ask your IT team for an SMTP account (or a relay that lets this machine send), and SPF and DKIM records that let it send for the From domain, or its emails land in spam."));
+  return box;
+}
+
 async function refreshMachineKeys() {
   try { machineKeys = await api("/api/keys"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
@@ -3333,6 +3584,7 @@ async function boot() {
   else if (wantedApp === ":org" && state.org) openOrg(wantedSection || "");
   else if (wanted === ":policy" && state.org) openOrg("policy");
   else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));
+  else if (wanted.startsWith(":person/")) openPerson(wanted.slice(8));
   for (const which of ["left", "right"]) if (panes[which].open) freshView(panes[which].view);
   refreshJobs();
   pollTimer = setTimeout(poll, 3000);

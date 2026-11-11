@@ -87,7 +87,7 @@ func TestAdminAppSettingsRunTheCommands(t *testing.T) {
 	// People across apps, and the machine's keys.
 	var people struct {
 		Apps   []string         `json:"apps"`
-		People []adminPeopleRow `json:"people"`
+		People []adminPersonRow `json:"people"`
 	}
 	a.get(t, olga, "/api/people", &people)
 	if len(people.Apps) != 1 || len(people.People) != 1 || people.People[0].Levels["payments"] != "owner" {

@@ -482,6 +482,8 @@ func (b *appBroker) webHandler(slot string) http.Handler {
 	// (app_signin_slack.go).
 	mux.HandleFunc("GET "+appHelperPrefix+"signin/{id}", b.claudeSigninPage)
 	mux.HandleFunc("POST "+appHelperPrefix+"signin/{id}", b.claudeSigninPage)
+	// Signing in by email, for the people with a level (hi_people.md).
+	mailRoutes(mux, appHelperPrefix, b.slotMailFlow(slot))
 	mux.HandleFunc("GET "+appHelperPrefix+"helper.js", func(w http.ResponseWriter, r *http.Request) {
 		etag := `"` + appHelperVersion() + `"`
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")

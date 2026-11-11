@@ -1079,6 +1079,10 @@ func (b *appBroker) devPageHandler() http.Handler {
 		}
 		return true
 	}
+	// Signing in by email, before anyone is signed in (hi_people.md).
+	for _, route := range mailRoutes(mux, appDevPagePrefix, b.devMailFlow()) {
+		assets[route] = true
+	}
 	b.devFileRoutes(mux, builder, reply, failure)
 	b.devGitRoutes(mux, builder, reply, failure)
 	b.devToolRoutes(mux, builder, reply, failure)

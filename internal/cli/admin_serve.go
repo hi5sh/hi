@@ -327,6 +327,27 @@ func (s *adminServer) routes() http.Handler {
 		go s.sendNewLink(who)
 		reply(w, http.StatusOK, map[string]string{"text": "It's in your Slack DMs in a moment."})
 	})
+	// Signing in by email (hi_people.md): the page asks, the email's
+	// link comes back to /email, or its code to the page.
+	mailFlow := s.mailFlow()
+	mux.HandleFunc("POST /api/email", func(w http.ResponseWriter, r *http.Request) {
+		if change(w, r) {
+			mailFlow.start(w, r)
+		}
+	})
+	mux.HandleFunc("POST /api/email/code", func(w http.ResponseWriter, r *http.Request) {
+		if change(w, r) {
+			mailFlow.code(w, r)
+		}
+	})
+	mux.HandleFunc("GET /email", mailFlow.confirm)
+	mux.HandleFunc("POST /email", func(w http.ResponseWriter, r *http.Request) {
+		if !adminSameOrigin(r) {
+			failure(w, http.StatusForbidden, errors.New("sign in from the page the email's link opens"))
+			return
+		}
+		mailFlow.confirm(w, r)
+	})
 	mux.HandleFunc("POST /api/signout", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		if cookie, err := r.Cookie(adminCookie); err == nil {
 			adminEndSession(cookie.Value)

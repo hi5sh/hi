@@ -123,6 +123,11 @@ textarea:focus { border-color: var(--accent); }
 .sent strong { font-size: 15px; }
 .link-button { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; font-size: 13px; align-self: flex-start; }
 .link-button.center { align-self: center; }
+.email-signin { display: flex; flex-direction: column; gap: 6px; margin: 4px 8px 8px; }
+.email-signin form { display: flex; gap: 6px; }
+.email-signin input { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.email-signin form button { border: 1px solid var(--accent); background: var(--mine); color: var(--fg); border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.email-said { margin: 0; color: var(--muted); font-size: 13px; }
 .composer { flex-direction: column; align-items: stretch; }
 .composer .row { display: flex; gap: 8px; align-items: flex-end; }
 .pick { border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 10px; width: 38px; height: 38px;
@@ -311,6 +316,7 @@ textarea:focus { border-color: var(--accent); }
     tab: store.get("sessionStorage", "tab") || "ask", // ask or feedback
     help: store.get("sessionStorage", "help") || [], // this tab's questions and answers
     sent: null, // the id of the feedback just sent
+    email: null, // signing in by email: {step: "address" or "code", address, request, said}
     feedback: null, // what this browser sent, newest first, with the team's answers
     sending: false,
     poll: null,
@@ -801,7 +807,82 @@ textarea:focus { border-color: var(--accent); }
     }
     body.insertAdjacentHTML("beforeend", '<div class="intro"><p>Tell the team what\'s wrong, or what would make the app better.</p>' +
       "<p>Point at parts of the page with ◎ (Alt+S), and attach files. It goes to the app's Slack channel as it is; nothing changes until they decide. Their answers show up here.</p></div>");
+    drawEmailSignin();
     drawFeedback();
+  }
+
+  // drawEmailSignin offers signing in by email to the people with a level
+  // in the app: Report, as themselves (hi_people.md). The email's link
+  // comes back signed in, or its code is typed here.
+  function drawEmailSignin() {
+    const box = document.createElement("div");
+    box.className = "email-signin";
+    if (!state.email) {
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "link-button center";
+      open.textContent = "A contributor or developer here? Sign in with your email";
+      open.addEventListener("click", () => { state.email = { step: "address", said: "" }; render(); body.querySelector(".email-signin input")?.focus(); });
+      box.appendChild(open);
+      body.appendChild(box);
+      return;
+    }
+    const form = document.createElement("form");
+    form.noValidate = true;
+    const field = document.createElement("input");
+    const go = document.createElement("button");
+    go.type = "submit";
+    if (state.email.step === "address") {
+      field.type = "email";
+      field.autocomplete = "email";
+      field.placeholder = "Your email";
+      field.setAttribute("aria-label", "Your email");
+      field.value = state.email.address || "";
+      go.textContent = "Email me a link";
+    } else {
+      field.inputMode = "numeric";
+      field.autocomplete = "one-time-code";
+      field.maxLength = 7;
+      field.placeholder = "The six digits in the email";
+      field.setAttribute("aria-label", "The code from the email");
+      go.textContent = "Sign in";
+    }
+    if (state.email.step === "code") field.value = state.email.code || "";
+    // A render while typing (an answer came) keeps what was typed, and
+    // the focus.
+    field.addEventListener("input", () => { state.email[state.email.step === "address" ? "address" : "code"] = field.value; });
+    field.addEventListener("focus", () => { state.email.focused = true; });
+    field.addEventListener("blur", () => { state.email.focused = false; });
+    if (state.email.focused) setTimeout(() => field.focus({ preventScroll: true }), 0);
+    form.append(field, go);
+    const said = document.createElement("p");
+    said.className = "email-said";
+    said.setAttribute("aria-live", "polite");
+    said.textContent = state.email.said || "";
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const value = field.value.trim();
+      go.disabled = true;
+      try {
+        if (state.email.step === "address") {
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new Error("Give your email address.");
+          const answer = await (await call("email", { method: "POST", body: { email: value } })).json();
+          state.email = { step: "code", address: value, request: answer.request, said: answer.text };
+        } else {
+          const code = value.replace(/\s/g, "");
+          if (!/^[0-9]{6}$/.test(code)) throw new Error("The code is the six digits in the email.");
+          const answer = await (await call("email/code", { method: "POST", body: { request: state.email.request, code } })).json();
+          location.href = answer.go;
+          return;
+        }
+      } catch (e) {
+        state.email.said = e.message;
+      }
+      render();
+      body.querySelector(".email-signin input")?.focus();
+    });
+    box.append(form, said);
+    body.appendChild(box);
   }
 
   // renderReport is Report, for someone signed in: what it does, or the

@@ -926,7 +926,7 @@ func appSSHKeyLabel(key string) string {
 // hi app owners
 
 func appOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app owners <app> [add <member ID> | remove <member ID> | key <member ID> <public key> | key <member ID> --remove]"}
+	usage := usageError{"usage: hi app owners <app> [add <member ID>|<email> | remove <member ID>|<email> | key <member ID>|<email> <public key> | key <member ID>|<email> --remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -949,7 +949,7 @@ func appOwnersCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) < 3 {
 		return usage
 	}
-	action, user := args[1], strings.Trim(args[2], "<@>")
+	action, user := args[1], appPersonID(args[2])
 	if err := appCheckPeople(user); err != nil {
 		return err
 	}

@@ -65,6 +65,40 @@
     $("locked").hidden = false;
   }
 
+  // Signing in by email, on the locked page (hi_people.md): the email's
+  // link comes back here signed in, or its code is typed below.
+  var emailRequest = "";
+  function emailPost(path, body) {
+    return fetch("api/" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          if (!response.ok) throw new Error(data.error || response.statusText);
+          return data;
+        });
+      });
+  }
+  $("email-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var address = $("email-address").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Give your email address."; $("email-address").focus(); return; }
+    var button = $("email-form").querySelector("button");
+    button.disabled = true;
+    emailPost("email", { email: address }).then(function (answer) {
+      emailRequest = answer.request;
+      $("email-said").textContent = answer.text;
+      $("code-form").hidden = false;
+      $("email-code").focus();
+    }).catch(function (e) { $("email-said").textContent = e.message; }).finally(function () { button.disabled = false; });
+  });
+  $("code-form").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var code = $("email-code").value.replace(/\s/g, "");
+    if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the email."; $("email-code").focus(); return; }
+    emailPost("email/code", { request: emailRequest, code: code }).then(function (answer) {
+      location.href = answer.go;
+    }).catch(function (e) { $("email-said").textContent = e.message; });
+  });
+
   // ---- the terminal
   var term = new Terminal({
     cursorBlink: true,

@@ -878,6 +878,9 @@ type adminSlackPerson struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	RealName string `json:"real_name,omitempty"`
+	// Email is theirs in Slack, with the users:read.email scope.
+	Email string `json:"email,omitempty"`
+	App   string `json:"app,omitempty"` // the app whose workspace they're in
 }
 
 // adminSlackChannels are the channels the bot is in; adminSlackPeople the
@@ -913,7 +916,7 @@ var adminSlackPeople = func(botToken string) ([]adminSlackPerson, error) {
 		if user.IsBot || user.Deleted || user.ID == "USLACKBOT" {
 			continue
 		}
-		people = append(people, adminSlackPerson{ID: user.ID, Name: firstNonEmpty(user.Profile.DisplayName, user.Name), RealName: user.RealName})
+		people = append(people, adminSlackPerson{ID: user.ID, Name: firstNonEmpty(user.Profile.DisplayName, user.Name), RealName: user.RealName, Email: strings.ToLower(user.Profile.Email)})
 	}
 	sort.Slice(people, func(i, j int) bool {
 		return strings.ToLower(firstNonEmpty(people[i].RealName, people[i].Name)) < strings.ToLower(firstNonEmpty(people[j].RealName, people[j].Name))

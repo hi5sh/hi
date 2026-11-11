@@ -89,6 +89,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runUpdate(args[1:], stdin, stdout, stderr)
 	case "admin":
 		return runAdmin(args[1:], stdin, stdout, stderr)
+	case "people":
+		return runPeople(args[1:], stdin, stdout, stderr)
 	case "skill", "skills":
 		return runSkill(args[1:], stdin, stdout, stderr)
 	case "q":
@@ -187,6 +189,7 @@ Usage:
                                 Several agents give ideas alone; one compiles them into a proposal
   hi app new|up|down|ls <name>  An app in a Slack channel: owners build it in a dev box, a Hermes lead helps the people (hi app help)
   hi admin start                The admin page: this machine's apps on a web page of their own, for its admins (hi admin help)
+  hi people                     Everyone on this machine, by email, with their level in each app (hi people help)
   hi bundle ls|show             Bundles for hi agent --bundle: skills and the tools they need
   hi box shell|run              Run a shell or a command in a rootless box with no credentials
   hi skills                     Find, install, and update agent skills from skills.sh (hi skill help);

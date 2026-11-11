@@ -18,7 +18,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -332,7 +331,7 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 		if n := s.names.of(config, []string{id})[id]; n != "" {
 			return n
 		}
-		return "<@" + id + ">"
+		return appMention(id)
 	}
 	switch change.What {
 	case "level":
@@ -558,45 +557,6 @@ func (s *adminServer) adminSaid(admin adminPerson, app, said string) {
 // ---------------------------------------------------------------------------
 // people across apps, and the machine's keys
 
-// adminPeopleRow is someone with a level in one of the apps, and theirs
-// in each.
-type adminPeopleRow struct {
-	ID     string            `json:"id"`
-	Name   string            `json:"name,omitempty"`
-	Levels map[string]string `json:"levels"`
-}
-
-func (s *adminServer) peopleAcrossApps() map[string]any {
-	rows := map[string]*adminPeopleRow{}
-	apps := []string{}
-	for _, app := range adminAppNames() {
-		config, err := loadTeam(app)
-		if err != nil {
-			continue
-		}
-		apps = append(apps, app)
-		ids := slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors)
-		names := s.names.of(config, ids)
-		for _, id := range ids {
-			row := rows[id]
-			if row == nil {
-				row = &adminPeopleRow{ID: id, Levels: map[string]string{}}
-				rows[id] = row
-			}
-			row.Name = firstNonEmpty(row.Name, names[id])
-			row.Levels[app] = adminPageLevel(config, id)
-		}
-	}
-	list := []adminPeopleRow{}
-	for _, row := range rows {
-		list = append(list, *row)
-	}
-	sort.Slice(list, func(i, j int) bool {
-		return strings.ToLower(firstNonEmpty(list[i].Name, list[i].ID)) < strings.ToLower(firstNonEmpty(list[j].Name, list[j].ID))
-	})
-	return map[string]any{"apps": apps, "people": list}
-}
-
 // adminMachineKeys is the machine's keys and sign-ins, set or not, and
 // which apps use their own.
 type adminMachineKeys struct {
@@ -681,8 +641,9 @@ func (s *adminServer) settingsRoutes(mux *http.ServeMux, reply func(http.Respons
 		reply(w, http.StatusOK, answer)
 	}))
 	mux.HandleFunc("GET /api/people", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
-		reply(w, http.StatusOK, s.peopleAcrossApps())
+		reply(w, http.StatusOK, s.peopleView())
 	}))
+	s.peopleRoutes(mux, reply, decode, signedIn)
 	mux.HandleFunc("POST /api/people", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		var request struct {
 			Person string            `json:"person"`
@@ -692,9 +653,18 @@ func (s *adminServer) settingsRoutes(mux *http.ServeMux, reply func(http.Respons
 			return
 		}
 		var done, failed []string
+		// Someone on the machine's list is who they are in each app: their
+		// Slack account there, or their email (hi_people.md).
+		person, known := loadMachinePeople().person(request.Person)
 		for _, app := range sortedKeys(request.Levels) {
 			level := request.Levels[app]
-			if _, err := s.adminChangeSetting(admin, adminSettingChange{App: app, What: "level", Person: request.Person, Level: level}); err != nil {
+			who := request.Person
+			if known {
+				if config, err := loadTeam(app); err == nil {
+					who = firstNonEmpty(machinePersonIn(config, person), machineWhoIn(app, person))
+				}
+			}
+			if _, err := s.adminChangeSetting(admin, adminSettingChange{App: app, What: "level", Person: who, Level: level}); err != nil {
 				failed = append(failed, app+": "+err.Error())
 			} else {
 				done = append(done, app)

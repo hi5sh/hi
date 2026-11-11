@@ -1,7 +1,9 @@
 # Owners, developers, contributors, and viewers
 
 Status: Approved (2026-10-28). Built in v2.6.13, except people by email,
-which waits for sign-in (below). Code: team_access.go (levels, `hi team
+which waited for sign-in (below): since v2.6.133 people are added by
+email at any level and sign in by email, without SSO
+([hi_people.md](hi_people.md)). Code: team_access.go (levels, `hi team
 access`, People), team_devpage.go (the gate), team_report.go (Report).
 
 Dependencies: [hi_app_dev.md](../approved/hi_app_dev.md) (the dev box,
