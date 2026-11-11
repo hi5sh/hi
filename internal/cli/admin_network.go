@@ -233,11 +233,15 @@ type adminAdvisory struct {
 	apiAdvisory
 	App  string `json:"app"`
 	Tier string `json:"tier"` // kev, incident, report, or "" when ignored
+	// Action is what fixes one to act on: for the machine's kernel, that
+	// the machine itself needs an update and a restart.
+	Action string `json:"action,omitempty"`
 }
 
 func adminAdvisories() map[string]any {
 	list := []adminAdvisory{}
 	notes := map[string]string{}
+	machine := adminMachineName()
 	for _, name := range adminAppNames() {
 		report := appAdvisoriesReport(name)
 		switch {
@@ -247,7 +251,11 @@ func adminAdvisories() map[string]any {
 			notes[name] = "not matched yet: within a day of a release"
 		}
 		for _, advisory := range report.Advisories {
-			list = append(list, adminAdvisory{apiAdvisory: advisory, App: name, Tier: advisory.tier()})
+			item := adminAdvisory{apiAdvisory: advisory, App: name, Tier: advisory.tier()}
+			if item.Tier == "kev" || item.Tier == "incident" {
+				item.Action = advisoryAction(name, machine, advisory)
+			}
+			list = append(list, item)
 		}
 	}
 	rank := map[string]int{"kev": 0, "incident": 1, "report": 2, "": 3}

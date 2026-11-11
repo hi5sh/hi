@@ -145,6 +145,21 @@ type appBomMachine struct {
 	tool func(name string, args ...string) string
 	// baseImage is the image the app and the lead run in.
 	baseImage func() string
+	// kernel is the Linux kernel the machine runs, which every box runs
+	// on; nil or zero where dpkg doesn't know it.
+	kernel func() appKernel
+}
+
+// appKernel is the machine's running kernel: its release (uname -r),
+// the machine's OS, and the source package and version that built it,
+// as advisories name them.
+type appKernel struct {
+	Release   string `json:"release"`    // 7.0.0-42-generic
+	OS        string `json:"os"`         // ubuntu
+	OSRelease string `json:"os_release"` // 26.04
+	Binary    string `json:"binary"`     // linux-image-7.0.0-42-generic
+	Source    string `json:"source"`     // linux
+	Version   string `json:"version"`    // 7.0.0-42.42
 }
 
 type appImageList struct {
@@ -169,6 +184,61 @@ var appBomTools = appBomMachine{
 		return appBomVersionPattern.FindString(string(out))
 	},
 	baseImage: boxBaseImage,
+	kernel:    appMachineKernel,
+}
+
+// appMachineKernel reads the running kernel's package: the image named
+// after uname -r, signed or not. A signed image's source is the kernel's
+// own with "-signed" in its name (linux-signed-hwe-7.0), at the kernel's
+// version; advisories name the kernel (linux-hwe-7.0).
+func appMachineKernel() appKernel {
+	data, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return appKernel{}
+	}
+	kernel := appKernel{Release: strings.TrimSpace(string(data))}
+	if release, err := os.ReadFile("/etc/os-release"); err == nil {
+		kernel.OS, kernel.OSRelease = appOSRelease(string(release))
+	}
+	for _, binary := range []string{"linux-image-" + kernel.Release, "linux-image-unsigned-" + kernel.Release} {
+		out, err := exec.Command("dpkg-query", "-W", "-f", "${source:Package}\t${source:Version}", binary).Output()
+		if source, version, ok := strings.Cut(strings.TrimSpace(string(out)), "\t"); err == nil && ok && source != "" {
+			kernel.Binary, kernel.Source, kernel.Version = binary, appKernelSourceName(source), version
+			return kernel
+		}
+	}
+	return appKernel{}
+}
+
+// appKernelSourceName is the kernel's source package an image's names:
+// linux-signed is linux, linux-signed-hwe-7.0 is linux-hwe-7.0.
+func appKernelSourceName(source string) string {
+	if rest, ok := strings.CutPrefix(source, "linux-signed"); ok {
+		return "linux" + rest
+	}
+	return source
+}
+
+// appOSRelease is /etc/os-release's ID and VERSION_ID.
+func appOSRelease(text string) (id, version string) {
+	for _, line := range strings.Split(text, "\n") {
+		if value, ok := strings.CutPrefix(line, "ID="); ok {
+			id = strings.Trim(value, `"`)
+		}
+		if value, ok := strings.CutPrefix(line, "VERSION_ID="); ok {
+			version = strings.Trim(value, `"`)
+		}
+	}
+	return id, version
+}
+
+// appKernelSource says a source package builds the Linux kernel (linux,
+// linux-hwe-7.0, linux-signed, linux-meta, …). In an image it gives only
+// headers or firmware: a box runs on the machine's kernel, so the
+// kernel's advisories are matched against the machine's (part
+// "machine"), not the image's.
+func appKernelSource(name string) bool {
+	return name == "linux" || strings.HasPrefix(name, "linux-") && name != "linux-atm"
 }
 
 var appBomVersionPattern = regexp.MustCompile(`\d+\.\d+(\.\d+)?([.-][0-9A-Za-z.]+)?`)
@@ -385,7 +455,10 @@ func appBomImage(part, image string, list appImageList) []cdxComponent {
 		purl := "pkg:deb/" + list.OS + "/" + url.PathEscape(binary) + "@" + url.PathEscape(version) + "?distro=" + distro
 		component := cdxComponent{Type: "library", Ref: part + ":" + purl, Name: binary, Version: version, Purl: purl,
 			Properties: []cdxProperty{{bomPart, part}}}
-		if ecosystem != "" && source != "" {
+		switch {
+		case appKernelSource(source):
+			component.Properties = append(component.Properties, cdxProperty{"hi:note", "built with the Linux kernel, which the boxes don't run: they run on the machine's, matched as part machine"})
+		case ecosystem != "" && source != "":
 			component.Properties = append(component.Properties, cdxProperty{bomOSVSystem, ecosystem}, cdxProperty{bomOSVName, source}, cdxProperty{bomOSVVersion, firstNonEmpty(sourceVersion, version)})
 		}
 		components = append(components, component)
@@ -398,6 +471,27 @@ func appBomImage(part, image string, list appImageList) []cdxComponent {
 		}
 	}
 	return components
+}
+
+// appBomKernel lists the machine's running kernel, which every box runs
+// on, as part "machine".
+func appBomKernel(kernel appKernel) cdxComponent {
+	distro := kernel.OS + "-" + kernel.OSRelease
+	purl := "pkg:deb/" + kernel.OS + "/" + url.PathEscape(kernel.Binary) + "@" + url.PathEscape(kernel.Version) + "?distro=" + distro
+	component := cdxComponent{Type: "operating-system", Ref: "machine:kernel", Name: "linux", Version: kernel.Release, Purl: purl,
+		Properties: []cdxProperty{{bomPart, "machine"}, {"hi:kernel:release", kernel.Release}, {"hi:kernel:version", kernel.Version}, {"hi:kernel:package", kernel.Binary}}}
+	if ecosystem := appOSVEcosystem(kernel.OS, kernel.OSRelease); ecosystem != "" {
+		component.Properties = append(component.Properties, cdxProperty{bomOSVSystem, ecosystem}, cdxProperty{bomOSVName, kernel.Source}, cdxProperty{bomOSVVersion, kernel.Version})
+	}
+	return component
+}
+
+// appToolsKernel is the machine's kernel, or zero.
+func appToolsKernel(tools appBomMachine) appKernel {
+	if tools.kernel == nil {
+		return appKernel{}
+	}
+	return tools.kernel()
 }
 
 // appMakeBom makes the bill for a commit of the team's app.
@@ -423,6 +517,9 @@ func appMakeBom(team, version, commit string, tools appBomMachine) (cdxBom, erro
 		} else {
 			bom.Metadata.Properties = append(bom.Metadata.Properties, cdxProperty{"hi:missing", err.Error()})
 		}
+	}
+	if kernel := appToolsKernel(tools); kernel.Version != "" {
+		bom.Components = append(bom.Components, appBomKernel(kernel))
 	}
 	if appMemoryOn(config) {
 		if list, err := tools.image(appHindsightImage); err == nil {
@@ -504,7 +601,8 @@ func appWriteBom(team, version, commit string, tools appBomMachine) (string, err
 
 // appProductionBom is production's bill, made the first time it's
 // asked for after a release, and again when hi's base image is built
-// again (hi app rebuild), and its version.
+// again (hi app rebuild) or the machine runs another kernel (after an
+// upgrade and a reboot), and its version.
 func appProductionBom(team string, tools appBomMachine) (string, string, error) {
 	versions, err := loadTeamVersions(team)
 	if err != nil || versions.Production == 0 {
@@ -512,7 +610,7 @@ func appProductionBom(team string, tools appBomMachine) (string, string, error) 
 	}
 	version := fmt.Sprintf("v%d", versions.Production)
 	path := appBomPath(team, version)
-	if fileExists(path) && !appBomBaseMoved(path, tools) {
+	if fileExists(path) && !appBomMoved(path, tools) {
 		return path, version, nil
 	}
 	commit := ""
@@ -528,9 +626,10 @@ func appProductionBom(team string, tools appBomMachine) (string, string, error) 
 	return path, version, err
 }
 
-// appBomBaseMoved says a bill names hi's base image by another ID than
-// the image has now.
-func appBomBaseMoved(path string, tools appBomMachine) bool {
+// appBomMoved says a bill names hi's base image by another ID than the
+// image has now, or another kernel than the machine runs, or none where
+// the machine has one (a bill made before hi listed it).
+func appBomMoved(path string, tools appBomMachine) bool {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false
@@ -538,6 +637,19 @@ func appBomBaseMoved(path string, tools appBomMachine) bool {
 	var bom cdxBom
 	if json.Unmarshal(data, &bom) != nil {
 		return false
+	}
+	kernel := appToolsKernel(tools)
+	listed := false
+	for _, component := range bom.Components {
+		if component.property(bomPart) == "machine" && component.property("hi:kernel:release") != "" {
+			listed = true
+			if kernel.Version != "" && (component.property("hi:kernel:release") != kernel.Release || component.property("hi:kernel:version") != kernel.Version) {
+				return true
+			}
+		}
+	}
+	if kernel.Version != "" && !listed {
+		return true
 	}
 	base := tools.baseImage()
 	if base == "" {
@@ -695,7 +807,11 @@ func printTeamAdvisories(view appAdvisoriesView, w io.Writer) {
 	fmt.Fprintf(w, "Production %s: %d advisories to act on, %d for the weekly report, %d ignored (as of %s ago).\n", view.Bom, loud, report, ignored, appAgo(time.Since(view.At)))
 	for _, advisory := range view.Advisories {
 		mark := map[string]string{"kev": "EXPLOITED", "incident": "act", "report": "report", "": "ignored"}[advisory.tier()]
-		line := fmt.Sprintf("  %-9s %s %s %s (%s)", mark, advisory.ID, advisory.Package, advisory.Version, advisory.Part)
+		part := advisory.Part
+		if part == "machine" {
+			part = "the machine's kernel, " + firstNonEmpty(advisory.Kernel, "running")
+		}
+		line := fmt.Sprintf("  %-9s %s %s %s (%s)", mark, advisory.ID, advisory.Package, advisory.Version, part)
 		if len(advisory.Fixed) > 0 {
 			line += ", fixed in " + strings.Join(advisory.Fixed, ", ")
 		}
@@ -706,8 +822,17 @@ func printTeamAdvisories(view appAdvisoriesView, w io.Writer) {
 			line += ": " + advisory.Ignored
 		}
 		fmt.Fprintln(w, line)
+		if tier := advisory.tier(); advisory.Part == "machine" && (tier == "kev" || tier == "incident") {
+			for _, step := range strings.Split(advisoryAction("", adminMachineName(), advisory), "\n") {
+				fmt.Fprintln(w, "            "+step)
+			}
+		}
 	}
 	for _, count := range view.Counts {
+		if count.Part == "machine" {
+			fmt.Fprintf(w, "  %s: %d more, %d fixed in a newer kernel; the machine itself needs updating, sudo apt full-upgrade and a reboot (ask your IT team)\n", advisoryPartName(count.Part), count.Total, count.Fixable)
+			continue
+		}
 		fmt.Fprintf(w, "  %s: %d more for its OS packages, %d with a fix in a newer package; the app's org server admins see them\n", advisoryPartName(count.Part), count.Total, count.Fixable)
 	}
 }

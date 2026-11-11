@@ -1266,6 +1266,7 @@ they don't run hi on the machine themselves, they ask their IT team.
 | hi app owners <team> add <member ID> | a new owner, who builds in the dev box |
 | hi app access <team> <member ID> developer\|contributor | a developer, who builds in the dev box and releases, or a contributor, who reports bugs (an owner can also do it on the dev page's Security view) |
 | hi app rebuild <team> | hi's base image again, with Ubuntu's fixes, when an advisory names one of its packages |
+| sudo apt update && sudo apt full-upgrade, then sudo reboot | the machine's Linux kernel, when an advisory names it: every box runs on the machine's kernel, so hi app rebuild doesn't fix it; someone with sudo on the machine (their IT team) does it, and every app on the machine stops while it restarts |
 
 Never ask for a key in the channel, and don't use one that someone posts
 there.

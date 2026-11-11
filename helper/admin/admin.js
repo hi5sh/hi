@@ -3074,8 +3074,9 @@ function renderAdvisories() {
     const cls = a.tier === "kev" ? "bad" : a.tier === "incident" ? "blocked" : a.tier === "" ? "done" : "";
     list.append(el("li", { class: "incident" },
       el("div", { class: "incident-head" }, el("span", { class: "dot " + cls, "aria-hidden": "true" }), openApp ? null : el("button", { class: "link-button", onclick: () => openView(a.app) }, a.app), el("strong", {}, a.id), el("span", { class: "muted small" }, words[a.tier])),
-      el("div", { class: "small" }, a.package + " " + a.version + " (" + a.part + ")" + ((a.fixed || []).length ? ", fixed in " + a.fixed.join(", ") : "") + (a.epss >= 0.01 ? ", EPSS " + a.epss.toFixed(2) : "")),
+      el("div", { class: "small" }, a.package + " " + a.version + " (" + (a.part === "machine" ? "the machine's Linux kernel" + (a.kernel ? ", " + a.kernel : "") : a.part) + ")" + ((a.fixed || []).length ? ", fixed in " + a.fixed.join(", ") : "") + (a.epss >= 0.01 ? ", EPSS " + a.epss.toFixed(2) : "")),
       a.summary ? el("div", { class: "muted small clamp2", title: a.summary }, a.summary) : null,
+      a.action ? el("div", { class: "small advisory-action" }, el("strong", {}, a.part === "machine" ? "The machine needs an update. " : "What fixes it: "), a.action) : null,
       a.ignored ? el("div", { class: "muted small" }, "Ignored: " + a.ignored) : null,
       el("div", { class: "data-actions" }, a.tier === "" ? el("button", { class: "small", onclick: () => advisoryChange(a, true) }, "Raise it again") : el("button", { class: "small", onclick: () => advisoryChange(a, false) }, "Ignore…"))));
   }

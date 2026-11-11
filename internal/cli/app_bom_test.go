@@ -362,7 +362,7 @@ func TestAdvisoryMerge(t *testing.T) {
 	if title != "demo runs in hi's base image, whose brotli 1.1.0-2build2 has UBUNTU-CVE-2026-111497 (also USN-8956-1), EPSS 0.36" {
 		t.Fatal(title)
 	}
-	if action := advisoryAction("demo", merged[0]); !strings.Contains(action, "hi app rebuild demo") || strings.Contains(action, "podman") {
+	if action := advisoryAction("demo", "", merged[0]); !strings.Contains(action, "hi app rebuild demo") || strings.Contains(action, "podman") {
 		t.Fatal(action)
 	}
 }

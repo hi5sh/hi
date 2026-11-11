@@ -384,26 +384,29 @@ func (f *advisoryFeeds) scores(cves []string, now time.Time) map[string]float64 
 
 // apiAdvisory is an advisory that names a package production runs.
 type apiAdvisory struct {
-	ID        string   `json:"id"`
-	Package   string   `json:"package"`
-	Version   string   `json:"version"`
-	Ecosystem string   `json:"ecosystem"`
-	Part      string   `json:"part"` // app, image:base, image:memory, agent, hi
-	Summary   string   `json:"summary,omitempty"`
-	CVEs      []string `json:"cves,omitempty"`
-	Fixed     []string `json:"fixed,omitempty"`
-	Severity  string   `json:"severity,omitempty"`
-	KEV       bool     `json:"kev,omitempty"`
-	EPSS      float64  `json:"epss,omitempty"`
-	Modified  string   `json:"modified,omitempty"`
-	Ignored   string   `json:"ignored,omitempty"` // why an owner said it doesn't apply
+	ID        string `json:"id"`
+	Package   string `json:"package"`
+	Version   string `json:"version"`
+	Ecosystem string `json:"ecosystem"`
+	Part      string `json:"part"` // app, image:base, image:memory, machine, agent, hi
+	// Kernel is the release the machine runs (uname -r), for part machine.
+	Kernel   string   `json:"kernel,omitempty"`
+	Summary  string   `json:"summary,omitempty"`
+	CVEs     []string `json:"cves,omitempty"`
+	Fixed    []string `json:"fixed,omitempty"`
+	Severity string   `json:"severity,omitempty"`
+	KEV      bool     `json:"kev,omitempty"`
+	EPSS     float64  `json:"epss,omitempty"`
+	Modified string   `json:"modified,omitempty"`
+	Ignored  string   `json:"ignored,omitempty"` // why an owner said it doesn't apply
 	// Also are other advisories about the same CVEs in the same package,
 	// such as Ubuntu's notice (USN) beside its record of the CVE.
 	Also []string `json:"also,omitempty"`
 }
 
-// apiAdvisoryCount sums up an image's advisories, which are too many to
-// list and fixed all at once by building the image again.
+// apiAdvisoryCount sums up an image's or the machine's kernel's
+// advisories, which are too many to list and fixed all at once: by
+// building the image again, or upgrading the machine and restarting it.
 type apiAdvisoryCount struct {
 	Part    string `json:"part"`
 	Total   int    `json:"total"`
@@ -416,15 +419,21 @@ func (w *appWatcher) advisoriesPath(team string) string {
 	return filepath.Join(w.dir, "teams", team, "advisories.json")
 }
 
+// advisoryCounted says a part's advisories are counted, not listed: an
+// image's OS packages, and the machine's kernel, have thousands.
+func advisoryCounted(part string) bool {
+	return strings.HasPrefix(part, "image:") || part == "machine"
+}
+
 // appFacingAdvisories are those the team's machine keeps: every one for
-// the app, the agents, and hi, and of an image's, those loud enough for an
-// incident or ignored; the rest of an image's as counts.
+// the app, the agents, and hi, and of an image's or the kernel's, those
+// loud enough for an incident or ignored; the rest of theirs as counts.
 func appFacingAdvisories(advisories []apiAdvisory) ([]apiAdvisory, []apiAdvisoryCount) {
 	var listed []apiAdvisory
 	counts := map[string]*apiAdvisoryCount{}
 	for _, advisory := range advisories {
 		tier := advisory.tier()
-		if !strings.HasPrefix(advisory.Part, "image:") || tier == "kev" || tier == "incident" || tier == "" {
+		if !advisoryCounted(advisory.Part) || tier == "kev" || tier == "incident" || tier == "" {
 			listed = append(listed, advisory)
 			continue
 		}
@@ -460,11 +469,11 @@ func (a apiAdvisory) tier() string {
 
 // advisoryMatch finds the advisories that name the bill's packages.
 func advisoryMatch(bom cdxBom, cacheDir string, feeds *advisoryFeeds, now time.Time) ([]apiAdvisory, error) {
-	type target struct{ ecosystem, name, version, part string }
+	type target struct{ ecosystem, name, version, part, kernel string }
 	var targets []target
 	seen := map[target]bool{}
 	for _, component := range bom.Components {
-		t := target{component.property(bomOSVSystem), component.property(bomOSVName), component.property(bomOSVVersion), component.property(bomPart)}
+		t := target{component.property(bomOSVSystem), component.property(bomOSVName), component.property(bomOSVVersion), component.property(bomPart), component.property("hi:kernel:release")}
 		if t.ecosystem == "" || t.name == "" || t.version == "" || seen[t] {
 			continue
 		}
@@ -493,7 +502,7 @@ func advisoryMatch(bom cdxBom, cacheDir string, feeds *advisoryFeeds, now time.T
 		t := targets[i]
 		for _, ref := range refs {
 			record := records[ref.ID]
-			advisory := apiAdvisory{ID: record.ID, Package: t.name, Version: t.version, Ecosystem: t.ecosystem, Part: t.part,
+			advisory := apiAdvisory{ID: record.ID, Package: t.name, Version: t.version, Ecosystem: t.ecosystem, Part: t.part, Kernel: t.kernel,
 				Summary: firstNonEmpty(record.Summary, qFirstLine(record.Details, "")), CVEs: record.cves(), Fixed: record.fixed(t.ecosystem, t.name),
 				Severity: record.severity(), Modified: record.Modified}
 			if runes := []rune(advisory.Summary); len(runes) > 200 {
@@ -590,8 +599,10 @@ func advisoryMerge(advisories []apiAdvisory) []apiAdvisory {
 	return kept
 }
 
-// advisoryAction is what fixes an advisory in a part, for the incident.
-func advisoryAction(team string, advisory apiAdvisory) string {
+// advisoryAction is what fixes an advisory in a part, for the incident
+// and the admin page; machine is the name of the machine the app runs on,
+// or "".
+func advisoryAction(team, machine string, advisory apiAdvisory) string {
 	fixed := "no fixed version yet"
 	if len(advisory.Fixed) > 0 {
 		fixed = "fixed in " + strings.Join(advisory.Fixed, ", ")
@@ -599,6 +610,8 @@ func advisoryAction(team string, advisory apiAdvisory) string {
 	switch {
 	case advisory.Part == "app":
 		return fmt.Sprintf("The app's %s package %s %s (%s). The lead proposes the upgrade and waits for a yes, as for any work, then asks for the release.", advisory.Ecosystem, advisory.Package, advisory.Version, fixed)
+	case advisory.Part == "machine":
+		return advisoryMachineAction(machine, advisory, fixed)
 	case strings.HasPrefix(advisory.Part, "image:base"):
 		return fmt.Sprintf("In hi's base image, which the app and the lead run in: %s %s (%s). The lead can't change it: someone at the machine runs hi app rebuild %s, which builds the image again with Ubuntu's current packages and restarts the app on it. The image is the machine's, so its other apps have the same advisory.", advisory.Package, advisory.Version, fixed, team)
 	case strings.HasPrefix(advisory.Part, "image:"):
@@ -607,6 +620,41 @@ func advisoryAction(team string, advisory apiAdvisory) string {
 		return fmt.Sprintf("In a coding agent on the machine: %s %s (%s). hi install upgrade on the machine updates it.", advisory.Package, advisory.Version, fixed)
 	}
 	return fmt.Sprintf("In %s %s (%s): hi update on the machine.", advisory.Package, advisory.Version, fixed)
+}
+
+// advisoryMachineAction says the machine itself needs the update: every
+// box runs on its kernel, so building the image again, which the scanner
+// once took the kernel's headers in for the kernel, changes nothing.
+func advisoryMachineAction(machine string, advisory apiAdvisory, fixed string) string {
+	short, _, _ := strings.Cut(machine, ".")
+	where := firstNonEmpty(short, "the machine")
+	running := "linux " + advisory.Version
+	if advisory.Kernel != "" {
+		running += ", running as " + advisory.Kernel
+	}
+	var text strings.Builder
+	fmt.Fprintf(&text, "In the Linux kernel of the machine hi runs on, %s: %s (%s). Every app and box on %s runs on this kernel, so the machine itself needs the update: the lead can't do it, and hi app rebuild doesn't change the kernel.\n", where, running, fixed, where)
+	if len(advisory.Fixed) == 0 {
+		text.WriteString("Ubuntu has no fixed kernel yet. Once it has, ")
+	} else {
+		text.WriteString("To fix it, ")
+	}
+	fmt.Fprintf(&text, "someone with sudo on %s (ask your IT team) runs:\n"+
+		"1. sudo apt update && sudo apt full-upgrade, which installs the fixed kernel;\n"+
+		"2. sudo reboot, since the machine runs a new kernel only once it restarts. Every app on %s stops for a few minutes and starts again at boot (one that doesn't: hi app up <name>).\n"+
+		"The machine's other apps have the same advisory. This closes once %s runs a fixed kernel.", where, where, where)
+	return text.String()
+}
+
+// advisoryRule is the incident rule for an advisory, by its ID or one of
+// its Also. The machine's kernel has rules of its own: those that named
+// the image's kernel headers close, and these open with the right fix.
+func advisoryRule(id string, advisory apiAdvisory) string {
+	rule := "advisory:" + id + ":" + advisory.Package
+	if advisory.Part == "machine" {
+		rule += ":machine"
+	}
+	return rule
 }
 
 // ---------------------------------------------------------------------------
@@ -678,7 +726,7 @@ func (w *appWatcher) advisoryRulesLocked(team *watchTeam, now time.Time) []watch
 		if tier != "kev" && tier != "incident" {
 			continue
 		}
-		rule := "advisory:" + advisory.ID + ":" + advisory.Package
+		rule := advisoryRule(advisory.ID, advisory)
 		current[rule] = true
 		opened := w.ruleLocked(team, rule, true, now, func() watchIncident {
 			why := "known to be exploited (CISA KEV)"
@@ -689,7 +737,7 @@ func (w *appWatcher) advisoryRulesLocked(team *watchTeam, now time.Time) []watch
 				}
 			}
 			return watchIncident{Title: advisoryTitle(team.Team, advisory, why),
-				Detail: strings.TrimSpace(advisory.Summary + "\n" + advisoryAction(team.Team, advisory) + "\nhttps://osv.dev/vulnerability/" + advisory.ID),
+				Detail: strings.TrimSpace(advisory.Summary + "\n" + advisoryAction(team.Team, team.Hostname, advisory) + "\nhttps://osv.dev/vulnerability/" + advisory.ID),
 				Tell:   advisory.Part == "app", Push: tier == "kev"}
 		}, "")
 		events = append(events, opened...)
@@ -703,13 +751,26 @@ func (w *appWatcher) advisoryRulesLocked(team *watchTeam, now time.Time) []watch
 	for rule := range team.Open {
 		if strings.HasPrefix(rule, "advisory:") && !current[rule] {
 			cleared := "Production no longer runs the package at that version."
+			if strings.HasSuffix(rule, ":machine") {
+				cleared = "The machine now runs a kernel without it."
+			}
 			for _, advisory := range team.Advisories {
-				if "advisory:"+advisory.ID+":"+advisory.Package == rule && advisory.Ignored != "" {
+				if advisoryRule(advisory.ID, advisory) == rule && advisory.Ignored != "" {
 					cleared = "An owner said it doesn't apply: " + advisory.Ignored
 				}
 				for _, also := range advisory.Also {
-					if "advisory:"+also+":"+advisory.Package == rule {
+					if advisoryRule(also, advisory) == rule {
 						cleared = "It is about the same as " + advisory.ID + ", which is kept instead."
+					}
+				}
+			}
+			// One that named the Linux kernel's headers in an image, which
+			// no box runs: hi matches the machine's own kernel instead.
+			if id, pkg, _ := strings.Cut(strings.TrimPrefix(rule, "advisory:"), ":"); appKernelSource(pkg) && !strings.HasSuffix(rule, ":machine") {
+				cleared = "It named the Linux kernel's headers in an image, which no box runs: the boxes run on the machine's kernel, which doesn't have it."
+				for _, advisory := range team.Advisories {
+					if advisory.Part == "machine" && (advisory.ID == id || slices.Contains(advisory.Also, id)) {
+						cleared = "It is in the machine's Linux kernel, not in hi's base image: every box runs on the machine's kernel, so hi app rebuild doesn't fix it. A new incident says what does: updating the machine and restarting it."
 					}
 				}
 			}
@@ -731,6 +792,8 @@ func advisoryTitle(team string, advisory apiAdvisory, why string) string {
 		return fmt.Sprintf("%s's production runs %s %s, which has %s, %s", team, advisory.Package, advisory.Version, has, why)
 	case advisory.Part == "image:base":
 		return fmt.Sprintf("%s runs in hi's base image, whose %s %s has %s, %s", team, advisory.Package, advisory.Version, has, why)
+	case advisory.Part == "machine":
+		return fmt.Sprintf("%s's machine needs an update: its Linux kernel, %s %s, has %s, %s", team, advisory.Package, advisory.Version, has, why)
 	case strings.HasPrefix(advisory.Part, "image:"):
 		return fmt.Sprintf("%s's memory image (Hindsight) has %s %s, which has %s, %s", team, advisory.Package, advisory.Version, has, why)
 	}
@@ -802,12 +865,19 @@ func (w *appWatcher) reportLocked(team *watchTeam, now time.Time) string {
 		if loud[count.Part] > 0 {
 			other = fmt.Sprintf("%d open as incidents, and ", loud[count.Part])
 		}
-		fmt.Fprintf(&text, "• %s: %s%d advisories for its OS packages, %d of them with a fix in a newer package", advisoryPartName(count.Part), other, count.Total, count.Fixable)
+		if count.Part == "machine" {
+			fmt.Fprintf(&text, "• %s: %s%d advisories, %d of them fixed in a newer kernel", advisoryPartName(count.Part), other, count.Total, count.Fixable)
+		} else {
+			fmt.Fprintf(&text, "• %s: %s%d advisories for its OS packages, %d of them with a fix in a newer package", advisoryPartName(count.Part), other, count.Total, count.Fixable)
+		}
 		if last, ok := previous[count.Part]; ok && last != count.Total {
 			fmt.Fprintf(&text, " (%+d since last week)", count.Total-last)
 		}
 		if count.Fixable+loud[count.Part] > 0 && count.Part == "image:base" {
 			fmt.Fprintf(&text, ": hi app rebuild %s on the machine builds the image again with them", team.Team)
+		}
+		if count.Fixable+loud[count.Part] > 0 && count.Part == "machine" {
+			text.WriteString(": the machine itself needs updating, sudo apt full-upgrade and a reboot (ask your IT team); hi app rebuild doesn't change the kernel")
 		}
 		text.WriteString("\n")
 	}
@@ -830,6 +900,8 @@ func advisoryPartName(part string) string {
 		return "hi's base image"
 	case "image:memory":
 		return "the memory image (Hindsight)"
+	case "machine":
+		return "the machine's Linux kernel"
 	}
 	return part
 }

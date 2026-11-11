@@ -2736,6 +2736,35 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.128 — A kernel advisory says the machine needs an update
+
+- [x] The bill lists the machine's running kernel as part `machine`: the
+  package `uname -r` names (`linux-image-<release>`), as the kernel's
+  source package (`linux-signed` is `linux`) and version, in the
+  machine's Ubuntu. Every box runs on that kernel. An image's kernel
+  packages (`linux-libc-dev`'s source, `linux`) are listed but no longer
+  matched: they are headers, and building the image again changed them
+  without changing the kernel the boxes run on.
+- [x] Production's bill is made again when the machine runs another
+  kernel (after an upgrade and a reboot), or when a bill from before
+  lists none.
+- [x] A kernel advisory's incident says the machine itself needs the
+  update: someone with sudo on it (ask your IT team) runs `sudo apt
+  update && sudo apt full-upgrade`, then `sudo reboot`, which stops
+  every app on the machine for a few minutes; `hi app rebuild` doesn't
+  change the kernel. It closes once the machine runs a fixed kernel.
+  Its rule is the advisory's with `:machine`, so an incident that named
+  the image's headers closes, saying it is in the machine's kernel, and
+  a new one opens with the right fix.
+- [x] The admin page's advisories show what fixes each one to act on;
+  for the kernel, "The machine needs an update" and the steps.
+  `hi app advisories` prints the steps too, and the weekly report counts
+  the kernel's advisories as one line, as an image's.
+- [x] The lead's table of machine commands names the upgrade and reboot
+  for a kernel advisory.
+- [x] `hi install upgrade` upgrades with `--with-new-pkgs`, so a new
+  kernel isn't kept back, and says when the machine needs a reboot.
+
 ### v2.6.127 — A seen red count narrows and fades away
 
 - [x] When Incidents shows an app's incidents, its red count in Apps

@@ -441,7 +441,12 @@ fi
 
 if [[ "$upgrade" == "1" ]]; then
   log "Upgrading Ubuntu packages"
-  sudo env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+  # --with-new-pkgs: a new kernel comes as new packages, which a plain
+  # upgrade keeps back.
+  sudo env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --with-new-pkgs
+  if [[ -f /run/reboot-required ]]; then
+    printf '\nThe machine runs the new kernel only once it restarts: sudo reboot.\nEvery app on it stops for a few minutes and starts again at boot.\n'
+  fi
 fi
 
 # Installers add ~/.local/bin to PATH in the shell profile, which only

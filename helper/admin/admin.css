@@ -107,6 +107,7 @@ a.button-like:hover { background: var(--secondary-hover); text-decoration: none;
 .incident { display: flex; flex-direction: column; gap: 2px; }
 .incident-head { display: flex; align-items: center; gap: 6px; }
 .incident-head .dot { margin-top: 0; }
+.advisory-action { white-space: pre-wrap; margin: 4px 0; }
 button.link-button { border: 0; background: none; padding: 0; color: var(--accent); font-weight: 600; }
 button.link-button:hover { text-decoration: underline; background: none; }
 #jobs-list { flex: 1; min-height: 0; overflow-y: auto; }

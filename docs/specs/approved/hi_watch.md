@@ -595,6 +595,12 @@ dependency review in `team_deps.go`.
   watch channel with what fixes them (for hi's base image: `hi team
   rebuild`, which builds it again with Ubuntu's current packages and
   restarts the team on it; since v2.6.10).
+- **The kernel is the machine's** (since v2.6.128). A box runs on the
+  machine's kernel, so an image's kernel packages (`linux-libc-dev`,
+  headers) aren't matched; the bill lists the running kernel as part
+  `machine` instead, and its incident tells the admin the machine itself
+  needs `sudo apt full-upgrade` and a reboot, which someone with sudo
+  there does, not `hi app rebuild`.
 - **An image's advisories are counted, not listed.** On orbit's
   production (v17), the bill had 398 components (67 of the app's, 211 of
   the base image, 101 of the memory image) in 154 KB. OSV matched 3,195
