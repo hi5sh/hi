@@ -2736,6 +2736,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.134 — "Allow this address" only when there are domains
+
+- [x] The admin page's box for an address outside the organisation's
+  email domains shows only once domains are set, where it matters, and
+  says what it does: "Allow this address: it isn't at corp.example".
+  Before, it showed on every machine, also where any address goes.
+
 ### v2.6.133 — People by email, and signing in by email
 
 Spec: [hi_people.md](specs/approved/hi_people.md).

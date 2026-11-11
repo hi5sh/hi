@@ -506,7 +506,7 @@ func machineAddPerson(request peopleAddRequest) (machinePerson, error) {
 	err = changeMachinePeople(func(m *machinePeople) error {
 		if !request.Outside && !m.inDomains(email) {
 			if i := m.find(email); i < 0 || !m.People[i].Outside {
-				return fmt.Errorf("%s is outside the organisation's domains (%s); add them as someone outside if that's right (--outside)", email, strings.Join(m.Domains, ", "))
+				return fmt.Errorf("%s is outside the organisation's domains (%s); to let it in, tick Allow this address, or add --outside on the command line", email, strings.Join(m.Domains, ", "))
 			}
 		}
 		if i := m.find(email); i < 0 || m.People[i].Email != email {

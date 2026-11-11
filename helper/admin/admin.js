@@ -3064,6 +3064,14 @@ async function personDo(change, said) {
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return null; }
 }
 
+// outsideWords is the box that lets in an address outside the
+// organisation's domains, or "" when none are set and any address goes.
+function outsideWords() {
+  const domains = (peopleApps && peopleApps.domains) || [];
+  if (!domains.length) return "";
+  return "Allow this address: it isn't at " + (domains.length === 1 ? domains[0] : domains.slice(0, -1).join(", ") + " or " + domains[domains.length - 1]);
+}
+
 function renderPerson() {
   const box = $("person");
   if (personOpen === "new") { box.replaceChildren(...addPersonView()); return; }
@@ -3080,7 +3088,7 @@ function renderPerson() {
   // Who they are.
   const who = el("dl", { class: "person-facts" });
   const editEmail = el("button", { class: "link-button", onclick: async () => {
-    const answer = await ask({ title: person.email ? title + "'s name" : "An email for " + title, text: person.email ? "As people call them; it shows here and in the apps' links." : "Their email ties their Slack accounts together and lets them sign in by email. hi takes it from Slack when the app's Slack app has users:read.email.", ok: "Save", field: person.email ? title : "anna@corp.example", check: person.email ? "" : "Outside the organisation's domains, and that's right" });
+    const answer = await ask({ title: person.email ? title + "'s name" : "An email for " + title, text: person.email ? "As people call them; it shows here and in the apps' links." : "Their email ties their Slack accounts together and lets them sign in by email. hi takes it from Slack when the app's Slack app has users:read.email.", ok: "Save", field: person.email ? title : "anna@corp.example", check: person.email ? "" : outsideWords() });
     if (!answer) return;
     personDo(person.email ? { action: "update", key: person.key, name: answer.field } : { action: "update", key: person.key, email: answer.field, name: person.name, outside: answer.checked });
   } }, person.email ? "Rename" : "Give an email");
@@ -3151,7 +3159,7 @@ function addPersonView() {
   const form = el("form", { class: "stack person-add", autocomplete: "off" },
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Their email: who they are, in every app and Slack workspace. Pick someone from Slack, or type any address."), email, options),
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Their name"), name),
-    el("label", { class: "check small" }, outside, " Outside the organisation's domains, and that's right"),
+    outsideWords() ? el("label", { class: "check small" }, outside, " " + outsideWords()) : null,
     p.apps.length ? el("div", { class: "field" }, el("span", { class: "muted small" }, "Their level in each app; each the app's own change, said in its channel"), el("div", { class: "matrix-scroll" }, table)) : null,
     el("label", { class: "check small" }, invite, " " + (p.mail ? "Email them their way in: a sign-in link to each app" : "Email them their way in (the machine sends no email yet: Keys, Email)")),
     error, el("div", { class: "buttons" }, el("button", { type: "button", onclick: () => openView("") }, "Cancel"), el("button", { class: "primary", type: "submit" }, "Add")));
