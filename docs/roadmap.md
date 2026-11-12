@@ -5328,6 +5328,35 @@ From [hi_app_dev_access.md](specs/approved/hi_app_dev_access.md)'s
 - [ ] Adding a contributor by email while the helper is off where they
   can go warns: the helper is their only way to report.
 
+### Next — the dev box's sites: fewer asks, and hi's own check
+
+Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md). The
+owners allowed every site the dev boxes asked for (18 of 18), so most
+asks are posts to skim past.
+
+- [ ] Release 1, fewer asks: the `dev` preset gets the dev-tool downloads
+  (Playwright's two CDNs, Astral's releases, Debian's and Ubuntu's
+  packages, Open VSX, jsDelivr, unpkg, `cdn.hf.co`); the app's public
+  Stage and dev page are on the list, production stays an ask; the
+  organisation's domains are on the list once set (`hi admin sites org
+  off`); a task's asks within two minutes make one post with Allow all;
+  the admin page's Sites shows sites allowed in several apps, and
+  `hi admin sites allow <site>` allows one for every app.
+- [ ] Release 2, the rules: `hi app dev <app> sites check
+  [off|rules|model]`, `rules` by default; the Public Suffix List, RDAP
+  age, Tranco rank, Quad9 and 1.1.1.2, and hi's list of file drops,
+  pastes, request catchers, tunnels and hosted databases, kept a week in
+  `sites.json`. hi's own allows last 7 days, ten a day for each app, said
+  in one daily thread with Keep and Undo, marked on the dev page, paused
+  by an incident; `hi dev allow` answers at once; the owners' post says
+  what hi found.
+- [ ] Release 3, the model: Gemini Decision 1 on the app's OpenRouter
+  key, the broker fetching the front page through the public-only
+  dialer, the five questions and their thresholds. First watch only (it
+  records what it would have done beside the owners' answers), then on
+  once it agrees with them; turning it on says where the page and the
+  why go (question 3).
+
 ### Next — the rest of a name for each address
 
 - [ ] `--cert <fullchain.pem> --key <key.pem>`: TLS ended by hi on the

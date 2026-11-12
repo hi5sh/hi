@@ -1,6 +1,9 @@
 # The dev box's sites: fewer asks, and hi's own check
 
-Status: Draft (2026-11-12), for review.
+Status: Approved (2026-11-12). Three releases (the roadmap's "the dev
+box's sites"): fewer asks, then the rules, then the model, which runs
+watch only first (question 4). The questions below stay open until each
+release is built.
 
 Dependencies: [hi_app_dev.md](../approved/hi_app_dev.md) (the dev box,
 its proxy, `hi dev allow`, v2.5.38, v2.6.24, v2.6.25, v2.6.44),
