@@ -2736,6 +2736,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.139 — hi's own sites raise no incident
+
+- [x] A dev box's list marks every line but an owner's allow as hi's
+  (`# hi`), so its proxy logs them as `allowlist-added-by-hi` and the
+  watcher opens no incident: what development needs, which a new hi adds
+  to (v2.6.136's downloads, an incident for each in every app), and what
+  hi's check allowed, which its daily post says already. An owner's
+  allow is still an incident. Found while updating aiw9 to v2.6.138.
+
 ### v2.6.138 — The dev box's sites: a model watching
 
 Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release

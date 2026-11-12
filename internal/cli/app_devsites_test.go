@@ -301,7 +301,7 @@ func TestDevSitesQuietForWatcher(t *testing.T) {
 	b.devSiteDecide(appPersonKey{User: "U07OWNER1", Name: "Olga"}, "docs.example.org", true)
 	data, _ := os.ReadFile(appDevAllowFile("payments"))
 	text := string(data)
-	if !strings.Contains(text, "\nexample.com  # hi\n") || strings.Contains(text, "docs.example.org  # hi") || strings.Contains(text, "github.com  # hi") {
+	if !strings.Contains(text, "\nexample.com  # hi\n") || strings.Contains(text, "docs.example.org  # hi") || !strings.HasPrefix(text, "github.com  # hi\n") {
 		t.Fatal(text)
 	}
 

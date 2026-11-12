@@ -175,10 +175,15 @@ func writeTeamDevAllow(team string, drop ...string) error {
 	if err := os.MkdirAll(filepath.Dir(appDevAllowFile(team)), 0o700); err != nil {
 		return err
 	}
-	// hi's own lines are marked, so the box's proxy doesn't call them news.
-	owners := appDevHosts()
+	// hi's own lines are marked, so the box's proxy doesn't call them news:
+	// all but an owner's allow, which the watcher still hears of. What
+	// development needs, which a new hi may add to, and what hi's check
+	// allowed (said once a day in its own post) are hi's.
+	var owners []string
 	for _, site := range loadTeamDevAccess(team).Allowed {
-		owners = append(owners, site.Host)
+		if site.Check == nil {
+			owners = append(owners, site.Host)
+		}
 	}
 	lines := make([]string, len(hosts))
 	for i, host := range hosts {

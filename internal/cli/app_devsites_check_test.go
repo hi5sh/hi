@@ -140,6 +140,10 @@ func TestSiteCheckAllows(t *testing.T) {
 	if !boxHostAllowed(appTestAllowFile(t, "payments"), "query1.finance.yahoo.com") {
 		t.Fatal("not on the box's list")
 	}
+	// hi's line: the watcher opens no incident for it, the day's post says it.
+	if raw, _ := os.ReadFile(appDevAllowFile("payments")); !strings.Contains(string(raw), "\nquery1.finance.yahoo.com  # hi\n") {
+		t.Fatal(string(raw))
+	}
 	access := loadTeamDevAccess("payments")
 	site := access.Allowed[0]
 	if site.By != appSiteCheckBy || site.Check == nil || site.Check.Until.Sub(time.Now()) < 6*24*time.Hour || access.Today == nil || access.Today.Thread == "" {
