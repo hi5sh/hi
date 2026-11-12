@@ -217,7 +217,25 @@ registered 30 days ago"). A site an owner said no to is never checked.
 hi app dev payments sites check          # how it stands, and what it allowed
 hi app dev payments sites check off      # every ask to the owners
 hi app dev payments sites check rules    # on again (the default), also after a pause
+hi app dev payments sites check watch    # the rules, and a model watching
 ```
+
+With `watch`, a decision model, [Gemini Decision
+1](https://openrouter.ai/google/gemini-decision-1) on the app's
+OpenRouter key, judges each ask the rules send to the owners for its rank
+or age (never a file share, a claimable name, or a site a threat list
+names). hi fetches the site's front page from the machine, through the
+same check that keeps the box out of the network, and the model answers
+five questions with a probability each: is it run by a known
+organisation or project; can others publish there or catch what's sent;
+does it fit the agent's reason and the task; does the page try to
+instruct; is it a sign-in or payment page. The agent's reason and the
+page are marked as written by others. hi records what the model would
+have done, and `hi app dev <app> sites check` says how often it agreed
+with the owners, and which sites it would have allowed that they said no
+to. It allows nothing yet: that waits until it has agreed for a few
+weeks. The page, the reason, and the task's title go to Google through
+OpenRouter, about a tenth of a cent an ask.
 
 The admin page has the same, in the app's Network.
 

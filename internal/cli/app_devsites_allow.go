@@ -44,13 +44,19 @@ type appDevCheckEntry struct {
 	By    string `json:"by,omitempty"`
 }
 
-// appDevSitesCheckMode is the app's setting: rules (the default) or off.
+// appDevSitesCheckMode is the app's setting: rules (the default), watch
+// (the rules, and the model judging beside the owners), or off.
 func appDevSitesCheckMode(config appConfig) string {
-	if config.SitesCheck == appSiteCheckOff {
-		return appSiteCheckOff
+	switch config.SitesCheck {
+	case appSiteCheckOff, appSiteCheckWatch:
+		return config.SitesCheck
 	}
 	return appSiteCheckRules
 }
+
+// appSiteModelGo runs the model's judgement beside the ask; tests run it
+// at once.
+var appSiteModelGo = func(judge func()) { go judge() }
 
 // devSiteCheckPaused says why the check stands aside now, or "".
 func (b *appBroker) devSiteCheckPaused(access appDevAccess, config appConfig) string {
@@ -103,6 +109,11 @@ func (b *appBroker) devSiteCheck(host, why, work string) (allowed bool, found st
 			saveTeamDevAccess(b.team, access)
 			appDevAccessMu.Unlock()
 			return false, ":warning: " + because + ". hi's check stops allowing sites by itself until an owner turns it on again (hi app dev " + b.team + " sites check rules)."
+		}
+		// The model judges what the rules sent to the owners for its rank
+		// or age, never a site the rules keep for them whatever it says.
+		if appDevSitesCheckMode(config) == appSiteCheckWatch && facts.Listed == "" && facts.Open == "" && facts.Claimable == "" && facts.NoLists == "" {
+			appSiteModelGo(func() { b.devSiteModelWatch(host, why, work, facts) })
 		}
 		return false, "hi's check: not allowed by itself, " + because + " (" + facts.words(now) + ")."
 	}
@@ -382,7 +393,7 @@ func (b *appBroker) keepDevSites(done <-chan struct{}, stderr io.Writer) {
 
 // appDevSitesCheckCommand is hi app dev <app> sites check [off|rules].
 func appDevSitesCheckCommand(team string, args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi app dev <app> sites check [off|rules]"}
+	usage := usageError{"usage: hi app dev <app> sites check [off|rules|watch]"}
 	config, err := loadTeam(team)
 	if err != nil {
 		return err
@@ -398,6 +409,9 @@ func appDevSitesCheckCommand(team string, args []string, stdout io.Writer) error
 				fmt.Fprintf(stdout, "Paused: %s. On again: hi app dev %s sites check rules\n", access.CheckPaused, team)
 			}
 		}
+		if mode == appSiteCheckWatch {
+			fmt.Fprintln(stdout, appSiteModelSummary(team, time.Now()))
+		}
 		var allowed []string
 		for _, site := range access.Allowed {
 			if site.Check != nil {
@@ -409,8 +423,13 @@ func appDevSitesCheckCommand(team string, args []string, stdout io.Writer) error
 		}
 		return nil
 	}
-	if len(args) != 1 || (args[0] != appSiteCheckOff && args[0] != appSiteCheckRules) {
+	if len(args) != 1 || (args[0] != appSiteCheckOff && args[0] != appSiteCheckRules && args[0] != appSiteCheckWatch) {
 		return usage
+	}
+	if args[0] == appSiteCheckWatch {
+		if key, err := appSiteModelKey(team); err != nil || key == "" {
+			return fmt.Errorf("the model goes through OpenRouter, and neither %s nor the machine has a key: hi app key %s openrouter", team, team)
+		}
 	}
 	config.SitesCheck = args[0]
 	if args[0] == appSiteCheckRules {
@@ -427,9 +446,13 @@ func appDevSitesCheckCommand(team string, args []string, stdout io.Writer) error
 	if err != nil {
 		return err
 	}
-	if args[0] == appSiteCheckOff {
+	switch args[0] {
+	case appSiteCheckOff:
 		fmt.Fprintln(stdout, "hi's check is off: every site the dev box asks for goes to the owners. What it allowed stays until its days are over.")
-	} else {
+	case appSiteCheckWatch:
+		fmt.Fprintf(stdout, "hi's check is on, and %s watches: for each ask the rules send to the owners for its rank or age, it judges the site, and hi records what it would have done beside the owners' answer. It allows nothing. hi app dev %s sites check says how often it agreed.\n", appSiteModel, team)
+		fmt.Fprintln(stdout, "The site's front page, the agent's reason, and the task's title go to Google through OpenRouter, on the app's key (about a tenth of a cent an ask).")
+	default:
 		fmt.Fprintln(stdout, "hi's check is on: it allows a site the rules vouch for by itself, for 7 days, and says so in the ops channel once a day.")
 	}
 	return nil

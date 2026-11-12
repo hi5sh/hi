@@ -3,8 +3,8 @@
 Status: Approved (2026-11-12). Three releases (the roadmap's "the dev
 box's sites"): fewer asks, then the rules, then the model, which runs
 watch only first (question 4). The questions below stay open until each
-release is built. Release 1 built in v2.6.136, release 2 in v2.6.137 (see
-"as built" under each).
+release is built. Release 1 built in v2.6.136, release 2 in v2.6.137,
+release 3's watch only in v2.6.138 (see "as built" under each).
 
 Dependencies: [hi_app_dev.md](../approved/hi_app_dev.md) (the dev box,
 its proxy, `hi dev allow`, v2.5.38, v2.6.24, v2.6.25, v2.6.44),
@@ -254,6 +254,27 @@ days ago"), so the owner decides on more than the agent's word.
   right reasons (a file share, a `github.io` page, a malware test name,
   three outside the 100,000). Each check took 50 ms to 1.5 s.
 - **Not yet:** Google's Web Risk and Cloudflare's categories with a key.
+
+### Release 3, watch only, as built (v2.6.138)
+
+- **A setting of its own,** `watch`, beside `rules` and `off`: the model
+  judges, hi records, and nothing is allowed by the model. A later
+  release adds the setting that lets it allow, once the record shows it
+  agrees with the owners.
+- **What it judges:** an ask the rules sent to the owners for its rank
+  or age. A site a threat list names, a file share, a claimable name, or
+  a site whose threat lists didn't answer, never goes to the model.
+- **The call.** Google documents the Decisions API (POST
+  `/v1beta/decisions` with `model`, `input`, and `questions`, each a
+  `noul` with `instructions`; each answer a `noul` probability, 0.01 to
+  0.99). OpenRouter lists the model with the output "decisions" but
+  documents no request for it; hi sends Google's shape to
+  `/api/v1/decisions`. Not yet tried with a live key.
+- **The page** is fetched by the broker on the machine, through the dialer
+  the dev box's proxy uses, so a name can't lead inside the network;
+  tried on three sites the rules sent to the owners.
+- **The record** is `sites-model.jsonl` in the dev box's folder:
+  the answers, what it would have done and why, the tokens, or the error.
 
 ## What stays as it is
 

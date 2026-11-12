@@ -2736,6 +2736,34 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.138 — The dev box's sites: a model watching
+
+Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release
+3, watch only.
+
+- [x] `hi app dev <app> sites check watch`: the rules, and Gemini
+  Decision 1 on the app's OpenRouter key (or the machine's) judging each
+  ask they send to the owners for its rank or age; never a site the rules
+  keep for the owners. It runs beside the owners' post, never holding up
+  the agent.
+- [x] hi fetches the site's front page from the machine through the
+  public-only dialer (no cookies, 10 seconds, 200 KB; title and text
+  without scripts and tags), and the model reads the facts, the agent's
+  reason and the task, and the page, the last three marked as written by
+  others, their tags unable to close.
+- [x] Five yes/no questions with a probability each; it would allow only
+  within every bound, the site older than 90 days and among the million
+  most used. Each judgement goes in the dev box's `sites-model.jsonl`,
+  and `hi app dev <app> sites check` compares them with the owners'
+  answers: how many agreed, and which it would have allowed that the
+  owners said no to. It allows nothing.
+- [x] Turning it on needs an OpenRouter key and says what goes to Google;
+  the admin page's app Network says when it watches.
+- [ ] Not yet tried with a live key: the call is Google's Decisions API's
+  shape (model, input, questions) at OpenRouter's `/api/v1/decisions`,
+  which OpenRouter doesn't document. A wrong guess records an error per
+  ask and allows nothing.
+
 ### v2.6.137 — The dev box's sites: hi's own check
 
 Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release
@@ -5415,7 +5443,7 @@ asks are posts to skim past.
   in one daily thread with Keep and Undo, marked on the dev page, paused
   by an incident; `hi dev allow` answers at once; the owners' post says
   what hi found.
-- [ ] Release 3, the model: Gemini Decision 1 on the app's OpenRouter
+- [ ] Release 3, the model (watch only built in v2.6.138, above; allowing waits for its record and a live call): Gemini Decision 1 on the app's OpenRouter
   key, the broker fetching the front page through the public-only
   dialer, the five questions and their thresholds. First watch only (it
   records what it would have done beside the owners' answers), then on
