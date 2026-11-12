@@ -15,7 +15,8 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   /* One long scroll that gets more technical as it goes: the software factory,
-     what a software factory is, why inside, the lifecycle, templates, the
+     who should build a company's tools, what it takes beyond the code, what a
+     software factory is, why inside, the lifecycle, templates, the
      organisation's roles, the components and how to install them, and the
      open-source project. The components in depth live in the guide. */
   :root {
@@ -166,6 +167,16 @@
   .side-card.in { border-color: rgba(79,209,165,.35); background: linear-gradient(var(--mint-soft), transparent 70%), var(--bg-card); }
   .side-card.in li::before { content: "✓"; color: var(--mint); }
   .side-card b { color: var(--text); font-weight: 600; }
+  /* Beyond the code: the code is one tile of many */
+  .needs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+  .needs li { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-card); }
+  .needs b { display: block; font-size: 16.5px; margin-bottom: 4px; }
+  .needs span { display: block; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+  .needs code { white-space: nowrap; }
+  .needs li.code { border-color: rgba(124,131,255,.45); background: linear-gradient(var(--accent-soft), transparent 80%), var(--bg-card); }
+  .needs li.code b { color: var(--accent); }
+  .caveat { margin: 28px 0 0; padding: 20px 24px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--bg-raised); color: var(--muted); font-size: 16.5px; }
+  .caveat b { color: var(--text); font-weight: 600; }
   /* The lifecycle: steps, three to a row */
   .life { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
   .life li:last-child { border-color: rgba(79,209,165,.35); background: linear-gradient(var(--mint-soft), transparent 70%), var(--bg-card); }
@@ -250,6 +261,37 @@
     </div>
     <div class="hero-install cmdline"><span class="ps">$</span><code>curl -fsSL https://hi5.sh/install.sh | sh</code><button class="copy" type="button" data-copy="curl -fsSL https://hi5.sh/install.sh | sh">copy</button></div>
   </div>
+
+  <section id="purpose" class="wrap slide" aria-labelledby="purpose-h">
+    <div class="eyebrow">Why hi5</div>
+    <h2 id="purpose-h">The people who know the work should build its tools.</h2>
+    <p class="sub">Legal, HR, finance, quality engineering: every team has people who know exactly what would make their work better. Most of those ideas, good or bad, never get past being ideas, because building one meant claiming developers that every other project was waiting for. hi5 changes who gets to build.</p>
+    <div class="roles">
+      <div class="role people"><span class="tag t-warm"><i></i>domain experts</span><h3>Experts own the tools of their trade</h3><p>The people who know the work take an idea all the way to a tool they use every day, without having to learn how applications work inside. They shape it, they use it, and it stays theirs.</p></div>
+      <div class="role"><span class="tag t-sky"><i></i>developers</span><h3>Developers become mentors, not gatekeepers</h3><p>Web, data, and IT developers stop being the queue every idea waits in. They stay the core technologists who know how things work inside: they set the templates everyone builds from, teach, and help the business solve problems at a larger scale. And they keep doing what they love most: making things.</p></div>
+    </div>
+  </section>
+
+  <section id="beyond-code" class="wrap slide" aria-labelledby="beyond-code-h">
+    <div class="eyebrow">Beyond the code</div>
+    <h2 id="beyond-code-h">Agents made the code cheap. Everything around it is still hard.</h2>
+    <p class="sub">A coding agent can turn an idea into a working prototype in an afternoon. A product the business can rely on needs much more than code, and the bigger the company, the more of it there is. That's the work the hi5 software factory takes on.</p>
+    <ul class="needs">
+      <li class="code"><b>The code</b><span>Claude Code or Codex writes it. This is the part that got cheap.</span></li>
+      <li><b>Hosting</b><span>A dev box, Stage, and production for every app, on your machines.</span></li>
+      <li><b>Network</b><span>Internal addresses by default. The dev box reaches only allowed sites.</span></li>
+      <li><b>Sign-in and access</b><span>Your organisation's sign-in. Owners choose who builds and who releases.</span></li>
+      <li><b>Code and tasks</b><span>A git repository, a task list, and a Slack channel for every app.</span></li>
+      <li><b>Testing</b><span>Every change lands on Stage first. People try it and send feedback from inside the app.</span></li>
+      <li><b>Releases</b><span>Production changes only on a click from someone the owners chose, after a snapshot.</span></li>
+      <li><b>Security</b><span>Agents in boxes with no credentials. Every request out goes through a proxy, logged.</span></li>
+      <li><b>Running it</b><span>Daily snapshots, watches, and incidents, so someone knows when it breaks.</span></li>
+      <li><b>Cost</b><span>Model keys kept away from the agents, and a monthly budget for every app.</span></li>
+      <li><b>Standards</b><span>Your stack and rules in templates. <code>hi init --update</code> keeps every app current.</span></li>
+      <li><b>Ownership</b><span>An owner from day one, and a clean handover when the app becomes critical.</span></li>
+    </ul>
+    <p class="caveat"><b>hi5 doesn't make every idea a good one</b>, and sometimes a tool that already exists is the better answer. What it changes is the cost of finding out, so the good ideas no longer stay stuck as ideas.</p>
+  </section>
 
   <section id="factory" class="wrap slide" aria-labelledby="factory-h">
     <div class="eyebrow">What it is</div>
