@@ -288,8 +288,18 @@ func TestSiteCheckLimits(t *testing.T) {
 	access.Requests = nil
 	saveTeamDevAccess("payments", access)
 
-	// An incident about the dev box.
+	// The watcher's note of an owner's allow is routine: the check goes on.
 	b.openIncident(appIncident{Kind: "watch", Slot: appSlotProduction, Title: "payments may now reach x.example from member box " + appDevBox("payments")}, "x", "", nil)
+	if answer, err := b.devSiteAsk("query1.finance.yahoo.com", "x", ""); answer.State != appDevSiteAllowed {
+		t.Fatal("an owner's allow stopped the check:", answer, err)
+	}
+	b.devSiteUndo(appPersonKey{Name: "Olga"}, "query1.finance.yahoo.com")
+	access = loadTeamDevAccess("payments")
+	access.Requests, access.Today = nil, nil
+	saveTeamDevAccess("payments", access)
+
+	// Trouble with the dev box stops it.
+	b.openIncident(appIncident{Kind: "watch", Slot: appSlotProduction, Title: "payments sent 120 MB to files.example.net from member box " + appDevBox("payments")}, "x", "", nil)
 	if answer, err := b.devSiteAsk("query1.finance.yahoo.com", "x", ""); answer.State != appDevSiteAsked {
 		t.Fatal("an incident is open, it allowed:", answer, err)
 	}

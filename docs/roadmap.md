@@ -2744,6 +2744,10 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   to (v2.6.136's downloads, an incident for each in every app), and what
   hi's check allowed, which its daily post says already. An owner's
   allow is still an incident. Found while updating aiw9 to v2.6.138.
+- [x] hi's check no longer stands aside for the watcher's note that the
+  dev box may reach a site an owner allowed: on aiw9 an owner's allow at
+  14:23 kept the check off for the next ask. Trouble with the dev box
+  (big uploads, sends to paste or tunnel sites) still stops it.
 
 ### v2.6.138 — The dev box's sites: a model watching
 

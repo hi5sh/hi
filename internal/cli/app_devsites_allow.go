@@ -71,6 +71,11 @@ func (b *appBroker) devSiteCheckPaused(access appDevAccess, config appConfig) st
 	}
 	box := appDevBox(b.team)
 	for _, incident := range loadTeamIncidents(b.team) {
+		// The watcher's note that the box may reach a site an owner allowed
+		// is routine, not trouble: it doesn't stop the check.
+		if strings.Contains(incident.Title, " may now reach ") {
+			continue
+		}
 		if incident.Kind == "watch" && incident.Status != "closed" && strings.Contains(incident.Title, box) {
 			return "an incident about the dev box is open (" + incident.ID + ")"
 		}
