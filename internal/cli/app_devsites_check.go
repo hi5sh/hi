@@ -180,7 +180,43 @@ type appSiteHostFacts struct {
 	At     time.Time `json:"at"`
 }
 
-func appSiteFactsPath() string { return filepath.Join(appsDir(), "sites", "facts.json") }
+func appSiteFactsPath() string { return filepath.Join(appSitesDir(), "facts.json") }
+
+// appSitesDir holds what hi knows about sites. It sits beside the apps
+// folder, never in it: every folder in there is an app, and v2.6.137 to
+// v2.6.140 put this one there, so it showed as a broken app "sites".
+func appSitesDir() string {
+	apps := appsDir()
+	dir := filepath.Join(filepath.Dir(apps), "sites")
+	appSitesMove.Do(func() { moveAppSitesOutOfApps(filepath.Join(apps, "sites"), dir) })
+	return dir
+}
+
+var appSitesMove sync.Once
+
+// moveAppSitesOutOfApps moves the files of an old apps/sites folder out.
+// An app called sites is a link to its folder and is left alone, and so
+// is anything in the folder that hi didn't put there.
+func moveAppSitesOutOfApps(old, dir string) {
+	info, err := os.Lstat(old)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	for _, name := range []string{"facts.json", "tranco-top-1m.csv"} {
+		from, to := filepath.Join(old, name), filepath.Join(dir, name)
+		if !fileExists(from) {
+			continue
+		}
+		if fileExists(to) {
+			os.Remove(from)
+			continue
+		}
+		if os.MkdirAll(dir, 0o700) == nil {
+			os.Rename(from, to)
+		}
+	}
+	os.Remove(old) // only when it's empty
+}
 
 var appSiteFactsMu sync.Mutex
 
@@ -302,7 +338,7 @@ func appSiteCheckFacts(host string, now time.Time) appSiteFacts {
 
 const appSiteTrancoURL = "https://tranco-list.eu/top-1m.csv.zip"
 
-func appSiteTrancoPath() string { return filepath.Join(appsDir(), "sites", "tranco-top-1m.csv") }
+func appSiteTrancoPath() string { return filepath.Join(appSitesDir(), "tranco-top-1m.csv") }
 
 var errNoTranco = errors.New("hi hasn't fetched the list of the most used sites yet; it does within minutes")
 

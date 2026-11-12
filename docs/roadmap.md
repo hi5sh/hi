@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.141 — No app "sites"
+
+- [x] hi's site check keeps the list of most used sites and what it found
+  in `hi/sites`, beside the apps folder. From v2.6.137 it kept them in
+  `hi/apps/sites`, and every folder there is an app, so a broken app
+  "sites" showed on the machine's page. The files move out by themselves;
+  an app called sites (a link) and files hi didn't put there stay.
+
 ### v2.6.140 — The dev box sees what Stage and production are doing
 
 Spec: [hi_app_dev_view.md](specs/approved/hi_app_dev_view.md). An owner
