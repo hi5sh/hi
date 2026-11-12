@@ -130,7 +130,19 @@ func fetchRepository(source, dir string, extra ...string) (viaGH bool, err error
 		return false, reviewLockClone(dir)
 	}
 	if github == "" {
-		return false, err
+		// A private project on a GitLab this machine's glab is signed in
+		// to, through glab's credential helper for that host only, for
+		// this one fetch.
+		host, _, ok := appGitLabSource(cloneURL)
+		if !ok {
+			return false, err
+		}
+		key, value := appGitLabCredential(host)
+		glabArgs := append(append(append(append([]string{}, reviewCloneArgs...), "-c", key+"="+value), "clone", "--quiet", "--template=", "--no-recurse-submodules"), extra...)
+		if glabErr := clone("git", append(glabArgs, "--", cloneURL, dir)...); glabErr != nil {
+			return false, fmt.Errorf("couldn't fetch %s: %v; with this machine's GitLab sign-in: %v", source, err, glabErr)
+		}
+		return true, reviewLockClone(dir)
 	}
 	if _, lookErr := exec.LookPath("gh"); lookErr != nil {
 		return false, fmt.Errorf("couldn't fetch %s (%v); for a private repository, install gh and sign in with gh auth login", source, err)

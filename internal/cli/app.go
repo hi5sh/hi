@@ -2029,8 +2029,23 @@ func createTeamFolder(config *appConfig, secrets appSecrets, clone string, empty
 		adopt.stage = ""
 	} else if clone != "" {
 		fmt.Fprintf(stdout, "Cloning %s…\n", clone)
-		if out, err := exec.Command("git", "clone", "-q", clone, repo).CombinedOutput(); err != nil {
+		// A project on a GitLab this machine's glab is signed in to is
+		// fetched, and pushed to, through glab, set in the app's
+		// repository only, as for a new GitLab project.
+		args := []string{"clone", "-q", clone, repo}
+		gitlabHost, _, gitlab := appGitLabSource(clone)
+		if gitlab {
+			key, value := appGitLabCredential(gitlabHost)
+			args = append([]string{"-c", key + "=" + value}, args...)
+		}
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
 			return fmt.Errorf("git clone: %s", qFirstLine(string(out), err.Error()))
+		}
+		if gitlab {
+			key, value := appGitLabCredential(gitlabHost)
+			if out, err := appGit(repo, "config", key, value); err != nil {
+				return fmt.Errorf("git config: %s", out)
+			}
 		}
 		// The team pushes merges back to a URL. A folder on this machine is
 		// usually someone's working copy, which git won't push into, so its

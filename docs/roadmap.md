@@ -2736,6 +2736,21 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.142 — Someone's project on GitLab, as on GitHub
+
+- [x] A private GitLab project is adopted with this machine's GitLab
+  sign-in (glab), for that host and that fetch only; before, only
+  GitHub's private repositories could be fetched.
+- [x] "Look at it" asks GitLab about the project (what it is, its size
+  and branch, private or archived) and whether this machine may push
+  there: Developer or above, counting access through parent groups, and
+  never to an archived project.
+- [x] When it may, the page offers "It's yours: this machine's GitLab
+  sign-in (glab) can push there", and `hi app adopt` asks, as for GitHub.
+  The app then works on the project itself: cloned with glab's sign-in,
+  set in the app's repository only, and every merge, the branch
+  production and the release tags pushed there.
+
 ### v2.6.141 — No app "sites"
 
 - [x] hi's site check keeps the list of most used sites and what it found

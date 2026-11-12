@@ -2496,14 +2496,14 @@ function renderCode(body, d) {
     if (l.error) { look.append(el("p", { class: "error small" }, l.error)); return; }
     const facts = el("dl", { class: "facts" });
     const fact = (t, v) => { if (v) facts.append(el("dt", {}, t), el("dd", {}, v)); };
-    fact("Project", l.folder || l.github || l.source);
+    fact("Project", l.folder || l.github || l.gitlab || l.source);
     fact("About", l.description);
     fact("Size", l.size_mb ? l.size_mb + " MB" + (l.files ? ", " + l.files + " files" : "") : l.files ? l.files + " files" : "");
     fact("Branch", l.branch);
     fact("Licence", l.licence || (l.github ? "none said" : ""));
     look.append(el("div", { class: "card-box pad" }, facts,
       l.archived ? el("p", { class: "warn small" }, "It's archived: nobody works on it now.") : null,
-      l.private ? el("p", { class: "muted small" }, "It's private: fetched with this machine's GitHub sign-in.") : null,
+      l.private ? el("p", { class: "muted small" }, "It's private: fetched with this machine's " + (l.gitlab ? "GitLab sign-in (glab)." : "GitHub sign-in.")) : null,
       l.folder ? el("p", { class: "muted small" }, "A folder here is copied without its history or its secrets; nothing in it changes.") : null));
   };
   const drawAdopt = () => {
@@ -2514,7 +2514,7 @@ function renderCode(body, d) {
       adoptBox.append(field("Branch, tag, or commit (optional)", ref));
       if (l.big) adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit: it's over 1 GB. Without it, its whole history, so the members see why code is the way it is."));
       else adoptBox.append(el("label", { class: "check small" }, shallow, " Only its latest commit (smaller and quicker; the copy stays on this machine)"));
-      if (l.can_push) adoptBox.append(el("label", { class: "check small" }, push, " It's yours: this machine's GitHub sign-in can push there. The app pushes its merges there, and the branch production and tags release-1, release-2, …"));
+      if (l.can_push) adoptBox.append(el("label", { class: "check small" }, push, " It's yours: this machine's " + (l.gitlab ? "GitLab sign-in (glab)" : "GitHub sign-in") + " can push there. The app pushes its merges there, and the branch production and tags release-1, release-2, …"));
     }
     if (l && !l.error) adoptBox.append(el("label", { class: "check small" }, nosurvey, " Skip the first task, the survey that makes it run and maps it"));
     drawLook();

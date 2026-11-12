@@ -82,6 +82,9 @@ type appAdoption struct {
 	Push bool
 
 	url, github, stage string
+	// gitlab is host/group/name, a project on a GitLab this machine's glab
+	// is signed in to.
+	gitlab string
 	// local is the folder being copied, and sourceCommit its commit.
 	local, sourceCommit string
 	info                appRepoInfo
@@ -246,24 +249,27 @@ func (adopt *appAdoption) prepare(dir string, stdin io.Reader, stdout io.Writer)
 		// The answers say it's the owner's own, to push to.
 		return true, nil
 	}
+	canPush, signIn := false, ""
 	if adopt.github != "" {
 		if info, err := appGitHubInfo(adopt.github); err == nil {
 			adopt.info = info
 		}
-		if appGitHubCanPush(adopt.github) {
-			if adopt.Push {
-				return true, nil
-			}
-			if !adopt.Yes {
-				fmt.Fprintf(stdout, "You can push to %s with this machine's GitHub sign-in.\n", adopt.github)
-				fmt.Fprintln(stdout, "If the app pushes there, every merge goes to it, and so do the branch production and tags release-1, release-2, ...")
-				if adopt.Push, err = appYesNo(stdin, stdout, "Should the app push its merges there?", false); err != nil {
-					return false, err
-				}
-				if adopt.Push {
-					return true, nil
-				}
-			}
+		canPush, signIn = appGitHubCanPush(adopt.github), "GitHub sign-in"
+	} else if host, path, ok := appGitLabSource(adopt.url); ok {
+		adopt.gitlab = host + "/" + path
+		if project, err := appGitLabLook(host, path); err == nil {
+			adopt.info = project.Info
+			canPush, signIn = project.canPush(), "GitLab sign-in (glab)"
+		}
+	}
+	if canPush && !adopt.Yes {
+		fmt.Fprintf(stdout, "You can push to %s with this machine's %s.\n", adopt.displayName(), signIn)
+		fmt.Fprintln(stdout, "If the app pushes there, every merge goes to it, and so do the branch production and tags release-1, release-2, ...")
+		if adopt.Push, err = appYesNo(stdin, stdout, "Should the app push its merges there?", false); err != nil {
+			return false, err
+		}
+		if adopt.Push {
+			return true, nil
 		}
 	}
 	if adopt.info.SizeKB > appAdoptBigKB && !adopt.Shallow && !adopt.Full {
@@ -318,6 +324,9 @@ func (adopt *appAdoption) prepare(dir string, stdin io.Reader, stdout io.Writer)
 func (adopt *appAdoption) displayName() string {
 	if adopt.github != "" {
 		return adopt.github
+	}
+	if adopt.gitlab != "" {
+		return adopt.gitlab
 	}
 	name := strings.TrimSuffix(path.Base(strings.TrimRight(adopt.url, "/")), ".git")
 	return firstNonEmpty(name, adopt.Source)

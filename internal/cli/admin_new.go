@@ -66,6 +66,7 @@ type adminAdoptLook struct {
 	Source      string `json:"source"`
 	Folder      string `json:"folder,omitempty"` // a folder on this machine
 	GitHub      string `json:"github,omitempty"`
+	GitLab      string `json:"gitlab,omitempty"` // host/group/name, when this machine's glab is signed in there
 	Description string `json:"description,omitempty"`
 	SizeMB      int    `json:"size_mb,omitempty"`
 	Files       int    `json:"files,omitempty"`
@@ -398,12 +399,25 @@ var adminLookAt = func(source string) *adminAdoptLook {
 		look.Error = fmt.Sprintf("%q isn't a repository's address or a folder: give github.com/owner/name, owner/name, a URL, or a folder's path", source)
 		return look
 	}
-	_, github, err := reviewCloneURL(source)
+	cloneURL, github, err := reviewCloneURL(source)
 	if err != nil {
 		look.Error = err.Error()
 		return look
 	}
 	look.GitHub = github
+	if host, path, ok := appGitLabSource(cloneURL); github == "" && ok {
+		look.GitLab = host + "/" + path
+		project, err := appGitLabLook(host, path)
+		if err != nil {
+			look.Error = "GitLab didn't say: " + err.Error()
+			return look
+		}
+		info := project.Info
+		look.Description, look.SizeMB, look.Branch = info.Description, info.SizeKB/1024, info.DefaultBranch
+		look.Private, look.Archived = info.Private, info.Archived
+		look.Big = info.SizeKB > appAdoptBigKB
+		look.CanPush = project.canPush()
+	}
 	if github != "" {
 		info, err := appGitHubInfo(github)
 		if err != nil {
