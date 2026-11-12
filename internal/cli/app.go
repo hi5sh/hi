@@ -89,6 +89,9 @@ type appConfig struct {
 	// SitesCheck is hi's check of the sites the dev box asks for: "" for
 	// the rules (the default), or "off" (hi_app_dev_sites.md).
 	SitesCheck string `json:"sites_check,omitempty"`
+	// DevViewProductionOff, when set, says who turned the dev box's view
+	// of production off, and when (hi_app_dev_view.md).
+	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`
 	// AllowIPs are the only addresses the team's preview and production
 	// let in (hi app allow-ip <team>; hi net expose --allow-ip).
 	AllowIPs []string `json:"allow_ips,omitempty"`

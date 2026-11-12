@@ -397,12 +397,12 @@ func (b *appBroker) leadMCP(ctx context.Context, slot string, message appMCPMess
 				allowed = allowed || tool.Name == params.Name
 			}
 			if !allowed {
-				fmt.Fprintf(os.Stderr, "app %s: the lead may not use %s on production\n", b.team, params.Name)
+				fmt.Fprintf(os.Stderr, "app %s: %s may not be used on production\n", b.team, params.Name)
 				return answer(map[string]any{"isError": true, "content": []map[string]string{{"type": "text",
-					"text": params.Name + " isn't one of the app's tools that only read, so the lead can't use it on production. Try it on the preview (app_preview), on its own copy of the data."}}})
+					"text": params.Name + " isn't one of the app's tools that only read, so it can't be used on production. Try it on the preview (app_preview), on its own copy of the data."}}})
 			}
 		}
-		fmt.Fprintf(os.Stderr, "app %s: the lead uses %s on %s\n", b.team, params.Name, slot)
+		fmt.Fprintf(os.Stderr, "app %s: %s used on %s\n", b.team, params.Name, slot)
 		forwarded, err := b.appMCP(ctx, slot, message)
 		if err != nil {
 			return failure(-32603, err.Error())

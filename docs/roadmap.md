@@ -2736,6 +2736,28 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.140 — The dev box sees what Stage and production are doing
+
+Spec: [hi_app_dev_view.md](specs/approved/hi_app_dev_view.md). An owner
+asked a dev box's agent whether a job was working on production, and it
+could only reach the app's sign-in page.
+
+- [x] `hi dev logs [stage|production] [--lines N] [--since 30m] [--grep
+  text]`: the slot's box's output from the engine, 200 lines by default,
+  2,000 at most; each value of the slot's settings of 8 characters or
+  more, and each line of a file setting of 16 or more, shows as its name,
+  before `--grep` looks.
+- [x] `hi dev jobs [stage|production]`: the workers and jobs, as `hi app
+  jobs` shows them on the machine.
+- [x] `hi dev tools stage|production [<tool> [<json>|-]]` and `hi dev mcp
+  stage|production`: the app's MCP through the dev box's socket, with the
+  lead's rule (production: tools marked `readOnlyHint` only).
+- [x] `hi app dev <app> view production off|on`: production's view off for
+  the dev box (Stage stays), saying who turned it off. Each read of
+  production is a `view` line in the box's network log.
+- [x] The agents' hi-dev-ship skill says to look with these rather than
+  curl the app's addresses.
+
 ### v2.6.139 — hi's own sites raise no incident
 
 - [x] A dev box's list marks every line but an owner's allow as hi's

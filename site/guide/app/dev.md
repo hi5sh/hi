@@ -136,6 +136,30 @@ hi dev settings QUOTES_URL=https://sandbox.example.com   # Stage's own value
 hi dev incidents                    # what failed, and what hi recorded
 ```
 
+### What Stage and production are doing
+
+The box reaches neither app's sign-in, and production moves only on
+Release, but its agents can see what's running, read-only, through the
+app's service:
+
+```bash
+hi dev jobs                         # production's jobs and workers: state, progress, last error
+hi dev jobs stage
+hi dev logs --since 1h --grep research   # production's own output, its settings masked
+hi dev logs stage --lines 500
+hi dev tools production             # the app's MCP tools that only read
+hi dev tools production list_suppliers '{"country":"SE"}'
+hi dev mcp stage                    # the same as an MCP server, over stdio
+```
+
+In the logs, each value of the app's settings (8 characters or more)
+shows as its name, `‹API_TOKEN›`, and `--grep` searches what's left. On
+production only the app's tools marked `readOnlyHint` answer, as for the
+lead; on Stage, every tool, on Stage's own copy of the data. Each read of
+production is in the box's network log. The app's output can hold its
+people's data: an admin turns production's view off with
+`hi app dev <app> view production off` (Stage stays).
+
 The box sets only Stage's settings and never sees a value;
 production's settings and data are the owners', on the dev page, or an
 admin's, on the machine.
@@ -730,5 +754,8 @@ ssh then warns once that it changed.
 | `hi dev data [fork]` | In the box: the app's data; a new fork for Stage |
 | `hi dev settings [KEY=VALUE\|--unset KEY]` | In the box: the settings' names; Stage's own values |
 | `hi dev incidents [<id>]` | In the box: incidents and what hi recorded |
+| `hi dev logs [stage\|production] [--lines N] [--since 30m] [--grep text]` | In the box: the app's own output, production by default, its settings' values masked |
+| `hi dev jobs [stage\|production]` | In the box: the app's jobs and workers |
+| `hi dev tools stage\|production [<tool> [<json>\|-]]` | In the box: the app's MCP tools (production: only those that read), or one tool's answer; `hi dev mcp` is the same over stdio |
 | `hi dev upstream` | In the box, for an adopted project: where dev stands against the original, and its branches and tags into the box's clone |
 | `hi dev propose <work> <description file\|->` | In the box, for an adopted project: offer shipped work to the original, as a draft pull request |

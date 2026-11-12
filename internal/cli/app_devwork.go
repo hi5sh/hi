@@ -358,6 +358,7 @@ func (b *appBroker) devHandler() http.Handler {
 		reply(w, b.devAccessView(), nil)
 	})
 	b.devKitRoutes(mux, reply, decode)
+	b.devViewRoutes(mux, reply, decode)
 	return mux
 }
 
@@ -403,6 +404,12 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
   hi dev settings [KEY=VALUE | KEY | --unset KEY]
                                     the app's settings' names; the preview's own values
   hi dev incidents [<id>]           what hi recorded about incidents: open ones, and the last month's
+  hi dev logs [stage|production] [--lines N] [--since 30m] [--grep text]
+                                    the app's own output (production by default), its settings masked
+  hi dev jobs [stage|production]    the app's jobs and workers: state, progress, last error
+  hi dev tools stage|production [<tool> [<json>|-]]
+                                    the app's MCP tools (on production, those that only read), or one's answer
+  hi dev mcp stage|production       the same as an MCP server over stdio
   hi dev upstream                   for an adopted project: what's new upstream, and its refs in the clone
   hi dev propose <work> <notes|->   offer shipped work back to the adopted project, as a draft pull request
 `
@@ -444,6 +451,8 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	command, rest := args[0], args[1:]
 	switch command {
+	case "logs", "jobs", "mcp", "tools":
+		return appDevViewClient(command, rest, stdin, stdout, call, socket)
 	case "status":
 		var status appDevStatusView
 		if err := call("GET", "/status", nil, &status); err != nil {

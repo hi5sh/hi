@@ -43,6 +43,15 @@ not committed) shows there, and only **Discard** drops it.
 
 ## When something goes wrong
 
+- **Is it working on Stage or production?** Look, don't guess, and don't
+  curl their addresses (they answer only the sign-in page):
+  `hi dev jobs` (the app's jobs and workers: state, progress, last
+  error), `hi dev logs [stage|production] --since 1h --grep <text>` (the
+  app's own output, its settings masked), and `hi dev tools production`
+  then `hi dev tools production <tool> '<json>'` (the app's MCP tools: on
+  production only those that read). Production is the default; say
+  `stage` for the preview. All of it only reads.
+
 - **Conflicts:** `hi dev ship` says which files. Rebase on dev
   (`git fetch origin && git rebase origin/<branch>`), fix, test, ship again.
 - **"adds ... to trustedDependencies"** or **"advisory known to be
