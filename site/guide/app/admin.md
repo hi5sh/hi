@@ -173,7 +173,9 @@ only whether one is set, and whose.
   `hi admin owner` says who owns the machine, or hands it on.
 
 On the left, **Network** has the apps' domain, the sign-in providers
-(**Add one**), each app's peer and addresses, the org server's public
+(**Add one**), each app's peer and addresses, the dev boxes' sites (the
+ones for every app, the organisation's domains **On** or **Off**, and
+sites several apps allowed, to allow for all), the org server's public
 address for cloud runs on its machine, and **What to ask your IT team**:
 every policy and record the admin page and the apps need, as text to
 send. On the right, **Advisories** has the open app's, or every app's,

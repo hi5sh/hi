@@ -3,7 +3,7 @@
 Status: Approved (2026-11-12). Three releases (the roadmap's "the dev
 box's sites"): fewer asks, then the rules, then the model, which runs
 watch only first (question 4). The questions below stay open until each
-release is built.
+release is built. Release 1 built in v2.6.136 (see "Release 1, as built").
 
 Dependencies: [hi_app_dev.md](../approved/hi_app_dev.md) (the dev box,
 its proxy, `hi dev allow`, v2.5.38, v2.6.24, v2.6.25, v2.6.44),
@@ -213,6 +213,27 @@ check for 7 days: yahoo.com, top 1,000, 29 years old." The agent goes on
 without `--wait`. When it goes to the owners, the agent hears it as now.
 The post carries what hi found ("not allowed by itself: registered 41
 days ago"), so the owner decides on more than the agent's word.
+
+### Release 1, as built (v2.6.136)
+
+- **Production under the organisation's domain.** A list matches a name
+  and its subdomains, so `corp.example` would have let the box reach
+  `demo.corp.example`, the app's production. A line `!name` now refuses
+  that name itself where a wider line allows it, and hi adds one for each
+  of production's names that a wider line covers. An owner's allow of
+  production adds the name itself, which wins.
+- **A name production shares** (one name, the addresses on ports) isn't
+  one of the box's own: the list knows names, not ports.
+- **The watcher stays quiet** about hi's own lines. The proxy reported
+  each new line on a box's list, and the watcher opened an incident for
+  each in the app's ops channel: an admin's site for every app, or the
+  organisation's domains, would have been an incident in every app. hi
+  marks its own lines (`# hi`), the proxy logs them as
+  `allowlist-added-by-hi`, and the watcher, which knows only
+  `allowlist-added`, lets them be. An owner's allow is still news.
+- **Open VSX** was the dev box's already (VS Code's extensions), so the
+  preset doesn't take it.
+- **One post** holds eight asks at most, Slack's 25 buttons in a row.
 
 ## What stays as it is
 

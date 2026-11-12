@@ -21,6 +21,8 @@ import (
 // appsSettings is settings.json beside the teams' links.
 type appsSettings struct {
 	Domain string `json:"domain,omitempty"`
+	// Sites are what every app's dev box reaches (app_devsites.go).
+	Sites appsSites `json:"sites,omitzero"`
 }
 
 func appsSettingsPath() string { return filepath.Join(appsDir(), "settings.json") }

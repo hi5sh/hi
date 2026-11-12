@@ -36,6 +36,12 @@ var boxPresets = map[string][]string{
 		"crates.io", "static.crates.io", "index.crates.io",
 		"huggingface.co", "cdn-lfs.huggingface.co", "cas-bridge.xethub.hf.co",
 		"skills.sh", "www.skills.sh",
+		// Downloads development needs, read-only and run by the projects
+		// themselves: Playwright's browsers, uv, Debian's and Ubuntu's
+		// packages, npm's CDNs, and Hugging Face's file CDN.
+		"cdn.playwright.dev", "playwright.download.prss.microsoft.com", "releases.astral.sh",
+		"deb.debian.org", "security.debian.org", "archive.ubuntu.com", "security.ubuntu.com",
+		"cdn.jsdelivr.net", "unpkg.com", "cdn.hf.co",
 	},
 	"open": {"*"},
 }

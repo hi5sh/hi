@@ -3409,10 +3409,47 @@ function renderMachineNetwork() {
     el("details", { class: "small" }, el("summary", {}, "Add one"), el("div", { class: "stack" }, pName, pIssuer, pClient, pSecret,
       el("button", { class: "small", onclick: () => netChange("provider", { sso: pName.value.trim(), host: pIssuer.value.trim(), name: pClient.value.trim(), secret: pSecret.value.trim() }) }, "Check and add"))),
   ];
+  parts.push(...machineSites(n.sites));
   if (n.expose) parts.push(el("h2", {}, "The org server for cloud runs"), el("p", { class: "small" }, el("code", {}, shown(n.expose))));
   parts.push(el("h2", {}, "What to ask your IT team"), el("p", { class: "muted small" }, "As text to send: the policies and records the admin page and the apps need."),
     el("pre", { class: "job-output copyable" }, n.ask || "Nothing."), el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(n.ask) }, "Copy")));
   box.replaceChildren(...parts);
+}
+// What every app's dev box reaches beyond its own list: the sites an
+// admin allowed, the organisation's domains, and sites several apps'
+// owners allowed, to allow for all.
+function machineSites(s) {
+  if (!s) return [];
+  const site = el("input", { placeholder: "docs.example.com", "aria-label": "A site for every dev box" });
+  const why = el("input", { placeholder: "What for", "aria-label": "What the site is for" });
+  const allowed = el("ul", { class: "list" });
+  for (const a of s.allowed) {
+    allowed.append(el("li", {}, el("span", { class: "what" }, el("code", {}, a.host),
+      el("span", { class: "muted small block" }, [a.by, (a.at || "").slice(0, 10), a.why].filter(Boolean).join(" · "))),
+      el("button", { class: "small", onclick: () => netChange("site", { name: a.host, remove: true }) }, "Remove")));
+  }
+  if (!s.allowed.length) allowed.append(el("li", { class: "muted small" }, "None yet."));
+  const parts = [
+    el("h2", {}, "The dev boxes' sites"),
+    el("p", { class: "muted small" }, "Every app's dev box reaches these, besides what development needs, its own Stage and dev page, and what its owners allowed."),
+    allowed,
+    el("div", { class: "stack" }, site, why, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { if (site.value.trim()) netChange("site", { name: site.value.trim(), key: why.value.trim() }); } }, "Allow for every app"))),
+  ];
+  if (s.org.length) {
+    parts.push(el("p", { class: "small" }, s.org_on ? "The organisation's domains, " + s.org.join(", ") + ", are on every dev box's list, but not an app's own production." : "The organisation's domains, " + s.org.join(", ") + ", aren't on the dev boxes' lists.",
+      " ", el("button", { class: "small", onclick: () => netChange("sites-org", { remove: s.org_on }) }, s.org_on ? "Off" : "On")));
+  } else {
+    parts.push(el("p", { class: "muted small" }, "Once the organisation's domains are set (People), the dev boxes reach them too."));
+  }
+  if (s.shared.length) {
+    const shared = el("ul", { class: "list" });
+    for (const x of s.shared) {
+      shared.append(el("li", {}, el("span", { class: "what" }, el("code", {}, x.host), el("span", { class: "muted small block" }, "Allowed in " + x.apps.join(", "))),
+        el("button", { class: "small", onclick: () => netChange("site", { name: x.host }) }, "Allow for every app")));
+    }
+    parts.push(el("h3", {}, "Allowed in several apps"), shared);
+  }
+  return parts;
 }
 async function netChange(what, fields) {
   try { const answer = await api("/api/network", Object.assign({ what }, fields)); toast(firstLine(answer.text) || "Done.", true); refreshMachineNetwork(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }

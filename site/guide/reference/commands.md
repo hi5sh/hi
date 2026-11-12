@@ -28,6 +28,7 @@ description: Every hi command and option in one place.
 | `hi net domain [<domain> --dns <provider> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
 | `hi people …`                    | Everyone on this machine, by email: their level in each app, their SSH key; see below |
 | `hi admin mail …`                | How the machine sends email: sign-in links and invitations; see below |
+| `hi admin sites …`               | What every app's dev box reaches beyond its own list; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and app services still on the old version |
 | `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi app` below |
@@ -514,6 +515,17 @@ See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_
 | `hi admin mail off` | Send none: people sign in with Slack links |
 
 With email set up, the dev page, the helper, and the admin page each take an email to sign in with: a link and a six-digit code, each good once, for 15 minutes.
+
+## hi admin sites
+
+| Command | What it does |
+|---|---|
+| `hi admin sites` | The sites every app's dev box reaches, whether the organisation's domains are on, and sites the owners of several apps allowed |
+| `hi admin sites allow <site> [--why <what for>]` | A site, and its subdomains, for every app's dev box, at once |
+| `hi admin sites remove <site>` | Off every app's list, unless an app's owners allowed it themselves |
+| `hi admin sites org on\|off` | The organisation's domains (`hi people domains`) on every dev box's list: on by default. An app's own production stays an ask |
+
+The admin page's Network has the same, under **The dev boxes' sites**.
 
 ## hi adduser
 

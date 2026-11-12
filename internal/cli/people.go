@@ -732,9 +732,12 @@ func peopleDomains(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	before := loadMachinePeople().Domains
 	if err := changeMachinePeople(func(m *machinePeople) error { m.Domains = domains; return nil }); err != nil {
 		return err
 	}
+	// The dev boxes reach the organisation's domains (hi admin sites org).
+	appDevSitesRefresh(before...)
 	return peopleDomains(nil, stdout)
 }
 

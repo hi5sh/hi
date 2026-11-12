@@ -58,6 +58,10 @@ not committed) shows there, and only **Discard** drops it.
   the box reaches it at once. If they say no, or don't answer in time, tell
   the user and carry on without it; never work around the proxy. Sites
   inside the network (the machine, its LAN, NetBird) are never allowed.
+  The app's own Stage, the organisation's sites, and the usual downloads
+  (packages, Playwright's browsers, Debian's and Ubuntu's packages) need
+  no ask; the app's production does. Ask for the sites a piece of work
+  needs together, one after another: they share one post.
 - **A database on the internet** that speaks TLS on MongoDB's port
   (27017), such as MongoDB Atlas: ask for its name the same way (the host
   in `mongodb+srv://<host>/`). Once it's allowed, the box's DNS gives it

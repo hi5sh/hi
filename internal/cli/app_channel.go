@@ -90,6 +90,8 @@ type appChannelSource interface {
 	// hears clicked (hi's plugin for it, helper/hermes); settle puts text
 	// in their place.
 	postButtons(channel, text string, buttons []appSlackButton) (string, error)
+	// redraw puts new text and buttons on a post postButtons made.
+	redraw(channel, ts, text string, buttons []appSlackButton) error
 	settle(channel, ts, text string) error
 	permalink(channel, ts string) (string, error)
 	// dm sends a person a direct message from the team's bot; update
@@ -224,6 +226,17 @@ type appSlackButton struct {
 }
 
 func (l *liveTeamChannel) postButtons(channel, text string, buttons []appSlackButton) (string, error) {
+	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl(), slackButtonBlocks(text, buttons))
+	return ts, err
+}
+
+func (l *liveTeamChannel) redraw(channel, ts, text string, buttons []appSlackButton) error {
+	_, _, _, err := l.api.UpdateMessage(channel, ts, slack.MsgOptionText(text, false), slackButtonBlocks(text, buttons))
+	return err
+}
+
+// slackButtonBlocks is text with buttons under it.
+func slackButtonBlocks(text string, buttons []appSlackButton) slack.MsgOption {
 	var elements []slack.BlockElement
 	for _, b := range buttons {
 		style := slack.Style("")
@@ -232,9 +245,7 @@ func (l *liveTeamChannel) postButtons(channel, text string, buttons []appSlackBu
 		}
 		elements = append(elements, slackButton(b.Action, b.Value, b.Label, style))
 	}
-	_, ts, err := l.api.PostMessage(channel, slack.MsgOptionText(text, false), slack.MsgOptionDisableLinkUnfurl(),
-		slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil), slack.NewActionBlock("", elements...)))
-	return ts, err
+	return slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil), slack.NewActionBlock("", elements...))
 }
 
 func (l *liveTeamChannel) settle(channel, ts, text string) error {

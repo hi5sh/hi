@@ -76,6 +76,15 @@ func (f *fakeTeamChannel) postButtons(channel, text string, buttons []appSlackBu
 	return fmt.Sprintf("1700000000.%06d", f.count()), nil
 }
 
+func (f *fakeTeamChannel) redraw(channel, ts, text string, buttons []appSlackButton) error {
+	var labels []string
+	for _, b := range buttons {
+		labels = append(labels, "["+b.Label+" "+b.Action+"="+b.Value+"]")
+	}
+	f.record("redraw " + channel + " " + ts + " " + text + " " + strings.Join(labels, " "))
+	return nil
+}
+
 func (f *fakeTeamChannel) settle(channel, ts, text string) error {
 	f.record("settle " + channel + " " + ts + " " + text)
 	return nil

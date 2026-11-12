@@ -186,10 +186,12 @@ type adminMachineNetwork struct {
 	Apps      []adminAppNetwork `json:"apps"`
 	Expose    string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
 	Ask       string            `json:"ask"`              // all of what to ask the IT team, to send
+	// Sites are what every app's dev box reaches (hi admin sites).
+	Sites appDevSitesView `json:"sites"`
 }
 
 func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
-	view := adminMachineNetwork{Providers: adminSSOProviders(), Apps: []adminAppNetwork{}}
+	view := adminMachineNetwork{Providers: adminSSOProviders(), Apps: []adminAppNetwork{}, Sites: appDevSitesNow()}
 	view.Domain = loadTeamsSettings().Domain
 	if domain, ok := loadHiDomain(); ok {
 		view.NetDomain = domain.addressName("<app>", appSlotProduction)
@@ -503,6 +505,25 @@ func (s *adminServer) adminMachineChange(admin adminPerson, change adminSettingC
 				stdin = token + "\n"
 			}
 		}
+	case "site":
+		host := appDevSiteHost(change.Name)
+		if host == "" {
+			return nil, errors.New("the site's name, such as docs.example.com")
+		}
+		if change.Remove {
+			args, said = []string{"admin", "sites", "remove", host}, "took "+host+" off every app's dev box"
+			break
+		}
+		args, said = []string{"admin", "sites", "allow", host}, "allowed "+host+" for every app's dev box"
+		if why := strings.TrimSpace(change.Key); why != "" {
+			args = append(args, "--why", why)
+		}
+	case "sites-org":
+		on := "on"
+		if change.Remove {
+			on = "off"
+		}
+		args, said = []string{"admin", "sites", "org", on}, "turned the organisation's domains "+on+" for the dev boxes"
 	case "provider":
 		if change.Remove {
 			args, said = []string{"app", "sso", "provider", "rm", strings.TrimSpace(n.SSO)}, "removed the sign-in provider "+n.SSO

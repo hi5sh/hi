@@ -2736,6 +2736,37 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.136 — The dev box's sites: fewer asks
+
+Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release
+1. The owners had allowed every site the dev boxes asked for, 18 of 18.
+
+- [x] The `dev` preset reaches Playwright's two CDNs, Astral's releases
+  (uv), Debian's and Ubuntu's packages, jsDelivr, unpkg, and Hugging
+  Face's file CDN (`cdn.hf.co`). Open VSX was the dev box's already.
+- [x] An app's dev box reaches its own Stage and dev page, by the names
+  people reach them at, when those are on the internet; not production,
+  nor a name production shares on another port.
+- [x] The organisation's domains (`hi people domains`) are on every dev
+  box's list once set, with their subdomains, except the app's own
+  production, which stays an ask: a list's `!name` line refuses a name a
+  wider line allows, and an owner's allow of the name itself wins.
+  `hi admin sites org off` takes them off.
+- [x] `hi admin sites allow <site> [--why …]` and `remove`: sites for
+  every app's dev box. `hi admin sites` lists them, and sites the owners
+  of two apps or more allowed, to allow for all. The admin page's
+  Network has the same, under **The dev boxes' sites**.
+- [x] Asks from one piece of work within two minutes share one post in
+  the ops channel (eight at most), with **Allow all** and an Allow and
+  Say no for each; an answer redraws the post with what's still open,
+  and the thread and the agent hear Allow all once.
+- [x] hi marks its own lines on a box's list (`# hi`), and the proxy logs
+  them as `allowlist-added-by-hi`, so the watcher opens no incident in
+  every app when an admin allows a site for all or sets the
+  organisation's domains. An owner's allow is still an incident.
+- [x] An ask for a site the list has another way (the organisation's, the
+  app's own) puts it on the box's live list at once.
+
 ### v2.6.135 — Old snapshots go again after a restic is cut short
 
 - [x] restic never clears the lock of a restic that died, as one does when
@@ -5334,7 +5365,7 @@ Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md). The
 owners allowed every site the dev boxes asked for (18 of 18), so most
 asks are posts to skim past.
 
-- [ ] Release 1, fewer asks: the `dev` preset gets the dev-tool downloads
+- [x] Release 1, fewer asks: v2.6.136, above. The `dev` preset gets the dev-tool downloads
   (Playwright's two CDNs, Astral's releases, Debian's and Ubuntu's
   packages, Open VSX, jsDelivr, unpkg, `cdn.hf.co`); the app's public
   Stage and dev page are on the list, production stays an ask; the

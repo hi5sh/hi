@@ -115,34 +115,68 @@ func saveTeamDevAccess(team string, access appDevAccess) error {
 	return writeFileAtomic(appDevAccessPath(team), append(data, '\n'), 0o600)
 }
 
-// appDevAllowHosts is the box's allowlist: what development needs, and
-// what the owners allowed.
+// appDevAllowHosts is the box's allowlist: what development needs, what
+// the owners allowed, the app's own Stage and dev page, the
+// organisation's domains, and what an admin allowed for every app.
 func appDevAllowHosts(team string) []string {
 	hosts := appDevHosts()
+	add := func(host string) {
+		if host != "" && !slices.Contains(hosts, host) {
+			hosts = append(hosts, host)
+		}
+	}
 	for _, site := range loadTeamDevAccess(team).Allowed {
-		if !slices.Contains(hosts, site.Host) {
-			hosts = append(hosts, site.Host)
+		add(site.Host)
+	}
+	for _, host := range appDevMachineHosts() {
+		add(host)
+	}
+	for _, host := range appDevOrgHosts() {
+		add(host)
+	}
+	for _, host := range appDevOwnHosts(team) {
+		add(host)
+	}
+	// Production stays an ask, also under the organisation's domain.
+	for _, host := range appDevProductionHosts(team) {
+		if !slices.Contains(hosts, host) && boxHostAllowed(hosts, host) {
+			add("!" + host)
 		}
 	}
 	return hosts
 }
 
 // writeTeamDevAllow rewrites the live allowlist, keeping what an admin
-// added with hi box allow, without drop.
-func writeTeamDevAllow(team, drop string) error {
-	hosts := appDevAllowHosts(team)
+// added with hi box allow, without drop (unless the list still has it
+// another way).
+func writeTeamDevAllow(team string, drop ...string) error {
+	keep := appDevAllowHosts(team)
+	hosts := slices.Clone(keep)
 	if data, err := os.ReadFile(appDevAllowFile(team)); err == nil {
 		for _, host := range parseBoxAllowlist(string(data)) {
-			if !slices.Contains(hosts, host) {
+			// A refusal ("!name") is hi's alone, and only while it's needed.
+			if !slices.Contains(hosts, host) && !strings.HasPrefix(host, "!") {
 				hosts = append(hosts, host)
 			}
 		}
 	}
-	hosts = slices.DeleteFunc(hosts, func(host string) bool { return host == drop })
+	hosts = slices.DeleteFunc(hosts, func(host string) bool { return slices.Contains(drop, host) && !slices.Contains(keep, host) })
 	if err := os.MkdirAll(filepath.Dir(appDevAllowFile(team)), 0o700); err != nil {
 		return err
 	}
-	return writeFileAtomic(appDevAllowFile(team), []byte(strings.Join(hosts, "\n")+"\n"), 0o600)
+	// hi's own lines are marked, so the box's proxy doesn't call them news.
+	owners := appDevHosts()
+	for _, site := range loadTeamDevAccess(team).Allowed {
+		owners = append(owners, site.Host)
+	}
+	lines := make([]string, len(hosts))
+	for i, host := range hosts {
+		lines[i] = host
+		if slices.Contains(keep, host) && !slices.Contains(owners, host) {
+			lines[i] += "  " + boxAllowlistMark
+		}
+	}
+	return writeFileAtomic(appDevAllowFile(team), []byte(strings.Join(lines, "\n")+"\n"), 0o600)
 }
 
 // appDevQuietHosts are refused on purpose and not shown as refusals: the
@@ -209,6 +243,11 @@ func (b *appBroker) devSiteAsk(host, why, work string) (appDevSiteAnswer, error)
 		why = why[:appDevWhyMax]
 	}
 	if boxHostAllowed(appDevAllowHosts(b.team), host) {
+		// The app's own addresses and the organisation's domains can come
+		// after the box started: its list gets them now.
+		if err := writeTeamDevAllow(b.team); err != nil {
+			return appDevSiteAnswer{}, err
+		}
 		return appDevSiteAnswer{Host: host, State: appDevSiteAllowed, Message: "The box may reach " + host + " already."}, nil
 	}
 	if err := appDevSiteRefusal(host); err != nil {
@@ -255,31 +294,175 @@ func (b *appBroker) devSiteAsk(host, why, work string) (appDevSiteAnswer, error)
 		Message: "Asked the app's owners for " + host + ": they see it on the dev page and in the channel. hi dev allow " + host + " --wait waits for their answer."}, nil
 }
 
+// A task's asks close together share one post: the next ones within
+// appDevSiteJoinFor of its first join it, up to appDevSiteJoinMax (each
+// has two buttons, and Slack takes 25 in a row).
+const (
+	appDevSiteJoinFor = 2 * time.Minute
+	appDevSiteJoinMax = 8
+)
+
 // devSiteTell posts an ask in the channel, with the dev page's link, and
-// says where.
+// says where: in the post of the task's ask a moment ago, when there is
+// one.
 func (b *appBroker) devSiteTell(host, why, work, key string) (channel, thread string) {
-	text := appDevSiteAskText(host, why, work)
-	if link := appDevPageAt(b.team, "sites"); link != "" {
-		text += " An owner allows it here, or on the dev page: " + link
-	} else {
-		text += " An owner allows it here, or on the dev page."
-	}
+	ask := appDevSiteAsk{Host: host, Why: why, Work: work, State: appDevSiteAsked, Key: key}
 	config, err := loadTeam(b.team)
 	if err == nil && b.channel == nil {
 		err = errors.New("hi isn't connected to Slack")
 	}
+	if err == nil && work != "" {
+		access := loadTeamDevAccess(b.team)
+		if channel, thread := appDevSiteJoinable(access, work, time.Now()); thread != "" {
+			group := append(appDevSiteInThread(access, channel, thread), ask)
+			if err := b.devSitePost(channel, thread, group); err == nil {
+				return channel, thread
+			} else {
+				fmt.Fprintf(os.Stderr, "hi: adding %s to the dev box's ask in the channel: %v\n", host, err)
+			}
+		}
+	}
 	if err == nil {
 		channel = config.opsChannel()
-		thread, err = b.channel.postButtons(channel, text, []appSlackButton{
-			{Action: "hi_site_allow", Value: host + " " + key, Label: "Allow", Primary: true},
-			{Action: "hi_site_deny", Value: host + " " + key, Label: "Say no"},
-		})
+		text, buttons := appDevSitePost(b.team, []appDevSiteAsk{ask})
+		thread, err = b.channel.postButtons(channel, text, buttons)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "hi: telling the channel the dev box asks for %s: %v\n", host, err)
 		return "", ""
 	}
 	return channel, thread
+}
+
+// appDevSiteJoinable is the post a task's next ask joins: one of its
+// asks' posts, begun within appDevSiteJoinFor, with room.
+func appDevSiteJoinable(access appDevAccess, work string, now time.Time) (channel, thread string) {
+	for _, ask := range access.Requests {
+		if ask.Work != work || ask.State != appDevSiteAsked || ask.Thread == "" || ask.Channel == "" {
+			continue
+		}
+		group := appDevSiteInThread(access, ask.Channel, ask.Thread)
+		first := group[0].At
+		for _, other := range group {
+			if other.At.Before(first) {
+				first = other.At
+			}
+		}
+		if now.Sub(first) <= appDevSiteJoinFor && len(group) < appDevSiteJoinMax {
+			return ask.Channel, ask.Thread
+		}
+	}
+	return "", ""
+}
+
+// appDevSiteInThread are the asks one post holds.
+func appDevSiteInThread(access appDevAccess, channel, thread string) []appDevSiteAsk {
+	var asks []appDevSiteAsk
+	for _, ask := range access.Requests {
+		if ask.Channel == channel && ask.Thread == thread {
+			asks = append(asks, ask)
+		}
+	}
+	return asks
+}
+
+// devSitePost puts a post's asks as they stand now: buttons for those
+// still open, and who answered the others.
+func (b *appBroker) devSitePost(channel, thread string, asks []appDevSiteAsk) error {
+	text, buttons := appDevSitePost(b.team, asks)
+	if len(buttons) == 0 {
+		return b.channel.settle(channel, thread, text)
+	}
+	return b.channel.redraw(channel, thread, text, buttons)
+}
+
+// appDevSitePost is a post's text and buttons, for its asks.
+func appDevSitePost(team string, asks []appDevSiteAsk) (string, []appSlackButton) {
+	var open []appDevSiteAsk
+	for _, ask := range asks {
+		if ask.State == appDevSiteAsked {
+			open = append(open, ask)
+		}
+	}
+	where := " An owner allows it here, or on the dev page."
+	if len(asks) > 1 {
+		where = " An owner allows them here, or on the dev page."
+	}
+	if link := appDevPageAt(team, "sites"); link != "" {
+		where = strings.TrimSuffix(where, ".") + ": " + link
+	}
+	var text string
+	if len(asks) == 1 {
+		ask := asks[0]
+		text = appDevSiteAskText(ask.Host, ask.Why, ask.Work)
+		if len(open) == 0 {
+			text += "\n" + appDevSiteAnswerText(ask.By, []string{ask.Host}, ask.State == appDevSiteAllowed)
+		}
+	} else {
+		text = fmt.Sprintf(":computer: The dev box asks to reach %d sites", len(asks))
+		if work := asks[0].Work; work != "" {
+			text += " (for " + work + ")"
+		}
+		text += ":"
+		for _, ask := range asks {
+			text += "\n• *" + ask.Host + "*: " + ask.Why + "."
+			switch ask.State {
+			case appDevSiteAllowed:
+				text += " :white_check_mark: " + appSlackEscape(firstNonEmpty(ask.By, "An owner")) + " allowed it."
+			case appDevSiteDenied:
+				text += " :no_entry: " + appSlackEscape(firstNonEmpty(ask.By, "An owner")) + " said no."
+			}
+		}
+	}
+	if len(open) == 0 {
+		return text, nil
+	}
+	if len(asks) > 1 {
+		text += "\n"
+	}
+	text += where
+	if len(asks) == 1 {
+		ask := open[0]
+		return text, []appSlackButton{
+			{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: "Allow", Primary: true},
+			{Action: "hi_site_deny", Value: ask.Host + " " + ask.Key, Label: "Say no"},
+		}
+	}
+	var buttons []appSlackButton
+	var all []string
+	for _, ask := range open {
+		all = append(all, ask.Host+" "+ask.Key)
+	}
+	if len(open) > 1 {
+		buttons = append(buttons, appSlackButton{Action: "hi_site_allow", Value: strings.Join(all, " "), Label: "Allow all", Primary: true})
+	}
+	for _, ask := range open {
+		buttons = append(buttons,
+			appSlackButton{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: appDevSiteLabel("Allow ", ask.Host), Primary: len(open) == 1},
+			appSlackButton{Action: "hi_site_deny", Value: ask.Host + " " + ask.Key, Label: appDevSiteLabel("Say no to ", ask.Host)})
+	}
+	return text, buttons
+}
+
+// appDevSiteLabel is a button's label, within Slack's 75 characters.
+func appDevSiteLabel(say, host string) string {
+	if len(say)+len(host) > 75 {
+		host = "…" + host[len(host)-(74-len(say)):]
+	}
+	return say + host
+}
+
+// appDevSiteAnswerText says an owner's answer, for one site or several.
+func appDevSiteAnswerText(by string, hosts []string, allow bool) string {
+	by = appSlackEscape(firstNonEmpty(by, "An owner"))
+	names := "*" + strings.Join(hosts, "*, *") + "*"
+	if !allow {
+		return fmt.Sprintf(":no_entry: %s said no to %s.", by, names)
+	}
+	if len(hosts) == 1 {
+		return fmt.Sprintf(":white_check_mark: %s allowed %s: the dev box reaches it now.", by, names)
+	}
+	return fmt.Sprintf(":white_check_mark: %s allowed %s: the dev box reaches them now.", by, names)
 }
 
 // appDevSiteAskText is how the channel hears an ask for a site.
@@ -367,14 +550,36 @@ func (b *appBroker) devAccessView() appDevAccessView {
 // say no to it. The agent that asked hears it, unless its hi dev allow
 // --wait is still waiting, and hears it there.
 func (b *appBroker) devSiteDecide(person appPersonKey, host string, allow bool) error {
-	host = appDevSiteHost(host)
-	work, err := b.devSiteDecideLocked(person, host, allow)
-	if err == nil && work != "" && !appDevSiteWaited(b.team, host) {
-		if err := b.devSiteTellAgent(work, host, person.Name, allow); err != nil {
-			fmt.Fprintf(os.Stderr, "hi: telling %s's agent about %s: %v\n", work, host, err)
+	return b.devSitesDecide(person, []string{host}, allow)
+}
+
+// devSitesDecide answers several at once, as Allow all does: the channel
+// and each agent hear it once.
+func (b *appBroker) devSitesDecide(person appPersonKey, hosts []string, allow bool) error {
+	var decided []string
+	works := map[string][]string{}
+	var failed error
+	for _, host := range hosts {
+		host = appDevSiteHost(host)
+		work, err := b.devSiteDecideLocked(person, host, allow)
+		if err != nil {
+			failed = cmpOr(failed, err)
+			continue
+		}
+		decided = append(decided, host)
+		if work != "" && !appDevSiteWaited(b.team, host) {
+			works[work] = append(works[work], host)
 		}
 	}
-	return err
+	if len(decided) > 0 {
+		b.devSiteAnswered(loadTeamDevAccess(b.team), decided, person.Name, allow)
+	}
+	for work, hosts := range works {
+		if err := b.devSiteTellAgent(work, hosts, person.Name, allow); err != nil {
+			fmt.Fprintf(os.Stderr, "hi: telling %s's agent about %s: %v\n", work, strings.Join(hosts, ", "), err)
+		}
+	}
+	return failed
 }
 
 // webSite is an owner's Allow or Say no on the ask in the channel, which
@@ -383,12 +588,23 @@ func (b *appBroker) webSite(user, value string, allow bool) (string, error) {
 	if !slackIDPattern.MatchString(user) {
 		return "", fmt.Errorf("%q isn't a Slack member ID", user)
 	}
-	host, key, _ := strings.Cut(value, " ")
-	host = appDevSiteHost(host)
-	if !slices.ContainsFunc(loadTeamDevAccess(b.team).Requests, func(ask appDevSiteAsk) bool {
-		return ask.Host == host && ask.State == appDevSiteAsked && ask.Key != "" && ask.Key == key
-	}) {
-		return "", fmt.Errorf("the ask for %s was answered already, or isn't this one; the dev page's Security says where it stands", host)
+	// One site and its ask's key, or several (Allow all): each pair has
+	// to be an ask still open.
+	fields := strings.Fields(value)
+	requests := loadTeamDevAccess(b.team).Requests
+	var hosts []string
+	first := ""
+	for i := 0; i+1 < len(fields); i += 2 {
+		host, key := appDevSiteHost(fields[i]), fields[i+1]
+		first = firstNonEmpty(first, host)
+		if slices.ContainsFunc(requests, func(ask appDevSiteAsk) bool {
+			return ask.Host == host && ask.State == appDevSiteAsked && ask.Key != "" && ask.Key == key
+		}) && !slices.Contains(hosts, host) {
+			hosts = append(hosts, host)
+		}
+	}
+	if len(hosts) == 0 || len(fields)%2 != 0 {
+		return "", fmt.Errorf("the ask for %s was answered already, or isn't this one; the dev page's Security says where it stands", firstNonEmpty(first, value))
 	}
 	config, err := loadTeam(b.team)
 	if err != nil {
@@ -401,13 +617,13 @@ func (b *appBroker) webSite(user, value string, allow bool) (string, error) {
 	if b.channel != nil {
 		name = firstNonEmpty(b.channel.userName(user), user)
 	}
-	if err := b.devSiteDecide(appPersonKey{User: user, Name: name}, host, allow); err != nil {
+	if err := b.devSitesDecide(appPersonKey{User: user, Name: name}, hosts, allow); err != nil {
 		return "", err
 	}
 	if allow {
-		return "Allowed " + host + " for the dev box.", nil
+		return "Allowed " + strings.Join(hosts, ", ") + " for the dev box.", nil
 	}
-	return "Said no to " + host + ".", nil
+	return "Said no to " + strings.Join(hosts, ", ") + ".", nil
 }
 
 // appDevSiteWaits is when hi dev allow --wait last looked for a site's
@@ -428,7 +644,7 @@ func appDevSiteWaited(team, host string) bool {
 // devSiteTellAgent tells the agent at work on a branch the owners'
 // answer for a site it asked for, as if typed in its chat, so it needn't
 // be told by hand when it stopped waiting.
-func (b *appBroker) devSiteTellAgent(work, host, by string, allow bool) error {
+func (b *appBroker) devSiteTellAgent(work string, hosts []string, by string, allow bool) error {
 	spaces, err := appDevSpaces(b.team)
 	if err != nil {
 		return err
@@ -441,9 +657,16 @@ func (b *appBroker) devSiteTellAgent(work, host, by string, allow bool) error {
 		if err != nil || !agent.Running {
 			return err
 		}
-		text := fmt.Sprintf("%s allowed %s: the dev box reaches it now, and its subdomains. Carry on with what needed it.", by, host)
+		names := strings.Join(hosts, ", ")
+		text := fmt.Sprintf("%s allowed %s: the dev box reaches it now, and its subdomains. Carry on with what needed it.", by, names)
+		if len(hosts) > 1 {
+			text = fmt.Sprintf("%s allowed %s: the dev box reaches them now, and their subdomains. Carry on with what needed them.", by, names)
+		}
 		if !allow {
-			text = fmt.Sprintf("%s said no to %s: do without it, or tell me what you need it for.", by, host)
+			text = fmt.Sprintf("%s said no to %s: do without it, or tell me what you need it for.", by, names)
+			if len(hosts) > 1 {
+				text = fmt.Sprintf("%s said no to %s: do without them, or tell me what you need them for.", by, names)
+			}
 		}
 		return appDevHerdrDo(b.team, "agent", "prompt", agent.Pane, text)
 	}
@@ -487,34 +710,40 @@ func (b *appBroker) devSiteDecideLocked(person appPersonKey, host string, allow 
 	if err := saveTeamDevAccess(b.team, access); err != nil {
 		return "", err
 	}
-	b.devSiteAnswered(access, host, person.Name, allow)
 	if !allow {
 		return work, nil
 	}
 	return work, writeTeamDevAllow(b.team, "")
 }
 
-// devSiteAnswered says the owners' answer in the ask's thread.
-func (b *appBroker) devSiteAnswered(access appDevAccess, host, by string, allow bool) {
+// devSiteAnswered says the owners' answer in each ask's post, once a
+// post: the answered asks' buttons go, with who answered in their place.
+func (b *appBroker) devSiteAnswered(access appDevAccess, hosts []string, by string, allow bool) {
 	if b.channel == nil {
 		return
 	}
+	type post struct{ channel, thread string }
+	var posts []post
+	answered := map[post][]string{}
 	for _, ask := range access.Requests {
-		if ask.Host != host || ask.Thread == "" || ask.Channel == "" {
+		if !slices.Contains(hosts, ask.Host) || ask.Thread == "" || ask.Channel == "" {
 			continue
 		}
-		text := fmt.Sprintf(":white_check_mark: %s allowed *%s*: the dev box reaches it now.", appSlackEscape(by), host)
-		if !allow {
-			text = fmt.Sprintf(":no_entry: %s said no to *%s*.", appSlackEscape(by), host)
+		at := post{ask.Channel, ask.Thread}
+		if _, ok := answered[at]; !ok {
+			posts = append(posts, at)
 		}
-		// The ask's buttons go: what was answered stays, with who.
-		if err := b.channel.settle(ask.Channel, ask.Thread, appDevSiteAskText(host, ask.Why, ask.Work)+"\n"+text); err != nil {
-			fmt.Fprintf(os.Stderr, "hi: settling the ask for %s: %v\n", host, err)
+		if !slices.Contains(answered[at], ask.Host) {
+			answered[at] = append(answered[at], ask.Host)
 		}
-		if _, err := b.channel.postIn(ask.Channel, ask.Thread, text); err != nil {
-			fmt.Fprintf(os.Stderr, "hi: telling the channel about %s: %v\n", host, err)
+	}
+	for _, at := range posts {
+		if err := b.devSitePost(at.channel, at.thread, appDevSiteInThread(access, at.channel, at.thread)); err != nil {
+			fmt.Fprintf(os.Stderr, "hi: settling the ask for %s: %v\n", strings.Join(answered[at], ", "), err)
 		}
-		return
+		if _, err := b.channel.postIn(at.channel, at.thread, appDevSiteAnswerText(by, answered[at], allow)); err != nil {
+			fmt.Fprintf(os.Stderr, "hi: telling the channel about %s: %v\n", strings.Join(answered[at], ", "), err)
+		}
 	}
 }
 

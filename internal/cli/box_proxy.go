@@ -68,9 +68,17 @@ func (a *boxAllowlist) reload() {
 	}
 	hosts := parseBoxAllowlist(string(data))
 	if a.hosts != nil && a.log != nil {
+		byHi := boxAllowlistByHi(string(data))
 		for _, host := range hosts {
 			if !slices.Contains(a.hosts, host) {
-				a.log.record("allowlist-added", host)
+				// hi's own lines (the organisation's domains, every app's
+				// sites) aren't news for the watcher, which knows only
+				// allowlist-added.
+				if slices.Contains(byHi, host) {
+					a.log.record("allowlist-added-by-hi", host)
+				} else {
+					a.log.record("allowlist-added", host)
+				}
 			}
 		}
 	}
@@ -89,6 +97,20 @@ func parseBoxAllowlist(text string) []string {
 	return hosts
 }
 
+// boxAllowlistMark ends a line hi put on a list itself.
+const boxAllowlistMark = "# hi"
+
+// boxAllowlistByHi are the hosts on lines hi marked as its own.
+func boxAllowlistByHi(text string) []string {
+	var hosts []string
+	for _, line := range strings.Split(text, "\n") {
+		if host, comment, ok := strings.Cut(line, "#"); ok && strings.TrimSpace(comment) == strings.TrimSpace(strings.TrimPrefix(boxAllowlistMark, "#")) {
+			hosts = append(hosts, parseBoxAllowlist(host)...)
+		}
+	}
+	return hosts
+}
+
 // allows matches a host and its subdomains against the list.
 func (a *boxAllowlist) allows(host string) bool {
 	a.reload()
@@ -97,14 +119,21 @@ func (a *boxAllowlist) allows(host string) bool {
 	return boxHostAllowed(a.hosts, host)
 }
 
+// A line "!name" refuses that name itself, which a wider line allows: a
+// dev box's list has the organisation's domains but not the app's own
+// production under them. The name on a line of its own still allows it.
 func boxHostAllowed(hosts []string, host string) bool {
 	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	matched := false
 	for _, allowed := range hosts {
-		if allowed == "*" || host == allowed || strings.HasSuffix(host, "."+allowed) {
+		if host == allowed {
 			return true
 		}
+		if allowed == "*" || strings.HasSuffix(host, "."+allowed) {
+			matched = true
+		}
 	}
-	return false
+	return matched && !slices.Contains(hosts, "!"+host)
 }
 
 // boxNetworkLog appends one line per decision.

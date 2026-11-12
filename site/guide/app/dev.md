@@ -156,6 +156,15 @@ you write below it stays.
 
 ### Sites the box reaches
 
+Without an ask, the box reaches what development needs (GitHub, the
+package registries, Playwright's browsers, uv, Debian's and Ubuntu's
+packages, jsDelivr and unpkg, Hugging Face), the app's own Stage and dev
+page when they're on the internet, the organisation's domains once an
+admin sets them (`hi people domains`), and the sites an admin allowed
+for every app (`hi admin sites`). The app's own production stays an ask,
+also under the organisation's domain: an agent calling production's API
+can change its data.
+
 When the proxy refuses a site an agent needs, the agent asks the app's
 owners for it, saying what for, and waits for their answer:
 
@@ -167,6 +176,8 @@ The ask shows as a card in the chat of the work that asked (in every
 chat, for work without a workspace), with a count on **Security**, and in
 the ops channel (the app's channel, without one) with **Allow** and
 **Say no** buttons that answer for an owner who clicks them, and a link.
+Asks from one piece of work a moment apart share one post, with **Allow
+all** and a pair of buttons for each.
 **Allow** lets the box reach the site and its subdomains at once, and on
 its next start; **Say no** tells the agent, which carries on without it.
 Whichever answers, the channel's post then says who did, and an agent

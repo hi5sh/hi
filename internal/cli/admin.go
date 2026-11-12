@@ -593,7 +593,9 @@ const adminUsage = `usage: hi admin                         whether the admin pa
                                         the name the IT team keeps for it; admin.<domain> by default
        hi admin mail [set ... | test <address> | off]
                                         how the machine sends email: sign-in links and invitations
-                                        (hi admin mail help)`
+                                        (hi admin mail help)
+       hi admin sites [allow <site> [--why <what for>] | remove <site> | org on|off]
+                                        what every app's dev box reaches beyond its own list`
 
 func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
@@ -621,6 +623,8 @@ func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = adminOwnerCommand(rest, stdout)
 	case "mail", "email":
 		err = adminMailCommand(rest, stdin, stdout)
+	case "sites":
+		err = adminSitesCommand(rest, stdout)
 	case "serve":
 		err = adminServe(stderr)
 	case "__job":
