@@ -118,11 +118,13 @@ func TestTeamTakeSnapshot(t *testing.T) {
 		t.Fatal(restic.calls, string(key))
 	}
 	// A first pass while the boxes run, then the snapshot while they're
-	// paused; the first pass's snapshot is forgotten.
+	// paused; the first pass's snapshot is forgotten, after a dead
+	// restic's lock is cleared, without waiting for a running one's: the
+	// broker's locks are held.
 	if warm := strings.Join(restic.calls[1], " "); !strings.HasPrefix(warm, "backup") || !strings.Contains(warm, "--tag hi-team,kind:warmup") {
 		t.Fatal(restic.calls)
 	}
-	if forget := strings.Join(restic.calls[3], " "); forget != "forget --quiet 00000002abcdef" {
+	if unlock, forget := strings.Join(restic.calls[3], " "), strings.Join(restic.calls[4], " "); unlock != "unlock --quiet" || forget != "forget --retry-lock 0s --quiet 00000002abcdef" {
 		t.Fatal(restic.calls)
 	}
 	backup := strings.Join(restic.calls[2], " ")
@@ -155,9 +157,12 @@ func TestTeamTakeSnapshot(t *testing.T) {
 	if err := appAfterSnapshot("payments", appSnapshotDaily); err != nil {
 		t.Fatal(err)
 	}
+	// A lock a dead restic left (a restart mid-copy) doesn't stop it, and
+	// it waits for a running one's.
 	forget := strings.Join(restic.find("forget"), " ")
-	if !strings.Contains(forget, "--keep-daily 3 --keep-weekly 2 --keep-monthly 1") || !strings.Contains(forget, "--keep-tag kind:release") || !strings.Contains(forget, "--prune") {
-		t.Fatal(forget)
+	if !strings.Contains(forget, "--keep-daily 3 --keep-weekly 2 --keep-monthly 1") || !strings.Contains(forget, "--keep-tag kind:release") || !strings.Contains(forget, "--prune") ||
+		!strings.Contains(forget, "--retry-lock 30m") || restic.calls[0][0] != "unlock" {
+		t.Fatal(restic.calls)
 	}
 
 	// A failure thaws the boxes and is shown until a snapshot works.
@@ -206,7 +211,7 @@ func TestTeamCopyOffsite(t *testing.T) {
 	for _, call := range restic.calls {
 		commands = append(commands, call[0])
 	}
-	if strings.Join(commands, " ") != "cat init copy forget" || !slices.Contains(restic.find("init"), "--copy-chunker-params") {
+	if strings.Join(commands, " ") != "cat init copy unlock forget" || !slices.Contains(restic.find("init"), "--copy-chunker-params") {
 		t.Fatal(restic.calls)
 	}
 	env := strings.Join(restic.envs[len(restic.envs)-1], " ")

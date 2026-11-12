@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -187,6 +188,26 @@ var appRestic = func(env []string, dir string, args ...string) (string, error) {
 
 var appResticCheckLimit = 2 * time.Minute
 
+// appResticExclusive runs forget, which needs the repository to itself.
+// restic never clears the lock of a restic that died, as one does when a
+// restart cuts a backup or copy short: every forget after it failed with
+// "the unlock command can be used to remove stale locks", and old
+// snapshots piled up. unlock removes only such locks (a dead process's on
+// this machine, or one not refreshed for half an hour), never a running
+// one's; wait is how long to wait for a running one to let go.
+func appResticExclusive(env []string, dir, wait string, args ...string) (string, error) {
+	appRestic(env, dir, "unlock", "--quiet")
+	return appRestic(env, dir, slices.Concat(args[:1], []string{"--retry-lock", wait}, args[1:])...)
+}
+
+// appResticLockWait is how long a forget after a snapshot waits for a
+// listing or copy to finish. The warmup's forget, with the broker's locks
+// held, doesn't wait: the daily forget drops what it leaves.
+const (
+	appResticLockWait   = "30m"
+	appResticLockNoWait = "0s"
+)
+
 type appResticError struct {
 	code int
 	text string
@@ -312,7 +333,7 @@ func appTakeSnapshot(team, kind, label string, pause func(team string) (func(), 
 	// frozen. The first pass's snapshot isn't kept.
 	if out, err := appRestic(appResticEnv(team), dir, backup(appSnapshotTag+",kind:"+appSnapshotWarmup)...); err == nil {
 		if id := appResticSnapshotID(out); id != "" {
-			defer appRestic(appResticEnv(team), dir, "forget", "--quiet", id)
+			defer appResticExclusive(appResticEnv(team), dir, appResticLockNoWait, "forget", "--quiet", id)
 		}
 	}
 	thaw, warning := pause(team)
@@ -360,11 +381,15 @@ func appResticSnapshotID(out string) string {
 
 // appAfterSnapshot forgets old snapshots after a daily one, then copies
 // what is new offsite. It takes as long as it takes, so it runs without the
-// broker's locks.
+// broker's locks. The forget waits for a copy still running, which reads
+// the repository.
 func appAfterSnapshot(team, kind string) error {
 	if kind == appSnapshotDaily {
 		config, _ := loadTeam(team)
-		if _, err := appRestic(appResticEnv(team), appDir(team), appForgetArgs(config.backups())...); err != nil {
+		appCopyMu.Lock()
+		_, err := appResticExclusive(appResticEnv(team), appDir(team), appResticLockWait, appForgetArgs(config.backups())...)
+		appCopyMu.Unlock()
+		if err != nil {
 			return fmt.Errorf("forgetting old snapshots: %w", err)
 		}
 	}
@@ -429,7 +454,8 @@ var appPause = func(team string) (func(), string) {
 func appNoPause(string) (func(), string) { return func() {}, "" }
 
 // appCopyOffsite copies the snapshots not in the bucket yet; after a daily
-// snapshot it forgets old ones there too.
+// snapshot it forgets old ones there too. appCopyMu keeps one copy, or the
+// local forget, at a time.
 var appCopyMu sync.Mutex
 
 func appCopyOffsite(team string, forget bool) (err error) {
@@ -471,7 +497,7 @@ func appCopyOffsite(team string, forget bool) (err error) {
 		return fmt.Errorf("copying to %s: %w", backups.Offsite, err)
 	}
 	if forget {
-		if _, err := appRestic(env, dir, appForgetArgs(backups)...); err != nil {
+		if _, err := appResticExclusive(env, dir, appResticLockWait, appForgetArgs(backups)...); err != nil {
 			return fmt.Errorf("forgetting old snapshots in %s: %w", backups.Offsite, err)
 		}
 	}

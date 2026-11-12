@@ -2736,6 +2736,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.135 — Old snapshots go again after a restic is cut short
+
+- [x] restic never clears the lock of a restic that died, as one does when
+  a restart cuts a backup or copy short. On aiw9 one left on 2026-10-24
+  made every forget fail since ("the `unlock` command can be used to
+  remove stale locks"): no warmup or old snapshot was forgotten, and the
+  owners heard of it daily. hi now runs `restic unlock` before each
+  forget, which removes only a dead restic's locks, never a running
+  one's.
+- [x] The daily forget, here and in the bucket, waits up to 30 minutes
+  for a running listing or copy (`--retry-lock`), and the local one
+  waits for an offsite copy still running in this hi. The warmup's
+  forget, with the broker's locks held, doesn't wait.
+
 ### v2.6.134 — "Allow this address" only when there are domains
 
 - [x] The admin page's box for an address outside the organisation's
