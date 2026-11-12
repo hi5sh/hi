@@ -457,15 +457,23 @@ func (b *appBroker) handler() http.Handler {
 	// An owner's Allow or Say no on a site the dev box asked for, in Slack.
 	mux.HandleFunc("POST /web/site", func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
-			User  string `json:"user"`
-			Value string `json:"value"`
-			Allow bool   `json:"allow"`
+			User   string `json:"user"`
+			Value  string `json:"value"`
+			Allow  bool   `json:"allow"`
+			Action string `json:"action"` // keep or undo, on what hi's check allowed
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
 			reply(w, nil, err)
 			return
 		}
-		line, err := b.webSite(request.User, request.Value, request.Allow)
+		var line string
+		var err error
+		switch request.Action {
+		case "keep", "undo":
+			line, err = b.webSiteCheck(request.User, request.Value, request.Action == "keep")
+		default:
+			line, err = b.webSite(request.User, request.Value, request.Allow)
+		}
 		reply(w, line, err)
 	})
 	b.incidentRoutes(mux, reply)
@@ -718,6 +726,11 @@ func runTeamLeadCommand(command string, args []string, stdin io.Reader, stdout i
 			// For the plugin: an owner's Allow or Say no in the channel,
 			// with the button's value (the site and the ask's key).
 			if err := call("POST", "/web/site", map[string]any{"user": args[4], "value": args[1], "allow": args[2] == "allow"}, &line); err != nil {
+				return err
+			}
+		case len(args) == 5 && args[0] == "site" && (args[2] == "keep" || args[2] == "undo") && args[3] == "--user":
+			// For the plugin: Keep or Undo on what hi's check allowed.
+			if err := call("POST", "/web/site", map[string]any{"user": args[4], "value": args[1], "action": args[2]}, &line); err != nil {
 				return err
 			}
 		case len(args) == 2 && args[0] == "show":

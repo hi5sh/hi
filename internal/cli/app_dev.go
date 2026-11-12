@@ -778,6 +778,8 @@ func appDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return nil
 	case action == "allow":
 		return appDevAllowAdmin(config.Name, args[2:], stdout)
+	case action == "sites" && len(args) >= 3 && args[2] == "check":
+		return appDevSitesCheckCommand(config.Name, args[3:], stdout)
 	case action == "restart" && len(args) == 2:
 		engine, _, err := detectBoxEngine()
 		if err != nil {

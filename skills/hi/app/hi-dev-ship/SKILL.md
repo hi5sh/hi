@@ -61,7 +61,10 @@ not committed) shows there, and only **Discard** drops it.
   The app's own Stage, the organisation's sites, and the usual downloads
   (packages, Playwright's browsers, Debian's and Ubuntu's packages) need
   no ask; the app's production does. Ask for the sites a piece of work
-  needs together, one after another: they share one post.
+  needs together, one after another: they share one post. hi checks each
+  site first and may allow it at once ("Allowed by hi's check for 7
+  days"): then carry on, no need to wait. Say plainly what the site is
+  for; the owners read it.
 - **A database on the internet** that speaks TLS on MongoDB's port
   (27017), such as MongoDB Atlas: ask for its name the same way (the host
   in `mongodb+srv://<host>/`). Once it's allowed, the box's DNS gives it

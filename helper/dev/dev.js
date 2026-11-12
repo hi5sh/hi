@@ -757,6 +757,18 @@
       ]));
     });
     (access.allowed || []).forEach(function (site) {
+      if (site.check) {
+        // hi's check allowed it, for seven days unless an owner keeps it.
+        var left = Math.max(0, Math.ceil((new Date(site.check.until) - Date.now()) / 86400000));
+        list.appendChild(el("li", {}, [
+          el("div", { class: "what" }, [el("code", { text: site.host }), el("div", { class: "muted small", text: "Allowed by hi's check, " + left + (left === 1 ? " day" : " days") + " left: " + site.check.found + (site.why ? " · " + site.why : "") })]),
+          el("div", { class: "actions owners-only" }, [
+            el("button", { text: "Keep", onclick: function () { act("", "site", { host: site.host, keep: true }, "The dev box keeps " + site.host + "."); } }),
+            el("button", { text: "Undo", onclick: function () { act("Take " + site.host + " off, and say no to it?", "site", { host: site.host, undo: true }, "The dev box doesn't reach " + site.host + " any more."); } }),
+          ]),
+        ]));
+        return;
+      }
       list.appendChild(el("li", {}, [
         el("div", { class: "what" }, [el("code", { text: site.host }), el("div", { class: "muted small", text: ["Allowed", site.by ? "by " + site.by : "", site.why ? "· " + site.why : ""].filter(Boolean).join(" ") })]),
         el("div", { class: "actions owners-only" }, [el("button", { text: "Remove", onclick: function () {

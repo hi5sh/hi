@@ -240,6 +240,7 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	go broker.watchJobs(ctx.Done(), stderr)
 	go broker.keepWatched(ctx.Done(), stderr)
 	go broker.keepSubscriptions(ctx.Done(), stderr)
+	go broker.keepDevSites(ctx.Done(), stderr)
 	go func() {
 		// The owners' dev box keeps running across restarts of the service.
 		if err := startTeamDev(config, hi, stderr, stderr); err != nil {

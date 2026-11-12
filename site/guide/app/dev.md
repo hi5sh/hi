@@ -188,6 +188,39 @@ the last week that nobody asked for, to allow or dismiss. Each site added
 is also an incident in the ops channel, from the app's
 [watcher](/guide/app/incidents/#the-apps-watcher).
 
+#### hi's check
+
+Before an ask reaches the owners, hi checks the site, and allows it by
+itself when it vouches for it: the site's name is among the 100,000 most
+used ([Tranco](https://tranco-list.eu/)'s list), was registered over a
+year ago (its registry, over RDAP; a name whose registry doesn't say
+needs to be among the 10,000 most used), no threat list names it (Quad9,
+Cloudflare's 1.1.1.2), and nobody but its owner can make a name under it
+or put files there: not a file share, a paste site, a tunnel, a request
+catcher, a short link, a hosted database, or a name under `github.io`
+and the like. The agent's reason and the site's pages never count: whoever
+runs a site writes both.
+
+A site hi allowed is the box's for 7 days, and the agent hears so at
+once. The ops channel hears of them in one post a day, "hi allowed 2
+sites for the dev box by itself today", with **Keep** (an owner's allow,
+for good) and **Undo** (off, and a no) for each; Security on the dev page
+has the same, with the days left. hi allows ten a day at most, and stands
+aside while the app is frozen or paused, or an incident about the dev box
+is open. A site a threat list names goes to the owners with a warning,
+its **Allow** asks again, and the check stops until an owner turns it on.
+Anything the check doesn't vouch for goes to the owners as above, the
+post saying what hi found ("not allowed by itself, example.com was
+registered 30 days ago"). A site an owner said no to is never checked.
+
+```sh
+hi app dev payments sites check          # how it stands, and what it allowed
+hi app dev payments sites check off      # every ask to the owners
+hi app dev payments sites check rules    # on again (the default), also after a pause
+```
+
+The admin page has the same, in the app's Network.
+
 A database on the internet that speaks TLS on MongoDB's port, 27017,
 such as MongoDB Atlas, is allowed the same way, by the name in its
 `mongodb+srv://` address. The box's DNS then gives that name, and the

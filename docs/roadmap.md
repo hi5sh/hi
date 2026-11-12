@@ -2736,6 +2736,40 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.137 — The dev box's sites: hi's own check
+
+Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release
+2. Of 15 sites the dev boxes asked for before, the check allows 9 by
+itself (yahoo's API, kenney.nl, itch.io, Sketchfab, three.js, Krea,
+OpenGameArt, Patreon) and sends Google Drive, a `github.io` page, a
+malware test name, and three smaller sites to the owners.
+
+- [x] Before an ask reaches the owners, hi checks the site: its
+  registrable name among Tranco's 100,000 most used (the list fetched
+  weekly), registered over a year ago (RDAP through IANA's bootstrap;
+  a name whose registry gives no date needs the top 10,000), named by no
+  threat list (Quad9's 9.9.9.9 against 9.9.9.10, Cloudflare's 1.1.1.2),
+  under no suffix anyone can claim names under (the Public Suffix List's
+  private part), and on none of hi's list of file shares, pastes,
+  tunnels, request catchers, short links, dynamic DNS, and hosted
+  databases. What it finds is kept a week per name in `sites/facts.json`.
+- [x] A site the check vouches for is the box's at once, for 7 days, and
+  `hi dev allow` says so; the ops channel hears it in one post a day,
+  redrawn with each site, with **Keep** (an owner's, for good) and
+  **Undo** (off, and a no). Security on the dev page shows the days left,
+  with Keep and Undo. The broker ends what nobody kept after 7 days.
+- [x] Ten a day for each app at most; the check stands aside while the
+  app is frozen or paused, or a watch incident about the dev box is open.
+  A site a threat list names goes to the owners with a warning, its
+  Allow asks again in Slack and isn't in Allow all, and the check stops
+  until an owner runs `hi app dev <app> sites check rules`.
+- [x] An ask the check doesn't vouch for goes to the owners with what hi
+  found: "not allowed by itself, example.com was registered 30 days ago".
+  A site an owner said no to is never checked.
+- [x] `hi app dev <app> sites check [off|rules]`, rules by default; the
+  admin page's app Network has **Turn off** and **Turn on again**. The
+  network log says `checked` for each.
+
 ### v2.6.136 — The dev box's sites: fewer asks
 
 Spec: [hi_app_dev_sites.md](specs/approved/hi_app_dev_sites.md), release
@@ -5373,7 +5407,7 @@ asks are posts to skim past.
   off`); a task's asks within two minutes make one post with Allow all;
   the admin page's Sites shows sites allowed in several apps, and
   `hi admin sites allow <site>` allows one for every app.
-- [ ] Release 2, the rules: `hi app dev <app> sites check
+- [x] Release 2, the rules: v2.6.137, above. `hi app dev <app> sites check
   [off|rules|model]`, `rules` by default; the Public Suffix List, RDAP
   age, Tranco rank, Quad9 and 1.1.1.2, and hi's list of file drops,
   pastes, request catchers, tunnels and hosted databases, kept a week in

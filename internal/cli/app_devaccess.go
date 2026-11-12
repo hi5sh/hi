@@ -32,6 +32,10 @@ import (
 type appDevAccess struct {
 	Allowed  []appDevSite    `json:"allowed,omitempty"`
 	Requests []appDevSiteAsk `json:"requests,omitempty"`
+	// Today is the day's post of what hi's check allowed by itself, and
+	// CheckPaused why the check stopped until an owner turns it on.
+	Today       *appDevCheckDay `json:"today,omitempty"`
+	CheckPaused string          `json:"check_paused,omitempty"`
 }
 
 // appDevSite is a site an owner allowed.
@@ -40,6 +44,8 @@ type appDevSite struct {
 	Why  string    `json:"why,omitempty"`
 	By   string    `json:"by,omitempty"`
 	At   time.Time `json:"at"`
+	// Check is on a site hi's check allowed, until an owner keeps it.
+	Check *appDevSiteCheck `json:"check,omitempty"`
 }
 
 // appDevSiteAsk is an agent's ask for a site, and the owners' answer.
@@ -58,6 +64,8 @@ type appDevSiteAsk struct {
 	// Key is in the ask's buttons alone, and an answer from the channel
 	// has to bring it: the lead, which hears the click, can't make one up.
 	Key string `json:"key,omitempty"`
+	// Found is what hi's check found, and why it didn't allow the site.
+	Found string `json:"found,omitempty"`
 }
 
 // appDevRefused is a site the box was refused without asking.
@@ -125,8 +133,11 @@ func appDevAllowHosts(team string) []string {
 			hosts = append(hosts, host)
 		}
 	}
+	now := time.Now()
 	for _, site := range loadTeamDevAccess(team).Allowed {
-		add(site.Host)
+		if site.Check == nil || now.Before(site.Check.Until) {
+			add(site.Host)
+		}
 	}
 	for _, host := range appDevMachineHosts() {
 		add(host)
@@ -272,8 +283,17 @@ func (b *appBroker) devSiteAsk(host, why, work string) (appDevSiteAnswer, error)
 			return appDevSiteAnswer{Host: host, State: appDevSiteAsked, Message: "The owners were asked for " + host + " already; they see it on the dev page. hi dev allow " + host + " --wait waits for their answer."}, err
 		}
 	}
+	appDevAccessMu.Unlock()
+	// hi's check: a site the rules vouch for is allowed by itself.
+	allowed, found := b.devSiteCheck(host, why, work)
+	if allowed {
+		return appDevSiteAnswer{Host: host, State: appDevSiteAllowed,
+			Message: "Allowed by hi's check for 7 days: " + found + ". The box reaches " + host + " now, and its subdomains; the owners hear of it."}, nil
+	}
+	appDevAccessMu.Lock()
+	access = loadTeamDevAccess(b.team)
 	key := rand.Text()
-	access.Requests = append(access.Requests, appDevSiteAsk{Host: host, Why: why, Work: work, At: time.Now().UTC(), State: appDevSiteAsked, Key: key})
+	access.Requests = append(access.Requests, appDevSiteAsk{Host: host, Why: why, Work: work, At: time.Now().UTC(), State: appDevSiteAsked, Key: key, Found: found})
 	err := saveTeamDevAccess(b.team, access)
 	appDevAccessMu.Unlock()
 	if err != nil {
@@ -307,6 +327,11 @@ const (
 // one.
 func (b *appBroker) devSiteTell(host, why, work, key string) (channel, thread string) {
 	ask := appDevSiteAsk{Host: host, Why: why, Work: work, State: appDevSiteAsked, Key: key}
+	for _, known := range loadTeamDevAccess(b.team).Requests {
+		if known.Host == host && known.Key == key {
+			ask.Found = known.Found
+		}
+	}
 	config, err := loadTeam(b.team)
 	if err == nil && b.channel == nil {
 		err = errors.New("hi isn't connected to Slack")
@@ -395,6 +420,9 @@ func appDevSitePost(team string, asks []appDevSiteAsk) (string, []appSlackButton
 	if len(asks) == 1 {
 		ask := asks[0]
 		text = appDevSiteAskText(ask.Host, ask.Why, ask.Work)
+		if ask.Found != "" && len(open) > 0 {
+			text += "\n" + ask.Found
+		}
 		if len(open) == 0 {
 			text += "\n" + appDevSiteAnswerText(ask.By, []string{ask.Host}, ask.State == appDevSiteAllowed)
 		}
@@ -406,6 +434,9 @@ func appDevSitePost(team string, asks []appDevSiteAsk) (string, []appSlackButton
 		text += ":"
 		for _, ask := range asks {
 			text += "\n• *" + ask.Host + "*: " + ask.Why + "."
+			if ask.Found != "" && ask.State == appDevSiteAsked {
+				text += " _" + ask.Found + "_"
+			}
 			switch ask.State {
 			case appDevSiteAllowed:
 				text += " :white_check_mark: " + appSlackEscape(firstNonEmpty(ask.By, "An owner")) + " allowed it."
@@ -424,24 +455,35 @@ func appDevSitePost(team string, asks []appDevSiteAsk) (string, []appSlackButton
 	if len(asks) == 1 {
 		ask := open[0]
 		return text, []appSlackButton{
-			{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: "Allow", Primary: true},
+			{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: "Allow", Primary: true, Confirm: appDevSiteConfirm(ask)},
 			{Action: "hi_site_deny", Value: ask.Host + " " + ask.Key, Label: "Say no"},
 		}
 	}
 	var buttons []appSlackButton
 	var all []string
 	for _, ask := range open {
-		all = append(all, ask.Host+" "+ask.Key)
+		if appDevSiteConfirm(ask) == "" {
+			all = append(all, ask.Host+" "+ask.Key)
+		}
 	}
-	if len(open) > 1 {
+	if len(open) > 1 && len(all) == len(open) {
 		buttons = append(buttons, appSlackButton{Action: "hi_site_allow", Value: strings.Join(all, " "), Label: "Allow all", Primary: true})
 	}
 	for _, ask := range open {
 		buttons = append(buttons,
-			appSlackButton{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: appDevSiteLabel("Allow ", ask.Host), Primary: len(open) == 1},
+			appSlackButton{Action: "hi_site_allow", Value: ask.Host + " " + ask.Key, Label: appDevSiteLabel("Allow ", ask.Host), Primary: len(open) == 1, Confirm: appDevSiteConfirm(ask)},
 			appSlackButton{Action: "hi_site_deny", Value: ask.Host + " " + ask.Key, Label: appDevSiteLabel("Say no to ", ask.Host)})
 	}
 	return text, buttons
+}
+
+// appDevSiteConfirm is what Allow asks first, for a site a threat list
+// names.
+func appDevSiteConfirm(ask appDevSiteAsk) string {
+	if strings.Contains(ask.Found, "lists it as harmful") {
+		return "A threat list names " + ask.Host + " as harmful. Let the dev box reach it all the same?"
+	}
+	return ""
 }
 
 // appDevSiteLabel is a button's label, within Slack's 75 characters.

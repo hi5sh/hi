@@ -3303,6 +3303,15 @@ function sectionNetwork(s) {
   parts.push(el("h2", {}, "Sign-in"), el("pre", { class: "job-output short" }, s.sso),
     s.providers.length ? el("div", { class: "stack" }, field("Provider", provider), field("Only these email domains", domains), field("Only these groups", groups), el("label", { class: "check small" }, anyone, " Anyone who signs in with it"),
       el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sso", { sso: provider.value, domains: domains.value.trim(), groups: groups.value.trim(), anyone: anyone.checked }) }, "Save"))) : el("p", { class: "muted small" }, "No sign-in provider on this machine yet: Network, on the left."));
+  // hi's check of the sites the dev box asks for.
+  const checkOn = s.sites_check !== "off";
+  parts.push(el("h2", {}, "The dev box's sites"),
+    el("p", { class: "small" }, checkOn
+      ? "hi's check allows a site the dev box asks for by itself, for 7 days, when it's among the 100,000 most used, over a year old, on no threat list, and nobody but its owner can make names or put files there. The ops channel hears of each once a day, with Keep and Undo; anything else goes to the owners."
+      : "hi's check is off: every site the dev box asks for goes to the owners."),
+    s.sites_paused ? el("p", { class: "small" }, "Paused: " + s.sites_paused + ".") : "",
+    el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("sites-check", { on: !checkOn || !!s.sites_paused }, checkOn && !s.sites_paused ? "Every site goes to the owners now." : "hi's check is on.") },
+      checkOn && !s.sites_paused ? "Turn off" : (s.sites_paused ? "Turn on again" : "Turn on"))));
   parts.push(el("h2", {}, "What to ask your IT team"), el("pre", { class: "job-output copyable" }, s.ask),
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => copyText(s.ask) }, "Copy")));
   return parts;

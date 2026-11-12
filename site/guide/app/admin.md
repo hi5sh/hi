@@ -155,8 +155,10 @@ only whether one is set, and whose.
   a file the command reads once and deletes); how its addresses are named,
   and **Move them** (the app restarts); its name on the machine's domain;
   the addresses let in; the sign-in on top, with a provider, email
-  domains, and groups; and what to ask your IT team for it, to copy.
-  `hi app dev … netbird`, `addresses`, `domain`, `allow-ip`, `sso`.
+  domains, and groups; hi's check of the sites the dev box asks for,
+  with **Turn off** or **Turn on again** after a pause; and what to ask
+  your IT team for it, to copy. `hi app dev … netbird`, `addresses`,
+  `domain`, `allow-ip`, `sso`, `hi app dev … sites check`.
 - **Data:** its snapshots, each with **Restore…**, and **Snapshot now**;
   its releases, with **Roll back…** and each one's bill of materials;
   Stage's data: a new fork, starting empty at every release, or **Copy

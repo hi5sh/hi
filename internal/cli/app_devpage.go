@@ -1098,14 +1098,21 @@ func (b *appBroker) devPageHandler() http.Handler {
 			Host   string `json:"host"`
 			Allow  bool   `json:"allow"`
 			Remove bool   `json:"remove"`
+			Keep   bool   `json:"keep"` // what hi's check allowed: keep it, or
+			Undo   bool   `json:"undo"` // take it off and say no
 		}
 		if !decode(w, r, &request) {
 			return
 		}
 		var err error
-		if request.Remove {
+		switch {
+		case request.Keep:
+			err = b.devSiteKeep(person, request.Host)
+		case request.Undo:
+			err = b.devSiteUndo(person, request.Host)
+		case request.Remove:
 			err = b.devSiteRemove(request.Host)
-		} else {
+		default:
 			err = b.devSiteDecide(person, request.Host, request.Allow)
 		}
 		if err != nil {

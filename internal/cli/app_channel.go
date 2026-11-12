@@ -223,6 +223,8 @@ func (l *liveTeamChannel) update(channel, ts, text string) error {
 type appSlackButton struct {
 	Action, Value, Label string
 	Primary              bool
+	// Confirm, when set, is what Slack asks before the click counts.
+	Confirm string
 }
 
 func (l *liveTeamChannel) postButtons(channel, text string, buttons []appSlackButton) (string, error) {
@@ -243,7 +245,11 @@ func slackButtonBlocks(text string, buttons []appSlackButton) slack.MsgOption {
 		if b.Primary {
 			style = slack.StylePrimary
 		}
-		elements = append(elements, slackButton(b.Action, b.Value, b.Label, style))
+		button := slackButton(b.Action, b.Value, b.Label, style)
+		if b.Confirm != "" {
+			button = button.WithConfirm(slack.NewConfirmationBlockObject(slackPlain("Sure?"), slackText(b.Confirm), slackPlain(b.Label), slackPlain("Not now")))
+		}
+		elements = append(elements, button)
 	}
 	return slack.MsgOptionBlocks(slack.NewSectionBlock(slackText(text), nil, nil), slack.NewActionBlock("", elements...))
 }

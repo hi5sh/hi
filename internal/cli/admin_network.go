@@ -66,6 +66,10 @@ type adminAppNetwork struct {
 	Providers []string       `json:"providers"`
 	URLs      []adminAddress `json:"urls"`
 	Ask       string         `json:"ask"` // what to ask the IT team for it
+	// SitesCheck is hi's check of the sites the dev box asks for: rules
+	// or off; SitesPaused why it stopped, until an owner turns it on.
+	SitesCheck  string `json:"sites_check"`
+	SitesPaused string `json:"sites_paused,omitempty"`
 }
 
 // adminHiText is a read-only hi command's words, for a section that
@@ -84,7 +88,8 @@ func (s *adminServer) appNetwork(name string, admin adminPerson) (adminAppNetwor
 		return adminAppNetwork{}, fmt.Errorf("no app %q on this machine", name)
 	}
 	view := adminAppNetwork{Name: name, Peer: appPeerName(name), Joined: appPeerJoined(name), Addresses: appAddressesWords(config),
-		DomainOn: config.Domain, AllowIPs: config.AllowIPs, Providers: []string{}, URLs: adminAppOf(name).Addresses}
+		DomainOn: config.Domain, AllowIPs: config.AllowIPs, Providers: []string{}, URLs: adminAppOf(name).Addresses,
+		SitesCheck: appDevSitesCheckMode(config), SitesPaused: loadTeamDevAccess(name).CheckPaused}
 	if view.AllowIPs == nil {
 		view.AllowIPs = []string{}
 	}
@@ -394,6 +399,16 @@ func (s *adminServer) adminChangeNetworkData(admin adminPerson, change adminSett
 	case "domain":
 		on := map[bool]string{true: "on", false: "off"}[change.On]
 		return true, []string{"app", "domain", app, on}, "", "turned the app's name on the machine's domain " + on, "", nil
+	case "sites-check":
+		mode := appSiteCheckRules
+		if !change.On {
+			mode = appSiteCheckOff
+		}
+		said = "turned hi's check of the dev box's sites on"
+		if mode == appSiteCheckOff {
+			said = "turned hi's check of the dev box's sites off: every site goes to the owners"
+		}
+		return true, []string{"app", "dev", app, "sites", "check", mode}, "", said, "", nil
 	case "allowip":
 		ips := strings.TrimSpace(n.IPs)
 		if ips == "" {

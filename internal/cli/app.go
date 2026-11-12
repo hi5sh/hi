@@ -86,6 +86,9 @@ type appConfig struct {
 	// Names are each address's own name, which an IT team keeps
 	// (docs/specs/approved/hi_app_addresses.md).
 	Names *appNames `json:"names,omitempty"`
+	// SitesCheck is hi's check of the sites the dev box asks for: "" for
+	// the rules (the default), or "off" (hi_app_dev_sites.md).
+	SitesCheck string `json:"sites_check,omitempty"`
 	// AllowIPs are the only addresses the team's preview and production
 	// let in (hi app allow-ip <team>; hi net expose --allow-ip).
 	AllowIPs []string `json:"allow_ips,omitempty"`

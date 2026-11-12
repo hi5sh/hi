@@ -3,7 +3,8 @@
 Status: Approved (2026-11-12). Three releases (the roadmap's "the dev
 box's sites"): fewer asks, then the rules, then the model, which runs
 watch only first (question 4). The questions below stay open until each
-release is built. Release 1 built in v2.6.136 (see "Release 1, as built").
+release is built. Release 1 built in v2.6.136, release 2 in v2.6.137 (see
+"as built" under each).
 
 Dependencies: [hi_app_dev.md](../approved/hi_app_dev.md) (the dev box,
 its proxy, `hi dev allow`, v2.5.38, v2.6.24, v2.6.25, v2.6.44),
@@ -234,6 +235,25 @@ days ago"), so the owner decides on more than the agent's word.
 - **Open VSX** was the dev box's already (VS Code's extensions), so the
   preset doesn't take it.
 - **One post** holds eight asks at most, Slack's 25 buttons in a row.
+
+### Release 2, as built (v2.6.137)
+
+- **A name no registry dates.** Some registries have no RDAP (`.io`,
+  `.de`), so their names have no age. Such a name passes on rank alone
+  within the 10,000 most used, which a 30-day average doesn't give a
+  new name; others go to the owners.
+- **A site a threat list names** stops the check for the app, as the
+  draft says; its Allow in Slack asks "Sure?" first and it isn't part of
+  Allow all.
+- **The pause on an incident** is an open watch incident naming the dev
+  box, or the app frozen or paused.
+- **The admin page's setting** is in the app's Network, beside who may
+  reach the app, rather than Agents.
+- **Tried on 15 sites the dev boxes asked for before**, with the real
+  sources: 9 allowed by themselves, and the rest to the owners for the
+  right reasons (a file share, a `github.io` page, a malware test name,
+  three outside the 100,000). Each check took 50 ms to 1.5 s.
+- **Not yet:** Google's Web Risk and Cloudflare's categories with a key.
 
 ## What stays as it is
 

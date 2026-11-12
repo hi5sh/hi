@@ -68,22 +68,23 @@ def _run(args, what):
     return out or "hi couldn't make %s; ask the lead." % what
 
 
-def _site_button(allow):
-    """Allow or Say no on hi's post that the dev box asks for a site, in the
-    ops channel: hi checks the one who clicked (the user Slack gives the
-    click) is an owner, and the button's value carries the ask's key. hi
-    then puts the answer in place of the buttons; anything else, such as
-    someone who isn't an owner, hears why, alone."""
+def _site_button(answer):
+    """Allow or Say no on hi's post that the dev box asks for a site, or Keep
+    or Undo on its post of what its check allowed, in the ops channel: hi
+    checks the one who clicked (the user Slack gives the click) is an
+    owner, and the button's value carries the ask's key. hi then puts the
+    answer in place of the buttons; anything else, such as someone who
+    isn't an owner, hears why, alone."""
     async def handle(ack, body, action):
         await ack()
         user = ((body or {}).get("user") or {}).get("id") or ""
         value = (action or {}).get("value") or ""
         if not user or not value:
             return
-        args = ["app", "web", "site", value, "allow" if allow else "no", "--user", user]
+        args = ["app", "web", "site", value, answer, "--user", user]
         text = await asyncio.get_running_loop().run_in_executor(None, _run, args, "the answer")
         url = (body or {}).get("response_url")
-        if url and not text.startswith(("Allowed ", "Said no ")):
+        if url and not text.startswith(("Allowed ", "Said no ", "Kept ", "Undid ")):
             import aiohttp
             async with aiohttp.ClientSession(trust_env=True) as session:  # the box's proxy
                 await session.post(url, json={"response_type": "ephemeral", "replace_original": False, "text": text},
@@ -194,8 +195,10 @@ def register(ctx):
     _quiet_group_dms()
     register_action = getattr(ctx, "register_slack_action_handler", None)
     if register_action:  # a Hermes without it: the dev page's buttons still answer
-        register_action("hi_site_allow", _site_button(True))
-        register_action("hi_site_deny", _site_button(False))
+        register_action("hi_site_allow", _site_button("allow"))
+        register_action("hi_site_deny", _site_button("no"))
+        register_action("hi_site_keep", _site_button("keep"))
+        register_action("hi_site_undo", _site_button("undo"))
     try:
         ctx.register_hook("transform_tool_result", _note_reads)
     except Exception:  # a Hermes without the hook: the budget still stops the turn
