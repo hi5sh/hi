@@ -2736,6 +2736,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.146 — Box names in one style
+
+- [x] The admin page names an app's boxes one way, in lowercase and
+  without "the": lead box, production box, stage box, dev box, memory
+  box, lead proxy, dev proxy, netbird peer, task box.
+
 ### v2.6.145 — An app's boxes on the admin page
 
 - [x] An app's Overview lists its boxes: each container it has on the
