@@ -253,7 +253,7 @@ func TestTeamHTTPS(t *testing.T) {
 	// A team that keeps its addresses off the machine's domain goes back
 	// to the NetBird name; a host name IT keeps takes its place.
 	var out bytes.Buffer
-	if err := appAddressesCommand([]string{"payments", "netbird"}, &out); err != nil || !strings.Contains(out.String(), "NetBird name") {
+	if err := appAddressesCommand([]string{"payments", "netbird"}, &out); err != nil || !strings.Contains(out.String(), "the name NetBird gives its dev box") {
 		t.Fatal(err, out.String())
 	}
 	if err := b.applyHTTPS(); err != nil || appHTTPSDomain("payments") != "" || restarts != 2 || strings.HasPrefix(appInternalURL("payments", appAddressDev), "https") {

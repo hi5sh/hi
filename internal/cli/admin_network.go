@@ -87,7 +87,7 @@ func (s *adminServer) appNetwork(name string, admin adminPerson) (adminAppNetwor
 	if err != nil || !appNamePattern.MatchString(name) {
 		return adminAppNetwork{}, fmt.Errorf("no app %q on this machine", name)
 	}
-	view := adminAppNetwork{Name: name, Peer: appPeerName(name), Joined: appPeerJoined(name), Addresses: appAddressesWords(config),
+	view := adminAppNetwork{Name: name, Peer: appPeerKnownName(name), Joined: appPeerJoined(name), Addresses: appAddressesWords(config),
 		DomainOn: config.Domain, AllowIPs: config.AllowIPs, Providers: []string{}, URLs: adminAppOf(name).Addresses,
 		SitesCheck: appDevSitesCheckMode(config), SitesPaused: loadTeamDevAccess(name).CheckPaused}
 	if view.AllowIPs == nil {
@@ -219,7 +219,7 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 		if err != nil {
 			continue
 		}
-		view.Apps = append(view.Apps, adminAppNetwork{Name: name, Peer: appPeerName(name), Joined: appPeerJoined(name),
+		view.Apps = append(view.Apps, adminAppNetwork{Name: name, Peer: appPeerKnownName(name), Joined: appPeerJoined(name),
 			Addresses: appAddressesWords(app), DomainOn: app.Domain, AllowIPs: app.AllowIPs})
 		if ask.Len() > 0 {
 			ask.WriteString("\n")

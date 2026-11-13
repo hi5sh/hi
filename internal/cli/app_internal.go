@@ -14,6 +14,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,14 +128,41 @@ func appInternalURL(team, address string) string {
 	return "http://" + firstNonEmpty(appAddressesHost(config), appPeerName(team)) + port + "/"
 }
 
+// appPeerKnownName is the peer's name as NetBird gave it, or "" before
+// it joined: what hi would ask for is only a guess, since the setup key
+// may belong to another NetBird network, and an admin may rename it.
+func appPeerKnownName(team string) string {
+	if data, err := os.ReadFile(filepath.Join(appDevDir(team), "netbird-fqdn")); err == nil {
+		return strings.TrimSpace(string(data))
+	}
+	return ""
+}
+
+// appNetBirdNameWords is "the NetBird name, <name>," once NetBird gave
+// one, and "the name NetBird gives its dev box," before.
+func appNetBirdNameWords(team string) string {
+	if name := appPeerKnownName(team); name != "" {
+		return "the NetBird name, " + name + ","
+	}
+	return "the name NetBird gives its dev box,"
+}
+
+// appPeerNameGuessed says a link is on the name hi guessed for the peer,
+// before NetBird gave it one: the page says it waits, not the guess.
+func appPeerNameGuessed(team, link string) bool {
+	if appPeerKnownName(team) != "" {
+		return false
+	}
+	parsed, err := url.Parse(link)
+	return err == nil && strings.EqualFold(parsed.Hostname(), appPeerName(team))
+}
+
 // appPeerName is the team's peer's name on the network, as NetBird gave
 // it (dev/netbird-fqdn, which the peer's own status writes), or as hi
 // asked for it: quarry.corp.example.
 func appPeerName(team string) string {
-	if data, err := os.ReadFile(filepath.Join(appDevDir(team), "netbird-fqdn")); err == nil {
-		if name := strings.TrimSpace(string(data)); name != "" {
-			return name
-		}
+	if name := appPeerKnownName(team); name != "" {
+		return name
 	}
 	return appPeerHostname(team) + "." + appNetbirdDomain()
 }

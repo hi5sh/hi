@@ -22,7 +22,7 @@ func TestAdminNetworkAndDataChanges(t *testing.T) {
 	t.Cleanup(func() { adminRunHi = previous })
 
 	var net adminAppNetwork
-	if code := a.get(t, olga, "/api/app/network?name=payments", &net); code != http.StatusOK || net.Peer == "" || !strings.Contains(net.Ask, "TCP 80 and 8080") || !strings.Contains(net.Ask, "TCP 8888 and 22") {
+	if code := a.get(t, olga, "/api/app/network?name=payments", &net); code != http.StatusOK || net.Peer != "" || !strings.Contains(net.Ask, "TCP 80 and 8080") || !strings.Contains(net.Ask, "TCP 8888 and 22") {
 		t.Fatalf("network: %d %+v", code, net)
 	}
 	for _, c := range []struct {

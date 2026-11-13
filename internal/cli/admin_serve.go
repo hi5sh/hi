@@ -804,8 +804,9 @@ type adminAppView struct {
 }
 
 type adminAddress struct {
-	What string `json:"what"`
-	URL  string `json:"url"`
+	What  string `json:"what"`
+	URL   string `json:"url"`
+	Waits bool   `json:"waits,omitempty"` // on the NetBird name, which it hasn't been given yet
 }
 
 // adminAppState is an app's state as people say it: frozen or paused
@@ -841,7 +842,11 @@ func adminAppOf(name string) adminAppView {
 	}
 	for _, slot := range []string{appSlotProduction, appSlotPreview} {
 		if state, ok := loadTeamSlot(name, slot); ok && state.URL != "" {
-			view.Addresses = append(view.Addresses, adminAddress{What: appAddressLabel(slot), URL: state.URL})
+			address := adminAddress{What: appAddressLabel(slot), URL: state.URL}
+			if appPeerNameGuessed(name, state.URL) {
+				address.URL, address.Waits = "", true
+			}
+			view.Addresses = append(view.Addresses, address)
 		}
 	}
 	return view
@@ -928,8 +933,9 @@ type adminAppDetail struct {
 	Releases   []adminRelease     `json:"releases"`
 	Snapshot   string             `json:"snapshot,omitempty"`
 	Heartbeat  string             `json:"heartbeat,omitempty"`
-	DevPage    string             `json:"dev_page,omitempty"` // the dev page's address, without a key
-	Level      string             `json:"level"`              // the admin's, in the app
+	DevPage    string             `json:"dev_page,omitempty"`  // the dev page's address, without a key
+	DevWaits   bool               `json:"dev_waits,omitempty"` // it's on the NetBird name, not given yet
+	Level      string             `json:"level"`               // the admin's, in the app
 	Owners     []string           `json:"owners"`
 }
 
@@ -968,7 +974,9 @@ func adminAppDetailOf(name string, admin adminPerson) (adminAppDetail, error) {
 		}
 	}
 	if page, ok := loadTeamDevPage(name); ok && page.URL != "" {
-		if parsed, err := url.Parse(page.URL); err == nil {
+		if appPeerNameGuessed(name, page.URL) {
+			detail.DevWaits = true
+		} else if parsed, err := url.Parse(page.URL); err == nil {
 			parsed.RawQuery = ""
 			detail.DevPage = parsed.String()
 		}

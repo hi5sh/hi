@@ -191,7 +191,7 @@ type adminNewMachine struct {
 	Domain     string             `json:"domain,omitempty"`
 	Efforts    []string           `json:"efforts"`
 	Templates  []adminNewTemplate `json:"templates"`
-	Peer       string             `json:"peer"` // the app's NetBird name
+	Peer       string             `json:"peer"` // the app's NetBird name, once it joined
 	GH         bool               `json:"gh"`   // gh is here, for GitHub
 	Glab       bool               `json:"glab"` // glab is here, for GitLab
 	DevName    string             `json:"dev_name,omitempty"`
@@ -203,7 +203,7 @@ type adminNewTemplate struct {
 }
 
 func adminNewMachineOf(name string) adminNewMachine {
-	machine := adminNewMachine{Efforts: agentEfforts, Templates: []adminNewTemplate{}, Peer: appPeerName(name)}
+	machine := adminNewMachine{Efforts: agentEfforts, Templates: []adminNewTemplate{}, Peer: appPeerKnownName(name)}
 	if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err == nil && key != "" {
 		machine.OpenRouter = true
 	}

@@ -559,10 +559,10 @@ function renderOverview() {
   // they're names nobody reaches, so they don't open.
   const where = el("ul", { class: "list where-list" });
   for (const address of d.addresses) {
-    where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, address.what), " ", el("span", { class: "muted small" }, shown(address.url))),
-      d.joined ? el("a", { class: "button-like small", href: address.url, target: "_blank", rel: "noopener noreferrer" }, "Open ↗") : ""));
+    where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, address.what), " ", el("span", { class: "muted small" }, address.waits ? "once its dev box is on NetBird" : shown(address.url))),
+      d.joined && address.url ? el("a", { class: "button-like small", href: address.url, target: "_blank", rel: "noopener noreferrer" }, "Open ↗") : ""));
   }
-  where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_page || "while the app runs")),
+  where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_waits ? "once its dev box is on NetBird" : d.dev_page || "while the app runs")),
     d.joined ? el("button", { class: "small", onclick: () => openDevPage(d.name) }, "Open ↗") : ""));
   parts.push(el("h2", {}, "Addresses"));
   if (!d.joined) {
@@ -2334,7 +2334,7 @@ function renderDraft() {
       };
       const options = [];
       if (m.domain) options.push(["domain", "This machine's domain, on https: " + m.domain + " and the like"]);
-      options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", "The NetBird name, " + m.peer + ", on plain http"]);
+      options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", m.peer ? "The NetBird name, " + m.peer + ", on plain http" : "The name NetBird gives its dev box, on plain http"]);
       body.append(el("p", {}, "The app's addresses are on your NetBird network, and the owners build in its dev box over SSH there. The dev box joins with a setup key, once: in NetBird's dashboard, Setup Keys. Without one now, nobody reaches its addresses or its dev page until it joins, with a key in the app's Network, or hi app dev " + d.name + " netbird."),
         field("NetBird setup key", nb), el("h2", {}, "What the addresses are named"), radios("s-addr", options, choice, (v) => { choice = v; drawExtra(); }), extra);
       drawExtra();
@@ -3259,7 +3259,7 @@ function sectionNetwork(s) {
   const parts = [el("p", { class: "purpose" }, "Where the app is reached, and who may: its NetBird peer, how its addresses are named, the addresses let in, and the sign-in on top.")];
   // NetBird.
   const nb = el("input", { type: "password", placeholder: "A NetBird setup key", "aria-label": "NetBird setup key", class: "wide-input" });
-  parts.push(el("h2", {}, "NetBird"), el("p", { class: "small incident-head" }, el("span", { class: "dot " + (s.joined ? "idle" : "blocked"), "aria-hidden": "true" }), s.joined ? "Its peer " + s.peer + " is on NetBird." : "Its peer " + s.peer + " hasn't joined NetBird."),
+  parts.push(el("h2", {}, "NetBird"), el("p", { class: "small incident-head" }, el("span", { class: "dot " + (s.joined ? "idle" : "blocked"), "aria-hidden": "true" }), s.joined ? (s.peer ? "Its peer " + s.peer + " is on NetBird." : "Its dev box is on NetBird.") : "Its dev box hasn't joined NetBird."),
     el("pre", { class: "job-output short" }, s.dev),
     el("div", { class: "data-actions" }, nb, el("button", { class: "small", onclick: () => change("netbird", { key: nb.value.trim() }, "The dev box joins NetBird in a minute.") }, s.joined ? "Join again" : "Join")),
     el("p", { class: "muted small" }, "In NetBird's dashboard: Add Peer → Server, a one-off key with the auto-group hi-" + s.name + ". It's used once and deleted."));
@@ -3276,9 +3276,9 @@ function sectionNetwork(s) {
   };
   const options = [];
   if (s.domain) options.push(["domain", "This machine's domain, on https"]);
-  options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", "The NetBird name, " + s.peer + ", on plain http"]);
+  options.push(["names", "A name for each, which your IT team keeps"], ["host", "One name your IT team keeps, with ports"], ["netbird", s.peer ? "The NetBird name, " + s.peer + ", on plain http" : "The name NetBird gives its dev box, on plain http"]);
   parts.push(el("h2", {}, "Addresses"), el("p", { class: "small" }, "Now: " + s.addresses + "."),
-    el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, shown(u.url)))))),
+    el("ul", { class: "list" }, ...s.urls.map((u) => el("li", {}, el("span", { class: "what" }, el("strong", {}, u.what), " ", el("span", { class: "muted small" }, u.waits ? "once its dev box is on NetBird" : shown(u.url)))))),
     radios("n-addr", options, mode, (v) => { mode = v; draw(); }), extra,
     el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
       if (!(await ask({ title: "Move " + s.name + "'s addresses?", text: "The app restarts to move them, and the owners get the dev page's new link in Slack. Links people have to the old addresses stop working.", ok: "Move them" }))) return;
@@ -3405,7 +3405,7 @@ function renderMachineNetwork() {
   const apps = el("ul", { class: "list" });
   for (const a of n.apps) {
     apps.append(el("li", {}, el("span", { class: "what" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("network"); } }, a.name),
-      el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + a.peer + " · " + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")))));
+      el("span", { class: "muted small block" }, (a.joined ? "" : "not on NetBird · ") + (a.peer ? a.peer + " · " : "") + a.addresses + (a.allow_ips && a.allow_ips.length ? " · only " + a.allow_ips.join(", ") : "")))));
   }
   const pName = el("input", { placeholder: "Its name, such as google", "aria-label": "Provider's name" });
   const pIssuer = el("input", { placeholder: "Its issuer, https://…", "aria-label": "Issuer" });

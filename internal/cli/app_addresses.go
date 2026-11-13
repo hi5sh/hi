@@ -129,7 +129,7 @@ func appCheckHost(host string) error {
 func appAddressesWords(config appConfig) string {
 	switch {
 	case config.Addresses == appAddressesNetBird:
-		return "on the app's NetBird name, " + appPeerName(config.Name) + ", on plain http"
+		return "on " + appNetBirdNameWords(config.Name) + " on plain http"
 	case config.Addresses == appAddressesNames && config.Names != nil:
 		tls := "on plain http"
 		if config.Names.HTTPS {
@@ -142,7 +142,7 @@ func appAddressesWords(config appConfig) string {
 	if domain, ok := loadHiDomain(); ok {
 		return "on this machine's domain, on https: " + domain.addressName(config.Name, appAddressDev) + " and the like"
 	}
-	return "on the app's NetBird name, " + appPeerName(config.Name) + ", on plain http (this machine has no domain: hi net domain)"
+	return "on " + appNetBirdNameWords(config.Name) + " on plain http (this machine has no domain: hi net domain)"
 }
 
 // appAskAddresses is the setup's question: the machine's domain if it
@@ -158,7 +158,7 @@ func appAskAddresses(stdin io.Reader, stdout io.Writer, styled bool, config *app
 	options = append(options,
 		appOption{appAddressesNames, "a name for each, which your IT team keeps: demo.example.com, stage.demo.example.com, dev.demo.example.com"},
 		appOption{"host", "one name your IT team keeps in its DNS, pointing at the app's NetBird address, with ports"},
-		appOption{appAddressesNetBird, "the NetBird name, " + appPeerName(config.Name) + ", on plain http"})
+		appOption{appAddressesNetBird, appNetBirdNameWords(config.Name) + " on plain http"})
 	answer, err := appChoose(stdin, stdout, "Addresses", options, offered)
 	if err != nil {
 		return err

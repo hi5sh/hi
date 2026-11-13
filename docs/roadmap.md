@@ -2736,6 +2736,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.143 — The NetBird name is NetBird's
+
+- [x] Before an app's dev box joins NetBird, hi no longer shows a name it
+  made up for it (the app's name on this machine's NetBird network): the
+  setup key may be another NetBird network's, and an admin may rename
+  the peer. A new app's Network step, the app's Network section, the
+  machine's list of peers and `hi app setup` say "the name NetBird gives
+  its dev box" until NetBird gave one, then show that one.
+- [x] The app's page says its addresses come "once its dev box is on
+  NetBird" instead of showing links on that guess, which it did until
+  the app moved them, a minute after the peer joined.
+
 ### v2.6.142 — Someone's project on GitLab, as on GitHub
 
 - [x] A private GitLab project is adopted with this machine's GitLab

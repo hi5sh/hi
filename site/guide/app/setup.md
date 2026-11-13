@@ -85,8 +85,10 @@ things, one at a time:
      app's NetBird address (`hi app dev <app>` shows it once the app
      joined): `http://payments.corp.example/`, Stage on `:8080`, the
      dev page on `:8888`.
-   - **The NetBird name**, `http://payments.<your network>/`, on the same
-     ports.
+   - **The NetBird name**: the name NetBird gives the app's dev box when
+     it joins, on the same ports. The setup key decides which NetBird
+     network that is, so hi shows the name only once it has joined, and
+     follows it if an admin renames the peer.
    - **A name for each, which your IT team keeps**, for an IT team that
      won't put several ports on one name: production at
      `payments.example.com`, Stage at `stage.payments.example.com`, and

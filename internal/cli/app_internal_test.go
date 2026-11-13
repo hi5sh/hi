@@ -116,11 +116,19 @@ func TestTeamInternalAddresses(t *testing.T) {
 	if state.URL != "http://payments.corp.example:8080/" || state.Expose != "internal:preview" || strings.Contains(strings.Join(b.calls, "\n"), "net expose") {
 		t.Fatalf("%+v %v", state, b.calls)
 	}
+	// Until NetBird names the peer, that name is hi's guess: the key may
+	// be another network's, so the pages say it waits.
+	if !appPeerNameGuessed("payments", state.URL) || appPeerKnownName("payments") != "" || appNetBirdNameWords("payments") != "the name NetBird gives its dev box," {
+		t.Fatal("a name NetBird hasn't given is shown as known")
+	}
 	// A peer that NetBird names otherwise moves the address with it.
 	os.MkdirAll(appDevDir("payments"), 0o700)
 	os.WriteFile(filepath.Join(appDevDir("payments"), "netbird-fqdn"), []byte("payments-dev.corp.example\n"), 0o600)
 	if state, err = b.preview(appPreviewRequest{}); err != nil || state.URL != "http://payments-dev.corp.example:8080/" {
 		t.Fatalf("%+v %v", state, err)
+	}
+	if appPeerNameGuessed("payments", state.URL) || appNetBirdNameWords("payments") != "the NetBird name, payments-dev.corp.example," {
+		t.Fatal("NetBird's own name is taken for a guess")
 	}
 	os.Remove(filepath.Join(appDevDir("payments"), "netbird-fqdn"))
 	if err := b.devPagePublic(appSlotPreview, true, "Olga"); err != nil {
