@@ -45,6 +45,7 @@ var adminJobID = regexp.MustCompile(`^[0-9]{8}-[0-9]{6}-[a-z0-9]{6}$`)
 type adminServer struct {
 	hi      string // this binary, which jobs run
 	log     io.Writer
+	logMu   sync.Mutex // jobs and sign-ins log from their own goroutines
 	certs   appHTTPSCerts
 	wake    chan struct{}
 	handler http.Handler
@@ -86,6 +87,8 @@ func newAdminServer(hiPath string, log io.Writer) *adminServer {
 }
 
 func (s *adminServer) logf(format string, args ...any) {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
 	fmt.Fprintf(s.log, "hi: "+format+"\n", args...)
 }
 

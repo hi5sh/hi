@@ -10,12 +10,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 // fakeTeamRestic records restic's calls and answers backup with a summary.
 type fakeTeamRestic struct {
+	mu    sync.Mutex // a snapshot's after runs beside the next command
 	calls [][]string
 	envs  [][]string
 	fail  string // a subcommand that fails
@@ -27,8 +29,10 @@ type fakeTeamRestic struct {
 func (f *fakeTeamRestic) install(t *testing.T) {
 	saved := appRestic
 	appRestic = func(env []string, dir string, args ...string) (string, error) {
+		f.mu.Lock()
 		f.calls = append(f.calls, args)
 		f.envs = append(f.envs, env)
+		f.mu.Unlock()
 		if args[0] == f.fail {
 			return "", appResticError{code: 1, text: args[0] + " broke"}
 		}
@@ -47,7 +51,10 @@ func (f *fakeTeamRestic) install(t *testing.T) {
 		}
 		return "", nil
 	}
-	t.Cleanup(func() { appRestic = saved })
+	t.Cleanup(func() {
+		appAfterSnapshots.Wait()
+		appRestic = saved
+	})
 }
 
 // snapshotBackup is the backup that took the snapshot: not the first
@@ -315,6 +322,7 @@ func TestTeamSnapshotWithTeamDown(t *testing.T) {
 	if err := appSnapshotCommand([]string{"payments"}, &out); err != nil {
 		t.Fatal(err)
 	}
+	appAfterSnapshots.Wait()
 	// Production's box may still run while the team is down.
 	if paused != 1 || !strings.Contains(strings.Join(restic.calls[2], " "), "kind:manual") || !strings.Contains(out.String(), "4.0 KB, 2.0 KB new") {
 		t.Fatal(paused, restic.calls, out.String())

@@ -383,6 +383,10 @@ func appResticSnapshotID(out string) string {
 // what is new offsite. It takes as long as it takes, so it runs without the
 // broker's locks. The forget waits for a copy still running, which reads
 // the repository.
+// appAfterSnapshots are the afters still running: tests wait for them
+// before they put back what the afters call.
+var appAfterSnapshots sync.WaitGroup
+
 func appAfterSnapshot(team, kind string) error {
 	if kind == appSnapshotDaily {
 		config, _ := loadTeam(team)
@@ -616,7 +620,9 @@ func (b *appBroker) snapshotLocked(kind, label string) (appSnapshot, error) {
 	if snapshot.Warning != "" {
 		b.announceOps(config, fmt.Sprintf(":warning: %s The app's snapshot %s (%s) has a problem: %s", appPeople(config.Owners), snapshot.ID, snapshot.why(), snapshot.Warning))
 	}
+	appAfterSnapshots.Add(1)
 	go func() {
+		defer appAfterSnapshots.Done()
 		if err := appAfterSnapshot(b.team, kind); err != nil {
 			b.announceOps(config, fmt.Sprintf(":warning: %s The app's snapshot %s is taken, but: %s", appPeople(config.Owners), snapshot.ID, err))
 		}
