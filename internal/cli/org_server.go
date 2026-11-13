@@ -1988,7 +1988,11 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		fmt.Fprintln(stderr, "hi: hi org watch is gone: apps watch themselves on their own machine (hi app watch), and this machine's heartbeat is hi heartbeat <url>.")
 		return 1
 	default:
-		fmt.Fprintf(stderr, "hi: unknown org command %q\n\n", command)
+		if serveOwns(command) {
+			fmt.Fprintf(stderr, "hi: hi server is the server your machines and people join; did you mean hi serve %s?\n", command)
+			return 2
+		}
+		fmt.Fprintf(stderr, "hi: unknown server command %q\n\n", command)
 		printOrgUsage(stderr)
 		return 2
 	}

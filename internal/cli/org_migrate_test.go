@@ -227,19 +227,20 @@ func TestOldNamesHintOnATerminal(t *testing.T) {
 	oldNameIsTerminal = func(io.Writer) bool { return true }
 	t.Cleanup(func() { oldNameIsTerminal = previous })
 	for args, want := range map[string]string{
-		"disconnect":       "hi disconnect is now hi org leave",
-		"connect status":   "hi connect status is now hi org status",
-		"server audit -n1": "hi server audit -n1 is now hi org audit -n1",
+		"disconnect":     "hi disconnect is now hi server leave",
+		"connect status": "hi connect status is now hi server status",
 	} {
 		if _, _, stderr := runHi(strings.Fields(args)...); !strings.Contains(stderr, want) {
 			t.Errorf("hi %s: %q", args, stderr)
 		}
 	}
-	if got := orgFormOf([]string{"connect", "100.64.0.1:7373", "--user", "ana"}); got != "hi org join 100.64.0.1:7373 --user ana" {
+	if got := orgFormOf([]string{"connect", "100.64.0.1:7373", "--user", "ana"}); got != "hi server join 100.64.0.1:7373 --user ana" {
 		t.Errorf("connect: %s", got)
 	}
-	if _, _, stderr := runHi("org", "status"); strings.Contains(stderr, "is now") {
-		t.Errorf("hint on hi org: %s", stderr)
+	for _, name := range []string{"server", "org"} {
+		if _, _, stderr := runHi(name, "status"); strings.Contains(stderr, "is now") {
+			t.Errorf("hint on hi %s: %s", name, stderr)
+		}
 	}
 }
 
@@ -268,5 +269,22 @@ func TestUpdateNotesOnTheOrgMachine(t *testing.T) {
 	}
 	if _, stdout, _ := runHi("org", "status"); !strings.Contains(stdout, "owned by olga") {
 		t.Errorf("status: %s", stdout)
+	}
+}
+
+// A slip between hi serve and hi server says which was meant and runs
+// nothing (hi_server_apps.md).
+func TestServeAndServerSayWhichWasMeant(t *testing.T) {
+	orgMigrateTest(t)
+	for args, want := range map[string]string{
+		"serve join 100.64.0.1:7373": "did you mean hi server join?",
+		"serve approvers":            "did you mean hi server approvers?",
+		"server llm qwen":            "did you mean hi serve llm?",
+		"org recipes":                "did you mean hi serve recipes?",
+	} {
+		code, stdout, stderr := runHi(strings.Fields(args)...)
+		if code != 2 || stdout != "" || !strings.Contains(stderr, want) {
+			t.Errorf("hi %s: %d %q %q", args, code, stdout, stderr)
+		}
 	}
 }

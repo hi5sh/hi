@@ -114,6 +114,10 @@ func runServe(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return runCompute(append([]string{command}, rest...), stdin, stdout, stderr)
 	default:
+		if serverOwns(command) {
+			fmt.Fprintf(stderr, "hi: hi serve serves models; did you mean hi server %s?\n", command)
+			return 2
+		}
 		fmt.Fprintf(stderr, "hi: unknown serve command %q\n\n", command)
 		printServeUsage(stderr)
 		return 2
@@ -380,4 +384,26 @@ func recordServed(model servedModel, stderr io.Writer) {
 	if err != nil {
 		fmt.Fprintf(stderr, "hi: warning: hi serve ls won't show %s: %v\n", model.Name, err)
 	}
+}
+
+// serveOwns and serverOwns are the commands only hi serve, or only hi
+// server, has: a slip between the two names says which was meant and runs
+// nothing (hi_server_apps.md). Commands both have (status, key, ls, stop)
+// aren't here.
+func serveOwns(command string) bool {
+	switch command {
+	case "llm", "web", "files", "db", "detect", "recipes", "pull", "models", "start", "rm", "logs":
+		return true
+	}
+	return false
+}
+
+func serverOwns(command string) bool {
+	switch command {
+	case "join", "leave", "init", "run", "provider", "user", "requests", "approve", "deny", "audit",
+		"slack", "approvers", "owner", "admins", "policy", "spend", "ai", "live", "viewer", "wall",
+		"templates", "data", "expose", "watch", "offer", "machines":
+		return true
+	}
+	return false
 }

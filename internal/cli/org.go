@@ -125,25 +125,26 @@ var oldNameIsTerminal = func(w io.Writer) bool {
 	return ok && isTerminal(r)
 }
 
-// oldNameHint tells a person at a terminal the new name of hi server, hi
-// connect, or hi disconnect. Scripts and units see nothing new.
+// oldNameHint tells a person at a terminal the new name of hi connect or hi
+// disconnect. hi server is the name again and hi org stays, silently, beside
+// it (hi_server_apps.md). Scripts and units see nothing new.
 func oldNameHint(stderr io.Writer, args []string) {
-	if args[0] == "org" || !oldNameIsTerminal(stderr) {
+	if args[0] == "server" || args[0] == "org" || !oldNameIsTerminal(stderr) {
 		return
 	}
 	fmt.Fprintf(stderr, "hi: %s is now %s\n", "hi "+strings.Join(args, " "), orgFormOf(args))
 }
 
-// orgFormOf is the hi org command an old command runs.
+// orgFormOf is the hi server command an old command runs.
 func orgFormOf(args []string) string {
 	rest := args[1:]
 	switch args[0] {
 	case "disconnect":
-		return "hi org leave"
+		return "hi server leave"
 	case "connect":
 		if len(rest) == 0 || (rest[0] != "status" && rest[0] != "key" && rest[0] != "slack" && rest[0] != "help") {
 			rest = append([]string{"join"}, rest...)
 		}
 	}
-	return strings.TrimSpace("hi org " + strings.Join(rest, " "))
+	return strings.TrimSpace("hi server " + strings.Join(rest, " "))
 }

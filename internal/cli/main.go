@@ -138,8 +138,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runDisconnect(args[1:], stdout, stderr)
 	case "serve":
 		return runServe(args[1:], stdin, stdout, stderr)
-	case "org", "server":
-		oldNameHint(stderr, args)
+	case "server", "org":
 		return runOrg(args[1:], stdin, stdout, stderr)
 	case "verify":
 		if len(args) != 2 || args[1] != "strix" {
