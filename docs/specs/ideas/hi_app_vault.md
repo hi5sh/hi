@@ -9,8 +9,9 @@ Dependencies: [hi_app_keys.md](../approved/hi_app_keys.md) (settings,
 app's service, broker, and boxes), [hi_app_dev.md](../approved/hi_app_dev.md)
 (the dev box's own settings, the dev page),
 [hi_app_snapshots.md](../approved/hi_app_snapshots.md) (what a snapshot
-leaves out), and the draft [hi_app_move.md](hi_app_move.md) (what a move
-carries).
+leaves out), and the drafts [hi_app_move.md](hi_app_move.md) (what a move
+carries) and, for release 3, [hi_server_apps.md](hi_server_apps.md) (the
+hi server every app joins).
 
 ## Goal
 
@@ -219,7 +220,7 @@ the same.
   outside the box.
 - **The app's code calls Vault itself.** The same token in the box, and
   each app writes its own client and its own caching.
-- **hi runs an OpenBao of its own** on the org server, one namespace per
+- **hi runs an OpenBao of its own** on the hi server, one namespace per
   app. A service to unseal, back up, and upgrade, which every app's
   restart would then depend on. Worth it only once many teams want a
   store and none has one.
@@ -264,8 +265,40 @@ the same.
 1. `--from` on the machine, AppRole or a token, the version check, the
    cache, the move's check, the guide.
 2. Sources on the dev page, and the Slack command for owners.
-3. If asked: one Vault for the whole org, set once on the admin page,
-   with each app's paths under its own name.
+3. **The server's Vault,** on top of [hi_server_apps.md](hi_server_apps.md)
+   (an app needs a hi server; one admin page for its machines). See
+   [One Vault for the server's apps](#one-vault-for-the-servers-apps).
+
+## One Vault for the server's apps
+
+Release 3. Instead of a login per app, the hi server's admins connect one
+Vault (or OpenBao) for every app on the server's machines, once, on the
+server's admin page.
+
+- **Vault runs apart from the server,** on a VM or container of its own.
+  The server restarts on every `hi update`; Vault restarting is what
+  seals it, and that's rare. A server restart doesn't touch Vault.
+- **The server is the only one that logs in to Vault.** It holds the one
+  AppRole login. A machine's broker asks the server for its apps' values
+  over the connection it already has, signed with its device key, and no
+  machine's `secrets.json` holds a Vault login.
+- **The server gives a machine only its own apps' paths.** It knows
+  which apps run where; a machine asking for another machine's app is
+  refused.
+- **Paths by name:** each app's are under `kv/hi/<app>/<slot>` unless the
+  app names others, so `hi app env payments --from vault://` needs no path.
+- **When the server is away** (seconds, for an update), a box that starts
+  uses the cache, as when Vault is away. Boxes already running don't
+  notice.
+- **When Vault restarts** it is sealed until it's unsealed by hand or by a
+  key kept elsewhere; boxes start from the cache meanwhile, and the
+  server's page says Vault is sealed.
+- **A team's own Vault** (releases 1 and 2) still works beside it, for an
+  app whose team keeps its secrets there.
+
+Whether hi should run that OpenBao itself stays as in
+[Other ways](#other-ways-and-why-not): only once many teams want a store
+and none has one.
 
 ## Not in this
 
