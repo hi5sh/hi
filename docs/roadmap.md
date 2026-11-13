@@ -5420,6 +5420,28 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
+### Next — `hi server` again, a server for every app, one admin page
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
+
+- [ ] Release 1: `hi server` is the name again in help, messages, the
+  admin page, and the guide (`site/guide/server/`, the old address
+  redirects); `hi org`, `hi connect`, and `hi disconnect` stay, silent;
+  `hi serve join` and `hi server llm` say what was meant.
+- [ ] Release 2: every app needs a server. `hi app new`, `hi app up`, the
+  broker, and `hi update` stop on a machine with apps and no server. Our
+  machines with apps join one before it ships.
+- [ ] Release 3: the server's admin page shows its machines and their
+  apps, read only, from a connection each machine opens to the server.
+- [ ] Release 4: acting from the server's page, checked on the machine
+  against its `admin.json`; the terminal; `hi server remote off`; **Make
+  me the owner**; `hi server link | admins | address | owner`. `hi admin`
+  and each machine's own page are removed, with no alias.
+- [ ] Release 5: settings from the server's Vault
+  ([hi_app_vault.md](specs/ideas/hi_app_vault.md), release 3, a draft)
+  and moves between the server's machines
+  ([hi_app_move.md](specs/ideas/hi_app_move.md)).
+
 ### Next — production on a machine of your own (`hi app target`)
 
 Spec: [hi_app_targets.md](specs/ideas/hi_app_targets.md), a draft: any

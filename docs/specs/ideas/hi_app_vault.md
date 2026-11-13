@@ -10,7 +10,7 @@ app's service, broker, and boxes), [hi_app_dev.md](../approved/hi_app_dev.md)
 (the dev box's own settings, the dev page),
 [hi_app_snapshots.md](../approved/hi_app_snapshots.md) (what a snapshot
 leaves out), and the drafts [hi_app_move.md](hi_app_move.md) (what a move
-carries) and, for release 3, [hi_server_apps.md](hi_server_apps.md) (the
+carries) and, for release 3, [hi_server_apps.md](../approved/hi_server_apps.md) (the
 hi server every app joins).
 
 ## Goal
@@ -265,7 +265,7 @@ the same.
 1. `--from` on the machine, AppRole or a token, the version check, the
    cache, the move's check, the guide.
 2. Sources on the dev page, and the Slack command for owners.
-3. **The server's Vault,** on top of [hi_server_apps.md](hi_server_apps.md)
+3. **The server's Vault,** on top of [hi_server_apps.md](../approved/hi_server_apps.md)
    (an app needs a hi server; one admin page for its machines). See
    [One Vault for the server's apps](#one-vault-for-the-servers-apps).
 

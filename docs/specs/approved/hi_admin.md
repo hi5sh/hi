@@ -8,6 +8,10 @@ view replaces them; every org has an owner, set at `hi org init`, whose
 admins are the org VM's admin page's admins; the org server becomes a user
 service, so no root rule is needed to restart it.
 
+Each machine's own page and `hi admin` are removed by
+[hi_server_apps.md](hi_server_apps.md) (approved 2026-11-13): the admin
+page becomes the hi server's, with every machine and its apps on it.
+
 Dependencies: [hi_app.md](hi_app.md) (apps, their services,
 the setup), [hi_app_adopt.md](hi_app_adopt.md),
 [hi_app_internal.md](hi_app_internal.md) (an app's NetBird

@@ -4,6 +4,10 @@ Status: Approved (2026-11-02). Releases 1 to 3 built in v2.6.55 and v2.6.56
 (release 2 is the guide), release 5 in v2.6.57, ahead of release 4, whose
 own specs come later.
 
+The name is turned back to `hi server` by
+[hi_server_apps.md](hi_server_apps.md) (approved 2026-11-13); `hi org`
+stays as a silent alias.
+
 Dependencies: [hi_server.md](hi_server.md) (every command being
 renamed), [hi_server_ai.md](hi_server_ai.md),
 [hi_server_expose.md](hi_server_expose.md),

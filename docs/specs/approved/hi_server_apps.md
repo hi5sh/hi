@@ -1,20 +1,19 @@
 # `hi server` again: the server apps join, and one admin page for its machines
 
-Status: Draft (2026-11-13), for review. Nothing is built. Decided the
-same day: every app needs a server, existing ones too (no grace: hi is on
+Status: Approved (2026-11-13). Nothing is built. Decided the same day: every app needs a server, existing ones too (no grace: hi is on
 a few machines of ours, two with apps, and no one else's); the server's
 admins can make themselves a machine's owner, on demand, never on joining;
 `hi admin` is retired and removed, with no alias, and a machine has no admin
 page of its own.
 
-Dependencies: [hi_org.md](../approved/hi_org.md) (the rename this one
-turns back, and why), [hi_server.md](../approved/hi_server.md) (the
-server, device keys, signed calls), [hi_admin.md](../approved/hi_admin.md)
+Dependencies: [hi_org.md](hi_org.md) (the rename this one
+turns back, and why), [hi_server.md](hi_server.md) (the
+server, device keys, signed calls), [hi_admin.md](hi_admin.md)
 (the admin page, a machine that runs both, the two lists of admins),
-[hi_app.md](../approved/hi_app.md), and three drafts that build on it:
-[hi_cluster.md](hi_cluster.md) (`hi org machines`),
-[hi_app_move.md](hi_app_move.md) (moving an app between machines), and
-[hi_app_vault.md](hi_app_vault.md) (an app's settings from Vault,
+[hi_app.md](hi_app.md), and three drafts that build on it:
+[hi_cluster.md](../ideas/hi_cluster.md) (`hi org machines`),
+[hi_app_move.md](../ideas/hi_app_move.md) (moving an app between machines), and
+[hi_app_vault.md](../ideas/hi_app_vault.md) (an app's settings from Vault,
 release 3).
 
 ## Goal
@@ -32,7 +31,7 @@ apps, and one hi server they join. Three changes, in this order:
 
 ## Why rename back
 
-[hi_org.md](../approved/hi_org.md) took `hi org` because `hi server`
+[hi_org.md](hi_org.md) took `hi org` because `hi server`
 named how it runs rather than what it holds. In use, "org" says too
 much:
 
@@ -71,7 +70,7 @@ hi server offer | machines                          # hi_cluster.md
   is: it moved once already (from `server.json`) and moving it again
   gains nothing. The unit is `hi-server.service`, as it always was.
 - **Code keeps its names** (`org.go`, `runOrg`, `people.json`), as the
-  [app rename](../approved/hi_app.md) left its plumbing.
+  [app rename](hi_app.md) left its plumbing.
 - **Prose:** "the server", or "your hi server" where it could be
   confused with another server. "Org" leaves help, the guide, the admin
   page, and what Slack hears: the admin page's org card becomes the
@@ -114,7 +113,7 @@ Today an app runs on a machine with or without a server. Most machines
 with apps are joined to one already, for compute. From this draft on:
 
 - **`hi app new`** on a machine joined to no server stops and says how
-  to get one, as a [machine action](../approved/hi_admin.md) the admin
+  to get one, as a [machine action](hi_admin.md) the admin
   runs:
 
   ```
@@ -135,17 +134,17 @@ with apps are joined to one already, for compute. From this draft on:
 - **A machine joined to a second, test server** stays joined to that
   one: it is the server its apps use, and its page shows them.
 - **A machine that runs both** is the small case, as in
-  [hi_admin.md](../approved/hi_admin.md#a-machine-that-runs-both). The
+  [hi_admin.md](hi_admin.md#a-machine-that-runs-both). The
   guide keeps saying a server for more than a few people goes on a small
   VM of its own.
 
 **What an app gets from its server:**
 
 - the one admin page, below;
-- its settings from the server's Vault ([hi_app_vault.md](hi_app_vault.md),
+- its settings from the server's Vault ([hi_app_vault.md](../ideas/hi_app_vault.md),
   release 3);
 - moves between the server's machines without exchanging move keys by
-  hand ([hi_app_move.md](hi_app_move.md));
+  hand ([hi_app_move.md](../ideas/hi_app_move.md));
 - compute, approvals, and spend, as now.
 
 **When the server is away,** an app keeps running. Its boxes already
@@ -159,7 +158,7 @@ server that's away for seconds on an update, that's the trade.
 
 ## One admin page for every machine
 
-The server's admin page ([hi_admin.md](../approved/hi_admin.md), on its
+The server's admin page ([hi_admin.md](hi_admin.md), on its
 usual address) gains the machines joined to it.
 
 ```
@@ -228,7 +227,7 @@ server shouldn't need a way into every machine.
 
 ### Who can do what
 
-The decision in [hi_admin.md](../approved/hi_admin.md#two-lists-of-admins)
+The decision in [hi_admin.md](hi_admin.md#two-lists-of-admins)
 holds: running apps and approving spend are different jobs.
 
 - **A machine's admins** sign in once, to the server's page, and run
@@ -265,8 +264,7 @@ page says why its buttons are gone.
   `hi server remote off` is the way out of it for a machine that wants
   none of it.
 - **The terminal** goes through the server, over https on both legs: the
-  server could read it. Whether to encrypt it end to end, between the
-  browser and the machine, is an [open question](#open-questions).
+  server could read it. It isn't encrypted end to end ([Decided](#decided)).
 
 ## Code that changes
 
@@ -326,8 +324,8 @@ page says why its buttons are gone.
    until the server's page can act, the machine's page is the only one
    that can.
 5. **What builds on it:** settings from the server's Vault
-   ([hi_app_vault.md](hi_app_vault.md), release 3), moves between the
-   server's machines ([hi_app_move.md](hi_app_move.md)).
+   ([hi_app_vault.md](../ideas/hi_app_vault.md), release 3), moves between the
+   server's machines ([hi_app_move.md](../ideas/hi_app_move.md)).
 
 ## Not in this
 
@@ -336,10 +334,9 @@ page says why its buttons are gone.
   (that is hi_app_move.md's standby).
 - More than one server per machine.
 
-## Open questions
+## Decided
 
-1. **The terminal through the server:** fine over https on both legs, or
-   should it be encrypted end to end so a broken-into server can't read
-   it? Proposed: https on both legs in release 4, since the server's
-   admins can make themselves a machine's owner anyway, and so open the
-   terminal themselves; end to end only if a machine's admins ask for it.
+- **The terminal through the server** is over https on both legs, and
+  the server could read it. Not encrypted end to end: the server's admins
+  can make themselves a machine's owner and open the terminal anyway.
+  End to end only if a machine's admins ask for it.
