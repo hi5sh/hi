@@ -34,7 +34,7 @@ func appBuilds(config appConfig, user string) bool {
 	return containsString(config.Owners, user) || containsString(config.Developers, user) || containsString(config.VibeDevelopers, user)
 }
 
-// appHasShell says someone gets the dev box's terminal, VS Code, and SSH:
+// appHasShell says someone gets the dev box's terminal and SSH:
 // an owner or a Pro Dev, not a Vibe Dev, who has the agents' Chat.
 func appHasShell(config appConfig, user string) bool {
 	return containsString(config.Owners, user) || containsString(config.Developers, user)
@@ -237,7 +237,7 @@ func appAccessCommand(args []string, stdout io.Writer) error {
 func appDeveloperNote(config appConfig, level string) string {
 	note := "A Pro Dev works in the dev box and releases like an owner, except rollbacks, production's data and settings, keys, and who is who.\n"
 	if level == appLevelVibe {
-		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, and releases, but has no terminal, VS Code, or SSH. The agents still run commands in the dev box for them.\n"
+		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, and releases, but has no terminal or SSH. The agents still run commands in the dev box for them.\n"
 	}
 	if config.PreviewData != appPreviewEmpty {
 		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi app data " + config.Name + " preview empty starts the preview empty instead.\n"
@@ -254,7 +254,7 @@ func printTeamAccess(config appConfig, stdout io.Writer) {
 	for _, owner := range config.Owners {
 		fmt.Fprintf(stdout, "  %s %s\n", appPersonColumn(owner, names), appDevKeyLabel(config.Name, owner))
 	}
-	fmt.Fprintln(stdout, "Pro Devs, with Chat, terminal, VS Code, and SSH (owners change them, on the dev page or here):")
+	fmt.Fprintln(stdout, "Pro Devs, with Chat, terminal, and SSH (owners change them, on the dev page or here):")
 	if len(config.Developers) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}

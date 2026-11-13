@@ -417,10 +417,10 @@ func appDevProxyArgs(team string, args []string) ([]string, string, error) {
 	return args, strings.Join(secrets, ","), nil
 }
 
-// appDevHosts is the dev box's allowlist: what development needs,
-// Codex's sign-in hosts, and Open VSX for VS Code's extensions.
+// appDevHosts is the dev box's allowlist: what development needs, and
+// Codex's sign-in hosts.
 func appDevHosts() []string {
-	return append(append(boxPresetHosts("dev"), agentHosts["codex"]...), appDevCodeHosts...)
+	return append(boxPresetHosts("dev"), agentHosts["codex"]...)
 }
 
 // ---------------------------------------------------------------------------

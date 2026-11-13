@@ -78,7 +78,7 @@ Can they show in red?</div>
     {% include diagram.html name="app" %}
     <div class="prose">
       <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what the app's contributors, developers, and owners ask for, in the channel, a DM, or a bug report from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
-      <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and VS Code beside it. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on Stage with production's data, and ship it into dev.</p>
+      <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and the terminal a click away. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on Stage with production's data, and ship it into dev.</p>
       <p><strong>Dev and production.</strong> People try dev on Stage, a link that opens on their phones. Production moves only when an owner or a developer clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and an owner can roll each one back.</p>
       <p><strong>Handing it over.</strong> An app that becomes critical changes hands, not code. An admin of the machine makes IT's people its owners, and the people who built it stay on as developers or step back. The project is an ordinary git repository from your template, with its history, its specs in <code>docs/specs/</code>, and its tasks in GitHub, GitLab, or hi's own; the whole app is one folder that moves to another machine.</p>
     </div>
@@ -119,7 +119,7 @@ Can they show in red?</div>
         <h3>Who does what</h3>
         <div class="snip"><span class="c">$ hi app owners onboarding add U07ANNA</span>
 <span class="c">$ hi app owners onboarding key U07ANNA ~/anna.pub</span></div>
-        <p>Owners, whom an admin of the machine adds, keep production's data, settings, and rollbacks. On the dev page's People table they make others Pro Devs (Chat, terminal, VS Code, and SSH) or Vibe Devs (Chat only), who build and release but don't roll back or change production's data and settings, and contributors, who file bugs as tasks with their name on them.</p>
+        <p>Owners, whom an admin of the machine adds, keep production's data, settings, and rollbacks. On the dev page's People table they make others Pro Devs (Chat, terminal, and SSH) or Vibe Devs (Chat only), who build and release but don't roll back or change production's data and settings, and contributors, who file bugs as tasks with their name on them.</p>
       </div>
       <div class="detail">
         <h3>What the box can't do</h3>

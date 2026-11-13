@@ -324,7 +324,7 @@ people in one Slack channel, on a machine of yours:
   a long-lived box with the project, Claude Code, Codex, and
   [herdr](https://herdr.dev), reached over SSH on the app's NetBird
   network or from the **dev page** in a browser, with the tasks, a chat
-  with each agent, VS Code, and the system's state. `hi dev preview` and
+  with each agent, and the system's state. `hi dev preview` and
   `hi dev ship` put work on the preview and into dev.
 - **Pro Devs and Vibe Devs**, whom the owners pick on the dev page, build
   there too (Vibe Devs through the chat only), and release; rollbacks and

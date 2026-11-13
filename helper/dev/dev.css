@@ -1,4 +1,4 @@
-/* Dark always, in VS Code's 2026 Dark, as VS Code in the Code tab is: a
+/* Dark always, in the colours of VS Code's 2026 Dark: a
    shell with the parts as cards in it, 4px apart, their corners rounded. */
 :root {
   --shell: #191a1b;      /* title bar, status bar, between the cards */
@@ -148,25 +148,18 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 
 /* Terminal: herdr, with the workspaces beside it. */
 /* As VS Code lays itself out: the workspaces a side bar card, the chat and
-   the terminal an editor card, under their bar in the shell. VS Code itself
-   draws its own cards, so it sits in the shell bare. */
+   the terminal an editor card, under their bar in the shell. */
 .preview-line { padding: 10px 0 8px; border-bottom: 1px solid var(--line); display: flex; gap: 4px; flex-wrap: wrap; overflow-wrap: anywhere; }
 .preview-what { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .preview-what .show-dev { margin-top: 4px; font-size: 12px; padding: 1px 8px; }
-.vscode { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.vscode-bar { display: flex; align-items: center; gap: 12px; padding: 2px 8px 4px; background: var(--shell); white-space: nowrap; overflow: hidden; }
-.vscode-bar #vscode-status { overflow: hidden; text-overflow: ellipsis; }
-/* VS Code keeps a gap at its own edges: to the page's edges, and to the
-   workspaces' card, it is the page's gap and no more. */
-.vscode iframe { flex: 1; width: calc(100% + 2 * var(--gap)); margin: 0 calc(-1 * var(--gap)) calc(-1 * var(--gap)); border: 0; background: var(--shell); }
 .term-panel { background: var(--term); border: 1px solid var(--line); border-radius: var(--r-lg); position: relative; overflow: hidden; min-height: 0; flex: 1; }
 .code-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-/* The chat, the terminal or VS Code, with the side panel beside the first two. */
+/* The chat or the terminal, with the side panel beside them. */
 .code-body { flex: 1; min-height: 0; display: flex; gap: 6px; position: relative; }
 .code-views { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .code-bar { display: flex; align-items: center; gap: 8px; padding: 0 4px var(--gap); background: var(--shell); min-width: 0; }
 .code-bar select { max-width: 240px; }
-/* The files open in tabs, after Chat, Terminal, and VS Code. */
+/* The files open in tabs, after Chat and Terminal. */
 .edit-tabs { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; padding-left: 6px; border-left: 1px solid var(--line); }
 .edit-tabs[hidden] { display: none; }
 .edit-tabs::-webkit-scrollbar { display: none; }
@@ -680,7 +673,6 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
   .chat-entries { padding: 12px 12px 8px; }
   .msg-user { max-width: 90%; }
   .chat-ask { padding: 0 12px 12px; }
-  .wide-only { display: none; }
   .md ul, .md ol { padding-left: 20px; }
   .ask-typed { margin-left: 0; }
   .decision-cards { grid-template-columns: 1fr; }

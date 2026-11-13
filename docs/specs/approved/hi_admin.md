@@ -101,8 +101,8 @@ incidents, and spend.
 ```
 
 - **The bar:** the left panel's button, the machine's name, the open
-  app's name and its sections as chips (as the dev page's Chat,
-  Terminal, and VS Code), **Open ▾** (production, Stage, and the dev
+  app's name and its sections as chips (as the dev page's Chat and
+  Terminal), **Open ▾** (production, Stage, and the dev
   page), and the right panel's button.
 - **The middle:** **Home** with nothing open: every app as a card, and
   the org's day (requests waiting, what runs, today's spend). Or an

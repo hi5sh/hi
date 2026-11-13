@@ -310,9 +310,9 @@ link once and the app is signed in again. A browser installs only a page
 on https, such as the dev page on the machine's domain or a public
 address; a NetBird address on plain http stays a page in the browser.
 
-The page is the work, Chat, the terminal, or VS Code, with a panel on
-each side of it, as VS Code's side bars, their views by the icons along
-their tops. The left has what goes into the app: **Tasks**,
+The page is the work, Chat or the terminal, with a panel on each side
+of it, as an editor's side bars, their views by the icons along their
+tops. The left has what goes into the app: **Tasks**,
 **Workspaces**, **Files**, **Search**, **Checks**, **Decisions**, and
 **Security**. The right has what comes out of it: **Rewind**, **Source
 control**, **Logs**, **Preview**, **Release**, **Data**, and
@@ -385,8 +385,8 @@ for; Checks and Logs have a dot.
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
   shows its last session, with **Resume this session**. The right
-  panel is beside the chat, the terminal, and the open files; VS Code
-  has its own. Beside the terminal it follows the workspace you open in
+  panel is beside the chat, the terminal, and the open files. Beside
+  the terminal it follows the workspace you open in
   Workspaces ([below](#beside-the-chat)).
   **Rewind** is a Claude Code conversation's messages
   as a timeline, newest last: each with when, and what the code did
@@ -414,8 +414,8 @@ for; Checks and Logs have a dot.
     workspace; the list at the top picks another. A changed file is in
     git's colour (orange changed, green new, red deleted) with its lines
     added and removed and git's letter, and a folder with changes in it
-    has a dot. A file opens in a tab of its own after **Chat**,
-    **Terminal**, and **VS Code**, as many as you like, and the page
+    has a dot. A file opens in a tab of its own after **Chat** and
+    **Terminal**, as many as you like, and the page
     keeps them open: text and code to edit, Markdown with **Preview**
     (the project's own pictures, and its links to other files), and
     pictures; anything else downloads. **Save**, or Ctrl+S, writes it,
@@ -463,23 +463,6 @@ for; Checks and Logs have a dot.
     makes the panel wider. It loads again when something new goes on
     Stage. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it.
-- **VS Code**, the third view on a wide screen, is VS Code in the
-  browser ([code-server](https://github.com/coder/code-server)) on the
-  workspace's worktree: the same files the agent works on, to edit by
-  hand, search, read the git history, or open a terminal of your own.
-  hi fetches it into the dev box the first time (about a minute) and
-  starts it when the view opens; only owners and Pro Devs reach it, as
-  with the terminal. It saves as you type, so the agent sees your changes. Type
-  `/ide` in the chat and Claude links to it: its changes open as diffs
-  in the editor, and it sees what you select. Extensions come from
-  [Open VSX](https://open-vsx.org); **Open in a new tab** gives it the
-  whole window. hi adds viewers for files VS Code shows only as text:
-  PDFs open as pages, **Edit as csv** shows a CSV as a table (Rainbow
-  CSV colours its columns), Mermaid diagrams draw in Markdown's preview,
-  and notebooks show their saved outputs, Plotly and Vega among them. On a dev page that is plain http, browsers keep some of
-  VS Code's parts from it: previews, these viewers, and extensions' own
-  panels don't show, and copy and paste go through the keyboard only. Put the
-  addresses [on https](#the-addresses-on-https) for all of it.
 - **Try on Stage** and **Ship to Dev**, beside a workspace with commits
   dev hasn't got, do what `hi dev preview` and `hi dev ship` do in the
   box. Stage is one address, and it shows one thing at a time:
@@ -627,8 +610,8 @@ empty`, `--stage`).
 ### The addresses on https
 
 On their NetBird names the addresses are plain http, which browsers keep
-some things from: VS Code's previews and extensions' panels, the
-clipboard's buttons, and the app's own use of them. Give the machine a
+some things from: the clipboard's buttons, and the app's own use of
+them. Give the machine a
 domain of yours, and every app's production, Stage, and dev page move
 to https, with a certificate browsers trust and nothing to install on
 anyone's devices. An app stays off it when its setup said so, or after
@@ -675,14 +658,13 @@ in the zone).
 | Who | Set by | What they do |
 |---|---|---|
 | **Owners** | An admin of the machine (`hi app owners`) | Everything on the dev page and in the dev box, and production: releases, rollbacks, its data and settings, keys, sites, addresses, and who is a developer |
-| **Pro Devs** | An owner, on the dev page's People table, or `hi app access <app> <ID> pro` | Build as owners do: the dev box, its agents' Chat, the terminal, VS Code, files, SSH, Stage, shipping into dev, and releasing it to production. Rollbacks and production's data and settings stay the owners' |
-| **Vibe Devs** | An owner, the same way (`vibe`) | Build and release with the agents in Chat, as Pro Devs do, without the terminal, VS Code, or SSH. The agents still run commands in the dev box for them, so it's a simpler view, not a wall |
+| **Pro Devs** | An owner, on the dev page's People table, or `hi app access <app> <ID> pro` | Build as owners do: the dev box, its agents' Chat, the terminal, files, SSH, Stage, shipping into dev, and releasing it to production. Rollbacks and production's data and settings stay the owners' |
+| **Vibe Devs** | An owner, the same way (`vibe`) | Build and release with the agents in Chat, as Pro Devs do, without the terminal or SSH. The agents still run commands in the dev box for them, so it's a simpler view, not a wall |
 | **Contributors** | An owner, on the dev page's People table, or `hi app access` | Report bugs as tasks: to the lead in Slack, or from the app's [helper](/guide/app/helper/) signed in with their own link. They never reach the dev page or the dev box |
 | **Viewers** | Whoever can open the app | Use it, with the helper's Ask and Feedback |
 
-Terminal, VS Code, an agent's chat, starting a task, uploading files, and
-SSH are one level, not separate switches: they all run in the same dev
-box, and VS Code has a terminal of its own. A developer also has the dev
+Terminal, an agent's chat, starting a task, uploading files, and SSH
+are one level, not separate switches: they all run in the same dev box. A developer also has the dev
 box's broker role, so **a developer can read production's data** through
 Stage, with their own work on it, since Stage runs on a copy of it,
 unless Stage starts empty (`hi app data <app> stage empty`).
@@ -707,7 +689,7 @@ hi app access orbit key U083YSQFD0B "$(cat ~/.ssh/id_ed25519.pub)"
 ```
 
 Taking away someone's level counts at once: their next click is refused,
-and an open terminal or VS Code closes within seconds. Pro Devs paste
+and an open terminal closes within seconds. Pro Devs paste
 their own SSH key on the dev page's Security view; NetBird's policy for the
 dev box has to let them reach it, as for the owners. Vibe Devs have no SSH.
 

@@ -121,7 +121,7 @@
   var encoder = new TextEncoder();
 
   // fitTerminal sizes the terminal to its panel, and herdr's panes with it.
-  // Hidden, behind the chat, VS Code or another tab, it takes the size the
+  // Hidden, behind the chat or another tab, it takes the size the
   // panel would have, not xterm's 80×24: Claude Code draws a question to its
   // pane, and one too small to hold it can't be read for the chat.
   function fitTerminal() {
@@ -134,7 +134,7 @@
     if (socket && socket.readyState === 1) socket.send(JSON.stringify({ cols: term.cols, rows: term.rows }));
   }
   function hiddenTermSize() {
-    var shown = [$("chat"), $("vscode"), $("editor")].filter(function (other) { return other.offsetParent; })[0];
+    var shown = [$("chat"), $("editor")].filter(function (other) { return other.offsetParent; })[0];
     // Another tab: the window, less the page's tabs, the bar and the workspaces.
     var width = shown ? shown.clientWidth : window.innerWidth - (window.innerWidth < 760 ? 24 : 310);
     var height = shown ? shown.clientHeight : window.innerHeight - 110;
@@ -156,7 +156,7 @@
     probe.remove();
     return { width: rect.width / 40, height: Math.ceil(rect.height) };
   }
-  [".term-panel", "#chat", "#vscode", "#editor"].forEach(function (panel) { new ResizeObserver(fitTerminal).observe(document.querySelector(panel)); });
+  [".term-panel", "#chat", "#editor"].forEach(function (panel) { new ResizeObserver(fitTerminal).observe(document.querySelector(panel)); });
   window.addEventListener("resize", fitTerminal);
   // An on-screen keyboard covers the page's bottom on iOS: the page keeps
   // to what is visible, so the keys and the terminal's last line sit just
@@ -981,7 +981,7 @@
 
   // ---- People (the owners'), and everyone's own SSH key
   // A Pro Dev or a Vibe Dev: no owners' buttons. A Vibe Dev also has the
-  // agents' Chat only, without the terminal, VS Code, or SSH.
+  // agents' Chat only, without the terminal or SSH.
   function developer() { return !!state && (state.level === "developer" || state.level === "vibe"); }
   function vibe() { return !!state && state.level === "vibe"; }
   function renderSSHKey() {
@@ -1006,10 +1006,10 @@
     var question = "";
     var data = $("people-warn").hidden ? "" : " Stage runs on a copy of production's data, which they can read through Stage.";
     var words = { owner: "an owner", developer: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" };
-    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, VS Code, and SSH, and release, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
-    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal, VS Code, or SSH; the agents still run commands in the dev box for them. They release too." + data;
+    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, and SSH, and release, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
+    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal or SSH; the agents still run commands in the dev box for them. They release too." + data;
     else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
-    else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal or VS Code closes." : " ends.");
+    else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal closes." : " ends.");
     (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
       if (answer === null) { renderPeople(people); return; }
       row.classList.add("busy");
@@ -1143,7 +1143,7 @@
   var chat = { view: "chat", space: "", session: "", offset: 0, tools: {}, group: null, busy: false, timer: 0, agent: null, id: "", pending: [], turn: 0, spin: 0, composing: false, askSig: "" };
   // The rewind timeline's messages, what the page last saw, and the one open.
   var rewind = { points: [], seen: "", open: "", at: 0 };
-  // The two panels beside the work, as VS Code's side bars: on the left
+  // The two panels beside the work, as an editor's side bars: on the left
   // what goes into the app (tasks, workspaces, files, search, checks,
   // decisions, security); on the right what comes out of it (rewind,
   // source control, logs, preview, release, data, system). Each has its
@@ -1187,7 +1187,7 @@
   // The source control view: what git last said of the chat's workspace,
   // and the file whose diff is open.
   var git = { view: null, space: "", busy: false, at: 0, diff: null, error: "" };
-  // The files open in tabs, beside Chat, Terminal, and VS Code; the one
+  // The files open in tabs, beside Chat and Terminal; the one
   // shown, and the view to go back to when the last closes.
   var opened = { tabs: [], current: "", back: "chat" };
   try {
@@ -1199,7 +1199,7 @@
   try {
     // Chat is the default since hi 2.5.24; the choice before it isn't kept.
     chat.view = localStorage.getItem("hi-dev-code-view-2") || chat.view;
-    if (narrow && chat.view === "code") chat.view = "chat"; // VS Code is for a wide screen
+    if (chat.view === "code") chat.view = "chat"; // VS Code, which hi had until 2.6.144
     chat.space = localStorage.getItem("hi-dev-chat-space") || "";
   } catch (e) { /* private window */ }
   function setCodeView(view) {
@@ -1210,9 +1210,8 @@
     document.querySelectorAll("#code-view button").forEach(function (button) { button.setAttribute("aria-pressed", button.dataset.view === view ? "true" : "false"); });
     $("chat").hidden = view !== "chat";
     document.querySelector(".term-panel").hidden = view !== "terminal";
-    $("vscode").hidden = view !== "code";
     $("editor").hidden = view !== "file";
-    $("chat-space").hidden = view !== "chat" && view !== "code";
+    $("chat-space").hidden = view !== "chat";
     showChatStart();
     $("chat-title").hidden = view !== "chat";
     $("chat-status").hidden = view !== "chat";
@@ -1220,30 +1219,7 @@
     renderTabs();
     if (view === "file") { showTab(opened.current); sideShown(); }
     else if (view === "terminal") { setTimeout(function () { fitTerminal(); term.focus(); }, 0); sideShown(); }
-    else if (view === "code") openVSCode();
     else { pollChat(); sideShown(); }
-  }
-  // VS Code: code-server in the dev box, which hi starts the first time
-  // (and fetches, the very first), on the workspace's worktree.
-  var vscode = { folder: "", starting: false };
-  function openVSCode() {
-    var space = ((state && state.workspaces) || []).filter(function (s) { return s.id === chat.space; })[0];
-    var folder = (space && space.path) || "/box/repo";
-    if (folder === vscode.folder || vscode.starting) return;
-    vscode.starting = true;
-    $("vscode-status").textContent = "Starting VS Code in the dev box… The first time, hi fetches it, which takes a minute.";
-    api("POST", "code/start", {}).then(function () {
-      vscode.folder = folder;
-      var src = "code/?folder=" + encodeURIComponent(folder);
-      $("vscode-frame").src = src;
-      $("vscode-open").href = src;
-      $("vscode-status").textContent = (space ? (space.branch || space.label) : "The project's clone") + ": " + folder +
-        // The viewers (PDFs, CSV tables, Markdown's preview) draw in
-        // webviews, which the browser gives only to https pages.
-        (location.protocol === "https:" ? "" : ". Previews of PDFs, tables, and Markdown need the app's https address (hi net domain).");
-    }).catch(function (error) {
-      $("vscode-status").textContent = error.message;
-    }).then(function () { vscode.starting = false; });
   }
   document.querySelectorAll("#code-view button").forEach(function (button) {
     button.addEventListener("click", function () { setCodeView(button.dataset.view); });
@@ -1295,7 +1271,6 @@
     renderGit();
     syncFilesRoot();
     sideShown();
-    if (chat.view === "code") openVSCode();
     if (!quiet) pollChat();
   }
   // The start card: when there's no work to show, or + New was pressed.
@@ -2199,7 +2174,7 @@
     } catch (e) { /* private window */ }
   }
   // The right panel is beside the chat, the terminal, and the open files;
-  // VS Code has its own. The left is beside them all.
+  // the left is beside them all.
   function sideBeside() { return chat.view === "chat" || chat.view === "terminal" || chat.view === "file"; }
   function paneShown(which) { return !$(paneIds[which].panel).hidden && !document.hidden; }
   function viewShown(view) { var which = paneOf(view); return paneShown(which) && panes[which].view === view; }
@@ -2708,7 +2683,7 @@
     })(0);
   }
 
-  // ---- Open files: each a tab beside Chat, Terminal, and VS Code, to read
+  // ---- Open files: each a tab beside Chat and Terminal, to read
   // and edit. A text file saves with Save or Ctrl+S, against the file as it
   // was read: one that changed since, by Claude or anyone, isn't
   // overwritten unless you say so. One open and unchanged follows the disk.

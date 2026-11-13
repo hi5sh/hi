@@ -233,7 +233,8 @@ days ago"), so the owner decides on more than the agent's word.
   `allowlist-added-by-hi`, and the watcher, which knows only
   `allowlist-added`, lets them be. An owner's allow is still news.
 - **Open VSX** was the dev box's already (VS Code's extensions), so the
-  preset doesn't take it.
+  preset doesn't take it. VS Code went in hi 2.6.144, and Open VSX with
+  it.
 - **One post** holds eight asks at most, Slack's 25 buttons in a row.
 
 ### Release 2, as built (v2.6.137)

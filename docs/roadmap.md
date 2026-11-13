@@ -2736,6 +2736,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.144 — No VS Code on the dev page
+
+- [x] The dev page's VS Code view (code-server in the dev box) is gone:
+  nobody used it. The page is Chat or the terminal, with the files in
+  tabs; a page that last showed VS Code opens on Chat. Its routes, the
+  Open VSX hosts in the dev box's list, and the page's leave to frame
+  itself go with it.
+- [x] What it left in a dev box, a gigabyte or so (code-server, its
+  settings and extensions, its log), goes when the app's service starts
+  with this hi, and a code-server still running there is stopped.
+- [x] Test on main passes with `-race` again: the admin page's log
+  takes a lock (two email sign-ins logged at once), and a snapshot's
+  after-work no longer outlives its test.
+
 ### v2.6.143 — The NetBird name is NetBird's
 
 - [x] Before an app's dev box joins NetBird, hi no longer shows a name it

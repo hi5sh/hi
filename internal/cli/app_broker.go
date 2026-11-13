@@ -345,6 +345,7 @@ func (b *appBroker) resume() {
 	}
 	b.resumeDeepReviews()
 	b.resumeBrainstorms()
+	b.removeDevCode()
 	for _, record := range loadTeamAgys(b.team) {
 		if record.Status == "running" {
 			go b.watchAgy(record.ID)

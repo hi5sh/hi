@@ -25,7 +25,6 @@
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
         <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
-        <button data-view="code" aria-pressed="false" class="wide-only pro-only" title="VS Code on the workspace's files, in the dev box">VS Code</button>
       </div>
       <div id="edit-tabs" class="edit-tabs" role="tablist" aria-label="Open files" hidden></div>
       <select id="chat-space" aria-label="Which workspace's session"></select>
@@ -145,15 +144,15 @@
               <div class="system-col">
                 <section id="people-box" class="owners-only">
                   <h2>People</h2>
-                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, VS Code, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
                   <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
                   <div class="people-wrap">
                     <table id="people-table" class="people-table">
                       <thead><tr>
                         <th scope="col">Person</th>
                         <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
-                        <th scope="col" title="Chat, terminal, VS Code, and SSH in the dev box; releases">Pro Dev</th>
-                        <th scope="col" title="The agents' Chat in the dev box, no terminal, VS Code, or SSH; releases">Vibe Dev</th>
+                        <th scope="col" title="Chat, terminal, and SSH in the dev box; releases">Pro Dev</th>
+                        <th scope="col" title="The agents' Chat in the dev box, no terminal or SSH; releases">Vibe Dev</th>
                         <th scope="col" title="Reports bugs as tasks">Contributor</th>
                         <th scope="col" title="Uses the app, asks the lead questions">None</th>
                       </tr></thead>
@@ -281,15 +280,6 @@
         <p id="term-why">The terminal closed.</p>
         <button id="term-again">Connect again</button>
       </div>
-    </div>
-    <div id="vscode" class="vscode" hidden>
-      <div class="vscode-bar muted small">
-        <span id="vscode-status"></span>
-        <span class="grow"></span>
-        <span>Claude sees what you edit after <code>/ide</code> in its chat.</span>
-        <a id="vscode-open" href="code/" target="_blank" rel="noopener">Open in a new tab</a>
-      </div>
-      <iframe id="vscode-frame" title="VS Code" allow="clipboard-read; clipboard-write"></iframe>
     </div>
     <div id="editor" class="editor" hidden></div>
     </div>

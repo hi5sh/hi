@@ -115,7 +115,7 @@ resolves elsewhere, and that's fine: hi says so rather than fails).
 
 Everything that says or checks an address's name takes them from one
 place, `teamInternalURL`: the owners' and contributors' links in their
-DMs, the dev page's Addresses, the dev page's terminal and VS Code origin
+DMs, the dev page's Addresses, the dev page's terminal origin
 check, the app's address file, and the return addresses to register for
 sign-in (`hi team sso`).
 

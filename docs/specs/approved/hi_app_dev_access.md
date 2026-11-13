@@ -41,11 +41,11 @@ never see it.
 ### Where the line is
 
 The development environment is one level, not a set of switches. The dev
-page's terminal, VS Code, an agent's chat, starting a task, uploading
-files, and SSH all run as the same user in the same dev box, with the
-agents' permissions skipped. VS Code has a terminal of its own, and an
-agent runs whatever it is asked, so "VS Code but no terminal" would hide
-a button and enforce nothing. A developer has all of it.
+page's terminal, an agent's chat, starting a task, uploading files, and
+SSH all run as the same user in the same dev box, with the agents'
+permissions skipped. An agent runs whatever it is asked, so "chat but no
+terminal" hides a button and enforces nothing. A developer has all of
+it. (The dev page had VS Code too, until hi 2.6.144.)
 
 What a developer can't do is what the broker already refuses the dev box:
 a release, a rollback, a restore, production's settings, and changing
@@ -62,7 +62,7 @@ makes someone a developer.
 | On the dev page | Developer | Owner |
 |---|---|---|
 | Tasks: everything, starting one, something new | ✓ | ✓ |
-| Code: workspaces, chat, terminal, VS Code | ✓ | ✓ |
+| Code: workspaces, chat, terminal | ✓ | ✓ |
 | Files: read, download, upload | ✓ | ✓ |
 | SSH into the dev box | ✓ | ✓ |
 | Release: where things run, versions, the preview on dev | ✓ | ✓ |
@@ -111,7 +111,7 @@ makes someone a developer.
   prints the step when the first developer is added.
 - **Taking it away counts at once.** hi looks the level up at every
   request, so the next click of someone who is no longer a developer is
-  refused, an open terminal or VS Code closes, and their links and SSH
+  refused, an open terminal closes, and their links and SSH
   key end.
 
 ## Contributors
@@ -213,8 +213,8 @@ asks for.
   goes through one gate in front of the mux: an owner or a developer, and
   for a developer only the routes named in `teamDevDeveloperRoutes`. A
   route added without being named there is the owners' alone. That
-  includes the terminal's WebSocket, VS Code's proxy, the agents' chat,
-  the files and uploads. An open terminal or VS Code asks the gate again
+  includes the terminal's WebSocket, the agents' chat, the files and
+  uploads. An open terminal asks the gate again
   every 15 seconds and closes when its person no longer passes, even when
   the change came from `hi team access` in another process.
 - **The state is built for the level.** `api/state` leaves out what a
@@ -256,10 +256,10 @@ asks for.
 - **People outside Slack** (2026-10-28) are added by email, as
   contributors or viewers, once the address has sign-in.
 - **Pro Dev and Vibe Dev** (2026-10-28, v2.6.20). A developer is a Pro Dev
-  (Chat, terminal, VS Code, SSH) or a Vibe Dev (Chat only), as the user
+  (Chat, terminal, SSH) or a Vibe Dev (Chat only), as the user
   asked. Running code in the dev box is still one power: a Vibe Dev's
   agents run commands for them, so the line is a simpler view and no SSH,
-  not a wall. The gate refuses a Vibe Dev the terminal, VS Code, and an
+  not a wall. The gate refuses a Vibe Dev the terminal and an
   SSH key (`teamDevShellRoutes`), and an open terminal closes when a Pro
   Dev becomes a Vibe Dev.
 - **No level by default** (2026-10-28, v2.6.15). Being in the team's

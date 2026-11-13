@@ -97,7 +97,7 @@ func TestTeamAccessLevels(t *testing.T) {
 	}
 	out.Reset()
 	appAccessCommand([]string{"payments"}, &out)
-	if !strings.Contains(out.String(), "Pro Devs, with Chat, terminal, VS Code, and SSH") || !strings.Contains(out.String(), "U07DEV001") || !strings.Contains(out.String(), "Anyone else, in the channel or not, has no level.") {
+	if !strings.Contains(out.String(), "Pro Devs, with Chat, terminal, and SSH") || !strings.Contains(out.String(), "U07DEV001") || !strings.Contains(out.String(), "Anyone else, in the channel or not, has no level.") {
 		t.Fatal(out.String())
 	}
 }
@@ -125,7 +125,6 @@ func TestTeamDevPageRoutesByLevel(t *testing.T) {
 	if len(routes) < 40 {
 		t.Fatalf("found only %d routes", len(routes))
 	}
-	routes = append(routes, [2]string{"GET", "code/"})
 	call := func(key, method, path string) int {
 		request := httptest.NewRequest(method, appDevPagePrefix+path, strings.NewReader("{"))
 		if key != "" {
@@ -364,7 +363,7 @@ func TestTeamVibeDev(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 		return recorder.Code
 	}
-	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/code/start"}, {"GET", "code/"}, {"POST", "api/sshkey"}, {"POST", "api/rollback"}} {
+	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/sshkey"}, {"POST", "api/rollback"}} {
 		if code := call(shell[0], shell[1]); code != http.StatusForbidden {
 			t.Errorf("%v for a Vibe Dev: %d", shell, code)
 		}

@@ -935,7 +935,7 @@ func init() {
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
 		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs",
-		"POST api/code/start", "POST api/sshkey", "GET api/decisions", "POST api/decision",
+		"POST api/sshkey", "GET api/decisions", "POST api/decision",
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		appDevDeveloperRoutes[method+" "+appDevPagePrefix+path] = true
@@ -948,23 +948,18 @@ func init() {
 }
 
 // appDevShellRoutes are the developer's routes a Vibe Dev doesn't get:
-// the terminal, VS Code, and an SSH key for the dev box. A Vibe Dev works
-// in the agents' Chat.
+// the terminal and an SSH key for the dev box. A Vibe Dev works in the
+// agents' Chat.
 var appDevShellRoutes = map[string]bool{}
 
 func init() {
-	for _, route := range []string{"GET api/term", "POST api/term/files", "POST api/code/start", "POST api/sshkey"} {
+	for _, route := range []string{"GET api/term", "POST api/term/files", "POST api/sshkey"} {
 		method, path, _ := strings.Cut(route, " ")
 		appDevShellRoutes[method+" "+appDevPagePrefix+path] = true
 	}
-	code := strings.TrimSuffix(appDevPagePrefix, "/") + "/code"
-	appDevShellRoutes["GET "+code] = true
-	for _, method := range []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"} {
-		appDevShellRoutes[method+" "+code+"/"] = true
-	}
 }
 
-// appDevAccessCheck is how often an open terminal or VS Code asks
+// appDevAccessCheck is how often an open terminal asks
 // whether its person may still have it; tests shorten it.
 var appDevAccessCheck = 15 * time.Second
 
@@ -1087,7 +1082,6 @@ func (b *appBroker) devPageHandler() http.Handler {
 	b.devGitRoutes(mux, builder, reply, failure)
 	b.devToolRoutes(mux, builder, reply, failure)
 	b.devChatRoutes(mux, builder, reply, failure)
-	b.devCodeRoutes(mux, builder, reply, failure)
 	b.devDecisionRoutes(mux, builder, reply, failure, decode)
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/site", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := builder(w, r)
@@ -1723,7 +1717,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 		case level != appLevelOwner && !appDevDeveloperRoutes[pattern]:
 			return http.StatusForbidden, errors.New("only the app's owners do that; developers build and release, and owners look after production")
 		case level == appLevelVibe && appDevShellRoutes[pattern]:
-			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal and VS Code are for Pro Devs and owners")
+			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal is for Pro Devs and owners")
 		}
 		return http.StatusOK, nil
 	}
@@ -1742,8 +1736,8 @@ func (b *appBroker) devPageHandler() http.Handler {
 		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 			appDevSocketsOpen.Add(1)
 			defer appDevSocketsOpen.Done()
-			// A terminal, or VS Code: it ends when its person may no
-			// longer have it, not only at their next click.
+			// A terminal: it ends when its person may no longer have it,
+			// not only at their next click.
 			ctx, cancel := context.WithCancel(r.Context())
 			defer cancel()
 			r = r.WithContext(ctx)
@@ -1824,8 +1818,7 @@ var appDevTermCommand = func(team string) []string {
 	return []string{engine.bin, "exec", "-it", "-e", "TERM=xterm-256color", "-e", "COLORTERM=truecolor", appDevContainer(team), "herdr"}
 }
 
-// appDevSocketsOpen counts the dev page's terminals and VS Code sockets
-// open, so a test waits for them to end before it puts its settings back.
+// appDevSocketsOpen counts the dev page's terminals open, so a test waits for them to end before it puts its settings back.
 var appDevSocketsOpen sync.WaitGroup
 
 // appDevFromPage says a change comes from the dev page: a browser says

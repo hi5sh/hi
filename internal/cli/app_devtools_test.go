@@ -288,7 +288,7 @@ func TestAppDevPageFrames(t *testing.T) {
 	os.MkdirAll(filepath.Join(appDir("payments"), "run"), 0o755)
 	os.WriteFile(appSlotPath("payments", "preview"), []byte(`{"url":"https://payments-preview.example.com/?hi_key=k"}`), 0o600)
 	os.WriteFile(appSlotPath("payments", "production"), []byte(`{"url":"javascript:alert(1)"}`), 0o600)
-	if got := b.devPageFrames(); got != "frame-src 'self' https://payments-preview.example.com" {
+	if got := b.devPageFrames(); got != "frame-src https://payments-preview.example.com" {
 		t.Fatal(got)
 	}
 	for raw, want := range map[string]string{"http://h:8080/x": "http://h:8080", "https://a.b?c": "https://a.b", "ftp://x": "", "https://a b": "", "https://x;script-src *": ""} {

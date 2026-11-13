@@ -629,16 +629,19 @@ func (b *appBroker) devToolRoutes(mux *http.ServeMux, builder func(http.Response
 	})
 }
 
-// devPageFrames is the Content-Security-Policy's frame-src: the page's
-// own (VS Code), and production's and Stage's addresses, for Preview.
+// devPageFrames is the Content-Security-Policy's frame-src: production's
+// and Stage's addresses, for Preview.
 func (b *appBroker) devPageFrames() string {
-	frames := []string{"'self'"}
+	frames := []string{}
 	for _, slot := range []string{appSlotProduction, appSlotPreview} {
 		if state, ok := loadTeamSlot(b.team, slot); ok {
 			if origin := appOrigin(state.URL); origin != "" {
 				frames = append(frames, origin)
 			}
 		}
+	}
+	if len(frames) == 0 {
+		return "frame-src 'none'"
 	}
 	return "frame-src " + strings.Join(frames, " ")
 }

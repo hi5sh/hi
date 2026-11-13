@@ -671,7 +671,7 @@ usage:
   hi app access <name>             who reaches what: owners, Pro Devs and Vibe Devs (who build and
                                    release), and contributors (who report bugs); nobody else
       [<member ID> pro|vibe|contributor|none]  an owner's change, also on the dev page: a Pro
-                                   Dev has Chat, terminal, VS Code, and SSH, a Vibe Dev Chat; none
+                                   Dev has Chat, terminal, and SSH, a Vibe Dev Chat; none
                                    takes the level away
       [key <member ID> <public key>|--remove]  a Pro Dev's or owner's SSH key for the dev box
   hi app task <name>               the app's tasks: GitHub Issues (gh) or GitLab issues (glab),
