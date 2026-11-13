@@ -257,9 +257,9 @@ services running without a login, it says the one command to change that
 (`sudo loginctl enable-linger <user>`).
 
 **On a machine with apps:** the server can run beside them, for a
-small org or to try one. `hi server init` there refuses while the machine is
-joined to another org (`hi server leave` first), joins the machine to the
-new org under the owner's hi user name, so its apps' compute goes through
+small team or to try one. `hi server init` there refuses while the machine is
+joined to another server (`hi server leave` first), joins the machine to the
+new server under the owner's hi user name, so its apps' compute goes through
 it, and keeps the admin page's admins apart from the server's
 ([admin page](/guide/app/admin/#on-the-servers-machine)). The server
 server keeps the keys that spend money, and the apps' agents run beside
@@ -268,9 +268,9 @@ machine of its own.
 
 ### The server's owner and admins
 
-Every org has an owner: one person, with their Slack member ID and their
+Every server has an owner: one person, with their Slack member ID and their
 email. `hi server init` asks for them at a terminal, or takes `--owner` and
-`--email`, and makes no org without them. The owner is the first approver
+`--email`, and makes no server without them. The owner is the first approver
 and the first admin of the [admin page](/guide/app/admin/) on the server's
 machine. Their hi user name is the first part of their email, unless
 `--owner-name` says another.
@@ -289,7 +289,7 @@ machine, anyone logged in as the account the server runs as can. Handing
 the server on keeps the owner before as an admin, and is said in the
 approvers' channel. Every change is in the audit.
 
-An org made before owners has none: `hi server status` on the server's
+A server made before owners has none: `hi server status` on the server's
 machine and the admin page say so, with the command, `hi server owner <Slack
 member ID> --email <address>`. Until then, the first `hi admin start` there
 asks for them.

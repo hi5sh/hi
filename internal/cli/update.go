@@ -51,6 +51,11 @@ func runUpdate(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case *noRestart || *check:
 		mode = "no"
 	}
+	if !*check && machineHasApps() {
+		if err := appNeedsServer("This machine's apps"); err != nil {
+			return exitCode(fmt.Errorf("%w\nhi update waits until it has one: the apps couldn't start again on the new hi", err), stderr)
+		}
+	}
 	if err := update(*requested, *check, stdout); err != nil {
 		return exitCode(err, stderr)
 	}

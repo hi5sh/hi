@@ -2736,6 +2736,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.148 — Every app needs a server
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 2.
+
+- [x] `hi app new`, `hi app up`, an app's service, and `hi update` on a
+  machine with apps stop on a machine that has joined no hi server and
+  runs none, and say the two ways to get one (`hi server join <server>`,
+  `hi server init`). A box already running isn't stopped; `hi update
+  --check` still answers.
+- [x] The admin page's New app says the same before its first step.
+- [x] The guide's Set up an app starts with the server.
+
 ### v2.6.147 — `hi server` again
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1.
@@ -5441,7 +5453,7 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
   admin page, and the guide (`site/guide/server/`, the old address
   redirects); `hi org`, `hi connect`, and `hi disconnect` stay, silent;
   `hi serve join` and `hi server llm` say what was meant.
-- [ ] Release 2: every app needs a server. `hi app new`, `hi app up`, the
+- [x] Release 2 (v2.6.148): every app needs a server. `hi app new`, `hi app up`, the
   broker, and `hi update` stop on a machine with apps and no server. Our
   machines with apps join one before it ships.
 - [ ] Release 3: the server's admin page shows its machines and their

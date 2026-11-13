@@ -1188,7 +1188,11 @@ func (s *adminServer) newRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 		var draft adminDraft
 		switch request.Action {
 		case "start":
-			// What every app needs comes first (hi_admin.md, release 8).
+			// A server first (hi_server_apps.md, release 2), then what every
+			// app needs (hi_admin.md, release 8).
+			if err = appNeedsServer("A new app"); err != nil {
+				break
+			}
 			if err = adminNeedsMissingError(adminNeedsViewOf(adminNeedsBase())); err != nil {
 				break
 			}

@@ -36,6 +36,9 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if err := appNeedsServer(name); err != nil {
+		return err
+	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
 		return fmt.Errorf("the app's Slack tokens: %w", err)

@@ -5,7 +5,19 @@ description: "Install what a hi app needs, answer the setup's ten questions with
 
 ## Before you start
 
-On the machine that will run the app:
+The machine that will run the app needs a [hi server](/guide/compute/managed/):
+it joins your company's, or runs one itself.
+
+```sh
+hi server join <server>   # your company's: ask your IT team for its address
+hi server init            # or one on this machine, for a small team or to try hi
+```
+
+`hi app new`, `hi app up`, an app's service, and `hi update` stop on a
+machine with neither, and say so. An app already running keeps running,
+but it can't start again until the machine has a server.
+
+Then, on the same machine:
 
 ```sh
 hi install hermes claude codex podman restic

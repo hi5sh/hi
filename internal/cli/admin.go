@@ -249,7 +249,7 @@ func saveAdminConfig(config adminConfig) error {
 }
 
 // admin finds an admin by name, any case, or by Slack member ID.
-// adminFreeName is name, or name (org), (org 2), and on, when an admin is
+// adminFreeName is name, or name (server), (server 2), and on, when an admin is
 // called that already.
 func adminFreeName(admins []adminPerson, name string) string {
 	taken := func(candidate string) bool {
@@ -258,9 +258,9 @@ func adminFreeName(admins []adminPerson, name string) string {
 	if !taken(name) {
 		return name
 	}
-	candidate := name + " (org)"
+	candidate := name + " (server)"
 	for i := 2; taken(candidate); i++ {
-		candidate = fmt.Sprintf("%s (org %d)", name, i)
+		candidate = fmt.Sprintf("%s (server %d)", name, i)
 	}
 	return candidate
 }

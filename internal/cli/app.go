@@ -954,6 +954,9 @@ func appNew(args []string, stdin io.Reader, stdout io.Writer) error {
 			return usageError{"usage: hi app new <name> [--dir <folder>] [--from <file.json>]"}
 		}
 	}
+	if err := appNeedsServer("hi app new"); err != nil {
+		return err
+	}
 	if name == "" && from == "" && appStyled(stdin, stdout) {
 		// The team's name is asked first: its folder is named after it.
 		appSetupBanner(stdout, true, "", "")
@@ -2297,6 +2300,9 @@ func appUnitPath(name string) string {
 func appUp(name string, stdout io.Writer) error {
 	config, err := loadTeam(name)
 	if err != nil {
+		return err
+	}
+	if err := appNeedsServer(name); err != nil {
 		return err
 	}
 	if err := appMovedError(name, appDir(name)); err != nil {

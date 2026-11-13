@@ -246,7 +246,7 @@ both.
 - **Activity** has the server's audit.
 
 **Its admins:** on a machine with only the server, the page's admins are the
-org's owner and admins, as `hi server admins` lists them, and the page keeps
+server's owner and admins, as `hi server admins` lists them, and the page keeps
 no list of its own. A new link comes by DM from the server's Slack app.
 
 **A machine with apps and the server:** the machine's admins and the server's
@@ -257,9 +257,9 @@ changes only their own: the rest shows, and does nothing. Making someone
 an admin of the machine never makes them an approver. `hi server init` on a
 machine with apps:
 
-- refuses while the machine is joined to another org, whose compute its
+- refuses while the machine is joined to another server, whose compute its
   apps use: `hi server leave` first;
-- joins the machine to the new org, under the owner's hi user name, so
+- joins the machine to the new server, under the owner's hi user name, so
   its apps' compute goes through it;
 - keeps the admin page's admins, and adds the owner to them;
 - says what sharing the machine means. The server keeps the keys that

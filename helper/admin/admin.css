@@ -306,3 +306,6 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .email-signin { margin-top: 14px; }
 .email-signin label { display: block; margin-bottom: 4px; }
 #people-add { white-space: nowrap; }
+
+/* Errors keep their lines: "hi server join …" and "hi server init" each on its own. */
+.error { white-space: pre-line; }
