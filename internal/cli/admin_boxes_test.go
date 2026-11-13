@@ -71,7 +71,7 @@ func TestAdminAppBoxes(t *testing.T) {
 	for _, box := range detail.Boxes {
 		order = append(order, box.What)
 	}
-	want := []string{"the lead's box", "production's box", "an earlier production box", "the dev box", "the lead's proxy", "a task box"}
+	want := []string{"lead box", "production box", "earlier production box", "dev box", "lead proxy", "task box"}
 	if len(order) != len(want) {
 		t.Fatalf("boxes: %q (asked of %q)", order, asked)
 	}

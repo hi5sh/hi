@@ -636,7 +636,7 @@ function boxesPart(d) {
   if (!boxes.length) return [el("h2", {}, "Boxes"), el("p", { class: "muted" }, "None of " + d.name + "'s boxes is on the machine now.")];
   const running = boxes.filter((b) => b.state === "running").length;
   const intro = el("p", { class: "muted small" }, running + " of " + boxes.length + " running. Each is a container of its own on this machine, " + state.machine +
-    ", with its own files, processes, and limits; production, Stage, and the dev box don't share one.");
+    ", with its own files, processes, and limits; the production, stage, and dev boxes don't share one.");
   const table = el("table", { class: "boxes-table" },
     el("thead", {}, el("tr", {}, el("th", {}, "Box"), el("th", {}, "State"), el("th", { class: "num" }, "CPU"), el("th", { class: "num" }, "Memory"), el("th", {}, ""))));
   const body = el("tbody");
@@ -652,7 +652,7 @@ function boxesPart(d) {
     if (b.state === "running" && b.started) when = "for " + uptime((Date.now() - new Date(b.started)) / 1000);
     else if (b.finished) when = ago(b.finished) + (b.exit_code ? ", exit " + b.exit_code : "");
     const terminal = b.term && b.state === "running" && state.me.machine
-      ? el("button", { class: "small", title: "A shell in " + b.what, onclick: () => { termWanted = b.term; showSection("terminal"); } }, "Terminal")
+      ? el("button", { class: "small", title: "A shell in the " + b.what, onclick: () => { termWanted = b.term; showSection("terminal"); } }, "Terminal")
       : "";
     body.append(el("tr", { "data-box": b.name },
       el("td", {}, el("strong", {}, b.what), b.does ? el("div", { class: "muted small" }, b.does) : null,

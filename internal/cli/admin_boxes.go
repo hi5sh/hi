@@ -18,7 +18,7 @@ import (
 // adminBox is one of an app's boxes, as Overview shows it.
 type adminBox struct {
 	Name     string    `json:"name"`           // the container's
-	What     string    `json:"what"`           // as people say it: "production's box"
+	What     string    `json:"what"`           // as people say it: "production box"
 	Does     string    `json:"does,omitempty"` // what it's for
 	Term     string    `json:"term,omitempty"` // its box in the Terminal section, when it has one
 	State    string    `json:"state"`          // the engine's: running, exited, created, …
@@ -174,42 +174,42 @@ func adminDescribeBox(app string, box *adminBox, production, stage appPreview) i
 	}
 	switch name := box.Name; {
 	case name == lead:
-		box.What, box.Term, box.Does = "the lead's box", "lead", "The lead: it answers in the app's channel and hands the work on"
+		box.What, box.Term, box.Does = "lead box", "lead", "The lead: it answers in the app's channel and hands the work on"
 		return 0
 	case production.Container != "" && name == production.Container:
-		box.What, box.Term, box.Does = "production's box", "production", "Production: what the app's people use"
+		box.What, box.Term, box.Does = "production box", "production", "Production: what the app's people use"
 		slot(production)
 		return 1
 	case stage.Container != "" && name == stage.Container:
-		box.What, box.Term, box.Does = "Stage's box", "stage", "Stage: the next version, before it's released"
+		box.What, box.Term, box.Does = "stage box", "stage", "Stage: the next version, before it's released"
 		slot(stage)
 		return 2
 	case appSlotContainerPattern.MatchString(name) && strings.Contains(name, "-app-production-"):
-		box.What, box.Does = "an earlier production box", "Production as it ran before; hi no longer uses it"
+		box.What, box.Does = "earlier production box", "Production as it ran before; hi no longer uses it"
 		return 3
 	case appSlotContainerPattern.MatchString(name):
-		box.What, box.Does = "an earlier Stage box", "Stage as it ran before; hi no longer uses it"
+		box.What, box.Does = "earlier stage box", "Stage as it ran before; hi no longer uses it"
 		return 3
 	case name == appDevContainer(app):
-		box.What, box.Term, box.Does = "the dev box", "dev", "The dev page's chat, terminal, and files"
+		box.What, box.Term, box.Does = "dev box", "dev", "The dev page's chat, terminal, and files"
 		return 4
 	case name == appMemoryContainer(app):
-		box.What, box.Term, box.Does = "the memory's box", "memory", "Hindsight, the app's long-term memory"
+		box.What, box.Term, box.Does = "memory box", "memory", "Hindsight, the app's long-term memory"
 		return 5
 	case name == lead+"-proxy":
-		box.What, box.Does = "the lead's proxy", "The lead's way out: only to the hosts on its list"
+		box.What, box.Does = "lead proxy", "The lead's way out: only to the hosts on its list"
 		return 6
 	case name == appDevContainer(app)+"-proxy":
-		box.What, box.Does = "the dev box's proxy", "The dev box's way out: only to the hosts on its list"
+		box.What, box.Does = "dev proxy", "The dev box's way out: only to the hosts on its list"
 		return 7
 	case name == appDevNetContainer(app):
-		box.What, box.Does = "the NetBird peer", "The app on NetBird: its addresses and the dev page go through it"
+		box.What, box.Does = "netbird peer", "The app on NetBird: its addresses and the dev page go through it"
 		return 8
 	case strings.HasPrefix(name, "hi-box-"+app+"-t-") && strings.HasSuffix(name, "-proxy"):
-		box.What, box.Does = "a task box's proxy", "A task box's way out"
+		box.What, box.Does = "task box proxy", "A task box's way out"
 		return 10
 	case strings.HasPrefix(name, "hi-box-"+app+"-t-"):
-		box.What, box.Does = "a task box", "An agent's work on a task, apart from the rest"
+		box.What, box.Does = "task box", "An agent's work on a task, apart from the rest"
 		return 9
 	}
 	box.What = box.Name
