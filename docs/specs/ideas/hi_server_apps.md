@@ -1,6 +1,9 @@
 # `hi server` again: the server apps join, and one admin page for its machines
 
-Status: Draft (2026-11-13), for review. Nothing is built.
+Status: Draft (2026-11-13), for review. Nothing is built. Decided the
+same day: every app needs a server, existing ones too (no grace: hi is on
+a few machines of ours, two with apps, and no one else's); the server's
+admins can make themselves a machine's owner, on demand, never on joining.
 
 Dependencies: [hi_org.md](../approved/hi_org.md) (the rename this one
 turns back, and why), [hi_server.md](../approved/hi_server.md) (the
@@ -117,10 +120,15 @@ with apps are joined to one already, for compute. From this draft on:
   ```
 
   The admin page's **New app** says the same and offers both.
-- **Apps that exist already keep running** on a machine with no server.
-  `hi update` says once that they'll need one, and the admin page shows
-  it on Machine. Nothing stops them. When the requirement becomes hard
-  for them is an [open question](#open-questions).
+- **Apps that exist already need one too.** hi is on a few machines of
+  ours and no one else's, so there is no grace period and no notice to
+  keep up: the machines with apps join a server before the release that
+  checks it, and from that release `hi app up`, the broker, and `hi
+  update` on a machine with apps and no server stop with the same
+  message. Apps already running aren't stopped; they can't start again
+  until the machine joins.
+- **A machine joined to a second, test server** stays joined to that
+  one: it is the server its apps use, and its page shows them.
 - **A machine that runs both** is the small case, as in
   [hi_admin.md](../approved/hi_admin.md#a-machine-that-runs-both). The
   guide keeps saying a server for more than a few people goes on a small
@@ -198,9 +206,14 @@ holds: running apps and approving spend are different jobs.
 - **The server's owner and admins** approve, set the policy, and keep
   the server's users and keys. They see every machine and app, and change
   one only if they are its machine's admin too.
-- **Joining a machine to a server** adds no one to its admins. Whether
-  the server's owner should be added is an
-  [open question](#open-questions).
+- **Joining a machine to a server** adds no one to its admins.
+- **The server's owner and admins can make themselves a machine's
+  owner,** on demand: **Make me the owner of ws1** on the machine's view,
+  as an admin with no level in an app gets **Make me an owner of demo**
+  today. It is said on the machine's Activity and to the machine's owner
+  before (by Slack DM), who stays one of its admins. It goes down the
+  connection like any action, so a machine with `hi admin remote off`
+  refuses it.
 - Making someone a machine admin never makes them an approver, as now.
 
 ### A machine can say no
@@ -246,8 +259,12 @@ page says why its buttons are gone.
   same code; `hi org` prints nothing extra.
 - `hi serve join` and `hi server llm` fail with the "did you mean" and
   run nothing.
-- `hi app new` with no server stops with both ways; with one, goes on.
-  An existing app on a machine with no server starts and runs.
+- `hi app new`, `hi app up`, the broker, and `hi update` on a machine
+  with apps and no server stop with both ways; with one, go on. A box
+  already running isn't stopped.
+- **Make me the owner** by a server admin: the machine's owner changes,
+  the old owner stays an admin and is told; refused with remote off and
+  for someone who isn't the server's admin.
 - The server's page lists a joined machine and its apps from the
   machine's connection; a machine that stops being heard from shows as
   such.
@@ -261,12 +278,13 @@ page says why its buttons are gone.
 
 1. **The rename:** `hi server` in help, messages, the admin page, and
    the guide; `hi org` silent; the "did you mean".
-2. **A server for new apps:** `hi app new` and New app ask for one;
-   `hi update` tells machines with apps and no server.
+2. **A server for every app:** `hi app new`, `hi app up`, the broker,
+   `hi update`, and New app check for one. Our machines with apps join
+   one before this ships.
 3. **The machines on the server's page, read only:** the connection
    up, Home with machines and apps, a machine's views.
 4. **Acting from it:** actions down the connection, checked on the
-   machine; the terminal; `hi admin remote off`.
+   machine; the terminal; `hi admin remote off`; **Make me the owner**.
 5. **What builds on it:** settings from the server's Vault
    ([hi_app_vault.md](hi_app_vault.md), release 3), moves between the
    server's machines ([hi_app_move.md](hi_app_move.md)).
@@ -280,15 +298,15 @@ page says why its buttons are gone.
 
 ## Open questions
 
-1. **When must existing apps have a server?** Proposed: never forced; a
-   notice on `hi update` and Machine until the machine joins one. The
-   other way is a date after which `hi app up` refuses.
-2. **Should the server's owner become an admin of each machine that
-   joins?** Proposed: no, the machine's admins add them if they want. The
-   other way makes the one page work for the owner from the first day.
-3. **The terminal through the server:** fine over https on both legs, or
+1. **The terminal through the server:** fine over https on both legs, or
    should it be encrypted end to end so a broken-into server can't read
-   it?
-4. **`hi admin` on a machine with a server:** keep its own page as is,
-   or make it a link to the server's page with its own kept only for when
-   the server is away?
+   it? Proposed: https on both legs in release 4, since the server's
+   admins can make themselves a machine's owner anyway, and so open the
+   terminal themselves; end to end only if a machine's admins ask for it.
+2. **A machine's own admin page, once the server's shows every machine.**
+   Each machine serves its own page today (`hi admin start`). Either:
+   - **it stays as it is,** a second place to do the same things; or
+   - **it becomes a link to the server's page,** and shows itself in full
+     only while the server can't be reached.
+
+   Proposed: the link, since every machine with apps has a server now.
