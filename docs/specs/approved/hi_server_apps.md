@@ -29,6 +29,65 @@ apps, and one hi server they join. Three changes, in this order:
   its apps, so an admin opens one page, not one per machine. A machine
   has no page of its own, and `hi admin` goes.
 
+## Revised: a server on every machine with apps
+
+Decided on 2026-11-13, after release 2. For now we need one server per
+machine, not one server for many machines. That replaces [One admin
+page for every machine](#one-admin-page-for-every-machine), [How the
+server reaches a machine](#how-the-server-reaches-a-machine), [Who can do
+what](#who-can-do-what), and [A machine can say no](#a-machine-can-say-no),
+which stay below as the plan for when a company has many machines with
+apps. `hi admin` still goes, and sooner: release 3 does it, and no
+connection between machines is needed.
+
+- **A machine with apps runs its own server.** Release 2's check
+  tightens: joined to another server isn't enough. `hi app new`, `hi app
+  up`, an app's service, `hi update` on a machine with apps, and New app
+  stop on a machine that runs no server, and say `hi server init`; on a
+  machine joined to another one, `hi server leave` first.
+- **The admin page is the local server's page.** `hi server init` starts
+  it with the server, on the machine's NetBird address, or with
+  `--local` on 127.0.0.1 only. Its unit stays `hi-admin.service`.
+- **One list of admins.** The server's owner is the machine's owner (the
+  one who opens a terminal in an app's boxes), and the server's admins
+  run the page, the apps, and approvals. The page's `org_apart` goes: on
+  a machine that had it, its admins with a Slack ID become the server's
+  admins, once, and the flag is cleared. This is how a page on a machine
+  with only the server already works.
+- **Devices** (laptops, agents) join whichever machine's server they
+  use, as now.
+
+### Where `hi admin`'s commands go
+
+| Was | Is |
+|---|---|
+| `hi admin` | `hi server status`, which on the server's machine also says the page's address and whether it answers |
+| `hi admin start` / `stop` | `hi server init` starts the page; `hi update` keeps it on the new hi. Stopping the page alone goes |
+| `hi admin link [<admin>]` | `hi server link [<admin>]` |
+| `hi admin admins` | `hi server admins` (one list) |
+| `hi admin owner` | `hi server owner` (one owner) |
+| `hi admin address` | `hi server address` |
+| `hi admin mail` | `hi server mail` |
+| `hi admin sites` | `hi server sites` |
+| `hi admin serve`, `hi admin __askpass` (the unit's and sudo's) | `hi server __page`, `hi server __askpass`; `hi update` rewrites `hi-admin.service` to run `hi server __page` |
+
+`hi admin …` answers "hi admin is gone: the admin page is the server's
+(hi server status)", and runs nothing. No alias.
+
+### Moving a machine joined to another server
+
+A machine with apps joined to another server (ours: one) moves before it
+takes release 3, since release 3's `hi update` refuses there:
+
+1. `hi server leave`, then `hi server init --owner <Slack ID> --email
+   <address>`, which joins the machine to its own server and keeps its
+   page.
+2. What the old server gave it, set again on its own if its apps or
+   people use it: provider keys (`hi server provider add`), the model key
+   for `hi q` (`hi server ai set`), templates, data, and a Slack app for
+   approvals.
+3. Then `hi update`.
+
 ## Why rename back
 
 [hi_org.md](hi_org.md) took `hi org` because `hi server`
@@ -316,20 +375,18 @@ page says why its buttons are gone.
 ## Releases
 
 1. **The rename:** `hi server` in help, messages, the admin page, and
-   the guide; `hi org` silent; the "did you mean".
+   the guide; `hi org` silent; the "did you mean". (v2.6.147)
 2. **A server for every app:** `hi app new`, `hi app up`, the broker,
-   `hi update`, and New app check for one. Our machines with apps join
-   one before this ships.
-3. **The machines on the server's page, read only:** the connection
-   up, Home with machines and apps, a machine's views.
-4. **Acting from it:** actions down the connection, checked on the
-   machine; the terminal; `hi server remote off`; **Make me the owner**.
-   `hi admin` and each machine's page go in this release, not before:
-   until the server's page can act, the machine's page is the only one
-   that can.
-5. **What builds on it:** settings from the server's Vault
-   ([hi_app_vault.md](../ideas/hi_app_vault.md), release 3), moves between the
-   server's machines ([hi_app_move.md](../ideas/hi_app_move.md)).
+   `hi update`, and New app check for one. (v2.6.148)
+3. **A server on every machine with apps, and `hi admin` goes**
+   ([Revised](#revised-a-server-on-every-machine-with-apps)): the check
+   asks for a server here; `hi server init` starts the page; one list of
+   admins; `hi admin`'s commands under `hi server`; `hi-admin.service`
+   rewritten on `hi update`.
+4. **Later, when a company has many machines with apps:** the server's
+   page shows other machines, then acts on them
+   ([One admin page for every machine](#one-admin-page-for-every-machine)),
+   then the server's Vault and moves through the server.
 
 ## Not in this
 

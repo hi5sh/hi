@@ -5456,16 +5456,16 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
 - [x] Release 2 (v2.6.148): every app needs a server. `hi app new`, `hi app up`, the
   broker, and `hi update` stop on a machine with apps and no server. Our
   machines with apps join one before it ships.
-- [ ] Release 3: the server's admin page shows its machines and their
-  apps, read only, from a connection each machine opens to the server.
-- [ ] Release 4: acting from the server's page, checked on the machine
-  against its `admin.json`; the terminal; `hi server remote off`; **Make
-  me the owner**; `hi server link | admins | address | owner`. `hi admin`
-  and each machine's own page are removed, with no alias.
-- [ ] Release 5: settings from the server's Vault
-  ([hi_app_vault.md](specs/ideas/hi_app_vault.md), release 3, a draft)
-  and moves between the server's machines
-  ([hi_app_move.md](specs/ideas/hi_app_move.md)).
+- [ ] Release 3: a server on every machine with apps, and `hi admin`
+  goes ([Revised](specs/approved/hi_server_apps.md#revised-a-server-on-every-machine-with-apps)):
+  the check asks for a server on this machine; `hi server init` starts
+  the admin page; one list of admins; `hi admin`'s commands under `hi
+  server`; `hi-admin.service` runs `hi server __page`. Our machine with
+  apps gets its own server first.
+- [ ] Later, for many machines with apps: the server's page shows and
+  acts on other machines, the server's Vault
+  ([hi_app_vault.md](specs/ideas/hi_app_vault.md), release 3, a draft),
+  and moves through the server ([hi_app_move.md](specs/ideas/hi_app_move.md)).
 
 ### Next — production on a machine of your own (`hi app target`)
 
