@@ -40,8 +40,10 @@ which stay below as the plan for when a company has many machines with
 apps. `hi admin` still goes, and sooner: release 3 does it, and no
 connection between machines is needed.
 
-- **A machine with apps runs its own server.** Release 2's check
-  tightens: joined to another server isn't enough. `hi app new`, `hi app
+- **A machine with apps runs its own server, or is managed by one**
+  ([Managed mode](#managed-mode-a-central-server-controls-machines),
+  later). Release 2's check tightens: joined to another server as a
+  device isn't enough. `hi app new`, `hi app
   up`, an app's service, `hi update` on a machine with apps, and New app
   stop on a machine that runs no server, and say `hi server init`; on a
   machine joined to another one, `hi server leave` first.
@@ -56,6 +58,53 @@ connection between machines is needed.
   with only the server already works.
 - **Devices** (laptops, agents) join whichever machine's server they
   use, as now.
+
+### Managed mode: a central server controls machines
+
+Decided on 2026-11-13, to build after release 3. A machine with apps is in
+one of two modes:
+
+| | Standalone | Managed |
+|---|---|---|
+| How | `hi server init` on the machine | `hi server join <server> --machine` |
+| Its server | its own | the central one |
+| The admin page | on the machine | on the central server, with every machine it manages |
+| Who creates and runs its apps | the local server's owner and admins | the central server's owner and admins |
+
+- **Joining as a machine hands the server control.** It is its own step,
+  `--machine`, asked again in plain words ("hi.corp.example will be able
+  to create, change, and remove apps on this machine, and open a terminal
+  in their boxes"), and approved on the server like any device. A laptop
+  joining for compute and `hi q` never hands over anything.
+- **The machine dials out.** A managed machine keeps one connection open
+  to the central server, signed with its device key, as in [How the
+  server reaches a machine](#how-the-server-reaches-a-machine). Up it go
+  the machine's state, its apps, and their boxes; down it come actions:
+  create an app, restart, deploy, a terminal. The machine runs them as
+  its hi account. The server never needs a way into the machine.
+- **The central page creates apps on any machine.** New app gets a step
+  for which machine, with what each has free; the answers and keys go
+  down the connection, and the machine runs `hi app new` and `hi app up`
+  with them.
+- **One list of admins** still: on a managed machine, the central
+  server's owner and admins are its admins. The machine keeps no list of
+  its own and no page of its own.
+- **Leaving ends control at once.** `hi server leave` on the machine
+  closes the connection; its apps keep running, and can't start again
+  until the machine runs `hi server init` or joins again as a machine.
+  The server's page shows it as gone.
+- **The trade:** someone who breaks into the central server controls
+  every managed machine and its apps. A standalone machine is outside
+  that. A company can mix both.
+- **What comes with it later:** the central server's Vault
+  ([hi_app_vault.md](../ideas/hi_app_vault.md), release 3) and moving apps
+  between managed machines ([hi_app_move.md](../ideas/hi_app_move.md)).
+
+The sections from [One admin page for every machine](#one-admin-page-for-every-machine)
+to [A machine can say no](#a-machine-can-say-no) are its detail, with
+two changes: the machine's own admins are the central server's (no
+`admin.json` list to check against), and there is no `hi server remote
+off`: a machine that wants no remote control is standalone.
 
 ### Where `hi admin`'s commands go
 
@@ -383,10 +432,13 @@ page says why its buttons are gone.
    asks for a server here; `hi server init` starts the page; one list of
    admins; `hi admin`'s commands under `hi server`; `hi-admin.service`
    rewritten on `hi update`.
-4. **Later, when a company has many machines with apps:** the server's
-   page shows other machines, then acts on them
-   ([One admin page for every machine](#one-admin-page-for-every-machine)),
-   then the server's Vault and moves through the server.
+4. **Managed mode, read only:** `hi server join --machine`, the
+   machine's connection, the central page with each managed machine and
+   its apps.
+5. **Managed mode, acting:** actions down the connection, the terminal,
+   New app on a chosen machine.
+6. **Later:** the central server's Vault and moves between managed
+   machines.
 
 ## Not in this
 

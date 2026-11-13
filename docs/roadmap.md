@@ -5462,10 +5462,15 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
   the admin page; one list of admins; `hi admin`'s commands under `hi
   server`; `hi-admin.service` runs `hi server __page`. Our machine with
   apps gets its own server first.
-- [ ] Later, for many machines with apps: the server's page shows and
-  acts on other machines, the server's Vault
+- [ ] Release 4: managed mode, read only
+  ([Managed mode](specs/approved/hi_server_apps.md#managed-mode-a-central-server-controls-machines)):
+  `hi server join --machine`, the machine's connection, the central
+  page with each managed machine and its apps.
+- [ ] Release 5: managed mode, acting: actions down the connection, the
+  terminal, New app on a chosen machine.
+- [ ] Later: the central server's Vault
   ([hi_app_vault.md](specs/ideas/hi_app_vault.md), release 3, a draft),
-  and moves through the server ([hi_app_move.md](specs/ideas/hi_app_move.md)).
+  and moves between managed machines ([hi_app_move.md](specs/ideas/hi_app_move.md)).
 
 ### Next — production on a machine of your own (`hi app target`)
 
