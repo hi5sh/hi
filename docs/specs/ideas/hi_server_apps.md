@@ -3,7 +3,9 @@
 Status: Draft (2026-11-13), for review. Nothing is built. Decided the
 same day: every app needs a server, existing ones too (no grace: hi is on
 a few machines of ours, two with apps, and no one else's); the server's
-admins can make themselves a machine's owner, on demand, never on joining.
+admins can make themselves a machine's owner, on demand, never on joining;
+`hi admin` is retired and removed, with no alias, and a machine has no admin
+page of its own.
 
 Dependencies: [hi_org.md](../approved/hi_org.md) (the rename this one
 turns back, and why), [hi_server.md](../approved/hi_server.md) (the
@@ -25,7 +27,8 @@ apps, and one hi server they join. Three changes, in this order:
 - **An app needs a server.** `hi app new` asks for one first. A machine
   can run the server itself.
 - **One admin page for every machine.** The server shows each machine and
-  its apps, so an admin opens one page, not one per machine.
+  its apps, so an admin opens one page, not one per machine. A machine
+  has no page of its own, and `hi admin` goes.
 
 ## Why rename back
 
@@ -97,7 +100,8 @@ Both stay. They're kept apart in two ways:
 ```
 
 `hi serve` stays where it is in help, with compute. `hi server` moves
-down, beside `hi app` and `hi admin`, which now depend on it.
+down, beside `hi app`, which now depends on it, and takes `hi admin`'s
+line.
 
 A slip between the two fails loudly and says what was meant: `hi serve
 join …` answers "hi serve serves models; did you mean hi server join?",
@@ -119,7 +123,8 @@ with apps are joined to one already, for compute. From this draft on:
     hi server init            run one on this machine (fine for a small team or to try hi)
   ```
 
-  The admin page's **New app** says the same and offers both.
+  The server's admin page has no machine to offer **New app** on until
+  the machine has joined, so there it's the command line.
 - **Apps that exist already need one too.** hi is on a few machines of
   ours and no one else's, so there is no grace period and no notice to
   keep up: the machines with apps join a server before the release that
@@ -147,8 +152,10 @@ with apps are joined to one already, for compute. From this draft on:
 have what they started with, and its broker starts them again from what
 the machine has (`secrets.json`, the Vault cache). What waits for the
 server: `hi app new`, a move, a setting from Vault that was never read,
-and the server's admin page. Each machine's own admin page stays up, so
-there is always a page to act from.
+and the admin page. No machine has a page of its own to fall back on:
+an admin who must act while the server is down uses SSH and `hi app …`
+on the machine, as before the admin page. With a few machines and a
+server that's away for seconds on an update, that's the trade.
 
 ## One admin page for every machine
 
@@ -176,8 +183,33 @@ usual address) gains the machines joined to it.
   runs.
 - **A machine opened** has the views a machine's own page has now:
   People, Keys, Network, Machine, Activity.
-- **The machine's own page stays** on its own address, as now: for a
-  machine whose server is away, and for its admins who use only it.
+- **A machine has no page of its own.** Its People, Keys, Network,
+  Machine, Activity, its apps' sections, and their terminals are only on
+  the server's page.
+
+## `hi admin` goes
+
+The admin page stays, as the server's, under its name. The command
+that ran it on each machine goes, with no alias: hi is on a few
+machines of ours and no one else's, so nothing else types it.
+
+| Was | Is |
+|---|---|
+| `hi admin` (whether it runs, its address, its admins) | `hi server status` |
+| `hi admin start` / `stop` | Gone. The page runs with the server (`hi server init`, `hi-server.service`). On a machine, the process that keeps the connection to the server starts by itself on `hi server join`, and with the apps' service after a reboot. |
+| `hi admin link [<admin>]` | `hi server link [<admin>]` |
+| `hi admin admins` | `hi server admins` for the server's; `hi server admins --machine ws1` for a machine's, which the machine still keeps and checks |
+| `hi admin address` | `hi server address` |
+| `hi admin owner <name>` | `hi server owner <name> --machine ws1`, or **Make me the owner** on the page |
+| `hi admin remote off` (this draft) | `hi server remote off`, run on the machine: the one setting the machine keeps for itself |
+
+`hi admin …` after the release answers "hi admin is gone: the admin
+page is the server's (hi server status)", and runs nothing.
+
+**On our machines,** the release that removes it stops and removes each
+machine's page service, and its NetBird peer `<machine>-admin`, on `hi
+update`, and says so. A machine's `admin.json` (its admins and owner)
+stays: it is the list the machine checks actions against.
 
 ### How the server reaches a machine
 
@@ -185,8 +217,7 @@ The machine reaches the server, never the other way round. A machine
 can be behind NAT or a firewall the server can't get through, and the
 server shouldn't need a way into every machine.
 
-- Each joined machine's admin process (`hi admin serve`) keeps one
-  connection open to the server, signed with its device key, as `hi
+- Each joined machine's hi keeps one connection open to the server, signed with its device key, as `hi
   server join --agent` machines do now.
 - Up it, the machine sends what its page shows: its state, its apps,
   their boxes. Down it come the actions the server's page asks for, and
@@ -212,26 +243,26 @@ holds: running apps and approving spend are different jobs.
   as an admin with no level in an app gets **Make me an owner of demo**
   today. It is said on the machine's Activity and to the machine's owner
   before (by Slack DM), who stays one of its admins. It goes down the
-  connection like any action, so a machine with `hi admin remote off`
+  connection like any action, so a machine with `hi server remote off`
   refuses it.
 - Making someone a machine admin never makes them an approver, as now.
 
 ### A machine can say no
 
 A machine's admins may not want the server able to act on it at all:
-restarts, the terminal into a box. `hi admin remote off` (and a switch on
-Machine) keeps the machine on the server's page, read only. The server's
+restarts, the terminal into a box. `hi server remote off`, run on the
+machine, keeps the machine on the server's page, read only. The server's
 page says why its buttons are gone.
 
 ## Security
 
-- **What the server can see** is what a machine's page shows: names,
+- **What the server can see** is what a machine's page showed: names,
   states, versions, usage. No setting's value crosses the connection.
 - **What the server can do** is only what a machine admin signed in to
   it may do, checked on the machine. Someone who breaks into the server
   and signs in as a machine admin can do what that admin can: restart,
   deploy, open a terminal in a box. That is the trade for one page, and
-  `hi admin remote off` is the way out of it for a machine that wants
+  `hi server remote off` is the way out of it for a machine that wants
   none of it.
 - **The terminal** goes through the server, over https on both legs: the
   server could read it. Whether to encrypt it end to end, between the
@@ -245,9 +276,12 @@ page says why its buttons are gone.
   help and messages say "server".
 - `internal/cli/app.go` (`hi app new`) and the admin page's New app: the
   check for a server.
-- `internal/cli/admin_serve.go` and a new `admin_remote.go`: the
-  machine's connection to the server, the actions down it, the check
-  against the machine's admins, `hi admin remote`.
+- `internal/cli/admin*.go`: the page moves to the server only; on a
+  machine, what's left is a new `admin_remote.go`: the connection to the
+  server, the actions down it, the check against `admin.json`, `hi
+  server remote`. `hi admin` leaves `main.go` and help; the page's
+  service and its NetBird peer are removed on `hi update`.
+- `internal/cli/org.go`: `hi server link | admins | address | owner`.
 - The server: the machines' connections, Home with machines, a machine's
   views, forwarding an app's sections and the terminal.
 - `site/guide/org/` → `site/guide/server/`, with a redirect; every page
@@ -270,8 +304,11 @@ page says why its buttons are gone.
   such.
 - An action from the server's page by someone who isn't the machine's
   admin is refused on the machine, even with the server faked.
-- `hi admin remote off`: the machine shows read only, and refuses
+- `hi server remote off`: the machine shows read only, and refuses
   actions.
+- `hi admin …` runs nothing and points to `hi server status`. After `hi
+  update`, a machine has no page service and no `<machine>-admin` peer,
+  and its `admin.json` is unchanged.
 - No setting's value in anything the machine sends up.
 
 ## Releases
@@ -284,7 +321,10 @@ page says why its buttons are gone.
 3. **The machines on the server's page, read only:** the connection
    up, Home with machines and apps, a machine's views.
 4. **Acting from it:** actions down the connection, checked on the
-   machine; the terminal; `hi admin remote off`; **Make me the owner**.
+   machine; the terminal; `hi server remote off`; **Make me the owner**.
+   `hi admin` and each machine's page go in this release, not before:
+   until the server's page can act, the machine's page is the only one
+   that can.
 5. **What builds on it:** settings from the server's Vault
    ([hi_app_vault.md](hi_app_vault.md), release 3), moves between the
    server's machines ([hi_app_move.md](hi_app_move.md)).
@@ -303,10 +343,3 @@ page says why its buttons are gone.
    it? Proposed: https on both legs in release 4, since the server's
    admins can make themselves a machine's owner anyway, and so open the
    terminal themselves; end to end only if a machine's admins ask for it.
-2. **A machine's own admin page, once the server's shows every machine.**
-   Each machine serves its own page today (`hi admin start`). Either:
-   - **it stays as it is,** a second place to do the same things; or
-   - **it becomes a link to the server's page,** and shows itself in full
-     only while the server can't be reached.
-
-   Proposed: the link, since every machine with apps has a server now.
