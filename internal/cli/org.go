@@ -29,7 +29,29 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return exitCode(connectCommand(rest, stdout, stderr), stderr)
 	case "status":
-		return exitCode(connectStatusCommand(rest, stdout), stderr)
+		err := connectStatusCommand(rest, stdout)
+		if _, set := loadAdminConfig(); set && len(rest) == 0 {
+			fmt.Fprintln(stdout)
+			if pageErr := adminStatus(stdout); err == nil {
+				err = pageErr
+			}
+		}
+		return exitCode(err, stderr)
+	// The admin page is the server's (hi_server_apps.md, release 3).
+	case "link":
+		return exitCode(adminLinkCommand(rest, stdout), stderr)
+	case "address":
+		return exitCode(adminAddressCommand(rest, stdout), stderr)
+	case "mail", "email":
+		return exitCode(adminMailCommand(rest, stdin, stdout), stderr)
+	case "sites":
+		return exitCode(adminSitesCommand(rest, stdout), stderr)
+	case "__page":
+		return exitCode(adminServe(stderr), stderr)
+	case "__job":
+		return adminJobMain(rest, stderr)
+	case "__askpass":
+		return adminAskpassMain(rest, stdout, stderr)
 	case "key":
 		return exitCode(connectKeyCommand(rest, stdout), stderr)
 	case "leave":
@@ -65,55 +87,62 @@ On any device:
                                        Join: enroll this device and wait for an admin's approval
   hi server join <server> --agent NAME --owner PERSON
                                        Enroll an agent that runs on its own, such as a build bot
-  hi server status                        Server, user, group, and managed providers
-  hi server key                           This device's public key, for an admin to pre-approve
-  hi server slack link <code>             Link your Slack account, with the code from /hi link
-  hi server leave                         Forget the server and delete this device's key
+  hi server status                     Server, user, group, and managed providers
+  hi server key                        This device's public key, for an admin to pre-approve
+  hi server slack link <code>          Link your Slack account, with the code from /hi link
+  hi server leave                      Forget the server and delete this device's key
 
 On the server box:
-  hi server init --owner <Slack ID> --email <address> [--listen ADDR]
-                                       Create the server and its owner here, and start it as a user service
-  hi server run                           Serve clients (hi-org.service runs it)
+  hi server init --owner <Slack ID> --email <address> [--listen ADDR] [--local | --netbird F]
+                                       Create the server and its owner here, and start it and the admin page
+  hi server run                        Serve clients (hi-org.service runs it)
   hi server owner [<Slack ID> --email <address>]
-                                       The server's owner, or hand it on
+                                       The server's owner, who owns the machine and its apps too; or hand it on
   hi server admins [add <Slack ID> --name <user> [--email E] | remove <user>]
-                                       The server's admins: approvers, and admins of the admin page here
-  hi server provider add|remove <p>       Store or remove a provider key (runpod, shadeform)
-  hi server provider list                 Show managed providers
+                                       The server's admins: they approve, and run the machine's apps on the admin page
+  hi server link [<admin>]             A new sign-in link to the admin page, for 14 days; the old one ends
+  hi server address [<host> [--https] | default]
+                                       The name the IT team keeps for the admin page; admin.<domain> by default
+  hi server mail [set ... | test <address> | off]
+                                       How the machine sends email: sign-in links and invitations
+  hi server sites [allow <site> [--why W] | remove <site> | org on|off]
+                                       What every app's dev box reaches beyond its own list
+  hi server provider add|remove <p>    Store or remove a provider key (runpod, shadeform)
+  hi server provider list              Show managed providers
   hi server user add <u> --group G [--key K]
                                        Add a user; --key pre-approves a device
-  hi server user remove <u>               Remove a user and all their devices
-  hi server user list                     Users, groups, and devices
-  hi server requests [--all]              Pending requests (--all: every request)
-  hi server approve <id> [--group G]      Approve an enrollment or compute request
-  hi server deny <id> [--reason R]        Deny a request
-  hi server ls                            Everything running, for every user
+  hi server user remove <u>            Remove a user and all their devices
+  hi server user list                  Users, groups, and devices
+  hi server requests [--all]           Pending requests (--all: every request)
+  hi server approve <id> [--group G]   Approve an enrollment or compute request
+  hi server deny <id> [--reason R]     Deny a request
+  hi server ls                         Everything running, for every user
   hi server stop <name> | --user U | --all
                                        Stop instances
-  hi server audit [--since 7d]            Requests, approvals, starts, and stops
-  hi server slack setup                   Connect a Slack app (see: hi server slack manifest)
+  hi server audit [--since 7d]         Requests, approvals, starts, and stops
+  hi server slack setup                Connect a Slack app (see: hi server slack manifest)
   hi server approvers add <Slack ID> --name <user>
                                        Let someone approve and stop from Slack
   hi server approvers remove <Slack ID> | list
   hi server policy show|edit|example|check
                                        Groups: limits, auto-approve, budgets
-  hi server spend [--since 30d]           Spend per user and group, compute and models
-  hi server ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key,
+  hi server spend [--since 30d]        Spend per user and group, compute and models
+  hi server ai [set|off|remove]        Pass hi q's model requests to OpenRouter with your team's key,
                                        and to models served on the team's machines (hi serve --org)
-  hi server ai remove local/<name>        Stop passing requests to a model served on a team's machine
+  hi server ai remove local/<name>     Stop passing requests to a model served on a team's machine
   hi server templates add <name> <git-url> [--ref R]
                                        Serve a private repository's templates and skills
   hi server templates list|sync|remove    Show, fetch now, or stop serving template sources
   hi server templates rename <name> <new> Rename a source; keeps its token and history
-  hi server data                          Hugging Face organizations for hi data (menu)
+  hi server data                       Hugging Face organizations for hi data (menu)
   hi server data add <hf-org>... [--token-file F]
                                        Serve a Hugging Face organization's datasets, models, and buckets
-  hi server data list|test|remove         Show, check, or stop serving organizations
-  hi server expose [stop]                 The public URL cloud runs reach hi data through, if any
+  hi server data list|test|remove      Show, check, or stop serving organizations
+  hi server expose [stop]              The public URL cloud runs reach hi data through, if any
 
 Commands on the server box talk to the running server through its admin
 socket. Decisions are recorded under your login name; change it with --as.
-The admin page (hi admin start) does all of this in a browser, and shows
+The admin page (hi server init) does all of this in a browser, and shows
 what runs and what waits; a wall link shows that on a shared screen.
 
 Options:

@@ -136,5 +136,13 @@ unreachable; devices keep the last good commit, and the next sync retries.
 | `setup key requires a terminal`                             | In a script, set `HI_NETBIRD_SETUP_KEY` or use `hi net --setup-key-file <path>`. |
 | `… didn't let hi read the zone …` (`hi net domain`)         | The DNS provider's token can't manage that zone. Make a token for it, or name the zone with `--zone`. |
 
+## Apps and the admin page
+
+| Message                                                     | What to do                                                   |
+|-------------------------------------------------------------|--------------------------------------------------------------|
+| `… needs a hi server on this machine`                       | Every machine with apps runs its own: `hi server init --owner <Slack member ID> --email <address>`. Joined to another server as a device? `hi server leave` first. |
+| `hi admin is gone`                                          | The admin page is the server's: `hi server status`, `hi server link`, `hi server admins`. |
+| `The admin page didn't start` (at `hi server init`)         | Run it again with `--local` for the machine only, or `--netbird <setup key file>` for a NetBird peer of its own. |
+
 Still stuck? Open an issue at [github.com/hi5sh/hi](https://github.com/hi5sh/hi/issues)
 with the command and its output.

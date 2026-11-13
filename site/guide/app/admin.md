@@ -1,22 +1,22 @@
 ---
 title: The admin page
-description: "hi admin start gives a machine one web page for the people who run it: every app on it, the server if it runs one, restarts, snapshots, approvals, what runs and what it costs, jobs, logs, incidents, and hi's updates, without the command line."
+description: "The admin page is the hi server's, on the machine that runs it: one web page for the people who run the machine, with every app on it, the server, restarts, snapshots, approvals, what runs and what it costs, jobs, logs, incidents, and hi's updates, without the command line."
 ---
 
-A machine with hi runs apps, a [server](/guide/compute/managed/), or
-both. Each app has a [dev page](/guide/app/dev/) for its people. Whoever
-runs the machine has the **admin page**: one web page with every app on
-the machine, the server if it runs one, and what used to need SSH and a
-command.
+Every machine with apps runs its own [hi server](/guide/compute/managed/),
+and a machine can run a server with no apps. Each app has a [dev
+page](/guide/app/dev/) for its people. Whoever runs the machine has the
+server's **admin page**: one web page with the server, every app on the
+machine, and what used to need SSH and a command.
 
 ```sh
-hi admin start
+hi server init --owner <Slack member ID> --email <address>
 ```
 
-starts it, keeps it up, also after a reboot, and prints your link. The
-first time, it asks your name and, optionally, your Slack member ID, and
-makes you its first admin. On the server's machine it asks nothing:
-the server's owner is its first admin ([below](#on-the-servers-machine)).
+makes the server and starts it with its admin page, keeps both up, also
+after a reboot, and prints your link. The server's owner is the page's
+first admin ([below](#on-the-servers-machine)). `hi server status` says
+whether the page runs, its address, and its admins.
 
 ## What it has
 
@@ -26,12 +26,12 @@ remembered. On a phone they lie over the middle, one at a time.
 
 - **Home:** the machine's health: how busy its CPU is, its load, its
   memory, swap, and each disk, filling up green, then yellow, then red.
-  Then the server's card, on a machine that runs a server, and every
+  Then the server's card, and every
   app as a card, with its state, production's version, its
   open incidents, its addresses, and what it uses: its share of the CPU
   and the memory of its lead and its boxes together, and its folder on
   disk (measured every ten minutes). The page measures while it's open.
-- **Home** (left): the server, on a machine that runs one, and the apps;
+- **Home** (left): the server and the apps;
   the apps that are down or frozen, and the server's requests waiting,
   counted on the icon. Pick one to open it in the middle.
 - **An app's Overview:** its state, addresses, members, owners, latest
@@ -177,7 +177,8 @@ only whether one is set, and whose.
   user, for the machine's owner only. Each one is said in Activity and
   the app's ops channel, and closes after 30 minutes without a key. Not
   on the machine itself: the boxes hold none of the app's keys.
-  `hi admin owner` says who owns the machine, or hands it on.
+  The machine's owner is the server's: `hi server owner` says who, or
+  hands it on.
 
 On the left, **Network** has the apps' domain, the sign-in providers
 (**Add one**), each app's peer and addresses, the dev boxes' sites (the
@@ -207,10 +208,9 @@ it can come back.
 
 ## On the server's machine
 
-A machine that runs the server has the server on its admin page, as a
-card on Home and first in Home on the left. A machine with only the server
-server, such as the server's own VM, has the server and no apps; one can run
-both.
+The admin page has the server as a card on Home, and first in Home on
+the left. A machine with only the server, such as a small VM, has the
+server and no apps.
 
 - **Home:** the server's card: requests waiting, what runs and at what rate,
   today's spend and the month's against its budgets, and its open
@@ -245,28 +245,20 @@ both.
   Home has the server's views on the right.
 - **Activity** has the server's audit.
 
-**Its admins:** on a machine with only the server, the page's admins are the
-server's owner and admins, as `hi server admins` lists them, and the page keeps
-no list of its own. A new link comes by DM from the server's Slack app.
+**Its admins:** the page's admins are the server's owner and admins, as
+`hi server admins` lists them, one list. They run the machine and its
+apps, and approve; the owner is the machine's owner too, the one who opens
+a terminal in an app's boxes. A new link comes by DM from the server's
+Slack app, or an app's bot. `hi server init` on a machine with apps:
 
-**A machine with apps and the server:** the machine's admins and the server's
-are two lists. The machine's (Machine, `hi admin admins`) run the machine
-and its apps; the server's (the server's Admins, `hi server admins`) approve and
-run the server. Someone in both is one admin. Each sees everything, and
-changes only their own: the rest shows, and does nothing. Making someone
-an admin of the machine never makes them an approver. `hi server init` on a
-machine with apps:
-
-- refuses while the machine is joined to another server, whose compute its
-  apps use: `hi server leave` first;
+- refuses while the machine is joined to another server as a device:
+  `hi server leave` first, since every machine with apps runs its own;
 - joins the machine to the new server, under the owner's hi user name, so
   its apps' compute goes through it;
-- keeps the admin page's admins, and adds the owner to them;
-- says what sharing the machine means. The server keeps the keys that
-  start machines on the server's accounts, and the apps' agents run beside
-  it, as the same account, restarted together by `hi update`. That suits
-  a small team, or trying one; for more than a few people, put the server
-  server on a small machine of its own.
+- makes the page's admins with a Slack member ID admins of the server,
+  and names any without one, to add with `hi server admins add`;
+- starts the admin page, if it doesn't run yet. The server and the apps
+  run as the same account, and `hi update` restarts them together.
 
 **Wall screens:** in the server's Wall screens, **+** makes a link for a
 screen. Opened in a browser, full screen, it shows Running and Requests,
@@ -286,14 +278,14 @@ Your link signs you in for 14 days, and the sign-in keeps going while
 you use it. It works on more than one device. Keep it to yourself:
 whoever opens it can do what you can on the machine.
 
-- **More admins:** in Machine, **+** adds one. Their link is shown once
-  to copy, or sent by Slack DM. On the machine: `hi admin admins add
-  <name> --slack <member ID>`.
+- **More admins:** in the server's Admins, the owner adds one. Their link
+  is shown once to copy, or sent by Slack DM. On the machine: `hi server
+  admins add <Slack member ID> --name <user>`.
 - **A link that ended:** the sign-in page has one button, **Send me a
   new link**. It goes by Slack DM, from the bot of an app on the
   machine, to the admin who last signed in on that browser, or to the
   machine's owner on a browser the page doesn't know. Without Slack, an
-  admin makes one on the machine: `hi admin link <name>`.
+  admin makes one on the machine: `hi server link <name>`.
 - **Your Slack member ID** also tells each app who you are, so Open ▾
   opens its dev page as you. Add yours in Machine if you didn't give it
   at the start (in Slack: your profile, ⋮, **Copy member ID**).
@@ -307,7 +299,7 @@ port 1984, which needs no root:
 - **On a NetBird peer of its own,** on a machine with podman:
   `<machine>-admin` (`ws1-admin.corp.example:1984`), the small rootless
   container apps' addresses use. It needs a NetBird setup key once:
-  `hi admin start --netbird <file>`, or on the page, in Machine. Ask
+  `hi server init --netbird <file>`, or on the page, in Machine. Ask
   your IT team for a NetBird policy from the admins' group to that peer,
   TCP 1984: then only admins reach it. Until the peer has joined, the
   page is on the machine's own NetBird address.
@@ -316,10 +308,10 @@ port 1984, which needs no root:
 - **`admin.<domain>`,** on https, when the machine has a domain
   ([`hi net domain`](/guide/workstation/netbird/)) and the page has its
   peer. No app can be called `admin`.
-- **A name your IT team picks:** `hi admin address admin.corp.example`,
+- **A name your IT team picks:** `hi server address admin.corp.example`,
   for an A record to the peer, or their proxy to its port 80;
   `--https` when their proxy ends TLS.
-- **On the machine only:** `hi admin start --local`, at
+- **On the machine only:** `hi server init --local`, at
   `http://127.0.0.1:1984/`; from your computer, `ssh -L
   1984:127.0.0.1:1984 <machine>`. Every way, the page is also on the
   machine's 127.0.0.1:1984.
@@ -342,8 +334,10 @@ port 1984, which needs no root:
 
 ## How it runs
 
-`hi admin serve`, in the user service `hi-admin.service`, as the apps'
-services are. A long action runs the `hi` command itself in a user unit
+`hi server __page`, in the user service `hi-admin.service`, beside the
+server's `hi-org.service`, as the apps' services are. A unit written
+before hi 2.6.149 ran `hi admin serve`; the page points it at `hi server
+__page` the first time it starts on the new hi. A long action runs the `hi` command itself in a user unit
 of its own (`systemd-run --user`), so it outlives the page: **Update**
 restarts the page, the job goes on, and the page comes back on the new
 hi by itself. `hi update` on the command line restarts the page too.
@@ -357,19 +351,22 @@ reads again every few seconds, so a change made with a command shows.
 ## Commands
 
 ```text
-hi admin                         whether it runs, its address, its admins
-hi admin start                   start it and keep it up; the first time, your link
-    [--netbird <setup key file>] its NetBird peer's setup key, the first time
-    [--local]                    on this machine only, 127.0.0.1:1984
-    [--name <name>] [--slack <member ID>]
-                                 the first admin, without being asked
-hi admin stop                    stop it; nothing else changes
-hi admin link [<admin>]          a new sign-in link, for 14 days; the old one ends
-hi admin admins [add <name> [--slack <member ID>] | remove <name>]
-hi admin owner [<admin>]         the machine's owner, who opens terminals; or hand it on
-hi admin address [<host> [--https] | default]
+hi server status                 the server; on its machine, whether the page runs, its address, its admins
+hi server init --owner <Slack ID> --email <address>
+                                 the server and its admin page, kept up; the first time, your link
+    [--netbird <setup key file>] the page's NetBird peer's setup key, the first time
+    [--local]                    the page on this machine only, 127.0.0.1:1984
+hi server link [<admin>]         a new sign-in link, for 14 days; the old one ends
+hi server admins [add <Slack ID> --name <user> | remove <user>]
+hi server owner [<Slack ID> --email <address>]
+                                 the owner of the server and the machine, who opens terminals; or hand it on
+hi server address [<host> [--https] | default]
+hi server mail …, hi server sites …
 ```
 
-Later: hi5.sh as a service, with an admin page for each customer's apps;
-help on the page; sign-in by email; and the server's machines from its
-server's admin page.
+`hi admin`, its command before hi 2.6.149, is gone: it says where its
+commands went, and runs nothing.
+
+Later: a central server that runs the admin page for the machines that
+join it as machines, and their apps; hi5.sh as a service, with an admin
+page for each customer's apps; help on the page; sign-in by email.

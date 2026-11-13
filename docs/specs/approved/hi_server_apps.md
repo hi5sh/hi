@@ -1,6 +1,6 @@
 # `hi server` again: the server apps join, and one admin page for its machines
 
-Status: Approved (2026-11-13). Release 1 built as v2.6.147, release 2 as v2.6.148. Decided the same day: every app needs a server, existing ones too (no grace: hi is on
+Status: Approved (2026-11-13). Release 1 built as v2.6.147, release 2 as v2.6.148, release 3 (revised) as v2.6.149. Decided the same day: every app needs a server, existing ones too (no grace: hi is on
 a few machines of ours, two with apps, and no one else's); the server's
 admins can make themselves a machine's owner, on demand, never on joining;
 `hi admin` is retired and removed, with no alias, and a machine has no admin

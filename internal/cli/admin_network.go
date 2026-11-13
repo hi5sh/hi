@@ -191,7 +191,7 @@ type adminMachineNetwork struct {
 	Apps      []adminAppNetwork `json:"apps"`
 	Expose    string            `json:"expose,omitempty"` // the org server's public URL for cloud runs
 	Ask       string            `json:"ask"`              // all of what to ask the IT team, to send
-	// Sites are what every app's dev box reaches (hi admin sites).
+	// Sites are what every app's dev box reaches (hi server sites).
 	Sites appDevSitesView `json:"sites"`
 }
 
@@ -526,10 +526,10 @@ func (s *adminServer) adminMachineChange(admin adminPerson, change adminSettingC
 			return nil, errors.New("the site's name, such as docs.example.com")
 		}
 		if change.Remove {
-			args, said = []string{"admin", "sites", "remove", host}, "took "+host+" off every app's dev box"
+			args, said = []string{"server", "sites", "remove", host}, "took "+host+" off every app's dev box"
 			break
 		}
-		args, said = []string{"admin", "sites", "allow", host}, "allowed "+host+" for every app's dev box"
+		args, said = []string{"server", "sites", "allow", host}, "allowed "+host+" for every app's dev box"
 		if why := strings.TrimSpace(change.Key); why != "" {
 			args = append(args, "--why", why)
 		}
@@ -538,7 +538,7 @@ func (s *adminServer) adminMachineChange(admin adminPerson, change adminSettingC
 		if change.Remove {
 			on = "off"
 		}
-		args, said = []string{"admin", "sites", "org", on}, "turned the organisation's domains "+on+" for the dev boxes"
+		args, said = []string{"server", "sites", "org", on}, "turned the organisation's domains "+on+" for the dev boxes"
 	case "provider":
 		if change.Remove {
 			args, said = []string{"app", "sso", "provider", "rm", strings.TrimSpace(n.SSO)}, "removed the sign-in provider "+n.SSO

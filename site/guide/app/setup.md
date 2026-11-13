@@ -5,17 +5,17 @@ description: "Install what a hi app needs, answer the setup's ten questions with
 
 ## Before you start
 
-The machine that will run the app needs a [hi server](/guide/compute/managed/):
-it joins your company's, or runs one itself.
+The machine that will run the app runs its own [hi server](/guide/compute/managed/),
+with the [admin page](/guide/app/admin/):
 
 ```sh
-hi server join <server>   # your company's: ask your IT team for its address
-hi server init            # or one on this machine, for a small team or to try hi
+hi server init --owner <Slack member ID> --email <address>
 ```
 
 `hi app new`, `hi app up`, an app's service, and `hi update` stop on a
-machine with neither, and say so. An app already running keeps running,
-but it can't start again until the machine has a server.
+machine that runs none, and say so; joined to another server as a device
+isn't enough (`hi server leave` first). An app already running keeps
+running, but it can't start again until the machine runs a server.
 
 Then, on the same machine:
 
@@ -159,7 +159,8 @@ restarts the app if it stops. For it to run while you're logged out and
 start at boot, run `sudo loginctl enable-linger $USER` once.
 
 [The admin page](/guide/app/admin/) does the same from a browser, for
-every app on the machine: `hi admin start` prints its link.
+every app on the machine: `hi server init` starts it and prints its
+link; `hi server link` gives a new one.
 
 An app made before hi v2.6.67 keeps running after `hi update`, under its
 old names. Its next `hi app up <name>` moves it to the new ones: the

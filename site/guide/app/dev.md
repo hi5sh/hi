@@ -185,7 +185,7 @@ package registries, Playwright's browsers, uv, Debian's and Ubuntu's
 packages, jsDelivr and unpkg, Hugging Face), the app's own Stage and dev
 page when they're on the internet, the organisation's domains once an
 admin sets them (`hi people domains`), and the sites an admin allowed
-for every app (`hi admin sites`). The app's own production stays an ask,
+for every app (`hi server sites`). The app's own production stays an ask,
 also under the organisation's domain: an agent calling production's API
 can change its data.
 

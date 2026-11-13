@@ -9,8 +9,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// The machine's owner is the first admin, or the one hi admin owner
-// names; the org's owner where the org's admins are the machine's.
+// The machine's owner is the server's owner; on a machine with no server
+// yet, its first admin.
 func TestAdminMachineOwner(t *testing.T) {
 	setupAdminTest(t)
 	if _, err := adminAdd("Sam", "U07SAM", "", "test"); err != nil {
@@ -19,27 +19,6 @@ func TestAdminMachineOwner(t *testing.T) {
 	config, _ := loadAdminConfig()
 	if owner := config.machineOwner(); owner != "Olga" {
 		t.Fatalf("the first admin: %q", owner)
-	}
-	var out strings.Builder
-	if err := adminOwnerCommand([]string{"Nobody"}, &out); err == nil {
-		t.Fatal("someone who isn't an admin owns the machine")
-	}
-	if err := adminOwnerCommand([]string{"Sam"}, &out); err != nil {
-		t.Fatal(err)
-	}
-	config, _ = loadAdminConfig()
-	sam, _ := config.admin("Sam")
-	olga, _ := config.admin("Olga")
-	if config.machineOwner() != "Sam" || !sam.MachineOwner || olga.MachineOwner {
-		t.Fatalf("handed on: %q %+v %+v", config.machineOwner(), sam, olga)
-	}
-	// Removing the owner hands it back to the first admin.
-	if _, err := adminRemove("Sam", "test"); err != nil {
-		t.Fatal(err)
-	}
-	config, _ = loadAdminConfig()
-	if owner := config.machineOwner(); owner != "Olga" {
-		t.Fatalf("after the owner went: %q", owner)
 	}
 	// One list with the org's: its owner.
 	org := adminConfig{org: "/org", Admins: []adminPerson{

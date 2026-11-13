@@ -10,119 +10,41 @@ import (
 	"time"
 )
 
-// On a machine with apps and an org server, the machine's admins and the
-// org's are two lists: each changes only its own, and making someone an
-// admin of the machine doesn't make them an approver.
-func TestMachineAndOrgAdminsApart(t *testing.T) {
+// One list (hi_server_apps.md, release 3): on a machine that kept its
+// admins apart from the server's, each machine admin with a Slack member ID
+// becomes an admin of the server, once; one with none is named; and the
+// flag is gone.
+func TestOneListOfAdmins(t *testing.T) {
 	a, ts := orgAdminTest(t)
-	saveSlackConfig(ts.dir, slackConfig{BotToken: "xoxb-org", Channel: "C1", Approvers: map[string]string{"U07OWNER1": "olga", "U07SAM": "sam"}})
-	if err := saveAdminConfig(adminConfig{Reach: adminReachLocal, OrgApart: true, Admins: []adminPerson{
-		{Name: "Olga", Slack: "U07OWNER1", Added: time.Now()}, {Name: "Ada", Slack: "U07ADA", Added: time.Now()}}}); err != nil {
-		t.Fatal(err)
+	writeTestFile(t, adminConfigPath(), `{"reach": "local", "org_apart": true, "machine_owner": "Ada", "admins": [
+		{"name": "Olga", "slack": "U07OWNER1"}, {"name": "Ada Lovelace", "slack": "U07ADA"}, {"name": "Bo"}]}`, 0o600)
+	said := strings.Join(adminMergeLists(), "\n")
+	if !strings.Contains(said, "ada-lovelace is an admin of the server") || !strings.Contains(said, "Bo was an admin of the machine only") || strings.Contains(said, "Olga") {
+		t.Fatalf("said:\n%s", said)
 	}
-	olga, ada, sam := a.signIn(t, "Olga"), a.signIn(t, "Ada"), a.signIn(t, "sam")
-	var state adminStateView
-	a.get(t, olga, "/api/state", &state)
-	if !state.OrgApart || len(state.Admins) != 3 || !state.Me.Machine || !state.Me.Org || !state.Me.Owner {
-		t.Fatalf("olga: %+v, admins %+v", state.Me, state.Admins)
+	if again := adminMergeLists(); len(again) != 0 {
+		t.Fatalf("merged twice: %v", again)
 	}
-	state = adminStateView{}
-	a.get(t, ada, "/api/state", &state)
-	if !state.Me.Machine || state.Me.Org {
-		t.Fatalf("ada: %+v", state.Me)
+	if data, _ := os.ReadFile(adminConfigPath()); strings.Contains(string(data), "org_apart") {
+		t.Fatalf("the flag stays:\n%s", data)
 	}
-	state = adminStateView{}
-	a.get(t, sam, "/api/state", &state)
-	if state.Me.Machine || !state.Me.Org {
-		t.Fatalf("sam: %+v", state.Me)
-	}
-
-	// Each sees everything, and changes only their own.
-	var answer map[string]any
-	answer = nil
-	if code := a.post(t, ada, "/api/org", adminOrgChange{What: "user", Action: "add", Name: "lin", Group: "staff"}, &answer); code != http.StatusForbidden || !strings.Contains(answer["error"].(string), "the server's admins") {
-		t.Fatalf("ada changed the server: %d %v", code, answer)
-	}
-	answer = nil
-	if code := a.post(t, sam, "/api/action", map[string]string{"app": "demo", "action": "restart"}, &answer); code != http.StatusForbidden || !strings.Contains(answer["error"].(string), "the machine's admins") {
-		t.Fatalf("sam restarted an app: %d %v", code, answer)
-	}
-	answer = nil
-	if code := a.post(t, sam, "/api/admins", map[string]string{"action": "add", "name": "Bo"}, &answer); code != http.StatusForbidden {
-		t.Fatalf("sam added a machine admin: %d %v", code, answer)
-	}
-	answer = nil
-	if code := a.post(t, sam, "/api/org", adminOrgChange{What: "user", Action: "add", Name: "lin", Group: "staff"}, &answer); code != http.StatusOK || ts.server.state.Users["lin"] == nil {
-		t.Fatalf("sam added a user: %d %v", code, answer)
-	}
-	answer = nil
-	if code := a.post(t, olga, "/api/signout", map[string]string{}, &answer); code != http.StatusOK {
-		t.Fatalf("sign out: %d", code)
-	}
-	olga = a.signIn(t, "Olga")
-
-	// A machine admin added by a machine admin: not the org's, no approver.
-	answer = nil
-	if code := a.post(t, ada, "/api/admins", map[string]string{"action": "add", "name": "Bo", "slack": "U07BOB"}, &answer); code != http.StatusOK {
-		t.Fatalf("add Bo: %d %v", code, answer)
-	}
-	if _, ok := loadOrgPeople(ts.dir).find("U07BOB"); ok {
-		t.Fatal("Bo went into the server's admins")
-	}
-	if config, _ := loadSlackConfig(ts.dir); config.Approvers["U07BOB"] != "" {
-		t.Fatal("Bo approves")
-	}
-	data, _ := os.ReadFile(adminConfigPath())
-	var own adminConfig
-	json.Unmarshal(data, &own)
-	if len(own.Admins) != 3 || !own.OrgApart || strings.Contains(string(data), `"org"`) || strings.Contains(string(data), "sam") {
-		t.Fatalf("admin.json:\n%s", data)
-	}
-
-	// An admin of the org added by its owner signs in for the org, and
-	// approves; the owner only adds them.
-	answer = nil
-	if code := a.post(t, ada, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusForbidden {
-		t.Fatalf("ada added a server admin: %d", code)
-	}
-	answer = nil
-	if code := a.post(t, sam, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusBadRequest || !strings.Contains(answer["error"].(string), "owner") {
-		t.Fatalf("sam added a server admin: %d %v", code, answer)
-	}
-	answer = nil
-	if code := a.post(t, olga, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusOK {
-		t.Fatalf("olga added kim: %d %v", code, answer)
-	}
-	link := answer["answer"].(map[string]any)["link"].(string)
-	if !strings.Contains(link, "?key=") {
-		t.Fatalf("kim's link: %v", answer)
+	people := loadOrgPeople(ts.dir)
+	if _, ok := people.find("U07ADA"); !ok {
+		t.Fatalf("ada isn't the server's: %+v", people)
 	}
 	config, _ := loadAdminConfig()
-	if kim, ok := config.admin("U07KIM"); !ok || !kim.Org || kim.Machine {
-		t.Fatalf("kim: %+v", kim)
+	if config.apart() || config.machineOwner() != "olga" {
+		t.Fatalf("one list, one owner: %+v", config)
 	}
-	if config, _ := loadSlackConfig(ts.dir); config.Approvers["U07KIM"] != "kim" {
-		t.Fatal("kim doesn't approve")
+	ada := a.signIn(t, "ada-lovelace")
+	var state adminStateView
+	a.get(t, ada, "/api/state", &state)
+	if state.OrgApart || !state.Me.Machine || !state.Me.Org || state.Me.Owner {
+		t.Fatalf("ada: %+v", state.Me)
 	}
-	// The machine's admins can make one of the org's admins theirs too,
-	// and take them off again: they still sign in, for the org.
-	answer = nil
-	if code := a.post(t, ada, "/api/admins", map[string]string{"action": "add", "name": "kim"}, &answer); code != http.StatusOK {
-		t.Fatalf("kim on the machine: %d %v", code, answer)
-	}
-	config, _ = loadAdminConfig()
-	if kim, _ := config.admin("kim"); !kim.Machine || !kim.Org {
-		t.Fatalf("kim: %+v", kim)
-	}
-	kim := a.signIn(t, "kim")
-	answer = nil
-	if code := a.post(t, ada, "/api/admins", map[string]string{"action": "remove", "name": "kim"}, &answer); code != http.StatusOK {
-		t.Fatalf("kim off the machine: %d %v", code, answer)
-	}
-	state = adminStateView{}
-	a.get(t, kim, "/api/state", &state)
-	if state.Me.Name != "kim" || state.Me.Machine || !state.Me.Org {
-		t.Fatalf("kim after: %+v", state.Me)
+	var answer map[string]any
+	if code := a.post(t, ada, "/api/action", map[string]string{"app": "demo", "action": "restart"}, &answer); code == http.StatusForbidden {
+		t.Fatalf("ada can't run the apps: %v", answer)
 	}
 }
 
@@ -155,7 +77,7 @@ func TestOrgInitBesideApps(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("init: %d %s%s", code, stdout, stderr)
 	}
-	for _, want := range []string{"joined the server as noor (staff)", "keeps the machine's admins, and noor is one too", "a small machine of its own"} {
+	for _, want := range []string{"joined the server as noor (staff)", "olga is an admin of the server", "The server's owner and admins run them"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("init doesn't say %q:\n%s", want, stdout)
 		}
@@ -172,12 +94,12 @@ func TestOrgInitBesideApps(t *testing.T) {
 		t.Fatalf("the machine isn't in its org: %+v %+v", server.state.Users, server.state.Devices)
 	}
 	config, _ := loadAdminConfig()
-	if !config.OrgApart || len(config.Admins) != 2 {
+	if config.apart() || len(config.Admins) != 2 {
 		t.Fatalf("admins: %+v", config)
 	}
-	olga, _ := config.admin("Olga")
+	olga, _ := config.admin("olga")
 	noor, _ := config.admin("noor")
-	if !olga.Machine || olga.Org || !noor.Machine || !noor.Org || !noor.Owner {
+	if !olga.Machine || !olga.Org || !noor.Machine || !noor.Org || !noor.Owner || config.machineOwner() != "noor" {
 		t.Fatalf("olga %+v, noor %+v", olga, noor)
 	}
 }

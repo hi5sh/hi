@@ -89,7 +89,7 @@ var adminLaunch = func(job adminJob, hi string) error {
 			args = append(args, "--setenv="+name+"="+value)
 		}
 	}
-	args = append(args, hi, "admin", "__job", job.ID)
+	args = append(args, hi, "server", "__job", job.ID)
 	out, err := exec.Command("systemd-run", args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("systemd-run: %s", qFirstLine(strings.TrimSpace(string(out)), err.Error()))
@@ -194,12 +194,12 @@ func adminJobOutput(id string, from int64) (string, int64) {
 	return string(data), from + int64(len(data))
 }
 
-// adminJobMain is hi admin __job <id>: the job's runner, in its unit. It
+// adminJobMain is hi server __job <id>: the job's runner, in its unit. It
 // runs the command with its output in the job's log, and records how it
 // ended.
 func adminJobMain(args []string, stderr io.Writer) int {
 	if len(args) != 1 {
-		fmt.Fprintln(stderr, "usage: hi admin __job <id>")
+		fmt.Fprintln(stderr, "usage: hi server __job <id>")
 		return 2
 	}
 	job, err := loadAdminJob(args[0])

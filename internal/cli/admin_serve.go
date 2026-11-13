@@ -1,6 +1,6 @@
 package cli
 
-// The admin page's server (hi_admin.md): hi admin serve, in
+// The admin page's server (hi_admin.md): hi server __page, in
 // hi-admin.service. It serves the page and its API on a socket the peer
 // passes ports 1984 and 80 to, on 127.0.0.1:1984, and on the machine's
 // NetBird address when that's how it's reached. Every request but the
@@ -92,11 +92,15 @@ func (s *adminServer) logf(format string, args ...any) {
 	fmt.Fprintf(s.log, "hi: "+format+"\n", args...)
 }
 
-// adminServe is hi admin serve.
+// adminServe is hi server __page.
 func adminServe(stderr io.Writer) error {
 	if _, ok := loadAdminConfig(); !ok {
-		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
+		return errors.New("the admin page isn't set up on this machine; hi server init sets it up")
 	}
+	for _, line := range adminMergeLists() {
+		fmt.Fprintln(stderr, "hi: one list of admins: "+line)
+	}
+	adminUpgradeUnit(stderr)
 	executable, err := adminExecutable()
 	if err != nil {
 		return err
@@ -1188,4 +1192,31 @@ func adminIncidents() []adminIncident {
 		list = list[:100]
 	}
 	return list
+}
+
+// adminUpgradeUnit points a hi-admin.service written before
+// hi_server_apps.md release 3 (ExecStart=… admin serve) at hi server
+// __page, for its next start; this start already runs the new hi.
+func adminUpgradeUnit(stderr io.Writer) {
+	data, err := os.ReadFile(adminUnitPath())
+	if err != nil {
+		return
+	}
+	lines := strings.Split(string(data), "\n")
+	changed := false
+	for i, line := range lines {
+		if strings.HasPrefix(line, "ExecStart=") && strings.HasSuffix(line, " admin serve") {
+			lines[i] = strings.TrimSuffix(line, " admin serve") + " server __page"
+			changed = true
+		}
+	}
+	if !changed {
+		return
+	}
+	if err := os.WriteFile(adminUnitPath(), []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		fmt.Fprintf(stderr, "hi: %s still runs hi server __page: %v\n", adminUnit, err)
+		return
+	}
+	appSystemctl("daemon-reload")
+	fmt.Fprintf(stderr, "hi: %s runs hi server __page from its next start\n", adminUnit)
 }

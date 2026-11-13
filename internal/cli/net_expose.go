@@ -227,7 +227,7 @@ func parseNetExpose(args []string) (netExposeOptions, bool, error) {
 		return netExposeOptions{}, false, err
 	}
 	if port == adminPort && fileExists(adminConfigPath()) {
-		return netExposeOptions{}, false, fmt.Errorf("port %d is the admin page's (hi admin), which can do anything this account can; it is never public", adminPort)
+		return netExposeOptions{}, false, fmt.Errorf("port %d is the admin page's (hi server status), which can do anything this account can; it is never public", adminPort)
 	}
 	options := netExposeOptions{Port: port, Host: *host, Max: maxLifetime.value, JSON: *asJSON, Follow: *follow, Inject: *inject, InjectIf: *injectIf, SSO: *sso,
 		Domain: strings.ToLower(strings.TrimSpace(*domain))}

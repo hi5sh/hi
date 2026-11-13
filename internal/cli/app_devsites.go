@@ -183,14 +183,14 @@ func appDevSitesNow() appDevSitesView {
 	return view
 }
 
-const adminSitesUsage = `usage: hi admin sites                          what every app's dev box reaches beyond its own list
-       hi admin sites allow <site> [--why <what for>]
+const adminSitesUsage = `usage: hi server sites                          what every app's dev box reaches beyond its own list
+       hi server sites allow <site> [--why <what for>]
                                                  a site for every app's dev box, and its subdomains
-       hi admin sites remove <site>
-       hi admin sites org on|off                 the organisation's domains (hi people domains) on
+       hi server sites remove <site>
+       hi server sites org on|off                 the organisation's domains (hi people domains) on
                                                  every dev box's list, on by default`
 
-// adminSitesCommand is hi admin sites.
+// adminSitesCommand is hi server sites.
 func adminSitesCommand(args []string, stdout io.Writer) error {
 	if len(args) == 0 {
 		return adminSitesShow(stdout)
@@ -229,7 +229,7 @@ func adminSitesCommand(args []string, stdout io.Writer) error {
 func adminSitesShow(stdout io.Writer) error {
 	view := appDevSitesNow()
 	if len(view.Allowed) == 0 {
-		fmt.Fprintln(stdout, "No sites for every app's dev box. Allow one: hi admin sites allow <site> --why \"<what for>\"")
+		fmt.Fprintln(stdout, "No sites for every app's dev box. Allow one: hi server sites allow <site> --why \"<what for>\"")
 	} else {
 		fmt.Fprintln(stdout, "For every app's dev box:")
 		for _, site := range view.Allowed {
@@ -244,14 +244,14 @@ func adminSitesShow(stdout io.Writer) error {
 	case len(view.Org) == 0:
 		fmt.Fprintln(stdout, "The organisation's domains: none set (hi people domains corp.example).")
 	case view.OrgOn:
-		fmt.Fprintf(stdout, "The organisation's domains are on every dev box's list: %s. Off: hi admin sites org off\n", strings.Join(view.Org, ", "))
+		fmt.Fprintf(stdout, "The organisation's domains are on every dev box's list: %s. Off: hi server sites org off\n", strings.Join(view.Org, ", "))
 	default:
-		fmt.Fprintf(stdout, "The organisation's domains (%s) aren't on the dev boxes' lists. On: hi admin sites org on\n", strings.Join(view.Org, ", "))
+		fmt.Fprintf(stdout, "The organisation's domains (%s) aren't on the dev boxes' lists. On: hi server sites org on\n", strings.Join(view.Org, ", "))
 	}
 	if len(view.Shared) > 0 {
 		fmt.Fprintln(stdout, "Allowed in several apps:")
 		for _, site := range view.Shared {
-			fmt.Fprintf(stdout, "  %s  %s: hi admin sites allow %s\n", site.Host, strings.Join(site.Apps, ", "), site.Host)
+			fmt.Fprintf(stdout, "  %s  %s: hi server sites allow %s\n", site.Host, strings.Join(site.Apps, ", "), site.Host)
 		}
 	}
 	fmt.Fprintln(stdout, "Each app's dev box also reaches its own Stage and dev page, when they're on the internet.")
@@ -286,7 +286,7 @@ func adminSitesRemove(text string, stdout io.Writer) error {
 	before := len(settings.Sites.Allowed)
 	settings.Sites.Allowed = slices.DeleteFunc(settings.Sites.Allowed, func(site appDevSite) bool { return site.Host == host })
 	if len(settings.Sites.Allowed) == before {
-		return fmt.Errorf("%s isn't one of every app's sites: hi admin sites lists them", host)
+		return fmt.Errorf("%s isn't one of every app's sites: hi server sites lists them", host)
 	}
 	if err := saveTeamsSettings(settings); err != nil {
 		return err

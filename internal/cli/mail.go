@@ -117,7 +117,7 @@ type mailMessage struct {
 }
 
 // mailErrOff is the machine without an email setting.
-var mailErrOff = errors.New("this machine doesn't send email yet: an admin sets it up on the admin page (Keys, Email), or with hi admin mail set")
+var mailErrOff = errors.New("this machine doesn't send email yet: an admin sets it up on the admin page (Keys, Email), or with hi server mail set")
 
 // mailSend sends one email; tests replace it.
 var mailSend = smtpSend
@@ -230,20 +230,20 @@ func smtpSend(settings mailSettings, message mailMessage) error {
 }
 
 // ---------------------------------------------------------------------------
-// hi admin mail
+// hi server mail
 
-const mailUsage = `usage: hi admin mail                      how the machine sends email
-       hi admin mail set --host <host> --from <address> [--port <port>]
+const mailUsage = `usage: hi server mail                      how the machine sends email
+       hi server mail set --host <host> --from <address> [--port <port>]
            [--security starttls|tls|none] [--user <name>] [--name <from name>]
                                           the password, if any, on standard input
-       hi admin mail test <address>       send a test email
-       hi admin mail off                  send none`
+       hi server mail test <address>       send a test email
+       hi server mail off                  send none`
 
 func adminMailCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {
 		settings, ok := loadMailSettings()
 		if !ok {
-			fmt.Fprintln(stdout, "The machine sends no email. hi admin mail set --host smtp.corp.example --from hi@corp.example --user hi < password.txt")
+			fmt.Fprintln(stdout, "The machine sends no email. hi server mail set --host smtp.corp.example --from hi@corp.example --user hi < password.txt")
 			return nil
 		}
 		fmt.Fprintf(stdout, "Email comes from %s, through %s:%d (%s)%s.\n", (&mail.Address{Name: settings.Name, Address: settings.From}).String(), settings.Host, settings.Port, settings.Security,
@@ -326,7 +326,7 @@ func adminMailSet(settings mailSettings, by string, stdout io.Writer) error {
 	}
 	adminRecord(by, "", "set how the machine sends email: from "+settings.From+" through "+settings.Host)
 	if stdout != nil {
-		fmt.Fprintf(stdout, "Email comes from %s through %s:%d. hi admin mail test <your address> checks it.\n", settings.From, settings.Host, settings.Port)
+		fmt.Fprintf(stdout, "Email comes from %s through %s:%d. hi server mail test <your address> checks it.\n", settings.From, settings.Host, settings.Port)
 	}
 	return nil
 }

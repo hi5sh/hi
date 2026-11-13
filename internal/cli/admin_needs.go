@@ -6,7 +6,7 @@ package cli
 // missing with hi install, as a job. What needs root takes the sudo
 // password typed on the page: the page keeps it in memory for that job
 // alone, and the job's sudo asks for it over the page's own socket
-// (hi admin __askpass), so it's never on disk, in an argument, or in a
+// (hi server __askpass), so it's never on disk, in an argument, or in a
 // log.
 
 import (
@@ -291,11 +291,11 @@ func adminAskpassCall(what, token string) (string, error) {
 	return strings.TrimRight(string(answer), "\n"), nil
 }
 
-// adminAskpassMain is hi admin __askpass <token>: sudo's askpass program
+// adminAskpassMain is hi server __askpass <token>: sudo's askpass program
 // in a job, printing the password the page keeps for it.
 func adminAskpassMain(args []string, stdout, stderr io.Writer) int {
 	if len(args) != 1 {
-		fmt.Fprintln(stderr, "usage: hi admin __askpass <token>")
+		fmt.Fprintln(stderr, "usage: hi server __askpass <token>")
 		return 2
 	}
 	password, err := adminAskpassCall("get", args[0])
@@ -309,7 +309,7 @@ func adminAskpassMain(args []string, stdout, stderr io.Writer) int {
 
 // adminJobSudo makes a job's sudo ask the page for the password: a sudo
 // first on its PATH that runs the real one with -A, and an askpass that
-// is hi admin __askpass with the job's token. It returns the env to run
+// is hi server __askpass with the job's token. It returns the env to run
 // with, and what to do when the job ends.
 func adminJobSudo(env []string, executable string) ([]string, func(), error) {
 	token := ""
@@ -330,7 +330,7 @@ func adminJobSudo(env []string, executable string) ([]string, func(), error) {
 		adminAskpassCall("forget", token)
 	}
 	sudo := "#!/bin/sh\nexec /usr/bin/sudo -A \"$@\"\n"
-	askpass := "#!/bin/sh\nexec '" + strings.ReplaceAll(executable, "'", `'\''`) + "' admin __askpass '" + token + "'\n"
+	askpass := "#!/bin/sh\nexec '" + strings.ReplaceAll(executable, "'", `'\''`) + "' server __askpass '" + token + "'\n"
 	if err := os.WriteFile(filepath.Join(dir, "sudo"), []byte(sudo), 0o700); err != nil {
 		done()
 		return env, func() {}, err

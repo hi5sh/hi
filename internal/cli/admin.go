@@ -1,6 +1,6 @@
 package cli
 
-// hi admin: one web page per machine for the people who run it, with
+// The admin page (hi server): one web page per machine for the people who run it, with
 // every app on the machine, so they need the command line only for what
 // a web page can't do (docs/specs/approved/hi_admin.md). This file is its
 // state and its commands; admin_serve.go is the page's server,
@@ -69,16 +69,17 @@ func adminHTTPSocket() string { return filepath.Join(adminSocketDir(), "http.soc
 // adminConfig is admin.json: how the page is reached, and its admins.
 type adminConfig struct {
 	Reach string `json:"reach"`
-	// Host is a name the IT team keeps for the page (hi admin address),
+	// Host is a name the IT team keeps for the page (hi server address),
 	// and HTTPS says their proxy ends TLS for it.
 	Host   string        `json:"host,omitempty"`
 	HTTPS  bool          `json:"https,omitempty"`
 	Admins []adminPerson `json:"admins"`
-	// OrgApart keeps the machine's admins apart from the org's, on a
-	// machine that runs apps and an org server: hi server init sets it there.
-	// Without it, the org's owner and admins are the machine's admins too.
+	// OrgApart kept the machine's admins apart from the server's, until
+	// hi_server_apps.md release 3 made them one list: loadAdminConfig reads
+	// it as false, and adminMergeLists moves the machine's admins into the
+	// server's once and clears it.
 	OrgApart bool `json:"org_apart,omitempty"`
-	// MachineOwner is the machine's owner, by name, as hi admin owner
+	// MachineOwner is the machine's owner, by name, as hi server owner
 	// sets it: the one admin who opens a terminal in an app's boxes.
 	// Without it, the org's owner where the lists are one, else the first
 	// admin.
@@ -122,6 +123,8 @@ func loadAdminConfig() (adminConfig, bool) {
 	if !ok {
 		config = adminConfig{}
 	}
+	// One list, and one owner: the server's (hi_server_apps.md, release 3).
+	config.OrgApart, config.MachineOwner = false, ""
 	for i := range config.Admins {
 		config.Admins[i].Machine, config.Admins[i].Org, config.Admins[i].Owner, config.Admins[i].OrgName = true, false, false, ""
 		config.Admins[i].MachineOwner = false
@@ -166,7 +169,7 @@ func loadAdminConfig() (adminConfig, bool) {
 	return config, ok
 }
 
-// machineOwner is the name of the machine's owner: the one hi admin owner
+// machineOwner is the name of the machine's owner: the one hi server owner
 // named, while they are one of its admins; else the org's owner, where
 // the org's admins are the machine's; else the first admin added.
 func (c adminConfig) machineOwner() string {
@@ -322,7 +325,7 @@ type adminKey struct {
 var adminMu sync.Mutex
 
 // adminLock holds the admin page's lock until the returned function is
-// called: hi admin on the command line and the page change the same files.
+// called: hi server on the command line and the page change the same files.
 func adminLock() func() {
 	adminMu.Lock()
 	os.MkdirAll(adminDir(), 0o700)
@@ -385,7 +388,7 @@ func adminFind(list []adminKey, key string) int {
 }
 
 // adminMakeLink makes a new link for an admin; with endOld, the links they
-// had end (hi admin link: the old one ends). It returns the link's key.
+// had end (hi server link: the old one ends). It returns the link's key.
 func adminMakeLink(admin string, endOld bool) (string, error) {
 	key, err := adminNewKey()
 	if err != nil {
@@ -576,66 +579,25 @@ func adminActor() string {
 // ---------------------------------------------------------------------------
 // the commands
 
-const adminUsage = `usage: hi admin                         whether the admin page runs, its address, its admins
-       hi admin start                   start it and keep it up, also after a reboot; the first
-                                        time, makes you its first admin and prints your link
-           [--netbird <setup key file>] its NetBird peer's setup key, the first time
-           [--local]                    on this machine only, 127.0.0.1:1984
-           [--name <name>] [--slack <member ID>]
-                                        the first admin, without being asked
-       hi admin stop                    stop it; nothing else changes
-       hi admin link [<admin>]          a new sign-in link, for 14 days; the old one ends
-       hi admin admins [add <name> [--slack <member ID>] | remove <name>]
-                                        the admins
-       hi admin owner [<admin>]         the machine's owner, the one who opens a terminal in an
-                                        app's boxes; or hand it on
-       hi admin address [<host> [--https] | default]
-                                        the name the IT team keeps for it; admin.<domain> by default
-       hi admin mail [set ... | test <address> | off]
-                                        how the machine sends email: sign-in links and invitations
-                                        (hi admin mail help)
-       hi admin sites [allow <site> [--why <what for>] | remove <site> | org on|off]
-                                        what every app's dev box reaches beyond its own list`
+const adminUsage = "usage: hi server init [--local | --netbird <setup key file>]: the admin page starts with the server"
 
-func runAdmin(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		return exitCode(adminStatus(stdout), stderr)
+// runAdminGone is hi admin after hi_server_apps.md release 3: the admin
+// page is the server's, and its commands are hi server's. What older units,
+// jobs, and sudo's askpass scripts run (serve, __job, __askpass) still
+// works, as plumbing; anything a person types runs nothing.
+func runAdminGone(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) > 0 {
+		switch args[0] {
+		case "serve":
+			return exitCode(adminServe(stderr), stderr)
+		case "__job":
+			return adminJobMain(args[1:], stderr)
+		case "__askpass":
+			return adminAskpassMain(args[1:], stdout, stderr)
+		}
 	}
-	command, rest := args[0], args[1:]
-	var err error
-	switch command {
-	case "help", "-h", "--help":
-		fmt.Fprintln(stdout, adminUsage)
-		return 0
-	case "status":
-		err = adminStatus(stdout)
-	case "start":
-		err = adminStart(rest, stdin, stdout)
-	case "stop":
-		err = adminStop(stdout)
-	case "link":
-		err = adminLinkCommand(rest, stdout)
-	case "admins", "admin":
-		err = adminAdminsCommand(rest, stdout)
-	case "address":
-		err = adminAddressCommand(rest, stdout)
-	case "owner":
-		err = adminOwnerCommand(rest, stdout)
-	case "mail", "email":
-		err = adminMailCommand(rest, stdin, stdout)
-	case "sites":
-		err = adminSitesCommand(rest, stdout)
-	case "serve":
-		err = adminServe(stderr)
-	case "__job":
-		return adminJobMain(rest, stderr)
-	case "__askpass":
-		return adminAskpassMain(rest, stdout, stderr)
-	default:
-		fmt.Fprintf(stderr, "hi: unknown admin command %q\n\n%s\n", command, adminUsage)
-		return 2
-	}
-	return exitCode(err, stderr)
+	fmt.Fprintln(stderr, "hi: hi admin is gone: the admin page is the server's (hi server status; hi server help)")
+	return 2
 }
 
 // adminUnitPath is hi-admin.service, a user service as the apps' are.
@@ -656,15 +618,15 @@ func adminUnitText(executable string) string {
 		}
 	}
 	// The commands it runs find podman, git, and the agents as the shell
-	// that ran hi admin start did.
+	// that ran hi server init did.
 	env += "Environment=PATH=" + os.Getenv("PATH") + "\n"
 	return fmt.Sprintf(`[Unit]
-Description=hi admin page
+Description=hi admin page (hi server)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-%sExecStart=%s admin serve
+%sExecStart=%s server __page
 Restart=always
 RestartSec=5
 
@@ -695,7 +657,7 @@ var adminDetectReach = func() (string, error) {
 	if _, err := netbirdAddress(); err == nil {
 		return adminReachNetBird, nil
 	}
-	return "", errors.New("this machine has neither podman nor NetBird, so nobody else could reach the admin page; hi admin start --local has it on this machine only, at http://127.0.0.1:1984/")
+	return "", errors.New("this machine has neither podman nor NetBird, so nobody else could reach the admin page; hi server init --local has it on this machine only, at http://127.0.0.1:1984/")
 }
 
 // adminAsk asks a question on a terminal, with a default.
@@ -710,7 +672,7 @@ func adminAsk(stdin io.Reader, stdout io.Writer, question, fallback string) stri
 }
 
 func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
-	flags := flag.NewFlagSet("hi admin start", flag.ContinueOnError)
+	flags := flag.NewFlagSet("hi server init", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	keyFile := flags.String("netbird", "", "the peer's setup key, in a file")
 	local := flags.Bool("local", false, "on this machine only")
@@ -731,7 +693,7 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 			owner.Email = adminAsk(stdin, stdout, "The owner's email", owner.Email)
 		}
 		if owner.Slack == "" || owner.Email == "" {
-			return usageError{"this machine runs the server, and the server has no owner yet: hi admin start --slack <the owner's member ID> --email <their address>, or hi server owner first"}
+			return usageError{"this machine runs the server, and the server has no owner yet: hi server init --slack <the owner's member ID> --email <their address>, or hi server owner first"}
 		}
 		result, err := orgChangePeople(dir, owner)
 		if err != nil {
@@ -818,10 +780,10 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "\nYour link, %s, for %d days. Keep it to yourself: whoever opens it can do what you can on this machine.\n  %s\n",
 			made.Name, int(adminLinkLasts.Hours()/24), adminLinkURL(config, key))
 	} else {
-		fmt.Fprintf(stdout, "Admins: %s. hi admin link <admin> makes a new sign-in link.\n", adminNames(config))
+		fmt.Fprintf(stdout, "Admins: %s. hi server link <admin> makes a new sign-in link.\n", adminNames(config))
 	}
 	if config.apart() {
-		fmt.Fprintln(stdout, "\nThis machine runs the server too: the server's owner and admins sign in for the server (hi server admins), the machine's admins for the machine (hi admin admins).")
+		fmt.Fprintln(stdout, "\nThis machine runs the server too: the server's owner and admins sign in for the server (hi server admins), the machine's admins for the machine (hi server admins).")
 	} else if config.org != "" {
 		fmt.Fprintln(stdout, "\nThis machine runs the server: the page's admins are the server's owner and admins (hi server admins), and it runs the server too.")
 	}
@@ -835,7 +797,7 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 	return nil
 }
 
-// adminStartWait is how long hi admin start waits for the page to
+// adminStartWait is how long hi server init waits for the page to
 // answer; tests shorten it.
 var adminStartWait = 15 * time.Second
 
@@ -867,7 +829,7 @@ func adminAnswers() bool {
 func adminStatus(stdout io.Writer) error {
 	config, ok := loadAdminConfig()
 	if !ok {
-		fmt.Fprintln(stdout, "The admin page isn't set up on this machine. hi admin start starts it and prints your link.")
+		fmt.Fprintln(stdout, "The admin page isn't set up on this machine. hi server init starts it and prints your link.")
 		return nil
 	}
 	state, _ := appSystemctl("is-active", adminUnit)
@@ -877,7 +839,7 @@ func adminStatus(stdout io.Writer) error {
 	case state == "active":
 		fmt.Fprintf(stdout, "The admin page's service runs, but the page doesn't answer yet; journalctl --user -u %s says why.\n", adminUnit)
 	default:
-		fmt.Fprintf(stdout, "The admin page is stopped. hi admin start starts it again, at %s\n", adminURL(config))
+		fmt.Fprintf(stdout, "The admin page is stopped. hi server init starts it again, at %s\n", adminURL(config))
 	}
 	fmt.Fprintln(stdout, adminReachLine(config))
 	fmt.Fprintln(stdout, "Admins:")
@@ -899,7 +861,7 @@ func adminStatus(stdout io.Writer) error {
 		fmt.Fprintf(stdout, "  %-24s %s%s\n", admin.Name, slack, owner)
 	}
 	if config.apart() {
-		fmt.Fprintln(stdout, "The machine's admins run its apps (hi admin admins); the server's run the server (hi server admins).")
+		fmt.Fprintln(stdout, "The machine's admins run its apps (hi server admins); the server's run the server (hi server admins).")
 	} else if config.org != "" {
 		fmt.Fprintln(stdout, "They are the server's owner and admins: hi server admins changes them.")
 	} else if dir := adminOrgDir(); dir != "" {
@@ -908,23 +870,13 @@ func adminStatus(stdout io.Writer) error {
 	return nil
 }
 
-func adminStop(stdout io.Writer) error {
-	if out, err := appSystemctl("disable", "--now", adminUnit); err != nil && fileExists(adminUnitPath()) {
-		return fmt.Errorf("systemctl --user disable --now %s: %s", adminUnit, qFirstLine(out, err.Error()))
-	}
-	adminStopPeer()
-	adminRecord(adminActor(), "", "stopped the admin page")
-	fmt.Fprintln(stdout, "The admin page is stopped. Its admins and its peer stay; hi admin start starts it again.")
-	return nil
-}
-
 func adminLinkCommand(args []string, stdout io.Writer) error {
 	config, ok := loadAdminConfig()
 	if !ok {
-		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
+		return errors.New("the admin page isn't set up on this machine; hi server init sets it up")
 	}
 	if len(args) > 1 {
-		return usageError{"usage: hi admin link [<admin>]"}
+		return usageError{"usage: hi server link [<admin>]"}
 	}
 	var admin adminPerson
 	switch {
@@ -936,7 +888,7 @@ func adminLinkCommand(args []string, stdout io.Writer) error {
 		admin = config.Admins[0]
 	default:
 		if admin, ok = config.admin(currentUserName()); !ok {
-			return fmt.Errorf("say whose: hi admin link <admin>; the admins are %s", adminNames(config))
+			return fmt.Errorf("say whose: hi server link <admin>; the admins are %s", adminNames(config))
 		}
 	}
 	key, err := adminMakeLink(admin.Name, true)
@@ -949,96 +901,7 @@ func adminLinkCommand(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// adminOwnerCommand says who the machine's owner is, or hands it on to
-// another of its admins.
-func adminOwnerCommand(args []string, stdout io.Writer) error {
-	config, ok := loadAdminConfig()
-	if !ok {
-		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
-	}
-	if len(args) == 0 {
-		owner := config.machineOwner()
-		if owner == "" {
-			return errors.New("the machine has no admins yet; hi admin start makes the first")
-		}
-		fmt.Fprintf(stdout, "%s owns the machine: only they open a terminal in an app's boxes, on the admin page. hi admin owner <admin> hands it on.\n", owner)
-		return nil
-	}
-	name := strings.Join(args, " ")
-	admin, found := config.admin(name)
-	if !found || !admin.Machine {
-		return fmt.Errorf("%s isn't one of the machine's admins (hi admin admins)", name)
-	}
-	unlock := adminLock()
-	defer unlock()
-	config, _ = loadAdminConfig()
-	config.MachineOwner = admin.Name
-	if err := saveAdminConfig(config); err != nil {
-		return err
-	}
-	adminRecord(adminActor(), "", "made "+admin.Name+" the machine's owner")
-	fmt.Fprintf(stdout, "%s owns the machine now.\n", admin.Name)
-	return nil
-}
-
-func adminAdminsCommand(args []string, stdout io.Writer) error {
-	config, ok := loadAdminConfig()
-	if !ok {
-		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
-	}
-	if len(args) == 0 {
-		for _, admin := range config.Admins {
-			fmt.Fprintf(stdout, "%-24s %-14s added %s by %s\n", admin.Name, firstNonEmpty(admin.Slack, "-"), admin.Added.Local().Format("2 Jan 2006"), firstNonEmpty(admin.By, "-"))
-		}
-		return nil
-	}
-	usage := usageError{"usage: hi admin admins [add <name> [--slack <member ID>] | remove <name>]"}
-	switch args[0] {
-	case "add":
-		var words []string
-		slackID := ""
-		for i := 1; i < len(args); i++ {
-			switch {
-			case args[i] == "--slack" && i+1 < len(args):
-				i++
-				slackID = args[i]
-			case strings.HasPrefix(args[i], "--slack="):
-				slackID = strings.TrimPrefix(args[i], "--slack=")
-			case strings.HasPrefix(args[i], "-"):
-				return usage
-			default:
-				words = append(words, args[i])
-			}
-		}
-		if len(words) == 0 {
-			return usage
-		}
-		admin, err := adminAdd(strings.Join(words, " "), slackID, "", adminActor())
-		if err != nil {
-			return err
-		}
-		key, err := adminMakeLink(admin.Name, true)
-		if err != nil {
-			return err
-		}
-		config, _ = loadAdminConfig()
-		fmt.Fprintf(stdout, "%s is an admin of the admin page. Their link, for %d days, to give them yourself:\n  %s\n", admin.Name, int(adminLinkLasts.Hours()/24), adminLinkURL(config, key))
-		return nil
-	case "remove", "rm":
-		if len(args) < 2 {
-			return usage
-		}
-		removed, err := adminRemove(strings.Join(args[1:], " "), adminActor())
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(stdout, "%s isn't an admin any more; their links and sign-ins have ended.\n", removed.Name)
-		return nil
-	}
-	return usage
-}
-
-// adminAdd adds an admin, as hi admin admins add and the page's Machine
+// adminAdd adds an admin, as hi server admins add and the page's Machine
 // view do.
 func adminAdd(name, slackID, email, by string) (adminPerson, error) {
 	if config, _ := loadAdminConfig(); config.org != "" && !config.OrgApart {
@@ -1062,7 +925,7 @@ func adminAdd(name, slackID, email, by string) (adminPerson, error) {
 	config, ok := loadAdminConfig()
 	if !ok {
 		unlock()
-		return adminPerson{}, errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
+		return adminPerson{}, errors.New("the admin page isn't set up on this machine; hi server init sets it up")
 	}
 	// One of the org's admins becomes the machine's too.
 	if other, taken := config.admin(name); taken && other.Org && !other.Machine && (slackID == "" || slackID == other.Slack) {
@@ -1134,13 +997,13 @@ func adminRemove(name, by string) (adminPerson, error) {
 func adminAddressCommand(args []string, stdout io.Writer) error {
 	config, ok := loadAdminConfig()
 	if !ok {
-		return errors.New("the admin page isn't set up on this machine; hi admin start sets it up")
+		return errors.New("the admin page isn't set up on this machine; hi server init sets it up")
 	}
-	usage := usageError{"usage: hi admin address [<host> [--https] | default]"}
+	usage := usageError{"usage: hi server address [<host> [--https] | default]"}
 	if len(args) == 0 {
 		fmt.Fprintf(stdout, "The admin page is at %s\n", adminURL(config))
 		if config.Host == "" {
-			fmt.Fprintln(stdout, "hi admin address <host> has it at a name your IT team keeps, an A record to its peer or their proxy.")
+			fmt.Fprintln(stdout, "hi server address <host> has it at a name your IT team keeps, an A record to its peer or their proxy.")
 		}
 		return nil
 	}
@@ -1181,4 +1044,69 @@ func adminAddressCommand(args []string, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Ask your IT team for %s: an A record to %s, or their proxy to it on port 80. The admin page answers there in a minute.\n", config.Host, adminPolicyTarget(config))
 	}
 	return nil
+}
+
+// adminMergeLists makes the machine's admins and the server's one list
+// (hi_server_apps.md, release 3), on a machine that kept them apart: each
+// machine admin with a Slack member ID becomes an admin of the server,
+// once, and admin.json forgets the flag. It says what it did; an admin
+// with no Slack member ID can't be one of the server's, and is named.
+func adminMergeLists() []string {
+	dir := adminOrgDir()
+	if dir == "" || loadOrgPeople(dir).Owner == nil {
+		return nil
+	}
+	unlock := adminLock()
+	defer unlock()
+	data, err := os.ReadFile(adminConfigPath())
+	if err != nil {
+		return nil
+	}
+	var raw map[string]json.RawMessage
+	var own adminConfig
+	if json.Unmarshal(data, &raw) != nil || json.Unmarshal(data, &own) != nil || !own.OrgApart {
+		return nil
+	}
+	var said []string
+	people := loadOrgPeople(dir)
+	for _, admin := range own.Admins {
+		if admin.Slack == "" {
+			said = append(said, fmt.Sprintf("%s was an admin of the machine only, with no Slack member ID: add them with hi server admins add <Slack ID> --name <user>", admin.Name))
+			continue
+		}
+		if _, known := people.find(admin.Slack); known {
+			continue
+		}
+		name := adminServerName(admin.Name)
+		if _, taken := people.find(name); taken {
+			name = adminServerName(admin.Name + "-" + admin.Slack)
+		}
+		result, err := orgChangePeople(dir, orgPeopleInput{As: currentUserName(), Action: "add", Name: name, Slack: admin.Slack})
+		if err != nil {
+			said = append(said, fmt.Sprintf("%s stays out of the server's admins: %v", admin.Name, err))
+			continue
+		}
+		said = append(said, result.Text)
+	}
+	delete(raw, "org_apart")
+	if out, err := json.MarshalIndent(raw, "", "  "); err == nil {
+		os.WriteFile(adminConfigPath()+".tmp", append(out, '\n'), 0o600)
+		os.Rename(adminConfigPath()+".tmp", adminConfigPath())
+	}
+	return said
+}
+
+// adminServerName is a hi user name from an admin's name: lowercase, and
+// a dash for what a name can't hold.
+func adminServerName(name string) string {
+	var out strings.Builder
+	for _, char := range strings.ToLower(strings.TrimSpace(name)) {
+		switch {
+		case char >= 'a' && char <= 'z', char >= '0' && char <= '9', char == '-', char == '_', char == '.':
+			out.WriteRune(char)
+		default:
+			out.WriteRune('-')
+		}
+	}
+	return strings.Trim(out.String(), "-")
 }

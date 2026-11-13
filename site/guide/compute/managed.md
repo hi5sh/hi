@@ -238,33 +238,36 @@ until they stop.
 
 ### Set up the server
 
-On a small always-on Linux machine, enrolled in NetBird with `hi net`:
+On an always-on Linux machine, enrolled in NetBird with `hi net`: a
+small VM, or the machine with your apps, since every machine with apps
+runs its own:
 
 ```sh
 hi server init --owner U0123456789 --email olga@example.com
 hi server provider add runpod     # asks for the key without echoing it
 hi server provider add shadeform  # the same for Shadeform, if you use it
-hi admin start                 # the admin page, where the owner and the admins run the server
 ```
 
 `hi server init` listens on this machine's NetBird address, port 7373, and
-starts the server as a user service, `hi-org.service`, beside the admin
-page and any apps. It keeps its state, audit log, and provider keys in
+starts the server as a user service, `hi-org.service`, and the [admin
+page](/guide/app/admin/) beside it, `hi-admin.service`, where the owner and
+the admins run the server and the machine's apps; it prints your link.
+`--local` puts the page on 127.0.0.1 only, `--netbird <setup key file>` on
+a NetBird peer of its own. It keeps its state, audit log, and provider keys in
 `~/.local/state/hi/org`, readable only by the account it runs as. Change
 that with `--dir` or `HI_ORG_DIR`; with `--dir` it prints the service
 instead of starting it. On a machine that doesn't keep the account's
 services running without a login, it says the one command to change that
 (`sudo loginctl enable-linger <user>`).
 
-**On a machine with apps:** the server can run beside them, for a
-small team or to try one. `hi server init` there refuses while the machine is
-joined to another server (`hi server leave` first), joins the machine to the
-new server under the owner's hi user name, so its apps' compute goes through
-it, and keeps the admin page's admins apart from the server's
+**On a machine with apps:** every machine with apps runs its own server.
+`hi server init` there refuses while the machine is joined to another
+server as a device (`hi server leave` first), joins the machine to the
+new server under the owner's hi user name, so its apps' compute goes
+through it, and makes the admin page's admins the server's: one list
 ([admin page](/guide/app/admin/#on-the-servers-machine)). The server
-server keeps the keys that spend money, and the apps' agents run beside
-it as the same account: for more than a few people, give it a small
-machine of its own.
+keeps the keys that spend money, and the apps' agents run beside it as
+the same account.
 
 ### The server's owner and admins
 
@@ -283,16 +286,17 @@ hi server owner U0987654321 --email noor@example.com   # hand the server on
 ```
 
 An admin is an approver too, in Slack and on the admin page, and signs in
-to the admin page on the server's machine: one list, so that page keeps
-none of its own. The owner adds and removes them on the page; on the
+to the admin page on the server's machine, where they run its apps too:
+one list, so that page keeps none of its own. The owner is the machine's
+owner as well, the one who opens a terminal in an app's boxes. The owner adds and removes them on the page; on the
 machine, anyone logged in as the account the server runs as can. Handing
 the server on keeps the owner before as an admin, and is said in the
 approvers' channel. Every change is in the audit.
 
 A server made before owners has none: `hi server status` on the server's
 machine and the admin page say so, with the command, `hi server owner <Slack
-member ID> --email <address>`. Until then, the first `hi admin start` there
-asks for them.
+member ID> --email <address>`. Until then, `hi server init` there asks for
+them.
 
 It listens only on its NetBird address. Clients sign every request, so a
 forged, altered, or replayed request is refused, even from inside the VPN.

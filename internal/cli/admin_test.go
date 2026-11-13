@@ -205,7 +205,7 @@ func TestAdminSignInWithALink(t *testing.T) {
 	if response.Header.Get("Location") != "/?ended=1" {
 		t.Fatal(response.Header.Get("Location"))
 	}
-	// hi admin link ends the old link, not the sign-in it made.
+	// hi server link ends the old link, not the sign-in it made.
 	if _, err := adminMakeLink("Olga", true); err != nil {
 		t.Fatal(err)
 	}
@@ -607,7 +607,7 @@ func TestAdminStartMakesTheFirstAdmin(t *testing.T) {
 		}
 	}
 	unit, _ := os.ReadFile(adminUnitPath())
-	if !strings.Contains(string(unit), "admin serve") || !strings.Contains(string(unit), "Environment=HI_ADMIN_DIR=") {
+	if !strings.Contains(string(unit), " server __page\n") || !strings.Contains(string(unit), "Environment=HI_ADMIN_DIR=") {
 		t.Fatal(string(unit))
 	}
 	// Again: no second first admin, no link.

@@ -1976,7 +1976,7 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 	case "ai":
 		return exitCode(orgAICommand(rest, stdin, stdout, stderr), stderr)
 	case "live", "viewer", "wall":
-		fmt.Fprintf(stderr, "hi: hi server %s is gone: the admin page shows what runs and what waits (Running and Requests), and a wall screen opens a wall link from it, in a browser. On this machine: hi admin start.\n", command)
+		fmt.Fprintf(stderr, "hi: hi server %s is gone: the admin page shows what runs and what waits (Running and Requests), and a wall screen opens a wall link from it, in a browser. On this machine: hi server init.\n", command)
 		return 1
 	case "templates":
 		return exitCode(orgTemplatesCommand(rest, stdin, stdout, stderr), stderr)
@@ -2011,6 +2011,8 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	ownerEmail := flags.String("email", "", "the server owner's email")
 	ownerName := flags.String("owner-name", "", "the owner's hi user name (default: from their email)")
 	noStart := flags.Bool("no-start", false, "don't install and start the server's user service")
+	pageLocal := flags.Bool("local", false, "the admin page on this machine only, 127.0.0.1:1984")
+	pageNetbird := flags.String("netbird", "", "the admin page's own NetBird peer: its setup key, in a file")
 	if _, err := flags.parse(args); err != nil {
 		return err
 	}
@@ -2120,13 +2122,33 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 			fmt.Fprintf(stdout, "It stops when you log out, and doesn't start at boot, until you run:\n  sudo loginctl enable-linger %s\n", currentUserName())
 		}
 	}
+	// The admin page is the server's (hi_server_apps.md, release 3): it
+	// starts with it, and its owner is the page's first admin.
+	pageStarted := false
+	if started {
+		var pageArgs []string
+		if *pageLocal {
+			pageArgs = append(pageArgs, "--local")
+		}
+		if *pageNetbird != "" {
+			pageArgs = append(pageArgs, "--netbird", *pageNetbird)
+		}
+		fmt.Fprintln(stdout)
+		if err := adminStart(pageArgs, stdin, stdout); err != nil {
+			fmt.Fprintf(stdout, "The admin page didn't start: %v\nhi server init --local starts it on this machine only; hi server init --netbird <setup key file> on a NetBird peer of its own.\n", err)
+		} else {
+			pageStarted = true
+		}
+	}
 	fmt.Fprintln(stdout, "\nNext:")
 	fmt.Fprintln(stdout, "  hi server provider add runpod    (or shadeform)")
 	if !started {
 		fmt.Fprintln(stdout, "  hi server run")
 	}
 	fmt.Fprintln(stdout, "  hi server slack setup            approvals in Slack")
-	fmt.Fprintln(stdout, "  hi admin start                the admin page, where the owner and the admins run the server")
+	if pageStarted {
+		fmt.Fprintln(stdout, "  hi server link                   a new sign-in link to the admin page")
+	}
 	if _, set := loadMachineHeartbeat(); !set {
 		fmt.Fprintln(stdout, "  hi heartbeat <url>            so someone hears if this machine stops: a check at a service such as healthchecks.io")
 	}
@@ -2185,24 +2207,21 @@ func orgInitBesideApps(dir, url string, fresh bool, apps []string, stdout io.Wri
 	} else if connection == nil {
 		fmt.Fprintf(stdout, "So this machine's apps get their compute through the server: hi server join %s\n", url)
 	}
-	// The admin page's admins stay the machine's, and the owner is one.
+	// One list of admins (hi_server_apps.md, release 3): the page's
+	// admins with a Slack member ID become the server's.
 	if data, err := os.ReadFile(adminConfigPath()); err == nil {
-		unlock := adminLock()
-		var config adminConfig
-		if json.Unmarshal(data, &config) == nil && !config.OrgApart {
-			config.OrgApart = true
-			if !slices.ContainsFunc(config.Admins, func(a adminPerson) bool { return a.Slack == owner.Slack }) {
-				config.Admins = append(config.Admins, adminPerson{Name: owner.Name, Slack: owner.Slack, Added: time.Now().UTC(), By: currentUserName()})
+		var raw map[string]json.RawMessage
+		if json.Unmarshal(data, &raw) == nil {
+			raw["org_apart"] = json.RawMessage("true")
+			if out, err := json.MarshalIndent(raw, "", "  "); err == nil {
+				os.WriteFile(adminConfigPath(), append(out, '\n'), 0o600)
 			}
-			if err := saveAdminConfig(config); err != nil {
-				unlock()
-				return err
+			for _, line := range adminMergeLists() {
+				fmt.Fprintln(stdout, line)
 			}
-			fmt.Fprintf(stdout, "The admin page keeps the machine's admins, and %s is one too; the server's admins sign in there for the server.\n", owner.Name)
 		}
-		unlock()
 	}
-	fmt.Fprintf(stdout, "\nThis machine runs %d app%s too. The server keeps the keys that start machines on the server's accounts, and the apps' agents run beside it, as the same account; hi update restarts them together. That suits a small org, or trying one: for more than a few people, put the server on a small machine of its own.\n\n",
+	fmt.Fprintf(stdout, "\nThis machine runs %d app%s too. The server's owner and admins run them, on the admin page, and approve; the server and the apps run as the same account, and hi update restarts them together.\n\n",
 		len(apps), map[bool]string{true: "", false: "s"}[len(apps) == 1])
 	return nil
 }

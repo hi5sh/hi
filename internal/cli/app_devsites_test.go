@@ -178,7 +178,7 @@ func TestDevSitesMachine(t *testing.T) {
 	}
 	out.Reset()
 	adminSitesShow(&out)
-	if !strings.Contains(out.String(), "api.example.com  billing, payments: hi admin sites allow api.example.com") {
+	if !strings.Contains(out.String(), "api.example.com  billing, payments: hi server sites allow api.example.com") {
 		t.Fatal(out.String())
 	}
 	if err := adminSitesCommand([]string{"org", "maybe"}, &out); err == nil {

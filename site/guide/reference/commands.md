@@ -27,8 +27,6 @@ description: Every hi command and option in one place.
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
 | `hi net domain [<domain> --dns <provider> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
 | `hi people …`                    | Everyone on this machine, by email: their level in each app, their SSH key; see below |
-| `hi admin mail …`                | How the machine sends email: sign-in links and invitations; see below |
-| `hi admin sites …`               | What every app's dev box reaches beyond its own list; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi server` and app services still on the old version |
 | `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi app` below |
@@ -121,7 +119,7 @@ See [Managed compute for your team](/guide/compute/managed/). `hi org`, the old 
 | `hi server key`                                                      | This device's public key, for an admin to pre-approve                                  |
 | `hi server slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
 | `hi server leave`                                                    | Forget the server and delete the device key                                            |
-| `hi server init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service; beside apps, join the machine to it |
+| `hi server init --owner <Slack ID> --email <addr> [--listen <addr>] [--local \| --netbird <file>]` | Create the server and its owner, and start it and the admin page as user services; beside apps, join the machine to it. `--local`: the page on 127.0.0.1 only; `--netbird`: the page on a NetBird peer of its own |
 | `hi server run`                                                      | Serve clients                                                                          |
 | `hi server provider add|remove|list [<provider>]`                    | Provider keys (RunPod, Shadeform)                                                      |
 | `hi server user add <u> --group <g> [--key <k>]`                     | Add a user; `--key` pre-approves a device                                              |
@@ -134,8 +132,13 @@ See [Managed compute for your team](/guide/compute/managed/). `hi org`, the old 
 | `hi server audit [--since <d>]`                                      | The audit log                                                                          |
 | `hi server slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
 | `hi server approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
-| `hi server owner [<Slack ID> --email <addr>]`                        | The server's owner, or hand it on                                                         |
-| `hi server admins [add <Slack ID> --name <user> \| remove <user>]`   | The server's admins: approvers, and admins of the admin page on its machine              |
+| `hi server owner [<Slack ID> --email <addr>]`                        | The server's owner, who owns the machine and its apps too (the one who opens a terminal in an app's boxes); or hand it on |
+| `hi server admins [add <Slack ID> --name <user> \| remove <user>]`   | The server's admins: they approve, and run the machine's apps on the admin page |
+| `hi server status`                                                   | The server this device uses; on the server's machine, also the admin page's address, whether it answers, and its admins |
+| `hi server link [<admin>]`                                           | A new sign-in link to the admin page, for 14 days; the old one ends |
+| `hi server address [<host> [--https] \| default]`                    | The name the IT team keeps for the admin page; `admin.<domain>` by default |
+| `hi server mail …`                                                   | How the machine sends email: sign-in links and invitations; see below |
+| `hi server sites …`                                                  | What every app's dev box reaches beyond its own list; see below |
 | `hi server policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
 | `hi server spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
 | `hi server ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
@@ -507,25 +510,25 @@ See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_
 | `hi people link <email> <member ID>` | Their Slack account, where Slack has another email for them |
 | `hi people domains [<domain>[,<domain>]\|--none]` | The organisation's email domains: someone else is added with `--outside` |
 
-## hi admin mail
+## hi server mail
 
 | Command | What it does |
 |---|---|
-| `hi admin mail` | How the machine sends email, or that it sends none |
-| `hi admin mail set --host <host> --from <address> [--port <port>] [--security starttls\|tls\|none] [--user <name>] [--name <from name>]` | Send through an SMTP server: the organisation's relay, Google Workspace's, Microsoft 365's, Postmark, SES, Resend; the password on standard input. hi sends sign-in links and codes, and invitations, nothing else |
-| `hi admin mail test <address>` | Send a test email |
-| `hi admin mail off` | Send none: people sign in with Slack links |
+| `hi server mail` | How the machine sends email, or that it sends none |
+| `hi server mail set --host <host> --from <address> [--port <port>] [--security starttls\|tls\|none] [--user <name>] [--name <from name>]` | Send through an SMTP server: the organisation's relay, Google Workspace's, Microsoft 365's, Postmark, SES, Resend; the password on standard input. hi sends sign-in links and codes, and invitations, nothing else |
+| `hi server mail test <address>` | Send a test email |
+| `hi server mail off` | Send none: people sign in with Slack links |
 
 With email set up, the dev page, the helper, and the admin page each take an email to sign in with: a link and a six-digit code, each good once, for 15 minutes.
 
-## hi admin sites
+## hi server sites
 
 | Command | What it does |
 |---|---|
-| `hi admin sites` | The sites every app's dev box reaches, whether the organisation's domains are on, and sites the owners of several apps allowed |
-| `hi admin sites allow <site> [--why <what for>]` | A site, and its subdomains, for every app's dev box, at once |
-| `hi admin sites remove <site>` | Off every app's list, unless an app's owners allowed it themselves |
-| `hi admin sites org on\|off` | The organisation's domains (`hi people domains`) on every dev box's list: on by default. An app's own production stays an ask |
+| `hi server sites` | The sites every app's dev box reaches, whether the organisation's domains are on, and sites the owners of several apps allowed |
+| `hi server sites allow <site> [--why <what for>]` | A site, and its subdomains, for every app's dev box, at once |
+| `hi server sites remove <site>` | Off every app's list, unless an app's owners allowed it themselves |
+| `hi server sites org on\|off` | The organisation's domains (`hi people domains`) on every dev box's list: on by default. An app's own production stays an ask |
 
 The admin page's Network has the same, under **The dev boxes' sites**.
 

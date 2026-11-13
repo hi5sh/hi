@@ -2736,6 +2736,27 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.149 — A server on every machine with apps; `hi admin` goes
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 3
+([Revised](specs/approved/hi_server_apps.md#revised-a-server-on-every-machine-with-apps)).
+
+- [x] A machine with apps runs its own server: `hi app new`, `hi app up`,
+  an app's service, `hi update`, and New app stop on a machine that runs
+  none, and on one joined to another server as a device say `hi server
+  leave` first.
+- [x] `hi server init` starts the admin page too (`--local`, `--netbird
+  <setup key file>`), and says `hi server link` for a new link.
+- [x] One list of admins: the server's owner owns the machine and its
+  apps, and the server's admins run them. A page that kept its own list
+  moves its admins with a Slack member ID into the server's, once, and
+  names any without one.
+- [x] `hi admin` is gone, with no alias: `hi server status` shows the
+  page too, and `link`, `address`, `mail`, and `sites` are `hi server`'s.
+  `hi-admin.service` runs `hi server __page` from its next start; what
+  older units and jobs run still works.
+- [x] The guide, the admin page's notes, and troubleshooting say the same.
+
 ### v2.6.148 — Every app needs a server
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 2.
@@ -5456,7 +5477,7 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
 - [x] Release 2 (v2.6.148): every app needs a server. `hi app new`, `hi app up`, the
   broker, and `hi update` stop on a machine with apps and no server. Our
   machines with apps join one before it ships.
-- [ ] Release 3: a server on every machine with apps, and `hi admin`
+- [x] Release 3 (v2.6.149): a server on every machine with apps, and `hi admin`
   goes ([Revised](specs/approved/hi_server_apps.md#revised-a-server-on-every-machine-with-apps)):
   the check asks for a server on this machine; `hi server init` starts
   the admin page; one list of admins; `hi admin`'s commands under `hi

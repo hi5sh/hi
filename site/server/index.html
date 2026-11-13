@@ -53,7 +53,7 @@ fallback: |
         <div class="cmdline"><span class="ps">$</span><code>hi server provider add runpod</code><button class="copy" type="button" data-copy="hi server provider add runpod">copy</button></div></div></li>
       <li><div><p><b>On a person's machine: join.</b> hi makes a key for this device and waits for an admin.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi server join hi.example.com</code><button class="copy" type="button" data-copy="hi server join hi.example.com">copy</button></div></div></li>
-      <li><div><p><b>Let them in</b>, into a group: on the server's <a href="/guide/app/admin/">admin page</a> (<code>hi admin start</code>), in Slack, or on the server box.</p>
+      <li><div><p><b>Let them in</b>, into a group: on the server's <a href="/guide/app/admin/">admin page</a> (<code>hi server link</code>), in Slack, or on the server box.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi server approve e-3f09a1 --group staff</code><button class="copy" type="button" data-copy="hi server approve e-3f09a1 --group staff">copy</button></div></div></li>
       <li><div><p><b>Check it</b> from the person's machine.</p>
         <div class="cmdline"><span class="ps">$</span><code>hi server status</code><button class="copy" type="button" data-copy="hi server status">copy</button></div></div></li>
@@ -114,7 +114,7 @@ fallback: |
         <h3>Watch it</h3>
         <div class="snip"><span class="c">$ hi server ls</span>              <span class="d"># everything running, for every user</span>
 <span class="c">$ hi server audit --since 7d</span>
-<span class="c">$ hi admin start</span>           <span class="d"># the admin page: what runs, what waits, spend</span></div>
+<span class="c">$ hi server link</span>           <span class="d"># the admin page: what runs, what waits, spend</span></div>
         <p>The <a href="/guide/app/admin/">admin page</a> shows it all in a browser, and a wall link shows it, read-only, on a shared screen. People see their own machines and budget with <code>hi compute live</code>.</p>
       </div>
       <div class="detail">

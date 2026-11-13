@@ -34,7 +34,7 @@ type staleServer struct {
 	unit string // such as hi-org.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
 	team string // the team's name; "" for a hi server
-	// admin is the admin page (hi admin serve), a user service.
+	// admin is the admin page (hi server __page), a user service.
 	admin bool
 	// front is the served thing whose front this is (hi serve, on this
 	// machine): hi run in a container, from the host's binary.
@@ -103,7 +103,7 @@ func staleServers(path string) []staleServer {
 		case len(args) >= 3 && (args[1] == "org" || args[1] == "server") && args[2] == "run":
 		case len(args) == 4 && (args[1] == "app" || args[1] == "team") && args[2] == "__serve":
 			server.team = args[3]
-		case len(args) == 3 && args[1] == "admin" && args[2] == "serve":
+		case len(args) == 3 && (args[1] == "admin" && args[2] == "serve" || args[1] == "server" && args[2] == "__page"):
 			server.admin = true
 		default:
 			continue

@@ -126,7 +126,7 @@ func TestAdminNeedsInstall(t *testing.T) {
 	}
 	sudo, _ := os.ReadFile(filepath.Join(dir, "sudo"))
 	askpass, _ := os.ReadFile(filepath.Join(dir, "askpass"))
-	if !strings.Contains(string(sudo), "/usr/bin/sudo -A") || !strings.Contains(string(askpass), "'/usr/local/bin/hi' admin __askpass '"+token+"'") ||
+	if !strings.Contains(string(sudo), "/usr/bin/sudo -A") || !strings.Contains(string(askpass), "'/usr/local/bin/hi' server __askpass '"+token+"'") ||
 		!strings.Contains(joined, "SUDO_ASKPASS="+filepath.Join(dir, "askpass")) {
 		t.Fatalf("%s\n%s\n%s", sudo, askpass, joined)
 	}

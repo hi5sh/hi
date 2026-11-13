@@ -160,7 +160,7 @@ func adminReachLine(config adminConfig) string {
 	case fileExists(adminSetupKeyPath()):
 		return "Its NetBird peer, " + adminPeerHostname() + ", is joining with the setup key; until it has, the page is on this machine's NetBird address, for whoever reaches the machine."
 	}
-	return "It has no NetBird peer of its own yet, so it is on this machine's NetBird address, for whoever reaches the machine. Give it a setup key, on the page (Machine) or with hi admin start --netbird <file>, and it moves to " + adminPeerHostname() + ", which only the admins' NetBird policy reaches."
+	return "It has no NetBird peer of its own yet, so it is on this machine's NetBird address, for whoever reaches the machine. Give it a setup key, on the page (Machine) or with hi server init --netbird <file>, and it moves to " + adminPeerHostname() + ", which only the admins' NetBird policy reaches."
 }
 
 // adminSaveSetupKey keeps the peer's setup key until the peer has joined.

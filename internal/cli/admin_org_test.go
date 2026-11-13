@@ -282,7 +282,7 @@ func TestWallLinksShowAndChangeNothing(t *testing.T) {
 	}
 }
 
-// On the org server's machine, hi admin start asks nothing: the org's
+// On the org server's machine, hi server init asks nothing: the org's
 // owner is the first admin, and gets the link.
 func TestAdminStartOnTheOrgMachine(t *testing.T) {
 	a, _ := orgAdminTest(t)

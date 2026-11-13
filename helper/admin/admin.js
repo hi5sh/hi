@@ -1,5 +1,5 @@
 "use strict";
-// The admin page (hi admin, docs/specs/approved/hi_admin.md): the
+// The admin page (hi server's, docs/specs/approved/hi_admin.md and hi_server_apps.md): the
 // machine's apps in the middle, what you set on the left, what comes out
 // on the right, as the dev page lays itself out. Every change is a POST
 // the server checks; nothing here holds a secret.
@@ -2785,7 +2785,7 @@ function closeTerm() {
 
 function sectionTerminal(s) {
   const parts = [el("p", {}, "A shell in one of " + s.name + "'s boxes that run, as the box's own user. Not on the machine: the boxes hold none of the app's keys. Each terminal is said in Activity and the app's ops channel, and closes after 30 minutes without a key.")];
-  if (!s.you) parts.push(el("p", { class: "note" }, "Only the machine's owner" + (s.owner ? ", " + s.owner + "," : "") + " opens a terminal here. On the machine, hi admin owner <admin> hands it on."));
+  if (!s.you) parts.push(el("p", { class: "note" }, "Only the machine's owner" + (s.owner ? ", " + s.owner + "," : "") + " opens a terminal here: the server's owner. On the machine, hi server owner <Slack ID> --email <address> hands it on."));
   if (!s.boxes.length) {
     if (adminTerm && adminTerm.app === s.name) closeTerm();
     parts.push(el("p", { class: "muted" }, "None of " + s.name + "'s boxes runs now."));
