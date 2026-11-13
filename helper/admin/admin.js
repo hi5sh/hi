@@ -609,6 +609,7 @@ function renderOverview() {
   parts.push(el("h2", {}, "The app"), facts);
   const lines = [d.snapshot, d.heartbeat].filter(Boolean);
   if (lines.length) parts.push(el("div", { class: "muted small lines" }, lines.map((line) => el("p", {}, line))));
+  parts.push(...boxesPart(d));
 
   if (d.releases.length) {
     const releases = el("ul", { class: "list" });
@@ -624,6 +625,64 @@ function renderOverview() {
     if (typing.focus) $("say-text").focus();
   }
   renderOpenMenu();
+}
+
+// An app's boxes: each container it has on the machine, running or not,
+// what it's for, and what it uses. CPU and memory come with each poll's
+// usage; the rest with the app's detail.
+const boxStates = { running: "up", paused: "paused", created: "activating", restarting: "activating" };
+function boxesPart(d) {
+  const boxes = d.boxes || [];
+  if (!boxes.length) return [el("h2", {}, "Boxes"), el("p", { class: "muted" }, "None of " + d.name + "'s boxes is on the machine now.")];
+  const running = boxes.filter((b) => b.state === "running").length;
+  const intro = el("p", { class: "muted small" }, running + " of " + boxes.length + " running. Each is a container of its own on this machine, " + state.machine +
+    ", with its own files, processes, and limits; production, Stage, and the dev box don't share one.");
+  const table = el("table", { class: "boxes-table" },
+    el("thead", {}, el("tr", {}, el("th", {}, "Box"), el("th", {}, "State"), el("th", { class: "num" }, "CPU"), el("th", { class: "num" }, "Memory"), el("th", {}, ""))));
+  const body = el("tbody");
+  for (const b of boxes) {
+    const facts = [b.name, b.image];
+    if (b.version) facts.push(b.version + (b.commit ? " (" + b.commit + ")" : ""));
+    if (b.command) facts.push((b.port ? "port " + b.port + ": " : "") + b.command);
+    if (b.pids) facts.push(b.pids + " process" + (b.pids === 1 ? "" : "es"));
+    if (b.memory_peak) facts.push("peak " + size(b.memory_peak));
+    if (b.cpus) facts.push("at most " + b.cpus + " core" + (b.cpus === 1 ? "" : "s"));
+    if (b.restarts) facts.push(b.restarts + " restart" + (b.restarts === 1 ? "" : "s"));
+    let when = "";
+    if (b.state === "running" && b.started) when = "for " + uptime((Date.now() - new Date(b.started)) / 1000);
+    else if (b.finished) when = ago(b.finished) + (b.exit_code ? ", exit " + b.exit_code : "");
+    const terminal = b.term && b.state === "running" && state.me.machine
+      ? el("button", { class: "small", title: "A shell in " + b.what, onclick: () => { termWanted = b.term; showSection("terminal"); } }, "Terminal")
+      : "";
+    body.append(el("tr", { "data-box": b.name },
+      el("td", {}, el("strong", {}, b.what), b.does ? el("div", { class: "muted small" }, b.does) : null,
+        el("div", { class: "muted small box-facts" }, facts.filter(Boolean).join(" · ")),
+        b.oom_kills ? el("div", { class: "warn small" }, b.oom_kills + " process" + (b.oom_kills === 1 ? " was" : "es were") + " killed for want of memory since it started") : null),
+      el("td", { class: "nowrap" }, stateDot(boxStates[b.state] || "down"), " ", b.state, el("div", { class: "muted small" }, when)),
+      el("td", { class: "num nowrap", "data-cpu": "" }, "…"),
+      el("td", { class: "num nowrap", "data-memory": "" }, "…"),
+      el("td", { class: "num" }, terminal)));
+  }
+  table.append(body);
+  // Filled now as well as with each poll, so a new render isn't blank.
+  setTimeout(() => boxUsage(d.name, boxes));
+  return [el("h2", {}, "Boxes"), intro, el("div", { class: "boxes-scroll" }, table)];
+}
+function boxUsage(name, boxes) {
+  const u = state && state.usage;
+  const each = (u && u.apps && u.apps[name] && u.apps[name].per_box) || {};
+  for (const b of boxes) {
+    const row = document.querySelector('#overview tr[data-box="' + CSS.escape(b.name) + '"]');
+    if (!row) continue;
+    const use = each[b.name];
+    const cpu = row.querySelector("[data-cpu]"), memory = row.querySelector("[data-memory]");
+    if (b.state !== "running" || !use) { cpu.textContent = b.state === "running" ? "…" : ""; memory.textContent = b.state === "running" ? "…" : ""; memory.className = "num nowrap"; continue; }
+    cpu.textContent = use.cpu === undefined || use.cpu === null ? "…" : percent(use.cpu);
+    cpu.title = "Its share of the machine's " + u.cores + " cores";
+    memory.textContent = size(use.memory) + (b.memory_max ? " of " + size(b.memory_max) : "");
+    memory.title = b.memory_max ? "Past its limit, a process in it is killed" : "No limit of its own";
+    memory.className = "num nowrap " + (b.memory_max ? level(use.memory / b.memory_max) : "");
+  }
 }
 
 // The Open ▾ menu: production, Stage, and the dev page. It sits on the open
@@ -2712,6 +2771,7 @@ function renderSection() {
 // (hi_admin.md, release 7), as the dev page's terminal is.
 
 let adminTerm = null; // the open terminal: { app, box, term, fit, socket, node }
+let termWanted = "";  // the box Overview's Terminal button picked
 
 function closeTerm() {
   if (!adminTerm) return;
@@ -2737,7 +2797,7 @@ function sectionTerminal(s) {
   }
   const mine = adminTerm && adminTerm.app === s.name;
   const select = el("select", { "aria-label": "The box" });
-  for (const b of s.boxes) select.append(el("option", { value: b.id, selected: mine && adminTerm.box === b.id }, b.label));
+  for (const b of s.boxes) select.append(el("option", { value: b.id, selected: mine ? adminTerm.box === b.id : termWanted === b.id }, b.label));
   parts.push(el("div", { class: "data-actions" }, select, el("button", { onclick: () => openTerm(s.name, select.value) }, mine ? "Open again" : "Open")));
   if (mine) parts.push(adminTerm.node);
   return parts;
@@ -3578,6 +3638,7 @@ async function refreshState() {
   renderOrgBadges();
   renderJobsBadge();
   if (openApp && $("overview-usage")) $("overview-usage").textContent = usageLine(openApp) || "…";
+  if (openApp && detail && detail.boxes) boxUsage(detail.name, detail.boxes);
   if (viewShown("machine")) renderMachine();
   else badge("machine-badge", state.latest ? 1 : 0);
   return true;

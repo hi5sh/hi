@@ -940,6 +940,7 @@ type adminAppDetail struct {
 	DevWaits   bool               `json:"dev_waits,omitempty"` // it's on the NetBird name, not given yet
 	Level      string             `json:"level"`               // the admin's, in the app
 	Owners     []string           `json:"owners"`
+	Boxes      []adminBox         `json:"boxes"` // admin_boxes.go
 }
 
 type adminMember struct {
@@ -962,7 +963,8 @@ func adminAppDetailOf(name string, admin adminPerson) (adminAppDetail, error) {
 		return adminAppDetail{}, fmt.Errorf("no app %q on this machine", name)
 	}
 	detail := adminAppDetail{adminAppView: adminAppOf(name), Channel: config.Channel, OpsChannel: config.OpsChannel,
-		Members: []adminMember{}, Releases: []adminRelease{}, Snapshot: appSnapshotLine(name), Heartbeat: appHeartbeatLine(config), Level: appLevelNone}
+		Members: []adminMember{}, Releases: []adminRelease{}, Snapshot: appSnapshotLine(name), Heartbeat: appHeartbeatLine(config), Level: appLevelNone,
+		Boxes: adminAppBoxes(name)}
 	if stop := loadTeamWatchStop(name); stop.Frozen || stop.Paused {
 		detail.Stopped = &appWatchStopState{Frozen: stop.Frozen, Paused: stop.Paused, By: stop.By, Because: stop.Because, At: stop.At}
 	}

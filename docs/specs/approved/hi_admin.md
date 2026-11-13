@@ -138,7 +138,7 @@ app's own or the machine's).
 
 | Section | What it has | Commands |
 |---|---|---|
-| **Overview** | State, addresses, versions, members, today's model costs; **Restart**, **Stop**, **Rebuild**, **Snapshot now**, **Freeze**, **Pause**; **Tell the lead** | `up`, `down`, `rebuild`, `snapshot`, `freeze`, `pause`, `status`, `say` |
+| **Overview** | State, addresses, versions, members, today's model costs; **Boxes**: each of the app's containers on the machine, running or not (the lead, production, Stage, the dev box, the memory, the proxies, the NetBird peer, task boxes), what it's for, its state and since when, its CPU and its memory against its limit as the page samples them, its image, processes, peak memory, and processes killed for want of memory, production's and Stage's version, commit, and command, and **Terminal** for those the Terminal section opens; **Restart**, **Stop**, **Rebuild**, **Snapshot now**, **Freeze**, **Pause**; **Tell the lead** | `up`, `down`, `rebuild`, `snapshot`, `freeze`, `pause`, `status`, `say` |
 | **People** | The owners, each one's level, their SSH keys: the dev page's People table | `owners`, `access` |
 | **Agents** | Each role's agent, model, provider, fallback, and effort; the app's own OpenRouter key; its ChatGPT sign-in (the code to type, shown on the page) and Claude token; Stage's limit a day and the boxes' memory | `member`, `key openrouter`, `signin`, `limit` |
 | **Slack** | The channel and the ops channel, picked from the channels the bot is in; the tokens again; the manifest, with **Update the Slack app**; **Rename** | `ops`, `key slack`, `manifest`, `rename` |

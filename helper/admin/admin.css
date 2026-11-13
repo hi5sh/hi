@@ -32,6 +32,18 @@ button.home-button:hover { background: var(--hover); }
 .note { margin: 8px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--hover); }
 .lines p { margin: 2px 0; }
 
+/* An app's boxes, in its Overview. */
+.boxes-scroll { overflow-x: auto; }
+.boxes-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
+.boxes-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.boxes-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.boxes-table .num { text-align: right; }
+.boxes-table .nowrap { white-space: nowrap; }
+.boxes-table .dot { display: inline-block; vertical-align: middle; margin: 0 2px 2px 0; }
+.boxes-table td.warn { color: var(--warn); }
+.boxes-table td.bad { color: var(--bad); }
+.box-facts { overflow-wrap: anywhere; font-family: var(--mono); font-size: 11px; margin-top: 2px; }
+
 /* Home: every app as a card. */
 .app-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 14px; }
 .card-box { display: flex; flex-direction: column; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }

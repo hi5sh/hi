@@ -51,10 +51,14 @@ func TestAdminUsageOfTheMachineAndItsApps(t *testing.T) {
 	if app == nil || app.Memory != 4000000 || app.Boxes != 1 || app.CPU != nil {
 		t.Fatalf("payments: %+v", app)
 	}
+	if dev := app.PerBox["hi-box-app-payments-dev"]; dev == nil || dev.Memory != 3000000 || len(app.PerBox) != 1 {
+		t.Fatalf("payments' boxes: %+v", app.PerBox)
+	}
 	// A second sample: half the machine's CPU time was busy, and the app
 	// used some of it.
 	write("proc/stat", "cpu  300 0 300 1200 0 0 0 0 0 0\n")
 	write(service+"cpu.stat", "usage_usec 1500000\n")
+	write(box+"cpu.stat", "usage_usec 250000\n")
 	a.s.sampler.mu.Lock()
 	a.s.sampler.at = time.Now().Add(-time.Second)
 	a.s.sampler.mu.Unlock()
@@ -64,6 +68,9 @@ func TestAdminUsageOfTheMachineAndItsApps(t *testing.T) {
 	a.s.sampler.mu.Unlock()
 	if second.CPU == nil || *second.CPU != 0.5 || second.Apps["payments"].CPU == nil || *second.Apps["payments"].CPU <= 0 {
 		t.Fatalf("CPU: %+v %+v", second.CPU, second.Apps["payments"])
+	}
+	if dev := second.Apps["payments"].PerBox["hi-box-app-payments-dev"]; dev.CPU == nil || *dev.CPU <= 0 || *dev.CPU >= *second.Apps["payments"].CPU {
+		t.Fatalf("the dev box's CPU: %+v", dev)
 	}
 	// The folder is measured once, in the background.
 	deadline := time.Now().Add(2 * time.Second)

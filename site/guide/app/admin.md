@@ -35,7 +35,12 @@ remembered. On a phone they lie over the middle, one at a time.
   the apps that are down or frozen, and the org's requests waiting,
   counted on the icon. Pick one to open it in the middle.
 - **An app's Overview:** its state, addresses, members, owners, latest
-  releases, snapshots, and heartbeat. **Restart** (or **Start**),
+  releases, snapshots, and heartbeat, and its **Boxes**: each container
+  it has on the machine (the lead, production, Stage, the dev box, the
+  memory, the proxies, the NetBird peer), running or not, with what it's
+  for, how long it has run, its CPU and its memory against its limit,
+  its image, and production's and Stage's version and command.
+  **Terminal** beside a box opens a shell in it. **Restart** (or **Start**),
   **Stop**, **Rebuild**, **Snapshot now**, **Freeze…**, **Pause…**, and
   **Tell the lead**. Each runs the command it stands for: `hi app up`,
   `hi app down`, `hi app rebuild`, `hi app snapshot`, `hi app freeze`,

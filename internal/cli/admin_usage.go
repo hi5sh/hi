@@ -48,6 +48,14 @@ type adminAppUsage struct {
 	Boxes  int       `json:"boxes"`
 	Disk   int64     `json:"disk"` // its folder's bytes; -1 until measured
 	DiskAt time.Time `json:"disk_at,omitzero"`
+	// PerBox is each running box's own, by container name.
+	PerBox map[string]*adminBoxUsage `json:"per_box,omitempty"`
+}
+
+// adminBoxUsage is one box's CPU and memory now.
+type adminBoxUsage struct {
+	CPU    *float64 `json:"cpu,omitempty"` // its share of the machine's cores, 0 to 1
+	Memory uint64   `json:"memory"`
 }
 
 // These are replaced in tests.
@@ -72,6 +80,7 @@ type adminSampler struct {
 	cpuTotal uint64
 	cpuIdle  uint64
 	apps     map[string]uint64 // each app's CPU time so far, microseconds
+	perBox   map[string]uint64 // each box's, by container name
 	at       time.Time
 	disk     map[string]int64
 	diskAt   time.Time
@@ -142,6 +151,7 @@ func (s *adminServer) sample() {
 	sampler.mu.Unlock()
 	base := adminUserManagerCgroup()
 	cpuTimes := map[string]uint64{}
+	boxTimes := map[string]uint64{}
 	for _, name := range names {
 		var groups []string
 		if base != "" {
@@ -153,17 +163,22 @@ func (s *adminServer) sample() {
 				}
 			}
 		}
-		app := &adminAppUsage{Disk: -1}
-		for box, group := range boxes {
-			if adminBoxApp(box, names) == name {
-				groups = append(groups, group)
-				app.Boxes++
-			}
-		}
+		app := &adminAppUsage{Disk: -1, PerBox: map[string]*adminBoxUsage{}}
 		var cpu uint64
-		for _, group := range groups {
+		for _, group := range groups { // its lead's service
 			app.Memory += adminReadUint(adminCgroupPath(group, "memory.current"))
 			cpu += adminReadCgroupCPU(group)
+		}
+		for box, group := range boxes {
+			if adminBoxApp(box, names) != name {
+				continue
+			}
+			app.Boxes++
+			memory, boxCPU := adminReadUint(adminCgroupPath(group, "memory.current")), adminReadCgroupCPU(group)
+			app.PerBox[box] = &adminBoxUsage{Memory: memory}
+			app.Memory += memory
+			cpu += boxCPU
+			boxTimes[box] = boxCPU
 		}
 		cpuTimes[name] = cpu
 		usage.Apps[name] = app
@@ -184,8 +199,16 @@ func (s *adminServer) sample() {
 				usage.Apps[name].CPU = &share
 			}
 		}
+		for _, app := range usage.Apps {
+			for box, use := range app.PerBox {
+				if before, ok := sampler.perBox[box]; ok && wall > 0 && boxTimes[box] >= before {
+					share := min(float64(boxTimes[box]-before)/float64(wall), 1)
+					use.CPU = &share
+				}
+			}
+		}
 	}
-	sampler.cpuTotal, sampler.cpuIdle, sampler.apps, sampler.at = total, idle, cpuTimes, now
+	sampler.cpuTotal, sampler.cpuIdle, sampler.apps, sampler.perBox, sampler.at = total, idle, cpuTimes, boxTimes, now
 	for name, app := range usage.Apps {
 		if size, ok := sampler.disk[name]; ok {
 			app.Disk, app.DiskAt = size, sampler.diskAt

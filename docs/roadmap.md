@@ -2736,6 +2736,20 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.145 — An app's boxes on the admin page
+
+- [x] An app's Overview lists its boxes: each container it has on the
+  machine, running or not, from the lead's box, production's, and
+  Stage's to the dev box, the memory, the proxies, the NetBird peer, and
+  task boxes. Each says what it's for, its state and since when (or when
+  it stopped, and how), its CPU and its memory against its limit,
+  updated as the page samples, its image, processes, peak memory, and
+  processes killed for want of memory; production's and Stage's say
+  their version, commit, and command. A box near its memory limit turns
+  amber, then red.
+- [x] **Terminal** beside a running box opens the Terminal section with
+  that box picked.
+
 ### v2.6.144 — No VS Code on the dev page
 
 - [x] The dev page's VS Code view (code-server in the dev box) is gone:
