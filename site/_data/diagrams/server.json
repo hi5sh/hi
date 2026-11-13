@@ -1,12 +1,12 @@
 {
-  "caption": "How the org server is laid out. Admins set it up on a small always-on machine in the team's NetBird network. It listens only on its NetBird address and answers only requests signed by connected devices. It alone holds the team's keys: provider keys, Hugging Face tokens, the model key, and template tokens, with the devices, groups, and audit log. Its policy says per group what may be started, downloaded, or used, approves small requests on its own up to a price and time, and warns when a budget is crossed. It asks for approvals and reports through the team's Slack app, and serves connected devices managed machines, the team's model, its data, and private templates. Apps watch themselves on their own machine, and each machine can send hi heartbeat to an outside service, which alerts when it stops.",
+  "caption": "How the server is laid out. Admins set it up on a small always-on machine in the team's NetBird network. It listens only on its NetBird address and answers only requests signed by connected devices. It alone holds the team's keys: provider keys, Hugging Face tokens, the model key, and template tokens, with the devices, groups, and audit log. Its policy says per group what may be started, downloaded, or used, approves small requests on its own up to a price and time, and warns when a budget is crossed. It asks for approvals and reports through the team's Slack app, and serves connected devices managed machines, the team's model, its data, and private templates. Apps watch themselves on their own machine, and each machine can send hi heartbeat to an outside service, which alerts when it stops.",
   "you": "Admins",
-  "via": "hi org init · provider add · hi admin start",
+  "via": "hi server init · provider add · hi admin start",
   "frame": "the server's machine, on NetBird",
   "frame_mark": 1,
   "groups": [
     {
-      "name": "org server",
+      "name": "server",
       "label": "always on",
       "mark": 2,
       "items": [
@@ -44,7 +44,7 @@
           "title": "policy.json",
           "role": "who may do what",
           "does": "Hardware, hours, data, and templates per group; it approves up to a price and time on its own, and budgets warn.",
-          "chip": "hi org policy edit",
+          "chip": "hi server policy edit",
           "tone": "accent"
         }
       ]
@@ -68,7 +68,7 @@
     },
     {
       "name": "connected devices",
-      "label": "joined with hi org join",
+      "label": "joined with hi server join",
       "mark": 6,
       "via": "serves",
       "items": [
@@ -90,7 +90,7 @@
     },
     {
       "mark": 2,
-      "term": "org server",
+      "term": "server",
       "text": "The service the team's devices talk to, and nothing else can."
     },
     {

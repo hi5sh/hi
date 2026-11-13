@@ -487,7 +487,7 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if fromServer {
 		// The org server made teams' keys until hi 2.6.34 (hi_app_ops.md).
-		return errors.New("the org server no longer makes apps' keys; give the app its own: hi app key <name> openrouter")
+		return errors.New("the server no longer makes apps' keys; give the app its own: hi app key <name> openrouter")
 	}
 	if len(words) != 2 || words[1] != "openrouter" {
 		return usage

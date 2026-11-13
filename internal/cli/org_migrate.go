@@ -68,12 +68,12 @@ func moveOrgDirectory(dir string, stdout io.Writer) error {
 		return nil
 	}
 	if err := os.Rename(old, target); err != nil {
-		return fmt.Errorf("move the org server's state to %s: %w", target, err)
+		return fmt.Errorf("move the server's state to %s: %w", target, err)
 	}
 	if err := os.Symlink("org", old); err != nil {
-		return fmt.Errorf("moved the org server's state to %s, but couldn't link %s there: %w", target, old, err)
+		return fmt.Errorf("moved the server's state to %s, but couldn't link %s there: %w", target, old, err)
 	}
-	fmt.Fprintf(stdout, "Moved the org server's state from %s to %s; the old path links there.\n", old, target)
+	fmt.Fprintf(stdout, "Moved the server's state from %s to %s; the old path links there.\n", old, target)
 	return nil
 }
 
@@ -113,7 +113,7 @@ func orgRestartLine() string {
 	case system != "":
 		return "sudo systemctl restart " + system
 	}
-	return "restart `hi org run`"
+	return "restart `hi server run`"
 }
 
 // orgUnitFrom rewrites a hi-server.service for hi-org.service: its
@@ -255,7 +255,7 @@ func moveOrgUnit(stdin io.Reader, stdout, stderr io.Writer) error {
 		return err
 	}
 	if account := orgUnitAccount(string(data)); account != currentUserName() {
-		return fmt.Errorf("%s runs the org server as %s; run hi update as %s to move it", system, account, account)
+		return fmt.Errorf("%s runs the server as %s; run hi update as %s to move it", system, account, account)
 	}
 	userPath := orgUserUnitPath()
 	if err := os.MkdirAll(filepath.Dir(userPath), 0o755); err != nil {
@@ -301,7 +301,7 @@ func moveOrgUnit(stdin io.Reader, stdout, stderr io.Writer) error {
 		return back(fmt.Errorf("the user service %s did not come up, so %s runs again; check `journalctl --user -u %s`", orgUnit, system, orgUnit))
 	}
 	removed := run(true, "rm", systemPath) == nil && run(true, "systemctl", "daemon-reload") == nil
-	fmt.Fprintf(stdout, "The org server is a user service now, %s, beside the admin page: the admin page can restart it, and hi update does without sudo.\n", orgUnit)
+	fmt.Fprintf(stdout, "The server is a user service now, %s, beside the admin page: the admin page can restart it, and hi update does without sudo.\n", orgUnit)
 	if !removed {
 		fmt.Fprintf(stdout, "%s stays, disabled; remove it when you like: sudo rm %s\n", system, systemPath)
 	}

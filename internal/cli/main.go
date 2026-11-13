@@ -175,9 +175,8 @@ Usage:
   hi login <hf|colab|runpod|shadeform>
                                 Sign in to a compute provider
   hi data                       Download your team's Hugging Face datasets, models, and buckets
-  hi serve llm <recipe>         Serve a model with an OpenAI-compatible API on rented hardware (hi serve help)
-  hi org                        Your organization: join it, or run its server, which approves and pays for compute
-                                and serves your team's templates and data (hi org help)
+  hi serve llm <recipe>         Serve a model with an OpenAI-compatible API, rented or on this machine
+                                (hi serve help; not hi server)
   hi init [<template> <dir>]    Start a project from a template (python, web, webapp, service, pipeline, ml, autoresearch-ml)
   hi q <what you want to do>    Ask an AI model for a shell command, then run, copy, or explain it
   hi q                          Chat with it; hi q --setup chooses the model and sets up the shell
@@ -188,6 +187,8 @@ Usage:
                                 Several agents give ideas alone; one compiles them into a proposal
   hi app new|up|down|ls <name>  An app in a Slack channel: owners build it in a dev box, a Hermes lead helps the people (hi app help)
   hi admin start                The admin page: this machine's apps on a web page of their own, for its admins (hi admin help)
+  hi server                     The hi server your machines and people join: approvals and spend, shared
+                                keys, templates and data (hi server help)
   hi people                     Everyone on this machine, by email, with their level in each app (hi people help)
   hi bundle ls|show             Bundles for hi agent --bundle: skills and the tools they need
   hi box shell|run              Run a shell or a command in a rootless box with no credentials
@@ -195,7 +196,7 @@ Usage:
                                 hi skill add hi teaches agents to use hi
   hi verify strix               Check an installed Strix Halo workstation
   hi heartbeat [<url>|off|test] This machine's heartbeat to a service such as healthchecks.io, which alerts when it stops
-  hi update [--check]           Update hi to the latest release, and restart an org server or app running the old one
+  hi update [--check]           Update hi to the latest release, and restart a hi server or app running the old one
   hi version                    Print the installed version
   hi help                       Show this help`)
 }

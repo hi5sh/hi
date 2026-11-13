@@ -40,8 +40,8 @@ func TestMachineAndOrgAdminsApart(t *testing.T) {
 	// Each sees everything, and changes only their own.
 	var answer map[string]any
 	answer = nil
-	if code := a.post(t, ada, "/api/org", adminOrgChange{What: "user", Action: "add", Name: "lin", Group: "staff"}, &answer); code != http.StatusForbidden || !strings.Contains(answer["error"].(string), "the org's admins") {
-		t.Fatalf("ada changed the org: %d %v", code, answer)
+	if code := a.post(t, ada, "/api/org", adminOrgChange{What: "user", Action: "add", Name: "lin", Group: "staff"}, &answer); code != http.StatusForbidden || !strings.Contains(answer["error"].(string), "the server's admins") {
+		t.Fatalf("ada changed the server: %d %v", code, answer)
 	}
 	answer = nil
 	if code := a.post(t, sam, "/api/action", map[string]string{"app": "demo", "action": "restart"}, &answer); code != http.StatusForbidden || !strings.Contains(answer["error"].(string), "the machine's admins") {
@@ -67,7 +67,7 @@ func TestMachineAndOrgAdminsApart(t *testing.T) {
 		t.Fatalf("add Bo: %d %v", code, answer)
 	}
 	if _, ok := loadOrgPeople(ts.dir).find("U07BOB"); ok {
-		t.Fatal("Bo went into the org's admins")
+		t.Fatal("Bo went into the server's admins")
 	}
 	if config, _ := loadSlackConfig(ts.dir); config.Approvers["U07BOB"] != "" {
 		t.Fatal("Bo approves")
@@ -83,11 +83,11 @@ func TestMachineAndOrgAdminsApart(t *testing.T) {
 	// approves; the owner only adds them.
 	answer = nil
 	if code := a.post(t, ada, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusForbidden {
-		t.Fatalf("ada added an org admin: %d", code)
+		t.Fatalf("ada added a server admin: %d", code)
 	}
 	answer = nil
 	if code := a.post(t, sam, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusBadRequest || !strings.Contains(answer["error"].(string), "owner") {
-		t.Fatalf("sam added an org admin: %d %v", code, answer)
+		t.Fatalf("sam added a server admin: %d %v", code, answer)
 	}
 	answer = nil
 	if code := a.post(t, olga, "/api/org", adminOrgChange{What: "admins", Action: "add", Name: "kim", Slack: "U07KIM"}, &answer); code != http.StatusOK {
@@ -126,7 +126,7 @@ func TestMachineAndOrgAdminsApart(t *testing.T) {
 	}
 }
 
-// hi org init on a machine with apps keeps the machine's admins, joins
+// hi server init on a machine with apps keeps the machine's admins, joins
 // the machine to the new org, and refuses on a machine joined to another.
 func TestOrgInitBesideApps(t *testing.T) {
 	newTestServer(t)
@@ -144,18 +144,18 @@ func TestOrgInitBesideApps(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := []string{"org", "init", "--listen", "127.0.0.1:7478", "--owner", "U07NOOR", "--email", "noor@example.com", "--no-start"}
-	if code, _, stderr := runHi(args...); code == 0 || !strings.Contains(stderr, "joined to the org at http://other.example.com:7373") || !strings.Contains(stderr, "hi org leave") {
-		t.Fatalf("init on a machine in another org: %d %s", code, stderr)
+	if code, _, stderr := runHi(args...); code == 0 || !strings.Contains(stderr, "joined through the server at http://other.example.com:7373") || !strings.Contains(stderr, "hi server leave") {
+		t.Fatalf("init on a machine in another server: %d %s", code, stderr)
 	}
 	if fileExists(filepath.Join(orgDir, "config.json")) {
-		t.Fatal("init made an org anyway")
+		t.Fatal("init made a server anyway")
 	}
 	os.Remove(serverConnectionPath())
 	code, stdout, stderr := runHi(args...)
 	if code != 0 {
 		t.Fatalf("init: %d %s%s", code, stdout, stderr)
 	}
-	for _, want := range []string{"joined the org as noor (staff)", "keeps the machine's admins, and noor is one too", "a small machine of its own"} {
+	for _, want := range []string{"joined the server as noor (staff)", "keeps the machine's admins, and noor is one too", "a small machine of its own"} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("init doesn't say %q:\n%s", want, stdout)
 		}
@@ -200,8 +200,8 @@ func TestOrgIncidents(t *testing.T) {
 	data, _ := json.Marshal(state)
 	writeTestFile(t, filepath.Join(dir, "state.json"), string(data), 0o600)
 	lines := []auditEntry{
-		{Time: now.Add(-2 * time.Hour), Actor: "server", Action: "unleased instance", Subject: "shadeform/stray", Detail: "running on the organization's account without a request, named by r-9 of ken (failed)"},
-		{Time: now.Add(-48 * time.Hour), Actor: "server", Action: "unleased instance", Subject: "runpod/gone", Detail: "running on the organization's account without a request"},
+		{Time: now.Add(-2 * time.Hour), Actor: "server", Action: "unleased instance", Subject: "shadeform/stray", Detail: "running on the server's account without a request, named by r-9 of ken (failed)"},
+		{Time: now.Add(-48 * time.Hour), Actor: "server", Action: "unleased instance", Subject: "runpod/gone", Detail: "running on the server's account without a request"},
 		{Time: now.Add(-24 * time.Hour), Actor: "server", Action: "cleaned up", Subject: "old", Detail: "r-0 failed to start"},
 		{Time: now.Add(-40 * 24 * time.Hour), Actor: "server", Action: "unleased instance", Subject: "runpod/ancient"},
 	}
@@ -214,7 +214,7 @@ func TestOrgIncidents(t *testing.T) {
 	open, closed := map[string]adminIncident{}, map[string]adminIncident{}
 	for _, incident := range adminOrgIncidents(now) {
 		if incident.App != ":org" {
-			t.Fatalf("not the org's: %+v", incident)
+			t.Fatalf("not the server's: %+v", incident)
 		}
 		if incident.Status == "open" {
 			open[incident.ID] = incident

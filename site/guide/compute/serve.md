@@ -109,7 +109,7 @@ your own machine there is no limit by default.
 | `--memory <size>` | The box's memory limit, such as `72G`; default the recipe's |
 | `--backend <name>`| `rocm`, `vulkan`, `cuda`, or `cpu`; default `rocm` on an AMD GPU, `cuda` on an NVIDIA one |
 | `--share`         | Also on this machine's NetBird address, with a key to hand over (below) |
-| `--org`           | Also on the NetBird address, for the org server's `hi org ai` (below) |
+| `--org`           | Also on the NetBird address, for the server's `hi server ai` (below) |
 | `--name <name>`   | Its name; default from the recipe, such as `qwen3-8-flash-next` |
 | `--ctx`, `--alias`, `--args`, `--quant`, `--max`, `--yes`, `--dry-run` | As above |
 
@@ -177,7 +177,7 @@ It offers to restart a front that still runs the old hi, which drops open
 connections and nothing else.
 
 A model in your team's private Hugging Face organizations comes through the
-org server, as `hi data` does, so no Hugging Face token is on the machine.
+server, as `hi data` does, so no Hugging Face token is on the machine.
 
 ### Share it with a teammate
 
@@ -214,9 +214,9 @@ access 2026-11-02T19:59:54Z shared POST /v1/chat/completions 200 69ms
 access 2026-11-02T19:59:23Z no-key GET /v1/models 401 0s
 ```
 
-### Serve it to the org
+### Serve it to the server
 
-With an org server, `--org` names the model to it instead, so nobody hands
+With a server, `--org` names the model to it instead, so nobody hands
 keys around:
 
 ```sh
@@ -224,20 +224,20 @@ hi serve llm qwen3.8-flash-next --on local --org --reason "bulk tagging for the 
 ```
 
 ```text
-Asked the org server to add it to hi org ai as model local/qwen3-8-flash-next (s-32a15f); an admin approves it in Slack.
+Asked the server to add it to hi server ai as model local/qwen3-8-flash-next (s-32a15f); an admin approves it in Slack.
 ```
 
-Once an admin approves it, devices that joined the org use it through
-`hi org ai` with their own sign-in, and the org server holds the key:
+Once an admin approves it, devices that joined the server use it through
+`hi server ai` with their own sign-in, and the server holds the key:
 
 ```sh
 hi q --model local/qwen3-8-flash-next "show the free disk space"
 ```
 
-Its use shows in `hi org spend` at no cost, and the access lines name the
+Its use shows in `hi server spend` at no cost, and the access lines name the
 user (`org:alice`). `hi serve status` says whether it is approved. `stop`
-marks it stopped for the org, `start` marks it up again, and `rm` removes it
-from the org. `--org` and `--share` go together if you also want a key to
+marks it stopped for the server, `start` marks it up again, and `rm` removes it
+from the server. `--org` and `--share` go together if you also want a key to
 hand over.
 
 ## What happens on each provider

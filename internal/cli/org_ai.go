@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// hi org ai passes hi q's model requests through to an OpenAI-compatible
+// hi server ai passes hi q's model requests through to an OpenAI-compatible
 // upstream, OpenRouter by default, with the team's key. Devices sign their
 // requests as for everything else; any model may be asked for, and the
 // server records who used what and what it cost, never the messages.
@@ -159,7 +159,7 @@ func (s *orgServer) handleAIModels(w http.ResponseWriter, r *http.Request, devic
 	settings, key, on := s.aiConfig()
 	served := s.servedModelList()
 	if s.isViewer(device.User) || (!on && len(served) == 0) {
-		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model")
+		writeAIError(w, http.StatusServiceUnavailable, "this server doesn't serve a model")
 		return
 	}
 	if !on {
@@ -207,7 +207,7 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 		}
 	}
 	if !on {
-		writeAIError(w, http.StatusServiceUnavailable, "this org server doesn't serve a model; an admin can turn it on with `hi org ai set`")
+		writeAIError(w, http.StatusServiceUnavailable, "this server doesn't serve a model; an admin can turn it on with `hi server ai set`")
 		return
 	}
 	if s.isViewer(device.User) {
@@ -233,7 +233,7 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 	setAIAuthorization(upstream, key)
 	if qHost(settings.URL) == "openrouter.ai" {
 		upstream.Header.Set("HTTP-Referer", "https://hi5.sh")
-		upstream.Header.Set("X-Title", "hi q via the org server")
+		upstream.Header.Set("X-Title", "hi q via the server")
 	}
 	response, err := orgUpstreamClient.Do(upstream)
 	if err != nil {
@@ -251,7 +251,7 @@ func (s *orgServer) handleAIChat(w http.ResponseWriter, r *http.Request, device 
 	if (response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden) && key != "" {
 		// The team's key was refused, which no device can fix: say so as
 		// the server's own error, so hi q falls back and names the cause.
-		writeAIError(w, http.StatusBadGateway, fmt.Sprintf("%s refused this org server's key (%s: %s); an admin stores a new one with `hi org ai set`",
+		writeAIError(w, http.StatusBadGateway, fmt.Sprintf("%s refused this server's key (%s: %s); an admin stores a new one with `hi server ai set`",
 			qHost(settings.URL), response.Status, qErrorMessage(answer)))
 		return
 	}
@@ -335,7 +335,7 @@ func readAIUsage(dir string, from, to time.Time) []aiUsageRow {
 	return out
 }
 
-// describeAIUsage is the AI part of hi org ai and hi org spend.
+// describeAIUsage is the AI part of hi server ai and hi server spend.
 func describeAIUsage(rows []aiUsageRow) string {
 	if len(rows) == 0 {
 		return "No model requests."
@@ -474,7 +474,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	if err != nil {
 		return err
 	}
-	usage := usageError{"usage: hi org ai [set [--url URL] [--model M] [--no-key] | off | remove [local/<name>]]"}
+	usage := usageError{"usage: hi server ai [set [--url URL] [--model M] [--no-key] | off | remove [local/<name>]]"}
 	dir, err := orgDirectory(*dirFlag)
 	if err != nil {
 		return err
@@ -484,7 +484,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		running = true
 	}
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
 	}
 	action := ""
 	if len(positional) > 0 {
@@ -492,13 +492,13 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	}
 	if len(positional) == 2 && action == "remove" {
 		if !running {
-			return errors.New("start the server first (`hi org run`)")
+			return errors.New("start the server first (`hi server run`)")
 		}
 		name := strings.TrimPrefix(positional[1], serveOrgPrefix)
 		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/ai/served/"+url.PathEscape(name)+"?as="+url.QueryEscape(*as), nil, nil); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "Removed %s from hi org ai, and its key from this server. The machine still serves it; its owner stops it with hi serve rm %s.\n",
+		fmt.Fprintf(stdout, "Removed %s from hi server ai, and its key from this server. The machine still serves it; its owner stops it with hi serve rm %s.\n",
 			orgModelID(name), name)
 		return nil
 	}
@@ -527,11 +527,11 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		case status.On:
 			fmt.Fprintf(stdout, "Serving %s's models to connected devices; the default is %s.\n", qHost(status.URL), status.Model)
 		case status.HasKey:
-			fmt.Fprintln(stdout, "Off. Turn it on with `hi org ai set`.")
+			fmt.Fprintln(stdout, "Off. Turn it on with `hi server ai set`.")
 		case status.Served != "":
-			fmt.Fprintln(stdout, "Serves only the team's own models; `hi org ai set` adds OpenRouter's.")
+			fmt.Fprintln(stdout, "Serves only the team's own models; `hi server ai set` adds OpenRouter's.")
 		default:
-			fmt.Fprintln(stdout, "Not set up. Store an OpenRouter key with `hi org ai set`.")
+			fmt.Fprintln(stdout, "Not set up. Store an OpenRouter key with `hi server ai set`.")
 		}
 		if status.Served != "" {
 			fmt.Fprintf(stdout, "\n%s\n", status.Served)
@@ -615,11 +615,11 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		if err := adminCall(*dirFlag, http.MethodPost, "/admin/ai", map[string]any{"as": *as, "off": &off}, nil); err != nil {
 			return err
 		}
-		fmt.Fprintln(stdout, "Off. Devices use their own keys again; the key is kept for `hi org ai set`.")
+		fmt.Fprintln(stdout, "Off. Devices use their own keys again; the key is kept for `hi server ai set`.")
 		return nil
 	case "remove":
 		if !running {
-			return errors.New("start the server first (`hi org run`), so the key is removed from the running server too")
+			return errors.New("start the server first (`hi server run`), so the key is removed from the running server too")
 		}
 		if err := adminCall(*dirFlag, http.MethodDelete, "/admin/ai?as="+*as, nil, nil); err != nil {
 			return err

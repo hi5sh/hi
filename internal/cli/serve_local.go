@@ -623,7 +623,7 @@ func serveLocalCommand(request localRequest, stdin io.Reader, stdout, stderr io.
 			fmt.Fprintf(stdout, " Also %s, with a key.", record.sharedURL())
 		}
 		if record.Org {
-			fmt.Fprintf(stdout, " The org server would be asked to add it to hi org ai as %s.", orgModelID(name))
+			fmt.Fprintf(stdout, " The server would be asked to add it to hi server ai as %s.", orgModelID(name))
 		}
 		fmt.Fprintln(stdout, " Nothing was changed.")
 		return nil
@@ -1276,7 +1276,7 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "Shared:   %s, with a key (%s)\n", record.sharedURL(), sharedKeysText(record))
 	}
 	if record.Org {
-		fmt.Fprintf(stdout, "Org:      %s\n", orgUpstreamState(record))
+		fmt.Fprintf(stdout, "Server:   %s\n", orgUpstreamState(record))
 	}
 	memory := fmt.Sprintf("needs %s in all; the box's host side is limited to %s", sizeText(record.Need), sizeText(record.Memory))
 	switch {
@@ -1299,7 +1299,7 @@ func serveStatusCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "Shared:   OPENAI_BASE_URL=%s OPENAI_API_KEY=$(hi serve key %s)\n", record.sharedURL(), record.Name)
 	}
 	if record.Org {
-		fmt.Fprintf(stdout, "Org:      hi q --model %s, on a device that joined the org\n", orgModelID(record.Name))
+		fmt.Fprintf(stdout, "Server:   hi q --model %s, on a device that joined the server\n", orgModelID(record.Name))
 	}
 	if state.text == "stopped: out of memory" {
 		fmt.Fprintf(stdout, "\nThe kernel killed it for memory, so it stays stopped; hi serve start %s checks memory again first.\n", record.Name)

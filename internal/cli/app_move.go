@@ -493,11 +493,11 @@ func appReceiveCheck(needs appMoveNeeds) appMoveReport {
 	if needs.Org != org {
 		switch {
 		case org == "":
-			warn("%s isn't in an org, so the app's heartbeats to %s stop there", here, needs.Org)
+			warn("%s isn't joined to a server, so the app's heartbeats to %s stop there", here, needs.Org)
 		case needs.Org == "":
-			warn("%s is in an org (%s), and the app will report to it", here, org)
+			warn("%s is joined to a server (%s), and the app will report to it", here, org)
 		default:
-			warn("%s is in another org (%s): the app reports there, not to %s", here, org, needs.Org)
+			warn("%s is joined to another server (%s): the app reports there, not to %s", here, org, needs.Org)
 		}
 	}
 	home, _ := os.UserHomeDir()

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// hi org is the organization: devices join and leave it, and its server
+// hi server is the organization: devices join and leave it, and its server
 // runs on one box. The commands that join (once hi connect and hi
 // disconnect) are handled here; everything else is the server's, in
 // runOrgServer. hi server, hi connect, and hi disconnect still run these, and
@@ -24,7 +24,7 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 0
 	case "join":
 		if len(rest) == 0 {
-			fmt.Fprintln(stderr, "usage: hi org join <server> [--user NAME] [--no-wait]")
+			fmt.Fprintln(stderr, "usage: hi server join <server> [--user NAME] [--no-wait]")
 			return 2
 		}
 		return exitCode(connectCommand(rest, stdout, stderr), stderr)
@@ -53,62 +53,63 @@ func orgSlackLink(args []string, stdout, stderr io.Writer) int {
 }
 
 func printOrgUsage(w io.Writer) {
-	fmt.Fprintln(w, `hi org is your organization: its people, devices, and rules. Its server
-holds the provider keys and approves compute, so nothing paid starts without
-an approval. It also serves your team's private project templates to hi init,
-and your team's Hugging Face datasets and models to hi data. Without joining,
-hi compute uses your own keys.
+	fmt.Fprintln(w, `hi server is the server your machines and people join. It keeps who belongs
+and their devices, holds the provider keys, and approves and counts what
+compute costs, so nothing paid starts without an approval. It serves your
+team's shared keys, private project templates (hi init), and Hugging Face
+datasets and models (hi data). Without joining, hi compute uses your own keys.
+hi org is its old name and still works.
 
 On any device:
-  hi org join <server> [--user NAME] [--no-wait]
+  hi server join <server> [--user NAME] [--no-wait]
                                        Join: enroll this device and wait for an admin's approval
-  hi org join <server> --agent NAME --owner PERSON
+  hi server join <server> --agent NAME --owner PERSON
                                        Enroll an agent that runs on its own, such as a build bot
-  hi org status                        Server, user, group, and managed providers
-  hi org key                           This device's public key, for an admin to pre-approve
-  hi org slack link <code>             Link your Slack account, with the code from /hi link
-  hi org leave                         Forget the server and delete this device's key
+  hi server status                        Server, user, group, and managed providers
+  hi server key                           This device's public key, for an admin to pre-approve
+  hi server slack link <code>             Link your Slack account, with the code from /hi link
+  hi server leave                         Forget the server and delete this device's key
 
 On the server box:
-  hi org init --owner <Slack ID> --email <address> [--listen ADDR]
+  hi server init --owner <Slack ID> --email <address> [--listen ADDR]
                                        Create the server and its owner here, and start it as a user service
-  hi org run                           Serve clients (hi-org.service runs it)
-  hi org owner [<Slack ID> --email <address>]
-                                       The org's owner, or hand it on
-  hi org admins [add <Slack ID> --name <user> [--email E] | remove <user>]
-                                       The org's admins: approvers, and admins of the admin page here
-  hi org provider add|remove <p>       Store or remove a provider key (runpod, shadeform)
-  hi org provider list                 Show managed providers
-  hi org user add <u> --group G [--key K]
+  hi server run                           Serve clients (hi-org.service runs it)
+  hi server owner [<Slack ID> --email <address>]
+                                       The server's owner, or hand it on
+  hi server admins [add <Slack ID> --name <user> [--email E] | remove <user>]
+                                       The server's admins: approvers, and admins of the admin page here
+  hi server provider add|remove <p>       Store or remove a provider key (runpod, shadeform)
+  hi server provider list                 Show managed providers
+  hi server user add <u> --group G [--key K]
                                        Add a user; --key pre-approves a device
-  hi org user remove <u>               Remove a user and all their devices
-  hi org user list                     Users, groups, and devices
-  hi org requests [--all]              Pending requests (--all: every request)
-  hi org approve <id> [--group G]      Approve an enrollment or compute request
-  hi org deny <id> [--reason R]        Deny a request
-  hi org ls                            Everything running, for every user
-  hi org stop <name> | --user U | --all
+  hi server user remove <u>               Remove a user and all their devices
+  hi server user list                     Users, groups, and devices
+  hi server requests [--all]              Pending requests (--all: every request)
+  hi server approve <id> [--group G]      Approve an enrollment or compute request
+  hi server deny <id> [--reason R]        Deny a request
+  hi server ls                            Everything running, for every user
+  hi server stop <name> | --user U | --all
                                        Stop instances
-  hi org audit [--since 7d]            Requests, approvals, starts, and stops
-  hi org slack setup                   Connect a Slack app (see: hi org slack manifest)
-  hi org approvers add <Slack ID> --name <user>
+  hi server audit [--since 7d]            Requests, approvals, starts, and stops
+  hi server slack setup                   Connect a Slack app (see: hi server slack manifest)
+  hi server approvers add <Slack ID> --name <user>
                                        Let someone approve and stop from Slack
-  hi org approvers remove <Slack ID> | list
-  hi org policy show|edit|example|check
+  hi server approvers remove <Slack ID> | list
+  hi server policy show|edit|example|check
                                        Groups: limits, auto-approve, budgets
-  hi org spend [--since 30d]           Spend per user and group, compute and models
-  hi org ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key,
+  hi server spend [--since 30d]           Spend per user and group, compute and models
+  hi server ai [set|off|remove]           Pass hi q's model requests to OpenRouter with your team's key,
                                        and to models served on the team's machines (hi serve --org)
-  hi org ai remove local/<name>        Stop passing requests to a model served on a team's machine
-  hi org templates add <name> <git-url> [--ref R]
+  hi server ai remove local/<name>        Stop passing requests to a model served on a team's machine
+  hi server templates add <name> <git-url> [--ref R]
                                        Serve a private repository's templates and skills
-  hi org templates list|sync|remove    Show, fetch now, or stop serving template sources
-  hi org templates rename <name> <new> Rename a source; keeps its token and history
-  hi org data                          Hugging Face organizations for hi data (menu)
-  hi org data add <hf-org>... [--token-file F]
+  hi server templates list|sync|remove    Show, fetch now, or stop serving template sources
+  hi server templates rename <name> <new> Rename a source; keeps its token and history
+  hi server data                          Hugging Face organizations for hi data (menu)
+  hi server data add <hf-org>... [--token-file F]
                                        Serve a Hugging Face organization's datasets, models, and buckets
-  hi org data list|test|remove         Show, check, or stop serving organizations
-  hi org expose [stop]                 The public URL cloud runs reach hi data through, if any
+  hi server data list|test|remove         Show, check, or stop serving organizations
+  hi server expose [stop]                 The public URL cloud runs reach hi data through, if any
 
 Commands on the server box talk to the running server through its admin
 socket. Decisions are recorded under your login name; change it with --as.

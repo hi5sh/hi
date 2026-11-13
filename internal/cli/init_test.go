@@ -234,7 +234,7 @@ func TestHelpFlagFindsTheCommandsHelp(t *testing.T) {
 	}
 	for name, want := range map[string]string{
 		"hi compute up":         "hi compute help",
-		"hi compute org init":   "hi org help",
+		"hi compute org init":   "hi server help",
 		"hi compute data ls":    "hi data help",
 		"hi compute net expose": "hi net expose help",
 	} {

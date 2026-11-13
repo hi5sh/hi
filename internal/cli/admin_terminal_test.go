@@ -46,7 +46,7 @@ func TestAdminMachineOwner(t *testing.T) {
 		{Name: "Ada", Machine: true, Org: true, Added: time.Now().Add(-time.Hour)},
 		{Name: "Iman", Machine: true, Org: true, Owner: true, Added: time.Now()}}}
 	if owner := org.machineOwner(); owner != "Iman" {
-		t.Fatalf("the org's owner: %q", owner)
+		t.Fatalf("the server's owner: %q", owner)
 	}
 }
 

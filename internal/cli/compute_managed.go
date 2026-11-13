@@ -202,7 +202,7 @@ func (*managedProvider) wait(string, io.Writer, io.Writer) (int, error) {
 // instance will accept.
 func prepareManagedStart(request *upRequest, stdin io.Reader, stdout io.Writer) error {
 	if request.max == noLimit {
-		return usageError{"instances started through the org server need a time limit; set --max"}
+		return usageError{"instances started through the server need a time limit; set --max"}
 	}
 	request.reason = strings.TrimSpace(request.reason)
 	if request.reason == "" {
@@ -419,7 +419,7 @@ func computeRequestsCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if connection == nil {
-		return errors.New("not connected to an org server; requests are only needed for managed compute")
+		return errors.New("not connected to a hi server; requests are only needed for managed compute")
 	}
 	provider := &managedProvider{url: connection.URL}
 
@@ -546,7 +546,7 @@ func computeExtendCommand(args []string, stdin io.Reader, stdout, stderr io.Writ
 	}
 	managed, ok := provider.(*managedProvider)
 	if !ok {
-		return usageError{fmt.Sprintf("%s is not managed by an org server; its limit was set when it started", name)}
+		return usageError{fmt.Sprintf("%s is not managed by a hi server; its limit was set when it started", name)}
 	}
 	*reason = strings.TrimSpace(*reason)
 	if *reason == "" {

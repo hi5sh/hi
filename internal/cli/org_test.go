@@ -11,7 +11,7 @@ import (
 )
 
 // The old names, hi server, hi connect, and hi disconnect, run what their
-// hi org forms run, with the same output and exit code.
+// hi server forms run, with the same output and exit code.
 func TestOldNamesRunTheirOrgForms(t *testing.T) {
 	ts := newTestServer(t)
 	ts.connectAs(t, "anna", "staff")
@@ -37,20 +37,20 @@ func TestOldNamesRunTheirOrgForms(t *testing.T) {
 	same([]string{"disconnect", "now"}, []string{"org", "leave", "now"})
 
 	if code, stdout, _ := runHi("org", "leave"); code != 0 || !strings.Contains(stdout, "Disconnected from "+ts.url) {
-		t.Fatalf("hi org leave: %d %s", code, stdout)
+		t.Fatalf("hi server leave: %d %s", code, stdout)
 	}
 	same([]string{"disconnect"}, []string{"org", "leave"})
-	if code, stdout, stderr := runHi("connect", ts.url, "--user", "anna", "--no-wait"); code != exitPending || !strings.Contains(stdout, "hi org approve e-") {
+	if code, stdout, stderr := runHi("connect", ts.url, "--user", "anna", "--no-wait"); code != exitPending || !strings.Contains(stdout, "hi server approve e-") {
 		t.Fatalf("hi connect still joins: %d %s%s", code, stdout, stderr)
 	}
 }
 
-func TestHelpNamesOnlyOrg(t *testing.T) {
+func TestHelpNamesOnlyServer(t *testing.T) {
 	_, stdout, _ := runHi("help")
-	if !strings.Contains(stdout, "\n  hi org ") {
-		t.Errorf("hi help doesn't list hi org:\n%s", stdout)
+	if !strings.Contains(stdout, "\n  hi server ") {
+		t.Errorf("hi help doesn't list hi server:\n%s", stdout)
 	}
-	for _, old := range []string{"hi server", "hi connect", "hi disconnect"} {
+	for _, old := range []string{"hi org", "hi connect", "hi disconnect"} {
 		if strings.Contains(stdout, old) {
 			t.Errorf("hi help still lists %s", old)
 		}
@@ -58,9 +58,10 @@ func TestHelpNamesOnlyOrg(t *testing.T) {
 }
 
 // No message names the old commands: usage, errors, hints, and what goes to
-// Slack all say hi org. Comments may keep the old words.
-func TestMessagesUseOrgNames(t *testing.T) {
-	old := regexp.MustCompile(`\bhi (server|connect|disconnect)\b`)
+// Slack all say hi server (hi_server_apps.md). Comments may keep the old
+// words, and hi server's help says once that hi org is its old name.
+func TestMessagesUseServerNames(t *testing.T) {
+	old := regexp.MustCompile(`\bhi (org|connect|disconnect)\b`)
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)
@@ -76,8 +77,8 @@ func TestMessagesUseOrgNames(t *testing.T) {
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-				if match := old.FindString(lit.Value); match != "" {
-					t.Errorf("%s: %q; say hi org", fset.Position(lit.Pos()), match)
+				if match := old.FindString(lit.Value); match != "" && !strings.Contains(lit.Value, "hi org is its old name") && !strings.Contains(lit.Value, "Description=hi org server") {
+					t.Errorf("%s: %q; say hi server", fset.Position(lit.Pos()), match)
 				}
 			}
 			return true

@@ -19,7 +19,7 @@ DESCRIPTION = "Owners: your link to the dev page; signin chatgpt|claude signs th
 
 # Each app has a command of its own, /hi-<app>: Slack gives a
 # command two apps in a workspace share to the one installed last. Plain
-# /hi is the org server's: answering it too would let an app whose
+# /hi is the server's: answering it too would let an app whose
 # manifest still has it take /hi from the server when reinstalled.
 TEAM = re.sub(r"[^a-z0-9_-]+", "-", os.environ.get("HI_TEAM", "").lower()).strip("-")
 COMMANDS = ["hi-" + TEAM] if TEAM else []

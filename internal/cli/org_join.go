@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-// hi org join joins this device to an org server. Until it does, hi compute
+// hi server join joins this device to an org server. Until it does, hi compute
 // works exactly as before, with the user's own keys.
 
 var connectPollEvery = 3 * time.Second
@@ -93,7 +93,7 @@ func loadDeviceKey(create bool) (ed25519.PrivateKey, error) {
 		return nil, err
 	}
 	if !create {
-		return nil, errors.New("this device has no key; run `hi org join <server>`")
+		return nil, errors.New("this device has no key; run `hi server join <server>`")
 	}
 	_, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -118,7 +118,7 @@ func devicePublicKey(key ed25519.PrivateKey) string {
 func normalizeServerURL(address string) (string, error) {
 	address = strings.TrimRight(strings.TrimSpace(address), "/")
 	if address == "" {
-		return "", usageError{"usage: hi org join <server>"}
+		return "", usageError{"usage: hi server join <server>"}
 	}
 	if !strings.Contains(address, "://") {
 		if _, _, err := net.SplitHostPort(address); err != nil {
@@ -144,7 +144,7 @@ func (c *serverClient) call(method, path string, body, result any) error {
 	err := doJSON(c.http, method, c.url+path, body, result, c.key)
 	var reply *serverReplyError
 	if err != nil && !errors.As(err, &reply) {
-		return fmt.Errorf("can't reach the org server at %s: %w", c.url, err)
+		return fmt.Errorf("can't reach the server at %s: %w", c.url, err)
 	}
 	return err
 }
@@ -176,7 +176,7 @@ func runConnect(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func connectCommand(args []string, stdout, stderr io.Writer) error {
-	flags := &flagSet{newComputeFlags("org join", stderr)}
+	flags := &flagSet{newComputeFlags("server join", stderr)}
 	user := flags.String("user", currentUserName(), "your user name on the server")
 	noWait := flags.Bool("no-wait", false, "return while approval is pending")
 	agent := flags.String("agent", "", "enroll an agent that runs on its own, under this name")
@@ -186,7 +186,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if len(positional) != 1 {
-		return usageError{"usage: hi org join <server> [--user NAME] [--no-wait]"}
+		return usageError{"usage: hi server join <server> [--user NAME] [--no-wait]"}
 	}
 	url, err := normalizeServerURL(positional[0])
 	if err != nil {
@@ -200,7 +200,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	} else if existing != nil && existing.URL != url {
-		return fmt.Errorf("this device is connected to %s; run `hi org leave` first", existing.URL)
+		return fmt.Errorf("this device is connected to %s; run `hi server leave` first", existing.URL)
 	}
 	serverKey := ""
 	if existing != nil {
@@ -216,7 +216,7 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	enroll := apiEnroll{User: *user, Hostname: hostname}
 	if *agent != "" {
 		if !validServerName(*agent) || !validServerName(*owner) {
-			return usageError{"usage: hi org join <server> --agent <name> --owner <person>"}
+			return usageError{"usage: hi server join <server> --agent <name> --owner <person>"}
 		}
 		enroll = apiEnroll{User: *agent, Hostname: hostname, Agent: true, Owner: *owner}
 		*user = *agent
@@ -229,10 +229,10 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	}
 	if request.State == "pending" {
 		fmt.Fprintf(stdout, "Asked %s to let %s join as %s (request %s).\n", url, hostname, *user, request.ID)
-		fmt.Fprintf(stdout, "An admin approves it with: hi org approve %s --group <group>\n", request.ID)
+		fmt.Fprintf(stdout, "An admin approves it with: hi server approve %s --group <group>\n", request.ID)
 		if *noWait {
 			return exitStatusError{code: exitPending, message: fmt.Sprintf(
-				"%s is waiting for approval; check with `hi org status`", request.ID)}
+				"%s is waiting for approval; check with `hi server status`", request.ID)}
 		}
 		fmt.Fprintln(stdout, "Waiting for approval… (Ctrl-C stops waiting; the request stays open)")
 		for {
@@ -296,14 +296,14 @@ func printManagedProviders(providers []apiProvider, stdout io.Writer) {
 
 func connectStatusCommand(args []string, stdout io.Writer) error {
 	if len(args) != 0 {
-		return usageError{"usage: hi org status"}
+		return usageError{"usage: hi server status"}
 	}
 	// On the org server's machine: whether the org has its owner.
 	if dir, err := orgDirectory(""); err == nil && fileExists(filepath.Join(dir, "config.json")) {
 		if people := loadOrgPeople(dir); people.Owner == nil {
 			fmt.Fprintln(stdout, orgNoOwnerLine+".")
 		} else {
-			fmt.Fprintf(stdout, "This machine runs the org server, owned by %s.\n", people.Owner.Name)
+			fmt.Fprintf(stdout, "This machine runs the server, owned by %s.\n", people.Owner.Name)
 		}
 	}
 	connection, err := loadServerConnection()
@@ -311,7 +311,7 @@ func connectStatusCommand(args []string, stdout io.Writer) error {
 		return err
 	}
 	if connection == nil {
-		fmt.Fprintln(stdout, "Not connected to an org server; hi compute uses your own keys.")
+		fmt.Fprintln(stdout, "Not connected to a hi server; hi compute uses your own keys.")
 		return nil
 	}
 	key, err := loadDeviceKey(false)
@@ -332,7 +332,7 @@ func connectStatusCommand(args []string, stdout io.Writer) error {
 
 func connectKeyCommand(args []string, stdout io.Writer) error {
 	if len(args) != 0 {
-		return usageError{"usage: hi org key"}
+		return usageError{"usage: hi server key"}
 	}
 	key, err := loadDeviceKey(true)
 	if err != nil {
@@ -344,7 +344,7 @@ func connectKeyCommand(args []string, stdout io.Writer) error {
 
 func runDisconnect(args []string, stdout, stderr io.Writer) int {
 	if len(args) != 0 {
-		fmt.Fprintln(stderr, "usage: hi org leave")
+		fmt.Fprintln(stderr, "usage: hi server leave")
 		return 2
 	}
 	connection, err := loadServerConnection()
@@ -352,7 +352,7 @@ func runDisconnect(args []string, stdout, stderr io.Writer) int {
 		return exitCode(err, stderr)
 	}
 	if connection == nil {
-		fmt.Fprintln(stdout, "Not connected to an org server.")
+		fmt.Fprintln(stdout, "Not connected to a hi server.")
 		return 0
 	}
 	// Server templates go with the connection; repositories made from them

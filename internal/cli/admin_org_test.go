@@ -12,19 +12,19 @@ import (
 	"time"
 )
 
-// Every org has an owner, set at hi org init; the owner's admins are
+// Every org has an owner, set at hi server init; the owner's admins are
 // approvers too, and handing the org on keeps the owner before as an admin.
 func TestOrgOwnerAndAdmins(t *testing.T) {
 	newTestServer(t)
 	dir := filepath.Join(t.TempDir(), "org")
-	if code, _, stderr := runHi("org", "init", "--listen", "127.0.0.1:7476", "--dir", dir); code == 0 || !strings.Contains(stderr, "an org has an owner") {
-		t.Fatalf("an org without an owner: %d %s", code, stderr)
+	if code, _, stderr := runHi("org", "init", "--listen", "127.0.0.1:7476", "--dir", dir); code == 0 || !strings.Contains(stderr, "a server has an owner") {
+		t.Fatalf("a server without an owner: %d %s", code, stderr)
 	}
 	if fileExists(filepath.Join(dir, "config.json")) {
-		t.Fatal("init wrote an org without an owner")
+		t.Fatal("init wrote a server without an owner")
 	}
 	code, stdout, stderr := runHi("org", "init", "--listen", "127.0.0.1:7476", "--dir", dir, "--owner", "U07OWNER1", "--email", "Olga.K@example.com")
-	if code != 0 || !strings.Contains(stdout, "olga.k (Olga.K@example.com) owns the org now.") || !strings.Contains(stdout, "hi-org.service") {
+	if code != 0 || !strings.Contains(stdout, "olga.k (Olga.K@example.com) owns the server now.") || !strings.Contains(stdout, "hi-org.service") {
 		t.Fatalf("init: %d\n%s%s", code, stdout, stderr)
 	}
 	if fileExists(orgUserUnitPath()) {
@@ -50,7 +50,7 @@ func TestOrgOwnerAndAdmins(t *testing.T) {
 		t.Fatalf("removed the owner: %d %s", code, stderr)
 	}
 	// Handing it on: the owner before is an admin.
-	if code, stdout, stderr := runHi("org", "owner", "U07NOOR", "--email", "noor@example.com", "--dir", dir); code != 0 || !strings.Contains(stdout, "noor (noor@example.com) owns the org now. olga.k, the owner before, is an admin") {
+	if code, stdout, stderr := runHi("org", "owner", "U07NOOR", "--email", "noor@example.com", "--dir", dir); code != 0 || !strings.Contains(stdout, "noor (noor@example.com) owns the server now. olga.k, the owner before, is an admin") {
 		t.Fatalf("hand on: %d %s%s", code, stdout, stderr)
 	}
 	people := loadOrgPeople(dir)
@@ -296,7 +296,7 @@ func TestAdminStartOnTheOrgMachine(t *testing.T) {
 	if err := adminStart([]string{"--local"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "Your link, olga,") || !strings.Contains(out.String(), "the org's owner and admins") {
+	if !strings.Contains(out.String(), "Your link, olga,") || !strings.Contains(out.String(), "the server's owner and admins") {
 		t.Fatalf("start:\n%s", out.String())
 	}
 	var own adminConfig

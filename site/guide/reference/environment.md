@@ -29,7 +29,7 @@ description: The environment variables hi reads and the files it writes.
 | `VISUAL`, `EDITOR`      | `hi q`: the editor behind `e`                                     |
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
 | `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
-| `HI_ORG_DIR`            | Where `hi org` keeps its state; `HI_SERVER_DIR` is read too    |
+| `HI_ORG_DIR`            | Where `hi server` keeps its state; `HI_SERVER_DIR` is read too    |
 | `HI_APPS_DIR`          | Where `hi app` keeps apps; default `~/.local/share/hi/apps`      |
 | `HI_APP_SLACK_BOT_TOKEN`, `HI_APP_SLACK_APP_TOKEN`, `HI_APP_OPENROUTER_API_KEY` | `hi app new --from`: the app's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_APP_CLAUDE_TOKEN`, `HI_APP_CHATGPT_AUTH` | `hi app new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
@@ -56,10 +56,10 @@ description: The environment variables hi reads and the files it writes.
 | `skills-lock.json`                                | Each skill's source and commit (shared with `npx skills`) |
 | `~/.config/hi/skills.json`                        | The same for skills added with `--global`      |
 | `~/.config/hi/shadeform_key`                | The Shadeform API key from `hi login shadeform` (mode 0600) |
-| `~/.config/hi/org.json`, `~/.config/hi/device_key`    | The org server this device joined, its stored key, and this device's private key (`hi org join`) |
+| `~/.config/hi/org.json`, `~/.config/hi/device_key`    | The server this device joined, its stored key, and this device's private key (`hi server join`) |
 | `~/.config/hi/q.json`, `~/.config/hi/q-key` | The model chosen with `hi q --setup`, and its key (mode 0600) |
 | `~/.local/state/hi/q/log.jsonl`             | Commands `hi q` ran: time, folder, prompt, class, exit status; no output |
-| `~/.local/state/hi/q/server.json`           | Whether the connected org server serves a model, checked at most hourly, and a failure for five minutes |
+| `~/.local/state/hi/q/server.json`           | Whether the connected server serves a model, checked at most hourly, and a failure for five minutes |
 | `~/.local/state/hi/q/notes.json`            | For each `.hi5/q.md`, the content you allowed or refused |
 | `.hi5/q.md` (in a project)                | Notes for `hi q`, used after you allow them             |
 | `~/.local/state/hi/box/<name>/`             | A box: `box.json`, its worktree (`work/`), home folder (an agent's result in `home/.hi-agent/`), allowlist (`allow`), and `network.log` |
@@ -70,7 +70,7 @@ description: The environment variables hi reads and the files it writes.
 | `~/.local/state/hi/q/last.json`             | The last conversation, for `hi q -c`; mode 0600       |
 | `~/.local/state/hi/q/shell-<pid>`           | With shell integration: that shell's last 30 commands and exit status, and commands handed between it and `hi q`; removed after the shell exits |
 | `~/.bashrc`, `~/.zshrc`                     | Two lines for the shell integration, added by `hi q --setup` after asking |
-| `~/.cache/hi/templates/<source>/<commit>/`  | Server templates, cached after their signature was checked; deleted by `hi org leave` |
+| `~/.cache/hi/templates/<source>/<commit>/`  | Server templates, cached after their signature was checked; deleted by `hi server leave` |
 | `.hi5/template.json` (in a project)       | What `hi init` generated: template, versions or commits, and file hashes; no paths or names |
 | `docs/upgrades/<version>.md` (in a project) | From `hi init --update`: template changes to the project's own files, for an agent to apply; delete it afterward |
 | `~/.local/share/hi/domain.json`             | The machine's domain from `hi net domain`: the domain, zone, DNS provider and its token, and the Let's Encrypt email (mode 0600) |
@@ -99,9 +99,9 @@ a sign-in tool of their own: RunPod, in RunPod's standard file,
 Shadeform, in `~/.config/hi/shadeform_key`, and the `hi q` model's key, in
 `~/.config/hi/q-key`.
 
-## On an org server
+## On a server
 
-The server keeps everything in its state folder (`hi org --dir`, default
+The server keeps everything in its state folder (`hi server --dir`, default
 `~/.local/state/hi/org`), readable only by its account:
 
 | File                       | Contents                                                       |
@@ -110,7 +110,7 @@ The server keeps everything in its state folder (`hi org --dir`, default
 | `state.json`               | Users, devices, requests, leases, and template sources         |
 | `keys.json`                | Provider keys, the model key (`ai`), template source tokens, and Hugging Face tokens (`data:<org>`) |
 | `data_usage.jsonl`         | One line per `hi data` download or Xet grant: user, device, repository, file, size |
-| `ai.json`                  | `hi org ai`: the upstream URL, default model, keyless or not, and on or off |
+| `ai.json`                  | `hi server ai`: the upstream URL, default model, keyless or not, and on or off |
 | `ai_usage.jsonl`           | One line per model request: user, device, model, tokens, cost, status; no messages |
 | `server_key`               | The key the server signs template bundles with                 |
 | `policy.json`              | Groups, limits, budgets, template access, and data patterns    |

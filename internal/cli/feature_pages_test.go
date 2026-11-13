@@ -24,7 +24,7 @@ var featurePageUsage = map[string]func(io.Writer){
 	"q":            printQUsage,
 	"init":         printInitUsage,
 	"net":          func(w io.Writer) { printNetUsage(w); printNetExposeUsage(w) },
-	"org":          printOrgUsage,
+	"server":       printOrgUsage,
 	"data":         printDataUsage,
 	"autoresearch": printBestOfUsage,
 }

@@ -1,6 +1,6 @@
 # `hi server` again: the server apps join, and one admin page for its machines
 
-Status: Approved (2026-11-13). Nothing is built. Decided the same day: every app needs a server, existing ones too (no grace: hi is on
+Status: Approved (2026-11-13). Release 1 built as v2.6.147. Decided the same day: every app needs a server, existing ones too (no grace: hi is on
 a few machines of ours, two with apps, and no one else's); the server's
 admins can make themselves a machine's owner, on demand, never on joining;
 `hi admin` is retired and removed, with no alias, and a machine has no admin
@@ -66,9 +66,9 @@ hi server offer | machines                          # hi_cluster.md
   type it, and `hi connect` and `hi disconnect` too. They run the same
   code. The hint `oldNameHint` prints on a terminal now says "is now
   hi server …", and `hi org` gets no hint at all.
-- **Files keep their names.** `~/.config/hi/org.json` stays where it
-  is: it moved once already (from `server.json`) and moving it again
-  gains nothing. The unit is `hi-server.service`, as it always was.
+- **Files keep their names.** `~/.config/hi/org.json`, the state in
+  `~/.local/state/hi/org`, and the unit `hi-org.service` stay: they
+  moved once already, in v2.6.57, and moving them back gains nothing.
 - **Code keeps its names** (`org.go`, `runOrg`, `people.json`), as the
   [app rename](hi_app.md) left its plumbing.
 - **Prose:** "the server", or "your hi server" where it could be
@@ -91,12 +91,16 @@ Both stay. They're kept apart in two ways:
    that the other exists:
 
 ```text
-  hi serve llm <recipe>         Serve a model with an OpenAI-compatible API, on rented hardware or the
-                                server's machines (hi serve help; not hi server)
+  hi serve llm <recipe>         Serve a model with an OpenAI-compatible API, rented or on this machine
+                                (hi serve help; not hi server)
   …
   hi server                     The hi server your machines and people join: approvals and spend, shared
-                                keys, templates and data, and the admin page for every machine (hi server help)
+                                keys, templates and data (hi server help)
 ```
+
+As built in release 1. "And the admin page for every machine" joins the
+`hi server` line with release 3, and "or the server's machines" the `hi
+serve` line with hi_serve.md's release 5.
 
 `hi serve` stays where it is in help, with compute. `hi server` moves
 down, beside `hi app`, which now depends on it, and takes `hi admin`'s
@@ -195,7 +199,7 @@ machines of ours and no one else's, so nothing else types it.
 | Was | Is |
 |---|---|
 | `hi admin` (whether it runs, its address, its admins) | `hi server status` |
-| `hi admin start` / `stop` | Gone. The page runs with the server (`hi server init`, `hi-server.service`). On a machine, the process that keeps the connection to the server starts by itself on `hi server join`, and with the apps' service after a reboot. |
+| `hi admin start` / `stop` | Gone. The page runs with the server (`hi server init`, `hi-org.service`). On a machine, the process that keeps the connection to the server starts by itself on `hi server join`, and with the apps' service after a reboot. |
 | `hi admin link [<admin>]` | `hi server link [<admin>]` |
 | `hi admin admins` | `hi server admins` for the server's; `hi server admins --machine ws1` for a machine's, which the machine still keeps and checks |
 | `hi admin address` | `hi server address` |

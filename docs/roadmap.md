@@ -2736,6 +2736,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.147 — `hi server` again
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1.
+
+- [x] `hi server` is the name again, in help, messages, Slack, the admin
+  page (the server's card and section), the guide, and the hi skill.
+  `hi org`, `hi connect`, and `hi disconnect` keep working; `hi org` is
+  silent, and the other two say their new form on a terminal.
+- [x] A slip between `hi serve` and `hi server` (`hi serve join`, `hi
+  server llm`) says which was meant and runs nothing.
+- [x] The site's page is `/server/`; `/org/` redirects to it.
+- [x] Files, state, `HI_ORG_DIR`, and `hi-org.service` keep their names.
+
 ### v2.6.146 — Box names in one style
 
 - [x] The admin page names an app's boxes one way, in lowercase and
@@ -5424,7 +5437,7 @@ development loop is frozen and goes in release 4.
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
 
-- [ ] Release 1: `hi server` is the name again in help, messages, the
+- [x] Release 1 (v2.6.147): `hi server` is the name again in help, messages, the
   admin page, and the guide (`site/guide/server/`, the old address
   redirects); `hi org`, `hi connect`, and `hi disconnect` stay, silent;
   `hi serve join` and `hi server llm` say what was meant.

@@ -10,8 +10,8 @@ description: Every hi command and option in one place.
 | `hi compute …`                   | Rent and use remote machines; see below                |
 | `hi login <hf|colab|runpod|shadeform>` | Sign in to a compute provider               |
 | `hi data …`                      | Download your team's Hugging Face datasets, models, and buckets; see below |
-| `hi serve …`                     | Serve a model with an OpenAI-compatible API; see below |
-| `hi org …`                       | Your organization: join it, or run its server, which approves and pays for compute; see below |
+| `hi serve …`                     | Serve a model with an OpenAI-compatible API (not `hi server`); see below |
+| `hi server …`                    | The hi server your machines and people join: approvals and spend, shared keys, templates and data; see below |
 | `hi init [<template> <dir>]`     | Start a project from a template; `--update`, `--adopt` |
 | `hi q [<what you want>]`         | Ask for a shell command, or chat; see below            |
 | `hi shell-init bash|zsh`        | Shell integration for `hi q`                           |
@@ -30,7 +30,7 @@ description: Every hi command and option in one place.
 | `hi admin mail …`                | How the machine sends email: sign-in links and invitations; see below |
 | `hi admin sites …`               | What every app's dev box reaches beyond its own list; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
-| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi org` and app services still on the old version |
+| `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi server` and app services still on the old version |
 | `hi heartbeat [<url>\|off\|test]`  | This machine's heartbeat to a service such as healthchecks.io; see `hi app` below |
 | `hi version`, `hi help`          | Version and help                                       |
 
@@ -54,8 +54,8 @@ description: Every hi command and option in one place.
 | `hi compute wait <name>…`                            | Wait for runs to end; exits with their status          |
 | `hi compute stop [<name> | --all] [--yes]`          | Stop and release; without a name, pick from a list    |
 | `hi compute proxy <name>`                            | The SSH transport, for `ProxyCommand` (Colab)          |
-| `hi compute requests [<id> [--wait] [--timeout <d>]] [--json]` | Your requests to the org server; exit 3 pending, 4 denied |
-| `hi compute extend <name> <duration> [--reason <r>] [--no-wait]` | Ask the org server for more time |
+| `hi compute requests [<id> [--wait] [--timeout <d>]] [--json]` | Your requests to the server; exit 3 pending, 4 denied |
+| `hi compute extend <name> <duration> [--reason <r>] [--no-wait]` | Ask the server for more time |
 | `hi compute live`                                    | Live view of your managed machines                     |
 
 ### Options for up, run, and serve
@@ -93,7 +93,7 @@ See [Serve a model](/guide/compute/serve/).
 
 | Command                           | Does                                                                                   |
 |-----------------------------------|----------------------------------------------------------------------------------------|
-| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine; there, `--share` adds the NetBird address with a key, and `--org` serves it to the org through `hi org ai` |
+| `hi serve llm [options] <recipe>` | Serve a GGUF model with llama.cpp: a recipe, or `owner/repo-GGUF --quant Q`, on rented hardware (the options are `hi compute serve`'s) or with `--on local` on this machine; there, `--share` adds the NetBird address with a key, and `--org` serves it to the server through `hi server ai` |
 | `hi serve llm … --on local [--memory <size>] [--backend rocm\|vulkan\|cuda\|cpu]` | On this machine: the box's memory limit (default: the recipe's), and the backend (default: `rocm` on an AMD GPU, `cuda` on an NVIDIA one; `cpu` only for a recipe with a CPU profile) |
 | `hi serve llm`                    | The llm recipes                                                                        |
 | `hi serve ls [--json]`            | What you serve, here and rented: where, its API, its state, and until when             |
@@ -109,45 +109,45 @@ See [Serve a model](/guide/compute/serve/).
 | `hi serve models [--json]`        | Models downloaded here, their size, and what uses them                                 |
 | `hi serve models rm <owner/repo>` | Delete a downloaded model that nothing serves                                          |
 
-## hi org
+## hi server
 
-See [Managed compute for your team](/guide/compute/managed/).
+See [Managed compute for your team](/guide/compute/managed/). `hi org`, the old name, still works.
 
 | Command                                                           | Does                                                                                   |
 |-------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| `hi org join <server> [--user <name>] [--no-wait]`                | Enroll this device and wait for approval                                               |
-| `hi org join <server> --agent <name> --owner <user>`              | Enroll an agent that runs on its own                                                   |
-| `hi org status`                                                   | Server, user, group, and managed providers                                             |
-| `hi org key`                                                      | This device's public key, for an admin to pre-approve                                  |
-| `hi org slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
-| `hi org leave`                                                    | Forget the server and delete the device key                                            |
-| `hi org init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service; beside apps, join the machine to it |
-| `hi org run`                                                      | Serve clients                                                                          |
-| `hi org provider add|remove|list [<provider>]`                    | Provider keys (RunPod, Shadeform)                                                      |
-| `hi org user add <u> --group <g> [--key <k>]`                     | Add a user; `--key` pre-approves a device                                              |
-| `hi org user remove <u>`, `user list`                             | Remove a user and their devices; list users                                            |
-| `hi org requests [--all]`                                         | What is waiting for a decision                                                         |
-| `hi org approve <id> [--group <g>]`                               | Approve an enrollment or compute request                                               |
-| `hi org deny <id> [--reason <r>]`                                 | Deny a request                                                                         |
-| `hi org ls`                                                       | Everything running, for every user                                                     |
-| `hi org stop <name> \| --user <u> \| --all`                         | Stop instances                                                                         |
-| `hi org audit [--since <d>]`                                      | The audit log                                                                          |
-| `hi org slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
-| `hi org approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
-| `hi org owner [<Slack ID> --email <addr>]`                        | The org's owner, or hand it on                                                         |
-| `hi org admins [add <Slack ID> --name <user> \| remove <user>]`   | The org's admins: approvers, and admins of the admin page on its machine              |
-| `hi org policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
-| `hi org spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
-| `hi org ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
-| `hi org ai remove local/<name>` | Stop passing requests to a model served on an app's machine                              |
-| `hi org templates add <name> <git-url> [--ref <r>]`               | Serve a private repository's templates and skills                                      |
-| `hi org templates list|sync|remove [<name>]`                      | Show, fetch now, or stop serving template sources                                      |
-| `hi org templates rename <name> <new-name>`                       | Rename a source; keeps its token and history                                           |
-| `hi org data`                                                     | Menu: Hugging Face organizations for `hi data`                                         |
-| `hi org data add <hf-org>... [--token-file <f>]`                  | Serve organizations' datasets, models, and buckets; asks for a read token              |
-| `hi org data list|test|remove [<hf-org>]`                         | Show, check, or stop serving organizations                                             |
-| `hi org expose [stop]`                                            | The public address cloud runs reach `hi data` through, and the runs using it; close it |
-| `hi org expose revoke <run>`                                      | End one cloud run's token now                                                          |
+| `hi server join <server> [--user <name>] [--no-wait]`                | Enroll this device and wait for approval                                               |
+| `hi server join <server> --agent <name> --owner <user>`              | Enroll an agent that runs on its own                                                   |
+| `hi server status`                                                   | Server, user, group, and managed providers                                             |
+| `hi server key`                                                      | This device's public key, for an admin to pre-approve                                  |
+| `hi server slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
+| `hi server leave`                                                    | Forget the server and delete the device key                                            |
+| `hi server init --owner <Slack ID> --email <addr> [--listen <addr>]` | Create the server and its owner, and start it as a user service; beside apps, join the machine to it |
+| `hi server run`                                                      | Serve clients                                                                          |
+| `hi server provider add|remove|list [<provider>]`                    | Provider keys (RunPod, Shadeform)                                                      |
+| `hi server user add <u> --group <g> [--key <k>]`                     | Add a user; `--key` pre-approves a device                                              |
+| `hi server user remove <u>`, `user list`                             | Remove a user and their devices; list users                                            |
+| `hi server requests [--all]`                                         | What is waiting for a decision                                                         |
+| `hi server approve <id> [--group <g>]`                               | Approve an enrollment or compute request                                               |
+| `hi server deny <id> [--reason <r>]`                                 | Deny a request                                                                         |
+| `hi server ls`                                                       | Everything running, for every user                                                     |
+| `hi server stop <name> \| --user <u> \| --all`                         | Stop instances                                                                         |
+| `hi server audit [--since <d>]`                                      | The audit log                                                                          |
+| `hi server slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
+| `hi server approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
+| `hi server owner [<Slack ID> --email <addr>]`                        | The server's owner, or hand it on                                                         |
+| `hi server admins [add <Slack ID> --name <user> \| remove <user>]`   | The server's admins: approvers, and admins of the admin page on its machine              |
+| `hi server policy show|edit|example|check`                           | Group limits, auto-approve, and budgets                                                |
+| `hi server spend [--since <d>]`                                      | Spend per user and group, compute and models                                           |
+| `hi server ai [set [--url <u>] [--model <m>] [--no-key]|off|remove]` | Pass `hi q`'s requests to OpenRouter with your team's key, and to models served with `hi serve --org` |
+| `hi server ai remove local/<name>` | Stop passing requests to a model served on an app's machine                              |
+| `hi server templates add <name> <git-url> [--ref <r>]`               | Serve a private repository's templates and skills                                      |
+| `hi server templates list|sync|remove [<name>]`                      | Show, fetch now, or stop serving template sources                                      |
+| `hi server templates rename <name> <new-name>`                       | Rename a source; keeps its token and history                                           |
+| `hi server data`                                                     | Menu: Hugging Face organizations for `hi data`                                         |
+| `hi server data add <hf-org>... [--token-file <f>]`                  | Serve organizations' datasets, models, and buckets; asks for a read token              |
+| `hi server data list|test|remove [<hf-org>]`                         | Show, check, or stop serving organizations                                             |
+| `hi server expose [stop]`                                            | The public address cloud runs reach `hi data` through, and the runs using it; close it |
+| `hi server expose revoke <run>`                                      | End one cloud run's token now                                                          |
 
 ## hi data
 
@@ -362,7 +362,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `"$HI" app job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
 | `hi app dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The app's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
 | `hi app heartbeat <name> [<url> [--every 1m] \| off \| test]` | The app's heartbeat: a GET to a service such as healthchecks.io at the interval (30s to 1h) while the app runs, so the service alerts when it stops. Without arguments, where it goes and the last one |
-| `hi heartbeat [<url> [--every 5m] \| off \| test]` | This machine's heartbeat, from a systemd user timer (1m to 1h), for a machine that runs apps or an org server |
+| `hi heartbeat [<url> [--every 5m] \| off \| test]` | This machine's heartbeat, from a systemd user timer (1m to 1h), for a machine that runs apps or a server |
 | `hi app watch <name> [--auto-freeze on\|off]` | The app's own watcher, on its machine: health, network, and advisory rules each minute, and what it has open; whether it freezes the app on its own for an exploited advisory in the app or a burst to a watched host |
 | `hi app freeze\|unfreeze\|pause\|unpause <name> --why "…"` | Cut the app's boxes off from the internet and pause it, or pause every box, within a minute; and undo it. Said in the ops channel |
 | `hi app ops <name> [<channel ID>\|off]` | A second Slack channel for incidents, warnings, security, keys, access, and the dev box's site asks; without one they go to the main channel. A running app's lead restarts to talk in both |
@@ -387,7 +387,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
 | `hi app backups <name> [--offsite s3:https://<host>/<bucket> [--region <r>] | --offsite off] [--keep d,w,m] [--show-key]` | Where snapshots are kept and for how long; copy them to an S3-compatible bucket too; print the key they are encrypted with |
 | `hi app bom <name> [v<n>|stage]`         | Production's bill of materials (CycloneDX), or a release's, or Stage's |
-| `hi app advisories <name>`               | Known advisories for what production runs, as the org server last matched them; the lead has it too |
+| `hi app advisories <name>`               | Known advisories for what production runs, as the server last matched them; the lead has it too |
 | `hi app advisory <name> ignore <id> --because "<why>" [--package <p>]` | An owner's word that an advisory doesn't apply, until the advisory changes; `unignore <id>` takes it back |
 | `hi app manifest <name>`                 | The Slack app manifest again |
 | `hi app github <name> <owner/repo>`      | Put the project on GitHub (a new private repository, or an empty one); the app pushes every merge there |
@@ -420,7 +420,7 @@ the owners build in the dev box and release from the dev page.
 | `hi box rm --all [--force] [--yes]`  | Remove every box after one question                      |
 
 Options when starting: `--name`, `--network locked|dev|open`,
-`--allow <domain>`, `--gpu`, `--data` (your team's data through the org server),
+`--allow <domain>`, `--gpu`, `--data` (your team's data through the server),
 `--worktree`, `--here`, `--image`, `--memory`, and `--bundle a,b`. A
 project's `devcontainer.json` can set `network`, `domains`, `gpu`, `data`,
 and `bundles` under `customizations.hi`. See
@@ -434,7 +434,7 @@ and `bundles` under `customizations.hi`. See
 | `hi bundle show <name>`              | Its skills, at which commit, what each needs, and its network |
 | `hi bundle prune [--all]`            | Remove bundle images unused for 30 days (`--all`: every unused one) |
 
-Bundles come from hi itself, your team's template sources on an org server,
+Bundles come from hi itself, your team's template sources on a server,
 and `~/.local/share/hi/bundles` (or `HI_BUNDLES_DIR`); a later one wins on
 a name. See [Bundles](/guide/agent/#bundles-skills-and-the-tools-they-need).
 

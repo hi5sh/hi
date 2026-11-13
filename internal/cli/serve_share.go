@@ -17,7 +17,7 @@ import (
 // where its front takes a key (hi_serve.md, Sharing). --share makes the
 // key that is handed over by hand, "shared"; --org makes the org server's,
 // "org", and names the server to the org, so devices reach it through
-// hi org ai (The org knows). Each key is a file in the server's keys folder,
+// hi server ai (The org knows). Each key is a file in the server's keys folder,
 // 0600, which only the front mounts; the box never sees one.
 
 const (
@@ -38,7 +38,7 @@ var serveOrgClient = func() (*serverClient, error) {
 		return nil, err
 	}
 	if connection == nil {
-		return nil, errors.New("--org needs an org server; connect this device with `hi org join <server>`")
+		return nil, errors.New("--org needs a hi server; connect this device with `hi server join <server>`")
 	}
 	key, err := loadDeviceKey(false)
 	if err != nil {
@@ -134,7 +134,7 @@ func serveKeyCommand(args []string, stdout, stderr io.Writer) error {
 	case !ok || record.Provider != "local":
 		return fmt.Errorf("%s isn't served on this machine; see hi serve ls", positional[0])
 	case !record.Shared && record.Org:
-		return fmt.Errorf("%s is shared through the org server, which holds its key; nobody needs it by hand. "+
+		return fmt.Errorf("%s is shared through the server, which holds its key; nobody needs it by hand. "+
 			"To hand one over too, serve it with --share", record.Name)
 	case !record.Shared:
 		return fmt.Errorf("%s isn't shared, so it takes no key on 127.0.0.1:%d; serve it with --share to share it", record.Name, record.Port)
@@ -154,9 +154,9 @@ func serveKeyCommand(args []string, stdout, stderr io.Writer) error {
 func sharedKeysText(record servedModel) string {
 	switch {
 	case record.Shared && record.Org:
-		return "the one handed over, hi serve key " + record.Name + ", and the org server's"
+		return "the one handed over, hi serve key " + record.Name + ", and the server's"
 	case record.Org:
-		return "the org server's"
+		return "the server's"
 	}
 	return "hi serve key " + record.Name
 }
@@ -193,30 +193,30 @@ type apiServeUpstream struct {
 	Problem string `json:"problem,omitempty"`
 }
 
-// orgModelID is the model devices ask hi org ai for.
+// orgModelID is the model devices ask hi server ai for.
 func orgModelID(name string) string { return serveOrgPrefix + name }
 
-// nameToOrg asks the org server to add a ready server to hi org ai.
+// nameToOrg asks the org server to add a ready server to hi server ai.
 func nameToOrg(record servedModel, reason string, stdout io.Writer) (servedModel, error) {
 	client, err := serveOrgClient()
 	if err != nil {
 		return record, err
 	}
 	if strings.TrimSpace(reason) == "" {
-		reason = fmt.Sprintf("serve %s from this machine to the org", record.Model)
+		reason = fmt.Sprintf("serve %s from this machine through the server", record.Model)
 	}
 	body := apiServeUpstream{Name: record.Name, Model: record.Model, Recipe: record.Recipe, Repo: record.Repo,
 		URL: record.sharedURL(), Key: readServeKey(record.Name, serveOrgKey), Reason: reason, Up: true}
 	var answer apiServeUpstream
 	if err := client.call(http.MethodPost, "/v1/serve", body, &answer); err != nil {
-		return record, fmt.Errorf("the org server didn't take it: %w", err)
+		return record, fmt.Errorf("the server didn't take it: %w", err)
 	}
 	record.OrgRequest = answer.Request
 	switch answer.State {
 	case "approved":
-		fmt.Fprintf(stdout, "\nNamed to the org: devices reach it through hi org ai as model %s.\n", orgModelID(record.Name))
+		fmt.Fprintf(stdout, "\nNamed on the server: devices reach it through hi server ai as model %s.\n", orgModelID(record.Name))
 	default:
-		fmt.Fprintf(stdout, "\nAsked the org server to add it to hi org ai as model %s (%s); an admin approves it in Slack.\n"+
+		fmt.Fprintf(stdout, "\nAsked the server to add it to hi server ai as model %s (%s); an admin approves it in Slack.\n"+
 			"hi serve status %s shows when it is approved.\n", orgModelID(record.Name), answer.Request, record.Name)
 	}
 	return record, nil
@@ -244,7 +244,7 @@ func tellOrg(record servedModel, action string, stderr io.Writer) {
 		if errors.As(err, &reply) && reply.status == http.StatusNotFound && action == "rm" {
 			return
 		}
-		fmt.Fprintf(stderr, "hi: the org server wasn't told that %s is %s: %v\n", record.Name,
+		fmt.Fprintf(stderr, "hi: the server wasn't told that %s is %s: %v\n", record.Name,
 			map[string]string{"up": "up", "down": "stopped", "rm": "removed"}[action], err)
 	}
 }
@@ -262,12 +262,12 @@ func orgUpstreamState(record servedModel) string {
 	}
 	switch answer.State {
 	case "approved":
-		text := "in hi org ai as model " + orgModelID(record.Name)
+		text := "in hi server ai as model " + orgModelID(record.Name)
 		if !answer.Up {
 			text += ", marked stopped"
 		}
 		if answer.Problem != "" {
-			text += "; the org server last said: " + answer.Problem
+			text += "; the server last said: " + answer.Problem
 		}
 		return text
 	case "pending":

@@ -75,7 +75,7 @@ the built-in templates are part of `hi`, so `hi update` is how you get their
 newest versions.
 
 These built-in templates are public and generic. On a device connected to
-your team's org (`hi org join`), `hi init` also offers the templates
+your team's org (`hi server join`), `hi init` also offers the templates
 from your team's private repo, such as `research`. The menu marks them
 `(private repo)`, and `hi init --list` shows the source and commit they come
 from. `hi` checks that they are signed by the server and keeps a copy, so
@@ -149,7 +149,7 @@ project is behind the templates or has conflicts. Add it to CI:
 - run: ~/.local/bin/hi init --update --check
 ```
 
-CI can't reach your team's org server, so there it checks only what came
+CI can't reach your team's server, so there it checks only what came
 from the built-in templates and says which private layers it skipped.
 `--strict` makes that an error, for a check on a connected machine.
 

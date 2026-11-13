@@ -34,7 +34,7 @@ func TestOrgRunMovesTheStateDirectory(t *testing.T) {
 		t.Fatalf("before the move: %s", dir)
 	}
 	var out bytes.Buffer
-	if err := moveOrgDirectory(old, &out); err != nil || !strings.Contains(out.String(), "Moved the org server's state") {
+	if err := moveOrgDirectory(old, &out); err != nil || !strings.Contains(out.String(), "Moved the server's state") {
 		t.Fatalf("move: %v %s", err, out.String())
 	}
 	if dir, _ := orgDirectory(""); dir != target {
@@ -256,7 +256,7 @@ func TestUpdateNotesOnTheOrgMachine(t *testing.T) {
 	os.WriteFile(filepath.Join(systemdUnitDir, "hi-wall-live.service"), []byte("[Service]\n"), 0o644)
 	var out bytes.Buffer
 	orgUpdateNotes(&out)
-	for _, want := range []string{"The org has no owner yet", "sudo systemctl disable --now hi-wall-live.service", "sudo userdel -r hi-wall"} {
+	for _, want := range []string{"The server has no owner yet", "sudo systemctl disable --now hi-wall-live.service", "sudo userdel -r hi-wall"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("no %q in:\n%s", want, out.String())
 		}

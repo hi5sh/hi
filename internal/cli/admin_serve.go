@@ -207,10 +207,10 @@ func adminMay(admin adminPerson, path string) error {
 		return nil
 	case path == "/api/org" || path == "/api/walls":
 		if !admin.Org {
-			return errors.New("you aren't one of the org's admins: you see the org, and its owner and admins change it")
+			return errors.New("you aren't one of the server's admins: you see the server, and its owner and admins change it")
 		}
 	case !admin.Machine:
-		return errors.New("you are an admin of the org, not of the machine: you see the machine and its apps, and the machine's admins change them")
+		return errors.New("you are an admin of the server, not of the machine: you see the machine and its apps, and the machine's admins change them")
 	}
 	return nil
 }
@@ -679,7 +679,7 @@ func adminMayActFor(by, admin adminPerson) string {
 	case !by.MachineOwner && !(by.Owner && by.Machine):
 		return "only the machine's owner sees another admin's link or sets their Slack member ID"
 	case admin.Org && !by.Org, admin.Owner && !by.Owner:
-		return admin.Name + " runs the org too, which you don't"
+		return admin.Name + " runs the server too, which you don't"
 	}
 	return ""
 }
@@ -708,7 +708,7 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 	config, _ := loadAdminConfig()
 	merged := config.org != "" && !config.OrgApart
 	if merged && (action == "add" || action == "remove") && !by.Owner {
-		return nil, errors.New("on the org server's machine the admins are the org's, and its owner adds and removes them")
+		return nil, errors.New("on the server's machine the admins are the server's, and its owner adds and removes them")
 	}
 	switch action {
 	case "add":
@@ -750,7 +750,7 @@ func (s *adminServer) changeAdmins(by adminPerson, action, name, slackID, email 
 		return answer, err
 	case "slack":
 		if merged {
-			return nil, errors.New("the org's admins have their Slack member IDs already: hi org admins")
+			return nil, errors.New("the server's admins have their Slack member IDs already: hi server admins")
 		}
 		slackID = strings.TrimSpace(strings.Trim(strings.TrimSpace(slackID), "<@>"))
 		if slackID != "" && !slackIDPattern.MatchString(slackID) {
@@ -1097,7 +1097,7 @@ func adminLogs(app, cursor string) ([]adminLogLine, string, error) {
 	args := []string{"--user", "-u", adminUnit}
 	if app == adminOrgLogs {
 		if adminOrgDir() == "" {
-			return nil, cursor, errors.New("this machine runs no org server")
+			return nil, cursor, errors.New("this machine runs no server")
 		}
 		args = []string{"--user", "-u", orgUnit}
 		if adminOrgService() == "system" {

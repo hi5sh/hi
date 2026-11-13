@@ -3,9 +3,9 @@ package cli
 // The admin page on the org server's machine (hi_admin.md, release 2):
 // Requests, Running, and Spend on the right; the org's people, keys, and
 // rules on the left; its audit in Activity. Everything goes through the
-// server's admin socket, as the hi org commands on its machine do, under
+// server's admin socket, as the hi server commands on its machine do, under
 // the admin's own hi user name, so an approval here is the same as
-// hi org approve and nobody approves their own request.
+// hi server approve and nobody approves their own request.
 
 import (
 	"bufio"
@@ -29,11 +29,11 @@ import (
 func adminOrgCall(method, path string, body, result any) error {
 	dir := adminOrgDir()
 	if dir == "" {
-		return errors.New("this machine runs no org server")
+		return errors.New("this machine runs no server")
 	}
 	client, err := adminClient(dir)
 	if err != nil {
-		return errors.New("the org server isn't running: " + orgRestartLine())
+		return errors.New("the server isn't running: " + orgRestartLine())
 	}
 	return doJSON(client, method, "http://hi-org"+path, body, result, nil)
 }
@@ -335,7 +335,7 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 		// The org's admins, in the org's own section: its owner adds and
 		// removes them; each is an approver, and signs in here for the org.
 		if !admin.Owner {
-			return nil, errors.New("the org's owner adds and removes its admins")
+			return nil, errors.New("the server's owner adds and removes its admins")
 		}
 		switch change.Action {
 		case "add":
@@ -345,19 +345,19 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 			config, _ := loadAdminConfig()
 			added, ok := config.admin(change.Slack)
 			if !ok {
-				return map[string]string{"text": "They are an admin of the org."}, nil
+				return map[string]string{"text": "They are an admin of the server."}, nil
 			}
 			key, err := adminMakeLink(added.Name, false)
 			if err != nil {
 				return nil, err
 			}
-			adminRecord(admin.Name, "", "made "+added.Name+" an admin of the org")
-			return map[string]string{"link": adminLinkURL(config, key), "text": added.Name + " is an admin of the org, and approves. Their link to this page, for 14 days, is shown only now."}, nil
+			adminRecord(admin.Name, "", "made "+added.Name+" an admin of the server")
+			return map[string]string{"link": adminLinkURL(config, key), "text": added.Name + " is an admin of the server, and approves. Their link to this page, for 14 days, is shown only now."}, nil
 		case "remove":
 			config, _ := loadAdminConfig()
 			gone, ok := config.admin(change.Name)
 			if !ok || !gone.Org {
-				return nil, fmt.Errorf("%s isn't an admin of the org", change.Name)
+				return nil, fmt.Errorf("%s isn't an admin of the server", change.Name)
 			}
 			if _, err := call(http.MethodPost, "/admin/people", orgPeopleInput{As: as, Action: "remove", Slack: gone.Slack}); err != nil {
 				return nil, err
@@ -365,25 +365,25 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 			if !gone.Machine || !config.OrgApart {
 				adminEndAll(gone.Name)
 			}
-			adminRecord(admin.Name, "", "took "+gone.Name+" off the org's admins")
-			return map[string]string{"text": gone.Name + " isn't an admin of the org any more."}, nil
+			adminRecord(admin.Name, "", "took "+gone.Name+" off the server's admins")
+			return map[string]string{"text": gone.Name + " isn't an admin of the server any more."}, nil
 		}
 	case "owner":
 		if !admin.Owner {
-			return nil, errors.New("only the org's owner hands it on")
+			return nil, errors.New("only the server's owner hands it on")
 		}
 		return call(http.MethodPost, "/admin/people", orgPeopleInput{As: as, Action: "owner", Slack: change.Slack, Email: change.Email, Name: change.Name})
 	case "restart":
 		if adminOrgService() != "user" {
-			return nil, fmt.Errorf("the org server is a system service here, so restarting it needs sudo: %s. hi update on the machine makes it a user service, once", orgRestartLine())
+			return nil, fmt.Errorf("the server is a system service here, so restarting it needs sudo: %s. hi update on the machine makes it a user service, once", orgRestartLine())
 		}
 		if out, err := appSystemctl("restart", orgUnit); err != nil {
 			return nil, fmt.Errorf("systemctl --user restart %s: %s", orgUnit, qFirstLine(out, err.Error()))
 		}
-		adminRecord(admin.Name, "", "restarted the org server")
-		return map[string]string{"text": "The org server restarted."}, nil
+		adminRecord(admin.Name, "", "restarted the server")
+		return map[string]string{"text": "The server restarted."}, nil
 	}
-	return result, fmt.Errorf("no such change to the org: %s %s", change.What, change.Action)
+	return result, fmt.Errorf("no such change through the server: %s %s", change.What, change.Action)
 }
 
 // adminOrgIncidents are the org's incidents: what its check every half
@@ -412,7 +412,7 @@ func adminOrgIncidents(now time.Time) []adminIncident {
 		seen[key] = true
 		list = append(list, adminIncident{App: ":org", ID: key, Status: "open", Opened: lease.Started,
 			Title: lease.Name + ": a failed start left it on " + lease.Provider + ", and it isn't deleted yet",
-			Where: "the org server tries again every half minute · " + lease.Request + " of " + lease.User})
+			Where: "the server tries again every half minute · " + lease.Request + " of " + lease.User})
 	}
 	// What the audit said of each, newest last.
 	said := map[string]auditEntry{}
@@ -436,19 +436,19 @@ func adminOrgIncidents(now time.Time) []adminIncident {
 		seen[key] = true
 		entry := said[key]
 		list = append(list, adminIncident{App: ":org", ID: key, Status: "open", Opened: since,
-			Title: key + " is on the org's account without a request", Where: firstNonEmpty(entry.Detail, "no request started it") + " · stop it on the provider's website if nobody expects it"})
+			Title: key + " is on the server's account without a request", Where: firstNonEmpty(entry.Detail, "no request started it") + " · stop it on the provider's website if nobody expects it"})
 	}
 	for key, entry := range said {
 		if strings.Contains(key, " ") || seen[key] {
 			continue
 		}
 		list = append(list, adminIncident{App: ":org", ID: key, Status: "closed", Opened: entry.Time,
-			Title: key + " was on the org's account without a request", Where: entry.Detail, Last: "gone from the provider"})
+			Title: key + " was on the server's account without a request", Where: entry.Detail, Last: "gone from the provider"})
 	}
 	for key, entry := range said {
 		if name, ok := strings.CutPrefix(key, "cleaned up "); ok {
 			list = append(list, adminIncident{App: ":org", ID: name, Status: "closed", Opened: entry.Time,
-				Title: name + ": what a failed start left", Where: entry.Detail, Last: "the org server cleaned it up"})
+				Title: name + ": what a failed start left", Where: entry.Detail, Last: "the server cleaned it up"})
 		}
 	}
 	return list
@@ -706,7 +706,7 @@ func (s *adminServer) adminWallRoutes(mux *http.ServeMux, reply func(http.Respon
 		if _, ok := adminWallOf(r.PathValue("key")); !ok {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintln(w, "This wall link has ended. An admin makes a new one on the admin page, in Org.")
+			fmt.Fprintln(w, "This wall link has ended. An admin makes a new one on the admin page, in Server.")
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -722,7 +722,7 @@ func (s *adminServer) adminWallRoutes(mux *http.ServeMux, reply func(http.Respon
 		}
 		state, err := adminWallStateOf(wall)
 		if err != nil {
-			reply(w, http.StatusServiceUnavailable, map[string]string{"error": "The org server doesn't answer."})
+			reply(w, http.StatusServiceUnavailable, map[string]string{"error": "The server doesn't answer."})
 			return
 		}
 		reply(w, http.StatusOK, state)
@@ -745,7 +745,7 @@ func (s *adminServer) orgRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 	}
 	noOrg := func(w http.ResponseWriter) bool {
 		if adminOrgDir() == "" {
-			failure(w, http.StatusNotFound, errors.New("this machine runs no org server"))
+			failure(w, http.StatusNotFound, errors.New("this machine runs no server"))
 			return true
 		}
 		return false

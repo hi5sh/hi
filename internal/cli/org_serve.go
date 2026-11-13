@@ -16,10 +16,10 @@ import (
 
 // A model served on a team's machine with hi serve llm --on local --org is
 // named to the org (hi_serve.md, The org knows): the device asks, an admin
-// approves it in Slack, and devices then reach it through hi org ai as
+// approves it in Slack, and devices then reach it through hi server ai as
 // model local/<name>, signed as for everything else. The org server holds
 // its key, so nobody hands one around, and its use is recorded with the
-// rest of hi org ai's, at no cost.
+// rest of hi server ai's, at no cost.
 
 const (
 	serveUpstreamTimeout = 10 * time.Minute // a local model answers slower than a hosted one
@@ -65,7 +65,7 @@ func validServedURL(address string) error {
 	}
 	ip := net.ParseIP(parsed.Hostname())
 	if ip == nil || !netbirdRange.Contains(ip) || parsed.Port() == "" {
-		return fmt.Errorf("%s isn't a NetBird address with a port; the org server only reaches served models inside NetBird", parsed.Host)
+		return fmt.Errorf("%s isn't a NetBird address with a port; the server only reaches served models inside NetBird", parsed.Host)
 	}
 	return nil
 }
@@ -89,7 +89,7 @@ func (s *orgServer) handleServeName(w http.ResponseWriter, _ *http.Request, devi
 		writeAPIError(w, http.StatusBadRequest, "say which model it serves, briefly")
 		return
 	case len(input.Key) < 20 || len(input.Key) > 200:
-		writeAPIError(w, http.StatusBadRequest, "a named server sends its key for the org server")
+		writeAPIError(w, http.StatusBadRequest, "a named server sends its key for the server")
 		return
 	case input.Reason == "" || len(input.Reason) > 500:
 		writeAPIError(w, http.StatusBadRequest, "a reason is required, at most 500 characters; approvers see it")
@@ -106,7 +106,7 @@ func (s *orgServer) handleServeName(w http.ResponseWriter, _ *http.Request, devi
 	existing, taken := s.state.Served[input.Name]
 	if taken && existing.User != device.User {
 		s.mu.Unlock()
-		writeAPIError(w, http.StatusConflict, fmt.Sprintf("%s already serves a model named %s to the org; choose another --name", existing.User, input.Name))
+		writeAPIError(w, http.StatusConflict, fmt.Sprintf("%s already serves a model named %s through the server; choose another --name", existing.User, input.Name))
 		return
 	}
 	served := &serverServed{Name: input.Name, Model: input.Model, Recipe: input.Recipe, Repo: input.Repo, URL: input.URL,
@@ -181,7 +181,7 @@ func (s *orgServer) handleServeGet(w http.ResponseWriter, r *http.Request, devic
 	}
 	s.mu.Unlock()
 	if !ok {
-		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q to the org", r.PathValue("name")))
+		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q through the server", r.PathValue("name")))
 		return
 	}
 	writeJSON(w, http.StatusOK, answer)
@@ -203,7 +203,7 @@ func (s *orgServer) handleServeState(w http.ResponseWriter, r *http.Request, dev
 	served, ok := s.ownServedLocked(r.PathValue("name"), device.User)
 	if !ok {
 		s.mu.Unlock()
-		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q to the org", r.PathValue("name")))
+		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q through the server", r.PathValue("name")))
 		return
 	}
 	served.Up, served.Problem = input.Up, ""
@@ -226,7 +226,7 @@ func (s *orgServer) handleServeRemove(w http.ResponseWriter, r *http.Request, de
 	_, ok := s.ownServedLocked(r.PathValue("name"), device.User)
 	s.mu.Unlock()
 	if !ok {
-		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q to the org", r.PathValue("name")))
+		writeAPIError(w, http.StatusNotFound, fmt.Sprintf("you serve nothing named %q through the server", r.PathValue("name")))
 		return
 	}
 	if err := s.removeServed(r.PathValue("name"), device.User); err != nil {
@@ -243,7 +243,7 @@ func (s *orgServer) removeServed(name, actor string) error {
 	served, ok := s.state.Served[name]
 	if !ok {
 		s.mu.Unlock()
-		return serverUsageError{fmt.Sprintf("nothing named %s is served to the org", name)}
+		return serverUsageError{fmt.Sprintf("nothing named %s is served through the server", name)}
 	}
 	pending := ""
 	if request, ok := s.state.Requests[served.Request]; ok && request.State == "pending" {
@@ -285,7 +285,7 @@ func (s *orgServer) approveServeLocked(request *serverRequest, actor string) (se
 	go func() {
 		text := fmt.Sprintf("Approved by %s. Devices reach it with hi q --model %s.", actor, orgModelID(copy.Name))
 		if problem := s.checkServed(copy.Name); problem != "" {
-			text += " The org server can't reach it now, though: " + problem
+			text += " The server can't reach it now, though: " + problem
 		}
 		s.notifyThread(copy.ID, text)
 	}()
@@ -308,7 +308,7 @@ func (s *orgServer) servedUpstream(name string) (serverServed, string, error) {
 	served, ok := s.state.Served[name]
 	switch {
 	case !ok || !served.Approved:
-		return serverServed{}, "", fmt.Errorf("no model %s is served to the org; hi org ai lists them", orgModelID(name))
+		return serverServed{}, "", fmt.Errorf("no model %s is served through the server; hi server ai lists them", orgModelID(name))
 	case !served.Up:
 		return *served, "", fmt.Errorf("%s is stopped on %s; %s starts it again with hi serve start %s", orgModelID(name), served.Hostname, served.User, name)
 	}
@@ -430,7 +430,7 @@ func (s *orgServer) servedList() []apiServeUpstream {
 	return list
 }
 
-// describeServed is the served part of hi org ai.
+// describeServed is the served part of hi server ai.
 func describeServed(list []apiServeUpstream) string {
 	if len(list) == 0 {
 		return ""

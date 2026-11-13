@@ -233,7 +233,7 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 				view.Expose = url
 			}
 		}
-		fmt.Fprintf(&ask, "\nThe org server: a NetBird policy from the org's people to this machine, TCP %d (devices join, ask, and approve there).\n", serverDefaultPort)
+		fmt.Fprintf(&ask, "\nThe server: a NetBird policy from the server's people to this machine, TCP %d (devices join, ask, and approve there).\n", serverDefaultPort)
 	}
 	view.Ask = ask.String()
 	return view

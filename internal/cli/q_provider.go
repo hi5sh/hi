@@ -841,7 +841,7 @@ func qProviderByName(name, model string, config qConfig, key string) (qChoice, e
 		if choice, ok := qConnectedServerChoice(firstNonEmpty(model, saved), model, true); ok {
 			return choice, nil
 		}
-		return qChoice{}, errors.New("this device isn't connected to an org server that serves a model; run hi org join, or choose another model with hi q --setup")
+		return qChoice{}, errors.New("this device isn't connected to a hi server that serves a model; run hi server join, or choose another model with hi q --setup")
 	case "claude":
 		binary, err := exec.LookPath("claude")
 		if err != nil {

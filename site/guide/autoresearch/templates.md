@@ -15,7 +15,7 @@ hi init autoresearch-ml charlm         # train a better model in the same five m
 |---|---|---|---|
 | `autoresearch-ml` | `train.py` | `val_bpc` after five minutes of training, lower is better | a small GPT on Tiny Shakespeare, character by character |
 
-On a device connected to your team's org server, `hi init` may list more
+On a device connected to your team's server, `hi init` may list more
 research templates from your team's private repo, marked `(private repo)`.
 They are built on the same base layer, `autoresearch-base`.
 

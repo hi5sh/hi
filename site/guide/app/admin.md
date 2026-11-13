@@ -1,12 +1,12 @@
 ---
 title: The admin page
-description: "hi admin start gives a machine one web page for the people who run it: every app on it, the org server if it runs one, restarts, snapshots, approvals, what runs and what it costs, jobs, logs, incidents, and hi's updates, without the command line."
+description: "hi admin start gives a machine one web page for the people who run it: every app on it, the server if it runs one, restarts, snapshots, approvals, what runs and what it costs, jobs, logs, incidents, and hi's updates, without the command line."
 ---
 
-A machine with hi runs apps, an [org server](/guide/compute/managed/), or
+A machine with hi runs apps, a [server](/guide/compute/managed/), or
 both. Each app has a [dev page](/guide/app/dev/) for its people. Whoever
 runs the machine has the **admin page**: one web page with every app on
-the machine, the org if it runs one, and what used to need SSH and a
+the machine, the server if it runs one, and what used to need SSH and a
 command.
 
 ```sh
@@ -15,8 +15,8 @@ hi admin start
 
 starts it, keeps it up, also after a reboot, and prints your link. The
 first time, it asks your name and, optionally, your Slack member ID, and
-makes you its first admin. On the org server's machine it asks nothing:
-the org's owner is its first admin ([below](#on-the-org-servers-machine)).
+makes you its first admin. On the server's machine it asks nothing:
+the server's owner is its first admin ([below](#on-the-servers-machine)).
 
 ## What it has
 
@@ -26,13 +26,13 @@ remembered. On a phone they lie over the middle, one at a time.
 
 - **Home:** the machine's health: how busy its CPU is, its load, its
   memory, swap, and each disk, filling up green, then yellow, then red.
-  Then the org's card, on a machine that runs an org server, and every
+  Then the server's card, on a machine that runs a server, and every
   app as a card, with its state, production's version, its
   open incidents, its addresses, and what it uses: its share of the CPU
   and the memory of its lead and its boxes together, and its folder on
   disk (measured every ten minutes). The page measures while it's open.
-- **Home** (left): the org, on a machine that runs one, and the apps;
-  the apps that are down or frozen, and the org's requests waiting,
+- **Home** (left): the server, on a machine that runs one, and the apps;
+  the apps that are down or frozen, and the server's requests waiting,
   counted on the icon. Pick one to open it in the middle.
 - **An app's Overview:** its state, addresses, members, owners, latest
   releases, snapshots, and heartbeat, and its **Boxes**: each container
@@ -54,23 +54,23 @@ remembered. On a phone they lie over the middle, one at a time.
   icon when a new hi is out; the admin page's address and what to ask
   your IT team for; its admins.
 - **Activity** (left): what admins did here, with who and when, and on
-  the org server's machine the org's audit.
+  the server's machine the server's audit.
 
 The left panel is the same on every machine: Home, People, Keys,
 Network, Machine, Activity. The right panel is about what's open: an
-app's Jobs, Logs, Incidents, and Advisories with an app; the org's
-Requests, Running, Spend, Logs, and Incidents with the org; on Home,
+app's Jobs, Logs, Incidents, and Advisories with an app; the server's
+Requests, Running, Spend, Logs, and Incidents with the server; on Home,
 every app's.
 
 - **Jobs** (right): the open app's long actions, running and done, with
   their output; on Home, every job, the machine's too, such as an update.
   A blue dot while one runs, a red one when one failed.
 - **Logs** (right): the open app's lead and service, as `hi app logs`
-  shows them; on Home, the admin page's own, or the org server's on its
+  shows them; on Home, the admin page's own, or the server's on its
   machine. Its dot pulses when new lines come in behind another view, red
   when one says something failed.
 - **Incidents** (right): the open app's, the open ones first; on Home,
-  every app's, and the org's.
+  every app's, and the server's.
 
 Every change is said: in Activity, with the admin's name, and in the
 app's ops channel, as the app's bot: "Olga restarted the app, from the
@@ -182,7 +182,7 @@ only whether one is set, and whose.
 On the left, **Network** has the apps' domain, the sign-in providers
 (**Add one**), each app's peer and addresses, the dev boxes' sites (the
 ones for every app, the organisation's domains **On** or **Off**, and
-sites several apps allowed, to allow for all), the org server's public
+sites several apps allowed, to allow for all), the server's public
 address for cloud runs on its machine, and **What to ask your IT team**:
 every policy and record the admin page and the apps need, as text to
 send. On the right, **Advisories** has the open app's, or every app's,
@@ -192,9 +192,9 @@ then ignored; **Ignore…** asks why, and the app's people see it.
 On the left, **People** has everyone with a level in any app, a column
 per app: change a level where it stands, or give someone the same level
 in several apps at once, each the app's own change, said in its channel.
-The org's users are the org's (its **Users**), not here. **Keys** has
+The server's users are the server's (its **Users**), not here. **Keys** has
 the machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's,
-and Codex's), and which apps use their own; the org's are in its
+and Codex's), and which apps use their own; the server's are in its
 **Keys**.
 
 On an app's dev page, the notes that send people to an admin of the
@@ -205,77 +205,77 @@ In an app's Overview, **Rename…** and **Remove…** each need the app's
 name typed. Remove keeps the app's folder unless you say otherwise, so
 it can come back.
 
-## On the org server's machine
+## On the server's machine
 
-A machine that runs the org server has the org on its admin page, as a
-card on Home and first in Home on the left. A machine with only the org
-server, such as the org's own VM, has the org and no apps; one can run
+A machine that runs the server has the server on its admin page, as a
+card on Home and first in Home on the left. A machine with only the server
+server, such as the server's own VM, has the server and no apps; one can run
 both.
 
-- **Home:** the org's card: requests waiting, what runs and at what rate,
+- **Home:** the server's card: requests waiting, what runs and at what rate,
   today's spend and the month's against its budgets, and its open
-  incidents. It opens the org, as an app's card opens the app.
-- **The org opened** has its sections on the bar, as an app's:
-  - **Overview:** the same numbers, the org server, and **Restart**.
-  - **Users:** the org's users, by their hi user name, their groups and
+  incidents. It opens the server, as an app's card opens the app.
+- **The server opened** has its sections on the bar, as an app's:
+  - **Overview:** the same numbers, the server, and **Restart**.
+  - **Users:** the server's users, by their hi user name, their groups and
     devices; **Add**, and **Remove** with their name typed.
   - **Admins:** the owner, and **Hand it on…** for the owner; the admins,
     whom the owner adds and removes. Each approves, in Slack and here.
   - **Policy:** each group's limits, hardware, approvals without a
     person, and budgets, as a form, checked by the server before it's
     saved, or **As text**.
-  - **Keys:** the provider keys (RunPod, Shadeform) and the org's
+  - **Keys:** the provider keys (RunPod, Shadeform) and the server's
     OpenRouter key for `hi q`, each checked before it's kept, and shown
     only as set or not.
   - **Templates**, **Data** (Hugging Face), **Models** (served on the
     team's machines), **Slack**, and **Wall screens**.
-- **Requests** (right, with the org open): devices that want to join and
+- **Requests** (right, with the server open): devices that want to join and
   compute waiting for an approval, each with **Approve** (and the group,
-  for someone new) and **Deny…** with a reason. It is the same as `hi org
+  for someone new) and **Deny…** with a reason. It is the same as `hi server
   approve`, under the admin's own name, and nobody approves their own.
 - **Running** (right): everything running, for every user, with its cost
   so far, when it stops, and **Stop**; and **Stop all** of someone's,
   with their name typed.
 - **Spend** (right): per user and group, compute and models, over a week
   or a month.
-- **Incidents** (right): what the org server's check warns of: an
-  instance on the org's accounts that no request started, and a failed
+- **Incidents** (right): what the server's check warns of: an
+  instance on the server's accounts that no request started, and a failed
   start's machine it hasn't deleted yet, while they last.
-- **Logs** (right): the org server's. On a machine with only the org,
-  Home has the org's views on the right.
-- **Activity** has the org's audit.
+- **Logs** (right): the server's. On a machine with only the server,
+  Home has the server's views on the right.
+- **Activity** has the server's audit.
 
-**Its admins:** on a machine with only the org, the page's admins are the
-org's owner and admins, as `hi org admins` lists them, and the page keeps
-no list of its own. A new link comes by DM from the org's Slack app.
+**Its admins:** on a machine with only the server, the page's admins are the
+org's owner and admins, as `hi server admins` lists them, and the page keeps
+no list of its own. A new link comes by DM from the server's Slack app.
 
-**A machine with apps and the org:** the machine's admins and the org's
+**A machine with apps and the server:** the machine's admins and the server's
 are two lists. The machine's (Machine, `hi admin admins`) run the machine
-and its apps; the org's (the org's Admins, `hi org admins`) approve and
-run the org. Someone in both is one admin. Each sees everything, and
+and its apps; the server's (the server's Admins, `hi server admins`) approve and
+run the server. Someone in both is one admin. Each sees everything, and
 changes only their own: the rest shows, and does nothing. Making someone
-an admin of the machine never makes them an approver. `hi org init` on a
+an admin of the machine never makes them an approver. `hi server init` on a
 machine with apps:
 
 - refuses while the machine is joined to another org, whose compute its
-  apps use: `hi org leave` first;
+  apps use: `hi server leave` first;
 - joins the machine to the new org, under the owner's hi user name, so
   its apps' compute goes through it;
 - keeps the admin page's admins, and adds the owner to them;
-- says what sharing the machine means. The org server keeps the keys that
-  start machines on the org's accounts, and the apps' agents run beside
+- says what sharing the machine means. The server keeps the keys that
+  start machines on the server's accounts, and the apps' agents run beside
   it, as the same account, restarted together by `hi update`. That suits
-  a small org, or trying one; for more than a few people, put the org
+  a small team, or trying one; for more than a few people, put the server
   server on a small machine of its own.
 
-**Wall screens:** in the org's Wall screens, **+** makes a link for a
+**Wall screens:** in the server's Wall screens, **+** makes a link for a
 screen. Opened in a browser, full screen, it shows Running and Requests,
 with initials for names and no reasons unless the link says otherwise. It
 can't approve, stop, or open anything, and it works until an admin ends
-it. It replaces `hi org live --wall` and the screens that showed it over
+it. It replaces `hi server live --wall` and the screens that showed it over
 SSH: a screen needs only a browser on NetBird.
 
-**The org server is a user service** here, `hi-org.service`, so the page
+**The server is a user service** here, `hi-org.service`, so the page
 restarts it, and `hi update` does without `sudo`. One set up before hi
 2.6.78 runs as a system service: on a terminal, `hi update` moves it, with
 `sudo` once.
@@ -312,7 +312,7 @@ port 1984, which needs no root:
   TCP 1984: then only admins reach it. Until the peer has joined, the
   page is on the machine's own NetBird address.
 - **On the machine's NetBird address,** on a machine without podman,
-  such as an org server's VM: `ws1.corp.example:1984`.
+  such as a server's VM: `ws1.corp.example:1984`.
 - **`admin.<domain>`,** on https, when the machine has a domain
   ([`hi net domain`](/guide/workstation/netbird/)) and the page has its
   peer. No app can be called `admin`.
@@ -371,5 +371,5 @@ hi admin address [<host> [--https] | default]
 ```
 
 Later: hi5.sh as a service, with an admin page for each customer's apps;
-help on the page; sign-in by email; and the org's machines from its
+help on the page; sign-in by email; and the server's machines from its
 server's admin page.

@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi org run` (or the older `hi server run`) or
+// After an update, a running `hi server run` (or `hi org run`, its other name) or
 // app (`hi app __serve`, `hi team __serve` in older units) still runs the
 // old binary until it restarts. hi update finds them, and the systemd unit
 // that runs them, and offers to restart them.
@@ -52,7 +52,7 @@ func (s staleServer) what() string {
 	if s.front != "" {
 		return "The front of " + s.front
 	}
-	return "An org server"
+	return "A hi server"
 }
 
 // staleServers lists hi servers started from path whose binary has been
@@ -239,11 +239,11 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 func offerOrgUnitMove(mode string, stdin io.Reader, stdout, stderr io.Writer) (bool, error) {
 	system := systemOrgUnit()
 	if mode == "no" || !updateIsTerminal(stdin) {
-		fmt.Fprintf(stdout, "The org server becomes a user service in this hi, so the admin page can restart it. Run hi update on a terminal on this machine to move %s, with sudo this once. Until then it runs as before.\n", system)
+		fmt.Fprintf(stdout, "The server becomes a user service in this hi, so the admin page can restart it. Run hi update on a terminal on this machine to move %s, with sudo this once. Until then it runs as before.\n", system)
 		return false, nil
 	}
 	if mode == "ask" {
-		fmt.Fprintf(stdout, "The org server becomes a user service, beside the admin page and the apps, so the admin page can restart it. Move %s now? It needs sudo this once, and the server is down for about a second. [Y/n] ", system)
+		fmt.Fprintf(stdout, "The server becomes a user service, beside the admin page and the apps, so the admin page can restart it. Move %s now? It needs sudo this once, and the server is down for about a second. [Y/n] ", system)
 		answer, _ := readLine(stdin)
 		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "" && answer != "y" && answer != "yes" {
 			fmt.Fprintln(stdout, "Not moved; hi update asks again next time.")

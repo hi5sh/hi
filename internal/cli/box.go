@@ -227,7 +227,7 @@ options when starting:
                          GitHub and package registries; open: everything, still logged
   --allow <domain>       one more domain (repeat it)
   --gpu                  the AMD GPU (Strix Halo)
-  --data                 the team's Hugging Face data through the org server (hi data);
+  --data                 the team's Hugging Face data through the server (hi data);
                          the box gets a placeholder token, the proxy the real one
   --worktree             a new git worktree (agents always get one)
   --here                 work in the project folder itself, not a worktree
@@ -413,7 +413,7 @@ func startBox(kind string, options boxOptions, stdin io.Reader, stdout, stderr i
 		fmt.Fprintln(stdout, "The box gets the dev network instead; --network open gives it every site.")
 		network = "dev"
 	}
-	if !options.data && custom.Data && !boxDomainDecision(root+" (data)", []string{"your team's data, through the org server (data: true)"}, stdin, stdout) {
+	if !options.data && custom.Data && !boxDomainDecision(root+" (data)", []string{"your team's data, through the server (data: true)"}, stdin, stdout) {
 		fmt.Fprintln(stdout, "The box gets no team data; --data gives it.")
 		custom.Data = false
 	}

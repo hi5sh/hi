@@ -64,7 +64,7 @@ How the limit is enforced differs by provider:
   that terminates it at `--max`, and runs the local watcher as well.
 - **Shadeform** deletes the machine itself at `--max`, so it stops even if
   your laptop is off.
-- **Through an org server**, the server stops managed machines at their limit;
+- **Through a server**, the server stops managed machines at their limit;
   see [Managed compute for a team](/guide/compute/managed/).
 
 Choose the shortest `--max` that fits the work. You can always start another.

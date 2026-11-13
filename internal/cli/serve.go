@@ -183,8 +183,8 @@ Options for llm:
                      cuda on an NVIDIA one; cpu only for a recipe with a CPU profile)
   --share            Local: also on this machine's NetBird address, with a key you hand
                      to teammates (hi serve key)
-  --org              Local: also on the NetBird address, for the org server, which an
-                     admin approves; devices then use it through hi org ai as local/<name>
+  --org              Local: also on the NetBird address, for the server, which an
+                     admin approves; devices then use it through hi server ai as local/<name>
   --reason <text>    Why you need it; approvers see it (managed providers, --org)
   --yes, --dry-run
 

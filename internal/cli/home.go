@@ -61,7 +61,7 @@ func (b *slackBridge) startLink(slackUser, user string) string {
 	}
 	b.links.pending[code] = pendingLink{slackUser: slackUser, user: user, expires: time.Now().Add(slackLinkTTL)}
 	b.links.mu.Unlock()
-	return fmt.Sprintf("To link this Slack account to *%s*, run this on %s's device within 10 minutes:\n`hi org slack link %s`",
+	return fmt.Sprintf("To link this Slack account to *%s*, run this on %s's device within 10 minutes:\n`hi server slack link %s`",
 		slackEscape(user), slackEscape(user), code)
 }
 
@@ -168,7 +168,7 @@ func (b *slackBridge) publishHome(slackUser string) {
 		blocks = renderUserHome(s.liveSnapshot(user), user, computeNow())
 	default:
 		blocks = []slack.Block{
-			slack.NewHeaderBlock(slackPlain("hi org")),
+			slack.NewHeaderBlock(slackPlain("hi server")),
 			slack.NewSectionBlock(slackText("This Slack account isn't linked to a hi user yet. Type `/hi link <your hi user name>` "+
 				"anywhere, then run the command it gives you on your own device."), nil, nil),
 		}
@@ -244,7 +244,7 @@ func homeBudgets(budgets []liveBudget) []slack.Block {
 
 func renderApproverHome(snapshot liveSnapshot, devices []deviceRow, now time.Time) []slack.Block {
 	blocks := []slack.Block{
-		homeHeader("hi org"),
+		homeHeader("hi server"),
 		homeContext(fmt.Sprintf("%d running · %s/h now · %s today · %s this month · updated %s",
 			len(snapshot.Running), formatDollars(snapshot.RatePerHour), formatDollars(snapshot.Today),
 			formatDollars(snapshot.Month), now.Local().Format("15:04"))),
@@ -416,7 +416,7 @@ func (s *orgServer) handleSlackLink(w http.ResponseWriter, _ *http.Request, devi
 
 func connectSlackCommand(args []string) error {
 	if len(args) != 1 {
-		return usageError{"usage: hi org slack link <code from /hi link in Slack>"}
+		return usageError{"usage: hi server slack link <code from /hi link in Slack>"}
 	}
 	client, err := connectedClient()
 	if err != nil {

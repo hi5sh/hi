@@ -130,6 +130,6 @@ When the input is not a terminal, the menu falls back to numbered questions.
 | `hi compute stop <name>`                  | Stop and release                               |
 | `hi compute billing`                      | Who pays, and the Colab balance                |
 | `hi compute providers`, `hardware`        | Which providers are ready, and their hardware  |
-| `hi compute requests`, `extend`, `live`   | Requests, more time, and a live view when an [org server manages compute](/guide/compute/managed/) |
+| `hi compute requests`, `extend`, `live`   | Requests, more time, and a live view when a [server manages compute](/guide/compute/managed/) |
 
 The [command reference](/guide/reference/commands/) lists every option.

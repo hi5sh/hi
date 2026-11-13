@@ -79,12 +79,12 @@ func fetchDataRunLinks(refs []dataRunRef, stderr io.Writer) ([]dataRunRepo, erro
 		if ref.include != "" {
 			request.Include = []string{ref.include}
 		}
-		fmt.Fprintf(stderr, "Asking the org server for download links to %s %s…\n", item.Kind, item.ID)
+		fmt.Fprintf(stderr, "Asking the server for download links to %s %s…\n", item.Kind, item.ID)
 		var links apiDataLinks
 		if err := client.call(http.MethodPost, "/v1/data/links", request, &links); err != nil {
 			var reply *serverReplyError
 			if errors.As(err, &reply) && reply.status == http.StatusNotFound && strings.Contains(reply.message, "page not found") {
-				return nil, errors.New("the org server is older than v0.25.1 and can't make download links; run `hi update` on the server box")
+				return nil, errors.New("the server is older than v0.25.1 and can't make download links; run `hi update` on the server box")
 			}
 			return nil, err
 		}

@@ -216,7 +216,7 @@ Network: open (agent-browser (open): visits whatever sites the task needs)
   open network and `--data` don't go together, since an agent reading
   untrusted pages could be told to pass your team's data on.
 - **More bundles** come from your team's template sources on a
-  [org server](/guide/compute/managed/), and your own, in
+  [server](/guide/compute/managed/), and your own, in
   `~/.local/share/hi/bundles/bundles/<name>.json` (or `HI_BUNDLES_DIR`).
   `hi bundle ls` lists them all, and `hi bundle show <name>` what one
   installs. A bundle file is described in [Skills](/guide/reference/skill/#bundles).

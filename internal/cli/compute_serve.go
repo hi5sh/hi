@@ -77,7 +77,7 @@ func computeServeCommand(args []string, stdin io.Reader, stdout, stderr io.Write
 	memory := flags.String("memory", "", "local: the box's memory limit")
 	backend := flags.String("backend", "", "local: rocm, vulkan, cuda, or cpu")
 	share := flags.Bool("share", false, "local: also on this machine's NetBird address, with a key to hand over")
-	org := flags.Bool("org", false, "local: also on this machine's NetBird address, for the org server's hi org ai")
+	org := flags.Bool("org", false, "local: also on this machine's NetBird address, for the server's hi server ai")
 	positional, err := parseInterspersedFlags(flags, args)
 	if err != nil {
 		return err

@@ -15,7 +15,7 @@ import (
 )
 
 // Every org has an owner, one person with their Slack member ID and their
-// email, set at hi org init (hi_admin.md, The org's owner). The owner adds
+// email, set at hi server init (hi_admin.md, The org's owner). The owner adds
 // and removes the org's admins. An admin is an approver too, and an admin
 // of the admin page on the server's machine: one list, kept in the org's
 // people.json, so that page keeps no list of its own.
@@ -152,20 +152,20 @@ func applyOrgPeople(dir string, input orgPeopleInput) (orgPeopleResult, error) {
 		}
 		if people.Owner != nil && people.Owner.Slack == person.Slack {
 			people.Owner.Email, people.Owner.Name = person.Email, person.Name
-			result.Text = fmt.Sprintf("%s is still the org's owner; their email is %s.", person.Name, person.Email)
+			result.Text = fmt.Sprintf("%s is still the server's owner; their email is %s.", person.Name, person.Email)
 			result.action, result.subject = "updated owner", person.Name
 		} else {
 			old := people.Owner
 			people.Admins = slices.DeleteFunc(people.Admins, func(admin orgPerson) bool { return admin.Slack == person.Slack })
 			people.Owner = &person
 			result.action, result.subject = "set owner", person.Name
-			result.Text = fmt.Sprintf("%s (%s) owns the org now.", person.Name, person.Email)
+			result.Text = fmt.Sprintf("%s (%s) owns the server now.", person.Name, person.Email)
 			if old != nil {
 				// The owner before stays an admin; the new owner can remove them.
 				old.By = input.As
 				people.Admins = append(people.Admins, *old)
 				result.Text += fmt.Sprintf(" %s, the owner before, is an admin of it.", old.Name)
-				result.said = fmt.Sprintf("%s handed the org on: %s owns it now, and %s is an admin.", input.As, person.Name, old.Name)
+				result.said = fmt.Sprintf("%s handed the server on: %s owns it now, and %s is an admin.", input.As, person.Name, old.Name)
 			}
 		}
 		result.approve[person.Slack] = person.Name
@@ -175,7 +175,7 @@ func applyOrgPeople(dir string, input orgPeopleInput) (orgPeopleResult, error) {
 			return result, err
 		}
 		if people.isOwner(person.Slack) || people.isOwner(person.Name) {
-			return result, fmt.Errorf("%s owns the org; an owner is an admin already", person.Name)
+			return result, fmt.Errorf("%s owns the server; an owner is an admin already", person.Name)
 		}
 		if other, ok := people.find(person.Name); ok && other.Slack != person.Slack {
 			return result, fmt.Errorf("%s is the hi user name of the admin with Slack member ID %s", person.Name, other.Slack)
@@ -183,24 +183,24 @@ func applyOrgPeople(dir string, input orgPeopleInput) (orgPeopleResult, error) {
 		people.Admins = slices.DeleteFunc(people.Admins, func(admin orgPerson) bool { return admin.Slack == person.Slack })
 		people.Admins = append(people.Admins, person)
 		result.action, result.subject = "added admin", person.Name
-		result.Text = fmt.Sprintf("%s is an admin of the org: they approve, in Slack and on the admin page, and sign in to the admin page on this machine.", person.Name)
+		result.Text = fmt.Sprintf("%s is an admin of the server: they approve, in Slack and on the admin page, and sign in to the admin page on this machine.", person.Name)
 		result.approve[person.Slack] = person.Name
-		result.said = fmt.Sprintf("%s made %s an admin of the org.", input.As, person.Name)
+		result.said = fmt.Sprintf("%s made %s an admin of the server.", input.As, person.Name)
 	case "remove":
 		person, ok := people.find(firstNonEmpty(input.Slack, input.Name))
 		if !ok {
-			return result, fmt.Errorf("%s isn't one of the org's admins", firstNonEmpty(input.Slack, input.Name))
+			return result, fmt.Errorf("%s isn't one of the server's admins", firstNonEmpty(input.Slack, input.Name))
 		}
 		if people.isOwner(person.Slack) {
-			return result, errors.New("the owner can't be removed; hand the org on first: hi org owner <Slack ID> --email <address>")
+			return result, errors.New("the owner can't be removed; hand the server on first: hi server owner <Slack ID> --email <address>")
 		}
 		people.Admins = slices.DeleteFunc(people.Admins, func(admin orgPerson) bool { return admin.Slack == person.Slack })
 		result.action, result.subject = "removed admin", person.Name
-		result.Text = fmt.Sprintf("%s isn't an admin of the org any more, nor an approver.", person.Name)
+		result.Text = fmt.Sprintf("%s isn't an admin of the server any more, nor an approver.", person.Name)
 		result.unapprove = []string{person.Slack}
-		result.said = fmt.Sprintf("%s took %s off the org's admins.", input.As, person.Name)
+		result.said = fmt.Sprintf("%s took %s off the server's admins.", input.As, person.Name)
 	default:
-		return result, fmt.Errorf("no such change to the org's people: %q", input.Action)
+		return result, fmt.Errorf("no such change to the server's people: %q", input.Action)
 	}
 	data, _ := json.MarshalIndent(people, "", "  ")
 	if err := writeFileAtomic(orgPeoplePath(dir), append(data, '\n'), 0o600); err != nil {
@@ -227,7 +227,7 @@ func (s *orgServer) changeOrgPeople(input orgPeopleInput) (orgPeopleResult, erro
 
 // orgSyncApprovers makes the org's owner and admins approvers in Slack,
 // in slack.json and, with the server running, in its memory. Without
-// Slack set up there's nothing to do: hi org slack setup adds them.
+// Slack set up there's nothing to do: hi server slack setup adds them.
 func orgSyncApprovers(dir string, server *orgServer, add map[string]string, remove []string) {
 	if len(add) == 0 && len(remove) == 0 {
 		return
@@ -306,12 +306,12 @@ func (s *orgServer) peopleAdminRoutes(mux *http.ServeMux) {
 }
 
 // orgNoOwnerLine says how an org made before owners gets one.
-const orgNoOwnerLine = "The org has no owner yet. On this machine: hi org owner <Slack member ID> --email <address>"
+const orgNoOwnerLine = "The server has no owner yet. On this machine: hi server owner <Slack member ID> --email <address>"
 
 // ---------------------------------------------------------------------------
 // commands
 
-// orgOwnerCommand is hi org owner: who owns the org, or hand it on.
+// orgOwnerCommand is hi server owner: who owns the org, or hand it on.
 func orgOwnerCommand(args []string, stdout, stderr io.Writer) error {
 	flags, dirFlag := orgFlags("owner", stderr)
 	email := flags.String("email", "", "the owner's email")
@@ -326,7 +326,7 @@ func orgOwnerCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if !fileExists(filepath.Join(dir, "config.json")) {
-		return fmt.Errorf("no org server in %s; run `hi org init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
 	}
 	switch len(positional) {
 	case 0:
@@ -335,7 +335,7 @@ func orgOwnerCommand(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintln(stdout, orgNoOwnerLine)
 			return nil
 		}
-		fmt.Fprintf(stdout, "%s owns the org: Slack %s, %s.\n", people.Owner.Name, people.Owner.Slack, people.Owner.Email)
+		fmt.Fprintf(stdout, "%s owns the server: Slack %s, %s.\n", people.Owner.Name, people.Owner.Slack, people.Owner.Email)
 		return nil
 	case 1:
 		result, err := orgChangePeople(dir, orgPeopleInput{As: *as, Action: "owner", Slack: positional[0], Email: *email, Name: *name})
@@ -345,10 +345,10 @@ func orgOwnerCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintln(stdout, result.Text)
 		return nil
 	}
-	return usageError{"usage: hi org owner [<Slack member ID> --email <address> [--name <hi user name>]]"}
+	return usageError{"usage: hi server owner [<Slack member ID> --email <address> [--name <hi user name>]]"}
 }
 
-// orgAdminsCommand is hi org admins: the owner and the admins, or a change.
+// orgAdminsCommand is hi server admins: the owner and the admins, or a change.
 func orgAdminsCommand(args []string, stdout, stderr io.Writer) error {
 	flags, dirFlag := orgFlags("admins", stderr)
 	email := flags.String("email", "", "their email")
@@ -363,9 +363,9 @@ func orgAdminsCommand(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	if !fileExists(filepath.Join(dir, "config.json")) {
-		return fmt.Errorf("no org server in %s; run `hi org init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
 	}
-	usage := usageError{"usage: hi org admins [add <Slack member ID> --name <hi user name> [--email <address>] | remove <Slack member ID or name>]"}
+	usage := usageError{"usage: hi server admins [add <Slack member ID> --name <hi user name> [--email <address>] | remove <Slack member ID or name>]"}
 	switch {
 	case len(positional) == 0:
 		people := loadOrgPeople(dir)

@@ -152,7 +152,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Frozen = true
 		}
-		text = ":ice_cube: *The org server froze the app*"
+		text = ":ice_cube: *The server froze the app*"
 	case "unfreeze":
 		if state.Frozen {
 			for path, data := range state.Allow {
@@ -167,7 +167,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Frozen, state.Allow, state.Apps = false, nil, nil
 		}
-		text = ":sunny: *The org server unfroze the app*"
+		text = ":sunny: *The server unfroze the app*"
 	case "pause":
 		if !state.Paused {
 			running := appTeamContainers(b.team, appRunningContainers("hi-box-app-"+b.team, "hi-box-"+b.team+"-t-"), false)
@@ -176,7 +176,7 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Boxes, state.Paused = running, true
 		}
-		text = ":pause_button: *The org server paused every box of the app*"
+		text = ":pause_button: *The server paused every box of the app*"
 	case "unpause":
 		if state.Paused {
 			for _, name := range state.Boxes {
@@ -189,9 +189,9 @@ func (b *appBroker) carryOut(do apiWatchDo) error {
 			}
 			state.Paused, state.Boxes = false, nil
 		}
-		text = ":arrow_forward: *The org server unpaused the app*"
+		text = ":arrow_forward: *The server unpaused the app*"
 	default:
-		return fmt.Errorf("the org server asked for %q, which this hi doesn't know", do.Action)
+		return fmt.Errorf("the server asked for %q, which this hi doesn't know", do.Action)
 	}
 	state.Done, state.By, state.Because, state.At = do.ID, do.By, do.Because, time.Now().UTC()
 	if err := saveTeamWatchStop(b.team, state); err != nil {
@@ -400,6 +400,6 @@ func (b *appBroker) holdWatchStop(stderr io.Writer) {
 		}
 	}
 	if err := saveTeamWatchStop(b.team, state); err != nil {
-		fmt.Fprintf(stderr, "hi: the org server's freeze: %v\n", err)
+		fmt.Fprintf(stderr, "hi: the server's freeze: %v\n", err)
 	}
 }

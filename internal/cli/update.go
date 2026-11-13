@@ -38,8 +38,8 @@ func runUpdate(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	requested := flags.String("version", "", "install this release, such as v0.7.0")
 	check := flags.Bool("check", false, "only report whether an update is available")
-	restart := flags.Bool("restart", false, "restart an org server or app service that runs the old version, without asking")
-	noRestart := flags.Bool("no-restart", false, "never restart an org server or app service; print the command instead")
+	restart := flags.Bool("restart", false, "restart a hi server or app service that runs the old version, without asking")
+	noRestart := flags.Bool("no-restart", false, "never restart a hi server or app service; print the command instead")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 || (*restart && *noRestart) {
 		fmt.Fprintln(stderr, "usage: hi update [--version vX.Y.Z] [--check] [--restart | --no-restart]")
 		return 2
@@ -80,7 +80,7 @@ func orgUpdateNotes(stdout io.Writer) {
 	walls, _ := filepath.Glob(filepath.Join(systemdUnitDir, "hi-wall-*.service"))
 	for _, path := range walls {
 		unit := filepath.Base(path)
-		fmt.Fprintf(stdout, "The terminal wall is gone from hi: %s still shows the old dashboard. Make a wall link on the admin page (Org, Wall screens), then remove it:\n"+
+		fmt.Fprintf(stdout, "The terminal wall is gone from hi: %s still shows the old dashboard. Make a wall link on the admin page (Server, Wall screens), then remove it:\n"+
 			"  sudo systemctl disable --now %s && sudo rm %s\n", unit, unit, path)
 	}
 	if len(walls) > 0 {

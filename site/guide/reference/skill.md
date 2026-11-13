@@ -41,7 +41,7 @@ browse, and pick:
 - **Type** to search skills.sh; results are sorted by installs, and ✓
   marks the maker of the tool the skill is about (Anthropic, Vercel, DuckDB,
   Hugging Face, and a few more), or the GitHub owner of a template
-  source your org server serves. Many skills on skills.sh are copies of
+  source your server serves. Many skills on skills.sh are copies of
   others with large install counts, so look at the source.
 - **↓** moves from the search into the list. There, **space** picks a skill,
   **enter** installs what you picked (or the highlighted one), **u** updates
@@ -181,7 +181,7 @@ its own; an unknown key or an unpinned package refuses the bundle. The
 `hi` skill goes in every bundle.
 
 Your team keeps its own bundles in `bundles/` of a template source on its
-[org server](/guide/compute/managed/), next to `skills/`; there, a skill
+[server](/guide/compute/managed/), next to `skills/`; there, a skill
 whose `source` is `"."` is the source's own `skills/<name>`. Your own go in
 `~/.local/share/hi/bundles/bundles/` (or `HI_BUNDLES_DIR`), with the same
 layout. A project that always needs a bundle names it in its
@@ -226,7 +226,7 @@ What agents learn:
 - **How to:** choose providers and hardware, run jobs, use instances and
   tunnels, serve models, read logs, and fix common errors.
 - **Managed compute:** on a machine that has joined a
-  [org server](/guide/compute/managed/), send requests with `--reason` and
+  [server](/guide/compute/managed/), send requests with `--reason` and
   `--no-wait`, wait with `hi compute requests <id> --wait`, report a denial
   instead of working around it, and never approve anything.
 - **Sharing a local service:** ask before `hi net expose`, keep its

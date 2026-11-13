@@ -31,7 +31,7 @@ type liveSnapshot struct {
 	Today       float64        `json:"today"`
 	Month       float64        `json:"month"`
 	MonthBudget float64        `json:"month_budget"`
-	// Models is this month's use of the model hi org ai serves, per
+	// Models is this month's use of the model hi server ai serves, per
 	// user, and ModelsMonth its cost.
 	Models      []liveModelUse `json:"models,omitempty"`
 	ModelsMonth float64        `json:"models_month,omitempty"`

@@ -546,7 +546,7 @@ func connectedClient() (*serverClient, error) {
 		return nil, err
 	}
 	if connection == nil {
-		return nil, errors.New("not connected to an org server; see `hi org join`")
+		return nil, errors.New("not connected to a hi server; see `hi server join`")
 	}
 	key, err := loadDeviceKey(false)
 	if err != nil {

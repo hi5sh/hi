@@ -64,7 +64,7 @@ func TestServeLocalShares(t *testing.T) {
 		t.Fatalf("key file: %v %v", info, err)
 	}
 	if fileExists(filepath.Join(dir, serveOrgKey)) {
-		t.Fatal("--share alone made the org's key")
+		t.Fatal("--share alone made the server's key")
 	}
 	front := quadletFile(t, "hi-serve-qwen3-8-flash-next-front.container")
 	for _, want := range []string{
@@ -222,7 +222,7 @@ func TestServeFrontChecksKeysAndWritesAccessLines(t *testing.T) {
 }
 
 // --org names a ready server to the org: once an admin approves it, devices
-// reach it through hi org ai as local/<name>, with the org's key and their
+// reach it through hi server ai as local/<name>, with the org's key and their
 // user, at no cost; stop marks it down, start up, and rm removes it.
 func TestServeLocalNamedToTheOrg(t *testing.T) {
 	f := newFakeLocal(t)
@@ -236,7 +236,7 @@ func TestServeLocalNamedToTheOrg(t *testing.T) {
 
 	code, stdout, stderr := runHi("serve", "llm", "qwen3.8-flash-next", "--on", "local", "--org", "--port", port, "--yes",
 		"--reason", "bulk tagging for the team")
-	if code != 0 || !strings.Contains(stdout, "Asked the org server to add it to hi org ai as model local/qwen3-8-flash-next (s-") {
+	if code != 0 || !strings.Contains(stdout, "Asked the server to add it to hi server ai as model local/qwen3-8-flash-next (s-") {
 		t.Fatalf("serve --org: %d\n%s%s", code, stdout, stderr)
 	}
 	if strings.Contains(stdout, "OPENAI_API_KEY") || fileExists(filepath.Join(serveKeysDir("qwen3-8-flash-next"), serveSharedKey)) {
@@ -251,10 +251,10 @@ func TestServeLocalNamedToTheOrg(t *testing.T) {
 		t.Fatalf("request = %+v, key %q", request, orgKey)
 	}
 	text, blocks := renderSlackRequest(request, nil, "students", true, computeNow())
-	if !strings.Contains(text, "wants to serve a model to hi org ai: `local/qwen3-8-flash-next`") || len(blocks) != 2 {
+	if !strings.Contains(text, "wants to serve a model to hi server ai: `local/qwen3-8-flash-next`") || len(blocks) != 2 {
 		t.Fatalf("slack: %s (%d blocks)", text, len(blocks))
 	}
-	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "Org:      waiting for an admin's approval ("+id+")") {
+	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "Server:   waiting for an admin's approval ("+id+")") {
 		t.Fatalf("status before approval: %s", stdout)
 	}
 	client, err := serveOrgClient()
@@ -281,7 +281,7 @@ func TestServeLocalNamedToTheOrg(t *testing.T) {
 	if _, err := ts.server.decide(id, "bob", true, "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "Org:      in hi org ai as model local/qwen3-8-flash-next") {
+	if _, stdout, _ := runHi("serve", "status", "qwen3-8-flash-next"); !strings.Contains(stdout, "Server:   in hi server ai as model local/qwen3-8-flash-next") {
 		t.Fatalf("status after approval: %s", stdout)
 	}
 	status, message := chat()
@@ -310,7 +310,7 @@ func TestServeLocalNamedToTheOrg(t *testing.T) {
 		t.Fatalf("models: %v %v", models, err)
 	}
 	if text := describeServed(ts.server.servedList()); !strings.Contains(text, "- local/qwen3-8-flash-next: qwen3.8-flash-next on ") || !strings.Contains(text, "by alice, up") {
-		t.Fatalf("hi org ai: %s", text)
+		t.Fatalf("hi server ai: %s", text)
 	}
 
 	if code, _, stderr := runHi("serve", "stop", "qwen3-8-flash-next"); code != 0 || stderr != "" {
@@ -333,7 +333,7 @@ func TestServeLocalNamedToTheOrg(t *testing.T) {
 	_, keyKept := ts.server.keys[serveKeyPrefix+"qwen3-8-flash-next"]
 	ts.server.mu.Unlock()
 	if still || keyKept {
-		t.Fatal("rm left it in the org")
+		t.Fatal("rm left it in the server")
 	}
 }
 
@@ -382,8 +382,8 @@ func TestOrgServeRefusesAndDenies(t *testing.T) {
 func TestServePullsAPrivateModelThroughTheOrg(t *testing.T) {
 	f := newFakeLocal(t)
 	f.private = true
-	if code, _, stderr := runHi("serve", "pull", "llm", "qwen3.8-flash-next", "--yes"); code == 0 || !strings.Contains(stderr, "the org server, which says: not connected") {
-		t.Fatalf("private without the org: %d %s", code, stderr)
+	if code, _, stderr := runHi("serve", "pull", "llm", "qwen3.8-flash-next", "--yes"); code == 0 || !strings.Contains(stderr, "the server, which says: not connected") {
+		t.Fatalf("private without the server: %d %s", code, stderr)
 	}
 	var asked string
 	serveDataToken = func(repo string) (string, string, error) {

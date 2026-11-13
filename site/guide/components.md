@@ -1,6 +1,6 @@
 ---
 title: The components
-description: The standard components hi5's software factory is built from, such as hi box, hi agent, hi compute, hi org, and hi net. A hi app puts them together, and each one also works on its own.
+description: The standard components hi5's software factory is built from, such as hi box, hi agent, hi compute, hi server, and hi net. A hi app puts them together, and each one also works on its own.
 ---
 
 hi5's software factory is built from standard components. A hi app puts
@@ -17,7 +17,7 @@ share what you're running.
   <a href="{{ '/q/' | relative_url }}"><strong>hi q</strong><span>A shell command from plain words.</span></a>
   <a href="{{ '/init/' | relative_url }}"><strong>hi init</strong><span>Start a project agents work well in.</span></a>
   <a href="{{ '/net/' | relative_url }}"><strong>hi net</strong><span>Share what you're running on a temporary address.</span></a>
-  <a href="{{ '/org/' | relative_url }}"><strong>hi org</strong><span>One place for the team's keys and approvals.</span></a>
+  <a href="{{ '/server/' | relative_url }}"><strong>hi server</strong><span>One place for the team's keys and approvals.</span></a>
   <a href="{{ '/data/' | relative_url }}"><strong>hi data</strong><span>Your team's datasets, without a token.</span></a>
 </div>
 
@@ -90,7 +90,7 @@ time is up.
 |-----------|--------------|
 | [`hi box`]({{ '/guide/box/' | relative_url }}) | A room for every agent: a rootless container with the project and nothing else. No SSH keys, no tokens, and a network that reaches only what you allow. The GPU too, if you want it. |
 | [`hi compute`]({{ '/guide/compute/' | relative_url }}) | GPUs when you need them: one set of commands for Colab, Hugging Face, RunPod, and Shadeform to run a job, open a shell, or serve a model. Every machine has a time limit. |
-| [`hi org`]({{ '/org/' | relative_url }}) | One place for the team's keys: it holds the provider keys, approves GPU starts in Slack, warns on budgets, and serves the team's data, model, and private templates. |
+| [`hi server`]({{ '/server/' | relative_url }}) | One place for the team's keys: it holds the provider keys, approves GPU starts in Slack, warns on budgets, and serves the team's data, model, and private templates. |
 | [`hi net expose`]({{ '/guide/workstation/expose/' | relative_url }}) | Share what you're running: a web app on your machine on a temporary HTTPS address, behind a password, a PIN, or a key in the link. It ends on its own. |
 
 ## The workstation
@@ -173,7 +173,7 @@ cd pricing-tools && make check
 | `hi box shell` · `run` | A shell or a command in a rootless container with no credentials. |
 | `hi compute run` · `up` · `serve` · `stop` | Remote GPUs on Colab, Hugging Face, RunPod, or Shadeform, with time limits. |
 | `hi serve llm <recipe>` | A model with an OpenAI-compatible API, on rented hardware or this machine's GPU. |
-| `hi org join <server>` | Join your team's org server. |
+| `hi server join <server>` | Join your team's server. |
 | `hi data` | Your team's private Hugging Face datasets, models, and buckets. |
 | `hi skills` | Agent skills from skills.sh, pinned and audited. |
 | `hi bundle ls` · `show` | Skills and the tools they need, for `hi agent --bundle`. |

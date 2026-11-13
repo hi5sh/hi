@@ -75,7 +75,7 @@ type adminConfig struct {
 	HTTPS  bool          `json:"https,omitempty"`
 	Admins []adminPerson `json:"admins"`
 	// OrgApart keeps the machine's admins apart from the org's, on a
-	// machine that runs apps and an org server: hi org init sets it there.
+	// machine that runs apps and an org server: hi server init sets it there.
 	// Without it, the org's owner and admins are the machine's admins too.
 	OrgApart bool `json:"org_apart,omitempty"`
 	// MachineOwner is the machine's owner, by name, as hi admin owner
@@ -716,7 +716,7 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 	local := flags.Bool("local", false, "on this machine only")
 	name := flags.String("name", "", "the first admin's name")
 	slackID := flags.String("slack", "", "the first admin's Slack member ID")
-	email := flags.String("email", "", "on the org server's machine: the org owner's email, if it has no owner yet")
+	email := flags.String("email", "", "on the server's machine: the server owner's email, if it has no owner yet")
 	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
 		return usageError{adminUsage}
 	}
@@ -726,12 +726,12 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 	if dir := adminOrgDir(); dir != "" && loadOrgPeople(dir).Owner == nil {
 		owner := orgPeopleInput{As: currentUserName(), Action: "owner", Slack: *slackID, Email: *email, Name: strings.ToLower(*name)}
 		if owner.Slack == "" && interactive(stdin, stdout) {
-			fmt.Fprintln(stdout, "This machine runs the org server, and the org has no owner yet: the owner is the admin page's first admin here.")
+			fmt.Fprintln(stdout, "This machine runs the server, and the server has no owner yet: the owner is the admin page's first admin here.")
 			owner.Slack = adminAsk(stdin, stdout, "The owner's Slack member ID (in Slack: their profile, ⋮, Copy member ID)", "")
 			owner.Email = adminAsk(stdin, stdout, "The owner's email", owner.Email)
 		}
 		if owner.Slack == "" || owner.Email == "" {
-			return usageError{"this machine runs the org server, and the org has no owner yet: hi admin start --slack <the owner's member ID> --email <their address>, or hi org owner first"}
+			return usageError{"this machine runs the server, and the server has no owner yet: hi admin start --slack <the owner's member ID> --email <their address>, or hi server owner first"}
 		}
 		result, err := orgChangePeople(dir, owner)
 		if err != nil {
@@ -821,9 +821,9 @@ func adminStart(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Admins: %s. hi admin link <admin> makes a new sign-in link.\n", adminNames(config))
 	}
 	if config.apart() {
-		fmt.Fprintln(stdout, "\nThis machine runs the org server too: the org's owner and admins sign in for the org (hi org admins), the machine's admins for the machine (hi admin admins).")
+		fmt.Fprintln(stdout, "\nThis machine runs the server too: the server's owner and admins sign in for the server (hi server admins), the machine's admins for the machine (hi admin admins).")
 	} else if config.org != "" {
-		fmt.Fprintln(stdout, "\nThis machine runs the org server: the page's admins are the org's owner and admins (hi org admins), and it runs the org too.")
+		fmt.Fprintln(stdout, "\nThis machine runs the server: the page's admins are the server's owner and admins (hi server admins), and it runs the server too.")
 	}
 	if config.Reach != adminReachLocal {
 		fmt.Fprintf(stdout, "\nNetBird decides who reaches it. Ask your IT team for a policy from the admins' group to %s, TCP %d%s.\n",
@@ -889,19 +889,19 @@ func adminStatus(stdout io.Writer) error {
 		owner := ""
 		switch {
 		case admin.Owner:
-			owner = ", the org's owner"
+			owner = ", the server's owner"
 		case config.apart() && admin.Org:
-			owner = ", the org's admin"
+			owner = ", the server's admin"
 		}
 		if config.apart() && !admin.Machine {
-			owner += " (the org only)"
+			owner += " (the server only)"
 		}
 		fmt.Fprintf(stdout, "  %-24s %s%s\n", admin.Name, slack, owner)
 	}
 	if config.apart() {
-		fmt.Fprintln(stdout, "The machine's admins run its apps (hi admin admins); the org's run the org (hi org admins).")
+		fmt.Fprintln(stdout, "The machine's admins run its apps (hi admin admins); the server's run the server (hi server admins).")
 	} else if config.org != "" {
-		fmt.Fprintln(stdout, "They are the org's owner and admins: hi org admins changes them.")
+		fmt.Fprintln(stdout, "They are the server's owner and admins: hi server admins changes them.")
 	} else if dir := adminOrgDir(); dir != "" {
 		fmt.Fprintln(stdout, orgNoOwnerLine)
 	}
@@ -1047,7 +1047,7 @@ func adminAdd(name, slackID, email, by string) (adminPerson, error) {
 		}
 		config, _ = loadAdminConfig()
 		admin, _ := config.admin(slackID)
-		adminRecord(by, "", "made "+admin.Name+" an admin of the org")
+		adminRecord(by, "", "made "+admin.Name+" an admin of the server")
 		return admin, nil
 	}
 	name, err := adminCheckName(name)
@@ -1099,7 +1099,7 @@ func adminRemove(name, by string) (adminPerson, error) {
 			return admin, err
 		}
 		adminEndAll(admin.Name)
-		adminRecord(by, "", "took "+admin.Name+" off the org's admins")
+		adminRecord(by, "", "took "+admin.Name+" off the server's admins")
 		return admin, nil
 	}
 	unlock := adminLock()

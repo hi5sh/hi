@@ -119,7 +119,7 @@ func newFakeLocal(t *testing.T) *fakeLocal {
 	serveGroupNames = func() []string { return []string{"hi", "render", "video"} }
 	servePortFree = func(string, int) bool { return true }
 	serveNetBirdAddress = func() (string, error) { return "", errors.New("no NetBird interface (wt0) found") }
-	serveDataToken = func(string) (string, string, error) { return "", "", errors.New("not connected to an org server") }
+	serveDataToken = func(string) (string, string, error) { return "", "", errors.New("not connected to a hi server") }
 	serveExecutable = func() (string, error) { return "/home/hi/.local/bin/hi", nil }
 	boxLookPath = func(name string) (string, error) {
 		if name == "podman" {

@@ -84,11 +84,11 @@ func runQSetup(ui menuUI) (qChoice, error) {
 			ui.busy("Asking "+name+"…", func() { info, down = qServerAI(connection, deviceKey, true) })
 			switch {
 			case down != "":
-				ui.note(fmt.Sprintf("Your org server %s %s, so it isn't offered.", name, down))
+				ui.note(fmt.Sprintf("Your hi server %s %s, so it isn't offered.", name, down))
 			case !info.Enabled:
-				ui.note(fmt.Sprintf("Your org server %s doesn't serve a model yet; an admin can turn it on with hi org ai set.", name))
+				ui.note(fmt.Sprintf("Your hi server %s doesn't serve a model yet; an admin can turn it on with hi server ai set.", name))
 			default:
-				options = append(options, option{fmt.Sprintf("Your team's org server (%s): no key needed (recommended)", name), func() (qProvider, qConfig, string, error) {
+				options = append(options, option{fmt.Sprintf("Your team's hi server (%s): no key needed (recommended)", name), func() (qProvider, qConfig, string, error) {
 					base := connection.URL + "/v1/ai"
 					var models []string
 					ui.busy("Listing models…", func() { models = qListModels(base, "", deviceKey) })

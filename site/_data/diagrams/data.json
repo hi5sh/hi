@@ -1,5 +1,5 @@
 {
-  "caption": "How hi data works. On a machine connected to your team's org server, hi data get asks the server for a hi data token for one repository, for a day, and runs the official hf tool pointed at the server with that token. The server passes on only calls that read what your group may read, swaps in the team's Hugging Face token, and records who downloaded what. File contents come straight from Hugging Face's storage to your machine, so the server never sees them, and no Hugging Face token is ever on your machine.",
+  "caption": "How hi data works. On a machine connected to your team's server, hi data get asks the server for a hi data token for one repository, for a day, and runs the official hf tool pointed at the server with that token. The server passes on only calls that read what your group may read, swaps in the team's Hugging Face token, and records who downloaded what. File contents come straight from Hugging Face's storage to your machine, so the server never sees them, and no Hugging Face token is ever on your machine.",
   "you": "You, or your agent",
   "via": "hi data get acme/bars-1d",
   "frame": "your machine",
@@ -34,12 +34,12 @@
   ],
   "after": [
     {
-      "name": "org server",
+      "name": "server",
       "label": "holds the tokens",
       "mark": 5,
       "via": "every API call goes through",
       "items": [
-        {"title": "hi org data", "role": "checks and swaps", "does": "Passes on only reads of what your group may read, swaps in the team's token, and records who downloaded what.", "chip": "audit log", "tone": "accent"}
+        {"title": "hi server data", "role": "checks and swaps", "does": "Passes on only reads of what your group may read, swaps in the team's token, and records who downloaded what.", "chip": "audit log", "tone": "accent"}
       ]
     },
     {
@@ -53,11 +53,11 @@
     }
   ],
   "key": [
-    {"mark": 1, "term": "Your machine", "text": "Connected to the server with `hi org join`; it never holds a Hugging Face token."},
+    {"mark": 1, "term": "Your machine", "text": "Connected to the server with `hi server join`; it never holds a Hugging Face token."},
     {"mark": 2, "term": "hi data", "text": "Finds what you may download and asks for a token limited to it."},
     {"mark": 3, "term": "hf", "text": "Hugging Face's own tool, so downloads resume and cache as usual."},
     {"mark": 4, "term": "Files", "text": "Where your project and its code expect them."},
-    {"mark": 5, "term": "org server", "text": "The only holder of the team's token, and the record of every download."},
+    {"mark": 5, "term": "server", "text": "The only holder of the team's token, and the record of every download."},
     {"mark": 6, "term": "Hugging Face", "text": "Sees the team's token, never yours; you don't need an account there."}
   ]
 }

@@ -110,7 +110,7 @@ func hubModelFiles(repo, revision, quant string) (hubModel, error) {
 	// its own token (hi_data.md), so no Hugging Face token is here.
 	endpoint, token, orgErr := serveDataToken(repo)
 	if orgErr != nil {
-		return hubModel{}, fmt.Errorf("%w; hi reads a private model through the org server, which says: %v", err, orgErr)
+		return hubModel{}, fmt.Errorf("%w; hi reads a private model through the server, which says: %v", err, orgErr)
 	}
 	return hubModelFilesAt(endpoint, token, repo, revision, quant)
 }
@@ -130,7 +130,7 @@ func hubModelFilesAt(hub, token, repo, revision, quant string) (hubModel, error)
 	where := "the Hub"
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
-		where = "the org server"
+		where = "the server"
 	}
 	response, err := serveHubClient.Do(request)
 	if err != nil {
@@ -141,7 +141,7 @@ func hubModelFilesAt(hub, token, repo, revision, quant string) (hubModel, error)
 	case http.StatusOK:
 	case http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound:
 		if token != "" {
-			return hubModel{}, fmt.Errorf("the org server has no %s at %s for you (HTTP %d): %s", repo, revision, response.StatusCode,
+			return hubModel{}, fmt.Errorf("the server has no %s at %s for you (HTTP %d): %s", repo, revision, response.StatusCode,
 				firstNonEmpty(response.Header.Get("X-Error-Message"), "see hi data ls"))
 		}
 		return hubModel{}, hubClosedError{fmt.Errorf("the Hub has no public %s at %s (HTTP %d)", repo, revision, response.StatusCode)}

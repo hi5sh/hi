@@ -183,7 +183,7 @@ func TestHiQSetupOffersTheServerFirst(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out.String())
 	}
-	if !strings.Contains(out.String(), "1) Your team's org server (127.0.0.1): no key needed (recommended)") {
+	if !strings.Contains(out.String(), "1) Your team's hi server (127.0.0.1): no key needed (recommended)") {
 		t.Fatalf("menu:\n%s", out.String())
 	}
 	config, key, _ := loadQConfig()
@@ -346,7 +346,7 @@ func TestHiQFallsBackWhenTheServersKeyIsRefused(t *testing.T) {
 		t.Fatalf("status %d stdout %q stderr %q", status, stdout, stderr)
 	}
 	notice := qNotice.(*bytes.Buffer).String()
-	if !strings.Contains(notice, "refused this org server's key") || !strings.Contains(notice, "hi org ai set") {
+	if !strings.Contains(notice, "refused this server's key") || !strings.Contains(notice, "hi server ai set") {
 		t.Fatalf("notice = %q", notice)
 	}
 	if model := personal.requests[0]["model"]; model != qOpenAIModel {

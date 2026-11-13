@@ -150,6 +150,6 @@ new container, without the address changing.
 - NetBird's proxy sees the traffic, since it handles the HTTPS.
 - Other machines in the NetBird network can reach the service through the
   relay while it runs.
-- On a machine connected to an [org server](/guide/compute/managed/), each
+- On a machine connected to a [server](/guide/compute/managed/), each
   exposure is recorded in the server's audit log and live feed.
 - NetBird's reverse proxy is in beta.

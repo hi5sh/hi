@@ -69,7 +69,7 @@ things, one at a time:
    its merges there. A folder on this machine is cloned, and its owner
    pulls from the app's copy.
    Or name an app template: a web app for a kind of work, built into
-   hi, in `HI_TEMPLATES_DIR`, or from your org server's templates.
+   hi, in `HI_TEMPLATES_DIR`, or from your server's templates.
    A new repository can go on GitHub too: give `owner/name`, and hi
    creates a private repository with this machine's `gh` sign-in.
 

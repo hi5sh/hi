@@ -1,5 +1,5 @@
 "use strict";
-// A wall screen (hi_admin.md, Wall screens): the org's Running and
+// A wall screen (hi_admin.md, Wall screens): the server's Running and
 // Requests, read-only, from a wall link. It reads every five seconds and
 // changes nothing.
 

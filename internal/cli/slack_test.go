@@ -294,7 +294,7 @@ func TestSlackWarnsNearTheLimitAndReportsUnleasedPods(t *testing.T) {
 	}
 	found := false
 	for _, post := range posts {
-		found = found || strings.Contains(post, "`rogue` is running on the organization's runpod account")
+		found = found || strings.Contains(post, "`rogue` is running on the server's runpod account")
 	}
 	if !found {
 		t.Fatalf("no unleased alert: %v", posts)

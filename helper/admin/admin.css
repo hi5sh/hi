@@ -153,7 +153,7 @@ button.link-button:hover { text-decoration: underline; background: none; }
   .crumb { max-width: 40vw; overflow: hidden; }
 }
 
-/* The org server, on its machine. */
+/* The server, on its machine. */
 .pad { padding: 6px 12px; margin: 0; }
 .small-input { width: 9em; padding: 2px 6px; font-size: 12px; }
 .feed .data-actions { margin: 4px 0 0; }
@@ -247,14 +247,14 @@ code.big-code { font-size: 18px; letter-spacing: 0.08em; color: var(--bright); }
 /* Network, Data, Advisories. */
 pre.short { max-height: 220px; flex: none; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--panel); }
 .copyable { user-select: all; }
-/* The org's card opens the org, as an app's card opens the app. */
+/* The server's card opens the server, as an app's card opens the app. */
 button.org-open { width: 100%; text-align: left; border: 0; border-radius: 0; background: none; color: var(--text); padding-top: 12px; padding-bottom: 10px; }
 button.org-open:hover { background: none; }
 button.org-open:hover .card-name { text-decoration: underline; }
 #orgview .org-card { margin-top: 0; }
 #orgview .org-stats { padding-top: 12px; }
-/* What an admin may not change shows, and does nothing: the org's for
-   the machine's admins, the machine's for the org's. The server says no
+/* What an admin may not change shows, and does nothing: the server's for
+   the machine's admins, the machine's for the server's. The server says no
    to it too. */
 body.no-org-changes :is(#orgview, #policy, #side-requests, #side-running) :is(button, input, select, textarea):not([data-nav]),
 body.no-machine-changes :is(#overview, #newapp, #side-people, #side-keys, #side-network, #side-machine) :is(button, input, select, textarea):not([data-nav]):not(#signout),

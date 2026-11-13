@@ -18,7 +18,7 @@ import (
 )
 
 // A connected org server can pass hi q's requests to a model with the team's
-// key (hi org ai). hi q asks the server whether it does at most once an
+// key (hi server ai). hi q asks the server whether it does at most once an
 // hour, and after a failure skips it for five minutes, falling back to the
 // user's own key or Claude Code.
 
@@ -161,7 +161,7 @@ func qConnectedServerChoice(model, personalModel string, forced bool) (qChoice, 
 	provider := qServerProvider(connection, key, firstNonEmpty(model, info.Model))
 	return qChoice{
 		provider: &qServerFallback{primary: provider, url: connection.URL, name: name, model: personalModel},
-		source:   "connected org server " + name,
+		source:   "connected hi server " + name,
 	}, true
 }
 

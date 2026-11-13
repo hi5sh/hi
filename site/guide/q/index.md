@@ -97,7 +97,7 @@ The first time, `hi q` uses what it finds, in this order:
 1. The model saved by `hi q --setup`.
 2. `HI_Q_BASE_URL` and `HI_Q_MODEL`, with `HI_Q_API_KEY` if the endpoint
    needs a key.
-3. The [org server](/guide/compute/managed/#use-your-teams-model-with-hi-q)
+3. The [server](/guide/compute/managed/#use-your-teams-model-with-hi-q)
    this device is connected to, when it serves a model: no key needed. If
    it can't be reached or refuses this device, `hi q` falls back to the
    next of these and says so.
@@ -108,7 +108,7 @@ The first time, `hi q` uses what it finds, in this order:
 
 If none of these are there, a menu opens. Run `hi q --setup` to choose again:
 
-- **Your team's org server**, first and recommended when this device is
+- **Your team's server**, first and recommended when this device is
   connected to one that serves a model.
 - **Claude Code**: no key needed.
 - **OpenRouter**: one key from [openrouter.ai/keys](https://openrouter.ai/keys)

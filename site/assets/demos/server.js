@@ -1,6 +1,6 @@
-// The demo at the top of hi5.sh/org/, played by assets/story.js. Every line
+// The demo at the top of hi5.sh/server/, played by assets/story.js. Every line
 // a command prints is what hi printed in a real run on a device connected to
-// an org server; the server's name, the people, and the request names are
+// a server; the server's name, the people, and the request names are
 // made up. docs/feature-pages.md says how to edit it.
 window.HI5_STORY = {
   size: { w: 580, h: 440 },
@@ -12,7 +12,7 @@ window.HI5_STORY = {
       id: "status", title: "One server for the team", caption: "The keys stay on the server.",
       short: 10000, screen: "terminal", window: "sam@laptop: ~",
       lines: [
-        { cmd: "hi org status", at: 300 },
+        { cmd: "hi server status", at: 300 },
         { ok: "Connected to http://hi.example.com:7373 as sam (staff).", at: 1500 },
         { out: "Managed by the server: runpod, shadeform. Starting there needs an approval.", at: 1700 },
         { out: "Colab and any other provider still use your own sign-in.", at: 1900 },

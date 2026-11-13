@@ -367,7 +367,7 @@ func netExposeArgs(options netExposeOptions, relayPort int) []string {
 }
 
 // ---------------------------------------------------------------------------
-// netbird expose, shared with hi org expose
+// netbird expose, shared with hi server expose
 
 var exposeNameLine = regexp.MustCompile(`Name:\s*(\S+)`)
 

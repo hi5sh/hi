@@ -115,7 +115,7 @@ func builtinLayerRecorded(metadata *templateMetadataFile, name string) bool {
 
 // followRenamedSources maps sources the repository recorded but the catalog
 // no longer has to the one current source with the same layers, as after
-// `hi org templates rename`, and rewrites the metadata to the new names.
+// `hi server templates rename`, and rewrites the metadata to the new names.
 func followRenamedSources(catalog *templateCatalog, metadata *templateMetadataFile) map[string]string {
 	current := map[string]bool{}
 	for _, layer := range catalog.layers {
@@ -238,7 +238,7 @@ func planUpdate(catalog *templateCatalog, target string, check, strict, force bo
 	if len(missing) > 0 {
 		if !check || strict {
 			return nil, fmt.Errorf("this repository uses layers from %s, which this device can't reach; "+
-				"check `hi org status` and try again", strings.Join(missing, ", "))
+				"check `hi server status` and try again", strings.Join(missing, ", "))
 		}
 		// Check what came from the built-in layers only.
 		change.unchecked = missing

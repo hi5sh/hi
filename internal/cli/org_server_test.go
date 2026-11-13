@@ -196,7 +196,7 @@ func (ts *testServer) pending(t *testing.T, kind string) string {
 func (ts *testServer) connectAs(t *testing.T, user, group string) {
 	t.Helper()
 	code, stdout, stderr := runHi("org", "join", ts.url, "--user", user, "--no-wait")
-	if code != exitPending || !strings.Contains(stdout, "hi org approve e-") {
+	if code != exitPending || !strings.Contains(stdout, "hi server approve e-") {
 		t.Fatalf("connect: code %d\n%s%s", code, stdout, stderr)
 	}
 	if _, err := ts.server.decide(ts.pending(t, "enroll"), "bob", true, group, ""); err != nil {
@@ -312,7 +312,7 @@ func TestManagedProviderFailsClosedWhenServerIsDown(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, _, stderr := runHi("compute", "up", "--on", "runpod", "--gpu", "rtx-4090", "--max", "1h", "--reason", "x", "--yes")
-	if code == 0 || !strings.Contains(stderr, "can't reach the org server") {
+	if code == 0 || !strings.Contains(stderr, "can't reach the server") {
 		t.Fatalf("up with the server down: code %d, stderr %s", code, stderr)
 	}
 	if calls != 0 {

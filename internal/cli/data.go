@@ -52,7 +52,7 @@ func runData(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func printDataUsage(w io.Writer) {
 	fmt.Fprintln(w, `hi data downloads the team's Hugging Face datasets, models, and buckets
-through the org server this device is connected to. The server keeps the Hugging Face
+through the server this device is connected to. The server keeps the Hugging Face
 tokens; hf runs here without one.
 
 Usage:
@@ -74,7 +74,7 @@ the commit it downloaded, and the folder in .hi5/data.json.
 Buckets download with hf buckets sync and have no revisions. When several
 share a name, put dataset:, model:, or bucket: in front.
 Needs hf (pip install -U huggingface_hub) and a server set up with
-hi org data add <hf-org>.`)
+hi server data add <hf-org>.`)
 }
 
 // ---------------------------------------------------------------------------
@@ -86,7 +86,7 @@ func dataClient() (*serverClient, *serverConnection, error) {
 		return nil, nil, err
 	}
 	if connection == nil {
-		return nil, nil, errors.New("hi data needs an org server; connect this device with `hi org join <server>`")
+		return nil, nil, errors.New("hi data needs a server; connect this device with `hi server join <server>`")
 	}
 	key, err := loadDeviceKey(false)
 	if err != nil {
@@ -202,7 +202,7 @@ func printDataCatalog(catalog apiDataCatalog, stdout, stderr io.Writer) {
 		}
 	}
 	if len(catalog.Orgs) == 0 {
-		fmt.Fprintln(stdout, "This server serves no Hugging Face organizations yet; an admin adds one with `hi org data add <hf-org>`.")
+		fmt.Fprintln(stdout, "This server serves no Hugging Face organizations yet; an admin adds one with `hi server data add <hf-org>`.")
 		return
 	}
 	if len(catalog.Items) == 0 {
@@ -306,7 +306,7 @@ func dataInfoCommand(args []string, stdout, stderr io.Writer) error {
 	request.Header.Set("User-Agent", "hi/"+version)
 	response, err := client.http.Do(request)
 	if err != nil {
-		return fmt.Errorf("can't reach the org server at %s: %w", connection.URL, err)
+		return fmt.Errorf("can't reach the server at %s: %w", connection.URL, err)
 	}
 	defer response.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(response.Body, 32<<20))

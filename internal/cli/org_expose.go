@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// hi org expose: a second listener with only what cloud machines may
+// hi server expose: a second listener with only what cloud machines may
 // use (the hi data proxy), published with `netbird expose` while runs need
 // it. The client API stays inside NetBird. Cloud machines authenticate with
 // run tokens: hi data tokens marked for cloud use, for named repositories,
@@ -90,7 +90,7 @@ func (s *orgServer) ensureExposure(name string) (string, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.listen == "" {
-		return "", errors.New("this org server doesn't expose anything to cloud machines (expose_listen is off)")
+		return "", errors.New("this server doesn't expose anything to cloud machines (expose_listen is off)")
 	}
 	if e.cmd != nil && e.url != "" {
 		return e.url, nil
@@ -290,7 +290,7 @@ func (s *orgServer) revokeRun(run, actor string) (*serverRun, error) {
 	entry := s.state.Runs[run]
 	if entry == nil {
 		s.mu.Unlock()
-		return nil, fmt.Errorf("no run %s has a valid run token; see hi org expose", run)
+		return nil, fmt.Errorf("no run %s has a valid run token; see hi server expose", run)
 	}
 	already := !entry.Revoked.IsZero()
 	if !already {
@@ -435,7 +435,7 @@ func orgExposeCommand(args []string, stdout, stderr io.Writer) error {
 				fmt.Fprintf(table, "  %s\t%s\t%s\t%s\t%s\n", run.Run, run.User, firstNonEmpty(run.Hostname, "-"), strings.Join(run.Scopes, ", "), until)
 			}
 			table.Flush()
-			fmt.Fprintln(stdout, "hi org expose revoke <run> ends one run's token now.")
+			fmt.Fprintln(stdout, "hi server expose revoke <run> ends one run's token now.")
 		}
 		return nil
 	case len(positional) == 1 && positional[0] == "stop":
@@ -453,5 +453,5 @@ func orgExposeCommand(args []string, stdout, stderr io.Writer) error {
 			run.Run, run.User, strings.Join(run.Scopes, ", "), run.Expires.Local().Format("2006-01-02 15:04"))
 		return nil
 	}
-	return usageError{"usage: hi org expose [stop | revoke <run>]"}
+	return usageError{"usage: hi server expose [stop | revoke <run>]"}
 }

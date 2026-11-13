@@ -477,7 +477,7 @@ type dataClaims struct {
 	User    string `json:"u"`
 	Scope   string `json:"s,omitempty"` // "*" or "<kind>:<org>/<name>"
 	Expires int64  `json:"e"`
-	// A run token, for a cloud machine (hi org expose): accepted only on
+	// A run token, for a cloud machine (hi server expose): accepted only on
 	// the instance listener, for the repositories in Scopes.
 	Cloud  bool     `json:"x,omitempty"`
 	Scopes []string `json:"ss,omitempty"`
@@ -782,7 +782,7 @@ func (s *orgServer) serveDataProxy(w http.ResponseWriter, r *http.Request, cloud
 	token, _ := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 	claims, err := s.verifyDataToken(strings.TrimSpace(token))
 	if err == nil && claims.Cloud && s.runRevoked(claims.Run) {
-		err = fmt.Errorf("the run token of %s was revoked on the org server", claims.Run)
+		err = fmt.Errorf("the run token of %s was revoked on the server", claims.Run)
 	}
 	if err == nil && claims.Cloud != cloud {
 		err = errors.New("this token is for a cloud machine's run, which reaches the server through its public URL")
@@ -868,7 +868,7 @@ func (s *orgServer) serveDataProxy(w http.ResponseWriter, r *http.Request, cloud
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
-			writeHubError(w, http.StatusBadGateway, "the org server can't reach Hugging Face: "+err.Error())
+			writeHubError(w, http.StatusBadGateway, "the server can't reach Hugging Face: "+err.Error())
 		},
 		FlushInterval: -1,
 	}
@@ -978,7 +978,7 @@ func (s *orgServer) dataOrgList() []apiDataOrgStatus {
 	return list
 }
 
-const serverDataUsage = "usage: hi org data [add <hf-org>... [--token-file <path>] | list | test [<hf-org>] | remove <hf-org>]"
+const serverDataUsage = "usage: hi server data [add <hf-org>... [--token-file <path>] | list | test [<hf-org>] | remove <hf-org>]"
 
 func orgDataCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	flags, dirFlag := orgFlags("data", stderr)
@@ -993,7 +993,7 @@ func orgDataCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 		return err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "config.json")); err != nil {
-		return fmt.Errorf("no server in %s; run `hi org init` first", dir)
+		return fmt.Errorf("no server in %s; run `hi server init` first", dir)
 	}
 	_, statErr := os.Stat(filepath.Join(dir, "admin.sock"))
 	running := statErr == nil
@@ -1153,14 +1153,14 @@ func serverDataMenu(ui menuUI, ops dataAdminOps, stdout io.Writer) error {
 			if token, actionErr = ui.secret("Hugging Face token that reads " + strings.Join(orgs, ", ")); actionErr != nil {
 				break
 			}
-			ui.command("hi org data add " + strings.Join(orgs, " "))
+			ui.command("hi server data add " + strings.Join(orgs, " "))
 			var results []apiDataOrgStatus
 			ui.busy("Checking the token with Hugging Face…", func() { results, actionErr = ops.add(orgs, token) })
 			if actionErr == nil {
 				printDataOrgs(results, stdout)
 			}
 		case 1:
-			ui.command("hi org data test")
+			ui.command("hi server data test")
 			var results []apiDataOrgStatus
 			ui.busy("Checking each token…", func() { results, actionErr = ops.test("") })
 			if actionErr == nil {
@@ -1179,7 +1179,7 @@ func serverDataMenu(ui menuUI, ops dataAdminOps, stdout io.Writer) error {
 			if picked, actionErr = ui.choose("Remove which organization?", names, false); actionErr != nil {
 				break
 			}
-			ui.command("hi org data remove " + names[picked])
+			ui.command("hi server data remove " + names[picked])
 			actionErr = ops.remove(names[picked])
 			showList = true
 		default:
@@ -1193,7 +1193,7 @@ func serverDataMenu(ui menuUI, ops dataAdminOps, stdout io.Writer) error {
 
 func printDataOrgs(list []apiDataOrgStatus, stdout io.Writer) {
 	if len(list) == 0 {
-		fmt.Fprintln(stdout, "No organizations yet; add one with `hi org data add <hf-org>`.")
+		fmt.Fprintln(stdout, "No organizations yet; add one with `hi server data add <hf-org>`.")
 		return
 	}
 	for _, org := range list {

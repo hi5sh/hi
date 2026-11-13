@@ -69,7 +69,7 @@ func TestUpdateRestartsStaleServers(t *testing.T) {
 	if strings.Join(*runs, "|") != strings.Join(want, "|") {
 		t.Fatalf("runs = %q", *runs)
 	}
-	for _, line := range []string{"hi-server.service runs v0.9.0.", "An org server (process 103) still runs the old version"} {
+	for _, line := range []string{"hi-server.service runs v0.9.0.", "A hi server (process 103) still runs the old version"} {
 		if !strings.Contains(stdout, line) {
 			t.Errorf("output lacks %q:\n%s", line, stdout)
 		}
