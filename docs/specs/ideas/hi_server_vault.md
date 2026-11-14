@@ -93,9 +93,11 @@ hi server vault shared set <name>      # admins: a key for several apps, asked w
 hi server vault shared give <name> <app>...
                                        # admins: let these apps use it; take back with --take
 hi server vault shared rm <name>       # admins; refused while an app uses it
-hi server vault move vault://<mount>   # copy every path to an OpenBao or Vault, check, and use it (release 3)
-hi server vault connect <prefix> vault://<mount>
+hi server vault move vault://<mount> [--login jwt|approle]
+                                       # copy every path to an OpenBao or Vault, check, and use it (release 3)
+hi server vault connect <prefix> vault://<mount> [--login jwt|approle]
                                        # keep paths under a prefix in a team's OpenBao or Vault (release 3)
+hi server vault login [--new-key]      # how hi signs in to a team's store, and what to hand its owners (release 3)
 ```
 
 What sets a secret doesn't change: `hi app env`, `hi app key`,
@@ -399,10 +401,11 @@ One interface in hi, two implementations:
 Two ways to use one:
 
 - **Instead:** `hi server vault move vault://kv` copies every path to
-  `kv/hi/…`, reads each back, switches, and keeps the built-in store
-  locked as a fallback until `hi server vault move --forget`. hi then
-  logs in with a read-write AppRole limited to `kv/data/hi/*` and
-  `kv/metadata/hi/*`.
+  `kv/hi/…`, reads each back, and switches. The built-in store keeps
+  hi's login to the team's store (`hi/machine/vault`, unlocked by its
+  slots as before) and the copy of every path as a fallback until
+  `hi server vault move --forget`. hi then logs in with a read-write
+  role limited to `kv/data/hi/*` and `kv/metadata/hi/*`.
 - **Beside it:** `hi server vault connect corp/ vault://kv/corp` keeps
   everything under `corp/` in the team's store, read only, and an app
   takes settings from there with `hi app env payments --from
@@ -416,10 +419,36 @@ With a team's store:
   boxes within a minute as any change does (see Settings in a box).
   The channel hears it once, by name and version, never values. A path
   pinned with `?version=7` doesn't move until it's unpinned: a rollback.
-- **Logging in:** an AppRole (role ID and secret ID, kept in the built-in
-  store under `hi/machine/vault`), with `X-Vault-Namespace` when the team
-  uses one. The token is in the server's memory only. For a connected
-  prefix the policy is read only:
+- **Logging in**, two ways (`--login jwt|approle` on `move` and
+  `connect`, or the page), with `X-Vault-Namespace` when the team uses
+  one. The token is in the server's memory only.
+  - **jwt, recommended:** no secret is handed over. hi makes a key pair
+    for this login alone, kept in the built-in store under
+    `hi/machine/vault` (not `server_key`, so replacing it touches no
+    device). Each login is a JWT it signs, good for 5 minutes, with the
+    subject `hi-server:<name>`. The team's store checks it against the
+    public key, registered once on a JWT auth mount
+    (`jwt_validation_pubkeys`, in OpenBao and Vault).
+    `hi server vault login --new-key` makes a new pair and prints the
+    new public key; the old one works until the store's owners swap it.
+  - **approle**, for a store that allows only that: the role ID and the
+    secret ID, kept in the built-in store under `hi/machine/vault`. hi
+    says when the secret ID nears its end (`secret_id_ttl`).
+  - **What to hand the store's owners:** `connect` and `move`, and the
+    page, print it ready to pass on, as the page lists NetBird's
+    policies for IT: the auth mount, the role bound to the server's
+    name, the policy, and the public key (jwt). For example:
+
+    ```sh
+    bao write auth/jwt/config jwt_validation_pubkeys=@hi-server-ws1.pub
+    bao write auth/jwt/role/hi-server-ws1 role_type=jwt \
+        bound_subject=hi-server:ws1 bound_audiences=hi \
+        user_claim=sub token_policies=hi-corp-read token_ttl=15m
+    ```
+
+  - TLS certificates and cloud identities: later, if a team asks.
+
+  For a connected prefix the policy is read only:
 
   ```hcl
   path "kv/data/corp/*"     { capabilities = ["read"] }
@@ -446,7 +475,7 @@ With a team's store:
   and changes found by a hash of what was read. HashiCorp's Go client is
   MPL-2.0 but brings about 15 modules for four calls, so hi uses
   `net/http`.
-- **Vault's own audit log** shows hi's AppRole reading; hi's audit log
+- **Vault's own audit log** shows hi's role reading; hi's audit log
   says which app each read was for.
 
 hi doesn't serve Vault's API: `bao kv get` and Terraform don't talk to
@@ -597,7 +626,9 @@ Nothing wins silently; a value's source is always one place, shown.
   `hi-env` gives the current values; nothing restarts or is signalled
   unless app.json asks, and then only as asked; a `--for` placeholder
   reaches the host as the real key and nowhere else.
-- Release 3: a move to a fake OpenBao and back; a path under a connected
+- Release 3: a jwt login a fake OpenBao accepts with the registered
+  public key and refuses after `--new-key` is swapped in; AppRole; the
+  printed setup for the store's owners. A move to a fake OpenBao and back; a path under a connected
   prefix read from there; a new version reaches the files.
 
 ## Releases
@@ -659,10 +690,11 @@ Decided (2026-11-14):
    `hi-env`, never podman's; no restart or signal unless app.json asks
    (`on_settings_change`). `--for` placeholders, suggested for API keys.
    Settings off podman's disk first, as release 0.
+8. **Logging in to a team's store:** jwt signed by a key of its own
+   (recommended, no secret handed over) or AppRole; hi prints what to
+   hand the store's owners. Certificates and cloud identities later.
 
 Still open:
 
-8. **Other logins to a team's store:** JWT/OIDC from the machine's
-   identity, or TLS certificates, instead of an AppRole secret ID?
 9. **File settings:** a secret holding a PEM to `/hi-files` when the app
    marks it a file?
