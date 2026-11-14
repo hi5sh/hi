@@ -316,7 +316,8 @@ port 1984, which needs no root:
   1984:127.0.0.1:1984 <machine>`. Every way, the page is also on the
   machine's 127.0.0.1:1984.
 
-`hi net expose` refuses port 1984.
+`hi net expose` refuses port 1984. Every port hi uses, and the NetBird
+policies for each: [Networking](/guide/reference/network/).
 
 ## Safety
 

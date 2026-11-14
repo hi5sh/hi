@@ -139,3 +139,5 @@
       url: /guide/reference/troubleshooting/
     - title: Environment and files
       url: /guide/reference/environment/
+    - title: Networking
+      url: /guide/reference/network/

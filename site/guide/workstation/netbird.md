@@ -49,6 +49,9 @@ hi net reconnect    # disconnect and reconnect with the stored enrollment
 
 `reconnect` does not need the setup key again.
 
+Which ports hi serves on NetBird, and the policies to ask for:
+[Networking](/guide/reference/network/).
+
 ## A domain for the apps' addresses
 
 [hi apps](/guide/app/) on this machine put their addresses and dev pages on

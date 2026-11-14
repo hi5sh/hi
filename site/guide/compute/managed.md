@@ -256,7 +256,7 @@ the admins run the server and the machine's apps; it prints your link.
 a NetBird peer of its own. It keeps its state, audit log, and provider keys in
 `~/.local/state/hi/org`, readable only by the account it runs as. Change
 that with `--dir` or `HI_ORG_DIR`; with `--dir` it prints the service
-instead of starting it. On a machine that doesn't keep the account's
+instead of starting it. (Every port and policy: [Networking](/guide/reference/network/).) On a machine that doesn't keep the account's
 services running without a login, it says the one command to change that
 (`sudo loginctl enable-linger <user>`).
 
