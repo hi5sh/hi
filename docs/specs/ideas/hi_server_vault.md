@@ -246,9 +246,8 @@ not the process.
 2. Moves `keys.json`, `slack.json`, every app's `secrets.json` and
    snapshot key, `mail.json`, NetBird's token, and the DNS token into
    it, reads each back, and only then removes the files. Apps with a
-   bucket get `hi-key.sealed` once the owner has saved the recovery key;
-   until then they keep `--show-key` and the page says the bucket isn't
-   readable with the recovery key yet.
+   bucket get `hi-key.sealed` at once; it is only as good as a saved
+   recovery key, which the page reminds the owner of.
 3. Says what moved, by name. Nothing an admin sets changes.
 
 A file the store can't take stays, and the page says which.
