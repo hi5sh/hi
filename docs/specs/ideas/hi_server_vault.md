@@ -181,8 +181,13 @@ LUKS does. Any one slot unlocks the store:
   Unlock: the passphrase goes from the browser to the page, on https or
   NetBird, and from the page to the server on its local socket. The
   page never keeps it.
-- **Slack** hears once when the store is locked after a reboot, and
-  which apps wait for it; never asked for the passphrase.
+- **Who hears it's locked:** the page's banner, `hi doctor`, and the
+  heartbeats (see When the server is locked or down). hi sends nothing
+  to Slack while locked: its own Slack token is in the store.
+- **No automatic slot left:** when an admin removes the last tpm or
+  file slot, the page warns first: "After a reboot, every app waits
+  until someone unlocks. TPM and a passphrase keep them running and
+  still protect a copied disk."
 
 ### Restarts don't lock it
 
@@ -226,15 +231,53 @@ passphrase, which `hi update` then warns about before it restarts.
   the env file under `run/`, which is removed once the box has started.
 - **Locked:** a box that starts waits, and says so in its deploy (`the
   server's vault is locked; an admin unlocks it on the admin page`);
-  boxes already running don't notice. No plaintext copy is kept to start
-  from: with the built-in store, the store is on the same machine as the
-  app.
+  once unlocked, every waiting box starts by itself. Boxes already
+  running don't notice. A box with nothing in the store for its slot
+  doesn't wait. No plaintext copy is kept to start from, not even for
+  production: a copy that starts without a person needs a key on the
+  machine, which is a tpm or file slot.
 - **Every read** is a line in hi's audit log: who (app and slot, the
   page, a command), which path, which version, which names.
 
 The socket is the `hi` account's, as now, and is never mounted into a
 box. Anything that runs as `hi` can ask; the boundary is the account,
 not the process.
+
+## When the server is locked or down
+
+hi only sends heartbeats; who hears, and how (a Slack channel, mail,
+SMS, a pager), is set up at the service, such as healthchecks.io. So it
+works while the store is locked, with no token of hi's.
+
+- **The machine's heartbeat** (`hi heartbeat <url>`, a systemd timer,
+  every 5 minutes) checks the server first, on a machine that runs one:
+
+  | The server | The heartbeat sends | The service |
+  |------------|---------------------|-------------|
+  | running, unlocked | a ping | nothing |
+  | running, locked | `/fail`: "the server's vault is locked; unlock it on the admin page" | alerts at once |
+  | not running | `/fail`: "hi-server.service isn't running" | alerts at once |
+  | the machine is down | nothing | alerts after the check's grace |
+
+- **An app's heartbeat** fails only when the app is hurt: it waits for
+  the locked store (`/fail`: "waiting for the server's vault, locked"),
+  or a deploy can't reach the server. While the server is down and the
+  app runs on, its heartbeat pings as usual, with "the server isn't
+  reachable since <time>" in the ping's text.
+- **After 24 hours without the server**, a running app's helper says so
+  in the app's ops channel, once: "This app hasn't reached the hi server
+  since <time>. It runs as before; deploys and new settings wait until
+  the server is back." And once more when it's back, with how long it
+  was gone. The helper has its Slack token from its start; an app that
+  restarted while the store was locked has none, and its heartbeat
+  fails instead.
+- **Heartbeat URLs stay outside the store**: the machine's in
+  `heartbeat.json`, an app's beside its settings, so a locked store can
+  still say it's locked. A leaked URL only lets someone send pings. As
+  now, a URL is never printed or logged, only its host.
+- **No heartbeat set** on a machine with a server: the page's banner and
+  `hi doctor` say "Nobody would hear that the server is locked or down:
+  set a heartbeat (hi heartbeat <url>)."
 
 ## Moving what exists
 
@@ -384,6 +427,9 @@ policies, and its errors.
 - `internal/cli/app_keys.go`, `app.go`: `appSecrets` and `appBoxEnv`
   read through the server's socket; `hi app env` writes there.
 - `internal/cli/org_migrate.go`: the move from the files.
+- `internal/cli/heartbeat.go`, `app_heartbeat.go`: the server checked
+  before the machine's ping, `/fail` with a reason; an app's ping when
+  it waits or can't reach the server; the helper's 24-hour notice.
 - `internal/cli/admin_*.go`, `helper/admin/`: the page's Vault section
   and a locked store's banner.
 - Release 3: `internal/cli/vault_kv.go` (new), the OpenBao/Vault client.
@@ -404,7 +450,12 @@ policies, and its errors.
   fails, the passphrase unlocks, a new tpm slot replaces the old.
 - The key handed across a restart through a stand-in for systemd; a
   reboot (no handed key) locks it.
-- Locked: a box start waits and says so; running boxes untouched.
+- Locked: a box start waits and says so, and starts once unlocked; a
+  box with nothing in the store doesn't wait; running boxes untouched.
+- Heartbeats (a fake service): the machine's sends `/fail` with the
+  reason when the server is locked or stopped; an app's fails when it
+  waits, pings with the note when only the server is gone; the ops
+  notice after 24 hours, once, and the one when it's back.
 - Moving the files: each read back before its file goes; a failure
   leaves the file.
 - Snapshot keys: restic gets the key through the pipe; `hi-key.sealed`
@@ -419,11 +470,12 @@ policies, and its errors.
 
 ## Releases
 
-1. **The built-in store**, unlocked by a key file or the TPM; what hi
+1. **The built-in store**, unlocked by a key file or the TPM; the
+   heartbeats that tell a locked or stopped server; what hi
    keeps moved into it on `hi update`; the recovery key; `hi server
    vault`, `ls`, `history`, `rollback`; encrypted backups of the state.
 2. **Passphrase unlock** and systemd's keeping across restarts; the
-   page's Vault section, Unlock, and the locked banner; Slack told once.
+   page's Vault section, Unlock, and the locked banner.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
    changes in the team's store restarting the slot.
 4. **Later:** the key split between several admins (Shamir), and in
@@ -451,11 +503,14 @@ Decided (2026-11-14):
 3. **Snapshot keys:** in the store, and sealed to the recovery key in a
    file beside each offsite repository, so the recovery key and the
    bucket are enough after the machine is lost.
+4. **Locked after a reboot:** apps wait and start once unlocked; no
+   plaintext copy for production. Heartbeats, not Slack, tell it: the
+   machine's fails at once when the server is locked or stopped; an
+   app's fails when it waits; after 24 hours without the server, the
+   app's ops channel hears it runs on.
 
 Still open:
 
-4. **Locked after a reboot:** apps wait (proposed), or production starts
-   from an encrypted copy while Stage waits?
 5. **Versions kept:** the last 10 per path (proposed), or by age?
 6. **A name in both hi and a team's store:** hi's wins (proposed, so an
    owner can override one value for Stage), or the team's store, as the
