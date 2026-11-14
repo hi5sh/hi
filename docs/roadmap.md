@@ -5513,7 +5513,7 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
 - [ ] Release 5: managed mode, acting: actions down the connection, the
   terminal, New app on a chosen machine.
 - [ ] Later: the central server's Vault
-  ([hi_app_vault.md](specs/ideas/hi_app_vault.md), release 3, a draft),
+  ([hi_server_vault.md](specs/ideas/hi_server_vault.md), release 4, a draft),
   and moves between managed machines ([hi_app_move.md](specs/ideas/hi_app_move.md)).
 
 ### Next — production on a machine of your own (`hi app target`)
