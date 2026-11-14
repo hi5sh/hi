@@ -1,16 +1,17 @@
 # `hi server vault`: the server's own encrypted store for every secret hi keeps
 
-Status: Draft (2026-11-14), for review. Nothing is built. It replaces
-the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
+Status: Approved (2026-11-14), after its open questions were decided
+one by one the same day (Open questions). Release 0 built as v2.6.152.
+It replaces the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
 own Vault, by a login per app), which is folded in here: a team's own
 OpenBao or Vault becomes this store's release 3, not its starting point.
 
-Dependencies: [hi_server_apps.md](../approved/hi_server_apps.md) (a hi
+Dependencies: [hi_server_apps.md](hi_server_apps.md) (a hi
 server on every machine with apps, one admin page),
-[hi_app_keys.md](../approved/hi_app_keys.md) (an app's settings and
-`secrets.json`), [hi_org.md](../approved/hi_org.md) (the server's
+[hi_app_keys.md](hi_app_keys.md) (an app's settings and
+`secrets.json`), [hi_org.md](hi_org.md) (the server's
 `keys.json`, audit log, and admin socket),
-[hi_app_snapshots.md](../approved/hi_app_snapshots.md) (what a snapshot
+[hi_app_snapshots.md](hi_app_snapshots.md) (what a snapshot
 and an offsite copy hold).
 
 ## Goal
@@ -670,7 +671,7 @@ Nothing wins silently; a value's source is always one place, shown.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
    changes in the team's store reaching the boxes.
 4. **Later:** the key split between several admins (Shamir), and in
-   managed mode ([hi_server_apps.md](../approved/hi_server_apps.md)) the
+   managed mode ([hi_server_apps.md](hi_server_apps.md)) the
    central server's store for the machines it manages.
 
 ## Not in this

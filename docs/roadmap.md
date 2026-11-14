@@ -2738,8 +2738,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 
 ### v2.6.152 — Settings off podman's disk
 
-Spec: [hi_server_vault.md](specs/ideas/hi_server_vault.md), release 0 (a
-draft; this part is a fix for a leak that exists now).
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 0.
 
 - [x] An app's settings reach its boxes as files on tmpfs,
   `/run/hi/settings/<NAME>`, `/run/hi/settings.env`, and `/hi-files`,
@@ -5538,8 +5537,35 @@ Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md).
 - [ ] Release 5: managed mode, acting: actions down the connection, the
   terminal, New app on a chosen machine.
 - [ ] Later: the central server's Vault
-  ([hi_server_vault.md](specs/ideas/hi_server_vault.md), release 4, a draft),
+  ([hi_server_vault.md](specs/approved/hi_server_vault.md), release 4),
   and moves between managed machines ([hi_app_move.md](specs/ideas/hi_app_move.md)).
+
+### Next — the server's vault
+
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md): one
+encrypted store on the server for every secret hi keeps, unlocked by
+slots (TPM, key file, passphrase, recovery key), with a team's OpenBao or
+Vault in its place or beside it.
+
+- [x] Release 0 (v2.6.152): settings off podman's disk, as files in
+  memory kept current; no restart on a change unless the app asks.
+- [ ] `--for` placeholders for API keys: the hosts named go through a
+  proxy that puts the real key in (a release of their own).
+- [ ] Release 1: the built-in store, unlocked by the TPM where hi can use
+  it or a key file, and the recovery key, waiting for the owner; what
+  hi keeps moved into it on `hi update` (keys.json, slack.json, every
+  app's secrets.json and snapshot key, mail, NetBird's and DNS's tokens),
+  each read back before its file goes; snapshot keys sealed to the
+  recovery key beside each offsite copy; the heartbeats that tell a
+  locked or stopped server; shared keys, every version kept, `forget`,
+  `hi app rm --purge`; `hi server vault`, `ls`, `history`, `rollback`.
+- [ ] Release 2: the passphrase slot; the data key kept by systemd across
+  restarts; the page's Vault section, Unlock, and the locked banner.
+- [ ] Release 3: a team's OpenBao or Vault: `move`, `connect`, `--from`,
+  `--override` and `--skip`, the jwt or AppRole login, file settings from
+  it with `--file` and `--base64`.
+- [ ] Release 4, later: the key split between several admins, and the
+  central server's store in managed mode.
 
 ### Next — production on a machine of your own (`hi app target`)
 

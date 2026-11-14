@@ -13,7 +13,7 @@ server, device keys, signed calls), [hi_admin.md](hi_admin.md)
 [hi_app.md](hi_app.md), and three drafts that build on it:
 [hi_cluster.md](../ideas/hi_cluster.md) (`hi org machines`),
 [hi_app_move.md](../ideas/hi_app_move.md) (moving an app between machines), and
-[hi_server_vault.md](../ideas/hi_server_vault.md) (the server's encrypted
+[hi_server_vault.md](hi_server_vault.md) (the server's encrypted
 store for every secret hi keeps, and a team's OpenBao or Vault).
 
 ## Goal
@@ -97,7 +97,7 @@ one of two modes:
   every managed machine and its apps. A standalone machine is outside
   that. A company can mix both.
 - **What comes with it later:** the central server's Vault
-  ([hi_server_vault.md](../ideas/hi_server_vault.md), release 4) and moving apps
+  ([hi_server_vault.md](hi_server_vault.md), release 4) and moving apps
   between managed machines ([hi_app_move.md](../ideas/hi_app_move.md)).
 
 The sections from [One admin page for every machine](#one-admin-page-for-every-machine)
@@ -256,7 +256,7 @@ with apps are joined to one already, for compute. From this draft on:
 **What an app gets from its server:**
 
 - the one admin page, below;
-- its settings from the server's vault ([hi_server_vault.md](../ideas/hi_server_vault.md));
+- its settings from the server's vault ([hi_server_vault.md](hi_server_vault.md));
 - moves between the server's machines without exchanging move keys by
   hand ([hi_app_move.md](../ideas/hi_app_move.md));
 - compute, approvals, and spend, as now.
