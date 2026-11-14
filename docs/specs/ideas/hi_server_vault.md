@@ -117,6 +117,7 @@ hi/app/<app>/production
 hi/app/<app>/dev
 hi/app/<app>/hi                 its Slack tokens and OpenRouter key
 hi/app/<app>/offsite            its offsite bucket's keys
+hi/app/<app>/snapshots          the key its snapshots are encrypted with
 ```
 
 Each path holds a set of names and string values, as a KV v2 secret
@@ -242,9 +243,12 @@ not the process.
 1. Creates the store with a tpm slot if hi can use the TPM, else a
    file slot (see How it unlocks), and a recovery key that waits in the
    store for the owner to save it.
-2. Moves `keys.json`, `slack.json`, every app's `secrets.json`,
-   `mail.json`, NetBird's token, and the DNS token into it, reads each
-   back, and only then removes the files.
+2. Moves `keys.json`, `slack.json`, every app's `secrets.json` and
+   snapshot key, `mail.json`, NetBird's token, and the DNS token into
+   it, reads each back, and only then removes the files. Apps with a
+   bucket get `hi-key.sealed` once the owner has saved the recovery key;
+   until then they keep `--show-key` and the page says the bucket isn't
+   readable with the recovery key yet.
 3. Says what moved, by name. Nothing an admin sets changes.
 
 A file the store can't take stays, and the page says which.
@@ -318,9 +322,34 @@ policies, and its errors.
 
 - **The server's state backed up** has `vault/` encrypted; the key file,
   if any, is in a folder of its own that no backup takes.
-- **An app's snapshot** has no secrets, as now. An app's snapshot
-  password stays out of the store in release 1: restoring after losing
-  the machine must not need the machine's store (see Open questions).
+- **An app's snapshot** has no secrets, as now.
+- **An app's snapshot key** (restic's password, today the plain file
+  `app-snapshots/<app>/key`) moves into the store, at
+  `hi/app/<app>/snapshots`. hi gives it to restic through a pipe
+  (`RESTIC_PASSWORD_COMMAND`), never a file.
+- **A sealed copy beside each offsite repository**, so the recovery key
+  alone reads the snapshots after the machine is lost:
+  - When a recovery key is made, hi derives a key pair from it (X25519,
+    by Argon2id from the words) and keeps only the public half in the
+    store. So hi can seal to it at any time without the words, which it
+    has forgotten.
+  - With `--offsite` on, hi puts `hi-key.sealed` in the bucket, beside
+    restic's repository: the snapshot key sealed to that public half
+    (`nacl/box`, anonymous). It is written again when the snapshot key or
+    the recovery key changes; `recovery --new` re-seals every app's copy
+    and only then forgets the old public half.
+  - **After losing the machine:** on a new one, `hi app restore <app>
+    --from s3:https://<host>/<bucket>[/<path>]` asks for the bucket's
+    keys and the recovery key, opens `hi-key.sealed`, puts the snapshot
+    key in the new machine's store, and restores as `hi app restore`
+    does.
+  - Whoever has the recovery key can read every offsite snapshot; it
+    already opens every secret in the store.
+  - `hi app snapshots --show-key` stays, for an owner who wants their own
+    copy too.
+- **An app without a bucket** has only local snapshots, which go with the
+  machine anyway; its key is just in the store. It is told, as now, "Not
+  copied offsite (hi app backups)".
 - **`hi app move`** carries the app's paths to the new machine's store,
   over the move's own connection, and removes them from the old one once
   the app runs there.
@@ -379,6 +408,10 @@ policies, and its errors.
 - Locked: a box start waits and says so; running boxes untouched.
 - Moving the files: each read back before its file goes; a failure
   leaves the file.
+- Snapshot keys: restic gets the key through the pipe; `hi-key.sealed`
+  opens with the recovery key's words and not with others; a new
+  recovery key re-seals every bucket's copy; a restore on a fresh machine
+  from a fake bucket with only the recovery key.
 - An app's service gets only its slot; the dev box never gets Stage's or
   production's; no value in the audit log, the page's JSON, or an error.
 - A backup of the state folder has no value in the clear and no key file.
@@ -416,12 +449,12 @@ Decided (2026-11-14):
 2. **The recovery key:** one; kept in the store until the owner saves it
    from the page (or `hi server vault recovery` in a terminal), shown
    once, then forgotten; only the owner sees it or makes a new one.
+3. **Snapshot keys:** in the store, and sealed to the recovery key in a
+   file beside each offsite repository, so the recovery key and the
+   bucket are enough after the machine is lost.
 
 Still open:
 
-3. **Snapshot passwords:** outside the store (proposed, so a restore
-   after losing the machine needs only the password), or in it, with the
-   recovery key as the way back?
 4. **Locked after a reboot:** apps wait (proposed), or production starts
    from an encrypted copy while Stage waits?
 5. **Versions kept:** the last 10 per path (proposed), or by age?
