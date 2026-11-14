@@ -143,8 +143,8 @@ does.
   reference: `hi app env payments OPENROUTER_API_KEY --from
   shared/openrouter`. The app holds "this name comes from
   shared/openrouter", not the value.
-- The page shows which apps use each shared key. A change restarts
-  them, as `hi app env` does. `rm` is refused while an app uses it;
+- The page shows which apps use each shared key. A change reaches them
+  as any change does (see Settings in a box). `rm` is refused while an app uses it;
   removing an app removes only its reference.
 - The server's own keys for every app (the AI key, providers) stay in
   `hi/server/`.
@@ -283,8 +283,7 @@ passphrase, which `hi update` then warns about before it restarts.
 - **An app's service** and **the page** ask the server on its local
   socket, as the page does now (`admin.sock`), naming the app and the
   slot. The server answers with that slot's names and values only.
-- **A box** gets its values as now: the app's service writes them into
-  the env file under `run/`, which is removed once the box has started.
+- **A box** gets its values in memory only (see Settings in a box).
 - **Locked:** a box that starts waits, and says so in its deploy (`the
   server's vault is locked; an admin unlocks it on the admin page`);
   once unlocked, every waiting box starts by itself. Boxes already
@@ -298,6 +297,44 @@ passphrase, which `hi update` then warns about before it restarts.
 The socket is the `hi` account's, as now, and is never mounted into a
 box. Anything that runs as `hi` can ask; the boundary is the account,
 not the process.
+
+### Settings in a box
+
+As OpenBao and Vault's own agent does (files it keeps current, or
+environment variables for a process it starts), with the server as the
+agent:
+
+- **Files, kept current:** `/run/hi/settings/<NAME>`, one per name, and
+  `/run/hi/settings.env`, all of them as an env file. On tmpfs, never on
+  disk; read only in the box, 0400 for the app's user. Within a minute of
+  a change (in the store, a shared key, a team's store) hi rewrites
+  them, each in one step, so nothing reads half a value.
+- **Environment variables at start:** the box starts the app through
+  `hi-env`, which reads `/run/hi/settings.env` and then runs the app
+  with them. podman is never given a value, so none is in its
+  `config.json` on disk or in `podman inspect`. `hi-env <command>` in
+  the box runs anything with the current values, so a worker started
+  after a change has the new ones.
+- **A change restarts nothing by default.** The files are new; a
+  running process's environment can't be changed from outside, so it
+  keeps its start's values, and whether it re-reads is the app's
+  business. The page and `hi app env` say "production's files have
+  version 13, its environment version 12". No signal either: SIGHUP's
+  default ends a Node or Python process. app.json can ask for one:
+  - `"on_settings_change": "signal SIGHUP"` (or another signal), for an
+    app that reloads on it;
+  - `"on_settings_change": "restart"`, for one that only reads at start:
+    a new box beside the old, as at a release, with no gap, and the old
+    box kept if the new one doesn't start.
+- **The dev box** gets the same files, and the same default.
+- **A pin holds a slot** where a team wants changes only at its
+  releases: `--from corp/payments/prod?version=12`, or a shared key's.
+- **Placeholders for API keys:** `hi app env payments MARKET_KEY --for
+  api.market.example` gives the box a placeholder; hi's proxy puts the
+  real key on the box's calls to that host, as it does for Slack and
+  OpenRouter. The key is in no file and no variable in the box, and a
+  change needs no re-read. When a value looks like an API key, `hi app
+  env` asks which host it is sent to; Enter skips it.
 
 ## When the server is locked or down
 
@@ -375,8 +412,8 @@ With a team's store:
 
 - **A change there reaches the app.** Every minute the server reads each
   connected path's metadata (`GET /v1/<mount>/metadata/<path>`); a new
-  `current_version` is a change of the app's settings, and Stage and
-  production start again with it within a minute, as after `hi app env`.
+  `current_version` is a change of the app's settings, and reaches the
+  boxes within a minute as any change does (see Settings in a box).
   The channel hears it once, by name and version, never values. A path
   pinned with `?version=7` doesn't move until it's unpinned: a rollback.
 - **Logging in:** an AppRole (role ID and secret ID, kept in the built-in
@@ -555,11 +592,21 @@ Nothing wins silently; a value's source is always one place, shown.
 - An app's service gets only its slot; the dev box never gets Stage's or
   production's; no value in the audit log, the page's JSON, or an error.
 - A backup of the state folder has no value in the clear and no key file.
+- Settings in a box: the files change within a minute, in one step, on
+  tmpfs; no value in podman's `config.json` or `podman inspect`;
+  `hi-env` gives the current values; nothing restarts or is signalled
+  unless app.json asks, and then only as asked; a `--for` placeholder
+  reaches the host as the real key and nowhere else.
 - Release 3: a move to a fake OpenBao and back; a path under a connected
-  prefix read from there; a new version restarts the slot.
+  prefix read from there; a new version reaches the files.
 
 ## Releases
 
+0. **Settings off podman's disk**, on its own and first, since it is a
+   leak today: settings reach a box through tmpfs files and `hi-env`,
+   never podman's `--env`, so `config.json` and `podman inspect` hold
+   none (for a running app, at its next start); `on_settings_change`;
+   `--for` placeholders. Before the store exists, from `secrets.json`.
 1. **The built-in store**, unlocked by a key file or the TPM; the
    heartbeats that tell a locked or stopped server; what hi
    keeps moved into it on `hi update`; the recovery key; `hi server
@@ -567,7 +614,7 @@ Nothing wins silently; a value's source is always one place, shown.
 2. **Passphrase unlock** and systemd's keeping across restarts; the
    page's Vault section, Unlock, and the locked banner.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
-   changes in the team's store restarting the slot.
+   changes in the team's store reaching the boxes.
 4. **Later:** the key split between several admins (Shamir), and in
    managed mode ([hi_server_apps.md](../approved/hi_server_apps.md)) the
    central server's store for the machines it manages.
@@ -575,7 +622,9 @@ Nothing wins silently; a value's source is always one place, shown.
 ## Not in this
 
 - Serving Vault's API from hi.
-- Dynamic secrets (database credentials made per lease).
+- Dynamic secrets (database credentials made per lease), OpenBao and
+  Vault's own advice where a secret can be short lived: later.
+- Updating a running process's environment: Linux has no way to.
 - Keeping the server's own identity key (`server_key`) or devices'
   `device_key` in the store: the server needs its key to answer devices
   while locked.
@@ -605,11 +654,14 @@ Decided (2026-11-14):
 6. **A name in both hi and a team's store:** neither wins silently; a
    hi value over a team's needs `--override`, per slot, and is marked;
    a second source for a name is refused (`--skip` or `--override`).
+7. **A change, from any source:** settings files on tmpfs, rewritten
+   within a minute; environment variables from the start, through
+   `hi-env`, never podman's; no restart or signal unless app.json asks
+   (`on_settings_change`). `--for` placeholders, suggested for API keys.
+   Settings off podman's disk first, as release 0.
 
 Still open:
 
-7. **A change in a team's store:** restart Stage and production at once
-   (proposed, as `hi app env` does), or production at its next deploy?
 8. **Other logins to a team's store:** JWT/OIDC from the machine's
    identity, or TLS certificates, instead of an AppRole secret ID?
 9. **File settings:** a secret holding a PEM to `/hi-files` when the app
