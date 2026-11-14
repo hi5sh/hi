@@ -403,7 +403,7 @@ With a team's store:
   name that isn't a valid variable, one hi sets itself (`PORT`,
   `OPENROUTER_API_KEY`, …), or a value that isn't a string is left out,
   and `hi server vault ls` says which and why. A name set both in hi and
-  in the team's store: hi's wins (Open questions).
+  in the team's store: see Two values for one name.
 - **OpenBao and Vault:** the same API; namespaces are Vault Enterprise's
   and OpenBao's since v2.3. A KV v1 mount is read too, with no versions,
   and changes found by a hash of what was read. HashiCorp's Go client is
@@ -415,6 +415,29 @@ With a team's store:
 hi doesn't serve Vault's API: `bao kv get` and Terraform don't talk to
 hi. A partial copy of that API would mislead tools that expect tokens,
 policies, and its errors.
+
+### Two values for one name
+
+Nothing wins silently; a value's source is always one place, shown.
+
+- **A hi setting over a team's store's:** setting a name that a `--from`
+  already gives is refused unless it says so: "MAIL_URL comes from
+  corp/payments/prod. --override sets it here instead (Stage only)."
+  An override is per slot: Stage's leaves production on the team's
+  value. `hi app env`, `hi server vault ls`, and the page mark it
+  (`MAIL_URL  overridden here (Stage); corp/payments/prod has its
+  own`). When the team's store changes that name, the channel hears
+  "corp/payments/prod changed MAIL_URL; Stage overrides it and keeps its
+  value."
+- **Two sources for one name** (two `--from` paths, or one and a
+  `--from shared/...`): the second `--from` is refused, naming the name
+  and both sources, until the owner leaves the name out of one
+  (`--from corp/payments/prod --skip DB_URL`) or sets it with
+  `--override`.
+- **A clash that comes later**, when a team's store adds a name another
+  source already gives: the app keeps the value from the source that had
+  it first, and the channel and the page say so, with the two ways to
+  settle it. Nothing restarts for it.
 
 ## Snapshots, backups, and moves
 
@@ -520,6 +543,10 @@ policies, and its errors.
   opens with the recovery key's words and not with others; a new
   recovery key re-seals every bucket's copy; a restore on a fresh machine
   from a fake bucket with only the recovery key.
+- Two values: a name a `--from` gives is refused without `--override`;
+  an override is per slot, marked, and kept when the team's store
+  changes; a second source for a name is refused; `--skip` leaves it
+  out; a later clash keeps the first source's value and says so.
 - Versions: every one kept; `forget` leaves the entry without the
   value. Shared keys: given apps read them by reference, others can't;
   `rm` refused while used; owners can't set or give one. `hi app rm`
@@ -575,12 +602,12 @@ Decided (2026-11-14):
    its history entry stays. Shared keys in `hi/shared/`, used by
    reference, admins only. `hi app rm` keeps an app's settings;
    `--purge` deletes them with its snapshots.
+6. **A name in both hi and a team's store:** neither wins silently; a
+   hi value over a team's needs `--override`, per slot, and is marked;
+   a second source for a name is refused (`--skip` or `--override`).
 
 Still open:
 
-6. **A name in both hi and a team's store:** hi's wins (proposed, so an
-   owner can override one value for Stage), or the team's store, as the
-   only truth?
 7. **A change in a team's store:** restart Stage and production at once
    (proposed, as `hi app env` does), or production at its next deploy?
 8. **Other logins to a team's store:** JWT/OIDC from the machine's
