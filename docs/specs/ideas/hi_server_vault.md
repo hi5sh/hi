@@ -77,12 +77,13 @@ processes.
 ```sh
 hi server vault                        # locked or unlocked, how it unlocks, the store, counts
 hi server vault init [--unlock file|tpm|passphrase]
-                                       # create it (hi update does, with tpm or file); prints the recovery key once
+                                       # create it (hi update does, with tpm or file); the recovery key waits for the owner
 hi server vault unlock                 # asks for the passphrase or the recovery key, without echo
 hi server vault lock                   # forget the key now; apps' boxes keep running
 hi server vault unlock-with add|remove tpm|file|passphrase
                                        # add or remove a slot (unlocked first); the secrets aren't re-encrypted
-hi server vault recovery --new         # a new recovery key; the old one stops working
+hi server vault recovery               # the owner, in a terminal: show the waiting recovery key once, two words back
+hi server vault recovery --new         # the owner, unlocked: a new recovery key; the old one stops working
 hi server vault ls [<prefix>]          # paths, versions, when changed; never values
 hi server vault history <path>         # versions, who changed each, when
 hi server vault rollback <path> <version>
@@ -156,10 +157,25 @@ LUKS does. Any one slot unlocks the store:
   a new tpm slot to the new machine's TPM in place of the old one,
   without asking; with no TPM hi can use, it offers a file slot and says
   what that protects against.
-- **The recovery key** is printed once, at `init`: 24 words, or a code
-  to print. It unlocks in any mode. Without it and the passphrase (or the
-  TPM, or the key file), the secrets are gone; `init` says so, and asks
-  for the first and last word back.
+- **The recovery key**, 24 words, opens the store when no other slot
+  can. There is one; a new one replaces it.
+  - **It waits in the store** until the owner saves it: encrypted like
+    any secret, never in a file or in the clear on disk. `hi update` and
+    `init` say "The recovery key waits for the owner on the admin page."
+  - **Only the server's owner** sees it, and makes a new one. The page
+    shows the owner "Save your recovery key"; it is shown once, two of
+    its words are asked back, and then hi forgets it. Admins see that it
+    waits for the owner. On a machine without the page, `hi server vault
+    recovery` in a terminal does the same.
+  - **Not saved**, the page, `hi doctor`, and Slack (once a week) remind
+    the owner. Lost, or never saved: while the store is unlocked, the
+    owner makes a new one (`recovery --new`, or on the page).
+  - **A new one** stops the old words at once, on this machine. Backups
+    of the state taken before still hold the old slot, so the old words
+    open those, with the secrets as they were; when a key may have
+    leaked, the page says to change the secrets that matter at their
+    source too.
+  - **Never** by Slack or mail, which keep it on someone else's servers.
 - **On the page**, a locked store is the first thing an admin sees, with
   Unlock: the passphrase goes from the browser to the page, on https or
   NetBird, and from the page to the server on its local socket. The
@@ -224,9 +240,8 @@ not the process.
 `hi update` to the release that brings it:
 
 1. Creates the store with a tpm slot if hi can use the TPM, else a
-   file slot (see How it unlocks), and prints where the recovery key is: in a file, 0400,
-   that the admin is told to move off the machine and delete
-   (`hi server vault recovery` shows it until then, never after).
+   file slot (see How it unlocks), and a recovery key that waits in the
+   store for the owner to save it.
 2. Moves `keys.json`, `slack.json`, every app's `secrets.json`,
    `mail.json`, NetBird's token, and the DNS token into it, reads each
    back, and only then removes the files.
@@ -352,7 +367,8 @@ policies, and its errors.
 - A value written and read back; a version can't be read under another
   path; a changed byte fails to decrypt.
 - Each slot: file, a fake TPM, a passphrase; the recovery key unlocks
-  with any; a wrong passphrase is slowed; adding or removing a slot
+  without the others; it is shown only to the owner, once, then gone
+  from the store; `--new` stops the old words; a wrong passphrase is slowed; adding or removing a slot
   leaves every secret readable.
 - What the slots protect against together, and the flag for a slot that
   undoes a stronger one.
@@ -397,12 +413,12 @@ Decided (2026-11-14):
 
 1. **The default unlock:** slots, any one unlocking; tpm where hi can
    use it, else file, and always recovery (see How it unlocks).
+2. **The recovery key:** one; kept in the store until the owner saves it
+   from the page (or `hi server vault recovery` in a terminal), shown
+   once, then forgotten; only the owner sees it or makes a new one.
 
 Still open:
 
-2. **The recovery key:** printed to a file to move off the machine
-   (proposed), shown once on the page, or split between the owner and an
-   admin?
 3. **Snapshot passwords:** outside the store (proposed, so a restore
    after losing the machine needs only the password), or in it, with the
    recovery key as the way back?
