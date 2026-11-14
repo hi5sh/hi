@@ -249,7 +249,7 @@ hi server provider add shadeform  # the same for Shadeform, if you use it
 ```
 
 `hi server init` listens on this machine's NetBird address, port 7373, and
-starts the server as a user service, `hi-org.service`, and the [admin
+starts the server as a user service, `hi-server.service`, and the [admin
 page](/guide/app/admin/) beside it, `hi-admin.service`, where the owner and
 the admins run the server and the machine's apps; it prints your link.
 `--local` puts the page on 127.0.0.1 only, `--netbird <setup key file>` on
@@ -311,7 +311,7 @@ hi update
 
 After installing the new binary, `hi update` finds the running server, which
 still runs the old one, and asks to restart its service with
-`systemctl --user restart hi-org.service`. It is down for about a second.
+`systemctl --user restart hi-server.service`. It is down for about a second.
 It also asks when the binary is already current but the server was never
 restarted. `--restart` restarts without asking, for scripts, and
 `--no-restart` only prints the command. A server started by hand, outside
@@ -321,8 +321,8 @@ State, keys, and devices carry over; connected devices need no change.
 Devices on an older `hi` keep working, and get new features when they run
 `hi update` themselves.
 
-If systemd warns that `hi-org.service` changed on disk, compare
-`systemctl --user cat hi-org` with what you meant to change, then run
+If systemd warns that `hi-server.service` changed on disk, compare
+`systemctl --user cat hi-server` with what you meant to change, then run
 `systemctl --user daemon-reload` and restart. The reload alone doesn't
 restart the server.
 
@@ -331,7 +331,7 @@ restart the server.
 Until hi 2.6.78 the server ran as a system service, in
 `/etc/systemd/system`, so restarting it needed `sudo`, which the admin page
 can't do. On a terminal, `hi update` offers to move it, with `sudo` this
-once: it writes `hi-org.service` in `~/.config/systemd/user` from the system
+once: it writes `hi-server.service` in `~/.config/systemd/user` from the system
 unit (without `User=`, and anything else you added kept), keeps the
 account's services running without a login (`loginctl enable-linger`),
 stops the system unit and starts the user one, then removes the system
@@ -339,16 +339,17 @@ unit. If the user service doesn't come up, the system unit runs again.
 Without a terminal, or with `--no-restart`, it only says so, and the server
 runs as before.
 
-#### From `hi-server.service` to `hi-org.service`
+#### From `hi-org.service` to `hi-server.service`
 
-A server set up before hi 2.6.57 runs as `hi-server.service`, with its
-state in `~/.local/state/hi/server`. On a terminal, `hi update` offers to
-move it: it writes `hi-org.service` from the old unit, with `HI_ORG_DIR` and
-`org run` in place of `HI_SERVER_DIR` and `server run` and anything else
-you added kept, then disables the old unit and starts the new one. On
-start, the server moves its state to `~/.local/state/hi/org` and leaves a
-link at the old path. If the new unit doesn't come up, the old one is
-started again. The old unit stays on disk, disabled, until you remove it.
+From hi 2.6.150 the server's user service is `hi-server.service`. A server
+set up before runs as `hi-org.service`; `hi update` renames it as it
+restarts it: it writes `hi-server.service` from the old unit, with
+`server run` in place of `org run` and anything else you added kept,
+stops and disables the old one, starts the new one, and removes the old
+file. If the new one doesn't come up, the old one runs again. One set up
+before hi 2.6.57, with its state in `~/.local/state/hi/server`, moves
+that to `~/.local/state/hi/org` on start, and leaves a link at the old
+path.
 
 Until you move it, everything keeps working under the old names, and
 `hi update` asks again each time. A state folder of your own choosing
@@ -384,8 +385,8 @@ an outbound connection, so the server needs no public address.
    App → From a manifest** and paste the output of
    `hi server slack manifest`. Install it to your workspace.
 2. Create a private channel, such as `#compute-approvals`, and invite the
-   app with `/invite @hi server` (`@hi org` for an app made from an older
-   manifest).
+   app with `/invite @hi server` (or the name you gave it, for an app made
+   from an older manifest).
 3. On the server box, run `hi server slack setup`. It asks for an **App-Level
    Token** with `connections:write` (`xapp-…`, under Basic Information),
    the **Bot User OAuth Token** (`xoxb-…`), and the channel's ID (at the bottom
@@ -401,7 +402,7 @@ an outbound connection, so the server needs no public address.
    ([above](#the-servers-owner-and-admins)); this is for someone who only
    approves.
 
-5. Restart the server: `systemctl --user restart hi-org`, or **Restart** on
+5. Restart the server: `systemctl --user restart hi-server`, or **Restart** on
    the admin page (the server's card).
 
 An app made before hi 2.6.57 is called *hi compute*. It works as it is; to

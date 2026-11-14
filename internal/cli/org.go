@@ -80,7 +80,6 @@ and their devices, holds the provider keys, and approves and counts what
 compute costs, so nothing paid starts without an approval. It serves your
 team's shared keys, private project templates (hi init), and Hugging Face
 datasets and models (hi data). Without joining, hi compute uses your own keys.
-hi org is its old name and still works.
 
 On any device:
   hi server join <server> [--user NAME] [--no-wait]
@@ -95,7 +94,7 @@ On any device:
 On the server box:
   hi server init --owner <Slack ID> --email <address> [--listen ADDR] [--local | --netbird F]
                                        Create the server and its owner here, and start it and the admin page
-  hi server run                        Serve clients (hi-org.service runs it)
+  hi server run                        Serve clients (hi-server.service runs it)
   hi server owner [<Slack ID> --email <address>]
                                        The server's owner, who owns the machine and its apps too; or hand it on
   hi server admins [add <Slack ID> --name <user> [--email E] | remove <user>]

@@ -14,7 +14,7 @@ has one).
 
 ## Decided
 
-- **Free for anyone** who installs hi, with or without a hi org.
+- **Free for anyone** who installs hi, with or without a hi server.
 - **Run by Himode AB**, which registers hi5.sh with Google and Microsoft,
   goes through their verification, and publishes the terms and the
   privacy policy.
@@ -98,7 +98,7 @@ issuer `https://hi5.sh`. The relay's code (`net_expose_sso.go`) already
 speaks OIDC to any issuer, so most of it stays. What changes:
 
 - **No client secret to type.** `hi app sso <app> on hi5` registers the
-  app with hi5.sh, signed with the machine's key (the hi org device key
+  app with hi5.sh, signed with the machine's key (the hi server device key
   where there is one, otherwise a key hi makes on first use), and gets a
   client ID and secret back (OAuth dynamic client registration, RFC
   7591, behind that key). hi5.sh refuses a public address (below), and

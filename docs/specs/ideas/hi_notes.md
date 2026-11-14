@@ -2,9 +2,9 @@
 
 Status: Draft
 
-Dependencies: `hi org` (devices, users, groups, policy, Slack, audit),
+Dependencies: `hi server` (devices, users, groups, policy, Slack, audit),
 `hi ask` (accepting a note is a question to a person), `hi q` project notes
-in `.hi5/q.md`, `hi skill`, and optionally `hi org ai` for search.
+in `.hi5/q.md`, `hi skill`, and optionally `hi server ai` for search.
 
 ## Goal
 
@@ -139,7 +139,7 @@ repository as its source.
 
 Signed `/v1` routes: `GET /v1/notes?q=&repo=` searches, `POST /v1/notes`
 proposes, `GET /v1/notes/{id}` shows one, `POST /v1/notes/{id}/edit` and
-`/retire`. Review decisions arrive through Slack or `hi org notes
+`/retire`. Review decisions arrive through Slack or `hi server notes
 accept|reject <id>`.
 
 ## Releases
@@ -171,7 +171,7 @@ accept|reject <id>`.
 2. Whether `hi notes` should also read Claude Code's own memory files and
    offer to promote entries, instead of agents proposing from scratch.
 3. Whether team notes should be visible to agents enrolled on their own
-   (`hi org join --agent`) by default.
+   (`hi server join --agent`) by default.
 
 ## Findings
 

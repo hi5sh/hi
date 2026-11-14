@@ -11,7 +11,7 @@ peer and the internal relay), [hi_app_addresses.md](../approved/hi_app_addresses
 [hi_app_keys.md](../approved/hi_app_keys.md) (settings, the models
 socket), [hi_watch.md](../approved/hi_watch.md) (the resolver),
 [hi_box.md](../approved/hi_box.md), [hi_compute.md](../approved/hi_compute.md)
-(`sshTarget`), and [hi_cluster.md](hi_cluster.md) (`hi org machines`,
+(`sshTarget`), and [hi_cluster.md](hi_cluster.md) (`hi server machines`,
 which this is not).
 
 ## Goal
@@ -278,7 +278,7 @@ depend only on the target.
    beside `recipes/llm/`. The result is always an SSH target. Targets
    also share a front, so several apps use 443 on one machine.
 4. **Later.** Internal-only addresses on a target (the app's peer
-   there); the dev box on a target; a target from `hi org machines`.
+   there); the dev box on a target; a target from `hi server machines`.
 
 ## Not SSH targets
 

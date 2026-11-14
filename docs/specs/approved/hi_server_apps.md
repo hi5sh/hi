@@ -174,9 +174,12 @@ hi server offer | machines                          # hi_cluster.md
   type it, and `hi connect` and `hi disconnect` too. They run the same
   code. The hint `oldNameHint` prints on a terminal now says "is now
   hi server …", and `hi org` gets no hint at all.
-- **Files keep their names.** `~/.config/hi/org.json`, the state in
-  `~/.local/state/hi/org`, and the unit `hi-org.service` stay: they
-  moved once already, in v2.6.57, and moving them back gains nothing.
+- **Files keep their names.** `~/.config/hi/org.json` and the state in
+  `~/.local/state/hi/org` stay: they moved once already, in v2.6.57, and
+  moving them back gains nothing. The unit is the exception, as it is
+  what an admin sees on the machine (`systemctl --user status`): from
+  v2.6.150 it is `hi-server.service`, and `hi update` renames
+  `hi-org.service` as it restarts it.
 - **Code keeps its names** (`org.go`, `runOrg`, `people.json`), as the
   [app rename](hi_app.md) left its plumbing.
 - **Prose:** "the server", or "your hi server" where it could be
@@ -307,7 +310,7 @@ machines of ours and no one else's, so nothing else types it.
 | Was | Is |
 |---|---|
 | `hi admin` (whether it runs, its address, its admins) | `hi server status` |
-| `hi admin start` / `stop` | Gone. The page runs with the server (`hi server init`, `hi-org.service`). On a machine, the process that keeps the connection to the server starts by itself on `hi server join`, and with the apps' service after a reboot. |
+| `hi admin start` / `stop` | Gone. The page runs with the server (`hi server init`, `hi-server.service`). On a machine, the process that keeps the connection to the server starts by itself on `hi server join`, and with the apps' service after a reboot. |
 | `hi admin link [<admin>]` | `hi server link [<admin>]` |
 | `hi admin admins` | `hi server admins` for the server's; `hi server admins --machine ws1` for a machine's, which the machine still keeps and checks |
 | `hi admin address` | `hi server address` |

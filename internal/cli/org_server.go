@@ -2295,7 +2295,7 @@ func adminCall(dirFlag, method, path string, body, result any) error {
 	if err != nil {
 		return err
 	}
-	return doJSON(client, method, "http://hi-org"+path, body, result, nil)
+	return doJSON(client, method, "http://hi-server"+path, body, result, nil)
 }
 
 // doJSON sends a JSON request, optionally signed, and decodes the reply or

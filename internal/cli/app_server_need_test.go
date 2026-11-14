@@ -9,8 +9,17 @@ import (
 )
 
 // Other tests run on a machine with a server; these turn the check back on.
+// And no test sees the real server of the machine it runs on: its state is
+// under XDG_STATE_HOME, here an empty folder unless a test sets its own.
 func init() {
 	appServerHere = func() bool { return true }
+	state, err := os.MkdirTemp("", "hi-test-state-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_STATE_HOME", state)
+	os.Unsetenv("HI_ORG_DIR")
+	os.Unsetenv("HI_SERVER_DIR")
 }
 
 func realServerCheck(t *testing.T) {

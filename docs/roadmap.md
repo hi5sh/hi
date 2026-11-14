@@ -2736,6 +2736,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.150 — `hi-server.service`, and no more "hi org" in the docs
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1
+(Files keep their names, amended).
+
+- [x] The server's user service is `hi-server.service`. `hi update`
+  renames `hi-org.service` as it restarts it, keeping anything an admin
+  added, and starts the old one again if the new one doesn't come up. The
+  admin page restarts and reads the logs of whichever the machine has.
+- [x] `hi server help`, the guide, the server's page, the admin page, and
+  the idea specs no longer say `hi org`; `hi org` still runs, silently.
+- [x] Tests never read the real server of the machine they run on.
+
 ### v2.6.149 — A server on every machine with apps; `hi admin` goes
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 3

@@ -109,7 +109,7 @@ See [Serve a model](/guide/compute/serve/).
 
 ## hi server
 
-See [Managed compute for your team](/guide/compute/managed/). `hi org`, the old name, still works.
+See [Managed compute for your team](/guide/compute/managed/).
 
 | Command                                                           | Does                                                                                   |
 |-------------------------------------------------------------------|----------------------------------------------------------------------------------------|

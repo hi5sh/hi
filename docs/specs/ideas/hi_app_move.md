@@ -17,7 +17,7 @@ service, broker, and boxes), [hi_app_internal.md](../approved/hi_app_internal.md
 (heartbeats to an outside service), [hi_update.md](../approved/hi_update.md)
 (waiting for pauses and releases before a restart), and two drafts it sits
 beside: [hi_app_targets.md](hi_app_targets.md) (production on another
-machine, over SSH) and [hi_cluster.md](hi_cluster.md) (`hi org machines`).
+machine, over SSH) and [hi_cluster.md](hi_cluster.md) (`hi server machines`).
 
 ## Goal
 
@@ -41,8 +41,8 @@ this").
 |---|---|---|---|
 | Today | The app is down until ws1 is fixed | Nothing, once ws1 is back; if its disk is gone, everything since the last snapshot in the bucket, and restoring it elsewhere isn't built | Snapshots, a bucket |
 | 1. Move | The same, but planned stops (upgrades, reboots, hardware) cost a minute instead of the length of the work | Nothing | ws2 with hi; SSH between the two |
-| 2. Standby, an admin takes over | Running again a few minutes after an admin presses **Take over** on ws2 | What changed since the last copy: 5 minutes by default | ws2 holds a copy refreshed every few minutes; a third voice (the org server) or an admin's word |
-| 3. Standby that takes over by itself | Running again about 7 minutes after ws1 stops answering, with nobody involved | The same | The same, and the org server on a third machine |
+| 2. Standby, an admin takes over | Running again a few minutes after an admin presses **Take over** on ws2 | What changed since the last copy: 5 minutes by default | ws2 holds a copy refreshed every few minutes; a third voice (the server) or an admin's word |
+| 3. Standby that takes over by itself | Running again about 7 minutes after ws1 stops answering, with nobody involved | The same | The same, and the server on a third machine |
 | Both at once | Nothing stops | Nothing | Not possible for a hi app: see below |
 
 **Why not both at once.** Several things in an app may only run in one place:
@@ -78,7 +78,7 @@ of time, and makes sure exactly one machine runs it.
 | Copying data to another machine while it runs | [hi_app_targets.md](hi_app_targets.md)'s mirror: rsync without a pause, then a short pause for what changed |
 | Waiting for a release or a pause before stopping | `hi update --restart` waits for `run/paused` and `run/releasing` |
 | Being told a machine is dead | Heartbeats to an outside service ([hi_app_ops.md](../approved/hi_app_ops.md)) |
-| Signed calls to a third machine | The org server and device keys ([hi_org.md](../approved/hi_org.md)) |
+| Signed calls to a third machine | The server and device keys ([hi_org.md](../approved/hi_org.md)) |
 
 ## What a move carries
 
@@ -98,7 +98,7 @@ it, or is made again. What belongs to ws2 is checked first.
 | | Hermes and Hindsight's client in `~/.local/share/hi` | Installed by `hi app up`, as on any machine |
 | | The machine's keys the app uses: Hermes' OpenRouter key, Claude Code's and Codex's sign-ins, `gh`'s sign-in for the broker's pushes | Checked: an app on the machine's keys needs ws2's own, or keys of its own first (`hi app key`) |
 | | The machine's domain (`hi net domain`) | Checked: the same domain on ws2 keeps the https names; without it they stop working there |
-| | The org (`hi org ai`, served models) | Checked: ws2 in the same org |
+| | The org (`hi server ai`, served models) | Checked: ws2 in the same org |
 | | Room for the app's limits (`hi app limit`) and disk for its folder | Checked |
 | | The box images | Built on ws2 before the stop |
 
@@ -228,7 +228,7 @@ there copies only what changed since the last round.
 
 `hi app takeover demo`, on ws2, or **Take over** on its admin page:
 
-1. Asks the org server whether ws1 still runs demo ([below](#exactly-one-machine-runs-an-app)).
+1. Asks the server whether ws1 still runs demo ([below](#exactly-one-machine-runs-an-app)).
    If it does, it refuses: "ws1 runs demo. Move it instead: on ws1, `hi app
    move demo ws2`."
 2. Says how old the copy is and what goes missing: "demo's copy is from
@@ -254,9 +254,9 @@ to make ws1 the standby: on ws2, `hi app standby demo ws1`.
 An app with a standby runs only while its machine holds a **lease**: a
 go-ahead that lasts 60 seconds, which it asks for again every 10. Every move
 and takeover adds one to the app's **epoch**, kept in the folder
-(`place.json`: the machine, the epoch, the standby) and at the org server.
+(`place.json`: the machine, the epoch, the standby) and at the server.
 
-- **The running machine asks both** the org server and the standby: "I run
+- **The running machine asks both** the server and the standby: "I run
   demo at epoch 7; may I go on?" Either answer is enough. Each says yes
   unless it knows a later epoch, and the standby says no once it has begun
   to take over.
@@ -264,7 +264,7 @@ and takeover adds one to the app's **epoch**, kept in the folder
   it asked: the lead, the peer, production, Stage, and the dev box. It
   can't tell "I'm cut off" from "the others think I'm dead", so it acts as
   if they do. It starts them again at the next yes.
-- **A takeover needs the org server's yes.** ws2 asks for it only when it
+- **A takeover needs the server's yes.** ws2 asks for it only when it
   has given ws1 no yes for 90 seconds, and gives none from then on; the
   org server allows it only when it hasn't given ws1 one for 90 seconds
   either. ws1 stopped by itself at 45 seconds, so it has been stopped for
@@ -282,12 +282,12 @@ longer.
 
 | What happens | demo, with ws1 running it and ws2 its standby |
 |---|---|
-| ws1 dies | No yes from anyone; after 90 seconds the org server allows a takeover |
-| ws2 dies | ws1 gets its yes from the org server and runs on; the copy is an incident |
-| The org server is down | ws1 gets its yes from ws2 and runs on. A takeover needs an admin's word (`--force`) |
+| ws1 dies | No yes from anyone; after 90 seconds the server allows a takeover |
+| ws2 dies | ws1 gets its yes from the server and runs on; the copy is an incident |
+| The server is down | ws1 gets its yes from ws2 and runs on. A takeover needs an admin's word (`--force`) |
 | ws1 is cut off from both | ws1 stops demo after 45 seconds; a takeover is allowed after 90 |
-| ws1 and ws2 reach each other, not the org server | ws1 runs on; ws2 can't take over by itself |
-| ws1 and the org server reach each other, not ws2 | ws1 runs on; ws2's takeover is refused |
+| ws1 and ws2 reach each other, not the server | ws1 runs on; ws2 can't take over by itself |
+| ws1 and the server reach each other, not ws2 | ws1 runs on; ws2's takeover is refused |
 | All three cut off from each other | ws1 stops demo; nobody takes over until an admin acts |
 
 **An admin's word.** With no org server, or with it down, `hi app takeover
@@ -295,16 +295,16 @@ longer.
 app's name typed. hi shows what it can see first: when ws1 was last heard
 from, and when its heartbeat service last heard from it. If ws1 is in fact
 running and cut off, it stops demo by itself after 45 seconds, and the
-admin's word is safe. If ws1 is running and still reaches the org server,
+admin's word is safe. If ws1 is running and still reaches the server,
 only the admin's word stands between two copies. The page says so.
 
-**The org server must be a third machine.** An org server on ws1 or ws2
+**The server must be a third machine.** An org server on ws1 or ws2
 can't tell which of them is cut off. Then the standby takes the admin's word
 only, and `--auto` is refused.
 
 ## Release 3: taking over by itself
 
-`hi app standby demo ws2 --auto` lets ws2 take over when the org server
+`hi app standby demo ws2 --auto` lets ws2 take over when the server
 allows it and ws1 has been gone for `--after`, 5 minutes by default, so a
 reboot that runs long doesn't move the app. ws2 then does what `hi app
 takeover` does and tells the admins: in the ops channel, on both admin
@@ -322,7 +322,7 @@ wait, and the start.
 | ws1's disk or board dies | Down until it's mended; the bucket's last snapshot, restored by hand | The same | Running minutes after an admin takes over; up to 5 minutes lost | Running in about 7 minutes; up to 5 minutes lost |
 | A release breaks the app's data | `hi app rollback` | The same | The same: the standby copied the damage within minutes | The same |
 | ws2 dies | | | demo runs on; an incident for the copy | The same |
-| The org server is down | demo runs | demo runs | demo runs; a takeover needs an admin's word | No takeover by itself |
+| The server is down | demo runs | demo runs | demo runs; a takeover needs an admin's word | No takeover by itself |
 | ws1 loses NetBird | The internal addresses are down; the lead talks on | The same | ws1 stops demo after 45 seconds; an admin may take over | ws2 takes over |
 
 The standby is not a backup. It copies a bad release's damage as faithfully
@@ -343,7 +343,7 @@ as good work, within minutes. Going back in time is what snapshots are for.
 - **Trust in ws2:** it holds the app's secrets (its Slack tokens, keys, and
   the peer's identity), which snapshots and the bucket never do.
 - **A stop when nobody answers:** an app with a standby stops by itself
-  when its machine hears from neither the standby nor the org server.
+  when its machine hears from neither the standby nor the server.
 
 ## Flow
 
@@ -387,7 +387,7 @@ as good work, within minutes. Going back in time is what snapshots are for.
 4. **A standby is not a backup.** Snapshots stay the way back in time; the
    standby holds them too, so a takeover keeps them.
 5. **Safety before staying up.** An app with a standby stops by itself
-   when nobody answers, and a takeover needs the org server or an admin's
+   when nobody answers, and a takeover needs the server or an admin's
    word, so the app never runs twice.
 6. **Machines talk over SSH on NetBird.** A machine's key on another runs
    only hi's receiving end, not a shell.
@@ -446,18 +446,18 @@ as good work, within minutes. Going back in time is what snapshots are for.
 1. **Move.** `hi app move`, `--check`, `hi app machines`, and the admin page's
    **Move…**. Useful by itself: upgrades without downtime, and a new machine.
 2. **A standby, taken over by an admin.** Rounds, the two copies, the lease
-   and the org server as witness, `takeover`, the folder kept aside.
+   and the server as witness, `takeover`, the folder kept aside.
 3. **Taking over by itself.** `--auto`, `--after`.
 4. **Later.** Rounds by filesystem snapshots for large apps, every minute and
-   with no pause; a standby chosen from `hi org machines`; the org server's
+   with no pause; a standby chosen from `hi server machines`; the server's
    admin page showing every machine's apps and standbys (hi_admin.md's
    "Several machines"); a standby for an app whose production is on a
    target ([hi_app_targets.md](hi_app_targets.md)).
 
 ## Not in this
 
-- Moving the org server, or a standby for it. It was moved once by copying
-  its state folder and pointing its clients at the new one. `hi org move`
+- Moving the server, or a standby for it. It was moved once by copying
+  its state folder and pointing its clients at the new one. `hi server move`
   is the same shape, with its own spec.
 - Production on a machine of the organization's elsewhere: that is
   [hi_app_targets.md](hi_app_targets.md), where home keeps the control. A
@@ -469,10 +469,10 @@ as good work, within minutes. Going back in time is what snapshots are for.
    of the lead and production each time. Less often loses more in a
    takeover.
 2. **Stopping by itself.** Is it acceptable that an app with a standby stops
-   when its machine hears from neither the standby nor the org server for
+   when its machine hears from neither the standby nor the server for
    45 seconds? The other way is never to stop, and to allow a takeover only
    on an admin's word, with no release 3.
-3. **No third machine.** When the org server runs on ws1 or ws2, should hi
+3. **No third machine.** When the server runs on ws1 or ws2, should hi
    refuse a standby, or allow one that only an admin's word can take over?
 4. **Restoring on a new machine without a standby.** The bucket has neither
    the secrets nor the peer's identity, so an app restored from it

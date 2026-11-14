@@ -24,7 +24,7 @@ func TestOrgOwnerAndAdmins(t *testing.T) {
 		t.Fatal("init wrote a server without an owner")
 	}
 	code, stdout, stderr := runHi("org", "init", "--listen", "127.0.0.1:7476", "--dir", dir, "--owner", "U07OWNER1", "--email", "Olga.K@example.com")
-	if code != 0 || !strings.Contains(stdout, "olga.k (Olga.K@example.com) owns the server now.") || !strings.Contains(stdout, "hi-org.service") {
+	if code != 0 || !strings.Contains(stdout, "olga.k (Olga.K@example.com) owns the server now.") || !strings.Contains(stdout, "hi-server.service") {
 		t.Fatalf("init: %d\n%s%s", code, stdout, stderr)
 	}
 	if fileExists(orgUserUnitPath()) {

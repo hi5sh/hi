@@ -267,7 +267,7 @@ can't approve, stop, or open anything, and it works until an admin ends
 it. It replaces `hi server live --wall` and the screens that showed it over
 SSH: a screen needs only a browser on NetBird.
 
-**The server is a user service** here, `hi-org.service`, so the page
+**The server is a user service** here, `hi-server.service`, so the page
 restarts it, and `hi update` does without `sudo`. One set up before hi
 2.6.78 runs as a system service: on a terminal, `hi update` moves it, with
 `sudo` once.
@@ -336,7 +336,7 @@ policies for each: [Networking](/guide/reference/network/).
 ## How it runs
 
 `hi server __page`, in the user service `hi-admin.service`, beside the
-server's `hi-org.service`, as the apps' services are. A unit written
+server's `hi-server.service`, as the apps' services are. A unit written
 before hi 2.6.149 ran `hi admin serve`; the page points it at `hi server
 __page` the first time it starts on the new hi. A long action runs the `hi` command itself in a user unit
 of its own (`systemd-run --user`), so it outlives the page: **Update**

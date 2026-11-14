@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"os/user"
@@ -125,14 +126,14 @@ func TestOrgUnitFromAnOldUnit(t *testing.T) {
 		"\nEnvironment=HI_SERVER_DIR=" + filepath.Join(account.HomeDir, ".local/state/hi/server") +
 		"\nExecStart=/usr/local/bin/hi server run\nLimitNOFILE=4096\n"
 	unit := orgUnitFrom(old)
-	for _, line := range []string{"Description=hi org server", "Environment=HI_ORG_DIR=" + filepath.Join(account.HomeDir, ".local/state/hi/org"),
-		"ExecStart=/usr/local/bin/hi org run", "LimitNOFILE=4096", "User=" + account.Username} {
+	for _, line := range []string{"Description=hi server", "Environment=HI_ORG_DIR=" + filepath.Join(account.HomeDir, ".local/state/hi/org"),
+		"ExecStart=/usr/local/bin/hi server run", "LimitNOFILE=4096", "User=" + account.Username} {
 		if !strings.Contains(unit, line+"\n") {
 			t.Errorf("unit lacks %q:\n%s", line, unit)
 		}
 	}
 	custom := orgUnitFrom("[Service]\nEnvironment=\"HI_SERVER_DIR=/srv/hi\" OTHER=1\nExecStart=/usr/local/bin/hi org run --dir /srv/hi\n")
-	if !strings.Contains(custom, "Environment=\"HI_ORG_DIR=/srv/hi\" OTHER=1\n") || !strings.Contains(custom, "ExecStart=/usr/local/bin/hi org run --dir /srv/hi\n") {
+	if !strings.Contains(custom, "Environment=\"HI_ORG_DIR=/srv/hi\" OTHER=1\n") || !strings.Contains(custom, "ExecStart=/usr/local/bin/hi server run --dir /srv/hi\n") {
 		t.Errorf("custom unit:\n%s", custom)
 	}
 }
@@ -151,7 +152,7 @@ func TestUpdateMovesTheOrgUnitToAUserService(t *testing.T) {
 	fakeProc(t, map[string][3]string{
 		"101": {path + " (deleted)", path + "\x00server\x00run\x00", "0::/system.slice/hi-server.service\n"},
 	})
-	os.WriteFile(filepath.Join(systemdUnitDir, oldOrgUnit), []byte("[Unit]\nDescription=hi compute server\n\n[Service]\nUser="+currentUserName()+
+	os.WriteFile(filepath.Join(systemdUnitDir, "hi-server.service"), []byte("[Unit]\nDescription=hi compute server\n\n[Service]\nUser="+currentUserName()+
 		"\nExecStart=/usr/local/bin/hi server run\nRestart=always\n\n[Install]\nWantedBy=multi-user.target\n"), 0o644)
 	var runs []string
 	previous, terminal, lingers := updateRun, updateIsTerminal, appLingers
@@ -173,16 +174,16 @@ func TestUpdateMovesTheOrgUnitToAUserService(t *testing.T) {
 		"sudo loginctl enable-linger " + currentUserName(),
 		"sudo systemctl disable --now hi-server.service",
 		"systemctl --user daemon-reload",
-		"systemctl --user enable --now hi-org.service",
-		"systemctl --user is-active --quiet hi-org.service",
-		"sudo rm " + filepath.Join(systemdUnitDir, oldOrgUnit),
+		"systemctl --user enable --now hi-server.service",
+		"systemctl --user is-active --quiet hi-server.service",
+		"sudo rm " + filepath.Join(systemdUnitDir, "hi-server.service"),
 		"sudo systemctl daemon-reload",
 	}
-	if code != 0 || strings.Join(runs, "|") != strings.Join(want, "|") || !strings.Contains(stdout, "hi-org.service runs v0.9.0.") {
+	if code != 0 || strings.Join(runs, "|") != strings.Join(want, "|") || !strings.Contains(stdout, "hi-server.service runs v0.9.0.") {
 		t.Fatalf("move: %d %q\n%s%s", code, runs, stdout, stderr)
 	}
 	unit, _ := os.ReadFile(orgUserUnitPath())
-	for _, line := range []string{"ExecStart=/usr/local/bin/hi org run\n", "WantedBy=default.target\n", "Description=hi org server\n", "RestartSec=5\n"} {
+	for _, line := range []string{"ExecStart=/usr/local/bin/hi server run\n", "WantedBy=default.target\n", "Description=hi server\n", "RestartSec=5\n"} {
 		if !strings.Contains(string(unit), line) {
 			t.Errorf("the user unit lacks %q:\n%s", line, unit)
 		}
@@ -192,7 +193,7 @@ func TestUpdateMovesTheOrgUnitToAUserService(t *testing.T) {
 	}
 
 	// Once it's a user service, nothing more is offered.
-	os.Remove(filepath.Join(systemdUnitDir, oldOrgUnit))
+	os.Remove(filepath.Join(systemdUnitDir, "hi-server.service"))
 	if _, stdout, _ := runUpdateTest("--no-restart"); strings.Contains(stdout, "user service") {
 		t.Fatalf("offered again:\n%s", stdout)
 	}
@@ -202,7 +203,7 @@ func TestUpdateMovesTheOrgUnitToAUserService(t *testing.T) {
 func TestOrgUnitMoveRefusesAnotherAccount(t *testing.T) {
 	systemdUnitDir = t.TempDir()
 	t.Cleanup(func() { systemdUnitDir = "/etc/systemd/system" })
-	os.WriteFile(filepath.Join(systemdUnitDir, orgUnit), []byte("[Service]\nUser=someone-else\nExecStart=/usr/local/bin/hi org run\n"), 0o644)
+	os.WriteFile(filepath.Join(systemdUnitDir, oldOrgUnit), []byte("[Service]\nUser=someone-else\nExecStart=/usr/local/bin/hi org run\n"), 0o644)
 	if err := moveOrgUnit(nil, io.Discard, io.Discard); err == nil || !strings.Contains(err.Error(), "as someone-else") {
 		t.Fatalf("moved: %v", err)
 	}
@@ -286,5 +287,64 @@ func TestServeAndServerSayWhichWasMeant(t *testing.T) {
 		if code != 2 || stdout != "" || !strings.Contains(stderr, want) {
 			t.Errorf("hi %s: %d %q %q", args, code, stdout, stderr)
 		}
+	}
+}
+
+// hi update renames the server's user service from hi-org.service to
+// hi-server.service as it restarts it.
+func TestOrgUserUnitRenamed(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("as root, systemctl runs without sudo")
+	}
+	installedBinary(t, "v0.9.0")
+	fakeReleases(t, "v0.9.0", false)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	systemdUnitDir = t.TempDir()
+	t.Cleanup(func() { systemdUnitDir = "/etc/systemd/system" })
+	path, _ := updateExecutable()
+	fakeProc(t, map[string][3]string{
+		"101": {path + " (deleted)", path + "\x00org\x00run\x00", "0::/user.slice/user-1000.slice/user@1000.service/app.slice/hi-org.service\n"},
+	})
+	os.MkdirAll(filepath.Dir(oldOrgUserUnitPath()), 0o755)
+	os.WriteFile(oldOrgUserUnitPath(), []byte("[Unit]\nDescription=hi org server\n\n[Service]\nEnvironment=HI_ORG_DIR=/srv/org\nExecStart=/usr/local/bin/hi org run\nRestart=always\n\n[Install]\nWantedBy=default.target\n"), 0o644)
+	var runs []string
+	previous := appSystemctl
+	appSystemctl = func(args ...string) (string, error) {
+		runs = append(runs, strings.Join(args, " "))
+		return "", nil
+	}
+	t.Cleanup(func() { appSystemctl = previous })
+
+	code, stdout, stderr := runUpdateTest("--restart")
+	want := []string{"daemon-reload", "disable --now hi-org.service", "enable --now hi-server.service", "is-active --quiet hi-server.service", "daemon-reload"}
+	if code != 0 || strings.Join(runs, "|") != strings.Join(want, "|") || !strings.Contains(stdout, "hi-server.service runs v0.9.0.") {
+		t.Fatalf("rename: %d %q\n%s%s", code, runs, stdout, stderr)
+	}
+	if fileExists(oldOrgUserUnitPath()) {
+		t.Error("hi-org.service is still there")
+	}
+	unit, _ := os.ReadFile(orgUserUnitPath())
+	for _, line := range []string{"Description=hi server\n", "Environment=HI_ORG_DIR=/srv/org\n", "ExecStart=/usr/local/bin/hi server run\n"} {
+		if !strings.Contains(string(unit), line) {
+			t.Errorf("hi-server.service lacks %q:\n%s", line, unit)
+		}
+	}
+
+	// When the new one doesn't come up, the old one runs again.
+	os.Remove(orgUserUnitPath())
+	os.WriteFile(oldOrgUserUnitPath(), []byte("[Service]\nExecStart=/usr/local/bin/hi org run\n"), 0o644)
+	runs = nil
+	appSystemctl = func(args ...string) (string, error) {
+		runs = append(runs, strings.Join(args, " "))
+		if args[0] == "is-active" {
+			return "", errors.New("inactive")
+		}
+		return "", nil
+	}
+	if err := moveOrgUserUnit(io.Discard); err == nil || !strings.Contains(err.Error(), "hi-org.service runs again") || !fileExists(oldOrgUserUnitPath()) || fileExists(orgUserUnitPath()) {
+		t.Fatalf("no way back: %v %q", err, runs)
+	}
+	if last := runs[len(runs)-1]; last != "enable --now hi-org.service" {
+		t.Errorf("last: %q", last)
 	}
 }

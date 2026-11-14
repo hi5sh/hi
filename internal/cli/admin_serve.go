@@ -1103,7 +1103,7 @@ func adminLogs(app, cursor string) ([]adminLogLine, string, error) {
 		if adminOrgDir() == "" {
 			return nil, cursor, errors.New("this machine runs no server")
 		}
-		args = []string{"--user", "-u", orgUnit}
+		args = []string{"--user", "-u", orgUserUnitNow()}
 		if adminOrgService() == "system" {
 			args = []string{"-u", systemOrgUnit()}
 		}

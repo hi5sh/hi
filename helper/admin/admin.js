@@ -1276,7 +1276,7 @@ function logsApp() {
   const here = openApp && !movedOpen() ? openApp : "";
   const app = here || (state && state.org && (orgOpen() || !state.apps.length) ? ":org" : "");
   $("logs-whose").textContent = here ? here : app === ":org" ? "The server" : "The admin page";
-  $("logs-whose").title = here ? here + "'s lead and service" : app === ":org" ? "hi-org.service" : "Open an app, or the server, for its logs";
+  $("logs-whose").title = here ? here + "'s lead and service" : app === ":org" ? "hi-server.service" : "Open an app, or the server, for its logs";
   return app;
 }
 $("logs-errors").addEventListener("click", () => {
@@ -1640,7 +1640,7 @@ function orgServerBlock(s) {
   if (o.error) block.append(el("p", { class: "error small" }, o.error));
   if (s && s.listen) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi server join " + s.listen)));
   if (o.service === "user") {
-    block.append(el("p", { class: "muted small" }, "A user service, hi-org.service, beside this page."));
+    block.append(el("p", { class: "muted small" }, "A user service, hi-server.service, beside this page."));
     block.append(el("button", { class: "small", onclick: async () => {
       const ok = await ask({ title: "Restart the server?", text: "It is down for about a second. Machines keep running, and requests wait.", ok: "Restart" });
       if (ok) orgDo({ what: "restart" }, "The server restarted.");

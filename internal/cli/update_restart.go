@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// After an update, a running `hi server run` (or `hi org run`, its other name) or
+// After an update, a running `hi server run` (or `hi org run`, from before) or
 // app (`hi app __serve`, `hi team __serve` in older units) still runs the
 // old binary until it restarts. hi update finds them, and the systemd unit
 // that runs them, and offers to restart them.
@@ -31,7 +31,7 @@ var (
 // been replaced.
 type staleServer struct {
 	pid  int
-	unit string // such as hi-org.service, or "" when systemd doesn't run it
+	unit string // such as hi-server.service, or "" when systemd doesn't run it
 	user bool   // a systemd --user unit
 	team string // the team's name; "" for a hi server
 	// admin is the admin page (hi server __page), a user service.
@@ -115,7 +115,7 @@ func staleServers(path string) []staleServer {
 }
 
 // systemdUnit reads the service a process belongs to from its cgroup, such
-// as 0::/system.slice/hi-org.service.
+// as 0::/user.slice/user-1000.slice/user@1000.service/app.slice/hi-server.service.
 func systemdUnit(cgroupPath string) (string, bool) {
 	data, err := os.ReadFile(cgroupPath)
 	if err != nil {
@@ -195,6 +195,15 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 				fmt.Fprintf(stdout, "Not restarted. When you are ready:\n  %s\n", line)
 				continue
 			}
+		}
+		if server.user && server.unit == oldOrgUnit && fileExists(oldOrgUserUnitPath()) {
+			// Its new name comes with the restart (moveOrgUserUnit).
+			if err := moveOrgUserUnit(stdout); err != nil {
+				failed = append(failed, err.Error())
+				continue
+			}
+			fmt.Fprintf(stdout, "%s runs %s.\n", orgUnit, newVersion)
+			continue
 		}
 		if server.team != "" && !appWaitIdle(server.team, server.pid, stdout) {
 			fmt.Fprintf(stdout, "App %s is still busy, so it isn't restarted. When it is done:\n  %s\n", server.team, line)

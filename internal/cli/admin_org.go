@@ -35,7 +35,7 @@ func adminOrgCall(method, path string, body, result any) error {
 	if err != nil {
 		return errors.New("the server isn't running: " + orgRestartLine())
 	}
-	return doJSON(client, method, "http://hi-org"+path, body, result, nil)
+	return doJSON(client, method, "http://hi-server"+path, body, result, nil)
 }
 
 // adminOrgSummary is the org as /api/state carries it, every few seconds:
@@ -60,7 +60,7 @@ type adminOrgSummary struct {
 
 func adminOrgService() string {
 	switch {
-	case fileExists(orgUserUnitPath()):
+	case orgUserUnitHere():
 		return "user"
 	case systemOrgUnit() != "":
 		return "system"
@@ -377,8 +377,8 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 		if adminOrgService() != "user" {
 			return nil, fmt.Errorf("the server is a system service here, so restarting it needs sudo: %s. hi update on the machine makes it a user service, once", orgRestartLine())
 		}
-		if out, err := appSystemctl("restart", orgUnit); err != nil {
-			return nil, fmt.Errorf("systemctl --user restart %s: %s", orgUnit, qFirstLine(out, err.Error()))
+		if out, err := appSystemctl("restart", orgUserUnitNow()); err != nil {
+			return nil, fmt.Errorf("systemctl --user restart %s: %s", orgUserUnitNow(), qFirstLine(out, err.Error()))
 		}
 		adminRecord(admin.Name, "", "restarted the server")
 		return map[string]string{"text": "The server restarted."}, nil

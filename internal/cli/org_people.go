@@ -271,7 +271,7 @@ func orgChangePeople(dir string, input orgPeopleInput) (orgPeopleResult, error) 
 			return orgPeopleResult{}, err
 		}
 		var result orgPeopleResult
-		if err := doJSON(client, http.MethodPost, "http://hi-org/admin/people", input, &result, nil); err != nil {
+		if err := doJSON(client, http.MethodPost, "http://hi-server/admin/people", input, &result, nil); err != nil {
 			return result, err
 		}
 		return result, nil

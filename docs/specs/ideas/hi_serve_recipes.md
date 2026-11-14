@@ -230,7 +230,7 @@ As bundles (hi_agent_bundles.md), from three sources:
 
 1. **hi itself**, built in under `recipes/<kind>/`.
 2. **The org's template sources**, from a `recipes/` folder in the same
-   repositories as templates and bundles, fetched through the org server
+   repositories as templates and bundles, fetched through the server
    (hi_server.md, template sources) at a commit.
 3. **Your own folder**, `HI_RECIPES_DIR`, for writing and trying recipes.
 
@@ -263,15 +263,15 @@ Release 3 of hi_serve.md lets a shared model be named to the org with
 
 ```text
 hi serve db postgres --name experiments --share --org
-hi org services              # what is named to the org: kind, owner, machine, address
+hi server services              # what is named to the org: kind, owner, machine, address
 ```
 
 - Naming something to the org is a request, approved in Slack like any
   other, and recorded in the audit log.
-- Members see it in `hi org services` and the Slack Home. A model is still
-  reached through `hi org ai`; other kinds are reached at their own
+- Members see it in `hi server services` and the Slack Home. A model is still
+  reached through `hi server ai`; other kinds are reached at their own
   address, over NetBird, with their own credentials (open question 5).
-- `hi org policy` can say which kinds and recipe sources a group may serve
+- `hi server policy` can say which kinds and recipe sources a group may serve
   on the org's machines.
 
 ## Releases
@@ -285,7 +285,7 @@ hi org services              # what is named to the org: kind, owner, machine, a
    serve files webdav` and `sftp`.
 3. **More databases.** `hi serve db duckdb` over Quack, and `hi serve db
    valkey`.
-4. **The org's catalog.** `--org` for every kind, `hi org services`, and
+4. **The org's catalog.** `--org` for every kind, `hi server services`, and
    the policy on the org's machines.
 5. **FTP**, if open question 2 keeps it.
 6. **Later kinds**, each with its own section here first.
@@ -325,11 +325,11 @@ hi org services              # what is named to the org: kind, owner, machine, a
 4. **Major upgrades** of a database: refuse with the steps, or run the
    engine's upgrade into a new data folder and keep the old one?
 5. **Credentials for the org's members.** The owner hands them out with `hi
-   serve key`, or the org server gives each member their own, as `hi org
+   serve key`, or the server gives each member their own, as `hi server
    ai` does with signed requests?
 6. **Teams using a served thing.** A team's boxes reach only what their
    proxy allows; should a team's owners be able to allow a served thing's
-   VPN address, and is that shown in `hi org services`?
+   VPN address, and is that shown in `hi server services`?
 7. **Recipe names without a kind's recipe.** Should `hi serve web <folder>`
    mean `static` when a kind has one obvious recipe? The proposal is no:
    one grammar, `hi serve <kind> <recipe>`, and `hi serve web` lists the

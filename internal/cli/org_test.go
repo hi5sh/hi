@@ -59,7 +59,7 @@ func TestHelpNamesOnlyServer(t *testing.T) {
 
 // No message names the old commands: usage, errors, hints, and what goes to
 // Slack all say hi server (hi_server_apps.md). Comments may keep the old
-// words, and hi server's help says once that hi org is its old name.
+// words; the unit text that hi update moves from is matched as it was.
 func TestMessagesUseServerNames(t *testing.T) {
 	old := regexp.MustCompile(`\bhi (org|connect|disconnect)\b`)
 	files, err := filepath.Glob("*.go")
@@ -77,7 +77,7 @@ func TestMessagesUseServerNames(t *testing.T) {
 		}
 		ast.Inspect(file, func(n ast.Node) bool {
 			if lit, ok := n.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-				if match := old.FindString(lit.Value); match != "" && !strings.Contains(lit.Value, "hi org is its old name") && !strings.Contains(lit.Value, "Description=hi org server") {
+				if match := old.FindString(lit.Value); match != "" && !strings.Contains(lit.Value, "Description=hi org server") {
 					t.Errorf("%s: %q; say hi server", fset.Position(lit.Pos()), match)
 				}
 			}

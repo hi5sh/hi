@@ -2,7 +2,7 @@
 
 Status: Draft
 
-Dependencies: `hi org` (devices, users, the request flow and its exit
+Dependencies: `hi server` (devices, users, the request flow and its exit
 statuses, Slack over Socket Mode, linked Slack accounts, approvers, audit),
 `hi skill`, and `hi box` (an agent in a box reaches hi on the host through
 its socket).
@@ -47,7 +47,7 @@ hi ask cancel <id>               withdraw an open question
 
 - `--to` defaults to the asker's **owner**: the person an agent works for
   (the device's user, or the `--owner` of an agent enrolled with
-  `hi org join --agent`). A person asking defaults to `approvers`. `@group`
+  `hi server join --agent`). A person asking defaults to `approvers`. `@group`
   is a group from `policy.json`; `approvers` is the approvers list.
 - `--choices` gives one button per choice and prints the chosen text.
   `--approve` gives **Approve** and **Deny…** and prints nothing on approval.
@@ -77,7 +77,7 @@ requests` can use it for expired requests too. `--json` prints
 ## Slack
 
 One message per question, in a direct message to a single person or in
-`#hi-asks` for a group (a channel the admin names in `hi org slack
+`#hi-asks` for a group (a channel the admin names in `hi server slack
 setup`; `#compute-approvals` is the default so nothing new is needed):
 
 ```text
@@ -105,7 +105,7 @@ setup`; `#compute-approvals` is the default so nothing new is needed):
 
 People without Slack answer in the terminal: `hi ask inbox` lists open
 questions for them, and `hi ask answer <id> "<text>"` replies. Admins have
-`hi org ask answer` on the server box as the fallback when Slack is down.
+`hi server ask answer` on the server box as the fallback when Slack is down.
 
 ## Agents
 

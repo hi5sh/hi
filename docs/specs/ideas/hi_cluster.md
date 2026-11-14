@@ -1,4 +1,4 @@
-# `hi org machines`: workloads on the organization's own machines
+# `hi server machines`: workloads on the organization's own machines
 
 Status: Draft (2026-11-01; named `hi cluster` until 2026-11-02), revised
 on 2026-11-03 with its three open questions decided (Decisions 7 to 9), for
@@ -36,7 +36,7 @@ completion, a team.
 ## Idea in one line
 
 The organization's machines become one more compute provider on the org
-server, `own`, priced at zero. What the org server already does for RunPod
+server, `own`, priced at zero. What the server already does for RunPod
 (approve, lease, list, reconcile, stop, show) it does for them, and `hi
 compute hardware` shows a free spot on a workstation next to an H100 on
 RunPod.
@@ -46,8 +46,8 @@ RunPod.
 | Need | In hi today |
 |---|---|
 | A private network between machines | NetBird (`hi net`) and its access control |
-| A central place, users, keys | `hi org`: ed25519 device keys approved by an admin, users, groups, policy, budgets |
-| Approvals, audit, watching | Slack approvals, the audit log, `hi org live`, the reconciler that stops what has expired |
+| A central place, users, keys | `hi server`: ed25519 device keys approved by an admin, users, groups, policy, budgets |
+| Approvals, audit, watching | Slack approvals, the audit log, `hi server live`, the reconciler that stops what has expired |
 | Finding and reaching a machine | `computeProvider` (`compute.go`) and the `managed` driver: `hardware`, `create`, `list`, `stop`, `ssh`, `logs`, `runJob`, `wait`; the `--max` watchdog |
 | The thing that runs | `hi box`: rootless Podman, the egress proxy, presets, limits; `hi agent` and `hi team` build on it |
 | A machine that reports | The machine heartbeat timer (hi_app_ops.md, release 2) |
@@ -55,15 +55,15 @@ RunPod.
 
 ## What is new
 
-1. **A machine offers room.** On the machine, `hi org offer` uses its
+1. **A machine offers room.** On the machine, `hi server offer` uses its
    existing device key to ask the server to add it as a host; an admin
    approves it in Slack, as with enrollment. The offer says what guests may
    use, for example 64 GB of RAM and 8 cores, and whether the GPU. Running
-   `hi org offer` again changes the offer; a smaller one takes nothing from
+   `hi server offer` again changes the offer; a smaller one takes nothing from
    guests already running. Only a machine that runs no teams may offer
-   room (Decision 7): `hi org offer` refuses on one that does, and `hi team
-   up` refuses on a host that offers, naming `hi org offer off`.
-2. **An inventory.** Every device that runs `hi org offer`, and every
+   room (Decision 7): `hi server offer` refuses on one that does, and `hi team
+   up` refuses on a host that offers, naming `hi server offer off`.
+2. **An inventory.** Every device that runs `hi server offer`, and every
    machine with teams that chooses to, reports its totals, what its teams
    and boxes reserve, and what is left for guests, signed with its device
    key, from a systemd user timer of its own every minute. (The machine
@@ -90,7 +90,7 @@ RunPod.
    runs `hi serve llm <recipe> --on local --org` under the host's account,
    with the same box, front, units, and memory check as on your own
    machine, and the lease's end as its `--max`. The model is then reached
-   as `local/<name>` through `hi org ai`, as with `--org`, by the user who
+   as `local/<name>` through `hi server ai`, as with `--org`, by the user who
    asked and whoever the group policy allows; nobody holds its key by
    hand. `hi serve ls`, `status`, `logs`, `stop`, and `rm` work on it from
    the laptop through the lease.
@@ -98,7 +98,7 @@ RunPod.
 ## Commands
 
 Workloads take a flag on the commands that exist; the machines themselves
-are under `hi org`, next to the users and policy that decide who may use
+are under `hi server`, next to the users and policy that decide who may use
 them.
 
 ```text
@@ -112,22 +112,22 @@ hi team new demo --on gpu1                 # long-running, pinned
 hi serve llm qwen3.8-flash-next --on auto  # a host whose GPU and memory fit it
 
 # The machines
-hi org offer --cpu 8 --ram 64G [--gpu none]   # on the host: offer room to guests
-hi org offer                                  # on the host: what it offers now
-hi org offer off                              # on the host: running guests finish, no new ones
-hi org machines [--json]                      # hosts, free and used, what runs where
-hi org machines drain <host>                  # on the server box: no new work goes there
-hi org machines undrain <host>
+hi server offer --cpu 8 --ram 64G [--gpu none]   # on the host: offer room to guests
+hi server offer                                  # on the host: what it offers now
+hi server offer off                              # on the host: running guests finish, no new ones
+hi server machines [--json]                      # hosts, free and used, what runs where
+hi server machines drain <host>                  # on the server box: no new work goes there
+hi server machines undrain <host>
 ```
 
-`--on` rather than `hi org machines <machine> box ...`: it matches the
+`--on` rather than `hi server machines <machine> box ...`: it matches the
 approved `hi agent --on`, every command learns it the same way, and a
 machine name in a subcommand's place collides with subcommands (v2.5.57,
 "No machine called --help").
 
 `--on` already names a provider in `hi compute` (`--on runpod`). It keeps
 that meaning and gains machine names, `local`, and `auto` (hi_org.md), so a
-machine may not be named like a provider; `hi org offer` refuses one.
+machine may not be named like a provider; `hi server offer` refuses one.
 
 ## Flow
 
@@ -175,10 +175,10 @@ machine may not be named like a provider; `hi org offer` refuses one.
 5. **Who may place** is the existing groups and policy: for example staff
    auto-approved on free hosts up to a number of hours, students through an
    approver, agents in their own group.
-6. **The name is `hi org machines`, not `hi cluster`.** "Cluster" suggests
+6. **The name is `hi server machines`, not `hi cluster`.** "Cluster" suggests
    Slurm-like coupling that this doesn't have, and a separate top-level
    command would split the organization in two: its people and rules under
-   one name, its machines under another. They live together under `hi org`
+   one name, its machines under another. They live together under `hi server`
    (hi_org.md).
 
 Taken on 2026-11-03:
@@ -187,9 +187,9 @@ Taken on 2026-11-03:
    production teams offers no room, until the guest accounts of
    hi_app_accounts.md exist, so a guest's box can never reach a team's
    `secrets.json` or the machine's device key. This settles Decision 2.
-   Such machines may still report their inventory, so `hi org machines`
+   Such machines may still report their inventory, so `hi server machines`
    shows where everything runs.
-8. **Only through the org server.** Every placement goes through `hi org`:
+8. **Only through the server.** Every placement goes through `hi server`:
    device keys, policy, Slack approvals, leases, and the audit log. There
    is no mode without an org server: plain SSH over NetBird already does
    that, and hi would add nothing to it.
@@ -214,9 +214,9 @@ boxes, teams, the proxy, or approvals, which are the hard part here.
 
 ## Releases
 
-0. **First, `hi org`** (hi_org.md, release 1), so the machines are born under
+0. **First, `hi server`** (hi_org.md, release 1), so the machines are born under
    their own name.
-1. **Inventory.** `hi org offer`, `offer off`, and `hi org machines`, with
+1. **Inventory.** `hi server offer`, `offer off`, and `hi server machines`, with
    the hosts' resource reports. Read-only, and useful by itself: where is
    there room?
 2. **The `own` provider.** `hi compute up`, `ssh`, `tunnel`, `logs`, and
@@ -233,5 +233,5 @@ boxes, teams, the proxy, or approvals, which are the hard part here.
 ## Open questions
 
 1. Who may use a model served on a host for someone: only the user who
-   asked, or anyone the group policy allows through `hi org ai`? The draft
+   asked, or anyone the group policy allows through `hi server ai`? The draft
    above says the policy, as for `--org`.

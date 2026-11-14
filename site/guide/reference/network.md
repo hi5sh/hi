@@ -12,7 +12,7 @@ container's.
 ## The picture
 
 ```text
- devices (hi server join) ───TCP 7373────▶ hi server (hi-org.service)
+ devices (hi server join) ───TCP 7373────▶ hi server (hi-server.service)
                                                 ▲
                                                 │ the page calls the server for you
  admins, in a browser ────TCP 1984 / 443──▶ admin page (hi-admin.service)
@@ -32,7 +32,7 @@ On ws1, a machine with apps in the NetBird network `corp.example`.
 
 | Port | What listens | Where | Who connects | How they sign in |
 |------|--------------|-------|--------------|------------------|
-| **7373** | hi server, `hi-org.service` | the machine's NetBird address | devices that joined it, and `hi` on the machine | the device's key |
+| **7373** | hi server, `hi-server.service` | the machine's NetBird address | devices that joined it, and `hi` on the machine | the device's key |
 | **7374** | the server's data proxy for cloud jobs | the machine's NetBird address, published with `netbird expose` while a run needs it | rented machines in `hi compute run --data` and `up --data` | a run token, for that run's data |
 | **1984** | admin page, `hi-admin.service` | its own peer `ws1-admin` (with podman), else the machine's NetBird address; always `127.0.0.1` too | the server's owner and admins | a link, then a browser cookie |
 | **80** | admin page | its peer, for a name your IT team points at it (`hi server address`) | admins | as on 1984 |

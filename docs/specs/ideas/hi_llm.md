@@ -2,7 +2,7 @@
 
 Status: Draft
 
-Dependencies: `hi org ai` (the signed pass-through, usage records, spend),
+Dependencies: `hi server ai` (the signed pass-through, usage records, spend),
 a model served on the team's own machine (`hi serve llm`), and `hi q`'s provider order for
 devices without a server.
 
@@ -62,15 +62,15 @@ Model and pace:
 
 ## Where it runs
 
-`hi org ai` serves one upstream today. It gains **named upstreams**, so
+`hi server ai` serves one upstream today. It gains **named upstreams**, so
 one server can offer OpenRouter for `hi q` and the team's machine for bulk
 work at once:
 
 ```text
-hi org ai add local --url http://<machine>:8080/v1 --no-key
-hi org ai add team --url https://openrouter.ai/api/v1      # today's upstream, renamed
-hi org ai default team                                     # what hi q uses
-hi org ai bulk local                                       # what hi llm uses
+hi server ai add local --url http://<machine>:8080/v1 --no-key
+hi server ai add team --url https://openrouter.ai/api/v1      # today's upstream, renamed
+hi server ai default team                                     # what hi q uses
+hi server ai bulk local                                       # what hi llm uses
 ```
 
 Models from a named upstream are listed as `local/<model>`, and the routes
@@ -112,7 +112,7 @@ every answer against the schema anyway and retries once on a mismatch.
 
 - With the local upstream, there is no price; usage is still recorded per
   user and device in `ai_usage.jsonl`, marked `tool: llm`, so heavy use is
-  visible in `hi org spend`.
+  visible in `hi server spend`.
 - With a paid upstream, `hi llm` estimates the cost before starting and asks
   when it is over $1 (`--yes` skips it, after the person agreed, as the
   skill says). The server's existing records show the actual spend.

@@ -16,9 +16,13 @@ import (
 // to the new name on its own, and the old name keeps working (hi_org.md,
 // Cleaning up).
 
+// From hi 2.6.150 the server's user service is hi-server.service again;
+// until then it was hi-org.service, which hi update moves (moveOrgUserUnit).
+// Before 2.6.57 the server could be a system unit, under either name.
 const (
-	orgUnit    = "hi-org.service"
-	oldOrgUnit = "hi-server.service"
+	orgUnit        = "hi-server.service"
+	oldOrgUnit     = "hi-org.service"
+	legacyOrgUnits = "hi-server.service hi-org.service" // system units, oldest last
 )
 
 // systemdUnitDir is replaced in tests.
@@ -108,18 +112,19 @@ func moveOrgConnection() {
 // orgRestartLine is how to restart the org server on this machine.
 func orgRestartLine() string {
 	switch system := systemOrgUnit(); {
-	case fileExists(orgUserUnitPath()):
-		return "systemctl --user restart " + orgUnit
+	case orgUserUnitHere():
+		return "systemctl --user restart " + orgUserUnitNow()
 	case system != "":
 		return "sudo systemctl restart " + system
 	}
 	return "restart `hi server run`"
 }
 
-// orgUnitFrom rewrites a hi-server.service for hi-org.service: its
-// description, HI_ORG_DIR in place of HI_SERVER_DIR (the new default
-// directory where it named the old default, which hi org run then moves),
-// and org run in place of server run. Anything else an admin added stays.
+// orgUnitFrom rewrites an old system unit for the server's user service:
+// its description, HI_ORG_DIR in place of HI_SERVER_DIR (the new default
+// directory where it named the old default, which hi server run then
+// moves), and server run in place of org run. Anything else an admin
+// added stays.
 func orgUnitFrom(unit string) string {
 	home := ""
 	for _, line := range strings.Split(unit, "\n") {
@@ -138,7 +143,7 @@ func orgUnitFrom(unit string) string {
 		trimmed := strings.TrimSpace(line)
 		switch {
 		case strings.HasPrefix(trimmed, "Description="):
-			lines[i] = "Description=hi org server"
+			lines[i] = "Description=hi server"
 		case strings.HasPrefix(trimmed, "Environment=") && strings.Contains(trimmed, "HI_SERVER_DIR="):
 			fields := strings.Fields(strings.TrimPrefix(trimmed, "Environment="))
 			for j, field := range fields {
@@ -156,8 +161,8 @@ func orgUnitFrom(unit string) string {
 			lines[i] = "Environment=" + strings.Join(fields, " ")
 		case strings.HasPrefix(trimmed, "ExecStart="):
 			fields := strings.Fields(trimmed)
-			if len(fields) >= 3 && fields[1] == "server" && fields[2] == "run" {
-				fields[1] = "org"
+			if len(fields) >= 3 && fields[1] == "org" && fields[2] == "run" {
+				fields[1] = "server"
 				lines[i] = strings.Join(fields, " ")
 			}
 		}
@@ -165,21 +170,105 @@ func orgUnitFrom(unit string) string {
 	return strings.Join(lines, "\n")
 }
 
-// orgUserUnitPath is hi-org.service as a user service, beside the admin
+// orgUserUnitPath is hi-server.service as a user service, beside the admin
 // page's and the apps'.
-func orgUserUnitPath() string {
+func orgUserUnitPath() string { return userUnitPath(orgUnit) }
+
+// oldOrgUserUnitPath is hi-org.service, the user service's name until hi
+// 2.6.150.
+func oldOrgUserUnitPath() string { return userUnitPath(oldOrgUnit) }
+
+func userUnitPath(unit string) string {
 	base := os.Getenv("XDG_CONFIG_HOME")
 	if base == "" {
 		home, _ := os.UserHomeDir()
 		base = filepath.Join(home, ".config")
 	}
-	return filepath.Join(base, "systemd", "user", orgUnit)
+	return filepath.Join(base, "systemd", "user", unit)
+}
+
+// orgUserUnitHere says whether the server is a user service here, under
+// either name.
+func orgUserUnitHere() bool { return fileExists(orgUserUnitPath()) || fileExists(oldOrgUserUnitPath()) }
+
+// orgUserUnitNow is the user service's name on this machine:
+// hi-org.service until hi update has moved it.
+func orgUserUnitNow() string {
+	if !fileExists(orgUserUnitPath()) && fileExists(oldOrgUserUnitPath()) {
+		return oldOrgUnit
+	}
+	return orgUnit
+}
+
+// orgUserUnitRenamed is hi-org.service's text for hi-server.service: its
+// description, and server run in place of org run.
+func orgUserUnitRenamed(unit string) string {
+	lines := strings.Split(unit, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "Description=hi org server":
+			lines[i] = "Description=hi server"
+		case strings.HasPrefix(trimmed, "ExecStart="):
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 3 && fields[1] == "org" && fields[2] == "run" {
+				fields[1] = "server"
+				lines[i] = strings.Join(fields, " ")
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// moveOrgUserUnit renames the server's user service from hi-org.service to
+// hi-server.service, which restarts it: the new unit is written, the old
+// one stopped and disabled, the new one enabled and started, and the old
+// file removed. If the new one doesn't come up, the old one runs again.
+func moveOrgUserUnit(stdout io.Writer) error {
+	oldPath, newPath := oldOrgUserUnitPath(), orgUserUnitPath()
+	data, err := os.ReadFile(oldPath)
+	if err != nil {
+		return err
+	}
+	if fileExists(newPath) {
+		return fmt.Errorf("both %s and %s are there; remove the one you don't use", oldOrgUnit, orgUnit)
+	}
+	if err := os.WriteFile(newPath, []byte(orgUserUnitRenamed(string(data))), 0o644); err != nil {
+		return err
+	}
+	run := func(args ...string) error {
+		line := "systemctl --user " + strings.Join(args, " ")
+		fmt.Fprintf(stdout, "$ %s\n", line)
+		if out, err := appSystemctl(args...); err != nil {
+			return fmt.Errorf("%s failed: %s", line, qFirstLine(out, err.Error()))
+		}
+		return nil
+	}
+	back := func(err error) error {
+		run("disable", "--now", orgUnit)
+		os.Remove(newPath)
+		run("daemon-reload")
+		run("enable", "--now", oldOrgUnit)
+		return err
+	}
+	for _, step := range [][]string{{"daemon-reload"}, {"disable", "--now", oldOrgUnit}, {"enable", "--now", orgUnit}} {
+		if err := run(step...); err != nil {
+			return back(err)
+		}
+	}
+	if _, err := appSystemctl("is-active", "--quiet", orgUnit); err != nil {
+		return back(fmt.Errorf("%s did not come up, so %s runs again; check `journalctl --user -u %s`", orgUnit, oldOrgUnit, orgUnit))
+	}
+	os.Remove(oldPath)
+	run("daemon-reload")
+	fmt.Fprintf(stdout, "The server's service is %s now (it was %s).\n", orgUnit, oldOrgUnit)
+	return nil
 }
 
 // systemOrgUnit is the org server's system unit on this machine, from
 // before it was a user service, or "".
 func systemOrgUnit() string {
-	for _, unit := range []string{orgUnit, oldOrgUnit} {
+	for _, unit := range strings.Fields(legacyOrgUnits) {
 		if fileExists(filepath.Join(systemdUnitDir, unit)) {
 			return unit
 		}
@@ -192,14 +281,14 @@ func systemOrgUnit() string {
 // address is there.
 func orgUserUnitText(executable, dir string) string {
 	return fmt.Sprintf(`[Unit]
-Description=hi org server
+Description=hi server
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
 
 [Service]
 Environment=HI_ORG_DIR=%s
-ExecStart=%s org run
+ExecStart=%s server run
 Restart=always
 RestartSec=5
 
@@ -243,7 +332,7 @@ func orgUnitAccount(unit string) string {
 	return "root"
 }
 
-// moveOrgUnit makes the org server a user service: hi-org.service in
+// moveOrgUnit makes the server a user service: hi-server.service in
 // ~/.config/systemd/user from the system unit, the account's services kept
 // running without a login, and the system unit removed, with sudo this
 // once. If the user service doesn't come up, the system unit runs again.

@@ -21,7 +21,7 @@ hi compute up --gpu <hardware> --idle 30m
 about 5% utilization, with unchanged memory use, for that long. Stopping
 deletes the machine on every provider, exactly as `hi compute stop` does.
 Without `--idle`, nothing changes. A policy default per group in
-`policy.json` and an idle column in `hi org live` are later additions.
+`policy.json` and an idle column in `hi server live` are later additions.
 
 ## Reading GPU use
 
@@ -52,7 +52,7 @@ As with `--max`, in two places where possible:
   be put on the machine; `auto_delete.date_threshold` at `--max` gives it a
   server-side backstop. Colab is stopped by hi with `colab stop`, because the
   CLI's keep-alive defeats Colab's own idle timeout.
-- With `hi org`, the server's reconciler checks managed instances instead
+- With `hi server`, the server's reconciler checks managed instances instead
   of the laptop.
 
 ## Provider findings
