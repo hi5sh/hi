@@ -152,7 +152,7 @@ func (b *appBroker) devSetting(request appDevSettingRequest) (string, error) {
 	if err := saveTeamSecrets(b.team, secrets); err != nil {
 		return "", err
 	}
-	return text + " The next preview has it: hi dev preview again to use it now.", nil
+	return text + " Within a minute the preview has it in " + appBoxSettingsDir + "; its environment from its next start: hi dev preview again for that now.", nil
 }
 
 // appContainerRunning says whether a box's container runs.

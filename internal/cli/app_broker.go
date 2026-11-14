@@ -195,6 +195,9 @@ type appBroker struct {
 	answers func(hostPort int) bool
 	// removeApp removes an app's box; tests replace it.
 	removeApp func(container string)
+	// signalBox sends an app's box a signal, for new settings
+	// (app_settings_live.go); tests replace it.
+	signalBox func(container, signal string) error
 	// wakeLead adds a job to the lead's Hermes that runs once, soon, with a
 	// prompt, its answer delivered to a Slack thread (app_handoff.go);
 	// nil in tests that don't set it.
@@ -277,6 +280,10 @@ func newTeamBroker(team, hi string) *appBroker {
 	b.oldImage = b.appOnOldImage
 	b.answers = appBoxAnswers
 	b.removeApp = func(container string) { b.engineOutput("rm", "-f", container) }
+	b.signalBox = func(container, signal string) error {
+		_, err := b.engineOutput("kill", "--signal", signal, container)
+		return err
+	}
 	b.agyRun = appAgyRunIn(hi)
 	b.run = func(args ...string) ([]byte, error) {
 		// What a member or a preview starts must outlive a restart of the

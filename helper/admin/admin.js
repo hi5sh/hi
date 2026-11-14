@@ -2982,7 +2982,7 @@ function sectionSettings(s) {
   for (const e of s.env) {
     list.append(el("li", {}, el("span", { class: "what" }, el("code", {}, e.name), " ", el("span", { class: "muted small" }, scopes[e.scope] + (e.file ? ", a file" : ""))),
       el("span", { class: "actions" }, e.file ? "" : el("button", { class: "small", onclick: () => setEnv(e.name, e.scope) }, "New value"),
-        el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "The app's boxes no longer get it, from their next start.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
+        el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "It leaves the app's boxes' settings files within a minute, and their environment at their next start.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
   }
   if (!s.env.length) list.append(el("li", { class: "plain muted small" }, "None yet."));
   const helper = (slot, label) => {
@@ -3018,7 +3018,7 @@ function sectionSettings(s) {
 }
 
 async function setEnv(name, scope) {
-  const answer = await ask({ title: name ? "A new value for " + name : "A setting", text: (name ? "" : "Its name, then its value. ") + "The value goes to the machine once and is never shown again. The app's boxes get it from their next start.", ok: "Save", field: name ? "Its value" : "NAME=value", fieldCheck: (v) => (name ? (v ? "" : "Give its value.") : /^[A-Za-z_][A-Za-z0-9_]*=/.test(v) ? "" : "NAME=value, such as STRIPE_KEY=sk_live_…"), check: name ? "" : "Production's own, which Stage mustn't use" });
+  const answer = await ask({ title: name ? "A new value for " + name : "A setting", text: (name ? "" : "Its name, then its value. ") + "The value goes to the machine once and is never shown again. The app's boxes have it in their settings files within a minute, and in their environment from their next start.", ok: "Save", field: name ? "Its value" : "NAME=value", fieldCheck: (v) => (name ? (v ? "" : "Give its value.") : /^[A-Za-z_][A-Za-z0-9_]*=/.test(v) ? "" : "NAME=value, such as STRIPE_KEY=sk_live_…"), check: name ? "" : "Production's own, which Stage mustn't use" });
   if (!answer) return;
   let key = name, value = answer.field;
   if (!name) { key = answer.field.slice(0, answer.field.indexOf("=")); value = answer.field.slice(answer.field.indexOf("=") + 1); scope = answer.checked ? "production" : "all"; }

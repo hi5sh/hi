@@ -235,8 +235,12 @@ func appDevEnvFile(env map[string]string) string {
 	for _, key := range keys {
 		fmt.Fprintf(&text, "export %s=%s\n", key, shellQuote(env[key]))
 	}
+	text.WriteString("# The dev box's own settings (hi app env --dev), as they are now.\n" + appDevSettingsLine + "\n")
 	return text.String()
 }
+
+// appDevSettingsLine reads the dev box's settings in a login's shell.
+const appDevSettingsLine = `if [ -r ` + appBoxSettingsFile + ` ]; then set -a; . ` + appBoxSettingsFile + `; set +a; fi`
 
 const appDevSourceLine = `[ -f "$HOME/.hi-env" ] && . "$HOME/.hi-env"`
 
@@ -496,21 +500,16 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 		return err
 	}
 	env := appDevEnv(name, meta.ProxyIP)
-	// The dev box's own settings (hi app env --dev); hi's own come first.
-	settings := appDevSettings(name)
-	for key := range settings {
-		if _, ok := env[key]; ok {
-			delete(settings, key)
-		}
-	}
-	files, err := writeTeamAppFiles(name, appSlotDev)
+	env[appSettingsDirEnv], env[appSettingsFileEnv] = appBoxSettingsDir, appBoxSettingsFile
+	// The dev box's own settings (hi app env --dev) are files in memory,
+	// never given to the engine (app_settings_live.go); hi's own come
+	// first.
+	settings, _, err := writeAppSlotSettings(name, appSlotDev)
 	if err != nil {
 		teardownBox(engine, meta)
 		return err
 	}
-	login := maps.Clone(env)
-	maps.Copy(login, settings)
-	if err := prepareTeamDevHome(name, meta.ProxyIP, login); err != nil {
+	if err := prepareTeamDevHome(name, meta.ProxyIP, env); err != nil {
 		teardownBox(engine, meta)
 		return err
 	}
@@ -531,7 +530,8 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 		"-v", claude+":/usr/local/bin/claude:ro",
 		"-v", herdr+":/usr/local/bin/herdr:ro",
 		"-v", filepath.Join(dev, "bin")+":/box/bin:ro",
-		"-v", files+":"+appBoxFilesDir+":ro",
+		"-v", settings+":"+appBoxSettingsMount+":ro",
+		"-v", filepath.Join(settings, "files")+":"+appBoxFilesDir+":ro",
 		"-w", "/box/repo")
 	if codex, err := boxHostBinary("codex"); err == nil {
 		run = append(run, "-v", filepath.Dir(filepath.Dir(codex))+":/opt/codex:ro")
@@ -544,17 +544,9 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 	for _, key := range keys {
 		run = append(run, "-e", key+"="+env[key])
 	}
-	// The owners' settings from a file, off the engine's command line,
-	// where anyone on the machine can see them.
-	envFile, err := writeTeamAppEnvFile(name, settings)
-	if err != nil {
-		teardownBox(engine, meta)
-		return err
-	}
-	defer os.Remove(envFile)
-	run = append(run, "--env-file", envFile)
-	// sshd for the owners, then herdr's server, which keeps the agents.
-	run = append(run, image, "sh", "-c", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config -E /box/home/.sshd.log && exec herdr server")
+	// sshd for the owners, then herdr's server, which keeps the agents,
+	// with the dev box's settings (hi-env).
+	run = append(run, image, "sh", "-c", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config -E /box/home/.sshd.log && exec hi-env herdr server")
 	if out, err := engine.output(run...); err != nil {
 		teardownBox(engine, meta)
 		return fmt.Errorf("starting the dev box: %s", qFirstLine(out, err.Error()))
@@ -1121,9 +1113,17 @@ func copyTeamDevHi(team, hi string) error {
 		return err
 	}
 	if old, err := os.ReadFile(filepath.Join(dir, "hi")); err == nil && bytes.Equal(old, data) {
-		return nil
+		if _, err := os.Lstat(filepath.Join(dir, "hi-env")); err == nil {
+			return nil
+		}
+		return os.Symlink("hi", filepath.Join(dir, "hi-env"))
 	}
-	return writeFileAtomic(filepath.Join(dir, "hi"), data, 0o755)
+	if err := writeFileAtomic(filepath.Join(dir, "hi"), data, 0o755); err != nil {
+		return err
+	}
+	// hi-env, on the box's PATH, is hi too (app_settings_live.go).
+	os.Remove(filepath.Join(dir, "hi-env"))
+	return os.Symlink("hi", filepath.Join(dir, "hi-env"))
 }
 
 // installTeamDevKit writes the skills, herdr's own, and the instructions

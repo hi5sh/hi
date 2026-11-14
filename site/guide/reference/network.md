@@ -21,7 +21,8 @@ container's.
  an app's owners ─────────TCP 8888, 22────▶ ┴ the app's NetBird peer, hi-<app>
                                                 │
                                                 ▼
-                                            the app's boxes: no way out but hi's proxy
+                                            Stage's and production's boxes: the internet, every lookup logged
+                                            the lead's and the dev box: no way out but hi's proxy
 
  cloud jobs (--data) ─────https───▶ netbird expose ───▶ server :7374, the data proxy only
 ```
@@ -78,7 +79,7 @@ These are only on a box's own network or a socket, never on NetBird:
 
 | Port | What |
 |------|------|
-| 3128 | hi's proxy, a box's only way out, to the hosts in its allowlist ([hi box](/guide/box/)) |
+| 3128 | hi's proxy, the only way out of a `hi box`, the lead's box, and the dev box, to the hosts in its allowlist ([hi box](/guide/box/)); Stage's and production's boxes reach the internet themselves, through a resolver that logs every name they look up |
 | 3129 | in a box: the proxy that puts real tokens in place of placeholders; in an app's box, the relay for its model calls |
 | 3130 | in a box with `--data`: the data proxy |
 | 8888 | Hindsight, an app lead's memory, on the app's own network |

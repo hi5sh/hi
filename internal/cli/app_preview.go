@@ -701,6 +701,8 @@ func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 				}
 			}
 		}
+		// New settings in each running box's settings files.
+		b.syncSettings(stderr)
 		if time.Since(failed) > 30*time.Minute && b.productionNeedsWork() {
 			if state, ok := loadTeamSlot(b.team, appSlotProduction); ok {
 				b.appStopped(state) // an incident, when it stopped on its own
@@ -811,7 +813,7 @@ func appLinkKey(link string) string {
 // startApp runs the project in its box: the hardening every box has, no
 // credentials, its port published to this machine only, its data folder
 // at /data, its address folder read-only at /hi, its slot and the team's
-// settings, its file settings read-only at /hi-files, the models socket, which hi team __app relays to an ordinary
+// settings in memory, read-only at /run/hi and /hi-files, hi-env, the models socket, which hi team __app relays to an ordinary
 // address in the box, and the slot's workers' lock, which it holds for the
 // box (app_workers.go).
 func (b *appBroker) startApp(slot, name, src, data, address, command string, port, hostPort int) error {
@@ -835,12 +837,15 @@ func (b *appBroker) startApp(slot, name, src, data, address, command string, por
 	if err := os.MkdirAll(workers, 0o700); err != nil {
 		return err
 	}
-	envFile, err := writeTeamAppEnvFile(b.team, appBoxEnv(b.team, slot, port))
+	// hi's own variables; the app's settings are files in memory, never
+	// given to the engine, which keeps what it's given on disk
+	// (app_settings_live.go).
+	envFile, err := writeTeamAppEnvFile(b.team, appBoxOwnEnv(b.team, slot, port))
 	if err != nil {
 		return err
 	}
 	defer os.Remove(envFile)
-	files, err := writeTeamAppFiles(b.team, slot)
+	settings, _, err := writeAppSlotSettings(b.team, slot)
 	if err != nil {
 		return err
 	}
@@ -858,8 +863,10 @@ func (b *appBroker) startApp(slot, name, src, data, address, command string, por
 		"-v", models+":"+appBoxModelsDir,
 		"-v", jobs+":"+appBoxJobsDir,
 		"-v", workers+":"+appBoxWorkersDir,
-		"-v", files+":"+appBoxFilesDir+":ro",
+		"-v", settings+":"+appBoxSettingsMount+":ro",
+		"-v", filepath.Join(settings, "files")+":"+appBoxFilesDir+":ro",
 		"-v", b.hi+":"+appBoxRelay+":ro",
+		"-v", b.hi+":"+appBoxHiEnv+":ro",
 		"--env-file", envFile,
 		image, appBoxRelay, "app", "__app", "--workers", appBoxWorkersDir, "--box", name,
 		appBoxModelsDir+"/"+appModelsSocket, strconv.Itoa(appBoxModelsPort), command)

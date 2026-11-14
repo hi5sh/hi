@@ -16,7 +16,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"maps"
 	"net"
 	"net/http"
@@ -54,7 +53,7 @@ var appEnvName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // named as its variable, which holds its path there.
 const (
 	appBoxFilesDir    = "/hi-files"
-	appFileSettingMax = 32 << 10
+	appFileSettingMax = 1 << 20
 )
 
 // appSlotDev is the dev box, for its own settings (hi app env --dev).
@@ -68,7 +67,8 @@ func appSlotFilesDir(team, slot string) string {
 
 // appBoxEnvReserved are the variables hi sets in an app's box itself.
 var appBoxEnvReserved = map[string]bool{"HOME": true, "PORT": true, "HOST": true, "PATH": true,
-	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "HI_WORKERS_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true}
+	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "HI_WORKERS_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true,
+	appSettingsDirEnv: true, appSettingsFileEnv: true}
 
 // appModelsDir holds the broker's models socket; app boxes mount it.
 func appModelsDir(name string) string { return appBrokerDir(name) + "-models" }
@@ -159,14 +159,19 @@ func appAskOpenRouterKey(stdin io.Reader, stdout io.Writer, question string) (st
 	}
 }
 
-// appSettingsStamp changes when what an app's box gets changes, so its
-// box starts again: the settings, how hi gives them, and hi itself, which
-// the box runs from a copy made when it started (hi team __app, the
-// models' relay), so an update reaches the app boxes too.
+// appSettingsStamp changes when an app's box must start again: hi itself,
+// which the box runs from a copy made when it started (hi app __app, the
+// models' relay), so an update reaches the app boxes too; how hi gives the
+// settings; and the settings, for an app that asked to restart on a change
+// (on_settings_change). Otherwise a change only rewrites the box's
+// settings files (app_settings_live.go).
 func appSettingsStamp(name string) string {
-	secrets, _ := loadTeamSecrets(name)
 	hash := sha256.New()
 	fmt.Fprintf(hash, "hi=%s\n", appStampVersion)
+	if config, err := loadTeam(name); err != nil || !appSettingsRestart(config) {
+		return "v2:" + hex.EncodeToString(hash.Sum(nil))[:16]
+	}
+	secrets, _ := loadTeamSecrets(name)
 	for _, set := range []struct {
 		prefix string
 		env    map[string]string
@@ -181,29 +186,33 @@ func appSettingsStamp(name string) string {
 			fmt.Fprintf(hash, "%s%s=%s\n", set.prefix, key, set.env[key])
 		}
 	}
-	return "v1:" + hex.EncodeToString(hash.Sum(nil))[:16]
+	return "v2:" + hex.EncodeToString(hash.Sum(nil))[:16]
 }
 
 // appBoxEnv is what an app's box gets: its port, its address file, its
 // slot ($HI_SLOT, preview or production, so work that costs money runs in
 // production only), the models at an ordinary address with a placeholder
 // key, and the team's settings: those for both slots, and the slot's own.
+//
+// The settings reach the box as files, not through the engine
+// (app_settings_live.go); appBoxOwnEnv is what the engine is given.
 func appBoxEnv(name, slot string, port int) map[string]string {
-	env := map[string]string{}
-	if secrets, err := loadTeamSecrets(name); err == nil {
-		own := secrets.EnvPreview
-		if slot == appSlotProduction {
-			own = secrets.EnvProduction
-		}
-		for _, set := range []map[string]string{secrets.Env, own} {
-			for key, value := range set {
+	env := appBoxOwnEnv(name, slot, port)
+	if values, _, err := appSlotSettings(name, slot); err == nil {
+		for key, value := range values {
+			if !appBoxEnvReserved[key] {
 				env[key] = value
 			}
 		}
-		for key := range appBoxFiles(secrets, slot) {
-			env[key] = appBoxFilesDir + "/" + key
-		}
 	}
+	return env
+}
+
+// appBoxOwnEnv is hi's own part of an app's box's environment: nothing
+// secret, so it can be in the engine's config.
+func appBoxOwnEnv(name, slot string, port int) map[string]string {
+	env := map[string]string{}
+	env[appSettingsDirEnv], env[appSettingsFileEnv] = appBoxSettingsDir, appBoxSettingsFile
 	env["HOME"], env["PORT"], env["HOST"] = "/tmp", strconv.Itoa(port), "0.0.0.0"
 	env["HI_PUBLIC_URL_FILE"] = appBoxAddressFile
 	env["HI_DATA_DIR"] = appBoxDataDir
@@ -239,35 +248,14 @@ func appBoxFiles(secrets appSecrets, slot string) map[string]string {
 	return files
 }
 
-// writeTeamAppFiles writes a slot's file settings for its box to mount,
-// each in place, so a box still running reads the new one, and removes
-// those it no longer gets.
+// writeTeamAppFiles writes a slot's settings folder and gives the folder
+// of its file settings, which its box mounts at /hi-files.
 func writeTeamAppFiles(team, slot string) (string, error) {
-	dir := appSlotFilesDir(team, slot)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	dir, _, err := writeAppSlotSettings(team, slot)
+	if err != nil {
 		return "", err
 	}
-	secrets, err := loadTeamSecrets(team)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return "", err
-	}
-	files := appBoxFiles(secrets, slot)
-	for key, value := range files {
-		data, err := base64.StdEncoding.DecodeString(value)
-		if err != nil {
-			return "", fmt.Errorf("the file %s: %w", key, err)
-		}
-		if err := writeFileAtomic(filepath.Join(dir, key), data, 0o600); err != nil {
-			return "", err
-		}
-	}
-	entries, _ := os.ReadDir(dir)
-	for _, entry := range entries {
-		if _, ok := files[entry.Name()]; !ok {
-			os.Remove(filepath.Join(dir, entry.Name()))
-		}
-	}
-	return dir, nil
+	return filepath.Join(dir, "files"), nil
 }
 
 // writeTeamAppEnvFile writes env for --env-file, so the settings stay out
@@ -422,23 +410,35 @@ func runTeamApp(args []string, stderr io.Writer) int {
 			}
 		}()
 	}
+	// The app's settings, from its settings folder, in its environment
+	// (app_settings_live.go).
+	settings := boxSettings(boxSettingsDirNow())
 	cmd := exec.Command("sh", "-c", command)
+	cmd.Env = boxEnvWithSettings(os.Environ(), boxSettingsDirNow())
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, stderr
 	if err := cmd.Start(); err != nil {
 		fmt.Fprintf(stderr, "hi: %v\n", err)
 		return 1
 	}
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2)
 	go func() {
 		for sig := range signals {
-			cmd.Process.Signal(sig)
+			switch sig {
+			case syscall.SIGHUP, syscall.SIGUSR1, syscall.SIGUSR2:
+				// The app asked for it on a change of its settings.
+				for _, pid := range boxSignalTargets(cmd.Process.Pid) {
+					syscall.Kill(pid, sig.(syscall.Signal))
+				}
+			default:
+				cmd.Process.Signal(sig)
+			}
 		}
 	}()
 	if workers != "" && box != "" {
 		done := make(chan struct{})
 		defer close(done)
-		go appWorkersRelay(workers, box, firstNonEmpty(os.Getenv("HI_WORKERS_FILE"), appBoxWorkersFile), appWorkersGrace(os.Getenv("HI_WORKERS_GRACE")), done, stderr)
+		go appWorkersRelay(workers, box, firstNonEmpty(os.Getenv("HI_WORKERS_FILE"), appBoxWorkersFile), appWorkersGrace(firstNonEmpty(settings["HI_WORKERS_GRACE"], os.Getenv("HI_WORKERS_GRACE"))), done, stderr)
 	}
 	err := cmd.Wait()
 	var exitErr *exec.ExitError
@@ -608,13 +608,20 @@ func appAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(stri
 // with --production for production alone, or with --preview a value of
 // the preview's own.
 func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]..."}
+	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...\n       hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2"}
 	if len(args) == 0 {
 		return usage
 	}
 	name := args[0]
-	if _, err := loadTeam(name); err != nil {
+	config, err := loadTeam(name)
+	if err != nil {
 		return err
+	}
+	if len(args) >= 2 && args[1] == "--on-change" {
+		if len(args) != 3 {
+			return usage
+		}
+		return appEnvOnChange(config, args[2], stdout)
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
@@ -725,10 +732,51 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "In %s, $%s is %s/%s, read-only. hi keeps it; the file you gave isn't needed on this machine any more.\n", where, key, appBoxFilesDir, key)
 	}
 	if slot == appSlotDev {
-		fmt.Fprintf(stdout, "The dev box has it from its next start: hi app dev %s restart, when the agents are idle.\n", name)
+		fmt.Fprintf(stdout, "Within a minute the dev box has it in %s; a new shell gets it, and the agents at the dev box's next start: hi app dev %s restart, when they are idle.\n", appBoxSettingsDir, name)
 		return nil
 	}
-	fmt.Fprintln(stdout, "The next preview has it, and hi restarts production on the same link within a minute while the app is up.")
+	fmt.Fprintln(stdout, appEnvChangeWords(config))
+	return nil
+}
+
+// appEnvChangeWords says how a change reaches the app's boxes.
+func appEnvChangeWords(config appConfig) string {
+	kind, signal, _ := appOnSettingsChange(config.OnSettingsChange)
+	switch kind {
+	case "restart":
+		return "hi starts the preview and production again with it within a minute, on the same links (on_settings_change: restart)."
+	case "signal":
+		return fmt.Sprintf("Within a minute the preview and production have it in %s, and the app gets %s (on_settings_change).", appBoxSettingsDir, signal)
+	}
+	return fmt.Sprintf("Within a minute the preview and production have it in %s (files in /hi-files), with no restart: the app reads it there, or has it in its environment from its next start. hi app env %s --on-change restart, or a signal such as SIGHUP, makes a change restart or signal the app.", appBoxSettingsDir, config.Name)
+}
+
+// appEnvOnChange is hi app env <name> --on-change: what a change of
+// settings does besides rewriting the box's settings files.
+func appEnvOnChange(config appConfig, value string, stdout io.Writer) error {
+	kind, signal, err := appOnSettingsChange(value)
+	if err != nil {
+		return err
+	}
+	switch kind {
+	case "restart":
+		config.OnSettingsChange = "restart"
+	case "signal":
+		config.OnSettingsChange = "signal " + signal
+	default:
+		config.OnSettingsChange = ""
+	}
+	if err := saveTeam(config); err != nil {
+		return err
+	}
+	switch kind {
+	case "restart":
+		fmt.Fprintf(stdout, "A change of app %s's settings now starts the preview and production again, in new boxes beside the old, on the same links.\n", config.Name)
+	case "signal":
+		fmt.Fprintf(stdout, "A change of app %s's settings now sends the app %s once its settings files have it; the app reads them again from %s.\n", config.Name, signal, appBoxSettingsDir)
+	default:
+		fmt.Fprintf(stdout, "A change of app %s's settings now only rewrites its settings files in %s; nothing restarts.\n", config.Name, appBoxSettingsDir)
+	}
 	return nil
 }
 
@@ -878,7 +926,7 @@ func appFileSettingRead(file string) ([]byte, error) {
 	case info.Size() == 0:
 		return nil, fmt.Errorf("%s is empty", file)
 	case info.Size() > appFileSettingMax:
-		return nil, fmt.Errorf("%s is larger than %s; a file setting is for a certificate or a key", file, formatDataSize(appFileSettingMax))
+		return nil, fmt.Errorf("%s is larger than %s: files bigger than this belong in the app's data, not its settings", file, formatDataSize(appFileSettingMax))
 	}
 	return os.ReadFile(file)
 }

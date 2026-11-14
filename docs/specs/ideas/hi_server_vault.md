@@ -651,8 +651,16 @@ Nothing wins silently; a value's source is always one place, shown.
    leak today: settings reach a box through tmpfs files and `hi-env`,
    never podman's `--env`, so `config.json` and `podman inspect` hold
    none (for a running app, at its next start); `/hi-files` on tmpfs,
-   not `run/<slot>-files/`; file settings at most 1 MiB; `on_settings_change`;
-   `--for` placeholders. Before the store exists, from `secrets.json`.
+   not `run/<slot>-files/`; file settings at most 1 MiB; `on_settings_change`.
+   Before the store exists, from `secrets.json`. Built in v2.6.152.
+   - **`--for` placeholders**, a release of their own: Stage's and
+     production's boxes reach the internet themselves, through a resolver
+     that logs names (hi_watch.md), with no proxy on the way out to put
+     a real key in. A placeholder needs one for the hosts named with
+     `--for`: the box's calls to them go to hi's proxy (the resolver
+     answers those names with the proxy's address), which ends TLS with
+     a certificate from the app's own CA, as the lead's proxy does for
+     Slack, and every other host stays as it is.
 1. **The built-in store**, unlocked by a key file or the TPM; the
    heartbeats that tell a locked or stopped server; what hi
    keeps moved into it on `hi update`; the recovery key; `hi server

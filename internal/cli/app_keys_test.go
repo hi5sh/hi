@@ -121,8 +121,35 @@ func TestTeamEnv(t *testing.T) {
 	if secrets.Env["WEATHER_API_KEY"] != "w-123" || secrets.Env["MAPS_KEY"] != "m-456" || secrets.SlackBotToken != "xoxb-bot" {
 		t.Fatalf("%+v", secrets)
 	}
-	if appSettingsStamp("payments") == before {
-		t.Fatal("new settings don't change the stamp, so production wouldn't get them")
+	// They reach the boxes' settings files; nothing restarts unless the
+	// app asked to (on_settings_change).
+	if appSettingsStamp("payments") != before {
+		t.Fatal("new settings restart the app's boxes, which didn't ask for it")
+	}
+	if !strings.Contains(out.String(), "with no restart") {
+		t.Fatal(out.String())
+	}
+	if err := appEnv([]string{"payments", "--on-change", "restart"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	restartStamp := appSettingsStamp("payments")
+	appEnv([]string{"payments", "MAPS_KEY=m-789"}, strings.NewReader(""), &out)
+	if appSettingsStamp("payments") == restartStamp {
+		t.Fatal("new settings don't change the stamp of an app that asked to restart")
+	}
+	out.Reset()
+	for _, mode := range []string{"SIGHUP", "signal SIGUSR1", "files"} {
+		if err := appEnv([]string{"payments", "--on-change", mode}, strings.NewReader(""), &out); err != nil {
+			t.Fatal(mode, err)
+		}
+	}
+	if config, _ := loadTeam("payments"); config.OnSettingsChange != "" || !strings.Contains(out.String(), "sends the app SIGHUP") {
+		t.Fatal(config.OnSettingsChange, out.String())
+	}
+	for _, bad := range []string{"SIGKILL", "reboot", ""} {
+		if err := appEnv([]string{"payments", "--on-change", bad}, strings.NewReader(""), &out); err == nil && bad != "" {
+			t.Errorf("--on-change %q was taken", bad)
+		}
 	}
 	// The list has names, never values.
 	out.Reset()
@@ -143,7 +170,7 @@ func TestTeamEnv(t *testing.T) {
 	}
 
 	// The app's box gets the settings, the models, and its address, with
-	// the placeholder for a key; the file has them and nobody else can read it.
+	// the placeholder for a key; the engine is given none of the settings.
 	env := appBoxEnv("payments", appSlotPreview, 8080)
 	if env["WEATHER_API_KEY"] != "w-123" || env["MAPS_KEY"] != "" || env["PORT"] != "8080" || env["OPENROUTER_API_KEY"] != boxClaudePlacehold ||
 		env["OPENROUTER_BASE_URL"] != "http://127.0.0.1:3129/api/v1" || env["HI_PUBLIC_URL_FILE"] != appBoxAddressFile {
@@ -154,15 +181,108 @@ func TestTeamEnv(t *testing.T) {
 			t.Fatalf("the app's box gets the key: %v", env)
 		}
 	}
-	file, err := writeTeamAppEnvFile("payments", env)
+	own := appBoxOwnEnv("payments", appSlotPreview, 8080)
+	if _, ok := own["WEATHER_API_KEY"]; ok || own["PORT"] != "8080" || own[appSettingsDirEnv] != appBoxSettingsDir {
+		t.Fatalf("the engine is given %v", own)
+	}
+	file, err := writeTeamAppEnvFile("payments", own)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.Remove(file)
-	info, _ := os.Stat(file)
-	data, _ := os.ReadFile(file)
-	if info.Mode().Perm() != 0o600 || !strings.Contains(string(data), "WEATHER_API_KEY=w-123\n") {
-		t.Fatal(info.Mode(), string(data))
+	if data, _ := os.ReadFile(file); strings.Contains(string(data), "w-123") {
+		t.Fatal("a setting's value is in the engine's env file:", string(data))
+	}
+	// The settings are files in the runtime folder, one a name and all of
+	// them in settings.env, readable by hi alone.
+	dir, changed, err := writeAppSlotSettings("payments", appSlotPreview)
+	if err != nil || !changed {
+		t.Fatal(err, changed)
+	}
+	if !strings.HasPrefix(dir, os.Getenv("XDG_RUNTIME_DIR")) {
+		t.Fatalf("the settings are in %s, not in memory", dir)
+	}
+	data, _ := os.ReadFile(filepath.Join(dir, "settings", "WEATHER_API_KEY"))
+	info, _ := os.Stat(filepath.Join(dir, "settings", "WEATHER_API_KEY"))
+	envText, _ := os.ReadFile(filepath.Join(dir, "settings.env"))
+	if string(data) != "w-123" || info.Mode().Perm() != 0o400 || !strings.Contains(string(envText), "WEATHER_API_KEY=w-123\n") {
+		t.Fatal(string(data), info.Mode(), string(envText))
+	}
+	if _, changed, _ := writeAppSlotSettings("payments", appSlotPreview); changed {
+		t.Fatal("the same settings were written again")
+	}
+	appEnv([]string{"payments", "--unset", "WEATHER_API_KEY"}, strings.NewReader(""), &out)
+	if _, changed, _ := writeAppSlotSettings("payments", appSlotPreview); !changed {
+		t.Fatal("a removed setting didn't change the folder")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "settings", "WEATHER_API_KEY")); err == nil {
+		t.Fatal("a removed setting's file is still there")
+	}
+	// In the box: the app's environment gets them, hi's own names first.
+	box := t.TempDir()
+	os.WriteFile(filepath.Join(box, "MAPS_KEY"), []byte("new"), 0o400)
+	os.WriteFile(filepath.Join(box, "PORT"), []byte("1"), 0o400)
+	os.WriteFile(filepath.Join(box, ".MAPS_KEY.tmp-1"), []byte("half"), 0o400)
+	merged := strings.Join(boxEnvWithSettings([]string{"MAPS_KEY=old", "PORT=8080", "A=b"}, box), "\n")
+	if merged != "PORT=8080\nA=b\nMAPS_KEY=new" {
+		t.Fatalf("%q", merged)
+	}
+}
+
+func TestOnSettingsChange(t *testing.T) {
+	for text, want := range map[string]string{"": "/", "files": "/", "restart": "restart/", "SIGHUP": "signal/SIGHUP",
+		"signal SIGUSR2": "signal/SIGUSR2", "hup": "signal/SIGHUP"} {
+		kind, signal, err := appOnSettingsChange(text)
+		if err != nil || kind+"/"+signal != want {
+			t.Errorf("%q: %s/%s %v", text, kind, signal, err)
+		}
+	}
+	for _, bad := range []string{"SIGKILL", "SIGTERM", "stop"} {
+		if _, _, err := appOnSettingsChange(bad); err == nil {
+			t.Errorf("%q was taken", bad)
+		}
+	}
+}
+
+// A change reaches a running box's settings files within the broker's
+// minute; an app that asked for a signal gets it, once.
+func TestSettingsSync(t *testing.T) {
+	newTeamKeysTest(t)
+	var out bytes.Buffer
+	b := &appBroker{team: "payments"}
+	var signalled []string
+	b.running = func(string) bool { return true }
+	b.signalBox = func(container, signal string) error {
+		signalled = append(signalled, container+" "+signal)
+		return nil
+	}
+	saveTeamSlot("payments", appPreview{Slot: appSlotProduction, Container: "hi-app-payments-production-1"})
+	appEnv([]string{"payments", "--on-change", "SIGHUP"}, strings.NewReader(""), &out)
+	appEnv([]string{"payments", "--production", "MARKET_KEY=k-1"}, strings.NewReader(""), &out)
+	b.syncSettings(io.Discard)
+	b.syncSettings(io.Discard)
+	dir := appSlotSettingsDir("payments", appSlotProduction)
+	if data, _ := os.ReadFile(filepath.Join(dir, "settings", "MARKET_KEY")); string(data) != "k-1" {
+		t.Fatalf("%q", data)
+	}
+	if len(signalled) != 1 || signalled[0] != "hi-app-payments-production-1 SIGHUP" {
+		t.Fatal(signalled)
+	}
+	// The files an older hi kept on disk go once no box mounts them.
+	old := appSlotFilesDir("payments", appSlotProduction)
+	os.MkdirAll(old, 0o700)
+	os.WriteFile(filepath.Join(old, "MONGODB_CERT"), []byte("key"), 0o600)
+	saved := appBoxMounts
+	defer func() { appBoxMounts = saved }()
+	appBoxMounts = func(b *appBroker, container string) (string, error) { return old + "\n", nil }
+	b.syncSettings(io.Discard)
+	if _, err := os.Stat(old); err != nil {
+		t.Fatal("files a running box mounts were removed")
+	}
+	appBoxMounts = func(b *appBroker, container string) (string, error) { return dir + "\n", nil }
+	b.syncSettings(io.Discard)
+	if _, err := os.Stat(old); err == nil {
+		t.Fatal("the files on disk stayed")
 	}
 }
 
@@ -181,8 +301,8 @@ func TestTeamEnvFile(t *testing.T) {
 	if !strings.Contains(out.String(), "$MONGODB_CERT is /hi-files/MONGODB_CERT") || strings.Contains(out.String(), "MIIB") {
 		t.Fatal(out.String())
 	}
-	if appSettingsStamp("payments") == before {
-		t.Fatal("a new file doesn't change the stamp, so production wouldn't get it")
+	if appSettingsStamp("payments") != before {
+		t.Fatal("a new file restarts the app's boxes, which didn't ask for it")
 	}
 	out.Reset()
 	appEnv([]string{"payments"}, strings.NewReader(""), &out)
@@ -215,10 +335,10 @@ func TestTeamEnvFile(t *testing.T) {
 		}
 		data, _ := os.ReadFile(filepath.Join(dir, "MONGODB_CERT"))
 		info, _ := os.Stat(filepath.Join(dir, "MONGODB_CERT"))
-		if string(data) != want || info.Mode().Perm() != 0o600 {
+		if string(data) != want || info.Mode().Perm() != 0o400 {
 			t.Fatalf("%s: %q %v", slot, data, info.Mode())
 		}
-		file, _ := writeTeamAppEnvFile("payments", env)
+		file, _ := writeTeamAppEnvFile("payments", appBoxOwnEnv("payments", slot, 8080))
 		envText, _ := os.ReadFile(file)
 		os.Remove(file)
 		if strings.Contains(string(envText), "MIIB") || strings.Contains(string(envText), "the preview's") {
@@ -286,8 +406,8 @@ func TestTeamEnvDev(t *testing.T) {
 	saveTeamSecrets("payments", secrets)
 	afterApp := appSettingsStamp("payments")
 	appEnv([]string{"payments", "--dev", "DEBUG=2"}, strings.NewReader(""), &out)
-	if appSettingsStamp("payments") != afterApp || afterApp == before {
-		t.Fatal("the dev box's settings restart production, or the app's don't")
+	if appSettingsStamp("payments") != afterApp || afterApp != before {
+		t.Fatal("settings restart production, which didn't ask for it")
 	}
 	appEnv([]string{"payments", "--dev", "--file", "MONGODB_CERT=" + dev}, strings.NewReader(""), &out)
 	out.Reset()

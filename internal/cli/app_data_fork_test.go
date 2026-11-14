@@ -330,11 +330,24 @@ func TestTeamEnvPerSlot(t *testing.T) {
 	if err := appEnv([]string{"payments", "--preview", "--unset", "NOPE"}, strings.NewReader(""), &out); err == nil {
 		t.Fatal("unset a setting there isn't")
 	}
-	// A setting for one slot restarts the boxes, as any other does.
+	// A setting for one slot reaches that slot's settings files, as any
+	// other does; it restarts the boxes only of an app that asked.
 	stamp := appSettingsStamp("payments")
 	run("--preview", "MAIL_URL=smtp://other")
+	if appSettingsStamp("payments") != stamp {
+		t.Fatal("the stamp changed for an app that didn't ask to restart")
+	}
+	dir, _, _ := writeAppSlotSettings("payments", appSlotPreview)
+	if data, _ := os.ReadFile(filepath.Join(dir, "settings", "MAIL_URL")); string(data) != "smtp://other" {
+		t.Fatalf("%q", data)
+	}
+	config, _ := loadTeam("payments")
+	config.OnSettingsChange = "restart"
+	saveTeam(config)
+	stamp = appSettingsStamp("payments")
+	run("--preview", "MAIL_URL=smtp://another")
 	if appSettingsStamp("payments") == stamp {
-		t.Fatal("the stamp didn't change")
+		t.Fatal("the stamp didn't change for an app that asked to restart")
 	}
 }
 

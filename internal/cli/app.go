@@ -89,6 +89,10 @@ type appConfig struct {
 	// SitesCheck is hi's check of the sites the dev box asks for: "" for
 	// the rules (the default), or "off" (hi_app_dev_sites.md).
 	SitesCheck string `json:"sites_check,omitempty"`
+	// OnSettingsChange is what a change of settings does besides
+	// rewriting the box's settings files: "" nothing, "restart" new
+	// boxes, or "signal SIGHUP" (app_settings_live.go).
+	OnSettingsChange string `json:"on_settings_change,omitempty"`
 	// DevViewProductionOff, when set, says who turned the dev box's view
 	// of production off, and when (hi_app_dev_view.md).
 	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`
@@ -702,8 +706,9 @@ usage:
                                    on ChatGPT, the fallback (the same model on OpenRouter unless
                                    given) takes over when the plan refuses; a running app restarts
   hi app env <name>                the settings the app gets, by name
-  hi app env <name> KEY=VALUE...   add or change settings: environment variables in the app's
-                                   boxes only (Stage and production); KEY alone asks for the value
+  hi app env <name> KEY=VALUE...   add or change settings, for the app's boxes only (Stage and
+                                   production): files in memory at /run/hi/settings, and environment
+                                   variables from the box's start; KEY alone asks for the value
       [--file KEY=<path>]          a file, such as a certificate with its key: the app's boxes
                                    get it read-only, and $KEY holds its path there
       [--unset KEY]                remove one
@@ -713,6 +718,9 @@ usage:
                                    keeps its own
       [--dev]                      the dev box's own, such as a test database's certificate; it
                                    gets no others, from its next start (hi app dev <name> restart)
+  hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2
+                                   what a change does besides rewriting the files within a minute:
+                                   nothing (files, the default), new boxes, or that signal
   hi app limit <name>              what Stage's model calls may cost a day, and spent today
       [stage <usd> | stage off]      set it ($5 a day unless set); production has no limit from hi
   hi app limit <name> memory       the boxes' memory: the dev box 16g, Stage's and production's 4g
@@ -2589,6 +2597,7 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("the app is off this machine, but not all of its folder is deleted: %w", err)
 		}
 	}
+	removeAppSettings(name)
 	fmt.Fprintf(stdout, "App %s is removed.", name)
 	if folder != "" && keep {
 		fmt.Fprintf(stdout, " Its folder stays in %s; hi app up %s brings the app back.", folder, folder)

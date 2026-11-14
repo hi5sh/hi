@@ -179,7 +179,7 @@
               </div>
               <div class="system-col">
                 <h2>The app's settings</h2>
-                <p class="muted small">API keys and other settings the app reads as environment variables. A file's variable holds its path in the app's box. Names only: values are never shown. A change reaches the next preview, and production within a minute. The dev box gets only its own, such as a test database's, from its next restart.</p>
+                <p class="muted small">API keys and other settings the app reads as environment variables. A file's variable holds its path in the app's box. Names only: values are never shown. Within a minute of a change the preview and production have it in /run/hi/settings, without a restart; their environment has it from their next start. The dev box gets only its own, such as a test database's.</p>
                 <ul id="settings" class="list"></ul>
                 <form id="setting-form" class="setting-form owners-only">
                   <input id="setting-key" placeholder="NAME" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">

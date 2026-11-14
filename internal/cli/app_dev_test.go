@@ -168,11 +168,18 @@ func TestTeamDevStart(t *testing.T) {
 	box := find("run -d --init --name hi-box-app-payments-dev ")
 	for _, want := range []string{"--ip " + ip, "--userns=keep-id", "--cap-drop=ALL", "/dev/ssh:/box/dev/ssh:ro", "/dev/bin:/box/bin:ro", "/repo:/team/origin:ro", "/dev/repo:/box/repo",
 		"-e CLAUDE_CODE_OAUTH_TOKEN=" + boxClaudePlacehold, "-e ANTHROPIC_BASE_URL=http://" + state.ProxyIP, "herdr server", "/usr/sbin/sshd -f /box/dev/ssh/sshd_config",
-		// Its DNS is the proxy's; its own settings come from a file.
-		"--dns " + state.ProxyIP + " ", "/run/dev-files:/hi-files:ro", "--env-file "} {
+		// Its DNS is the proxy's; its own settings are files in memory,
+		// which herdr gets through hi-env, never the engine.
+		"--dns " + state.ProxyIP + " ", "/hi/app-settings/payments/dev:/run/hi:ro", "/hi/app-settings/payments/dev/files:/hi-files:ro", "exec hi-env herdr server"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("the box lacks %q: %s", want, box)
 		}
+	}
+	if strings.Contains(box, "--env-file") {
+		t.Errorf("the box is given an env file: %s", box)
+	}
+	if target, err := os.Readlink(filepath.Join(appDevDir("payments"), "bin", "hi-env")); err != nil || target != "hi" {
+		t.Errorf("hi-env isn't hi in the dev box: %q %v", target, err)
 	}
 	proxy := find("create --name hi-box-app-payments-dev-proxy ")
 	if !strings.Contains(proxy, "--sysctl net.ipv4.ip_unprivileged_port_start=53") || !strings.Contains(proxy, boxSelfEnv+"="+state.ProxyIP) || !strings.Contains(proxy, boxTLSPortsEnv+"=27017") {
@@ -190,7 +197,7 @@ func TestTeamDevStart(t *testing.T) {
 	find("network connect --ip " + appDevBoxIP(state.ProxyIP, 4) + " hi-box-app-payments-dev hi-box-app-payments-dev-net")
 
 	home := filepath.Join(appDevDir("payments"), "home")
-	if env, _ := os.ReadFile(filepath.Join(home, ".hi-env")); !strings.Contains(string(env), "export ANTHROPIC_BASE_URL=") {
+	if env, _ := os.ReadFile(filepath.Join(home, ".hi-env")); !strings.Contains(string(env), "export ANTHROPIC_BASE_URL=") || !strings.Contains(string(env), ". /run/hi/settings.env") {
 		t.Fatal(string(env))
 	}
 	if profile, _ := os.ReadFile(filepath.Join(home, ".bashrc")); strings.Count(string(profile), ".hi-env") != 2 {

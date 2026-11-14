@@ -1147,8 +1147,23 @@ func TestTeamProductionLink(t *testing.T) {
 		t.Fatalf("the app's address file has %q after the new address", address())
 	}
 
-	// A new setting starts production again, on the same link.
+	// A new setting reaches production's settings files, with no restart.
 	saveTeamSecrets("payments", appSecrets{Env: map[string]string{"WEATHER_API_KEY": "w-1"}})
+	if b.productionNeedsWork() {
+		t.Fatal("a new setting restarts production, which didn't ask for it")
+	}
+	b.keepLinks(done, io.Discard)
+	if live, _ := loadTeamSlot("payments", appSlotProduction); live.Container != third.Container {
+		t.Fatal("a new setting started a new box")
+	}
+	if data, _ := os.ReadFile(filepath.Join(appSlotSettingsDir("payments", appSlotProduction), "settings", "WEATHER_API_KEY")); string(data) != "w-1" {
+		t.Fatalf("production's settings files have %q", data)
+	}
+	// An app that asked for a restart on a change gets one, on the same
+	// link.
+	config, _ := loadTeam("payments")
+	config.OnSettingsChange = "restart"
+	saveTeam(config)
 	if !b.productionNeedsWork() {
 		t.Fatal("production doesn't have the new setting")
 	}

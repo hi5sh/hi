@@ -19,6 +19,12 @@ func init() {
 		panic(err)
 	}
 	os.Setenv("XDG_STATE_HOME", state)
+	// Nor its runtime folder, where apps' settings are (app_settings_live.go).
+	runtime, err := os.MkdirTemp("", "hi-test-runtime-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_RUNTIME_DIR", runtime)
 	os.Unsetenv("HI_ORG_DIR")
 	os.Unsetenv("HI_SERVER_DIR")
 	// Nor its services: a test that needs systemctl says what it answers.

@@ -887,7 +887,7 @@ func (b *appBroker) devPageSetting(request appDevPageSetting) error {
 		case err != nil:
 			return fmt.Errorf("the file for %s: %w", request.Key, err)
 		case len(data) > appFileSettingMax:
-			return fmt.Errorf("the file for %s is larger than %s; a file setting is for a certificate or a key", request.Key, formatDataSize(appFileSettingMax))
+			return fmt.Errorf("the file for %s is larger than %s: files bigger than this belong in the app's data, not its settings", request.Key, formatDataSize(appFileSettingMax))
 		}
 		if err := appSettingCheck(secrets, request.Key, true); err != nil {
 			return err
@@ -1486,7 +1486,9 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		var request appDevPageSetting
-		if !decode(w, r, &request) {
+		// A file setting is up to appFileSettingMax, as base64.
+		if err := json.NewDecoder(io.LimitReader(r.Body, appFileSettingMax/3*4+64<<10)).Decode(&request); err != nil {
+			failure(w, http.StatusBadRequest, err)
 			return
 		}
 		if err := b.devPageSetting(request); err != nil {

@@ -2736,6 +2736,31 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.152 — Settings off podman's disk
+
+Spec: [hi_server_vault.md](specs/ideas/hi_server_vault.md), release 0 (a
+draft; this part is a fix for a leak that exists now).
+
+- [x] An app's settings reach its boxes as files on tmpfs,
+  `/run/hi/settings/<NAME>`, `/run/hi/settings.env`, and `/hi-files`,
+  never through podman's `--env`, so podman's `config.json` and
+  `podman inspect` hold none; file settings are no longer written to the
+  app's folder on disk. Boxes started by an older hi move at their next
+  start, which `hi update` brings, and the old files go once no box
+  mounts them.
+- [x] The app gets its settings as environment variables at its start
+  (hi's `__app`), and `hi-env <command>` in a box runs a command with
+  them as they are now. The dev box gets the same, its agents through
+  `hi-env`, its shells from `/run/hi/settings.env`.
+- [x] A change rewrites the files within a minute and restarts nothing,
+  unless the app asks: `hi app env <name> --on-change restart` or a
+  signal (`SIGHUP`, `SIGUSR1`, `SIGUSR2`), kept in app.json as
+  `on_settings_change`.
+- [x] File settings up to 1 MiB.
+- [ ] Placeholders for API keys (`hi app env --for <host>`): the app's
+  boxes have no proxy on their way out to put a real key in, so this
+  needs one, in a release of its own.
+
 ### v2.6.151 — The rename without a restart to wait for
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1.

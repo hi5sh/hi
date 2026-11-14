@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,6 +15,10 @@ var version = "dev"
 
 // Main runs hi with the process's arguments and exits with its status.
 func Main() {
+	// In an app's box, hi is also hi-env (app_settings_live.go).
+	if filepath.Base(os.Args[0]) == "hi-env" {
+		os.Exit(runHiEnv(os.Args[1:], os.Stderr))
+	}
 	setTerminalBackground()
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }

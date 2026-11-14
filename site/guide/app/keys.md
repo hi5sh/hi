@@ -114,10 +114,9 @@ site the lead reaches stays a plain tunnel. On a machine without a bundle
 of public certificates to add the CA to, hi says so when the app starts,
 and the box holds the real tokens.
 
-**Settings.** Other keys and settings the app needs reach its boxes as
-environment variables, and nothing else: not the lead, not the dev box.
-The lead and the dev box's agents see their names, so the code reads the
-right variable.
+**Settings.** Other keys and settings the app needs reach its boxes, and
+nothing else: not the lead, not the dev box. The lead and the dev box's
+agents see their names, so the code reads the right variable.
 
 ```sh
 hi app env payments WEATHER_API_KEY=…     # or WEATHER_API_KEY alone, to be asked
@@ -141,8 +140,8 @@ or vault. Like a value, it can be for Stage or production only
 the dev box or the repository, and snapshots don't copy it.
 
 The dev box gets none of these: its agents could read them. It gets
-settings of its own, such as a test database's address and certificate,
-from its next start:
+settings of its own, such as a test database's address and certificate;
+its agents have them from its next start:
 
 ```sh
 hi app env payments --dev MONGODB_URI=mongodb+srv://test-cluster.abcd.mongodb.net/
@@ -150,14 +149,52 @@ hi app env payments --dev --file MONGODB_CERT=~/Downloads/test-user.pem
 hi app dev payments restart        # when the agents are idle
 ```
 
-Stage has a change from its next deploy, and hi starts production again on the same
-link within a minute. A setting is readable by the app's code, which the
-agents write; the OpenRouter key and the Slack tokens never are.
+A setting is readable by the app's code, which the agents write; the
+OpenRouter key and the Slack tokens never are.
+
+### How settings reach a box
+
+A box gets its settings as files in memory, never on the machine's disk:
+
+| In the box | What |
+|------------|------|
+| `/run/hi/settings/<NAME>` | one file per setting, holding its value |
+| `/run/hi/settings.env` | all of them, `NAME='value'` a line |
+| `/hi-files/<NAME>` | a file setting, such as a certificate |
+
+The app gets them as environment variables when it starts too. hi gives
+the engine none of them, so they aren't in podman's `config.json` on disk
+or in `podman inspect`, and a copied disk doesn't have them.
+
+**A change** rewrites the files within a minute, each in one step, so
+the app never reads half a value. Nothing restarts: a running process's
+environment can't be changed from outside, so it keeps the values it
+started with, and the app decides whether to read the files again. Three
+ways to get a new value:
+
+- read `/run/hi/settings/<NAME>` when you need it, or watch the folder;
+- `hi-env <command>` in the box runs a command, such as a worker, with
+  the settings as they are now;
+- ask hi to restart or signal the app on a change:
+
+```sh
+hi app env payments --on-change restart   # new boxes beside the old, on the same links, no gap
+hi app env payments --on-change SIGHUP    # the app gets SIGHUP (or SIGUSR1, SIGUSR2)
+hi app env payments --on-change files     # back to the default: the files change, nothing else
+```
+
+app.json keeps the choice as `on_settings_change`. hi never sends a
+signal unless asked: SIGHUP's default ends a Node or Python process. A
+new box that doesn't start keeps the old one running, as at a release.
+A file setting is at most 1 MiB; bigger files belong in the app's data.
+
+The dev box gets the same files, at the same paths. A new shell has the
+new values; herdr's agents have them from the dev box's next start.
 
 Owners set them on the [dev page](/guide/app/dev/#the-dev-page) too,
 under Security, **The app's settings**: a name, a value that is never shown again (or a file), and where it
 goes: **Stage and production**, **Stage only**, **production only**,
-or **the dev box only, from its next restart**. In the dev box,
+or **the dev box only**. In the dev box,
 `hi dev settings KEY=VALUE` sets only Stage's own value.
 
 The lead itself never joins your NetBird network: the machine runs the
