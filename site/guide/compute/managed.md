@@ -343,7 +343,8 @@ runs as before.
 
 From hi 2.6.150 the server's user service is `hi-server.service`. A server
 set up before runs as `hi-org.service`; `hi update` renames it as it
-restarts it: it writes `hi-server.service` from the old unit, with
+restarts it, or, when the server already runs the new hi, with
+`--restart` or after asking: it writes `hi-server.service` from the old unit, with
 `server run` in place of `org run` and anything else you added kept,
 stops and disables the old one, starts the new one, and removes the old
 file. If the new one doesn't come up, the old one runs again. One set up

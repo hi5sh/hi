@@ -142,7 +142,7 @@ func systemdUnit(cgroupPath string) (string, bool) {
 // restartStaleServers offers to restart servers that run an old binary.
 // mode is "ask", "yes", or "no".
 func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout, stderr io.Writer) error {
-	offered := false
+	offered, renamed := false, false
 	var failed []string
 	for _, server := range staleServers(path) {
 		if server.team == "" && !server.admin && server.front == "" && !server.user && (server.unit == orgUnit || server.unit == oldOrgUnit) && systemOrgUnit() != "" {
@@ -198,6 +198,7 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 		}
 		if server.user && server.unit == oldOrgUnit && fileExists(oldOrgUserUnitPath()) {
 			// Its new name comes with the restart (moveOrgUserUnit).
+			renamed = true
 			if err := moveOrgUserUnit(stdout); err != nil {
 				failed = append(failed, err.Error())
 				continue
@@ -231,6 +232,12 @@ func restartStaleServers(path, newVersion, mode string, stdin io.Reader, stdout,
 			fmt.Fprintf(stdout, "  It still has the names from before v2.6.67; hi app up %s moves it to the new ones (its addresses change).\n", server.team)
 		}
 	}
+	// A server already on this hi still has its old name until it's renamed.
+	if !renamed && fileExists(oldOrgUserUnitPath()) {
+		if err := offerOrgUserUnitMove(mode, stdin, stdout); err != nil {
+			failed = append(failed, err.Error())
+		}
+	}
 	if !offered && systemOrgUnit() != "" {
 		if _, err := offerOrgUnitMove(mode, stdin, stdout, stderr); err != nil {
 			failed = append(failed, err.Error())
@@ -260,4 +267,23 @@ func offerOrgUnitMove(mode string, stdin io.Reader, stdout, stderr io.Writer) (b
 		}
 	}
 	return true, moveOrgUnit(stdin, stdout, stderr)
+}
+
+// offerOrgUserUnitMove renames hi-org.service to hi-server.service on a
+// machine whose server needn't restart for the new hi: with --restart at
+// once, on a terminal after asking, and otherwise it says how.
+func offerOrgUserUnitMove(mode string, stdin io.Reader, stdout io.Writer) error {
+	if mode == "no" || (mode == "ask" && !updateIsTerminal(stdin)) {
+		fmt.Fprintf(stdout, "The server's service is %s from this hi; it is still %s here. hi update --restart renames it (the server is down for about a second).\n", orgUnit, oldOrgUnit)
+		return nil
+	}
+	if mode == "ask" {
+		fmt.Fprintf(stdout, "The server's service is %s from this hi. Rename %s now? The server is down for about a second. [Y/n] ", orgUnit, oldOrgUnit)
+		answer, _ := readLine(stdin)
+		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "" && answer != "y" && answer != "yes" {
+			fmt.Fprintln(stdout, "Not renamed; hi update asks again next time.")
+			return nil
+		}
+	}
+	return moveOrgUserUnit(stdout)
 }

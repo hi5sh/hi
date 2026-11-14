@@ -2736,6 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.151 — The rename without a restart to wait for
+
+Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1.
+
+- [x] `hi update` renames `hi-org.service` to `hi-server.service` when the
+  server already runs the new hi too: at once with `--restart`, after
+  asking on a terminal, and otherwise it says how. v2.6.150 renamed it
+  only while restarting a server on an older hi, which is the old hi's
+  code.
+
 ### v2.6.150 — `hi-server.service`, and no more "hi org" in the docs
 
 Spec: [hi_server_apps.md](specs/approved/hi_server_apps.md), release 1

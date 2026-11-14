@@ -348,3 +348,32 @@ func TestOrgUserUnitRenamed(t *testing.T) {
 		t.Errorf("last: %q", last)
 	}
 }
+
+// A server already on this hi is renamed too: hi update --restart does it
+// at once, and --no-restart says how.
+func TestOrgUserUnitRenamedWhenCurrent(t *testing.T) {
+	installedBinary(t, "v0.9.0")
+	fakeReleases(t, "v0.9.0", false)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	fakeProc(t, map[string][3]string{})
+	os.MkdirAll(filepath.Dir(oldOrgUserUnitPath()), 0o755)
+	os.WriteFile(oldOrgUserUnitPath(), []byte("[Service]\nExecStart=/usr/local/bin/hi org run\n"), 0o644)
+	var runs []string
+	previous := appSystemctl
+	appSystemctl = func(args ...string) (string, error) {
+		runs = append(runs, strings.Join(args, " "))
+		return "", nil
+	}
+	t.Cleanup(func() { appSystemctl = previous })
+
+	if _, stdout, _ := runUpdateTest("--no-restart"); !strings.Contains(stdout, "hi update --restart renames it") || len(runs) != 0 {
+		t.Fatalf("--no-restart: %q\n%s", runs, stdout)
+	}
+	code, stdout, stderr := runUpdateTest("--restart")
+	if code != 0 || !strings.Contains(stdout, "The server's service is hi-server.service now") || fileExists(oldOrgUserUnitPath()) || !fileExists(orgUserUnitPath()) {
+		t.Fatalf("--restart: %d %q\n%s%s", code, runs, stdout, stderr)
+	}
+	if _, stdout, _ := runUpdateTest("--restart"); strings.Contains(stdout, "hi-org.service") {
+		t.Fatalf("renamed twice:\n%s", stdout)
+	}
+}
