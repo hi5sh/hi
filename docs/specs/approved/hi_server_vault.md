@@ -195,12 +195,35 @@ LUKS does. Any one slot unlocks the store:
 | **recovery**: 24 words, always there | when an admin types them | yes | as the passphrase |
 
 - **The default**, when `hi update` creates the store: **tpm** if hi can
-  use the TPM without root (`systemd-creds --user`, systemd 256 or
-  newer, or the `hi` account in `tss`), else **file**; and always
-  **recovery**. `hi update` says which. Nothing changes for the apps:
-  after a reboot the store unlocks by itself, as the plain files do now.
-  Where there is a TPM hi can't use, the page and `hi doctor` say "this
-  machine has a TPM; ask your IT team to add `hi` to the group `tss`".
+  use the TPM without root, else **file**; and always **recovery**.
+  `hi update` says which. Nothing changes for the apps: after a reboot
+  the store unlocks by itself, as the plain files do now.
+- **The tpm slot is `systemd-creds --user`** (systemd 256 or newer),
+  which seals through systemd's own credentials service, so `hi` needs
+  no group and no root. Tried on our three machines (2026-11-14, systemd
+  259, Ubuntu 26.04):
+  - In `--user` mode `--with-key=tpm2` alone is refused; `host+tpm2` is
+    the one to use: the host's key (`/var/lib/systemd/credential.secret`,
+    root's) and the TPM, and the user's ID, all needed to open it.
+  - **It falls back to the host key alone, without a word,** when
+    systemd's TPM support is partial, as it is on a fresh Ubuntu 26.04:
+    `libtss2-rc0t64` isn't installed. The host key is on the disk, so a
+    copied disk opens such a slot: no better than file. So hi checks
+    `systemd-analyze has-tpm2` (exit 0 only with full support) before,
+    and checks the sealed result after (a TPM-sealed credential carries
+    the TPM's blob, a host-only one is ~160 bytes), and never calls a
+    host-only slot tpm.
+  - Where the TPM is there but the support partial, hi makes a file slot
+    and the page and `hi doctor` say "This machine has a TPM; ask your IT
+    team to install libtss2-rc0t64 (sudo apt install libtss2-rc0t64),
+    and hi moves the store to it." Once it's installed, hi adds the tpm
+    slot by itself and removes the file slot (`hi update`, or the server's
+    next start), and says so.
+  - A machine with no TPM, such as a VM without a virtual one, gets a
+    file slot; the page says "No TPM: a copied disk opens this store.
+    Ask your IT team for a virtual TPM, or add a passphrase."
+  - The `tss` group, and hi talking to `/dev/tpmrm0` itself, aren't
+    needed, so they aren't used.
 - **Slots are added and removed** with `hi server vault unlock-with
   add|remove`, or on the page; only the data key's copy changes.
 - **OR means the weakest slot sets the protection.** The page and
