@@ -23,8 +23,8 @@ encrypted on disk, readable only while the store is unlocked:
 - **One place.** The server's provider and AI keys, the apps' settings,
   the Slack, NetBird, DNS, and mail tokens: one store, one audit, one
   way to rotate.
-- **History.** Each secret keeps its last versions; a change can be
-  rolled back.
+- **History.** Each secret keeps every version; a change can be rolled
+  back, and a leaked value forgotten.
 - **A record.** hi's audit log says which app or command read which
   names, when; never a value.
 - **Replaceable.** A team that runs OpenBao or Vault moves the same paths
@@ -87,6 +87,12 @@ hi server vault recovery --new         # the owner, unlocked: a new recovery key
 hi server vault ls [<prefix>]          # paths, versions, when changed; never values
 hi server vault history <path>         # versions, who changed each, when
 hi server vault rollback <path> <version>
+hi server vault forget <path> --version <n>
+                                       # destroy one version's value (leaked); its history entry stays
+hi server vault shared set <name>      # admins: a key for several apps, asked without echo
+hi server vault shared give <name> <app>...
+                                       # admins: let these apps use it; take back with --take
+hi server vault shared rm <name>       # admins; refused while an app uses it
 hi server vault move vault://<mount>   # copy every path to an OpenBao or Vault, check, and use it (release 3)
 hi server vault connect <prefix> vault://<mount>
                                        # keep paths under a prefix in a team's OpenBao or Vault (release 3)
@@ -96,6 +102,9 @@ What sets a secret doesn't change: `hi app env`, `hi app key`,
 `hi server provider add`, `hi server slack setup`, the page's Keys. They
 write to the store instead of a file. There is no `hi server vault get`
 that prints a value.
+
+`hi app rm` keeps the app's paths, as it keeps its snapshots;
+`hi app rm --purge` deletes them too (see Removing an app).
 
 ## Paths
 
@@ -118,10 +127,57 @@ hi/app/<app>/dev
 hi/app/<app>/hi                 its Slack tokens and OpenRouter key
 hi/app/<app>/offsite            its offsite bucket's keys
 hi/app/<app>/snapshots          the key its snapshots are encrypted with
+hi/shared/<name>                a key for several apps, such as hi/shared/openrouter
 ```
 
 Each path holds a set of names and string values, as a KV v2 secret
 does.
+
+### Shared keys
+
+- A key several apps use, such as one OpenRouter key, is in
+  `hi/shared/<name>`, never copied into an app's path. Only admins set,
+  give, and remove one (`hi server vault shared`, or the page's Shared
+  keys): it crosses apps.
+- An app's owners use a shared key an admin gave their app by
+  reference: `hi app env payments OPENROUTER_API_KEY --from
+  shared/openrouter`. The app holds "this name comes from
+  shared/openrouter", not the value.
+- The page shows which apps use each shared key. A change restarts
+  them, as `hi app env` does. `rm` is refused while an app uses it;
+  removing an app removes only its reference.
+- The server's own keys for every app (the AI key, providers) stay in
+  `hi/server/`.
+
+### Versions
+
+- Every version is kept, values too: the store holds a few bytes each,
+  and a rollback can go as far back as needed.
+- **`forget`** destroys one version's value, for a value that leaked.
+  Its history entry stays: "version 4, set by …, value forgotten on
+  …". The page offers it beside each version ("Leaked? Forget this
+  value"), with what it can't do: backups of the state taken before
+  still hold it, so change the secret at its source too.
+- History entries (who changed which names, when) are never removed.
+
+### Removing an app
+
+- **`hi app rm`** keeps the app's paths, marked as a removed app's, as it
+  keeps its snapshots. No box reads them: nothing runs by that name. It
+  says so: "Its settings stay in the server's vault; hi app rm --purge
+  payments deletes them."
+- **Back:** `hi app up <folder>` with the kept folder, or a restore from
+  its snapshots, gets its settings, tokens, snapshot key, and their
+  history back. A new app that only has the name is asked first:
+  "Settings from a removed app called payments are kept. Use them?
+  [y/N]".
+- **`hi app rm --purge`** deletes them as well: the settings, the
+  snapshot key, and the local snapshots (one switch, since the snapshots
+  are unreadable without their key). History entries stay, without
+  values. It asks first, by name: "This deletes payments' settings, its
+  snapshot key, and 14 snapshots. Its offsite copy in s3:… stays." What
+  isn't hi's (the bucket, Slack, GitHub) stays, and it says so. The
+  page's Removed apps has Purge, with the same question.
 
 ## How it unlocks
 
@@ -215,7 +271,7 @@ passphrase, which `hi update` then warns about before it restarts.
   through `tss`), Argon2id of the passphrase (64 MiB, 3 passes, a random
   salt), and Argon2id of the recovery key.
 - On disk, in the server's state folder: `vault/` with one file per path
-  (its versions, encrypted, the last 10 kept) and `vault/keys.json` (the
+  (its versions, encrypted, every one kept) and `vault/keys.json` (the
   slots: each wrapped data key, its kind, its salt). Atomic writes, as now.
 - No home-made cryptography: one AEAD and one KDF from the Go project's
   libraries. Rotating the data key re-encrypts every path; adding or
@@ -394,7 +450,9 @@ policies, and its errors.
   copied offsite (hi app backups)".
 - **`hi app move`** carries the app's paths to the new machine's store,
   over the move's own connection, and removes them from the old one once
-  the app runs there.
+  the app runs there. Its references to shared keys go with it; a shared
+  key the new machine's store doesn't have is copied, and its admins
+  told.
 
 ## Security
 
@@ -462,6 +520,11 @@ policies, and its errors.
   opens with the recovery key's words and not with others; a new
   recovery key re-seals every bucket's copy; a restore on a fresh machine
   from a fake bucket with only the recovery key.
+- Versions: every one kept; `forget` leaves the entry without the
+  value. Shared keys: given apps read them by reference, others can't;
+  `rm` refused while used; owners can't set or give one. `hi app rm`
+  keeps the paths, `up` gets them back, a new app with the name is
+  asked; `--purge` deletes paths, key, and local snapshots.
 - An app's service gets only its slot; the dev box never gets Stage's or
   production's; no value in the audit log, the page's JSON, or an error.
 - A backup of the state folder has no value in the clear and no key file.
@@ -508,10 +571,13 @@ Decided (2026-11-14):
    machine's fails at once when the server is locked or stopped; an
    app's fails when it waits; after 24 hours without the server, the
    app's ops channel hears it runs on.
+5. **Versions kept:** all, values too; `forget` destroys a leaked one,
+   its history entry stays. Shared keys in `hi/shared/`, used by
+   reference, admins only. `hi app rm` keeps an app's settings;
+   `--purge` deletes them with its snapshots.
 
 Still open:
 
-5. **Versions kept:** the last 10 per path (proposed), or by age?
 6. **A name in both hi and a team's store:** hi's wins (proposed, so an
    owner can override one value for Stage), or the team's store, as the
    only truth?
