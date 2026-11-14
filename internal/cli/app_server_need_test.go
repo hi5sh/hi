@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,6 +21,10 @@ func init() {
 	os.Setenv("XDG_STATE_HOME", state)
 	os.Unsetenv("HI_ORG_DIR")
 	os.Unsetenv("HI_SERVER_DIR")
+	// Nor its services: a test that needs systemctl says what it answers.
+	appSystemctl = func(args ...string) (string, error) {
+		return "", errors.New("tests don't run systemctl")
+	}
 }
 
 func realServerCheck(t *testing.T) {
