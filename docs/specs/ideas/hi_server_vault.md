@@ -77,11 +77,11 @@ processes.
 ```sh
 hi server vault                        # locked or unlocked, how it unlocks, the store, counts
 hi server vault init [--unlock file|tpm|passphrase]
-                                       # create it (hi update does, with file or tpm); prints the recovery key once
+                                       # create it (hi update does, with tpm or file); prints the recovery key once
 hi server vault unlock                 # asks for the passphrase or the recovery key, without echo
 hi server vault lock                   # forget the key now; apps' boxes keep running
-hi server vault unlock-with tpm|file|passphrase
-                                       # change how it unlocks (asks for the current way first)
+hi server vault unlock-with add|remove tpm|file|passphrase
+                                       # add or remove a slot (unlocked first); the secrets aren't re-encrypted
 hi server vault recovery --new         # a new recovery key; the old one stops working
 hi server vault ls [<prefix>]          # paths, versions, when changed; never values
 hi server vault history <path>         # versions, who changed each, when
@@ -123,12 +123,39 @@ does.
 
 ## How it unlocks
 
-| Unlock | After a reboot | Protects against | For |
-|--------|----------------|------------------|-----|
-| **file**: a key file, 0400, in its own folder, never in a backup or a snapshot | unlocks by itself | backups, offsite copies, a copied state folder | the default where there is no TPM |
-| **tpm**: the key sealed to the machine's TPM | unlocks by itself, on this machine only | the above, and a stolen or copied disk | the default where there is a TPM |
-| **passphrase**: Argon2id from an admin's passphrase | stays locked until an admin unlocks it | the above, and a stolen machine | a team that accepts its apps down after a reboot until then |
+The data key is kept several times, each copy locked by one **slot**, as
+LUKS does. Any one slot unlocks the store:
 
+| Slot | After a reboot | Goes with a move to another machine | Protects against |
+|------|----------------|-------------------------------------|------------------|
+| **tpm**: sealed to the machine's TPM | unlocks by itself | no: sealed to this chip | backups, offsite copies, a copied state folder, a stolen or copied disk |
+| **file**: a key file, 0400, in its own folder, never in a backup or a snapshot | unlocks by itself | only if you carry the file | backups, offsite copies, a copied state folder |
+| **passphrase**: Argon2id from an admin's passphrase | when an admin types it | yes | the above, and a stolen machine |
+| **recovery**: 24 words, always there | when an admin types them | yes | as the passphrase |
+
+- **The default**, when `hi update` creates the store: **tpm** if hi can
+  use the TPM without root (`systemd-creds --user`, systemd 256 or
+  newer, or the `hi` account in `tss`), else **file**; and always
+  **recovery**. `hi update` says which. Nothing changes for the apps:
+  after a reboot the store unlocks by itself, as the plain files do now.
+  Where there is a TPM hi can't use, the page and `hi doctor` say "this
+  machine has a TPM; ask your IT team to add `hi` to the group `tss`".
+- **Slots are added and removed** with `hi server vault unlock-with
+  add|remove`, or on the page; only the data key's copy changes.
+- **OR means the weakest slot sets the protection.** The page and
+  `hi doctor` say in one line what the slots protect against together
+  ("Protects backups and copies; a copied disk can unlock it (file
+  slot)"). A slot that undoes a stronger one, such as file beside a
+  passphrase, is allowed (moving from one to another needs both for a
+  while) but flagged, with "Remove it?". A store with only tpm and
+  recovery gets "Add a passphrase, so moving the server doesn't need the
+  recovery key."
+- **On another machine** the tpm slot can't open. Restoring or moving
+  the server asks for the passphrase or the recovery key (or uses the key
+  file, if you carried it) before the apps start. Once unlocked, hi seals
+  a new tpm slot to the new machine's TPM in place of the old one,
+  without asking; with no TPM hi can use, it offers a file slot and says
+  what that protects against.
 - **The recovery key** is printed once, at `init`: 24 words, or a code
   to print. It unlocks in any mode. Without it and the passphrase (or the
   TPM, or the key file), the secrets are gone; `init` says so, and asks
@@ -161,16 +188,16 @@ passphrase, which `hi update` then warns about before it restarts.
   XChaCha20-Poly1305 (`golang.org/x/crypto`, already an indirect
   dependency), with the path and version as associated data, so a
   version can't be moved to another path or another version.
-- The data key is wrapped by the **unlock key**: the key file's, the
-  TPM's (`systemd-creds` sealed to the TPM, or the TPM's own API), or
-  Argon2id of the passphrase (64 MiB, 3 passes, a random salt). The
-  recovery key wraps it a second time.
+- The data key is wrapped once per **slot**: by the key file's key, the
+  TPM (`systemd-creds --user` sealed to the TPM, or the TPM's own API
+  through `tss`), Argon2id of the passphrase (64 MiB, 3 passes, a random
+  salt), and Argon2id of the recovery key.
 - On disk, in the server's state folder: `vault/` with one file per path
   (its versions, encrypted, the last 10 kept) and `vault/keys.json` (the
-  wrapped data key, the salt, the unlock mode). Atomic writes, as now.
+  slots: each wrapped data key, its kind, its salt). Atomic writes, as now.
 - No home-made cryptography: one AEAD and one KDF from the Go project's
-  libraries. Rotating the data key re-encrypts every path; changing the
-  unlock way re-wraps only the data key.
+  libraries. Rotating the data key re-encrypts every path; adding or
+  removing a slot re-wraps only the data key.
 
 ## How a secret reaches whoever reads it
 
@@ -196,8 +223,8 @@ not the process.
 
 `hi update` to the release that brings it:
 
-1. Creates the store, unlocked by the TPM if the machine has one, or a
-   key file, and prints where the recovery key is: in a file, 0400,
+1. Creates the store with a tpm slot if hi can use the TPM, else a
+   file slot (see How it unlocks), and prints where the recovery key is: in a file, 0400,
    that the admin is told to move off the machine and delete
    (`hi server vault recovery` shows it until then, never after).
 2. Moves `keys.json`, `slack.json`, every app's `secrets.json`,
@@ -324,8 +351,13 @@ policies, and its errors.
 
 - A value written and read back; a version can't be read under another
   path; a changed byte fails to decrypt.
-- Each unlock way: file, a fake TPM, a passphrase; the recovery key
-  unlocks in each; a wrong passphrase is slowed.
+- Each slot: file, a fake TPM, a passphrase; the recovery key unlocks
+  with any; a wrong passphrase is slowed; adding or removing a slot
+  leaves every secret readable.
+- What the slots protect against together, and the flag for a slot that
+  undoes a stronger one.
+- On another machine (a fake TPM that doesn't match): the tpm slot
+  fails, the passphrase unlocks, a new tpm slot replaces the old.
 - The key handed across a restart through a stand-in for systemd; a
   reboot (no handed key) locks it.
 - Locked: a box start waits and says so; running boxes untouched.
@@ -361,8 +393,13 @@ policies, and its errors.
 
 ## Open questions
 
-1. **The default unlock:** TPM where there is one and a key file where
-   not (proposed), or ask at `hi update`?
+Decided (2026-11-14):
+
+1. **The default unlock:** slots, any one unlocking; tpm where hi can
+   use it, else file, and always recovery (see How it unlocks).
+
+Still open:
+
 2. **The recovery key:** printed to a file to move off the machine
    (proposed), shown once on the page, or split between the owner and an
    admin?
