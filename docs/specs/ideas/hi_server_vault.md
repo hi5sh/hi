@@ -328,6 +328,17 @@ agent:
   - `"on_settings_change": "restart"`, for one that only reads at start:
     a new box beside the old, as at a release, with no gap, and the old
     box kept if the new one doesn't start.
+- **File settings** (`hi app env payments --file MONGODB_CERT=<path>`,
+  a certificate with its key, say) stay at `/hi-files/<NAME>`, with the
+  path in the variable, as now, but on tmpfs, never written to the app's
+  folder on disk (today `run/<slot>-files/`). In the store a file is kept
+  as bytes in its slot's path, marked as a file, so a binary one (a
+  `.p12`) works. From a team's store, a key becomes a file when the app
+  says so: `hi app env payments --from corp/payments/prod --file
+  MONGODB_CERT`; a value there is a string, so a binary file is kept as
+  base64 and `--base64` decodes it. A change replaces the file in one
+  step, as a value's. At most 1 MiB a file: "Files bigger than this
+  belong in the app's data, not its settings."
 - **The dev box** gets the same files, and the same default.
 - **A pin holds a slot** where a team wants changes only at its
   releases: `--from corp/payments/prod?version=12`, or a shared key's.
@@ -625,7 +636,10 @@ Nothing wins silently; a value's source is always one place, shown.
   tmpfs; no value in podman's `config.json` or `podman inspect`;
   `hi-env` gives the current values; nothing restarts or is signalled
   unless app.json asks, and then only as asked; a `--for` placeholder
-  reaches the host as the real key and nowhere else.
+  reaches the host as the real key and nowhere else. File settings:
+  on tmpfs, none in the app's folder; a binary one round-trips; one over
+  1 MiB refused with the message; `--file` and `--base64` from a fake
+  OpenBao.
 - Release 3: a jwt login a fake OpenBao accepts with the registered
   public key and refuses after `--new-key` is swapped in; AppRole; the
   printed setup for the store's owners. A move to a fake OpenBao and back; a path under a connected
@@ -636,7 +650,8 @@ Nothing wins silently; a value's source is always one place, shown.
 0. **Settings off podman's disk**, on its own and first, since it is a
    leak today: settings reach a box through tmpfs files and `hi-env`,
    never podman's `--env`, so `config.json` and `podman inspect` hold
-   none (for a running app, at its next start); `on_settings_change`;
+   none (for a running app, at its next start); `/hi-files` on tmpfs,
+   not `run/<slot>-files/`; file settings at most 1 MiB; `on_settings_change`;
    `--for` placeholders. Before the store exists, from `secrets.json`.
 1. **The built-in store**, unlocked by a key file or the TPM; the
    heartbeats that tell a locked or stopped server; what hi
@@ -663,7 +678,7 @@ Nothing wins silently; a value's source is always one place, shown.
 
 ## Open questions
 
-Decided (2026-11-14):
+None left. Decided (2026-11-14):
 
 1. **The default unlock:** slots, any one unlocking; tpm where hi can
    use it, else file, and always recovery (see How it unlocks).
@@ -693,8 +708,7 @@ Decided (2026-11-14):
 8. **Logging in to a team's store:** jwt signed by a key of its own
    (recommended, no secret handed over) or AppRole; hi prints what to
    hand the store's owners. Certificates and cloud identities later.
+9. **File settings:** in the store as bytes, at `/hi-files` on tmpfs
+   (release 0), from a team's store with `--file` (and `--base64`); at
+   most 1 MiB a file.
 
-Still open:
-
-9. **File settings:** a secret holding a PEM to `/hi-files` when the app
-   marks it a file?
