@@ -3296,11 +3296,13 @@ function mailBlock() {
 
 let vaultView = null;
 let vaultHistory = null; // { path, versions }
-async function refreshVault() {
+// refreshVault redraws the vault; a poll waits while someone types, a
+// change of theirs (force) doesn't.
+async function refreshVault(force) {
   try { vaultView = await api("/api/vault"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
   const typing = document.activeElement && $("orgview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-  if (orgOpen() && orgSection === "vault" && !typing) renderOrgSection();
+  if (orgOpen() && orgSection === "vault" && (force || !typing)) renderOrgSection();
 }
 
 // openVault opens the server's Vault in the middle.
@@ -3312,7 +3314,7 @@ async function vaultDo(body) {
   try {
     const answer = await api("/api/vault", body);
     if (answer.text && !String(body.action).startsWith("store-")) toast(answer.text, true);
-    refreshVault();
+    refreshVault(true);
     refreshState();
     return answer;
   } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return null; }
