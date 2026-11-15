@@ -2,8 +2,8 @@
 
 Status: Approved (2026-11-14), after its open questions were decided
 one by one the same day (Open questions). Release 0 built as v2.6.152,
-release 1 as v2.6.153 (see Releases for what it has, and what moved to
-release 2).
+release 1 as v2.6.153, release 2 as v2.6.155 (see Releases for what
+each has).
 It replaces the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
 own Vault, by a login per app), which is folded in here: a team's own
 OpenBao or Vault becomes this store's release 3, not its starting point.
@@ -733,7 +733,7 @@ Nothing wins silently; a value's source is always one place, shown.
    without the server; `hi-key.sealed` beside each offsite repository and
    `hi app restore --from s3:...`; shared keys (`hi server vault
    shared`); the weekly reminder of an unsaved recovery key.
-   Built so far (on main, not yet released):
+   Built in v2.6.155:
    - The server holds the data key (`vault_server.go`): opened at its
      start with tpm or file, or the key systemd kept; other processes ask
      it on the admin socket to open or seal one version, and do the
@@ -759,11 +759,28 @@ Nothing wins silently; a value's source is always one place, shown.
      (shown once, two words back), each path's versions with Roll back
      and Forget, removed apps with Purge; the banner on every view while
      locked, and the owner's while the recovery key waits.
-   - Still to do in release 2: `hi-key.sealed` and `hi app restore
-     --from s3:...`; shared keys; the 24-hour notice and the ping's note
-     while the server is unreachable; the weekly Slack reminder of an
-     unsaved recovery key; moving to the TPM by itself once
-     `libtss2-rc0t64` is installed.
+   - `hi-key.sealed` beside each offsite repository, written at each copy
+     when the snapshot key, the recovery key, or the bucket changed
+     (a SigV4 PUT; `hi app snapshots` says whether it's there), and again
+     for every app by `recovery --new`; `hi app restore <app> --from
+     s3:...` asks for the bucket's keys and the recovery key, copies the
+     snapshots into a repository here (`init --copy-chunker-params`,
+     `copy`), restores the latest or the one named into a new folder, and
+     adopts it. Its settings and tokens are set again: they were in the
+     lost machine's vault.
+   - Shared keys: `hi server vault shared [set|give|rm]`, grants in
+     `vault/shared.json`, references in `app.json` (`env_from`, by slot),
+     `hi app env <app> KEY --from shared/<name>`; the page's Shared keys;
+     a move takes the keys along, copied to a machine without them and
+     given to the app alone; a rename moves the grants, a purge drops
+     them.
+   - While the server doesn't answer, an app's heartbeat pings with the
+     note; after 24 hours its ops channel hears it once, and when it's
+     back.
+   - The owner's Slack DM a day after the recovery key was made, then
+     weekly, while it waits.
+   - A store on a key file moves to the TPM at the server's start, once
+     hi can use it, and the key file goes.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
    changes in the team's store reaching the boxes.
 4. **Later:** the key split between several admins (Shamir), and in

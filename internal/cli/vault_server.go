@@ -23,6 +23,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/slack-go/slack"
 )
 
 // vaultServing is the server's hold, in the server's process only.
@@ -78,6 +80,37 @@ func (h *vaultHold) start(log io.Writer) {
 		return
 	}
 	h.opened(key, kind)
+	vaultMoveToTPM(key, log)
+}
+
+// vaultMoveToTPM moves a store that opens with a key file to the TPM,
+// once hi can use it (libtss2-rc0t64 installed since), and removes the
+// key file: a copied disk opens it no more. It says so.
+func vaultMoveToTPM(dataKey []byte, log io.Writer) {
+	keys, err := loadVaultKeys()
+	if err != nil {
+		return
+	}
+	if _, has := keys.slot(vaultSlotTPM); has {
+		return
+	}
+	if _, has := keys.slot(vaultSlotFile); !has {
+		return
+	}
+	if ok, _ := vaultTPMReady(); !ok {
+		return
+	}
+	said, err := vaultChangeSlot(dataKey, "add", vaultSlotTPM, "", false, "hi")
+	if err != nil {
+		fmt.Fprintf(log, "hi server: the vault stays with its key file; the TPM didn't take it: %v\n", err)
+		return
+	}
+	if _, err := vaultChangeSlot(dataKey, "remove", vaultSlotFile, "", true, "hi"); err != nil {
+		fmt.Fprintf(log, "hi server: the vault opens with the TPM now, and its key file still: %v\n", err)
+		return
+	}
+	_ = said
+	fmt.Fprintln(log, "hi server: this machine's TPM keeps the vault now, and its key file is gone: a copied disk no longer opens it.")
 }
 
 func (h *vaultHold) setWhy(why string) {
@@ -605,10 +638,12 @@ const vaultNoAutoWarning = "After a reboot, every app waits until someone unlock
 // vaultMakeRecovery makes a new recovery key, which waits in the store
 // for the owner; the old words stop working.
 func vaultMakeRecovery(dataKey []byte, who string) error {
-	unlock, err := vaultLock()
+	locked, err := vaultLock()
 	if err != nil {
 		return err
 	}
+	once := sync.Once{}
+	unlock := func() { once.Do(locked) }
 	defer unlock()
 	keys, err := loadVaultKeys()
 	if err != nil {
@@ -626,6 +661,9 @@ func vaultMakeRecovery(dataKey []byte, who string) error {
 		return err
 	}
 	vaultAudit(who, "vault.recovery-new", "vault", "the old recovery key stopped working")
+	unlock()
+	// Each app's key beside its offsite copy, sealed to the new one.
+	vaultResealOffsite(os.Stderr)
 	return nil
 }
 
@@ -639,4 +677,56 @@ func vaultLocalKey() ([]byte, error) {
 		return nil, errors.New("the server holds the vault")
 	}
 	return store.key, nil
+}
+
+// ---------------------------------------------------------------------------
+// the owner's reminder of an unsaved recovery key
+
+// vaultRemindFile is when the owner was last reminded.
+func vaultRemindFile() string { return filepath.Join(vaultDir(), "reminded.json") }
+
+// vaultRemindEvery is how often; the first a day after the key was made.
+var vaultRemindEvery = 7 * 24 * time.Hour
+
+// vaultRemindDue says whether the owner is due a reminder now: the
+// recovery key waits, a day after it was made, a week after the last.
+func vaultRemindDue(now time.Time) bool {
+	if !vaultExists() || !vaultRecoveryWaitingHere() {
+		return false
+	}
+	var last struct {
+		At time.Time `json:"at"`
+	}
+	if data, err := os.ReadFile(vaultRemindFile()); err == nil {
+		json.Unmarshal(data, &last)
+	}
+	if !last.At.IsZero() {
+		return now.Sub(last.At) >= vaultRemindEvery
+	}
+	info, err := os.Stat(vaultPathFileName(vaultDir(), vaultRecoveryPath))
+	return err == nil && now.Sub(info.ModTime()) >= 24*time.Hour
+}
+
+func vaultReminded(now time.Time) {
+	data, _ := json.Marshal(map[string]time.Time{"at": now.UTC()})
+	writeFileAtomic(vaultRemindFile(), data, 0o600)
+}
+
+// remindRecovery sends the server's owner a Slack DM, once a week, while
+// the vault's recovery key waits for them to save it.
+func (s *orgServer) remindRecovery() {
+	now := computeNow()
+	if s.slack == nil || !vaultRemindDue(now) {
+		return
+	}
+	owner := loadOrgPeople(s.dir).Owner
+	if owner == nil || owner.Slack == "" {
+		return
+	}
+	text := "The hi server's vault on " + adminMachineName() + " has a recovery key waiting for you to save it: it opens every secret there when nothing else does, after a move, a restore, or a lost disk. Save it on the admin page (Keys, The server's vault) or with hi server vault recovery on a terminal on the machine."
+	if _, _, err := s.slack.api.PostMessage(owner.Slack, slack.MsgOptionText(slackEscape(text), false)); err != nil {
+		fmt.Fprintf(s.log, "slack: the recovery key's reminder: %v\n", err)
+		return
+	}
+	vaultReminded(now)
 }

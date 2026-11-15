@@ -1939,6 +1939,7 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 		case <-ticker.C:
 			s.reconcile()
 			s.reapExposure()
+			s.remindRecovery()
 		case <-templates.C:
 			s.syncTemplatesInBackground()
 		}

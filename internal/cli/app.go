@@ -96,6 +96,10 @@ type appConfig struct {
 	// rewriting the box's settings files: "" nothing, "restart" new
 	// boxes, or "signal SIGHUP" (app_settings_live.go).
 	OnSettingsChange string `json:"on_settings_change,omitempty"`
+	// EnvFrom are settings whose value is a shared key's, by slot ("" is
+	// the preview and production) and name: "shared/<name>", never the
+	// value (vault_shared.go).
+	EnvFrom map[string]map[string]string `json:"env_from,omitempty"`
 	// DevViewProductionOff, when set, says who turned the dev box's view
 	// of production off, and when (hi_app_dev_view.md).
 	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`

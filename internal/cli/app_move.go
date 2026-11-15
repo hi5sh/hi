@@ -691,6 +691,9 @@ func appReceiveStart(name string, stdout io.Writer) error {
 		err = vaultImportApp(name)
 	}
 	if err == nil {
+		err = vaultImportShared(name, stdout)
+	}
+	if err == nil {
 		err = appUp(name, stdout)
 	}
 	if err != nil {
@@ -991,6 +994,12 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("the app's settings from the server's vault: %w", err)
 		}
 		defer done()
+		// The shared keys it uses go with it, for a machine that lacks one.
+		doneShared, err := vaultExportShared(name)
+		defer doneShared()
+		if err != nil {
+			return fmt.Errorf("the shared keys the app uses: %w", err)
+		}
 		if err := appMoveRsync(target, folder, destFolder, stdout); err != nil {
 			return err
 		}

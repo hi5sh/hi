@@ -45,8 +45,8 @@ your IT team for:
 sudo apt install libtss2-rc0t64
 ```
 
-and `hi server vault unlock-with add tpm`, then `remove file`, moves the
-vault to the TPM. A VM without a virtual TPM gets a file; ask your IT team
+and the server's next start (`hi update` restarts it) moves the vault to
+the TPM by itself, and removes the key file. A VM without a virtual TPM gets a file; ask your IT team
 for a virtual TPM.
 
 `hi server vault` and `hi server status` say in one line what the vault
@@ -117,7 +117,9 @@ hi server vault recovery
 on a terminal on the machine, or **Save your recovery key** on the admin
 page, which only the server's owner sees. It is shown once. hi asks for
 two of its words back, then forgets it. Keep it in a password manager or on paper,
-away from the machine, and never in Slack or mail. Lost, or never saved:
+away from the machine, and never in Slack or mail. Until it's saved, the
+page reminds the owner, and so does Slack once a week, if the server has
+its Slack app. Lost, or never saved:
 `hi server vault recovery --new` makes another, and the old words stop
 working.
 
@@ -146,6 +148,26 @@ hi server vault forget hi/app/payments/production --version 11
 
 No command prints a value.
 
+## Shared keys
+
+A key several apps use, such as one OpenRouter key, is kept once, at
+`hi/shared/<name>`, never copied into an app's settings:
+
+```sh
+hi server vault shared set openrouter                 # asked without echo
+hi server vault shared give openrouter payments orders
+hi app env payments OPENROUTER_KEY --from shared/openrouter
+```
+
+An admin sets it and gives it to apps; an app's owners use it by
+reference, which the app's `app.json` keeps, not the value. A new value
+reaches every app that uses it within a minute, as any change does.
+Taken back (`give … --take`), the app's boxes no longer get it. It can't
+be removed while an app uses it. The admin page's Keys lists each one,
+the apps given it, and the apps that use it. `hi app move` takes the
+shared keys an app uses along: a machine that doesn't have one gets it,
+given to that app alone.
+
 ## Apps
 
 | Path | What |
@@ -156,6 +178,25 @@ No command prints a value.
 | `hi/app/<app>/hi` | Its Slack tokens, OpenRouter key, and sign-ins |
 | `hi/app/<app>/offsite` | Its offsite bucket's keys |
 | `hi/app/<app>/snapshots` | The key its snapshots are encrypted with; restic gets it from hi through a command, never a file |
+
+### After losing the machine
+
+An app with an offsite copy (`hi app backups <app> --offsite s3:…`) has
+its snapshot key beside it in the bucket, as `hi-key.sealed`: sealed to
+the vault's recovery key, which hi can do without knowing the words.
+So the recovery key and the bucket's keys alone bring the app back on
+another machine:
+
+```sh
+hi app restore payments --from s3:https://s3.example.com/backups/payments
+```
+
+asks for the bucket's keys and the recovery key's words, opens the
+snapshot key, copies the snapshots into a repository here, and puts the
+latest into a new folder (`--folder`), which becomes the app. Its
+settings and tokens were in the old machine's vault: you set them again,
+then `hi app up`. A new recovery key seals each copy again, and the old
+words stop opening it. `hi app snapshots` says whether the key is there.
 
 An app's heartbeat URL is in its `app.json`, out of the vault, so the
 heartbeat still goes while the vault is locked. It only lets someone send
@@ -185,7 +226,10 @@ On a machine with a server, the machine's heartbeat (`hi heartbeat <url>`)
 checks the server first. When `hi-server.service` isn't running, or the
 vault is locked, it sends the service a failure with the reason, on the
 check's `/fail` address, and the service alerts at once. An app that
-waits for a locked vault fails its own heartbeat the same way. With no
+waits for a locked vault fails its own heartbeat the same way. An app
+that runs on while the server is down pings as usual, with "the server
+isn't reachable since …" in the ping's text; after a day, its ops channel
+hears it once, and again when the server is back. With no
 heartbeat set, `hi server status` and the page say nobody would hear it.
 
 ## Where it is

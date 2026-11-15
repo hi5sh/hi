@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,12 +50,13 @@ func (b *appBroker) beat() time.Duration {
 	if err != nil {
 		return appHeartbeatDefault
 	}
+	note := appServerGoneCheck(config)
 	target := appHeartbeatURL(config)
 	if target == "" {
 		return appHeartbeatEvery(config)
 	}
 	last := heartbeatLast{At: time.Now().UTC()}
-	if err := heartbeatPing(target); err != nil {
+	if err := heartbeatPingNote(target, note); err != nil {
 		last.Error = err.Error()
 	}
 	if data, err := json.Marshal(last); err == nil {
@@ -351,5 +353,81 @@ func appWaitForVault(config appConfig, stderr io.Writer) {
 			failed = time.Now()
 		}
 		time.Sleep(appVaultPoll)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// the server gone (hi_server_vault.md, When the server is locked or down)
+
+// appServerReachable is whether this machine's hi server answers on its
+// socket; tests replace it.
+var appServerReachable = func() bool {
+	socket := vaultServerSocket()
+	if socket == "" || !fileExists(socket) {
+		return false
+	}
+	conn, err := net.DialTimeout("unix", socket, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+// appServerGone is since when the app hasn't reached the server, and
+// whether its ops channel was told.
+type appServerGone struct {
+	Since time.Time `json:"since"`
+	Told  bool      `json:"told,omitempty"`
+}
+
+func appServerGonePath(team string) string {
+	return filepath.Join(filepath.Dir(appHeartbeatLastPath(team)), "server-gone.json")
+}
+
+// appServerGoneAfter is how long without the server before the ops
+// channel hears of it.
+var appServerGoneAfter = 24 * time.Hour
+
+// appServerGoneCheck notes, at each beat, whether the server answers. On
+// a machine with a server that doesn't, the beat's note says since when;
+// after a day the app's ops channel hears it once, and again when it's
+// back. It returns the beat's note, or "".
+func appServerGoneCheck(config appConfig) string {
+	if !orgUserUnitHere() && !fileExists(vaultServerSocket()) {
+		return ""
+	}
+	path := appServerGonePath(config.Name)
+	var gone appServerGone
+	data, err := os.ReadFile(path)
+	known := err == nil && json.Unmarshal(data, &gone) == nil && !gone.Since.IsZero()
+	now := computeNow().UTC()
+	if appServerReachable() {
+		if known {
+			os.Remove(path)
+			if gone.Told {
+				appOpsSay(config, fmt.Sprintf(":white_check_mark: This app reaches the hi server again, after %s without it.", heartbeatDuration(now.Sub(gone.Since).Round(time.Minute))))
+			}
+		}
+		return ""
+	}
+	if !known {
+		gone = appServerGone{Since: now}
+	}
+	if !gone.Told && now.Sub(gone.Since) >= appServerGoneAfter {
+		appOpsSay(config, fmt.Sprintf(":warning: This app hasn't reached the hi server since %s. It runs as before; deploys and new settings wait until the server is back.", gone.Since.Local().Format("Mon Jan 2 15:04")))
+		gone.Told = true
+	}
+	if encoded, err := json.Marshal(gone); err == nil {
+		os.MkdirAll(filepath.Dir(path), 0o700)
+		writeFileAtomic(path, encoded, 0o600)
+	}
+	return "the server isn't reachable since " + gone.Since.Format(time.RFC3339)
+}
+
+// appOpsSay posts to the app's ops channel with its own Slack token.
+var appOpsSay = func(config appConfig, text string) {
+	if secrets, err := loadTeamSecrets(config.Name); err == nil && secrets.SlackBotToken != "" {
+		newLiveTeamChannel(secrets.SlackBotToken).post(config.opsChannel(), text)
 	}
 }

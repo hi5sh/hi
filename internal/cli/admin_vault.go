@@ -73,10 +73,13 @@ type adminVaultView struct {
 	Heartbeat bool     `json:"heartbeat"`
 	TPM       string   `json:"tpm,omitempty"` // why not, when the TPM can't keep it
 	Warning   string   `json:"warning"`       // before the last way it opens by itself goes
+	// Shared are the shared keys, and Apps the apps they can be given to.
+	Shared []vaultSharedRow `json:"shared"`
+	Apps   []string         `json:"apps"`
 }
 
 func adminVaultViewOf(admin adminPerson) adminVaultView {
-	view := adminVaultView{Exists: vaultExists(), Kinds: []string{}, Advice: []string{}, Paths: []adminVaultPath{}, Removed: []string{},
+	view := adminVaultView{Exists: vaultExists(), Kinds: []string{}, Advice: []string{}, Paths: []adminVaultPath{}, Removed: []string{}, Shared: []vaultSharedRow{}, Apps: machineAppNames(),
 		Owner: admin.MachineOwner, Warning: vaultNoAutoWarning}
 	_, view.Heartbeat = loadMachineHeartbeat()
 	if config, ok := loadAdminConfig(); ok {
@@ -125,6 +128,12 @@ func adminVaultViewOf(admin adminPerson) adminVaultView {
 		view.Removed = append(view.Removed, name)
 	}
 	sort.Strings(view.Removed)
+	if rows, err := vaultSharedRows(); err == nil && rows != nil {
+		view.Shared = rows
+	}
+	if view.Apps == nil {
+		view.Apps = []string{}
+	}
 	return view
 }
 
@@ -186,12 +195,28 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 			App     string   `json:"app"`
 			Yes     bool     `json:"yes"`
 			Words   []string `json:"words"`
+			Name    string   `json:"name"`
 		}
 		if !decode(w, r, &request) {
 			return
 		}
 		who := admin.orgName()
-		text, extra, err := adminVaultChange(admin, who, request.Action, request.Secret, request.Kind, request.Path, request.Version, request.App, request.Yes, request.Words)
+		var text string
+		var extra map[string]any
+		var err error
+		switch request.Action {
+		case "shared-set":
+			text, err = vaultSharedSet(request.Name, request.Secret, who)
+		case "shared-give", "shared-take":
+			text, err = vaultSharedGive(request.Name, []string{request.App}, request.Action == "shared-take", who)
+		case "shared-rm":
+			text, err = vaultSharedRemove(request.Name, who)
+		default:
+			text, extra, err = adminVaultChange(admin, who, request.Action, request.Secret, request.Kind, request.Path, request.Version, request.App, request.Yes, request.Words)
+		}
+		if err == nil && strings.HasPrefix(request.Action, "shared-") {
+			adminRecord(admin.Name, "", strings.TrimPrefix(request.Action, "shared-")+" the shared key "+request.Name)
+		}
 		if err != nil {
 			failure(w, http.StatusBadRequest, err)
 			return

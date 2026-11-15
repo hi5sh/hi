@@ -29,7 +29,8 @@ const vaultUsage = `usage:
   hi server vault rollback <path> <version>
                                          Put a version back, as a new version
   hi server vault forget <path> --version <n>
-                                         Destroy one version's value (it leaked); its entry stays`
+                                         Destroy one version's value (it leaked); its entry stays
+  hi server vault shared [set|give|rm]   Keys several apps use, such as one OpenRouter key`
 
 func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {
@@ -101,6 +102,8 @@ func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return vaultRollbackCommand(rest, stdout)
 	case "forget":
 		return vaultForgetCommand(rest, stdout)
+	case "shared":
+		return vaultSharedCommand(rest, stdin, stdout)
 	case "move", "connect", "login":
 		return fmt.Errorf("hi server vault %s comes in a later hi (docs/specs/approved/hi_server_vault.md)", command)
 	}

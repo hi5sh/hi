@@ -608,7 +608,7 @@ func appAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(stri
 // with --production for production alone, or with --preview a value of
 // the preview's own.
 func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...\n       hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2"}
+	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | KEY --from shared/<name> | --file KEY=<path> | --unset KEY]...\n       hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -646,6 +646,12 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 			return usage
 		}
 		names := appEnvNames(secrets)
+		for _, scope := range sortedKeys(config.EnvFrom) {
+			for _, key := range sortedKeys(config.EnvFrom[scope]) {
+				where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview's own", appSlotDev: ", the dev box's"}[scope]
+				names = append(names, fmt.Sprintf("%s (from %s%s)", key, config.EnvFrom[scope][key], where))
+			}
+		}
 		if len(names) == 0 {
 			fmt.Fprintf(stdout, "App %s has no settings. Add one: hi app env %s KEY=VALUE\n", name, name)
 			return nil
@@ -654,6 +660,7 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		return nil
 	}
 	var set, unset, files []string
+	configChanged := false
 	for i := 0; i < len(rest); i++ {
 		arg := rest[i]
 		if arg == "--unset" {
@@ -661,10 +668,27 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 				return usageError{"usage: hi app env <name> [--production | --preview] --unset KEY"}
 			}
 			i++
-			if !appEnvUnset(&secrets, slot, rest[i]) && !appFileUnset(&secrets, slot, rest[i]) {
+			reference := appEnvFromUnset(&config, slot, rest[i])
+			configChanged = configChanged || reference
+			if !appEnvUnset(&secrets, slot, rest[i]) && !appFileUnset(&secrets, slot, rest[i]) && !reference {
 				return fmt.Errorf("app %s has no setting %s%s", name, rest[i], appEnvSlotWords(slot))
 			}
 			unset = append(unset, rest[i])
+			continue
+		}
+		if i+1 < len(rest) && rest[i+1] == "--from" && !strings.Contains(arg, "=") {
+			if i+2 >= len(rest) {
+				return usageError{"usage: hi app env <name> [--production | --preview | --dev] KEY --from shared/<name>"}
+			}
+			if !appEnvName.MatchString(arg) || appBoxEnvReserved[arg] {
+				return appSettingCheck(secrets, arg, false)
+			}
+			if err := appEnvFrom(&config, &secrets, slot, arg, rest[i+2]); err != nil {
+				return err
+			}
+			configChanged = true
+			set = append(set, arg+" (from "+rest[i+2]+")")
+			i += 2
 			continue
 		}
 		if arg == "--file" {
@@ -706,10 +730,18 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("%s's value has a line break; a setting is one line", key)
 		}
 		appEnvSet(&secrets, slot, key, value)
+		if appEnvFromUnset(&config, slot, key) {
+			configChanged = true
+		}
 		set = append(set, key)
 	}
 	if err := saveTeamSecrets(name, secrets); err != nil {
 		return err
+	}
+	if configChanged {
+		if err := saveTeam(config); err != nil {
+			return err
+		}
 	}
 	switch {
 	case len(set) > 0 && slot == appSlotDev:

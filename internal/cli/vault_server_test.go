@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
@@ -427,5 +428,143 @@ func TestVaultResolverKeepsNoFiles(t *testing.T) {
 		if vaultReadsNoSecret(path) != none {
 			t.Errorf("%q", cmdline)
 		}
+	}
+}
+
+// While the server doesn't answer, the app's heartbeat pings with a note
+// of since when; after a day its ops channel hears it once, and again
+// when the server is back.
+func TestAppServerGone(t *testing.T) {
+	setupTeamTest(t)
+	os.MkdirAll(filepath.Dir(orgUserUnitPath()), 0o755)
+	os.WriteFile(orgUserUnitPath(), []byte("[Service]\n"), 0o644)
+	reachable := true
+	var said []string
+	savedReach, savedSay, savedAfter := appServerReachable, appOpsSay, appServerGoneAfter
+	t.Cleanup(func() { appServerReachable, appOpsSay, appServerGoneAfter = savedReach, savedSay, savedAfter })
+	appServerReachable = func() bool { return reachable }
+	appOpsSay = func(config appConfig, text string) { said = append(said, text) }
+	appServerGoneAfter = 50 * time.Millisecond
+	config := appConfig{Name: "payments"}
+	if note := appServerGoneCheck(config); note != "" {
+		t.Fatal(note)
+	}
+	reachable = false
+	if note := appServerGoneCheck(config); !strings.HasPrefix(note, "the server isn't reachable since ") || len(said) != 0 {
+		t.Fatal(note, said)
+	}
+	time.Sleep(60 * time.Millisecond)
+	appServerGoneCheck(config)
+	appServerGoneCheck(config)
+	if len(said) != 1 || !strings.Contains(said[0], "hasn't reached the hi server since") {
+		t.Fatal(said)
+	}
+	reachable = true
+	if note := appServerGoneCheck(config); note != "" || len(said) != 2 || !strings.Contains(said[1], "reaches the hi server again, after") {
+		t.Fatal(note, said)
+	}
+	// A short absence isn't told, gone or back.
+	reachable = false
+	appServerGoneAfter = time.Hour
+	appServerGoneCheck(config)
+	reachable = true
+	appServerGoneCheck(config)
+	if len(said) != 2 {
+		t.Fatal(said)
+	}
+}
+
+// While the recovery key waits, the server's owner hears of it on Slack:
+// a day after it was made, then once a week, until it's saved.
+func TestVaultRecoveryReminder(t *testing.T) {
+	ts := newTestServer(t)
+	fake := withSlack(t, ts)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	data, _ := json.Marshal(orgPeople{Owner: &orgPerson{Name: "ana", Slack: "UANA"}})
+	os.WriteFile(orgPeoplePath(ts.dir), data, 0o600)
+	saved := computeNow
+	t.Cleanup(func() { computeNow = saved })
+	now := time.Now()
+	computeNow = func() time.Time { return now }
+	sent := func() int { fake.mu.Lock(); defer fake.mu.Unlock(); return len(fake.posts) }
+	before := sent()
+	ts.server.remindRecovery()
+	if sent() != before {
+		t.Fatal("reminded the day it was made")
+	}
+	now = now.Add(25 * time.Hour)
+	ts.server.remindRecovery()
+	ts.server.remindRecovery()
+	if sent() != before+1 || !strings.Contains(fake.posts[len(fake.posts)-1], "recovery key waiting for you") {
+		t.Fatal(fake.posts)
+	}
+	now = now.Add(8 * 24 * time.Hour)
+	ts.server.remindRecovery()
+	if sent() != before+2 {
+		t.Fatal("no weekly reminder")
+	}
+	store, _ := openVault()
+	store.purge(vaultRecoveryPath)
+	now = now.Add(8 * 24 * time.Hour)
+	ts.server.remindRecovery()
+	if sent() != before+2 {
+		t.Fatal("reminded after it was saved")
+	}
+}
+
+// A store that opens with a key file moves to the TPM at the server's
+// start, once hi can use the TPM; without one, it stays.
+func TestVaultMovesToTheTPM(t *testing.T) {
+	vaultTest(t)
+	present := fakeTPM(t, false)
+	*present = false
+	initVault("")
+	keys, _ := loadVaultKeys()
+	if strings.Join(keys.kinds(), ",") != "file,recovery" {
+		t.Fatal(keys.kinds())
+	}
+	var log bytes.Buffer
+	newVaultHold().start(&log)
+	if keys, _ := loadVaultKeys(); strings.Join(keys.kinds(), ",") != "file,recovery" || log.Len() != 0 {
+		t.Fatal(keys.kinds(), log.String())
+	}
+	*present = true
+	hold := newVaultHold()
+	hold.start(&log)
+	keys, _ = loadVaultKeys()
+	if strings.Join(keys.kinds(), ",") != "tpm,recovery" || fileExists(vaultKeyFile()) || !strings.Contains(log.String(), "TPM keeps the vault now") {
+		t.Fatal(keys.kinds(), log.String())
+	}
+	vaultForget()
+	if _, err := vaultOpenBySlots(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Renaming an app's paths seals each version again through the server,
+// which holds the key.
+func TestVaultRenameThroughTheServer(t *testing.T) {
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	hold := newVaultHold()
+	hold.start(&bytes.Buffer{})
+	vaultTestServer(t, hold)
+	vaultForget()
+	store, _ := openVault()
+	if !store.remote {
+		t.Fatal("not through the server")
+	}
+	store.put("hi/app/payments/shared", vaultData{Values: map[string]string{"A": "1"}}, "ana")
+	store.put("hi/app/payments/shared", vaultData{Values: map[string]string{"A": "2"}}, "ana")
+	if err := vaultRenameApp("payments", "billing"); err != nil {
+		t.Fatal(err)
+	}
+	file, _ := store.load("hi/app/billing/shared")
+	if len(file.Versions) != 2 {
+		t.Fatal(file.Versions)
+	}
+	if data, err := store.decrypt("hi/app/billing/shared", file.Versions[0]); err != nil || data.Values["A"] != "1" {
+		t.Fatal(data, err)
 	}
 }

@@ -125,6 +125,7 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("moving the app's snapshots: %w", err)
 		}
 	}
+	vaultSharedRenameApp(old, name)
 	if err := vaultRenameApp(old, name); err != nil {
 		return err
 	}

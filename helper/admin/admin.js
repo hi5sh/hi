@@ -3397,6 +3397,8 @@ function vaultBlock() {
   box.append(el("h3", {}, "Secrets"), v.paths.length ? el("div", { class: "matrix-scroll" }, table) : el("p", { class: "muted small" }, "None yet."));
   if (vaultHistory) box.append(vaultHistoryBlock());
 
+  box.append(vaultSharedBlock(v));
+
   if (v.removed.length) {
     box.append(el("h3", {}, "Removed apps"), el("p", { class: "muted small" }, "Their settings stay, read by nothing, as their snapshots do: hi app up with the kept folder gets them back."));
     const list = el("ul", { class: "list" });
@@ -3434,6 +3436,43 @@ function vaultForm({ title, text, fields, ok, check }) {
     dialog.showModal();
     inputs[0].focus();
   });
+}
+
+// vaultSharedBlock is the shared keys: a key several apps use, by
+// reference; admins set it, give it to apps, and remove it.
+function vaultSharedBlock(v) {
+  const box = el("div", {});
+  box.append(el("h3", {}, "Shared keys"), el("p", { class: "muted small" }, "A key several apps use, such as one OpenRouter key: an app given one uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
+  const list = el("ul", { class: "list" });
+  for (const s of v.shared) {
+    const pick = el("select", { "aria-label": "An app to give it to", class: "small" }, el("option", { value: "" }, "Give to…"), ...v.apps.filter((a) => !s.given.includes(a)).map((a) => el("option", { value: a }, a)));
+    pick.addEventListener("change", () => { if (pick.value) vaultDo({ action: "shared-give", name: s.name, app: pick.value }); });
+    const given = el("span", { class: "small" }, ...s.given.map((a) => el("span", { class: "chip" }, a, " ", el("button", { class: "link-button", title: "Take it back from " + a, "aria-label": "Take it back from " + a, onclick: async () => {
+      if (!(await ask({ title: "Take shared/" + s.name + " back from " + a + "?", text: s.using.includes(a) ? a + " uses it: its boxes no longer get it, within a minute." : a + " doesn't use it yet.", ok: "Take it back" }))) return;
+      vaultDo({ action: "shared-take", name: s.name, app: a });
+    } }, "✕"))));
+    list.append(el("li", { class: "stack" },
+      el("div", { class: "row" }, el("strong", {}, "shared/" + s.name), el("span", { class: "muted small" }, " v" + s.version + (s.changed ? " · " + ago(s.changed) : "")), el("span", { class: "grow" }),
+        el("button", { class: "small", onclick: () => vaultSetShared(s.name) }, "New value"),
+        el("button", { class: "small danger", disabled: s.using.length > 0, title: s.using.length ? "Used by " + s.using.join(", ") : "", onclick: async () => {
+          if (!(await ask({ title: "Remove shared/" + s.name + "?", text: "Its value and its versions go; the history of who changed it stays.", ok: "Remove" }))) return;
+          vaultDo({ action: "shared-rm", name: s.name });
+        } }, "Remove")),
+      el("div", { class: "row small" }, el("span", { class: "muted" }, "Given to "), s.given.length ? given : el("span", { class: "muted" }, "no app"), el("span", { class: "grow" }), pick),
+      el("div", { class: "muted small" }, s.using.length ? "Used by " + s.using.join(", ") : "No app uses it yet.")));
+  }
+  box.append(list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetShared("") }, "+ A shared key")));
+  return box;
+}
+
+async function vaultSetShared(name) {
+  const fields = name ? [] : [{ label: "Its name, such as openrouter" }];
+  fields.push({ label: "Its value", type: "password" });
+  const values = await vaultForm({ title: name ? "A new value for shared/" + name : "A shared key", ok: "Save", fields,
+    text: name ? "Every app that uses it gets the new value within a minute." : "Then give it to the apps that may use it.",
+    check: (v) => (!name && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim())) ? "A name of lowercase letters, digits, and dashes." : v[v.length - 1] ? "" : "Its value." });
+  if (!values) return;
+  vaultDo({ action: "shared-set", name: name || values[0].trim(), secret: values[values.length - 1] });
 }
 
 async function vaultAddWay(kind) {

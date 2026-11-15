@@ -2736,7 +2736,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
-### Next — The server's vault, release 2 (in progress)
+### v2.6.155 — The server's vault, release 2
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 2.
 
@@ -2757,9 +2757,19 @@ Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 2.
   removed apps with Purge; a banner while locked.
 - [x] An older hi's app resolver no longer keeps the secret files on
   disk through an update: it reads none.
-- [ ] `hi-key.sealed` beside offsite copies and `hi app restore --from
-  s3:...`; shared keys; the 24-hour notice; the weekly reminder of an
-  unsaved recovery key; moving to the TPM by itself.
+- [x] The snapshot key beside each offsite copy as `hi-key.sealed`,
+  sealed to the recovery key; `hi app restore <app> --from s3:...` brings
+  the app back on another machine with the recovery key and the bucket's
+  keys alone.
+- [x] Shared keys: `hi server vault shared set|give|rm`, `hi app env <app>
+  KEY --from shared/<name>`, and the page's Shared keys; a move takes them
+  along.
+- [x] While the server is down, an app's heartbeat says since when, and
+  after a day its ops channel hears it; the owner's weekly Slack reminder
+  of an unsaved recovery key; a vault on a key file moves to the TPM by
+  itself once hi can use it.
+- [x] `hi app rename` through a server that holds the key re-seals each
+  version there.
 
 ### v2.6.154 — An app's heartbeat URL in app.json
 
@@ -5626,7 +5636,7 @@ Vault in its place or beside it.
   goes; every version kept, `forget`, `hi app rm --purge`; the machine's
   heartbeat that tells a locked or stopped server; `hi server vault`,
   `ls`, `history`, `rollback`.
-- [ ] Release 2: the passphrase slot; the data key kept by systemd across
+- [x] Release 2 (v2.6.155): the passphrase slot; the data key kept by systemd across
   restarts; the page's Vault section, Unlock, and the locked banner;
   reads through the server's socket. From release 1's list: boxes that
   wait for a locked store, an app's heartbeat while it waits and the

@@ -43,7 +43,7 @@ func (v *vaultStore) movePrefix(old, new string) error {
 				if err != nil {
 					return err
 				}
-				if version.Sealed, err = vaultSeal(v.key, plain, vaultVersionAD(moved.Path, version.Version)); err != nil {
+				if version.Sealed, err = v.sealVersion(moved.Path, version.Version, plain); err != nil {
 					return err
 				}
 			}
@@ -139,6 +139,7 @@ func vaultPurgeApp(name string) (int, error) {
 		return 0, err
 	}
 	n, err := store.purge(appVaultPrefix(name))
+	vaultSharedPurgeApp(name)
 	if err == nil && n > 0 {
 		vaultAudit(vaultActor(), "vault.purge", appVaultPrefix(name), fmt.Sprintf("%d paths", n))
 	}

@@ -112,6 +112,10 @@ type appSnapshotStatus struct {
 	CopyFailed    string    `json:"copy_failed,omitempty"`
 	CopyFailedAt  time.Time `json:"copy_failed_at,omitzero"`
 	CopiedOffsite string    `json:"copied_offsite,omitempty"` // the bucket Copied is about
+	// KeySealed marks the hi-key.sealed in the bucket: for which snapshot
+	// key, recovery key, and bucket (vault_offsite.go).
+	KeySealed     string `json:"key_sealed,omitempty"`
+	KeySealFailed string `json:"key_seal_failed,omitempty"`
 }
 
 var appSnapshotStatusMu sync.Mutex
@@ -540,6 +544,9 @@ func appCopyOffsite(team string, forget bool) (err error) {
 			return fmt.Errorf("forgetting old snapshots in %s: %w", backups.Offsite, err)
 		}
 	}
+	// The key beside them, sealed to the recovery key; a failure is in
+	// the status, and tried again at the next copy.
+	appSealOffsiteKey(team)
 	return nil
 }
 
@@ -914,6 +921,11 @@ func appSnapshotsCommand(name string, stdout io.Writer) error {
 	if status.CopyFailed != "" {
 		fmt.Fprintf(stdout, "The last copy offsite failed, %s: %s\n", status.CopyFailedAt.Local().Format("Jan 2 15:04"), status.CopyFailed)
 	}
+	if backups.Offsite != "" && status.KeySealFailed != "" {
+		fmt.Fprintf(stdout, "The snapshot key isn't beside them, sealed to the recovery key: %s\n", status.KeySealFailed)
+	} else if backups.Offsite != "" && status.KeySealed != "" {
+		fmt.Fprintf(stdout, "Their key is beside them, sealed to the vault's recovery key: with it, hi app restore %s --from %s reads them on another machine.\n", name, backups.Offsite)
+	}
 	if len(snapshots) == 0 {
 		fmt.Fprintf(stdout, "\nNone yet. hi app snapshot %s takes one; the app takes one daily while it is up.\n", name)
 		return nil
@@ -998,17 +1010,45 @@ var (
 func appRestoreCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	var code, yes bool
 	var words []string
-	for _, arg := range args {
+	var from, region, folder string
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		value := func() string {
+			if _, after, ok := strings.Cut(arg, "="); ok {
+				return after
+			}
+			if i+1 < len(args) {
+				i++
+				return args[i]
+			}
+			return ""
+		}
 		switch {
 		case arg == "--code":
 			code = true
 		case arg == "--yes" || arg == "-y":
 			yes = true
+		case arg == "--from" || strings.HasPrefix(arg, "--from="):
+			from = value()
+		case arg == "--region" || strings.HasPrefix(arg, "--region="):
+			region = value()
+		case arg == "--folder" || strings.HasPrefix(arg, "--folder="):
+			folder = value()
 		case strings.HasPrefix(arg, "-"):
 			return usageError{"unknown option " + arg}
 		default:
 			words = append(words, arg)
 		}
+	}
+	if from != "" {
+		if len(words) < 1 || len(words) > 2 {
+			return usageError{"usage: hi app restore <name> [<snapshot ID | latest>] --from s3:https://<host>/<bucket>[/<path>] [--region <region>] [--folder <folder>]"}
+		}
+		which := ""
+		if len(words) == 2 {
+			which = words[1]
+		}
+		return appRestoreFrom(words[0], from, region, folder, which, stdin, stdout)
 	}
 	if len(words) != 2 {
 		return usageError{"usage: hi app restore <name> <snapshot ID | latest | v3 | 2026-10-12> [--code] [--yes]"}

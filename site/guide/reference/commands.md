@@ -346,6 +346,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |
 | `hi app key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running app restarts with them; the lead's box gets placeholders, and the app's proxy puts the tokens on its calls to Slack |
 | `hi app env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the app's boxes get, as files in memory at `/run/hi/settings` and as environment variables from the box's start: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
+| `hi app env <name> KEY --from shared/<name>` | Give the app a shared key as `KEY`, by reference: the app keeps "from shared/openrouter", never the value, and gets each new value within a minute. An admin gives the key to the app first (`hi server vault shared give`); `--unset KEY` drops it |
 | `hi app env <name> --on-change files\|restart\|SIGHUP\|SIGUSR1\|SIGUSR2` | What a change of the app's settings does besides rewriting its boxes' settings files within a minute: nothing (`files`, the default), new boxes on the same links (`restart`), or that signal to the app |
 | `hi app addresses <name> [domain\|netbird\|<host>]` | What the app's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
 | `hi app addresses <name> names <production's name>\|production=… stage=… dev=… [--https]` | A name for each address, which the IT team keeps; `--https` when their proxy ends TLS in front |
@@ -361,6 +362,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app snapshot <name>`                 | Take a snapshot now of the lead's memory, the app's record, and production's data; the app keeps running. It takes one daily and before every release too |
 | `hi app snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
 | `hi app restore <name> <snapshot> [--code] [--yes]` | Put the app back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
+| `hi app restore <name> [<snapshot>] --from s3:https://<host>/<bucket>[/<path>] [--region <region>] [--folder <folder>]` | After losing the machine: bring the app back on this one from its offsite copy, with the bucket's keys and the old machine's recovery key, which open the snapshot key hi keeps sealed beside the copy. Its snapshots come into a repository here, the latest (or the one named) into a new folder; its settings and tokens are set again |
 | `hi app jobs <name> [--stage] [--json]` | The app's long work in production (or Stage): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/app/incidents/) |
 | `hi app incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
 | `"$HI" app job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
@@ -538,6 +540,10 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault history <path>` | Who changed which names, when |
 | `hi server vault rollback <path> <version>` | An old version's values back, as a new version |
 | `hi server vault forget <path> --version <n>` | Destroy one version's value, such as one that leaked; its entry stays |
+| `hi server vault shared` | Each shared key, the apps given it, and the apps that use it |
+| `hi server vault shared set <name>` | A key several apps use, such as one OpenRouter key, asked without echo; a new value reaches every app that uses it within a minute |
+| `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
+| `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
 
 ## hi server sites
 

@@ -545,7 +545,8 @@ func machineSecretFiles() []secretFile {
 	return files
 }
 
-// machineAppNames are the apps this machine has, by their links.
+// machineAppNames are the apps this machine has, by their links (or
+// folders) that hold an app.json.
 func machineAppNames() []string {
 	entries, err := os.ReadDir(appsDir())
 	if err != nil {
@@ -553,7 +554,7 @@ func machineAppNames() []string {
 	}
 	var names []string
 	for _, entry := range entries {
-		if appNamePattern.MatchString(entry.Name()) && entry.Type()&fs.ModeSymlink != 0 {
+		if appNamePattern.MatchString(entry.Name()) && (entry.Type()&fs.ModeSymlink != 0 || entry.IsDir()) && fileExists(filepath.Join(appDir(entry.Name()), appConfigFile)) {
 			names = append(names, entry.Name())
 		}
 	}

@@ -81,22 +81,28 @@ func appSlotSettingsDir(team, slot string) string {
 func appSlotSettings(team, slot string) (map[string]string, map[string][]byte, error) {
 	values, files := map[string]string{}, map[string][]byte{}
 	secrets, err := loadTeamSecrets(team)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return values, files, nil
-		}
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, err
 	}
+	config, _ := loadTeam(team)
+	shared := func(scope string) map[string]string {
+		got, _ := appSharedScope(config, scope)
+		return got
+	}
 	if slot == appSlotDev {
-		for key, value := range secrets.EnvDev {
-			values[key] = value
+		for _, set := range []map[string]string{secrets.EnvDev, shared(appSlotDev)} {
+			for key, value := range set {
+				values[key] = value
+			}
 		}
 	} else {
 		own := secrets.EnvPreview
 		if slot == appSlotProduction {
 			own = secrets.EnvProduction
 		}
-		for _, set := range []map[string]string{secrets.Env, own} {
+		// A slot's own beats the app's; a shared key's beats a value of
+		// its scope, which hi app env --from removed anyway.
+		for _, set := range []map[string]string{secrets.Env, shared(""), own, shared(slot)} {
 			for key, value := range set {
 				values[key] = value
 			}

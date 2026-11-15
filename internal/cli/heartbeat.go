@@ -27,7 +27,19 @@ var heartbeatClient = &http.Client{Timeout: 10 * time.Second}
 // heartbeatPing sends one heartbeat, and says how it went by the
 // service's host, never the URL.
 func heartbeatPing(target string) error {
-	response, err := heartbeatClient.Get(target)
+	return heartbeatPingNote(target, "")
+}
+
+// heartbeatPingNote sends one heartbeat with a note for the service's
+// log, as healthchecks.io and its kind take a ping's body.
+func heartbeatPingNote(target, note string) error {
+	var response *http.Response
+	var err error
+	if note == "" {
+		response, err = heartbeatClient.Get(target)
+	} else {
+		response, err = heartbeatClient.Post(target, "text/plain", strings.NewReader(note))
+	}
 	if err != nil {
 		var urlErr *url.Error
 		if errors.As(err, &urlErr) {
