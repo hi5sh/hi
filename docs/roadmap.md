@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.159 — Shared keys to several apps at once
+
+- [x] The Vault tab's Give to apps…: every app, ticked where it has the
+  key, with All apps; an app that uses it stays until it stops.
+
 ### v2.6.158 — The server's vault, release 3: a team's OpenBao or Vault
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 3.
