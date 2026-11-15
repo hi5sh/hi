@@ -330,3 +330,6 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .vault-view h3 { margin-top: 22px; }
 .vault-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 14px; padding: 4px 0 8px; }
 .vault-all { font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+.vault-key-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+.vault-key-row button { flex: none; }
+.vault-view h3.with-action { display: flex; align-items: center; gap: 8px; }

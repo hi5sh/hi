@@ -3529,22 +3529,26 @@ function vaultPassphraseCheck([a, b]) {
 // reference; admins set it, give it to apps, and remove it.
 function vaultSharedBlock(v) {
   const box = el("div", {});
-  box.append(el("h3", {}, "Shared keys"), el("p", { class: "muted small" }, "A key several apps use, such as one market-data API key: an app given one uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
+  box.append(el("h3", { class: "with-action" }, "Shared keys", el("span", { class: "grow" }),
+    el("button", { class: "small", onclick: () => vaultSetShared("") }, "New Share")));
+  box.append(el("p", { class: "muted small" }, "A key several apps use, such as one market-data API key: an app it's shared to uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
   const list = el("ul", { class: "list" });
   for (const s of v.shared) {
-    const pick = el("button", { class: "small", onclick: () => vaultGiveApps(s, v.apps) }, "Give to apps…");
-    const given = el("span", { class: "small" }, ...s.given.map((a) => el("span", { class: "chip" }, a)));
-    list.append(el("li", { class: "stack" },
-      el("div", { class: "row" }, el("strong", {}, "shared/" + s.name), el("span", { class: "muted small" }, " v" + s.version + (s.changed ? " · " + ago(s.changed) : "")), el("span", { class: "grow" }),
-        el("button", { class: "small", onclick: () => vaultSetShared(s.name) }, "New value"),
-        el("button", { class: "small danger", disabled: s.using.length > 0, title: s.using.length ? "Used by " + s.using.join(", ") : "", onclick: async () => {
-          if (!(await ask({ title: "Remove shared/" + s.name + "?", text: "Its value and its versions go; the history of who changed it stays.", ok: "Remove" }))) return;
-          vaultDo({ action: "shared-rm", name: s.name });
-        } }, "Remove")),
-      el("div", { class: "row small" }, el("span", { class: "muted" }, "Given to "), s.given.length ? given : el("span", { class: "muted" }, "no app"), el("span", { class: "grow" }), pick),
-      el("div", { class: "muted small" }, s.using.length ? "Used by " + s.using.join(", ") : "No app uses it yet.")));
+    const note = s.using.length ? "used by " + s.using.join(", ") : s.given.length ? "not used yet" : "shared to no app";
+    list.append(el("li", { class: "vault-key-row" },
+      el("strong", {}, "shared/" + s.name),
+      el("span", { class: "muted small" }, "v" + s.version + (s.changed ? " · " + ago(s.changed) : "") + " · " + note),
+      el("span", { class: "grow" }),
+      el("button", { class: "small", title: s.given.length ? "Shared to " + s.given.join(", ") : "Shared to no app yet", onclick: () => vaultGiveApps(s, v.apps) },
+        "Shared to" + (s.given.length ? " (" + s.given.length + ")" : "")),
+      el("button", { class: "small", onclick: () => vaultSetShared(s.name) }, "Change value"),
+      el("button", { class: "small danger", disabled: s.using.length > 0, title: s.using.length ? "Used by " + s.using.join(", ") : "", onclick: async () => {
+        if (!(await ask({ title: "Remove shared/" + s.name + "?", text: "Its value and its versions go; the history of who changed it stays.", ok: "Remove" }))) return;
+        vaultDo({ action: "shared-rm", name: s.name });
+      } }, "Remove")));
   }
-  box.append(list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetShared("") }, "+ A shared key")));
+  if (!v.shared.length) list.append(el("li", { class: "muted small" }, "None yet."));
+  box.append(list);
   return box;
 }
 
@@ -3642,7 +3646,7 @@ function vaultGiveApps(s, apps) {
   const dialog = el("dialog", { class: "vault-dialog" });
   const save = el("button", { class: "primary", type: "submit" }, "Save");
   const form = el("form", { class: "stack" },
-    el("h2", {}, "Who may use shared/" + s.name),
+    el("h2", {}, "shared/" + s.name + " is shared to"),
     el("p", { class: "small" }, "An app ticked may use it; each then names the setting that gets it (hi app env <app> NAME --from shared/" + s.name + "). An app that uses it stays ticked until it stops."),
     el("label", { class: "check vault-app vault-all" }, all, " All apps"),
     el("div", { class: "vault-apps" }, ...boxes.map((b) => b.row)),
@@ -3661,7 +3665,7 @@ function vaultGiveApps(s, apps) {
 async function vaultSetShared(name) {
   const fields = name ? [] : [{ label: "Its name, such as openrouter" }];
   fields.push({ label: "Its value", type: "password" });
-  const values = await vaultForm({ title: name ? "A new value for shared/" + name : "A shared key", ok: "Save", fields,
+  const values = await vaultForm({ title: name ? "A new value for shared/" + name : "New Share", ok: "Save", fields,
     text: name ? "Every app that uses it gets the new value within a minute." : "Then give it to the apps that may use it.",
     live: (v) => {
       const badName = !name && v[0].trim() !== "" && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim());
