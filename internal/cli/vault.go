@@ -6,11 +6,11 @@ package cli
 // key is kept once per slot (the machine's TPM, a key file, the recovery
 // key), as LUKS does, and any one slot opens the store.
 //
-// In release 1 every slot that opens by itself (tpm, file) opens for any
-// process of the hi account, so the server, the apps' services, the page,
-// and a command each open the store themselves. The passphrase, which
-// only a person opens, and the key kept by the server alone for the
-// others, come in release 2.
+// The server holds the data key (vault_server.go): the apps' services,
+// the page, and commands ask it on its socket to open or seal a version,
+// and it logs each read. Only where no server runs does a process open
+// the store itself, with a slot that opens by itself (tpm, file); a
+// passphrase only a person types, so only the server holds what it opens.
 
 import (
 	"bytes"
@@ -39,9 +39,13 @@ import (
 )
 
 const (
-	vaultSlotTPM      = "tpm"
-	vaultSlotFile     = "file"
-	vaultSlotRecovery = "recovery"
+	vaultSlotTPM        = "tpm"
+	vaultSlotFile       = "file"
+	vaultSlotPassphrase = "passphrase"
+	vaultSlotRecovery   = "recovery"
+
+	// vaultPassphraseLeast is a passphrase's least length.
+	vaultPassphraseLeast = 12
 
 	// vaultRecoveryPath holds the recovery key's words until the owner
 	// saves them; then hi forgets them.
@@ -158,7 +162,7 @@ func (k vaultKeys) slot(kind string) (vaultSlot, bool) {
 func (k *vaultKeys) setSlot(slot vaultSlot) {
 	k.Slots = slices.DeleteFunc(k.Slots, func(s vaultSlot) bool { return s.Kind == slot.Kind })
 	k.Slots = append(k.Slots, slot)
-	order := map[string]int{vaultSlotTPM: 0, vaultSlotFile: 1, vaultSlotRecovery: 2}
+	order := map[string]int{vaultSlotTPM: 0, vaultSlotFile: 1, vaultSlotPassphrase: 2, vaultSlotRecovery: 3}
 	sort.SliceStable(k.Slots, func(i, j int) bool { return order[k.Slots[i].Kind] < order[k.Slots[j].Kind] })
 }
 
@@ -366,17 +370,36 @@ func vaultRecoveryBox(entropy, salt []byte) (private, public []byte, err error) 
 // ---------------------------------------------------------------------------
 // the store
 
-// vaultStore is an open store: the data key, in this process's memory.
+// vaultStore is an open store: the data key, in this process's memory,
+// or, remote, the server's, which opens and seals each version for this
+// process (vault_server.go).
 type vaultStore struct {
-	dir string
-	key []byte
+	dir    string
+	key    []byte
+	remote bool
+}
+
+// openVersion decrypts one version's sealed bytes.
+func (v *vaultStore) openVersion(path string, version int, sealed []byte) ([]byte, error) {
+	if v.remote {
+		return vaultRemoteOpen(path, version, sealed)
+	}
+	return vaultOpenSealed(v.key, sealed, vaultVersionAD(path, version))
+}
+
+// sealVersion encrypts one version's values.
+func (v *vaultStore) sealVersion(path string, version int, plain []byte) ([]byte, error) {
+	if v.remote {
+		return vaultRemoteSeal(path, version, plain)
+	}
+	return vaultSeal(v.key, plain, vaultVersionAD(path, version))
 }
 
 // vaultLockedError is a store no slot opened.
 type vaultLockedError struct{ why string }
 
 func (e vaultLockedError) Error() string {
-	return "the server's vault is locked (" + e.why + "); unlock it with hi server vault unlock and the recovery key"
+	return "the server's vault is locked (" + e.why + "); an admin unlocks it on the admin page or with hi server vault unlock"
 }
 
 var (
@@ -384,8 +407,9 @@ var (
 	vaultOpened = map[string]*vaultStore{}
 )
 
-// openVault opens this machine's store with the first slot that opens by
-// itself, once per process.
+// openVault is this machine's store, once per process: the key the
+// server holds, asked for on its socket; in the server, its own; where no
+// server runs, opened here with the first slot that opens by itself.
 func openVault() (*vaultStore, error) {
 	dir := vaultDir()
 	vaultMu.Lock()
@@ -393,9 +417,42 @@ func openVault() (*vaultStore, error) {
 	if store := vaultOpened[dir]; store != nil {
 		return store, nil
 	}
-	keys, err := loadVaultKeys()
+	if vaultServing != nil {
+		// The server: the key it holds, never cached, so a lock holds.
+		if key := vaultServing.key(); key != nil {
+			return &vaultStore{dir: dir, key: key}, nil
+		}
+		return nil, vaultLockedError{vaultServing.lockedWhy()}
+	}
+	if status, reached := vaultAskServer(); reached {
+		if !status.Open {
+			return nil, vaultLockedError{status.Why}
+		}
+		store := &vaultStore{dir: dir, remote: true}
+		vaultOpened[dir] = store
+		return store, nil
+	}
+	key, err := vaultOpenBySlots()
 	if err != nil {
 		return nil, err
+	}
+	store := &vaultStore{dir: dir, key: key}
+	vaultOpened[dir] = store
+	return store, nil
+}
+
+// vaultOpenBySlots unwraps the data key with the first slot that opens
+// by itself: the TPM, or the key file.
+func vaultOpenBySlots() ([]byte, error) {
+	key, _, err := vaultOpenSlot()
+	return key, err
+}
+
+// vaultOpenSlot is vaultOpenBySlots, and the slot that opened it.
+func vaultOpenSlot() ([]byte, string, error) {
+	keys, err := loadVaultKeys()
+	if err != nil {
+		return nil, "", err
 	}
 	var why []string
 	for _, slot := range keys.Slots {
@@ -418,14 +475,69 @@ func openVault() (*vaultStore, error) {
 			why = append(why, slot.Kind+": "+err.Error())
 			continue
 		}
-		store := &vaultStore{dir: dir, key: key}
-		vaultOpened[dir] = store
-		return store, nil
+		return key, slot.Kind, nil
 	}
 	if len(why) == 0 {
 		why = append(why, "no slot opens it by itself")
 	}
-	return nil, vaultLockedError{strings.Join(why, "; ")}
+	return nil, "", vaultLockedError{strings.Join(why, "; ")}
+}
+
+// vaultUnwrap opens the data key with what a person typed: the recovery
+// key's words, or a passphrase. kind says which it was.
+func vaultUnwrap(keys vaultKeys, secret string) (key []byte, kind string, err error) {
+	if entropy, err := vaultRecoveryDecode(secret); err == nil {
+		slot, ok := keys.slot(vaultSlotRecovery)
+		if !ok {
+			return nil, "", errors.New("the vault has no recovery slot")
+		}
+		key, err := vaultOpenSealed(vaultStretch(entropy, slot.Salt), slot.Wrapped, vaultSlotAD(vaultSlotRecovery))
+		if err != nil || !bytes.Equal(vaultKeyCheck(key), keys.Check) {
+			return nil, vaultSlotRecovery, errors.New("that isn't this vault's recovery key")
+		}
+		return key, vaultSlotRecovery, nil
+	} else if len(strings.Fields(secret)) == vaultRecoveryWords {
+		return nil, vaultSlotRecovery, err
+	}
+	slot, ok := keys.slot(vaultSlotPassphrase)
+	if !ok {
+		return nil, "", errors.New("the vault has no passphrase; unlock it with the recovery key's 24 words")
+	}
+	key, err = vaultOpenSealed(vaultStretch([]byte(secret), slot.Salt), slot.Wrapped, vaultSlotAD(vaultSlotPassphrase))
+	if err != nil || !bytes.Equal(vaultKeyCheck(key), keys.Check) {
+		return nil, vaultSlotPassphrase, errors.New("that isn't the vault's passphrase")
+	}
+	return key, vaultSlotPassphrase, nil
+}
+
+// vaultResealHere replaces the tpm and file slots when none of them opens
+// on this machine (a moved or restored server, a lost key file) with a
+// new tpm slot, else a file slot, so the store opens by itself again. A
+// store that had neither, a passphrase's alone, stays so. It says what it
+// did, or "".
+func vaultResealHere(keys *vaultKeys, dataKey []byte) (string, error) {
+	had := slices.ContainsFunc(keys.Slots, func(s vaultSlot) bool { return s.Kind == vaultSlotTPM || s.Kind == vaultSlotFile })
+	if !had {
+		return "", nil
+	}
+	if key, err := vaultOpenBySlots(); err == nil && bytes.Equal(key, dataKey) {
+		return "", nil
+	}
+	kind, why := vaultSlotTPM, ""
+	next, err := vaultWrapSlot(vaultSlotTPM, dataKey, nil)
+	if err != nil {
+		why = err.Error()
+		kind = vaultSlotFile
+		if next, err = vaultWrapSlot(vaultSlotFile, dataKey, nil); err != nil {
+			return "", err
+		}
+	}
+	keys.Slots = slices.DeleteFunc(keys.Slots, func(s vaultSlot) bool { return s.Kind == vaultSlotTPM || s.Kind == vaultSlotFile })
+	keys.setSlot(next)
+	if why != "" {
+		return kind + " (no tpm: " + why + ")", nil
+	}
+	return kind, nil
 }
 
 // vaultForget drops this process's open stores, for tests and lock.
@@ -450,8 +562,9 @@ func readVaultKeyFile() ([]byte, error) {
 	return key, nil
 }
 
-// vaultWrapSlot keeps the data key in a new slot of kind.
-func vaultWrapSlot(kind string, dataKey []byte, recovery []byte) (vaultSlot, error) {
+// vaultWrapSlot keeps the data key in a new slot of kind; secret is the
+// recovery key's entropy or the passphrase.
+func vaultWrapSlot(kind string, dataKey []byte, secret []byte) (vaultSlot, error) {
 	host, _ := os.Hostname()
 	slot := vaultSlot{Kind: kind, Created: computeNow().UTC(), Machine: host}
 	switch kind {
@@ -487,15 +600,18 @@ func vaultWrapSlot(kind string, dataKey []byte, recovery []byte) (vaultSlot, err
 		if slot.Wrapped, err = vaultSeal(fileKey, dataKey, vaultSlotAD(kind)); err != nil {
 			return slot, err
 		}
-	case vaultSlotRecovery:
+	case vaultSlotRecovery, vaultSlotPassphrase:
+		if kind == vaultSlotPassphrase && len([]rune(string(secret))) < vaultPassphraseLeast {
+			return slot, fmt.Errorf("a passphrase has at least %d characters; a few words are easiest to type", vaultPassphraseLeast)
+		}
 		slot.Salt = vaultRandom(16)
-		wrapped, err := vaultSeal(vaultStretch(recovery, slot.Salt), dataKey, vaultSlotAD(kind))
+		wrapped, err := vaultSeal(vaultStretch(secret, slot.Salt), dataKey, vaultSlotAD(kind))
 		if err != nil {
 			return slot, err
 		}
 		slot.Wrapped = wrapped
 	default:
-		return slot, fmt.Errorf("no slot called %q: tpm, file, or recovery", kind)
+		return slot, fmt.Errorf("no slot called %q: tpm, file, passphrase, or recovery", kind)
 	}
 	return slot, nil
 }
@@ -526,9 +642,10 @@ type vaultInitResult struct {
 }
 
 // initVault creates the store: the data key, the slot that opens by
-// itself (tpm where hi can use it, else file, or the one asked for), and
-// the recovery key, which waits in the store for the owner.
-func initVault(want string) (vaultInitResult, error) {
+// itself (tpm where hi can use it, else file, or the one asked for) or a
+// passphrase, and the recovery key, which waits in the store for the
+// owner.
+func initVault(want string, passphrase ...string) (vaultInitResult, error) {
 	var result vaultInitResult
 	unlock, err := vaultLock()
 	if err != nil {
@@ -560,8 +677,18 @@ func initVault(want string) (vaultInitResult, error) {
 		}
 		keys.setSlot(slot)
 		result.Slot = vaultSlotFile
+	case vaultSlotPassphrase:
+		if len(passphrase) == 0 {
+			return result, errors.New("a passphrase vault needs its passphrase")
+		}
+		slot, err := vaultWrapSlot(vaultSlotPassphrase, dataKey, []byte(passphrase[0]))
+		if err != nil {
+			return result, err
+		}
+		keys.setSlot(slot)
+		result.Slot = vaultSlotPassphrase
 	default:
-		return result, fmt.Errorf("a vault opens by itself with tpm or file; %q isn't one (a passphrase comes in a later hi)", want)
+		return result, fmt.Errorf("a vault opens with tpm, file, or passphrase; %q isn't one", want)
 	}
 	words, err := vaultNewRecovery(&keys, dataKey)
 	if err != nil {
@@ -577,9 +704,13 @@ func initVault(want string) (vaultInitResult, error) {
 	if err := saveVaultKeys(keys); err != nil {
 		return result, err
 	}
-	vaultMu.Lock()
-	vaultOpened[store.dir] = store
-	vaultMu.Unlock()
+	if vaultServing != nil {
+		vaultServing.opened(dataKey, "init")
+	} else if !vaultServerRuns() {
+		vaultMu.Lock()
+		vaultOpened[store.dir] = store
+		vaultMu.Unlock()
+	}
 	vaultAudit("hi", "vault.init", "vault", "opens with "+strings.Join(keys.kinds(), ", "))
 	return result, nil
 }
@@ -602,14 +733,11 @@ func vaultNewRecovery(keys *vaultKeys, dataKey []byte) (string, error) {
 	return vaultRecoveryEncode(entropy), nil
 }
 
-// vaultUnlockWithRecovery opens the store with the recovery key, where no
-// slot opens it by itself (a moved machine, a lost key file), and keeps
-// it open: a new tpm slot in place of the old, else a file slot.
-func vaultUnlockWithRecovery(words string) (string, error) {
-	entropy, err := vaultRecoveryDecode(words)
-	if err != nil {
-		return "", err
-	}
+// vaultUnlockHere opens the store, where no server runs, with the
+// recovery key (a moved machine, a lost key file), and keeps it open: a
+// new tpm slot in place of the old, else a file slot. A passphrase opens
+// nothing here: only the server can hold what it opens.
+func vaultUnlockHere(words string) (string, error) {
 	unlock, err := vaultLock()
 	if err != nil {
 		return "", err
@@ -619,38 +747,37 @@ func vaultUnlockWithRecovery(words string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	slot, ok := keys.slot(vaultSlotRecovery)
-	if !ok {
-		return "", errors.New("the vault has no recovery slot")
-	}
-	dataKey, err := vaultOpenSealed(vaultStretch(entropy, slot.Salt), slot.Wrapped, vaultSlotAD(vaultSlotRecovery))
-	if err != nil || !bytes.Equal(vaultKeyCheck(dataKey), keys.Check) {
-		vaultAudit("hi", "vault.unlock", "vault", "a wrong recovery key")
-		return "", errors.New("that isn't this vault's recovery key")
-	}
-	kind, why := vaultSlotTPM, ""
-	next, err := vaultWrapSlot(vaultSlotTPM, dataKey, nil)
+	dataKey, kind, err := vaultUnwrap(keys, words)
 	if err != nil {
-		why = err.Error()
-		kind = vaultSlotFile
-		if next, err = vaultWrapSlot(vaultSlotFile, dataKey, nil); err != nil {
-			return "", err
-		}
+		vaultAudit(vaultActor(), "vault.unlock", "vault", "refused: "+err.Error())
+		return "", err
 	}
-	// The old machine's slots can't open here; the new one replaces them.
-	keys.Slots = slices.DeleteFunc(keys.Slots, func(s vaultSlot) bool { return s.Kind == vaultSlotTPM || s.Kind == vaultSlotFile })
-	keys.setSlot(next)
+	if kind != vaultSlotRecovery {
+		return "", errors.New("the server holds what a passphrase opens, and it isn't running: start it (systemctl --user start hi-server.service), then unlock")
+	}
+	resealed, err := vaultResealHere(&keys, dataKey)
+	if err != nil {
+		return "", err
+	}
+	if resealed == "" {
+		next, err := vaultWrapSlot(vaultSlotTPM, dataKey, nil)
+		resealed = vaultSlotTPM
+		if err != nil {
+			if next, err = vaultWrapSlot(vaultSlotFile, dataKey, nil); err != nil {
+				return "", err
+			}
+			resealed = vaultSlotFile
+		}
+		keys.setSlot(next)
+	}
 	if err := saveVaultKeys(keys); err != nil {
 		return "", err
 	}
 	vaultMu.Lock()
 	vaultOpened[vaultDir()] = &vaultStore{dir: vaultDir(), key: dataKey}
 	vaultMu.Unlock()
-	vaultAudit("hi", "vault.unlock", "vault", "with the recovery key; now opens with "+kind)
-	if why != "" {
-		return kind + " (no tpm: " + why + ")", nil
-	}
-	return kind, nil
+	vaultAudit(vaultActor(), "vault.unlock", "vault", "with the recovery key; now opens with "+resealed)
+	return resealed, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -775,8 +902,12 @@ func (v *vaultStore) decrypt(path string, version vaultVersion) (vaultData, erro
 	if version.Forgotten != nil {
 		return data, fmt.Errorf("version %d of %s was forgotten", version.Version, path)
 	}
-	plain, err := vaultOpenSealed(v.key, version.Sealed, vaultVersionAD(path, version.Version))
+	plain, err := v.openVersion(path, version.Version, version.Sealed)
 	if err != nil {
+		var locked vaultLockedError
+		if errors.As(err, &locked) {
+			return data, err
+		}
 		return data, fmt.Errorf("version %d of %s doesn't decrypt: it was changed on disk", version.Version, path)
 	}
 	if err := json.Unmarshal(plain, &data); err != nil {
@@ -845,7 +976,7 @@ func (v *vaultStore) addVersion(path string, data vaultData, by string, rollback
 	if err != nil {
 		return err
 	}
-	sealed, err := vaultSeal(v.key, plain, vaultVersionAD(path, number))
+	sealed, err := v.sealVersion(path, number, plain)
 	if err != nil {
 		return err
 	}

@@ -17,11 +17,12 @@ import (
 
 const vaultUsage = `usage:
   hi server vault                        Locked or open, how it opens, what it protects, counts
-  hi server vault init [--unlock tpm|file]
+  hi server vault init [--unlock tpm|file|passphrase]
                                          Create it (hi update does); the recovery key waits for the owner
-  hi server vault unlock                 Open it with the recovery key, where nothing opens it by itself
-  hi server vault unlock-with add|remove tpm|file
-                                         Add or remove a way it opens by itself
+  hi server vault unlock                 Open it with the passphrase or the recovery key
+  hi server vault lock                   The server forgets the key now; running boxes keep running
+  hi server vault unlock-with add|remove tpm|file|passphrase [--yes]
+                                         Add or remove a way it opens
   hi server vault recovery [--new]       The owner, on a terminal: save the recovery key; --new makes another
   hi server vault ls [<prefix>]          Paths, versions, when changed, and names; never values
   hi server vault history <path>         A path's versions: who changed which names, when
@@ -51,7 +52,7 @@ func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 			case strings.HasPrefix(rest[i], "--unlock="):
 				want = strings.TrimPrefix(rest[i], "--unlock=")
 			default:
-				return usageError{"usage: hi server vault init [--unlock tpm|file]"}
+				return usageError{"usage: hi server vault init [--unlock tpm|file|passphrase]"}
 			}
 		}
 		if vaultExists() {
@@ -60,18 +61,36 @@ func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if want == "" {
 			return ensureVault(stdout)
 		}
-		result, err := initVault(want)
+		var passphrase []string
+		if want == vaultSlotPassphrase {
+			phrase, err := vaultAskPassphrase(stdin, stdout)
+			if err != nil {
+				return err
+			}
+			passphrase = append(passphrase, phrase)
+		}
+		result, err := initVault(want, passphrase...)
 		if err != nil {
 			return err
+		}
+		if want == vaultSlotPassphrase {
+			// The server holds what a passphrase opens.
+			if err := vaultServerCall("POST", "/admin/vault/unlock", vaultSecretRequest{Secret: passphrase[0]}, nil); err == nil {
+				fmt.Fprintln(stdout, "The server's vault is made; it opens with the passphrase, and the server holds it open. After a reboot an admin unlocks it.")
+			} else {
+				fmt.Fprintln(stdout, "The server's vault is made; it opens with the passphrase. Unlock it once the server runs: hi server vault unlock.")
+			}
+			fmt.Fprintln(stdout, "Its recovery key waits for the owner: hi server vault recovery.")
+			return ensureVault(stdout)
 		}
 		fmt.Fprintf(stdout, "The server's vault is made; it opens by itself with %s. Its recovery key waits for the owner: hi server vault recovery.\n", vaultSlotWords(result.Slot))
 		return ensureVault(stdout)
 	case "unlock":
 		return vaultUnlockCommand(rest, stdin, stdout)
 	case "lock":
-		return errors.New("in this hi, the vault opens by itself with the machine's TPM or key file for each of hi's processes, so there is nothing to lock yet; locking comes with the passphrase")
+		return vaultLockCommand(rest, stdout)
 	case "unlock-with":
-		return vaultUnlockWithCommand(rest, stdout)
+		return vaultUnlockWithCommand(rest, stdin, stdout)
 	case "recovery":
 		return vaultRecoveryCommand(rest, stdin, stdout)
 	case "ls":
@@ -82,7 +101,7 @@ func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return vaultRollbackCommand(rest, stdout)
 	case "forget":
 		return vaultForgetCommand(rest, stdout)
-	case "move", "connect", "login", "shared":
+	case "move", "connect", "login":
 		return fmt.Errorf("hi server vault %s comes in a later hi (docs/specs/approved/hi_server_vault.md)", command)
 	}
 	return usageError{vaultUsage}
@@ -94,6 +113,8 @@ func vaultSlotWords(kind string) string {
 		return "this machine's TPM"
 	case vaultSlotFile:
 		return "a key file (" + vaultKeyFile() + ")"
+	case vaultSlotPassphrase:
+		return "a passphrase"
 	}
 	return kind
 }
@@ -106,6 +127,8 @@ func vaultProtects(kinds []string) string {
 		return "Protects backups and copies of hi's state; a copied disk can open it (file slot)."
 	case slices.Contains(kinds, vaultSlotTPM):
 		return "Protects backups, copies of hi's state, and a stolen or copied disk; it opens by itself on this machine only."
+	case slices.Contains(kinds, vaultSlotPassphrase):
+		return "Protects backups, copies of hi's state, a stolen or copied disk, and a stolen machine; after a reboot an admin unlocks it."
 	}
 	return "Nothing opens it by itself: every app waits until someone unlocks it."
 }
@@ -114,16 +137,20 @@ func vaultProtects(kinds []string) string {
 func vaultAdvice(keys vaultKeys) []string {
 	kinds := keys.kinds()
 	var advice []string
-	if slices.Contains(kinds, vaultSlotTPM) && slices.Contains(kinds, vaultSlotFile) {
-		advice = append(advice, "The file slot undoes the TPM's: a copied disk opens the store. Remove it? hi server vault unlock-with remove file")
+	if slices.Contains(kinds, vaultSlotFile) && (slices.Contains(kinds, vaultSlotTPM) || slices.Contains(kinds, vaultSlotPassphrase)) {
+		stronger := map[bool]string{true: "TPM's", false: "passphrase's"}[slices.Contains(kinds, vaultSlotTPM)]
+		advice = append(advice, "The file slot undoes the "+stronger+": a copied disk opens the store. Remove it? hi server vault unlock-with remove file")
+	}
+	if slices.Contains(kinds, vaultSlotTPM) && !slices.Contains(kinds, vaultSlotPassphrase) && !slices.Contains(kinds, vaultSlotFile) {
+		advice = append(advice, "Add a passphrase, so moving the server doesn't need the recovery key: hi server vault unlock-with add passphrase")
 	}
 	if !slices.Contains(kinds, vaultSlotTPM) {
 		if ok, why := vaultTPMReady(); ok {
 			advice = append(advice, "This machine's TPM can keep the store: hi server vault unlock-with add tpm, then remove file.")
 		} else if strings.Contains(why, "libtss2") {
 			advice = append(advice, "This machine has a TPM; "+why+", and hi moves the store to it.")
-		} else if strings.Contains(why, "no TPM") {
-			advice = append(advice, "No TPM: a copied disk opens this store. Ask your IT team for a virtual TPM.")
+		} else if strings.Contains(why, "no TPM") && slices.Contains(kinds, vaultSlotFile) {
+			advice = append(advice, "No TPM: a copied disk opens this store. Ask your IT team for a virtual TPM, or add a passphrase.")
 		}
 	}
 	return advice
@@ -170,9 +197,12 @@ func vaultStatus(stdout io.Writer) error {
 		return err
 	}
 	store, openErr := openVault()
-	if openErr != nil {
+	switch {
+	case openErr != nil:
 		fmt.Fprintf(stdout, "The server's vault is locked: %v\n", openErr)
-	} else {
+	case store.remote:
+		fmt.Fprintln(stdout, "The server's vault is open; the server holds its key.")
+	default:
 		fmt.Fprintln(stdout, "The server's vault is open.")
 	}
 	var ways []string
@@ -222,75 +252,130 @@ func vaultUnlockCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 	}
 	vaultForget()
 	if _, err := openVault(); err == nil {
-		fmt.Fprintln(stdout, "The vault is open already: it opens by itself on this machine.")
+		fmt.Fprintln(stdout, "The vault is open already.")
 		return nil
 	}
-	words, err := readSecretLine(stdin, stdout, "The recovery key's 24 words")
+	secret, err := readSecretLine(stdin, stdout, "The passphrase, or the recovery key's 24 words")
 	if err != nil {
 		return err
 	}
-	kind, err := vaultUnlockWithRecovery(words)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "The vault is open, and opens by itself again with %s. The apps that waited start within a minute.\n", kind)
-	return nil
-}
-
-func vaultUnlockWithCommand(args []string, stdout io.Writer) error {
-	if len(args) != 2 || (args[0] != "add" && args[0] != "remove") {
-		return usageError{"usage: hi server vault unlock-with add|remove tpm|file"}
-	}
-	action, kind := args[0], args[1]
-	if kind != vaultSlotTPM && kind != vaultSlotFile {
-		if kind == "passphrase" {
-			return errors.New("a passphrase comes in a later hi")
-		}
-		return usageError{"usage: hi server vault unlock-with add|remove tpm|file"}
-	}
-	store, err := openVault()
-	if err != nil {
-		return err
-	}
-	unlock, err := vaultLock()
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	keys, err := loadVaultKeys()
-	if err != nil {
-		return err
-	}
-	if action == "add" {
-		slot, err := vaultWrapSlot(kind, store.key, nil)
+	var reply vaultSaidReply
+	err = vaultServerCall("POST", "/admin/vault/unlock", vaultSecretRequest{Secret: secret}, &reply)
+	if errors.Is(err, errVaultNoServer) {
+		// No server holds it: the recovery key opens it here, and seals a
+		// slot that opens by itself.
+		kind, err := vaultUnlockHere(secret)
 		if err != nil {
 			return err
 		}
-		keys.setSlot(slot)
-		if err := saveVaultKeys(keys); err != nil {
-			return err
-		}
-		vaultAudit(vaultActor(), "vault.slot-add", "vault", kind)
-		fmt.Fprintf(stdout, "The vault opens with %s too.\n%s\n", vaultSlotWords(kind), vaultProtects(keys.kinds()))
+		fmt.Fprintf(stdout, "The vault is open, and opens by itself again with %s. The apps that waited start within a minute.\n", kind)
 		return nil
 	}
-	if _, ok := keys.slot(kind); !ok {
-		return fmt.Errorf("the vault has no %s slot", kind)
-	}
-	others := slices.DeleteFunc(keys.kinds(), func(k string) bool { return k == kind || k == vaultSlotRecovery })
-	if len(others) == 0 {
-		return fmt.Errorf("%s is the only way the vault opens by itself; add another first (hi server vault unlock-with add tpm|file), or every app would wait for the recovery key", kind)
-	}
-	keys.Slots = slices.DeleteFunc(keys.Slots, func(s vaultSlot) bool { return s.Kind == kind })
-	if err := saveVaultKeys(keys); err != nil {
+	if err != nil {
 		return err
 	}
-	if kind == vaultSlotFile {
-		os.Remove(vaultKeyFile())
-		os.Remove(vaultKeyDir())
+	vaultForget()
+	fmt.Fprintf(stdout, "The vault is open (%s); the server holds it. The apps that waited start within a minute.\n", reply.Said)
+	return nil
+}
+
+func vaultLockCommand(args []string, stdout io.Writer) error {
+	if len(args) > 0 {
+		return usageError{"usage: hi server vault lock"}
 	}
-	vaultAudit(vaultActor(), "vault.slot-remove", "vault", kind)
-	fmt.Fprintf(stdout, "The vault no longer opens with %s.\n%s\n", vaultSlotWords(kind), vaultProtects(keys.kinds()))
+	if !vaultExists() {
+		return errors.New("this machine has no vault")
+	}
+	if err := vaultServerCall("POST", "/admin/vault/lock", nil, nil); err != nil {
+		if errors.Is(err, errVaultNoServer) {
+			return errors.New("no server holds the vault to lock: it runs as hi-server.service")
+		}
+		return err
+	}
+	vaultForget()
+	keys, _ := loadVaultKeys()
+	fmt.Fprintln(stdout, "The server forgot the vault's key. Running boxes keep running; a box that starts waits until an admin unlocks it (hi server vault unlock).")
+	if slices.ContainsFunc(keys.kinds(), func(k string) bool { return k == vaultSlotTPM || k == vaultSlotFile }) {
+		fmt.Fprintf(stdout, "It opens by itself again at the server's next start (%s).\n", strings.Join(keys.kinds(), ", "))
+	}
+	return nil
+}
+
+// vaultAskPassphrase asks a new passphrase twice, without echo.
+func vaultAskPassphrase(stdin io.Reader, stdout io.Writer) (string, error) {
+	first, err := readSecretLine(stdin, stdout, fmt.Sprintf("A passphrase (at least %d characters; a few words are easiest)", vaultPassphraseLeast))
+	if err != nil {
+		return "", err
+	}
+	if len([]rune(first)) < vaultPassphraseLeast {
+		return "", fmt.Errorf("a passphrase has at least %d characters", vaultPassphraseLeast)
+	}
+	again, err := readSecretLine(stdin, stdout, "Again")
+	if err != nil {
+		return "", err
+	}
+	if again != first {
+		return "", errors.New("the two weren't the same; nothing changed")
+	}
+	return first, nil
+}
+
+func vaultUnlockWithCommand(args []string, stdin io.Reader, stdout io.Writer) error {
+	usage := usageError{"usage: hi server vault unlock-with add|remove tpm|file|passphrase [--yes]"}
+	yes := false
+	var positional []string
+	for _, arg := range args {
+		if arg == "--yes" {
+			yes = true
+			continue
+		}
+		positional = append(positional, arg)
+	}
+	if len(positional) != 2 || (positional[0] != "add" && positional[0] != "remove") {
+		return usage
+	}
+	action, kind := positional[0], positional[1]
+	if kind != vaultSlotTPM && kind != vaultSlotFile && kind != vaultSlotPassphrase {
+		return usage
+	}
+	secret := ""
+	if action == "add" && kind == vaultSlotPassphrase {
+		phrase, err := vaultAskPassphrase(stdin, stdout)
+		if err != nil {
+			return err
+		}
+		secret = phrase
+	}
+	change := func(yes bool) (string, error) {
+		var reply vaultSaidReply
+		err := vaultServerCall("POST", "/admin/vault/slot", vaultSecretRequest{Action: action, Kind: kind, Secret: secret, Yes: yes}, &reply)
+		if errors.Is(err, errVaultNoServer) {
+			key, err := vaultLocalKey()
+			if err != nil {
+				return "", err
+			}
+			return vaultChangeSlot(key, action, kind, secret, yes, vaultActor())
+		}
+		return reply.Said, err
+	}
+	said, err := change(yes)
+	if err != nil && strings.Contains(err.Error(), vaultNoAutoWarning) {
+		file, ok := stdin.(*os.File)
+		if !ok || !isTerminal(file) {
+			return err
+		}
+		fmt.Fprintf(stdout, "%s\nRemove %s anyway? [y/N] ", vaultNoAutoWarning, kind)
+		answer, _ := readLine(stdin)
+		if answer = strings.ToLower(strings.TrimSpace(answer)); answer != "y" && answer != "yes" {
+			fmt.Fprintln(stdout, "Nothing changed.")
+			return nil
+		}
+		said, err = change(true)
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, said)
 	return nil
 }
 
@@ -313,27 +398,16 @@ func vaultRecoveryCommand(args []string, stdin io.Reader, stdout io.Writer) erro
 		return err
 	}
 	if fresh {
-		unlock, err := vaultLock()
+		err := vaultServerCall("POST", "/admin/vault/recovery", nil, nil)
+		if errors.Is(err, errVaultNoServer) {
+			var key []byte
+			if key, err = vaultLocalKey(); err == nil {
+				err = vaultMakeRecovery(key, vaultActor())
+			}
+		}
 		if err != nil {
 			return err
 		}
-		keys, err := loadVaultKeys()
-		if err != nil {
-			unlock()
-			return err
-		}
-		words, err := vaultNewRecovery(&keys, store.key)
-		if err == nil {
-			err = store.putLocked(vaultRecoveryPath, vaultData{Values: map[string]string{vaultRecoveryName: words}}, vaultActor())
-		}
-		if err == nil {
-			err = saveVaultKeys(keys)
-		}
-		unlock()
-		if err != nil {
-			return err
-		}
-		vaultAudit(vaultActor(), "vault.recovery-new", "vault", "the old recovery key stopped working")
 		fmt.Fprintln(stdout, "A new recovery key: the old words stop working on this machine. Backups of hi's state taken before still open with the old words.")
 	}
 	data, _, ok, err := store.get(vaultRecoveryPath)

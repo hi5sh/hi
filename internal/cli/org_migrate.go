@@ -291,6 +291,9 @@ Environment=HI_ORG_DIR=%s
 ExecStart=%s server run
 Restart=always
 RestartSec=5
+NotifyAccess=main
+FileDescriptorStoreMax=1
+FileDescriptorStorePreserve=yes
 
 [Install]
 WantedBy=default.target

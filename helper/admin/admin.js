@@ -209,7 +209,7 @@ function freshView(view) {
   if (view === "people") { renderPeople(); refreshPeopleApps(); }
   if (view === "network") { renderMachineNetwork(); refreshMachineNetwork(); }
   if (view === "advisories") { renderAdvisories(); refreshAdvisories(); }
-  if (view === "keys") { renderKeys(); refreshMachineKeys(); refreshMail(); }
+  if (view === "keys") { renderKeys(); refreshVault(); refreshMachineKeys(); refreshMail(); }
 }
 
 // The left panel is the same on every machine. The right is about what's
@@ -1863,7 +1863,7 @@ $("people-add").addEventListener("click", () => openPerson("new"));
 
 // Keys: the machine's, set or not, never shown. The server's are the server's.
 function renderKeys() {
-  const parts = [machineKeysBlock(), mailBlock()];
+  const parts = [vaultBlock(), machineKeysBlock(), mailBlock()];
   if (state && state.org) parts.push(el("p", { class: "muted small" }, "The server's keys, for its compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "the server's Keys"), "."));
   $("keys-view").replaceChildren(...parts);
 }
@@ -3286,6 +3286,230 @@ function mailBlock() {
   return box;
 }
 
+// ---------------------------------------------------------------------------
+// The server's vault, first in Keys (hi_server_vault.md): open or locked,
+// Unlock and Lock, the ways it opens, the recovery key for the owner,
+// each path's versions with Rollback and Forget, and removed apps'
+// settings with Purge. No value is ever on the page.
+
+let vaultView = null;
+let vaultHistory = null; // { path, versions }
+async function refreshVault() {
+  try { vaultView = await api("/api/vault"); } catch (e) { return; }
+  if (viewShown("keys")) renderKeys();
+}
+async function vaultDo(body) {
+  try {
+    const answer = await api("/api/vault", body);
+    if (answer.text) toast(answer.text, true);
+    refreshVault();
+    refreshState();
+    return answer;
+  } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return null; }
+}
+
+// renderVaultBanner is the first thing an admin sees while the vault is
+// locked, and the owner's reminder while the recovery key waits.
+function renderVaultBanner() {
+  const v = state && state.vault;
+  const box = $("vault-banner");
+  const open = () => showView("keys");
+  if (v && v.locked) {
+    box.className = "vault-banner vault-locked";
+    box.replaceChildren(el("strong", {}, "The server's vault is locked"), ": the apps' settings can't be read, so an app that starts waits. ",
+      el("button", { class: "small primary", onclick: open }, "Unlock"));
+    box.hidden = false;
+  } else if (v && v.recovery && state.me && state.me.machine_owner) {
+    box.className = "vault-banner";
+    box.replaceChildren("The vault's recovery key waits for you to save it: it opens every secret here when nothing else does. ",
+      el("button", { class: "small", onclick: open }, "Save it"));
+    box.hidden = false;
+  } else box.hidden = true;
+}
+
+const vaultWays = { tpm: "this machine's TPM", file: "a key file", passphrase: "a passphrase", recovery: "the recovery key" };
+
+function vaultBlock() {
+  const v = vaultView;
+  const box = el("div", {});
+  box.append(el("h2", {}, "The server's vault"));
+  if (!v) return box;
+  if (!v.exists) {
+    box.append(el("p", { class: "muted small" }, "None yet: hi keeps the secrets as files. hi update makes the vault where a server or apps run."));
+    return box;
+  }
+  box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (v.open ? "idle" : "blocked"), "aria-hidden": "true" }),
+    v.open ? "Open. " : "Locked: " + (v.why || "nothing opened it") + ". ", el("span", { class: "muted" }, v.protects || "")));
+  if (!v.open) {
+    const secret = el("input", { type: "password", placeholder: "The passphrase, or the recovery key's 24 words", "aria-label": "The passphrase or the recovery key", class: "wide-input", autocomplete: "off" });
+    const form = el("form", { class: "machine-block signin-row", autocomplete: "off" }, secret, el("button", { class: "primary", type: "submit" }, "Unlock"));
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const answer = await vaultDo({ action: "unlock", secret: secret.value });
+      secret.value = "";
+      if (answer) refreshVault();
+    });
+    box.append(form, el("p", { class: "muted small" }, "It goes to the server on this machine, which holds the vault open; the page keeps none of it."));
+    return box;
+  }
+  for (const line of v.advice) box.append(el("p", { class: "warn small" }, line));
+  if (!v.heartbeat) box.append(el("p", { class: "warn small" }, "Nobody would hear that the server is locked or down: set a heartbeat (hi heartbeat <url>)."));
+
+  // How it opens.
+  const ways = el("ul", { class: "list" });
+  for (const kind of v.kinds) {
+    const row = el("li", { class: "row" }, el("span", {}, vaultWays[kind] || kind), el("span", { class: "grow" }));
+    if (kind !== "recovery") row.append(el("button", { class: "small danger", onclick: () => vaultRemoveWay(kind, v) }, "Remove"));
+    ways.append(row);
+  }
+  const adds = el("div", { class: "data-actions" });
+  for (const kind of ["tpm", "passphrase"]) {
+    if (v.kinds.includes(kind) || (kind === "tpm" && v.tpm)) continue;
+    adds.append(el("button", { class: "small", onclick: () => vaultAddWay(kind) }, "Add " + vaultWays[kind]));
+  }
+  if (!v.kinds.includes("file") && !v.kinds.includes("tpm")) adds.append(el("button", { class: "small", onclick: () => vaultAddWay("file") }, "Add a key file"));
+  box.append(el("h3", {}, "It opens with"), ways, adds);
+  if (v.tpm && !v.kinds.includes("tpm")) box.append(el("p", { class: "muted small" }, "The TPM can't keep it: " + v.tpm + "."));
+  box.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
+    if (!(await ask({ title: "Lock the vault?", text: "The server forgets its key now. Running boxes keep running; an app that starts waits until someone unlocks it" + (v.kinds.some((k) => k === "tpm" || k === "file") ? ". It opens by itself again at the server's next start." : "."), ok: "Lock" }))) return;
+    vaultDo({ action: "lock" });
+  } }, "Lock now")));
+
+  // The recovery key.
+  box.append(el("h3", {}, "The recovery key"));
+  if (v.recovery && v.owner) box.append(el("p", { class: "small" }, "It waits for you to save it. ", el("button", { class: "small primary", onclick: vaultShowRecovery }, "Save your recovery key")));
+  else if (v.recovery) box.append(el("p", { class: "muted small" }, "It waits for the server's owner" + (v.owner_is ? ", " + v.owner_is : "") + ", to save it here or with hi server vault recovery."));
+  else box.append(el("p", { class: "muted small" }, "Saved, and hi has forgotten it. It opens the vault on any machine: after a move, a restore, or a lost key file."));
+  if (v.owner) box.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
+    if (!(await ask({ title: "Make a new recovery key?", text: "The old words stop working on this machine at once. Backups of hi's state taken before still open with them, so if a key may have leaked, change the secrets that matter at their source too.", ok: "Make a new one" }))) return;
+    if (await vaultDo({ action: "recovery-new" })) vaultShowRecovery();
+  } }, "A new recovery key")));
+
+  // Each path's versions.
+  const table = el("table", { class: "people-matrix vault-paths" });
+  table.append(el("tr", {}, el("th", {}, "Path"), el("th", {}, "Version"), el("th", {}, "Changed"), el("th", {}, "Names")));
+  for (const p of v.paths) {
+    table.append(el("tr", { class: p.removed ? "muted" : "" },
+      el("th", { scope: "row" }, el("button", { class: "link-button", onclick: () => vaultOpenHistory(p.path) }, p.path)),
+      el("td", {}, "v" + p.version), el("td", { class: "small" }, ago(p.time) + (p.by ? " · " + p.by : "")),
+      el("td", { class: "small" }, p.names.length ? p.names.join(" ") : "empty", p.removed ? el("span", { class: "muted" }, " (a removed app's)") : "")));
+  }
+  box.append(el("h3", {}, "Secrets"), v.paths.length ? el("div", { class: "matrix-scroll" }, table) : el("p", { class: "muted small" }, "None yet."));
+  if (vaultHistory) box.append(vaultHistoryBlock());
+
+  if (v.removed.length) {
+    box.append(el("h3", {}, "Removed apps"), el("p", { class: "muted small" }, "Their settings stay, read by nothing, as their snapshots do: hi app up with the kept folder gets them back."));
+    const list = el("ul", { class: "list" });
+    for (const name of v.removed) list.append(el("li", { class: "row" }, el("span", {}, name), el("span", { class: "grow" }), el("button", { class: "small danger", onclick: async () => {
+      if (!(await ask({ title: "Delete " + name + "'s settings and snapshots?", text: "This deletes " + name + "'s settings, its snapshot key, and its local snapshots. They can't be brought back. An offsite copy stays.", ok: "Delete", typed: name }))) return;
+      vaultDo({ action: "purge", app: name });
+    } }, "Purge")));
+    box.append(list);
+  }
+  box.append(el("p", { class: "muted small" }, "Encrypted on disk; the server holds the key while it's open. Root, or anyone logged in as " + ((state && state.user) || "hi") + ", can read the secrets of a running machine; the vault protects every copy of the disk and of hi's state."));
+  return box;
+}
+
+// vaultForm asks for a few fields in one dialog of its own, and gives
+// their values, or null when cancelled. check says what's wrong, or "".
+function vaultForm({ title, text, fields, ok, check }) {
+  return new Promise((resolve) => {
+    const inputs = fields.map((f) => el("input", { type: f.type || "text", placeholder: f.label, "aria-label": f.label, autocomplete: "off", spellcheck: "false", class: "wide-input" }));
+    const error = el("p", { class: "error small" });
+    const form = el("form", { class: "stack", autocomplete: "off" }, el("h2", {}, title), el("p", { class: "small" }, text), ...inputs, error,
+      el("div", { class: "buttons" }, el("button", { type: "button", value: "cancel" }, "Cancel"), el("button", { class: "primary", type: "submit" }, ok)));
+    const dialog = el("dialog", { class: "vault-dialog" }, form);
+    let result = null;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const values = inputs.map((input) => input.value);
+      const problem = check ? check(values) : "";
+      if (problem) { error.textContent = problem; return; }
+      result = values;
+      dialog.close();
+    });
+    form.querySelector('button[value="cancel"]').addEventListener("click", () => dialog.close());
+    dialog.addEventListener("close", () => { for (const input of inputs) input.value = ""; dialog.remove(); resolve(result); }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+    inputs[0].focus();
+  });
+}
+
+async function vaultAddWay(kind) {
+  if (kind === "passphrase") {
+    const values = await vaultForm({ title: "A passphrase for the vault", ok: "Add",
+      text: "An admin types it to unlock the vault after a reboot, here or with hi server vault unlock. At least 12 characters; a few words are easiest. It isn't kept anywhere: if it's lost, the recovery key still opens the vault.",
+      fields: [{ label: "The passphrase", type: "password" }, { label: "Again", type: "password" }],
+      check: ([a, b]) => a.length < 12 ? "At least 12 characters." : a !== b ? "The two aren't the same." : "" });
+    if (values) vaultDo({ action: "add", kind, secret: values[0] });
+    return;
+  }
+  vaultDo({ action: "add", kind });
+}
+
+async function vaultRemoveWay(kind, v) {
+  const left = v.kinds.filter((k) => k !== kind && k !== "recovery");
+  const byItself = left.some((k) => k === "tpm" || k === "file");
+  let text = "The vault no longer opens with " + vaultWays[kind] + ".";
+  if (!byItself && kind !== "passphrase") text = v.warning;
+  if (!(await ask({ title: "Remove " + vaultWays[kind] + "?", text, ok: "Remove" }))) return;
+  vaultDo({ action: "remove", kind, yes: true });
+}
+
+async function vaultOpenHistory(path) {
+  try { vaultHistory = await api("/api/vault/history?path=" + encodeURIComponent(path)); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
+  renderKeys();
+}
+
+function vaultHistoryBlock() {
+  const h = vaultHistory;
+  const list = el("ul", { class: "list" });
+  h.versions.forEach((version, i) => {
+    let what = version.changed.length ? "changed " + version.changed.join(" ") : "no change";
+    if (version.rollback) what = "put version " + version.rollback + " back (" + what + ")";
+    const row = el("li", { class: "row small" }, el("strong", {}, "v" + version.version), " " + ago(version.time) + " · " + (version.by || "hi") + " · " + what, el("span", { class: "grow" }));
+    if (version.forgotten) row.append(el("span", { class: "muted" }, "value forgotten"));
+    else if (i > 0) {
+      row.append(el("button", { class: "small", onclick: async () => {
+        if (!(await ask({ title: "Put version " + version.version + " back?", text: "Its values become a new version of " + h.path + ". A box gets them within a minute.", ok: "Put it back" }))) return;
+        await vaultDo({ action: "rollback", path: h.path, version: version.version });
+        vaultOpenHistory(h.path);
+      } }, "Roll back"),
+      el("button", { class: "small danger", title: "Leaked? Forget this value", onclick: async () => {
+        if (!(await ask({ title: "Forget version " + version.version + "'s value?", text: "Leaked? hi destroys this version's value; its entry stays in the history. Backups of hi's state taken before still hold it, so change the secret at its source too.", ok: "Forget it" }))) return;
+        await vaultDo({ action: "forget", path: h.path, version: version.version });
+        vaultOpenHistory(h.path);
+      } }, "Forget"));
+    }
+    list.append(row);
+  });
+  return el("div", { class: "card-box" }, el("div", { class: "row pad" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: () => { vaultHistory = null; renderKeys(); } }, "Close")), list);
+}
+
+// vaultShowRecovery shows the recovery key once, then asks two of its
+// words back; once they match, hi forgets it.
+async function vaultShowRecovery() {
+  let answer;
+  try { answer = await api("/api/vault", { action: "recovery-show" }); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
+  const grid = el("ol", { class: "recovery-words" }, ...answer.words.map((w) => el("li", {}, w)));
+  const dialog = el("dialog", { class: "recovery-dialog" },
+    el("h2", {}, "Your recovery key"),
+    el("p", { class: "small" }, "Write it down, or keep it in a password manager, away from this machine. It opens every secret here, and is shown only now. Never send it by Slack or mail."),
+    grid,
+    el("div", { class: "buttons" }, el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I've saved it")));
+  document.body.append(dialog);
+  dialog.showModal();
+  await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
+  grid.replaceChildren();
+  dialog.remove();
+  const [a, b] = answer.ask;
+  const values = await vaultForm({ title: "Two of its words", ok: "Done", text: "To check you have it: words " + a + " and " + b + " of the 24.",
+    fields: [{ label: "Word " + a }, { label: "Word " + b }], check: (v) => v.every((w) => w.trim()) ? "" : "Both words." });
+  if (!values) { toast("The recovery key still waits: show it again when you're ready.", true); return; }
+  vaultDo({ action: "recovery-saved", words: values.map((w) => w.trim()) });
+}
+
 async function refreshMachineKeys() {
   try { machineKeys = await api("/api/keys"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
@@ -3637,6 +3861,7 @@ async function refreshState() {
   if (!middle) renderHome();
   renderOrgBadges();
   renderJobsBadge();
+  renderVaultBanner();
   if (openApp && $("overview-usage")) $("overview-usage").textContent = usageLine(openApp) || "…";
   if (openApp && detail && detail.boxes) boxUsage(detail.name, detail.boxes);
   if (viewShown("machine")) renderMachine();
@@ -3695,6 +3920,7 @@ async function boot() {
   renderApps();
   renderHome();
   renderOrgBadges();
+  renderVaultBanner();
   const [wantedApp, wantedSection] = wanted.split("/");
   if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings", "network", "data"].includes(wantedSection) ? wantedSection : "");
   else if (wantedApp === ":org" && state.org) openOrg(wantedSection || "");

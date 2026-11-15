@@ -248,10 +248,25 @@ var vaultKeepFiles = func() bool {
 			continue
 		}
 		if target, err := os.Readlink(filepath.Join(updateProcRoot, entry.Name(), "exe")); err == nil && target == exe+" (deleted)" {
+			if vaultReadsNoSecret(filepath.Join(updateProcRoot, entry.Name(), "cmdline")) {
+				continue
+			}
 			return true
 		}
 	}
 	return false
+}
+
+// vaultReadsNoSecret is whether a process, by its command line, is one of
+// hi's that never reads a secret file: an app's resolver, which an update
+// restarts only with its app, a while after the rest.
+func vaultReadsNoSecret(cmdline string) bool {
+	data, err := os.ReadFile(cmdline)
+	if err != nil {
+		return false
+	}
+	args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	return len(args) >= 3 && (args[1] == "app" || args[1] == "team") && args[2] == "__resolver"
 }
 
 // removeSecretFile removes the secret: an empty version in the vault,

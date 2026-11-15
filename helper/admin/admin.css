@@ -309,3 +309,11 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 
 /* Errors keep their lines: "hi server join …" and "hi server init" each on its own. */
 .error { white-space: pre-line; }
+
+/* The server's vault: the banner while it is locked, and the recovery key. */
+.vault-banner { margin: 0 8px 8px; padding: 8px 14px; border: 1px solid var(--line); border-left: 4px solid #d4a017; border-radius: var(--r-sm); background: var(--bg); font-size: 13px; }
+.vault-banner.vault-locked { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--bg)); }
+.vault-banner button { margin-left: 8px; }
+.recovery-words { columns: 3; font-family: ui-monospace, monospace; font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
+.recovery-words li { padding: 2px 0; }
+.recovery-dialog, .vault-dialog { max-width: 560px; }

@@ -589,6 +589,7 @@ func (s *adminServer) routes() http.Handler {
 	s.newRoutes(mux, reply, decode, signedIn)
 	s.settingsRoutes(mux, reply, decode, signedIn)
 	s.networkRoutes(mux, reply, decode, signedIn)
+	s.vaultRoutes(mux, reply, decode, signedIn)
 	return adminHeaders(mux)
 }
 
@@ -901,13 +902,15 @@ type adminStateView struct {
 	Moved []appMoved `json:"moved"`
 	// MoveName is this machine as others reach it, for moving apps.
 	MoveName string `json:"move_name"`
+	// Vault is the server's vault, for the page's banner.
+	Vault *adminVaultBrief `json:"vault,omitempty"`
 }
 
 func (s *adminServer) state(admin adminPerson) adminStateView {
 	config, _ := loadAdminConfig()
 	view := adminStateView{Machine: adminMachineName(), Version: version, Latest: s.latestVersion(), Me: admin, Address: adminURL(config),
 		Reach: config.Reach, Line: adminReachLine(config), Apps: adminApps(), Admins: config.Admins, Lingers: s.lingering(), User: currentUserName(),
-		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart(), Moved: appsMovedAway(), MoveName: appMoveThisMachine()}
+		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart(), Moved: appsMovedAway(), MoveName: appMoveThisMachine(), Vault: adminVaultBriefOf()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
 		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())

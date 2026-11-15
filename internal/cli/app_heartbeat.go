@@ -8,6 +8,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -320,4 +321,35 @@ func moveAppHeartbeat(name string) error {
 		}
 	}
 	return clearLegacyHeartbeat(name)
+}
+
+// appVaultPoll is how often a waiting app looks whether the vault opened.
+var appVaultPoll = 10 * time.Second
+
+// appWaitForVault waits while the server's vault is locked: the app's
+// settings are in it, so its boxes can't start. Its heartbeat fails with
+// the reason at its interval, so its check alerts; once an admin
+// unlocks the vault, the app starts by itself.
+func appWaitForVault(config appConfig, stderr io.Writer) {
+	said := false
+	var failed time.Time
+	for vaultExists() {
+		_, err := openVault()
+		var locked vaultLockedError
+		if !errors.As(err, &locked) {
+			if said {
+				fmt.Fprintf(stderr, "hi: the server's vault is open; app %s starts\n", config.Name)
+			}
+			return
+		}
+		if !said {
+			fmt.Fprintf(stderr, "hi: app %s waits for the server's vault, locked (%s); an admin unlocks it on the admin page or with hi server vault unlock\n", config.Name, locked.why)
+			said = true
+		}
+		if target := appHeartbeatURL(config); target != "" && time.Since(failed) >= appHeartbeatEvery(config) {
+			heartbeatFail(target, "waiting for the server's vault, locked")
+			failed = time.Now()
+		}
+		time.Sleep(appVaultPoll)
+	}
 }

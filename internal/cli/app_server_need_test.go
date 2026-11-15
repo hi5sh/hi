@@ -35,6 +35,9 @@ func init() {
 	vaultKeepFiles = func() bool { return false }
 	vaultTPMSeal = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
 	vaultTPMOpen = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
+	vaultSystemdKeep = func([]byte) {}
+	vaultSystemdTake = func() []byte { return nil }
+	vaultSystemdDrop = func() {}
 	// HI_TEST_VAULT=1 runs every test with a vault in its own state, so
 	// every secret goes through it.
 	if os.Getenv("HI_TEST_VAULT") == "1" {

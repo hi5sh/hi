@@ -126,10 +126,10 @@ func TestVaultTPM(t *testing.T) {
 	if !errors.As(err, &locked) || !strings.Contains(vaultLockedNote(), "locked") {
 		t.Fatal(err)
 	}
-	if _, err := vaultUnlockWithRecovery(strings.Replace(words, strings.Fields(words)[0], "zoo", 1)); err == nil {
+	if _, err := vaultUnlockHere(strings.Replace(words, strings.Fields(words)[0], "zoo", 1)); err == nil {
 		t.Fatal("a wrong word unlocked")
 	}
-	kind, err := vaultUnlockWithRecovery(words)
+	kind, err := vaultUnlockHere(words)
 	if err != nil || !strings.HasPrefix(kind, vaultSlotFile) {
 		t.Fatal(kind, err)
 	}
@@ -431,10 +431,10 @@ func TestVaultSlots(t *testing.T) {
 	if !strings.Contains(out.String(), "a copied disk can open it") || !strings.Contains(out.String(), "unlock-with add tpm") {
 		t.Fatal(out.String())
 	}
-	if err := vaultUnlockWithCommand([]string{"remove", "file"}, &out); err == nil {
+	if err := vaultUnlockWithCommand([]string{"remove", "file"}, strings.NewReader(""), &out); err == nil {
 		t.Fatal("removed the only slot that opens by itself")
 	}
-	if err := vaultUnlockWithCommand([]string{"add", "tpm"}, &out); err != nil {
+	if err := vaultUnlockWithCommand([]string{"add", "tpm"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
 	out.Reset()
@@ -442,7 +442,7 @@ func TestVaultSlots(t *testing.T) {
 	if !strings.Contains(out.String(), "undoes the TPM's") {
 		t.Fatal(out.String())
 	}
-	if err := vaultUnlockWithCommand([]string{"remove", "file"}, &out); err != nil {
+	if err := vaultUnlockWithCommand([]string{"remove", "file"}, strings.NewReader(""), &out); err != nil {
 		t.Fatal(err)
 	}
 	if fileExists(vaultKeyFile()) {

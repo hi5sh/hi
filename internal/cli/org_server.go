@@ -190,6 +190,9 @@ type orgServer struct {
 	fallback priceBound
 	// slack is the Slack bridge, or nil when Slack isn't set up.
 	slack *slackBridge
+	// vault is the vault's hold this server answers with; nil is the
+	// machine's (vaultServing).
+	vault *vaultHold
 	// feed is recent activity for the live dashboard.
 	feed liveFeed
 	// serverKey signs what devices must trust, such as template bundles.
@@ -294,15 +297,13 @@ func openServer(dir string, log io.Writer) (*orgServer, error) {
 	if server.serverKey, err = loadServerKey(dir); err != nil {
 		return nil, err
 	}
-	if data, err := readSecretFile(serverKeysSecret(dir)); err == nil {
-		if err := json.Unmarshal(data, &server.keys); err != nil {
-			return nil, fmt.Errorf("read the provider keys: %w", err)
+	if err := server.loadKeys(); err != nil {
+		var locked vaultLockedError
+		if !errors.As(err, &locked) {
+			return nil, err
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, err
-	}
-	for name, key := range server.keys {
-		server.enableProvider(name, key)
+		// Locked: the providers wait until it opens (vault_server.go).
+		fmt.Fprintln(server.log, "hi server: the provider keys wait for the vault, locked")
 	}
 	server.feed.loadRecentAudit(dir)
 	serverWatchRetiredNote(dir, server.log)
@@ -315,6 +316,28 @@ func openServer(dir string, log io.Writer) (*orgServer, error) {
 		}
 	}
 	return server, nil
+}
+
+// loadKeys reads the provider keys and enables each.
+func (s *orgServer) loadKeys() error {
+	data, err := readSecretFile(serverKeysSecret(s.dir))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	keys := map[string]string{}
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return fmt.Errorf("read the provider keys: %w", err)
+	}
+	s.mu.Lock()
+	s.keys = keys
+	s.mu.Unlock()
+	for name, key := range keys {
+		s.enableProvider(name, key)
+	}
+	return nil
 }
 
 // enableProvider puts the key where the driver reads it and registers the
@@ -1527,6 +1550,7 @@ func (s *orgServer) requestNamedLocked(provider, name string) string {
 
 func (s *orgServer) adminHandler() http.Handler {
 	mux := http.NewServeMux()
+	s.vaultRoutes(mux)
 	s.templateAdminRoutes(mux)
 	s.dataAdminRoutes(mux)
 	s.exposeAdminRoutes(mux)
@@ -1876,7 +1900,21 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 	}
 	fmt.Fprintf(s.log, "hi server %s listening on %s\n", version, listen)
 	if err := s.startSlack(ctx); err != nil {
-		fmt.Fprintf(s.log, "slack: %v\n", err)
+		var locked vaultLockedError
+		if errors.As(err, &locked) && vaultServing != nil {
+			// Its tokens are in the vault: Slack starts once it opens.
+			vaultServing.whenOpen(func() {
+				if err := s.loadKeys(); err != nil {
+					fmt.Fprintf(s.log, "hi server: the provider keys: %v\n", err)
+				}
+				if err := s.startSlack(ctx); err != nil {
+					fmt.Fprintf(s.log, "slack: %v\n", err)
+				}
+				fmt.Fprintln(s.log, "hi server: the vault is open; the provider keys and Slack run")
+			})
+		} else {
+			fmt.Fprintf(s.log, "slack: %v\n", err)
+		}
 	}
 
 	ticker := time.NewTicker(serverReconcileEvery)
@@ -2238,8 +2276,13 @@ func orgRunCommand(args []string, stdout, stderr io.Writer) error {
 		if err := moveOrgDirectory(dir, stdout); err != nil {
 			return err
 		}
-		// The machine's vault: made the first time, and every secret
-		// file moved into it. A file it can't take stays as it is.
+		// The machine's vault: this server holds its key (vault_server.go),
+		// opened now if a slot or systemd's keeping opens it; made the
+		// first time, and every secret file moved into it. A file it can't
+		// take stays as it is.
+		vaultServing = newVaultHold()
+		vaultServing.start(stdout)
+		vaultUpgradeServerUnit(stdout)
 		if err := ensureVault(stdout); err != nil {
 			fmt.Fprintf(stdout, "hi: %v\n", err)
 		}

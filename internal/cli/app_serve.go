@@ -39,6 +39,7 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	if err := appNeedsServer(name); err != nil {
 		return err
 	}
+	appWaitForVault(config, stderr)
 	if vaultExists() {
 		for _, f := range []secretFile{appSecretsSecret(name), appSnapshotKeySecret(name)} {
 			if _, err := moveSecretFile(f); err != nil {

@@ -2736,6 +2736,31 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### Next — The server's vault, release 2 (in progress)
+
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 2.
+
+- [x] The server holds the vault's key; the apps, the page, and commands
+  read and write through its socket, each reader's first read of a
+  version in the audit log. Where no server runs, a command opens it
+  itself with the TPM or the key file.
+- [x] A passphrase (`hi server vault unlock-with add passphrase`),
+  `hi server vault lock` and `unlock`, five wrong tries then one a
+  minute; a moved machine's TPM or key file is replaced on unlock.
+- [x] systemd keeps the key across the server's restarts, so `hi update`
+  doesn't lock it; a reboot does.
+- [x] A locked vault: the server starts, and its provider keys and Slack
+  wait; an app waits, its heartbeat failing with the reason, and starts
+  once unlocked.
+- [x] The page's Vault, in Keys: Unlock, Lock now, the ways it opens,
+  the recovery key for the owner, versions with Roll back and Forget,
+  removed apps with Purge; a banner while locked.
+- [x] An older hi's app resolver no longer keeps the secret files on
+  disk through an update: it reads none.
+- [ ] `hi-key.sealed` beside offsite copies and `hi app restore --from
+  s3:...`; shared keys; the 24-hour notice; the weekly reminder of an
+  unsaved recovery key; moving to the TPM by itself.
+
 ### v2.6.154 — An app's heartbeat URL in app.json
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md).

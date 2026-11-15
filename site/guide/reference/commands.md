@@ -524,15 +524,16 @@ With email set up, the dev page, the helper, and the admin page each take an ema
 
 ## hi server vault
 
-Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/guide/reference/vault/)). No command prints a value.
+Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/guide/reference/vault/)). No command prints a value. The admin page's Keys has the same, in its Vault.
 
 | Command | What it does |
 |---|---|
 | `hi server vault` | Open or locked, how it opens, what that protects against, and what to change |
-| `hi server vault init [--unlock tpm\|file]` | Make it now, and move every secret file into it (`hi update` does) |
+| `hi server vault init [--unlock tpm\|file\|passphrase]` | Make it now, and move every secret file into it (`hi update` does) |
 | `hi server vault recovery [--new]` | The owner, on a terminal on the machine: the recovery key, shown once, then forgotten; `--new` makes another and the old one stops working |
-| `hi server vault unlock` | Open it with the recovery key where nothing opens it by itself; it opens by itself again after |
-| `hi server vault unlock-with add\|remove tpm\|file` | Add or remove a way it opens by itself |
+| `hi server vault unlock` | Open it with the passphrase or the recovery key, asked without echo; the server holds it open. With the recovery key on a moved machine, it opens by itself again after |
+| `hi server vault lock` | The server forgets the key now; running boxes keep running, and one that starts waits for an unlock |
+| `hi server vault unlock-with add\|remove tpm\|file\|passphrase [--yes]` | Add or remove a way it opens; removing the last way it opens by itself asks first |
 | `hi server vault ls [<prefix>]` | Paths, versions, when, and names |
 | `hi server vault history <path>` | Who changed which names, when |
 | `hi server vault rollback <path> <version>` | An old version's values back, as a new version |

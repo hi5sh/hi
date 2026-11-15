@@ -82,7 +82,7 @@ hi server vault                        # locked or unlocked, how it unlocks, the
 hi server vault init [--unlock file|tpm|passphrase]
                                        # create it (hi update does, with tpm or file); the recovery key waits for the owner
 hi server vault unlock                 # asks for the passphrase or the recovery key, without echo
-hi server vault lock                   # forget the key now; apps' boxes keep running
+hi server vault lock                   # the server forgets the key now; running boxes keep running
 hi server vault unlock-with add|remove tpm|file|passphrase
                                        # add or remove a slot (unlocked first); the secrets aren't re-encrypted
 hi server vault recovery               # the owner, in a terminal: show the waiting recovery key once, two words back
@@ -733,6 +733,37 @@ Nothing wins silently; a value's source is always one place, shown.
    without the server; `hi-key.sealed` beside each offsite repository and
    `hi app restore --from s3:...`; shared keys (`hi server vault
    shared`); the weekly reminder of an unsaved recovery key.
+   Built so far (on main, not yet released):
+   - The server holds the data key (`vault_server.go`): opened at its
+     start with tpm or file, or the key systemd kept; other processes ask
+     it on the admin socket to open or seal one version, and do the
+     files, versions, and lock themselves. Where no server runs, or an
+     older one without these routes, a process opens the store itself
+     with tpm or file. Each reader's first read of a version since the
+     server started is an audit line (every read would be one a minute
+     per app).
+   - The passphrase slot (Argon2id, at least 12 characters); `unlock`
+     (passphrase or recovery key) and `lock` through the server; five
+     wrong tries, then one a minute; removing the last slot that opens by
+     itself asks first (`--yes`); a moved machine's tpm or file slot is
+     replaced on unlock.
+   - systemd's keeping (`vault_systemd.go`): a memfd through `FDSTORE`,
+     taken back from `LISTEN_FDS`; `hi-server.service` gets
+     `NotifyAccess=main`, `FileDescriptorStoreMax=1`,
+     `FileDescriptorStorePreserve=yes` at its start, for the next.
+   - A locked start doesn't stop the server: its provider keys and Slack
+     start once an admin unlocks. An app's service waits, its heartbeat
+     failing with the reason, and starts once unlocked.
+   - The page's Vault, first in Keys: open or locked, Unlock, Lock now,
+     the ways it opens (add or remove), the recovery key for the owner
+     (shown once, two words back), each path's versions with Roll back
+     and Forget, removed apps with Purge; the banner on every view while
+     locked, and the owner's while the recovery key waits.
+   - Still to do in release 2: `hi-key.sealed` and `hi app restore
+     --from s3:...`; shared keys; the 24-hour notice and the ping's note
+     while the server is unreachable; the weekly Slack reminder of an
+     unsaved recovery key; moving to the TPM by itself once
+     `libtss2-rc0t64` is installed.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
    changes in the team's store reaching the boxes.
 4. **Later:** the key split between several admins (Shamir), and in
