@@ -2736,6 +2736,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### Next — The server's vault, release 3: a team's OpenBao or Vault
+
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 3.
+
+- [x] `hi server vault connect corp/ vault://kv/corp`: a team's OpenBao or
+  Vault read beside the vault, logged in by a JWT hi signs (no secret
+  handed over) or an AppRole; `login [--new-key]`; what to hand the
+  store's owners, printed.
+- [x] `hi app env <app> --from corp/payments/prod`: its names as
+  settings, a new version reaching the boxes within a minute, the last
+  read standing in while the store is away; `--skip`, `?version=`,
+  `--override`, `--unset-from`; the ops channel hears changes, outages,
+  refusals, and clashes.
+- [x] `hi server vault move vault://kv`: hi's own paths in the team's
+  store, with the vault's copy standing in until `--forget`.
+- [x] The Vault tab's Team stores.
+
 ### v2.6.157 — The vault's key kept across restarts, for real; the passphrase form
 
 - [x] The server hands systemd the vault's key with a plain sendmsg: Go's

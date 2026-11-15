@@ -169,6 +169,69 @@ the apps given it, and the apps that use it. `hi app move` takes the
 shared keys an app uses along: a machine that doesn't have one gets it,
 given to that app alone.
 
+## A team's OpenBao or Vault
+
+hi talks to OpenBao and HashiCorp Vault alike (KV v2, and KV v1 without
+versions), two ways.
+
+### Beside the vault: a team's paths as an app's settings
+
+```sh
+hi server vault connect corp/ vault://kv/corp --address https://bao.corp.example:8200
+hi app env payments --from corp/payments/prod
+```
+
+`connect` reads everything under `kv/corp` as `corp/`, read only. It
+logs in with a key pair hi makes for this login alone (`--login jwt`,
+the default: no secret is handed over), or an AppRole (`--login
+approle`, its role ID and secret ID asked without echo); `--namespace`
+and `--ca <file>` where the store needs them. The address is `https://`,
+or `http://` to this machine only. It prints what the store's owners run
+once: the policy, the JWT role bound to this server's name, and the
+public key. `hi server vault login` checks the login and prints it
+again; `--new-key` makes a new pair, and the old one logs in until the
+owners swap it.
+
+An app takes a path with `--from`: each string under a variable's name
+is a setting. A name that isn't a variable, one hi sets itself, or a
+value that isn't a string is left out, and `hi app env` and `hi server
+vault ls` say which and why. `--production`, `--preview`, or `--dev`
+takes it for one slot; `?version=12` pins a version; `--unset-from`
+drops it.
+
+- **A change there reaches the app:** every minute the server looks at
+  each path's version; a new one reaches the boxes within a minute, and
+  the app's ops channel hears which names changed, never the values.
+- **While it's away** (down, sealed): the boxes keep the values hi last
+  read, kept encrypted in the vault, and a box that starts uses them.
+  The channel hears it once, and when it answers again. A refusal is
+  told as one, with what to ask the store's owners for.
+- **Two values for one name:** nothing wins silently. Taking a path
+  that gives a name the app already has from elsewhere is refused:
+  leave it out (`--skip NAME`) or unset it first. Setting a name a path
+  gives is refused unless it says `--override`, for that slot alone, and
+  `hi app env` marks it. A name a path adds later keeps the value of the
+  source that had it first, and the channel says so.
+
+### Instead of the vault: hi's own paths there
+
+```sh
+hi server vault move vault://kv --address https://bao.corp.example:8200
+```
+
+copies every one of hi's paths to `kv/hi/…`, reads each back, and
+switches: hi reads and writes there, and its history and rollbacks are
+there. Before the store's owners have set up hi's login (read and write
+on `kv/hi/`), `move` prints what they run, and keeps its key for the
+next try. The vault keeps hi's login to the store, the recovery key,
+and what hi read from connected stores, and a copy of every path, which
+stands in while the store is away, until `hi server vault move
+--forget`.
+
+On the admin page, the Vault tab's **Team stores** connects one, checks
+its login, makes a new key, shows what the owners run, and lists the
+paths the apps take, with their versions and what's left out.
+
 ## Apps
 
 | Path | What |

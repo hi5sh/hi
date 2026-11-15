@@ -346,6 +346,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |
 | `hi app key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running app restarts with them; the lead's box gets placeholders, and the app's proxy puts the tokens on its calls to Slack |
 | `hi app env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the app's boxes get, as files in memory at `/run/hi/settings` and as environment variables from the box's start: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
+| `hi app env <name> [--production\|--preview\|--dev] --from <prefix>/<path>[?version=<n>] [--skip NAME]...` | Take a connected team store's path: each of its names is a setting, read every minute; `--skip` leaves a name out, `?version=` pins one; refused when it gives a name the app has from elsewhere. `--unset-from <path>` drops it; `KEY=VALUE --override` sets a name a path gives, for that slot |
 | `hi app env <name> KEY --from shared/<name>` | Give the app a shared key as `KEY`, by reference: the app keeps "from shared/openrouter", never the value, and gets each new value within a minute. An admin gives the key to the app first (`hi server vault shared give`); `--unset KEY` drops it |
 | `hi app env <name> --on-change files\|restart\|SIGHUP\|SIGUSR1\|SIGUSR2` | What a change of the app's settings does besides rewriting its boxes' settings files within a minute: nothing (`files`, the default), new boxes on the same links (`restart`), or that signal to the app |
 | `hi app addresses <name> [domain\|netbird\|<host>]` | What the app's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
@@ -544,6 +545,11 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault shared set <name>` | A key several apps use, such as one OpenRouter key, asked without echo; a new value reaches every app that uses it within a minute |
 | `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
 | `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
+| `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--namespace <ns>] [--ca <file>]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
+| `hi server vault disconnect <prefix>` | Stop reading it, and forget the login; refused while an app takes from it |
+| `hi server vault login [<prefix>] [--new-key]` | Whether hi logs in to each team store, and what to hand its owners; `--new-key` makes a new key pair, the old one working until they swap it |
+| `hi server vault move vault://<mount> --address https://… [--login jwt\|approle]` | Keep hi's own paths in a team's store instead: copied, read back, and switched; the vault's copy stands in while it's away |
+| `hi server vault move --forget` | Forget the vault's copy of hi's moved paths |
 
 ## hi server sites
 

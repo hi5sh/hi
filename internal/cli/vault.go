@@ -871,7 +871,7 @@ func vaultPathFileName(dir, path string) string {
 	return filepath.Join(dir, "paths", strings.ReplaceAll(path, "/", "+")+".json")
 }
 
-func (v *vaultStore) load(path string) (vaultPathFile, error) {
+func (v *vaultStore) loadLocal(path string) (vaultPathFile, error) {
 	file := vaultPathFile{Path: path}
 	data, err := os.ReadFile(vaultPathFileName(v.dir, path))
 	if errors.Is(err, fs.ErrNotExist) {
@@ -897,7 +897,7 @@ func (v *vaultStore) save(file vaultPathFile) error {
 	return writeFileAtomic(vaultPathFileName(v.dir, file.Path), append(data, '\n'), 0o600)
 }
 
-func (v *vaultStore) decrypt(path string, version vaultVersion) (vaultData, error) {
+func (v *vaultStore) decryptLocal(path string, version vaultVersion) (vaultData, error) {
 	var data vaultData
 	if version.Forgotten != nil {
 		return data, fmt.Errorf("version %d of %s was forgotten", version.Version, path)
@@ -918,17 +918,29 @@ func (v *vaultStore) decrypt(path string, version vaultVersion) (vaultData, erro
 
 // get is a path's latest version; ok is false for a path that isn't
 // there, is empty, or is a removed app's.
-func (v *vaultStore) get(path string) (vaultData, int, bool, error) {
-	file, err := v.load(path)
+func (v *vaultStore) getLocal(path string) (vaultData, int, bool, error) {
+	file, err := v.loadLocal(path)
 	if err != nil || len(file.Versions) == 0 || file.Removed != nil {
 		return vaultData{}, 0, false, err
 	}
 	latest := file.Versions[len(file.Versions)-1]
-	data, err := v.decrypt(path, latest)
+	data, err := v.decryptLocal(path, latest)
 	if err != nil {
 		return data, 0, false, err
 	}
 	return data, latest.Version, !data.empty(), nil
+}
+
+// getLocal and putLocal are the built-in store's own, even when hi's
+// paths moved to a team's store: its login, and what hi read from
+// connected stores.
+func (v *vaultStore) putLocal(path string, data vaultData, by string) error {
+	unlock, err := vaultLock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return v.addVersionLocal(path, data, by, 0)
 }
 
 // put writes a new version of path, if it changed; an empty one is a
@@ -946,17 +958,17 @@ func (v *vaultStore) putLocked(path string, data vaultData, by string) error {
 	return v.addVersion(path, data, by, 0)
 }
 
-func (v *vaultStore) addVersion(path string, data vaultData, by string, rollback int) error {
+func (v *vaultStore) addVersionLocal(path string, data vaultData, by string, rollback int) error {
 	if !validVaultPath(path) {
 		return fmt.Errorf("%q isn't a vault path", path)
 	}
-	file, err := v.load(path)
+	file, err := v.loadLocal(path)
 	if err != nil {
 		return err
 	}
 	var before vaultData
 	if n := len(file.Versions); n > 0 {
-		if before, err = v.decrypt(path, file.Versions[n-1]); err != nil && file.Versions[n-1].Forgotten == nil {
+		if before, err = v.decryptLocal(path, file.Versions[n-1]); err != nil && file.Versions[n-1].Forgotten == nil {
 			return err
 		}
 	}
@@ -985,13 +997,13 @@ func (v *vaultStore) addVersion(path string, data vaultData, by string, rollback
 }
 
 // rollback puts version back as a new version.
-func (v *vaultStore) rollback(path string, version int, by string) error {
+func (v *vaultStore) rollbackLocal(path string, version int, by string) error {
 	unlock, err := vaultLock()
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	file, err := v.load(path)
+	file, err := v.loadLocal(path)
 	if err != nil {
 		return err
 	}
@@ -999,24 +1011,24 @@ func (v *vaultStore) rollback(path string, version int, by string) error {
 		if each.Version != version {
 			continue
 		}
-		data, err := v.decrypt(path, each)
+		data, err := v.decryptLocal(path, each)
 		if err != nil {
 			return err
 		}
-		return v.addVersion(path, data, by, version)
+		return v.addVersionLocal(path, data, by, version)
 	}
 	return fmt.Errorf("%s has no version %d (hi server vault history %s)", path, version, path)
 }
 
 // forget destroys one version's value; its entry stays. The current
 // version can't be forgotten: the secret would be gone with no value.
-func (v *vaultStore) forget(path string, version int) error {
+func (v *vaultStore) forgetLocal(path string, version int) error {
 	unlock, err := vaultLock()
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	file, err := v.load(path)
+	file, err := v.loadLocal(path)
 	if err != nil {
 		return err
 	}
@@ -1039,7 +1051,7 @@ func (v *vaultStore) forget(path string, version int) error {
 }
 
 // paths lists every path under prefix, removed apps' too.
-func (v *vaultStore) paths(prefix string) ([]vaultPathFile, error) {
+func (v *vaultStore) pathsLocal(prefix string) ([]vaultPathFile, error) {
 	entries, err := os.ReadDir(filepath.Join(v.dir, "paths"))
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
@@ -1054,7 +1066,7 @@ func (v *vaultStore) paths(prefix string) ([]vaultPathFile, error) {
 		if prefix != "" && path != prefix && !strings.HasPrefix(path, strings.TrimSuffix(prefix, "/")+"/") {
 			continue
 		}
-		file, err := v.load(path)
+		file, err := v.loadLocal(path)
 		if err != nil {
 			return nil, err
 		}
@@ -1071,7 +1083,7 @@ func (v *vaultStore) markRemoved(prefix string) (int, error) {
 		return 0, err
 	}
 	defer unlock()
-	files, err := v.paths(prefix)
+	files, err := v.pathsLocal(prefix)
 	if err != nil {
 		return 0, err
 	}
@@ -1097,7 +1109,7 @@ func (v *vaultStore) revive(prefix string) (int, error) {
 		return 0, err
 	}
 	defer unlock()
-	files, err := v.paths(prefix)
+	files, err := v.pathsLocal(prefix)
 	if err != nil {
 		return 0, err
 	}
@@ -1116,13 +1128,13 @@ func (v *vaultStore) revive(prefix string) (int, error) {
 }
 
 // purge deletes every path under prefix, versions and all.
-func (v *vaultStore) purge(prefix string) (int, error) {
+func (v *vaultStore) purgeLocal(prefix string) (int, error) {
 	unlock, err := vaultLock()
 	if err != nil {
 		return 0, err
 	}
 	defer unlock()
-	files, err := v.paths(prefix)
+	files, err := v.pathsLocal(prefix)
 	if err != nil {
 		return 0, err
 	}

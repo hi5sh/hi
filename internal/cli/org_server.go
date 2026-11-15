@@ -1921,6 +1921,10 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 	defer ticker.Stop()
 	templates := time.NewTicker(templateSyncEvery)
 	defer templates.Stop()
+	// Each team store's path an app takes, read when its version moved.
+	sources := time.NewTicker(vaultSourcesEvery)
+	defer sources.Stop()
+	var polling sync.Mutex
 	s.reconcile()
 	s.syncTemplatesInBackground()
 	for {
@@ -1942,6 +1946,13 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 			s.remindRecovery()
 		case <-templates.C:
 			s.syncTemplatesInBackground()
+		case <-sources.C:
+			if polling.TryLock() {
+				go func() {
+					defer polling.Unlock()
+					vaultPollSources()
+				}()
+			}
 		}
 	}
 }

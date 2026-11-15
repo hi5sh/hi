@@ -694,6 +694,9 @@ func appReceiveStart(name string, stdout io.Writer) error {
 		err = vaultImportShared(name, stdout)
 	}
 	if err == nil {
+		vaultImportSources(name, stdout)
+	}
+	if err == nil {
 		err = appUp(name, stdout)
 	}
 	if err != nil {

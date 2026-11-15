@@ -324,7 +324,13 @@ func TestTeamSnapshotWithTeamDown(t *testing.T) {
 	}
 	appAfterSnapshots.Wait()
 	// Production's box may still run while the team is down.
-	if paused != 1 || !strings.Contains(strings.Join(restic.calls[2], " "), "kind:manual") || !strings.Contains(out.String(), "4.0 KB, 2.0 KB new") {
+	// Found by its kind, not its place: an earlier test's clean-up in the
+	// background can reach this fake first.
+	manual := false
+	for _, call := range restic.calls {
+		manual = manual || (call[0] == "backup" && strings.Contains(strings.Join(call, " "), "kind:manual"))
+	}
+	if paused != 1 || !manual || !strings.Contains(out.String(), "4.0 KB, 2.0 KB new") {
 		t.Fatal(paused, restic.calls, out.String())
 	}
 }

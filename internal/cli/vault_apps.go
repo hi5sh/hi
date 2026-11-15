@@ -16,17 +16,17 @@ func appVaultPrefix(name string) string { return "hi/app/" + name }
 
 // movePrefix moves every path under old to the same place under new,
 // each version encrypted again, since a version is bound to its path.
-func (v *vaultStore) movePrefix(old, new string) error {
+func (v *vaultStore) movePrefixLocal(old, new string) error {
 	unlock, err := vaultLock()
 	if err != nil {
 		return err
 	}
 	defer unlock()
-	files, err := v.paths(old)
+	files, err := v.pathsLocal(old)
 	if err != nil {
 		return err
 	}
-	if there, err := v.paths(new); err != nil {
+	if there, err := v.pathsLocal(new); err != nil {
 		return err
 	} else if len(there) > 0 {
 		return fmt.Errorf("the vault has paths under %s already", new)
@@ -35,7 +35,7 @@ func (v *vaultStore) movePrefix(old, new string) error {
 		moved := vaultPathFile{Path: new + strings.TrimPrefix(file.Path, old), Removed: file.Removed}
 		for _, version := range file.Versions {
 			if version.Forgotten == nil {
-				data, err := v.decrypt(file.Path, version)
+				data, err := v.decryptLocal(file.Path, version)
 				if err != nil {
 					return err
 				}

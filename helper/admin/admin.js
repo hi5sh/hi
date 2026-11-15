@@ -3311,7 +3311,7 @@ function openVault() {
 async function vaultDo(body) {
   try {
     const answer = await api("/api/vault", body);
-    if (answer.text) toast(answer.text, true);
+    if (answer.text && !String(body.action).startsWith("store-")) toast(answer.text, true);
     refreshVault();
     refreshState();
     return answer;
@@ -3420,6 +3420,7 @@ function vaultBlock(middle) {
   if (vaultHistory) box.append(vaultHistoryBlock());
 
   box.append(vaultSharedBlock(v));
+  box.append(vaultStoresBlock(v));
 
   if (v.removed.length) {
     box.append(el("h3", {}, "Removed apps"), el("p", { class: "muted small" }, "Their settings stay, read by nothing, as their snapshots do: hi app up with the kept folder gets them back."));
@@ -3547,6 +3548,82 @@ function vaultSharedBlock(v) {
   }
   box.append(list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetShared("") }, "+ A shared key")));
   return box;
+}
+
+// vaultStoresBlock is the team stores: a team's OpenBao or Vault that
+// hi reads (apps take paths there with hi app env --from), and where
+// hi's own paths are when they moved.
+function vaultStoresBlock(v) {
+  const box = el("div", {});
+  box.append(el("h3", {}, "Team stores"), el("p", { class: "muted small" }, "A team's OpenBao or Vault: hi reads a prefix there, and an app takes a path's names as its settings (hi app env <app> --from corp/payments/prod). A new version there reaches the app within a minute; while the store is away, the app keeps the last values hi read."));
+  if (v.moved) box.append(el("p", { class: "small" }, v.moved));
+  const list = el("ul", { class: "list" });
+  for (const s of v.stores) {
+    const handoff = el("details", { class: "small" }, el("summary", {}, "For the store's owners"),
+      el("pre", { class: "job-output short" }, s.handoff),
+      el("button", { class: "small", onclick: () => { navigator.clipboard.writeText(s.handoff); toast("Copied."); } }, "Copy"));
+    const actions = el("span", {},
+      el("button", { class: "small", onclick: async () => { const a = await vaultDo({ action: "store-login", store: { prefix: s.prefix } }); if (a) vaultShowText("Logging in to " + s.prefix + "/", a.text); } }, "Check the login"));
+    if (s.login === "jwt") actions.append(el("button", { class: "small", onclick: async () => {
+      if (!(await ask({ title: "A new key pair for " + s.prefix + "/?", text: "hi makes a new key; the old one still logs in until the store's owners swap in the new public key.", ok: "Make it" }))) return;
+      const a = await vaultDo({ action: "store-new-key", store: { prefix: s.prefix } });
+      if (a) vaultShowText("The new public key, for the store's owners", a.text);
+    } }, "New key"));
+    actions.append(el("button", { class: "small danger", onclick: async () => {
+      if (!(await ask({ title: "Disconnect " + s.prefix + "/?", text: "hi stops reading it and forgets its login. Refused while an app takes settings from it.", ok: "Disconnect" }))) return;
+      vaultDo({ action: "store-disconnect", store: { prefix: s.prefix } });
+    } }, "Disconnect"));
+    list.append(el("li", { class: "stack" },
+      el("div", { class: "row" }, el("strong", {}, s.prefix + "/"), el("span", { class: "muted small" }, " " + s.where + " in " + s.address + " · " + s.login + " as " + s.role), el("span", { class: "grow" }), actions),
+      s.ends ? el("p", { class: "warn small" }, "Its secret ID ends " + s.ends + ": ask its owners for a new one.") : null,
+      handoff));
+  }
+  box.append(list);
+  if (v.sources.length) {
+    const table = el("table", { class: "people-matrix" });
+    table.append(el("tr", {}, el("th", {}, "Path"), el("th", {}, "Apps"), el("th", {}, "Version"), el("th", {}, "Names")));
+    for (const s of v.sources) {
+      const names = el("td", { class: "small" }, s.names.join(" ") || "—");
+      for (const [name, why] of Object.entries(s.left || {})) names.append(el("div", { class: "muted" }, name + " left out: " + why));
+      if (s.error) names.append(el("div", { class: "warn" }, s.error));
+      table.append(el("tr", {}, el("th", { scope: "row" }, s.from), el("td", { class: "small" }, s.apps.join(", ")),
+        el("td", { class: "small" }, s.read ? (s.version ? "v" + s.version : "read") + " · " + ago(s.read) : "not read yet"), names));
+    }
+    box.append(el("div", { class: "matrix-scroll" }, table));
+  }
+  box.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: vaultConnectStore }, "+ Connect a team store")));
+  return box;
+}
+
+async function vaultConnectStore() {
+  const values = await vaultForm({ title: "Connect a team store", ok: "Connect",
+    text: "hi reads everything under the prefix there, read only. With jwt, hi makes a key pair and gives you its public key for the store's owners: no secret is handed over. An AppRole needs its role ID and secret ID.",
+    fields: [{ label: "Prefix, such as corp" }, { label: "Address, such as https://bao.corp.example:8200" }, { label: "Where, such as vault://kv/corp" },
+      { label: "Login: jwt or approle" }, { label: "Namespace (if the store uses one)" }, { label: "AppRole role ID", type: "password" }, { label: "AppRole secret ID", type: "password" }],
+    live: (v) => {
+      const bad = [];
+      if (v[0] && !/^[a-z][a-z0-9-]{0,39}\/?$/.test(v[0].trim())) bad.push(0);
+      if (v[1] && !/^(https:\/\/|http:\/\/(127\.0\.0\.1|localhost))/.test(v[1].trim())) bad.push(1);
+      if (v[2] && !/^vault:\/\/[^/]+/.test(v[2].trim())) bad.push(2);
+      const login = (v[3].trim() || "jwt").toLowerCase();
+      if (login !== "jwt" && login !== "approle") bad.push(3);
+      const filled = v[0].trim() && v[1].trim() && v[2].trim() && (login !== "approle" || (v[5] && v[6]));
+      return { ok: !!filled && bad.length === 0, bad, hint: bad.includes(1) ? "The address is https://, or http:// to this machine only." : bad.includes(2) ? "vault://<mount>[/<path>]" : "" };
+    } });
+  if (!values) return;
+  const a = await vaultDo({ action: "store-connect", store: { prefix: values[0].trim().replace(/\/$/, ""), address: values[1].trim(), where: values[2].trim(), login: (values[3].trim() || "jwt").toLowerCase(), namespace: values[4].trim(), role_id: values[5], secret_id: values[6] } });
+  if (a) vaultShowText("Connected", a.text);
+}
+
+// vaultShowText shows what a command said, such as what to hand a
+// store's owners, to read and copy.
+function vaultShowText(title, text) {
+  const pre = el("pre", { class: "job-output" }, text);
+  const dialog = el("dialog", { class: "vault-dialog" }, el("h2", {}, title), pre,
+    el("div", { class: "buttons" }, el("button", { onclick: () => { navigator.clipboard.writeText(text); toast("Copied."); } }, "Copy"), el("button", { class: "primary", onclick: () => dialog.close() }, "Done")));
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
 }
 
 async function vaultSetShared(name) {

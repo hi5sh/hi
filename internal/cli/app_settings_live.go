@@ -89,6 +89,17 @@ func appSlotSettings(team, slot string) (map[string]string, map[string][]byte, e
 		got, _ := appSharedScope(config, scope)
 		return got
 	}
+	// A team store's values come first: the app's own beat them, since a
+	// name both give was refused unless it overrides (vault_connect.go).
+	for _, scope := range map[bool][]string{true: {appSlotDev}, false: {"", slot}}[slot == appSlotDev] {
+		team, _, err := appTeamScope(config, scope)
+		if err != nil {
+			return nil, nil, err
+		}
+		for key, value := range team {
+			values[key] = value
+		}
+	}
 	if slot == appSlotDev {
 		for _, set := range []map[string]string{secrets.EnvDev, shared(appSlotDev)} {
 			for key, value := range set {

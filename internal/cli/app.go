@@ -100,6 +100,11 @@ type appConfig struct {
 	// the preview and production) and name: "shared/<name>", never the
 	// value (vault_shared.go).
 	EnvFrom map[string]map[string]string `json:"env_from,omitempty"`
+	// EnvSources are a team store's paths whose names are settings, by
+	// slot, first source first; EnvOverride the names a slot sets here
+	// over a source's (hi app env --override). vault_connect.go.
+	EnvSources  map[string][]appEnvSource `json:"env_sources,omitempty"`
+	EnvOverride map[string][]string       `json:"env_override,omitempty"`
 	// DevViewProductionOff, when set, says who turned the dev box's view
 	// of production off, and when (hi_app_dev_view.md).
 	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`

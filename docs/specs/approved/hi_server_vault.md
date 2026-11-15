@@ -2,8 +2,8 @@
 
 Status: Approved (2026-11-14), after its open questions were decided
 one by one the same day (Open questions). Release 0 built as v2.6.152,
-release 1 as v2.6.153, release 2 as v2.6.155 (see Releases for what
-each has).
+release 1 as v2.6.153, release 2 as v2.6.155, release 3 on main (see
+Releases for what each has).
 It replaces the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
 own Vault, by a login per app), which is folded in here: a team's own
 OpenBao or Vault becomes this store's release 3, not its starting point.
@@ -782,7 +782,34 @@ Nothing wins silently; a value's source is always one place, shown.
    - A store on a key file moves to the TPM at the server's start, once
      hi can use it, and the key file goes.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
-   changes in the team's store reaching the boxes.
+   changes in the team's store reaching the boxes. Built:
+   - `vault_kv.go`: KV v2 and v1 over `net/http`; login by a JWT hi signs
+     (Ed25519, `EdDSA`, five minutes, subject `hi-server:<name>`,
+     audience `hi`) or an AppRole; `X-Vault-Namespace`, `--ca`; https, or
+     http to this machine. A refused token logs in again.
+   - `vault_connect.go`: connections at `hi/machine/vault`; `connect`,
+     `disconnect`, `login [--new-key]` (the old key logs in until the new
+     one does, then is forgotten), each printing what the owners run.
+     `hi app env --from <prefix>/<path>[?version=n] [--skip]`,
+     `--unset-from`, `--override`; references and overrides in
+     `app.json`. The server reads each used path's metadata every minute
+     and the data when it moved; what it read is kept in the built-in
+     store (`hi/connected/<hash>`), and boxes read only that copy, so a
+     box never waits on the network. The ops channel hears, one message
+     a minute an app: a new version by names, an outage once and its end,
+     a refusal, a later clash. `hi app move` says which stores the new
+     machine must connect.
+   - `vault_move.go`: `move` copies, reads back, and switches; a move
+     before the owners set up the login waits (`Pending`) with its key.
+     Reads, writes, history, rollback, forget, list, purge, and rename go
+     to `kv/hi/`; the built-in copy stands in while the store is away,
+     until `--forget`, after which only who changed what stays here.
+     Files and JSON values are kept as strings, named in `__hi_files`
+     and `__hi_json`.
+   - The page's Vault tab: Team stores.
+   - Not built: hi's audit line per app read of a connected path (the
+     store's own audit log shows hi's role reading), and the AppRole's
+     secret ID end read from the store (`--secret-id-ttl` says it).
 4. **Later:** the key split between several admins (Shamir), and in
    managed mode ([hi_server_apps.md](hi_server_apps.md)) the
    central server's store for the machines it manages.

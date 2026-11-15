@@ -344,6 +344,34 @@ func adminMailTest(to string) error {
 
 // readSecretLine reads one line, a secret, without echoing it in a
 // terminal.
+// readSecretLines asks for several secrets: each without echo on a
+// terminal, else one a line from what was piped in.
+func readSecretLines(stdin io.Reader, stdout io.Writer, prompts ...string) ([]string, error) {
+	if file, ok := stdin.(*os.File); ok && isTerminal(file) {
+		var out []string
+		for _, prompt := range prompts {
+			line, err := readSecretLine(stdin, stdout, prompt)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, line)
+		}
+		return out, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(stdin, 16384))
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(string(data), "\n")
+	out := make([]string, len(prompts))
+	for i := range out {
+		if i < len(lines) {
+			out[i] = strings.TrimSpace(lines[i])
+		}
+	}
+	return out, nil
+}
+
 func readSecretLine(stdin io.Reader, stdout io.Writer, prompt string) (string, error) {
 	if file, ok := stdin.(*os.File); ok && isTerminal(file) {
 		fmt.Fprint(stdout, prompt+": ")

@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -608,7 +609,7 @@ func appAskKeep(stdin io.Reader, stdout io.Writer, label string, check func(stri
 // with --production for production alone, or with --preview a value of
 // the preview's own.
 func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | KEY --from shared/<name> | --file KEY=<path> | --unset KEY]...\n       hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2"}
+	usage := usageError{"usage: hi app env <name> [--production | --preview | --dev] [KEY=VALUE | KEY | KEY --from shared/<name> | --file KEY=<path> | --unset KEY]... [--override]\n       hi app env <name> [--production | --preview | --dev] --from <prefix>/<path>[?version=<n>] [--skip NAME]...\n       hi app env <name> [--production | --preview | --dev] --unset-from <prefix>/<path>\n       hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -628,9 +629,12 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		return fmt.Errorf("the app's secrets: %w", err)
 	}
 	slot := ""
+	override := false
 	var rest []string
 	for _, arg := range args[1:] {
 		switch arg {
+		case "--override":
+			override = true
 		case "--production":
 			slot = appSlotProduction
 		case "--preview":
@@ -646,6 +650,21 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 			return usage
 		}
 		names := appEnvNames(secrets)
+		for _, scope := range sortedKeys(config.EnvSources) {
+			where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview's own", appSlotDev: ", the dev box's"}[scope]
+			for _, src := range config.EnvSources[scope] {
+				line := "everything in " + src.From + where
+				if state := loadVaultSources()[src.From]; state != nil && len(state.Names) > 0 {
+					line = strings.Join(slices.DeleteFunc(append([]string{}, state.Names...), func(n string) bool { return slices.Contains(src.Skip, n) }), ", ") + " (from " + src.From + where + ")"
+				}
+				names = append(names, line)
+			}
+		}
+		for _, scope := range sortedKeys(config.EnvOverride) {
+			for _, key := range config.EnvOverride[scope] {
+				names = append(names, fmt.Sprintf("%s overridden here (%s); %s has its own", key, map[string]string{"": "the preview and production", appSlotProduction: "production", appSlotPreview: "Stage", appSlotDev: "dev"}[scope], firstNonEmpty(appSourceGiving(config, scope, key), "its source")))
+			}
+		}
 		for _, scope := range sortedKeys(config.EnvFrom) {
 			for _, key := range sortedKeys(config.EnvFrom[scope]) {
 				where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview's own", appSlotDev: ", the dev box's"}[scope]
@@ -663,11 +682,50 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 	configChanged := false
 	for i := 0; i < len(rest); i++ {
 		arg := rest[i]
+		if arg == "--from" {
+			if i+1 >= len(rest) {
+				return usage
+			}
+			i++
+			from := rest[i]
+			var skip []string
+			for i+1 < len(rest) && rest[i+1] == "--skip" {
+				if i+2 >= len(rest) {
+					return usage
+				}
+				skip = append(skip, rest[i+2])
+				i += 2
+			}
+			if _, isShared := appSharedName(from); isShared {
+				return usageError{"a shared key is one setting: hi app env <name> KEY --from " + from}
+			}
+			if err := appAddSource(&config, secrets, slot, from, skip, stdout); err != nil {
+				return err
+			}
+			configChanged = true
+			continue
+		}
+		if arg == "--unset-from" {
+			if i+1 >= len(rest) {
+				return usage
+			}
+			i++
+			if !appRemoveSource(&config, slot, strings.TrimSpace(rest[i])) {
+				return fmt.Errorf("app %s doesn't take %s%s", name, rest[i], appEnvSlotWords(slot))
+			}
+			configChanged = true
+			unset = append(unset, "everything from "+rest[i])
+			continue
+		}
 		if arg == "--unset" {
 			if i+1 >= len(rest) {
 				return usageError{"usage: hi app env <name> [--production | --preview] --unset KEY"}
 			}
 			i++
+			if slices.Contains(config.EnvOverride[slot], rest[i]) {
+				appOverrideMark(&config, slot, rest[i], false)
+				configChanged = true
+			}
 			reference := appEnvFromUnset(&config, slot, rest[i])
 			configChanged = configChanged || reference
 			if !appEnvUnset(&secrets, slot, rest[i]) && !appFileUnset(&secrets, slot, rest[i]) && !reference {
@@ -728,6 +786,14 @@ func appEnv(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		if strings.ContainsAny(value, "\r\n") {
 			return fmt.Errorf("%s's value has a line break; a setting is one line", key)
+		}
+		if source := appSourceGiving(config, slot, key); source != "" && !slices.Contains(config.EnvOverride[slot], key) {
+			if !override {
+				where := map[string]string{"": "the preview and production", appSlotProduction: "production only", appSlotPreview: "Stage only", appSlotDev: "the dev box only"}[slot]
+				return fmt.Errorf("%s comes from %s. --override sets it here instead (%s)", key, source, where)
+			}
+			appOverrideMark(&config, slot, key, true)
+			configChanged = true
 		}
 		appEnvSet(&secrets, slot, key, value)
 		if appEnvFromUnset(&config, slot, key) {

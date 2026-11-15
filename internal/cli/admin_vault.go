@@ -76,6 +76,31 @@ type adminVaultView struct {
 	// Shared are the shared keys, and Apps the apps they can be given to.
 	Shared []vaultSharedRow `json:"shared"`
 	Apps   []string         `json:"apps"`
+	// Stores are the team stores connected; Sources the paths apps take
+	// from them; Moved where hi's own paths are, when not here.
+	Stores  []adminVaultStore  `json:"stores"`
+	Sources []adminVaultSource `json:"sources"`
+	Moved   string             `json:"moved,omitempty"`
+}
+
+type adminVaultStore struct {
+	Prefix  string `json:"prefix"`
+	Address string `json:"address"`
+	Where   string `json:"where"`
+	Login   string `json:"login"`
+	Role    string `json:"role"`
+	Handoff string `json:"handoff"`
+	Ends    string `json:"ends,omitempty"` // an AppRole secret ID that ends soon
+}
+
+type adminVaultSource struct {
+	From    string            `json:"from"`
+	Apps    []string          `json:"apps"`
+	Version int               `json:"version"`
+	Read    time.Time         `json:"read,omitzero"`
+	Names   []string          `json:"names"`
+	Left    map[string]string `json:"left,omitempty"`
+	Error   string            `json:"error,omitempty"`
 }
 
 func adminVaultViewOf(admin adminPerson) adminVaultView {
@@ -111,7 +136,7 @@ func adminVaultViewOf(admin adminPerson) adminVaultView {
 	files, _ := store.paths("")
 	removed := map[string]bool{}
 	for _, file := range files {
-		if file.Path == vaultRecoveryPath || len(file.Versions) == 0 {
+		if file.Path == vaultRecoveryPath || strings.HasPrefix(file.Path, "hi/connected/") || len(file.Versions) == 0 {
 			continue
 		}
 		latest := file.Versions[len(file.Versions)-1]
@@ -130,6 +155,26 @@ func adminVaultViewOf(admin adminPerson) adminVaultView {
 	sort.Strings(view.Removed)
 	if rows, err := vaultSharedRows(); err == nil && rows != nil {
 		view.Shared = rows
+	}
+	view.Stores, view.Sources, view.Moved = []adminVaultStore{}, []adminVaultSource{}, vaultMovedLine()
+	if conns, err := loadVaultConns(); err == nil {
+		for _, conn := range conns.Conns {
+			row := adminVaultStore{Prefix: conn.Prefix, Address: conn.Address, Where: vaultConnWhere(conn), Login: conn.Login, Role: conn.Role, Handoff: vaultHandoff(conn, false)}
+			if !conn.SecretIDEnds.IsZero() && time.Until(conn.SecretIDEnds) < 14*24*time.Hour {
+				row.Ends = conn.SecretIDEnds.Local().Format("Jan 2")
+			}
+			view.Stores = append(view.Stores, row)
+		}
+	}
+	states := loadVaultSources()
+	used := appSourcesUsed()
+	for _, from := range sortedKeys(used) {
+		row := adminVaultSource{From: from, Apps: used[from], Names: []string{}}
+		if state := states[from]; state != nil {
+			row.Version, row.Read, row.Left, row.Error = state.Version, state.Read, state.Left, state.Error
+			row.Names = append(row.Names, state.Names...)
+		}
+		view.Sources = append(view.Sources, row)
 	}
 	if view.Apps == nil {
 		view.Apps = []string{}
@@ -187,15 +232,16 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 	}))
 	mux.HandleFunc("POST /api/vault", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		var request struct {
-			Action  string   `json:"action"`
-			Secret  string   `json:"secret"`
-			Kind    string   `json:"kind"`
-			Path    string   `json:"path"`
-			Version int      `json:"version"`
-			App     string   `json:"app"`
-			Yes     bool     `json:"yes"`
-			Words   []string `json:"words"`
-			Name    string   `json:"name"`
+			Action  string              `json:"action"`
+			Secret  string              `json:"secret"`
+			Kind    string              `json:"kind"`
+			Path    string              `json:"path"`
+			Version int                 `json:"version"`
+			App     string              `json:"app"`
+			Yes     bool                `json:"yes"`
+			Words   []string            `json:"words"`
+			Name    string              `json:"name"`
+			Store   adminVaultStoreForm `json:"store"`
 		}
 		if !decode(w, r, &request) {
 			return
@@ -211,6 +257,8 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 			text, err = vaultSharedGive(request.Name, []string{request.App}, request.Action == "shared-take", who)
 		case "shared-rm":
 			text, err = vaultSharedRemove(request.Name, who)
+		case "store-connect", "store-disconnect", "store-login", "store-new-key":
+			text, err = adminVaultStoreChange(request.Action, request.Store, who)
 		default:
 			text, extra, err = adminVaultChange(admin, who, request.Action, request.Secret, request.Kind, request.Path, request.Version, request.App, request.Yes, request.Words)
 		}
@@ -364,4 +412,39 @@ func adminVaultRecovery(admin adminPerson, who, action string, words []string, s
 	vaultAudit(who, "vault.recovery-saved", "vault", "hi forgot the words")
 	adminRecord(admin.Name, "", "saved the vault's recovery key")
 	return "Saved, and hi has forgotten it. With it, the vault opens on any machine.", nil, nil
+}
+
+// adminVaultStoreForm is the page's form for a team store.
+type adminVaultStoreForm struct {
+	Prefix    string `json:"prefix"`
+	Address   string `json:"address"`
+	Where     string `json:"where"` // vault://<mount>[/<path>]
+	Login     string `json:"login"`
+	Namespace string `json:"namespace"`
+	RoleID    string `json:"role_id"`
+	SecretID  string `json:"secret_id"`
+}
+
+// adminVaultStoreChange runs the command's own code for a team store,
+// and gives what it said.
+func adminVaultStoreChange(action string, form adminVaultStoreForm, who string) (string, error) {
+	var out strings.Builder
+	var err error
+	os.Setenv("HI_ACTOR", who)
+	defer os.Unsetenv("HI_ACTOR")
+	switch action {
+	case "store-connect":
+		args := []string{form.Prefix, form.Where, "--address", form.Address, "--login", firstNonEmpty(form.Login, "jwt")}
+		if form.Namespace != "" {
+			args = append(args, "--namespace", form.Namespace)
+		}
+		err = vaultConnectCommand(args, strings.NewReader(form.RoleID+"\n"+form.SecretID+"\n"), &out)
+	case "store-disconnect":
+		err = vaultDisconnectCommand([]string{form.Prefix}, &out)
+	case "store-login":
+		err = vaultLoginCommand([]string{form.Prefix}, &out)
+	case "store-new-key":
+		err = vaultLoginCommand([]string{form.Prefix, "--new-key"}, &out)
+	}
+	return strings.TrimSpace(out.String()), err
 }

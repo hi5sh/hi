@@ -30,7 +30,12 @@ const vaultUsage = `usage:
                                          Put a version back, as a new version
   hi server vault forget <path> --version <n>
                                          Destroy one version's value (it leaked); its entry stays
-  hi server vault shared [set|give|rm]   Keys several apps use, such as one OpenRouter key`
+  hi server vault shared [set|give|rm]   Keys several apps use, such as one OpenRouter key
+  hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt|approle]
+                                         Read a team's OpenBao or Vault: apps take paths there (hi app env --from)
+  hi server vault disconnect <prefix>    Stop reading it; refused while an app takes from it
+  hi server vault login [<prefix>] [--new-key]
+                                         Whether hi logs in, and what to hand the store's owners`
 
 func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {
@@ -104,8 +109,14 @@ func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return vaultForgetCommand(rest, stdout)
 	case "shared":
 		return vaultSharedCommand(rest, stdin, stdout)
-	case "move", "connect", "login":
-		return fmt.Errorf("hi server vault %s comes in a later hi (docs/specs/approved/hi_server_vault.md)", command)
+	case "connect":
+		return vaultConnectCommand(rest, stdin, stdout)
+	case "disconnect":
+		return vaultDisconnectCommand(rest, stdout)
+	case "login":
+		return vaultLoginCommand(rest, stdout)
+	case "move":
+		return vaultMoveCommand(rest, stdin, stdout)
 	}
 	return usageError{vaultUsage}
 }
@@ -213,6 +224,9 @@ func vaultStatus(stdout io.Writer) error {
 		ways = append(ways, slot.Kind)
 	}
 	fmt.Fprintf(stdout, "Opens with: %s\n", strings.Join(ways, ", "))
+	if line := vaultMovedLine(); line != "" {
+		fmt.Fprintln(stdout, line)
+	}
 	fmt.Fprintln(stdout, vaultProtects(keys.kinds()))
 	for _, line := range vaultAdvice(keys) {
 		fmt.Fprintln(stdout, line)
@@ -226,7 +240,7 @@ func vaultStatus(stdout io.Writer) error {
 	}
 	paths, versions, removed := 0, 0, 0
 	for _, file := range files {
-		if file.Path == vaultRecoveryPath {
+		if file.Path == vaultRecoveryPath || strings.HasPrefix(file.Path, "hi/connected/") {
 			continue
 		}
 		paths++
@@ -306,16 +320,13 @@ func vaultLockCommand(args []string, stdout io.Writer) error {
 
 // vaultAskPassphrase asks a new passphrase twice, without echo.
 func vaultAskPassphrase(stdin io.Reader, stdout io.Writer) (string, error) {
-	first, err := readSecretLine(stdin, stdout, fmt.Sprintf("A passphrase (at least %d characters; a few words are easiest)", vaultPassphraseLeast))
+	both, err := readSecretLines(stdin, stdout, fmt.Sprintf("A passphrase (at least %d characters; a few words are easiest)", vaultPassphraseLeast), "Again")
 	if err != nil {
 		return "", err
 	}
+	first, again := both[0], both[1]
 	if len([]rune(first)) < vaultPassphraseLeast {
 		return "", fmt.Errorf("a passphrase has at least %d characters", vaultPassphraseLeast)
-	}
-	again, err := readSecretLine(stdin, stdout, "Again")
-	if err != nil {
-		return "", err
 	}
 	if again != first {
 		return "", errors.New("the two weren't the same; nothing changed")
@@ -489,7 +500,7 @@ func vaultListCommand(args []string, stdout io.Writer) error {
 		return nil
 	}
 	for _, file := range files {
-		if file.Path == vaultRecoveryPath || len(file.Versions) == 0 {
+		if file.Path == vaultRecoveryPath || strings.HasPrefix(file.Path, "hi/connected/") || len(file.Versions) == 0 {
 			continue
 		}
 		latest := file.Versions[len(file.Versions)-1]
@@ -503,6 +514,7 @@ func vaultListCommand(args []string, stdout io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "%-34s v%-3d %s  %s%s\n", file.Path, latest.Version, latest.Time.Local().Format("2006-01-02 15:04"), names, note)
 	}
+	vaultConnectedList(stdout)
 	return nil
 }
 
