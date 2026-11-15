@@ -210,9 +210,12 @@ LUKS does. Any one slot unlocks the store:
     `libtss2-rc0t64` isn't installed. The host key is on the disk, so a
     copied disk opens such a slot: no better than file. So hi checks
     `systemd-analyze has-tpm2` (exit 0 only with full support) before,
-    and checks the sealed result after (a TPM-sealed credential carries
-    the TPM's blob, a host-only one is ~160 bytes), and never calls a
-    host-only slot tpm.
+    and checks the sealed result after, and never calls a host-only slot
+    tpm. The check after reads the credential's first 16 bytes, the
+    sealing kind's ID: `55b9ed1d-3859-4d43-a831-9d2ebb332ac6` is host
+    only; with the TPM it is another one, `ef4ac136-79a9-480e-a7db-68897f9f165d`
+    seen on systemd 259 (tested 2026-11-15). Size is no test: a TPM one
+    is ~540 bytes, a host-only one 130–170, depending on the name.
   - Where the TPM is there but the support partial, hi makes a file slot
     and the page and `hi doctor` say "This machine has a TPM; ask your IT
     team to install libtss2-rc0t64 (sudo apt install libtss2-rc0t64),
