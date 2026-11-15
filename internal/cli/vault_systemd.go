@@ -12,11 +12,9 @@ package cli
 import (
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -28,17 +26,20 @@ var vaultServerUnitLines = []string{"NotifyAccess=main", "FileDescriptorStoreMax
 
 // vaultSystemdKeep, vaultSystemdTake, and vaultSystemdDrop are systemd's
 // keeping; tests replace them.
-var vaultSystemdKeep = func(key []byte) {
+var vaultSystemdKeep = func(key []byte) error {
+	if os.Getenv("NOTIFY_SOCKET") == "" {
+		return nil // not under systemd, or a unit without NotifyAccess yet
+	}
 	fd, err := unix.MemfdCreate(vaultFDName, unix.MFD_CLOEXEC)
 	if err != nil {
-		return
+		return err
 	}
 	defer unix.Close(fd)
 	if _, err := unix.Write(fd, key); err != nil {
-		return
+		return err
 	}
 	vaultNotify("FDSTOREREMOVE=1\nFDNAME="+vaultFDName, -1)
-	vaultNotify("FDSTORE=1\nFDNAME="+vaultFDName, fd)
+	return vaultNotify("FDSTORE=1\nFDNAME="+vaultFDName, fd)
 }
 
 var vaultSystemdTake = func() []byte {
@@ -69,26 +70,25 @@ var vaultSystemdDrop = func() {
 	vaultNotify("FDSTOREREMOVE=1\nFDNAME="+vaultFDName, -1)
 }
 
-// vaultNotify sends one message to systemd, with fd when it is one.
+// vaultNotify sends one message to systemd, with fd when it is one: a
+// sendmsg to the socket's address, since Go's net refuses a message with
+// rights on a connected datagram socket.
 func vaultNotify(message string, fd int) error {
 	socket := os.Getenv("NOTIFY_SOCKET")
 	if socket == "" {
 		return fmt.Errorf("no NOTIFY_SOCKET")
 	}
-	if strings.HasPrefix(socket, "@") {
-		socket = "\x00" + socket[1:]
-	}
-	conn, err := net.DialUnix("unixgram", nil, &net.UnixAddr{Name: socket, Net: "unixgram"})
+	// An abstract socket keeps its "@": x/sys/unix takes it so.
+	sock, err := unix.Socket(unix.AF_UNIX, unix.SOCK_DGRAM|unix.SOCK_CLOEXEC, 0)
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer unix.Close(sock)
 	var rights []byte
 	if fd >= 0 {
-		rights = syscall.UnixRights(fd)
+		rights = unix.UnixRights(fd)
 	}
-	_, _, err = conn.WriteMsgUnix([]byte(message), rights, nil)
-	return err
+	return unix.Sendmsg(sock, []byte(message), rights, &unix.SockaddrUnix{Name: socket}, 0)
 }
 
 // vaultUpgradeServerUnit adds what systemd's keeping needs to

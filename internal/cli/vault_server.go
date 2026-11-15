@@ -41,6 +41,7 @@ type vaultHold struct {
 	next     time.Time // no try before, after five wrong ones
 	read     map[string]bool
 	onOpen   []func()
+	log      io.Writer
 }
 
 func newVaultHold() *vaultHold {
@@ -56,6 +57,7 @@ func (h *vaultHold) lockedWhy() string {
 // start opens the store as the server starts: with the key systemd kept
 // across the restart, else a slot that opens by itself.
 func (h *vaultHold) start(log io.Writer) {
+	h.log = log
 	if !vaultExists() {
 		return
 	}
@@ -128,7 +130,9 @@ func (h *vaultHold) opened(key []byte, how string) {
 	waiting := h.onOpen
 	h.onOpen = nil
 	h.mu.Unlock()
-	vaultSystemdKeep(key)
+	if err := vaultSystemdKeep(key); err != nil && h.log != nil {
+		fmt.Fprintf(h.log, "hi server: systemd doesn't keep the vault's key across restarts: %v\n", err)
+	}
 	for _, run := range waiting {
 		go run()
 	}

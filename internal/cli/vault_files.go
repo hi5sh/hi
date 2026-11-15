@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -251,10 +252,65 @@ var vaultKeepFiles = func() bool {
 			if vaultReadsNoSecret(filepath.Join(updateProcRoot, entry.Name(), "cmdline")) {
 				continue
 			}
+			if vaultBinaryKnowsVault(filepath.Join(updateProcRoot, entry.Name(), "exe")) {
+				continue // it reads the vault itself
+			}
 			return true
 		}
 	}
 	return false
+}
+
+// vaultBinaryMarker is in every hi binary that reads the vault itself
+// (v2.6.153 and newer): the recovery key's path, a string long enough
+// that Go keeps it as data, not in instructions as it does short ones.
+var vaultBinaryMarker = []byte(vaultRecoveryPath)
+
+var vaultBinaryKnown = struct {
+	sync.Mutex
+	seen map[string]bool
+}{seen: map[string]bool{}}
+
+// vaultBinaryKnowsVault is whether the binary a process runs, replaced
+// since, has the vault's code: such a hi reads the vault when a secret's
+// file is gone, so no file stays for it. One older reads only the files.
+func vaultBinaryKnowsVault(exe string) bool {
+	info, err := os.Stat(exe)
+	if err != nil {
+		return false
+	}
+	key := fmt.Sprintf("%s %d %d", exe, info.Size(), info.ModTime().UnixNano())
+	vaultBinaryKnown.Lock()
+	known, ok := vaultBinaryKnown.seen[key]
+	vaultBinaryKnown.Unlock()
+	if ok {
+		return known
+	}
+	file, err := os.Open(exe)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	buffer := make([]byte, 1<<20)
+	carry := []byte{}
+	for {
+		n, err := file.Read(buffer)
+		chunk := append(carry, buffer[:n]...)
+		if bytes.Contains(chunk, vaultBinaryMarker) {
+			known = true
+			break
+		}
+		if keep := len(vaultBinaryMarker) - 1; len(chunk) > keep {
+			carry = append([]byte{}, chunk[len(chunk)-keep:]...)
+		}
+		if err != nil {
+			break
+		}
+	}
+	vaultBinaryKnown.Lock()
+	vaultBinaryKnown.seen[key] = known
+	vaultBinaryKnown.Unlock()
+	return known
 }
 
 // vaultReadsNoSecret is whether a process, by its command line, is one of

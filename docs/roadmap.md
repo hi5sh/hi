@@ -2736,6 +2736,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### Next — The vault's key kept across restarts, for real
+
+- [x] The server hands systemd the vault's key with a plain sendmsg: Go's
+  net refused a message with a file on a connected datagram socket, and
+  the error was dropped, so systemd kept nothing. A failure is logged now.
+- [x] The secret files stay on disk only for a hi older than the vault
+  (its binary lacks the vault's code), not for the server an update
+  restarts last.
+
 ### v2.6.156 — The vault in the middle
 
 - [x] The admin page's Vault is a tab of the server's, beside Overview,

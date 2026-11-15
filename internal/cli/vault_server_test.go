@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -225,7 +226,7 @@ func TestVaultSystemdKeeping(t *testing.T) {
 	var kept []byte
 	savedKeep, savedTake, savedDrop := vaultSystemdKeep, vaultSystemdTake, vaultSystemdDrop
 	t.Cleanup(func() { vaultSystemdKeep, vaultSystemdTake, vaultSystemdDrop = savedKeep, savedTake, savedDrop })
-	vaultSystemdKeep = func(key []byte) { kept = append([]byte{}, key...) }
+	vaultSystemdKeep = func(key []byte) error { kept = append([]byte{}, key...); return nil }
 	vaultSystemdTake = func() []byte { return kept }
 	vaultSystemdDrop = func() { kept = nil }
 
@@ -567,5 +568,58 @@ func TestVaultRenameThroughTheServer(t *testing.T) {
 	}
 	if data, err := store.decrypt("hi/app/billing/shared", file.Versions[0]); err != nil || data.Values["A"] != "1" {
 		t.Fatal(data, err)
+	}
+}
+
+// The key goes to systemd as it takes it: a datagram on NOTIFY_SOCKET with
+// a memory-only file holding the key.
+func TestVaultSystemdNotify(t *testing.T) {
+	dir, _ := os.MkdirTemp("", "hn")
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socket := filepath.Join(dir, "notify")
+	listener, err := net.ListenUnixgram("unixgram", &net.UnixAddr{Name: socket, Net: "unixgram"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	t.Setenv("NOTIFY_SOCKET", socket)
+	key := bytes.Repeat([]byte{7}, 32)
+	keep := savedSystemdKeep
+	if err := keep(key); err != nil {
+		t.Fatal(err)
+	}
+	var messages []string
+	var got []byte
+	for range 2 {
+		buffer, oob := make([]byte, 256), make([]byte, 256)
+		listener.SetReadDeadline(time.Now().Add(2 * time.Second))
+		n, oobn, _, _, err := listener.ReadMsgUnix(buffer, oob)
+		if err != nil {
+			t.Fatal(err)
+		}
+		messages = append(messages, string(buffer[:n]))
+		if oobn > 0 {
+			controls, _ := syscall.ParseSocketControlMessage(oob[:oobn])
+			fds, _ := syscall.ParseUnixRights(&controls[0])
+			data := make([]byte, 64)
+			m, _ := syscall.Pread(fds[0], data, 0)
+			got = data[:m]
+			syscall.Close(fds[0])
+		}
+	}
+	if messages[0] != "FDSTOREREMOVE=1\nFDNAME=hi-vault-key" || messages[1] != "FDSTORE=1\nFDNAME=hi-vault-key" || !bytes.Equal(got, key) {
+		t.Fatalf("%q %x", messages, got)
+	}
+}
+
+// Files stay only for a hi older than the vault, which reads only them.
+func TestVaultBinaryKnowsVault(t *testing.T) {
+	dir := t.TempDir()
+	old, recent := filepath.Join(dir, "old"), filepath.Join(dir, "new")
+	os.WriteFile(old, bytes.Repeat([]byte("x"), 3<<20), 0o700)
+	padding := bytes.Repeat([]byte("y"), 1<<20-5)
+	os.WriteFile(recent, append(append(padding, vaultBinaryMarker...), padding...), 0o700)
+	if vaultBinaryKnowsVault(old) || !vaultBinaryKnowsVault(recent) {
+		t.Fatal("the marker")
 	}
 }

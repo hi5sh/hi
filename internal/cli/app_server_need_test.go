@@ -35,7 +35,8 @@ func init() {
 	vaultKeepFiles = func() bool { return false }
 	vaultTPMSeal = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
 	vaultTPMOpen = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
-	vaultSystemdKeep = func([]byte) {}
+	savedSystemdKeep = vaultSystemdKeep
+	vaultSystemdKeep = func([]byte) error { return nil }
 	vaultSystemdTake = func() []byte { return nil }
 	vaultSystemdDrop = func() {}
 	// HI_TEST_VAULT=1 runs every test with a vault in its own state, so
@@ -48,6 +49,9 @@ func init() {
 		return "", errors.New("tests don't run systemctl")
 	}
 }
+
+// savedSystemdKeep is the real one, for the test that checks it.
+var savedSystemdKeep func([]byte) error
 
 func realServerCheck(t *testing.T) {
 	previous := appServerHere
