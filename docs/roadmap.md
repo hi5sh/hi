@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.160 — The Vault tab redraws after a change
+
+- [x] A change of the admin's own redraws the Vault tab at once, whatever
+  has focus.
+
 ### v2.6.159 — Shared keys to several apps at once
 
 - [x] The Vault tab's Give to apps…: every app, ticked where it has the
