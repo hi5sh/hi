@@ -2736,6 +2736,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### Next — What each app spends on models
+
+Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
+
+- [ ] Release 1, the record: every proxy's `call` lines (model, tokens,
+  dollars, key), monthly sums per app, `hi app budget <app>`, the page's
+  Spend and the Overviews' month, the watcher on the sums, and a shared
+  key's check for spend outside hi.
+- [ ] Release 2, budgets: monthly and daily per app, every proxy refusing
+  paid calls at 100%, notices at 80% and 100%.
+- [ ] Release 3, keys hi makes: an OpenRouter management key in the vault,
+  a key per app with its budget as the limit, disabled, deleted, rotated.
+
 ### v2.6.162 — An app's OpenRouter key from a shared key
 
 - [x] `hi app key <app> openrouter --from shared/<name>`: the app's agents
