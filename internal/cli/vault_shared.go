@@ -551,3 +551,28 @@ func vaultSharedSetApps(name string, apps []string, who string) (string, error) 
 	}
 	return fmt.Sprintf("shared/%s is given to %s. Each uses it by naming the setting: hi app env <app> NAME --from shared/%s", name, strings.Join(apps, ", "), name), nil
 }
+
+// appSharedKeyNames are the server's shared keys, by name.
+func appSharedKeyNames() []string {
+	if !vaultExists() {
+		return nil
+	}
+	return sortedKeys(loadVaultShared())
+}
+
+// appCheckSharedOpenRouter checks a shared key as an OpenRouter key, with
+// OpenRouter.
+func appCheckSharedOpenRouter(name string) error {
+	store, err := openVault()
+	if err != nil {
+		return err
+	}
+	data, _, found, err := store.get(vaultSharedPath(name))
+	if err != nil || !found || data.Values["value"] == "" {
+		return fmt.Errorf("shared/%s has no value", name)
+	}
+	if err := appCheckOpenRouterKey(data.Values["value"]); err != nil {
+		return fmt.Errorf("shared/%s as an OpenRouter key: %w", name, err)
+	}
+	return nil
+}

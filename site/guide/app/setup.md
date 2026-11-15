@@ -142,6 +142,12 @@ OpenRouter key, if it has one, in `HI_APP_OPENROUTER_API_KEY`):
 hi app new payments --from payments.json
 ```
 
+For its OpenRouter key, the app can use a shared key from the server's
+vault instead, one key several apps use and change in one place: pick it
+at the Models step (the wizard and the admin page's New app list the
+server's shared keys), or put `"openrouter_from": "shared/openrouter"` in
+the answers file. hi shares it to the new app as it makes it.
+
 ## Start and stop it
 
 ```sh

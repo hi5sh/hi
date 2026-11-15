@@ -2367,12 +2367,18 @@ function renderDraft() {
       collect = renderMembers(body, d);
       break;
     case "models": {
-      let own = d.own_key || !m.openrouter;
-      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…", disabled: !own });
-      body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; no box ever holds it."),
-        radios("s-or", [["machine", "This machine's key, Hermes'", !m.openrouter], ["own", "A key of the app's own (openrouter.ai/settings/keys)"]], own ? "own" : "machine", (v) => { own = v === "own"; key.disabled = !own; if (own) key.focus(); }),
-        field("The app's OpenRouter key", key));
-      collect = () => ({ own_key: own, openrouter_key: key.value.trim() });
+      const shared = m.shared || [];
+      let way = d.own_key ? "own" : c.openrouter_from ? "shared" : shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
+      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…", disabled: way !== "own" });
+      const pick = el("select", { id: "s-orshared", "aria-label": "The shared key", disabled: way !== "shared" }, ...shared.map((n) => el("option", { value: n, selected: c.openrouter_from === "shared/" + n }, "shared/" + n)));
+      const choices = [["machine", "This machine's key, Hermes'", !m.openrouter]];
+      if (shared.length) choices.push(["shared", "A shared key from the vault: one key several apps use, changed in one place"]);
+      choices.push(["own", "A key of the app's own (openrouter.ai/settings/keys)"]);
+      body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; a shared key or this machine's counts it together with the other apps on it. No box ever holds it."),
+        radios("s-or", choices, way, (v) => { way = v; key.disabled = way !== "own"; pick.disabled = way !== "shared"; if (way === "own") key.focus(); }));
+      if (shared.length) body.append(field("The shared key", pick));
+      body.append(field("The app's OpenRouter key", key));
+      collect = () => ({ own_key: way === "own", openrouter_key: key.value.trim(), openrouter_from: way === "shared" && pick.value ? "shared/" + pick.value : "" });
       break;
     }
     case "code":
@@ -2663,7 +2669,7 @@ function renderReview(body, d) {
     const x = c.members[role];
     fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · falls back to " + x.fallback : ""));
   }
-  fact("OpenRouter", d.own_key ? "the app's own key" : "this machine's key");
+  fact("OpenRouter", d.own_key ? "the app's own key" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
   fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
   if (d.code.gitlab) fact("GitLab", d.code.gitlab);

@@ -188,6 +188,7 @@ type adminNewMachine struct {
 	ChatGPT    bool               `json:"chatgpt"`    // Codex is signed in to ChatGPT
 	CodexKey   bool               `json:"codex_key"`  // Codex is on an API key
 	Heartbeat  bool               `json:"heartbeat"`  // the machine has a heartbeat
+	Shared     []string           `json:"shared"`     // the server's shared keys, by name
 	Domain     string             `json:"domain,omitempty"`
 	Efforts    []string           `json:"efforts"`
 	Templates  []adminNewTemplate `json:"templates"`
@@ -216,6 +217,10 @@ func adminNewMachineOf(name string) adminNewMachine {
 		machine.CodexKey = true
 	}
 	_, machine.Heartbeat = loadMachineHeartbeat()
+	machine.Shared = appSharedKeyNames()
+	if machine.Shared == nil {
+		machine.Shared = []string{}
+	}
 	_, ghErr := appGHLookPath()
 	_, glabErr := appGlabLookPath()
 	machine.GH, machine.Glab = ghErr == nil, glabErr == nil
@@ -457,8 +462,9 @@ type adminStepInput struct {
 	ClaudeToken   string               `json:"claude_token"`
 	ClaudeMachine bool                 `json:"claude_machine"`
 
-	OwnKey        bool   `json:"own_key"`
-	OpenRouterKey string `json:"openrouter_key"`
+	OwnKey         bool   `json:"own_key"`
+	OpenRouterKey  string `json:"openrouter_key"`
+	OpenRouterFrom string `json:"openrouter_from"`
 
 	Code adminDraftCode `json:"code"`
 
@@ -538,6 +544,18 @@ func adminSaveStep(input adminStepInput) (adminDraft, error) {
 			return adminSaveMembers(draft, input)
 		case "models":
 			draft.OwnKey = input.OwnKey
+			answers.OpenRouterFrom = ""
+			if from := strings.TrimSpace(input.OpenRouterFrom); from != "" && !input.OwnKey {
+				shared, ok := appSharedName(from)
+				if !ok || !slices.Contains(appSharedKeyNames(), shared) {
+					return fmt.Errorf("the server has no shared key %q", from)
+				}
+				if err := appCheckSharedOpenRouter(shared); err != nil {
+					return err
+				}
+				answers.OpenRouterFrom, draft.OpenRouterKey = "shared/"+shared, ""
+				break
+			}
 			if !input.OwnKey {
 				if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil || key == "" {
 					return errors.New("this machine has no OpenRouter key: give the app a key of its own")

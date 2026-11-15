@@ -1099,6 +1099,13 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	if err := validateTeam(config); err != nil {
 		return err
 	}
+	if config.OpenRouterFrom != "" {
+		shared, ok := appSharedName(config.OpenRouterFrom)
+		if !ok || !slices.Contains(appSharedKeyNames(), shared) {
+			return fmt.Errorf("openrouter_from: the server has no shared key %q (hi server vault shared)", config.OpenRouterFrom)
+		}
+		secrets.OpenRouterAPIKey = ""
+	}
 	if secrets.OpenRouterAPIKey == "" && config.OpenRouterFrom == "" {
 		if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil || key == "" {
 			return errors.New(strings.ReplaceAll(appNoOpenRouterKey.Error(), "<name>", name))
@@ -1131,6 +1138,14 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 		os.RemoveAll(dir)
 		os.Remove(filepath.Join(appsDir(), name))
 		return err
+	}
+	if shared, ok := appSharedName(config.OpenRouterFrom); ok {
+		// The new app may use the shared key it was made with.
+		if _, err := vaultSharedGive(shared, []string{name}, false, vaultActor()); err != nil {
+			fmt.Fprintf(stdout, "The app is set up, but shared/%s isn't shared to it: %v\nTry again with: hi server vault shared give %s %s\n", shared, err, shared, name)
+		} else if err := writeTeamKeys(name, secrets); err != nil {
+			fmt.Fprintf(stdout, "hi: the app's OpenRouter key: %v\n", err)
+		}
 	}
 	if answers.GitHub != "" {
 		if err := appConnectGitHub(&config, answers.GitHub, stdout); err != nil {
@@ -1567,7 +1582,31 @@ func appWizard(name, dir string, adopt *appAdoption, stdin io.Reader, stdout io.
 	}
 	appSay(stdout, styled, "own (openrouter.ai/settings/keys), so its use is billed and limited apart, or press Enter for this",
 		"machine's (Hermes'). No box ever holds the key; nobody needs to paste one into Slack.")
-	if secrets.OpenRouterAPIKey, err = appAskOpenRouterKey(stdin, stdout, "OpenRouter key [Enter: this machine's]"); err != nil {
+	if shared := appSharedKeyNames(); len(shared) > 0 {
+		appSay(stdout, styled, "Or a shared key from the server's vault, which several apps use and change in one place: "+strings.Join(shared, ", ")+".")
+		choice, err := appAskUntil(stdin, stdout, "OpenRouter key: a shared key's name, own for a key of its own [Enter: this machine's]", false, func(text string) error {
+			text = strings.TrimPrefix(strings.TrimSpace(text), "shared/")
+			if text == "" || text == "own" || slices.Contains(shared, text) {
+				return nil
+			}
+			return fmt.Errorf("no shared key %s: %s, own, or Enter", text, strings.Join(shared, ", "))
+		})
+		if err != nil {
+			return answers, secrets, err
+		}
+		switch choice = strings.TrimPrefix(strings.TrimSpace(choice), "shared/"); choice {
+		case "":
+		case "own":
+			if secrets.OpenRouterAPIKey, err = appAskOpenRouterKey(stdin, stdout, "OpenRouter key"); err != nil {
+				return answers, secrets, err
+			}
+		default:
+			if err := appCheckSharedOpenRouter(choice); err != nil {
+				return answers, secrets, err
+			}
+			config.OpenRouterFrom = "shared/" + choice
+		}
+	} else if secrets.OpenRouterAPIKey, err = appAskOpenRouterKey(stdin, stdout, "OpenRouter key [Enter: this machine's]"); err != nil {
 		return answers, secrets, err
 	}
 

@@ -2736,13 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
-### Next — An app's OpenRouter key from a shared key
+### v2.6.162 — An app's OpenRouter key from a shared key
 
 - [x] `hi app key <app> openrouter --from shared/<name>`: the app's agents
   use a shared key as their OpenRouter key, by reference, checked with
   OpenRouter first; the app's own key goes; a new value reaches the
   proxy within a minute. The page's Keys and the dev page say so; a move
   takes the key along; it can't be removed or taken back while used.
+- [x] Making an app: `hi app new` and the page's New app offer the
+  server's shared keys at the Models step; `openrouter_from` in an answers
+  file; hi shares the key to the new app as it makes it.
 
 ### v2.6.161 — Shared keys, one line each
 

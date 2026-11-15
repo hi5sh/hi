@@ -213,3 +213,39 @@ func TestAppOpenRouterFromShared(t *testing.T) {
 		t.Fatal("a key in the audit log")
 	}
 }
+
+// A new app made with a shared OpenRouter key: the key must exist; the
+// app gets it shared, and its agents use it, with no key of its own.
+func TestAppNewWithSharedOpenRouter(t *testing.T) {
+	dir := setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_OPENROUTER_API_KEY", "sk-or-own")
+	file := filepath.Join(dir, "answers.json")
+	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "empty": true, "openrouter_from": "shared/openrouter"}`, 0o600)
+	if err := appNew([]string{"payments", "--from", file}, strings.NewReader(""), io.Discard); err == nil || !strings.Contains(err.Error(), "no shared key") {
+		t.Fatal(err)
+	}
+	vaultSharedSet("openrouter", "sk-or-shared", "ana")
+	var out bytes.Buffer
+	if err := appNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err, out.String())
+	}
+	config, _ := loadTeam("payments")
+	secrets, _ := loadTeamSecrets("payments")
+	if config.OpenRouterFrom != "shared/openrouter" || secrets.OpenRouterAPIKey != "" {
+		t.Fatal(config.OpenRouterFrom, secrets.OpenRouterAPIKey)
+	}
+	if grant := loadVaultShared()["openrouter"]; grant == nil || strings.Join(grant.Apps, ",") != "payments" {
+		t.Fatal(grant)
+	}
+	if key, _ := appOpenRouterKey("payments"); key != "sk-or-shared" {
+		t.Fatal(key)
+	}
+	// The page's wizard offers it.
+	if m := adminNewMachineOf("orders"); strings.Join(m.Shared, ",") != "openrouter" {
+		t.Fatal(m.Shared)
+	}
+}
