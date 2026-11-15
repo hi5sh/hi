@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-14), after its open questions were decided
 one by one the same day (Open questions). Release 0 built as v2.6.152,
-release 1 as v2.6.153, release 2 as v2.6.155, release 3 on main (see
+release 1 as v2.6.153, release 2 as v2.6.155, release 3 as v2.6.158 (see
 Releases for what each has).
 It replaces the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
 own Vault, by a login per app), which is folded in here: a team's own

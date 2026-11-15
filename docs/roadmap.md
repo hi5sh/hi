@@ -2736,7 +2736,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
-### Next — The server's vault, release 3: a team's OpenBao or Vault
+### v2.6.158 — The server's vault, release 3: a team's OpenBao or Vault
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 3.
 
