@@ -95,12 +95,13 @@ log.
 
 ## On the admin page
 
-Keys, then **The server's vault**: whether it's open, **Unlock** with the
+Open **The server**, then its **Vault** tab, beside Overview: whether it's open, **Unlock** with the
 passphrase or the recovery key, **Lock now**, the ways it opens (add a
 passphrase, the TPM, or a key file; remove one), each secret's versions
 with **Roll back** and **Forget**, and the removed apps' settings with
-**Purge**. While it's locked, a banner on every view says so, with
-Unlock. The passphrase goes from the browser to the page and from the
+**Purge**, and the shared keys. While it's locked, a banner on every
+view says so, with Unlock, which opens the tab. The left panel's Keys
+says whether it's open, with the way there. The passphrase goes from the browser to the page and from the
 page to the server; the page keeps none of it, and no value is ever on
 it.
 

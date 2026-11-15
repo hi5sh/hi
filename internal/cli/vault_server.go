@@ -723,7 +723,7 @@ func (s *orgServer) remindRecovery() {
 	if owner == nil || owner.Slack == "" {
 		return
 	}
-	text := "The hi server's vault on " + adminMachineName() + " has a recovery key waiting for you to save it: it opens every secret there when nothing else does, after a move, a restore, or a lost disk. Save it on the admin page (Keys, The server's vault) or with hi server vault recovery on a terminal on the machine."
+	text := "The hi server's vault on " + adminMachineName() + " has a recovery key waiting for you to save it: it opens every secret there when nothing else does, after a move, a restore, or a lost disk. Save it on the admin page (The server, Vault) or with hi server vault recovery on a terminal on the machine."
 	if _, _, err := s.slack.api.PostMessage(owner.Slack, slack.MsgOptionText(slackEscape(text), false)); err != nil {
 		fmt.Fprintf(s.log, "slack: the recovery key's reminder: %v\n", err)
 		return

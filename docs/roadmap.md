@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### Next — The vault in the middle
+
+- [x] The admin page's Vault is a tab of the server's, beside Overview,
+  in the middle; the banner's Unlock opens it, and the left panel's Keys
+  says whether it's open, with the way there.
+- [x] The running `hi update` no longer keeps the apps' secret files on
+  disk while it restarts them.
+
 ### v2.6.155 — The server's vault, release 2
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 2.

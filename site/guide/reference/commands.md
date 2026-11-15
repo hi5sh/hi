@@ -526,7 +526,7 @@ With email set up, the dev page, the helper, and the admin page each take an ema
 
 ## hi server vault
 
-Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/guide/reference/vault/)). No command prints a value. The admin page's Keys has the same, in its Vault.
+Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/guide/reference/vault/)). No command prints a value. The admin page has the same, in the server's Vault tab.
 
 | Command | What it does |
 |---|---|

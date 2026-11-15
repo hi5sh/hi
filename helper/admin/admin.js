@@ -1566,7 +1566,7 @@ function plus(title, form) { return el("button", { class: "side-icon", title, "a
 // the server, opened: its sections in the middle and on the bar, as an app's.
 // Someone who isn't one of the server's admins sees them, and changes nothing.
 
-const orgSectionNames = { overview: "Overview", users: "Users", admins: "Admins", policy: "Budgets and approval", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
+const orgSectionNames = { overview: "Overview", vault: "Vault", users: "Users", admins: "Admins", policy: "Budgets and approval", keys: "Keys", templates: "Templates", data: "Data", models: "Models", slack: "Slack", walls: "Wall screens" };
 for (const chip of document.querySelectorAll("#org-sections [data-org-section]")) {
   chip.addEventListener("click", () => openOrg(chip.dataset.orgSection));
 }
@@ -1581,7 +1581,8 @@ function openOrg(section) {
   if (narrow()) { panes.left.open = false; keepPanes(); renderPanes(); }
   if (!was) moved();
   if (orgSection === "policy") renderPolicy(); else renderOrgSection();
-  if (orgSection !== "overview" || !orgSettings) refreshOrgSettings();
+  if (orgSection === "vault") { vaultHistory = null; refreshVault(); }
+  else if (orgSection !== "overview" || !orgSettings) refreshOrgSettings();
 }
 
 function orgHead() {
@@ -1603,6 +1604,7 @@ function renderOrgSection() {
   if (note) parts.push(note);
   const s = orgSettings;
   if (orgSection === "overview") parts.push(...orgOverview(s));
+  else if (orgSection === "vault") parts.push(vaultBlock(true));
   else if (!s) parts.push(el("p", { class: "muted" }, "…"));
   else {
     const build = { users: orgUsers, admins: orgAdmins, keys: orgKeys, templates: orgTemplates, data: orgData, models: orgModels, slack: orgSlack, walls: orgWalls }[orgSection];
@@ -1863,7 +1865,7 @@ $("people-add").addEventListener("click", () => openPerson("new"));
 
 // Keys: the machine's, set or not, never shown. The server's are the server's.
 function renderKeys() {
-  const parts = [vaultBlock(), machineKeysBlock(), mailBlock()];
+  const parts = [state && state.org ? vaultLine() : vaultBlock(false), machineKeysBlock(), mailBlock()];
   if (state && state.org) parts.push(el("p", { class: "muted small" }, "The server's keys, for its compute providers and hi q, are in ", el("button", { class: "link-button", "data-nav": "", onclick: () => openOrg("keys") }, "the server's Keys"), "."));
   $("keys-view").replaceChildren(...parts);
 }
@@ -3297,6 +3299,14 @@ let vaultHistory = null; // { path, versions }
 async function refreshVault() {
   try { vaultView = await api("/api/vault"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
+  const typing = document.activeElement && $("orgview").contains(document.activeElement) && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (orgOpen() && orgSection === "vault" && !typing) renderOrgSection();
+}
+
+// openVault opens the server's Vault in the middle.
+function openVault() {
+  if (state && state.org) openOrg("vault");
+  else showView("keys");
 }
 async function vaultDo(body) {
   try {
@@ -3313,7 +3323,7 @@ async function vaultDo(body) {
 function renderVaultBanner() {
   const v = state && state.vault;
   const box = $("vault-banner");
-  const open = () => showView("keys");
+  const open = openVault;
   if (v && v.locked) {
     box.className = "vault-banner vault-locked";
     box.replaceChildren(el("strong", {}, "The server's vault is locked"), ": the apps' settings can't be read, so an app that starts waits. ",
@@ -3329,11 +3339,23 @@ function renderVaultBanner() {
 
 const vaultWays = { tpm: "this machine's TPM", file: "a key file", passphrase: "a passphrase", recovery: "the recovery key" };
 
-function vaultBlock() {
+// vaultLine is the vault in the left panel's Keys: open or locked, and
+// the way to the server's Vault in the middle.
+function vaultLine() {
   const v = vaultView;
-  const box = el("div", {});
-  box.append(el("h2", {}, "The server's vault"));
-  if (!v) return box;
+  const box = el("div", {}, el("h2", {}, "The server's vault"));
+  if (!v || !v.exists) return box;
+  box.append(el("p", { class: "small incident-head" }, el("span", { class: "dot " + (v.open ? "idle" : "blocked"), "aria-hidden": "true" }),
+    v.open ? "Open; " + v.paths.length + (v.paths.length === 1 ? " secret" : " secrets") + ". " : "Locked. ",
+    el("button", { class: "link-button", "data-nav": "", onclick: openVault }, v.open ? "The vault" : "Unlock")));
+  return box;
+}
+
+function vaultBlock(middle) {
+  const v = vaultView;
+  const box = el("div", { class: middle ? "vault-view" : "" });
+  if (!middle) box.append(el("h2", {}, "The server's vault"));
+  if (!v) { box.append(el("p", { class: "muted" }, "…")); return box; }
   if (!v.exists) {
     box.append(el("p", { class: "muted small" }, "None yet: hi keeps the secrets as files. hi update makes the vault where a server or apps run."));
     return box;
@@ -3930,7 +3952,8 @@ async function poll() {
     if (Date.now() - advisoriesAt > 60000) { advisoriesAt = Date.now(); refreshAdvisories(); }
     for (const view of [panes.right.view]) if (viewShown(view) && view !== "logs" && view !== "spend") freshView(view);
     // The server's settings: every fifteen seconds while one is open.
-    if (orgOpen() && orgSection !== "overview" && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
+    if (orgOpen() && orgSection === "vault" && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshVault(); }
+    else if (orgOpen() && orgSection !== "overview" && Date.now() - settingsAt > 15000) { settingsAt = Date.now(); refreshOrgSettings(); }
     if (orgOpen() && orgSection === "overview") renderOrgSection();
     // Logs: every three seconds in view, every fifteen behind another,
     // for the dot.

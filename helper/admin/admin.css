@@ -317,3 +317,5 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .recovery-words { columns: 3; font-family: ui-monospace, monospace; font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
 .recovery-words li { padding: 2px 0; }
 .recovery-dialog, .vault-dialog { max-width: 560px; }
+.vault-view { max-width: 920px; }
+.vault-view h3 { margin-top: 22px; }
