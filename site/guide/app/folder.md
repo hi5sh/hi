@@ -9,8 +9,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/apps`.
 
 | Path | What |
 |---|---|
-| `app.json` | Purpose, channel, owners, members |
-| `secrets.json` | The app's heartbeat URL. Its settings, Slack tokens, and keys are in the server's [vault](/guide/reference/vault/), encrypted, at `hi/app/<name>/` (on a machine without one, here, readable only by you) |
+| `app.json` | Purpose, channel, owners, members, and the heartbeat's URL. The app's settings, Slack tokens, and keys are in the server's [vault](/guide/reference/vault/), encrypted, at `hi/app/<name>/` (on a machine without one, in `secrets.json` here, readable only by you) |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` in an older app whose SOUL.md hi replaced |
 | `repo/` | The project's git repository, which dev and production are branches of; `repo/docs/specs/` holds the specs, one file per feature |
 | `dev/` | The dev box: its home (the agents' conversations, herdr's sessions, the worktrees), its clone of the project, the owners' SSH keys, and its NetBird identity |

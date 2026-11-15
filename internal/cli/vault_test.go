@@ -255,11 +255,16 @@ func TestVaultAppSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	secrets, _ := loadTeamSecrets("payments")
-	secrets.HeartbeatURL = "https://hc-ping.example/abc"
+	// As hi before v2.6.154 kept it: the heartbeat's URL in the file.
+	secrets.LegacyHeartbeatURL = "https://hc-ping.example/abc"
 	if err := saveTeamSecrets("payments", secrets); err != nil {
 		t.Fatal(err)
 	}
 	before, _ := os.ReadFile(filepath.Join(appDir("payments"), "secrets.json"))
+	var object map[string]json.RawMessage
+	json.Unmarshal(before, &object)
+	delete(object, "heartbeat_url")
+	before, _ = json.Marshal(object)
 
 	var out bytes.Buffer
 	if err := ensureVault(&out); err != nil {
@@ -268,10 +273,12 @@ func TestVaultAppSecrets(t *testing.T) {
 	if !strings.Contains(out.String(), "app payments's settings") {
 		t.Fatal(out.String())
 	}
-	// The file keeps only the heartbeat's URL.
-	left, _ := os.ReadFile(filepath.Join(appDir("payments"), "secrets.json"))
-	if strings.Contains(string(left), "w-1") || strings.Contains(string(left), "xoxb") || !strings.Contains(string(left), "hc-ping.example") {
-		t.Fatal(string(left))
+	// The file is gone; the heartbeat's URL is in app.json.
+	if fileExists(filepath.Join(appDir("payments"), "secrets.json")) {
+		t.Fatal("secrets.json stays")
+	}
+	if config, _ := loadTeam("payments"); config.HeartbeatURL != "https://hc-ping.example/abc" {
+		t.Fatalf("%+v", config)
 	}
 	after, err := readSecretFile(appSecretsSecret("payments"))
 	if err != nil || !sameSecret(appSecretsSecret("payments"), before, after) {
@@ -290,7 +297,7 @@ func TestVaultAppSecrets(t *testing.T) {
 	if err := appEnv([]string{"payments", "WEATHER_API_KEY=w-2"}, strings.NewReader(""), io.Discard); err != nil {
 		t.Fatal(err)
 	}
-	if secrets, _ := loadTeamSecrets("payments"); secrets.Env["WEATHER_API_KEY"] != "w-2" || secrets.EnvProduction["DB_URL"] != "postgres://prod" || secrets.HeartbeatURL == "" {
+	if secrets, _ := loadTeamSecrets("payments"); secrets.Env["WEATHER_API_KEY"] != "w-2" || secrets.EnvProduction["DB_URL"] != "postgres://prod" {
 		t.Fatalf("%+v", secrets)
 	}
 	file, _ := store.load("hi/app/payments/shared")

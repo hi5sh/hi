@@ -48,12 +48,12 @@ func (b *appBroker) beat() time.Duration {
 	if err != nil {
 		return appHeartbeatDefault
 	}
-	secrets, err := loadTeamSecrets(b.team)
-	if err != nil || secrets.HeartbeatURL == "" {
+	target := appHeartbeatURL(config)
+	if target == "" {
 		return appHeartbeatEvery(config)
 	}
 	last := heartbeatLast{At: time.Now().UTC()}
-	if err := heartbeatPing(secrets.HeartbeatURL); err != nil {
+	if err := heartbeatPing(target); err != nil {
 		last.Error = err.Error()
 	}
 	if data, err := json.Marshal(last); err == nil {
@@ -77,11 +77,11 @@ func (b *appBroker) keepHeartbeat(done <-chan struct{}) {
 
 // appHeartbeatLine is what hi app status says about the heartbeat.
 func appHeartbeatLine(config appConfig) string {
-	secrets, err := loadTeamSecrets(config.Name)
-	if err != nil || secrets.HeartbeatURL == "" {
+	target := appHeartbeatURL(config)
+	if target == "" {
 		return fmt.Sprintf("Heartbeat: none, so nobody would hear that the app stopped (hi app heartbeat %s <url>).", config.Name)
 	}
-	return fmt.Sprintf("Heartbeat: to %s every %s; the last was %s.", heartbeatHost(secrets.HeartbeatURL),
+	return fmt.Sprintf("Heartbeat: to %s every %s; the last was %s.", heartbeatHost(target),
 		heartbeatDuration(appHeartbeatEvery(config)), loadTeamHeartbeatLast(config.Name))
 }
 
@@ -97,31 +97,31 @@ func appHeartbeatCommand(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	secrets, err := loadTeamSecrets(name)
-	if err != nil {
-		return fmt.Errorf("the app's secrets: %w", err)
-	}
+	current := appHeartbeatURL(config)
 	rest := args[1:]
 	switch {
 	case len(rest) == 0:
 		fmt.Fprintln(stdout, appHeartbeatLine(config))
 		return nil
 	case len(rest) == 1 && rest[0] == "test":
-		if secrets.HeartbeatURL == "" {
+		if current == "" {
 			return fmt.Errorf("app %s has no heartbeat; hi app heartbeat %s <url> sets one", name, name)
 		}
-		if err := heartbeatPing(secrets.HeartbeatURL); err != nil {
+		if err := heartbeatPing(current); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s took the heartbeat.\n", heartbeatHost(secrets.HeartbeatURL))
+		fmt.Fprintf(stdout, "%s took the heartbeat.\n", heartbeatHost(current))
 		return nil
 	case len(rest) == 1 && rest[0] == "off":
-		if secrets.HeartbeatURL == "" {
+		if current == "" {
 			fmt.Fprintf(stdout, "App %s has no heartbeat.\n", name)
 			return nil
 		}
-		secrets.HeartbeatURL = ""
-		if err := saveTeamSecrets(name, secrets); err != nil {
+		config.HeartbeatURL = ""
+		if err := saveTeam(config); err != nil {
+			return err
+		}
+		if err := clearLegacyHeartbeat(name); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, "App %s sends no heartbeat now. Pause or remove its check at the service, or it will alert.\n", name)
@@ -144,13 +144,13 @@ func appHeartbeatCommand(args []string, stdout io.Writer) error {
 	if target == "" {
 		return usage
 	}
-	if err := setTeamHeartbeat(&config, &secrets, target, every); err != nil {
+	if err := setTeamHeartbeat(&config, target, every); err != nil {
 		return err
 	}
 	if err := saveTeam(config); err != nil {
 		return err
 	}
-	if err := saveTeamSecrets(name, secrets); err != nil {
+	if err := clearLegacyHeartbeat(name); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "App %s sends a heartbeat to %s every %s while it runs; the first arrived. Set the check's period there to %s, and who it alerts: the ops channel is a good place.\n",
@@ -159,7 +159,7 @@ func appHeartbeatCommand(args []string, stdout io.Writer) error {
 }
 
 // setTeamHeartbeat checks a heartbeat with a first ping, and sets it.
-func setTeamHeartbeat(config *appConfig, secrets *appSecrets, target string, every time.Duration) error {
+func setTeamHeartbeat(config *appConfig, target string, every time.Duration) error {
 	target = strings.TrimSpace(target)
 	if err := checkHeartbeatURL(target); err != nil {
 		return err
@@ -167,7 +167,7 @@ func setTeamHeartbeat(config *appConfig, secrets *appSecrets, target string, eve
 	if err := heartbeatPing(target); err != nil {
 		return fmt.Errorf("the first heartbeat didn't arrive: %w", err)
 	}
-	secrets.HeartbeatURL = target
+	config.HeartbeatURL = target
 	config.HeartbeatEvery = ""
 	if every != appHeartbeatDefault {
 		config.HeartbeatEvery = heartbeatDuration(every)
@@ -178,13 +178,13 @@ func setTeamHeartbeat(config *appConfig, secrets *appSecrets, target string, eve
 // appHeartbeatDown says, when a team with a heartbeat stops, that its
 // check will alert: on the command line, and in the ops channel.
 func appHeartbeatDown(config appConfig, stdout io.Writer) {
-	secrets, err := loadTeamSecrets(config.Name)
-	if err != nil || secrets.HeartbeatURL == "" {
+	target := appHeartbeatURL(config)
+	if target == "" {
 		return
 	}
-	text := fmt.Sprintf("App %s's heartbeat to %s stops with it, so its check will alert: pause it there until the app is up again.", config.Name, heartbeatHost(secrets.HeartbeatURL))
+	text := fmt.Sprintf("App %s's heartbeat to %s stops with it, so its check will alert: pause it there until the app is up again.", config.Name, heartbeatHost(target))
 	fmt.Fprintln(stdout, text)
-	if secrets.SlackBotToken != "" {
+	if secrets, err := loadTeamSecrets(config.Name); err == nil && secrets.SlackBotToken != "" {
 		newLiveTeamChannel(secrets.SlackBotToken).post(config.opsChannel(), ":double_vertical_bar: "+text)
 	}
 }
@@ -245,13 +245,13 @@ func appAskHeartbeats(stdin io.Reader, stdout io.Writer, styled bool, answers *a
 }
 
 // applyTeamHeartbeats keeps what the answers gave once the team exists:
-// the team's heartbeat in its secrets, and the machine's timer.
+// the team's heartbeat in app.json, and the machine's timer.
 func applyTeamHeartbeats(name string, answers appAnswers, stdout io.Writer) {
 	if answers.HeartbeatURL != "" {
-		secrets, err := loadTeamSecrets(name)
+		config, err := loadTeam(name)
 		if err == nil {
-			secrets.HeartbeatURL = answers.HeartbeatURL
-			err = saveTeamSecrets(name, secrets)
+			config.HeartbeatURL = answers.HeartbeatURL
+			err = saveTeam(config)
 		}
 		if err != nil {
 			fmt.Fprintf(stdout, "The app's heartbeat isn't set: %v\nTry again with: hi app heartbeat %s <url>\n", err, name)
@@ -264,4 +264,60 @@ func applyTeamHeartbeats(name string, answers appAnswers, stdout io.Writer) {
 			}
 		}
 	}
+}
+
+// appHeartbeatURL is where the app's heartbeat goes: app.json's, or where
+// an older hi kept it, until moveAppHeartbeat moves it.
+func appHeartbeatURL(config appConfig) string {
+	if config.HeartbeatURL != "" {
+		return config.HeartbeatURL
+	}
+	return appLegacyHeartbeat(config.Name)
+}
+
+// appLegacyHeartbeat is the heartbeat URL hi before v2.6.154 kept in
+// secrets.json, read from the file itself: it was never in the vault.
+func appLegacyHeartbeat(name string) string {
+	data, err := os.ReadFile(appSecretsSecret(name).disk)
+	if err != nil {
+		return ""
+	}
+	var kept struct {
+		URL string `json:"heartbeat_url"`
+	}
+	json.Unmarshal(data, &kept)
+	return kept.URL
+}
+
+// clearLegacyHeartbeat takes an older hi's heartbeat URL out of
+// secrets.json; with the vault, that removes the file.
+func clearLegacyHeartbeat(name string) error {
+	if appLegacyHeartbeat(name) == "" {
+		return nil
+	}
+	return updateTeamSecretsFile(name, func(secrets *appSecrets) error {
+		secrets.LegacyHeartbeatURL = ""
+		return nil
+	}, false)
+}
+
+// moveAppHeartbeat moves the heartbeat URL an older hi kept in
+// secrets.json to app.json, once no process runs that hi: it reads it
+// there, and its heartbeat would stop.
+func moveAppHeartbeat(name string) error {
+	target := appLegacyHeartbeat(name)
+	if target == "" || vaultKeepFiles() {
+		return nil
+	}
+	config, err := loadTeam(name)
+	if err != nil {
+		return err
+	}
+	if config.HeartbeatURL == "" {
+		config.HeartbeatURL = target
+		if err := saveTeam(config); err != nil {
+			return err
+		}
+	}
+	return clearLegacyHeartbeat(name)
 }

@@ -41,8 +41,11 @@ type appConfig struct {
 	// OpsChannel is where incidents, warnings, security, keys, and access
 	// go (app_ops.go); empty, they go to Channel.
 	OpsChannel string `json:"ops_channel,omitempty"`
-	// HeartbeatEvery is how often the team's heartbeat goes, such as 5m;
-	// empty is every minute. Its URL is a secret (app_heartbeat.go).
+	// HeartbeatURL is where the app's heartbeat goes, and HeartbeatEvery
+	// how often, such as 5m; empty is every minute (app_heartbeat.go). The
+	// URL only lets someone send a beat, and stays here, out of the vault,
+	// so the heartbeat goes while the vault is locked.
+	HeartbeatURL   string   `json:"heartbeat_url,omitempty"`
 	HeartbeatEvery string   `json:"heartbeat_every,omitempty"`
 	Owners         []string `json:"owners"`
 	// Developers work in the dev box and on the dev page like the owners,
@@ -174,8 +177,9 @@ type appSecrets struct {
 	// out of reach of its agents.
 	EnvDev   map[string]string `json:"env_dev,omitempty"`
 	FilesDev map[string]string `json:"files_dev,omitempty"`
-	// HeartbeatURL is where the team's heartbeat goes (app_heartbeat.go).
-	HeartbeatURL string `json:"heartbeat_url,omitempty"`
+	// LegacyHeartbeatURL is where hi before v2.6.154 kept the heartbeat's
+	// URL; moveAppHeartbeat moves it to app.json.
+	LegacyHeartbeatURL string `json:"heartbeat_url,omitempty"`
 	// The bucket snapshots are copied to (hi app backups).
 	BackupKeyID  string `json:"backup_access_key_id,omitempty"`
 	BackupSecret string `json:"backup_secret_access_key,omitempty"`
@@ -2371,7 +2375,7 @@ func appUp(name string, stdout io.Writer) error {
 			fmt.Fprintf(stdout, "\nWarning: %s. The bot token stays the same.\n\n", appScopesAdvice(missing))
 		}
 	}
-	if secrets, err := loadTeamSecrets(name); err == nil && secrets.HeartbeatURL == "" {
+	if appHeartbeatURL(config) == "" {
 		fmt.Fprintf(stdout, "\nWarning: the app sends no heartbeat, so nobody would hear that it stopped: hi app heartbeat %s <url>.\n", name)
 	}
 	if warning := boxRootGroupsWarning(); warning != "" {

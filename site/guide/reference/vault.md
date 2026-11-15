@@ -108,8 +108,9 @@ No command prints a value.
 | `hi/app/<app>/offsite` | Its offsite bucket's keys |
 | `hi/app/<app>/snapshots` | The key its snapshots are encrypted with; restic gets it from hi through a command, never a file |
 
-An app's heartbeat URL stays in its `secrets.json`, which holds nothing
-else, so a heartbeat still works while the vault is locked.
+An app's heartbeat URL is in its `app.json`, out of the vault, so the
+heartbeat still goes while the vault is locked. It only lets someone send
+a beat.
 
 - **`hi app rename`** takes its paths to the new name.
 - **`hi app move`** carries them to the other machine over the move's own

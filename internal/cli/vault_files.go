@@ -108,8 +108,8 @@ var appSecretSlots = []struct {
 
 var appSecretOffsite = []string{"backup_key_id", "backup_secret"}
 
-// appSecretDisk stays in secrets.json: a heartbeat's URL, which must
-// work while the store is locked (hi_server_vault.md).
+// appSecretDisk stays in secrets.json: the heartbeat's URL hi before
+// v2.6.154 kept there, until moveAppHeartbeat moves it to app.json.
 var appSecretDisk = []string{"heartbeat_url"}
 
 func (f secretFile) paths() []string {
@@ -477,7 +477,7 @@ func moveSecretFile(f secretFile) (bool, error) {
 		return false, err
 	}
 	if !diskHoldsSecret(f, data) {
-		return false, nil // only a heartbeat's URL left: moved already
+		return false, nil // only an older hi's heartbeat URL left: moved already
 	}
 	store, err := openVault()
 	if err != nil {
@@ -556,6 +556,9 @@ func vaultFinishMove(log io.Writer) {
 				break
 			}
 		}
+		for _, name := range machineAppNames() {
+			left = left || appLegacyHeartbeat(name) != ""
+		}
 		if !left {
 			return
 		}
@@ -613,6 +616,11 @@ func ensureVault(stdout io.Writer) error {
 		}
 		if ok {
 			moved = append(moved, f.what)
+		}
+	}
+	for _, name := range machineAppNames() {
+		if err := moveAppHeartbeat(name); err != nil {
+			failed = append(failed, "app "+name+"'s heartbeat: "+err.Error())
 		}
 	}
 	if len(moved) > 0 {

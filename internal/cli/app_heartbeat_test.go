@@ -56,12 +56,12 @@ func TestTeamHeartbeat(t *testing.T) {
 	}
 	config, _ := loadTeam("payments")
 	secrets, _ := loadTeamSecrets("payments")
-	if config.HeartbeatEvery != "5m" || secrets.HeartbeatURL != secret || secrets.SlackBotToken != "xoxb-1" {
-		t.Fatal(config.HeartbeatEvery, secrets)
+	if config.HeartbeatEvery != "5m" || config.HeartbeatURL != secret || secrets.SlackBotToken != "xoxb-1" {
+		t.Fatal(config, secrets)
 	}
-	data, _ := os.ReadFile(filepath.Join(appDir("payments"), "app.json"))
-	if strings.Contains(string(data), "secret-uuid") {
-		t.Fatal("the URL is in team.json")
+	// In app.json, out of the vault, so it goes while the vault is locked.
+	if data, _ := os.ReadFile(filepath.Join(appDir("payments"), "secrets.json")); strings.Contains(string(data), "secret-uuid") {
+		t.Fatal("the URL is in secrets.json")
 	}
 
 	// The broker sends it, records it, and waits its interval.
@@ -84,7 +84,7 @@ func TestTeamHeartbeat(t *testing.T) {
 	if err := appHeartbeatCommand([]string{"payments", "off"}, &out); err != nil || !strings.Contains(out.String(), "will alert") {
 		t.Fatal(err, out.String())
 	}
-	if secrets, _ := loadTeamSecrets("payments"); secrets.HeartbeatURL != "" {
+	if config, _ := loadTeam("payments"); appHeartbeatURL(config) != "" {
 		t.Fatal("still set")
 	}
 }
@@ -144,5 +144,36 @@ func TestMachineHeartbeat(t *testing.T) {
 	applyTeamHeartbeats("payments", appAnswers{MachineHeartbeatURL: service.URL + "/other"}, &out)
 	if hits("/other") != 1 {
 		t.Fatal("the answers' machine heartbeat wasn't set")
+	}
+}
+
+// hi before v2.6.154 kept the URL in secrets.json: it is read there, and
+// moves to app.json once no process runs that hi.
+func TestAppHeartbeatMovesToAppJSON(t *testing.T) {
+	setupTeamTest(t)
+	newTeamTestBroker(t)
+	if err := saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1", LegacyHeartbeatURL: "https://hc-ping.example/abc"}); err != nil {
+		t.Fatal(err)
+	}
+	saved := vaultKeepFiles
+	t.Cleanup(func() { vaultKeepFiles = saved })
+	vaultKeepFiles = func() bool { return true }
+	if err := moveAppHeartbeat("payments"); err != nil {
+		t.Fatal(err)
+	}
+	config, _ := loadTeam("payments")
+	if config.HeartbeatURL != "" || appHeartbeatURL(config) != "https://hc-ping.example/abc" {
+		t.Fatalf("while an older hi runs: %+v", config)
+	}
+	vaultKeepFiles = func() bool { return false }
+	if err := moveAppHeartbeat("payments"); err != nil {
+		t.Fatal(err)
+	}
+	config, _ = loadTeam("payments")
+	if config.HeartbeatURL != "https://hc-ping.example/abc" || appLegacyHeartbeat("payments") != "" {
+		t.Fatalf("moved: %+v %q", config, appLegacyHeartbeat("payments"))
+	}
+	if secrets, _ := loadTeamSecrets("payments"); secrets.SlackBotToken != "xoxb-1" {
+		t.Fatalf("the other secrets: %+v", secrets)
 	}
 }

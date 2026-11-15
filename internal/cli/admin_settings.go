@@ -169,7 +169,7 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 		Channel: config.Channel, OpsChannel: config.OpsChannel, Handle: appBotHandle(config), Slash: appSlashCommand(name),
 		Manifest: appManifest(config), HasBot: secrets.SlackBotToken != "", HasApp: secrets.SlackAppToken != "",
 		Remote: config.Remote, Forge: appTicketForge(name).Kind, AutoFreeze: adminAutoFreeze(name), Models: !config.LockModels,
-		Heartbeat: secrets.HeartbeatURL != "", Every: config.HeartbeatEvery,
+		Heartbeat: appHeartbeatURL(config) != "", Every: config.HeartbeatEvery,
 		Helper: map[string]bool{appSlotPreview: appHelperOn(config, appSlotPreview), appSlotProduction: appHelperOn(config, appSlotProduction)}}
 	ids := slices.Concat(config.Owners, config.Developers, config.VibeDevelopers, config.Contributors)
 	names := s.names.of(config, ids)

@@ -136,7 +136,8 @@ Each path holds a set of names and string values, as a KV v2 secret
 does. (Release 1 keeps `keys.json` whole at `hi/server/keys`, one name a
 key, rather than a path per provider: the file has many kinds of key, and
 one path keeps its reads and writes one step.) An app's heartbeat URL
-stays in its `secrets.json`, which holds nothing else once moved.
+is in its `app.json` (since v2.6.154; v2.6.153 left it alone in
+`secrets.json`), so `secrets.json` goes once moved.
 
 ### Shared keys
 
@@ -411,7 +412,7 @@ works while the store is locked, with no token of hi's.
   restarted while the store was locked has none, and its heartbeat
   fails instead.
 - **Heartbeat URLs stay outside the store**: the machine's in
-  `heartbeat.json`, an app's beside its settings, so a locked store can
+  `heartbeat.json`, an app's in its `app.json`, so a locked store can
   still say it's locked. A leaked URL only lets someone send pings. As
   now, a URL is never printed or logged, only its host.
 - **No heartbeat set** on a machine with a server: the page's banner and

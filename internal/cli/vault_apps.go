@@ -157,7 +157,7 @@ func vaultExportApp(name string) (done func(), err error) {
 			return // an older hi still reads them there
 		}
 		for _, f := range written {
-			// Back to what the vault keeps on disk: the heartbeat alone.
+			// Back to what the vault keeps on disk: an older hi's heartbeat URL, if any.
 			if data, err := readSecretFile(f); err == nil {
 				if _, disk, err := splitSecret(f, data); err == nil && disk != nil {
 					writeFileAtomic(f.disk, disk, 0o600)

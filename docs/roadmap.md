@@ -2736,6 +2736,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.154 — An app's heartbeat URL in app.json
+
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md).
+
+- [x] An app's heartbeat URL is in its `app.json`, beside how often it
+  goes, so `secrets.json` is gone once the vault holds the rest. The URL
+  an older hi kept in `secrets.json` moves when the app's service starts
+  or the vault's move runs, once no process runs that hi; until then it
+  is read where it was.
+
 ### v2.6.153 — The server's vault
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 1.

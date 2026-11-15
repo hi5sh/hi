@@ -46,6 +46,9 @@ func appServe(name string, stdout, stderr io.Writer) error {
 			}
 		}
 	}
+	if err := moveAppHeartbeat(name); err != nil {
+		fmt.Fprintf(stderr, "hi: the heartbeat's move to app.json: %v\n", err)
+	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
 		return fmt.Errorf("the app's Slack tokens: %w", err)
