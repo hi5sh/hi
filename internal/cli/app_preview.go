@@ -703,6 +703,10 @@ func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 		}
 		// New settings in each running box's settings files.
 		b.syncSettings(stderr)
+		// What the minute's model calls used and cost (model_calls.go).
+		if err := appSumModelCalls(b.team); err != nil {
+			fmt.Fprintf(stderr, "hi: the app's model calls: %v\n", err)
+		}
 		if time.Since(failed) > 30*time.Minute && b.productionNeedsWork() {
 			if state, ok := loadTeamSlot(b.team, appSlotProduction); ok {
 				b.appStopped(state) // an incident, when it stopped on its own

@@ -249,6 +249,11 @@ type vaultSharedRow struct {
 	Changed time.Time `json:"changed"`
 	Given   []string  `json:"given"`
 	Using   []string  `json:"using"`
+	// Spent is what each app's model calls cost on it this month, by its
+	// fingerprint in their call lines (model_calls.go); Outside the last
+	// time it spent outside hi's apps.
+	Spent   map[string]float64 `json:"spent,omitempty"`
+	Outside *sharedOutside     `json:"outside,omitempty"`
 }
 
 func vaultSharedRows() ([]vaultSharedRow, error) {
@@ -267,6 +272,12 @@ func vaultSharedRows() ([]vaultSharedRow, error) {
 		}
 		if row.Using == nil {
 			row.Using = []string{}
+		}
+		if data, _, found, err := store.get(vaultSharedPath(name)); err == nil && found {
+			row.Spent = appSpentWithKey(callKeyFingerprint(data.Values["value"]))
+		}
+		if last, ok := loadSharedOutside()[name]; ok && time.Since(last.At) < 7*24*time.Hour {
+			row.Outside = &last
 		}
 		rows = append(rows, row)
 	}

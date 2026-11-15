@@ -33,6 +33,8 @@
       url: /guide/app/agents/
     - title: Keys and settings
       url: /guide/app/keys/
+    - title: What an app spends on models
+      url: /guide/app/spend/
     - title: Dev and production
       url: /guide/app/releases/
     - title: Stage and production data

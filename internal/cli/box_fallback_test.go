@@ -109,7 +109,7 @@ func TestBoxClaudeFailover(t *testing.T) {
 	if got.path != "/api/v1/messages?beta=true" || got.auth != "Bearer sk-or-team" || got.beta != "interleaved-thinking-2025-05-14" || got.model != "anthropic/claude-opus-5.5" {
 		t.Fatalf("%+v", got)
 	}
-	if text := readTestFile(t, events); !strings.Contains(text, "fallback coder claude signin anthropic/claude-opus-5.5\n") || !strings.Contains(text, "spend 0.012") {
+	if text := readTestFile(t, events); !strings.Contains(text, "fallback coder claude signin anthropic/claude-opus-5.5\n") || !strings.Contains(text, `"who":"coder","via":"openrouter"`) || !strings.Contains(text, `"usd":0.012`) || strings.Contains(text, "sk-or-team") {
 		t.Fatal(text)
 	}
 	if !strings.Contains(logged.String(), "claude-refused 401:signin") {
@@ -244,7 +244,7 @@ func TestBoxChatGPTFailover(t *testing.T) {
 		got.body["model"] != "openai/gpt-6.1-sol" || got.body["include"] != nil || len(input) != 2 || strings.Contains(fmt.Sprint(input), "reasoning") {
 		t.Fatalf("%+v", got)
 	}
-	if text := readTestFile(t, events); !strings.Contains(text, "fallback reviewer chatgpt signin openai/gpt-6.1-sol\n") || !strings.Contains(text, "spend 0.003") {
+	if text := readTestFile(t, events); !strings.Contains(text, "fallback reviewer chatgpt signin openai/gpt-6.1-sol\n") || !strings.Contains(text, `"who":"reviewer"`) || !strings.Contains(text, `"usd":0.003`) {
 		t.Fatal(text)
 	}
 	if !strings.Contains(logged.String(), "chatgpt-refused 401:signin") || strings.Contains(logged.String(), "claude-refused") {

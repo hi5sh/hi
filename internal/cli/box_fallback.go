@@ -353,12 +353,11 @@ func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte,
 		w.Header()[name] = values
 	}
 	w.WriteHeader(response.StatusCode)
-	reader := &appCostReader{body: response.Body, done: func(cost float64) {
-		if cost > 0 {
-			f.log.record("spend", strconv.FormatFloat(cost, 'f', -1, 64))
-			f.event("spend", strconv.FormatFloat(cost, 'f', -1, 64))
-		}
-	}}
+	// What the call used and cost, in the box's events, which the app's
+	// service sums (model_calls.go).
+	who := firstNonEmpty(os.Getenv(boxWhoEnv), f.role, "box")
+	reader := &appCostReader{body: response.Body, call: func(call modelCall) { boxRecordCall(f.log, f.events, call) },
+		seed: modelCall{Who: who, Via: "openrouter", Key: boxKeyLabel(f.keys, key), KFP: callKeyFingerprint(key)}}
 	defer reader.Close()
 	buffer := make([]byte, 32<<10)
 	flusher, _ := w.(http.Flusher)

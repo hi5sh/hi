@@ -1924,6 +1924,9 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 	// Each team store's path an app takes, read when its version moved.
 	sources := time.NewTicker(vaultSourcesEvery)
 	defer sources.Stop()
+	// A shared OpenRouter key spending outside hi's apps (model_calls.go).
+	shared := time.NewTicker(15 * time.Minute)
+	defer shared.Stop()
 	var polling sync.Mutex
 	s.reconcile()
 	s.syncTemplatesInBackground()
@@ -1946,6 +1949,8 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 			s.remindRecovery()
 		case <-templates.C:
 			s.syncTemplatesInBackground()
+		case <-shared.C:
+			go s.tellSharedKeys()
 		case <-sources.C:
 			if polling.TryLock() {
 				go func() {
@@ -2767,5 +2772,14 @@ func serverWatchRetiredNote(dir string, log io.Writer) {
 		if _, set := loadMachineHeartbeat(); !set {
 			fmt.Fprintln(log, "hi server: its dead-man's switch is gone: send this machine's heartbeat to the same check with hi heartbeat <url>.")
 		}
+	}
+}
+
+// tellSharedKeys posts what checkSharedKeys found in the server's Slack
+// channel; the audit log and the Vault tab have it too.
+func (s *orgServer) tellSharedKeys() {
+	for _, text := range checkSharedKeys(time.Now()) {
+		fmt.Fprintln(s.log, "hi server: "+text)
+		s.notifyChannel(":warning: " + text)
 	}
 }

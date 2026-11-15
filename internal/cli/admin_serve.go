@@ -590,6 +590,24 @@ func (s *adminServer) routes() http.Handler {
 	s.settingsRoutes(mux, reply, decode, signedIn)
 	s.networkRoutes(mux, reply, decode, signedIn)
 	s.vaultRoutes(mux, reply, decode, signedIn)
+	mux.HandleFunc("GET /api/app/spend", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		name := r.URL.Query().Get("name")
+		if !appNamePattern.MatchString(name) {
+			reply(w, http.StatusNotFound, map[string]string{"error": "no such app"})
+			return
+		}
+		if _, err := loadTeam(name); err != nil {
+			reply(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+			return
+		}
+		month := r.URL.Query().Get("month")
+		if _, err := time.Parse("2006-01", month); err != nil {
+			month = time.Now().UTC().Format("2006-01")
+		}
+		appSumModelCalls(name)
+		spend := appModelSpend(name, month)
+		reply(w, http.StatusOK, map[string]any{"name": name, "spend": spend})
+	}))
 	return adminHeaders(mux)
 }
 
@@ -809,6 +827,8 @@ type adminAppView struct {
 	Addresses       []adminAddress `json:"addresses"`
 	Joined          bool           `json:"joined"` // its peer is on NetBird, which every address goes through
 	Error           string         `json:"error,omitempty"`
+	// MonthUSD is what its model calls cost through hi this month.
+	MonthUSD float64 `json:"month_usd"`
 }
 
 type adminAddress struct {
@@ -857,6 +877,7 @@ func adminAppOf(name string) adminAppView {
 			view.Addresses = append(view.Addresses, address)
 		}
 	}
+	view.MonthUSD = appMonthUSD(name)
 	return view
 }
 

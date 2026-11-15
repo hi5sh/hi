@@ -87,7 +87,9 @@ daily limit), [hi_watch.md](hi_watch.md) (spend outside hi),
   watcher) into `run/models/spend-YYYY-MM.json`: per day, per `who`, per
   model, per `key`: calls, tokens, and dollars. The month's raw lines
   stay 35 days, then go; the monthly sums stay 13 months.
-- **The watcher** adds up from the sums, not from three formats.
+- **The watcher** adds up the call lines themselves (and an older
+  proxy's spend lines), since it looks at the last hour, which the day's
+  sums can't say.
 
 ## Budgets
 
@@ -152,9 +154,10 @@ hi app key payments openrouter --rotate       # a new one in its place; the old 
 - **An app's own key, and one hi made:** as now, per key.
 - **A shared key:** the server compares what OpenRouter counts on it
   (`GET /api/v1/key`, every 15 minutes) with what every app on this
-  machine spent with it (the sums, by `kfp`). More than $1 and 10% apart
-  in an hour is an incident in the page's Incidents and the server's
-  Slack channel: "shared/openrouter spent $4.10 outside hi's apps in the
+  machine spent with it (`run/models/keys.json`, by `kfp` and hour). More
+  than $1 and 10% apart in about an hour is told in the server's Slack
+  channel, the audit log, and on the key in the Vault tab, once in six
+  hours: "shared/openrouter spent $4.10 outside hi's apps in the
   last hour: something else has it. Change it (hi server vault shared set
   openrouter) and revoke the old one at OpenRouter." A shared key is for
   hi's apps alone; another tool using it shows as this.

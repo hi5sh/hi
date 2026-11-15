@@ -843,7 +843,8 @@ func startBoxNetwork(engine boxEngine, meta *boxMeta, stateDir string, kind stri
 		}
 		// And the lead's Slack tokens, when hi put them there, and the
 		// team's ChatGPT access token, when it has roles on ChatGPT.
-		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+appChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent")
+		args = append(args, "-e", boxSlackKeysEnv+"=/secrets/team", "-e", boxChatGPTEnv+"=/secrets/team/"+appChatGPTKeyFile, "-e", boxOriginatorEnv+"=hermes-agent",
+			"-e", boxWhoEnv+"=lead")
 	}
 	if team, ok := strings.CutPrefix(kind, "dev:"); ok {
 		// A team's dev box: Claude Code and Codex on the team's sign-ins.

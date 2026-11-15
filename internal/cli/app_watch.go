@@ -173,11 +173,18 @@ func appSpendSince(team string, from time.Time) float64 {
 		scanner.Buffer(make([]byte, 64<<10), 1<<20)
 		for scanner.Scan() {
 			fields := strings.Fields(scanner.Text())
-			if len(fields) < 3 || marker != "" && fields[1] != marker {
+			if len(fields) < 3 || marker != "" && fields[1] != marker && fields[1] != "call" {
 				continue
 			}
 			at, err := time.Parse(time.RFC3339, fields[0])
 			if err != nil || at.Before(from) {
+				continue
+			}
+			if fields[1] == "call" {
+				// A call line: what it cost is in its JSON (model_calls.go).
+				if _, call, ok := parseCallLine(scanner.Text(), ""); ok && call.USD > 0 {
+					total += call.USD
+				}
 				continue
 			}
 			if cost, err := strconv.ParseFloat(fields[2], 64); err == nil && cost > 0 {
@@ -186,6 +193,11 @@ func appSpendSince(team string, from time.Time) float64 {
 		}
 	}
 	add(appSpendLogPath(team), "")
+	now := time.Now().UTC()
+	add(appCallsLogPath(team, now), "call")
+	if from.Month() != now.Month() {
+		add(appCallsLogPath(team, from), "call")
+	}
 	add(appNetworkLogPath(team), "spend")
 	// Members' calls that fell back to OpenRouter (box_fallback.go).
 	if entries, err := os.ReadDir(appEventsDir(team)); err == nil {

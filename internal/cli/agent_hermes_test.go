@@ -272,7 +272,7 @@ func TestBoxOpenRouterInjectorNotesTheCost(t *testing.T) {
 	}
 	io.ReadAll(response.Body)
 	response.Body.Close()
-	if !strings.Contains(logged.String(), " spend 0.0042\n") {
-		t.Fatal(logged.String())
+	if line := logged.String(); !strings.Contains(line, ` call {"who":"box","via":"openrouter","usd":0.0042,"key":"caller"}`) || strings.Contains(line, "sk-or-real") {
+		t.Fatal(line)
 	}
 }

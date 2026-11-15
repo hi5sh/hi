@@ -390,12 +390,13 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 	// What each call cost goes in the team's spend log, which hi watch
 	// compares with what OpenRouter counts on the key (app_watch.go).
 	proxy.ModifyResponse = func(response *http.Response) error {
+		key := strings.TrimPrefix(response.Request.Header.Get("Authorization"), "Bearer ")
 		response.Body = &appCostReader{body: response.Body, done: func(cost float64) {
-			appRecordSpend(team, slot, cost)
 			if slot == appSlotPreview {
 				appAddPreviewSpend(team, cost)
 			}
-		}}
+		}, call: func(call modelCall) { appRecordModelCall(team, call) },
+			seed: modelCall{Who: slot, Via: "openrouter", Key: appKeyLabel(key), KFP: callKeyFingerprint(key)}}
 		return nil
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1175,4 +1176,13 @@ func appKeyOpenRouterFrom(config appConfig, secrets appSecrets, from string, std
 		fmt.Fprintf(stdout, "Its own key is gone from hi; it still works at OpenRouter until you revoke it there (openrouter.ai/settings/keys).\n")
 	}
 	return nil
+}
+
+// appKeyLabel says whose an OpenRouter key the models socket used is:
+// this machine's (Hermes'), or the app's.
+func appKeyLabel(key string) string {
+	if machine, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err == nil && machine == key {
+		return "machine"
+	}
+	return "app"
 }

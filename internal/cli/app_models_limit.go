@@ -92,36 +92,6 @@ var appCostPattern = regexp.MustCompile(`(?:^|[^\\])"cost"\s*:\s*([0-9.eE+-]+)`)
 // usage comes last, in a streamed answer too.
 const appCostTail = 64 << 10
 
-// appCostReader passes an answer on and, when it ends, gives done what
-// it cost: the last usage.cost in it, 0 when there is none.
-type appCostReader struct {
-	body io.ReadCloser
-	tail []byte
-	done func(float64)
-	once sync.Once
-}
-
-func (r *appCostReader) Read(p []byte) (int, error) {
-	n, err := r.body.Read(p)
-	r.tail = append(r.tail, p[:n]...)
-	if len(r.tail) > 2*appCostTail {
-		r.tail = append([]byte(nil), r.tail[len(r.tail)-appCostTail:]...)
-	}
-	if err == io.EOF {
-		r.finish()
-	}
-	return n, err
-}
-
-func (r *appCostReader) Close() error {
-	r.finish()
-	return r.body.Close()
-}
-
-func (r *appCostReader) finish() {
-	r.once.Do(func() { r.done(appAnswerCost(r.tail)) })
-}
-
 func appAnswerCost(answer []byte) float64 {
 	matches := appCostPattern.FindAllSubmatch(answer, -1)
 	if len(matches) == 0 {

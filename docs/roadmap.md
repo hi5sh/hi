@@ -2740,10 +2740,10 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 
 Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
 
-- [ ] Release 1, the record: every proxy's `call` lines (model, tokens,
+- [x] Release 1, the record: every proxy's `call` lines (model, tokens,
   dollars, key), monthly sums per app, `hi app budget <app>`, the page's
-  Spend and the Overviews' month, the watcher on the sums, and a shared
-  key's check for spend outside hi.
+  Spend and the Overviews' month, the watcher on the call lines, and a
+  shared key's check for spend outside hi.
 - [ ] Release 2, budgets: monthly and daily per app, every proxy refusing
   paid calls at 100%, notices at 80% and 100%.
 - [ ] Release 3, keys hi makes: an OpenRouter management key in the vault,

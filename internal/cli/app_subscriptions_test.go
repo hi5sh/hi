@@ -819,7 +819,7 @@ func TestOpenRouterAskCost(t *testing.T) {
 		t.Fatal(got)
 	}
 	// And the cost it answers is counted.
-	if !strings.Contains(logged.String(), "spend 0.0042") {
+	if !strings.Contains(logged.String(), `"usd":0.0042`) {
 		t.Fatal(logged.String())
 	}
 }

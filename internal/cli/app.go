@@ -541,6 +541,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = appSnapshotCommand(rest, stdout)
 	case "snapshots":
 		err = withTeamName(rest, func(name string) error { return appSnapshotsCommand(name, stdout) })
+	case "budget":
+		err = appBudgetCommand(rest, stdout)
 	case "restore":
 		err = appRestoreCommand(rest, stdin, stdout)
 	case "rollback":

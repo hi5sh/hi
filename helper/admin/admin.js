@@ -553,6 +553,8 @@ function renderOverview() {
     parts.push(el("p", { class: "note warn" }, (stopped.frozen ? "Frozen" : "Paused") + (stopped.by ? " by " + stopped.by : "") + (stopped.at ? ", " + ago(stopped.at) : "") + (stopped.because ? ": " + stopped.because : "") + "."));
   }
   if (d.error) parts.push(el("p", { class: "error" }, d.error));
+  parts.push(el("p", { class: "small" }, el("span", { class: "muted" }, "Models this month: "), dollars(d.month_usd), " ",
+    el("button", { class: "link-button", "data-nav": "", onclick: () => showSection("spend") }, "Spend")));
 
   // Where it is.
   // Every address goes through the app's NetBird peer: until it joins,
@@ -1631,6 +1633,18 @@ function orgOverview(s) {
   if (o.no_owner) parts.push(el("p", { class: "warn" }, "No owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
   if (o.up) parts.push(el("div", { class: "card-box org-card" }, orgStats(o)));
   parts.push(heading("The server"), orgServerBlock(s));
+  const apps = (state.apps || []).filter((a) => !a.error);
+  if (apps.length) {
+    const t = el("table", { class: "people-matrix spend-table" });
+    t.append(el("tr", {}, el("th", {}, "App"), el("th", {}, "Models this month")));
+    let total = 0;
+    for (const a of [...apps].sort((x, y) => (y.month_usd || 0) - (x.month_usd || 0))) {
+      total += a.month_usd || 0;
+      t.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("spend"); } }, a.name)), el("td", {}, dollars(a.month_usd))));
+    }
+    t.append(el("tr", {}, el("th", { scope: "row" }, "All"), el("td", {}, el("strong", {}, dollars(total)))));
+    parts.push(heading("Model spend"), el("div", { class: "matrix-scroll" }, t));
+  }
   if (state.org_apart) parts.push(el("p", { class: "muted small" }, "This machine runs apps too. Its admins run the apps; the server's owner and admins (Admins) run the server."));
   return parts;
 }
@@ -2727,14 +2741,14 @@ function showSection(section) {
 }
 
 // sectionSource is where a section reads from.
-function sectionSource(section) { return { network: "/api/app/network", data: "/api/app/data", terminal: "/api/app/terminal" }[section] || "/api/app/settings"; }
+function sectionSource(section) { return { network: "/api/app/network", data: "/api/app/data", terminal: "/api/app/terminal", spend: "/api/app/spend" }[section] || "/api/app/settings"; }
 
 async function refreshSettings() {
   if (!openApp || appSection === "overview") return;
   const name = openApp;
   try {
     const source = sectionSource(appSection);
-    const fresh = await api(source + "?name=" + encodeURIComponent(name));
+    const fresh = await api(source + "?name=" + encodeURIComponent(name) + (appSection === "spend" && spendMonth ? "&month=" + spendMonth : ""));
     if (openApp !== name || sectionSource(appSection) !== source) return;
     fresh._section = source;
     const same = settings && JSON.stringify(settings) === JSON.stringify(fresh);
@@ -2762,7 +2776,7 @@ const firstLine = (text) => String(text || "").split("\n")[0];
 function renderSection() {
   const s = settings;
   const box = $("overview");
-  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings", network: "Network", data: "Data", terminal: "Terminal" }[appSection]));
+  const head = el("div", { class: "admin-head" }, el("h1", { class: "admin-title" }, s.name), el("span", { class: "muted" }, { people: "People", agents: "Agents", slack: "Slack", settings: "Settings", network: "Network", data: "Data", spend: "Spend", terminal: "Terminal" }[appSection]));
   const parts = [head];
   if (appSection === "people") parts.push(...sectionPeople(s));
   if (appSection === "agents") parts.push(...sectionAgents(s));
@@ -2770,8 +2784,48 @@ function renderSection() {
   if (appSection === "settings") parts.push(...sectionSettings(s));
   if (appSection === "network") parts.push(...sectionNetwork(s));
   if (appSection === "data") parts.push(...sectionData(s));
+  if (appSection === "spend") parts.push(...sectionSpend(s));
   if (appSection === "terminal") parts.push(...sectionTerminal(s));
   box.replaceChildren(...parts);
+}
+
+// ---------------------------------------------------------------------------
+// an app's Spend (hi_model_spend.md): what its model calls cost through
+// hi this month, or another, by who, model, and day, and the plans' calls
+// in tokens.
+
+let spendMonth = "";
+const tokens = (n) => (n = Number(n) || 0) >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
+const monthName = (m) => { const [y, mo] = m.split("-"); return new Date(Date.UTC(+y, +mo - 1, 1)).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" }); };
+
+function sectionSpend(s) {
+  const sp = s.spend;
+  const parts = [el("p", { class: "purpose" }, "What the app's model calls cost through hi: its agents', its dev box's, and its own code's in production and the preview, whichever key paid. Calls a Claude or ChatGPT sign-in paid count in tokens, not dollars.")];
+  const months = sp.months.length ? sp.months : [sp.month];
+  if (!months.includes(sp.month)) months.unshift(sp.month);
+  const pick = el("select", { "aria-label": "Month" }, ...months.map((m) => el("option", { value: m, selected: m === sp.month }, monthName(m))));
+  pick.addEventListener("change", () => { spendMonth = pick.value; refreshSettings(); });
+  parts.push(el("div", { class: "data-actions spend-head" }, el("strong", { class: "spend-total" }, dollars(sp.usd)), el("span", { class: "muted small" }, sp.calls + (sp.calls === 1 ? " call" : " calls")), el("span", { class: "grow" }), pick));
+  if (!sp.calls) {
+    parts.push(el("p", { class: "muted small" }, "No model calls through hi this month yet. An agent's calls count from its box's next start on this hi."));
+    return parts;
+  }
+  const table = (title, rows, money, name) => {
+    if (!rows.length) return [];
+    const t = el("table", { class: "people-matrix spend-table" });
+    t.append(el("tr", {}, el("th", {}, name), money ? el("th", {}, "Cost") : null, el("th", {}, "Calls"), el("th", {}, "In"), el("th", {}, "Out")));
+    for (const r of rows) t.append(el("tr", {}, el("th", { scope: "row" }, r.name), money ? el("td", {}, dollars(r.usd)) : null, el("td", {}, String(r.calls)), el("td", {}, tokens(r.in)), el("td", {}, tokens(r.out))));
+    return [el("h2", {}, title), el("div", { class: "matrix-scroll" }, t)];
+  };
+  // By day: a bar each, as tall as its share of the busiest day.
+  if (sp.by_day.length) {
+    const most = Math.max(...sp.by_day.map((r) => r.usd), 0.0001);
+    const bars = el("div", { class: "spend-days", role: "img", "aria-label": "Cost by day" });
+    for (const r of sp.by_day) bars.append(el("div", { class: "spend-day", title: r.name + ": " + dollars(r.usd) + ", " + r.calls + " calls" }, el("span", { style: "height:" + Math.max(2, Math.round(60 * r.usd / most)) + "px" })));
+    parts.push(el("h2", {}, "By day"), bars);
+  }
+  parts.push(...table("By who", sp.by_who, true, "Who"), ...table("By model", sp.by_model, true, "Model"), ...table("On a plan (tokens)", sp.plans, false, "Who"));
+  return parts;
 }
 
 // ---------------------------------------------------------------------------
@@ -3540,7 +3594,10 @@ function vaultSharedBlock(v) {
   box.append(el("p", { class: "muted small" }, "A key several apps use, such as one market-data API key: an app it's shared to uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
   const list = el("ul", { class: "list" });
   for (const s of v.shared) {
-    const note = s.using.length ? "used by " + s.using.join(", ") : s.given.length ? "not used yet" : "shared to no app";
+    let note = s.using.length ? "used by " + s.using.join(", ") : s.given.length ? "not used yet" : "shared to no app";
+    const spent = Object.entries(s.spent || {});
+    if (spent.length) note += " · " + dollars(spent.reduce((n, [, usd]) => n + usd, 0)) + " this month";
+    if (s.outside) note += " · ⚠ " + dollars(s.outside.usd) + " spent outside hi's apps " + ago(s.outside.at) + ": change it, and revoke the old one at OpenRouter";
     list.append(el("li", { class: "vault-key-row" },
       el("strong", {}, "shared/" + s.name),
       el("span", { class: "muted small" }, "v" + s.version + (s.changed ? " · " + ago(s.changed) : "") + " · " + note),
@@ -4169,7 +4226,7 @@ async function boot() {
   renderOrgBadges();
   renderVaultBanner();
   const [wantedApp, wantedSection] = wanted.split("/");
-  if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings", "network", "data"].includes(wantedSection) ? wantedSection : "");
+  if (wantedApp && state.apps.some((a) => a.name === wantedApp)) await openView(wantedApp, ["people", "agents", "slack", "settings", "network", "data", "spend"].includes(wantedSection) ? wantedSection : "");
   else if (wantedApp === ":org" && state.org) openOrg(wantedSection || "");
   else if (wanted === ":policy" && state.org) openOrg("policy");
   else if (wanted === ":new" || wanted.startsWith(":new/")) openNew(wanted.slice(5));

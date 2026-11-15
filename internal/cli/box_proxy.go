@@ -485,6 +485,19 @@ func newBoxClaudeInjector(secret, upstream string, log *boxNetworkLog) http.Hand
 		r.Header.Del("X-Api-Key")
 		log.record("claude", r.URL.Path)
 	}
+	// What each call used, in tokens: a sign-in's plan pays it.
+	proxy.ModifyResponse = func(response *http.Response) error {
+		if !strings.HasSuffix(response.Request.URL.Path, "/messages") {
+			return nil
+		}
+		key := "plan"
+		if token := strings.TrimPrefix(response.Request.Header.Get("Authorization"), "Bearer "); strings.HasPrefix(token, "sk-ant-api") {
+			key = "anthropic"
+		}
+		response.Body = &appCostReader{body: response.Body, call: func(call modelCall) { boxRecordCall(log, os.Getenv(boxEventsEnv), call) },
+			seed: modelCall{Who: boxCallWho(), Via: "anthropic", Key: key}}
+		return nil
+	}
 	return proxy
 }
 
@@ -523,14 +536,13 @@ func newBoxOpenRouterInjector(env, upstream string, log *boxNetworkLog) http.Han
 		}
 		log.record("openrouter", r.URL.Path)
 	}
-	// What each call cost, as a line of its own, so a team's watcher can
-	// add up what the key spent through hi (app_watch.go).
+	// What each call used and cost, as a line of its own, so a team's
+	// watcher and its sums count what the key spent through hi
+	// (model_calls.go).
 	proxy.ModifyResponse = func(response *http.Response) error {
-		response.Body = &appCostReader{body: response.Body, done: func(cost float64) {
-			if cost > 0 {
-				log.record("spend", strconv.FormatFloat(cost, 'f', -1, 64))
-			}
-		}}
+		key := strings.TrimPrefix(response.Request.Header.Get("Authorization"), "Bearer ")
+		response.Body = &appCostReader{body: response.Body, call: func(call modelCall) { boxRecordCall(log, os.Getenv(boxEventsEnv), call) },
+			seed: modelCall{Who: boxCallWho(), Via: "openrouter", Key: boxKeyLabel(env, key), KFP: callKeyFingerprint(key)}}
 		return nil
 	}
 	return proxy
@@ -596,6 +608,8 @@ func newBoxChatGPTInjector(tokenFile, upstream, originator string, log *boxNetwo
 		if kind := boxChatGPTRefusal(response); kind != "" {
 			log.record("chatgpt-refused", fmt.Sprintf("%d:%s", response.StatusCode, kind))
 		}
+		response.Body = &appCostReader{body: response.Body, call: func(call modelCall) { boxRecordCall(log, os.Getenv(boxEventsEnv), call) },
+			seed: modelCall{Who: boxCallWho(), Via: "chatgpt", Key: "plan"}}
 		return nil
 	}
 	return proxy
