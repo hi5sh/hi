@@ -316,6 +316,15 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .vault-banner button { margin-left: 8px; }
 .recovery-words { columns: 3; font-family: ui-monospace, monospace; font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
 .recovery-words li { padding: 2px 0; }
-.recovery-dialog, .vault-dialog { max-width: 560px; }
+.recovery-dialog { max-width: 560px; }
+.vault-dialog { width: min(640px, 92vw); }
+.vault-field { position: relative; display: flex; }
+.vault-field input { flex: 1; width: 100%; font-size: 15px; padding: 9px 12px; }
+.vault-field:has(.vault-eye) input { padding-right: 42px; }
+.vault-dialog .vault-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 6px; line-height: 0; cursor: pointer; }
+.vault-eye:hover, .vault-eye[aria-pressed="true"] { color: var(--fg, inherit); }
+.vault-dialog .vault-field input.vault-wrong, .vault-dialog .vault-field input.vault-wrong:focus { border-color: var(--danger, #e5534b) !important; outline: none; box-shadow: 0 0 0 1px var(--danger, #e5534b) !important; }
+.vault-dialog button[type="submit"]:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(1); }
+.vault-hint { min-height: 1.3em; margin: 0; }
 .vault-view { max-width: 920px; }
 .vault-view h3 { margin-top: 22px; }

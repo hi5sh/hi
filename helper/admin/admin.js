@@ -3435,29 +3435,91 @@ function vaultBlock(middle) {
 }
 
 // vaultForm asks for a few fields in one dialog of its own, and gives
-// their values, or null when cancelled. check says what's wrong, or "".
-function vaultForm({ title, text, fields, ok, check }) {
+// their values, or null when cancelled. live checks as one types: it
+// gives the fields that are wrong (a red border), a hint, and whether
+// the form can be sent, which greys the button until it can. A password
+// field gets an eye, at the first one's right, that shows them all.
+function vaultForm({ title, text, fields, ok, live }) {
   return new Promise((resolve) => {
-    const inputs = fields.map((f) => el("input", { type: f.type || "text", placeholder: f.label, "aria-label": f.label, autocomplete: "off", spellcheck: "false", class: "wide-input" }));
-    const error = el("p", { class: "error small" });
-    const form = el("form", { class: "stack", autocomplete: "off" }, el("h2", {}, title), el("p", { class: "small" }, text), ...inputs, error,
-      el("div", { class: "buttons" }, el("button", { type: "button", value: "cancel" }, "Cancel"), el("button", { class: "primary", type: "submit" }, ok)));
+    const inputs = fields.map((f) => el("input", { type: f.type || "text", placeholder: f.label, "aria-label": f.label, autocomplete: "off", spellcheck: "false" }));
+    const secret = inputs.filter((input) => input.type === "password");
+    const rows = inputs.map((input, i) => {
+      if (input.type !== "password" || input !== secret[0]) return el("div", { class: "vault-field" }, input);
+      const eye = el("button", { type: "button", class: "vault-eye", title: "Show it", "aria-label": "Show it", "aria-pressed": "false" }, vaultEyeIcon(false));
+      eye.addEventListener("click", () => {
+        const shown = eye.getAttribute("aria-pressed") !== "true";
+        for (const field of secret) field.type = shown ? "text" : "password";
+        eye.setAttribute("aria-pressed", String(shown));
+        eye.title = shown ? "Hide it" : "Show it";
+        eye.setAttribute("aria-label", eye.title);
+        eye.replaceChildren(vaultEyeIcon(shown));
+        input.focus();
+      });
+      return el("div", { class: "vault-field" }, input, eye);
+    });
+    const hint = el("p", { class: "muted small vault-hint" });
+    const send = el("button", { class: "primary", type: "submit" }, ok);
+    const form = el("form", { class: "stack", autocomplete: "off", novalidate: true }, el("h2", {}, title), el("p", { class: "small" }, text), ...rows, hint,
+      el("div", { class: "buttons" }, el("button", { type: "button", value: "cancel" }, "Cancel"), send));
     const dialog = el("dialog", { class: "vault-dialog" }, form);
+    const judge = () => {
+      const values = inputs.map((input) => input.value);
+      const verdict = live ? live(values) : { ok: values.every((v) => v.trim()), bad: [], hint: "" };
+      inputs.forEach((input, i) => {
+        const wrong = (verdict.bad || []).includes(i);
+        input.classList.toggle("vault-wrong", wrong);
+        input.setAttribute("aria-invalid", String(wrong));
+      });
+      hint.textContent = verdict.hint || "";
+      hint.classList.toggle("error", (verdict.bad || []).length > 0);
+      send.disabled = !verdict.ok;
+      return verdict.ok;
+    };
+    for (const input of inputs) input.addEventListener("input", judge);
     let result = null;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const values = inputs.map((input) => input.value);
-      const problem = check ? check(values) : "";
-      if (problem) { error.textContent = problem; return; }
-      result = values;
+      if (!judge()) return;
+      result = inputs.map((input) => input.value);
       dialog.close();
     });
     form.querySelector('button[value="cancel"]').addEventListener("click", () => dialog.close());
     dialog.addEventListener("close", () => { for (const input of inputs) input.value = ""; dialog.remove(); resolve(result); }, { once: true });
     document.body.append(dialog);
+    judge();
     dialog.showModal();
     inputs[0].focus();
   });
+}
+
+function vaultEyeIcon(shown) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "18");
+  svg.setAttribute("height", "18");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("aria-hidden", "true");
+  const paths = ["M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z", "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"];
+  if (shown) paths.push("M3 3l18 18");
+  for (const d of paths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.append(path);
+  }
+  return svg;
+}
+
+// vaultPassphraseCheck is the passphrase form's live check: long enough,
+// and the second the same as the first.
+function vaultPassphraseCheck([a, b]) {
+  const bad = b && b !== a ? [1] : [];
+  let hint = "";
+  if (a && a.length < 12) hint = "At least 12 characters: " + a.length + " so far.";
+  else if (bad.length) hint = "The two aren't the same.";
+  return { ok: a.length >= 12 && a === b, bad, hint };
 }
 
 // vaultSharedBlock is the shared keys: a key several apps use, by
@@ -3492,7 +3554,11 @@ async function vaultSetShared(name) {
   fields.push({ label: "Its value", type: "password" });
   const values = await vaultForm({ title: name ? "A new value for shared/" + name : "A shared key", ok: "Save", fields,
     text: name ? "Every app that uses it gets the new value within a minute." : "Then give it to the apps that may use it.",
-    check: (v) => (!name && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim())) ? "A name of lowercase letters, digits, and dashes." : v[v.length - 1] ? "" : "Its value." });
+    live: (v) => {
+      const badName = !name && v[0].trim() !== "" && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim());
+      return { ok: (name || /^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim())) && v[v.length - 1] !== "", bad: badName ? [0] : [],
+        hint: badName ? "A name of lowercase letters, digits, and dashes." : "" };
+    } });
   if (!values) return;
   vaultDo({ action: "shared-set", name: name || values[0].trim(), secret: values[values.length - 1] });
 }
@@ -3502,7 +3568,7 @@ async function vaultAddWay(kind) {
     const values = await vaultForm({ title: "A passphrase for the vault", ok: "Add",
       text: "An admin types it to unlock the vault after a reboot, here or with hi server vault unlock. At least 12 characters; a few words are easiest. It isn't kept anywhere: if it's lost, the recovery key still opens the vault.",
       fields: [{ label: "The passphrase", type: "password" }, { label: "Again", type: "password" }],
-      check: ([a, b]) => a.length < 12 ? "At least 12 characters." : a !== b ? "The two aren't the same." : "" });
+      live: vaultPassphraseCheck });
     if (values) vaultDo({ action: "add", kind, secret: values[0] });
     return;
   }
@@ -3566,7 +3632,7 @@ async function vaultShowRecovery() {
   dialog.remove();
   const [a, b] = answer.ask;
   const values = await vaultForm({ title: "Two of its words", ok: "Done", text: "To check you have it: words " + a + " and " + b + " of the 24.",
-    fields: [{ label: "Word " + a }, { label: "Word " + b }], check: (v) => v.every((w) => w.trim()) ? "" : "Both words." });
+    fields: [{ label: "Word " + a }, { label: "Word " + b }] });
   if (!values) { toast("The recovery key still waits: show it again when you're ready.", true); return; }
   vaultDo({ action: "recovery-saved", words: values.map((w) => w.trim()) });
 }
