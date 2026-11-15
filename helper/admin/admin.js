@@ -3527,15 +3527,11 @@ function vaultPassphraseCheck([a, b]) {
 // reference; admins set it, give it to apps, and remove it.
 function vaultSharedBlock(v) {
   const box = el("div", {});
-  box.append(el("h3", {}, "Shared keys"), el("p", { class: "muted small" }, "A key several apps use, such as one OpenRouter key: an app given one uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
+  box.append(el("h3", {}, "Shared keys"), el("p", { class: "muted small" }, "A key several apps use, such as one market-data API key: an app given one uses it by reference (hi app env <app> NAME --from shared/<name>), and a change reaches them all within a minute."));
   const list = el("ul", { class: "list" });
   for (const s of v.shared) {
-    const pick = el("select", { "aria-label": "An app to give it to", class: "small" }, el("option", { value: "" }, "Give to…"), ...v.apps.filter((a) => !s.given.includes(a)).map((a) => el("option", { value: a }, a)));
-    pick.addEventListener("change", () => { if (pick.value) vaultDo({ action: "shared-give", name: s.name, app: pick.value }); });
-    const given = el("span", { class: "small" }, ...s.given.map((a) => el("span", { class: "chip" }, a, " ", el("button", { class: "link-button", title: "Take it back from " + a, "aria-label": "Take it back from " + a, onclick: async () => {
-      if (!(await ask({ title: "Take shared/" + s.name + " back from " + a + "?", text: s.using.includes(a) ? a + " uses it: its boxes no longer get it, within a minute." : a + " doesn't use it yet.", ok: "Take it back" }))) return;
-      vaultDo({ action: "shared-take", name: s.name, app: a });
-    } }, "✕"))));
+    const pick = el("button", { class: "small", onclick: () => vaultGiveApps(s, v.apps) }, "Give to apps…");
+    const given = el("span", { class: "small" }, ...s.given.map((a) => el("span", { class: "chip" }, a)));
     list.append(el("li", { class: "stack" },
       el("div", { class: "row" }, el("strong", {}, "shared/" + s.name), el("span", { class: "muted small" }, " v" + s.version + (s.changed ? " · " + ago(s.changed) : "")), el("span", { class: "grow" }),
         el("button", { class: "small", onclick: () => vaultSetShared(s.name) }, "New value"),
@@ -3621,6 +3617,40 @@ function vaultShowText(title, text) {
   const pre = el("pre", { class: "job-output" }, text);
   const dialog = el("dialog", { class: "vault-dialog" }, el("h2", {}, title), pre,
     el("div", { class: "buttons" }, el("button", { onclick: () => { navigator.clipboard.writeText(text); toast("Copied."); } }, "Copy"), el("button", { class: "primary", onclick: () => dialog.close() }, "Done")));
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+// vaultGiveApps picks which apps may use a shared key: every app, ticked
+// where it has it now; one that uses it stays until it stops.
+function vaultGiveApps(s, apps) {
+  const boxes = apps.map((app) => {
+    const input = el("input", { type: "checkbox", value: app });
+    input.checked = s.given.includes(app);
+    const using = s.using.includes(app);
+    if (using) input.disabled = true;
+    return { app, input, row: el("label", { class: "check vault-app" }, input, " " + app, using ? el("span", { class: "muted small" }, " · uses it") : "") };
+  });
+  const all = el("input", { type: "checkbox" });
+  const sync = () => { all.checked = boxes.length > 0 && boxes.every((b) => b.input.checked); all.indeterminate = !all.checked && boxes.some((b) => b.input.checked); };
+  all.addEventListener("change", () => { for (const b of boxes) if (!b.input.disabled) b.input.checked = all.checked; sync(); });
+  for (const b of boxes) b.input.addEventListener("change", sync);
+  sync();
+  const dialog = el("dialog", { class: "vault-dialog" });
+  const save = el("button", { class: "primary", type: "submit" }, "Save");
+  const form = el("form", { class: "stack" },
+    el("h2", {}, "Who may use shared/" + s.name),
+    el("p", { class: "small" }, "An app ticked may use it; each then names the setting that gets it (hi app env <app> NAME --from shared/" + s.name + "). An app that uses it stays ticked until it stops."),
+    el("label", { class: "check vault-app vault-all" }, all, " All apps"),
+    el("div", { class: "vault-apps" }, ...boxes.map((b) => b.row)),
+    el("div", { class: "buttons" }, el("button", { type: "button", onclick: () => dialog.close() }, "Cancel"), save));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    dialog.close();
+    await vaultDo({ action: "shared-apps", name: s.name, apps: boxes.filter((b) => b.input.checked).map((b) => b.app) });
+  });
+  dialog.append(form);
   dialog.addEventListener("close", () => dialog.remove(), { once: true });
   document.body.append(dialog);
   dialog.showModal();

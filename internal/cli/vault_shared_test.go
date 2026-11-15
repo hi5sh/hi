@@ -120,3 +120,31 @@ func TestVaultShared(t *testing.T) {
 		t.Fatal("a value in the audit log")
 	}
 }
+
+// The page gives a shared key to exactly the apps ticked: several at
+// once, the others taken back, but not one that uses it.
+func TestVaultSharedSetApps(t *testing.T) {
+	setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	for _, app := range []string{"payments", "orders", "billing"} {
+		vaultSharedTestApp(t, app)
+	}
+	vaultSharedSet("market", "mk-1", "ana")
+	if said, err := vaultSharedSetApps("market", []string{"payments", "orders", "billing"}, "ana"); err != nil || !strings.Contains(said, "given to payments, orders, billing") {
+		t.Fatal(said, err)
+	}
+	if grant := loadVaultShared()["market"]; strings.Join(grant.Apps, ",") != "billing,orders,payments" {
+		t.Fatal(grant.Apps)
+	}
+	appEnv([]string{"payments", "MARKET_API_KEY", "--from", "shared/market"}, strings.NewReader(""), io.Discard)
+	if _, err := vaultSharedSetApps("market", []string{"orders"}, "ana"); err == nil || !strings.Contains(err.Error(), "payments uses shared/market") {
+		t.Fatal(err)
+	}
+	if _, err := vaultSharedSetApps("market", []string{"payments"}, "ana"); err != nil {
+		t.Fatal(err)
+	}
+	if grant := loadVaultShared()["market"]; strings.Join(grant.Apps, ",") != "payments" {
+		t.Fatal(grant.Apps)
+	}
+}

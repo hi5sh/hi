@@ -328,3 +328,5 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .vault-hint { min-height: 1.3em; margin: 0; }
 .vault-view { max-width: 920px; }
 .vault-view h3 { margin-top: 22px; }
+.vault-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 14px; padding: 4px 0 8px; }
+.vault-all { font-weight: 600; padding-bottom: 4px; border-bottom: 1px solid var(--line); }

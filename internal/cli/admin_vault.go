@@ -242,6 +242,7 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 			Words   []string            `json:"words"`
 			Name    string              `json:"name"`
 			Store   adminVaultStoreForm `json:"store"`
+			Apps    []string            `json:"apps"`
 		}
 		if !decode(w, r, &request) {
 			return
@@ -255,6 +256,8 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 			text, err = vaultSharedSet(request.Name, request.Secret, who)
 		case "shared-give", "shared-take":
 			text, err = vaultSharedGive(request.Name, []string{request.App}, request.Action == "shared-take", who)
+		case "shared-apps":
+			text, err = vaultSharedSetApps(request.Name, request.Apps, who)
 		case "shared-rm":
 			text, err = vaultSharedRemove(request.Name, who)
 		case "store-connect", "store-disconnect", "store-login", "store-new-key":

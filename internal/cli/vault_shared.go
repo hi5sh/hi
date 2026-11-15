@@ -501,3 +501,44 @@ func vaultImportShared(name string, stdout io.Writer) error {
 	}
 	return nil
 }
+
+// vaultSharedSetApps gives a shared key to exactly these apps: the ones
+// not in the list are taken back, refused for one that uses it.
+func vaultSharedSetApps(name string, apps []string, who string) (string, error) {
+	grant := loadVaultShared()[name]
+	if grant == nil {
+		return "", fmt.Errorf("no shared key %s", name)
+	}
+	var give, take []string
+	for _, app := range apps {
+		if !slices.Contains(grant.Apps, app) {
+			give = append(give, app)
+		}
+	}
+	using := appSharedUsers()[name]
+	for _, app := range grant.Apps {
+		if !slices.Contains(apps, app) {
+			if slices.Contains(using, app) {
+				return "", fmt.Errorf("%s uses shared/%s: it stops first (hi app env %s --unset NAME)", app, name, app)
+			}
+			take = append(take, app)
+		}
+	}
+	if len(give) > 0 {
+		if _, err := vaultSharedGive(name, give, false, who); err != nil {
+			return "", err
+		}
+	}
+	if len(take) > 0 {
+		if _, err := vaultSharedGive(name, take, true, who); err != nil {
+			return "", err
+		}
+	}
+	switch {
+	case len(apps) == 0:
+		return fmt.Sprintf("No app may use shared/%s now.", name), nil
+	case len(give) == 0 && len(take) == 0:
+		return fmt.Sprintf("shared/%s is given to %s, as it was.", name, strings.Join(apps, ", ")), nil
+	}
+	return fmt.Sprintf("shared/%s is given to %s. Each uses it by naming the setting: hi app env <app> NAME --from shared/%s", name, strings.Join(apps, ", "), name), nil
+}
