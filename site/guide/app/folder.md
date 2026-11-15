@@ -10,7 +10,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/apps`.
 | Path | What |
 |---|---|
 | `app.json` | Purpose, channel, owners, members |
-| `secrets.json` | The Slack tokens, readable only by you |
+| `secrets.json` | The app's heartbeat URL. Its settings, Slack tokens, and keys are in the server's [vault](/guide/reference/vault/), encrypted, at `hi/app/<name>/` (on a machine without one, here, readable only by you) |
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` in an older app whose SOUL.md hi replaced |
 | `repo/` | The project's git repository, which dev and production are branches of; `repo/docs/specs/` holds the specs, one file per feature |
 | `dev/` | The dev box: its home (the agents' conversations, herdr's sessions, the worktrees), its clone of the project, the owners' SSH keys, and its NetBird identity |
@@ -82,8 +82,9 @@ as it is unless you add `--code`, and so do the app's settings
 snapshot that undoes it.
 
 Snapshots live in `~/.local/share/hi/app-snapshots/<name>/`, outside the
-app's folder, with the key they are encrypted with. They stay when the
-app is removed. hi keeps the last 7 days, 4 weeks, and 6 months, every
+app's folder; the key they are encrypted with is in the server's vault
+(`hi/app/<name>/snapshots`). They stay when the app is removed, until
+`hi app rm --purge`. hi keeps the last 7 days, 4 weeks, and 6 months, every
 snapshot from the last week, and every snapshot taken before a release.
 When a snapshot fails, the owners hear about it in the channel, and
 `hi app status` says so until one works.

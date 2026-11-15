@@ -152,6 +152,13 @@ hi app dev payments restart        # when the agents are idle
 A setting is readable by the app's code, which the agents write; the
 OpenRouter key and the Slack tokens never are.
 
+### Where settings are kept
+
+On the machine, an app's settings and keys are in the server's
+[vault](/guide/reference/vault/), encrypted on disk, with every version
+kept: `hi server vault history hi/app/payments/production` shows who
+changed which names, and `rollback` puts an old version back.
+
 ### How settings reach a box
 
 A box gets its settings as files in memory, never on the machine's disk:

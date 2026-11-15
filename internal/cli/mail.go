@@ -49,7 +49,7 @@ func mailSettingsPath() string { return filepath.Join(appsDir(), "mail.json") }
 
 func loadMailSettings() (mailSettings, bool) {
 	var settings mailSettings
-	data, err := os.ReadFile(mailSettingsPath())
+	data, err := readSecretFile(mailSecret())
 	if err != nil || json.Unmarshal(data, &settings) != nil || settings.Host == "" || settings.From == "" {
 		return mailSettings{}, false
 	}
@@ -59,7 +59,7 @@ func loadMailSettings() (mailSettings, bool) {
 func saveMailSettings(settings mailSettings) error {
 	data, _ := json.MarshalIndent(settings, "", "  ")
 	os.MkdirAll(appsDir(), 0o700)
-	return writeFileAtomic(mailSettingsPath(), append(data, '\n'), 0o600)
+	return writeSecretFile(mailSecret(), append(data, '\n'), 0o600)
 }
 
 // check cleans the settings, and says what's wrong with them.
@@ -301,7 +301,7 @@ func adminMailCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "Sent to %s. If it doesn't arrive, look in spam: the From domain needs SPF and DKIM for this server.\n", args[1])
 		return nil
 	case "off":
-		if err := os.Remove(mailSettingsPath()); err != nil && !os.IsNotExist(err) {
+		if err := removeSecretFile(mailSecret()); err != nil {
 			return err
 		}
 		adminRecord(adminActor(), "", "turned email off")

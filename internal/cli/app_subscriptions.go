@@ -523,7 +523,7 @@ func updateTeamSecretsFile(name string, change func(*appSecrets) error, fresh bo
 	if err != nil {
 		return fmt.Errorf("the app's secrets: %w", err)
 	}
-	return writeFileAtomic(filepath.Join(appDir(name), "secrets.json"), append(data, '\n'), 0o600)
+	return writeSecretFile(appSecretsSecret(name), append(data, '\n'), 0o600)
 }
 
 // prepareTeamChatGPT refreshes the team's own sign-in when its access

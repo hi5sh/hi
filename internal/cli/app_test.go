@@ -236,9 +236,11 @@ func TestTeamWizard(t *testing.T) {
 		config.Members["coder"].Bundle != "web,data" || config.Members["reviewer"].Bundle != "web,data" || config.Members["lead"].Bundle != "" {
 		t.Fatalf("%+v", config)
 	}
-	info, err := os.Stat(filepath.Join(appDir("payments"), "secrets.json"))
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("secrets: %v %v", info, err)
+	if !appSecretsSecret("payments").inVault() {
+		info, err := os.Stat(filepath.Join(appDir("payments"), "secrets.json"))
+		if err != nil || info.Mode().Perm() != 0o600 {
+			t.Fatalf("secrets: %v %v", info, err)
+		}
 	}
 	secrets, _ := loadTeamSecrets("payments")
 	if secrets.SlackBotToken != "xoxb-bot" || secrets.SlackAppToken != "xapp-app" || secrets.OpenRouterAPIKey != "sk-or-wizard" {

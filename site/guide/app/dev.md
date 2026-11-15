@@ -638,8 +638,8 @@ renewal keeps failing, well before it ends.
 - **The DNS provider** is a setting: Gandi, Cloudflare, Amazon Route 53,
   Hetzner, DigitalOcean, or a DNS server of your own that takes RFC 2136
   updates. Give hi a token that may change only that zone's records; it
-  stays on the machine, in `~/.local/share/hi/domain.json`, readable by
-  you alone. To move to another provider, run the command again with it.
+  stays on the machine, in the server's [vault](/guide/reference/vault/),
+  encrypted. To move to another provider, run the command again with it.
 - **NetBird:** the people's and the owners' Access Control policies need
   TCP 443 to the app's peer. The three names share that port, so the
   people can reach the dev page's name too; it still asks for an owner's

@@ -2736,6 +2736,40 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.153 — The server's vault
+
+Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 1.
+
+- [x] Every secret hi keeps on a machine with a server or apps is in one
+  store, `~/.local/state/hi/vault/`, encrypted with XChaCha20-Poly1305,
+  every version kept: the server's keys and Slack tokens, each app's
+  settings, tokens, offsite keys, and snapshot key, the mail settings,
+  NetBird's token, and the DNS settings. The server's first start on this
+  hi makes it and moves each file in, read back before the file goes.
+- [x] It opens by itself with the machine's TPM, through
+  `systemd-creds --user` (no root, no PCRs), where systemd's TPM support
+  is full; else with a key file outside hi's state. hi checks the sealed
+  credential's ID, so systemd's quiet fallback to the host's key is never
+  called a TPM. `hi server vault` says what it protects against and what
+  to change (`sudo apt install libtss2-rc0t64`).
+- [x] A 24-word recovery key waits in the store until the owner saves it
+  (`hi server vault recovery`, on a terminal: shown once, two words back,
+  then forgotten; `--new` makes another). `hi server vault unlock` opens
+  it with the words where nothing else does, and seals a new slot.
+- [x] `hi server vault ls`, `history`, `rollback`, `forget`, and
+  `unlock-with add|remove tpm|file`; changes in the audit log; no command
+  prints a value.
+- [x] restic gets an app's snapshot key from hi through a command, never a
+  file. `hi app rename` and `hi app move` carry an app's settings; `hi app
+  rm` keeps them, read by nothing, until `hi app up` with the kept folder
+  or `hi app rm --purge`, which deletes them with the snapshots.
+- [x] The machine's heartbeat sends a failure with the reason when
+  `hi-server.service` isn't running or the vault is locked, and
+  `hi server status` says when no heartbeat is set.
+- [ ] Moved to release 2: boxes that wait for a locked store, an app's
+  heartbeat while it waits and the 24-hour notice, `hi-key.sealed`
+  beside offsite copies, shared keys, and the page's Vault section.
+
 ### v2.6.152 — Settings off podman's disk
 
 Spec: [hi_server_vault.md](specs/approved/hi_server_vault.md), release 0.
@@ -5551,16 +5585,18 @@ Vault in its place or beside it.
   memory kept current; no restart on a change unless the app asks.
 - [ ] `--for` placeholders for API keys: the hosts named go through a
   proxy that puts the real key in (a release of their own).
-- [ ] Release 1: the built-in store, unlocked by the TPM where hi can use
-  it or a key file, and the recovery key, waiting for the owner; what
-  hi keeps moved into it on `hi update` (keys.json, slack.json, every
-  app's secrets.json and snapshot key, mail, NetBird's and DNS's tokens),
-  each read back before its file goes; snapshot keys sealed to the
-  recovery key beside each offsite copy; the heartbeats that tell a
-  locked or stopped server; shared keys, every version kept, `forget`,
-  `hi app rm --purge`; `hi server vault`, `ls`, `history`, `rollback`.
+- [x] Release 1 (v2.6.153): the built-in store, unlocked by the TPM where
+  hi can use it or a key file, and the recovery key, waiting for the
+  owner; every secret file moved in, each read back before its file
+  goes; every version kept, `forget`, `hi app rm --purge`; the machine's
+  heartbeat that tells a locked or stopped server; `hi server vault`,
+  `ls`, `history`, `rollback`.
 - [ ] Release 2: the passphrase slot; the data key kept by systemd across
-  restarts; the page's Vault section, Unlock, and the locked banner.
+  restarts; the page's Vault section, Unlock, and the locked banner;
+  reads through the server's socket. From release 1's list: boxes that
+  wait for a locked store, an app's heartbeat while it waits and the
+  24-hour notice, snapshot keys sealed to the recovery key beside each
+  offsite copy (`hi app restore --from s3:...`), and shared keys.
 - [ ] Release 3: a team's OpenBao or Vault: `move`, `connect`, `--from`,
   `--override` and `--skip`, the jwt or AppRole login, file settings from
   it with `--file` and `--base64`.

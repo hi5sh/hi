@@ -192,7 +192,7 @@ func TestAppMove(t *testing.T) {
 	}
 	// ws2 has the folder, its secrets and the peer's identity, its
 	// snapshots and their key, its link, and its service.
-	for _, path := range []string{"secrets.json", "dev/netbird/default.json", "app/data.db"} {
+	for _, path := range []string{"dev/netbird/default.json", "app/data.db"} {
 		if !fileExists(filepath.Join(there, path)) {
 			t.Errorf("%s didn't move", path)
 		}
@@ -201,8 +201,11 @@ func TestAppMove(t *testing.T) {
 		t.Error("the folder there still says it is being received")
 	}
 	m.on(m.ws2Apps, m.ws2Config, func() {
-		if appDir("payments") != there || !fileExists(appUnitPath("payments")) || !fileExists(appSnapshotKey("payments")) {
-			t.Errorf("ws2: folder %s, unit %t, snapshot key %t", appDir("payments"), fileExists(appUnitPath("payments")), fileExists(appSnapshotKey("payments")))
+		if secrets, _ := loadTeamSecrets("payments"); secrets.SlackBotToken != "xoxb-1" {
+			t.Error("its secrets didn't move")
+		}
+		if appDir("payments") != there || !fileExists(appUnitPath("payments")) || !secretFileExists(appSnapshotKeySecret("payments")) {
+			t.Errorf("ws2: folder %s, unit %t, snapshot key %t", appDir("payments"), fileExists(appUnitPath("payments")), secretFileExists(appSnapshotKeySecret("payments")))
 		}
 		if _, ok := loadAppIncoming("payments"); ok {
 			t.Error("ws2 still receives the app")

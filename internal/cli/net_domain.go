@@ -120,7 +120,7 @@ func hiCertsDir() string { return filepath.Join(filepath.Dir(appsDir()), "certs"
 
 func loadHiDomain() (hiDomain, bool) {
 	var domain hiDomain
-	data, err := os.ReadFile(hiDomainPath())
+	data, err := readSecretFile(hiDomainSecret())
 	if err != nil || json.Unmarshal(data, &domain) != nil || domain.Domain == "" {
 		return hiDomain{}, false
 	}
@@ -132,7 +132,7 @@ func saveHiDomain(domain hiDomain) error {
 		return err
 	}
 	data, _ := json.MarshalIndent(domain, "", "  ")
-	return writeFileAtomic(hiDomainPath(), append(data, '\n'), 0o600)
+	return writeSecretFile(hiDomainSecret(), append(data, '\n'), 0o600)
 }
 
 // provider is the domain's DNS provider, set up from its settings.
@@ -222,7 +222,7 @@ func runNetDomain(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 	}
 	switch {
 	case unset:
-		if err := os.Remove(hiDomainPath()); err != nil && !os.IsNotExist(err) {
+		if err := removeSecretFile(hiDomainSecret()); err != nil {
 			return err
 		}
 		fmt.Fprintln(stdout, "The apps' addresses go back to plain http on their NetBird names within a minute; ask for the dev page's new link in Slack. The records hi made stay in the zone until you remove them.")

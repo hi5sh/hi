@@ -47,7 +47,7 @@ func netbirdAPIToken() (string, error) {
 	if token := strings.TrimSpace(os.Getenv("NETBIRD_API_TOKEN")); token != "" {
 		return token, nil
 	}
-	data, err := os.ReadFile(netbirdTokenPath())
+	data, err := readSecretFile(netbirdTokenSecret())
 	if token := strings.TrimSpace(string(data)); err == nil && token != "" {
 		return token, nil
 	}
@@ -58,7 +58,7 @@ func saveNetbirdAPIToken(token string) error {
 	if err := os.MkdirAll(filepath.Dir(netbirdTokenPath()), 0o700); err != nil {
 		return err
 	}
-	return writeFileAtomic(netbirdTokenPath(), []byte(strings.TrimSpace(token)+"\n"), 0o600)
+	return writeSecretFile(netbirdTokenSecret(), []byte(strings.TrimSpace(token)+"\n"), 0o600)
 }
 
 // netbirdAPIURL is the management server this machine is connected to;

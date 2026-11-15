@@ -39,6 +39,13 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	if err := appNeedsServer(name); err != nil {
 		return err
 	}
+	if vaultExists() {
+		for _, f := range []secretFile{appSecretsSecret(name), appSnapshotKeySecret(name)} {
+			if _, err := moveSecretFile(f); err != nil {
+				fmt.Fprintf(stderr, "hi: %v\n", err)
+			}
+		}
+	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
 		return fmt.Errorf("the app's Slack tokens: %w", err)

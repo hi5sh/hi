@@ -220,16 +220,46 @@ func (e appResticError) Error() string { return "restic: " + e.text }
 const appResticMissingRepo = 10
 
 func appResticEnv(team string) []string {
-	return []string{"RESTIC_REPOSITORY=" + filepath.Join(appSnapshotsDir(team), "repo"), "RESTIC_PASSWORD_FILE=" + appSnapshotKey(team)}
+	return append([]string{"RESTIC_REPOSITORY=" + filepath.Join(appSnapshotsDir(team), "repo")}, appResticKeyEnv(team, "RESTIC_PASSWORD")...)
+}
+
+// appResticKeyEnv gives restic the snapshot key: from the vault through
+// a command, so it is in no file, or the key's file without a vault.
+func appResticKeyEnv(team, prefix string) []string {
+	if appSnapshotKeySecret(team).inVault() {
+		exe, err := os.Executable()
+		if err == nil && strings.HasSuffix(exe, ".test") {
+			// A test binary would run its tests, not hi: the key as a file.
+			if key, err := readSecretFile(appSnapshotKeySecret(team)); err == nil {
+				writeFileAtomic(appSnapshotKey(team), key, 0o600)
+			}
+		} else if err == nil && !strings.ContainsAny(exe, " '\"\\") {
+			return []string{prefix + "_COMMAND=" + exe + " app __snapshot-key " + team}
+		}
+	}
+	return []string{prefix + "_FILE=" + appSnapshotKey(team)}
+}
+
+// appSnapshotKeyCommand prints the snapshot key, for restic only.
+func appSnapshotKeyCommand(args []string, stdout io.Writer) error {
+	if len(args) != 1 || !appNamePattern.MatchString(args[0]) {
+		return usageError{"usage: hi app __snapshot-key <name>"}
+	}
+	key, err := readSecretFile(appSnapshotKeySecret(args[0]))
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(stdout, strings.TrimSpace(string(key)))
+	return nil
 }
 
 // appOffsiteEnv reaches the bucket, with the local repository as the one
 // restic copy reads from.
 func appOffsiteEnv(team string, backups appBackups, secrets appSecrets) []string {
-	return []string{"RESTIC_REPOSITORY=" + backups.Offsite, "RESTIC_PASSWORD_FILE=" + appSnapshotKey(team),
-		"RESTIC_FROM_REPOSITORY=" + filepath.Join(appSnapshotsDir(team), "repo"), "RESTIC_FROM_PASSWORD_FILE=" + appSnapshotKey(team),
-		"AWS_ACCESS_KEY_ID=" + secrets.BackupKeyID, "AWS_SECRET_ACCESS_KEY=" + secrets.BackupSecret,
-		"AWS_DEFAULT_REGION=" + firstNonEmpty(backups.Region, appDefaultRegion)}
+	return slices.Concat([]string{"RESTIC_REPOSITORY=" + backups.Offsite}, appResticKeyEnv(team, "RESTIC_PASSWORD"),
+		[]string{"RESTIC_FROM_REPOSITORY=" + filepath.Join(appSnapshotsDir(team), "repo")}, appResticKeyEnv(team, "RESTIC_FROM_PASSWORD"),
+		[]string{"AWS_ACCESS_KEY_ID=" + secrets.BackupKeyID, "AWS_SECRET_ACCESS_KEY=" + secrets.BackupSecret,
+			"AWS_DEFAULT_REGION=" + firstNonEmpty(backups.Region, appDefaultRegion)})
 }
 
 const appDefaultRegion = "us-east-1"
@@ -240,19 +270,24 @@ func appSnapshotRepo(team string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	key, repo := appSnapshotKey(team), filepath.Join(dir, "repo")
+	key, repo := appSnapshotKeySecret(team), filepath.Join(dir, "repo")
 	if fileExists(filepath.Join(repo, "config")) {
-		if !fileExists(key) {
-			return fmt.Errorf("the key to the app's snapshots, %s, is gone; without it they can't be read", key)
+		if _, err := readSecretFile(key); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("the key to the app's snapshots, %s, is gone; without it they can't be read", key.disk)
+			}
+			return err
 		}
 		return nil
 	}
-	if !fileExists(key) {
+	if _, err := readSecretFile(key); errors.Is(err, os.ErrNotExist) {
 		secret := make([]byte, 32)
 		rand.Read(secret)
-		if err := os.WriteFile(key, []byte(base64.RawURLEncoding.EncodeToString(secret)+"\n"), 0o600); err != nil {
+		if err := writeSecretFile(key, []byte(base64.RawURLEncoding.EncodeToString(secret)+"\n"), 0o600); err != nil {
 			return err
 		}
+	} else if err != nil {
+		return err
 	}
 	if _, err := appRestic(appResticEnv(team), dir, "init", "--quiet"); err != nil {
 		return fmt.Errorf("making the app's snapshot repository: %w", err)
@@ -1179,7 +1214,7 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		return err
 	}
 	if showKey {
-		key, err := os.ReadFile(appSnapshotKey(name))
+		key, err := readSecretFile(appSnapshotKeySecret(name))
 		if err != nil {
 			return errors.New("the app has no snapshots yet, so no key; hi app snapshot takes the first")
 		}
@@ -1263,7 +1298,11 @@ func appBackupsCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "hi keeps the last %d days, %d weeks, and %d months, everything from the last week, and every snapshot taken before a release.\n", backups.Daily, backups.Weekly, backups.Monthly)
 	if backups.Offsite != "" {
 		fmt.Fprintf(stdout, "Each one is copied to %s.\n", backups.Offsite)
-		fmt.Fprintf(stdout, "They are encrypted with the key in %s; keep a copy somewhere other than this machine (hi app backups %s --show-key), or the bucket can't be read if the machine is lost.\n", appSnapshotKey(name), name)
+		where := appSnapshotKey(name)
+		if appSnapshotKeySecret(name).inVault() {
+			where = "the server's vault"
+		}
+		fmt.Fprintf(stdout, "They are encrypted with the key in %s; keep a copy somewhere other than this machine (hi app backups %s --show-key), or the bucket can't be read if the machine is lost.\n", where, name)
 	} else {
 		fmt.Fprintf(stdout, "They are only on this machine: hi app backups %s --offsite s3:https://<host>/<bucket> copies them to a bucket too.\n", name)
 	}

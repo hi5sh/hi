@@ -73,7 +73,9 @@ description: The environment variables hi reads and the files it writes.
 | `~/.cache/hi/templates/<source>/<commit>/`  | Server templates, cached after their signature was checked; deleted by `hi server leave` |
 | `.hi5/template.json` (in a project)       | What `hi init` generated: template, versions or commits, and file hashes; no paths or names |
 | `docs/upgrades/<version>.md` (in a project) | From `hi init --update`: template changes to the project's own files, for an agent to apply; delete it afterward |
-| `~/.local/share/hi/domain.json`             | The machine's domain from `hi net domain`: the domain, zone, DNS provider and its token, and the Let's Encrypt email (mode 0600) |
+| `~/.local/share/hi/domain.json`             | The machine's domain from `hi net domain`: the domain, zone, DNS provider and its token, and the Let's Encrypt email (mode 0600); in the [vault](/guide/reference/vault/) at `hi/machine/dns` on a machine with one |
+| `~/.local/state/hi/vault/`                  | The [vault](/guide/reference/vault/): every secret hi keeps on a machine with a server or apps, encrypted |
+| `~/.config/hi/vault-key/key`                | The vault's key file, where it opens with one (mode 0400) |
 | `~/.local/share/hi/certs/`                  | The domain's wildcard certificate, shared by the machine's apps |
 
 In a project, `hi data get` records its downloads in `.hi5/data.json`:
@@ -108,7 +110,7 @@ The server keeps everything in its state folder (`hi server --dir`, default
 |----------------------------|----------------------------------------------------------------|
 | `config.json`              | The listen address and server settings, such as `expose_listen` |
 | `state.json`               | Users, devices, requests, leases, and template sources         |
-| `keys.json`                | Provider keys, the model key (`ai`), template source tokens, and Hugging Face tokens (`data:<org>`) |
+| `keys.json`                | Provider keys, the model key (`ai`), template source tokens, and Hugging Face tokens (`data:<org>`); in the [vault](/guide/reference/vault/) at `hi/server/keys` once the machine has one, like `slack.json` |
 | `data_usage.jsonl`         | One line per `hi data` download or Xet grant: user, device, repository, file, size |
 | `ai.json`                  | `hi server ai`: the upstream URL, default model, keyless or not, and on or off |
 | `ai_usage.jsonl`           | One line per model request: user, device, model, tokens, cost, status; no messages |

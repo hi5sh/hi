@@ -57,7 +57,7 @@ func TestTeamDomain(t *testing.T) {
 	t.Setenv("NETBIRD_API_TOKEN", "nbp_test")
 	// The token from $NETBIRD_API_TOKEN is saved for the teams, which run
 	// without it.
-	if token, err := os.ReadFile(netbirdTokenPath()); err != nil || strings.TrimSpace(string(token)) != "nbp_test" {
+	if token, err := readSecretFile(netbirdTokenSecret()); err != nil || strings.TrimSpace(string(token)) != "nbp_test" {
 		t.Fatal(string(token), err)
 	}
 	// Without one, it reads the token from standard input when that isn't
@@ -71,7 +71,7 @@ func TestTeamDomain(t *testing.T) {
 	if err := appDomainCommand([]string{"apps.example.com"}, file, &out); err != nil {
 		t.Fatal(err)
 	}
-	if token, _ := os.ReadFile(netbirdTokenPath()); strings.TrimSpace(string(token)) != "nbp_test" {
+	if token, _ := readSecretFile(netbirdTokenSecret()); strings.TrimSpace(string(token)) != "nbp_test" {
 		t.Fatal(string(token))
 	}
 	// A team moves only once it's on for it.

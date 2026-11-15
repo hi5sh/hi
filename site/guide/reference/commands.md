@@ -335,7 +335,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app down <name>`                     | Stop it; its folder stays |
 | `hi app rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages; every app on the machine moves to it within a few minutes (dev boxes at their next restart); what fixes the image's advisories |
 | `hi app rename <name> <new> [--yes]`     | Another name, after its Slack app's: its bot, `/hi-<name>` command, and service; memory and snapshots stay |
-| `hi app rm [<name>] [--keep-folder]`     | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder |
+| `hi app rm [<name>] [--keep-folder] [--purge]` | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder. Its settings stay in the server's vault, and its snapshots stay; `--purge` deletes them too |
 | `hi app ls`                              | Apps on this machine |
 | `hi app status <name>`                   | Up or down, its members, production's version and what dev has on top of it, backups, and the helper |
 | `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
@@ -521,6 +521,22 @@ See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_
 | `hi server mail off` | Send none: people sign in with Slack links |
 
 With email set up, the dev page, the helper, and the admin page each take an email to sign in with: a link and a six-digit code, each good once, for 15 minutes.
+
+## hi server vault
+
+Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/guide/reference/vault/)). No command prints a value.
+
+| Command | What it does |
+|---|---|
+| `hi server vault` | Open or locked, how it opens, what that protects against, and what to change |
+| `hi server vault init [--unlock tpm\|file]` | Make it now, and move every secret file into it (`hi update` does) |
+| `hi server vault recovery [--new]` | The owner, on a terminal on the machine: the recovery key, shown once, then forgotten; `--new` makes another and the old one stops working |
+| `hi server vault unlock` | Open it with the recovery key where nothing opens it by itself; it opens by itself again after |
+| `hi server vault unlock-with add\|remove tpm\|file` | Add or remove a way it opens by itself |
+| `hi server vault ls [<prefix>]` | Paths, versions, when, and names |
+| `hi server vault history <path>` | Who changed which names, when |
+| `hi server vault rollback <path> <version>` | An old version's values back, as a new version |
+| `hi server vault forget <path> --version <n>` | Destroy one version's value, such as one that leaked; its entry stays |
 
 ## hi server sites
 

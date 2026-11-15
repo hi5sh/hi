@@ -43,6 +43,38 @@ func heartbeatPing(target string) error {
 	return nil
 }
 
+// heartbeatFail tells the service the check failed, and why: its /fail
+// address, as healthchecks.io and its kind take it, with the reason as
+// the body.
+func heartbeatFail(target, reason string) error {
+	failURL := strings.TrimRight(target, "/") + "/fail"
+	response, err := heartbeatClient.Post(failURL, "text/plain", strings.NewReader(reason))
+	if err != nil {
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
+		return fmt.Errorf("%s: %v", heartbeatHost(target), err)
+	}
+	io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+	response.Body.Close()
+	if response.StatusCode >= 300 {
+		return fmt.Errorf("%s answered %s", heartbeatHost(target), response.Status)
+	}
+	return nil
+}
+
+// machineHeartbeatTrouble is what is wrong with this machine's server,
+// "" when it runs and its vault opens.
+var machineHeartbeatTrouble = func() string {
+	if orgUserUnitHere() {
+		if out, _ := appSystemctl("is-active", orgUnit); strings.TrimSpace(out) != "active" {
+			return orgUnit + " isn't running"
+		}
+	}
+	return vaultLockedNote()
+}
+
 // heartbeatHost names a heartbeat's service without its secret path.
 func heartbeatHost(target string) string {
 	if parsed, err := url.Parse(target); err == nil && parsed.Host != "" {
@@ -153,10 +185,21 @@ func heartbeatCommand(args []string, stdout io.Writer) error {
 		if !set {
 			return nil
 		}
-		err := heartbeatPing(beat.URL)
+		// A machine with a server checks it first: locked or stopped is
+		// a failure the service alerts on at once.
+		trouble := machineHeartbeatTrouble()
+		var err error
+		if trouble != "" {
+			err = heartbeatFail(beat.URL, trouble)
+		} else {
+			err = heartbeatPing(beat.URL)
+		}
 		beat.Last = heartbeatLast{At: time.Now().UTC()}
-		if err != nil {
+		switch {
+		case err != nil:
 			beat.Last.Error = err.Error()
+		case trouble != "":
+			beat.Last.Error = "sent as failed: " + trouble
 		}
 		saveMachineHeartbeat(beat)
 		return err

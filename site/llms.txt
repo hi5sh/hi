@@ -50,6 +50,7 @@
 - [hi init](https://hi5.sh/init/), with a demo, and [Start a project](https://hi5.sh/guide/projects/): `hi init` templates, `--update`, and `--adopt`
 - [Troubleshooting](https://hi5.sh/guide/reference/troubleshooting/): messages and what to do
 - [Networking](https://hi5.sh/guide/reference/network/): every port hi listens on (server 7373, admin page 1984, apps' peers 80, 8080, 8888, 22), who connects, and the NetBird policies to ask for
+- [The server's vault](https://hi5.sh/guide/reference/vault/): every secret hi keeps on a machine with a server or apps, encrypted on disk; it opens by itself with the TPM (`systemd-creds --user`, needs `libtss2-rc0t64`) or a key file, and with a 24-word recovery key the owner saves (`hi server vault recovery`); `hi server vault ls`, `history`, `rollback`, `forget`; `hi app rm --purge`
 
 ## Optional
 

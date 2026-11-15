@@ -36,6 +36,10 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				err = pageErr
 			}
 		}
+		if len(rest) == 0 && orgUserUnitHere() {
+			fmt.Fprintln(stdout)
+			vaultBrief(stdout)
+		}
 		return exitCode(err, stderr)
 	// The admin page is the server's (hi_server_apps.md, release 3).
 	case "link":
@@ -46,6 +50,8 @@ func runOrg(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return exitCode(adminMailCommand(rest, stdin, stdout), stderr)
 	case "sites":
 		return exitCode(adminSitesCommand(rest, stdout), stderr)
+	case "vault":
+		return exitCode(vaultCommand(rest, stdin, stdout), stderr)
 	case "__page":
 		return exitCode(adminServe(stderr), stderr)
 	case "__job":
@@ -104,6 +110,8 @@ On the server box:
                                        The name the IT team keeps for the admin page; admin.<domain> by default
   hi server mail [set ... | test <address> | off]
                                        How the machine sends email: sign-in links and invitations
+  hi server vault [init|unlock|recovery|ls|history|rollback|forget]
+                                       The vault every secret hi keeps is in, encrypted on disk
   hi server sites [allow <site> [--why W] | remove <site> | org on|off]
                                        What every app's dev box reaches beyond its own list
   hi server provider add|remove <p>    Store or remove a provider key (runpod, shadeform)

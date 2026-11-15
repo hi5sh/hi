@@ -141,3 +141,5 @@
       url: /guide/reference/environment/
     - title: Networking
       url: /guide/reference/network/
+    - title: The server's vault
+      url: /guide/reference/vault/

@@ -366,7 +366,7 @@ func saveTeam(config appConfig) error {
 
 func loadTeamSecrets(name string) (appSecrets, error) {
 	var secrets appSecrets
-	data, err := os.ReadFile(filepath.Join(appDir(name), "secrets.json"))
+	data, err := readSecretFile(appSecretsSecret(name))
 	if err != nil {
 		return secrets, err
 	}
@@ -568,6 +568,8 @@ func runTeam(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		err = appAdvisoryCommand(rest, stdout)
 	case "__app":
 		return runTeamApp(rest, stderr)
+	case "__snapshot-key":
+		err = appSnapshotKeyCommand(rest, stdout)
 	case "__resolver":
 		return runTeamResolver(rest, stderr)
 	case "__leadapi":
@@ -1006,6 +1008,22 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	}
 	if fileExists(dir) {
 		return fmt.Errorf("%s already exists; choose another folder with --dir", dir)
+	}
+	if vaultRemovedApp(name) {
+		use := false
+		if interactive(stdin, stdout) {
+			fmt.Fprintf(stdout, "Settings from a removed app called %s are kept in the server's vault. Use them? [y/N] ", name)
+			answer, _ := readLine(stdin)
+			answer = strings.ToLower(strings.TrimSpace(answer))
+			use = answer == "y" || answer == "yes"
+		}
+		// Not used, they stay in the history, under the new app's own
+		// values, until hi app rm --purge.
+		if use {
+			if err := vaultReviveApp(name); err != nil {
+				return err
+			}
+		}
 	}
 	if err := hermesInstalled(); err != nil {
 		return err
@@ -2404,6 +2422,12 @@ func appAdopt(folder string, stdout io.Writer) (string, error) {
 		return "", err
 	}
 	fmt.Fprintf(stdout, "App %s is in %s.\n", config.Name, dir)
+	if vaultRemovedApp(config.Name) {
+		if err := vaultReviveApp(config.Name); err != nil {
+			return "", fmt.Errorf("its settings kept in the server's vault: %w", err)
+		}
+		fmt.Fprintln(stdout, "Its settings, kept in the server's vault since it was removed, are back.")
+	}
 	return config.Name, nil
 }
 
@@ -2518,11 +2542,13 @@ var appRemoveContainers = func(name string, boxes []string) {
 // repository are not hi's to remove.
 func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	var name string
-	var keep, yes bool
+	var keep, yes, purge bool
 	for _, arg := range args {
 		switch {
 		case arg == "--keep-folder":
 			keep = true
+		case arg == "--purge":
+			purge = true
 		case arg == "--yes" || arg == "-y":
 			yes = true
 		case strings.HasPrefix(arg, "-"):
@@ -2530,12 +2556,12 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		case name == "":
 			name = arg
 		default:
-			return usageError{"usage: hi app rm [<name>] [--keep-folder] [--yes]"}
+			return usageError{"usage: hi app rm [<name>] [--keep-folder] [--purge] [--yes]"}
 		}
 	}
 	if name == "" {
 		if !interactive(stdin, stdout) {
-			return usageError{"usage: hi app rm <name> [--keep-folder] [--yes]"}
+			return usageError{"usage: hi app rm <name> [--keep-folder] [--purge] [--yes]"}
 		}
 		picked, err := appPick(stdin, stdout, "Remove an app")
 		if errors.Is(err, errMenuBack) {
@@ -2573,7 +2599,21 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	if folder != "" && !keep {
 		fmt.Fprintf(stdout, "  its folder        %s  (the project, its tasks, the channel's log, the lead's memory)\n", folder)
 	}
-	if err := confirm(stdin, stdout, yes, "Remove app "+name+"?"); err != nil {
+	snapshots := appSnapshotsDir(name)
+	if purge {
+		listed, _ := appListSnapshots(name)
+		count := len(listed)
+		fmt.Fprintf(stdout, "  its settings      in the server's vault, with their history's values\n")
+		fmt.Fprintf(stdout, "  its snapshot key, and %d snapshots  %s\n", count, snapshots)
+		if config, err := loadTeam(name); err == nil && config.backups().Offsite != "" {
+			fmt.Fprintf(stdout, "  (its offsite copy in %s stays)\n", config.backups().Offsite)
+		}
+	}
+	question := "Remove app " + name + "?"
+	if purge {
+		question = "Remove app " + name + " and delete its settings, snapshot key, and snapshots? They can't be brought back."
+	}
+	if err := confirm(stdin, stdout, yes, question); err != nil {
 		return err
 	}
 	if appLegacy(name) {
@@ -2598,12 +2638,29 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 	}
 	removeAppSettings(name)
+	kept := false
+	if purge {
+		if _, err := vaultPurgeApp(name); err != nil {
+			return fmt.Errorf("the app is off this machine, but its settings stay in the server's vault: %w", err)
+		}
+		if err := os.RemoveAll(snapshots); err != nil {
+			return fmt.Errorf("the app is off this machine, but its snapshots stay: %w", err)
+		}
+	} else {
+		var err error
+		if kept, err = vaultRemoveApp(name); err != nil {
+			fmt.Fprintf(stdout, "Warning: its settings in the server's vault: %v\n", err)
+		}
+	}
 	fmt.Fprintf(stdout, "App %s is removed.", name)
 	if folder != "" && keep {
 		fmt.Fprintf(stdout, " Its folder stays in %s; hi app up %s brings the app back.", folder, folder)
 	}
-	if snapshots := appSnapshotsDir(name); fileExists(snapshots) {
-		fmt.Fprintf(stdout, "\nIts snapshots stay in %s, with the key to them; delete that folder if you no longer want them.", snapshots)
+	if kept {
+		fmt.Fprintf(stdout, "\nIts settings stay in the server's vault; hi app rm --purge %s deletes them.", name)
+	}
+	if fileExists(snapshots) {
+		fmt.Fprintf(stdout, "\nIts snapshots stay in %s, with the key to them; hi app rm --purge %s deletes them.", snapshots, name)
 	}
 	fmt.Fprintln(stdout, "\nIts Slack app and channel, and a GitHub repository if it had one, are still there; remove them in Slack and GitHub if you no longer want them.")
 	return nil

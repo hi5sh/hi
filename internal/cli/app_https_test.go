@@ -112,7 +112,9 @@ func TestNetDomain(t *testing.T) {
 		domain.addressName("quarry", appSlotPreview) != "quarry-preview.dev.example.com" || domain.addressName("quarry", appAddressDev) != "quarry-dev.dev.example.com" || domain.recordName("quarry.dev.example.com") != "quarry.dev" {
 		t.Fatalf("%+v", domain)
 	}
-	if info, _ := os.Stat(hiDomainPath()); info.Mode().Perm() != 0o600 {
+	if info, err := os.Stat(hiDomainPath()); hiDomainSecret().inVault() && err == nil {
+		t.Fatal("the token is a file beside the vault")
+	} else if !hiDomainSecret().inVault() && info.Mode().Perm() != 0o600 {
 		t.Fatal("the token is readable by others:", info.Mode())
 	}
 	for _, args := range [][]string{{"dev.example.com", "--dns", "nobody"}, {"*.example.com", "--dns", "test"}, {"dev.example.com"}, {"dev.example.com", "--dns", "test", "--zone", "other.org"}} {
@@ -144,7 +146,7 @@ func TestNetDomain(t *testing.T) {
 	if !strings.Contains(out.String(), "writes to ops@example.com") {
 		t.Fatal(out.String())
 	}
-	if err := runNetDomain([]string{"--unset"}, strings.NewReader(""), io.Discard, io.Discard); err != nil || fileExists(hiDomainPath()) {
+	if err := runNetDomain([]string{"--unset"}, strings.NewReader(""), io.Discard, io.Discard); err != nil || secretFileExists(hiDomainSecret()) {
 		t.Fatal(err)
 	}
 }
@@ -275,7 +277,7 @@ func TestTeamHTTPS(t *testing.T) {
 		t.Fatal(err, restarts, appInternalURL("payments", appAddressDev))
 	}
 	// Without the domain, plain http on the NetBird name again.
-	os.Remove(hiDomainPath())
+	removeSecretFile(hiDomainSecret())
 	if err := b.applyHTTPS(); err != nil || appHTTPSDomain("payments") != "" || restarts != 4 || strings.HasPrefix(appInternalURL("payments", appAddressDev), "https") ||
 		strings.HasPrefix(appInternalURL("payments", appSlotProduction), "https") {
 		t.Fatal(err, restarts)

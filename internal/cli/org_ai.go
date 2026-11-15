@@ -553,7 +553,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 		}
 		key := ""
 		keys := map[string]string{}
-		if data, err := os.ReadFile(filepath.Join(dir, "keys.json")); err == nil {
+		if data, err := readSecretFile(serverKeysSecret(dir)); err == nil {
 			json.Unmarshal(data, &keys)
 		}
 		settings.NoKey = *noKey
@@ -592,7 +592,7 @@ func orgAICommand(args []string, stdin io.Reader, stdout, stderr io.Writer) erro
 			if key != "" {
 				keys[serverAIKeyName] = key
 				data, _ := json.MarshalIndent(keys, "", "  ")
-				if err := os.WriteFile(filepath.Join(dir, "keys.json"), append(data, '\n'), 0o600); err != nil {
+				if err := writeSecretFile(serverKeysSecret(dir), append(data, '\n'), 0o600); err != nil {
 					return err
 				}
 			}

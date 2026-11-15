@@ -294,7 +294,7 @@ func openServer(dir string, log io.Writer) (*orgServer, error) {
 	if server.serverKey, err = loadServerKey(dir); err != nil {
 		return nil, err
 	}
-	if data, err := os.ReadFile(filepath.Join(dir, "keys.json")); err == nil {
+	if data, err := readSecretFile(serverKeysSecret(dir)); err == nil {
 		if err := json.Unmarshal(data, &server.keys); err != nil {
 			return nil, fmt.Errorf("read the provider keys: %w", err)
 		}
@@ -347,11 +347,7 @@ func (s *orgServer) saveKeysLocked() error {
 	if err != nil {
 		return err
 	}
-	path := filepath.Join(s.dir, "keys.json")
-	if err := os.WriteFile(path+".tmp", append(data, '\n'), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(path+".tmp", path)
+	return writeSecretFile(serverKeysSecret(s.dir), append(data, '\n'), 0o600)
 }
 
 type auditEntry struct {
@@ -2242,6 +2238,12 @@ func orgRunCommand(args []string, stdout, stderr io.Writer) error {
 		if err := moveOrgDirectory(dir, stdout); err != nil {
 			return err
 		}
+		// The machine's vault: made the first time, and every secret
+		// file moved into it. A file it can't take stays as it is.
+		if err := ensureVault(stdout); err != nil {
+			fmt.Fprintf(stdout, "hi: %v\n", err)
+		}
+		go vaultFinishMove(stdout)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "config.json"))
 	if err != nil {

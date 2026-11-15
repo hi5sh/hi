@@ -676,9 +676,19 @@ func appReceiveStart(name string, stdout io.Writer) error {
 	}
 	os.Remove(filepath.Join(incoming.Folder, appMovedFile))
 	os.Remove(filepath.Join(incoming.Folder, appReceivingFile))
+	if vaultRemovedApp(name) {
+		// A removed app's settings by this name give way to the app's own.
+		if _, err := vaultPurgeApp(name); err != nil {
+			return err
+		}
+	}
 	adopted, err := appAdopt(incoming.Folder, stdout)
 	if err == nil && adopted != name {
 		err = fmt.Errorf("the folder holds app %s, not %s", adopted, name)
+	}
+	if err == nil {
+		// Its secrets came as files, over the move's connection.
+		err = vaultImportApp(name)
 	}
 	if err == nil {
 		err = appUp(name, stdout)
@@ -975,6 +985,12 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 		return fmt.Errorf("%s didn't say where the app's snapshots go (%s)", target.machine, qFirstLine(prepared, "nothing"))
 	}
 	copyAll := func() error {
+		// Its secrets go as the files they were, and only for the copy.
+		done, err := vaultExportApp(name)
+		if err != nil {
+			return fmt.Errorf("the app's settings from the server's vault: %w", err)
+		}
+		defer done()
 		if err := appMoveRsync(target, folder, destFolder, stdout); err != nil {
 			return err
 		}
@@ -1059,6 +1075,9 @@ func appMove(options appMoveOptions, stdin io.Reader, stdout io.Writer) error {
 	os.Remove(appUnitPath(name))
 	appRemoveSnapshotTimer(name)
 	appSystemctl("daemon-reload")
+	if _, err := vaultPurgeApp(name); err != nil {
+		fmt.Fprintf(stdout, "Warning: its settings stay in this machine's vault: %v\n", err)
+	}
 	record := appMoved{App: name, To: target.machine, At: time.Now().UTC(), By: firstNonEmpty(os.Getenv(adminByEnv), adminActor()), Folder: folder,
 		Size: needs.Size, Took: int(time.Since(began).Seconds() + 0.5), Stopped: int(down.Seconds()), Snapshot: snapshotID, Admin: done.Admin}
 	moved, _ := json.MarshalIndent(record, "", "  ")

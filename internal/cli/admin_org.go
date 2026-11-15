@@ -291,7 +291,7 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 			}
 			if check == "" && sameHost {
 				keys := map[string]string{}
-				if data, err := os.ReadFile(filepath.Join(dir, "keys.json")); err == nil {
+				if data, err := readSecretFile(serverKeysSecret(dir)); err == nil {
 					json.Unmarshal(data, &keys)
 				}
 				check = keys[serverAIKeyName]

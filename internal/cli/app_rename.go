@@ -125,6 +125,9 @@ func appRename(args []string, stdin io.Reader, stdout io.Writer) error {
 			return fmt.Errorf("moving the app's snapshots: %w", err)
 		}
 	}
+	if err := vaultRenameApp(old, name); err != nil {
+		return err
+	}
 	if moveTo != "" {
 		if err := os.Rename(folder, moveTo); err != nil {
 			return fmt.Errorf("moving the app's folder: %w", err)

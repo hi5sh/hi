@@ -120,7 +120,7 @@ func TestTeamTakeSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The first snapshot makes the repository and its key, outside the folder.
-	key, _ := os.ReadFile(appSnapshotKey("payments"))
+	key, _ := readSecretFile(appSnapshotKeySecret("payments"))
 	if restic.calls[0][0] != "init" || len(strings.TrimSpace(string(key))) < 40 || strings.HasPrefix(appSnapshotsDir("payments"), appDir("payments")) {
 		t.Fatal(restic.calls, string(key))
 	}

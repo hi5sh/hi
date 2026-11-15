@@ -1,7 +1,9 @@
 # `hi server vault`: the server's own encrypted store for every secret hi keeps
 
 Status: Approved (2026-11-14), after its open questions were decided
-one by one the same day (Open questions). Release 0 built as v2.6.152.
+one by one the same day (Open questions). Release 0 built as v2.6.152,
+release 1 as v2.6.153 (see Releases for what it has, and what moved to
+release 2).
 It replaces the draft `hi_app_vault.md` (2026-11-13: an app's settings from a team's
 own Vault, by a login per app), which is folded in here: a team's own
 OpenBao or Vault becomes this store's release 3, not its starting point.
@@ -115,11 +117,8 @@ The same layout in the built-in store and in an OpenBao or Vault, so a
 move copies it as it is:
 
 ```
-hi/server/providers/runpod      the server's keys
-hi/server/ai
+hi/server/keys                  the server's keys.json: providers, ai, data:<org>, templates
 hi/server/slack
-hi/server/data/<org>
-hi/server/templates/<source>
 hi/machine/netbird              the machine's tokens
 hi/machine/dns
 hi/machine/mail
@@ -127,14 +126,17 @@ hi/app/<app>/shared             an app's settings for Stage and production
 hi/app/<app>/stage
 hi/app/<app>/production
 hi/app/<app>/dev
-hi/app/<app>/hi                 its Slack tokens and OpenRouter key
+hi/app/<app>/hi                 its Slack tokens, OpenRouter key, and sign-ins
 hi/app/<app>/offsite            its offsite bucket's keys
 hi/app/<app>/snapshots          the key its snapshots are encrypted with
 hi/shared/<name>                a key for several apps, such as hi/shared/openrouter
 ```
 
 Each path holds a set of names and string values, as a KV v2 secret
-does.
+does. (Release 1 keeps `keys.json` whole at `hi/server/keys`, one name a
+key, rather than a path per provider: the file has many kinds of key, and
+one path keeps its reads and writes one step.) An app's heartbeat URL
+stays in its `secrets.json`, which holds nothing else once moved.
 
 ### Shared keys
 
@@ -299,9 +301,13 @@ passphrase, which `hi update` then warns about before it restarts.
   TPM (`systemd-creds --user` sealed to the TPM, or the TPM's own API
   through `tss`), Argon2id of the passphrase (64 MiB, 3 passes, a random
   salt), and Argon2id of the recovery key.
-- On disk, in the server's state folder: `vault/` with one file per path
-  (its versions, encrypted, every one kept) and `vault/keys.json` (the
-  slots: each wrapped data key, its kind, its salt). Atomic writes, as now.
+- On disk, in hi's state beside the server's (`~/.local/state/hi/vault/`,
+  not inside `org/`, so a machine with apps and no server state yet has
+  one too): `paths/` with one file per path (its versions, encrypted,
+  every one kept) and `keys.json` (the slots: each wrapped data key, its
+  kind, its salt, and a hash that tells the right key). Atomic writes, a
+  lock file for changes across processes. The key file is
+  `~/.config/hi/vault-key/key`, 0400.
 - No home-made cryptography: one AEAD and one KDF from the Go project's
   libraries. Rotating the data key re-encrypts every path; adding or
   removing a slot re-wraps only the data key.
@@ -692,8 +698,40 @@ Nothing wins silently; a value's source is always one place, shown.
    heartbeats that tell a locked or stopped server; what hi
    keeps moved into it on `hi update`; the recovery key; `hi server
    vault`, `ls`, `history`, `rollback`; encrypted backups of the state.
+   Built in v2.6.153:
+   - The store, file and tpm slots (`systemd-creds --user`, host+tpm2,
+     no PCRs, the sealing ID checked), the recovery key (24 BIP39 words,
+     its X25519 public half kept), `init`, `unlock` (with the recovery
+     key, which then seals a new tpm or file slot), `unlock-with`,
+     `recovery [--new]` on a terminal, `ls`, `history`, `rollback`,
+     `forget`.
+   - Every secret file moved in by the server's start after `hi update`
+     (and an app's service's), each read back before its file goes:
+     `keys.json`, `slack.json`, each app's `secrets.json` and snapshot
+     key, `mail.json`, NetBird's token, `domain.json`. restic gets the
+     snapshot key through `RESTIC_PASSWORD_COMMAND`.
+   - `hi app rm` keeps an app's paths, marked; `hi app up` with the kept
+     folder gets them back, a new app with the name asks; `--purge`;
+     `hi app rename` and `hi app move` carry them.
+   - The machine's heartbeat sends `/fail` with the reason when
+     `hi-server.service` isn't running or the store is locked;
+     `hi server status` says what the vault protects, what to change,
+     and when no heartbeat is set. (There is no `hi doctor`; where this
+     spec says `hi doctor`, it is `hi server status` and `hi server
+     vault`.)
+   - In release 1 every process of the `hi` account opens the store
+     itself with the tpm or file slot (about 0.6 s with the TPM, once a
+     process), not through the server's socket; that comes with the
+     passphrase in release 2, when only the server can hold the key.
 2. **Passphrase unlock** and systemd's keeping across restarts; the
-   page's Vault section, Unlock, and the locked banner.
+   page's Vault section, Unlock, the recovery key on the page, and the
+   locked banner; reads through the server's socket, each read in the
+   audit log. From release 1's list, still to do here: boxes that wait
+   for a locked store and start once it opens; an app's heartbeat that
+   fails while it waits, and the ops channel's notice after 24 hours
+   without the server; `hi-key.sealed` beside each offsite repository and
+   `hi app restore --from s3:...`; shared keys (`hi server vault
+   shared`); the weekly reminder of an unsaved recovery key.
 3. **OpenBao or Vault:** `move`, `connect`, `--from` a connected prefix,
    changes in the team's store reaching the boxes.
 4. **Later:** the key split between several admins (Shamir), and in

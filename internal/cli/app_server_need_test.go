@@ -27,6 +27,19 @@ func init() {
 	os.Setenv("XDG_RUNTIME_DIR", runtime)
 	os.Unsetenv("HI_ORG_DIR")
 	os.Unsetenv("HI_SERVER_DIR")
+	// Nor its vault, its key file, or its TPM (vault.go).
+	os.Unsetenv("HI_VAULT_DIR")
+	os.Setenv("HI_VAULT_KEY_DIR", filepath.Join(state, "vault-key"))
+	vaultTPMReady = func() (bool, string) { return false, "tests have no TPM" }
+	vaultArgonMemory = 64
+	vaultKeepFiles = func() bool { return false }
+	vaultTPMSeal = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
+	vaultTPMOpen = func([]byte) ([]byte, error) { return nil, errors.New("tests have no TPM") }
+	// HI_TEST_VAULT=1 runs every test with a vault in its own state, so
+	// every secret goes through it.
+	if os.Getenv("HI_TEST_VAULT") == "1" {
+		vaultTestDir = func() string { return filepath.Join(filepath.Dir(appsDir()), "vault") }
+	}
 	// Nor its services: a test that needs systemctl says what it answers.
 	appSystemctl = func(args ...string) (string, error) {
 		return "", errors.New("tests don't run systemctl")

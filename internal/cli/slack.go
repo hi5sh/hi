@@ -63,7 +63,7 @@ type slackConfig struct {
 func slackConfigPath(dir string) string { return filepath.Join(dir, "slack.json") }
 
 func loadSlackConfig(dir string) (*slackConfig, error) {
-	data, err := os.ReadFile(slackConfigPath(dir))
+	data, err := readSecretFile(serverSlackSecret(dir))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -85,11 +85,7 @@ func saveSlackConfig(dir string, config slackConfig) error {
 	if err != nil {
 		return err
 	}
-	path := slackConfigPath(dir)
-	if err := os.WriteFile(path+".tmp", append(data, '\n'), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(path+".tmp", path)
+	return writeSecretFile(serverSlackSecret(dir), append(data, '\n'), 0o600)
 }
 
 // slackAPI is the part of Slack the bridge uses; tests replace it.
