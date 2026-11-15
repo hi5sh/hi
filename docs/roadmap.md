@@ -2736,7 +2736,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
-### Next — What each app spends on models
+### v2.6.163 — What each app spends on models
 
 Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
 
