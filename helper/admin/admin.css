@@ -339,3 +339,4 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .spend-day { flex: 1; max-width: 18px; display: flex; align-items: flex-end; height: 100%; }
 .spend-day span { display: block; width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; }
 .spend-table td { font-variant-numeric: tabular-nums; }
+.spend-budget input { max-width: 170px; }

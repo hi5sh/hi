@@ -166,6 +166,8 @@ type adminDraftView struct {
 	Look          *adminAdoptLook   `json:"look,omitempty"`
 	Machine       adminNewMachine   `json:"machine"`
 	Errors        map[string]string `json:"errors,omitempty"`
+	// OpenRouterManaged says the app gets a key hi makes at OpenRouter.
+	OpenRouterManaged bool `json:"openrouter_managed,omitempty"`
 }
 
 // adminDraftCode is the Code step's answer.
@@ -189,6 +191,7 @@ type adminNewMachine struct {
 	CodexKey   bool               `json:"codex_key"`  // Codex is on an API key
 	Heartbeat  bool               `json:"heartbeat"`  // the machine has a heartbeat
 	Shared     []string           `json:"shared"`     // the server's shared keys, by name
+	Managed    bool               `json:"managed"`    // an OpenRouter management key: hi makes keys
 	Domain     string             `json:"domain,omitempty"`
 	Efforts    []string           `json:"efforts"`
 	Templates  []adminNewTemplate `json:"templates"`
@@ -218,6 +221,7 @@ func adminNewMachineOf(name string) adminNewMachine {
 	}
 	_, machine.Heartbeat = loadMachineHeartbeat()
 	machine.Shared = appSharedKeyNames()
+	machine.Managed = openRouterManagementKey() != ""
 	if machine.Shared == nil {
 		machine.Shared = []string{}
 	}
@@ -241,7 +245,7 @@ func adminDraftViewOf(draft adminDraft) adminDraftView {
 	view := adminDraftView{Name: draft.Name, Folder: draft.Folder, By: draft.By, Started: draft.Started, Updated: draft.Updated,
 		Done: draft.Done, Config: config, Handle: appBotHandle(config), Slash: appSlashCommand(draft.Name),
 		Workspace: draft.Workspace, HasBot: draft.BotToken != "", HasApp: draft.AppToken != "",
-		HasOwnKey: draft.OpenRouterKey != "", OwnKey: draft.OwnKey, HasClaude: draft.ClaudeToken != "",
+		HasOwnKey: draft.OpenRouterKey != "", OwnKey: draft.OwnKey, HasClaude: draft.ClaudeToken != "", OpenRouterManaged: draft.Answers.OpenRouter == "managed",
 		ChatGPTSignIn: draft.ChatGPTSignIn, ChatGPTModels: draft.ChatGPTModels, ChatGPTError: draft.ChatGPTError,
 		HasNetBird: draft.Answers.NetBirdKey != "", Heartbeat: draft.Answers.HeartbeatURL, MachineBeat: draft.Answers.MachineHeartbeatURL,
 		Job: draft.Job, Look: draft.Look, Machine: adminNewMachineOf(draft.Name)}
@@ -462,9 +466,10 @@ type adminStepInput struct {
 	ClaudeToken   string               `json:"claude_token"`
 	ClaudeMachine bool                 `json:"claude_machine"`
 
-	OwnKey         bool   `json:"own_key"`
-	OpenRouterKey  string `json:"openrouter_key"`
-	OpenRouterFrom string `json:"openrouter_from"`
+	OwnKey            bool   `json:"own_key"`
+	OpenRouterKey     string `json:"openrouter_key"`
+	OpenRouterFrom    string `json:"openrouter_from"`
+	OpenRouterManaged bool   `json:"openrouter_managed"`
 
 	Code adminDraftCode `json:"code"`
 
@@ -544,7 +549,14 @@ func adminSaveStep(input adminStepInput) (adminDraft, error) {
 			return adminSaveMembers(draft, input)
 		case "models":
 			draft.OwnKey = input.OwnKey
-			answers.OpenRouterFrom = ""
+			answers.OpenRouterFrom, answers.OpenRouter = "", ""
+			if input.OpenRouterManaged && !input.OwnKey {
+				if openRouterManagementKey() == "" {
+					return errors.New("this machine has no OpenRouter management key")
+				}
+				answers.OpenRouter, draft.OpenRouterKey = "managed", ""
+				break
+			}
 			if from := strings.TrimSpace(input.OpenRouterFrom); from != "" && !input.OwnKey {
 				shared, ok := appSharedName(from)
 				if !ok || !slices.Contains(appSharedKeyNames(), shared) {

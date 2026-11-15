@@ -644,22 +644,58 @@ func appMonthUSD(team string) float64 {
 // appBudgetCommand is hi app budget <name> [--month YYYY-MM]: the month,
 // spent, by who and model, and the plans' calls in tokens.
 func appBudgetCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi app budget <name> [--month YYYY-MM]"}
+	usage := usageError{"usage: hi app budget <name> [--month YYYY-MM]\n       hi app budget <name> [--monthly <usd>|off] [--daily <usd>|off]"}
 	if len(args) == 0 {
 		return usage
 	}
 	name := args[0]
 	month := time.Now().UTC().Format("2006-01")
+	var monthly, daily *float64
 	for i := 1; i < len(args); i++ {
-		switch {
-		case args[i] == "--month" && i+1 < len(args):
-			i++
-			month = args[i]
-		case strings.HasPrefix(args[i], "--month="):
-			month = strings.TrimPrefix(args[i], "--month=")
+		arg := args[i]
+		value := func() (string, bool) {
+			if _, after, ok := strings.Cut(arg, "="); ok {
+				return after, true
+			}
+			if i+1 < len(args) {
+				i++
+				return args[i], true
+			}
+			return "", false
+		}
+		flag, _, _ := strings.Cut(arg, "=")
+		text, ok := value()
+		if !ok {
+			return usage
+		}
+		switch flag {
+		case "--month":
+			month = text
+		case "--monthly", "--daily":
+			n, err := parseBudget(text)
+			if err != nil {
+				return err
+			}
+			if flag == "--monthly" {
+				monthly = &n
+			} else {
+				daily = &n
+			}
 		default:
 			return usage
 		}
+	}
+	if monthly != nil || daily != nil {
+		if _, err := loadTeam(name); err != nil {
+			return err
+		}
+		appSumModelCalls(name)
+		said, err := appSetBudget(name, monthly, daily, vaultActor())
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(stdout, said)
+		return nil
 	}
 	if _, err := time.Parse("2006-01", month); err != nil {
 		return fmt.Errorf("%q isn't a month: YYYY-MM, such as %s", month, time.Now().UTC().Format("2006-01"))
@@ -673,6 +709,30 @@ func appBudgetCommand(args []string, stdout io.Writer) error {
 	spend := appModelSpend(name, month)
 	at, _ := time.Parse("2006-01", month)
 	fmt.Fprintf(stdout, "App %s, %s: %s on models through hi, in %d calls.\n", name, at.Format("January 2006"), formatDollars(spend.USD), spend.Calls)
+	if config, err := loadTeam(name); err == nil && month == time.Now().UTC().Format("2006-01") {
+		state := appBudgetStateOf(config, time.Now())
+		switch {
+		case state.Monthly == 0 && state.Daily == 0:
+			fmt.Fprintf(stdout, "No budget: hi app budget %s --monthly <usd> sets one.\n", name)
+		default:
+			if state.Monthly > 0 {
+				fmt.Fprintf(stdout, "Budget: %s a month, %d%% spent.\n", formatDollars(state.Monthly), int(100*state.MonthUSD/state.Monthly))
+			}
+			if state.Daily > 0 {
+				fmt.Fprintf(stdout, "Today: %s of %s a day.\n", formatDollars(state.DayUSD), formatDollars(state.Daily))
+			}
+			if state.Message != "" {
+				fmt.Fprintln(stdout, state.Message)
+			}
+		}
+		if counts := appManagedKeyCounts(config); counts != nil {
+			line := fmt.Sprintf("OpenRouter counts %s this month on the key hi made for it", formatDollars(counts.UsageMonthly))
+			if counts.Limit != nil {
+				line += fmt.Sprintf(", of its %s limit", formatDollars(*counts.Limit))
+			}
+			fmt.Fprintln(stdout, line+".")
+		}
+	}
 	table := func(title string, rows []modelSpendRow, dollars bool) {
 		if len(rows) == 0 {
 			return

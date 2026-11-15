@@ -278,6 +278,12 @@ func chatGPTForOpenRouter(fields map[string]json.RawMessage) {
 // refusal, when this call had one: it goes back as it was if there is no
 // OpenRouter key to fall back on.
 func (f *boxFallback) serve(w http.ResponseWriter, r *http.Request, body []byte, refused *boxHeldResponse) {
+	// OpenRouter costs money: not past the app's budget (model_budget.go).
+	if message := appBudgetStop(boxBudgetPath(f.keys), time.Now()); message != "" {
+		f.log.record("budget-refused", r.URL.Path)
+		appBudgetRefuse(w, r, message)
+		return
+	}
 	var fields map[string]json.RawMessage
 	model := ""
 	if json.Unmarshal(body, &fields) == nil {

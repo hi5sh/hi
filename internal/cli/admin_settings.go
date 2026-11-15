@@ -565,6 +565,9 @@ type adminMachineKeys struct {
 	ChatGPT    bool                `json:"chatgpt"`
 	CodexKey   bool                `json:"codex_key"`
 	Apps       []adminAppKeysInUse `json:"apps"`
+	// Management says the vault has an OpenRouter management key, which
+	// makes the apps keys of their own (model_keys.go).
+	Management bool `json:"management"`
 }
 
 type adminAppKeysInUse struct {
@@ -586,6 +589,8 @@ func adminMachineKeysOf() adminMachineKeys {
 		use := adminAppKeysInUse{App: app, OpenRouter: map[bool]string{true: "own", false: "machine"}[secrets.OpenRouterAPIKey != ""]}
 		if config, err := loadTeam(app); err == nil && config.OpenRouterFrom != "" {
 			use.OpenRouter = config.OpenRouterFrom
+		} else if err == nil && config.OpenRouterManaged != "" {
+			use.OpenRouter = "managed"
 		}
 		for _, member := range config.Members {
 			if member.Agent == "claude" {
@@ -676,6 +681,43 @@ func (s *adminServer) settingsRoutes(mux *http.ServeMux, reply func(http.Respons
 		reply(w, http.StatusOK, map[string]any{"done": done, "failed": failed})
 	}))
 	mux.HandleFunc("GET /api/keys", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
-		reply(w, http.StatusOK, adminMachineKeysOf())
+		keys := adminMachineKeysOf()
+		keys.Management = openRouterManagementKey() != ""
+		reply(w, http.StatusOK, keys)
+	}))
+	mux.HandleFunc("POST /api/openrouter-management", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			Key    string `json:"key"`
+			Forget bool   `json:"forget"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		if !admin.Machine {
+			reply(w, http.StatusForbidden, map[string]string{"error": "the machine's admins set its OpenRouter management key"})
+			return
+		}
+		store, err := openVault()
+		if err != nil {
+			reply(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+		if request.Forget {
+			if _, err := store.purge(openRouterManagementPath); err != nil {
+				reply(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+				return
+			}
+			vaultAudit(admin.orgName(), "vault.openrouter-management", openRouterManagementPath, "forgotten")
+			adminRecord(admin.Name, "", "forgot the OpenRouter management key")
+			reply(w, http.StatusOK, map[string]string{"text": "The management key is forgotten; the keys hi made stay, as the apps' own. Delete it at OpenRouter too."})
+			return
+		}
+		said, err := openRouterSetManagement(store, request.Key, admin.orgName())
+		if err != nil {
+			reply(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		adminRecord(admin.Name, "", "set the OpenRouter management key")
+		reply(w, http.StatusOK, map[string]string{"text": said})
 	}))
 }

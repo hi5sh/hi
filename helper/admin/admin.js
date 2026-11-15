@@ -553,7 +553,7 @@ function renderOverview() {
     parts.push(el("p", { class: "note warn" }, (stopped.frozen ? "Frozen" : "Paused") + (stopped.by ? " by " + stopped.by : "") + (stopped.at ? ", " + ago(stopped.at) : "") + (stopped.because ? ": " + stopped.because : "") + "."));
   }
   if (d.error) parts.push(el("p", { class: "error" }, d.error));
-  parts.push(el("p", { class: "small" }, el("span", { class: "muted" }, "Models this month: "), dollars(d.month_usd), " ",
+  parts.push(el("p", { class: "small" }, el("span", { class: "muted" }, "Models this month: "), dollars(d.month_usd), d.budget_monthly ? " of " + dollars(d.budget_monthly) : "", " ",
     el("button", { class: "link-button", "data-nav": "", onclick: () => showSection("spend") }, "Spend")));
 
   // Where it is.
@@ -2382,17 +2382,19 @@ function renderDraft() {
       break;
     case "models": {
       const shared = m.shared || [];
-      let way = d.own_key ? "own" : c.openrouter_from ? "shared" : shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
+      let way = d.own_key ? "own" : d.openrouter_managed ? "managed" : c.openrouter_from ? "shared" : m.managed && !d.done.models ? "managed" : shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
       const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…", disabled: way !== "own" });
       const pick = el("select", { id: "s-orshared", "aria-label": "The shared key", disabled: way !== "shared" }, ...shared.map((n) => el("option", { value: n, selected: c.openrouter_from === "shared/" + n }, "shared/" + n)));
-      const choices = [["machine", "This machine's key, Hermes'", !m.openrouter]];
+      const choices = [];
+      if (m.managed) choices.push(["managed", "A key of its own that hi makes at OpenRouter, with its budget as the limit there"]);
+      choices.push(["machine", "This machine's key, Hermes'", !m.openrouter]);
       if (shared.length) choices.push(["shared", "A shared key from the vault: one key several apps use, changed in one place"]);
       choices.push(["own", "A key of the app's own (openrouter.ai/settings/keys)"]);
       body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; a shared key or this machine's counts it together with the other apps on it. No box ever holds it."),
         radios("s-or", choices, way, (v) => { way = v; key.disabled = way !== "own"; pick.disabled = way !== "shared"; if (way === "own") key.focus(); }));
       if (shared.length) body.append(field("The shared key", pick));
       body.append(field("The app's OpenRouter key", key));
-      collect = () => ({ own_key: way === "own", openrouter_key: key.value.trim(), openrouter_from: way === "shared" && pick.value ? "shared/" + pick.value : "" });
+      collect = () => ({ own_key: way === "own", openrouter_key: key.value.trim(), openrouter_from: way === "shared" && pick.value ? "shared/" + pick.value : "", openrouter_managed: way === "managed" });
       break;
     }
     case "code":
@@ -2683,7 +2685,7 @@ function renderReview(body, d) {
     const x = c.members[role];
     fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · falls back to " + x.fallback : ""));
   }
-  fact("OpenRouter", d.own_key ? "the app's own key" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
+  fact("OpenRouter", d.own_key ? "the app's own key" : d.openrouter_managed ? "a key of its own, made by hi at OpenRouter" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
   fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
   if (d.code.gitlab) fact("GitLab", d.code.gitlab);
@@ -2798,6 +2800,31 @@ let spendMonth = "";
 const tokens = (n) => (n = Number(n) || 0) >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n);
 const monthName = (m) => { const [y, mo] = m.split("-"); return new Date(Date.UTC(+y, +mo - 1, 1)).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" }); };
 
+// spendBudget is the app's budget: how much of it is spent, and, for the
+// machine's admins, a form to change it.
+function spendBudget(s) {
+  const b = s.budget || {};
+  const box = el("div", { class: "machine-block" });
+  if (b.monthly) box.append(meter("This month", b.month_usd / b.monthly, dollars(b.month_usd) + " of " + dollars(b.monthly)));
+  if (b.daily) box.append(meter("Today", b.day_usd / b.daily, dollars(b.day_usd) + " of " + dollars(b.daily)));
+  if (!b.monthly && !b.daily) box.append(el("p", { class: "muted small" }, "No budget: the app's calls that cost money aren't stopped at any amount."));
+  if (b.stopped) box.append(el("p", { class: "warn small" }, b.message));
+  if (!s.may_change) return box;
+  const monthly = el("input", { type: "number", min: "0", step: "1", placeholder: "Monthly, $", value: b.monthly || "", "aria-label": "Monthly budget in dollars" });
+  const daily = el("input", { type: "number", min: "0", step: "1", placeholder: "Daily, $ (optional)", value: b.daily || "", "aria-label": "Daily budget in dollars" });
+  const form = el("form", { class: "signin-row spend-budget", autocomplete: "off" }, monthly, daily, el("button", { class: "small", type: "submit" }, "Set the budget"));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const answer = await api("/api/app/spend", { name: s.name, monthly: Number(monthly.value) || 0, daily: Number(daily.value) || 0 });
+      toast(answer.text, true);
+      refreshSettings();
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  });
+  box.append(form, el("p", { class: "muted small" }, "At the budget hi stops the app's calls that cost money, its agents' and its code's; calls a Claude or ChatGPT plan pays go on. Its ops channel hears at 80% and 100%. Empty, or 0, is none."));
+  return box;
+}
+
 function sectionSpend(s) {
   const sp = s.spend;
   const parts = [el("p", { class: "purpose" }, "What the app's model calls cost through hi: its agents', its dev box's, and its own code's in production and the preview, whichever key paid. Calls a Claude or ChatGPT sign-in paid count in tokens, not dollars.")];
@@ -2806,6 +2833,9 @@ function sectionSpend(s) {
   const pick = el("select", { "aria-label": "Month" }, ...months.map((m) => el("option", { value: m, selected: m === sp.month }, monthName(m))));
   pick.addEventListener("change", () => { spendMonth = pick.value; refreshSettings(); });
   parts.push(el("div", { class: "data-actions spend-head" }, el("strong", { class: "spend-total" }, dollars(sp.usd)), el("span", { class: "muted small" }, sp.calls + (sp.calls === 1 ? " call" : " calls")), el("span", { class: "grow" }), pick));
+  parts.push(spendBudget(s));
+  if (s.openrouter) parts.push(el("p", { class: "muted small" }, "OpenRouter counts " + dollars(s.openrouter.usage_monthly) + " this month on the key hi made for it" +
+    (s.openrouter.limit != null ? ", of its " + dollars(s.openrouter.limit) + " limit there" : "") + (s.openrouter.disabled ? ", which is disabled" : "") + "."));
   if (!sp.calls) {
     parts.push(el("p", { class: "muted small" }, "No model calls through hi this month yet. An agent's calls count from its box's next start on this hi."));
     return parts;
@@ -3813,6 +3843,27 @@ async function vaultShowRecovery() {
   vaultDo({ action: "recovery-saved", words: values.map((w) => w.trim()) });
 }
 
+// managementLine is the OpenRouter management key: set or not, and Set or
+// Forget for the machine's admins.
+function managementLine(k) {
+  const row = el("p", { class: "small incident-head" }, el("span", { class: "dot " + (k.management ? "idle" : ""), "aria-hidden": "true" }),
+    el("strong", {}, "OpenRouter management key"), ": " + (k.management ? "set, so hi makes each app a key of its own" : "not set"), " ");
+  if (!(state && state.me && state.me.machine)) return row;
+  row.append(el("button", { class: "link-button", onclick: async () => {
+    if (k.management) {
+      if (!(await ask({ title: "Forget the management key?", text: "The keys hi made stay, as the apps' own; hi makes no new ones. Delete it at OpenRouter too.", ok: "Forget it" }))) return;
+      try { toast((await api("/api/openrouter-management", { forget: true })).text, true); refreshMachineKeys(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+      return;
+    }
+    const values = await vaultForm({ title: "OpenRouter management key", ok: "Save", fields: [{ label: "The management key", type: "password" }],
+      text: "Made at openrouter.ai/settings/management-keys, read and write. It can't make model calls; with it hi makes each app a key of its own, with the app's budget as its limit. It's kept in the vault.",
+      live: (v) => ({ ok: v[0].trim().length > 10, bad: [], hint: "" }) });
+    if (!values) return;
+    try { toast((await api("/api/openrouter-management", { key: values[0].trim() })).text, true); refreshMachineKeys(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
+  } }, k.management ? "Forget" : "Set"));
+  return row;
+}
+
 async function refreshMachineKeys() {
   try { machineKeys = await api("/api/keys"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
@@ -3825,14 +3876,15 @@ function machineKeysBlock() {
   box.append(el("h2", {}, "This machine's"), el("div", { class: "machine-block" },
     line("OpenRouter, Hermes'", k.openrouter, "hermes setup, on the machine"),
     line("Claude Code's sign-in", k.claude, "claude, then /login, on the machine"),
-    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine")),
+    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine"),
+    managementLine(k)),
     el("p", { class: "muted small" }, "Apps without their own use these. An app's own are in its Agents section."));
   if (k.apps.length) {
     const table = el("table", { class: "people-matrix" });
     table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT")));
     for (const a of k.apps) {
       table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
-        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
+        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || v === "managed" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "managed" ? "its own, hi made" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
     }
     box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
   }

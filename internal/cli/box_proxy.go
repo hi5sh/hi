@@ -195,7 +195,7 @@ func runBoxProxy(args []string, stderr io.Writer) int {
 			errs <- http.ListenAndServe(fmt.Sprintf(":%d", boxInjectPort), newBoxGeminiInjector(keyFile, geminiAPIUpstream, log))
 		}()
 	} else if env, ok := strings.CutPrefix(args[2], "openrouter:"); ok {
-		var inject http.Handler = newBoxOpenRouterInjector(env, "https://openrouter.ai", log)
+		var inject http.Handler = boxBudgetGate(newBoxOpenRouterInjector(env, "https://openrouter.ai", log), boxBudgetPath(env), log)
 		if token := os.Getenv(boxChatGPTEnv); token != "" {
 			// A team's roles on ChatGPT call its Codex endpoint here; the
 			// rest is OpenRouter. The lead's calls name Hermes; a member's

@@ -706,6 +706,8 @@ func (b *appBroker) keepLinks(done <-chan struct{}, stderr io.Writer) {
 		// What the minute's model calls used and cost (model_calls.go).
 		if err := appSumModelCalls(b.team); err != nil {
 			fmt.Fprintf(stderr, "hi: the app's model calls: %v\n", err)
+		} else if err := appWriteBudget(b.team, time.Now()); err != nil {
+			fmt.Fprintf(stderr, "hi: the app's model budget: %v\n", err)
 		}
 		if time.Since(failed) > 30*time.Minute && b.productionNeedsWork() {
 			if state, ok := loadTeamSlot(b.team, appSlotProduction); ok {

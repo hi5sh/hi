@@ -2744,9 +2744,9 @@ Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
   dollars, key), monthly sums per app, `hi app budget <app>`, the page's
   Spend and the Overviews' month, the watcher on the call lines, and a
   shared key's check for spend outside hi.
-- [ ] Release 2, budgets: monthly and daily per app, every proxy refusing
+- [x] Release 2, budgets: monthly and daily per app, every proxy refusing
   paid calls at 100%, notices at 80% and 100%.
-- [ ] Release 3, keys hi makes: an OpenRouter management key in the vault,
+- [x] Release 3, keys hi makes: an OpenRouter management key in the vault,
   a key per app with its budget as the limit, disabled, deleted, rotated.
 
 ### v2.6.162 — An app's OpenRouter key from a shared key

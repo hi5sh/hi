@@ -606,7 +606,37 @@ func (s *adminServer) routes() http.Handler {
 		}
 		appSumModelCalls(name)
 		spend := appModelSpend(name, month)
-		reply(w, http.StatusOK, map[string]any{"name": name, "spend": spend})
+		config, _ := loadTeam(name)
+		answer := map[string]any{"name": name, "spend": spend, "budget": appBudgetStateOf(config, time.Now()), "may_change": admin.Machine}
+		if counts := appManagedKeyCounts(config); counts != nil && month == time.Now().UTC().Format("2006-01") {
+			answer["openrouter"] = counts
+		}
+		reply(w, http.StatusOK, answer)
+	}))
+	mux.HandleFunc("POST /api/app/spend", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		var request struct {
+			Name    string   `json:"name"`
+			Monthly *float64 `json:"monthly"`
+			Daily   *float64 `json:"daily"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		if !admin.Machine {
+			reply(w, http.StatusForbidden, map[string]string{"error": "the machine's admins set an app's budget"})
+			return
+		}
+		if !appNamePattern.MatchString(request.Name) {
+			reply(w, http.StatusNotFound, map[string]string{"error": "no such app"})
+			return
+		}
+		appSumModelCalls(request.Name)
+		said, err := appSetBudget(request.Name, request.Monthly, request.Daily, admin.Name)
+		if err != nil {
+			reply(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{"text": said})
 	}))
 	return adminHeaders(mux)
 }
@@ -827,8 +857,10 @@ type adminAppView struct {
 	Addresses       []adminAddress `json:"addresses"`
 	Joined          bool           `json:"joined"` // its peer is on NetBird, which every address goes through
 	Error           string         `json:"error,omitempty"`
-	// MonthUSD is what its model calls cost through hi this month.
-	MonthUSD float64 `json:"month_usd"`
+	// MonthUSD is what its model calls cost through hi this month, and
+	// BudgetMonthly its monthly budget, if it has one.
+	MonthUSD      float64 `json:"month_usd"`
+	BudgetMonthly float64 `json:"budget_monthly,omitempty"`
 }
 
 type adminAddress struct {
@@ -878,6 +910,9 @@ func adminAppOf(name string) adminAppView {
 		}
 	}
 	view.MonthUSD = appMonthUSD(name)
+	if config.ModelBudget != nil {
+		view.BudgetMonthly = config.ModelBudget.Monthly
+	}
 	return view
 }
 

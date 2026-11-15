@@ -107,8 +107,14 @@ type appConfig struct {
 	// OpenRouterFrom is "shared/<name>" when the app's agents use a shared
 	// key as their OpenRouter key, by reference (hi app key <app>
 	// openrouter --from shared/<name>).
-	OpenRouterFrom string              `json:"openrouter_from,omitempty"`
-	EnvOverride    map[string][]string `json:"env_override,omitempty"`
+	OpenRouterFrom string `json:"openrouter_from,omitempty"`
+	// OpenRouterManaged is the hash of the key hi made for the app with
+	// the machine's OpenRouter management key (model_keys.go).
+	OpenRouterManaged string `json:"openrouter_managed,omitempty"`
+	// ModelBudget is what the app's model calls may cost through hi, a
+	// month and a day (model_budget.go).
+	ModelBudget *appModelBudget     `json:"model_budget,omitempty"`
+	EnvOverride map[string][]string `json:"env_override,omitempty"`
 	// DevViewProductionOff, when set, says who turned the dev box's view
 	// of production off, and when (hi_app_dev_view.md).
 	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`
@@ -927,8 +933,11 @@ func (liveTeamSlack) channel(botToken, channel string) (string, bool, error) {
 // to clone instead of a new one.
 type appAnswers struct {
 	appConfig
-	Clone  string `json:"clone,omitempty"`
-	GitHub string `json:"github,omitempty"` // owner/name of a new private repository
+	// OpenRouter "managed" asks hi to make the app a key of its own at
+	// OpenRouter, with the machine's management key (model_keys.go).
+	OpenRouter string `json:"openrouter,omitempty"`
+	Clone      string `json:"clone,omitempty"`
+	GitHub     string `json:"github,omitempty"` // owner/name of a new private repository
 	// GitLab is group/name on gitlab.com, or host/group/name on a GitLab
 	// of one's own: a new private project there instead (app_gitlab.go).
 	GitLab string `json:"gitlab,omitempty"`
@@ -1101,6 +1110,14 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	if err := validateTeam(config); err != nil {
 		return err
 	}
+	if answers.OpenRouter == "managed" {
+		if openRouterManagementKey() == "" {
+			return errors.New("openrouter: managed needs the machine's OpenRouter management key (hi server openrouter --management-key)")
+		}
+		secrets.OpenRouterAPIKey, config.OpenRouterFrom = "", ""
+	} else if answers.OpenRouter != "" {
+		return fmt.Errorf("openrouter: %q isn't a way: managed, or leave it out", answers.OpenRouter)
+	}
 	if config.OpenRouterFrom != "" {
 		shared, ok := appSharedName(config.OpenRouterFrom)
 		if !ok || !slices.Contains(appSharedKeyNames(), shared) {
@@ -1108,7 +1125,7 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 		}
 		secrets.OpenRouterAPIKey = ""
 	}
-	if secrets.OpenRouterAPIKey == "" && config.OpenRouterFrom == "" {
+	if secrets.OpenRouterAPIKey == "" && config.OpenRouterFrom == "" && answers.OpenRouter != "managed" {
 		if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil || key == "" {
 			return errors.New(strings.ReplaceAll(appNoOpenRouterKey.Error(), "<name>", name))
 		}
@@ -1140,6 +1157,12 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 		os.RemoveAll(dir)
 		os.Remove(filepath.Join(appsDir(), name))
 		return err
+	}
+	if answers.OpenRouter == "managed" {
+		// A key of its own, made at OpenRouter now.
+		if err := appKeyOpenRouterManaged(config, false, stdout); err != nil {
+			fmt.Fprintf(stdout, "The app is set up, but hi didn't make its OpenRouter key: %v\nTry again with: hi app key %s openrouter --managed\n", err, name)
+		}
 	}
 	if shared, ok := appSharedName(config.OpenRouterFrom); ok {
 		// The new app may use the shared key it was made with.
@@ -1584,20 +1607,38 @@ func appWizard(name, dir string, adopt *appAdoption, stdin io.Reader, stdout io.
 	}
 	appSay(stdout, styled, "own (openrouter.ai/settings/keys), so its use is billed and limited apart, or press Enter for this",
 		"machine's (Hermes'). No box ever holds the key; nobody needs to paste one into Slack.")
-	if shared := appSharedKeyNames(); len(shared) > 0 {
-		appSay(stdout, styled, "Or a shared key from the server's vault, which several apps use and change in one place: "+strings.Join(shared, ", ")+".")
-		choice, err := appAskUntil(stdin, stdout, "OpenRouter key: a shared key's name, own for a key of its own [Enter: this machine's]", false, func(text string) error {
+	shared, managed := appSharedKeyNames(), openRouterManagementKey() != ""
+	if len(shared) > 0 || managed {
+		// The ways this machine offers, the first the default.
+		ways, words := []string{}, []string{}
+		if managed {
+			ways = append(ways, "made")
+			words = append(words, "made for a key of its own that hi makes at OpenRouter, with its budget as the limit")
+		}
+		if len(shared) > 0 {
+			words = append(words, "a shared key's name ("+strings.Join(shared, ", ")+"), one key several apps use")
+		}
+		words = append(words, "own for a key of its own you give")
+		appSay(stdout, styled, "Or: "+strings.Join(words, "; ")+".")
+		fallback := map[bool]string{true: "a key hi makes", false: "this machine's"}[managed]
+		choice, err := appAskUntil(stdin, stdout, "OpenRouter key [Enter: "+fallback+"]", false, func(text string) error {
 			text = strings.TrimPrefix(strings.TrimSpace(text), "shared/")
-			if text == "" || text == "own" || slices.Contains(shared, text) {
+			if text == "" || text == "own" || text == "machine" || slices.Contains(ways, text) || slices.Contains(shared, text) {
 				return nil
 			}
-			return fmt.Errorf("no shared key %s: %s, own, or Enter", text, strings.Join(shared, ", "))
+			return fmt.Errorf("%s isn't one: %s", text, strings.Join(append(append(ways, shared...), "own", "machine"), ", "))
 		})
 		if err != nil {
 			return answers, secrets, err
 		}
-		switch choice = strings.TrimPrefix(strings.TrimSpace(choice), "shared/"); choice {
-		case "":
+		choice = strings.TrimPrefix(strings.TrimSpace(choice), "shared/")
+		if choice == "" && managed {
+			choice = "made"
+		}
+		switch choice {
+		case "", "machine":
+		case "made":
+			answers.OpenRouter = "managed"
 		case "own":
 			if secrets.OpenRouterAPIKey, err = appAskOpenRouterKey(stdin, stdout, "OpenRouter key"); err != nil {
 				return answers, secrets, err
@@ -2485,6 +2526,9 @@ func appAdopt(folder string, stdout io.Writer) (string, error) {
 			return "", fmt.Errorf("its settings kept in the server's vault: %w", err)
 		}
 		fmt.Fprintln(stdout, "Its settings, kept in the server's vault since it was removed, are back.")
+		if said := appManagedKeyState(config, "enable"); said != "" {
+			fmt.Fprintf(stdout, "App %s: %s.\n", config.Name, said)
+		}
 	}
 	return config.Name, nil
 }
@@ -2635,6 +2679,8 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	link := filepath.Join(appsDir(), name)
 	_, linkErr := os.Lstat(link)
+	// Read before the folder goes: the key hi made at OpenRouter, if any.
+	removing, _ := loadTeam(name)
 	folder := ""
 	if config, err := loadTeam(name); err == nil {
 		folder = appDir(config.Name)
@@ -2697,6 +2743,14 @@ func appRemove(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	removeAppSettings(name)
 	kept := false
+	if removing.OpenRouterManaged != "" {
+		// The key hi made: deleted with the app's settings, else disabled
+		// until it's back.
+		action := map[bool]string{true: "delete", false: "disable"}[purge]
+		if said := appManagedKeyState(removing, action); said != "" {
+			fmt.Fprintf(stdout, "App %s: %s.\n", name, said)
+		}
+	}
 	if purge {
 		if _, err := vaultPurgeApp(name); err != nil {
 			return fmt.Errorf("the app is off this machine, but its settings stay in the server's vault: %w", err)

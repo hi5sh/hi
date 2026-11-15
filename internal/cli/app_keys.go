@@ -404,6 +404,12 @@ func newTeamModelsProxy(team, upstream, slot string) http.Handler {
 			http.Error(w, "only OpenRouter's API is here: "+fmt.Sprintf("http://127.0.0.1:%d/api/v1/...", appBoxModelsPort), http.StatusNotFound)
 			return
 		}
+		if appPaidCall(r) {
+			if message := appBudgetStop(appBudgetPath(team), time.Now()); message != "" {
+				appBudgetRefuse(w, r, "hi: "+message)
+				return
+			}
+		}
 		if slot == appSlotPreview {
 			if limit := appPreviewModelLimit(team); limit > 0 {
 				if spent := loadTeamPreviewSpend(team); spent.USD >= limit {
@@ -507,12 +513,12 @@ func appRelay(conn net.Conn, socket string) {
 
 // appKey is hi app key <name> openrouter [--unset], or slack.
 func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app key <name> openrouter [--unset | --from shared/<name>]\n       hi app key <name> slack"}
+	usage := usageError{"usage: hi app key <name> openrouter [--unset | --from shared/<name> | --managed | --rotate]\n       hi app key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return appKeySlack(args[0], stdin, stdout)
 	}
 	var words []string
-	unset, fromServer := false, false
+	unset, fromServer, managed, rotate := false, false, false, false
 	from := ""
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -521,6 +527,10 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 			unset = true
 		case arg == "--from-server":
 			fromServer = true
+		case arg == "--managed":
+			managed = true
+		case arg == "--rotate":
+			rotate = true
 		case arg == "--from" && i+1 < len(args):
 			i++
 			from = args[i]
@@ -549,8 +559,14 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	if from != "" {
 		return appKeyOpenRouterFrom(config, secrets, from, stdout)
 	}
-	if config.OpenRouterFrom != "" {
-		config.OpenRouterFrom = ""
+	if managed || rotate {
+		return appKeyOpenRouterManaged(config, rotate, stdout)
+	}
+	if config.OpenRouterFrom != "" || config.OpenRouterManaged != "" {
+		if said := appManagedKeyState(config, "delete"); said != "" {
+			fmt.Fprintln(stdout, strings.ToUpper(said[:1])+said[1:]+".")
+		}
+		config.OpenRouterFrom, config.OpenRouterManaged = "", ""
 		if err := saveTeam(config); err != nil {
 			return err
 		}
@@ -1147,6 +1163,12 @@ func appKeyOpenRouterFrom(config appConfig, secrets appSecrets, from string, std
 		return fmt.Errorf("shared/%s isn't shared to app %s; an admin shares it: hi server vault shared give %s %s", name, config.Name, name, config.Name)
 	}
 	config.OpenRouterFrom = "shared/" + name
+	if config.OpenRouterManaged != "" {
+		if said := appManagedKeyState(config, "delete"); said != "" {
+			fmt.Fprintln(stdout, strings.ToUpper(said[:1])+said[1:]+".")
+		}
+		config.OpenRouterManaged = ""
+	}
 	key, _, problem := appOwnOpenRouter(config, appSecrets{})
 	if problem != "" {
 		return errors.New(problem)

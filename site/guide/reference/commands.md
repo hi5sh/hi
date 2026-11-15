@@ -341,6 +341,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
 | `hi app channel <name> [--since 2h]`     | What was said in the app's channel, threads and shared files included |
 | `hi app key <name> openrouter [--unset]` | Give the app an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
+| `hi app key <name> openrouter --managed` | A key of the app's own that hi makes at OpenRouter with the machine's management key, its monthly budget as the key's limit; `--rotate` makes a new one and deletes the old |
 | `hi app key <name> openrouter --from shared/<name>` | The app's agents use a shared key as their OpenRouter key, by reference, in place of its own: a new value reaches them within a minute. It must be shared to the app first |
 | `hi app signin <name> chatgpt [--machine]` | Sign the app in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the app's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
 | `hi app signin <name> claude [--machine]` | The app's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the app's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
@@ -363,6 +364,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app helper <name> [stage|production on|off]` | Whether the app's pages have the helper, help and feedback beside the page, or turn it on or off for an address from the next page load |
 | `hi app snapshot <name>`                 | Take a snapshot now of the lead's memory, the app's record, and production's data; the app keeps running. It takes one daily and before every release too |
 | `hi app snapshots <name>`                | List the snapshots: when, why, their size, and whether they are offsite |
+| `hi app budget <name> --monthly <usd>\|off [--daily <usd>\|off]` | The app's model budget: at it, hi stops its calls that cost money (a plan's go on); its ops channel hears at 80% and 100% |
 | `hi app budget <name> [--month YYYY-MM]` | What the app's model calls cost through hi this month (or another): by who made them and by model, with tokens; a Claude or ChatGPT plan's calls in tokens ([What an app spends](/guide/app/spend/)) |
 | `hi app restore <name> <snapshot> [--code] [--yes]` | Put the app back as it was in a snapshot (its ID, `latest`, `v3` for the one before v3, or a day); asks first, and takes a snapshot of now so it can be undone; `--code` puts `repo/` back too |
 | `hi app restore <name> [<snapshot>] --from s3:https://<host>/<bucket>[/<path>] [--region <region>] [--folder <folder>]` | After losing the machine: bring the app back on this one from its offsite copy, with the bucket's keys and the old machine's recovery key, which open the snapshot key hi keeps sealed beside the copy. Its snapshots come into a repository here, the latest (or the one named) into a new folder; its settings and tokens are set again |
@@ -547,6 +549,7 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault shared set <name>` | A key several apps use, such as one OpenRouter key, asked without echo; a new value reaches every app that uses it within a minute |
 | `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
 | `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
+| `hi server openrouter [--management-key \| --forget]` | The OpenRouter management key in the vault (asked without echo), with which hi makes each app a key of its own; without an option, the keys hi made and what OpenRouter counts on each |
 | `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--namespace <ns>] [--ca <file>]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
 | `hi server vault disconnect <prefix>` | Stop reading it, and forget the login; refused while an app takes from it |
 | `hi server vault login [<prefix>] [--new-key]` | Whether hi logs in to each team store, and what to hand its owners; `--new-key` makes a new key pair, the old one working until they swap it |
