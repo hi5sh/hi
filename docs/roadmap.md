@@ -2736,7 +2736,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
-### Next — The vault in the middle
+### v2.6.156 — The vault in the middle
 
 - [x] The admin page's Vault is a tab of the server's, beside Overview,
   in the middle; the banner's Unlock opens it, and the left panel's Keys
