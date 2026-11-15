@@ -148,3 +148,68 @@ func TestVaultSharedSetApps(t *testing.T) {
 		t.Fatal(grant.Apps)
 	}
 }
+
+// An app's agents use a shared key as their OpenRouter key, by reference:
+// the app's own goes, the proxy gets the shared value and each new one,
+// and taking it back falls back to this machine's.
+func TestAppOpenRouterFromShared(t *testing.T) {
+	setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	b := newTeamTestBroker(t)
+	saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1", OpenRouterAPIKey: "sk-or-own"})
+	saved := appCheckOpenRouterKey
+	t.Cleanup(func() { appCheckOpenRouterKey = saved })
+	appCheckOpenRouterKey = func(string) error { return nil }
+	vaultSharedSet("openrouter", "sk-or-shared-1", "ana")
+	var out bytes.Buffer
+	if err := appKey([]string{"payments", "openrouter", "--from", "shared/openrouter"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "isn't shared to app payments") {
+		t.Fatal(err)
+	}
+	vaultSharedGive("openrouter", []string{"payments"}, false, "ana")
+	if err := appKey([]string{"payments", "openrouter", "--from", "shared/openrouter"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "use shared/openrouter now") || !strings.Contains(out.String(), "revoke it there") {
+		t.Fatal(out.String())
+	}
+	config, _ := loadTeam("payments")
+	secrets, _ := loadTeamSecrets("payments")
+	if config.OpenRouterFrom != "shared/openrouter" || secrets.OpenRouterAPIKey != "" {
+		t.Fatal(config.OpenRouterFrom, secrets.OpenRouterAPIKey)
+	}
+	file := filepath.Join(appKeysDir("payments"), "openrouter.env")
+	if data, _ := os.ReadFile(file); string(data) != "OPENROUTER_API_KEY=sk-or-shared-1\n" {
+		t.Fatal(string(data))
+	}
+	if key, _ := appOpenRouterKey("payments"); key != "sk-or-shared-1" {
+		t.Fatal(key)
+	}
+	if state := appOpenRouterState("payments", secrets); state != "From shared/openrouter" {
+		t.Fatal(state)
+	}
+	// A new value reaches the proxy with the minute's settings.
+	vaultSharedSet("openrouter", "sk-or-shared-2", "ana")
+	b.syncSettings(io.Discard)
+	if data, _ := os.ReadFile(file); string(data) != "OPENROUTER_API_KEY=sk-or-shared-2\n" {
+		t.Fatal(string(data))
+	}
+	// It's in use: it can't be removed, nor taken back on the page.
+	if _, err := vaultSharedRemove("openrouter", "ana"); err == nil {
+		t.Fatal("removed a key an app's agents use")
+	}
+	if _, err := vaultSharedSetApps("openrouter", nil, "ana"); err == nil {
+		t.Fatal("took it back from an app that uses it")
+	}
+	// Back to this machine's key.
+	if err := appKey([]string{"payments", "openrouter", "--unset"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	config, _ = loadTeam("payments")
+	if config.OpenRouterFrom != "" || fileExists(file) {
+		t.Fatal(config.OpenRouterFrom)
+	}
+	if audit := vaultAuditText(t); strings.Contains(audit, "sk-or") {
+		t.Fatal("a key in the audit log")
+	}
+}

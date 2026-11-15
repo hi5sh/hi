@@ -351,6 +351,14 @@ func (b *appBroker) syncSettings(stderr io.Writer) {
 		return
 	}
 	kind, signal, _ := appOnSettingsChange(config.OnSettingsChange)
+	// A shared OpenRouter key's new value reaches the proxy as settings do.
+	if config.OpenRouterFrom != "" {
+		if secrets, err := loadTeamSecrets(b.team); err == nil {
+			if err := writeTeamKeys(b.team, secrets); err != nil {
+				fmt.Fprintf(stderr, "hi: the app's OpenRouter key: %v\n", err)
+			}
+		}
+	}
 	for _, slot := range []string{appSlotPreview, appSlotProduction} {
 		state, ok := loadTeamSlot(b.team, slot)
 		if !ok || state.Container == "" || b.running == nil || !b.running(state.Container) {

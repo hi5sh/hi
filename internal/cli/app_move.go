@@ -910,7 +910,7 @@ func appMoveNeedsOf(name, folder string) appMoveNeeds {
 	config, _ := loadTeam(name)
 	secrets, _ := loadTeamSecrets(name)
 	needs := appMoveNeeds{App: name, Folder: folder, Size: appMoveSize(appDir(name)) + appMoveSize(appSnapshotsDir(name)), Version: version,
-		MachineKey: secrets.OpenRouterAPIKey == "", Domain: appHTTPSDomain(name), GitHub: config.Remote != ""}
+		MachineKey: secrets.OpenRouterAPIKey == "" && config.OpenRouterFrom == "", Domain: appHTTPSDomain(name), GitHub: config.Remote != ""}
 	if needs.Domain == "" {
 		needs.Domain = appSlotDomainSetting(name)
 	}

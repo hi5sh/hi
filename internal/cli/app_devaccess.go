@@ -1004,9 +1004,24 @@ func appDevKeys(team string) []appDevKeyStatus {
 		}
 	}
 	return []appDevKeyStatus{
-		{Name: "OpenRouter key", State: own(secrets.OpenRouterAPIKey != "", "The app's own", "This machine's"), Command: "hi app key " + team + " openrouter"},
+		{Name: "OpenRouter key", State: appOpenRouterState(team, secrets), Command: "hi app key " + team + " openrouter"},
 		{Name: "Claude", State: claude, Command: "hi app signin " + team + " claude"},
 		{Name: "ChatGPT", State: own(secrets.ChatGPT != nil, "The app's own sign-in", "This machine's sign-in (Codex's)"), Command: "hi app signin " + team + " chatgpt"},
 		{Name: "Slack tokens", State: own(secrets.SlackBotToken != "" && secrets.SlackAppToken != "", "Set", "Missing"), Command: "hi app key " + team + " slack"},
 	}
+}
+
+// appOpenRouterState says which OpenRouter key the app's agents use.
+func appOpenRouterState(team string, secrets appSecrets) string {
+	config, _ := loadTeam(team)
+	if config.OpenRouterFrom != "" {
+		if _, _, problem := appOwnOpenRouter(config, secrets); problem != "" {
+			return "From " + config.OpenRouterFrom + ", which gives nothing: " + problem
+		}
+		return "From " + config.OpenRouterFrom
+	}
+	if secrets.OpenRouterAPIKey != "" {
+		return "The app's own"
+	}
+	return "This machine's"
 }

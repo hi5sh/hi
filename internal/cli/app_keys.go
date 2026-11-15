@@ -82,6 +82,8 @@ func appKeysDir(name string) string { return filepath.Join(appDir(name), "run", 
 // or removes it, so the proxy takes this machine's again; and the same
 // for its Claude token.
 func writeTeamKeys(name string, secrets appSecrets) error {
+	config, _ := loadTeam(name)
+	own, _, _ := appOwnOpenRouter(config, secrets)
 	dir := appKeysDir(name)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
@@ -97,20 +99,54 @@ func writeTeamKeys(name string, secrets appSecrets) error {
 		return err
 	}
 	file := filepath.Join(dir, "openrouter.env")
-	if secrets.OpenRouterAPIKey == "" {
+	if own == "" {
 		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		return nil
 	}
-	return os.WriteFile(file, []byte("OPENROUTER_API_KEY="+secrets.OpenRouterAPIKey+"\n"), 0o600)
+	content := []byte("OPENROUTER_API_KEY=" + own + "\n")
+	if old, err := os.ReadFile(file); err == nil && string(old) == string(content) {
+		return nil
+	}
+	return writeFileAtomic(file, content, 0o600)
+}
+
+// appOwnOpenRouter is the OpenRouter key the app's agents use instead of
+// this machine's: a shared key it references, while it's given to the
+// app, else its own; "" is this machine's. from names the shared key;
+// problem says why a reference gives nothing.
+func appOwnOpenRouter(config appConfig, secrets appSecrets) (key, from, problem string) {
+	if config.OpenRouterFrom == "" {
+		return secrets.OpenRouterAPIKey, "", ""
+	}
+	from = config.OpenRouterFrom
+	name, ok := appSharedName(from)
+	if !ok {
+		return secrets.OpenRouterAPIKey, from, from + " isn't a shared key"
+	}
+	if grant := loadVaultShared()[name]; grant == nil || !slices.Contains(grant.Apps, config.Name) {
+		return secrets.OpenRouterAPIKey, from, from + " isn't shared to the app"
+	}
+	store, err := openVault()
+	if err != nil {
+		return secrets.OpenRouterAPIKey, from, err.Error()
+	}
+	data, _, found, err := store.get(vaultSharedPath(name))
+	if err != nil || !found || data.Values["value"] == "" {
+		return secrets.OpenRouterAPIKey, from, from + " has no value"
+	}
+	return data.Values["value"], from, ""
 }
 
 // appOpenRouterKey is the team's own key, or else this machine's, from
 // Hermes' .env.
 func appOpenRouterKey(name string) (string, error) {
-	if secrets, err := loadTeamSecrets(name); err == nil && secrets.OpenRouterAPIKey != "" {
-		return secrets.OpenRouterAPIKey, nil
+	config, _ := loadTeam(name)
+	if secrets, err := loadTeamSecrets(name); err == nil {
+		if own, _, _ := appOwnOpenRouter(config, secrets); own != "" {
+			return own, nil
+		}
 	}
 	return readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY")
 }
@@ -470,18 +506,25 @@ func appRelay(conn net.Conn, socket string) {
 
 // appKey is hi app key <name> openrouter [--unset], or slack.
 func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app key <name> openrouter [--unset]\n       hi app key <name> slack"}
+	usage := usageError{"usage: hi app key <name> openrouter [--unset | --from shared/<name>]\n       hi app key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return appKeySlack(args[0], stdin, stdout)
 	}
 	var words []string
 	unset, fromServer := false, false
-	for _, arg := range args {
-		switch arg {
-		case "--unset":
+	from := ""
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--unset":
 			unset = true
-		case "--from-server":
+		case arg == "--from-server":
 			fromServer = true
+		case arg == "--from" && i+1 < len(args):
+			i++
+			from = args[i]
+		case strings.HasPrefix(arg, "--from="):
+			from = strings.TrimPrefix(arg, "--from=")
 		default:
 			words = append(words, arg)
 		}
@@ -494,12 +537,22 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 		return usage
 	}
 	name := words[0]
-	if _, err := loadTeam(name); err != nil {
+	config, err := loadTeam(name)
+	if err != nil {
 		return err
 	}
 	secrets, err := loadTeamSecrets(name)
 	if err != nil {
 		return fmt.Errorf("the app's secrets: %w", err)
+	}
+	if from != "" {
+		return appKeyOpenRouterFrom(config, secrets, from, stdout)
+	}
+	if config.OpenRouterFrom != "" {
+		config.OpenRouterFrom = ""
+		if err := saveTeam(config); err != nil {
+			return err
+		}
 	}
 	if unset {
 		secrets.OpenRouterAPIKey = ""
@@ -1078,3 +1131,48 @@ func appEnvNames(secrets appSecrets) []string {
 
 // appStampVersion is the hi in appSettingsStamp; tests change it.
 var appStampVersion = version
+
+// appKeyOpenRouterFrom points the app's agents at a shared key as their
+// OpenRouter key, and drops the app's own: one key to change for every
+// app that uses it.
+func appKeyOpenRouterFrom(config appConfig, secrets appSecrets, from string, stdout io.Writer) error {
+	name, ok := appSharedName(from)
+	if !ok {
+		return fmt.Errorf("--from takes a shared key, shared/<name>; %q isn't one", from)
+	}
+	if grant := loadVaultShared()[name]; grant == nil {
+		return fmt.Errorf("the server has no shared key %s (hi server vault shared)", name)
+	} else if !slices.Contains(grant.Apps, config.Name) {
+		return fmt.Errorf("shared/%s isn't shared to app %s; an admin shares it: hi server vault shared give %s %s", name, config.Name, name, config.Name)
+	}
+	config.OpenRouterFrom = "shared/" + name
+	key, _, problem := appOwnOpenRouter(config, appSecrets{})
+	if problem != "" {
+		return errors.New(problem)
+	}
+	if err := appCheckOpenRouterKey(key); err != nil {
+		return fmt.Errorf("shared/%s: %w", name, err)
+	}
+	if err := saveTeam(config); err != nil {
+		return err
+	}
+	had := secrets.OpenRouterAPIKey != ""
+	if had {
+		if err := updateTeamSecretsFile(config.Name, func(s *appSecrets) error {
+			s.OpenRouterAPIKey = ""
+			return nil
+		}, false); err != nil {
+			return err
+		}
+		secrets.OpenRouterAPIKey = ""
+	}
+	if err := writeTeamKeys(config.Name, secrets); err != nil {
+		return err
+	}
+	vaultAudit(vaultActor(), "vault.shared-use", vaultSharedPath(name), config.Name+"'s OpenRouter key")
+	fmt.Fprintf(stdout, "App %s's model calls use shared/%s now: the lead's, and the app's at $OPENROUTER_BASE_URL. A new value there reaches it within a minute.\n", config.Name, name)
+	if had {
+		fmt.Fprintf(stdout, "Its own key is gone from hi; it still works at OpenRouter until you revoke it there (openrouter.ai/settings/keys).\n")
+	}
+	return nil
+}

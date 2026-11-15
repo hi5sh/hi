@@ -3769,7 +3769,7 @@ function machineKeysBlock() {
     table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT")));
     for (const a of k.apps) {
       table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
-        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : "—"))));
+        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
     }
     box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
   }

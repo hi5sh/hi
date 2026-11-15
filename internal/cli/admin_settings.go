@@ -189,7 +189,7 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 		}
 	}
 	view.UsesChatGPT = appUsesChatGPT(config)
-	view.OwnOpenRouter = secrets.OpenRouterAPIKey != ""
+	view.OwnOpenRouter = secrets.OpenRouterAPIKey != "" || config.OpenRouterFrom != ""
 	if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err == nil && key != "" {
 		view.MachineOpenRouter = true
 	}
@@ -584,6 +584,9 @@ func adminMachineKeysOf() adminMachineKeys {
 		}
 		secrets, _ := loadTeamSecrets(app)
 		use := adminAppKeysInUse{App: app, OpenRouter: map[bool]string{true: "own", false: "machine"}[secrets.OpenRouterAPIKey != ""]}
+		if config, err := loadTeam(app); err == nil && config.OpenRouterFrom != "" {
+			use.OpenRouter = config.OpenRouterFrom
+		}
 		for _, member := range config.Members {
 			if member.Agent == "claude" {
 				use.Claude = map[bool]string{true: "own", false: "machine"}[secrets.ClaudeToken != ""]

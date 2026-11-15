@@ -341,6 +341,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
 | `hi app channel <name> [--since 2h]`     | What was said in the app's channel, threads and shared files included |
 | `hi app key <name> openrouter [--unset]` | Give the app an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
+| `hi app key <name> openrouter --from shared/<name>` | The app's agents use a shared key as their OpenRouter key, by reference, in place of its own: a new value reaches them within a minute. It must be shared to the app first |
 | `hi app signin <name> chatgpt [--machine]` | Sign the app in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the app's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
 | `hi app signin <name> claude [--machine]` | The app's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the app's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
 | `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |

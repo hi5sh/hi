@@ -103,8 +103,12 @@ type appConfig struct {
 	// EnvSources are a team store's paths whose names are settings, by
 	// slot, first source first; EnvOverride the names a slot sets here
 	// over a source's (hi app env --override). vault_connect.go.
-	EnvSources  map[string][]appEnvSource `json:"env_sources,omitempty"`
-	EnvOverride map[string][]string       `json:"env_override,omitempty"`
+	EnvSources map[string][]appEnvSource `json:"env_sources,omitempty"`
+	// OpenRouterFrom is "shared/<name>" when the app's agents use a shared
+	// key as their OpenRouter key, by reference (hi app key <app>
+	// openrouter --from shared/<name>).
+	OpenRouterFrom string              `json:"openrouter_from,omitempty"`
+	EnvOverride    map[string][]string `json:"env_override,omitempty"`
 	// DevViewProductionOff, when set, says who turned the dev box's view
 	// of production off, and when (hi_app_dev_view.md).
 	DevViewProductionOff string `json:"dev_view_production_off,omitempty"`
@@ -1095,7 +1099,7 @@ func appCreate(name, folder, from string, adopt *appAdoption, stdin io.Reader, s
 	if err := validateTeam(config); err != nil {
 		return err
 	}
-	if secrets.OpenRouterAPIKey == "" {
+	if secrets.OpenRouterAPIKey == "" && config.OpenRouterFrom == "" {
 		if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err != nil || key == "" {
 			return errors.New(strings.ReplaceAll(appNoOpenRouterKey.Error(), "<name>", name))
 		}

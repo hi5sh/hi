@@ -161,7 +161,13 @@ hi app env payments OPENROUTER_KEY --from shared/openrouter
 ```
 
 An admin sets it and gives it to apps; an app's owners use it by
-reference, which the app's `app.json` keeps, not the value. A new value
+reference, which the app's `app.json` keeps, not the value.
+
+`OPENROUTER_API_KEY` is hi's own, the key the app's agents and its
+`$OPENROUTER_BASE_URL` use: a shared key becomes it with `hi app key
+<app> openrouter --from shared/openrouter`, in place of the app's own
+key. One key then serves every app that uses it, and one change reaches
+them all; OpenRouter counts their spend together. A new value
 reaches every app that uses it within a minute, as any change does.
 Taken back (`give … --take`), the app's boxes no longer get it. It can't
 be removed while an app uses it. The admin page's Keys lists each one,

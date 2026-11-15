@@ -305,7 +305,7 @@ func appOOMCounts(team string) map[string]int {
 // else uses that key, so it has none of its own to compare.
 func appKeyUsage(team string) (float64, bool) {
 	secrets, err := loadTeamSecrets(team)
-	if err != nil || secrets.OpenRouterAPIKey == "" {
+	if config, _ := loadTeam(team); err != nil || secrets.OpenRouterAPIKey == "" || config.OpenRouterFrom != "" {
 		return 0, false
 	}
 	request, _ := http.NewRequest("GET", appOpenRouterUpstream+"/api/v1/key", nil)
