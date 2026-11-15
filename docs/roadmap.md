@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.161 — Shared keys, one line each
+
+- [x] Each shared key on one line with Shared to, Change value, and
+  Remove; New Share at the top of the list.
+
 ### v2.6.160 — The Vault tab redraws after a change
 
 - [x] A change of the admin's own redraws the Vault tab at once, whatever
