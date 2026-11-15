@@ -259,13 +259,17 @@ var vaultKeepFiles = func() bool {
 
 // vaultReadsNoSecret is whether a process, by its command line, is one of
 // hi's that never reads a secret file: an app's resolver, which an update
-// restarts only with its app, a while after the rest.
+// restarts only with its app, a while after the rest; and hi update
+// itself, which runs the binary it replaced while it restarts the rest.
 func vaultReadsNoSecret(cmdline string) bool {
 	data, err := os.ReadFile(cmdline)
 	if err != nil {
 		return false
 	}
 	args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	if len(args) >= 2 && args[1] == "update" {
+		return true
+	}
 	return len(args) >= 3 && (args[1] == "app" || args[1] == "team") && args[2] == "__resolver"
 }
 

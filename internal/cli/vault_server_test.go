@@ -422,6 +422,7 @@ func TestVaultResolverKeepsNoFiles(t *testing.T) {
 		"/home/hi/.local/bin/hi\x00team\x00__resolver\x00payments\x00": true,
 		"/home/hi/.local/bin/hi\x00app\x00__serve\x00payments\x00":     false,
 		"/home/hi/.local/bin/hi\x00server\x00run\x00":                  false,
+		"/home/hi/.local/bin/hi\x00update\x00--restart\x00":            true,
 	} {
 		path := filepath.Join(dir, "cmdline")
 		os.WriteFile(path, []byte(cmdline), 0o600)
