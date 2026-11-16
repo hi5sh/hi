@@ -392,9 +392,16 @@ var appDevBoxExec = func(team string, command ...string) (string, error) {
 }
 
 // appDevHerdr runs herdr in the dev box and decodes its answer's result.
+// errAppDevWorkspaceGone is a workspace herdr no longer has: the dev box
+// restarted, and herdr numbered its workspaces again, or it was closed.
+var errAppDevWorkspaceGone = errors.New("that workspace is gone (the dev box restarted, or it was closed): pick another")
+
 func appDevHerdr(team string, out any, args ...string) error {
 	text, err := appDevBoxExec(team, append([]string{"herdr"}, args...)...)
 	if err != nil {
+		if strings.Contains(text+err.Error(), "workspace_not_found") {
+			return errAppDevWorkspaceGone
+		}
 		return fmt.Errorf("herdr %s: %s", strings.Join(args, " "), qFirstLine(strings.TrimSpace(text), err.Error()))
 	}
 	var answer struct {

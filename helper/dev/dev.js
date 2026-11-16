@@ -1263,6 +1263,7 @@
     if (id === chat.space && quiet) return;
     chat.space = id;
     chat.sitesSig = null;
+    $("chat-status").textContent = "";
     try { localStorage.setItem("hi-dev-chat-space", id); } catch (e) { /* private window */ }
     $("chat-space").value = id;
     chat.session = "";
@@ -1756,7 +1757,10 @@
   function pollChat() {
     clearTimeout(chat.timer);
     var visible = chat.view === "chat" && !document.hidden && !chat.composing;
-    if (!visible || !chat.space || chat.busy) { chat.timer = setTimeout(pollChat, 1500); return; }
+    // Not before the workspaces are known, nor for one that's gone: one the
+    // browser remembered from before the dev box restarted isn't there.
+    var known = !!state && workSpaces().some(function (space) { return space.id === chat.space; });
+    if (!visible || !chat.space || !known || chat.busy) { chat.timer = setTimeout(pollChat, 1500); return; }
     chat.busy = true;
     var log = $("chat-log");
     var atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
@@ -1780,7 +1784,7 @@
       if (view.reset || seen !== rewind.seen) { rewind.seen = seen; loadPoints(); if (gitShown()) refreshGit(); }
       if (atBottom) log.scrollTop = log.scrollHeight;
     }).catch(function (error) {
-      $("chat-status").textContent = error.message;
+      if (asked === chat.space) $("chat-status").textContent = error.message;
     }).then(function () {
       chat.busy = false;
       chat.timer = setTimeout(pollChat, 1500);
