@@ -2,41 +2,41 @@
    so its colours, bar, panels, chips, dialogs, and toasts are the same;
    this is only what the admin page has that the dev page hasn't. */
 
-.dot.bad { background: var(--bad); border-color: var(--bad); }
+.dot.bad { background: var(--dot-bad); border-color: var(--dot-bad); }
 .block { display: block; }
 code { font: 12px var(--mono); color: var(--code); overflow-wrap: anywhere; }
 
 /* Signing in. */
 .signin { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
 .signin[hidden] { display: none; }
-.signin-card { width: min(520px, 100%); background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 22px 24px 18px; }
-.signin-title { font-size: 20px; color: var(--bright); margin: 0 0 12px; font-weight: 600; }
+.signin-card { width: min(520px, 100%); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-xl); padding: 24px 26px 20px; }
+.signin-title { font-size: 20px; color: var(--bright); margin: 0 0 12px; font-weight: 400; }
 .signin-form { display: flex; flex-direction: column; gap: 6px; margin: 16px 0 10px; }
 .signin-row { display: flex; gap: 6px; }
 .signin-row input { flex: 1; }
 
 /* The bar: the machine's name goes Home; the open app after it. */
-button.home-button { border: 0; background: none; padding: 4px 6px; border-radius: var(--r-sm); font-weight: 600; max-width: 220px; }
+button.home-button { border: 0; background: none; padding: 4px 10px; border-radius: var(--pill); font-weight: 500; color: var(--bright); max-width: 220px; }
 button.home-button:hover { background: var(--hover); }
 .crumb { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 .crumb strong { color: var(--bright); }
 .bar-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* The middle: a card, as the dev page's chat is. */
-.admin-area { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-lg); }
-.admin-section { max-width: 980px; margin: 0 auto; padding: 18px 24px 40px; }
+.admin-area { flex: 1; min-height: 0; overflow: auto; background: var(--bg); }
+.admin-section { max-width: 980px; margin: 0 auto; padding: 24px 28px 48px; }
 .admin-section[hidden] { display: none; }
 .admin-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
-.admin-title { font-size: 20px; font-weight: 600; color: var(--bright); margin: 0; overflow-wrap: anywhere; }
+.admin-title { font-size: 20px; font-weight: 400; color: var(--bright); margin: 0; overflow-wrap: anywhere; }
 .purpose { margin: 4px 0 8px; font-size: 14px; }
-.note { margin: 8px 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--hover); }
+.note { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
 .lines p { margin: 2px 0; }
 
 /* An app's boxes, in its Overview. */
 .boxes-scroll { overflow-x: auto; }
 .boxes-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 4px; }
 .boxes-table th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 4px 8px; border-bottom: 1px solid var(--line); }
-.boxes-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.boxes-table td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .boxes-table .num { text-align: right; }
 .boxes-table .nowrap { white-space: nowrap; }
 .boxes-table .dot { display: inline-block; vertical-align: middle; margin: 0 2px 2px 0; }
@@ -265,7 +265,7 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 
 /* An app's Terminal: a shell in one of its boxes. */
 .admin-term { margin-top: 10px; }
-.admin-term-screen { height: min(70vh, 640px); background: #121314; border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px; }
+.admin-term-screen { height: min(70vh, 640px); background: var(--term); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 8px 10px; }
 
 /* What an app needs on this machine. */
 .needs-list li { align-items: center; }
@@ -311,8 +311,8 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .error { white-space: pre-line; }
 
 /* The server's vault: the banner while it is locked, and the recovery key. */
-.vault-banner { margin: 0 8px 8px; padding: 8px 14px; border: 1px solid var(--line); border-left: 4px solid #d4a017; border-radius: var(--r-sm); background: var(--bg); font-size: 13px; }
-.vault-banner.vault-locked { border-left-color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--bg)); }
+.vault-banner { margin: 0 8px 8px; padding: 8px 14px; border: 1px solid var(--line); border-left: 2px solid var(--dot-warn); border-radius: var(--r-md); background: var(--raised); font-size: 13px; }
+.vault-banner.vault-locked { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--bg)); }
 .vault-banner button { margin-left: 8px; }
 .recovery-words { columns: 3; font-family: ui-monospace, monospace; font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
 .recovery-words li { padding: 2px 0; }
@@ -323,7 +323,7 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .vault-field:has(.vault-eye) input { padding-right: 42px; }
 .vault-dialog .vault-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; box-shadow: none; color: var(--muted); padding: 6px; line-height: 0; cursor: pointer; }
 .vault-eye:hover, .vault-eye[aria-pressed="true"] { color: var(--fg, inherit); }
-.vault-dialog .vault-field input.vault-wrong, .vault-dialog .vault-field input.vault-wrong:focus { border-color: var(--danger, #e5534b) !important; outline: none; box-shadow: 0 0 0 1px var(--danger, #e5534b) !important; }
+.vault-dialog .vault-field input.vault-wrong, .vault-dialog .vault-field input.vault-wrong:focus { border-color: var(--bad) !important; outline: none; box-shadow: 0 0 0 1px var(--bad) !important; }
 .vault-dialog button[type="submit"]:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(1); }
 .vault-hint { min-height: 1.3em; margin: 0; }
 .vault-view { max-width: 920px; }

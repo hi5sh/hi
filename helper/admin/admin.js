@@ -2909,13 +2909,13 @@ function openTerm(app, box) {
     cursorBlink: true,
     fontSize: 13,
     fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
-    // The dev page's colours: VS Code's 2026 Dark.
+    // The dev page's colours: Paseo's terminal set.
     theme: {
-      background: "#121314", foreground: "#bfbfbf", cursor: "#bfbfbf", selectionBackground: "#3994bc33",
-      black: "#000000", red: "#cd3131", green: "#0dbc79", yellow: "#e5e510",
-      blue: "#2472c8", magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5",
-      brightBlack: "#666666", brightRed: "#f14c4c", brightGreen: "#23d18b", brightYellow: "#f5f543",
-      brightBlue: "#3b8eea", brightMagenta: "#d670d6", brightCyan: "#29b8db", brightWhite: "#e5e5e5",
+      background: "#181b1a", foreground: "#e4e6e5", cursor: "#e4e6e5", cursorAccent: "#181b1a", selectionBackground: "rgba(255, 255, 255, 0.2)",
+      black: "#141716", red: "#e07070", green: "#5dba80", yellow: "#d4a44a",
+      blue: "#6a9de0", magenta: "#b07ad0", cyan: "#4aabb8", white: "#d4d4d8",
+      brightBlack: "#7a7f7d", brightRed: "#e89090", brightGreen: "#7ecf9a", brightYellow: "#e0be6e",
+      brightBlue: "#8ab4e8", brightMagenta: "#c49ae0", brightCyan: "#6ec2cc", brightWhite: "#f0f0f2",
     },
   });
   const fit = new FitAddon.FitAddon();

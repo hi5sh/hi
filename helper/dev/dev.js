@@ -106,13 +106,15 @@
     fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
     // Unicode 11's widths and the search's highlights are xterm's proposed API.
     allowProposedApi: true,
-    // VS Code's own terminal colors, 2026 Dark, on the card it sits in.
+    // Paseo's terminal colours (its dark theme's ANSI set), on the work's
+    // surface; bright black lighter than Paseo's, as agents print their
+    // quieter lines in it.
     theme: {
-      background: "#121314", foreground: "#bfbfbf", cursor: "#bfbfbf", selectionBackground: "#3994bc33",
-      black: "#000000", red: "#cd3131", green: "#0dbc79", yellow: "#e5e510",
-      blue: "#2472c8", magenta: "#bc3fbc", cyan: "#11a8cd", white: "#e5e5e5",
-      brightBlack: "#666666", brightRed: "#f14c4c", brightGreen: "#23d18b", brightYellow: "#f5f543",
-      brightBlue: "#3b8eea", brightMagenta: "#d670d6", brightCyan: "#29b8db", brightWhite: "#e5e5e5",
+      background: "#181b1a", foreground: "#e4e6e5", cursor: "#e4e6e5", cursorAccent: "#181b1a", selectionBackground: "rgba(255, 255, 255, 0.2)",
+      black: "#141716", red: "#e07070", green: "#5dba80", yellow: "#d4a44a",
+      blue: "#6a9de0", magenta: "#b07ad0", cyan: "#4aabb8", white: "#d4d4d8",
+      brightBlack: "#7a7f7d", brightRed: "#e89090", brightGreen: "#7ecf9a", brightYellow: "#e0be6e",
+      brightBlue: "#8ab4e8", brightMagenta: "#c49ae0", brightCyan: "#6ec2cc", brightWhite: "#f0f0f2",
     },
   });
   var fit = new FitAddon.FitAddon();
@@ -299,7 +301,7 @@
     return !(event.type === "keydown" && v && event.ctrlKey && !event.altKey && !event.metaKey);
   });
   // ---- Find in the terminal: xterm's search add-on, its matches lit.
-  var termFindLook = { matchBackground: "#61481d", matchOverviewRuler: "#cca700", activeMatchBackground: "#9c6d1a", activeMatchColorOverviewRuler: "#f5c542" };
+  var termFindLook = { matchBackground: "#4d4430", matchOverviewRuler: "#c09664", activeMatchBackground: "#7a6233", activeMatchColorOverviewRuler: "#db932e" };
   function openTermFind() {
     if (!termSearch) return;
     $("term-find").hidden = false;
