@@ -1679,6 +1679,8 @@
     chat.space = localStorage.getItem("hi-dev-chat-space") || "";
   } catch (e) { /* private window */ }
   function setCodeView(view) {
+    // Files, in the bar: the file last open, else the first.
+    if (view === "file" && !tabOf(opened.current) && opened.tabs.length) opened.current = opened.tabs[0].key;
     if (view === "file" && !tabOf(opened.current)) view = opened.back || "chat";
     if (view !== "file") opened.back = view;
     chat.view = view;
@@ -3394,6 +3396,8 @@
     var box = $("editor");
     if (tab.pane.parentNode !== box) box.appendChild(tab.pane);
     opened.tabs.forEach(function (t) { if (t.pane) t.pane.hidden = t !== tab; });
+    // Its folder, state, and buttons, at the end of the tabs' row.
+    $("edit-actions").replaceChildren(tab.where, tab.status, tab.previewButton, tab.download, tab.saveButton);
     if (!tab.loaded) loadTab(tab);
     else { checkTab(tab); gotoLine(tab); }
     if (tab.text && !tab.preview) tab.text.focus({ preventScroll: true });
@@ -3412,19 +3416,23 @@
         opened.current = next ? next.key : "";
         if (chat.view === "file") { if (next) showTab(next.key); else setCodeView(opened.back || "chat"); }
       }
+      if (!opened.tabs.length) $("edit-actions").textContent = "";
       if (files.file === tab.path && tab.root === files.root) { files.file = ""; if (filesShown()) renderTree(); }
       keepTabs();
       renderTabs();
     });
   }
+  // The open files' tabs, in the editor's own top row; in the bar, Files,
+  // with how many, to come back to them from the chat or the terminal.
   function renderTabs() {
     var strip = $("edit-tabs");
     strip.textContent = "";
-    strip.hidden = !opened.tabs.length;
+    $("files-chip").hidden = !opened.tabs.length;
+    $("files-count").textContent = opened.tabs.length > 1 ? String(opened.tabs.length) : "";
     var names = {};
     opened.tabs.forEach(function (t) { names[t.name] = (names[t.name] || 0) + 1; });
     opened.tabs.forEach(function (t) {
-      var current = chat.view === "file" && t.key === opened.current;
+      var current = t.key === opened.current;
       var dir = t.path.split("/").slice(0, -1).join("/");
       var tab = el("button", {
         class: "edit-tab" + (current ? " current" : "") + (t.dirty ? " dirty" : ""), role: "tab", "aria-selected": String(current),
@@ -3453,24 +3461,12 @@
     tab.status = el("span", { class: "muted small edit-status" });
     tab.saveButton = el("button", { class: "primary small", text: "Save", disabled: "", title: "Save (Ctrl+S)", onclick: function () { saveTab(tab, false); } });
     tab.previewButton = el("button", { class: "small", text: "Preview", hidden: "", onclick: function () { setPreview(tab, !tab.preview); } });
-    var crumbs = tab.path.split("/");
+    var dir = tab.path.split("/").slice(0, -1).join(" / ");
+    tab.where = el("span", { class: "muted edit-where", title: tab.path + " · " + tab.root, text: dir });
+    tab.download = el("a", { class: "button-like small", href: raw + "&download=1", download: tab.name, text: "Download" });
     tab.bar = el("div", { class: "edit-bar", hidden: "" });
     tab.body = el("div", { class: "edit-body" }, [el("p", { class: "muted edit-note", text: "Opening " + tab.name + "…" })]);
-    return el("div", { class: "edit-pane" }, [
-      el("div", { class: "edit-head" }, [
-        el("span", { class: "edit-path", title: tab.path + " · " + tab.root }, [
-          el("span", { class: "muted", text: crumbs.slice(0, -1).map(function (c) { return c + " / "; }).join("") }),
-          el("strong", { text: tab.name }),
-        ]),
-        tab.status,
-        el("span", { class: "grow" }),
-        tab.previewButton,
-        el("a", { class: "button-like small", href: raw + "&download=1", download: tab.name, text: "Download" }),
-        tab.saveButton,
-      ]),
-      tab.bar,
-      tab.body,
-    ]);
+    return el("div", { class: "edit-pane" }, [tab.bar, tab.body]);
   }
   function loadTab(tab, keepView, unlessTyped) {
     var raw = "api/files/raw?" + tabQuery(tab);

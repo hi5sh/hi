@@ -363,8 +363,8 @@ for; Checks and Logs have a dot.
   An agent also says where its work stands in a line of its own
   ("tests pass; waiting for the API key", `hi dev note`), on its
   workspace and in Needs you.
-- **Theme** (the half-filled circle in the top bar): Paseo's, the
-  default, or Zinc, Midnight, Claude, Ghostty, Pure black, Light, or Auto,
+- **Theme** (the half-filled circle in the top bar): Claude, the
+  default, or Paseo, Zinc, Midnight, Ghostty, Pure black, Light, or Auto,
   which follows the computer's light or dark. This browser keeps it, for
   the dev pages and the admin page alike.
 - **Antigravity:** with the app's own Google sign-in for agy

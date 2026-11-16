@@ -1,5 +1,5 @@
-// The page's theme: Paseo's (getpaseo/paseo, Apache-2.0) default and its
-// others, kept in this browser. Loaded in the head, before the page draws,
+// The page's theme: Paseo's themes (getpaseo/paseo, Apache-2.0), its
+// Claude one by default, kept in this browser. Loaded in the head, before the page draws,
 // so a theme other than the default never flashes in; dev.css has the
 // colours, by the <html>'s data-theme. The admin page and the dev page
 // share it: the bar's button (#theme-btn) opens the list, and their
@@ -10,10 +10,10 @@
   // Each theme's name, its swatch (Paseo's), and whether it's light.
   var THEMES = [
     { id: "auto", name: "Auto", swatch: "", hint: "Light or dark, as the computer is" },
+    { id: "claude", name: "Claude", swatch: "#d97757" },
     { id: "paseo", name: "Paseo", swatch: "#2d8b62" },
     { id: "zinc", name: "Zinc", swatch: "#808080" },
     { id: "midnight", name: "Midnight", swatch: "#4a6ba8" },
-    { id: "claude", name: "Claude", swatch: "#d97757" },
     { id: "ghostty", name: "Ghostty", swatch: "#8caaee" },
     { id: "black", name: "Pure black", swatch: "#000000" },
     { id: "light", name: "Light", swatch: "#ffffff", light: true },
@@ -38,17 +38,17 @@
   function chosen() {
     var id = "";
     try { id = localStorage.getItem(KEY) || ""; } catch (e) { /* a private window */ }
-    return THEMES.some(function (t) { return t.id === id; }) ? id : "paseo";
+    return THEMES.some(function (t) { return t.id === id; }) ? id : "claude";
   }
-  // The theme drawn: Auto is Light or Paseo, as the computer is.
+  // The theme drawn: Auto is Light or Claude, as the computer is.
   function shown(id) {
-    if (id === "auto") return system && system.matches ? "light" : "paseo";
+    if (id === "auto") return system && system.matches ? "light" : "claude";
     return id;
   }
   function apply() {
     var id = shown(chosen());
     var root = document.documentElement;
-    if (id === "paseo") root.removeAttribute("data-theme");
+    if (id === "claude") root.removeAttribute("data-theme"); // dev.css's own
     else root.setAttribute("data-theme", id);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta && document.body) meta.setAttribute("content", css("--surface0") || meta.getAttribute("content"));
@@ -72,11 +72,11 @@
     onChange: function (fn) { listeners.push(fn); },
     // xterm's theme, in the page's colours.
     terminal: function () {
-      var bg = css("--surface0") || "#181b1a";
+      var bg = css("--surface0") || "#1f1f1e";
       var fg = css("--fg") || "#fafafa";
       var light = isLight();
       var theme = { background: bg, foreground: light ? fg : css("--text") || fg, cursor: fg, cursorAccent: bg,
-        selectionBackground: light ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.2)", black: light ? fg : css("--sidebar") || "#141716" };
+        selectionBackground: light ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.2)", black: light ? fg : css("--sidebar") || "#1a1918" };
       var ansi = light ? LIGHT_ANSI : DARK_ANSI;
       for (var k in ansi) theme[k] = ansi[k];
       return theme;

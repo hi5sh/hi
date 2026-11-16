@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="#181b1a">
+<meta name="theme-color" content="#1f1f1e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -26,8 +26,8 @@
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
         <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
+        <button data-view="file" aria-pressed="false" id="files-chip" class="files-chip" title="The files you opened, each a tab in the editor" hidden>Files<span id="files-count" class="count"></span></button>
       </div>
-      <div id="edit-tabs" class="edit-tabs" role="tablist" aria-label="Open files" hidden></div>
       <select id="chat-space" aria-label="Which workspace's session"></select>
       <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
       <button id="chat-sessions" class="small" title="This workspace's sessions, Claude's and Codex's, to resume one">Sessions</button>
@@ -312,7 +312,12 @@
         <button id="term-again">Connect again</button>
       </div>
     </div>
-    <div id="editor" class="editor" hidden></div>
+    <div id="editor" class="editor" hidden>
+      <div class="edit-strip">
+        <div id="edit-tabs" class="edit-tabs" role="tablist" aria-label="Open files"></div>
+        <div id="edit-actions" class="edit-actions"></div>
+      </div>
+    </div>
     </div>
         <aside id="chat-side" class="side side-right" aria-label="The right panel" hidden>
           <div id="side-resize" class="side-resize" title="Drag to make it wider or narrower" aria-hidden="true"></div>

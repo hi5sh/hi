@@ -16,7 +16,7 @@ code { font: 12px var(--mono); color: var(--code); overflow-wrap: anywhere; }
 .signin-row input { flex: 1; }
 
 /* The bar: the machine's name goes Home; the open app after it. */
-button.home-button { border: 0; background: none; padding: 4px 10px; border-radius: var(--pill); font-weight: 500; color: var(--bright); max-width: 220px; }
+button.home-button { border: 0; background: none; padding: 4px 10px; border-radius: var(--r-button); font-weight: 500; color: var(--bright); max-width: 220px; }
 button.home-button:hover { background: var(--hover); }
 .crumb { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 .crumb strong { color: var(--bright); }

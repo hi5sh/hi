@@ -1,25 +1,26 @@
 /* In Paseo's themes (getpaseo/paseo, Apache-2.0, packages/app/src/styles/
-   theme.ts and docs/design.md): Paseo's own by default, a faintly
-   green-tinted gray; Zinc, Midnight, Claude, Ghostty, Pure black, and
-   Light, picked from the bar (theme.js), or Auto with the computer's.
+   theme.ts and docs/design.md): its Claude theme by default, a warm
+   neutral with Claude's orange; Paseo's own green-tinted gray, Zinc,
+   Midnight, Ghostty, Pure black, and Light, picked from the bar
+   (theme.js), or Auto with the computer's.
    A theme states Paseo's surfaces, words, lines, and accent; the rest is
    made from them. The left panel is a step darker than the work, panes
    are flush with one line between them, buttons are pills, labels quiet
    sentence case, and the accent is for the one action that matters. */
 :root {
-  /* Paseo, the default: a theme sets these. */
-  --surface0: #181b1a;   /* the work: chat, terminal, editor, the right panel, the bar */
-  --surface1: #1e2120;   /* the message box, cards on the work */
-  --surface2: #272a29;   /* menus, popovers, toasts */
-  --surface3: #434645;   /* a count, your messages (mixed) */
-  --sidebar: #141716;    /* the left panel */
+  /* Claude, the default: a theme sets these. */
+  --surface0: #1f1f1e;   /* the work: chat, terminal, editor, the right panel, the bar */
+  --surface1: #262523;   /* the message box, cards on the work */
+  --surface2: #2f2d2b;   /* menus, popovers, toasts */
+  --surface3: #4a4745;   /* a count, your messages (mixed) */
+  --sidebar: #1a1918;    /* the left panel */
   --fg: #fafafa;
-  --fg-muted: #a1a5a4;
-  --fg-dim: #717574;     /* placeholders, passive chrome */
-  --border: #252b2a;
-  --border-input: #2f3534;
-  --brand: #20744a;      /* the one action that matters: Paseo's accent */
-  --brand-text: #7ccba0; /* links and highlights: accentBright */
+  --fg-muted: #ada9a5;
+  --fg-dim: #78746f;     /* placeholders, passive chrome */
+  --border: #2c2a27;
+  --border-input: #36332f;
+  --brand: #d97757;      /* the one action that matters: the theme's accent */
+  --brand-text: #e89a7f; /* links and highlights: accentBright */
   --on-accent: #ffffff;
   --code: #e0be6e;
   --good: #6cb17b;       /* the status family: text, icons, stats */
@@ -53,8 +54,8 @@
   --focus: color-mix(in srgb, var(--brand-text) 55%, transparent);
   --button: var(--brand);
   --button-hover: color-mix(in srgb, var(--brand) 88%, rgb(var(--ink)));
-  --secondary: rgba(var(--ink), .075); /* a quiet fill, on any surface */
-  --secondary-hover: rgba(var(--ink), .12);
+  --secondary: rgba(var(--ink), .09); /* a quiet fill, on any surface */
+  --secondary-hover: rgba(var(--ink), .14);
   --input: var(--surface1);
   --hover: rgba(var(--ink), .07);
   --selected: rgba(var(--ink), .1);
@@ -67,7 +68,8 @@
   --r-md: 8px;
   --r-lg: 12px;          /* cards, menus */
   --r-xl: 16px;          /* dialogs, the message box */
-  --pill: 999px;         /* buttons */
+  --r-button: 8px;       /* buttons: rectangles with rounded corners */
+  --pill: 999px;         /* badges, tags, who's here */
   --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif;
   --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
   accent-color: var(--button);
@@ -84,11 +86,11 @@
   --fg-muted: #9a9db0; --fg-dim: #6b6e82; --border: #242636; --border-input: #2e3040;
   --brand: #3b6fcf; --brand-text: #7eaaeb;
 }
-/* Claude: warm neutral, an orange undertone. */
-:root[data-theme="claude"] {
-  --surface0: #1f1f1e; --surface1: #262523; --surface2: #2f2d2b; --surface3: #4a4745; --sidebar: #1a1918;
-  --fg-muted: #ada9a5; --fg-dim: #78746f; --border: #2c2a27; --border-input: #36332f;
-  --brand: #d97757; --brand-text: #e89a7f;
+/* Paseo: its own, a faintly green-tinted gray. */
+:root[data-theme="paseo"] {
+  --surface0: #181b1a; --surface1: #1e2120; --surface2: #272a29; --surface3: #434645; --sidebar: #141716;
+  --fg-muted: #a1a5a4; --fg-dim: #717574; --border: #252b2a; --border-input: #2f3534;
+  --brand: #20744a; --brand-text: #7ccba0;
 }
 /* Ghostty: blue-tinted, on Ghostty's own background. */
 :root[data-theme="ghostty"] {
@@ -100,6 +102,7 @@
 :root[data-theme="black"] {
   --surface0: #000000; --surface1: #0a0a0a; --surface2: #181818; --surface3: #202020; --sidebar: #000000;
   --fg-muted: #a1a1aa; --fg-dim: #71717a; --border: #1c1c1c; --border-input: #242424;
+  --brand: #20744a; --brand-text: #7ccba0;
 }
 /* Light: white work, a gray left panel, the status colours of its own band. */
 :root[data-theme="light"] {
@@ -138,13 +141,13 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 button, input, select, textarea { font: inherit; color: inherit; }
-/* Buttons are pills with medium-weight words, as Paseo's: a quiet fill,
-   the green one for the action that matters, red only as words. */
+/* Buttons are rectangles with rounded corners and medium-weight words: a
+   quiet fill, the accent one for the action that matters, red only as words. */
 button {
   border: 1px solid transparent;
   background: var(--secondary);
   color: var(--text);
-  border-radius: var(--pill);
+  border-radius: var(--r-button);
   padding: 4px 12px;
   font-weight: 500;
   cursor: pointer;
@@ -173,6 +176,25 @@ select {
   background-repeat: no-repeat; background-position: right 9px center;
 }
 select:disabled { opacity: .5; cursor: default; }
+/* A drop-down's list drawn as the page's menus (the Open menu's look):
+   rounded, a little room around its rows, a soft fill on the one under the
+   pointer, a check on the chosen one. Chromium's customizable select;
+   other browsers keep their own list. */
+@supports (appearance: base-select) {
+  select, ::picker(select) { appearance: base-select; }
+  select { display: inline-flex; align-items: center; gap: 6px; color: inherit; }
+  select::picker-icon { display: none; } /* the chevron is the box's own */
+  ::picker(select) {
+    margin: 6px 0; padding: 5px; min-width: max(170px, anchor-size(width)); max-height: min(360px, 60vh); overflow: auto;
+    background: var(--widget); color: var(--text); border: 1px solid var(--input-line); border-radius: var(--r-lg);
+    box-shadow: 0 12px 24px var(--shadow);
+  }
+  select option { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--r-sm); background: transparent; color: var(--text); font-size: 13.5px; cursor: pointer; }
+  select option:hover, select option:focus-visible { background: var(--hover); color: var(--bright); outline: none; }
+  select option:checked { color: var(--bright); font-weight: 500; }
+  select option::checkmark { order: 1; margin-left: auto; content: "✓"; color: var(--accent); font-weight: 400; }
+  select option:disabled { opacity: .5; cursor: default; }
+}
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); }
 input::placeholder, textarea::placeholder { color: var(--dim); opacity: 1; }
 select option { background: var(--widget); }
@@ -213,13 +235,13 @@ button.decision-card:hover { border-color: var(--input-line); background: var(--
 button.danger { color: var(--bad); }
 
 .chips { display: flex; gap: 4px; }
-.chips button { border-radius: var(--pill); padding: 4px 12px; background: none; border-color: transparent; color: var(--muted); }
+.chips button { border-radius: var(--r-button); padding: 4px 12px; background: none; border-color: transparent; color: var(--muted); }
 .chips button:hover { background: var(--hover); color: var(--text); }
 .chips button[aria-pressed="true"] { background: var(--active); color: var(--bright); }
-.search { flex: 1 1 260px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--input-line); border-radius: var(--pill); padding: 0 8px; background: var(--input); color: var(--muted); }
+.search { flex: 1 1 260px; display: flex; align-items: center; gap: 6px; border: 1px solid var(--input-line); border-radius: var(--r-button); padding: 0 8px; background: var(--input); color: var(--muted); }
 .search input { flex: 1; border: 0; background: none; padding: 6px 0; outline: none; }
 .search:focus-within { border-color: var(--focus); }
-button.icon { width: 32px; height: 32px; padding: 0; font-size: 17px; line-height: 1; border-radius: 50%; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+button.icon { width: 32px; height: 32px; padding: 0; font-size: 17px; line-height: 1; border-radius: var(--r-button); background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
 button.icon:hover { background: var(--hover); color: var(--bright); }
 .id-pill { font: 12px var(--mono); color: var(--muted); padding: 2px 8px; border-radius: var(--pill); }
 .context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -248,20 +270,26 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .code-body { flex: 1; min-height: 0; display: flex; gap: 0; position: relative; }
 .code-views { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .code-bar { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 7px 10px; background: var(--shell); border-bottom: 1px solid var(--line); min-width: 0; }
-.code-bar select { border-radius: var(--pill); background-color: var(--secondary); border-color: transparent; padding-left: 12px; }
+.code-bar select { border-radius: var(--r-button); background-color: var(--secondary); border-color: transparent; padding-left: 12px; }
 .code-bar select:hover { background-color: var(--secondary-hover); }
 .team { font-weight: 500; color: var(--bright); }
 .code-bar select { max-width: 240px; }
 /* The files open in tabs, after Chat and Terminal. */
-.edit-tabs { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; padding-left: 8px; border-left: 1px solid var(--line); }
+/* The open files' tabs, in the editor's own top row; the open one's
+   folder, state, and buttons at the row's end. */
+.edit-strip { flex: none; display: flex; align-items: center; gap: 8px; min-height: 46px; padding: 6px 10px 6px 8px; border-bottom: 1px solid var(--line); min-width: 0; }
+.edit-tabs { display: flex; gap: 2px; min-width: 0; flex: 0 1 auto; overflow-x: auto; scrollbar-width: none; }
 .edit-tabs[hidden] { display: none; }
+.edit-actions { flex: 1 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.edit-actions .button-like, .edit-actions button { padding: 3px 10px; font-size: 12.5px; white-space: nowrap; }
+.edit-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; margin-right: auto; }
 .edit-tabs::-webkit-scrollbar { display: none; }
-.edit-tab { flex: none; display: inline-flex; align-items: center; gap: 4px; max-width: 220px; padding: 4px 4px 4px 12px; border-radius: var(--pill); border-color: transparent; background: none; color: var(--muted); }
+.edit-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 240px; height: 32px; padding: 0 6px 0 12px; border-radius: var(--r-button); border-color: transparent; background: none; color: var(--muted); }
 .edit-tab:hover { background: var(--hover); color: var(--text); }
 .edit-tab.current { background: var(--active); color: var(--bright); }
 .edit-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .edit-tab-dir { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.edit-close { flex: none; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; }
+.edit-close { flex: none; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; }
 .edit-close:hover { background: var(--secondary-hover); }
 .edit-close .edit-dot { display: none; font-size: 9px; }
 .edit-tab.dirty .edit-close .edit-dot { display: inline; }
@@ -271,14 +299,12 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .edit-tab:not(.current):not(.dirty) .edit-close { visibility: hidden; }
 .edit-tab:not(.current):hover .edit-close { visibility: visible; }
 /* An open file: its path, Save, and the text with its line numbers. */
-.editor { flex: 1; min-height: 0; display: flex; background: var(--bg); overflow: hidden; }
+.editor { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
 .editor[hidden] { display: none; }
 .edit-pane { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.files-chip .count { margin-left: 6px; }
 .edit-pane[hidden] { display: none; }
-.edit-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--line); min-width: 0; }
-.edit-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; font-size: 13px; }
 .edit-status { white-space: nowrap; }
-.edit-head .button-like, .edit-head button { padding: 2px 10px; font-size: 12px; white-space: nowrap; }
 .edit-bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: color-mix(in srgb, var(--warn) 14%, transparent); border-bottom: 1px solid var(--line); font-size: 13px; }
 .edit-bar[hidden] { display: none; }
 .edit-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -326,13 +352,13 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .side-badge { position: absolute; right: -1px; top: 5px; z-index: 1; min-width: 15px; height: 15px; padding: 0 4px; box-sizing: border-box; border-radius: var(--pill); background: var(--badge); color: var(--on-accent); font-size: 10px; font-weight: 600; line-height: 15px; text-align: center; }
 .side-badge.dot { min-width: 7px; width: 7px; height: 7px; padding: 0; top: 11px; right: 5px; }
 .side-tabs .grow { flex: 1 0 0; }
-.side-icon { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; cursor: pointer; flex: none; }
+.side-icon { width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-button); background: none; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; font-size: 14px; line-height: 1; cursor: pointer; flex: none; }
 .side-icon:hover { background: var(--hover); color: var(--bright); }
 .side-tabs > .side-icon { align-self: center; }
 .side-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .side-view[hidden] { display: none; }
 .side-head { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 10px 10px 6px 14px; }
-button.side-toggle { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: none; color: var(--muted); }
+button.side-toggle { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: var(--r-button); background: none; color: var(--muted); }
 button.side-toggle:hover { background: var(--hover); color: var(--bright); }
 button.side-toggle[aria-pressed="true"] { color: var(--bright); }
 @media (min-width: 1101px) {
@@ -452,18 +478,17 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .composer textarea::placeholder { color: var(--dim); }
 .composer textarea:disabled { background: transparent; }
 .composer-bar { display: flex; align-items: center; gap: 2px; min-height: 34px; margin-left: -6px; }
-.composer-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; color: var(--muted); cursor: pointer; }
+.composer-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--r-button); color: var(--muted); cursor: pointer; }
 .composer-icon:hover { color: var(--bright); background: var(--hover); }
 /* The model and effort, quiet in the row: an icon and a word each. */
 .chat-pick { display: flex; gap: 2px; }
 .chat-pick[hidden] { display: none; }
-.composer-pick { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px 0 10px; border-radius: var(--pill); color: var(--muted); cursor: pointer; }
+.composer-pick { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 6px 0 10px; border-radius: var(--r-button); color: var(--muted); cursor: pointer; }
 .composer-pick:hover:has(select:not(:disabled)), .composer-pick:focus-within { color: var(--bright); background: var(--hover); }
 .composer-pick svg { flex: none; }
 .composer-pick .spark { color: #d97757; }
-.composer-pick select { -webkit-appearance: none; appearance: none; height: 32px; padding: 0 18px 0 0; border: 0; border-radius: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='%238c8c8c' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 3px center; color: inherit; font-size: 13.5px; cursor: pointer; outline: none; box-shadow: none; }
+.composer-pick select { height: 32px; padding: 0 18px 0 0; border: 0; border-radius: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='%238c8c8c' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 3px center; color: inherit; font-size: 13.5px; cursor: pointer; outline: none; box-shadow: none; }
 .composer-pick select:disabled { opacity: .5; cursor: default; }
-.composer-pick select option { background: var(--widget); color: var(--text); }
 .composer-who { padding: 0 8px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .composer-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .composer .composer-round { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--secondary); color: var(--muted); cursor: pointer; }
@@ -520,7 +545,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .files-box { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .files-tools { flex: none; display: flex; align-items: center; gap: 2px; padding: 10px 10px 6px 12px; }
 .files-tools select { flex: 0 1 auto; min-width: 0; max-width: 100%; margin-right: 6px; font-size: 12.5px; }
-.button-like { display: inline-flex; align-items: center; border: 1px solid transparent; background: var(--secondary); border-radius: var(--pill); padding: 4px 12px; font-weight: 500; cursor: pointer; color: var(--text); text-decoration: none; }
+.button-like { display: inline-flex; align-items: center; border: 1px solid transparent; background: var(--secondary); border-radius: var(--r-button); padding: 4px 12px; font-weight: 500; cursor: pointer; color: var(--text); text-decoration: none; }
 .button-like:hover { background: var(--secondary-hover); text-decoration: none; }
 .files-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .file-browser { flex: 1; min-height: 0; overflow: auto; padding: 2px 0 12px; }
@@ -663,7 +688,7 @@ button.small { font-size: 12.5px; padding: 3px 10px; }
   }
   .keys::-webkit-scrollbar { display: none; }
   .keys button {
-    flex: none; min-width: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--pill);
+    flex: none; min-width: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--r-button);
     background: var(--secondary); color: var(--text); font: 14px var(--mono); touch-action: manipulation;
   }
   .keys button:active, .keys button[aria-pressed="true"] { background: var(--button); border-color: var(--button); color: var(--on-accent); }
@@ -920,17 +945,20 @@ a.side-icon { text-decoration: none; }
 /* Who's on this page: a pill a person, in their colour while they're here. */
 .presence { display: flex; align-items: center; gap: 4px; flex: none; margin-left: 6px; }
 .presence[hidden] { display: none; }
-.presence-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 140px; padding: 2px 9px; border-radius: var(--pill); font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; transition: opacity .3s, filter .3s; }
-.presence-pill.you { box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px currentColor; }
-.presence-pill.idle { opacity: .45; filter: grayscale(.85); }
+/* A quiet pill: a dot in the person's colour, the faintest tint of it
+   behind their name, so who's here is told apart without calling out. */
+.presence-pill { --who: var(--fg-muted); display: inline-flex; align-items: center; gap: 6px; max-width: 150px; padding: 2px 10px 2px 8px; border: 1px solid transparent; border-radius: var(--pill); background: color-mix(in srgb, var(--who) 10%, var(--secondary)); color: var(--text); font-size: 12px; font-weight: 400; line-height: 18px; white-space: nowrap; transition: opacity .3s, filter .3s; }
+.presence-pill::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--who); }
+.presence-pill.you { border-color: var(--input-line); }
+.presence-pill.idle { opacity: .5; filter: grayscale(.85); }
 .presence-name { overflow: hidden; text-overflow: ellipsis; }
-.presence-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: rgba(0, 0, 0, .28); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.presence-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: var(--secondary); color: var(--muted); font-size: 11px; line-height: 16px; text-align: center; }
 .presence-more { white-space: nowrap; }
 
 /* Your own editor: a workspace's link into it, and the dialog with the others. */
 a.button {
   display: inline-block; border: 1px solid transparent; background: var(--secondary); color: var(--text);
-  border-radius: var(--pill); padding: 4px 12px; font-weight: 500; white-space: nowrap;
+  border-radius: var(--r-button); padding: 4px 12px; font-weight: 500; white-space: nowrap;
 }
 a.button:hover { background: var(--secondary-hover); color: var(--bright); text-decoration: none; }
 a.button.primary { background: var(--button); border-color: var(--button); color: var(--on-accent); }
@@ -1004,7 +1032,7 @@ a.button.primary:hover { background: var(--button-hover); }
 .space-note { color: var(--text); font-style: italic; overflow-wrap: anywhere; }
 
 /* Find in the terminal (release 4 of hi_app_dev_orca.md). */
-.term-find { position: absolute; top: 10px; right: 22px; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px; background: var(--widget); border: 1px solid var(--input-line); border-radius: var(--pill); box-shadow: 0 8px 24px var(--shadow); }
+.term-find { position: absolute; top: 10px; right: 22px; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 5px 6px 5px 10px; background: var(--widget); border: 1px solid var(--input-line); border-radius: var(--r-lg); box-shadow: 0 8px 24px var(--shadow); }
 .term-find[hidden] { display: none; }
 .term-find input { width: 200px; }
 .term-find-open { position: absolute; top: 6px; right: 20px; z-index: 4; opacity: 0; transition: opacity .15s; }

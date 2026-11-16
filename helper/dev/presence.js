@@ -1,7 +1,7 @@
 // Who's on this page: the admin page's admins, or an app's dev page's
 // owners and developers. Each window holds a WebSocket to the page; the
-// top bar's #presence shows a pill a person, in their colour while they're
-// here, with how many windows they have open, greyed when none of them had
+// top bar's #presence shows a quiet pill a person, a dot in their colour
+// while they're here, with how many windows they have open, greyed when none of them had
 // a key, a click, or a scroll in a few minutes. The page calls
 // hiPresence.start() once it's signed in.
 (function () {
@@ -11,13 +11,6 @@
 
   function box() { return document.getElementById("presence"); }
 
-  // Dark words on a light colour, light ones on a dark colour.
-  function ink(color) {
-    var n = parseInt(color.slice(1), 16);
-    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-    return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#111" : "#fff";
-  }
-
   function render(people) {
     var el = box();
     if (!el) return;
@@ -26,8 +19,7 @@
     shown.forEach(function (p) {
       var pill = document.createElement("span");
       pill.className = "presence-pill" + (p.idle ? " idle" : "") + (p.you ? " you" : "");
-      pill.style.background = p.color;
-      pill.style.color = ink(p.color);
+      pill.style.setProperty("--who", p.color); // the dot, and a faint tint (dev.css)
       pill.title = p.name + (p.you ? " (you)" : "") + " · " + p.tabs + (p.tabs === 1 ? " window" : " windows") + (p.idle ? " · idle for a few minutes" : "");
       var name = document.createElement("span");
       name.className = "presence-name";
