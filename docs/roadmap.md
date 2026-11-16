@@ -2736,6 +2736,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.168 — Your own editor on the dev box
+
+- [x] **Editor ↗** beside each workspace on the dev page, and in the top
+  bar for the chat's, opens it in the editor on your own computer, over
+  SSH on the app's NetBird peer: VS Code, Cursor, Devin Desktop, and Zed by a
+  link; JetBrains, Orca, and a terminal by the host, user, and folder to
+  type, with Copy. After the first, the button names your editor and
+  opens it straight away, with **▾** for the others. Owners and Pro
+  Devs; a Vibe Dev has no SSH.
+- [x] Its dialog has what to set up once: your key (**Add my key**), the
+  NetBird group, an `~/.ssh/config` block, and the dev box's host key
+  fingerprint for the editor's first-connect question; before the peer
+  joined NetBird, the command an admin runs.
+- [x] Snapshots leave out the servers editors put in the dev box's home
+  (`.vscode-server`, `.cursor-server`, `.zed_server`,
+  `.cache/JetBrains`, …), which come back on their next connect.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5690,6 +5707,27 @@ development loop is frozen and goes in release 4.
   loop removed, about 9,400 lines.
 
 ## Planned
+
+### Next — the dev page takes from Orca
+
+Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
+
+- [x] Release 1 (v2.6.168): your own editor. **Editor ↗** beside each
+  workspace and in the top bar: VS Code, Cursor, Devin Desktop, and Zed by a
+  link; JetBrains, Orca, and a terminal by what to type; the SSH config
+  and the host key's fingerprint; snapshots leave the editors' servers
+  out.
+- [ ] Try each editor on a team's dev box by hand, and settle question
+  1 (the editors' sites in the box).
+- [ ] Release 2: the agents' state from Claude Code's hooks and Codex's
+  notify, through the broker.
+- [ ] Release 3: an inbox of what waits for someone, notifications, and a
+  DM when nobody's on the page.
+- [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
+  and pictures.
+- [ ] Release 5: notes on a diff's lines, sent to the agent.
+- [ ] Release 6: Codex's sessions in Chat; every session, with Resume.
+- [ ] Release 7: `hi dev note`, the agent's line on its workspace.
 
 ### Next — `hi server` again, a server for every app, one admin page
 
