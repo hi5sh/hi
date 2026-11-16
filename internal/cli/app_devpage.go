@@ -376,7 +376,11 @@ type appDevSpace struct {
 	Agent  string `json:"agent,omitempty"`  // claude, codex, ...
 	Status string `json:"status,omitempty"` // working, idle, blocked, ...
 	Title  string `json:"title,omitempty"`
-	By     string `json:"by,omitempty"` // who started it, when hi started it
+	// From the agent's hooks (app_devhooks.go), when they say.
+	Tool    string    `json:"tool,omitempty"`
+	Waiting string    `json:"waiting,omitempty"`
+	Since   time.Time `json:"since,omitzero"`
+	By      string    `json:"by,omitempty"` // who started it, when hi started it
 	// For a worktree of its own: where it is, how many of its commits dev
 	// hasn't, and whether it has changes not committed.
 	Path    string `json:"path,omitempty"`
@@ -437,6 +441,9 @@ func appDevSpaces(team string) ([]appDevSpace, error) {
 			Status    string `json:"agent_status"`
 			Workspace string `json:"workspace_id"`
 			Title     string `json:"terminal_title_stripped"`
+			Session   *struct {
+				Value string `json:"value"`
+			} `json:"agent_session"`
 		} `json:"agents"`
 	}
 	appDevHerdr(team, &agents, "agent", "list")
@@ -449,6 +456,15 @@ func appDevSpaces(team string) ([]appDevSpace, error) {
 		for _, a := range agents.Agents {
 			if a.Workspace == w.ID {
 				space.Agent, space.Status, space.Title = a.Agent, a.Status, a.Title
+				session := ""
+				if a.Session != nil {
+					session = a.Session.Value
+				}
+				status, hook := appDevHookStatus(team, w.ID, a.Agent, a.Status, session, time.Now())
+				space.Status = status
+				if hook != nil {
+					space.Tool, space.Waiting, space.Since = hook.Tool, hook.Waiting, hook.Since
+				}
 			}
 		}
 		spaces = append(spaces, space)

@@ -301,7 +301,7 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	}
 	// Codex: ChatGPT through the proxy, no approvals, no sandbox of its own.
 	if appCodexViaProxy(team) {
-		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + codexBoxConfig(proxyIP)
+		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + appDevCodexNotify + codexBoxConfig(proxyIP)
 		if err := boxedWriteFile(home, filepath.Join(home, ".codex", "config.toml"), []byte(codex), 0o600); err != nil {
 			return err
 		}
@@ -350,6 +350,10 @@ func appDevClaudeSettings(home string) error {
 	// chat and the channel say what happened while you were away.
 	if _, set := settings["awaySummaryEnabled"]; !set {
 		settings["awaySummaryEnabled"] = false
+		changed = true
+	}
+	// The agents' state for the page, from hi's hooks (app_devhooks.go).
+	if appDevClaudeHooks(settings) {
 		changed = true
 	}
 	if changed {

@@ -1,7 +1,8 @@
 # What the dev page takes from Orca
 
-Status: Approved (2026-11-16): the plan, and release 1, built in
-v2.6.168 and narrowed in v2.6.169 (questions 1 and 2 answered). Each
+Status: Approved (2026-11-16): the plan; release 1, built in v2.6.168
+and narrowed in v2.6.169 (questions 1 and 2 answered); release 2, built
+in v2.6.170. Each
 later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
@@ -118,19 +119,51 @@ more, and says it exactly, through hooks: a session started, a prompt
 sent, a tool about to run and done, a permission asked, a notification,
 stopped, a subagent done, compacted. Codex has its `notify` program.
 
-- hi's own hooks (question 2): Orca's, if someone's Orca wrote them,
-  stay beside them.
-- hi writes the hooks into the dev box's `~/.claude/settings.json` and
-  Codex's config when the box starts, beside what an owner set: each runs
-  `hi dev __hook <event>`, which hands the event to the broker's socket
-  and never fails the agent's turn.
-- The broker keeps each workspace's last events: the state, since when,
-  the tool running, and what it's waiting for.
-- The page's dots and the chat's status line come from it, with herdr's
-  state where a hook says nothing. The screen stays where the question's
-  options come from; a hook says only that one is there.
-- For other agents, the status sequence some agent CLIs print
-  (Orca's OSC 7501), if herdr passes it on, then the title.
+Built in v2.6.170:
+
+- **hi's own hooks** (question 2), beside the owners', herdr's (its
+  SessionStart hook, which tells herdr the session), and Orca's, if
+  someone's Orca wrote some. On each start of the team's service, hi
+  puts `/box/bin/hi dev __hook claude` in the dev box's
+  `~/.claude/settings.json` for SessionStart, SessionEnd,
+  UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure,
+  PermissionRequest, Notification, PreCompact, Stop, and StopFailure,
+  once each, with a 5-second timeout. Codex's config, when hi writes it,
+  gets `notify = ["/box/bin/hi", "dev", "__hook", "codex"]`, which says
+  when a turn is done.
+- **hi dev __hook** reads the event (Claude Code's on its input,
+  Codex's as its last argument), takes the workspace and pane from
+  herdr's environment (`HERDR_WORKSPACE_ID`, `HERDR_PANE_ID`), and
+  hands it to the broker's socket (`POST /hook`) within a second. It
+  prints nothing and exits 0 whatever happens. Outside herdr (someone's
+  own session over SSH, or in their editor) it does nothing.
+- **The broker** keeps each workspace's state, in memory: working,
+  blocked, or idle; since when; the tool running; and what it waits for.
+  - A prompt starts a turn: working. A tool about to run: working, with
+    its name. A tool done: working.
+  - AskUserQuestion: blocked, on a question. ExitPlanMode: blocked, on a
+    plan to approve. A permission asked, or its notification: blocked,
+    on permission for the tool. An MCP tool's question: blocked.
+  - Stop, or a failed stop: idle. A session's start: idle, except after
+    a compaction, which carries on the turn. A session's end: forgotten.
+  - A subagent's events keep the main agent working, with the main
+    agent's tool.
+- **With herdr's:** the hooks' state counts while herdr has that agent
+  in the workspace, in that session. herdr's wins where the two differ
+  and the hooks have been quiet 15 seconds: a turn stopped with Esc
+  fires no Stop. herdr's done (finished, and nobody looked) stays done.
+  After a dev box restart herdr numbers its workspaces again; the
+  session tells an old state from a new one.
+- **The page:** the dots in Workspaces and on Tasks come from it; a
+  workspace says what its agent runs or waits for, and for how long once
+  it's a minute ("Running Bash, for 3 min", "Waits for permission for
+  Edit"). In the chat, the top bar says what it waits for, and the
+  working line names the tool when the terminal's line can't be read.
+  The screen stays where a question's options come from.
+
+Not done: other agents' state from the status sequence some agent CLIs
+print (Orca's OSC 7501): herdr 0.9 doesn't pass it on. The title stays
+for them.
 
 ## Release 3: needs you
 
@@ -185,6 +218,24 @@ agents when.
   button for it waits for someone to ask.
 
 ## Tests
+
+Release 2:
+
+- Claude Code's events one after another, and the state after each:
+  herdr idle while the hooks say working; a question herdr misses; a
+  permission and its tool; Esc (herdr's idle wins after 15 seconds);
+  herdr's done kept; another session or agent in the workspace: herdr's;
+  a session's end; Codex's turn done; a workspace or agent hi doesn't
+  know, dropped.
+- The settings: hi's hook once for each event after two starts, beside
+  herdr's, an owner's model kept.
+- hi dev __hook through a real socket: nothing outside herdr; the tool
+  and the pane; Codex's notice; the page's workspaces with what it
+  waits for; no broker, or input that isn't JSON: nothing printed, no
+  failure.
+- In Chromium: a workspace's "Running Bash, for 2 min".
+- By hand, on a team's dev box: a turn, a permission in auto mode, a
+  question, Esc, and Codex's turn.
 
 Release 1:
 

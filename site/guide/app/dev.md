@@ -345,7 +345,12 @@ for; Checks and Logs have a dot.
 - **Workspaces:** the pieces of work in the dev box, each with what dev
   has of it, **Open**, **Editor ↗** ([your own editor](#your-own-editor)),
   **Try on Stage**, **Ship to Dev**, and **Done ✓**
-  ([below](#beside-the-chat)), and what Stage shows at the top.
+  ([below](#beside-the-chat)), and what Stage shows at the top. Its
+  dot is its agent's state: working, waiting for someone, idle, or done.
+  Claude Code and Codex tell hi through their hooks, which hi sets in
+  the dev box, so the page also says what Claude runs ("Running Bash,
+  for 3 min") or waits for ("Waits for permission for Edit", "a
+  question"); the chat's top bar says the same.
 - **Decisions:** the project's `docs/decisions/`, the technical choices
   nobody should undo by accident, as cards: each one's number, when it
   was written, its title, and its first paragraph, newest first, with a

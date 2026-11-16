@@ -300,8 +300,19 @@
     })[0] || null;
   }
 
-  function statusDot(status) {
-    return el("span", { class: "dot " + (status || ""), title: status || "no agent" });
+  function statusDot(status, space) {
+    var line = space ? hookLine(space) : "";
+    return el("span", { class: "dot " + (status || ""), title: (status || "no agent") + (line ? ": " + line : "") });
+  }
+  // hookLine is what an agent's hooks add to its state (app_devhooks.go):
+  // what it waits for, or the tool it runs, and for how long.
+  function hookLine(agent) {
+    var what = agent.status === "blocked" && agent.waiting ? "Waits for " + agent.waiting
+      : agent.status === "working" && agent.tool ? "Running " + agent.tool : "";
+    if (!what) return "";
+    var seconds = agent.since ? Math.round((Date.now() - Date.parse(agent.since)) / 1000) : -1;
+    if (seconds >= 60) what += ", for " + (seconds < 3600 ? Math.round(seconds / 60) + " min" : Math.round(seconds / 3600) + " h");
+    return what;
   }
 
   function focus(space) {
@@ -426,9 +437,11 @@
         if (space.dirty) left.push("changes not committed");
         where = left.length ? left.join(", ") : "everything in dev";
       }
+      var doing = hookLine(space);
       var what = el("div", { class: "what" }, [
         el("div", { text: space.label + (space.agent ? " · " + space.agent : "") }),
         space.title ? el("div", { class: "muted small", text: space.title }) : null,
+        doing ? el("div", { class: "small " + (space.status === "blocked" ? "warn" : "muted"), text: doing }) : null,
         space.by ? el("div", { class: "muted small", text: "Started by " + space.by }) : null,
         where ? el("div", { class: "small " + (unshipped ? "warn" : "muted"), text: where }) : null,
       ]);
@@ -452,7 +465,7 @@
           },
         }));
       }
-      list.appendChild(el("li", { class: "ticket" }, [statusDot(space.status), what, el("div", { class: "actions" }, actions)]));
+      list.appendChild(el("li", { class: "ticket" }, [statusDot(space.status, space), what, el("div", { class: "actions" }, actions)]));
     });
   }
 
@@ -1695,8 +1708,8 @@
     var agent = view.agent || {};
     chat.agent = agent;
     chat.id = view.id || "";
-    $("chat-status").textContent = "";
-    chatActivity(agent.running && agent.status === "working" ? (view.activity || "") : null);
+    $("chat-status").textContent = agent.running && agent.status === "blocked" && agent.waiting ? "Waits for " + agent.waiting : "";
+    chatActivity(agent.running && agent.status === "working" ? (view.activity || (agent.tool ? "Running " + agent.tool + "…" : "")) : null);
     var asking = agent.running && agent.status === "blocked";
     chatAsk(asking ? view.ask : null, asking ? view.screen : "", agent.agent);
     $("chat-waiting").hidden = !(asking && view.screen && !view.ask);
@@ -4063,7 +4076,7 @@
       var space = closed ? null : spaceFor(ticket);
       var who = ticket.asked || ticket.author || "";
       list.appendChild(el("li", { class: ticket.number === mine ? "mine" : "" }, [
-        space ? statusDot(space.status) : null,
+        space ? statusDot(space.status, space) : null,
         el("button", { type: "button", class: "stask-row", title: "#" + ticket.number + " " + ticket.title + (who ? " · " + who : "") + (ticket.updated ? " · " + ago(ticket.updated) : ""), onclick: function () { stask.mode = "one"; stask.number = ticket.number; renderSideTasks(); } }, [
           el("span", { class: "stask-num", text: "#" + ticket.number }),
           el("span", { class: "stask-title", text: ticket.title })]),

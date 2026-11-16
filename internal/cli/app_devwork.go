@@ -357,6 +357,15 @@ func (b *appBroker) devHandler() http.Handler {
 		}
 		reply(w, b.devAccessView(), nil)
 	})
+	mux.HandleFunc("POST /hook", func(w http.ResponseWriter, r *http.Request) {
+		var event appDevHookEvent
+		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&event); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		appDevHookRecord(b.team, event, time.Now())
+		reply(w, struct{}{}, nil)
+	})
 	b.devKitRoutes(mux, reply, decode)
 	b.devViewRoutes(mux, reply, decode)
 	return mux
@@ -417,6 +426,10 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
 func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		fmt.Fprint(stdout, appDevUsage)
+		return nil
+	}
+	if args[0] == "__hook" {
+		appDevHookClient(args[1:], stdin)
 		return nil
 	}
 	socket := os.Getenv(appDevSocketEnv)

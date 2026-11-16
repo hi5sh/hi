@@ -48,6 +48,11 @@ type appDevChatAgent struct {
 	Agent   string `json:"agent,omitempty"`  // claude, codex, ...
 	Status  string `json:"status,omitempty"` // working, idle, blocked, done
 	Running bool   `json:"running"`
+	// From the agent's hooks (app_devhooks.go), when they say: the tool
+	// running, what it waits for, and since when it's been as it is.
+	Tool    string    `json:"tool,omitempty"`
+	Waiting string    `json:"waiting,omitempty"`
+	Since   time.Time `json:"since,omitzero"`
 }
 
 // appDevChatView is what the page asks for: the session, its entries
@@ -174,6 +179,15 @@ func devChatAgent(team, workspace string) (appDevChatAgent, string, error) {
 			continue
 		}
 		agent = appDevChatAgent{Pane: pane.Pane, Agent: pane.Agent, Status: pane.Status, Running: true}
+		herdrSession := ""
+		if pane.Session != nil {
+			herdrSession = pane.Session.Value
+		}
+		status, hook := appDevHookStatus(team, workspace, pane.Agent, pane.Status, herdrSession, time.Now())
+		agent.Status = status
+		if hook != nil {
+			agent.Tool, agent.Waiting, agent.Since = hook.Tool, hook.Waiting, hook.Since
+		}
 		if pane.Session != nil && strings.HasSuffix(pane.Session.Value, ".jsonl") {
 			session = pane.Session.Value
 		} else if pane.Session != nil && pane.Session.Value != "" && pane.CWD != "" {
