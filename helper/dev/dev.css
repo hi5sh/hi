@@ -828,5 +828,9 @@ a.button.primary:hover { background: var(--button-hover); }
 .editor-code { margin: 6px 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font: 12px/1.45 var(--mono); white-space: pre; overflow: auto; }
 .editor-setup summary { cursor: pointer; font-weight: 600; }
 .editor-setup ol { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.editor-generic { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+#sshkey-connect { margin: 0 0 8px; }
+#sshkey-connect .editor-facts { display: flex; align-items: center; gap: 6px; }
+#sshkey-connect code { font: 12px var(--mono); overflow-wrap: anywhere; }
 .editor-ready { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .editor-ready p { margin: 0; flex: 1; }

@@ -1,7 +1,8 @@
 # What the dev page takes from Orca
 
 Status: Approved (2026-11-16): the plan, and release 1, built in
-v2.6.168. Each later release waits for its questions below.
+v2.6.168 and narrowed in v2.6.169 (questions 1 and 2 answered). Each
+later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
 herdr), [hi_app_dev_access.md](hi_app_dev_access.md) (who has SSH:
@@ -67,19 +68,24 @@ worktree for the agents at once, and the other way round.
   ↗**; after, the editor's name (**Cursor ↗**), which opens it straight
   away, with **▾** for the others. The page remembers the pick in the
   browser. A Vibe Dev has no SSH, so none of it.
-- **By a link** (the browser asks the computer's editor to open it):
-  - VS Code: `vscode://vscode-remote/ssh-remote+box@<peer>/<folder>`,
-    with Microsoft's Remote - SSH extension.
-  - Cursor and Devin Desktop (Windsurf, renamed): the same with
-    `cursor://` and `devin://`; their Remote - SSH is built in.
+- **The editors hi supports** (v2.6.169), each of which brings its
+  server from the computer when the box can't download it (question 1):
+  - VS Code, by a link (the browser asks the computer's editor to open
+    it): `vscode://vscode-remote/ssh-remote+box@<peer>/<folder>`, with
+    Microsoft's Remote - SSH extension.
+  - Cursor: the same with `cursor://`; its Remote - SSH is built in.
   - Zed: `zed://ssh/box@<peer>/<folder>`.
-- **By what to type**, each with Copy: JetBrains (Gateway or Toolbox:
-  host, port, user, folder; its links need an IDE already deployed),
-  Orca (Add Target from the SSH config, then the project `/box/repo`,
-  whose worktrees are the workspaces; Orca hides worktrees it didn't
-  make until **Non-Orca worktrees, Show**; it has no link for an SSH
-  folder), and a terminal (`ssh -t … 'cd
-  <folder> && exec bash -l'`, `herdr --remote`).
+  - Orca, by what to type, each with Copy: Add Target from the SSH
+    config, then the project `/box/repo`, whose worktrees are the
+    workspaces; Orca hides worktrees it didn't make until **Non-Orca
+    worktrees, Show**; it has no link for an SSH folder.
+- **Anything else over SSH**, in the same dialog for a terminal,
+  JetBrains Gateway, or any other editor: the workspace's line (`ssh -t
+  box@<peer> 'cd <folder> && exec bash -l'`), then the host, port 22,
+  user, and folder, each with Copy. The Security view's **Your SSH key**
+  has `ssh box@<peer>` with Copy. v2.6.168 also had Devin Desktop
+  (`devin://`), JetBrains, and a terminal in the list; they left it in
+  v2.6.169.
 - **The folder** is the workspace's worktree, or `/box/repo` for the
   project's own clone: the same paths in the box as over SSH.
 - **The peer** is the app's NetBird name as NetBird gave it
@@ -95,13 +101,14 @@ worktree for the agents at once, and the other way round.
   (`SHA256:…`, from `dev/ssh/host_ed25519.pub`), for the question every
   editor asks on its first connect.
 - **Snapshots** leave out what editors install in the box's home
-  (`.vscode-server`, `.cursor-server`, `.devin-server`, `.zed_server`,
-  `.cache/JetBrains`, Orca's `.orca-remote`, …), a few hundred megabytes each
+  (`.vscode-server`, `.cursor-server`, `.zed_server`, Orca's
+  `.orca-remote`, and those of editors reached by plain SSH, such as
+  `.devin-server` and `.cache/JetBrains`), a few hundred megabytes each
   and again per version, which come back on the next connect. Only in
   the box's home: a project's folder of the same name stays.
 - **What the editors download** in the box: each puts its server and its
-  extensions there on its first connect. Which sites that takes, and
-  whether the box's list should have them, is question 1.
+  extensions there on its first connect, from the computer when the box
+  can't reach their sites (question 1).
 
 ## Release 2: the agents' state from their hooks
 
@@ -111,6 +118,8 @@ more, and says it exactly, through hooks: a session started, a prompt
 sent, a tool about to run and done, a permission asked, a notification,
 stopped, a subagent done, compacted. Codex has its `notify` program.
 
+- hi's own hooks (question 2): Orca's, if someone's Orca wrote them,
+  stay beside them.
 - hi writes the hooks into the dev box's `~/.claude/settings.json` and
   Codex's config when the box starts, beside what an owner set: each runs
   `hi dev __hook <event>`, which hands the event to the broker's socket
@@ -186,39 +195,34 @@ Release 1:
   nothing outside it (restic matches `dev/home/.vscode-server` there,
   not a project's `sub/.vscode-server`, tried with restic 0.18).
 - In Chromium, on the page with its real policy: **Editor ↗** before a
-  pick; each editor's link for the workspace and for the project's own
-  clone; the terminal's command quoted; the SSH config; Copy; a pick
+  pick; the four editors; each link for the workspace and for the
+  project's own clone; Anything else over SSH, its command quoted, and
+  its Copy; the Security view's `ssh` line; a kept editor no longer
+  listed (Devin Desktop) back to **Editor ↗**; the SSH config; Copy; a pick
   kept, the bar then **Cursor ↗** with **▾**, and the page still there
   after the link; no key: no links, **Add my key** to its box; no peer:
   the admin's command; a Vibe Dev: nothing.
 - By hand, on a team's dev box: VS Code, Cursor, and Zed from the
-  links, JetBrains and Orca by their steps; each one's first connect,
+  links, Orca by its steps, and a terminal by the `ssh` line; each one's first connect,
   what it downloaded, and through which sites.
 
 ## Questions
 
-1. **The editors' sites.** The box's proxy refuses them today. What
-   each does then (from their code, 2026-11-16):
+1. **The editors' sites.** Answered (2026-11-16): hi supports VS
+   Code, Cursor, Zed, and Orca, which need none, and plain SSH for the
+   rest; the box's list stays as it is. What each does when the box's
+   proxy refuses its sites (from their code, 2026-11-16):
    - VS Code and Cursor try the box first, then download their server
      on the computer and copy it over (`remote.SSH.localServerDownload`,
      `auto`); VS Code does the same for extensions. Zed does too, and
      its extensions come from the computer. Orca uploads everything.
-   - Devin Desktop has no such fallback: its server comes from
-     `windsurf-stable.codeiumdata.com`, its extensions from
-     `marketplace.windsurf.com`.
-   - JetBrains downloads its IDE on the box (`download.jetbrains.com`
-     and its CDNs) unless Gateway gets **Upload installer file**.
-
-   Each refusal shows on Security as one nobody asked for. Should the
-   development list have Devin Desktop's and JetBrains' sites, and
-   VS Code's, Cursor's, and Microsoft's marketplace (faster, and fewer
-   refusals), or the guide say how each editor brings its own?
-2. **Orca's hooks in the box.** On its first connect Orca writes hooks
-   into the box's `~/.claude/settings.json` and Codex's config, for
-   every session there, herdr's too. Outside Orca they answer `{}` and
-   exit at once, so they change nothing; inside, its permission hook
-   can hold a request up to two minutes. Leave them, or have the guide
-   say `orca agent hooks off` until release 2 has hi's own?
+   - Devin Desktop has no such fallback (`windsurf-stable.codeiumdata.com`,
+     `marketplace.windsurf.com`); JetBrains downloads its IDE on the box
+     (`download.jetbrains.com`) unless Gateway gets **Upload installer
+     file**. Someone who uses them asks for the sites in Security.
+2. **Orca's hooks in the box.** Answered (2026-11-16): release 2 writes
+   hi's own hooks; Orca's stay (outside Orca they answer `{}` and exit
+   at once).
 3. **Release 3's DM:** to whoever started the work, or to the owners?
    After ten minutes, or a setting?
 4. **More agents to start** (OpenCode, Gemini CLI, and the like): which,

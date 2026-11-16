@@ -166,8 +166,9 @@
                 </section>
                 <section id="sshkey-box" class="pro-only">
                   <h2>Your SSH key</h2>
-                  <p class="muted small">For <code>ssh</code> into the dev box from your own terminal, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
+                  <p class="muted small">For <code>ssh</code> and your own editor (Editor ↗ on a workspace) into the dev box, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
                   <p id="sshkey-now" class="small"></p>
+                  <div id="sshkey-connect" class="small" hidden></div>
                   <form id="sshkey-form" class="setting-form">
                     <input id="sshkey" placeholder="ssh-ed25519 AAAA… you@laptop" autocomplete="off" spellcheck="false" required>
                     <button type="submit">Save the key</button>
@@ -513,12 +514,16 @@
   <p id="editor-where" class="muted small"></p>
   <div id="editor-ready" class="editor-ready" hidden></div>
   <ul id="editor-list" class="editor-list"></ul>
+  <section class="editor-generic">
+    <div class="editor-head"><strong>Anything else over SSH</strong><span class="muted small">a terminal, JetBrains Gateway, or any editor with remote SSH</span></div>
+    <div id="editor-ssh"></div>
+  </section>
   <details id="editor-setup" class="editor-setup">
     <summary>Set up once</summary>
     <ol class="small">
       <li id="editor-key"></li>
       <li>Your computer is on the app's NetBird network, in a group NetBird lets reach <code id="editor-host"></code> on port 22. If your editor can't connect, ask your IT team for that.</li>
-      <li>For an editor that picks hosts from your SSH config (JetBrains, Orca, VS Code's list), and for a key ssh doesn't try by itself, add this to <code>~/.ssh/config</code>:
+      <li>For an editor that picks hosts from your SSH config (Orca, VS Code's list, JetBrains), and for a key ssh doesn't try by itself, add this to <code>~/.ssh/config</code>:
         <pre id="editor-config" class="editor-code"></pre>
         <button type="button" id="editor-config-copy" class="small">Copy</button>
       </li>

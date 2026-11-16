@@ -559,24 +559,27 @@ agent; they coordinate between themselves.
 
 ### Your own editor
 
-Any editor that works over SSH works on the dev box: VS Code, Cursor,
-Devin Desktop (Windsurf, renamed), Zed, JetBrains' IDEs, [Orca](https://github.com/stablyai/orca),
-or a terminal. On the dev page, **Editor ↗** beside a workspace (in
-Workspaces, and in the top bar for the chat's) opens it there, on its
-worktree in the box:
+Any editor that works over SSH works on the dev box. On the dev page,
+**Editor ↗** beside a workspace (in Workspaces, and in the top bar for
+the chat's) opens it there, on its worktree in the box:
 
-- **VS Code, Cursor, Devin Desktop, Zed:** a link; the browser asks your
-  computer's editor to open it. VS Code needs Microsoft's **Remote -
-  SSH** extension; the others have theirs built in. After the first,
-  the button says your editor's name and opens it straight away; **▾**
-  has the others.
-- **JetBrains** (Gateway, or Toolbox's Remote Development) and
-  **Orca**: the host, the user, and the folder to type in, with Copy. In
-  Orca, add the target, then the project `/box/repo` on it: each
-  workspace on the page is one of its worktrees, which Orca hides
-  until **Non-Orca worktrees, Show**.
-- **A terminal:** `ssh -t box@<peer> 'cd <folder> && exec bash -l'`, or
-  `herdr --remote box@<peer>`.
+- **VS Code, Cursor, Zed:** a link; the browser asks your computer's
+  editor to open it. VS Code needs Microsoft's **Remote - SSH**
+  extension; the others have theirs built in. After the first, the
+  button says your editor's name and opens it straight away; **▾** has
+  the others.
+- **[Orca](https://github.com/stablyai/orca):** the host, the user, and
+  the project to type in, with Copy. Add the target, then the project
+  `/box/repo` on it: each workspace on the page is one of its worktrees,
+  which Orca hides until **Non-Orca worktrees, Show**.
+- **Anything else over SSH** (a terminal, JetBrains Gateway, another
+  editor): the `ssh` line for the workspace, and its host, port, user,
+  and folder, each with Copy. The Security view has the plain
+  `ssh box@<peer>` line with Copy too.
+
+These four bring their server to the dev box from your computer when
+the box can't download it, so they need no site added. Another editor
+may need its own sites in the box (Security, Sites the dev box reaches).
 
 **Set up once**, in the same dialog:
 
@@ -584,8 +587,8 @@ worktree in the box:
    paste theirs on the dev page's Security view).
 2. Your computer on the app's NetBird network, in a group that reaches
    the app's peer on port 22: your IT team's.
-3. For an editor that lists the hosts in your SSH config (JetBrains,
-   Orca, VS Code's Remote Explorer), and for a key ssh doesn't try by
+3. For an editor that lists the hosts in your SSH config (Orca, VS
+   Code's Remote Explorer, JetBrains), and for a key ssh doesn't try by
    itself, this in `~/.ssh/config`, which the dialog has with your app's
    names:
 

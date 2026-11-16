@@ -457,17 +457,14 @@
   }
 
   // ---- Your own editor (app_deveditor.go): a workspace in VS Code,
-  // Cursor, Devin Desktop (Windsurf), or Zed by a link, and in JetBrains, Orca, or any
-  // editor that works over SSH by the box's name and the folder. An
-  // owner's and a Pro Dev's: a Vibe Dev has no SSH, and no state.ssh.
+  // Cursor, or Zed by a link, in Orca by its steps, and in anything else
+  // that works over SSH by the box's name and the folder, each with Copy.
+  // An owner's and a Pro Dev's: a Vibe Dev has no SSH, and no state.ssh.
   var editors = [
     { id: "vscode", name: "VS Code", scheme: "vscode", note: "with Microsoft's Remote - SSH extension" },
     { id: "cursor", name: "Cursor", scheme: "cursor", note: "its Remote - SSH is built in" },
-    { id: "devin", name: "Devin Desktop", scheme: "devin", note: "Windsurf, renamed; its Remote - SSH is built in" },
     { id: "zed", name: "Zed", note: "remote projects are built in" },
-    { id: "jetbrains", name: "JetBrains", note: "IntelliJ IDEA, PyCharm, GoLand, WebStorm…, through Gateway or Toolbox" },
     { id: "orca", name: "Orca", note: "agents and worktrees, with its own editor" },
-    { id: "terminal", name: "A terminal", note: "ssh, or your own herdr" },
   ];
   var editor = { space: null, leaving: 0 };
   function editorById(id) { return editors.filter(function (e) { return e.id === id; })[0]; }
@@ -552,15 +549,14 @@
       var body = null;
       if (editorLink(e, path)) {
         body = blocked ? null : editorAnchor(e, space, "Open in " + e.name + " ↗", "button" + (kept && kept.id === e.id ? " primary" : ""));
-      } else if (e.id === "jetbrains") {
-        body = editorSteps("In Gateway, or Toolbox's Remote Development: SSH, New connection, with", [["Host", host], ["Port", "22"], ["User", ssh.user], ["Project", path]]);
       } else if (e.id === "orca") {
         body = editorSteps("In Orca's Settings, SSH, Add Target: pick " + ssh.alias + " from your SSH config (Set up once, below), or type it in. Then add the project " + ssh.project + " on it. Each workspace here is one of its worktrees; Orca hides those it didn't make until you show them (Non-Orca worktrees, Show).", [["Host", host], ["User", ssh.user], ["Project", ssh.project]]);
-      } else if (e.id === "terminal") {
-        body = editorSteps("", [["ssh", "ssh -t " + editorTarget() + " " + shellWord("cd " + shellWord(path) + " && exec bash -l")], ["herdr", "herdr --remote " + editorTarget()]]);
       }
       list.appendChild(el("li", {}, [head, body]));
     });
+    var generic = $("editor-ssh");
+    generic.textContent = "";
+    generic.appendChild(editorSteps("", editorSSHRows(path)));
     $("editor-host").textContent = host;
     $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Security, Your SSH key (the .pub file, such as ~/.ssh/id_ed25519.pub).";
     $("editor-config").textContent = editorConfig();
@@ -579,6 +575,13 @@
         return [el("dt", { class: "muted small", text: row[0] }), el("dd", {}, [el("code", { text: row[1] }),
           el("button", { type: "button", class: "small link", text: "Copy", "aria-label": "Copy " + row[0], onclick: function () { copyText(row[1]); } })])];
       })))]);
+  }
+  // editorSSHRows are the dev box for anything else over SSH: a terminal,
+  // JetBrains, another editor. One line to copy, then each part of it.
+  function editorSSHRows(path) {
+    var ssh = state.ssh, host = ssh.host || "(waiting for NetBird)";
+    return [["ssh", ssh.host ? "ssh -t " + editorTarget() + " " + shellWord("cd " + shellWord(path) + " && exec bash -l") : host],
+      ["Host", host], ["Port", "22"], ["User", ssh.user], ["Folder", path]];
   }
   // editorConfig is the dev box in ~/.ssh/config: under its own name, for
   // the editors that list those, and under its NetBird name, which the
@@ -1136,6 +1139,14 @@
   function vibe() { return !!state && state.level === "vibe"; }
   function renderSSHKey() {
     $("sshkey-now").textContent = state.ssh_key ? "Now: " + state.ssh_key + ". A new one replaces it." : "You have no key in the dev box yet.";
+    var connect = $("sshkey-connect");
+    connect.hidden = !state.ssh;
+    if (!state.ssh) return;
+    connect.textContent = "";
+    var line = state.ssh.host ? "ssh " + editorTarget() : "";
+    connect.appendChild(line ? el("div", { class: "editor-facts" }, [el("code", { text: line }),
+      el("button", { type: "button", class: "small link", text: "Copy", "aria-label": "Copy the ssh command", onclick: function () { copyText(line); } })])
+      : el("span", { class: "muted", text: "The dev box isn't on the app's NetBird network yet: an admin of the machine runs hi app dev " + state.team + " netbird" }));
   }
   $("sshkey-form").addEventListener("submit", function (event) {
     event.preventDefault();

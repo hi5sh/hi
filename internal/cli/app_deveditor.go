@@ -2,8 +2,8 @@ package cli
 
 // Your own editor on the dev box (docs/specs/approved/hi_app_dev_orca.md,
 // release 1): an owner or a Pro Dev opens a workspace in VS Code, Cursor,
-// Devin Desktop (Windsurf), Zed, JetBrains, Orca, or any editor that
-// works over SSH, as the box's account on the app's NetBird peer. The page makes the links
+// Zed, or Orca, or anything else that works over SSH, as the box's
+// account on the app's NetBird peer. The page makes the links
 // from what hi gives it here: the peer's name, the account, and the box's
 // host key, for the question an editor asks on its first connect. The
 // editors put their own servers in the box's home then, which come back
@@ -60,8 +60,9 @@ func appSSHFingerprint(line string) string {
 // appDevEditorServers are what editors install in the box's home over
 // SSH, a few hundred megabytes each, and again for each of their
 // versions: VS Code's and the editors made from it, Zed's, JetBrains'
-// IDE backends and their caches, and Orca's relay. Each comes back on the
-// editor's next connect.
+// IDE backends and their caches, and Orca's relay, whether the page lists
+// the editor or someone reaches the box by plain SSH. Each comes back on
+// the editor's next connect.
 var appDevEditorServers = []string{
 	".vscode-server", ".vscode-server-insiders", ".vscodium-server",
 	".cursor-server", ".windsurf-server", ".devin-server", ".antigravity-server",
