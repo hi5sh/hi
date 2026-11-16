@@ -2833,6 +2833,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Unicode 11's widths for emoji and CJK; links that open in a tab;
   iTerm's inline pictures (`timg -p i`).
 
+### v2.6.176 — Codex in Chat, and every session
+
+- [x] Chat shows Codex's sessions as Claude Code's: the messages, its
+  answers, its commands with their output, its reasoning's summary, the
+  files it changed. hi's own Codex runs (reviews) stay out.
+- [x] **Sessions** beside **+ New**: the workspace's sessions, both
+  agents', newest first, each with **Resume** (`claude --resume`,
+  `codex resume`).
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5808,7 +5817,7 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
 - [x] Release 4 (v2.6.175): the terminal's WebGL drawing, search,
   Unicode 11, links, and iTerm's pictures.
 - [x] Release 5 (v2.6.173): notes on a diff's lines, sent to the agent.
-- [ ] Release 6: Codex's sessions in Chat; every session, with Resume.
+- [x] Release 6 (v2.6.176): Codex's sessions in Chat; every session, with Resume.
 - [x] Release 7 (v2.6.173): `hi dev note`, the agent's line on its workspace.
 
 ### Next — `hi server` again, a server for every app, one admin page
