@@ -2791,6 +2791,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   workspace. v2.6.168 showed it only beside a workspace with a worktree
   or an agent.
 
+### v2.6.172 — Needs you
+
+- [x] An inbox in the dev page's top bar, a bell with a count: the
+  workspaces whose agent waits for someone (a question, a permission, a
+  plan), with what for and how long, then those done since you last
+  looked, with who started each. A click opens its chat.
+- [x] The browser's notifications while the page is open, after **Notify
+  me**: "2-news asks a question", "1-chart is done", each once, none for
+  the chat in front of you. The installed app's badge counts what waits.
+- [x] An agent that has waited ten minutes with nobody active on the dev
+  page gets one DM: to whoever started its work, else to the owners,
+  with a link that opens its chat.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5761,8 +5774,8 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
   hooks in the box are left alone.
 - [ ] Try release 2 on a team's dev box by hand: a turn, a permission in
   auto mode, a question, Esc, and Codex's turn.
-- [ ] Release 3: an inbox of what waits for someone, notifications, and a
-  DM when nobody's on the page.
+- [x] Release 3 (v2.6.172): an inbox of what waits for someone,
+  notifications, and a DM when nobody's on the page.
 - [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
   and pictures.
 - [ ] Release 5: notes on a diff's lines, sent to the agent.
