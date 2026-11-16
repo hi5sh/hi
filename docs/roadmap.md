@@ -2765,6 +2765,24 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The Security view's **Your SSH key** shows `ssh box@<peer>` with
   Copy, for owners and Pro Devs.
 
+### v2.6.170 — The agents' state from their hooks
+
+- [x] hi puts its own hooks in the dev box: Claude Code's settings get
+  `hi dev __hook claude` for a session's start and end, a prompt, each
+  tool before and after, a permission, a notification, a compaction, and
+  a stop, beside the owners', herdr's, and Orca's; Codex's config gets it
+  as its `notify`, for each turn done. The hook hands the event to the
+  broker's socket, says nothing, and never fails the turn.
+- [x] The page's dots come from the hooks, with herdr's where they say
+  nothing: a question or a permission herdr's screen reading misses is
+  **blocked** at once. A workspace says what its agent runs or waits for,
+  and for how long ("Running Bash, for 3 min", "Waits for permission for
+  Edit"); the chat's top bar says what it waits for, and its working line
+  names the tool.
+- [x] herdr's state wins where the hooks have been quiet 15 seconds and
+  it sees otherwise (a turn stopped with Esc fires no hook), and its
+  **done** stays.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5730,9 +5748,11 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
   host, port, user, and folder, each with Copy; the SSH config and the
   host key's fingerprint; snapshots leave the editors' servers out.
 - [ ] Try each editor on a team's dev box by hand.
-- [ ] Release 2: the agents' state from hi's own hooks (Claude Code's
-  hooks, Codex's notify), through the broker; Orca's hooks in the box
-  are left alone.
+- [x] Release 2 (v2.6.170): the agents' state from hi's own hooks
+  (Claude Code's hooks, Codex's notify), through the broker; Orca's
+  hooks in the box are left alone.
+- [ ] Try release 2 on a team's dev box by hand: a turn, a permission in
+  auto mode, a question, Esc, and Codex's turn.
 - [ ] Release 3: an inbox of what waits for someone, notifications, and a
   DM when nobody's on the page.
 - [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
