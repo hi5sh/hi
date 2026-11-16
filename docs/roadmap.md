@@ -2736,6 +2736,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.164 — Settings changed in the Vault tab; a setting from a shared key on the pages
+
+- [x] The Vault tab lists a path's names now; an app's settings paths take
+  a new name, a new value, or a removal there, through hi app env.
+- [x] Other paths say where they're changed.
+- [x] An app's Settings (admin page) and its dev page take a setting from
+  a shared key given to the app.
+
 ### v2.6.163 — What each app spends on models
 
 Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
