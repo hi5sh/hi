@@ -1655,9 +1655,10 @@ function orgServerBlock(s) {
   block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "The server runs." : "The server doesn't answer."));
   if (o.error) block.append(el("p", { class: "error small" }, o.error));
   if (s && s.listen) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi server join " + s.listen)));
+  const actions = el("div", { class: "data-actions" });
   if (o.service === "user") {
     block.append(el("p", { class: "muted small" }, "A user service, hi-server.service, beside this page."));
-    block.append(el("button", { class: "small", onclick: async () => {
+    actions.append(el("button", { class: "small", onclick: async () => {
       const ok = await ask({ title: "Restart the server?", text: "It is down for about a second. Machines keep running, and requests wait.", ok: "Restart" });
       if (ok) orgDo({ what: "restart" }, "The server restarted.");
     } }, o.up ? "Restart" : "Start"));
@@ -1666,7 +1667,8 @@ function orgServerBlock(s) {
   } else {
     block.append(el("p", { class: "warn small" }, "No service runs it. On the machine: ", el("code", {}, "hi server init"), " makes one."));
   }
-  block.append(el("button", { class: "small", "data-nav": "", onclick: () => showView("logs") }, "Its logs"));
+  actions.append(el("button", { class: "small", "data-nav": "", onclick: () => showView("logs") }, "Its logs"));
+  block.append(actions);
   return block;
 }
 
@@ -1769,10 +1771,12 @@ function orgKeys(s) {
     { name: "key", type: "password", placeholder: ai.has_key ? "A new OpenRouter key (empty keeps the one there)" : "The OpenRouter key", required: !ai.has_key },
     { name: "model", placeholder: "The default model", value: ai.model || "" },
   ], (v) => orgDo({ what: "ai", action: "set", key: v.key, model: v.model }, "Checked and kept: hi q uses it now."), "Check and keep");
-  aiBlock.append(el("button", { class: "small", onclick: () => { aiForm.hidden = !aiForm.hidden; } }, ai.has_key ? "Change…" : "Set the key…"));
+  const aiActions = el("div", { class: "data-actions" });
+  aiBlock.append(aiActions);
+  aiActions.append(el("button", { class: "small", onclick: () => { aiForm.hidden = !aiForm.hidden; } }, ai.has_key ? "Change…" : "Set the key…"));
   if (ai.has_key) {
-    aiBlock.append(el("button", { class: "small", onclick: () => orgDo({ what: "ai", action: ai.on ? "off" : "on" }, ai.on ? "Turned off." : "Turned on.") }, ai.on ? "Turn off" : "Turn on"));
-    aiBlock.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the server's devices can no longer ask models through the server.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "The key is gone."); } }, "Remove the key"));
+    aiActions.append(el("button", { class: "small", onclick: () => orgDo({ what: "ai", action: ai.on ? "off" : "on" }, ai.on ? "Turned off." : "Turned on.") }, ai.on ? "Turn off" : "Turn on"));
+    aiActions.append(el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove the OpenRouter key?", text: "hi q on the server's devices can no longer ask models through the server.", ok: "Remove" })) orgDo({ what: "ai", action: "remove" }, "The key is gone."); } }, "Remove the key"));
   }
   parts.push(aiBlock, aiForm);
   parts.push(el("p", { class: "muted small" }, "This machine's own keys, for its apps, are in Keys on the left."));
@@ -3673,7 +3677,7 @@ function vaultStoresBlock(v) {
     const handoff = el("details", { class: "small" }, el("summary", {}, "For the store's owners"),
       el("pre", { class: "job-output short" }, s.handoff),
       el("button", { class: "small", onclick: () => { navigator.clipboard.writeText(s.handoff); toast("Copied."); } }, "Copy"));
-    const actions = el("span", {},
+    const actions = el("span", { class: "inline-actions" },
       el("button", { class: "small", onclick: async () => { const a = await vaultDo({ action: "store-login", store: { prefix: s.prefix } }); if (a) vaultShowText("Logging in to " + s.prefix + "/", a.text); } }, "Check the login"));
     if (s.login === "jwt") actions.append(el("button", { class: "small", onclick: async () => {
       if (!(await ask({ title: "A new key pair for " + s.prefix + "/?", text: "hi makes a new key; the old one still logs in until the store's owners swap in the new public key.", ok: "Make it" }))) return;
@@ -3848,8 +3852,8 @@ function vaultHistoryBlock() {
     ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetName(h.path, "") }, "+ A name"), el("span", { class: "muted small" }, "A file setting: hi app env <app> --file NAME=<path>, or the dev page."))
     : el("p", { class: "muted small" }, "Changed through " + h.how + ".");
   const close = () => { vaultHistory = null; if (orgOpen() && orgSection === "vault") renderOrgSection(); else renderKeys(); };
-  return el("div", { class: "card-box" }, el("div", { class: "row pad" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: close }, "Close")),
-    el("h3", { class: "pad" }, "Names now"), names, how, el("h3", { class: "pad" }, "Versions"), list);
+  return el("div", { class: "card-box vault-history" }, el("div", { class: "row" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: close }, "Close")),
+    el("h3", {}, "Names now"), names, how, el("h3", {}, "Versions"), list);
 }
 
 // vaultSetName sets one name in an app's settings path, through hi app
@@ -3894,10 +3898,10 @@ async function vaultShowRecovery() {
 // managementLine is the OpenRouter management key: set or not, and Set or
 // Forget for the machine's admins.
 function managementLine(k) {
-  const row = el("p", { class: "small incident-head" }, el("span", { class: "dot " + (k.management ? "idle" : ""), "aria-hidden": "true" }),
-    el("strong", {}, "OpenRouter management key"), ": " + (k.management ? "set, so hi makes each app a key of its own" : "not set"), " ");
+  const words = el("span", {}, el("strong", {}, "OpenRouter management key"), ": " + (k.management ? "set, so hi makes each app a key of its own" : "not set"), " ");
+  const row = el("p", { class: "small key-status" }, el("span", { class: "dot " + (k.management ? "idle" : ""), "aria-hidden": "true" }), words);
   if (!(state && state.me && state.me.machine)) return row;
-  row.append(el("button", { class: "link-button", onclick: async () => {
+  words.append(el("button", { class: "link-button", onclick: async () => {
     if (k.management) {
       if (!(await ask({ title: "Forget the management key?", text: "The keys hi made stay, as the apps' own; hi makes no new ones. Delete it at OpenRouter too.", ok: "Forget it" }))) return;
       try { toast((await api("/api/openrouter-management", { forget: true })).text, true); refreshMachineKeys(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
@@ -3920,7 +3924,8 @@ function machineKeysBlock() {
   const k = machineKeys;
   const box = el("div", {});
   if (!k) return box;
-  const line = (label, ok, how) => el("p", { class: "small incident-head" }, el("span", { class: "dot " + (ok ? "idle" : ""), "aria-hidden": "true" }), el("strong", {}, label), ": " + (ok ? "set" : "not set"), ok ? "" : el("span", { class: "muted" }, " · " + how));
+  const line = (label, ok, how) => el("p", { class: "small key-status" }, el("span", { class: "dot " + (ok ? "idle" : ""), "aria-hidden": "true" }),
+    el("span", {}, el("strong", {}, label), ": " + (ok ? "set" : "not set"), ok ? "" : el("span", { class: "muted" }, " · " + how)));
   box.append(el("h2", {}, "This machine's"), el("div", { class: "machine-block" },
     line("OpenRouter, Hermes'", k.openrouter, "hermes setup, on the machine"),
     line("Claude Code's sign-in", k.claude, "claude, then /login, on the machine"),

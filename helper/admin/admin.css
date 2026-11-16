@@ -340,3 +340,20 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .spend-day span { display: block; width: 100%; background: var(--accent); border-radius: 2px 2px 0 0; }
 .spend-table td { font-variant-numeric: tabular-nums; }
 .spend-budget input { max-width: 170px; }
+
+/* Spacing: a row of things with room between them, buttons kept apart
+   from each other and from the edges of the box they're in. */
+.row, .list li.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inline-actions { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.key-status { display: flex; align-items: flex-start; gap: 6px; }
+.key-status .dot { margin-top: 4px; }
+.vault-history { padding: 10px 14px 12px; margin-top: 12px; }
+.vault-history h3 { margin: 14px 0 4px; }
+.vault-history .data-actions { align-items: center; margin: 8px 0 4px; }
+.vault-view p > button { margin-left: 6px; }
+.member-card + .member-card { margin-top: 10px; }
+.people-matrix th, .people-matrix td { padding-top: 4px; padding-bottom: 4px; }
+.spend-budget { margin-top: 8px; }
+#side-apps .logs-tools { padding-bottom: 6px; }
+#org-sections, #sections { flex-wrap: wrap; row-gap: 4px; min-width: 0; }
+#org-sections button, #sections button { white-space: nowrap; }
