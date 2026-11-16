@@ -2804,6 +2804,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   page gets one DM: to whoever started its work, else to the owners,
   with a link that opens its chat.
 
+### v2.6.173 — Notes on a diff, and the agents' own notes
+
+- [x] In Source control's diff, the **+** beside a line adds a note on
+  it for the agent; **Send to the agent** puts them all in the chat's
+  box as one message, each with its file, line, and code, to add to and
+  send. They wait in the browser until sent or cleared.
+- [x] `hi dev note "<a line>"` in the dev box: the agent's line on where
+  its work stands ("tests pass; waiting for the API key"), under its
+  workspace and in Needs you, until the next. The agents' instructions
+  say when to set it.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5778,9 +5789,9 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
   notifications, and a DM when nobody's on the page.
 - [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
   and pictures.
-- [ ] Release 5: notes on a diff's lines, sent to the agent.
+- [x] Release 5 (v2.6.173): notes on a diff's lines, sent to the agent.
 - [ ] Release 6: Codex's sessions in Chat; every session, with Resume.
-- [ ] Release 7: `hi dev note`, the agent's line on its workspace.
+- [x] Release 7 (v2.6.173): `hi dev note`, the agent's line on its workspace.
 
 ### Next — `hi server` again, a server for every app, one admin page
 
