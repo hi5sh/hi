@@ -104,7 +104,8 @@
     cursorBlink: true,
     fontSize: window.innerWidth < 600 ? 11 : 13,
     fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
-    allowProposedApi: false,
+    // Unicode 11's widths and the search's highlights are xterm's proposed API.
+    allowProposedApi: true,
     // VS Code's own terminal colors, 2026 Dark, on the card it sits in.
     theme: {
       background: "#121314", foreground: "#bfbfbf", cursor: "#bfbfbf", selectionBackground: "#3994bc33",
@@ -117,6 +118,38 @@
   var fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open($("term"));
+  // xterm's add-ons (third_party/xterm): the GPU draws, which keeps up
+  // with Claude Code's full-screen redraws, back to the DOM's drawing if
+  // the browser loses its WebGL; Unicode 11's widths, for emoji and CJK;
+  // links that open in a tab; iTerm's inline pictures (timg -p i); and
+  // search in the scrollback, Ctrl+F or ⌘F in the terminal.
+  var termSearch = null;
+  if (window.Unicode11Addon) {
+    term.loadAddon(new Unicode11Addon.Unicode11Addon());
+    term.unicode.activeVersion = "11";
+  }
+  if (window.WebLinksAddon) {
+    term.loadAddon(new WebLinksAddon.WebLinksAddon(function (event, uri) {
+      if (/^https?:\/\//i.test(uri)) window.open(uri, "_blank", "noopener,noreferrer");
+    }));
+  }
+  if (window.ImageAddon) {
+    try { term.loadAddon(new ImageAddon.ImageAddon({ sixelSupport: false, iipSupport: true, storageLimit: 64, pixelLimit: 8388608 })); } catch (e) { /* no pictures */ }
+  }
+  if (window.SearchAddon) {
+    termSearch = new SearchAddon.SearchAddon();
+    term.loadAddon(termSearch);
+  }
+  var termGPU = false;
+  if (window.WebglAddon) {
+    try {
+      var webgl = new WebglAddon.WebglAddon();
+      webgl.onContextLoss(function () { webgl.dispose(); termGPU = false; });
+      term.loadAddon(webgl);
+      termGPU = true;
+    } catch (e) { /* no WebGL here: the DOM draws */ }
+  }
+  $("term").dataset.renderer = termGPU ? "webgl" : "dom";
   var socket = null;
   var encoder = new TextEncoder();
 
@@ -253,10 +286,61 @@
 
   // Ctrl+V pastes, as in a desktop terminal: the browser's paste, which
   // can carry a picture, not ^V for the box, whose clipboard is empty.
+  // Ctrl+Shift+F, or ⌘F on a Mac, finds in the scrollback: Ctrl+F alone
+  // is the shell's and the agents' (a character forward).
   term.attachCustomKeyEventHandler(function (event) {
     var v = event.key === "v" || event.key === "V";
+    if (event.type === "keydown" && termSearch && (event.key === "f" || event.key === "F") &&
+        ((event.ctrlKey && event.shiftKey && !event.metaKey) || (event.metaKey && !event.ctrlKey))) {
+      event.preventDefault();
+      openTermFind();
+      return false;
+    }
     return !(event.type === "keydown" && v && event.ctrlKey && !event.altKey && !event.metaKey);
   });
+  // ---- Find in the terminal: xterm's search add-on, its matches lit.
+  var termFindLook = { matchBackground: "#61481d", matchOverviewRuler: "#cca700", activeMatchBackground: "#9c6d1a", activeMatchColorOverviewRuler: "#f5c542" };
+  function openTermFind() {
+    if (!termSearch) return;
+    $("term-find").hidden = false;
+    $("term-find-open").hidden = true;
+    var selected = term.getSelection();
+    if (selected && selected.indexOf("\n") < 0) $("term-find-text").value = selected;
+    $("term-find-text").focus();
+    $("term-find-text").select();
+    if ($("term-find-text").value) findInTerm(true, true);
+  }
+  function closeTermFind() {
+    $("term-find").hidden = true;
+    $("term-find-open").hidden = false;
+    $("term-find-count").textContent = "";
+    if (termSearch) termSearch.clearDecorations();
+    term.clearSelection();
+    term.focus();
+  }
+  function findInTerm(forward, incremental) {
+    var text = $("term-find-text").value;
+    if (!text) { termSearch.clearDecorations(); $("term-find-count").textContent = ""; return; }
+    var options = { decorations: termFindLook, incremental: !!incremental };
+    var found = forward ? termSearch.findNext(text, options) : termSearch.findPrevious(text, options);
+    if (!found) $("term-find-count").textContent = "None";
+  }
+  if (termSearch) {
+    termSearch.onDidChangeResults(function (result) {
+      if (!result) return;
+      $("term-find-count").textContent = result.resultCount ? (result.resultIndex + 1) + " of " + result.resultCount : "None";
+    });
+  }
+  $("term-find").addEventListener("submit", function (event) { event.preventDefault(); findInTerm(true); });
+  $("term-find-text").addEventListener("input", function () { findInTerm(true, true); });
+  $("term-find-text").addEventListener("keydown", function (event) {
+    if (event.key === "Escape") { event.preventDefault(); closeTermFind(); }
+    else if (event.key === "Enter" && event.shiftKey) { event.preventDefault(); findInTerm(false); }
+  });
+  $("term-find-prev").addEventListener("click", function () { findInTerm(false); });
+  $("term-find-close").addEventListener("click", closeTermFind);
+  $("term-find-open").addEventListener("click", openTermFind);
+  $("term-find-open").hidden = !termSearch;
   // A pasted picture goes into the box, and its path is pasted, which
   // Claude Code takes as the picture. Text pastes as before.
   $("term").addEventListener("paste", function (event) {

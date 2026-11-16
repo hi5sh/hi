@@ -557,6 +557,12 @@ for; Checks and Logs have a dot.
     Claude and ChatGPT sign-ins, and the Slack tokens are the app's own
     or the machine's, and the command an admin runs to change each.
 
+In the terminal, **Ctrl+Shift+F** (⌘F on a Mac), or the ⌕ at its
+corner, finds a word in the scrollback: Enter for the next, Shift+Enter
+for the one before, Esc to close. Links in it open in a tab, emoji and
+Chinese, Japanese, or Korean characters take their right width, and a
+picture shown with iTerm's protocol (`timg -p i`) shows in it.
+
 On a phone or a tablet, a bar of keys
 under the terminal has what a touch keyboard may lack: Paste, Esc, Tab,
 Shift+Tab, Enter, the arrows, Space, Backspace, Del, Ctrl+C, Ctrl+D, and

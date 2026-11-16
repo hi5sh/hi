@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-16): the plan; release 1, built in v2.6.168
 and narrowed in v2.6.169 (questions 1 and 2 answered); release 2, built
-in v2.6.170; release 3, built in v2.6.172; releases 5 and 7, built in v2.6.173. Each
+in v2.6.170; release 3, built in v2.6.172; releases 5 and 7, built in v2.6.173; release 4, built in v2.6.175. Each
 later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
@@ -201,11 +201,26 @@ Built in v2.6.172:
 
 ## Release 4: the terminal
 
-xterm.js's add-ons, embedded as xterm.js is (`third_party/xterm`): WebGL
-drawing, which keeps up with Claude Code's full-screen redraws; search
-in the scrollback (Ctrl+F in the terminal); Unicode 11 widths, for
-emoji and CJK; links that open; and pictures in the terminal (sixel and
-iTerm's), for `timg`. Then xterm.js 6 once it's out of beta.
+Built in v2.6.175, with xterm.js's add-ons released with its 5.5
+(2024-04-05), embedded as xterm.js is (`third_party/xterm`) and served as
+one script:
+
+- **WebGL drawing** (addon-webgl 0.18), which keeps up with Claude Code's
+  full-screen redraws; if the browser loses its WebGL, the DOM draws
+  again. Without WebGL, the DOM draws from the start.
+- **Find in the scrollback** (addon-search 0.15): Ctrl+Shift+F, or ⌘F on
+  a Mac, or the ⌕ at the terminal's corner, opens a bar: the matches lit,
+  "1 of 2", Enter for the next, Shift+Enter for the one before, Esc to
+  close. Not Ctrl+F: in a terminal that's the shell's and the agents'
+  (a character forward). A selection of one line is what it looks for.
+- **Unicode 11's widths** (addon-unicode11 0.8), for emoji and CJK.
+- **Links that open** (addon-web-links 0.11): an http or https link in
+  the terminal opens in a tab, without the page as its opener.
+- **Pictures** (addon-image 0.8): iTerm's inline images (`timg -p i`,
+  `imgcat`). Its sixel decoder needs WebAssembly, which the page's
+  policy doesn't allow (no `wasm-unsafe-eval`), so sixel is off.
+- xterm.js 6 is out (2025-12-22): moving to it, with its add-ons, is
+  work of its own.
 
 ## Release 5: notes on a diff, for the agent
 
@@ -270,6 +285,12 @@ Built in v2.6.173:
   button for it waits for someone to ask.
 
 ## Tests
+
+Release 4:
+
+- In Chromium, with the page's policy: the add-ons load; WebGL or the
+  DOM draws; Ctrl+Shift+F finds both matches, Enter and Shift+Enter move,
+  Esc closes; a link in the terminal opens in a tab.
 
 Releases 5 and 7:
 

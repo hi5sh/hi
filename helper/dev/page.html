@@ -271,6 +271,14 @@
     </div>
     <div class="term-panel">
       <div id="term"></div>
+      <form id="term-find" class="term-find" role="search" aria-label="Find in the terminal" hidden>
+        <input id="term-find-text" type="search" placeholder="Find in the terminal" aria-label="Find in the terminal" autocomplete="off" spellcheck="false">
+        <span id="term-find-count" class="muted small" aria-live="polite"></span>
+        <button type="button" id="term-find-prev" class="small" title="The one before (Shift+Enter)" aria-label="The one before">↑</button>
+        <button type="submit" class="small" title="The next (Enter)" aria-label="The next">↓</button>
+        <button type="button" id="term-find-close" class="small" title="Close (Esc)" aria-label="Close">✕</button>
+      </form>
+      <button type="button" id="term-find-open" class="side-icon term-find-open" title="Find in the terminal (Ctrl+Shift+F, ⌘F)" aria-label="Find in the terminal">⌕</button>
       <div id="keys" class="keys" role="toolbar" aria-label="Keys a phone's keyboard lacks">
         <button data-key="keyboard" aria-label="Show the keyboard" title="Show the keyboard">⌨</button>
         <button data-key="paste">Paste</button>
@@ -575,6 +583,7 @@
 <div id="toast" class="toast" hidden></div>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
+<script src="xterm-addons.js"></script>
 <script src="presence.js"></script>
 <script src="dev.js"></script>
 </body>

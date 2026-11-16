@@ -862,3 +862,10 @@ a.button.primary:hover { background: var(--button-hover); }
 .git-notes { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--line); background: var(--panel); }
 .git-notes[hidden] { display: none; }
 .space-note { color: var(--bright); font-style: italic; overflow-wrap: anywhere; }
+
+/* Find in the terminal (release 4 of hi_app_dev_orca.md). */
+.term-find { position: absolute; top: 8px; right: 22px; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 4px 6px; background: var(--widget); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 4px 16px var(--shadow); }
+.term-find[hidden] { display: none; }
+.term-find input { width: 200px; }
+.term-find-open { position: absolute; top: 6px; right: 20px; z-index: 4; opacity: 0; transition: opacity .15s; }
+.term-panel:hover .term-find-open, .term-find-open:focus-visible { opacity: .8; }

@@ -14,6 +14,7 @@ package cli
 // listener that sends the browser on to the page.
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	_ "embed"
@@ -57,6 +58,9 @@ var appXtermScript = hi.AppXtermScript
 var appXtermStyle = hi.AppXtermStyle
 
 var appXtermFit = hi.AppXtermFit
+
+// appXtermAddons are the terminal's other add-ons, served as one script.
+var appXtermAddons = bytes.Join([][]byte{hi.AppXtermWebgl, hi.AppXtermSearch, hi.AppXtermUnicode11, hi.AppXtermWebLinks, hi.AppXtermImage}, []byte("\n;\n"))
 
 // appDevPageSocket is the page's socket, beside the helper's: no box
 // mounts it.
@@ -1118,6 +1122,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
 	asset("addon-fit.js", "text/javascript; charset=utf-8", appXtermFit)
+	asset("xterm-addons.js", "text/javascript; charset=utf-8", appXtermAddons)
 	for _, icon := range []string{"icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"} {
 		data, _ := hi.AppIcons.ReadFile("helper/icons/" + icon)
 		asset(icon, "image/png", data)

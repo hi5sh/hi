@@ -90,6 +90,24 @@ var AppXtermStyle []byte
 //go:embed third_party/xterm/addon-fit.js
 var AppXtermFit []byte
 
+// AppXtermAddons are the terminal's other add-ons: the GPU's drawing,
+// search, Unicode 11's widths, links, and pictures.
+//
+//go:embed third_party/xterm/addon-webgl.js
+var AppXtermWebgl []byte
+
+//go:embed third_party/xterm/addon-search.js
+var AppXtermSearch []byte
+
+//go:embed third_party/xterm/addon-unicode11.js
+var AppXtermUnicode11 []byte
+
+//go:embed third_party/xterm/addon-web-links.js
+var AppXtermWebLinks []byte
+
+//go:embed third_party/xterm/addon-image.js
+var AppXtermImage []byte
+
 // AppDocsPageSource and AppDocsCSS are the app's docs page; AppDocsPele draws its diagrams.
 //
 //go:embed helper/docs/page.html
