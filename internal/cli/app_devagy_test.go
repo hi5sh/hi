@@ -16,6 +16,8 @@ const appTestAgyToken = `{"token":{"access_token":"ya29.a","token_type":"Bearer"
 // kept), the box's folders trusted, Google's agy sites allowed, and the
 // page offering it to start. --unset takes all of it away again.
 func TestAppDevAgy(t *testing.T) {
+	// The machine's agy sign-in is under HOME: never the real one.
+	t.Setenv("HOME", t.TempDir())
 	b, ran := appTestDevPage(t)
 	bin := t.TempDir()
 	os.WriteFile(filepath.Join(bin, "agy"), []byte("#!/bin/sh\n"), 0o755)
@@ -112,6 +114,9 @@ func TestAppDevAgy(t *testing.T) {
 
 	// This machine's, with a warning.
 	machine := agyTokenPath()
+	if !strings.HasPrefix(machine, os.Getenv("HOME")) || os.Getenv("HOME") == "" {
+		t.Fatalf("agy's sign-in at %s, outside the test's home", machine)
+	}
 	os.MkdirAll(filepath.Dir(machine), 0o700)
 	os.WriteFile(machine, []byte(strings.Replace(appTestAgyToken, "payments-agy", "owner", 1)), 0o600)
 	out.Reset()

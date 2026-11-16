@@ -61,6 +61,10 @@ func setupTeamTest(t *testing.T) string {
 	savedPeerWatch := appDevPeerWatch
 	appDevPeerWatch = func(func()) {}
 	t.Cleanup(func() { appDevPeerWatch = savedPeerWatch })
+	// Not this machine's home: the agents' sign-ins there (agy's, Codex's,
+	// Claude Code's) are the person's, and a test once wrote over one.
+	t.Setenv("HOME", filepath.Join(dir, "home"))
+	t.Setenv("CODEX_HOME", "")
 	// Not this machine's org server: no server templates.
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "config"))
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(dir, "cache"))
