@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.166 — The dev page after a dev box restart
+
+- [x] No error for a remembered workspace that's gone: the chat waits for
+  the workspaces and asks only for one that's there.
+
 ### v2.6.165 — Room between the admin page's buttons
 
 - [x] A measured review of every view at two widths: buttons apart from
