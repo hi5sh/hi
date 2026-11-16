@@ -3072,8 +3072,8 @@ function sectionSettings(s) {
   const scopes = { all: "Stage and production", production: "production's own", stage: "Stage's own", dev: "the dev box's own" };
   const list = el("ul", { class: "list" });
   for (const e of s.env) {
-    list.append(el("li", {}, el("span", { class: "what" }, el("code", {}, e.name), " ", el("span", { class: "muted small" }, scopes[e.scope] + (e.file ? ", a file" : ""))),
-      el("span", { class: "actions" }, e.file ? "" : el("button", { class: "small", onclick: () => setEnv(e.name, e.scope) }, "New value"),
+    list.append(el("li", {}, el("span", { class: "what" }, el("code", {}, e.name), " ", el("span", { class: "muted small" }, scopes[e.scope] + (e.file ? ", a file" : "") + (e.from ? ", from " + e.from : ""))),
+      el("span", { class: "actions" }, e.file || e.from ? "" : el("button", { class: "small", onclick: () => setEnv(e.name, e.scope) }, "New value"),
         el("button", { class: "small danger", onclick: async () => { if (await ask({ title: "Remove " + e.name + "?", text: "It leaves the app's boxes' settings files within a minute, and their environment at their next start.", ok: "Remove" })) change("env", { name: e.name, scope: e.scope, remove: true }); } }, "Remove"))));
   }
   if (!s.env.length) list.append(el("li", { class: "plain muted small" }, "None yet."));
@@ -3090,7 +3090,9 @@ function sectionSettings(s) {
   const every = el("input", { value: s.every || "", placeholder: "1m", class: "small-input", "aria-label": "Every" });
   const parts = [
     el("h2", {}, "Settings, by name"), el("p", { class: "muted small" }, "Environment variables in the app's boxes. Their values stay on the machine: the page never shows one. Files (certificates) are set on the machine: hi app env " + s.name + " --file KEY=<path>."),
-    list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => setEnv("", "all") }, "+ A setting")),
+    list, el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => setEnv("", "all") }, "+ A setting"),
+      (s.shared || []).length ? el("button", { class: "small", onclick: () => setEnvFrom(s) }, "+ From a shared key") : ""),
+    el("p", { class: "muted small" }, "Kept encrypted in the server's vault (hi/app/" + s.name + "/…, the Vault tab has each one's versions). A shared key an admin shared to the app gives a setting its value by reference: a new value there reaches it too."),
     el("h2", {}, "The helper"), el("p", { class: "muted small" }, "Help and feedback on the app's pages, from the next page load."), el("div", { class: "radios" }, helper("preview", "On Stage"), helper("production", "On production")),
     el("h2", {}, "The watcher"), el("label", { class: "check" }, freeze, " It freezes the app on its own for an exploited advisory in the app's packages, or a burst to a watched host; off, each waits for an owner."),
     el("h2", {}, "Heartbeat"), el("p", { class: "muted small" }, s.heartbeat ? "The app sends one" + (s.every ? " every " + s.every : " every minute") + "." : "None, so nobody would hear that the app stopped."),
@@ -3107,6 +3109,18 @@ function sectionSettings(s) {
     s.adopted.local ? "" : el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("upstream", {}, "Fetching its upstream") }, "Fetch what's new there")));
   parts.push(el("h2", {}, "Remove the app"), el("div", { class: "data-actions" }, el("button", { class: "danger", onclick: () => removeApp(s.name) }, "Remove…")));
   return parts;
+}
+
+async function setEnvFrom(s) {
+  const values = await vaultForm({ title: "A setting from a shared key", ok: "Save",
+    text: "The app keeps only the reference; the value stays in the vault, and a new value there reaches the app's boxes within a minute.",
+    fields: [{ label: "NAME, such as MARKET_API_KEY" }, { label: "The shared key", options: s.shared }],
+    live: (v) => {
+      const bad = v[0] && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) ? [0] : [];
+      return { ok: /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) && !!v[1], bad, hint: bad.length ? "Letters, digits, and _." : "" };
+    } });
+  if (!values) return;
+  change("env", { name: values[0].trim(), from: values[1], scope: "all" }, values[0].trim() + " takes " + values[1] + ".");
 }
 
 async function setEnv(name, scope) {
@@ -3534,7 +3548,9 @@ function vaultBlock(middle) {
 // field gets an eye, at the first one's right, that shows them all.
 function vaultForm({ title, text, fields, ok, live }) {
   return new Promise((resolve) => {
-    const inputs = fields.map((f) => el("input", { type: f.type || "text", placeholder: f.label, "aria-label": f.label, autocomplete: "off", spellcheck: "false" }));
+    const inputs = fields.map((f) => f.options
+      ? el("select", { "aria-label": f.label }, ...f.options.map((o) => el("option", { value: o }, o)))
+      : el("input", { type: f.type || "text", placeholder: f.label, "aria-label": f.label, autocomplete: "off", spellcheck: "false", value: f.value || "" }));
     const secret = inputs.filter((input) => input.type === "password");
     const rows = inputs.map((input, i) => {
       if (input.type !== "password" || input !== secret[0]) return el("div", { class: "vault-field" }, input);
@@ -3568,7 +3584,7 @@ function vaultForm({ title, text, fields, ok, live }) {
       send.disabled = !verdict.ok;
       return verdict.ok;
     };
-    for (const input of inputs) input.addEventListener("input", judge);
+    for (const input of inputs) { input.addEventListener("input", judge); input.addEventListener("change", judge); }
     let result = null;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
@@ -3792,7 +3808,7 @@ async function vaultRemoveWay(kind, v) {
 
 async function vaultOpenHistory(path) {
   try { vaultHistory = await api("/api/vault/history?path=" + encodeURIComponent(path)); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
-  renderKeys();
+  if (orgOpen() && orgSection === "vault") renderOrgSection(); else renderKeys();
 }
 
 function vaultHistoryBlock() {
@@ -3817,7 +3833,39 @@ function vaultHistoryBlock() {
     }
     list.append(row);
   });
-  return el("div", { class: "card-box" }, el("div", { class: "row pad" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: () => { vaultHistory = null; renderKeys(); } }, "Close")), list);
+  const names = el("ul", { class: "list" });
+  for (const n of h.names || []) {
+    const row = el("li", { class: "row small" }, el("code", {}, n.name), n.file ? el("span", { class: "muted" }, " a file") : "", el("span", { class: "grow" }));
+    if (h.editable && !n.file) row.append(el("button", { class: "small", onclick: () => vaultSetName(h.path, n.name) }, "Change"));
+    if (h.editable) row.append(el("button", { class: "small danger", onclick: async () => {
+      if (!(await ask({ title: "Remove " + n.name + "?", text: "It leaves the app's boxes' settings files within a minute, and their environment at their next start. Its versions stay here.", ok: "Remove" }))) return;
+      await vaultDo({ action: "path-remove", path: h.path, kind: n.name });
+      vaultOpenHistory(h.path);
+    } }, "Remove"));
+    names.append(row);
+  }
+  const how = h.editable
+    ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => vaultSetName(h.path, "") }, "+ A name"), el("span", { class: "muted small" }, "A file setting: hi app env <app> --file NAME=<path>, or the dev page."))
+    : el("p", { class: "muted small" }, "Changed through " + h.how + ".");
+  const close = () => { vaultHistory = null; if (orgOpen() && orgSection === "vault") renderOrgSection(); else renderKeys(); };
+  return el("div", { class: "card-box" }, el("div", { class: "row pad" }, el("strong", {}, h.path), el("span", { class: "grow" }), el("button", { class: "small", onclick: close }, "Close")),
+    el("h3", { class: "pad" }, "Names now"), names, how, el("h3", { class: "pad" }, "Versions"), list);
+}
+
+// vaultSetName sets one name in an app's settings path, through hi app
+// env, so it's checked and reaches the boxes as any change.
+async function vaultSetName(path, name) {
+  const fields = name ? [] : [{ label: "NAME, such as STRIPE_KEY" }];
+  fields.push({ label: "Its value", type: "password" });
+  const values = await vaultForm({ title: name ? "A new value for " + name : "A name in " + path, ok: "Save", fields,
+    text: "The value goes to the vault once and is never shown again; the app's boxes have it within a minute.",
+    live: (v) => {
+      const bad = !name && v[0] && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim()) ? [0] : [];
+      return { ok: (name || /^[A-Za-z_][A-Za-z0-9_]*$/.test(v[0].trim())) && v[v.length - 1] !== "", bad, hint: bad.length ? "Letters, digits, and _." : "" };
+    } });
+  if (!values) return;
+  await vaultDo({ action: "path-set", path, kind: name || values[0].trim(), secret: values[values.length - 1] });
+  vaultOpenHistory(path);
 }
 
 // vaultShowRecovery shows the recovery key once, then asks two of its

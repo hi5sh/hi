@@ -45,6 +45,7 @@ func TestAdminAppSettingsRunTheCommands(t *testing.T) {
 		{map[string]any{"what": "slack", "bot": "xoxb-NEW", "app_token": "xapp-NEW"}, "app key payments slack", "xapp-NEW\nxoxb-NEW\n"},
 		{map[string]any{"what": "env", "name": "STRIPE_KEY", "value": "sk_live_SECRET", "scope": "production"}, "app env payments STRIPE_KEY --production", "sk_live_SECRET\n"},
 		{map[string]any{"what": "env", "name": "STRIPE_KEY", "remove": true, "scope": "production"}, "app env payments --unset STRIPE_KEY --production", ""},
+		{map[string]any{"what": "env", "name": "MARKET_KEY", "from": "shared/market", "scope": "all"}, "app env payments MARKET_KEY --from shared/market", ""},
 		{map[string]any{"what": "helper", "slot": "preview", "on": false}, "app helper payments preview off", ""},
 		{map[string]any{"what": "watch", "on": true}, "app watch payments --auto-freeze on", ""},
 		{map[string]any{"what": "models", "on": false}, "app models payments off", ""},

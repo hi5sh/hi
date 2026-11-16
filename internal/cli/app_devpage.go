@@ -233,14 +233,17 @@ type appDevPageView struct {
 	You  string `json:"you"`
 	// Level is the person's: owner or developer, whose page has no
 	// owners' buttons, and SSHKey their key for the dev box, if any.
-	Level      string           `json:"level"`
-	SSHKey     string           `json:"ssh_key,omitempty"`
-	Channel    string           `json:"command"`
-	Status     appDevStatusView `json:"status"`
-	Changes    []appDevChange   `json:"changes,omitempty"`
-	Settings   []string         `json:"settings"`
-	Box        string           `json:"box"` // running, or why not
-	Workspaces []appDevSpace    `json:"workspaces,omitempty"`
+	Level    string           `json:"level"`
+	SSHKey   string           `json:"ssh_key,omitempty"`
+	Channel  string           `json:"command"`
+	Status   appDevStatusView `json:"status"`
+	Changes  []appDevChange   `json:"changes,omitempty"`
+	Settings []string         `json:"settings"`
+	// Shared are the shared keys an admin shared to the app, which a
+	// setting can take its value from.
+	Shared     []string      `json:"shared,omitempty"`
+	Box        string        `json:"box"` // running, or why not
+	Workspaces []appDevSpace `json:"workspaces,omitempty"`
 	// What took an owner's yes in Slack before release 4.
 	Releases  []appDevRelease `json:"releases,omitempty"`
 	Helper    map[string]bool `json:"helper"`
@@ -615,7 +618,9 @@ func (b *appBroker) devPageView(person appPersonKey, level string) appDevPageVie
 		}
 	}
 	secrets, _ := loadTeamSecrets(b.team)
-	view.Settings = append([]string{}, appEnvNames(secrets)...)
+	devConfig, _ := loadTeam(b.team)
+	view.Settings = append(append([]string{}, appEnvNames(secrets)...), appEnvRefNames(devConfig)...)
+	view.Shared = appSharedTo(b.team)
 	if versions, err := loadTeamVersions(b.team); err == nil {
 		for i := len(versions.Releases) - 1; i >= 0; i-- {
 			release := versions.Releases[i]
@@ -857,6 +862,8 @@ type appDevPageSetting struct {
 	File  string `json:"file,omitempty"` // a file setting's content, base64
 	Slot  string `json:"slot,omitempty"` // "", preview, production, or dev
 	Unset bool   `json:"unset,omitempty"`
+	// From is a shared key the setting takes its value from, shared/<name>.
+	From string `json:"from,omitempty"`
 }
 
 func (b *appBroker) devPageSetting(request appDevPageSetting) error {
@@ -867,7 +874,7 @@ func (b *appBroker) devPageSetting(request appDevPageSetting) error {
 		return fmt.Errorf("%q isn't a variable name: letters, digits, and _, not starting with a digit", request.Key)
 	case appBoxEnvReserved[request.Key]:
 		return fmt.Errorf("hi sets %s in the app's box itself", request.Key)
-	case !request.Unset && request.Value == "" && request.File == "":
+	case !request.Unset && request.Value == "" && request.File == "" && request.From == "":
 		return fmt.Errorf("no value for %s", request.Key)
 	case strings.ContainsAny(request.Value, "\r\n"):
 		return fmt.Errorf("%s's value has a line break; a setting is one line, or a file", request.Key)
@@ -876,9 +883,34 @@ func (b *appBroker) devPageSetting(request appDevPageSetting) error {
 	if err != nil {
 		return err
 	}
+	config, err := loadTeam(b.team)
+	if err != nil {
+		return err
+	}
 	switch {
+	case request.From != "" && !request.Unset:
+		if err := appEnvFrom(&config, &secrets, request.Slot, request.Key, request.From); err != nil {
+			return err
+		}
+		if err := saveTeamSecrets(b.team, secrets); err != nil {
+			return err
+		}
+		return saveTeam(config)
 	case request.Unset:
-		if !appEnvUnset(&secrets, request.Slot, request.Key) && !appFileUnset(&secrets, request.Slot, request.Key) {
+		// A value, a file, or a shared key's reference: in the slot asked,
+		// or, for both, in whichever slot has it.
+		reference := appEnvFromUnset(&config, request.Slot, request.Key)
+		if !reference && request.Slot == "" {
+			for _, scope := range []string{appSlotProduction, appSlotPreview, appSlotDev} {
+				reference = appEnvFromUnset(&config, scope, request.Key) || reference
+			}
+		}
+		if reference {
+			if err := saveTeam(config); err != nil {
+				return err
+			}
+		}
+		if !appEnvUnset(&secrets, request.Slot, request.Key) && !appFileUnset(&secrets, request.Slot, request.Key) && !reference {
 			return fmt.Errorf("there's no setting %s%s", request.Key, appEnvSlotWords(request.Slot))
 		}
 	case request.File != "":

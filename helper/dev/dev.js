@@ -926,6 +926,13 @@
   });
 
   function renderSettings() {
+    // The shared keys an admin shared to the app, as a setting's source.
+    var from = $("setting-from"), chosen = from.value, shared = state.shared || [];
+    while (from.options.length > 1) from.remove(1);
+    shared.forEach(function (name) { from.appendChild(el("option", { value: name, text: "from " + name })); });
+    from.hidden = !shared.length;
+    from.value = shared.indexOf(chosen) >= 0 ? chosen : "";
+    settingInputs();
     var list = $("settings");
     list.textContent = "";
     if (!state.settings.length) list.appendChild(el("li", { class: "muted", text: "The app gets no settings." }));
@@ -943,11 +950,14 @@
   }
 
   // A file instead of a value: the box gets it, and the variable its path.
-  $("setting-file").addEventListener("change", function () {
-    var file = !!$("setting-file").files.length;
-    $("setting-value").required = !file;
-    $("setting-value").disabled = file;
-  });
+  function settingInputs() {
+    var file = !!$("setting-file").files.length, shared = !!$("setting-from").value;
+    $("setting-value").required = !file && !shared;
+    $("setting-value").disabled = file || shared;
+    $("setting-file").disabled = shared;
+  }
+  $("setting-file").addEventListener("change", settingInputs);
+  $("setting-from").addEventListener("change", settingInputs);
 
   function settingFile() {
     var file = $("setting-file").files[0];
@@ -966,14 +976,15 @@
     var key = $("setting-key").value.trim();
     settingFile().then(function (file) {
       var request = { key: key, slot: $("setting-slot").value };
-      if (file) request.file = file; else request.value = $("setting-value").value;
+      var shared = $("setting-from").value;
+      if (shared) request.from = shared; else if (file) request.file = file; else request.value = $("setting-value").value;
       return api("POST", "settings", request).then(function () {
         $("setting-value").value = "";
         $("setting-key").value = "";
         $("setting-file").value = "";
-        $("setting-value").required = true;
-        $("setting-value").disabled = false;
-        toast(file ? key + " is set: the app finds the file at $" + key + "." : key + " is set.");
+        $("setting-from").value = "";
+        settingInputs();
+        toast(shared ? key + " takes its value from " + shared + "." : file ? key + " is set: the app finds the file at $" + key + "." : key + " is set.");
         refresh();
       });
     }).catch(function (error) { toast(error.message); });

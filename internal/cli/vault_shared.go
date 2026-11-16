@@ -587,3 +587,27 @@ func appCheckSharedOpenRouter(name string) error {
 	}
 	return nil
 }
+
+// appSharedTo are the shared keys shared to an app, by their reference.
+func appSharedTo(app string) []string {
+	var names []string
+	for _, name := range sortedKeys(loadVaultShared()) {
+		if slices.Contains(loadVaultShared()[name].Apps, app) {
+			names = append(names, "shared/"+name)
+		}
+	}
+	return names
+}
+
+// appEnvRefNames are an app's settings that take a shared key's value, as
+// the settings list says them.
+func appEnvRefNames(config appConfig) []string {
+	var names []string
+	for _, scope := range sortedKeys(config.EnvFrom) {
+		where := map[string]string{"": "", appSlotProduction: ", production only", appSlotPreview: ", the preview only", appSlotDev: ", the dev box only"}[scope]
+		for _, key := range sortedKeys(config.EnvFrom[scope]) {
+			names = append(names, fmt.Sprintf("%s (from %s%s)", key, config.EnvFrom[scope][key], where))
+		}
+	}
+	return names
+}

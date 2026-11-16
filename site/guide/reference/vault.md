@@ -149,6 +149,13 @@ hi server vault forget hi/app/payments/production --version 11
 
 No command prints a value.
 
+On the admin page, the Vault tab opens a path's versions and the names it
+holds now. An app's settings paths (`hi/app/<app>/shared`, `production`,
+`stage`, `dev`) are changed there name by name, as `hi app env` would:
+a new name, a new value, or one removed. Every other path says where it
+is changed, since hi keeps those itself (an app's Slack tokens and
+OpenRouter key, the server's keys, DNS).
+
 ## Shared keys
 
 A key several apps use, such as one OpenRouter key, is kept once, at
@@ -161,7 +168,9 @@ hi app env payments OPENROUTER_KEY --from shared/openrouter
 ```
 
 An admin sets it and gives it to apps; an app's owners use it by
-reference, which the app's `app.json` keeps, not the value.
+reference, which the app's `app.json` keeps, not the value. On the pages, an app's Settings (admin page)
+and its dev page's settings form take a setting from any shared key
+given to the app; the owners never see or hold its value.
 
 `OPENROUTER_API_KEY` is hi's own, the key the app's agents and its
 `$OPENROUTER_BASE_URL` use: a shared key becomes it with `hi app key

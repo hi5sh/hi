@@ -228,7 +228,19 @@ func (s *adminServer) vaultRoutes(mux *http.ServeMux, reply func(http.ResponseWr
 			v := file.Versions[i]
 			versions = append(versions, adminVaultVersion{Version: v.Version, Time: v.Time, By: v.By, Changed: append([]string{}, v.Changed...), Rollback: v.Rollback, Forgotten: v.Forgotten})
 		}
-		reply(w, http.StatusOK, map[string]any{"path": path, "versions": versions})
+		answer := map[string]any{"path": path, "versions": versions, "names": []map[string]any{}, "how": adminVaultPathHow(path)}
+		if _, ok := adminVaultSettingsPath(path); ok {
+			answer["editable"] = true
+		}
+		if data, _, found, err := store.get(path); err == nil && found {
+			names := []map[string]any{}
+			for _, name := range data.names() {
+				_, file := data.Files[name]
+				names = append(names, map[string]any{"name": name, "file": file})
+			}
+			answer["names"] = names
+		}
+		reply(w, http.StatusOK, answer)
 	}))
 	mux.HandleFunc("POST /api/vault", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		var request struct {
@@ -340,6 +352,34 @@ func adminVaultChange(admin adminPerson, who, action, secret, kind, path string,
 		vaultAudit(who, "vault.forget", path, fmt.Sprintf("version %d's value", version))
 		adminRecord(admin.Name, "", fmt.Sprintf("forgot version %d of %s", version, path))
 		return fmt.Sprintf("Version %d of %s is forgotten; its entry stays. Backups of hi's state taken before still hold it, so change the secret at its source too.", version, path), nil, nil
+	case "path-set", "path-remove":
+		// A name in an app's settings path, through hi app env, so a
+		// setting changed here is checked and reaches the boxes as any.
+		target, ok := adminVaultSettingsPath(path)
+		if !ok {
+			return "", nil, fmt.Errorf("%s isn't changed here: %s", path, adminVaultPathHow(path))
+		}
+		if !appEnvName.MatchString(kind) {
+			return "", nil, fmt.Errorf("%q isn't a setting's name: letters, digits, and _, such as STRIPE_KEY", kind)
+		}
+		args := append([]string{target.app}, target.flags...)
+		if action == "path-remove" {
+			args = append(args, "--unset", kind)
+		} else {
+			if secret == "" || strings.ContainsAny(secret, "\r\n") {
+				return "", nil, errors.New("a setting's value is one line, not empty")
+			}
+			args = append(args, kind+"="+secret)
+		}
+		var out strings.Builder
+		os.Setenv("HI_ACTOR", who)
+		err := appEnv(args, strings.NewReader(""), &out)
+		os.Unsetenv("HI_ACTOR")
+		if err != nil {
+			return "", nil, err
+		}
+		adminRecord(admin.Name, target.app, map[string]string{"path-set": "set ", "path-remove": "removed "}[action]+kind+" in "+path)
+		return strings.SplitN(strings.TrimSpace(out.String()), "\n", 2)[0], nil, nil
 	case "purge":
 		if !appNamePattern.MatchString(app) || !vaultRemovedApp(app) {
 			return "", nil, errors.New("no removed app's settings by that name")
@@ -450,4 +490,66 @@ func adminVaultStoreChange(action string, form adminVaultStoreForm, who string) 
 		err = vaultLoginCommand([]string{form.Prefix, "--new-key"}, &out)
 	}
 	return strings.TrimSpace(out.String()), err
+}
+
+// adminVaultSettings is an app's settings path: the app, and hi app env's
+// flag for its slot.
+type adminVaultSettings struct {
+	app   string
+	flags []string
+}
+
+// adminVaultSettingsPath says whether a path is one of an app's settings,
+// which the page changes name by name.
+func adminVaultSettingsPath(path string) (adminVaultSettings, bool) {
+	rest, ok := strings.CutPrefix(path, "hi/app/")
+	app, slot, found := strings.Cut(rest, "/")
+	if !ok || !found || !appNamePattern.MatchString(app) {
+		return adminVaultSettings{}, false
+	}
+	flags, ok := map[string][]string{"shared": nil, "production": {"--production"}, "stage": {"--preview"}, "dev": {"--dev"}}[slot]
+	if !ok {
+		return adminVaultSettings{}, false
+	}
+	if _, err := loadTeam(app); err != nil {
+		return adminVaultSettings{}, false
+	}
+	return adminVaultSettings{app: app, flags: flags}, true
+}
+
+// adminVaultPathHow says where a path's names are changed, for one the
+// page doesn't change name by name.
+func adminVaultPathHow(path string) string {
+	parts := strings.Split(path, "/")
+	switch {
+	case len(parts) == 4 && parts[1] == "app":
+		app := parts[2]
+		switch parts[3] {
+		case "shared", "production", "stage", "dev":
+			return "the app's Settings, here, or on its dev page; a file setting with hi app env " + app + " --file NAME=<path>"
+		case "hi":
+			return "hi's own for the app: its Slack tokens (the app's Slack), its OpenRouter key (hi app key " + app + " openrouter), and its sign-ins (the app's Agents)"
+		case "offsite":
+			return "hi app backups " + app + " --offsite"
+		case "snapshots":
+			return "never by hand: it opens the app's snapshots"
+		}
+	case len(parts) == 3 && parts[1] == "shared":
+		return "Shared keys, below: Change value"
+	case path == "hi/server/keys":
+		return "the server's Keys (its providers, AI, data, and templates)"
+	case path == "hi/server/slack":
+		return "the server's Slack"
+	case path == "hi/machine/dns":
+		return "hi net domain"
+	case path == "hi/machine/netbird":
+		return "hi app domain <domain> --new-token (NetBird's API token)"
+	case path == "hi/machine/mail":
+		return "Keys (left panel), Email"
+	case path == vaultConnPath:
+		return "Team stores, below"
+	case path == openRouterManagementPath:
+		return "Keys (left panel), OpenRouter management key"
+	}
+	return "the command that set it"
 }

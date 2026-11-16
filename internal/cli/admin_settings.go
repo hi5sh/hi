@@ -25,7 +25,9 @@ import (
 
 // adminAppSettings is an app's People, Agents, Slack, and Settings.
 type adminAppSettings struct {
-	Name    string               `json:"name"`
+	Name string `json:"name"`
+	// Shared are the shared keys shared to the app, a setting's source.
+	Shared  []string             `json:"shared,omitempty"`
 	People  []adminAppPerson     `json:"people"`
 	Members []adminMemberSetting `json:"members"`
 
@@ -87,6 +89,7 @@ type adminEnvName struct {
 	Name  string `json:"name"`
 	Scope string `json:"scope"` // all (Stage and production), production, stage, or dev
 	File  bool   `json:"file,omitempty"`
+	From  string `json:"from,omitempty"` // a shared key it takes its value from
 }
 
 type adminAdopted struct {
@@ -220,6 +223,12 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 			view.Env = append(view.Env, adminEnvName{Name: key, Scope: set.scope, File: true})
 		}
 	}
+	for scope, refs := range config.EnvFrom {
+		for _, key := range sortedKeys(refs) {
+			view.Env = append(view.Env, adminEnvName{Name: key, Scope: map[string]string{"": "all", appSlotPreview: "stage"}[scope] + map[bool]string{true: scope}[scope == appSlotProduction || scope == appSlotDev], From: refs[key]})
+		}
+	}
+	view.Shared = appSharedTo(name)
 	if adopted := config.Adopted; adopted != nil {
 		view.Adopted = &adminAdopted{Name: adopted.Name, From: adopted.From, Follow: adopted.Follow, Local: adopted.Local}
 	}
@@ -230,6 +239,7 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 type adminSettingChange struct {
 	App      string `json:"app"`
 	What     string `json:"what"`
+	From     string `json:"from,omitempty"`
 	Person   string `json:"person"`
 	Level    string `json:"level"`
 	Key      string `json:"key"` // an SSH public key, or a secret for stdin
@@ -454,6 +464,9 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 		if change.Remove {
 			args = append(args, "--unset", key)
 			said = "removed the setting " + key
+		} else if from := strings.TrimSpace(change.From); from != "" {
+			args = append(args, key, "--from", from)
+			said = "set " + key + " from " + from
 		} else {
 			args = append(args, key)
 			stdin = change.Value + "\n"
