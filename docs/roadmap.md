@@ -2753,6 +2753,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   (`.vscode-server`, `.cursor-server`, `.zed_server`,
   `.cache/JetBrains`, …), which come back on their next connect.
 
+### v2.6.169 — Four editors, and plain SSH
+
+- [x] **Editor ↗** lists the editors hi supports: VS Code, Cursor, and
+  Zed by a link, Orca by its steps. Each brings its server to the dev
+  box from the computer when the box can't download it, so the box's
+  sites stay as they are. Devin Desktop and JetBrains left the list.
+- [x] **Anything else over SSH**, in the same dialog: the workspace's
+  `ssh` line, and the host, port, user, and folder, each with Copy, for
+  a terminal, JetBrains Gateway, or any other editor.
+- [x] The Security view's **Your SSH key** shows `ssh box@<peer>` with
+  Copy, for owners and Pro Devs.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5712,15 +5724,15 @@ development loop is frozen and goes in release 4.
 
 Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
 
-- [x] Release 1 (v2.6.168): your own editor. **Editor ↗** beside each
-  workspace and in the top bar: VS Code, Cursor, Devin Desktop, and Zed by a
-  link; JetBrains, Orca, and a terminal by what to type; the SSH config
-  and the host key's fingerprint; snapshots leave the editors' servers
-  out.
-- [ ] Try each editor on a team's dev box by hand, and settle question
-  1 (the editors' sites in the box).
-- [ ] Release 2: the agents' state from Claude Code's hooks and Codex's
-  notify, through the broker.
+- [x] Release 1 (v2.6.168, v2.6.169): your own editor. **Editor ↗**
+  beside each workspace and in the top bar: VS Code, Cursor, and Zed by
+  a link; Orca by what to type; anything else over SSH by its `ssh` line,
+  host, port, user, and folder, each with Copy; the SSH config and the
+  host key's fingerprint; snapshots leave the editors' servers out.
+- [ ] Try each editor on a team's dev box by hand.
+- [ ] Release 2: the agents' state from hi's own hooks (Claude Code's
+  hooks, Codex's notify), through the broker; Orca's hooks in the box
+  are left alone.
 - [ ] Release 3: an inbox of what waits for someone, notifications, and a
   DM when nobody's on the page.
 - [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
