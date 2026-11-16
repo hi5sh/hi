@@ -566,7 +566,9 @@ agent; they coordinate between themselves.
 
 Any editor that works over SSH works on the dev box. On the dev page,
 **Editor ↗** beside a workspace (in Workspaces, and in the top bar for
-the chat's) opens it there, on its worktree in the box:
+the chat's) opens it there, on its worktree in the box. Before there's
+any work, Workspaces lists the project's own clone (`/box/repo`) with
+it, and the top bar opens that:
 
 - **VS Code, Cursor, Zed:** a link; the browser asks your computer's
   editor to open it. VS Code needs Microsoft's **Remote - SSH**

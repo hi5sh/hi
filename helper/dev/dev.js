@@ -467,6 +467,13 @@
       }
       list.appendChild(el("li", { class: "ticket" }, [statusDot(space.status, space), what, el("div", { class: "actions" }, actions)]));
     });
+    // The project's own clone, in your own editor, when no workspace
+    // above is it: before any work, too.
+    if (state.ssh && !workSpaces().some(function (space) { return !space.path; })) {
+      list.appendChild(el("li", { class: "ticket" }, [statusDot("", null),
+        el("div", { class: "what" }, [el("div", { text: "The project's own clone" }), el("div", { class: "muted small", text: state.ssh.project })]),
+        el("div", { class: "actions" }, [editorSplit(null)])]));
+    }
   }
 
   // ---- Your own editor (app_deveditor.go): a workspace in VS Code,
@@ -531,7 +538,8 @@
   }
   function renderEditorBar() {
     var bar = $("editor-bar");
-    bar.hidden = !state || !state.ssh || !chat.space;
+    // The chat's workspace, or the project's own clone before there's work.
+    bar.hidden = !state || !state.ssh;
     if (bar.hidden) return;
     bar.textContent = "";
     var split = editorSplit(chatSpace());
