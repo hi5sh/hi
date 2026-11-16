@@ -2024,19 +2024,22 @@
     chat.sessionAgent = view.session_agent || "claude";
     var said = agentName(agent.running ? agent.agent : chat.sessionAgent);
     $("chat-stopped-why").textContent = view.note || said + " isn't running in this workspace.";
-    $("chat-input").placeholder = "Message " + (agent.running ? agentName(agent.agent) : said) + "…";
+    $("chat-input").placeholder = "Message " + (agent.running ? agentName(agent.agent) : said) + "… Paste or drop pictures and files";
     $("chat-resume").hidden = !(stopped && view.id && !view.note);
     $("chat-input").disabled = stopped || !!view.note;
     $("chat-send").disabled = stopped || !!view.note;
     $("chat-stop").hidden = !(agent.running && agent.status === "working");
     chatPick(view, agent);
+    // Without the model and effort to pick, the row says who you talk to.
+    $("chat-who").textContent = $("chat-pick").hidden && !stopped && !view.note ? agentName(agent.agent) : "";
+    chatReady();
     chatPending(agent);
   }
   // The model and effort, beside the message box, when the app's admin
   // lets its developers pick them: Claude Code's /model and /effort,
   // from the next message.
   var chatModels = [["fable", "Fable"], ["opus", "Opus"], ["sonnet", "Sonnet"], ["haiku", "Haiku"]];
-  var chatEfforts = [["low", "Low"], ["medium", "Med"], ["high", "High"], ["xhigh", "XHigh"], ["max", "Max"]];
+  var chatEfforts = [["low", "Low"], ["medium", "Medium"], ["high", "High"], ["xhigh", "XHigh"], ["max", "Max"]];
   function chatPick(view, agent) {
     var shown = !!view.choose && agent.agent === "claude" && !view.note;
     $("chat-pick").hidden = !shown;
@@ -2263,7 +2266,7 @@
       chat.timer = setTimeout(pollChat, 1500);
     });
   }
-  var chatFiles = attacher($("chat-files"), $("chat-input"), $("chat-attached"), true, saveDraft);
+  var chatFiles = attacher($("chat-files"), $("chat-input"), $("chat-attached"), true, function () { saveDraft(); chatReady(); });
   // The message being written, its files and pastes too, is kept in this
   // browser (IndexedDB, which holds files) until it's sent, so a reload or
   // a restart of the browser doesn't lose it.
@@ -2297,6 +2300,7 @@
       var draft = got.result;
       if (!draft || $("chat-input").value) return;
       $("chat-input").value = draft.text || "";
+      chatReady();
       chatFiles.restore(draft);
       sizeChatInput();
     };
@@ -2313,6 +2317,7 @@
       input.value = "";
       chatFiles.clear();
       sizeChatInput();
+      chatReady();
       var node = el("div", { class: "msg-user pending", text: shown || "Attached files" });
       chat.pending.push({ node: node, since: Date.now() });
       chatPending(chat.agent || {});
@@ -2323,9 +2328,11 @@
   }
   // Files dropped on the chat's box are attached to the message.
   $("chat-form").addEventListener("dragover", function (event) {
-    if (event.dataTransfer && [].indexOf.call(event.dataTransfer.types, "Files") >= 0) event.preventDefault();
+    if (event.dataTransfer && [].indexOf.call(event.dataTransfer.types, "Files") >= 0) { event.preventDefault(); $("chat-form").classList.add("drop"); }
   });
+  $("chat-form").addEventListener("dragleave", function () { $("chat-form").classList.remove("drop"); });
   $("chat-form").addEventListener("drop", function (event) {
+    $("chat-form").classList.remove("drop");
     if (!event.dataTransfer || !event.dataTransfer.files.length) return;
     event.preventDefault();
     chatFiles.add(event.dataTransfer.files);
@@ -2333,9 +2340,14 @@
   function sizeChatInput() {
     var input = $("chat-input");
     input.style.height = "auto";
-    input.style.height = Math.min(200, input.scrollHeight + 2) + "px";
+    input.style.height = Math.min(240, input.scrollHeight) + "px";
   }
   $("chat-input").addEventListener("input", sizeChatInput);
+  // Send lights up once there's something to send.
+  function chatReady() {
+    $("chat-send").classList.toggle("ready", !!($("chat-input").value.trim() || (chatFiles && chatFiles.count())));
+  }
+  $("chat-input").addEventListener("input", chatReady);
   $("chat-input").addEventListener("input", saveDraft);
   $("chat-input").addEventListener("keydown", function (event) {
     // Enter sends and Shift+Enter is a new line; on a touch keyboard, Enter is a new line.

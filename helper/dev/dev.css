@@ -340,20 +340,37 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .tool.failed > summary .tool-name { color: var(--bad); }
 .tool pre, .thought pre { margin: 4px 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font: 12px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
 .tool pre.result.failed { border-color: var(--bad); }
-.chat-bottom { border-top: 1px solid var(--line); background: var(--panel); padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+.chat-bottom { background: var(--panel); padding: 6px 12px calc(12px + env(safe-area-inset-bottom)); }
 .chat-bottom > * { max-width: 860px; margin-left: auto; margin-right: auto; }
-.chat-form { display: flex; gap: 8px; align-items: flex-end; }
-.chat-form textarea { flex: 1; resize: none; max-height: 200px; min-height: 38px; padding: 8px 12px; border-radius: 6px; line-height: 1.4; }
-.chat-form button { height: 38px; padding: 0 14px; }
-/* The model and effort, quiet beside the message box. */
-.chat-pick { display: flex; gap: 2px; align-self: center; }
+/* The message box: one card, what to say on top, its tools in a row below. */
+.composer { display: flex; flex-direction: column; background: var(--widget); border: 1px solid var(--input-line); border-radius: 14px; padding: 10px 10px 8px 14px; transition: border-color .15s; }
+.composer:focus-within { border-color: #4a4c4e; }
+.composer textarea { width: 100%; resize: none; min-height: 44px; max-height: 240px; padding: 2px 4px 6px 0; border: 0; border-radius: 0; background: transparent; color: var(--bright); font-size: 14px; line-height: 1.5; outline: none; box-shadow: none; }
+.composer textarea:focus { outline: none; box-shadow: none; border: 0; }
+.composer textarea::placeholder { color: #6b6c6d; }
+.composer textarea:disabled { background: transparent; }
+.composer-bar { display: flex; align-items: center; gap: 2px; min-height: 34px; margin-left: -6px; }
+.composer-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: var(--muted); cursor: pointer; }
+.composer-icon:hover { color: var(--bright); background: var(--hover); }
+/* The model and effort, quiet in the row: an icon and a word each. */
+.chat-pick { display: flex; gap: 2px; }
 .chat-pick[hidden] { display: none; }
-.chat-pick select { height: 32px; padding: 0 22px 0 8px; border: 0; background-color: transparent; color: var(--muted); font-size: 14px; cursor: pointer; border-radius: 6px; }
-.chat-pick select:hover:not(:disabled), .chat-pick select:focus-visible { color: var(--text); background-color: var(--panel-2, rgba(255,255,255,0.05)); }
-.chat-pick select:disabled { opacity: 0.5; cursor: default; }
-.chat-attach { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--input-line); border-radius: var(--r-sm); color: var(--muted); cursor: pointer; }
-.chat-attach:hover { color: var(--text); }
-/* What goes with a message: pictures as thumbnails, long pastes folded. */
+.composer-pick { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 4px 0 8px; border-radius: 8px; color: var(--muted); cursor: pointer; }
+.composer-pick:hover:has(select:not(:disabled)), .composer-pick:focus-within { color: var(--bright); background: var(--hover); }
+.composer-pick svg { flex: none; }
+.composer-pick .spark { color: #d97757; }
+.composer-pick select { -webkit-appearance: none; appearance: none; height: 32px; padding: 0 18px 0 0; border: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5 5 6.5 8 3.5' fill='none' stroke='%238c8c8c' stroke-width='1.3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 3px center; color: inherit; font-size: 13.5px; cursor: pointer; outline: none; box-shadow: none; }
+.composer-pick select:disabled { opacity: .5; cursor: default; }
+.composer-pick select option { background: var(--widget); color: var(--text); }
+.composer-who { padding: 0 8px; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.composer-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.composer .composer-round { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--secondary); color: var(--muted); cursor: pointer; }
+.composer .composer-round:hover:not(:disabled) { background: var(--secondary-hover); color: var(--bright); }
+.composer .composer-send.ready { background: var(--bright); color: #121314; }
+.composer .composer-send.ready:hover:not(:disabled) { background: #ffffff; color: #121314; }
+.composer .composer-round:disabled { opacity: .45; cursor: default; }
+.composer.drop { border-color: var(--accent); }
+/* What goes with a message, in the card above it: pictures as thumbnails, long pastes folded. */
 .chat-attached { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .chat-attached[hidden] { display: none; }
 .chip { display: flex; align-items: center; gap: 4px; max-width: 100%; padding: 4px 4px 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); font-size: 12px; }
@@ -789,8 +806,8 @@ a.side-icon { text-decoration: none; }
 .stask-note .pic-edit { padding: 5px 8px; }
 /* On a phone, the picker has a row of its own above the message. */
 @media (max-width: 700px) {
-  .chat-form { flex-wrap: wrap; }
-  .chat-pick { order: -1; width: 100%; justify-content: flex-end; }
+  .composer textarea { font-size: 16px; }
+  .composer-pick select { font-size: 14px; }
 }
 /* Who's on this page: a pill a person, in their colour while they're here. */
 .presence { display: flex; align-items: center; gap: 4px; flex: none; margin-left: 6px; }
