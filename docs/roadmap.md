@@ -2783,6 +2783,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   it sees otherwise (a turn stopped with Esc fires no hook), and its
   **done** stays.
 
+### v2.6.171 — Your own editor before there's work
+
+- [x] **Editor ↗** shows before anyone started work: Workspaces has the
+  project's own clone (`/box/repo`) with it when no workspace there is
+  that clone, and the top bar has it for the clone when the chat has no
+  workspace. v2.6.168 showed it only beside a workspace with a worktree
+  or an agent.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
