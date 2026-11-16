@@ -262,6 +262,9 @@ type appDevPageView struct {
 	// Addresses are production's, the preview's, and the dev page's:
 	// internal, and public when an owner made them so.
 	Addresses []appDevAddress `json:"addresses"`
+	// SSH is the dev box for the person's own editor, an owner's or a
+	// Pro Dev's (app_deveditor.go).
+	SSH *appDevSSHView `json:"ssh,omitempty"`
 }
 
 // appDevAddress is one of the team's addresses, for the page.
@@ -618,6 +621,7 @@ func (b *appBroker) devPageView(person appPersonKey, level string) appDevPageVie
 	if data, err := os.ReadFile(appDevKeyPath(b.team, person.User)); err == nil {
 		view.SSHKey = appSSHKeyLabel(string(data))
 	}
+	view.SSH = appDevSSH(b.team, level)
 	view.Status, _ = b.devStatus()
 	if report, err := appVersionsReport(b.team); err == nil {
 		for _, task := range report.Changes {

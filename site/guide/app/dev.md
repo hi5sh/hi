@@ -343,7 +343,8 @@ for; Checks and Logs have a dot.
   workspace still has work dev hasn't got, that stays there, and only
   the task closes. A closed task's ⋯ has **Reopen**.
 - **Workspaces:** the pieces of work in the dev box, each with what dev
-  has of it, **Open**, **Try on Stage**, **Ship to Dev**, and **Done ✓**
+  has of it, **Open**, **Editor ↗** ([your own editor](#your-own-editor)),
+  **Try on Stage**, **Ship to Dev**, and **Done ✓**
   ([below](#beside-the-chat)), and what Stage shows at the top.
 - **Decisions:** the project's `docs/decisions/`, the technical choices
   nobody should undo by accident, as cards: each one's number, when it
@@ -555,6 +556,53 @@ herdr --remote box@orbit # or from your own herdr
 `hi app dev <app>` prints the name. An older app's peer may be named
 `<app>-dev` (`ssh box@orbit-dev`). Several people may attach to the same
 agent; they coordinate between themselves.
+
+### Your own editor
+
+Any editor that works over SSH works on the dev box: VS Code, Cursor,
+Devin Desktop (Windsurf, renamed), Zed, JetBrains' IDEs, [Orca](https://github.com/stablyai/orca),
+or a terminal. On the dev page, **Editor ↗** beside a workspace (in
+Workspaces, and in the top bar for the chat's) opens it there, on its
+worktree in the box:
+
+- **VS Code, Cursor, Devin Desktop, Zed:** a link; the browser asks your
+  computer's editor to open it. VS Code needs Microsoft's **Remote -
+  SSH** extension; the others have theirs built in. After the first,
+  the button says your editor's name and opens it straight away; **▾**
+  has the others.
+- **JetBrains** (Gateway, or Toolbox's Remote Development) and
+  **Orca**: the host, the user, and the folder to type in, with Copy. In
+  Orca, add the target, then the project `/box/repo` on it: each
+  workspace on the page is one of its worktrees, which Orca hides
+  until **Non-Orca worktrees, Show**.
+- **A terminal:** `ssh -t box@<peer> 'cd <folder> && exec bash -l'`, or
+  `herdr --remote box@<peer>`.
+
+**Set up once**, in the same dialog:
+
+1. Your SSH key in the dev box ([below](#owners-and-their-keys); Pro Devs
+   paste theirs on the dev page's Security view).
+2. Your computer on the app's NetBird network, in a group that reaches
+   the app's peer on port 22: your IT team's.
+3. For an editor that lists the hosts in your SSH config (JetBrains,
+   Orca, VS Code's Remote Explorer), and for a key ssh doesn't try by
+   itself, this in `~/.ssh/config`, which the dialog has with your app's
+   names:
+
+   ```
+   Host hi-orbit orbit.corp.example
+     HostName orbit.corp.example
+     User box
+     # IdentityFile ~/.ssh/id_ed25519
+   ```
+
+The first time, your editor asks whether to trust the dev box; the
+dialog shows its key's fingerprint (`SHA256:…`) to compare. Each editor
+then puts its own server in the dev box, in a minute or so, and keeps it
+there for the next time; the app's snapshots leave those out. The agents
+keep working whether an editor is connected or not, and what you change
+in the editor is in the workspace for them at once. A Vibe Dev has no
+SSH, so no editor either.
 
 ### Joining NetBird
 

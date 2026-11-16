@@ -664,6 +664,8 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 760px) {
   .where-work li > :last-child { grid-column: 2; justify-self: start; }
   .code-bar .links, .code-bar .team { display: none; }
+  /* A phone has no editor of its own: Workspaces still has the button. */
+  .code-bar .editor-split { display: none; }
   .code-bar { flex-wrap: wrap; row-gap: 4px; }
   .code-bar select { flex: 1; max-width: none; }
   .code-bar .grow { display: none; }
@@ -799,3 +801,32 @@ a.side-icon { text-decoration: none; }
 .presence-name { overflow: hidden; text-overflow: ellipsis; }
 .presence-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: rgba(0, 0, 0, .28); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
 .presence-more { white-space: nowrap; }
+
+/* Your own editor: a workspace's link into it, and the dialog with the others. */
+a.button {
+  display: inline-block; border: 1px solid var(--input-line); background: var(--secondary); color: var(--text);
+  border-radius: var(--r-sm); padding: 3px 10px; white-space: nowrap;
+}
+a.button:hover { background: var(--secondary-hover); text-decoration: none; }
+a.button.primary { background: var(--button); border-color: var(--button); color: var(--on-accent); }
+a.button.primary:hover { background: var(--button-hover); }
+.editor-split { display: inline-flex; flex: none; }
+.editor-split[hidden] { display: none; }
+.editor-split > a.button { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.editor-split > button.editor-more { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding-left: 6px; padding-right: 6px; }
+.code-bar .editor-split > * { font-size: 12px; padding-top: 2px; padding-bottom: 2px; }
+.list li .actions .editor-split > * { font-size: 12px; padding: 1px 6px; }
+.editor-list { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; gap: 10px; }
+.editor-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.editor-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.editor-steps { flex: 1 1 100%; }
+.editor-steps p { margin: 0 0 6px; }
+.editor-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 10px; margin: 0; }
+.editor-facts dt { align-self: center; }
+.editor-facts dd { margin: 0; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.editor-facts code, .editor-setup code { font: 12px var(--mono); overflow-wrap: anywhere; }
+.editor-code { margin: 6px 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font: 12px/1.45 var(--mono); white-space: pre; overflow: auto; }
+.editor-setup summary { cursor: pointer; font-weight: 600; }
+.editor-setup ol { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.editor-ready { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.editor-ready p { margin: 0; flex: 1; }

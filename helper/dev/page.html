@@ -29,6 +29,7 @@
       <div id="edit-tabs" class="edit-tabs" role="tablist" aria-label="Open files" hidden></div>
       <select id="chat-space" aria-label="Which workspace's session"></select>
       <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
+      <span id="editor-bar" class="editor-split pro-only" hidden></span>
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
@@ -505,6 +506,28 @@
     <button type="button" id="decision-close">Close</button>
     <button type="button" id="decision-edit" class="primary">Edit</button>
     <button type="button" id="decision-save" class="primary" hidden>Save</button>
+  </div>
+</dialog>
+<dialog id="editor-dialog" class="wide">
+  <h2>Open in your own editor</h2>
+  <p id="editor-where" class="muted small"></p>
+  <div id="editor-ready" class="editor-ready" hidden></div>
+  <ul id="editor-list" class="editor-list"></ul>
+  <details id="editor-setup" class="editor-setup">
+    <summary>Set up once</summary>
+    <ol class="small">
+      <li id="editor-key"></li>
+      <li>Your computer is on the app's NetBird network, in a group NetBird lets reach <code id="editor-host"></code> on port 22. If your editor can't connect, ask your IT team for that.</li>
+      <li>For an editor that picks hosts from your SSH config (JetBrains, Orca, VS Code's list), and for a key ssh doesn't try by itself, add this to <code>~/.ssh/config</code>:
+        <pre id="editor-config" class="editor-code"></pre>
+        <button type="button" id="editor-config-copy" class="small">Copy</button>
+      </li>
+      <li id="editor-hostkey" hidden></li>
+    </ol>
+    <p class="muted small">On its first connect an editor puts its own server in the dev box, in a minute or so; it stays for the next time, and the app's snapshots leave it out. The agents keep working whether an editor is connected or not, and what you change in the editor is in the workspace for them at once.</p>
+  </details>
+  <div class="buttons">
+    <button type="button" id="editor-close">Close</button>
   </div>
 </dialog>
 <dialog id="ask-dialog">

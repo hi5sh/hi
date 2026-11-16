@@ -410,6 +410,7 @@
 
   function renderWorkspaces() {
     renderChatSpaces();
+    renderEditorBar();
     var list = $("workspaces");
     list.textContent = "";
     badge("spaces-count", workSpaces().length, " workspaces");
@@ -431,7 +432,7 @@
         space.by ? el("div", { class: "muted small", text: "Started by " + space.by }) : null,
         where ? el("div", { class: "small " + (unshipped ? "warn" : "muted"), text: where }) : null,
       ]);
-      var actions = [el("button", { text: "Open", busy: "focus:" + space.id, onclick: function () { focus(space); } })];
+      var actions = [el("button", { text: "Open", busy: "focus:" + space.id, onclick: function () { focus(space); } }), editorSplit(space)];
       if (space.path && space.checked && space.ahead > 0) {
         // What hi dev preview and hi dev ship do in the box, by a click.
         actions.push(tryButton(space));
@@ -454,6 +455,144 @@
       list.appendChild(el("li", { class: "ticket" }, [statusDot(space.status), what, el("div", { class: "actions" }, actions)]));
     });
   }
+
+  // ---- Your own editor (app_deveditor.go): a workspace in VS Code,
+  // Cursor, Devin Desktop (Windsurf), or Zed by a link, and in JetBrains, Orca, or any
+  // editor that works over SSH by the box's name and the folder. An
+  // owner's and a Pro Dev's: a Vibe Dev has no SSH, and no state.ssh.
+  var editors = [
+    { id: "vscode", name: "VS Code", scheme: "vscode", note: "with Microsoft's Remote - SSH extension" },
+    { id: "cursor", name: "Cursor", scheme: "cursor", note: "its Remote - SSH is built in" },
+    { id: "devin", name: "Devin Desktop", scheme: "devin", note: "Windsurf, renamed; its Remote - SSH is built in" },
+    { id: "zed", name: "Zed", note: "remote projects are built in" },
+    { id: "jetbrains", name: "JetBrains", note: "IntelliJ IDEA, PyCharm, GoLand, WebStorm…, through Gateway or Toolbox" },
+    { id: "orca", name: "Orca", note: "agents and worktrees, with its own editor" },
+    { id: "terminal", name: "A terminal", note: "ssh, or your own herdr" },
+  ];
+  var editor = { space: null, leaving: 0 };
+  function editorById(id) { return editors.filter(function (e) { return e.id === id; })[0]; }
+  function editorPath(space) { return (space && space.path) || state.ssh.project; }
+  function editorTarget() { return state.ssh.user + "@" + state.ssh.host; }
+  // editorLink opens the folder in the editor, for those a link opens.
+  function editorLink(e, path) {
+    if (e.scheme) return e.scheme + "://vscode-remote/ssh-remote+" + editorTarget() + encodeURI(path);
+    if (e.id === "zed") return "zed://ssh/" + editorTarget() + encodeURI(path);
+    return "";
+  }
+  // editorBlocked says why no editor reaches the box yet, or "".
+  function editorBlocked() {
+    if (!state.ssh.host) return "The dev box isn't on the app's NetBird network yet, so no editor reaches it. An admin of the machine puts it there: hi app dev " + state.team + " netbird";
+    if (!state.ssh_key) return "Your SSH key isn't in the dev box yet: add it once, below, and your editor signs in with it.";
+    return "";
+  }
+  function keptEditor() {
+    var id = "";
+    try { id = localStorage.getItem("hi-dev-editor") || ""; } catch (e) { /* private window */ }
+    return editorById(id);
+  }
+  function keepEditor(e) {
+    try { localStorage.setItem("hi-dev-editor", e.id); } catch (err) { /* private window */ }
+  }
+  function spaceName(space) { return space && space.path ? space.branch || space.label : "the project's own clone"; }
+  // editorAnchor is a link that opens the folder in e: the browser asks
+  // the computer's editor to, and the page stays.
+  function editorAnchor(e, space, text, cls) {
+    return el("a", { class: cls, href: editorLink(e, editorPath(space)), text: text,
+      title: "Open " + spaceName(space) + " in " + e.name + ", over SSH", onclick: function () {
+        editor.leaving = Date.now();
+        keepEditor(e);
+        if ($("editor-dialog").open) $("editor-dialog").close();
+        toast("Opening " + spaceName(space) + " in " + e.name + ". The browser may ask first; the first time, " + e.name + " asks whether to trust the dev box.");
+        renderEditorBar();
+        renderWorkspaces();
+      } });
+  }
+  // editorSplit is a workspace's button: straight into the editor last
+  // used, with ▾ for the others; before one is, Editor ↗ shows them.
+  function editorSplit(space) {
+    if (!state.ssh) return null;
+    var kept = keptEditor();
+    var direct = kept && !editorBlocked() && editorLink(kept, "/") ? kept : null;
+    var more = el("button", { type: "button", class: direct ? "editor-more" : "", text: direct ? "▾" : "Editor ↗",
+      "aria-label": direct ? "Open " + spaceName(space) + " in another editor" : null,
+      title: direct ? "Your other editors, and how to set one up" : "Open " + spaceName(space) + " in your own editor, over SSH",
+      onclick: function () { editorDialog(space); } });
+    return el("span", { class: "editor-split" }, [direct ? editorAnchor(direct, space, direct.name + " ↗", "button") : null, more]);
+  }
+  function renderEditorBar() {
+    var bar = $("editor-bar");
+    bar.hidden = !state || !state.ssh || !chat.space;
+    if (bar.hidden) return;
+    bar.textContent = "";
+    var split = editorSplit(chatSpace());
+    if (split) Array.prototype.slice.call(split.childNodes).forEach(function (node) { bar.appendChild(node); });
+  }
+  function editorDialog(space) {
+    editor.space = space || null;
+    var ssh = state.ssh, path = editorPath(space);
+    $("editor-where").textContent = (space && space.path ? space.branch || space.label : "The project's own clone") + ", in the dev box: " + path;
+    var blocked = editorBlocked();
+    var ready = $("editor-ready");
+    ready.hidden = !blocked;
+    ready.textContent = "";
+    if (blocked) {
+      ready.appendChild(el("p", { class: "small warn", text: blocked }));
+      if (ssh.host && !state.ssh_key) ready.appendChild(el("button", { type: "button", class: "small", text: "Add my key", onclick: function () {
+        $("editor-dialog").close();
+        revealSide("security");
+        $("sshkey").focus();
+      } }));
+    }
+    var list = $("editor-list");
+    list.textContent = "";
+    var kept = keptEditor();
+    var host = ssh.host || "(waiting for NetBird)";
+    editors.forEach(function (e) {
+      var head = el("div", { class: "editor-head" }, [el("strong", { text: e.name }), el("span", { class: "muted small", text: e.note })]);
+      var body = null;
+      if (editorLink(e, path)) {
+        body = blocked ? null : editorAnchor(e, space, "Open in " + e.name + " ↗", "button" + (kept && kept.id === e.id ? " primary" : ""));
+      } else if (e.id === "jetbrains") {
+        body = editorSteps("In Gateway, or Toolbox's Remote Development: SSH, New connection, with", [["Host", host], ["Port", "22"], ["User", ssh.user], ["Project", path]]);
+      } else if (e.id === "orca") {
+        body = editorSteps("In Orca's Settings, SSH, Add Target: pick " + ssh.alias + " from your SSH config (Set up once, below), or type it in. Then add the project " + ssh.project + " on it. Each workspace here is one of its worktrees; Orca hides those it didn't make until you show them (Non-Orca worktrees, Show).", [["Host", host], ["User", ssh.user], ["Project", ssh.project]]);
+      } else if (e.id === "terminal") {
+        body = editorSteps("", [["ssh", "ssh -t " + editorTarget() + " " + shellWord("cd " + shellWord(path) + " && exec bash -l")], ["herdr", "herdr --remote " + editorTarget()]]);
+      }
+      list.appendChild(el("li", {}, [head, body]));
+    });
+    $("editor-host").textContent = host;
+    $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Security, Your SSH key (the .pub file, such as ~/.ssh/id_ed25519.pub).";
+    $("editor-config").textContent = editorConfig();
+    $("editor-config-copy").disabled = !ssh.host;
+    var hostkey = $("editor-hostkey");
+    hostkey.hidden = !ssh.host_key;
+    hostkey.textContent = ssh.host_key ? "The first time, your editor asks whether to trust the dev box: its key's fingerprint is " + ssh.host_key + " (ED25519). Say yes only to that one." : "";
+    $("editor-setup").open = !!blocked;
+    if (!$("editor-dialog").open) $("editor-dialog").showModal();
+  }
+  // editorSteps are what to type in an editor without a link, each with
+  // its own Copy.
+  function editorSteps(text, rows) {
+    return el("div", { class: "editor-steps" }, [text ? el("p", { class: "small", text: text }) : null,
+      el("dl", { class: "editor-facts" }, [].concat.apply([], rows.map(function (row) {
+        return [el("dt", { class: "muted small", text: row[0] }), el("dd", {}, [el("code", { text: row[1] }),
+          el("button", { type: "button", class: "small link", text: "Copy", "aria-label": "Copy " + row[0], onclick: function () { copyText(row[1]); } })])];
+      })))]);
+  }
+  // editorConfig is the dev box in ~/.ssh/config: under its own name, for
+  // the editors that list those, and under its NetBird name, which the
+  // links use, so a key named there counts for them too.
+  function editorConfig() {
+    var ssh = state.ssh, host = ssh.host || "<the NetBird name>";
+    return "Host " + ssh.alias + " " + host + "\n" +
+      "  HostName " + host + "\n" +
+      "  User " + ssh.user + "\n" +
+      "  # IdentityFile ~/.ssh/id_ed25519   your key, if ssh doesn't find it by itself\n";
+  }
+  function shellWord(text) { return /^[A-Za-z0-9_\/.,:@%+=-]+$/.test(text) ? text : "'" + text.replace(/'/g, "'\\''") + "'"; }
+  $("editor-close").addEventListener("click", function () { $("editor-dialog").close(); });
+  $("editor-config-copy").addEventListener("click", function () { copyText(editorConfig()); });
 
   // ---- the right: the system, release, settings
   function link(text, url) {
@@ -1263,6 +1402,7 @@
   function chooseChatSpace(id, quiet) {
     if (id === chat.space && quiet) return;
     chat.space = id;
+    if (state) renderEditorBar();
     chat.sitesSig = null;
     $("chat-status").textContent = "";
     try { localStorage.setItem("hi-dev-chat-space", id); } catch (e) { /* private window */ }
@@ -3000,6 +3140,8 @@
     if (tab && Date.now() - tab.at > 3000) checkTab(tab);
   }, 1000);
   window.addEventListener("beforeunload", function (event) {
+    // A link to an editor may count as leaving, in some browsers; it isn't.
+    if (Date.now() - editor.leaving < 2000) return;
     if (opened.tabs.some(function (t) { return t.dirty; })) { event.preventDefault(); event.returnValue = ""; }
   });
 

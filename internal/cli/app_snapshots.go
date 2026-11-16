@@ -361,9 +361,11 @@ func appTakeSnapshot(team, kind, label string, pause func(team string) (func(), 
 		tags += ",label:" + label
 	}
 	// Sockets and PostgreSQL's pid file mean nothing in a restored copy, and
-	// a stale pid file can stop the memory server from starting.
+	// a stale pid file can stop the memory server from starting. The
+	// editors' servers in the dev box come back on their next connect.
 	backup := func(tags string) []string {
-		return append([]string{"backup", "--json", "--quiet", "--host", appSnapshotHost(team), "--tag", tags, "--exclude", "*.sock", "--exclude", "postmaster.pid"}, paths...)
+		args := []string{"backup", "--json", "--quiet", "--host", appSnapshotHost(team), "--tag", tags, "--exclude", "*.sock", "--exclude", "postmaster.pid"}
+		return append(append(args, appSnapshotEditorExcludes()...), paths...)
 	}
 	// A first pass while everything runs reads what is new since the last
 	// snapshot, however much: on orbit, gigabytes a day of downloads. The
