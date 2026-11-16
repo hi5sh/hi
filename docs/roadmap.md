@@ -2815,6 +2815,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   workspace and in Needs you, until the next. The agents' instructions
   say when to set it.
 
+### v2.6.174 — Source control after Done ✓
+
+- [x] Source control said "git in /box/home/.herdr/worktrees/…: can't
+  cd" after a piece of work was finished: the page asked again at once,
+  and the app's service answered from its listing of the workspaces,
+  kept ten seconds, which still had the worktree. Finishing and starting
+  work drop that listing now, and the page drops the error once no
+  workspace is picked.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
