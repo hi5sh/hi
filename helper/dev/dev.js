@@ -608,7 +608,18 @@
       }
     });
     if (changed) keepSeen();
+    // A site an agent asked the dev box to reach: the owners' to answer.
+    if (!developer()) {
+      (((state && state.access) || {}).asks || []).forEach(function (ask) {
+        items.unshift({ site: ask, space: siteSpace(ask), waits: true, id: "s " + ask.host + " " + (ask.at || ""),
+          text: "Asks to reach " + ask.host + (ask.why ? ": " + ask.why : "") });
+      });
+    }
     return items.filter(function (item) { return item.waits; }).concat(items.filter(function (item) { return !item.waits; }));
+  }
+  // siteSpace is the workspace of the work that asked for a site, if any.
+  function siteSpace(ask) {
+    return ask.work ? workSpaces().filter(function (space) { return space.branch === ask.work; })[0] || null : null;
   }
   function renderInbox() {
     if (!state) return;
@@ -624,8 +635,12 @@
     }
     var list = $("inbox-list");
     list.textContent = "";
-    if (!items.length) list.appendChild(el("li", { class: "muted small inbox-empty", text: "Nothing waits for you. Agents that ask a question or for a permission, and work that's done, show here." }));
+    if (!items.length) list.appendChild(el("li", { class: "muted small inbox-empty", text: "Nothing waits for you. Agents that ask a question, for a permission or for a site, and work that's done, show here." }));
     items.forEach(function (item) {
+      if (item.site) {
+        list.appendChild(inboxSite(item));
+        return;
+      }
       var space = item.space, line = item.waits ? hookLine(space) || item.text : item.text;
       list.appendChild(el("li", {}, [el("button", { type: "button", onclick: function () { openFromInbox(space); } }, [
         statusDot(space.status, space),
@@ -639,6 +654,28 @@
     notifyInbox(items);
     renderInboxNotify();
   }
+  // inboxSite is a site asked for, answered from the bell; the rest of it
+  // opens the work's chat, or Security for work without a workspace.
+  function inboxSite(item) {
+    var ask = item.site, space = item.space;
+    return el("li", { class: "inbox-site" }, [
+      el("button", { type: "button", onclick: function () { openSiteFromInbox(ask, space); } }, [
+        el("span", { class: "dot blocked" }),
+        el("span", { class: "inbox-what" }, [el("strong", { text: ask.host }),
+          el("span", { class: "small warn", text: "Asked" + (ask.work ? " for " + ask.work : "") + (ask.why ? ": " + ask.why : "") }),
+          el("span", { class: "muted small", text: "The dev box can't reach it until an owner allows it" })]),
+      ]),
+      el("div", { class: "actions inbox-actions" }, [
+        el("button", { class: "primary small", text: "Allow", onclick: function () { siteAct(ask.host, true); } }),
+        el("button", { class: "small", text: "Say no", onclick: function () { siteAct(ask.host, false); } }),
+      ]),
+    ]);
+  }
+  function openSiteFromInbox(ask, space) {
+    if (space) return openFromInbox(space);
+    closeInbox();
+    revealSide("security");
+  }
   // notifyInbox tells of what's new since the last look, through the
   // browser, unless you're on that workspace's chat already.
   function notifyInbox(items) {
@@ -647,7 +684,14 @@
     items.forEach(function (item) { inbox.shown[item.id] = true; });
     if (!before || !window.Notification || Notification.permission !== "granted") return;
     items.forEach(function (item) {
-      if (before[item.id] || (!document.hidden && item.space.id === chat.space)) return;
+      if (before[item.id] || (!document.hidden && item.space && item.space.id === chat.space)) return;
+      if (item.site) {
+        try {
+          var asked = new Notification((item.site.work || "An agent") + " asks to reach " + item.site.host, { body: item.site.why || (state.team + "'s dev box"), tag: "hi-dev-" + state.team + "-site-" + item.site.host });
+          asked.onclick = function () { window.focus(); asked.close(); openSiteFromInbox(item.site, item.space); };
+        } catch (e) { /* a browser that only notifies from a service worker */ }
+        return;
+      }
       var name = spaceKey(item.space);
       var title = !item.waits ? name + " is done" : item.space.waiting === "a question" ? name + " asks a question" : name + " waits for " + (item.space.waiting || "an answer");
       try {

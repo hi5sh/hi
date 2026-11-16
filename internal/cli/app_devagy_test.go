@@ -59,6 +59,16 @@ func TestAppDevAgy(t *testing.T) {
 	if has, err := prepareTeamDevAgy("payments"); err != nil || !has || !appDevHasAgy("payments") {
 		t.Fatal(has, err)
 	}
+	// hi's hook, for the agent's state, beside one the owners keep.
+	hooksFile := filepath.Join(appDevHome("payments"), ".gemini", "config", "hooks.json")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(string(data), `"hi-status"`) || !strings.Contains(string(data), "/box/bin/hi dev __hook agy") {
+		t.Fatal("hooks:", string(data))
+	}
+	os.WriteFile(hooksFile, []byte(`{"lint":{"Stop":[{"command":"./lint.sh"}]}}`), 0o600)
+	prepareTeamDevAgy("payments")
+	if data, _ := os.ReadFile(hooksFile); !strings.Contains(string(data), `"lint"`) || !strings.Contains(string(data), `"hi-status"`) {
+		t.Fatal("hooks:", string(data))
+	}
 	if data, _ := os.ReadFile(filepath.Join(state, "antigravity-oauth-token")); string(data) != appTestAgyToken {
 		t.Fatal(string(data))
 	}

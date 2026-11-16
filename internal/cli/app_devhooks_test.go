@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net"
 	"net/http/httptest"
 	"os"
@@ -168,22 +169,58 @@ func TestAppDevHookClient(t *testing.T) {
 	defer server.Close()
 	t.Setenv(appDevSocketEnv, socket)
 	t.Setenv("HERDR_WORKSPACE_ID", "")
-	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"UserPromptSubmit","session_id":"s-1"}`))
+	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"UserPromptSubmit","session_id":"s-1"}`), io.Discard)
 	if got, hook := appDevHookStatus("payments", "w2", "claude", "idle", "", time.Now()); got != "idle" || hook != nil {
 		t.Fatal("outside herdr:", got, hook)
 	}
 	t.Setenv("HERDR_WORKSPACE_ID", "w2")
 	t.Setenv("HERDR_PANE_ID", "w2:p1")
-	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"PreToolUse","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"go test"}}`))
+	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"PreToolUse","session_id":"s-1","tool_name":"Bash","tool_input":{"command":"go test"}}`), io.Discard)
 	if got, hook := appDevHookStatus("payments", "w2", "claude", "idle", "s-1", time.Now()); got != "working" || hook == nil || hook.Tool != "Bash" || hook.Pane != "w2:p1" {
 		t.Fatal(got, hook)
 	}
-	appDevHookClient([]string{"codex", `{"type":"agent-turn-complete","thread-id":"t-1","last-assistant-message":"Done."}`}, nil)
+	appDevHookClient([]string{"codex", `{"type":"agent-turn-complete","thread-id":"t-1","last-assistant-message":"Done."}`}, nil, io.Discard)
 	if got, hook := appDevHookStatus("payments", "w2", "codex", "working", "", time.Now()); got != "idle" || hook == nil {
 		t.Fatal(got, hook)
 	}
+	// agy: its own hooks, answered {} always, so it goes on as it would.
+	conv := "7213ebda-c25a-4a04-b509-e588d68b558c"
+	agy := func(event, tool string) string {
+		var out bytes.Buffer
+		appDevHookClient([]string{"agy"}, strings.NewReader(`{"hookEventName":"`+event+`","conversationId":"`+conv+`","toolCall":{"id":"t","name":"`+tool+`","args":{}},"cwd":"/box/repo"}`), &out)
+		return out.String()
+	}
+	if out := agy("PreInvocation", ""); out != "{}\n" {
+		t.Fatalf("%q", out)
+	}
+	if got, hook := appDevHookStatus("payments", "w2", "agy", "idle", "", time.Now()); got != "working" || hook == nil || hook.Session != conv {
+		t.Fatal(got, hook)
+	}
+	if out := agy("PreToolUse", "run_command"); out != `{"decision":"ask"}`+"\n" {
+		t.Fatalf("an empty answer denies the tool: %q", out)
+	}
+	if got, hook := appDevHookStatus("payments", "w2", "agy", "idle", "", time.Now()); got != "working" || hook == nil || hook.Tool != "run_command" {
+		t.Fatal(got, hook)
+	}
+	agy("PreToolUse", "ask_question")
+	if got, hook := appDevHookStatus("payments", "w2", "agy", "working", "", time.Now()); got != "blocked" || hook == nil || hook.Waiting != "a question" {
+		t.Fatal(got, hook)
+	}
+	if appDevHookSession("payments", "w2", "agy") != conv || appDevHookSession("payments", "w2", "claude") != "" {
+		t.Fatal(appDevHookSession("payments", "w2", "agy"))
+	}
+	agy("PostToolUse", "ask_question")
+	agy("Stop", "")
+	if got, _ := appDevHookStatus("payments", "w2", "agy", "working", "", time.Now()); got != "idle" {
+		t.Fatal(got)
+	}
+	t.Setenv("HERDR_WORKSPACE_ID", "")
+	if out := agy("PreToolUse", "run_command"); out != `{"decision":"ask"}`+"\n" {
+		t.Fatalf("outside herdr: %q", out)
+	}
+	t.Setenv("HERDR_WORKSPACE_ID", "w2")
 	// The page's workspaces, with what the hooks add.
-	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"PermissionRequest","session_id":"s-1","tool_name":"Edit"}`))
+	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"PermissionRequest","session_id":"s-1","tool_name":"Edit"}`), io.Discard)
 	spaces, err := appDevSpaces("payments")
 	if err != nil {
 		t.Fatal(err)
@@ -193,7 +230,7 @@ func TestAppDevHookClient(t *testing.T) {
 	}
 	// No broker: still nothing said, nothing failed.
 	t.Setenv(appDevSocketEnv, filepath.Join(t.TempDir(), "none.sock"))
-	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"Stop"}`))
+	appDevHookClient([]string{"claude"}, strings.NewReader(`{"hook_event_name":"Stop"}`), io.Discard)
 	var out bytes.Buffer
 	if err := appDevClient([]string{"__hook", "claude"}, strings.NewReader("not json"), &out); err != nil || out.Len() != 0 {
 		t.Fatal(err, out.String())
@@ -232,5 +269,22 @@ func TestAppDevNote(t *testing.T) {
 	// The agents are told when.
 	if !strings.Contains(appDevInstructions, `hi dev note "<a line>"`) || !strings.Contains(appDevUsage, "hi dev note") {
 		t.Fatal("the agents aren't told")
+	}
+}
+
+// hi's hook in agy's hooks.json: beside the others, written once.
+func TestAppDevAgyHooks(t *testing.T) {
+	hooks := map[string]any{"orca-status": map[string]any{"Stop": []any{}}}
+	if !appDevAgyHooks(hooks) || appDevAgyHooks(hooks) {
+		t.Fatal("not once")
+	}
+	if hooks["orca-status"] == nil {
+		t.Fatal("the others' gone")
+	}
+	data, _ := json.Marshal(hooks[appDevAgyHookName])
+	for _, want := range []string{`"PreToolUse":[{"hooks":[{"command":"/box/bin/hi dev __hook agy"`, `"matcher":"*"`, `"Stop":[{"command":"/box/bin/hi dev __hook agy"`, `"PreInvocation"`, `"PostInvocation"`, `"SessionStart"`, `"PostToolUse"`} {
+		if !strings.Contains(string(data), want) {
+			t.Fatal(want, string(data))
+		}
 	}
 }

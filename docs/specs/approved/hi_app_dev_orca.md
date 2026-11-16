@@ -195,9 +195,15 @@ Built in v2.6.172:
   waits for, and how long, with the page's link opening its chat
   (`#work-<branch>`, without the address's key: the person's browser has
   it). One per wait: a new wait gets one again.
-- Not yet: an agent waiting for a site (`hi dev allow --wait`) is a
-  running Bash to the hooks; Security has its badge. Push to a phone
-  with the page closed needs a push service; later.
+- **Sites asked for** (v2.6.180): for an owner, each site an agent
+  asked the dev box to reach (`hi dev allow`), first in the inbox, with
+  **Allow** and **Say no** there, as in Security and the chat; the rest
+  of its row opens its work's chat, or Security for work without a
+  workspace. A notification for each new one ("2-news asks to reach
+  api.stripe.com"). A developer can't answer them: none in theirs. The
+  DM is Slack's own ask, already sent to the owners.
+- Not yet: push to a phone with the page closed needs a push service;
+  later.
 
 ## Release 4: the terminal
 
@@ -300,8 +306,10 @@ Built in v2.6.173:
 - **Orca's relay for phones:** its sign-in service isn't open source,
   and the page installs as an app already.
 - **The same task to several agents to compare:** `hi dev review`,
-  `brainstorm`, and `deep-review` do the useful part in the box; a
-  button for it waits for someone to ask.
+  `brainstorm`, and `deep-review` do the useful part in the box.
+  Dropped (2026-11-16).
+- **More agents to start** (OpenCode, Gemini CLI, and the like): Claude
+  Code, Codex, and Antigravity it is. Dropped (2026-11-16).
 
 ## Tests
 
@@ -406,7 +414,8 @@ Release 1:
 4. **More agents to start** (OpenCode, Gemini CLI, and the like): which,
    on whose sign-ins? The box's proxy puts only the app's Claude and
    ChatGPT sign-ins and its OpenRouter key on calls. Antigravity (agy):
-   answered (2026-11-16), built in v2.6.177, below. Others wait.
+   answered (2026-11-16), built in v2.6.177, below. Others: none
+   (2026-11-16).
 
 ## Antigravity in the dev box (v2.6.177)
 
@@ -452,5 +461,14 @@ account of its own, made for it (decided 2026-11-16).
   Enter as agy's footer says; Write-in takes the words after.
 - Sessions lists agy's conversations too, and Resume runs `agy
   --dangerously-skip-permissions --conversation <id>`.
-- Not yet: agy's state from hooks (herdr's, and the transcript's
-  question, until then).
+- **agy's state from its hooks** (v2.6.180): agy has hooks of its own,
+  in `~/.gemini/config/hooks.json`, a named hook each. hi writes its
+  own, `hi-status`, beside the others, on each start of the service:
+  `hi dev __hook agy` for SessionStart, PreInvocation and PostInvocation
+  (working), PreToolUse and PostToolUse (the tool; `ask_question` is
+  waiting for a question), and Stop (idle). agy waits for each hook's
+  answer: `{}`, and before a tool `{"decision":"ask"}`, which leaves it
+  to agy's own permissions (`--dangerously-skip-permissions` in the
+  box); an empty answer there denies the tool (tried, agy 1.5.9). The
+  hooks' `conversationId` is the conversation Chat shows, else the
+  folder's newest.

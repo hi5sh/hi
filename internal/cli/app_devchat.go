@@ -203,8 +203,14 @@ func devChatAgent(team, workspace string) (appDevChatAgent, string, error) {
 				session = appDevLatestCodexSession(team, pane.CWD)
 			}
 		case pane.Agent == "agy":
-			// herdr doesn't know agy's conversation: the folder's newest.
-			if pane.CWD != "" {
+			// herdr doesn't know agy's conversation: its hooks do, else the
+			// folder's newest.
+			if id := appDevHookSession(team, workspace, "agy"); appDevAgyIDPattern.MatchString(id) {
+				if host, ok := appDevHostPath(team, appDevAgyBrain+"/"+id+appDevAgyTranscript); ok && fileExists(host) {
+					session = appDevAgyBrain + "/" + id + appDevAgyTranscript
+				}
+			}
+			if session == "" && pane.CWD != "" {
 				session = appDevLatestAgySession(team, pane.CWD)
 			}
 		case pane.Session != nil && pane.Session.Value != "" && pane.CWD != "":

@@ -849,6 +849,7 @@ a.button.primary:hover { background: var(--button-hover); }
 .inbox-list .dot { margin-top: 5px; flex: none; }
 .inbox-list .inbox-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .inbox-list .inbox-empty { padding: 6px; }
+.inbox-list .inbox-actions { display: flex; gap: 6px; padding: 0 6px 8px 22px; }
 
 /* Notes on a diff's lines, for the agent (release 5 of hi_app_dev_orca.md). */
 .diff div.line { position: relative; padding-left: 26px; }

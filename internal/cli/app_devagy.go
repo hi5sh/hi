@@ -136,6 +136,22 @@ func prepareTeamDevAgy(team string) (bool, error) {
 			boxedWriteFile(home, onboarding, []byte(`{"consumerOnboardingComplete": true, "enterpriseOnboardingComplete": false, "onboardingComplete": true}`+"\n"), 0o600)
 		}
 	}
+	// hi's hook, for the agent's state, beside the box's others.
+	hooksFile := filepath.Join(home, ".gemini", "config", "hooks.json")
+	if err := boxedMkdirAll(home, filepath.Dir(hooksFile), 0o700); err != nil {
+		return false, err
+	}
+	if data, ok := boxedReadToUpdate(home, hooksFile); ok {
+		hooks := map[string]any{}
+		if len(data) == 0 || json.Unmarshal(data, &hooks) == nil {
+			if appDevAgyHooks(hooks) {
+				out, _ := json.MarshalIndent(hooks, "", "  ")
+				if err := boxedWriteFile(home, hooksFile, append(out, '\n'), 0o600); err != nil {
+					return false, err
+				}
+			}
+		}
+	}
 	// The box's folders are trusted, so agy doesn't ask about each.
 	settings := map[string]any{}
 	data, ok := boxedReadToUpdate(home, filepath.Join(state, "settings.json"))
@@ -296,6 +312,9 @@ func appDevIsAgySession(session string) bool {
 func appDevAgyID(session string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(path.Clean(session), appDevAgyBrain+"/"), appDevAgyTranscript)
 }
+
+// appDevAgyIDPattern is an agy conversation's id.
+var appDevAgyIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 var (
 	appDevAgyRequest = regexp.MustCompile(`(?s)<USER_REQUEST>\s*(.*?)\s*</USER_REQUEST>`)

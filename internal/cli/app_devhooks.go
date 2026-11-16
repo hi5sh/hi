@@ -5,7 +5,8 @@ package cli
 // idle, blocked, done. Claude Code says more, and says it exactly, through
 // hooks: a prompt sent, a tool about to run and done, a permission or a
 // question asked, stopped. Codex says when a turn is done, through its
-// notify program. hi writes both into the dev box's settings, beside the
+// notify program. agy has hooks of its own, in ~/.gemini/config/hooks.json:
+// before and after each model call and tool, and stopped. hi writes all three into the dev box's settings, beside the
 // owners' own, herdr's, and Orca's; each runs hi dev __hook, which hands
 // the event to the broker's socket and never fails the agent's turn. The
 // broker keeps each workspace's last state, and the page's dots and the
@@ -45,7 +46,7 @@ var appDevClaudeHookEvents = []string{
 type appDevHookEvent struct {
 	Workspace string `json:"workspace"` // herdr's, from the agent's environment
 	Pane      string `json:"pane,omitempty"`
-	Agent     string `json:"agent"` // claude, codex
+	Agent     string `json:"agent"` // claude, codex, agy
 	Event     string `json:"event"` // Claude Code's hook_event_name; Stop for Codex's turn
 	Session   string `json:"session,omitempty"`
 	Tool      string `json:"tool,omitempty"`
@@ -74,7 +75,7 @@ var appDevHookWorkspace = regexp.MustCompile(`^[A-Za-z0-9_:.-]{1,64}$`)
 
 // appDevHookRecord takes an event into its workspace's state.
 func appDevHookRecord(team string, event appDevHookEvent, now time.Time) {
-	if !appDevHookWorkspace.MatchString(event.Workspace) || (event.Agent != "claude" && event.Agent != "codex") {
+	if !appDevHookWorkspace.MatchString(event.Workspace) || (event.Agent != "claude" && event.Agent != "codex" && event.Agent != "agy") {
 		return
 	}
 	appDevHooksMu.Lock()
@@ -139,7 +140,7 @@ func appDevHookNext(prev appDevHookState, event appDevHookEvent, now time.Time) 
 		next.Since = now // a new turn
 	case "PreToolUse":
 		switch event.Tool {
-		case "AskUserQuestion":
+		case "AskUserQuestion", "ask_question": // Claude Code's, agy's
 			set("blocked", "", "a question")
 		case "ExitPlanMode":
 			set("blocked", "", "a plan to approve")
@@ -163,7 +164,9 @@ func appDevHookNext(prev appDevHookState, event appDevHookEvent, now time.Time) 
 				set("idle", "", "")
 			}
 		}
-	case "PreCompact":
+	case "PreCompact", "PreInvocation", "PostInvocation":
+		// Claude Code compacting; agy calling its model, or done with a
+		// call's tools: at work, whatever it was doing before.
 		set("working", "", "")
 	case "Stop", "StopFailure":
 		set("idle", "", "")
@@ -179,6 +182,17 @@ func appDevHookFor(tool string) string {
 		return ""
 	}
 	return " for " + tool
+}
+
+// appDevHookSession is the session a workspace's agent's hooks last
+// spoke for: agy's conversation, which herdr doesn't know.
+func appDevHookSession(team, workspace, agent string) string {
+	appDevHooksMu.Lock()
+	defer appDevHooksMu.Unlock()
+	if state, ok := appDevHooks[team][workspace]; ok && state.Agent == agent {
+		return state.Session
+	}
+	return ""
 }
 
 // appDevHookStatus is a workspace's agent's state, from herdr's and its
@@ -245,6 +259,33 @@ func appDevClaudeHooks(settings map[string]any) bool {
 	return changed
 }
 
+// appDevAgyHookName is hi's hook among agy's, by its name.
+const appDevAgyHookName = "hi-status"
+
+// appDevAgyHooks puts hi's hook in agy's hooks.json, beside the others,
+// and says whether it changed them.
+func appDevAgyHooks(hooks map[string]any) bool {
+	handler := func() map[string]any {
+		return map[string]any{"type": "command", "command": appDevHookCommand + " agy", "timeout": 5}
+	}
+	every := func() []any { return []any{map[string]any{"matcher": "*", "hooks": []any{handler()}}} }
+	want := map[string]any{
+		"SessionStart":   []any{handler()},
+		"PreInvocation":  []any{handler()},
+		"PostInvocation": []any{handler()},
+		"PreToolUse":     every(),
+		"PostToolUse":    every(),
+		"Stop":           []any{handler()},
+	}
+	before, _ := json.Marshal(hooks[appDevAgyHookName])
+	after, _ := json.Marshal(want)
+	if bytes.Equal(before, after) {
+		return false
+	}
+	hooks[appDevAgyHookName] = want
+	return true
+}
+
 // appDevCodexNotify is Codex's notify program in the box: hi, for each
 // turn done. A top-level key, so before the config's tables.
 const appDevCodexNotify = `notify = ["/box/bin/hi", "dev", "__hook", "codex"]` + "\n"
@@ -255,13 +296,42 @@ const appDevCodexNotify = `notify = ["/box/bin/hi", "dev", "__hook", "codex"]` +
 // appDevHookClient hands an agent's hook event to the broker. Whatever
 // goes wrong, it says nothing and succeeds: an agent's turn never waits
 // on it, nor fails for it.
-func appDevHookClient(args []string, stdin io.Reader) {
+func appDevHookClient(args []string, stdin io.Reader, stdout io.Writer) {
+	var agy []byte
+	if len(args) > 0 && args[0] == "agy" {
+		// agy waits for an answer from each hook: none of hi's, so it goes
+		// on as it would without. Before a tool, that's "ask": agy's own
+		// permissions decide, as --dangerously-skip-permissions does in the
+		// box; an empty answer there denies the tool.
+		agy, _ = io.ReadAll(io.LimitReader(stdin, 4<<20))
+		var input struct {
+			Event string `json:"hookEventName"`
+		}
+		json.Unmarshal(agy, &input)
+		if input.Event == "PreToolUse" {
+			io.WriteString(stdout, `{"decision":"ask"}`+"\n")
+		} else {
+			io.WriteString(stdout, "{}\n")
+		}
+	}
 	workspace := os.Getenv("HERDR_WORKSPACE_ID")
 	if len(args) == 0 || workspace == "" {
 		return // not an agent herdr runs: someone's own session, over SSH
 	}
 	event := appDevHookEvent{Workspace: workspace, Pane: os.Getenv("HERDR_PANE_ID"), Agent: args[0]}
 	switch args[0] {
+	case "agy":
+		var input struct {
+			Event        string `json:"hookEventName"`
+			Conversation string `json:"conversationId"`
+			ToolCall     struct {
+				Name string `json:"name"`
+			} `json:"toolCall"`
+		}
+		if json.Unmarshal(agy, &input) != nil {
+			return
+		}
+		event.Event, event.Session, event.Tool = input.Event, input.Conversation, input.ToolCall.Name
 	case "claude":
 		var input struct {
 			Event   string `json:"hook_event_name"`

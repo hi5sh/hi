@@ -440,7 +440,7 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 		return nil
 	}
 	if args[0] == "__hook" {
-		appDevHookClient(args[1:], stdin)
+		appDevHookClient(args[1:], stdin, stdout)
 		return nil
 	}
 	socket := os.Getenv(appDevSocketEnv)

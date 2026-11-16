@@ -347,13 +347,15 @@ for; Checks and Logs have a dot.
   **Try on Stage**, **Ship to Dev**, and **Done ✓**
   ([below](#beside-the-chat)), and what Stage shows at the top. Its
   dot is its agent's state: working, waiting for someone, idle, or done.
-  Claude Code and Codex tell hi through their hooks, which hi sets in
-  the dev box, so the page also says what Claude runs ("Running Bash,
+  Claude Code, Codex, and Antigravity tell hi through their hooks, which
+  hi sets in the dev box, so the page also says what Claude runs ("Running Bash,
   for 3 min") or waits for ("Waits for permission for Edit", "a
   question"); the chat's top bar says the same.
 - **Needs you** (the bell in the top bar): the workspaces whose agent
   waits for someone, with what for and how long, then those done since
-  you last looked; a click opens its chat. **Notify me** there turns on
+  you last looked; a click opens its chat. For an owner, a site an agent
+  asked the dev box to reach comes first, with **Allow** and **Say no**
+  right there. **Notify me** there turns on
   the browser's notifications while the page is open. An agent that has
   waited ten minutes while nobody's active on the page sends one Slack
   DM, to whoever started its work, or else to the app's owners, with a
