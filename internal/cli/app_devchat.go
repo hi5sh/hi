@@ -58,15 +58,17 @@ type appDevChatAgent struct {
 // appDevChatView is what the page asks for: the session, its entries
 // after the offset it has, and the agent.
 type appDevChatView struct {
-	Session string            `json:"session,omitempty"` // the transcript, in the box
-	ID      string            `json:"id,omitempty"`      // Claude Code's session id
-	Offset  int64             `json:"offset"`            // where the page reads from next
-	Reset   bool              `json:"reset,omitempty"`   // a new session, or one that shrank: start again
-	Hidden  int               `json:"hidden,omitempty"`  // earlier entries left out
-	Entries []appDevChatEntry `json:"entries"`
-	Agent   appDevChatAgent   `json:"agent"`
-	Screen  string            `json:"screen,omitempty"` // the terminal, when the agent waits for an answer
-	Ask     *appDevAsk        `json:"ask,omitempty"`    // what it asks there, as options to tap
+	Session string `json:"session,omitempty"` // the transcript, in the box
+	ID      string `json:"id,omitempty"`      // Claude Code's or Codex's session id
+	// SessionAgent is whose the session is: claude or codex.
+	SessionAgent string            `json:"session_agent,omitempty"`
+	Offset       int64             `json:"offset"`           // where the page reads from next
+	Reset        bool              `json:"reset,omitempty"`  // a new session, or one that shrank: start again
+	Hidden       int               `json:"hidden,omitempty"` // earlier entries left out
+	Entries      []appDevChatEntry `json:"entries"`
+	Agent        appDevChatAgent   `json:"agent"`
+	Screen       string            `json:"screen,omitempty"` // the terminal, when the agent waits for an answer
+	Ask          *appDevAsk        `json:"ask,omitempty"`    // what it asks there, as options to tap
 	// Activity is Claude Code's own line while it works, from the
 	// terminal: "Crafting… (7s · ↓ 556 tokens · thought for 4s)".
 	Activity string `json:"activity,omitempty"`
@@ -188,14 +190,59 @@ func devChatAgent(team, workspace string) (appDevChatAgent, string, error) {
 		if hook != nil {
 			agent.Tool, agent.Waiting, agent.Since = hook.Tool, hook.Waiting, hook.Since
 		}
-		if pane.Session != nil && strings.HasSuffix(pane.Session.Value, ".jsonl") {
+		switch {
+		case pane.Session != nil && strings.HasSuffix(pane.Session.Value, ".jsonl"):
 			session = pane.Session.Value
-		} else if pane.Session != nil && pane.Session.Value != "" && pane.CWD != "" {
+		case pane.Agent == "codex":
+			// herdr knows Codex's session by its id, or not at all: its file,
+			// else the newest Codex session of the folder.
+			if pane.Session != nil {
+				session = appDevCodexSessionByID(team, pane.Session.Value)
+			}
+			if session == "" && pane.CWD != "" {
+				session = appDevLatestCodexSession(team, pane.CWD)
+			}
+		case pane.Session != nil && pane.Session.Value != "" && pane.CWD != "":
 			session = appDevClaudeDir(pane.CWD) + "/" + pane.Session.Value + ".jsonl"
 		}
 		break
 	}
 	return agent, session, nil
+}
+
+// appDevSpaceCWD is the folder a workspace's agents run in: its worktree,
+// or the project's own clone.
+func appDevSpaceCWD(team, workspace string) string {
+	if spaces, err := appDevSpacesCached(team); err == nil {
+		for _, space := range spaces {
+			if space.ID == workspace && space.Path != "" {
+				return space.Path
+			}
+		}
+	}
+	return "/box/repo"
+}
+
+// appDevNewer is the newer of two sessions' files, or the one there is.
+func appDevNewer(team, a, b string) string {
+	if a == "" || b == "" {
+		return firstNonEmpty(a, b)
+	}
+	at := func(session string) time.Time {
+		host, ok := appDevHostPath(team, session)
+		if !ok {
+			return time.Time{}
+		}
+		info, err := os.Lstat(host)
+		if err != nil {
+			return time.Time{}
+		}
+		return info.ModTime()
+	}
+	if at(b).After(at(a)) {
+		return b
+	}
+	return a
 }
 
 // appDevLatestSession is the newest transcript of a working directory,
@@ -474,13 +521,17 @@ func readDevChat(home, file string, offset int64, shown func(int64) bool) ([]app
 	}
 	reader := bufio.NewReaderSize(f, 1<<20)
 	var entries []appDevChatEntry
+	parse := appDevChatEntries
+	if strings.HasPrefix(filepath.Base(file), "rollout-") {
+		parse = appDevCodexEntries // Codex's session (app_devcodex.go)
+	}
 	for {
 		line, n, err := appReadBoxLine(reader)
 		if err != nil {
 			break // a line still being written waits for the next read
 		}
 		if line != nil && (shown == nil || shown(offset)) {
-			entries = append(entries, appDevChatEntries(bytes.TrimSpace(line))...)
+			entries = append(entries, parse(bytes.TrimSpace(line))...)
 		}
 		offset += n
 	}
@@ -522,38 +573,56 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		return appDevChatView{}, err
 	}
 	view := appDevChatView{Agent: agent, Entries: []appDevChatEntry{}}
-	if agent.Running && agent.Agent != "claude" {
-		view.Note = "The chat shows Claude Code's sessions; " + agent.Agent + "'s is in the terminal."
+	if agent.Running && agent.Agent != "claude" && agent.Agent != "codex" {
+		view.Note = "The chat shows Claude Code's and Codex's sessions; " + agent.Agent + "'s is in the terminal."
 		return view, nil
 	}
 	if session == "" {
-		cwd := "/box/repo"
-		if spaces, err := appDevSpacesCached(b.team); err == nil {
-			for _, space := range spaces {
-				if space.ID == workspace && space.Path != "" {
-					cwd = space.Path
-				}
-			}
+		// No agent, or one herdr doesn't know the session of: the
+		// folder's newest, of the agent running, else of either.
+		cwd := appDevSpaceCWD(b.team, workspace)
+		claude, codex := "", ""
+		if !agent.Running || agent.Agent == "claude" {
+			claude = appDevLatestSession(b.team, cwd)
 		}
-		session = appDevLatestSession(b.team, cwd)
+		if !agent.Running || agent.Agent == "codex" {
+			codex = appDevLatestCodexSession(b.team, cwd)
+		}
+		session = appDevNewer(b.team, claude, codex)
 	}
 	if session == "" {
-		view.Note = "No Claude Code session here yet."
+		view.Note = "No session here yet."
+		if agent.Running && agent.Agent == "codex" {
+			view.Note = "No Codex session here yet."
+		} else if agent.Running {
+			view.Note = "No Claude Code session here yet."
+		}
 		return view, nil
 	}
-	if !strings.HasPrefix(path.Clean(session), "/box/home/.claude/projects/") {
-		return view, fmt.Errorf("%s isn't a Claude Code transcript", session)
+	codex := appDevIsCodexSession(session)
+	if !codex && !strings.HasPrefix(path.Clean(session), "/box/home/.claude/projects/") {
+		return view, fmt.Errorf("%s isn't a Claude Code or Codex session", session)
 	}
 	host, _ := appDevHostPath(b.team, session)
 	view.Session, view.ID = session, strings.TrimSuffix(path.Base(session), ".jsonl")
+	if codex {
+		view.ID, view.SessionAgent = appDevCodexID(session), "codex"
+	} else {
+		view.SessionAgent = "claude"
+	}
 	if session != known {
 		offset, view.Reset = 0, true
 	}
-	shown, now, follows := appDevChatBranch(appDevHome(b.team), host, turns)
-	if !follows {
-		offset, view.Reset = 0, true // a rewind: the conversation's branch again
+	var shown func(int64) bool
+	if !codex {
+		var now string
+		var follows bool
+		shown, now, follows = appDevChatBranch(appDevHome(b.team), host, turns)
+		if !follows {
+			offset, view.Reset = 0, true // a rewind: the conversation's branch again
+		}
+		view.Turns = now
 	}
-	view.Turns = now
 	entries, next, shrank, err := readDevChat(appDevHome(b.team), host, offset, shown)
 	if err != nil {
 		return view, err
@@ -571,9 +640,12 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		view.Hidden, entries = cut, entries[cut:]
 	}
 	view.Entries = entries
+	if codex {
+		return view, nil // the model and effort are picked for Claude Code
+	}
 	view.Model, view.Effort = b.devChatModel(view.ID, host)
 	if config, err := loadTeam(b.team); err == nil {
-		view.Choose = !config.LockModels && agent.Running
+		view.Choose = !config.LockModels && agent.Running && agent.Agent == "claude"
 	}
 	return view, nil
 }
@@ -912,16 +984,37 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 		}
 		reply(w, http.StatusOK, map[string]string{"text": text})
 	})
+	// A workspace's sessions, both agents', newest first (app_devcodex.go).
+	mux.HandleFunc("GET "+appDevPagePrefix+"api/chat/sessions", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		workspace := r.URL.Query().Get("workspace")
+		if !workspaceOK.MatchString(workspace) {
+			failure(w, http.StatusBadRequest, fmt.Errorf("%q isn't a workspace", workspace))
+			return
+		}
+		sessions := appDevSessions(b.team, appDevSpaceCWD(b.team, workspace))
+		if sessions == nil {
+			sessions = []appDevSession{}
+		}
+		reply(w, http.StatusOK, map[string]any{"sessions": sessions})
+	})
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/resume", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {
 			id, _ := body["session"].(string)
+			who, _ := body["agent"].(string)
 			switch {
 			case agent.Running:
-				return errors.New("an agent is running in this workspace already")
+				return errors.New("an agent is running in this workspace already: stop it first, with /exit or Ctrl+C in the terminal")
 			case agent.Pane == "":
-				return errors.New("the workspace has no pane to run Claude in")
+				return errors.New("the workspace has no pane to run the agent in")
 			case !regexp.MustCompile(`^[0-9a-f-]{36}$`).MatchString(id):
-				return fmt.Errorf("%q isn't a Claude Code session", id)
+				return fmt.Errorf("%q isn't a session", id)
+			case who == "codex":
+				return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "codex resume "+id)
+			case who != "" && who != "claude":
+				return fmt.Errorf("the agent is claude or codex, not %q", who)
 			}
 			return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "claude --resume "+id)
 		})

@@ -869,3 +869,11 @@ a.button.primary:hover { background: var(--button-hover); }
 .term-find input { width: 200px; }
 .term-find-open { position: absolute; top: 6px; right: 20px; z-index: 4; opacity: 0; transition: opacity .15s; }
 .term-panel:hover .term-find-open, .term-find-open:focus-visible { opacity: .8; }
+
+/* A workspace's sessions (release 6 of hi_app_dev_orca.md). */
+.sessions-list { list-style: none; padding: 0; margin: 8px 0 12px; display: flex; flex-direction: column; max-height: 60vh; overflow: auto; }
+.sessions-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.sessions-list li.current { background: var(--hover); }
+.session-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.session-what strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 760px) { .code-bar #chat-sessions { display: none; } }

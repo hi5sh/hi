@@ -1952,7 +1952,10 @@
     if (!$("chat-waiting").hidden) $("chat-screen").textContent = view.screen;
     var stopped = !agent.running;
     $("chat-stopped").hidden = !stopped && !view.note;
-    $("chat-stopped-why").textContent = view.note || "Claude isn't running in this workspace.";
+    chat.sessionAgent = view.session_agent || "claude";
+    var said = agentName(agent.running ? agent.agent : chat.sessionAgent);
+    $("chat-stopped-why").textContent = view.note || said + " isn't running in this workspace.";
+    $("chat-input").placeholder = "Message " + (agent.running ? agentName(agent.agent) : said) + "…";
     $("chat-resume").hidden = !(stopped && view.id && !view.note);
     $("chat-input").disabled = stopped || !!view.note;
     $("chat-send").disabled = stopped || !!view.note;
@@ -2177,7 +2180,7 @@
       chat.offset = view.offset || 0;
       chat.turns = view.turns || "";
       (view.entries || []).forEach(chatEntry);
-      if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No Claude Code session in this workspace yet. Start one from a task, or in the terminal." }));
+      if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task, or in the terminal." }));
       chatState(view);
       // The timeline again when its messages, or what Claude is doing, change.
       var agent = view.agent || {};
@@ -2343,14 +2346,50 @@
     button.addEventListener("click", function () { chatKeys([button.dataset.chatKey]); });
   });
   $("chat-resume").addEventListener("click", function () {
-    ask("Resume this session? hi types claude --resume in the workspace's terminal, so Claude carries on where it stopped.").then(function (answer) {
+    resumeSession(chat.sessionAgent || "claude", chat.id);
+  });
+  // ---- A workspace's sessions, both agents', newest first, each with
+  // Resume (app_devcodex.go).
+  function agentName(agent) { return { claude: "Claude", codex: "Codex", agy: "Antigravity" }[agent] || agent || "The agent"; }
+  function resumeSession(agent, id) {
+    var command = agent === "codex" ? "codex resume" : "claude --resume";
+    ask("Resume this session? hi types " + command + " in the workspace's terminal, so " + agentName(agent) + " carries on where it stopped.").then(function (answer) {
       if (answer === null) return;
-      api("POST", "chat/resume", { workspace: chat.space, session: chat.id }).then(function () {
-        toast("Claude is starting in the workspace…");
+      api("POST", "chat/resume", { workspace: chat.space, session: id, agent: agent }).then(function () {
+        if ($("sessions-dialog").open) $("sessions-dialog").close();
+        toast(agentName(agent) + " is starting in the workspace…");
         setTimeout(pollChat, 1500);
       }).catch(function (error) { toast(error.message); });
     });
+  }
+  $("chat-sessions").addEventListener("click", function () {
+    if (!chat.space) return;
+    var list = $("sessions-list");
+    list.textContent = "";
+    list.appendChild(el("li", { class: "muted small", text: "Loading…" }));
+    if (!$("sessions-dialog").open) $("sessions-dialog").showModal();
+    var asked = chat.space;
+    api("GET", "chat/sessions?workspace=" + encodeURIComponent(asked)).then(function (data) {
+      if (asked !== chat.space) return;
+      list.textContent = "";
+      var running = chat.agent && chat.agent.running;
+      $("sessions-note").textContent = running ? agentName(chat.agent.agent) + " is running here: stop it (/exit, or Ctrl+C in the terminal) to resume another session." : "";
+      if (!data.sessions.length) list.appendChild(el("li", { class: "muted small", text: "No sessions in this workspace yet." }));
+      data.sessions.forEach(function (session) {
+        var current = session.id === chat.id;
+        list.appendChild(el("li", { class: current ? "current" : "" }, [
+          el("div", { class: "session-what" }, [
+            el("strong", { text: session.title || "(no message yet)" }),
+            el("span", { class: "muted small", text: agentName(session.agent) + " · " + ago(session.at) + (current ? " · in the chat now" : "") }),
+          ]),
+          el("button", { type: "button", class: "small", text: "Resume", disabled: running ? "" : null,
+            title: running ? "Stop the running agent first" : "Run " + (session.agent === "codex" ? "codex resume" : "claude --resume") + " in the workspace",
+            onclick: function () { resumeSession(session.agent, session.id); } }),
+        ]));
+      });
+    }).catch(function (error) { list.textContent = ""; list.appendChild(el("li", { class: "error small", text: error.message })); });
   });
+  $("sessions-close").addEventListener("click", function () { $("sessions-dialog").close(); });
   var startView = chat.view;
   setCodeView(startView === "file" ? "chat" : startView);
 

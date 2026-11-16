@@ -361,6 +361,11 @@ for; Checks and Logs have a dot.
   An agent also says where its work stands in a line of its own
   ("tests pass; waiting for the API key", `hi dev note`), on its
   workspace and in Needs you.
+- **Codex in Chat, and Sessions:** Chat shows Codex's session as it
+  shows Claude Code's. **Sessions**, beside **+ New**, lists the
+  workspace's sessions, both agents', newest first, with **Resume**,
+  which runs `claude --resume` or `codex resume` in its terminal once no
+  agent runs there.
 - **Notes on a diff** (Source control): the **+** beside a line of a
   file's diff adds a note on it, for the agent; **Send to the agent**
   puts all of them in the chat's box as one message, each with its file

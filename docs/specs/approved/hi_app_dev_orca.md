@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-16): the plan; release 1, built in v2.6.168
 and narrowed in v2.6.169 (questions 1 and 2 answered); release 2, built
-in v2.6.170; release 3, built in v2.6.172; releases 5 and 7, built in v2.6.173; release 4, built in v2.6.175. Each
+in v2.6.170; release 3, built in v2.6.172; releases 5 and 7, built in v2.6.173; release 4, built in v2.6.175; release 6, built in v2.6.176. Each
 later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
@@ -253,11 +253,30 @@ Built in v2.6.173:
 
 ## Release 6: Codex in Chat, and every session
 
-- Codex's sessions (`~/.codex/sessions/…/rollout-*.jsonl`) in Chat as
-  Claude Code's are: its answers, its commands folded into a line, what
-  it's doing. Its questions are already cards.
-- A workspace's past sessions, both agents', newest first, each with
-  **Resume** (`claude --resume`, `codex resume`).
+Built in v2.6.176:
+
+- **Codex in Chat** as Claude Code is: its session's file
+  (`~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<id>.jsonl`), read from
+  its `item_completed` records: the person's messages (without what
+  Codex adds to the first, AGENTS.md and the environment), its answers,
+  its reasoning's summary, each command (without the `bash -lc` around
+  it) with its output and whether it failed, the files it changed, an
+  MCP tool's call, a web search. Its questions were cards already.
+- **Which session:** the one herdr names for the workspace's Codex, by
+  its id or its file; else the newest Codex session started in the
+  workspace's folder. hi's own runs (`hi dev review`'s and the like,
+  started with `codex exec`) never count. With no agent running, the
+  newest of the folder's sessions, either agent's.
+- The page names the agent whose session it is ("Codex isn't running in
+  this workspace", "Message Codex…"). The model and effort are picked
+  for Claude Code only; Rewind is Claude Code's.
+- **Sessions**, beside **+ New**: the workspace's sessions, both
+  agents', newest first (up to 30), each with its first message (or
+  Claude Code's own title), its agent, when, and **Resume**: `claude
+  --resume <id>` or `codex resume <id>` in the workspace's terminal,
+  once no agent runs there.
+- The sessions' files are read in the box's home without following a
+  link out of it.
 
 ## Release 7: the agents' notes on their workspace
 
@@ -285,6 +304,17 @@ Built in v2.6.173:
   button for it waits for someone to ask.
 
 ## Tests
+
+Release 6:
+
+- Codex's session from records shaped as the box's: the person's
+  message, not AGENTS.md's; the reasoning's summary; a command and its
+  output, one that failed; a file changed; the answer.
+- The sessions: both agents', newest first, not a review's, not another
+  folder's; the titles. Resume: not over a running agent; `codex
+  resume`; an agent hi doesn't know refused. No agent: the newest.
+- In Chromium: Codex's session in Chat, named; Sessions, the current
+  one marked; Resume asks, then sends the agent.
 
 Release 4:
 
