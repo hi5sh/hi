@@ -2867,6 +2867,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.181 — The chat's message box, redone
+
+- [x] One rounded card: the message on top, attachments above it; below,
+  attach, the model and effort with an icon each (or the agent's name),
+  and a round Stop and Send at the end. Send lights up once there's
+  something to send; the card lights up when files are dragged on it.
+
 ### v2.6.180 — Sites in the bell, and agy's hooks
 
 - [x] Needs you, for an owner: each site an agent asked the dev box to
