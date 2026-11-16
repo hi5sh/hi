@@ -148,6 +148,10 @@ func appDevAllowHosts(team string) []string {
 	for _, host := range appDevOwnHosts(team) {
 		add(host)
 	}
+	// agy's, when the app has its sign-in (app_devagy.go).
+	for _, host := range appDevAgyHosts(team) {
+		add(host)
+	}
 	// Production stays an ask, also under the organisation's domain.
 	for _, host := range appDevProductionHosts(team) {
 		if !slices.Contains(hosts, host) && boxHostAllowed(hosts, host) {
@@ -1007,6 +1011,7 @@ func appDevKeys(team string) []appDevKeyStatus {
 		{Name: "OpenRouter key", State: appOpenRouterState(team, secrets), Command: "hi app key " + team + " openrouter"},
 		{Name: "Claude", State: claude, Command: "hi app signin " + team + " claude"},
 		{Name: "ChatGPT", State: own(secrets.ChatGPT != nil, "The app's own sign-in", "This machine's sign-in (Codex's)"), Command: "hi app signin " + team + " chatgpt"},
+		{Name: "Antigravity (agy)", State: appAgyState(secrets), Command: "hi app signin " + team + " agy --file <token>"},
 		{Name: "Slack tokens", State: own(secrets.SlackBotToken != "" && secrets.SlackAppToken != "", "Set", "Missing"), Command: "hi app key " + team + " slack"},
 	}
 }

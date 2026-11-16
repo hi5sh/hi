@@ -405,4 +405,34 @@ Release 1:
    work, else the owners; after ten minutes, fixed for now.
 4. **More agents to start** (OpenCode, Gemini CLI, and the like): which,
    on whose sign-ins? The box's proxy puts only the app's Claude and
-   ChatGPT sign-ins and its OpenRouter key on calls.
+   ChatGPT sign-ins and its OpenRouter key on calls. Antigravity (agy):
+   answered (2026-11-16), built in v2.6.177, below. Others wait.
+
+## Antigravity in the dev box (v2.6.177)
+
+agy as a third agent to start, on the app's own Google account. agy 1.4
+calls Google at an address built in (`daily-cloudcode-pa.googleapis.com`),
+with no setting to send it through the box's proxy, as Claude Code's
+`ANTHROPIC_BASE_URL` and Codex's provider do; the proxy would have to
+open its TLS to put a sign-in on its calls. So the box holds agy's
+sign-in, and anyone with SSH into it can copy it: the app gets a Google
+account of its own, made for it (decided 2026-11-16).
+
+- `hi app signin <app> agy --file <antigravity-oauth-token>`: the file agy
+  writes when signed in as the app's account, checked (a refresh token,
+  the account's email) and kept in the app's secrets. `--machine` uses
+  this machine's own agy sign-in, after a warning that everyone with SSH
+  into the box can copy it; `--unset`, none. The dev page's keys say
+  which.
+- On each start of the app's service: the machine's agy in the box's
+  `/box/bin` (a hard link, else a copy), so a running box gets it; the
+  sign-in in `~/.gemini/antigravity-cli/`, replaced only for another
+  sign-in, so agy's own refreshes stay; the box's folders trusted in its
+  settings; Google's agy sites in the box's list. A marker says the
+  sign-in is hi's: without the app's, hi takes away its own, never one
+  an owner made in the box, and agy.
+- Start and **+ New** offer **Antigravity** when the box has agy: `agy
+  --dangerously-skip-permissions -i '<the task>'` in the workspace (the
+  box is the boundary, as the others' settings say).
+- Not yet: agy's state from hooks, and its sessions in Chat: it's in the
+  terminal, with herdr's state of it.

@@ -464,6 +464,13 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 		if err := appDevClaudeSettings(filepath.Join(appDevDir(name), "home")); err != nil {
 			fmt.Fprintf(stderr, "hi: the dev box's Claude Code settings: %v\n", err)
 		}
+		// agy, with the app's sign-in, and Google's agy sites, or neither.
+		if _, err := prepareTeamDevAgy(name); err != nil {
+			fmt.Fprintf(stderr, "hi: agy in the dev box: %v\n", err)
+		}
+		if err := writeTeamDevAllow(name); err != nil {
+			fmt.Fprintf(stderr, "hi: the dev box's sites: %v\n", err)
+		}
 		return startTeamDevNet(engine, name, hi, stderr)
 	}
 	herdr, err := boxHostBinary("herdr")
@@ -520,6 +527,9 @@ var startTeamDev = func(config appConfig, hi string, stdout, stderr io.Writer) e
 	if err := installTeamDevKit(config, filepath.Join(dev, "home")); err != nil {
 		teardownBox(engine, meta)
 		return fmt.Errorf("the dev box's skills: %w", err)
+	}
+	if _, err := prepareTeamDevAgy(name); err != nil {
+		fmt.Fprintf(stderr, "hi: agy in the dev box: %v\n", err)
 	}
 	run := []string{"run", "-d", "--init", "--name", appDevContainer(name), "--hostname", appDevHost(name),
 		"--network", "hi-box-" + meta.Name, "--ip", appDevBoxIP(meta.ProxyIP, 3), "--dns", meta.ProxyIP}

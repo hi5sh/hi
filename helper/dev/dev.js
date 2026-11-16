@@ -425,6 +425,7 @@
     $("start-go").textContent = "Start →";
     var last = "claude";
     try { last = localStorage.getItem("hi-dev-agent") || "claude"; } catch (e) { /* private window */ }
+    if (last === "agy" && !(state && state.agy)) last = "claude"; // the app's agy went
     document.querySelectorAll("#start-form input[name=agent]").forEach(function (input) {
       input.checked = input.value === (last === "shell" ? "" : last);
     });
@@ -660,13 +661,32 @@
     button.hidden = !window.Notification;
     if (button.hidden) return;
     var permission = Notification.permission;
-    button.disabled = permission !== "default";
-    button.textContent = permission === "granted" ? "Notifications on" : permission === "denied" ? "Notifications blocked in the browser" : "Notify me";
+    button.textContent = permission === "granted" ? "Notifications on" : permission === "denied" ? "Notifications blocked: how to allow" : "Notify me";
   }
+  // The browser asks once; after a Block, or in a private window, or where
+  // it never lets sites ask, only its own settings allow them again.
   $("inbox-notify").addEventListener("click", function () {
-    var asked = Notification.requestPermission(renderInboxNotify);
-    if (asked && asked.then) asked.then(renderInboxNotify);
+    var help = $("inbox-help");
+    if (Notification.permission === "default") {
+      var asked = Notification.requestPermission(function () { renderInboxNotify(); notifyHelp(); });
+      if (asked && asked.then) asked.then(function () { renderInboxNotify(); notifyHelp(); });
+      return;
+    }
+    if (!help.hidden) { help.hidden = true; return; }
+    notifyHelp(true);
   });
+  function notifyHelp(open) {
+    var help = $("inbox-help");
+    var permission = window.Notification ? Notification.permission : "";
+    if (permission === "granted") {
+      help.textContent = "This browser shows them while the page is open, also behind another window. To turn them off: the site's settings, by the address bar.";
+    } else if (permission === "denied") {
+      help.textContent = "This browser blocks this site's notifications: it does in a private or incognito window, after a Block, and where it never lets sites ask. " +
+        "To allow them: in Chrome or Edge, the icon left of the address, then Notifications, Allow; in Firefox, the same icon, then the notifications' permission; " +
+        "in Safari, Settings, Websites, Notifications (and \"Allow websites to ask\"). Then reload the page.";
+    } else return;
+    if (open) help.hidden = false;
+  }
   function openFromInbox(space) {
     closeInbox();
     setCodeView("chat");
@@ -1497,6 +1517,11 @@
       document.querySelectorAll(".owners-control").forEach(function (control) { control.disabled = developer(); });
       if (developer() && panes.right.view === "data") setSide("release", null);
       renderSSHKey();
+      // agy, when the app has its sign-in (app_devagy.go).
+      document.querySelectorAll(".agy-only").forEach(function (label) {
+        label.hidden = !data.agy;
+        if (!data.agy && label.querySelector("input").checked) document.querySelector('input[name="' + label.querySelector("input").name + '"][value="claude"]').checked = true;
+      });
       document.title = "Dev · " + data.team;
       $("team").textContent = data.team;
       $("team").title = data.you ? "Signed in as " + data.you : "";

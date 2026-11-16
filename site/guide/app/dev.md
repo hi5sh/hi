@@ -361,6 +361,9 @@ for; Checks and Logs have a dot.
   An agent also says where its work stands in a line of its own
   ("tests pass; waiting for the API key", `hi dev note`), on its
   workspace and in Needs you.
+- **Antigravity:** with the app's own Google sign-in for agy
+  ([keys](keys.md)), Start and **+ New** offer it beside Claude Code and
+  Codex; it works in the workspace's terminal.
 - **Codex in Chat, and Sessions:** Chat shows Codex's session as it
   shows Claude Code's. **Sessions**, beside **+ New**, lists the
   workspace's sessions, both agents', newest first, with **Resume**,

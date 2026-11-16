@@ -336,7 +336,7 @@ func TestTeamDevKeys(t *testing.T) {
 	saveTeamSecrets("payments", secrets)
 	keys := appDevKeys("payments")
 	data, _ := json.Marshal(keys)
-	if len(keys) != 4 || keys[0].State != "The app's own" || keys[1].State != "The app's own token" || keys[2].State != "This machine's sign-in (Codex's)" || keys[0].Command != "hi app key payments openrouter" || strings.Contains(string(data), "secret") {
+	if len(keys) != 5 || keys[0].State != "The app's own" || keys[1].State != "The app's own token" || keys[2].State != "This machine's sign-in (Codex's)" || keys[3].State != "None: no agy in the dev box" || keys[0].Command != "hi app key payments openrouter" || strings.Contains(string(data), "secret") {
 		t.Fatalf("%s", data)
 	}
 }

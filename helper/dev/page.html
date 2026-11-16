@@ -40,6 +40,7 @@
         <button id="inbox-btn" type="button" class="icon inbox-btn" aria-expanded="false" aria-controls="inbox" title="Needs you: agents that wait for someone, and work done since you looked" aria-label="Needs you"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="inbox-count" class="side-badge" hidden></span></button>
         <div id="inbox" class="inbox-panel" role="dialog" aria-label="Needs you" hidden>
           <div class="inbox-head"><strong>Needs you</strong><button type="button" id="inbox-notify" class="small link" hidden></button></div>
+          <p id="inbox-help" class="small muted inbox-help" hidden></p>
           <ul id="inbox-list" class="inbox-list"></ul>
         </div>
       </div>
@@ -231,6 +232,7 @@
             <div class="agents-inline" role="radiogroup" aria-label="Agent">
               <label><input type="radio" name="adhoc-agent" value="claude" checked> Claude Code</label>
               <label><input type="radio" name="adhoc-agent" value="codex"> Codex</label>
+              <label class="agy-only" hidden><input type="radio" name="adhoc-agent" value="agy"> Antigravity</label>
             </div>
             <div class="buttons">
               <button type="button" id="adhoc-cancel">Cancel</button>
@@ -483,6 +485,7 @@
       <legend class="muted small">Agent</legend>
       <label><input type="radio" name="agent" value="claude" checked> <strong>Claude Code</strong> <span class="muted small">reads the task and its files, then asks what isn't clear</span></label>
       <label><input type="radio" name="agent" value="codex"> <strong>Codex</strong> <span class="muted small">the same, with Codex</span></label>
+      <label class="agy-only" hidden><input type="radio" name="agent" value="agy"> <strong>Antigravity</strong> <span class="muted small">the same, with Google's agy, on the app's Google account</span></label>
       <label><input type="radio" name="agent" value=""> <strong>Shell</strong> <span class="muted small">a branch and a worktree, with a shell</span></label>
     </fieldset>
     <p class="muted small">A branch from dev, its own worktree, and a workspace in herdr.</p>

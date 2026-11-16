@@ -969,7 +969,14 @@ func versionNewer(a, b string) bool {
 
 // appSignin is hi app signin <name> chatgpt|claude [--machine].
 func appSignin(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app signin <name> chatgpt|claude [--machine]"}
+	usage := usageError{"usage: hi app signin <name> chatgpt|claude [--machine]\n       hi app signin <name> agy --file <antigravity-oauth-token> | --machine | --unset"}
+	if len(args) >= 2 && args[1] == "agy" {
+		config, err := loadTeam(args[0])
+		if err != nil {
+			return err
+		}
+		return appSigninAgy(config, args[2:], stdout)
+	}
 	machine := false
 	var words []string
 	for _, arg := range args {

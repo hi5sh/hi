@@ -75,6 +75,38 @@ nothing in the box refreshes a token. When ChatGPT refuses it, the proxy
 sends the call to the same model on OpenRouter and the channel hears it
 once. A machine whose Codex is on an API key keeps it, as before.
 
+**Antigravity (agy) on the app's own Google account.** agy can work in
+the dev box beside Claude Code and Codex, but differently from them the
+box holds its sign-in: agy calls Google at an address of its own, which
+the box's proxy can't put a sign-in on. Anyone with SSH into the dev box
+(the app's owners and Pro Devs) can copy it. So give the app a Google
+account of its own, made for it and on a Google AI Pro or Ultra plan,
+never someone's personal one:
+
+1. Make the Google account for the app, and give it the plan.
+2. On a computer with agy (`hi install agy`), sign in to agy as that
+   account, in a folder of its own so your own sign-in stays:
+
+   ```sh
+   export HOME=$(mktemp -d) && agy     # sign in with the app's account, then /exit
+   ```
+
+   The sign-in is the file `$HOME/.gemini/antigravity-cli/antigravity-oauth-token`.
+3. On the app's machine:
+
+   ```sh
+   hi app signin payments agy --file antigravity-oauth-token
+   rm antigravity-oauth-token
+   hi app restart payments    # or the next hi update --restart
+   ```
+
+From then on the dev box has `agy`, the box reaches Google's agy sites,
+and Start and **+ New** on the dev page offer **Antigravity**. agy keeps
+its sign-in fresh in the box itself. `hi app signin payments agy --unset`
+takes it away again, and `--machine` uses this machine's own agy
+sign-in instead, after a warning: only where everyone with SSH into the
+box may have it. The dev page's Security view says which the app has.
+
 **Signing in again from Slack.** When a sign-in stops working, the
 channel hears it once, and an owner signs the app in again from the
 channel or the bot's DM, without the machine:

@@ -212,6 +212,9 @@ type appSecrets struct {
 	// Claude members use this machine's sign-in.
 	ClaudeToken    string    `json:"claude_token,omitempty"`
 	ClaudeSignedIn time.Time `json:"claude_signed_in,omitempty"`
+	// Agy is the app's Antigravity sign-in, for agy in its dev box, which
+	// holds it (app_devagy.go); without one, the dev box has no agy.
+	Agy *appAgySignIn `json:"agy,omitempty"`
 }
 
 func appsDir() string {
@@ -727,6 +730,10 @@ usage:
   hi app signin <name> claude      the app's own Claude token, from claude setup-token (asked for):
                                    its Claude members use it before this machine's sign-in
       [--machine]                  use this machine's sign-in (Codex's, or Claude Code's) instead
+  hi app signin <name> agy --file <token>  Antigravity (agy) in the dev box, as the app's own Google
+                                   account: its ~/.gemini/antigravity-cli/antigravity-oauth-token.
+                                   The box holds it, so anyone with SSH into the box can copy it
+      [--machine | --unset]        this machine's agy sign-in instead, or none (no agy)
   hi app member <name> <role>      a member's agent, model, and who pays for it
       [--provider openrouter|chatgpt] [--model <model>] [--fallback <model on OpenRouter>]
       [--effort low|medium|high|xhigh|max]  how hard it thinks; medium unless set

@@ -877,3 +877,4 @@ a.button.primary:hover { background: var(--button-hover); }
 .session-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .session-what strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .code-bar #chat-sessions { display: none; } }
+.inbox-help { margin: 0 0 8px; line-height: 1.45; }

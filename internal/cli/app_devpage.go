@@ -269,6 +269,8 @@ type appDevPageView struct {
 	// SSH is the dev box for the person's own editor, an owner's or a
 	// Pro Dev's (app_deveditor.go).
 	SSH *appDevSSHView `json:"ssh,omitempty"`
+	// Agy says the dev box runs agy, so the page offers it to start.
+	Agy bool `json:"agy,omitempty"`
 }
 
 // appDevAddress is one of the team's addresses, for the page.
@@ -651,6 +653,7 @@ func (b *appBroker) devPageView(person appPersonKey, level string) appDevPageVie
 		view.SSHKey = appSSHKeyLabel(string(data))
 	}
 	view.SSH = appDevSSH(b.team, level)
+	view.Agy = appDevHasAgy(b.team)
 	view.Status, _ = b.devStatus()
 	if report, err := appVersionsReport(b.team); err == nil {
 		for _, task := range report.Changes {
@@ -795,10 +798,34 @@ func appDevStart(config appConfig, number int, agent, by string) (string, error)
 	return branch, err
 }
 
+// appDevAgentOK says an agent can start in the dev box: Claude Code,
+// Codex, agy when the app has its sign-in, or (with shell) none.
+func appDevAgentOK(team, agent string, shell bool) error {
+	switch {
+	case agent == "claude", agent == "codex", agent == "" && shell:
+		return nil
+	case agent == "agy" && appDevHasAgy(team):
+		return nil
+	case agent == "agy":
+		return fmt.Errorf("the dev box has no agy: an admin gives the app its own Google sign-in for it, with hi app signin %s agy --file <token>", team)
+	}
+	return fmt.Errorf("the agent is claude, codex, or agy, not %q", agent)
+}
+
+// appDevAgentCommand starts an agent in a workspace's pane with its first
+// message. agy asks before each tool unless told not to: the box is the
+// boundary, as for the others (their settings say so).
+func appDevAgentCommand(agent, prompt string) string {
+	if agent == "agy" {
+		return "agy --dangerously-skip-permissions -i " + shellQuote(prompt)
+	}
+	return agent + " " + shellQuote(prompt)
+}
+
 // appDevStartIn is appDevStart, and says the herdr workspace too.
 func appDevStartIn(config appConfig, number int, agent, by string) (string, string, error) {
-	if agent != "" && agent != "claude" && agent != "codex" {
-		return "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
+	if err := appDevAgentOK(config.Name, agent, true); err != nil {
+		return "", "", err
 	}
 	result, err := appTicketDo(config.Name, appTicketRequest{Action: "show", Number: number})
 	if err != nil {
@@ -826,7 +853,7 @@ func appDevStartIn(config appConfig, number int, agent, by string) (string, stri
 		if len(result.Ticket.Files) > 0 {
 			prompt += fmt.Sprintf(" It has files (%s): hi dev task files %d puts them in ~/hi/tasks/%d/.", strings.Join(result.Ticket.Files, ", "), number, number)
 		}
-		if err := appDevHerdrDo(config.Name, "pane", "run", created.Pane.ID, agent+" "+shellQuote(prompt)); err != nil {
+		if err := appDevHerdrDo(config.Name, "pane", "run", created.Pane.ID, appDevAgentCommand(agent, prompt)); err != nil {
 			return branch, workspace, fmt.Errorf("the workspace is there, but %s didn't start: %w", agent, err)
 		}
 	}
@@ -844,8 +871,8 @@ func appDevStartNew(config appConfig, by, text, agent string, files []appAttachm
 		return appTicket{}, "", "", errors.New("say what it's for")
 	case len(text) > appDevChatTextMax:
 		return appTicket{}, "", "", fmt.Errorf("that's longer than %s", formatDataSize(appDevChatTextMax))
-	case agent != "claude" && agent != "codex":
-		return appTicket{}, "", "", fmt.Errorf("the agent is claude or codex, not %q", agent)
+	case appDevAgentOK(config.Name, agent, false) != nil:
+		return appTicket{}, "", "", appDevAgentOK(config.Name, agent, false)
 	}
 	ticket, err := appDevAddTicket(config.Name, by, appDevNewTitle(text), text, files)
 	if err != nil {
