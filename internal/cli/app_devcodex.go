@@ -215,6 +215,12 @@ func appDevSessions(team, cwd string) []appDevSession {
 		sessions = append(sessions, appDevSession{Agent: "codex", ID: firstNonEmpty(meta.ID, appDevCodexID(found.box)), Session: found.box, At: found.at,
 			Title: appDevSessionTitle(team, found.host, appDevCodexEntries)})
 	}
+	for _, found := range appDevAgyFiles(team) {
+		if appDevAgyIn(team, found.host, cwd) {
+			sessions = append(sessions, appDevSession{Agent: "agy", ID: found.id, Session: found.box, At: found.at,
+				Title: appDevSessionTitle(team, found.host, appDevAgyEntries)})
+		}
+	}
 	sort.Slice(sessions, func(i, j int) bool { return sessions[i].At.After(sessions[j].At) })
 	if len(sessions) > appDevSessionsMax {
 		sessions = sessions[:appDevSessionsMax]

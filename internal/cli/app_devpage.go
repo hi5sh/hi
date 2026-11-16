@@ -798,6 +798,12 @@ func appDevStart(config appConfig, number int, agent, by string) (string, error)
 	return branch, err
 }
 
+// appDevSpacesNow are the box's workspaces as herdr has them now, or none.
+func appDevSpacesNow(team string) []appDevSpace {
+	spaces, _ := appDevSpaces(team)
+	return spaces
+}
+
 // appDevAgentOK says an agent can start in the dev box: Claude Code,
 // Codex, agy when the app has its sign-in, or (with shell) none.
 func appDevAgentOK(team, agent string, shell bool) error {
@@ -848,6 +854,18 @@ func appDevStartIn(config appConfig, number int, agent, by string) (string, stri
 	appDevStarted(config.Name, branch, by)
 	appDevSpacesForget()
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
+	if agent == "agy" {
+		// agy asks to trust each folder it starts in, not the ones in a trusted one.
+		path := "/box/home/.herdr/worktrees/repo/" + branch
+		for _, space := range appDevSpacesNow(config.Name) {
+			if space.Branch == branch && space.Path != "" {
+				path = space.Path
+			}
+		}
+		if err := appDevAgyTrust(config.Name, path); err != nil {
+			return branch, workspace, fmt.Errorf("the workspace is there, but agy's settings: %w", err)
+		}
+	}
 	if agent != "" && created.Pane.ID != "" {
 		prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)
 		if len(result.Ticket.Files) > 0 {

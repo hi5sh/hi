@@ -202,6 +202,11 @@ func devChatAgent(team, workspace string) (appDevChatAgent, string, error) {
 			if session == "" && pane.CWD != "" {
 				session = appDevLatestCodexSession(team, pane.CWD)
 			}
+		case pane.Agent == "agy":
+			// herdr doesn't know agy's conversation: the folder's newest.
+			if pane.CWD != "" {
+				session = appDevLatestAgySession(team, pane.CWD)
+			}
 		case pane.Session != nil && pane.Session.Value != "" && pane.CWD != "":
 			session = appDevClaudeDir(pane.CWD) + "/" + pane.Session.Value + ".jsonl"
 		}
@@ -524,6 +529,8 @@ func readDevChat(home, file string, offset int64, shown func(int64) bool) ([]app
 	parse := appDevChatEntries
 	if strings.HasPrefix(filepath.Base(file), "rollout-") {
 		parse = appDevCodexEntries // Codex's session (app_devcodex.go)
+	} else if filepath.Base(file) == "transcript.jsonl" {
+		parse = appDevAgyEntries // agy's (app_devagy.go)
 	}
 	for {
 		line, n, err := appReadBoxLine(reader)
@@ -573,8 +580,8 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		return appDevChatView{}, err
 	}
 	view := appDevChatView{Agent: agent, Entries: []appDevChatEntry{}}
-	if agent.Running && agent.Agent != "claude" && agent.Agent != "codex" {
-		view.Note = "The chat shows Claude Code's and Codex's sessions; " + agent.Agent + "'s is in the terminal."
+	if agent.Running && agent.Agent != "claude" && agent.Agent != "codex" && agent.Agent != "agy" {
+		view.Note = "The chat shows Claude Code's, Codex's, and agy's sessions; " + agent.Agent + "'s is in the terminal."
 		return view, nil
 	}
 	if session == "" {
@@ -589,6 +596,9 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 			codex = appDevLatestCodexSession(b.team, cwd)
 		}
 		session = appDevNewer(b.team, claude, codex)
+		if !agent.Running || agent.Agent == "agy" {
+			session = appDevNewer(b.team, session, appDevLatestAgySession(b.team, cwd))
+		}
 	}
 	if session == "" {
 		view.Note = "No session here yet."
@@ -599,17 +609,25 @@ func (b *appBroker) devChatLog(workspace, known, turns string, offset int64) (ap
 		}
 		return view, nil
 	}
-	codex := appDevIsCodexSession(session)
-	if !codex && !strings.HasPrefix(path.Clean(session), "/box/home/.claude/projects/") {
-		return view, fmt.Errorf("%s isn't a Claude Code or Codex session", session)
+	codex, agy := appDevIsCodexSession(session), appDevIsAgySession(session)
+	if !codex && !agy && !strings.HasPrefix(path.Clean(session), "/box/home/.claude/projects/") {
+		return view, fmt.Errorf("%s isn't a Claude Code, Codex, or agy session", session)
 	}
 	host, _ := appDevHostPath(b.team, session)
 	view.Session, view.ID = session, strings.TrimSuffix(path.Base(session), ".jsonl")
-	if codex {
+	switch {
+	case codex:
 		view.ID, view.SessionAgent = appDevCodexID(session), "codex"
-	} else {
+	case agy:
+		view.ID, view.SessionAgent = appDevAgyID(session), "agy"
+		// Its questions are in its transcript before they're answered.
+		if agent.Running && agent.Agent == "agy" && appDevAgyAsking(b.team, host) {
+			view.Agent.Status, view.Agent.Waiting = "blocked", firstNonEmpty(view.Agent.Waiting, "a question")
+		}
+	default:
 		view.SessionAgent = "claude"
 	}
+	codex = codex || agy // neither is Claude Code's: no rewind, model, or effort
 	if session != known {
 		offset, view.Reset = 0, true
 	}
@@ -1013,6 +1031,12 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 				return fmt.Errorf("%q isn't a session", id)
 			case who == "codex":
 				return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "codex resume "+id)
+			case who == "agy":
+				if !appDevHasAgy(b.team) {
+					return errors.New("the dev box has no agy now")
+				}
+				appDevAgyTrust(b.team, appDevSpaceCWD(b.team, body["workspace"].(string)))
+				return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "agy --dangerously-skip-permissions --conversation "+id)
 			case who != "" && who != "claude":
 				return fmt.Errorf("the agent is claude or codex, not %q", who)
 			}

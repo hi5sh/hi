@@ -45,7 +45,8 @@ var (
 	appDevAskTabBar   = regexp.MustCompile(`^\s*←\s+(.*?)\s+→\s*$`)
 	appDevAskTabItem  = regexp.MustCompile(`([☐☒✔])\s+(.+?)(?:\s{2,}|$)`)
 	appDevAskProgress = regexp.MustCompile(`^\s*(Question \d+/\d+\b.*?)\s*$`)
-	appDevAskNumbered = regexp.MustCompile(`^(\s*)([❯›]\s*)?(\d+)\.\s+(?:\[([ ✔✓x×])\]\s+)?(.*?)\s*$`)
+	// The selected option: Claude Code's ❯, Codex's ›, agy's >.
+	appDevAskNumbered = regexp.MustCompile(`^(\s*)([❯›>]\s*)?(\d+)\.\s+(?:\[([ ✔✓x×])\]\s+)?(.*?)\s*$`)
 	appDevAskCursor   = regexp.MustCompile(`^(\s*)[❯›]\s+(.*?)\s*$`)
 	// appDevAskHistory is a line of the session above the question: a
 	// message, a step, or the prompt it answers.
@@ -228,7 +229,7 @@ func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption 
 				numberColumn = utf8.RuneCountInString(line[:m[10]])
 			}
 			labelColumn = utf8.RuneCountInString(line[:m[10]])
-			option.Typed = strings.HasPrefix(label, "Type something") || strings.Contains(option.Detail, "notes (tab)")
+			option.Typed = strings.HasPrefix(label, "Type something") || strings.HasPrefix(label, "Write-in") || strings.Contains(option.Detail, "notes (tab)")
 			options = append(options, option)
 			continue
 		}
@@ -299,10 +300,13 @@ func appDevAskKeys(ask *appDevAsk, agent string, index int, text string) (keys [
 		return keys
 	}
 	switch {
+	case option.Typed && strings.TrimSpace(text) == "":
+		return nil, false, errors.New("say what, for " + option.Label)
+	case agent == "agy":
+		// agy picks with the arrows and Enter (its footer says so), not a
+		// number; its Write-in takes the words after.
+		return append(move(), "enter"), option.Typed, nil
 	case option.Typed:
-		if strings.TrimSpace(text) == "" {
-			return nil, false, errors.New("say what, for " + option.Label)
-		}
 		if agent == "codex" {
 			return append(move(), "tab"), true, nil // Codex's notes, beside the option
 		}

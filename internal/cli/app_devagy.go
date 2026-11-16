@@ -12,14 +12,21 @@ package cli
 // sign-in in its home, and lets the box reach Google's agy sites.
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -120,6 +127,14 @@ func prepareTeamDevAgy(team string) (bool, error) {
 	}
 	if err := boxedWriteFile(home, filepath.Join(state, appDevAgyMarker), []byte("The sign-in beside this is hi's (hi app signin "+team+" agy): it's replaced or removed with it.\n"), 0o600); err != nil {
 		return false, err
+	}
+	// agy's first run asks for a color scheme: the box's terminal's own,
+	// as an owner may still change in agy.
+	onboarding := filepath.Join(state, "cache", "onboarding.json")
+	if _, err := boxedReadFile(home, onboarding); errors.Is(err, fs.ErrNotExist) {
+		if err := boxedMkdirAll(home, filepath.Dir(onboarding), 0o700); err == nil {
+			boxedWriteFile(home, onboarding, []byte(`{"consumerOnboardingComplete": true, "enterpriseOnboardingComplete": false, "onboardingComplete": true}`+"\n"), 0o600)
+		}
 	}
 	// The box's folders are trusted, so agy doesn't ask about each.
 	settings := map[string]any{}
@@ -259,4 +274,242 @@ func appAgyState(secrets appSecrets) string {
 // appDevHasAgy says the dev box runs agy, for the page's agents to start.
 func appDevHasAgy(team string) bool {
 	return fileExists(filepath.Join(appDevDir(team), "bin", "agy"))
+}
+
+// ---------------------------------------------------------------------------
+// agy in Chat: its transcript, its questions, its sessions
+
+// appDevAgyBrain is where agy keeps each conversation, in the box: its
+// transcript is <id>/.system_generated/logs/transcript.jsonl.
+const (
+	appDevAgyBrain      = "/box/home/.gemini/antigravity-cli/brain"
+	appDevAgyTranscript = "/.system_generated/logs/transcript.jsonl"
+)
+
+func appDevIsAgySession(session string) bool {
+	clean := path.Clean(session)
+	return strings.HasPrefix(clean, appDevAgyBrain+"/") && strings.HasSuffix(clean, appDevAgyTranscript) &&
+		strings.Count(strings.TrimSuffix(strings.TrimPrefix(clean, appDevAgyBrain+"/"), appDevAgyTranscript), "/") == 0
+}
+
+// appDevAgyID is a conversation's id, from its transcript's path.
+func appDevAgyID(session string) string {
+	return strings.TrimSuffix(strings.TrimPrefix(path.Clean(session), appDevAgyBrain+"/"), appDevAgyTranscript)
+}
+
+var (
+	appDevAgyRequest = regexp.MustCompile(`(?s)<USER_REQUEST>\s*(.*?)\s*</USER_REQUEST>`)
+	appDevAgyStamps  = regexp.MustCompile(`(?m)\A(?:(?:Created|Completed) At: [^\n]*\n)+`)
+)
+
+// appDevAgyEntries are one step of agy's transcript, as Chat draws it. A
+// tool call's result is the step after it (the n-th call of step s is
+// step s+1+n), so each call takes its result's step as its id.
+func appDevAgyEntries(line []byte) []appDevChatEntry {
+	var step struct {
+		Index     int       `json:"step_index"`
+		Type      string    `json:"type"`
+		Status    string    `json:"status"`
+		Source    string    `json:"source"`
+		At        time.Time `json:"created_at"`
+		Content   string    `json:"content"`
+		Thinking  string    `json:"thinking"`
+		ToolCalls []struct {
+			Name string            `json:"name"`
+			Args map[string]string `json:"args"`
+		} `json:"tool_calls"`
+	}
+	if json.Unmarshal(line, &step) != nil {
+		return nil
+	}
+	at := step.At
+	switch step.Type {
+	case "USER_INPUT":
+		said := step.Content
+		if m := appDevAgyRequest.FindStringSubmatch(said); m != nil {
+			said = m[1]
+		} else if strings.HasPrefix(strings.TrimSpace(said), "<") {
+			return nil // what agy adds, not the person's words
+		}
+		if said = strings.TrimSpace(said); said == "" {
+			return nil
+		}
+		return []appDevChatEntry{{T: "user", Text: said, At: at, UUID: strconv.Itoa(step.Index)}}
+	case "PLANNER_RESPONSE":
+		var entries []appDevChatEntry
+		if s := strings.TrimSpace(step.Thinking); s != "" {
+			entries = append(entries, appDevChatEntry{T: "thinking", Text: appDevClip(s, appDevChatResultMax), At: at})
+		}
+		if s := strings.TrimSpace(step.Content); s != "" {
+			entries = append(entries, appDevChatEntry{T: "text", Text: s, At: at})
+		}
+		for i, call := range step.ToolCalls {
+			arg := func(key string) string {
+				var s string
+				if json.Unmarshal([]byte(call.Args[key]), &s) == nil {
+					return s
+				}
+				return call.Args[key]
+			}
+			name, summary, detail := call.Name, "", ""
+			switch call.Name {
+			case "run_command":
+				name, detail = "Bash", arg("CommandLine")
+				summary = firstNonEmpty(arg("toolSummary"), strings.SplitN(detail, "\n", 2)[0])
+			case "read_file", "view_file":
+				name, summary = "Read", arg("Path")
+			case "edit_file", "write_file", "replace_file_content", "multi_replace_file_content":
+				name, summary = "Edit", arg("Path")
+			case "ask_question":
+				name, summary = "Question", appDevAgyQuestions(arg("questions"))
+				detail = summary
+			default:
+				summary = arg("toolSummary")
+			}
+			if detail == "" {
+				data, _ := json.MarshalIndent(call.Args, "", "  ")
+				detail = string(data)
+			}
+			entries = append(entries, appDevChatEntry{T: "tool", ID: strconv.Itoa(step.Index + 1 + i), Name: name, Summary: summary,
+				Detail: appDevClip(detail, appDevChatInputMax), At: at})
+		}
+		return entries
+	case "GENERIC":
+		if step.Source != "MODEL" {
+			return nil
+		}
+		text := appDevAgyStamps.ReplaceAllString(step.Content, "")
+		failed := step.Status == "ERROR" || regexp.MustCompile(`(?m)^Command exited with code [1-9]`).MatchString(text)
+		return []appDevChatEntry{{T: "result", ID: strconv.Itoa(step.Index), Text: appDevClip(strings.TrimSpace(text), appDevChatResultMax), Error: failed, At: at}}
+	}
+	return nil
+}
+
+// appDevAgyQuestions are ask_question's questions, a line each.
+func appDevAgyQuestions(raw string) string {
+	var questions []struct {
+		Question string `json:"question"`
+	}
+	if json.Unmarshal([]byte(raw), &questions) != nil {
+		return "a question"
+	}
+	var lines []string
+	for _, q := range questions {
+		if q.Question != "" {
+			lines = append(lines, q.Question)
+		}
+	}
+	return firstNonEmpty(strings.Join(lines, " · "), "a question")
+}
+
+// appDevAgyAsking says agy waits for answers to its questions: its last
+// ask_question has no result yet.
+func appDevAgyAsking(team, host string) bool {
+	f, err := boxedOpenFile(appDevHome(team), host)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err == nil && info.Size() > 512<<10 {
+		f.Seek(info.Size()-512<<10, io.SeekStart)
+	}
+	reader := bufio.NewReaderSize(f, 1<<20)
+	asked, answered := map[string]bool{}, map[string]bool{}
+	for {
+		line, _, err := appReadBoxLine(reader)
+		if err != nil {
+			break
+		}
+		for _, entry := range appDevAgyEntries(line) {
+			switch {
+			case entry.T == "tool" && entry.Name == "Question":
+				asked[entry.ID] = true
+			case entry.T == "result":
+				answered[entry.ID] = true
+			}
+		}
+	}
+	for id := range asked {
+		if !answered[id] {
+			return true
+		}
+	}
+	return false
+}
+
+type appDevAgyFile struct {
+	box, host, id string
+	at            time.Time
+}
+
+// appDevAgyFiles are agy's transcripts in the box, newest first.
+func appDevAgyFiles(team string) []appDevAgyFile {
+	root, ok := appDevHostPath(team, appDevAgyBrain)
+	if !ok {
+		return nil
+	}
+	entries, _ := os.ReadDir(root)
+	var files []appDevAgyFile
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		box := appDevAgyBrain + "/" + entry.Name() + appDevAgyTranscript
+		host, _ := appDevHostPath(team, box)
+		info, err := os.Lstat(host)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		files = append(files, appDevAgyFile{box: box, host: host, id: entry.Name(), at: info.ModTime().UTC()})
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].at.After(files[j].at) })
+	return files
+}
+
+// appDevAgyIn says a transcript is of work in cwd: agy's transcript names
+// no folder of its own, but its tools' paths and commands' output do.
+func appDevAgyIn(team, host, cwd string) bool {
+	f, err := boxedOpenFile(appDevHome(team), host)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	head := make([]byte, 512<<10)
+	n, _ := io.ReadFull(f, head)
+	return bytes.Contains(head[:n], []byte(cwd+"/")) || bytes.Contains(head[:n], []byte(cwd+"\\r\\n")) || bytes.Contains(head[:n], []byte(cwd+"\\n"))
+}
+
+// appDevLatestAgySession is the newest of a folder's agy conversations.
+func appDevLatestAgySession(team, cwd string) string {
+	for _, found := range appDevAgyFiles(team) {
+		if appDevAgyIn(team, found.host, cwd) {
+			return found.box
+		}
+	}
+	return ""
+}
+
+// appDevAgyTrust trusts a folder for agy before it starts there: agy asks
+// for each folder, not for the folders in one it trusts.
+func appDevAgyTrust(team, dir string) error {
+	home := appDevHome(team)
+	settingsPath := filepath.Join(home, filepath.FromSlash(appDevAgyHome), "settings.json")
+	data, ok := boxedReadToUpdate(home, settingsPath)
+	if !ok {
+		return nil
+	}
+	settings := map[string]any{}
+	if len(data) > 0 {
+		json.Unmarshal(data, &settings)
+	}
+	trusted, _ := settings["trustedWorkspaces"].([]any)
+	if slices.Contains(trusted, any(dir)) {
+		return nil
+	}
+	settings["trustedWorkspaces"] = append(trusted, dir)
+	out, _ := json.MarshalIndent(settings, "", "  ")
+	if err := boxedMkdirAll(home, filepath.Dir(settingsPath), 0o700); err != nil {
+		return err
+	}
+	return boxedWriteFile(home, settingsPath, out, 0o600)
 }

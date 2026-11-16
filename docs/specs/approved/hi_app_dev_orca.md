@@ -434,5 +434,23 @@ account of its own, made for it (decided 2026-11-16).
 - Start and **+ New** offer **Antigravity** when the box has agy: `agy
   --dangerously-skip-permissions -i '<the task>'` in the workspace (the
   box is the boundary, as the others' settings say).
-- Not yet: agy's state from hooks, and its sessions in Chat: it's in the
-  terminal, with herdr's state of it.
+- **No first-run questions** (v2.6.178): agy asked for a color scheme
+  and to trust the folder on its first start in the box. hi marks its
+  onboarding done (`cache/onboarding.json`, only when there's none), and
+  trusts each worktree before agy starts there (Start, + New, Resume):
+  agy trusts a folder, not the folders in it.
+- **agy in Chat** (v2.6.178): its transcript,
+  `~/.gemini/antigravity-cli/brain/<id>/.system_generated/logs/transcript.jsonl`,
+  a step a line: the person's request (inside `<USER_REQUEST>`), its
+  thinking and answers, each tool call (run_command, read_file,
+  edit_file, ask_question, …) with its result, which is the step after it
+  (the n-th call of step s is step s+1+n). Which conversation: the
+  newest whose steps name the workspace's folder (agy's transcript names
+  none of its own). A question without its result yet is agy waiting:
+  the workspace is blocked, and the chat's card has its options, read
+  from the screen (agy's selection is `>`), picked with the arrows and
+  Enter as agy's footer says; Write-in takes the words after.
+- Sessions lists agy's conversations too, and Resume runs `agy
+  --dangerously-skip-permissions --conversation <id>`.
+- Not yet: agy's state from hooks (herdr's, and the transcript's
+  question, until then).

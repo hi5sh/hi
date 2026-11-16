@@ -363,7 +363,8 @@ for; Checks and Logs have a dot.
   workspace and in Needs you.
 - **Antigravity:** with the app's own Google sign-in for agy
   ([keys](keys.md)), Start and **+ New** offer it beside Claude Code and
-  Codex; it works in the workspace's terminal.
+  Codex. Chat shows its session and its questions as Claude Code's, and
+  Sessions has its conversations, with Resume.
 - **Codex in Chat, and Sessions:** Chat shows Codex's session as it
   shows Claude Code's. **Sessions**, beside **+ New**, lists the
   workspace's sessions, both agents', newest first, with **Resume**,

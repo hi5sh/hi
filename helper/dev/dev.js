@@ -2375,9 +2375,10 @@
   });
   // ---- A workspace's sessions, both agents', newest first, each with
   // Resume (app_devcodex.go).
+  function resumeCommand(agent) { return { codex: "codex resume", agy: "agy --conversation" }[agent] || "claude --resume"; }
   function agentName(agent) { return { claude: "Claude", codex: "Codex", agy: "Antigravity" }[agent] || agent || "The agent"; }
   function resumeSession(agent, id) {
-    var command = agent === "codex" ? "codex resume" : "claude --resume";
+    var command = resumeCommand(agent);
     ask("Resume this session? hi types " + command + " in the workspace's terminal, so " + agentName(agent) + " carries on where it stopped.").then(function (answer) {
       if (answer === null) return;
       api("POST", "chat/resume", { workspace: chat.space, session: id, agent: agent }).then(function () {
@@ -2408,7 +2409,7 @@
             el("span", { class: "muted small", text: agentName(session.agent) + " · " + ago(session.at) + (current ? " · in the chat now" : "") }),
           ]),
           el("button", { type: "button", class: "small", text: "Resume", disabled: running ? "" : null,
-            title: running ? "Stop the running agent first" : "Run " + (session.agent === "codex" ? "codex resume" : "claude --resume") + " in the workspace",
+            title: running ? "Stop the running agent first" : "Run " + resumeCommand(session.agent) + " in the workspace",
             onclick: function () { resumeSession(session.agent, session.id); } }),
         ]));
       });
