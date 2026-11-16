@@ -2867,6 +2867,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.180 — Sites in the bell, and agy's hooks
+
+- [x] Needs you, for an owner: each site an agent asked the dev box to
+  reach, first, with Allow and Say no in the bell, and a notification
+  for each new one; the rest of its row opens its work's chat.
+- [x] agy's state from its own hooks, as Claude Code's and Codex's:
+  working, the tool it runs, waiting for a question, idle, and the
+  conversation Chat shows.
+- [x] Test passes again under the race detector.
+
 ### v2.6.179 — Commits open
 
 - [x] Source control's Commits list starts open; it closed by default.
