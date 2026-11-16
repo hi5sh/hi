@@ -241,6 +241,7 @@ function renderTabs() {
 // signing in
 
 function showSignin() {
+  if (window.hiPresence) hiPresence.stop();
   $("work").hidden = true;
   $("signin").hidden = false;
   const params = new URLSearchParams(location.search);
@@ -4321,6 +4322,7 @@ async function boot() {
   $("signin").hidden = true;
   $("work").hidden = false;
   booted = true;
+  if (window.hiPresence) hiPresence.start();
   renderTabs();
   renderPanes();
   let wanted = "";

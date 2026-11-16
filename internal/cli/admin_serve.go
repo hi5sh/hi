@@ -285,6 +285,7 @@ func (s *adminServer) routes() http.Handler {
 		})
 	}
 	asset("admin.js", "text/javascript; charset=utf-8", adminPageScript)
+	asset("presence.js", "text/javascript; charset=utf-8", hi.AppPresenceScript)
 	asset("admin.css", "text/css; charset=utf-8", adminPageStyle)
 	asset("dev.css", "text/css; charset=utf-8", appDevPageStyle)
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
@@ -405,6 +406,9 @@ func (s *adminServer) routes() http.Handler {
 		reply(w, http.StatusOK, view)
 	}))
 	mux.HandleFunc("GET /api/app/term", signedIn(s.terminal))
+	mux.HandleFunc("GET /api/presence", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
+		adminPresence.serve(w, r, admin.Name, admin.Name, adminSameOrigin)
+	}))
 	mux.HandleFunc("POST /api/action", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		var request struct {
 			App    string `json:"app"`

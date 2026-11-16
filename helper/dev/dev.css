@@ -790,3 +790,12 @@ a.side-icon { text-decoration: none; }
   .chat-form { flex-wrap: wrap; }
   .chat-pick { order: -1; width: 100%; justify-content: flex-end; }
 }
+/* Who's on this page: a pill a person, in their colour while they're here. */
+.presence { display: flex; align-items: center; gap: 4px; flex: none; margin-left: 6px; }
+.presence[hidden] { display: none; }
+.presence-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 140px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; transition: opacity .3s, filter .3s; }
+.presence-pill.you { box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px currentColor; }
+.presence-pill.idle { opacity: .45; filter: grayscale(.85); }
+.presence-name { overflow: hidden; text-overflow: ellipsis; }
+.presence-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: rgba(0, 0, 0, .28); color: #fff; font-size: 11px; line-height: 16px; text-align: center; }
+.presence-more { white-space: nowrap; }

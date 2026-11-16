@@ -47,6 +47,12 @@ var AppDevPageScript []byte
 //go:embed helper/dev/dev.css
 var AppDevPageStyle []byte
 
+// AppPresenceScript is who's on the page: the admin page's and the dev
+// page's top bar.
+//
+//go:embed helper/dev/presence.js
+var AppPresenceScript []byte
+
 // AppIcons are hi5's icons, for a page people install as an app.
 //
 //go:embed helper/icons/*.png

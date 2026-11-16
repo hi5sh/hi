@@ -974,7 +974,7 @@ func init() {
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
 		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs",
-		"POST api/sshkey", "GET api/decisions", "POST api/decision",
+		"POST api/sshkey", "GET api/decisions", "POST api/decision", "GET api/presence",
 	} {
 		method, path, _ := strings.Cut(route, " ")
 		appDevDeveloperRoutes[method+" "+appDevPagePrefix+path] = true
@@ -1083,6 +1083,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 	}
 	asset("", "text/html; charset=utf-8", appDevPageHTML)
 	asset("dev.js", "text/javascript; charset=utf-8", appDevPageScript)
+	asset("presence.js", "text/javascript; charset=utf-8", hi.AppPresenceScript)
 	asset("dev.css", "text/css; charset=utf-8", appDevPageStyle)
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
@@ -1738,6 +1739,14 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		reply(w, http.StatusOK, map[string]string{})
+	})
+	mux.HandleFunc("GET "+appDevPagePrefix+"api/presence", func(w http.ResponseWriter, r *http.Request) {
+		person, _, err := b.devPagePerson(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		devPresenceOf(b.team).serve(w, r, firstNonEmpty(person.User, person.Key), firstNonEmpty(person.Name, person.User), func(r *http.Request) bool { return appDevSameOrigin(b.team, r) })
 	})
 	mux.HandleFunc("GET "+appDevPagePrefix+"api/term", func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := builder(w, r); ok {

@@ -1100,6 +1100,7 @@
   function refresh() {
     return api("GET", "state").then(function (data) {
       state = data;
+      if (window.hiPresence) hiPresence.start();
       // A developer's page: the owners' buttons go (the server refuses
       // them anyway), and so does Data.
       document.body.classList.toggle("developer", developer());

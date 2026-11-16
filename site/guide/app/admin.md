@@ -24,6 +24,14 @@ The dev page's design: the same dark colours and bar, with a panel on
 each side of the middle. Each panel can be dragged wider, hidden, and
 remembered. On a phone they lie over the middle, one at a time.
 
+**Who's here:** the bar's right end has a pill for each admin on the
+page, and an app's dev page one for each owner and developer on it:
+yours first, ringed, each person in a colour of their own while they're
+there, with how many windows they have open when it's more than one.
+A pill greys after three minutes without a key, a click, or a scroll in
+any of that person's windows, and goes when their last window closes or
+its connection is cut (within about 45 seconds).
+
 - **Home:** the machine's health: how busy its CPU is, its load, its
   memory, swap, and each disk, filling up green, then yellow, then red.
   Then the server's card, and every

@@ -33,6 +33,7 @@
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
       <span id="links" class="links small"></span>
+      <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
       <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Rewind, source control, logs, preview, release, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
     </div>
     <div class="code-body">
@@ -533,6 +534,7 @@
 <div id="toast" class="toast" hidden></div>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
+<script src="presence.js"></script>
 <script src="dev.js"></script>
 </body>
 </html>
