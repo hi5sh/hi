@@ -357,6 +357,15 @@ func (b *appBroker) devHandler() http.Handler {
 		}
 		reply(w, b.devAccessView(), nil)
 	})
+	mux.HandleFunc("POST /note", func(w http.ResponseWriter, r *http.Request) {
+		var request struct{ Workspace, Cwd, Text string }
+		if err := decode(r, &request); err != nil {
+			reply(w, nil, err)
+			return
+		}
+		work, err := b.devNote(request.Workspace, request.Cwd, request.Text)
+		reply(w, map[string]string{"work": work}, err)
+	})
 	mux.HandleFunc("POST /hook", func(w http.ResponseWriter, r *http.Request) {
 		var event appDevHookEvent
 		if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&event); err != nil {
@@ -388,6 +397,8 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
   hi dev ship [<branch>] [-m <title>]  merge the branch into dev, and put dev on the preview;
                                     production moves only when someone releases it
   hi dev say [--thread <ts>] <text|->  post in the app's Slack channel
+  hi dev note "<a line>" | --clear  where this workspace's work stands, on the dev page and in
+                                    Needs you, until the next ("tests pass; waiting for the API key")
   hi dev allow <site> --why <what for> [--wait]
                                     ask the app's owners to let the box reach a site its proxy
                                     refused; --wait waits up to 9 minutes for their answer
@@ -555,6 +566,26 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 			return err
 		}
 		fmt.Fprintf(stdout, "Posted in the app's channel (%s).\n", answer["ts"])
+		return nil
+	case "note":
+		// The agent's line about where its work stands, on the dev page.
+		request := struct{ Workspace, Cwd, Text string }{Workspace: os.Getenv("HERDR_WORKSPACE_ID")}
+		request.Cwd, _ = os.Getwd()
+		if len(rest) == 1 && rest[0] == "--clear" {
+			rest = nil
+		} else if len(rest) == 0 {
+			return errors.New("say where the work stands, in a line: hi dev note \"tests pass; waiting for the API key\" (--clear takes it away)")
+		}
+		request.Text = strings.Join(rest, " ")
+		var answer map[string]string
+		if err := call("POST", "/note", request, &answer); err != nil {
+			return err
+		}
+		if request.Text == "" {
+			fmt.Fprintf(stdout, "The note on %s is gone.\n", answer["work"])
+		} else {
+			fmt.Fprintf(stdout, "%s's note is on the dev page.\n", answer["work"])
+		}
 		return nil
 	case "allow":
 		return appDevAllowClient(rest, stdout, call, currentBranch)

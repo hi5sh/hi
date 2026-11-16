@@ -306,6 +306,13 @@
   }
   // hookLine is what an agent's hooks add to its state (app_devhooks.go):
   // what it waits for, or the tool it runs, and for how long.
+  // noteLine is the agent's own line on where its work stands (hi dev
+  // note, app_devnote.go), with how long ago.
+  function noteLine(space, tag) {
+    if (!space.note) return null;
+    var when = space.note_at ? ago(space.note_at) : "";
+    return el(tag || "div", { class: "small space-note", title: "The agent's note (hi dev note)" + (when ? ", " + when : ""), text: "“" + space.note + "”" + (when ? " · " + when : "") });
+  }
   function hookLine(agent) {
     var what = agent.status === "blocked" && agent.waiting ? "Waits for " + agent.waiting
       : agent.status === "working" && agent.tool ? "Running " + agent.tool : "";
@@ -442,6 +449,7 @@
         el("div", { text: space.label + (space.agent ? " · " + space.agent : "") }),
         space.title ? el("div", { class: "muted small", text: space.title }) : null,
         doing ? el("div", { class: "small " + (space.status === "blocked" ? "warn" : "muted"), text: doing }) : null,
+        noteLine(space),
         space.by ? el("div", { class: "muted small", text: "Started by " + space.by }) : null,
         where ? el("div", { class: "small " + (unshipped ? "warn" : "muted"), text: where }) : null,
       ]);
@@ -538,6 +546,7 @@
         statusDot(space.status, space),
         el("span", { class: "inbox-what" }, [el("strong", { text: spaceKey(space) + (space.agent ? " · " + space.agent : "") }),
           el("span", { class: "small " + (item.waits ? "warn" : "muted"), text: line }),
+          noteLine(space, "span"),
           space.title ? el("span", { class: "muted small", text: space.title }) : null,
           space.by ? el("span", { class: "muted small", text: "Started by " + space.by }) : null]),
       ])]));
@@ -2657,6 +2666,7 @@
     return agent.status === "working" ? " Claude is at work here: it may be changing these files right now." : "";
   }
   function renderGit() {
+    renderNotesBar();
     var view = git.view && git.space === chat.space ? git.view : null;
     var space = chatSpace() || {};
     var lists = $("git-lists");
@@ -2831,11 +2841,23 @@
       body.textContent = "";
       var text = result.diff || "";
       if (!text.trim()) { body.appendChild(el("div", { class: "meta", text: file.binary ? "A binary file: no lines to show." : "No differences to show." })); return; }
+      var oldLine = 0, newLine = 0, inHunk = false;
       text.replace(/\n$/, "").split("\n").forEach(function (line) {
-        var cls = /^(diff |index |--- |\+\+\+ |new file|deleted file|similarity|rename |old mode|new mode|Binary )/.test(line) ? "meta"
-          : line[0] === "@" ? "hunk" : line[0] === "+" ? "add" : line[0] === "-" ? "del" : "";
-        body.appendChild(el("div", { class: cls, text: line || " " }));
+        var cls = !inHunk && /^(diff |index |--- |\+\+\+ |new file|deleted file|similarity|rename |old mode|new mode|Binary )/.test(line) ? "meta"
+          : line[0] === "@" ? "hunk" : line[0] === "+" ? "add" : line[0] === "-" ? "del" : line[0] === "\\" ? "meta" : "";
+        if (cls === "hunk") {
+          var at = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line);
+          if (at) { oldLine = Number(at[1]); newLine = Number(at[2]); inHunk = true; }
+        } else if (/^diff /.test(line)) inHunk = false;
+        if (!inHunk || cls === "hunk" || cls === "meta") { body.appendChild(el("div", { class: cls, text: line || " " })); return; }
+        // A line of the change: a note on it says where, in the file as
+        // it is now, or as it was for a line taken out.
+        var where = cls === "del" ? { line: oldLine++, gone: true } : { line: newLine++, gone: false };
+        if (cls !== "add" && cls !== "del") oldLine++;
+        body.appendChild(diffLine(file.path, cls, line, where));
+        diffNotesAt(file.path, where).forEach(function (note) { body.appendChild(noteBox(note)); });
       });
+      markNoted(body);
     }).catch(function (error) {
       if (!git.diff || git.diff.key !== key) return;
       body.textContent = "";
@@ -2843,6 +2865,132 @@
     });
     renderGit();
   }
+  // ---- Notes on a diff's lines, for the agent (release 5): a click on
+  // a line's + adds one; Send to the agent puts them all in the chat's
+  // box, each with its file and line, as one message to add to and send.
+  // They are the workspace's, in this browser, until sent or cleared.
+  function notesKey() { return "hi-dev-notes-" + ((state && state.team) || "") + "-" + chat.space; }
+  function loadNotes() {
+    try { return JSON.parse(localStorage.getItem(notesKey()) || "[]") || []; } catch (e) { return []; }
+  }
+  function saveNotes(notes) {
+    try { if (notes.length) localStorage.setItem(notesKey(), JSON.stringify(notes)); else localStorage.removeItem(notesKey()); } catch (e) { /* private window */ }
+    renderNotesBar();
+  }
+  function diffNotesAt(path, where) {
+    return loadNotes().filter(function (note) { return note.path === path && note.line === where.line && !!note.gone === where.gone; });
+  }
+  function diffLine(path, cls, text, where) {
+    var row = el("div", { class: "line " + cls, text: text || " " });
+    row.dataset.line = where.line;
+    row.dataset.gone = where.gone ? "1" : "";
+    row.insertBefore(el("button", { type: "button", class: "note-add", text: "+", tabindex: "-1",
+      title: "A note on this line, for the agent", "aria-label": "Add a note on line " + where.line + (where.gone ? ", taken out" : ""),
+      onclick: function (event) { event.stopPropagation(); editNote(row, { path: path, line: where.line, gone: where.gone, code: text.slice(1).trim(), text: "" }, true); } }), row.firstChild);
+    return row;
+  }
+  function markNoted(body) {
+    var notes = loadNotes();
+    body.querySelectorAll("div.line").forEach(function (row) {
+      var path = git.diff && git.diff.file.path;
+      row.classList.toggle("noted", notes.some(function (note) { return note.path === path && String(note.line) === row.dataset.line && !!note.gone === !!row.dataset.gone; }));
+    });
+  }
+  // noteBox is a saved note under its line, with Edit and Delete.
+  function noteBox(note) {
+    var box = el("div", { class: "diff-note" });
+    box.appendChild(el("div", { class: "note-text", text: note.text }));
+    box.appendChild(el("div", { class: "note-acts" }, [
+      el("button", { type: "button", class: "small link", text: "Edit", onclick: function () { editNote(box, note, false); } }),
+      el("button", { type: "button", class: "small link", text: "Delete", onclick: function () {
+        saveNotes(loadNotes().filter(function (other) { return other.id !== note.id; }));
+        var body = box.parentNode;
+        box.remove();
+        if (body) markNoted(body);
+      } }),
+    ]));
+    return box;
+  }
+  // editNote writes a note: a new one under its line, or a saved one in place.
+  function editNote(anchor, note, fresh) {
+    var open = anchor.parentNode && anchor.parentNode.querySelector(".diff-note.editing");
+    if (open) open.querySelector("textarea").focus();
+    if (open) return;
+    var input = el("textarea", { "aria-label": "Your note on line " + note.line, placeholder: "What should the agent change here?" });
+    input.value = note.text;
+    var box = el("div", { class: "diff-note editing" }, [input]);
+    function done() {
+      var text = input.value.trim();
+      var body = box.parentNode;
+      if (!text) { box.remove(); if (!fresh) anchor.hidden = false; return; }
+      var notes = loadNotes().filter(function (other) { return other.id !== note.id; });
+      note.text = text;
+      note.id = note.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      notes.push(note);
+      saveNotes(notes);
+      var saved = noteBox(note);
+      box.replaceWith(saved);
+      if (!fresh) anchor.remove();
+      if (body) markNoted(body);
+    }
+    box.appendChild(el("div", { class: "note-acts" }, [
+      el("button", { type: "button", class: "small", text: "Cancel", onclick: function () { box.remove(); if (!fresh) anchor.hidden = false; } }),
+      el("button", { type: "button", class: "small primary", text: fresh ? "Add the note" : "Save", onclick: done }),
+    ]));
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) { event.preventDefault(); done(); }
+      if (event.key === "Escape") { event.stopPropagation(); box.remove(); if (!fresh) anchor.hidden = false; }
+    });
+    if (fresh) {
+      // Under the line, after its notes.
+      var after = anchor;
+      while (after.nextSibling && after.nextSibling.classList && after.nextSibling.classList.contains("diff-note")) after = after.nextSibling;
+      after.after(box);
+    } else {
+      anchor.hidden = true;
+      anchor.after(box);
+    }
+    input.focus();
+  }
+  function renderNotesBar() {
+    var notes = state ? loadNotes() : [];
+    var files = {};
+    notes.forEach(function (note) { files[note.path] = true; });
+    var n = Object.keys(files).length;
+    $("git-notes").hidden = !notes.length;
+    $("git-notes-count").textContent = notes.length + (notes.length === 1 ? " note" : " notes") + " on " + n + (n === 1 ? " file" : " files");
+  }
+  // notesMessage is the notes as one message: by file, then line.
+  function notesMessage(notes) {
+    // By file, then line; on the same number, the line taken out first, as the diff has it.
+    notes = notes.slice().sort(function (a, b) { return a.path < b.path ? -1 : a.path > b.path ? 1 : a.line - b.line || (b.gone ? 1 : 0) - (a.gone ? 1 : 0); });
+    var lines = ["Notes on the changes, line by line:"];
+    notes.forEach(function (note) {
+      var code = note.code.length > 80 ? note.code.slice(0, 77) + "…" : note.code;
+      lines.push("", "- " + note.path + ":" + note.line + (note.gone ? " (a line taken out)" : "") + (code ? ", `" + code.replace(/`/g, "'") + "`" : "") + ":");
+      note.text.split("\n").forEach(function (part) { lines.push("  " + part); });
+    });
+    return lines.join("\n");
+  }
+  $("git-notes-send").addEventListener("click", function () {
+    var notes = loadNotes();
+    if (!notes.length) return;
+    var input = $("chat-input");
+    if (input.disabled) { toast("The agent isn't running in this workspace: start it, then send the notes."); return; }
+    input.value = (input.value.trim() ? input.value.replace(/\s+$/, "") + "\n\n" : "") + notesMessage(notes);
+    input.dispatchEvent(new Event("input"));
+    saveNotes([]);
+    if (git.diff) openDiff(git.diff.file, git.diff.kind, git.diff.list);
+    setCodeView("chat");
+    input.focus();
+    toast("The notes are in the chat's box: add to them, then send.");
+  });
+  $("git-notes-clear").addEventListener("click", function () {
+    var notes = loadNotes();
+    if (!notes.length || !confirm("Clear the " + (notes.length === 1 ? "note" : notes.length + " notes") + " on the changes?")) return;
+    saveNotes([]);
+    if (git.diff) openDiff(git.diff.file, git.diff.kind, git.diff.list);
+  });
   function closeDiff() {
     git.diff = null;
     $("git-diff").hidden = true;

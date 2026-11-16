@@ -380,7 +380,10 @@ type appDevSpace struct {
 	Tool    string    `json:"tool,omitempty"`
 	Waiting string    `json:"waiting,omitempty"`
 	Since   time.Time `json:"since,omitzero"`
-	By      string    `json:"by,omitempty"` // who started it, when hi started it
+	// Note is the agent's own line on where its work stands (hi dev note).
+	Note   string    `json:"note,omitempty"`
+	NoteAt time.Time `json:"note_at,omitzero"`
+	By     string    `json:"by,omitempty"` // who started it, when hi started it
 	// For a worktree of its own: where it is, how many of its commits dev
 	// hasn't, and whether it has changes not committed.
 	Path    string `json:"path,omitempty"`
@@ -470,8 +473,12 @@ func appDevSpaces(team string) ([]appDevSpace, error) {
 		spaces = append(spaces, space)
 	}
 	starters := appDevStarters(team)
+	notes := appDevNotes(team)
 	for i := range spaces {
 		spaces[i].By = starters[spaces[i].Branch]
+		if note, ok := notes[firstNonEmpty(spaces[i].Branch, spaces[i].Label)]; ok {
+			spaces[i].Note, spaces[i].NoteAt = note.Text, note.At
+		}
 	}
 	appDevWorktreeStates(team, spaces)
 	return spaces, nil

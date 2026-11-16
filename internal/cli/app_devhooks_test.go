@@ -199,3 +199,38 @@ func TestAppDevHookClient(t *testing.T) {
 		t.Fatal(err, out.String())
 	}
 }
+
+// hi dev note: the agent's line on its workspace, by herdr's workspace or
+// the worktree it runs in, kept by the work's branch, one line, cleared
+// with --clear; a folder that's no workspace's gets a way out.
+func TestAppDevNote(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	work, err := b.devNote("w2", "", "tests pass;\n  waiting for the API key")
+	if err != nil || work != "1-chart" {
+		t.Fatal(work, err)
+	}
+	spaces, _ := appDevSpaces("payments")
+	if spaces[1].Note != "tests pass; waiting for the API key" || spaces[1].NoteAt.IsZero() || spaces[0].Note != "" {
+		t.Fatalf("%+v", spaces)
+	}
+	// From its worktree, without herdr's workspace: the same work.
+	if work, err := b.devNote("", "/box/home/.herdr/worktrees/repo/1-chart/web", strings.Repeat("x", 300)); err != nil || work != "1-chart" {
+		t.Fatal(work, err)
+	}
+	if note := appDevNotes("payments")["1-chart"].Text; len([]rune(note)) != appDevNoteMax || !strings.HasSuffix(note, "…") {
+		t.Fatal(note)
+	}
+	if _, err := b.devNote("", "/tmp", "lost"); err == nil || !strings.Contains(err.Error(), "workspaces") {
+		t.Fatal(err)
+	}
+	if _, err := b.devNote("w2", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := appDevNotes("payments")["1-chart"]; ok {
+		t.Fatal("not cleared")
+	}
+	// The agents are told when.
+	if !strings.Contains(appDevInstructions, `hi dev note "<a line>"`) || !strings.Contains(appDevUsage, "hi dev note") {
+		t.Fatal("the agents aren't told")
+	}
+}

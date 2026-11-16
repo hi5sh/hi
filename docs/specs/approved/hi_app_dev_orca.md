@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-16): the plan; release 1, built in v2.6.168
 and narrowed in v2.6.169 (questions 1 and 2 answered); release 2, built
-in v2.6.170; release 3, built in v2.6.172. Each
+in v2.6.170; release 3, built in v2.6.172; releases 5 and 7, built in v2.6.173. Each
 later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
@@ -209,10 +209,32 @@ iTerm's), for `timg`. Then xterm.js 6 once it's out of beta.
 
 ## Release 5: notes on a diff, for the agent
 
-In Source control's diff, a click on a line adds a note to it; **Send
-to the agent** puts them in the chat's box as one message, each with its
-file and line, for the person to add to and send. The same on Rewind's
-change of a message.
+Built in v2.6.173:
+
+- In Source control's diff, each line of the change has a **+** (on
+  hover, as a forge's review has): it adds a note under the line, saved
+  with **Add the note** or Ctrl+Enter; a saved one has **Edit** and
+  **Delete**, and its line a mark.
+- A note says where: the line's number in the file as it is now, or as
+  it was for a line taken out, read from the hunks' headers.
+- A bar under Source control, in its list and on a diff, counts them
+  ("2 notes on 1 file"), with **Send to the agent** and **Clear**.
+  **Send** puts them in the chat's box, after what's there, as one
+  message, by file, then line, each with its line's code, for the person
+  to add to and send:
+
+  ```
+  Notes on the changes, line by line:
+
+  - web/chart.js:11 (a line taken out), `ctx.strokeStyle = "red";`:
+    Keep red as the fallback.
+
+  - web/chart.js:11, `ctx.strokeStyle = up ? "green" : "red";`:
+    Use the theme's green, not a literal.
+  ```
+- The notes are the workspace's, in this browser, until sent or cleared.
+- Not Rewind: its timeline shows how many files and lines a message
+  changed, not the lines, so there's nothing there to note on.
 
 ## Release 6: Codex in Chat, and every session
 
@@ -224,10 +246,19 @@ change of a message.
 
 ## Release 7: the agents' notes on their workspace
 
-`hi dev note "<a line>"` in the box: the agent's one line about where
-its work stands ("tests pass; waiting for the API key"), on its
-workspace's card and in the inbox, until the next. The skills tell the
-agents when.
+Built in v2.6.173:
+
+- `hi dev note "<a line>"` in the box: the agent's one line about where
+  its work stands ("tests pass; waiting for the API key"), until the
+  next; `--clear` takes it away. One line, at most 200 characters.
+- Its workspace: herdr's (`HERDR_WORKSPACE_ID`), else the worktree its
+  folder is in; elsewhere it says to run it in a workspace. Kept by the
+  work's branch in `run/dev-notes.json`, so it outlives a dev box
+  restart, and goes with the work.
+- On the page: under its workspace in Workspaces, and on its item in
+  Needs you, in quotes, with how long ago.
+- The agents' instructions in the box (CLAUDE.md, AGENTS.md) say when:
+  a step done, waiting for someone, stopping.
 
 ## Not taken
 
@@ -239,6 +270,17 @@ agents when.
   button for it waits for someone to ask.
 
 ## Tests
+
+Releases 5 and 7:
+
+- In Chromium: the lines' numbers, new and taken out, from a hunk; a
+  note added, its line marked, the bar's count; one by Ctrl+Enter;
+  edited; kept when the diff opens again; Send: after what the box had,
+  by file and line, the bar gone, the focus in the box. A workspace's
+  note in Needs you.
+- hi dev note: by herdr's workspace, by the worktree's folder, cut to
+  200 characters, one line, a folder that's no workspace's refused,
+  cleared; the agents' instructions and hi dev's help name it.
 
 Release 3:
 

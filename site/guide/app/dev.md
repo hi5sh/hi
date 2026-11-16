@@ -358,6 +358,14 @@ for; Checks and Logs have a dot.
   waited ten minutes while nobody's active on the page sends one Slack
   DM, to whoever started its work, or else to the app's owners, with a
   link to its chat.
+  An agent also says where its work stands in a line of its own
+  ("tests pass; waiting for the API key", `hi dev note`), on its
+  workspace and in Needs you.
+- **Notes on a diff** (Source control): the **+** beside a line of a
+  file's diff adds a note on it, for the agent; **Send to the agent**
+  puts all of them in the chat's box as one message, each with its file
+  and line, for you to add to and send. They wait in this browser until
+  you send or clear them.
 - **Decisions:** the project's `docs/decisions/`, the technical choices
   nobody should undo by accident, as cards: each one's number, when it
   was written, its title, and its first paragraph, newest first, with a
@@ -792,6 +800,7 @@ ssh then warns once that it changed.
 | `hi dev ship [<branch>] [-m <title>]` | In the box: a branch into dev |
 | `hi dev status` | In the box: what runs where |
 | `hi dev say [--thread <ts>] <text\|->` | In the box: a message in the app's channel |
+| `hi dev note "<a line>"` \| `--clear` | In the box: the agent's line on where its workspace's work stands, on the dev page and in Needs you, until the next |
 | `hi dev allow <site> --why <what for> [--wait]` | In the box: ask the owners for a site the proxy refused; alone, what's allowed and refused |
 | `hi dev task [list\|show\|add\|comment\|edit\|close\|files]` | In the box: the app's tasks |
 | `hi dev review [--with claude\|codex] [<notes>]` | In the box: a second opinion on the branch from the other agent |
