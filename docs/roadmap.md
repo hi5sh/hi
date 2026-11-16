@@ -2855,6 +2855,18 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   ask): its button said "Notifications blocked in the browser" and did
   nothing. It says how to allow them now, for each browser.
 
+### v2.6.178 — agy in Chat, without its first-run questions
+
+- [x] agy no longer stops at its color scheme and "trust this folder"
+  on its first start in a workspace: hi marks its onboarding done and
+  trusts each worktree before agy starts there.
+- [x] Chat shows agy's session: the request, its thinking and answers,
+  its commands and reads with their results, and its questions as cards
+  to tap, the workspace waiting until they're answered.
+- [x] Sessions lists agy's conversations, with Resume.
+- [x] Tests never touch the machine's home: one wrote over the real agy
+  sign-in there.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
