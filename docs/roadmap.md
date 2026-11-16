@@ -2867,6 +2867,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.182 — The dev and admin pages in Paseo's look
+
+- [x] Paseo's default dark theme (getpaseo/paseo, Apache-2.0): its faintly
+  green-tinted grays, the left panel a step darker than the work, its
+  green for the one action that matters, its status and dot colours
+  (blue while an agent works), and its terminal colours.
+- [x] Panes flush, a single line between them, instead of cards 4px
+  apart; pill buttons, round icon buttons, a soft fill behind the open
+  view's icon; section labels quiet and in sentence case, not capitals.
+- [x] The chat at 15px, your messages soft filled bubbles, the agent's
+  steps quiet one-line rows; dialogs, menus, and Needs you on Paseo's
+  surfaces. The admin page shares all of it.
+
 ### v2.6.181 — The chat's message box, redone
 
 - [x] One rounded card: the message on top, attachments above it; below,
