@@ -2867,6 +2867,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.183 — Paseo's other themes
+
+- [x] A theme picker in the top bar of the dev and admin pages: Paseo's,
+  Zinc, Midnight, Claude, Ghostty, Pure black, Light, and Auto (Light or
+  Paseo's, as the computer is), kept in the browser and applied before
+  the page draws. A theme states Paseo's surfaces, words, lines, and
+  accent; the rest is made from them, the terminals' colours too.
+
 ### v2.6.182 — The dev and admin pages in Paseo's look
 
 - [x] Paseo's default dark theme (getpaseo/paseo, Apache-2.0): its faintly
