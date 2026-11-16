@@ -2842,6 +2842,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   agents', newest first, each with **Resume** (`claude --resume`,
   `codex resume`).
 
+### v2.6.177 — Antigravity in the dev box
+
+- [x] `hi app signin <app> agy --file <token>`: the app's own Google
+  account for agy, made for the app, since the dev box holds the sign-in
+  (anyone with SSH into it can copy it); `--machine` uses this machine's
+  after a warning, `--unset` none.
+- [x] With it, the dev box has agy and reaches Google's agy sites, and
+  Start and **+ New** offer **Antigravity**; without it, neither.
+- [x] Needs you, in a browser that blocks the page's notifications (a
+  private window, an earlier Block, Safari or Firefox not letting sites
+  ask): its button said "Notifications blocked in the browser" and did
+  nothing. It says how to allow them now, for each browser.
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
