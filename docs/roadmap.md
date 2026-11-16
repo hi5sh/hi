@@ -2824,6 +2824,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   work drop that listing now, and the page drops the error once no
   workspace is picked.
 
+### v2.6.175 — The terminal
+
+- [x] The dev page's terminal draws with WebGL, which keeps up with
+  Claude Code's full-screen redraws, and with the DOM where there's none.
+- [x] Find in the scrollback: Ctrl+Shift+F (⌘F on a Mac), or the ⌕ at
+  its corner; Enter, Shift+Enter, Esc.
+- [x] Unicode 11's widths for emoji and CJK; links that open in a tab;
+  iTerm's inline pictures (`timg -p i`).
+
 ### v2.6.167 — Who's here
 
 - [x] A pill for each person on the admin page or a dev page, in a colour
@@ -5796,8 +5805,8 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
   auto mode, a question, Esc, and Codex's turn.
 - [x] Release 3 (v2.6.172): an inbox of what waits for someone,
   notifications, and a DM when nobody's on the page.
-- [ ] Release 4: the terminal's WebGL drawing, search, Unicode 11, links,
-  and pictures.
+- [x] Release 4 (v2.6.175): the terminal's WebGL drawing, search,
+  Unicode 11, links, and iTerm's pictures.
 - [x] Release 5 (v2.6.173): notes on a diff's lines, sent to the agent.
 - [ ] Release 6: Codex's sessions in Chat; every session, with Resume.
 - [x] Release 7 (v2.6.173): `hi dev note`, the agent's line on its workspace.
