@@ -86,6 +86,7 @@ func (b *appBroker) leadStart(number int, user string) (string, error) {
 		name = firstNonEmpty(b.channel.userName(user), user)
 	}
 	branch, err := appDevStart(config, number, "claude", name)
+	appDevStartedUser(b.team, branch, user)
 	if branch == "" {
 		if err == nil {
 			err = errors.New("the dev box made no branch")

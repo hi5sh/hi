@@ -2,7 +2,7 @@
 
 Status: Approved (2026-11-16): the plan; release 1, built in v2.6.168
 and narrowed in v2.6.169 (questions 1 and 2 answered); release 2, built
-in v2.6.170. Each
+in v2.6.170; release 3, built in v2.6.172. Each
 later release waits for its questions below.
 
 Dependencies: [hi_app_dev.md](hi_app_dev.md) (the dev box, its page,
@@ -167,16 +167,37 @@ for them.
 
 ## Release 3: needs you
 
-- **An inbox** in the top bar: the workspaces whose agent waits for
-  someone (a question, a permission, a site), and those done since you
-  last looked, with who started each. A click opens its chat.
-- **Notifications** while the page or the installed app is open: "14-news
-  asks a question", through the browser's own, and the installed app's
-  badge (the count waiting).
-- **When nobody's here:** the page knows who's on it (v2.6.167). An
-  agent that has waited ten minutes with nobody on the page gets one DM
-  to whoever started its work, with the link.
-- Push to a phone with the page closed needs a push service; later.
+Built in v2.6.172:
+
+- **An inbox** in the top bar, a bell with a count (amber while
+  something waits): the workspaces whose agent waits for someone (a
+  question, a permission, a plan to approve, as release 2 says), first,
+  with what for and how long; then those done since you last looked,
+  with who started each. A click opens its chat; Escape or a click
+  elsewhere closes it.
+  - **Done** is herdr's done, or the hooks' stop after the time you last
+    had that workspace's chat in front of you. What you last looked at
+    is this browser's (`hi-dev-seen`); a workspace it never saw starts
+    as seen, so its old turns aren't news.
+- **Notifications** while the page or the installed app is open, through
+  the browser's own once **Notify me** in the inbox was allowed: "2-news
+  asks a question", "2-news waits for permission for Edit", "1-chart is
+  done", each once, and none for the chat you're looking at. A click
+  opens its chat. Behind another window the page asks for its state
+  every 30 seconds (every 5 in front). The installed app's badge is the
+  count waiting.
+- **When nobody's here:** every minute the app's service looks at the
+  dev box's workspaces. An agent that has waited ten minutes, with
+  nobody active on the page (who's here, v2.6.167; a window idle for
+  minutes doesn't count), gets one DM (question 3): to whoever started
+  its work, from the dev page or the channel (`run/dev-start-users.json`,
+  their Slack member ID), else to each owner. It names the work, what it
+  waits for, and how long, with the page's link opening its chat
+  (`#work-<branch>`, without the address's key: the person's browser has
+  it). One per wait: a new wait gets one again.
+- Not yet: an agent waiting for a site (`hi dev allow --wait`) is a
+  running Bash to the hooks; Security has its badge. Push to a phone
+  with the page closed needs a push service; later.
 
 ## Release 4: the terminal
 
@@ -218,6 +239,19 @@ agents when.
   button for it waits for someone to ask.
 
 ## Tests
+
+Release 3:
+
+- The DM: not before ten minutes; not while someone's active on the
+  page; to the owners when nobody known started it; once per wait; to
+  the starter by their member ID for a new wait; the link without the
+  address's key.
+- In Chromium: the count, amber while something waits; waiting first,
+  then done, with what for, how long, and who started it; a click opens
+  that chat and the done goes; a new wait elsewhere notifies once, and
+  what was there before doesn't; `#work-<branch>` opens its chat.
+- By hand: a permission in a workspace, the page in another window, its
+  notification; the page closed, the DM after ten minutes.
 
 Release 2:
 
@@ -274,8 +308,8 @@ Release 1:
 2. **Orca's hooks in the box.** Answered (2026-11-16): release 2 writes
    hi's own hooks; Orca's stay (outside Orca they answer `{}` and exit
    at once).
-3. **Release 3's DM:** to whoever started the work, or to the owners?
-   After ten minutes, or a setting?
+3. **Release 3's DM:** answered (2026-11-16): to whoever started the
+   work, else the owners; after ten minutes, fixed for now.
 4. **More agents to start** (OpenCode, Gemini CLI, and the like): which,
    on whose sign-ins? The box's proxy puts only the app's Claude and
    ChatGPT sign-ins and its OpenRouter key on calls.

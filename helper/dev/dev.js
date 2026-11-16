@@ -474,7 +474,131 @@
         el("div", { class: "what" }, [el("div", { text: "The project's own clone" }), el("div", { class: "muted small", text: state.ssh.project })]),
         el("div", { class: "actions" }, [editorSplit(null)])]));
     }
+    renderInbox();
   }
+
+  // ---- Needs you (app_devneeds.go): the workspaces whose agent waits
+  // for someone, and those done since you last looked at them, in the top
+  // bar; the browser's notification as each comes, while the page is
+  // open; and the installed app's badge, the count waiting. What you
+  // looked at last is this browser's.
+  var inbox = { seen: {}, doneAt: {}, shown: null };
+  try { inbox.seen = JSON.parse(localStorage.getItem("hi-dev-seen") || "{}") || {}; } catch (e) { /* private window */ }
+  function spaceKey(space) { return space.branch || space.label; }
+  function keepSeen() {
+    try { localStorage.setItem("hi-dev-seen", JSON.stringify(inbox.seen)); } catch (e) { /* private window */ }
+  }
+  // inboxItems are what needs you now: waiting first, then done.
+  function inboxItems() {
+    var now = Date.now(), items = [], changed = false;
+    workSpaces().forEach(function (space) {
+      var key = spaceKey(space);
+      if (!(key in inbox.seen)) {
+        // A workspace this browser never saw: what it did before isn't news,
+        // unless herdr says it's done and nobody looked.
+        inbox.seen[key] = space.status === "done" ? 0 : now;
+        changed = true;
+      }
+      if (space.id === chat.space && !document.hidden) {
+        inbox.seen[key] = now; // you're looking at it
+        changed = true;
+      }
+      var doneAt = 0;
+      if (space.status === "done") doneAt = inbox.doneAt[key] = inbox.doneAt[key] || (space.since ? Date.parse(space.since) : now);
+      else if (space.status === "idle" && space.since) doneAt = Date.parse(space.since);
+      if (space.status !== "done") delete inbox.doneAt[key];
+      if (space.status === "blocked") {
+        items.push({ space: space, waits: true, id: "w " + key + " " + (space.since || ""),
+          text: space.waiting ? "Waits for " + space.waiting : "Waits for an answer" });
+      } else if (doneAt && doneAt > inbox.seen[key]) {
+        items.push({ space: space, waits: false, id: "d " + key + " " + doneAt, at: doneAt, text: "Done" });
+      }
+    });
+    if (changed) keepSeen();
+    return items.filter(function (item) { return item.waits; }).concat(items.filter(function (item) { return !item.waits; }));
+  }
+  function renderInbox() {
+    if (!state) return;
+    var items = inboxItems();
+    var waiting = items.filter(function (item) { return item.waits; }).length;
+    var count = $("inbox-count");
+    count.hidden = !items.length;
+    count.textContent = items.length;
+    count.classList.toggle("waits", waiting > 0);
+    $("inbox-btn").title = items.length ? (waiting ? waiting + " waiting for someone" : "") + (waiting && items.length > waiting ? ", " : "") + (items.length > waiting ? items.length - waiting + " done since you looked" : "") : "Needs you: agents that wait for someone, and work done since you looked";
+    if (navigator.setAppBadge) {
+      try { (waiting ? navigator.setAppBadge(waiting) : navigator.clearAppBadge()).catch(function () {}); } catch (e) { /* not installed */ }
+    }
+    var list = $("inbox-list");
+    list.textContent = "";
+    if (!items.length) list.appendChild(el("li", { class: "muted small inbox-empty", text: "Nothing waits for you. Agents that ask a question or for a permission, and work that's done, show here." }));
+    items.forEach(function (item) {
+      var space = item.space, line = item.waits ? hookLine(space) || item.text : item.text;
+      list.appendChild(el("li", {}, [el("button", { type: "button", onclick: function () { openFromInbox(space); } }, [
+        statusDot(space.status, space),
+        el("span", { class: "inbox-what" }, [el("strong", { text: spaceKey(space) + (space.agent ? " · " + space.agent : "") }),
+          el("span", { class: "small " + (item.waits ? "warn" : "muted"), text: line }),
+          space.title ? el("span", { class: "muted small", text: space.title }) : null,
+          space.by ? el("span", { class: "muted small", text: "Started by " + space.by }) : null]),
+      ])]));
+    });
+    notifyInbox(items);
+    renderInboxNotify();
+  }
+  // notifyInbox tells of what's new since the last look, through the
+  // browser, unless you're on that workspace's chat already.
+  function notifyInbox(items) {
+    var before = inbox.shown;
+    inbox.shown = {};
+    items.forEach(function (item) { inbox.shown[item.id] = true; });
+    if (!before || !window.Notification || Notification.permission !== "granted") return;
+    items.forEach(function (item) {
+      if (before[item.id] || (!document.hidden && item.space.id === chat.space)) return;
+      var name = spaceKey(item.space);
+      var title = !item.waits ? name + " is done" : item.space.waiting === "a question" ? name + " asks a question" : name + " waits for " + (item.space.waiting || "an answer");
+      try {
+        var note = new Notification(title, { body: item.space.title || (state.team + "'s dev box"), tag: "hi-dev-" + state.team + "-" + name });
+        note.onclick = function () { window.focus(); note.close(); openFromInbox(item.space); };
+      } catch (e) { /* a browser that only notifies from a service worker */ }
+    });
+  }
+  function renderInboxNotify() {
+    var button = $("inbox-notify");
+    button.hidden = !window.Notification;
+    if (button.hidden) return;
+    var permission = Notification.permission;
+    button.disabled = permission !== "default";
+    button.textContent = permission === "granted" ? "Notifications on" : permission === "denied" ? "Notifications blocked in the browser" : "Notify me";
+  }
+  $("inbox-notify").addEventListener("click", function () {
+    var asked = Notification.requestPermission(renderInboxNotify);
+    if (asked && asked.then) asked.then(renderInboxNotify);
+  });
+  function openFromInbox(space) {
+    closeInbox();
+    setCodeView("chat");
+    focus(space);
+    inbox.seen[spaceKey(space)] = Date.now();
+    keepSeen();
+    renderInbox();
+  }
+  function closeInbox() {
+    $("inbox").hidden = true;
+    $("inbox-btn").setAttribute("aria-expanded", "false");
+  }
+  $("inbox-btn").addEventListener("click", function (event) {
+    event.stopPropagation();
+    var open = $("inbox").hidden;
+    $("inbox").hidden = !open;
+    $("inbox-btn").setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) renderInbox();
+  });
+  document.addEventListener("click", function (event) {
+    if (!$("inbox").hidden && !event.target.closest(".inbox-wrap")) closeInbox();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !$("inbox").hidden) { closeInbox(); $("inbox-btn").focus(); }
+  });
 
   // ---- Your own editor (app_deveditor.go): a workspace in VS Code,
   // Cursor, or Zed by a link, in Orca by its steps, and in anything else
@@ -1300,6 +1424,17 @@
       // The channel's link to an agent's ask for a site.
       history.replaceState(null, "", location.pathname + location.search);
       revealSide("security");
+      return;
+    }
+    var work = /^#work-(.+)$/.exec(location.hash);
+    if (work) {
+      // A DM's link to a waiting agent (app_devneeds.go): its chat.
+      var name = decodeURIComponent(work[1]);
+      var found = workSpaces().filter(function (space) { return spaceKey(space) === name; })[0];
+      if (!found) return;
+      history.replaceState(null, "", location.pathname + location.search);
+      setCodeView("chat");
+      focus(found);
       return;
     }
     var match = /^#task-(\d+)$/.exec(location.hash);
@@ -4182,6 +4317,12 @@
     if ($("locked").hidden && !vibe()) connect();
   });
   refreshTickets(false);
-  setInterval(function () { if (!document.hidden) refresh(); }, 5000);
+  // Behind another window too, every half minute, for Needs you's
+  // notifications and the app's badge.
+  var hiddenTicks = 0;
+  setInterval(function () {
+    if (!document.hidden) { hiddenTicks = 0; refresh(); }
+    else if (++hiddenTicks % 6 === 0) refresh();
+  }, 5000);
   setInterval(function () { if (!document.hidden) refreshTickets(false); }, 30000);
 })();

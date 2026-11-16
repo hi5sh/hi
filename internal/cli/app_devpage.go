@@ -1343,6 +1343,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		branch, _, err := appDevStartPage(config, request.Ticket, request.Agent, person.Name)
+		appDevStartedUser(b.team, branch, person.User)
 		if err != nil && branch == "" {
 			failure(w, http.StatusBadRequest, err)
 			return
@@ -1373,6 +1374,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		ticket, branch, workspace, err := appDevStartNew(config, person.Name, request.Text, request.Agent, request.Files)
+		appDevStartedUser(b.team, branch, person.User)
 		if err != nil && branch == "" {
 			failure(w, http.StatusBadRequest, err)
 			return

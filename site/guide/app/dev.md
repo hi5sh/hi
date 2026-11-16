@@ -351,6 +351,13 @@ for; Checks and Logs have a dot.
   the dev box, so the page also says what Claude runs ("Running Bash,
   for 3 min") or waits for ("Waits for permission for Edit", "a
   question"); the chat's top bar says the same.
+- **Needs you** (the bell in the top bar): the workspaces whose agent
+  waits for someone, with what for and how long, then those done since
+  you last looked; a click opens its chat. **Notify me** there turns on
+  the browser's notifications while the page is open. An agent that has
+  waited ten minutes while nobody's active on the page sends one Slack
+  DM, to whoever started its work, or else to the app's owners, with a
+  link to its chat.
 - **Decisions:** the project's `docs/decisions/`, the technical choices
   nobody should undo by accident, as cards: each one's number, when it
   was written, its title, and its first paragraph, newest first, with a

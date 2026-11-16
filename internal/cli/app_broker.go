@@ -163,9 +163,11 @@ func appTaskNumber(id string) int {
 // the broker, on the host
 
 type appBroker struct {
-	team string
-	repo string
-	hi   string // this hi binary
+	// devNeeds is the dev box's waiting agents, for their DMs (app_devneeds.go).
+	devNeeds appDevNeedsState
+	team     string
+	repo     string
+	hi       string // this hi binary
 	// httpsCerts is the machine's domain's certificate, for the dev page on
 	// https (app_https.go); peerRestart replaces restartPeer in tests.
 	httpsCerts  appHTTPSCerts

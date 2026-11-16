@@ -834,3 +834,18 @@ a.button.primary:hover { background: var(--button-hover); }
 #sshkey-connect code { font: 12px var(--mono); overflow-wrap: anywhere; }
 .editor-ready { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .editor-ready p { margin: 0; flex: 1; }
+
+/* Needs you: the inbox in the top bar (release 3 of hi_app_dev_orca.md). */
+.inbox-wrap { position: relative; flex: none; }
+.inbox-btn { position: relative; }
+.inbox-btn .side-badge { top: -2px; right: -4px; }
+.inbox-btn .side-badge.waits { background: var(--warn); color: #111; }
+.inbox-panel { position: absolute; right: 0; top: calc(100% + 6px); width: 340px; max-width: calc(100vw - 24px); max-height: 60vh; overflow: auto; z-index: 60; background: var(--widget); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 8px 28px var(--shadow); padding: 10px 12px; }
+.inbox-panel[hidden] { display: none; }
+.inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.inbox-list li > button { all: unset; box-sizing: border-box; width: 100%; display: flex; gap: 8px; align-items: flex-start; padding: 8px 6px; border-radius: 6px; cursor: pointer; }
+.inbox-list li > button:hover, .inbox-list li > button:focus-visible { background: var(--hover); }
+.inbox-list .dot { margin-top: 5px; flex: none; }
+.inbox-list .inbox-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inbox-list .inbox-empty { padding: 6px; }

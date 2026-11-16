@@ -238,6 +238,8 @@ func appServe(name string, stdout, stderr io.Writer) error {
 	// The team's heartbeat, while it runs (app_heartbeat.go).
 	go broker.keepHeartbeat(ctx.Done())
 	go broker.keepDevPage(ctx.Done(), stderr)
+	// One DM for an agent that waits with nobody on the dev page (app_devneeds.go).
+	go broker.keepNeedsYou(ctx.Done(), stderr)
 	go broker.keepHTTPS(ctx.Done(), stderr)
 	broker.wakeLead = func(name, prompt, deliver string) error {
 		// A job that runs once, in a minute, with the hi-team skill; its
