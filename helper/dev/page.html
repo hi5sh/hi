@@ -14,6 +14,7 @@
 <title>Dev page</title>
 <link rel="stylesheet" href="xterm.css">
 <link rel="stylesheet" href="dev.css">
+<script src="theme.js"></script>
 </head>
 <body>
 <main id="page">
@@ -36,6 +37,7 @@
       <span id="chat-status" class="muted small chat-status"></span>
       <span id="links" class="links small"></span>
       <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
+      <div class="theme-wrap"><button id="theme-btn" type="button" class="icon" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button></div>
       <div class="inbox-wrap">
         <button id="inbox-btn" type="button" class="icon inbox-btn" aria-expanded="false" aria-controls="inbox" title="Needs you: agents that wait for someone, and work done since you looked" aria-label="Needs you"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="inbox-count" class="side-badge" hidden></span></button>
         <div id="inbox" class="inbox-panel" role="dialog" aria-label="Needs you" hidden>

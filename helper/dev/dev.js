@@ -106,20 +106,14 @@
     fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
     // Unicode 11's widths and the search's highlights are xterm's proposed API.
     allowProposedApi: true,
-    // Paseo's terminal colours (its dark theme's ANSI set), on the work's
-    // surface; bright black lighter than Paseo's, as agents print their
-    // quieter lines in it.
-    theme: {
-      background: "#181b1a", foreground: "#e4e6e5", cursor: "#e4e6e5", cursorAccent: "#181b1a", selectionBackground: "rgba(255, 255, 255, 0.2)",
-      black: "#141716", red: "#e07070", green: "#5dba80", yellow: "#d4a44a",
-      blue: "#6a9de0", magenta: "#b07ad0", cyan: "#4aabb8", white: "#d4d4d8",
-      brightBlack: "#7a7f7d", brightRed: "#e89090", brightGreen: "#7ecf9a", brightYellow: "#e0be6e",
-      brightBlue: "#8ab4e8", brightMagenta: "#c49ae0", brightCyan: "#6ec2cc", brightWhite: "#f0f0f2",
-    },
+    // The page's theme's colours (theme.js).
+    theme: window.hiTheme ? window.hiTheme.terminal() : undefined,
   });
   var fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open($("term"));
+  // A new theme, the terminal's colours with it.
+  if (window.hiTheme) window.hiTheme.onChange(function () { term.options.theme = window.hiTheme.terminal(); });
   // xterm's add-ons (third_party/xterm): the GPU draws, which keeps up
   // with Claude Code's full-screen redraws, back to the DOM's drawing if
   // the browser loses its WebGL; Unicode 11's widths, for emoji and CJK;

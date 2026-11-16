@@ -2909,20 +2909,15 @@ function openTerm(app, box) {
     cursorBlink: true,
     fontSize: 13,
     fontFamily: 'ui-monospace, "SF Mono", Menlo, "DejaVu Sans Mono", monospace',
-    // The dev page's colours: Paseo's terminal set.
-    theme: {
-      background: "#181b1a", foreground: "#e4e6e5", cursor: "#e4e6e5", cursorAccent: "#181b1a", selectionBackground: "rgba(255, 255, 255, 0.2)",
-      black: "#141716", red: "#e07070", green: "#5dba80", yellow: "#d4a44a",
-      blue: "#6a9de0", magenta: "#b07ad0", cyan: "#4aabb8", white: "#d4d4d8",
-      brightBlack: "#7a7f7d", brightRed: "#e89090", brightGreen: "#7ecf9a", brightYellow: "#e0be6e",
-      brightBlue: "#8ab4e8", brightMagenta: "#c49ae0", brightCyan: "#6ec2cc", brightWhite: "#f0f0f2",
-    },
+    // The page's theme's colours (theme.js).
+    theme: window.hiTheme ? window.hiTheme.terminal() : undefined,
   });
   const fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   const t = adminTerm = { app, box, term, fit, node, socket: null };
   renderSection();
   term.open(screen);
+  if (window.hiTheme) window.hiTheme.onChange(function () { term.options.theme = window.hiTheme.terminal(); });
   try { fit.fit(); } catch (e) { /* not drawn yet */ }
   const url = (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/api/app/term?name=" + encodeURIComponent(app) +
     "&box=" + encodeURIComponent(box) + "&cols=" + term.cols + "&rows=" + term.rows;

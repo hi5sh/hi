@@ -286,6 +286,7 @@ func (s *adminServer) routes() http.Handler {
 	}
 	asset("admin.js", "text/javascript; charset=utf-8", adminPageScript)
 	asset("presence.js", "text/javascript; charset=utf-8", hi.AppPresenceScript)
+	asset("theme.js", "text/javascript; charset=utf-8", hi.AppThemeScript)
 	asset("admin.css", "text/css; charset=utf-8", adminPageStyle)
 	asset("dev.css", "text/css; charset=utf-8", appDevPageStyle)
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)

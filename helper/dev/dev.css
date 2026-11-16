@@ -1,33 +1,26 @@
-/* Dark always, in the colours of Paseo's default dark theme (getpaseo/paseo,
-   Apache-2.0, packages/app/src/styles/theme.ts and docs/design.md): a faintly
-   green-tinted gray, the left panel a step darker than the work, panes flush
-   with one line between them, pill buttons, quiet sentence-case labels, and
-   its one green for the action that matters. */
+/* In Paseo's themes (getpaseo/paseo, Apache-2.0, packages/app/src/styles/
+   theme.ts and docs/design.md): Paseo's own by default, a faintly
+   green-tinted gray; Zinc, Midnight, Claude, Ghostty, Pure black, and
+   Light, picked from the bar (theme.js), or Auto with the computer's.
+   A theme states Paseo's surfaces, words, lines, and accent; the rest is
+   made from them. The left panel is a step darker than the work, panes
+   are flush with one line between them, buttons are pills, labels quiet
+   sentence case, and the accent is for the one action that matters. */
 :root {
-  --shell: #181b1a;      /* behind it all, and the bar: surface0 */
-  --bg: #181b1a;         /* the work: chat, terminal, editor, the right panel */
-  --panel: #141716;      /* the left panel: Paseo's sidebar */
-  --raised: #1e2120;     /* the message box, cards on the work: surface1 */
-  --widget: #272a29;     /* menus, popovers, toasts: surface2 */
-  --bubble: #333736;     /* your messages in the chat */
-  --fill: #434645;       /* a chosen segment, a count: surface3 */
-  --text: #e4e6e5;
-  --bright: #fafafa;
-  --muted: #a1a5a4;
-  --dim: #717574;        /* placeholders, passive chrome */
-  --line: #252b2a;
-  --input-line: #2f3534;
-  --accent: #7ccba0;     /* links, highlights: accentBright */
-  --focus: rgba(124, 203, 160, .55);
-  --button: #20744a;     /* the one action that matters: accent */
-  --button-hover: #25845a;
-  --secondary: rgba(255, 255, 255, .075); /* a quiet fill, on any surface */
-  --secondary-hover: rgba(255, 255, 255, .12);
-  --input: #1e2120;
-  --hover: rgba(255, 255, 255, .07);
-  --selected: rgba(255, 255, 255, .1);
-  --active: #303433;
-  --badge: #20744a;
+  /* Paseo, the default: a theme sets these. */
+  --surface0: #181b1a;   /* the work: chat, terminal, editor, the right panel, the bar */
+  --surface1: #1e2120;   /* the message box, cards on the work */
+  --surface2: #272a29;   /* menus, popovers, toasts */
+  --surface3: #434645;   /* a count, your messages (mixed) */
+  --sidebar: #141716;    /* the left panel */
+  --fg: #fafafa;
+  --fg-muted: #a1a5a4;
+  --fg-dim: #717574;     /* placeholders, passive chrome */
+  --border: #252b2a;
+  --border-input: #2f3534;
+  --brand: #20744a;      /* the one action that matters: Paseo's accent */
+  --brand-text: #7ccba0; /* links and highlights: accentBright */
+  --on-accent: #ffffff;
   --code: #e0be6e;
   --good: #6cb17b;       /* the status family: text, icons, stats */
   --warn: #c09664;
@@ -36,9 +29,39 @@
   --dot-warn: #db932e;
   --dot-bad: #f7796d;
   --dot-run: #5caaf6;
-  --term: #181b1a;
-  --on-accent: #ffffff;
+  --ink: 255, 255, 255;  /* fills over any surface: white on dark, black on light */
+  --diff-add: #d3f0dc;
+  --diff-del: #f5d2cd;
   --shadow: rgba(0, 0, 0, .4);
+  color-scheme: dark;
+
+  /* Made from them. */
+  --shell: var(--surface0);
+  --bg: var(--surface0);
+  --panel: var(--sidebar);
+  --raised: var(--surface1);
+  --widget: var(--surface2);
+  --fill: var(--surface3);
+  --bubble: color-mix(in srgb, var(--surface2) 60%, var(--surface3));
+  --text: color-mix(in srgb, var(--fg) 90%, var(--surface0));
+  --bright: var(--fg);
+  --muted: var(--fg-muted);
+  --dim: var(--fg-dim);
+  --line: var(--border);
+  --input-line: var(--border-input);
+  --accent: var(--brand-text);
+  --focus: color-mix(in srgb, var(--brand-text) 55%, transparent);
+  --button: var(--brand);
+  --button-hover: color-mix(in srgb, var(--brand) 88%, rgb(var(--ink)));
+  --secondary: rgba(var(--ink), .075); /* a quiet fill, on any surface */
+  --secondary-hover: rgba(var(--ink), .12);
+  --input: var(--surface1);
+  --hover: rgba(var(--ink), .07);
+  --selected: rgba(var(--ink), .1);
+  --active: color-mix(in srgb, var(--surface2) 70%, var(--surface3));
+  --badge: var(--brand);
+  --term: var(--surface0);
+  --scroll: rgba(var(--ink), .12);
   --gap: 0px;
   --r-sm: 6px;           /* rows, inputs */
   --r-md: 8px;
@@ -47,8 +70,47 @@
   --pill: 999px;         /* buttons */
   --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif;
   --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
-  color-scheme: dark;
   accent-color: var(--button);
+}
+/* Zinc: neutral gray, no tint; its accent near-white, so dark words on it. */
+:root[data-theme="zinc"] {
+  --surface0: #18181b; --surface1: #1f1f22; --surface2: #27272a; --surface3: #3f3f46; --sidebar: #131316;
+  --fg-muted: #a1a1aa; --fg-dim: #71717a; --border: #27272a; --border-input: #303036;
+  --brand: #e4e4e7; --brand-text: #fafafa; --on-accent: #18181b;
+}
+/* Midnight: a cool blue tint. */
+:root[data-theme="midnight"] {
+  --surface0: #161820; --surface1: #1c1e27; --surface2: #252731; --surface3: #3c3e4c; --sidebar: #121420;
+  --fg-muted: #9a9db0; --fg-dim: #6b6e82; --border: #242636; --border-input: #2e3040;
+  --brand: #3b6fcf; --brand-text: #7eaaeb;
+}
+/* Claude: warm neutral, an orange undertone. */
+:root[data-theme="claude"] {
+  --surface0: #1f1f1e; --surface1: #262523; --surface2: #2f2d2b; --surface3: #4a4745; --sidebar: #1a1918;
+  --fg-muted: #ada9a5; --fg-dim: #78746f; --border: #2c2a27; --border-input: #36332f;
+  --brand: #d97757; --brand-text: #e89a7f;
+}
+/* Ghostty: blue-tinted, on Ghostty's own background. */
+:root[data-theme="ghostty"] {
+  --surface0: #282c34; --surface1: #2f333d; --surface2: #383c48; --surface3: #4a4f5e; --sidebar: #21252d;
+  --fg-muted: #c8ccd8; --fg-dim: #a0a4b2; --border: #353a47; --border-input: #3f4454;
+  --brand: #3570e0; --brand-text: #b4d0fc;
+}
+/* Pure black: no light at all behind the work. */
+:root[data-theme="black"] {
+  --surface0: #000000; --surface1: #0a0a0a; --surface2: #181818; --surface3: #202020; --sidebar: #000000;
+  --fg-muted: #a1a1aa; --fg-dim: #71717a; --border: #1c1c1c; --border-input: #242424;
+}
+/* Light: white work, a gray left panel, the status colours of its own band. */
+:root[data-theme="light"] {
+  --surface0: #ffffff; --surface1: #fafafa; --surface2: #f4f4f5; --surface3: #e4e4e7; --sidebar: #f4f4f5;
+  --fg: #1a1a1e; --fg-muted: #71717a; --fg-dim: #a1a1aa; --border: #e4e4e7; --border-input: #d4d4d8;
+  --brand: #20744a; --brand-text: #1d6b44; --code: #9a6700;
+  --good: #3e704a; --warn: #7b5d39; --bad: #9d433b;
+  --dot-good: #299f51; --dot-warn: #b37824; --dot-bad: #f12e2f; --dot-run: #268ae0;
+  --ink: 0, 0, 0; --diff-add: #14532d; --diff-del: #7f1d1d; --shadow: rgba(0, 0, 0, .12);
+  --bubble: #ececee; --text: #27272a;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -66,12 +128,12 @@ body {
   flex-direction: column;
   overflow: hidden;
 }
-::selection { background: rgba(124, 203, 160, .28); }
-* { scrollbar-color: rgba(255, 255, 255, .12) transparent; }
+::selection { background: color-mix(in srgb, var(--brand-text) 30%, transparent); }
+* { scrollbar-color: var(--scroll) transparent; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .12); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, .22); }
+::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(var(--ink), .22); }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -384,7 +446,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .chat-bottom > * { max-width: 820px; margin-left: auto; margin-right: auto; }
 /* The message box: one card, what to say on top, its tools in a row below. */
 .composer { display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--input-line); border-radius: var(--r-xl); padding: 12px 10px 8px 16px; transition: border-color .15s; }
-.composer:focus-within { border-color: #3d4442; }
+.composer:focus-within { border-color: color-mix(in srgb, var(--border-input) 70%, var(--fg-muted)); }
 .composer textarea { width: 100%; resize: none; min-height: 46px; max-height: 240px; padding: 2px 4px 6px 0; border: 0; border-radius: 0; background: transparent; color: var(--bright); font-size: 15px; line-height: 1.5; outline: none; box-shadow: none; }
 .composer textarea:focus { outline: none; box-shadow: none; border: 0; }
 .composer textarea::placeholder { color: var(--dim); }
@@ -407,7 +469,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .composer .composer-round { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--secondary); color: var(--muted); cursor: pointer; }
 .composer .composer-round:hover:not(:disabled) { background: var(--secondary-hover); color: var(--bright); }
 .composer .composer-send.ready { background: var(--bright); color: var(--bg); }
-.composer .composer-send.ready:hover:not(:disabled) { background: #ffffff; color: var(--bg); }
+.composer .composer-send.ready:hover:not(:disabled) { background: color-mix(in srgb, var(--bright) 88%, var(--bg)); color: var(--bg); }
 .composer .composer-round:disabled { opacity: .45; cursor: default; }
 .composer.drop { border-color: var(--accent); }
 /* What goes with a message, in the card above it: pictures as thumbnails, long pastes folded. */
@@ -534,8 +596,8 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .git-diff .preview-head { position: static; flex: none; }
 .diff { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 6px 0 24px; font: 12px/1.5 var(--mono); tab-size: 4; }
 .diff div { white-space: pre; padding: 0 12px; min-width: max-content; }
-.diff .add { background: rgba(53, 194, 100, .12); color: #d3f0dc; }
-.diff .del { background: rgba(239, 68, 68, .12); color: #f5d2cd; }
+.diff .add { background: rgba(53, 194, 100, .12); color: var(--diff-add); }
+.diff .del { background: rgba(239, 68, 68, .12); color: var(--diff-del); }
 .diff .hunk { color: var(--dim); margin-top: 8px; }
 .diff .meta { color: var(--muted); }
 .files-drop { position: absolute; inset: 6px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; background: color-mix(in srgb, var(--panel) 88%, transparent); border: 2px dashed var(--focus); border-radius: var(--r-lg); font-size: 14px; z-index: 3; pointer-events: none; }
@@ -655,7 +717,7 @@ button.danger { color: var(--bad); }
 .ended {
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: rgba(20, 23, 22, .86); color: var(--text); gap: 12px; text-align: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--text); gap: 12px; text-align: center; padding: 16px;
 }
 .locked {
   position: fixed; inset: 0; background: var(--shell);
@@ -898,11 +960,23 @@ a.button.primary:hover { background: var(--button-hover); }
 .editor-ready { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .editor-ready p { margin: 0; flex: 1; }
 
+/* The theme: a button in the bar, Paseo's themes in a list under it (theme.js). */
+.theme-wrap { position: relative; flex: none; }
+.theme-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 220px; padding: 6px; background: var(--widget); border: 1px solid var(--input-line); border-radius: var(--r-lg); box-shadow: 0 12px 24px var(--shadow); display: flex; flex-direction: column; }
+.theme-menu[hidden] { display: none; }
+.theme-head { padding: 4px 8px 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.theme-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; border-radius: var(--r-sm); background: none; color: var(--text); font-weight: 400; text-align: left; }
+.theme-item:hover, .theme-item:focus-visible { background: var(--hover); color: var(--bright); outline: none; }
+.theme-swatch { flex: none; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(var(--ink), .25); }
+.theme-swatch.auto { background: linear-gradient(135deg, #ffffff 50%, #181b1a 50%); }
+.theme-name { flex: 1; }
+.theme-check { flex: none; width: 14px; color: var(--accent); }
+
 /* Needs you: the inbox in the top bar (release 3 of hi_app_dev_orca.md). */
 .inbox-wrap { position: relative; flex: none; }
 .inbox-btn { position: relative; }
 .inbox-btn .side-badge { top: -2px; right: -4px; }
-.inbox-btn .side-badge.waits { background: var(--dot-warn); color: #141716; }
+.inbox-btn .side-badge.waits { background: var(--dot-warn); color: #141716; } /* dark on amber, in any theme */
 .inbox-panel { position: absolute; right: 0; top: calc(100% + 8px); width: 360px; max-width: calc(100vw - 24px); max-height: 60vh; overflow: auto; z-index: 60; background: var(--widget); border: 1px solid var(--input-line); border-radius: var(--r-lg); box-shadow: 0 12px 24px var(--shadow); padding: 12px 10px 8px; }
 .inbox-panel[hidden] { display: none; }
 .inbox-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 6px 8px; }

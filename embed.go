@@ -53,6 +53,12 @@ var AppDevPageStyle []byte
 //go:embed helper/dev/presence.js
 var AppPresenceScript []byte
 
+// AppThemeScript is the page's theme, Paseo's and its others: the admin
+// page's and the dev page's, applied before they draw.
+//
+//go:embed helper/dev/theme.js
+var AppThemeScript []byte
+
 // AppIcons are hi5's icons, for a page people install as an app.
 //
 //go:embed helper/icons/*.png
