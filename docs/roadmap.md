@@ -2867,6 +2867,19 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.184 — Files in the editor's own row, Claude by default
+
+- [x] Open files are tabs in the editor's own top row, where the file's
+  name was, with the open one's folder, Download, and Save at its end;
+  the bar has Files, with how many, to come back to them.
+- [x] Claude's theme is the default; Paseo's is one to pick.
+- [x] Buttons are rectangles with rounded corners, not pills.
+- [x] A drop-down's list is drawn as the page's menus: rounded, room
+  around its rows, a soft fill under the pointer, a check on the chosen
+  one (Chromium's customizable select; other browsers keep their own).
+- [x] Who's here: a quiet pill, a dot in the person's colour and a faint
+  tint of it, not a pill filled with it.
+
 ### v2.6.183 — Paseo's other themes
 
 - [x] A theme picker in the top bar of the dev and admin pages: Paseo's,
