@@ -2736,6 +2736,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] The lead's DM guard asks hi for at most five seconds, not thirty,
   since Hermes may run it on its event loop.
 
+### v2.6.165 — Room between the admin page's buttons
+
+- [x] A measured review of every view at two widths: buttons apart from
+  each other, from text, and from their boxes' edges.
+
 ### v2.6.164 — Settings changed in the Vault tab; a setting from a shared key on the pages
 
 - [x] The Vault tab lists a path's names now; an app's settings paths take
