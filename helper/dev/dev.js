@@ -2630,7 +2630,8 @@
   // Ship to Dev too, once it has commits dev hasn't.
   function gitShown() { return viewShown("git"); }
   function refreshGit() {
-    if (!chat.space || git.busy) return;
+    if (!chat.space) { git.error = ""; return; } // no workspace: nothing failed
+    if (git.busy) return;
     var asked = chat.space;
     git.busy = true;
     api("GET", "git?workspace=" + encodeURIComponent(asked)).then(function (view) {
@@ -2670,7 +2671,7 @@
     var view = git.view && git.space === chat.space ? git.view : null;
     var space = chatSpace() || {};
     var lists = $("git-lists");
-    $("git-error").textContent = git.error;
+    $("git-error").textContent = chat.space ? git.error : "";
     var all = view ? view.staged.length + view.changes.length + (view.conflicts || []).length : 0;
     var badge = $("git-count");
     badge.hidden = !(view ? all : space.dirty);

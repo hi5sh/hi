@@ -608,7 +608,9 @@ func appDevFinish(config appConfig, workspace, by string, discard bool) (string,
 		remove = append(remove, "--force")
 	}
 	var removed any
-	if err := appDevHerdr(config.Name, &removed, remove...); err != nil {
+	err = appDevHerdr(config.Name, &removed, remove...)
+	appDevSpacesForget() // gone, or half gone: ask herdr again
+	if err != nil {
 		return "", err
 	}
 	appDevBoxExec(config.Name, "git", "-C", "/box/repo", "branch", "-D", space.Branch)
@@ -813,6 +815,7 @@ func appDevStartIn(config appConfig, number int, agent, by string) (string, stri
 		return "", "", err
 	}
 	appDevStarted(config.Name, branch, by)
+	appDevSpacesForget()
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
 	if agent != "" && created.Pane.ID != "" {
 		prompt := fmt.Sprintf("Work on task #%d: %s. Read it first with hi dev task show %d, and ask me what isn't clear before you start.", number, result.Ticket.Title, number)

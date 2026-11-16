@@ -74,6 +74,15 @@ func appDevSpacesCached(team string) ([]appDevSpace, error) {
 	return spaces, nil
 }
 
+// appDevSpacesForget drops the kept listing, when hi itself just made or
+// removed a workspace: the next asks herdr, not a listing with a worktree
+// that's gone.
+func appDevSpacesForget() {
+	appDevSpacesCache.Lock()
+	appDevSpacesCache.team = ""
+	appDevSpacesCache.Unlock()
+}
+
 // appDevFileRoots are the trees the File view offers: dev's clone first.
 func appDevFileRoots(team string) []appDevFileRoot {
 	roots := []appDevFileRoot{{ID: "repo", Label: "dev (the project's clone)", Path: "/box/repo"}}

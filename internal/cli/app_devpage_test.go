@@ -486,9 +486,18 @@ func TestTeamDevFinish(t *testing.T) {
 	if list, _ := appDevPageTickets("payments", true); len(list.Tickets) != 1 {
 		t.Fatalf("%+v", list.Tickets)
 	}
+	// A listing kept from before: Source control mustn't find the worktree
+	// that's gone in it after.
+	appDevSpacesCached("payments")
 	text, err := appDevFinish(config, "1-chart", "Olga on the dev page", false)
 	if err != nil || !strings.Contains(text, "Task #1 is closed: shipped as t-4") {
 		t.Fatal(text, err)
+	}
+	appDevSpacesCache.Lock()
+	kept := appDevSpacesCache.team
+	appDevSpacesCache.Unlock()
+	if kept != "" {
+		t.Fatal("the workspaces' listing outlived the finish")
 	}
 	all := strings.Join(*ran, "\n")
 	for _, want := range []string{"herdr worktree remove --workspace w2", "git -C /box/repo branch -D 1-chart"} {

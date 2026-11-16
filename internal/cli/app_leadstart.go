@@ -93,9 +93,7 @@ func (b *appBroker) leadStart(number int, user string) (string, error) {
 		}
 		return "", err
 	}
-	appDevSpacesCache.Lock()
-	appDevSpacesCache.team = ""
-	appDevSpacesCache.Unlock()
+	appDevSpacesForget()
 	appTicketDo(b.team, appTicketRequest{Action: "comment", Number: number, Author: "the lead",
 		Body: fmt.Sprintf("Started in the dev box by the lead, as %s asked in Slack: branch %s, with Claude Code.", name, branch)})
 	fmt.Fprintf(os.Stderr, "app %s: the lead started task %d for %s (%s)\n", b.team, number, name, branch)
