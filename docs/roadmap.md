@@ -2867,6 +2867,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.185 — A long workspace name keeps the bar one line
+
+- [x] A drop-down shows its choice on one line, cut off before its
+  chevron when it's long, instead of wrapping and making the top bar
+  taller; its open list has the whole name.
+
 ### v2.6.184 — Files in the editor's own row, Claude by default
 
 - [x] Open files are tabs in the editor's own top row, where the file's
