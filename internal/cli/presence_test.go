@@ -100,6 +100,8 @@ func TestPresence(t *testing.T) {
 	ken.conn.UnderlyingConn().(*net.TCPConn).CloseRead()
 	sam.until(func(p []presencePerson) bool { return len(p) == 1 })
 	// A colour is free again once its person has gone.
+	board.mu.Lock()
+	defer board.mu.Unlock()
 	if len(board.colors) != 1 {
 		t.Fatal(board.colors)
 	}

@@ -527,9 +527,9 @@ func startReleaseCheck() func() string {
 	if !releaseTagPattern.MatchString(version) {
 		return func() string { return "" }
 	}
-	newer := make(chan string, 1)
+	newer, current := make(chan string, 1), version
 	go func() {
-		if tag, err := latestReleaseFromRedirect(3 * time.Second); err == nil && olderRelease(version, tag) {
+		if tag, err := latestReleaseFromRedirect(3 * time.Second); err == nil && olderRelease(current, tag) {
 			newer <- tag
 		}
 		close(newer)
