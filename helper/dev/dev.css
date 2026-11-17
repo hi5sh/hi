@@ -1143,3 +1143,6 @@ a.button.primary:hover { background: var(--button-hover); }
 .ask-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .ask-preview { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--input-line); border-radius: var(--r-sm); background: var(--term); color: var(--text); font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px; line-height: 1.5; white-space: pre; overflow-x: auto; max-width: 100%; text-align: left; font-weight: 400; }
 .ask-swatch { border-radius: 2px; box-shadow: 0 0 0 1px rgba(var(--ink), .18); }
+/* The way to production's buttons: the size of a workspace's. */
+.flow button:not(.link) { font-size: 12.5px; line-height: 18.75px; padding: 2px 10px; }
+.flow .flow-merge svg { width: 14px; height: 14px; }

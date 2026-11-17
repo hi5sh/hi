@@ -2873,6 +2873,8 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   that clashes doesn't open the dialog, its agent is asked to combine
   them (and adds it when it's done), and the rest go on. The dialog
   only when no agent can be asked. Add to Preview on one still asks.
+- [x] The Publish panel's buttons (Add to Preview, Merge, Publish) are
+  the size of a workspace's.
 
 ### v2.6.199 — agy at work, in the chat; merge the changes into preview
 
