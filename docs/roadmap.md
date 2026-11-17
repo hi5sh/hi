@@ -2867,6 +2867,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.186 — The top bar stays one row on an iPad
+
+- [x] Production and Stage are a globe menu in the top bar, each with
+  its address, instead of two links; phones have it too.
+- [x] The bar's buttons never wrap their words (+ New took two lines);
+  the session's title gives way first, then the workspace's name.
+- [x] On a tablet, who's here shows as their dots, each name on hover,
+  so the bar keeps one row in portrait as in landscape.
+
 ### v2.6.185 — A long workspace name keeps the bar one line
 
 - [x] A drop-down shows its choice on one line, cut off before its

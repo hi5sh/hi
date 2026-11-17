@@ -209,7 +209,14 @@ select option { background: var(--widget); }
 /* One page: its bar, then the panels on either side of the work. */
 #page > .code-page { position: absolute; inset: var(--gap); display: flex; flex-direction: column; min-width: 0; }
 .team { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; flex: none; }
-.code-bar .links { display: flex; gap: 10px; white-space: nowrap; flex: none; }
+/* The bar stays one row: its buttons never wrap their words; the
+   session's title gives way first, then the workspace's name. */
+.code-bar > button, .code-bar .chips button { white-space: nowrap; flex: none; }
+.code-bar .chat-title { flex: 0 1 auto; }
+.code-bar select { flex: 0 1 auto; min-width: 110px; }
+.links-menu { width: 260px; }
+.links-menu .theme-item { flex-direction: column; align-items: flex-start; gap: 1px; text-decoration: none; }
+.links-host { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* Decisions: cards, each its title and first paragraph, opened to read
@@ -811,7 +818,7 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
 }
 @media (max-width: 760px) {
   .where-work li > :last-child { grid-column: 2; justify-self: start; }
-  .code-bar .links, .code-bar .team { display: none; }
+  .code-bar .team { display: none; }
   /* A phone has no editor of its own: Workspaces still has the button. */
   .code-bar .editor-split { display: none; }
   .code-bar { flex-wrap: wrap; row-gap: 4px; gap: 4px; min-height: 44px; padding: 6px 6px; }
@@ -1047,3 +1054,16 @@ a.button.primary:hover { background: var(--button-hover); }
 .session-what strong { font-weight: 500; color: var(--bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 760px) { .code-bar #chat-sessions { display: none; } }
 .inbox-help { margin: 0 0 8px; line-height: 1.45; }
+/* A tablet's bar: who's here as their dots (each name on hover), the
+   app's name shorter, so the bar stays one row. */
+@media (max-width: 1024px) {
+  .code-bar .presence-name { display: none; }
+  .code-bar .presence-pill { gap: 4px; padding: 2px 7px; }
+  .code-bar .team { max-width: 110px; }
+  .code-bar { gap: 6px; }
+}
+@media (max-width: 900px) {
+  .code-bar { gap: 4px; }
+  .code-bar select { min-width: 84px; }
+  .code-bar .team { max-width: 90px; }
+}

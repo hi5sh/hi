@@ -363,6 +363,8 @@ for; Checks and Logs have a dot.
   An agent also says where its work stands in a line of its own
   ("tests pass; waiting for the API key", `hi dev note`), on its
   workspace and in Needs you.
+- **Production and Stage** (the globe in the top bar): opens either in
+  a new tab, with its address under its name.
 - **Theme** (the half-filled circle in the top bar): Claude, the
   default, or Paseo, Zinc, Midnight, Ghostty, Pure black, Light, or Auto,
   which follows the computer's light or dark. This browser keeps it, for

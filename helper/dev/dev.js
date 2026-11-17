@@ -945,11 +945,42 @@
     fact("Incidents", document.createTextNode(state.incidents && state.incidents.length ? state.incidents.length + " open, below" : "none open"));
     if (s.jobs && s.jobs.length) fact("Jobs", el("ul", {}, s.jobs.map(function (job) { return el("li", { text: job }); })));
 
+    // Production and Stage, in the bar's globe menu.
     var links = $("links");
     links.textContent = "";
-    if (s.production_url) links.appendChild(link("Production", s.production_url));
-    if (s.preview_url) links.appendChild(link("Stage", s.preview_url));
+    [["Production", s.production_url], ["Stage", s.preview_url]].forEach(function (pair) {
+      if (!pair[1]) return;
+      var a = el("a", { href: pair[1], target: "_blank", rel: "noopener", role: "menuitem", class: "theme-item" });
+      a.appendChild(el("span", { class: "theme-name", text: pair[0] }));
+      a.appendChild(el("span", { class: "links-host muted", text: pair[1].replace(/^https?:\/\//, "").replace(/\/$/, "") }));
+      links.appendChild(a);
+    });
+    $("links-wrap").hidden = !links.childNodes.length;
   }
+
+  // The globe's menu: opens under it, closes on a pick, a click
+  // elsewhere, or Escape.
+  (function () {
+    var button = $("links-btn"), menu = $("links-menu");
+    function close() { menu.hidden = true; button.setAttribute("aria-expanded", "false"); }
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
+      var open = menu.hidden;
+      menu.hidden = !open;
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) { var first = menu.querySelector("a"); if (first) first.focus(); }
+    });
+    menu.addEventListener("click", function (event) { event.stopPropagation(); if (event.target.closest("a")) close(); });
+    menu.addEventListener("keydown", function (event) {
+      var items = [].slice.call(menu.querySelectorAll("a"));
+      var at = items.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (items.length) items[(at + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+      } else if (event.key === "Escape") { close(); button.focus(); }
+    });
+    document.addEventListener("click", close);
+  })();
 
   // ask asks in the page's own dialog, not the browser's confirm(), which
   // in-app browsers (Slack's) may answer no without showing it. It
