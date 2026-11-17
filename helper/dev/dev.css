@@ -784,10 +784,12 @@ button.danger { color: var(--bad); }
 .email-row { display: flex; gap: 6px; }
 .email-row input { flex: 1; min-width: 0; }
 #email-said { margin-top: 10px; text-align: left; font-size: 13px; min-height: 1em; }
+/* A toast: in the middle of the screen, over the work, clicks passing
+   through it to what's under it. */
 .toast {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-  background: var(--widget); color: var(--bright); border: 1px solid var(--input-line); box-shadow: 0 8px 24px var(--shadow);
-  padding: 10px 16px; border-radius: var(--r-lg); max-width: calc(100% - 32px);
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; pointer-events: none;
+  background: var(--widget); color: var(--bright); border: 1px solid var(--input-line); box-shadow: 0 12px 32px var(--shadow);
+  padding: 12px 18px; border-radius: var(--r-lg); width: max-content; max-width: min(560px, calc(100% - 32px)); text-align: center; line-height: 1.45;
 }
 /* A dialog sits on the work's own surface, as Paseo's sheets: titled in
    medium weight, its buttons at the end. */
