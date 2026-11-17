@@ -2867,6 +2867,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.188 — A workspace's row is its running session
+
+- [x] The workspace menu lists each chat once: a workspace's row is the
+  session its agent runs now, with its title under the name; only the
+  earlier sessions are under it, each to resume.
+- [x] The workspace and globe menus are as wide as meant (the theme
+  menu's width won over theirs).
+
 ### v2.6.187 — One menu for the workspaces and their sessions
 
 - [x] The top bar's workspace drop-down, Sessions, and + New are one
