@@ -854,16 +854,17 @@ func appDevStartIn(config appConfig, number int, agent, by string) (string, stri
 	appDevStarted(config.Name, branch, by)
 	appDevSpacesForget()
 	workspace, _, _ := strings.Cut(created.Pane.ID, ":")
-	if agent == "agy" {
-		// agy asks to trust each folder it starts in, not the ones in a trusted one.
+	if agent != "" {
+		// Each agent asks to trust a folder on its first start there, in
+		// the terminal, where Chat can't answer: trusted first.
 		path := "/box/home/.herdr/worktrees/repo/" + branch
 		for _, space := range appDevSpacesNow(config.Name) {
 			if space.Branch == branch && space.Path != "" {
 				path = space.Path
 			}
 		}
-		if err := appDevAgyTrust(config.Name, path); err != nil {
-			return branch, workspace, fmt.Errorf("the workspace is there, but agy's settings: %w", err)
+		if err := appDevTrust(config.Name, agent, path); err != nil {
+			return branch, workspace, fmt.Errorf("the workspace is there, but %s's settings: %w", agent, err)
 		}
 	}
 	if agent != "" && created.Pane.ID != "" {
@@ -1403,13 +1404,13 @@ func (b *appBroker) devPageHandler() http.Handler {
 			failure(w, http.StatusInternalServerError, err)
 			return
 		}
-		branch, _, err := appDevStartPage(config, request.Ticket, request.Agent, person.Name)
+		branch, workspace, err := appDevStartPage(config, request.Ticket, request.Agent, person.Name)
 		appDevStartedUser(b.team, branch, person.User)
 		if err != nil && branch == "" {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		answer := map[string]string{"branch": branch}
+		answer := map[string]string{"branch": branch, "workspace": workspace}
 		if err != nil {
 			answer["warning"] = err.Error()
 		}

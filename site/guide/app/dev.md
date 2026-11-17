@@ -446,9 +446,11 @@ for; Checks and Logs have a dot.
   what to do, pasting pictures in as you go (each an **Image #1** pill
   that ✕, Backspace, or Delete takes out), and hi files it in Tasks,
   pictures and all, gives it the task's branch and worktree from dev,
-  and starts the agent on it. It ships, and is done, like any task. The chat is the
-  default; the page remembers your choice. Codex's sessions
-  are in the terminal.
+  and starts the agent on it, its chat open (Start on a task opens its
+  chat too). It ships, and is done, like any task. The chat is the
+  default; the page remembers your choice. hi trusts the worktree for
+  the agent before it starts or resumes there, so Claude Code, Codex,
+  and Antigravity never stop at "Trust this folder?" in the terminal.
 - <a id="beside-the-chat"></a>**The panels' views** for the work:
   - **Rewind**, as above.
   - **Files** is the chat's workspace's files, a tree whose folders

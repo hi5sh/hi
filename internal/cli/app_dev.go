@@ -301,7 +301,7 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	}
 	// Codex: ChatGPT through the proxy, no approvals, no sandbox of its own.
 	if appCodexViaProxy(team) {
-		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + appDevCodexNotify + codexBoxConfig(proxyIP)
+		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + appDevCodexNotify + codexBoxConfig(proxyIP) + appDevCodexTrustSection("/box/repo")
 		if err := boxedWriteFile(home, filepath.Join(home, ".codex", "config.toml"), []byte(codex), 0o600); err != nil {
 			return err
 		}

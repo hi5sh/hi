@@ -1046,6 +1046,10 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 				}
 				agent = stopped
 			}
+			if !agent.Running && agent.Pane != "" {
+				// Trusted first, as a start: the resume never stops at its question.
+				appDevTrust(b.team, firstNonEmpty(who, "claude"), appDevSpaceCWD(b.team, body["workspace"].(string)))
+			}
 			switch {
 			case agent.Running:
 				return errors.New("an agent is running in this workspace already: stop it first, with /exit or Ctrl+C in the terminal")
@@ -1059,7 +1063,6 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 				if !appDevHasAgy(b.team) {
 					return errors.New("the dev box has no agy now")
 				}
-				appDevAgyTrust(b.team, appDevSpaceCWD(b.team, body["workspace"].(string)))
 				return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "agy --dangerously-skip-permissions --conversation "+id)
 			case who != "" && who != "claude":
 				return fmt.Errorf("the agent is claude or codex, not %q", who)

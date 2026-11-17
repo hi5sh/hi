@@ -2867,6 +2867,16 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.190 — No "Trust this folder?" on an agent's first start
+
+- [x] hi trusts a new worktree for the agent before it starts or
+  resumes there: Claude Code's ~/.claude.json, Codex's config.toml
+  (with /box/repo, the root Codex trusts a worktree by), agy's
+  settings. Codex stopped at its folder question in the terminal.
+- [x] Start something new with Codex stays in Chat (it switched to the
+  terminal, from before Chat showed Codex); Start on a task opens the
+  new workspace's chat.
+
 ### v2.6.189 — + New atop Workspaces, messages in the middle
 
 - [x] Workspaces has + New at its top, as the workspace menu has, for

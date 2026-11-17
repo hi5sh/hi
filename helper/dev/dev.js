@@ -440,7 +440,11 @@
       $("start-dialog").close();
       toast((answer.warning ? answer.warning + " " : "") + "Started " + answer.branch + (agent ? " with " + agent : "") + ".");
       closeOver();
-      refresh().then(renderSideTasks);
+      // Its chat, as Start something new opens it.
+      refresh().then(function () {
+        renderSideTasks();
+        if (answer.workspace && agent) chooseChatSpace(answer.workspace);
+      });
     }).catch(function (error) {
       $("start-error").textContent = error.message;
       $("start-go").disabled = false;
@@ -1945,8 +1949,6 @@
       refreshTickets(true);
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
-        // The chat shows Claude Code's sessions; Codex's is in the terminal.
-        if (agent === "codex" && !vibe()) setCodeView("terminal");
       });
     }).catch(function (error) {
       $("adhoc-error").textContent = error.message;
