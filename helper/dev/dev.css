@@ -696,7 +696,8 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .flow-head a { font-size: 12.5px; }
 .flow-what { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .flow-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.flow-list li { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.flow-list li { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 2px 0 2px 12px; border-left: 3px solid var(--accent); border-radius: 2px; }
+.flow-merge { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin-top: 6px; white-space: nowrap; }
 .flow-list li > button, .flow-act > button { white-space: nowrap; flex: none; }
 .flow-name { display: flex; flex-direction: column; min-width: 0; }
 .flow-sub { margin-top: 1px; }

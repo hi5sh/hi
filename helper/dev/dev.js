@@ -1018,17 +1018,19 @@
   function addToPreview(space, takeOut) {
     var name = workName(space);
     toast((takeOut ? "Swapping in " : "Adding ") + name + (takeOut ? " on the preview…" : " to the preview…"), true);
-    var body = { workspace: space.id, title: ticketOf(space) ? name : "" };
+    var body = { workspace: space.id, title: name !== space.label ? name : "" }; // its task's title, else the commit's
     if (takeOut) body.take_out = takeOut;
     return working("ship:" + space.id, api("POST", "ship", body)).then(function (r) {
       $("stuck-dialog").close();
       toast(r.text);
       refresh();
       refreshTickets(false);
+      return true;
     }).catch(function (error) {
       $("toast").hidden = true;
       stuck(space, error.message, error.data || {});
       refresh();
+      return false;
     });
   }
 
@@ -1183,6 +1185,13 @@
     // 1. Work not on the preview yet.
     var work = workSpaces().filter(function (space) { return workStage(space).add || (space.path && space.checked && space.dirty); });
     if (work.length) {
+      // Merge changes into preview: each waiting one in turn, as Add to
+      // Preview does, stopping at one that clashes (its dialog says why).
+      // Not the ones taken out of it: they were, on purpose.
+      var mergeable = work.filter(function (space) { return space.ahead > 0; });
+      var merge = mergeable.length > 1 ? el("button", { class: "primary flow-merge", busy: "merge-all", title: "Add each of these to the preview, one after another", onclick: function () { mergeAll(mergeable); } }, [
+        mergeIcon(), el("span", { text: "Merge " + mergeable.length + " changes into preview" }),
+      ]) : null;
       step("flow-work", "Not on the preview yet", "", [el("ul", { class: "flow-list" }, work.map(function (space) {
         var stage = workStage(space);
         return el("li", {}, [
@@ -1191,7 +1200,7 @@
             space.dirty ? el("span", { class: "small warn flow-sub", text: "Unsaved changes: ask the agent to commit them" }) : null]),
           stage.add ? addButton(space) : null,
         ]);
-      }))]);
+      })), merge]);
     }
 
     // 2. The preview: the next version, or one change alone.
@@ -1229,6 +1238,29 @@
     step("flow-production", "Production", s.production_url || addr.production, [el("div", { class: "flow-what" }, [
       el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " what everyone uses" : ""),
     ])]);
+  }
+  // mergeAll adds the pieces of work to the preview one after another.
+  function mergeAll(spaces) {
+    var done = 0;
+    working("merge-all", spaces.reduce(function (chain, space) {
+      return chain.then(function (going) {
+        if (!going) return false;
+        return addToPreview(space, "").then(function (ok) { if (ok) done++; return ok; });
+      });
+    }, Promise.resolve(true)).then(function (all) {
+      if (all) toast("All " + done + " changes are on the preview, in the next version.");
+    }));
+  }
+  // mergeIcon is git's merge: two lines joining, an arrow down, to the
+  // preview under it.
+  function mergeIcon() {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("width", "16");
+    svg.setAttribute("height", "16");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v6a6 6 0 0 0 6 6"/><path d="M18 3v6a6 6 0 0 1-6 6v6"/><path d="m8 17 4 4 4-4"/></g>';
+    return svg;
   }
   // showNext puts the next version back on the preview.
   function showNext() {

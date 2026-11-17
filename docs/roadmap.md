@@ -2867,8 +2867,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
-### v2.6.199 — agy at work, in the chat
+### v2.6.199 — agy at work, in the chat; merge the changes into preview
 
+- [x] **Merge N changes into preview**, under the work not on the
+  preview yet (two or more): each added in turn, as Add to Preview does,
+  stopping at one that clashes, with its dialog. Work taken out of the
+  preview isn't in it. Each piece of work there has a bar beside it.
+- [x] Add to Preview gives the change its task's title, else its last
+  commit's, not the branch's name.
 - [x] The chat shows agy at work, with what it says it does ("Editing
   files…", its thoughts), from its spinner line on the screen: herdr
   can't tell agy thinking from idle, and once its hooks went quiet the
