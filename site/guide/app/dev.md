@@ -563,7 +563,8 @@ for; Checks and Logs have a dot.
 - **Publish:** at the top, **From your work to production**, top to
   bottom: the work **Not on the preview yet**, each with **Add to
   Preview** (and with two or more, **Merge N changes into preview**,
-  which adds each in turn and stops at one that clashes); the **Preview** with its address, what it shows (the next
+  which adds each in turn; one that clashes has its agent asked to
+  combine them, which adds it when it's done); the **Preview** with its address, what it shows (the next
   version, "v15 + 2 changes", and those changes; or "Shows only …" with
   **Show the next version**), and **Publish v16**; and **Production**,
   the version everyone uses. Under it:

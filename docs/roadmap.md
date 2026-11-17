@@ -2867,6 +2867,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.200 — Merge doesn't stop at a clash
+
+- [x] Merge N changes into preview takes the merge as wanted: a change
+  that clashes doesn't open the dialog, its agent is asked to combine
+  them (and adds it when it's done), and the rest go on. The dialog
+  only when no agent can be asked. Add to Preview on one still asks.
+
 ### v2.6.199 — agy at work, in the chat; merge the changes into preview
 
 - [x] **Merge N changes into preview**, under the work not on the

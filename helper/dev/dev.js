@@ -1015,7 +1015,10 @@
   // addToPreview adds a piece of work to the preview; takeOut, the change
   // there last, taken out for it in the same step. What goes wrong opens
   // a dialog that stays, with what can be done about it.
-  function addToPreview(space, takeOut) {
+  // combine, for Merge changes into preview, answers a clash itself: it
+  // asks the work's agent to combine them, as the dialog's first choice
+  // does, and says so; the dialog only when no agent can be asked.
+  function addToPreview(space, takeOut, combine) {
     var name = workName(space);
     toast((takeOut ? "Swapping in " : "Adding ") + name + (takeOut ? " on the preview…" : " to the preview…"), true);
     var body = { workspace: space.id, title: name !== space.label ? name : "" }; // its task's title, else the commit's
@@ -1028,10 +1031,30 @@
       return true;
     }).catch(function (error) {
       $("toast").hidden = true;
-      stuck(space, error.message, error.data || {});
+      var data = error.data || {};
       refresh();
+      if (combine && data.conflict && space.agent) {
+        return askToCombine(space, data).then(function () {
+          toast("“" + name + "” clashes with what's on the preview: " + agentName(space.agent) + " is combining them, and adds it when it's done.");
+          return "asked";
+        }).catch(function () {
+          stuck(space, error.message, data);
+          return false;
+        });
+      }
+      stuck(space, error.message, data);
       return false;
     });
+  }
+  // askToCombine asks a piece of work's agent to bring in what's on the
+  // preview, make both work together, and add it again.
+  function askToCombine(space, data) {
+    var conflict = data.conflict;
+    var withTitles = (data.with || []).map(function (c) { return "“" + c.title + "”"; });
+    var text = "Adding this work to the preview failed: it conflicts with what's on the preview (dev) in " + conflict.files.join(", ") +
+      (withTitles.length ? ", where " + withTitles.join(" and ") + " changed the same lines" : "") +
+      ". Bring dev in (git fetch origin && git rebase origin/" + (conflict.dev || "main") + "), resolve the conflicts so both changes work together, and run the checks. If they can't both be kept, ask me which to keep. Then add it to the preview with hi dev ship, and tell me what you did.";
+    return api("POST", "chat/send", { workspace: space.id, text: text });
   }
 
   // ---- Stuck: what went wrong adding a piece of work to the preview, in
@@ -1077,14 +1100,10 @@
   }
   $("stuck-cancel").addEventListener("click", function () { $("stuck-dialog").close(); });
   $("stuck-agent").addEventListener("click", function () {
-    var now = stuckNow, conflict = now.data.conflict;
-    var withTitles = (now.data.with || []).map(function (c) { return "“" + c.title + "”"; });
-    var text = "Adding this work to the preview failed: it conflicts with what's on the preview (dev) in " + conflict.files.join(", ") +
-      (withTitles.length ? ", where " + withTitles.join(" and ") + " changed the same lines" : "") +
-      ". Bring dev in (git fetch origin && git rebase origin/" + (conflict.dev || "main") + "), resolve the conflicts so both changes work together, and run the checks. If they can't both be kept, ask me which to keep. Then add it to the preview with hi dev ship, and tell me what you did.";
+    var now = stuckNow;
     stuckBusy(true);
     stuckSay("Asking " + agentName(now.space.agent) + "…");
-    api("POST", "chat/send", { workspace: now.space.id, text: text }).then(function () {
+    askToCombine(now.space, now.data).then(function () {
       $("stuck-dialog").close();
       if (chat.view !== "chat") setCodeView("chat");
       if (chat.space !== now.space.id) chooseChatSpace(now.space.id);
@@ -1240,15 +1259,26 @@
     ])]);
   }
   // mergeAll adds the pieces of work to the preview one after another.
+  // A clash doesn't stop it: the work's agent is asked to combine them,
+  // and the rest go on; only a clash with no agent to ask stops it, at
+  // its dialog.
   function mergeAll(spaces) {
-    var done = 0;
+    var added = 0, combining = [];
     working("merge-all", spaces.reduce(function (chain, space) {
       return chain.then(function (going) {
         if (!going) return false;
-        return addToPreview(space, "").then(function (ok) { if (ok) done++; return ok; });
+        return addToPreview(space, "", true).then(function (result) {
+          if (result === true) added++;
+          if (result === "asked") combining.push(space);
+          return result !== false;
+        });
       });
     }, Promise.resolve(true)).then(function (all) {
-      if (all) toast("All " + done + " changes are on the preview, in the next version.");
+      if (!all) return;
+      if (!combining.length) { toast("All " + added + " changes are on the preview, in the next version."); return; }
+      toast((added ? added + (added === 1 ? " change is" : " changes are") + " on the preview. " : "") +
+        combining.map(function (space) { return agentName(space.agent) + " is combining “" + workName(space) + "”"; }).join("; ") +
+        " with what's there, and adds it when it's done.");
     }));
   }
   // mergeIcon is git's merge: two lines joining, an arrow down, to the
