@@ -32,6 +32,7 @@ func (f *fakeTeamRestic) install(t *testing.T) {
 		f.mu.Lock()
 		f.calls = append(f.calls, args)
 		f.envs = append(f.envs, env)
+		n := len(f.calls) // read under the lock: a snapshot's after runs beside
 		f.mu.Unlock()
 		if args[0] == f.fail {
 			return "", appResticError{code: 1, text: args[0] + " broke"}
@@ -41,7 +42,7 @@ func (f *fakeTeamRestic) install(t *testing.T) {
 			os.MkdirAll(filepath.Join(appSnapshotsDir("payments"), "repo"), 0o700)
 			os.WriteFile(filepath.Join(appSnapshotsDir("payments"), "repo", "config"), []byte("x"), 0o600)
 		case "backup":
-			return fmt.Sprintf("{\"message_type\":\"summary\",\"data_added\":2048,\"total_bytes_processed\":4096,\"snapshot_id\":\"%08dabcdef\"}\n", len(f.calls)), nil
+			return fmt.Sprintf("{\"message_type\":\"summary\",\"data_added\":2048,\"total_bytes_processed\":4096,\"snapshot_id\":\"%08dabcdef\"}\n", n), nil
 		case "snapshots":
 			return f.list, nil
 		case "restore":
