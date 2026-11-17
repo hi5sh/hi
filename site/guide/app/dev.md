@@ -342,14 +342,19 @@ for; Checks and Logs have a dot.
   it finishes the workspace too (worktree, workspace, branch); when the
   workspace still has work dev hasn't got, that stays there, and only
   the task closes. A closed task's ⋯ has **Reopen**.
-- **The page's words** (since v2.6.191): it says **Preview** for Stage
-  (the button **Preview** is Try on Stage) and **Publish** for Release
-  (**Publish v15**, **Published versions**). The commands and the rest
-  of this guide keep Stage (`hi dev preview`, `hi dev logs stage`).
-- **Workspaces:** the pieces of work in the dev box, each with what dev
-  has of it, **Open**, **Editor ↗** ([your own editor](#your-own-editor)),
-  **Try on Stage**, **Ship to Dev**, and **Done ✓**
-  ([below](#beside-the-chat)), and **+ New** at the top. Its
+- **The page's words** (since v2.6.192): work goes from its workspace
+  to the **Preview**, the next version, then to production with
+  **Publish**. The preview is what the commands and the rest of this
+  guide call Stage, and the next version is dev (`hi dev preview`,
+  `hi dev ship`, `hi dev logs stage`).
+- **Workspaces:** the pieces of work in the dev box, each by its task's
+  title (its branch on hover), with its task's number, its agent, where
+  it is ("Not on the preview yet", "On the preview ✓", "Published ✓"),
+  and its next step: **Add to Preview**, or **Done ✓** once it's there.
+  **Open** shows its chat, **Editor ↗** opens it in [your own
+  editor](#your-own-editor), and its **⋯** has **Preview only this
+  change** (Pro Devs and owners) and **Discard…**
+  ([below](#beside-the-chat)). **+ New** is at the top. Its
   dot is its agent's state: working, waiting for someone, idle, or done.
   Claude Code, Codex, and Antigravity tell hi through their hooks, which
   hi sets in the dev box, so the page also says what Claude runs ("Running Bash,
@@ -485,8 +490,8 @@ for; Checks and Logs have a dot.
     **Commit** commits what's staged, or with nothing staged
     (**Commit all**) every change, as the dev box's author, as the
     agents commit. Under it, the branch's last commits, those dev
-    hasn't in green. Once it has commits dev hasn't, **Try on Stage**
-    and **Ship to Dev** are there too, as in the workspaces' list.
+    hasn't in green. Once it has commits dev hasn't, **Preview only
+    this** and **Add to Preview** are there too.
   - **Search** finds a word, or with **.\*** a regular expression, in
     the workspace's files, new ones too, not those git ignores; **Aa**
     matches case. The matches are by file, and one opens its file in a
@@ -511,47 +516,48 @@ for; Checks and Logs have a dot.
     makes the panel wider. It loads again when something new goes on
     Stage. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it.
-- **Try on Stage** and **Ship to Dev**, beside a workspace with commits
-  dev hasn't got, do what `hi dev preview` and `hi dev ship` do in the
-  box. Stage is one address, and it shows one thing at a time:
-  dev, or a branch being tried. Trying a branch puts it there alone,
-  with a fresh copy of production's data, and changes nothing in dev;
-  **Show dev**, in Release, puts dev back (`hi dev preview --dev` in the box). Ship to
-  Dev merges the branch's commits into dev (with a title for the
-  release notes; the last commit's by default) and puts dev on
-  Stage. Changes not committed stay in the worktree.
+- **Add to Preview**, beside a piece of work not on the preview yet,
+  adds it to the next version (dev, `hi dev ship` in the box), with its
+  task's title for the version's notes, and puts the next version on the
+  preview. Changes not committed stay in the worktree ("Unsaved changes:
+  ask the agent to commit them"). Add several pieces of work and try
+  them together on the preview, then **Publish** them at once.
+  **Preview only this change** (its **⋯**) shows that one alone on the
+  preview, with a fresh copy of production's data, and adds nothing
+  (`hi dev preview`); **Show the next version** puts the rest back.
 
   ```
-  Try on Stage     Stage shows only your branch   (dev doesn't change)
-  Show dev         Stage shows dev again           (undoes the line above)
-  Ship to Dev      your branch joins dev; Stage shows dev
-  Release          dev becomes production
+  Add to Preview             it joins the next version; the preview shows that
+  Preview only this change   the preview shows only it (nothing is added)
+  Show the next version      the preview shows the next version again
+  Publish v16                the next version goes to production
   ```
-- **Done ✓**, beside a workspace in Workspaces (and beside its task),
-  ends it once it's shipped: its worktree, its herdr workspace with the agent in it, and its
-  branch go, and its task closes ("Shipped into dev as t-31"). Each
-  workspace says how much dev has: "everything in dev", or commits not
-  shipped and changes not committed, when the button is **Discard…**
-  instead and asks first. `hi app dev <app> finish <branch>` does the
-  same on the machine.
-- **Addresses**, in Release's Where things run: each address's internal link and whether
-  its NetBird peer has joined; **Make public** puts one on the internet
-  too, with its link's key, and **Internal only** takes it off again. Both
-  are an owner's click, said in the channel.
-- **Release:** at the top, **Where things run**: each address and what
-  it shows now. Production, in green, with the version everyone uses
-  and, when dev has changes waiting, what they are and **Release**.
-  Stage, in blue, with what it shows (dev, or ▸ a branch being tried,
-  with **Show dev**), and under it the work dev hasn't got: the one on
-  Stage marked "← on Stage now", the others with **Try on Stage**. And
-  this page. Each has **Make public** or **Internal only**. Under it:
-  - **Release** puts dev in production, with notes for the channel
-    drafted from dev's changes. Owners and developers release; at the
-    first release, only an owner may **Start production with a copy of
-    Stage's data**. **Set dev back to production** drops
-    what dev has on top of it (see [Dev and production](/guide/app/releases/)).
-  - **Releases**, each with **Roll back**, of the code, or the code and
-    its data.
+- **Done ✓**, beside a piece of work in Workspaces (and beside its
+  task), ends it once it's on the preview: its worktree, its herdr
+  workspace with the agent in it, and its branch go, and its task closes
+  ("Shipped into dev as t-31"). With work not on the preview, or unsaved
+  changes, it's **Discard…** in its **⋯** instead, which asks first.
+  `hi app dev <app> finish <branch>` does the same on the machine.
+- **Publish:** at the top, **From your work to production**, top to
+  bottom: the work **Not on the preview yet**, each with **Add to
+  Preview**; the **Preview** with its address, what it shows (the next
+  version, "v15 + 2 changes", and those changes; or "Shows only …" with
+  **Show the next version**), and **Publish v16**; and **Production**,
+  the version everyone uses. Under it:
+  - **Publish v16** puts the next version in production, with notes for
+    the channel drafted from its changes. It also offers to close the
+    work that went out with it (their tasks and workspaces), checked by
+    default; work an agent is still on, or with more to add, stays.
+    Owners and developers publish; at the first, only an owner may
+    **Start production with a copy of the preview's data**. **Clear
+    the preview (back to v15)** drops what was added since (see [Dev and
+    production](/guide/app/releases/)).
+  - **Published versions**, each with **Roll back**, of the code, or the
+    code and its data.
+  - **Addresses** (owners): each address's internal link and whether
+    its NetBird peer has joined; **Make public** puts one on the
+    internet too, with its link's key, and **Internal only** takes it
+    off again. Both are an owner's click, said in the channel.
 - **Data:** production's data and Stage's side by side: how much
   each holds, when it was last written, and what Stage's is a copy
   of. Then what you can do with them:

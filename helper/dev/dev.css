@@ -403,7 +403,7 @@ button.side-toggle[aria-pressed="true"] { color: var(--bright); }
 .side .system-box { max-width: none; margin: 0; grid-template-columns: minmax(0, 1fr); gap: 0; }
 @container (min-width: 720px) { .side .system-box { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 32px; } }
 .side .release-wrap { gap: 10px; padding-top: 8px; }
-.side .where-card, .side .releases-card { background: var(--raised); padding: 2px 14px 12px; }
+.side .where-card, .side .releases-card, .side .flow-card { background: var(--raised); padding: 2px 14px 12px; }
 .side .where-row { padding-left: 10px; }
 .spaces-view { padding-top: 4px; }
 .theme-item.spaces-new { margin: 6px 0 4px; padding: 8px; border-bottom: 1px solid var(--line); border-radius: var(--r-sm); }
@@ -677,6 +677,35 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 /* Release: how work moves, drawn, then releasing, releases, addresses. */
 .release-wrap { display: flex; flex-direction: column; gap: 16px; }
 .where-card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 20px 12px; }
+/* From your work to production: three steps, top to bottom, each with
+   its one next button; a line down their left joins them. */
+.flow-card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 20px 14px; }
+.flow { display: flex; flex-direction: column; }
+.flow-step { position: relative; padding: 10px 0 12px 18px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.flow-step::before { content: ""; position: absolute; left: -6px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--raised); border: 2px solid var(--dim); }
+.flow-step.flow-work::before { border-color: var(--dot-warn); }
+.flow-step.flow-preview::before { border-color: var(--accent); background: var(--accent); }
+.flow-step.flow-production::before { border-color: var(--dot-good); background: var(--dot-good); }
+.flow-step:last-child { border-left-color: transparent; padding-bottom: 2px; }
+.flow-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.flow-head strong { font-weight: 500; color: var(--bright); }
+.flow-head a { font-size: 12.5px; }
+.flow-what { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.flow-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.flow-list li { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.flow-list li > button, .flow-act > button { white-space: nowrap; flex: none; }
+.flow-name { display: flex; flex-direction: column; min-width: 0; }
+.flow-sub { margin-top: 1px; }
+.flow-list li .flow-name { flex-direction: row; flex-wrap: wrap; column-gap: 4px; }
+.flow-list li .flow-sub { flex-basis: 100%; }
+.flow-changes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; color: var(--text); }
+.flow-act { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+/* A piece of work's ⋯: the rarer actions. */
+.more-wrap { position: relative; display: inline-flex; }
+.more-btn { padding-left: 9px; padding-right: 9px; letter-spacing: 1px; }
+.theme-menu.more-menu { left: 0; right: auto; top: calc(100% + 4px); width: 230px; }
+.theme-menu.more-menu .theme-item.danger { color: var(--bad); }
+.work-title { color: var(--bright); }
 .where { list-style: none; margin: 0; padding: 0; }
 .where-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0 12px 14px; border-top: 1px solid var(--line); border-left: 3px solid var(--line); margin-left: -2px; }
 .where-row:first-child { border-top: 0; }
@@ -1091,3 +1120,6 @@ a.button.primary:hover { background: var(--button-hover); }
   .space-wrap { min-width: 84px; }
   .code-bar .team { max-width: 90px; }
 }
+/* An address: its name, then its link on one line, cut off if long. */
+.where-card .where-head { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.where-card .where-head a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

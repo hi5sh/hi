@@ -392,15 +392,19 @@
           </section>
           <section id="side-release" class="side-view page-view" role="tabpanel" aria-label="Publish" hidden>
             <div class="release-wrap">
-              <section class="where-card">
-                <h2>Where things run</h2>
-                <p class="muted small">Each address and what it shows now. On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
-                <ul id="addresses" class="where"></ul>
+              <section class="flow-card">
+                <h2>From your work to production</h2>
+                <div id="flow" class="flow"></div>
               </section>
               <section class="releases-card">
                 <h2>Published versions</h2>
-                <p class="developers-only muted small">Ship your work into dev, then publish it to production. The owners roll it back.</p>
+                <p class="developers-only muted small">Add your work to the preview, then publish it to production. The owners roll it back.</p>
                 <ul id="releases" class="list"></ul>
+              </section>
+              <section class="where-card owners-only">
+                <h2>Addresses</h2>
+                <p class="muted small">On the app's NetBird network by default: only people on it reach them. Public too is a choice, per address.</p>
+                <ul id="addresses" class="where"></ul>
               </section>
             </div>
           </section>
@@ -466,6 +470,7 @@
     <h2 id="release-title">Publish</h2>
     <p class="muted">What changes for the people, in their words. hi posts it in the app's channel when it's published.</p>
     <textarea id="release-notes" rows="8" required></textarea>
+    <label class="check" id="release-clean-box" hidden><input type="checkbox" id="release-clean" checked> <span id="release-clean-text">Then close the published tasks and remove their workspaces</span></label>
     <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of the preview's data</label>
     <p id="release-error" class="error"></p>
     <div class="buttons">

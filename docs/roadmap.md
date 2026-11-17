@@ -2867,6 +2867,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.192 — From your work to production: Add to Preview, then Publish
+
+- [x] A piece of work goes to the Preview (the next version, dev) with
+  **Add to Preview**, then to production with **Publish**: no "dev" on
+  the page. Ship to Dev is Add to Preview, with no question (the task's
+  title is the change's); Try on Stage is "Preview only this change", in
+  the work's ⋯, for Pro Devs and owners.
+- [x] Work is named by its task's title (its branch on hover), in
+  Workspaces, the top bar, and its menu, with where it is: "Not on the
+  preview yet", "On the preview ✓", "Published ✓".
+- [x] The Publish panel is the way to production, top to bottom: the
+  work not on the preview yet, the preview with its changes and Publish,
+  and production. Addresses and Make public are below, the owners'.
+- [x] Publish offers to close the work it took out (tasks and
+  workspaces), checked by default; work an agent is still on stays.
+- [ ] Taking one change back out of the preview (a revert of its merge).
+
 ### v2.6.191 — The dev page says Preview and Publish
 
 - [x] On the dev page, Stage is the preview and Release is Publish: a
