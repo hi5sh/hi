@@ -291,7 +291,6 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 /* Terminal: herdr, with the workspaces beside it. */
 /* As VS Code lays itself out: the workspaces a side bar card, the chat and
    the terminal an editor card, under their bar in the shell. */
-.preview-line { padding: 10px 0 8px; border-bottom: 1px solid var(--line); display: flex; gap: 4px; flex-wrap: wrap; overflow-wrap: anywhere; }
 .preview-what { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
 .preview-what .show-dev { margin-top: 4px; font-size: 12px; padding: 1px 8px; }
 .term-panel { background: var(--term); position: relative; overflow: hidden; min-height: 0; flex: 1; }
@@ -407,7 +406,7 @@ button.side-toggle[aria-pressed="true"] { color: var(--bright); }
 .side .where-card, .side .releases-card { background: var(--raised); padding: 2px 14px 12px; }
 .side .where-row { padding-left: 10px; }
 .spaces-view { padding-top: 4px; }
-.spaces-view .preview-line { margin-bottom: 4px; }
+.theme-item.spaces-new { margin: 6px 0 4px; padding: 8px; border-bottom: 1px solid var(--line); border-radius: var(--r-sm); }
 /* Logs' dot pulses while new lines come in behind another view. */
 .side-badge.dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .side-badge.dot.pulse { animation: none; } }

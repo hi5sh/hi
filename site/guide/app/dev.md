@@ -345,7 +345,7 @@ for; Checks and Logs have a dot.
 - **Workspaces:** the pieces of work in the dev box, each with what dev
   has of it, **Open**, **Editor ↗** ([your own editor](#your-own-editor)),
   **Try on Stage**, **Ship to Dev**, and **Done ✓**
-  ([below](#beside-the-chat)), and what Stage shows at the top. Its
+  ([below](#beside-the-chat)), and **+ New** at the top. Its
   dot is its agent's state: working, waiting for someone, idle, or done.
   Claude Code, Codex, and Antigravity tell hi through their hooks, which
   hi sets in the dev box, so the page also says what Claude runs ("Running Bash,
@@ -510,8 +510,7 @@ for; Checks and Logs have a dot.
   box. Stage is one address, and it shows one thing at a time:
   dev, or a branch being tried. Trying a branch puts it there alone,
   with a fresh copy of production's data, and changes nothing in dev;
-  **Show dev**, beside "Stage:" at the top of Workspaces and in
-  Release, puts dev back (`hi dev preview --dev` in the box). Ship to
+  **Show dev**, in Release, puts dev back (`hi dev preview --dev` in the box). Ship to
   Dev merges the branch's commits into dev (with a title for the
   release notes; the last commit's by default) and puts dev on
   Stage. Changes not committed stay in the worktree.

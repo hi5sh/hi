@@ -2867,6 +2867,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.189 — + New atop Workspaces
+
+- [x] Workspaces has + New at its top, as the workspace menu has, for
+  Start something new; the Stage line there went (the globe and Release
+  have Stage).
+
 ### v2.6.188 — A workspace's row is its running session
 
 - [x] The workspace menu lists each chat once: a workspace's row is the

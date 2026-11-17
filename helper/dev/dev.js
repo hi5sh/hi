@@ -915,18 +915,7 @@
     }
     return el("div", { class: "preview-what" }, nodes);
   }
-  function renderPreviewLine() {
-    var s = state.status || {};
-    var line = $("preview-line");
-    line.hidden = !s.preview;
-    line.textContent = "";
-    if (!s.preview) return;
-    line.appendChild(el("span", { class: "muted", text: "Stage: " }));
-    line.appendChild(previewWhat(s));
-  }
-
   function renderSystem() {
-    renderPreviewLine();
     var s = state.status || {};
     var facts = $("system");
     facts.textContent = "";
@@ -1786,6 +1775,11 @@
     if (starting) $("chat-title").textContent = "";
     renderSide();
   }
+  // + New atop Workspaces too: the chat's Start something new.
+  $("spaces-new").addEventListener("click", function () {
+    if (chat.view !== "chat") setCodeView("chat");
+    startNew();
+  });
   function startNew() {
     chat.composing = true;
     showChatStart();
