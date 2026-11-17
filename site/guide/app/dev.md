@@ -562,7 +562,8 @@ for; Checks and Logs have a dot.
   `hi app dev <app> finish <branch>` does the same on the machine.
 - **Publish:** at the top, **From your work to production**, top to
   bottom: the work **Not on the preview yet**, each with **Add to
-  Preview**; the **Preview** with its address, what it shows (the next
+  Preview** (and with two or more, **Merge N changes into preview**,
+  which adds each in turn and stops at one that clashes); the **Preview** with its address, what it shows (the next
   version, "v15 + 2 changes", and those changes; or "Shows only …" with
   **Show the next version**), and **Publish v16**; and **Production**,
   the version everyone uses. Under it:
