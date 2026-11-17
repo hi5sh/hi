@@ -168,12 +168,16 @@ func TestVaultRecoveryWords(t *testing.T) {
 	if err != nil || !bytes.Equal(back, entropy) {
 		t.Fatal(err)
 	}
-	list := strings.Fields(words)
+	// Words out of order: an 8-bit checksum misses 1 swap in 256, so a
+	// fixed phrase whose swap it catches, not the random one.
+	fixed := make([]byte, 32)
+	for i := range fixed {
+		fixed[i] = byte(i * 7)
+	}
+	list := strings.Fields(vaultRecoveryEncode(fixed))
 	list[3], list[4] = list[4], list[3]
-	if list[3] != list[4] {
-		if _, err := vaultRecoveryDecode(strings.Join(list, " ")); err == nil {
-			t.Fatal("words out of order passed the checksum")
-		}
+	if _, err := vaultRecoveryDecode(strings.Join(list, " ")); err == nil {
+		t.Fatal("words out of order passed the checksum")
 	}
 	if _, err := vaultRecoveryDecode("abandon ability"); err == nil {
 		t.Fatal("two words")

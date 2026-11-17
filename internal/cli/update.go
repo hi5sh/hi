@@ -149,7 +149,7 @@ func update(requested string, check bool, stdout io.Writer) error {
 // be stale, so when it says nothing is newer than this hi, the API has the
 // last word; it's also the fallback.
 func latestRelease() (string, error) {
-	tag, err := latestReleaseFromRedirect(30 * time.Second)
+	tag, err := latestReleaseFromRedirect(30*time.Second, version)
 	if err == nil && olderRelease(version, tag) {
 		return tag, nil
 	}
@@ -184,10 +184,11 @@ func latestReleaseFromAPI() (string, error) {
 // each of which GitHub caches on its own, and takes the newest answer: on
 // 2026-10-30, */* still gave v2.6.50 minutes after text/html gave v2.6.51,
 // and on 2026-10-14 a request without Accept gave v2.6.1 after v2.6.2.
-func latestReleaseFromRedirect(timeout time.Duration) (string, error) {
+// asking as hi at current: a goroutine passes its own copy of version.
+func latestReleaseFromRedirect(timeout time.Duration, current string) (string, error) {
 	newest, err := "", error(nil)
 	for _, accept := range []string{"*/*", "text/html", "application/json"} {
-		tag, askErr := latestReleaseRedirect(timeout, accept)
+		tag, askErr := latestReleaseRedirect(timeout, accept, current)
 		if askErr != nil {
 			err = askErr
 			continue
@@ -202,7 +203,7 @@ func latestReleaseFromRedirect(timeout time.Duration) (string, error) {
 	return newest, nil
 }
 
-func latestReleaseRedirect(timeout time.Duration, accept string) (string, error) {
+func latestReleaseRedirect(timeout time.Duration, accept, current string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	url := fmt.Sprintf("%s/%s/releases/latest", updateDownloadBase, updateRepository)
@@ -210,7 +211,7 @@ func latestReleaseRedirect(timeout time.Duration, accept string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	request.Header.Set("User-Agent", "hi/"+version)
+	request.Header.Set("User-Agent", "hi/"+current)
 	request.Header.Set("Accept", accept)
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 		return http.ErrUseLastResponse

@@ -529,7 +529,7 @@ func startReleaseCheck() func() string {
 	}
 	newer, current := make(chan string, 1), version
 	go func() {
-		if tag, err := latestReleaseFromRedirect(3 * time.Second); err == nil && olderRelease(current, tag) {
+		if tag, err := latestReleaseFromRedirect(3*time.Second, current); err == nil && olderRelease(current, tag) {
 			newer <- tag
 		}
 		close(newer)
