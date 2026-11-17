@@ -2552,7 +2552,7 @@
     });
     return box;
   }
-  function chatAsk(ask, screen, agentName) {
+  function chatAsk(ask, screen, asker) {
     var box = $("chat-ask");
     var sig = ask ? JSON.stringify(ask) : "";
     if (sig === chat.askSig) {
@@ -2572,7 +2572,7 @@
         .catch(function (error) { toast(error.message); })
         .then(function () { setTimeout(function () { card.classList.remove("busy"); }, 1500); });
     }
-    var who = el("div", { class: "ask-who" }, [el("span", { text: (agentName === "codex" ? "Codex" : "Claude") + " is asking" + (ask.progress ? " · " + ask.progress : "") })]);
+    var who = el("div", { class: "ask-who" }, [el("span", { text: agentName(asker || "claude") + " is asking" + (ask.progress ? " · " + ask.progress : "") })]);
     (ask.tabs || []).forEach(function (tab) { who.appendChild(el("span", { class: "ask-tab" + (tab.done ? " done" : "") + (tab.current ? " current" : ""), "aria-current": tab.current ? "step" : "false", text: (tab.done ? "✓ " : "") + tab.label })); });
     card.appendChild(who);
     // The question as the agent wrote it, when its transcript has it; else

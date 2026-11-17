@@ -2867,10 +2867,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
-### v2.6.197 — + New in the accent
+### v2.6.197 — + New in the accent, agy's options all there
 
 - [x] + New atop Workspaces is a button in the accent, as Add to Preview
   is, sized to its words.
+- [x] agy's questions show all their options: one wrapped to the
+  terminal's margin stopped the list at it. "Question 1/3: …" is where it
+  is, beside who asks, and the question, under it; the card says
+  Antigravity is asking, not Claude.
 
 ### v2.6.196 — Answering a question with previews
 

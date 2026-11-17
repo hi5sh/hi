@@ -275,6 +275,10 @@ func appDevParseAsk(screen string) *appDevAsk {
 	if len(ask.Options) == 0 {
 		return nil
 	}
+	// agy's "Question 1/3: What …?" is both: where it is, and the question.
+	if before, question, ok := strings.Cut(ask.Progress, ": "); ok && len(ask.Text) == 0 && strings.HasPrefix(before, "Question ") {
+		ask.Progress, ask.Text = before, []string{question}
+	}
 	return ask
 }
 
@@ -351,7 +355,7 @@ func appDevAskRuleInside(lines []string, rule int) bool {
 func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption {
 	var options []appDevAskOption
 	labelColumn, numberColumn := 0, 0
-	for _, line := range lines {
+	for n, line := range lines {
 		// A preview's box beside the options isn't theirs: each line up to it.
 		if at := strings.IndexAny(line, "│┌└├╭╰"); at >= 0 {
 			if appDevAskNumbered.MatchString(line[:at]) {
@@ -395,6 +399,10 @@ func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption 
 			last.Detail = strings.TrimSpace(last.Detail + " " + strings.TrimSpace(line))
 		case ask.Multi && indent == numberColumn:
 			options = append(options, appDevAskOption{Label: strings.TrimSpace(line)})
+		case len(options) > 0 && appDevAskNextIsOption(lines[n+1:]):
+			// A long option wrapped to the margin, as agy's do: more of its label.
+			last := &options[len(options)-1]
+			last.Label = strings.TrimSpace(last.Label + " " + strings.TrimSpace(line))
 		default:
 			return options
 		}
@@ -509,4 +517,15 @@ func (b *appBroker) answerDevAsk(agent appDevChatAgent, text []string, index int
 	}
 	time.Sleep(appDevAskPause)
 	return appDevHerdrDo(b.team, "agent", "send-keys", agent.Pane, "enter")
+}
+
+// appDevAskNextIsOption says the next line that isn't empty is a numbered
+// option: what's before it is still the options'.
+func appDevAskNextIsOption(lines []string) bool {
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			return appDevAskNumbered.MatchString(line)
+		}
+	}
+	return false
 }

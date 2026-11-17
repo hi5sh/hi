@@ -101,3 +101,43 @@ func TestAppDevAskPreview(t *testing.T) {
 		t.Fatalf("matched other options: %+v", moved)
 	}
 }
+
+// agy's question: a long option wrapped to the margin is still one
+// option, the ones after it are there, and "Question 1/3: …" is where it
+// is and the question.
+func TestAppDevAskAgyWrapped(t *testing.T) {
+	screen := strings.Join([]string{
+		"? What style and sound source should we use for the background music loop?",
+		"? When should the music start and stop?",
+		"",
+		"Question",
+		"────────────────────────────────────────────────────────────",
+		"",
+		"Question 1/3: What style and sound source should we use for the background music loop?",
+		"",
+		"> 1. (Recommended) Synthesized via Web Audio API — an upbeat neon-arcade / synthwave loop with no external",
+		"audio files",
+		"  2. Minimal rhythmic pulse / metronome beat via Web Audio API",
+		"  3. Other / custom audio file",
+		"  4. Write-in...",
+		"",
+		"  ↑/↓ Navigate · → Next · enter Select · esc Skip",
+		"esc to cancel",
+	}, "\n")
+	ask := appDevParseAsk(screen)
+	if ask == nil || len(ask.Options) != 4 {
+		t.Fatalf("%+v", ask)
+	}
+	if ask.Progress != "Question 1/3" || len(ask.Text) != 1 || ask.Text[0] != "What style and sound source should we use for the background music loop?" {
+		t.Fatalf("%q %q", ask.Progress, ask.Text)
+	}
+	if o := ask.Options[0]; !strings.HasSuffix(o.Label, "with no external audio files") || !o.Cursor {
+		t.Fatalf("%+v", o)
+	}
+	if !ask.Options[3].Typed {
+		t.Fatal("Write-in is in their words")
+	}
+	if keys, _, err := appDevAskKeys(ask, "agy", 2, ""); err != nil || strings.Join(keys, " ") != "down down enter" {
+		t.Fatal(keys, err)
+	}
+}
