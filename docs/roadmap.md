@@ -2867,6 +2867,13 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.199 — agy at work, in the chat
+
+- [x] The chat shows agy at work, with what it says it does ("Editing
+  files…", its thoughts), from its spinner line on the screen: herdr
+  can't tell agy thinking from idle, and once its hooks went quiet the
+  chat had no working line.
+
 ### v2.6.198 — Answering agy's questions
 
 - [x] An option tapped in agy's question goes in: herdr says agy is idle

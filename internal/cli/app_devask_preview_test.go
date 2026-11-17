@@ -141,3 +141,27 @@ func TestAppDevAskAgyWrapped(t *testing.T) {
 		t.Fatal(keys, err)
 	}
 }
+
+// agy's spinner line is what it does while herdr says it's idle.
+func TestAppDevAgyActivity(t *testing.T) {
+	screen := strings.Join([]string{
+		"○ Thought for 1m 29s (I'm thinking through how to approach this.)",
+		"● Edited 1 file (music.ts) (ctrl+o to expand)",
+		"⣷  Editing files...",
+		"────────────────────────",
+		"> Auto mode: edits & safe commands auto-approved (shift+tab to cycle)",
+		"────────────────────────",
+		"esc to cancel                         auto · Gemini 4 Argon · medium",
+	}, "\n")
+	if got := appDevAgyActivity(screen); got != "Editing files…" {
+		t.Fatalf("%q", got)
+	}
+	thinking := strings.Replace(screen, "⣷  Editing files...", "⣿ The musical structure involves a four-bar chord progression (Am, F, C, G) with root notes and octave basslines, along with arpegg...", 1)
+	if got := appDevAgyActivity(thinking); !strings.HasPrefix(got, "The musical structure involves") || !strings.HasSuffix(got, "…") || strings.Contains(got, "...") {
+		t.Fatalf("%q", got)
+	}
+	idle := strings.Replace(screen, "⣷  Editing files...\n", "", 1)
+	if got := appDevAgyActivity(idle); got != "" {
+		t.Fatalf("idle: %q", got)
+	}
+}

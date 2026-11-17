@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // appDevChatEntry is one thing in a conversation, as the page draws it.
@@ -562,7 +563,7 @@ func (b *appBroker) devChat(workspace, known, turns string, offset int64) (appDe
 	// before a session, too, and from Codex.
 	// herdr misses Claude Code's review of its answers, which has no "Esc
 	// to cancel" under it, so Claude's screen is read whatever herdr says.
-	if agent := view.Agent; agent.Running && (agent.Status == "blocked" || agent.Status == "working" || agent.Agent == "claude") {
+	if agent := view.Agent; agent.Running && (agent.Status == "blocked" || agent.Status == "working" || agent.Agent == "claude" || agent.Agent == "agy") {
 		if text, ansi, err := devChatScreen(b.team, agent.Pane); err == nil {
 			ask := appDevReadAsk(text, ansi)
 			if ask != nil && view.SessionAgent == "claude" && view.Session != "" {
@@ -579,6 +580,11 @@ func (b *appBroker) devChat(workspace, known, turns string, offset int64) (appDe
 				view.Ask = ask
 			} else if agent.Status == "working" && agent.Agent == "claude" {
 				view.Activity = appDevActivity(text)
+			} else if agent.Agent == "agy" {
+				// herdr can't tell agy thinking from idle: its spinner can.
+				if activity := appDevAgyActivity(text); activity != "" {
+					view.Agent.Status, view.Activity = "working", activity
+				}
 			}
 		}
 	}
@@ -825,6 +831,26 @@ func appDevActivity(screen string) string {
 			return m[1]
 		}
 		return m[1] + " (" + strings.Join(kept, " · ") + ")"
+	}
+	return ""
+}
+
+// appDevAgyActivityLine is agy's line while it works: a braille spinner,
+// then what it does ("⣷ Editing files...").
+var appDevAgyActivityLine = regexp.MustCompile(`^\s*[\x{2801}-\x{28FF}]\s+(\S.*?)\s*$`)
+
+// appDevAgyActivity is agy's spinner line on its screen, its words
+// without the dots, or "" when it isn't at work.
+func appDevAgyActivity(screen string) string {
+	lines := strings.Split(strings.TrimRight(screen, "\n "), "\n")
+	for i := len(lines) - 1; i >= 0 && i >= len(lines)-12; i-- {
+		if m := appDevAgyActivityLine.FindStringSubmatch(lines[i]); m != nil {
+			text := strings.TrimRight(strings.TrimSuffix(m[1], "..."), ".… ")
+			if utf8.RuneCountInString(text) > 160 {
+				text = string([]rune(text)[:160]) + "…"
+			}
+			return text + "…"
+		}
 	}
 	return ""
 }
