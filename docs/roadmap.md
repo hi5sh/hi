@@ -2867,6 +2867,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.197 — + New in the accent
+
+- [x] + New atop Workspaces is a button in the accent, as Add to Preview
+  is, sized to its words.
+
 ### v2.6.196 — Answering a question with previews
 
 - [x] Beside a preview, Claude Code picks with the arrows and Enter, not

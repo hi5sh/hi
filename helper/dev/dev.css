@@ -406,7 +406,11 @@ button.side-toggle[aria-pressed="true"] { color: var(--bright); }
 .side .where-card, .side .releases-card, .side .flow-card { background: var(--raised); padding: 2px 14px 12px; }
 .side .where-row { padding-left: 10px; }
 .spaces-view { padding-top: 4px; }
-.theme-item.spaces-new { margin: 6px 0 4px; padding: 8px; border-bottom: 1px solid var(--line); border-radius: var(--r-sm); }
+/* + New atop Workspaces: the panel's main button, in the accent, as Add
+   to Preview is. */
+.theme-item.spaces-new { display: inline-flex; width: auto; align-self: flex-start; margin: 8px 0 6px; padding: 7px 16px 7px 12px; gap: 6px; border: 1px solid var(--button); border-radius: var(--r-button); background: var(--button); color: var(--on-accent); font-weight: 500; }
+.theme-item.spaces-new:hover, .theme-item.spaces-new:focus-visible { background: var(--button-hover); border-color: var(--button-hover); color: var(--on-accent); }
+.theme-item.spaces-new .space-plus { color: var(--on-accent); }
 /* Logs' dot pulses while new lines come in behind another view. */
 .side-badge.dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .side-badge.dot.pulse { animation: none; } }
