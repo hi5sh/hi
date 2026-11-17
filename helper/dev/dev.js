@@ -2494,38 +2494,39 @@
     var spaces = workSpaces();
     if (spaces.length) menu.appendChild(el("div", { class: "theme-head", text: "Workspaces" }));
     spaces.forEach(function (space) {
+      // A workspace's row is its chat: the session its agent runs now, by
+      // its title. Under it, its earlier sessions, each to resume.
       var current = space.id === chat.space && !chat.composing;
+      var sessions = spaceSessions[space.id];
+      var live = (sessions || []).filter(function (s) { return s.live || (current && space.agent && s.id === chat.id); })[0];
+      var subtitle = live ? (live.title || "(no message yet)") : space.title || "";
       var dot = el("span", { class: "dot " + (space.agent ? space.status || "unknown" : "none") });
       menu.appendChild(el("button", { type: "button", role: "menuitemradio", "aria-checked": current ? "true" : "false", class: "theme-item space-item", "data-key": "w:" + space.id,
-        title: space.path || space.label, onclick: function () { closeSpaceMenu(); chooseChatSpace(space.id); } }, [
-        dot,
-        el("span", { class: "theme-name space-name", text: space.label }),
-        el("span", { class: "space-agent muted", text: space.agent ? agentName(space.agent) : "" }),
-        el("span", { class: "theme-check", text: current ? "✓" : "" }),
+        title: "Open its chat" + (space.path ? " (" + space.path + ")" : ""), onclick: function () { closeSpaceMenu(); chooseChatSpace(space.id); } }, [
+        el("span", { class: "space-line" }, [
+          dot,
+          el("span", { class: "theme-name space-name", text: space.label }),
+          el("span", { class: "space-agent muted", text: space.agent ? agentName(space.agent) : "no agent" }),
+          el("span", { class: "theme-check", text: current ? "✓" : "" }),
+        ]),
+        subtitle ? el("span", { class: "space-sub muted", text: subtitle }) : null,
       ]));
-      var sessions = spaceSessions[space.id];
-      if (!sessions) { menu.appendChild(el("div", { class: "space-session muted small space-loading", text: "Loading its sessions…" })); return; }
-      var shown = spaceAll[space.id] ? sessions : sessions.slice(0, SPACE_SHOWN);
-      // The agent's own session is listed even when it's older.
-      var live = sessions.filter(function (s) { return s.live; })[0];
-      if (live && shown.indexOf(live) < 0) shown = [live].concat(shown.slice(0, SPACE_SHOWN - 1));
+      if (!sessions) return;
+      var earlier = sessions.filter(function (s) { return s !== live; });
+      if (!earlier.length) return;
+      var shown = spaceAll[space.id] ? earlier : earlier.slice(0, SPACE_SHOWN);
+      var running = space.agent || "";
       shown.forEach(function (session) {
-        var mine = session.live || (current && session.id === chat.id);
-        var running = space.agent && !mine ? space.agent : "";
-        menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session" + (mine ? " live" : ""), "data-key": "s:" + space.id + ":" + session.id,
-          title: mine ? "In the chat" : "Resume it here" + (running ? ", stopping " + agentName(running) + " first" : ""),
-          onclick: function () {
-            closeSpaceMenu();
-            if (mine) chooseChatSpace(space.id);
-            else resumeSession(session.agent, session.id, space.id, running);
-          } }, [
+        menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session", "data-key": "s:" + space.id + ":" + session.id,
+          title: "Resume this session here" + (running ? ", stopping " + agentName(running) + " first" : ""),
+          onclick: function () { closeSpaceMenu(); resumeSession(session.agent, session.id, space.id, running); } }, [
           el("span", { class: "space-session-title", text: session.title || "(no message yet)" }),
-          el("span", { class: "muted space-session-when", text: (mine ? "running now · " : "") + agentName(session.agent) + " · " + ago(session.at) }),
+          el("span", { class: "muted space-session-when", text: "Resume · " + agentName(session.agent) + " · " + ago(session.at) }),
         ]));
       });
-      if (sessions.length > shown.length) {
+      if (earlier.length > shown.length) {
         menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session space-more", "data-key": "m:" + space.id,
-          text: "Show all " + sessions.length, onclick: function () { spaceAll[space.id] = true; drawSpaceMenu(); } }));
+          text: "Show all " + earlier.length + " earlier", onclick: function () { spaceAll[space.id] = true; drawSpaceMenu(); } }));
       }
     });
     menu.appendChild(el("div", { class: "space-sep" }));

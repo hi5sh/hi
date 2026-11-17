@@ -376,10 +376,10 @@ for; Checks and Logs have a dot.
 - **Codex in Chat:** Chat shows Codex's session as it shows Claude
   Code's.
 - **The workspace menu** (the top bar's one drop-down): each workspace,
-  with its status dot and its agent, and under it its sessions, every
-  agent's, newest first (three, then **Show all**), then **+ New**. A
-  workspace opens its chat; the session its agent runs now ("running
-  now") does too. Any other session resumes there, `claude --resume`,
+  with its status dot, its agent, and the title of the session its agent
+  runs now, which it opens; under it its earlier sessions, every
+  agent's, newest first (three, then **Show all**), then **+ New**. An
+  earlier session resumes there, `claude --resume`,
   `codex resume`, or `agy --conversation` in its terminal; when an agent
   runs there, hi asks first, then stops it with Ctrl+C.
 - **Notes on a diff** (Source control): the **+** beside a line of a
