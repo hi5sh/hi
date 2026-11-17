@@ -2867,6 +2867,15 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.194 — Add again, and no tabs from work that's gone
+
+- [x] A change taken out of the preview has a plain **Add again**, not
+  the orange Add to Preview, so it isn't pressed right after the swap
+  (which swaps them back).
+- [x] A file tab kept from a workspace that's gone (done or discarded)
+  closes when it can't load, saying so, instead of showing the server's
+  JSON; with no other tab, the page goes back to the chat.
+
 ### v2.6.193 — When two changes clash on the preview
 
 - [x] Add to Preview's conflict is a dialog that stays: it names the

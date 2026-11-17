@@ -1005,7 +1005,10 @@
   // Add to Preview: its commits join the next version (hi dev ship), which
   // goes on the preview; its task's title is the change's.
   function addButton(space) {
-    return el("button", { class: "primary", text: "Add to Preview", busy: "ship:" + space.id, title: "Add it to the next version, on the preview, with what's there; Publish puts that in production", onclick: function () {
+    // Taken out of the preview, it's no longer the next step: a plain Add
+    // again, so it isn't pressed by mistake right after the swap.
+    var again = space.out && !space.ahead;
+    return el("button", { class: again ? "" : "primary", text: again ? "Add again" : "Add to Preview", busy: "ship:" + space.id, title: again ? "Put it back on the preview, in the next version" : "Add it to the next version, on the preview, with what's there; Publish puts that in production", onclick: function () {
       addToPreview(space, "");
     } });
   }
@@ -3741,7 +3744,14 @@
     }
     return fetch(raw, { credentials: "same-origin", cache: "no-store" }).then(function (response) {
       return response.arrayBuffer().then(function (data) {
-        if (!response.ok) throw new Error(new TextDecoder().decode(data).trim() || response.statusText);
+        if (!response.ok) {
+          // The server's {"error": …}, in words, not as JSON.
+          var said = new TextDecoder().decode(data).trim();
+          try { said = JSON.parse(said).error || said; } catch (e) { /* plain text */ }
+          var error = new Error(said || response.statusText);
+          error.gone = response.status === 404 && /has no .* to look into/.test(said);
+          throw error;
+        }
         return { data: data, sha: response.headers.get("X-Hi-Sha256") || "" };
       });
     }).then(function (got) {
@@ -3773,6 +3783,13 @@
       tab.loaded = true;
       tab.kind = "other";
       tab.body.textContent = "";
+      if (error.gone && !tab.dirty) {
+        // Its workspace is gone (done, or discarded): the tab goes too, and
+        // with no other tab, so does Files.
+        toast(tab.name + " was in a workspace that's gone now; its tab is closed.");
+        closeTab(tab.key);
+        return;
+      }
       tab.body.appendChild(el("p", { class: "muted edit-note", text: error.message }));
     });
   }

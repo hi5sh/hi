@@ -535,8 +535,8 @@ for; Checks and Logs have a dot.
   - **Take out "…" and add this one instead**, when the change on the
     preview last is the one in the way: one step, which leaves the
     preview as it was if this one still doesn't go in. The change taken
-    out stays in its workspace, "Taken out of the preview", and Add to
-    Preview puts it back.
+    out stays in its workspace, "Taken out of the preview", and **Add
+    again** puts it back.
   - **Ask a Pro Dev in Slack:** hi posts what went wrong in the app's
     channel, to its Pro Devs (its owners, when it has none), with the
     details and the branch.
