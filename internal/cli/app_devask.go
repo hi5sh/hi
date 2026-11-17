@@ -29,6 +29,9 @@ type appDevAsk struct {
 	Text     []string          `json:"text"`               // what it says, a paragraph each
 	Options  []appDevAskOption `json:"options"`
 	Multi    bool              `json:"multi,omitempty"` // check boxes: a pick toggles one
+	// Arrows says the options are picked with the arrows and Enter, not
+	// their numbers: Claude Code's, with a preview beside them.
+	Arrows bool `json:"-"`
 }
 
 type appDevAskTab struct {
@@ -351,6 +354,9 @@ func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption 
 	for _, line := range lines {
 		// A preview's box beside the options isn't theirs: each line up to it.
 		if at := strings.IndexAny(line, "│┌└├╭╰"); at >= 0 {
+			if appDevAskNumbered.MatchString(line[:at]) {
+				ask.Arrows = true // its footer: "Enter to select · ↑/↓ to navigate"
+			}
 			if line = strings.TrimRight(line[:at], " "); strings.TrimSpace(line) == "" {
 				continue
 			}
@@ -460,7 +466,7 @@ func appDevAskKeys(ask *appDevAsk, agent string, index int, text string) (keys [
 			return append(move(), "tab"), true, nil // Codex's notes, beside the option
 		}
 		return []string{option.Key}, true, nil
-	case option.Key != "":
+	case option.Key != "" && !ask.Arrows:
 		return []string{option.Key}, false, nil
 	default:
 		return append(move(), "enter"), false, nil

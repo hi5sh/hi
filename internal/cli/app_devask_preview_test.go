@@ -45,6 +45,13 @@ func TestAppDevAskPreview(t *testing.T) {
 		}
 	}
 	ask.Tabs[0].Current = true
+	// Beside a preview, a number doesn't pick: the arrows, then Enter.
+	if keys, _, err := appDevAskKeys(ask, "claude", 3, ""); err != nil || strings.Join(keys, " ") != "down down down enter" {
+		t.Fatal(keys, err)
+	}
+	if keys, _, _ := appDevAskKeys(ask, "claude", 0, ""); strings.Join(keys, " ") != "enter" {
+		t.Fatal(keys)
+	}
 
 	home := t.TempDir()
 	transcript := filepath.Join(home, "s.jsonl")

@@ -2867,6 +2867,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.196 — Answering a question with previews
+
+- [x] Beside a preview, Claude Code picks with the arrows and Enter, not
+  an option's number: the chat answers so, and the question moves on
+  (a number only moved the selection there).
+
 ### v2.6.195 — A question's previews in the chat
 
 - [x] Claude Code's AskUserQuestion shows in the chat as Claude wrote
