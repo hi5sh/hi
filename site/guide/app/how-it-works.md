@@ -70,7 +70,7 @@ a developer asks it to. It:
 |---|---|
 | Anyone in the channel | Talk with the lead in the channel or a DM; anyone with the app's link sends feedback from its helper, which goes to the channel |
 | Contributors | All of that, and the lead files what they ask for as tasks; a bug they report from the helper, signed in with their own link, becomes a task too |
-| Pro Devs and Vibe Devs | What contributors do, and build in the dev box and Release from the dev page (Vibe Devs through the chat only) |
+| Developers | What contributors do, and build in the dev box and publish from the dev page, in Vibe mode or Pro mode, as each likes |
 | Owners | All of that, and the rest of the dev page: Roll back, set dev back to production, Stage's data to production (also at a release), the helper, incidents, jobs' rules, and settings |
 | An admin on the machine | Change the owners, and roll back, copy data, turn the helper on or off, and set settings with `hi app`, without anyone's yes |
 

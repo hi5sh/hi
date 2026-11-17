@@ -353,7 +353,7 @@ for; Checks and Logs have a dot.
   and its next step: **Add to Preview**, or **Done ✓** once it's there.
   **Open** shows its chat, **Editor ↗** opens it in [your own
   editor](#your-own-editor), and its **⋯** has **Preview only this
-  change** (Pro Devs and owners) and **Discard…**
+  change** (in Pro mode) and **Discard…**
   ([below](#beside-the-chat)). **+ New** is at the top. Its
   dot is its agent's state: working, waiting for someone, idle, or done.
   Claude Code, Codex, and Antigravity tell hi through their hooks, which
@@ -374,6 +374,16 @@ for; Checks and Logs have a dot.
   workspace and in Needs you.
 - **Production and Stage** (the globe in the top bar): opens either in
   a new tab, with its address under its name.
+- **Vibe mode and Pro mode** (the sparkle in the top bar, beside the
+  theme): how much of the page shows, each person's own choice, kept in
+  their browser. Everyone starts in **Vibe**: Tasks and Workspaces on
+  the left, Chat or the terminal in the middle, and Rewind, Preview, and
+  Publish on the right. **Pro** shows everything: Files, Search, Checks,
+  Decisions, Security, Source control, Logs, Data, System, and
+  **Editor ↗**. **Customize Vibe mode…** picks what Vibe shows, a box
+  each. Something on the page that opens a view Vibe hides (a site's ask
+  opens Security) shows it, until another is picked. It's a view, not a
+  right: every developer has the terminal and SSH.
 - **Theme** (the half-filled circle in the top bar): Ghostty, the
   default, or Claude, Paseo, Zinc, Midnight, Pure black, Light, or Auto,
   which follows the computer's light or dark (Light, or Ghostty). This browser keeps it, for
@@ -541,10 +551,10 @@ for; Checks and Logs have a dot.
     preview as it was if this one still doesn't go in. The change taken
     out stays in its workspace, "Taken out of the preview", and **Add
     again** puts it back.
-  - **Ask a Pro Dev in Slack:** hi posts what went wrong in the app's
-    channel, to its Pro Devs (its owners, when it has none), with the
+  - **Ask for help in Slack:** hi posts what went wrong in the app's
+    channel, to its other developers (its owners, when it has none), with the
     details and the branch.
-  - **Cancel.** Under them, **Details, for a Pro Dev** has what git
+  - **Cancel.** Under them, **Details, for whoever helps** has what git
     said. Other errors adding work open the same dialog, with Ask a Pro
     Dev.
 
@@ -627,7 +637,7 @@ stays above the keyboard while you type.
 
 ## Getting in over SSH
 
-Owners and Pro Devs reach the dev box over SSH on your NetBird network,
+Owners and developers reach the dev box over SSH on your NetBird network,
 at the app's peer, named `<app>`:
 
 ```bash
@@ -667,7 +677,7 @@ may need its own sites in the box (Security, Sites the dev box reaches).
 
 **Set up once**, in the same dialog:
 
-1. Your SSH key in the dev box ([below](#owners-and-their-keys); Pro Devs
+1. Your SSH key in the dev box ([below](#owners-and-their-keys); developers
    paste theirs on the dev page's Security view).
 2. Your computer on the app's NetBird network, in a group that reaches
    the app's peer on port 22: your IT team's.
@@ -688,8 +698,8 @@ dialog shows its key's fingerprint (`SHA256:…`) to compare. Each editor
 then puts its own server in the dev box, in a minute or so, and keeps it
 there for the next time; the app's snapshots leave those out. The agents
 keep working whether an editor is connected or not, and what you change
-in the editor is in the workspace for them at once. A Vibe Dev has no
-SSH, so no editor either.
+in the editor is in the workspace for them at once. Vibe mode hides
+**Editor ↗** unless it's customized to show it.
 
 ### Joining NetBird
 
@@ -793,8 +803,7 @@ in the zone).
 | Who | Set by | What they do |
 |---|---|---|
 | **Owners** | An admin of the machine (`hi app owners`) | Everything on the dev page and in the dev box, and production: releases, rollbacks, its data and settings, keys, sites, addresses, and who is a developer |
-| **Pro Devs** | An owner, on the dev page's People table, or `hi app access <app> <ID> pro` | Build as owners do: the dev box, its agents' Chat, the terminal, files, SSH, Stage, shipping into dev, and releasing it to production. Rollbacks and production's data and settings stay the owners' |
-| **Vibe Devs** | An owner, the same way (`vibe`) | Build and release with the agents in Chat, as Pro Devs do, without the terminal or SSH. The agents still run commands in the dev box for them, so it's a simpler view, not a wall |
+| **Developers** | An owner, on the dev page's People table, or `hi app access <app> <ID> developer` | Build as owners do: the dev box, its agents' Chat, the terminal, files, SSH, the preview, adding to it, and publishing to production. Rollbacks and production's data and settings stay the owners'. How much of the dev page they see is their own choice: Vibe mode or Pro mode (below). Pro Devs and Vibe Devs, the two levels until v2.6.202, are both developers now |
 | **Contributors** | An owner, on the dev page's People table, or `hi app access` | Report bugs as tasks: to the lead in Slack, or from the app's [helper](/guide/app/helper/) signed in with their own link. They never reach the dev page or the dev box |
 | **Viewers** | Whoever can open the app | Use it, with the helper's Ask and Feedback |
 
@@ -804,7 +813,7 @@ box's broker role, so **a developer can read production's data** through
 Stage, with their own work on it, since Stage runs on a copy of it,
 unless Stage starts empty (`hi app data <app> stage empty`).
 The page says so when an owner makes someone a developer, and the channel
-hears every change ("Olga made Bo a Pro Dev").
+hears every change ("Olga made Bo a developer").
 
 Nobody has a level for being in the app's channel. The dev page's
 Security view has a **People** table: everyone with a level and everyone
@@ -815,8 +824,7 @@ the lead files no tasks for them, doesn't answer their DMs, and
 
 ```bash
 hi app access orbit                            # who is which, and their SSH keys
-hi app access orbit U083YSQFD0B pro            # a Pro Dev; also on the dev page: Security, People
-hi app access orbit U083YSQFD0B vibe           # a Vibe Dev: Chat only
+hi app access orbit U083YSQFD0B developer      # a developer (pro and vibe say it too); also on the dev page: Security, People
 hi app access orbit U083YSQFD0B contributor    # no longer a developer: key and links end
 hi app access orbit U07CLEO001 contributor     # may report bugs as tasks
 hi app access orbit U07CLEO001 none            # no level: their links end
@@ -824,9 +832,9 @@ hi app access orbit key U083YSQFD0B "$(cat ~/.ssh/id_ed25519.pub)"
 ```
 
 Taking away someone's level counts at once: their next click is refused,
-and an open terminal closes within seconds. Pro Devs paste
+and an open terminal closes within seconds. Developers paste
 their own SSH key on the dev page's Security view; NetBird's policy for the
-dev box has to let them reach it, as for the owners. Vibe Devs have no SSH.
+dev box has to let them reach it, as for the owners.
 
 ### Owners and their keys
 

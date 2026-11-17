@@ -139,11 +139,11 @@ from another machine), or takes a folder's path, and starts it:
 
 An app open in the middle has its sections in the bar, after Overview.
 Each change runs the `hi app` command it stands for, under your name,
-and the app's ops channel hears it: "Olga made Sam a Pro Dev, from the
+and the app's ops channel hears it: "Olga made Sam a developer, from the
 admin page." A secret is sent once and never shown again: the page says
 only whether one is set, and whose.
 
-- **People:** the owners, Pro Devs, Vibe Devs, and contributors, each one's
+- **People:** the owners, developers, and contributors, each one's
   level as a list to change, and their SSH keys for the dev box; **Add**
   someone by their Slack member ID. `hi app owners`, `hi app access`.
 - **Agents:** each role's model, who pays for it, its fallback on

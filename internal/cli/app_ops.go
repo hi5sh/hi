@@ -76,7 +76,7 @@ func appOpsCommand(args []string, stdout io.Writer) error {
 		}
 		config.OpsChannel = id
 		fmt.Fprintf(stdout, "App %s posts incidents, warnings, security, keys, and access in #%s now; releases, ideas, and the app stay in %s.\n", name, channel, config.Channel)
-		fmt.Fprintln(stdout, "Keep it to people with the know-how: a private channel, for owners and Pro Devs.")
+		fmt.Fprintln(stdout, "Keep it to people with the know-how: a private channel, for owners and developers.")
 	}
 	if err := saveTeam(config); err != nil {
 		return err
@@ -116,7 +116,7 @@ and that the owners have it in the ops channel. Don't copy technical
 detail, keys, hosts, or logs into the main channel.
 
 Changes to permissions are said only in the ops channel: who is an
-owner, a Pro Dev, a Vibe Dev, or a contributor, who may use the dev
+owner, a developer, or a contributor, who may use the dev
 page, the addresses' privacy and sign-in, the sites the dev box may
 reach, the app's keys and sign-ins. Asked about them in the main
 channel, answer the person in a DM or point them to an owner.

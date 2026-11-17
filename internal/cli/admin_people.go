@@ -148,7 +148,7 @@ func (s *adminServer) peopleView() adminPeopleView {
 }
 
 func adminLevelRank(level string) int {
-	return slices.Index([]string{"", "none", "contributor", "vibe", "pro", "owner"}, level)
+	return slices.Index([]string{"", "none", "contributor", "pro", "owner"}, level)
 }
 
 // adminPersonChange is one change to a person from the page.
@@ -251,7 +251,7 @@ func (s *adminServer) changePerson(admin adminPerson, change adminPersonChange) 
 		machineApplyKey(updated, &out)
 		said := map[bool]string{true: "gave " + firstNonEmpty(person.Name, person.Email) + " an SSH key for the dev boxes", false: "took " + firstNonEmpty(person.Name, person.Email) + "'s SSH key out of the dev boxes"}[change.SSHKey != ""]
 		adminRecord(admin.Name, "", said)
-		return map[string]any{"text": strings.TrimSpace(firstNonEmpty(out.String(), "Kept: it goes into a dev box when they're an owner or a Pro Dev there."))}, nil
+		return map[string]any{"text": strings.TrimSpace(firstNonEmpty(out.String(), "Kept: it goes into a dev box when they're an owner or a developer there."))}, nil
 	case "invite":
 		if !known {
 			return nil, errors.New("give them an email first")
@@ -303,8 +303,8 @@ func (s *adminServer) setPersonLevels(admin adminPerson, person machinePerson, l
 	var lines []string
 	for _, app := range sortedKeys(levels) {
 		level := levels[app]
-		if level == "developer" {
-			level = "pro"
+		if level == "developer" || level == "vibe" {
+			level = "pro" // a developer; vibe was one too, until hi 2.6.202
 		}
 		config, err := loadTeam(app)
 		if err != nil {

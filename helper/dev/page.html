@@ -25,19 +25,20 @@
       <strong id="team" class="team">hi app</strong>
       <div id="code-view" class="chips" role="group" aria-label="How to show the session">
         <button data-view="chat" aria-pressed="true">Chat</button>
-        <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
+        <button data-view="terminal" aria-pressed="false">Terminal</button>
         <button data-view="file" aria-pressed="false" id="files-chip" class="files-chip" title="The files you opened, each a tab in the editor" hidden>Files<span id="files-count" class="count"></span></button>
       </div>
       <div id="space-wrap" class="space-wrap">
         <button id="space-btn" type="button" class="space-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="space-menu" title="The workspaces and their sessions, and + New"><span id="space-label" class="space-label">Start something new</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
         <div id="space-menu" class="theme-menu space-menu" role="menu" aria-label="Workspaces and sessions" hidden></div>
       </div>
-      <span id="editor-bar" class="editor-split pro-only" hidden></span>
+      <span id="editor-bar" class="editor-split" hidden></span>
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
       <div id="links-wrap" class="theme-wrap" hidden><button id="links-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="links-menu" title="Open production or the preview" aria-label="Open production or the preview"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></button><div id="links-menu" class="theme-menu links-menu" role="menu" hidden><div class="theme-head">Open</div><div id="links"></div></div></div>
       <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
+      <div class="theme-wrap mode-wrap"><button id="mode-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="mode-menu" title="Vibe mode or Pro mode: how much of the page shows" aria-label="Vibe mode or Pro mode"></button><div id="mode-menu" class="theme-menu mode-menu" role="menu" aria-label="How much shows" hidden></div></div>
       <div class="theme-wrap"><button id="theme-btn" type="button" class="icon" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button></div>
       <div class="inbox-wrap">
         <button id="inbox-btn" type="button" class="icon inbox-btn" aria-expanded="false" aria-controls="inbox" title="Needs you: agents that wait for someone, and work done since you looked" aria-label="Needs you"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span id="inbox-count" class="side-badge" hidden></span></button>
@@ -158,25 +159,24 @@
               <div class="system-col">
                 <section id="people-box" class="owners-only">
                   <h2>People</h2>
-                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and publish as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and publish. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Developers</strong> build and publish as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who; how much of the page they see is theirs (Vibe or Pro mode). <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
                   <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
                   <div class="people-wrap">
                     <table id="people-table" class="people-table">
                       <thead><tr>
                         <th scope="col">Person</th>
                         <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
-                        <th scope="col" title="Chat, terminal, and SSH in the dev box; publishes">Pro Dev</th>
-                        <th scope="col" title="The agents' Chat in the dev box, no terminal or SSH; publishes">Vibe Dev</th>
+                        <th scope="col" title="Chat, terminal, and SSH in the dev box; publishes">Developer</th>
                         <th scope="col" title="Reports bugs as tasks">Contributor</th>
                         <th scope="col" title="Uses the app, asks the lead questions">None</th>
                       </tr></thead>
-                      <tbody id="people"><tr><td colspan="6" class="muted small">Loading…</td></tr></tbody>
+                      <tbody id="people"><tr><td colspan="5" class="muted small">Loading…</td></tr></tbody>
                     </table>
                   </div>
                   <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>).<span id="admin-owners" hidden> <a target="_blank" rel="noopener noreferrer">You're one: change them on the admin page ↗</a></span> The channel hears every change made here.</p>
                   <p id="people-warn" class="small warn" hidden>The preview runs on a copy of production's data, so a developer can read it through the preview, with their own work on it. To keep that data from developers, start the preview empty (in Data).</p>
                 </section>
-                <section id="sshkey-box" class="pro-only">
+                <section id="sshkey-box">
                   <h2>Your SSH key</h2>
                   <p class="muted small">For <code>ssh</code> and your own editor (Editor ↗ on a workspace) into the dev box, over the app's NetBird network. Paste your public key: the .pub file, such as ~/.ssh/id_ed25519.pub.</p>
                   <p id="sshkey-now" class="small"></p>
@@ -552,16 +552,26 @@
     <button type="button" id="decision-save" class="primary" hidden>Save</button>
   </div>
 </dialog>
+<dialog id="mode-dialog" class="mode-dialog" aria-labelledby="mode-dialog-title">
+  <h2 id="mode-dialog-title">Customize Vibe mode</h2>
+  <p class="muted small">What Vibe mode shows, in this browser. The chat is always there, and Pro mode shows everything.</p>
+  <div id="mode-groups" class="mode-groups"></div>
+  <div class="buttons">
+    <button type="button" id="mode-reset" class="link">Back to Vibe mode's own</button>
+    <span class="grow"></span>
+    <button type="button" id="mode-done" class="primary">Done</button>
+  </div>
+</dialog>
 <dialog id="stuck-dialog" class="wide stuck-dialog" aria-labelledby="stuck-title">
   <h2 id="stuck-title">It can't go on the preview yet</h2>
   <p id="stuck-what"></p>
   <div id="stuck-options" class="stuck-options">
     <button type="button" id="stuck-agent" class="stuck-option"><strong id="stuck-agent-title">Ask the agent to combine them</strong><span id="stuck-agent-text" class="muted small"></span></button>
     <button type="button" id="stuck-replace" class="stuck-option"><strong id="stuck-replace-title">Take out the last change and add this one instead</strong><span id="stuck-replace-text" class="muted small"></span></button>
-    <button type="button" id="stuck-help" class="stuck-option"><strong>Ask a Pro Dev in Slack</strong><span class="muted small">hi posts this in the app's channel, with the details below, for the Pro Devs.</span></button>
+    <button type="button" id="stuck-help" class="stuck-option"><strong>Ask for help in Slack</strong><span class="muted small">hi posts this in the app's channel, with the details below, for its developers.</span></button>
   </div>
   <p id="stuck-said" class="small" role="status"></p>
-  <details class="stuck-details"><summary class="small muted">Details, for a Pro Dev</summary><pre id="stuck-error"></pre></details>
+  <details class="stuck-details"><summary class="small muted">Details, for whoever helps</summary><pre id="stuck-error"></pre></details>
   <div class="buttons">
     <button type="button" id="stuck-cancel">Cancel</button>
   </div>

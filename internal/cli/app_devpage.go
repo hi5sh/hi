@@ -267,7 +267,7 @@ type appDevPageView struct {
 	// internal, and public when an owner made them so.
 	Addresses []appDevAddress `json:"addresses"`
 	// SSH is the dev box for the person's own editor, an owner's or a
-	// Pro Dev's (app_deveditor.go).
+	// developer's (app_deveditor.go).
 	SSH *appDevSSHView `json:"ssh,omitempty"`
 	// Agy says the dev box runs agy, so the page offers it to start.
 	Agy bool `json:"agy,omitempty"`
@@ -1075,18 +1075,6 @@ func init() {
 	}
 }
 
-// appDevShellRoutes are the developer's routes a Vibe Dev doesn't get:
-// the terminal and an SSH key for the dev box. A Vibe Dev works in the
-// agents' Chat.
-var appDevShellRoutes = map[string]bool{}
-
-func init() {
-	for _, route := range []string{"GET api/term", "POST api/term/files", "POST api/sshkey"} {
-		method, path, _ := strings.Cut(route, " ")
-		appDevShellRoutes[method+" "+appDevPagePrefix+path] = true
-	}
-}
-
 // appDevAccessCheck is how often an open terminal asks
 // whether its person may still have it; tests shorten it.
 var appDevAccessCheck = 15 * time.Second
@@ -1621,7 +1609,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 		}
 		reply(w, http.StatusOK, map[string]string{"text": text + left})
 	})
-	// Help: someone stuck on the dev page asks the app's Pro Devs (else its
+	// Help: someone stuck on the dev page asks the app's developers (else its
 	// owners) in the app's channel, with what went wrong.
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/help", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := builder(w, r)
@@ -1642,10 +1630,11 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return
 		}
 		if b.channel == nil || config.Channel == "" {
-			failure(w, http.StatusConflict, errors.New("hi isn't connected to the app's channel in Slack: ask a Pro Dev another way, with the details below"))
+			failure(w, http.StatusConflict, errors.New("hi isn't connected to the app's channel in Slack: ask the app's developers another way, with the details below"))
 			return
 		}
-		who := config.Developers
+		// The other developers, not who asks; the owners when there's none.
+		who := slices.DeleteFunc(slices.Clone(config.Developers), func(id string) bool { return id == person.User })
 		if len(who) == 0 {
 			who = config.Owners
 		}
@@ -1935,8 +1924,6 @@ func (b *appBroker) devPageHandler() http.Handler {
 			return http.StatusUnauthorized, err
 		case level != appLevelOwner && !appDevDeveloperRoutes[pattern]:
 			return http.StatusForbidden, errors.New("only the app's owners do that; developers build and release, and owners look after production")
-		case level == appLevelVibe && appDevShellRoutes[pattern]:
-			return http.StatusForbidden, errors.New("a Vibe Dev works in the agents' Chat; the terminal is for Pro Devs and owners")
 		}
 		return http.StatusOK, nil
 	}

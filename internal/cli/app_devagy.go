@@ -4,7 +4,7 @@ package cli
 // Codex. Unlike theirs, agy's sign-in can't stay out of the box: agy
 // calls Google at an address of its own, with no setting to send it
 // through the box's proxy, so the box holds the sign-in itself, and
-// anyone with SSH into the box (owners, Pro Devs) can copy it. So it's
+// anyone with SSH into the box (owners, developers) can copy it. So it's
 // the app's own Google account's, made for the app (hi app signin <app>
 // agy --file), or, when an admin says so, this machine's (--machine).
 // Without one, the dev box has no agy. On each start of the app's
@@ -248,7 +248,7 @@ func appSigninAgy(config appConfig, args []string, stdout io.Writer) error {
 			return err
 		}
 		sign = &appAgySignIn{Machine: true, Email: email, At: time.Now().UTC()}
-		fmt.Fprintf(stdout, "Careful: the dev box holds agy's sign-in, so anyone with SSH into it (the app's owners and Pro Devs) can copy this machine's Google sign-in (%s). Use an account made for the app where that matters: hi app signin %s agy --file <token>.\n", firstNonEmpty(email, "its account"), config.Name)
+		fmt.Fprintf(stdout, "Careful: the dev box holds agy's sign-in, so anyone with SSH into it (the app's owners and developers) can copy this machine's Google sign-in (%s). Use an account made for the app where that matters: hi app signin %s agy --file <token>.\n", firstNonEmpty(email, "its account"), config.Name)
 	case len(args) == 2 && args[0] == "--file":
 		data, err := os.ReadFile(args[1])
 		if err != nil {

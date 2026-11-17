@@ -1,6 +1,6 @@
 ---
 title: Dev and production
-description: "A hi app's project has two versions: dev, where the owners ship work from the dev box and people try it on Stage, and production, which moves only on a click on the dev page by an owner, a Pro Dev, or a Vibe Dev, as numbered releases an owner can undo."
+description: "A hi app's project has two versions: dev, where the owners ship work from the dev box and people try it on Stage, and production, which moves only on a click on the dev page by an owner or a developer, as numbered releases an owner can undo."
 ---
 
 The project has two versions:
@@ -9,8 +9,8 @@ The project has two versions:
   [dev box](/guide/app/dev/). Stage shows it, on a fork of
   production's data, for the people to try.
 - **Production** is the version people rely on, on a `production` branch
-  of its own, with a link of its own. It changes only when an owner, a
-  Pro Dev, or a Vibe Dev releases it from the dev page. Each release gets the next number: v1,
+  of its own, with a link of its own. It changes only when an owner or a
+  developer publishes it from the dev page. Each release gets the next number: v1,
   v2, and so on, tagged `release-1`, `release-2`.
 
 Each runs in a box of its own on the app's machine: the dev box where
@@ -28,7 +28,7 @@ brings in its thread:
 
 > **orbit** New PROD version (v16) :rocket: -> App: link - Docs: link
 
-Owners, Pro Devs, and Vibe Devs release. The click is their yes, logged
+Owners and developers release (Publish, on the dev page). The click is their yes, logged
 as "Anna on the dev page" in the versions and the announcement. Work
 shipped into dev doesn't reach the channel; their agent says what it wants
 to with `hi dev say`. At the first release, only an owner can tick

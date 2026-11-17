@@ -120,7 +120,25 @@
 /* A developer's page has no owners' buttons; the server refuses them anyway. */
 body.developer .owners-only { display: none !important; }
 body:not(.developer) .developers-only { display: none !important; }
-body.vibe .pro-only { display: none !important; }
+/* Vibe mode and Pro mode (dev.js, viewMode): what each person's page
+   shows. Vibe hides what they chose not to see, and Pro's extras. */
+body.mode-hide-tasks .side-tabs [data-side="tasks"],
+body.mode-hide-spaces .side-tabs [data-side="spaces"],
+body.mode-hide-files .side-tabs [data-side="files"],
+body.mode-hide-search .side-tabs [data-side="search"],
+body.mode-hide-checks .side-tabs [data-side="checks"],
+body.mode-hide-decisions .side-tabs [data-side="decisions"],
+body.mode-hide-security .side-tabs [data-side="security"],
+body.mode-hide-rewind .side-tabs [data-side="rewind"],
+body.mode-hide-git .side-tabs [data-side="git"],
+body.mode-hide-logs .side-tabs [data-side="logs"],
+body.mode-hide-preview .side-tabs [data-side="preview"],
+body.mode-hide-release .side-tabs [data-side="release"],
+body.mode-hide-data .side-tabs [data-side="data"],
+body.mode-hide-system .side-tabs [data-side="system"],
+body.mode-hide-terminal #code-view [data-view="terminal"],
+body.mode-hide-editor .editor-split,
+body.mode-vibe .pro-only { display: none !important; }
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--shell);
@@ -1146,3 +1164,15 @@ a.button.primary:hover { background: var(--button-hover); }
 /* The way to production's buttons: the size of a workspace's. */
 .flow button:not(.link) { font-size: 12.5px; line-height: 18.75px; padding: 2px 10px; }
 .flow .flow-merge svg { width: 14px; height: 14px; }
+/* The mode's menu and Customize Vibe mode. */
+.theme-menu.mode-menu { width: 300px; }
+.mode-item { align-items: flex-start; }
+.mode-icon { flex: none; display: inline-flex; margin-top: 2px; color: var(--accent); }
+.mode-words { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mode-about { font-size: 12px; white-space: normal; }
+.mode-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 12px 0 8px; }
+.mode-group { border: 1px solid var(--line); border-radius: var(--r-md); padding: 8px 12px 10px; margin: 0; }
+.mode-group legend { padding: 0 6px; font-size: 12.5px; color: var(--muted); }
+.mode-group-items { display: flex; flex-direction: column; gap: 6px; }
+.mode-groups > p { grid-column: 1 / -1; margin: 0; }
+.mode-group .check input { flex: none; }

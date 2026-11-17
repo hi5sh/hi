@@ -255,7 +255,15 @@ asks for.
   channel to handle; nothing files it as a task.
 - **People outside Slack** (2026-10-28) are added by email, as
   contributors or viewers, once the address has sign-in.
-- **Pro Dev and Vibe Dev** (2026-10-28, v2.6.20). A developer is a Pro Dev
+- **Vibe and Pro are views, not levels** (2026-11-17, v2.6.202), as the
+  user asked, replacing the decision below: there's one level for
+  building, developer, with Chat, the terminal, and SSH. Vibe mode and
+  Pro mode are how much of the dev page shows, each person's choice in
+  their own browser: everyone starts in Vibe (Tasks, Workspaces, Chat or
+  the terminal, Rewind, Preview, Publish), Pro shows the rest, and
+  Customize Vibe mode picks what Vibe shows. app.json's vibe_developers
+  are read as developers, and `vibe` and `pro` still say developer.
+- **Pro Dev and Vibe Dev** (2026-10-28, v2.6.20; replaced 2026-11-17). A developer was a Pro Dev
   (Chat, terminal, SSH) or a Vibe Dev (Chat only), as the user
   asked. Running code in the dev box is still one power: a Vibe Dev's
   agents run commands for them, so the line is a simpler view and no SSH,

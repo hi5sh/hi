@@ -54,7 +54,7 @@ func TestTeamAccessLevels(t *testing.T) {
 	}
 	// A developer, with a key and a link.
 	text, err := appSetLevel(&config, "U07DEV001", appLevelDeveloper)
-	if err != nil || text != "U07DEV001 is a Pro Dev of app payments." {
+	if err != nil || text != "U07DEV001 is a developer of app payments." {
 		t.Fatal(text, err)
 	}
 	saved, _ := loadTeam("payments")
@@ -97,7 +97,7 @@ func TestTeamAccessLevels(t *testing.T) {
 	}
 	out.Reset()
 	appAccessCommand([]string{"payments"}, &out)
-	if !strings.Contains(out.String(), "Pro Devs, with Chat, terminal, and SSH") || !strings.Contains(out.String(), "U07DEV001") || !strings.Contains(out.String(), "Anyone else, in the channel or not, has no level.") {
+	if !strings.Contains(out.String(), "Developers, with Chat, terminal, and SSH") || !strings.Contains(out.String(), "U07DEV001") || !strings.Contains(out.String(), "Anyone else, in the channel or not, has no level.") {
 		t.Fatal(out.String())
 	}
 }
@@ -244,13 +244,13 @@ func TestTeamDevPagePeople(t *testing.T) {
 	if code != 200 || strings.Join(order, " ") != "U07OWNER1:owner U07DEV001:developer U07ANNA01:none U1:none U2:none" || !view.PreviewData {
 		t.Fatalf("%d %s", code, body)
 	}
-	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/people", map[string]string{"user": "U07ANNA01", "level": "developer"}); code != 200 || !strings.Contains(body, "U07ANNA01 is a Pro Dev") {
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/people", map[string]string{"user": "U07ANNA01", "level": "developer"}); code != 200 || !strings.Contains(body, "U07ANNA01 is a developer") {
 		t.Fatalf("%d %s", code, body)
 	}
 	appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/people", map[string]string{"user": "U07ANNA01", "level": "contributor"})
 	appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/people", map[string]string{"user": "U07ANNA01", "level": "none"})
 	calls := strings.Join(channel.calls, "\n")
-	if !strings.Contains(calls, "made <@U07ANNA01> a Pro Dev.") || !strings.Contains(calls, "made <@U07ANNA01> a contributor.") || !strings.Contains(calls, "took away <@U07ANNA01>'s level") {
+	if !strings.Contains(calls, "made <@U07ANNA01> a developer.") || !strings.Contains(calls, "made <@U07ANNA01> a contributor.") || !strings.Contains(calls, "took away <@U07ANNA01>'s level") {
 		t.Fatalf("%q", channel.calls)
 	}
 	if code, _ := appTestDevPageCall(t, handler, appTestDeveloperKey, "POST", "api/people", map[string]string{"user": "U2", "level": "developer"}); code != http.StatusForbidden {
@@ -336,21 +336,24 @@ func TestTeamContributorLink(t *testing.T) {
 	}
 }
 
-// A Vibe Dev has the dev page and the agents' Chat, not the terminal, VS
-// Code, or an SSH key; moved down from Pro Dev, their open terminal
-// closes like anyone's whose level drops.
-func TestTeamVibeDev(t *testing.T) {
+// Vibe Devs are developers since hi 2.6.202: Vibe is a view of the dev
+// page. One kept as a Vibe Dev in app.json gets the terminal and SSH, and
+// "vibe" makes a developer.
+func TestTeamVibeIsDeveloper(t *testing.T) {
 	b := appTestDevPageWithDeveloper(t)
 	b.running = func(string) bool { return true }
 	config, _ := loadTeam("payments")
-	if text, err := appSetLevel(&config, "U07DEV001", "Vibe Dev"); err != nil || text != "U07DEV001 is a Vibe Dev of app payments. Their SSH key is out of the dev box, and their private links have ended." {
+	if text, err := appSetLevel(&config, "U07DEV001", "Vibe Dev"); err != nil || text != "U07DEV001 is a developer of app payments already." {
 		t.Fatal(text, err)
 	}
-	if !appBuilds(config, "U07DEV001") || appHasShell(config, "U07DEV001") || appLevel(config, "U07DEV001") != appLevelVibe {
+	config.Developers, config.VibeDevelopers = nil, []string{"U07DEV001"}
+	saveTeam(config)
+	config, _ = loadTeam("payments")
+	if !slices.Contains(config.Developers, "U07DEV001") || len(config.VibeDevelopers) != 0 || !appHasShell(config, "U07DEV001") || appLevel(config, "U07DEV001") != appLevelDeveloper {
 		t.Fatalf("%+v", config)
 	}
-	if err := appSetDevKey(config, "U07DEV001", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample dev@laptop"); err == nil {
-		t.Fatal("a Vibe Dev's key went into the dev box")
+	if err := appSetDevKey(config, "U07DEV001", "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample dev@laptop"); err != nil {
+		t.Fatal(err)
 	}
 	people := loadTeamPeople("payments")
 	people.Keys = append(people.Keys, appPersonKey{Key: "vibe-key-0123456789abcdefgh", User: "U07DEV001", Name: "Dev", Ends: time.Now().Add(time.Hour)})
@@ -363,17 +366,15 @@ func TestTeamVibeDev(t *testing.T) {
 		handler.ServeHTTP(recorder, request)
 		return recorder.Code
 	}
-	for _, shell := range [][2]string{{"GET", "api/term"}, {"POST", "api/term/files"}, {"POST", "api/sshkey"}, {"POST", "api/rollback"}} {
-		if code := call(shell[0], shell[1]); code != http.StatusForbidden {
-			t.Errorf("%v for a Vibe Dev: %d", shell, code)
+	for _, shell := range [][2]string{{"POST", "api/term/files"}, {"POST", "api/sshkey"}} {
+		if code := call(shell[0], shell[1]); code == http.StatusForbidden || code == http.StatusUnauthorized {
+			t.Errorf("%v for a former Vibe Dev: %d", shell, code)
 		}
 	}
-	for _, chat := range [][2]string{{"GET", "api/state"}, {"GET", "api/chat"}, {"POST", "api/chat/send"}, {"POST", "api/start-new"}, {"GET", "api/tickets"}, {"POST", "api/release"}} {
-		if code := call(chat[0], chat[1]); code == http.StatusForbidden || code == http.StatusUnauthorized {
-			t.Errorf("%v for a Vibe Dev: %d", chat, code)
-		}
+	if code := call("POST", "api/rollback"); code != http.StatusForbidden {
+		t.Errorf("a developer rolled back: %d", code)
 	}
-	if _, body := appTestDevPageCall(t, handler, "vibe-key-0123456789abcdefgh", "GET", "api/state", nil); !strings.Contains(body, `"level":"vibe"`) {
+	if _, body := appTestDevPageCall(t, handler, "vibe-key-0123456789abcdefgh", "GET", "api/state", nil); !strings.Contains(body, `"level":"developer"`) {
 		t.Fatal(body)
 	}
 }
@@ -437,7 +438,7 @@ func TestTeamDevPageDeveloperReleases(t *testing.T) {
 	if code, body := call("api/release", map[string]string{"notes": "Suppliers"}); code != 200 {
 		t.Fatal(code, body)
 	}
-	// A Vibe Dev, the same.
+	// A former Vibe Dev, a developer now: the same.
 	config, _ := loadTeam("payments")
 	config.Developers, config.VibeDevelopers = nil, []string{"U07DEV001"}
 	saveTeam(config)
@@ -455,17 +456,22 @@ func TestTeamDevPageDeveloperReleases(t *testing.T) {
 	}
 }
 
-// A Vibe Dev is on the People table even when Slack can't list the
-// channel, as the other levels are.
+// A former Vibe Dev is on the People table, as a developer, even when
+// Slack can't list the channel.
 func TestTeamDevPeopleHasVibeDevs(t *testing.T) {
 	b := appTestDevPageWithDeveloper(t)
 	b.channel = nil
 	config, _ := loadTeam("payments")
 	config.VibeDevelopers = []string{"U07VIBE01"}
+	saveTeam(config)
+	config, _ = loadTeam("payments")
 	for _, person := range b.devPeopleView(config).People {
 		if person.ID == "U07VIBE01" {
+			if person.Level != appLevelDeveloper {
+				t.Fatalf("%+v", person)
+			}
 			return
 		}
 	}
-	t.Fatal("the Vibe Dev isn't on the People table")
+	t.Fatal("the former Vibe Dev isn't on the People table")
 }

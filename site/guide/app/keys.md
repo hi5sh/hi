@@ -79,7 +79,7 @@ once. A machine whose Codex is on an API key keeps it, as before.
 the dev box beside Claude Code and Codex, but differently from them the
 box holds its sign-in: agy calls Google at an address of its own, which
 the box's proxy can't put a sign-in on. Anyone with SSH into the dev box
-(the app's owners and Pro Devs) can copy it. So give the app a Google
+(the app's owners and developers) can copy it. So give the app a Google
 account of its own, made for it and on a Google AI Pro or Ultra plan,
 never someone's personal one:
 

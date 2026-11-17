@@ -66,7 +66,7 @@ func TestAdminAppSettingsRunTheCommands(t *testing.T) {
 	a.mu.Lock()
 	posts := strings.Join(*a.posts, "\n")
 	a.mu.Unlock()
-	for _, want := range []string{"Olga made <@U07SAM> a Pro Dev, from the admin page", "Olga gave the app an OpenRouter key of its own", "Olga set STRIPE_KEY, production's own"} {
+	for _, want := range []string{"Olga made <@U07SAM> a developer, from the admin page", "Olga gave the app an OpenRouter key of its own", "Olga set STRIPE_KEY, production's own"} {
 		if !strings.Contains(posts, want) {
 			t.Errorf("the channel didn't hear %q:\n%s", want, posts)
 		}
@@ -78,8 +78,8 @@ func TestAdminAppSettingsRunTheCommands(t *testing.T) {
 	runs = nil
 	var answer map[string]any
 	if code := a.post(t, olga, "/api/app/settings", map[string]any{"app": "payments", "what": "level", "person": "U07OWNER1", "level": "vibe"}, &answer); code != http.StatusOK ||
-		len(runs) != 2 || runs[0].args != "app owners payments remove U07OWNER1" || runs[1].args != "app access payments U07OWNER1 vibe" {
-		t.Fatalf("owner to vibe: %d %+v", code, runs)
+		len(runs) != 2 || runs[0].args != "app owners payments remove U07OWNER1" || runs[1].args != "app access payments U07OWNER1 pro" {
+		t.Fatalf("owner to vibe, a developer: %d %+v", code, runs)
 	}
 	// Signing in to ChatGPT shows a code, so it's a job.
 	if code := a.post(t, olga, "/api/app/settings", map[string]any{"app": "payments", "what": "chatgpt"}, &answer); code != http.StatusOK || answer["job"] == nil {

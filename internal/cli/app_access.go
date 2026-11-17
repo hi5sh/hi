@@ -22,31 +22,30 @@ import (
 
 const (
 	appLevelOwner       = "owner"
-	appLevelDeveloper   = "developer" // a Pro Dev
-	appLevelVibe        = "vibe"      // a Vibe Dev
+	appLevelDeveloper   = "developer" // builds with the agents, the terminal, and SSH
 	appLevelContributor = "contributor"
 	appLevelNone        = "none"
 )
 
-// appBuilds says someone works in the development environment: an owner,
-// a Pro Dev, or a Vibe Dev.
+// appBuilds says someone works in the development environment: an owner
+// or a developer.
 func appBuilds(config appConfig, user string) bool {
 	return containsString(config.Owners, user) || containsString(config.Developers, user) || containsString(config.VibeDevelopers, user)
 }
 
-// appHasShell says someone gets the dev box's terminal and SSH:
-// an owner or a Pro Dev, not a Vibe Dev, who has the agents' Chat.
+// appHasShell says someone gets the dev box's terminal and SSH: whoever
+// builds. Since hi 2.6.202 there's no Chat-only level; Vibe mode is a
+// view of the dev page, not a right.
 func appHasShell(config appConfig, user string) bool {
-	return containsString(config.Owners, user) || containsString(config.Developers, user)
+	return appBuilds(config, user)
 }
 
-// appParseLevel reads a level as people write it: pro or developer, vibe.
+// appParseLevel reads a level as people write it: developer, or pro or
+// vibe as they were (both are developers since hi 2.6.202).
 func appParseLevel(level string) string {
 	switch strings.ToLower(strings.ReplaceAll(level, " ", "")) {
-	case "pro", "prodev", appLevelDeveloper:
+	case "dev", "pro", "prodev", appLevelDeveloper, "vibe", "vibedev":
 		return appLevelDeveloper
-	case appLevelVibe, "vibedev":
-		return appLevelVibe
 	}
 	return strings.ToLower(level)
 }
@@ -56,10 +55,8 @@ func appLevel(config appConfig, user string) string {
 	switch {
 	case containsString(config.Owners, user):
 		return appLevelOwner
-	case containsString(config.Developers, user):
+	case containsString(config.Developers, user), containsString(config.VibeDevelopers, user):
 		return appLevelDeveloper
-	case containsString(config.VibeDevelopers, user):
-		return appLevelVibe
 	case containsString(config.Contributors, user):
 		return appLevelContributor
 	}
@@ -78,8 +75,8 @@ func appSetLevel(config *appConfig, user, level string) (string, error) {
 		return "", fmt.Errorf("%s is an owner of app %s; an admin of the machine changes owners (hi app owners %s remove %s)", user, config.Name, config.Name, user)
 	}
 	level = appParseLevel(level)
-	if level != appLevelDeveloper && level != appLevelVibe && level != appLevelContributor && level != appLevelNone {
-		return "", fmt.Errorf("the level is pro (a Pro Dev), vibe (a Vibe Dev), contributor, or none, not %q", level)
+	if level != appLevelDeveloper && level != appLevelContributor && level != appLevelNone {
+		return "", fmt.Errorf("the level is developer, contributor, or none, not %q", level)
 	}
 	was := appLevel(*config, user)
 	if was == level {
@@ -92,8 +89,6 @@ func appSetLevel(config *appConfig, user, level string) (string, error) {
 	switch level {
 	case appLevelDeveloper:
 		config.Developers = append(config.Developers, user)
-	case appLevelVibe:
-		config.VibeDevelopers = append(config.VibeDevelopers, user)
 	case appLevelContributor:
 		config.Contributors = append(config.Contributors, user)
 	}
@@ -120,7 +115,7 @@ func appSetLevel(config *appConfig, user, level string) (string, error) {
 
 // appLevelRank orders the levels, none lowest.
 func appLevelRank(level string) int {
-	return slices.Index([]string{appLevelNone, appLevelContributor, appLevelVibe, appLevelDeveloper, appLevelOwner}, level)
+	return slices.Index([]string{appLevelNone, appLevelContributor, appLevelDeveloper, appLevelOwner}, level)
 }
 
 // appLevelSentence says someone's level: "U07ANNA is a developer of team
@@ -141,9 +136,7 @@ func appLevelWords(level string) string {
 	case appLevelOwner:
 		return "an owner"
 	case appLevelDeveloper:
-		return "a Pro Dev"
-	case appLevelVibe:
-		return "a Vibe Dev"
+		return "a developer"
 	case appLevelContributor:
 		return "a contributor"
 	}
@@ -158,7 +151,7 @@ func appSetDevKey(config appConfig, user, key string) error {
 		return writeTeamDevSSH(config)
 	}
 	if !appHasShell(config, user) {
-		return fmt.Errorf("%s isn't an owner or a Pro Dev of app %s, who get SSH into the dev box; an owner makes them a Pro Dev first", user, config.Name)
+		return fmt.Errorf("%s isn't an owner or a developer of app %s, who get SSH into the dev box; an owner makes them a developer first", user, config.Name)
 	}
 	key = strings.TrimSpace(key)
 	if strings.Contains(key, "PRIVATE KEY") {
@@ -186,7 +179,7 @@ func appDevKeyLabel(team, user string) string {
 
 // appAccessCommand is hi app access.
 func appAccessCommand(args []string, stdout io.Writer) error {
-	usage := usageError{"usage: hi app access <app> [<member ID>|<email> pro|vibe|contributor|none | key <member ID>|<email> <public key>|--remove]"}
+	usage := usageError{"usage: hi app access <app> [<member ID>|<email> developer|contributor|none | key <member ID>|<email> <public key>|--remove]"}
 	if len(args) == 0 {
 		return usage
 	}
@@ -225,8 +218,8 @@ func appAccessCommand(args []string, stdout io.Writer) error {
 			return err
 		}
 		fmt.Fprintln(stdout, text)
-		if level := appParseLevel(args[2]); level == appLevelDeveloper || level == appLevelVibe {
-			fmt.Fprint(stdout, appDeveloperNote(config, level))
+		if appParseLevel(args[2]) == appLevelDeveloper {
+			fmt.Fprint(stdout, appDeveloperNote(config))
 		}
 		return nil
 	}
@@ -234,17 +227,13 @@ func appAccessCommand(args []string, stdout io.Writer) error {
 }
 
 // appDeveloperNote is what an owner should know about a new developer.
-func appDeveloperNote(config appConfig, level string) string {
-	note := "A Pro Dev works in the dev box and releases like an owner, except rollbacks, production's data and settings, keys, and who is who.\n"
-	if level == appLevelVibe {
-		note = "A Vibe Dev works in the dev page's Chat with the agents, as a Pro Dev does, and releases, but has no terminal or SSH. The agents still run commands in the dev box for them.\n"
-	}
+func appDeveloperNote(config appConfig) string {
+	note := "A developer works in the dev box and publishes like an owner, except rollbacks, production's data and settings, keys, and who is who. The dev page starts in Vibe mode (the chat, the work, the preview, publishing); Pro mode, a click away, has the rest.\n"
 	if config.PreviewData != appPreviewEmpty {
 		note += "The preview runs on a copy of production's data, so a developer can read it through a preview; hi app data " + config.Name + " preview empty starts the preview empty instead.\n"
 	}
-	if level == appLevelDeveloper {
-		note += "For SSH into the dev box, they give a public key (hi app access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
-	}
+	note += "For SSH into the dev box, they give a public key (hi app access " + config.Name + " key <member ID> <key>, or on the dev page), and NetBird's policy for the box has to let them reach it, as for the owners.\n"
+
 	return note
 }
 
@@ -254,19 +243,12 @@ func printTeamAccess(config appConfig, stdout io.Writer) {
 	for _, owner := range config.Owners {
 		fmt.Fprintf(stdout, "  %s %s\n", appPersonColumn(owner, names), appDevKeyLabel(config.Name, owner))
 	}
-	fmt.Fprintln(stdout, "Pro Devs, with Chat, terminal, and SSH (owners change them, on the dev page or here):")
+	fmt.Fprintln(stdout, "Developers, with Chat, terminal, and SSH (owners change them, on the dev page or here):")
 	if len(config.Developers) == 0 {
 		fmt.Fprintln(stdout, "  none")
 	}
 	for _, developer := range config.Developers {
 		fmt.Fprintf(stdout, "  %s %s\n", appPersonColumn(developer, names), appDevKeyLabel(config.Name, developer))
-	}
-	fmt.Fprintln(stdout, "Vibe Devs, who work in the agents' Chat only:")
-	if len(config.VibeDevelopers) == 0 {
-		fmt.Fprintln(stdout, "  none")
-	}
-	for _, vibe := range config.VibeDevelopers {
-		fmt.Fprintf(stdout, "  %s\n", strings.TrimRight(appPersonColumn(vibe, names), " "))
 	}
 	fmt.Fprintln(stdout, "Contributors, who report bugs as tasks (owners change them too):")
 	if len(config.Contributors) == 0 {

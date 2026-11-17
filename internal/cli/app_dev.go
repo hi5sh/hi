@@ -150,7 +150,7 @@ func writeTeamDevSSH(config appConfig) error {
 		return err
 	}
 	var lines []string
-	for _, builder := range slices.Concat(config.Owners, config.Developers) { // Vibe Devs have no SSH
+	for _, builder := range slices.Concat(config.Owners, config.Developers) { // whoever builds
 		if data, err := os.ReadFile(appDevKeyPath(config.Name, builder)); err == nil {
 			lines = append(lines, strings.TrimSpace(string(data)))
 		}
@@ -911,7 +911,7 @@ func appDevStatus(config appConfig, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "  %-12s %s\n", owner, appDevKeyLabel(name, owner))
 	}
 	if len(config.Developers) > 0 {
-		fmt.Fprintln(stdout, "Pro Devs:")
+		fmt.Fprintln(stdout, "Developers:")
 		for _, developer := range config.Developers {
 			fmt.Fprintf(stdout, "  %-12s %s\n", developer, appDevKeyLabel(name, developer))
 		}

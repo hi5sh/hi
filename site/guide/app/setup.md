@@ -55,7 +55,7 @@ things, one at a time:
    lead's handle) and paste the channel's ID (`C…`). Then, optionally, a
    second channel for operations and security: incidents, warnings,
    downtime, advisories, keys, access, and the dev box's site asks, which
-   need technical know-how. Make it private, for owners and Pro Devs, and
+   need technical know-how. Make it private, for owners and developers, and
    invite the app there too. Without it, all of that goes to the main
    channel. `hi app ops <app> <channel ID>` adds it later, and
    `hi app ops <app> off` takes it away.

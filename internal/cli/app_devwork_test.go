@@ -424,8 +424,8 @@ func TestTeamDevTakeOut(t *testing.T) {
 	}
 }
 
-// Stuck on the dev page: Ask a Pro Dev posts in the app's channel, to its
-// Pro Devs, else its owners, with what went wrong.
+// Stuck on the dev page: Ask for help posts in the app's channel, to its
+// other developers, else its owners, with what went wrong.
 func TestAppDevHelp(t *testing.T) {
 	b, _ := appTestDevPage(t)
 	handler := b.devPageHandler()
@@ -447,6 +447,6 @@ func TestAppDevHelp(t *testing.T) {
 	saveTeam(config)
 	appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/help", ask)
 	if posted := channel.calls[len(channel.calls)-1]; !strings.Contains(posted, ":sos: <@U07PRODEV1>, Olga") {
-		t.Fatal("not to the Pro Devs:", posted)
+		t.Fatal("not to the developers:", posted)
 	}
 }

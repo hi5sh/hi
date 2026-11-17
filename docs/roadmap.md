@@ -2867,6 +2867,22 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.202 — Vibe mode and Pro mode
+
+- [x] A button beside the theme switches the dev page between **Vibe
+  mode** and **Pro mode**, kept in the browser. Everyone starts in Vibe:
+  Tasks and Workspaces on the left, Chat or the terminal in the middle,
+  Rewind, Preview, and Publish on the right. Pro shows everything.
+- [x] **Customize Vibe mode…**: a box each for what Vibe shows (the
+  panels' views, the terminal, Editor ↗), at once, kept in the browser.
+- [x] A view Vibe hides that something opens on purpose (a site's ask
+  opens Security) shows until another is picked; a panel with nothing to
+  show closes.
+- [x] One level for building: Vibe Devs are developers, with the
+  terminal and SSH (app.json's vibe_developers are read so); the People
+  tables have Owner, Developer, Contributor, None; `vibe` and `pro` still
+  say developer. Ask for help in Slack goes to the other developers.
+
 ### v2.6.201 — Ghostty by default; the merge's chat
 
 - [x] The dev pages and the admin page are Ghostty's colours by default,

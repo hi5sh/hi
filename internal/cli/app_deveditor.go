@@ -1,7 +1,7 @@
 package cli
 
 // Your own editor on the dev box (docs/specs/approved/hi_app_dev_orca.md,
-// release 1): an owner or a Pro Dev opens a workspace in VS Code, Cursor,
+// release 1): an owner or a developer opens a workspace in VS Code, Cursor,
 // Zed, or Orca, or anything else that works over SSH, as the box's
 // account on the app's NetBird peer. The page makes the links
 // from what hi gives it here: the peer's name, the account, and the box's
@@ -29,8 +29,7 @@ type appDevSSHView struct {
 	HostKey string `json:"host_key,omitempty"`
 }
 
-// appDevSSH is the dev box over SSH, for an owner or a Pro Dev: a Vibe
-// Dev has no SSH.
+// appDevSSH is the dev box over SSH, for an owner or a developer.
 func appDevSSH(team, level string) *appDevSSHView {
 	if level != appLevelOwner && level != appLevelDeveloper {
 		return nil

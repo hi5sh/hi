@@ -53,8 +53,9 @@ type appConfig struct {
 	// Owners set both; being in the channel gives nobody a level
 	// (app_access.go).
 	Developers []string `json:"developers,omitempty"`
-	// VibeDevelopers work in the dev page's Chat only: no terminal, VS
-	// Code, or SSH.
+	// VibeDevelopers were Vibe Devs, in the dev page's Chat only, until hi
+	// 2.6.202: loadTeam makes them developers, as everyone who builds is.
+	// Vibe and Pro are the dev page's views now, each person's own choice.
 	VibeDevelopers []string             `json:"vibe_developers,omitempty"`
 	Contributors   []string             `json:"contributors,omitempty"`
 	Members        map[string]appMember `json:"members"`
@@ -376,6 +377,13 @@ func loadTeam(name string) (appConfig, error) {
 	if err := json.Unmarshal(data, &config); err != nil {
 		return config, fmt.Errorf("app.json: %w", err)
 	}
+	// Vibe Devs are developers since hi 2.6.202: one level for building.
+	for _, id := range config.VibeDevelopers {
+		if !slices.Contains(config.Developers, id) {
+			config.Developers = append(config.Developers, id)
+		}
+	}
+	config.VibeDevelopers = nil
 	return config, nil
 }
 
@@ -702,12 +710,12 @@ usage:
                                    owners allow them on the dev page; a database's name too
   hi app owners <name>             the app's owners, who build in the dev box, and their SSH keys
       [add|remove <member ID> | key <member ID> <public key>|--remove]
-  hi app access <name>             who reaches what: owners, Pro Devs and Vibe Devs (who build and
-                                   release), and contributors (who report bugs); nobody else
-      [<member ID> pro|vibe|contributor|none]  an owner's change, also on the dev page: a Pro
-                                   Dev has Chat, terminal, and SSH, a Vibe Dev Chat; none
-                                   takes the level away
-      [key <member ID> <public key>|--remove]  a Pro Dev's or owner's SSH key for the dev box
+  hi app access <name>             who reaches what: owners, developers (who build and
+                                   publish), and contributors (who report bugs); nobody else
+      [<member ID> developer|contributor|none]  an owner's change, also on the dev page: a
+                                   developer has Chat, terminal, and SSH (pro and vibe mean
+                                   it too); none takes the level away
+      [key <member ID> <public key>|--remove]  a developer's or owner's SSH key for the dev box
   hi app task <name>               the app's tasks: GitHub Issues (gh) or GitLab issues (glab),
                                    where its repository is, or hi's own
       [list [--closed] | show <n> | add <title> [<body|->] | comment <n> <text|-> | close <n> [<comment>]]
@@ -1529,7 +1537,7 @@ func appWizard(name, dir string, adopt *appAdoption, stdin io.Reader, stdout io.
 	}
 	appSay(stdout, styled, fmt.Sprintf("Slack: the app is in #%s.", channel))
 	appSay(stdout, styled, "A second channel for operations and security, optional: incidents, warnings, downtime,",
-		"advisories, keys, and access, for the people with the know-how. A private one, for owners and Pro Devs.",
+		"advisories, keys, and access, for the people with the know-how. A private one, for owners and developers.",
 		"Without it, all of that goes to the main channel. Invite the app there too.")
 	if config.OpsChannel, err = appAskUntil(stdin, stdout, "Ops channel ID [Enter: none]", false, func(id string) error {
 		if id == "" {

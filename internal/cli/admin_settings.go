@@ -114,10 +114,8 @@ func adminPageLevel(config appConfig, id string) string {
 	switch {
 	case slices.Contains(config.Owners, id):
 		return "owner"
-	case slices.Contains(config.Developers, id):
+	case slices.Contains(config.Developers, id), slices.Contains(config.VibeDevelopers, id):
 		return "pro"
-	case slices.Contains(config.VibeDevelopers, id):
-		return "vibe"
 	case slices.Contains(config.Contributors, id):
 		return "contributor"
 	}
@@ -315,16 +313,16 @@ func (s *adminServer) adminSetLevel(admin adminPerson, app, person, level string
 		if err = run("", "app", "owners", app, "remove", person); err == nil && level != "none" {
 			err = run("", "app", "access", app, person, level)
 		}
-	case slices.Contains([]string{"pro", "vibe", "contributor", "none"}, level):
+	case slices.Contains([]string{"pro", "contributor", "none"}, level):
 		err = run("", "app", "access", app, person, level)
 	default:
-		return "", fmt.Errorf("no level %q: owner, pro, vibe, contributor, or none", level)
+		return "", fmt.Errorf("no level %q: owner, pro (a developer), contributor, or none", level)
 	}
 	return strings.Join(outputs, "\n"), err
 }
 
 // adminLevelWords is a level as Slack hears it.
-var adminLevelWords = map[string]string{"owner": "an owner", "pro": "a Pro Dev", "vibe": "a Vibe Dev", "contributor": "a contributor"}
+var adminLevelWords = map[string]string{"owner": "an owner", "pro": "a developer", "contributor": "a contributor"}
 
 // adminChangeSetting makes one change to an app's settings: the command,
 // what it printed, and what the app's channel hears.
@@ -345,6 +343,9 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 	}
 	switch change.What {
 	case "level":
+		if change.Level == "vibe" || change.Level == "developer" {
+			change.Level = "pro" // a developer; vibe was one too, until hi 2.6.202
+		}
 		out, err := s.adminSetLevel(admin, app, change.Person, change.Level)
 		if err != nil {
 			return nil, err

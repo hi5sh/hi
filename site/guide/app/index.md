@@ -16,8 +16,8 @@ build the app with coding agents and decide what reaches production.
   [box](/guide/box/) with the project, Claude Code, Codex, and herdr,
   reached over SSH on the app's NetBird network or from the **dev page**
   in a browser. Work leaves it for Stage and dev with `hi dev`.
-- **Production** moves only when an owner, a Pro Dev, or a Vibe Dev clicks
-  Release on the dev page, as the next version, with a snapshot first.
+- **Production** moves only when an owner or a developer clicks
+  Publish on the dev page, as the next version, with a snapshot first.
 
 One app has one channel, one Slack app, and one machine. A new project is a
 new app.

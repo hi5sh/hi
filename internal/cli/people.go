@@ -59,7 +59,7 @@ type machinePerson struct {
 	// Slack is their member IDs, one for each workspace hi found them in.
 	Slack []string `json:"slack,omitempty"`
 	// SSHKey is their public key, put into the dev box of every app where
-	// they are an owner or a Pro Dev.
+	// they are an owner or a developer.
 	SSHKey string `json:"ssh_key,omitempty"`
 	// Outside lets in an address outside the machine's domains.
 	Outside  bool      `json:"outside,omitempty"`
@@ -304,7 +304,7 @@ func machineAskSlack(id string) bool {
 
 const peopleUsage = `usage: hi people                           everyone on the machine, with their levels in each app
        hi people add <email> [--name <name>] [--slack <member ID>] [--outside]
-           [--app <app>=owner|pro|vibe|contributor ...] [--invite]
+           [--app <app>=owner|developer|contributor ...] [--invite]
                                           add someone; --invite emails them a sign-in
        hi people rm <email>               remove them from everything: every app's level, their
                                           SSH key, their sign-ins; and from the list
@@ -421,7 +421,7 @@ type peopleAddRequest struct {
 	Name    string            `json:"name"`
 	Slack   string            `json:"slack"`
 	Outside bool              `json:"outside"`
-	Levels  map[string]string `json:"levels"` // app → owner, pro, vibe, contributor
+	Levels  map[string]string `json:"levels"` // app → owner, developer (or pro, vibe), contributor
 	Invite  bool              `json:"invite"`
 	By      string            `json:"-"`
 }
@@ -445,7 +445,7 @@ func peopleAdd(args []string, stdout io.Writer) error {
 		case "--app":
 			app, level, ok := strings.Cut(value, "=")
 			if !ok {
-				return fmt.Errorf("--app takes <app>=<level>, such as demo=pro, not %q", value)
+				return fmt.Errorf("--app takes <app>=<level>, such as demo=developer, not %q", value)
 			}
 			request.Levels[app], i = level, i+1
 		case "--outside":

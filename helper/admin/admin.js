@@ -2347,7 +2347,7 @@ function renderDraft() {
       body.append(el("p", {}, "Invite the Slack app to the app's channel first: in the channel, ", el("code", {}, "/invite @" + d.handle), ". Then read the channels it's in again, and pick it."),
         el("div", { class: "data-actions" }, refresh), note,
         field("The app's channel", main),
-        field("An ops channel, for operations and security (optional)", ops, "Incidents, warnings, downtime, advisories, keys, and access, for the people with the know-how. A private one, for owners and Pro Devs. Invite the app there too."));
+        field("An ops channel, for operations and security (optional)", ops, "Incidents, warnings, downtime, advisories, keys, and access, for the people with the know-how. A private one, for owners and developers. Invite the app there too."));
       if (!slackLists.channels) loadSlack("channels").then(() => { if (key === "channel" && newSteps[newStep][0] === "channel") { fill(); note.textContent = slackLists.error || slackLists.channels.length + " channels the app is in."; } });
       collect = () => ({ channel: main.value, ops_channel: ops.value });
       break;
@@ -2939,7 +2939,8 @@ function openTerm(app, box) {
   t.observer.observe(screen);
 }
 
-const levelOptions = [["owner", "Owner"], ["pro", "Pro Dev"], ["vibe", "Vibe Dev"], ["contributor", "Contributor"], ["none", "None"]];
+// A developer is "pro" between the page and the machine, as it was.
+const levelOptions = [["owner", "Owner"], ["pro", "Developer"], ["contributor", "Contributor"], ["none", "None"]];
 function levelSelect(value, label, onchange) {
   const select = el("select", { "aria-label": label });
   for (const [v, text] of levelOptions) select.append(el("option", { value: v, selected: v === value }, text));
@@ -2947,7 +2948,7 @@ function levelSelect(value, label, onchange) {
   return select;
 }
 async function setLevel(app, person, name, level, select, before) {
-  const words = { owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor", none: "nobody in it" };
+  const words = { owner: "an owner", pro: "a developer", contributor: "a contributor", none: "nobody in it" };
   if (!(await ask({ title: "Make " + (name || person) + " " + words[level] + " of " + app + "?", text: level === "none" ? "Their level goes, and their private links and SSH key with it. The app's channel hears it." : "The app's channel hears it." + (level === "owner" ? " An owner is an owner only: a level they had goes." : ""), ok: "Change it" }))) { if (select) select.value = before; return false; }
   try {
     await api("/api/app/settings", { app, what: "level", person, level });
@@ -2978,7 +2979,7 @@ function sectionPeople(s) {
     if (!who) return;
     // By email: the machine's list finds their Slack account (hi_people.md).
     if (who.includes("@")) {
-      if (!(await ask({ title: "Make " + who + " " + ({ owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" })[level] + " of " + s.name + "?", text: "The app's channel hears it.", ok: "Add" }))) return;
+      if (!(await ask({ title: "Make " + who + " " + ({ owner: "an owner", pro: "a developer", contributor: "a contributor" })[level] + " of " + s.name + "?", text: "The app's channel hears it.", ok: "Add" }))) return;
       try {
         const answer = await api("/api/person", { action: "add", email: who, levels: { [s.name]: level } });
         toast(answer.text, true);
@@ -2989,7 +2990,7 @@ function sectionPeople(s) {
     }
     if (await setLevel(s.name, who, "", level, null, "none")) { id.value = ""; refreshSettings(); }
   });
-  return [el("p", { class: "purpose" }, "Owners build in the dev box and release; Pro Devs too, except rollbacks, production's data and settings, keys, and who is who; Vibe Devs in the dev page's Chat only; contributors report bugs. The same as hi app owners and hi app access, and owners change all but owners on the dev page."),
+  return [el("p", { class: "purpose" }, "Owners build in the dev box and release; developers too, except rollbacks, production's data and settings, keys, and who is who; contributors report bugs. Vibe and Pro are views of the dev page, each person's own choice. The same as hi app owners and hi app access, and owners change all but owners on the dev page."),
     list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "By email, with Slack or without: someone in the app's Slack workspace is added as their Slack account there. Their SSH key, sign-ins, and other apps: People, on the left.")];
 }
 
@@ -3148,7 +3149,7 @@ async function refreshPeopleApps() {
   if (viewShown("people")) renderPeople();
   if (middle.startsWith(":person/")) renderPerson();
 }
-const levelWords = { owner: "Owner", pro: "Pro Dev", vibe: "Vibe Dev", contributor: "Contributor" };
+const levelWords = { owner: "Owner", pro: "Developer", vibe: "Developer", contributor: "Contributor" };
 function personTitle(person) { return person.name || person.email || person.key; }
 function personSummary(person) {
   const apps = Object.keys(person.levels).sort();
@@ -3266,7 +3267,7 @@ function renderPerson() {
     } }, "Link one")) : null));
   who.append(el("dt", {}, "SSH key"), el("dd", {}, person.ssh_key || el("span", { class: "muted" }, "none"), " ",
     person.email ? el("button", { class: "link-button", onclick: async () => {
-      const answer = await ask({ title: title + "'s SSH key", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. It goes into the dev box of every app where they're an owner or a Pro Dev, now and when they become one; a key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
+      const answer = await ask({ title: title + "'s SSH key", text: "Their public key, such as the contents of ~/.ssh/id_ed25519.pub. It goes into the dev box of every app where they're an owner or a developer, now and when they become one; a key they had before stops working.", ok: "Save", field: "ssh-ed25519 AAAA…" });
       if (answer) personDo({ action: "key", key: person.key, ssh_key: answer.field });
     } }, person.ssh_key ? "New key" : "Set key") : null,
     person.ssh_key && person.email ? el("button", { class: "link-button", onclick: async () => { if (await ask({ title: "Take " + title + "'s SSH key out?", text: "Out of every app's dev box: they can no longer SSH in.", ok: "Take it out" })) personDo({ action: "key", key: person.key, ssh_key: "" }); } }, "Remove") : null));
@@ -3279,7 +3280,7 @@ function renderPerson() {
     const level = person.levels[app] || "none";
     table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: () => openView(app, "people") }, app)),
       el("td", {}, levelSelect(level, title + " in " + app, async (next, select) => {
-        const words = { owner: "an owner", pro: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor", none: "nobody in it" };
+        const words = { owner: "an owner", pro: "a developer", contributor: "a contributor", none: "nobody in it" };
         if (!(await ask({ title: "Make " + title + " " + words[next] + " of " + app + "?", text: next === "none" ? "Their level goes, and their private links and SSH key there with it. The app's channel hears it." : "The app's channel hears it." + (next === "owner" ? " An owner is an owner only: a level they had goes." : "") + (person.email || person.slack.length ? "" : ""), ok: "Change it" }))) { select.value = level; return; }
         if (!(await personDo({ action: "levels", key: person.key, levels: { [app]: next } }))) select.value = level;
       })),

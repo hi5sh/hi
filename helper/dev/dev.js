@@ -225,7 +225,7 @@
       if (opened !== socket) return;
       $("term-why").textContent = (event.reason ? "The terminal closed: " + event.reason + "." : "The terminal closed.") + " Connecting again…";
       $("term-ended").hidden = false;
-      if ($("locked").hidden && !vibe()) termRetry = setTimeout(connect, 1000);
+      if ($("locked").hidden) termRetry = setTimeout(connect, 1000);
     };
   }
   function sendText(data) { if (data && socket && socket.readyState === 1) socket.send(encoder.encode(data)); }
@@ -1059,7 +1059,7 @@
 
   // ---- Stuck: what went wrong adding a piece of work to the preview, in
   // a dialog that stays until you choose: the agent combines the changes,
-  // the change there last makes way for it, a Pro Dev is asked in Slack,
+  // the change there last makes way for it, the developers are asked in Slack,
   // or Cancel.
   var stuckNow = null;
   function stuck(space, message, data) {
@@ -1126,7 +1126,7 @@
     stuckSay("Asking in the app's channel…");
     api("POST", "help", { workspace: now.space.id, what: now.what, error: now.message }).then(function () {
       $("stuck-dialog").close();
-      toast("Asked the app's Pro Devs in its channel, with the details.");
+      toast("Asked the app's developers in its channel, with the details.");
     }).catch(function (error) {
       stuckBusy(false);
       stuckSay(error.message, true);
@@ -1666,10 +1666,9 @@
   });
 
   // ---- People (the owners'), and everyone's own SSH key
-  // A Pro Dev or a Vibe Dev: no owners' buttons. A Vibe Dev also has the
-  // agents' Chat only, without the terminal or SSH.
-  function developer() { return !!state && (state.level === "developer" || state.level === "vibe"); }
-  function vibe() { return !!state && state.level === "vibe"; }
+  // A developer: no owners' buttons. How much of the page shows is the
+  // person's own: Vibe mode or Pro mode (viewMode, below).
+  function developer() { return !!state && state.level === "developer"; }
   function renderSSHKey() {
     $("sshkey-now").textContent = state.ssh_key ? "Now: " + state.ssh_key + ". A new one replaces it." : "You have no key in the dev box yet.";
     var connect = $("sshkey-connect");
@@ -1699,11 +1698,10 @@
   function setLevel(person, level, row) {
     var question = "";
     var data = $("people-warn").hidden ? "" : " The preview runs on a copy of production's data, which they can read through the preview.";
-    var words = { owner: "an owner", developer: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" };
-    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, and SSH, and publish, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
-    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal or SSH; the agents still run commands in the dev box for them. They publish too." + data;
+    var words = { owner: "an owner", developer: "a developer", contributor: "a contributor" };
+    if (level === "developer") question = "Make " + person.name + " a developer? They work in the dev box as you do, with Chat, terminal, and SSH, and publish, except rollbacks, production's data and settings, keys, sites, addresses, and who is who. Their dev page starts in Vibe mode; Pro mode is a click away." + data;
     else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
-    else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal closes." : " ends.");
+    else if (person.level === "developer") question = "Make " + person.name + " " + words[level] + "? Their dev page link and SSH key end, and an open terminal closes.";
     (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
       if (answer === null) { renderPeople(people); return; }
       row.classList.add("busy");
@@ -1718,7 +1716,7 @@
     var body = $("people");
     body.textContent = "";
     var find = $("people-search").value.trim().toLowerCase();
-    var levels = ["owner", "developer", "vibe", "contributor", "none"];
+    var levels = ["owner", "developer", "contributor", "none"];
     (view.people || []).forEach(function (person) {
       if (find && person.name.toLowerCase().indexOf(find) < 0 && person.id.toLowerCase().indexOf(find) < 0) return;
       var notes = [];
@@ -1736,8 +1734,8 @@
       });
       body.appendChild(row);
     });
-    if (!body.childNodes.length) body.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "muted small", text: find ? "Nobody by that name." : "Nobody yet." })]));
-    if (view.channel_error) body.appendChild(el("tr", {}, [el("td", { colspan: "6", class: "muted small", text: view.channel_error })]));
+    if (!body.childNodes.length) body.appendChild(el("tr", {}, [el("td", { colspan: "5", class: "muted small", text: find ? "Nobody by that name." : "Nobody yet." })]));
+    if (view.channel_error) body.appendChild(el("tr", {}, [el("td", { colspan: "5", class: "muted small", text: view.channel_error })]));
     $("people-warn").hidden = !view.preview_data;
   }
   $("people-search").addEventListener("input", function () { if (people) renderPeople(people); });
@@ -1805,8 +1803,6 @@
       // A developer's page: the owners' buttons go (the server refuses
       // them anyway), and so does Data.
       document.body.classList.toggle("developer", developer());
-      document.body.classList.toggle("vibe", vibe());
-      if (vibe() && chat.view !== "chat") setCodeView("chat");
       document.querySelectorAll(".owners-control").forEach(function (control) { control.disabled = developer(); });
       if (developer() && panes.right.view === "data") setSide("release", null);
       renderSSHKey();
@@ -1881,6 +1877,136 @@
   // lie over the chat, one at a time, so they start hidden.
   var sideOver = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
   var panes = { left: { view: "tasks", open: true, width: 300 }, right: { view: "rewind", open: true, width: 340 } };
+  // ---- Vibe mode and Pro mode: how much of the page shows, each person's
+  // own, in this browser; not a right (hi 2.6.202). Vibe shows the chat,
+  // the work, the preview, and publishing; what more, they choose
+  // (Customize Vibe mode). Pro shows everything.
+  var MODE_PARTS = [
+    { group: "Left panel", items: [["tasks", "Tasks"], ["spaces", "Workspaces"], ["files", "Files"], ["search", "Search"], ["checks", "Checks"], ["decisions", "Decisions"], ["security", "Security"]] },
+    { group: "The middle", items: [["terminal", "Terminal"], ["editor", "Editor ↗"]] },
+    { group: "Right panel", items: [["rewind", "Rewind"], ["git", "Source control"], ["logs", "Logs"], ["preview", "Preview"], ["release", "Publish"], ["data", "Data (owners)"], ["system", "System"]] },
+  ];
+  var VIBE_HIDES = ["files", "search", "checks", "decisions", "security", "editor", "git", "logs", "data", "system"];
+  var viewMode = { mode: "vibe", hides: VIBE_HIDES.slice() };
+  try {
+    var keptMode = JSON.parse(localStorage.getItem("hi-dev-mode") || "null");
+    if (keptMode && (keptMode.mode === "vibe" || keptMode.mode === "pro")) viewMode.mode = keptMode.mode;
+    if (keptMode && Array.isArray(keptMode.hides)) viewMode.hides = keptMode.hides;
+  } catch (e) { /* private window */ }
+  function keepMode() {
+    try { localStorage.setItem("hi-dev-mode", JSON.stringify(viewMode)); } catch (e) { /* private window: this page only */ }
+  }
+  // modeHides says Vibe mode hides a part now. peek is a view it hides
+  // that something on the page opened on purpose (a site's ask opens
+  // Security): it shows until another view is picked in its panel.
+  var peek = "";
+  function modeHides(key) { return viewMode.mode === "vibe" && viewMode.hides.indexOf(key) >= 0 && key !== peek; }
+  var MODE_ICONS = {
+    vibe: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+    pro: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10"/><path d="M18 6h2"/><circle cx="16" cy="6" r="2"/><path d="M4 12h4"/><path d="M12 12h8"/><circle cx="10" cy="12" r="2"/><path d="M4 18h12"/><path d="M20 18h0"/><circle cx="18" cy="18" r="2"/></svg>',
+  };
+  // applyMode shows and hides the parts, and moves off a view that went.
+  function applyMode() {
+    document.body.classList.toggle("mode-vibe", viewMode.mode === "vibe");
+    MODE_PARTS.forEach(function (part) {
+      part.items.forEach(function (item) { document.body.classList.toggle("mode-hide-" + item[0], modeHides(item[0])); });
+    });
+    var button = $("mode-btn");
+    button.innerHTML = MODE_ICONS[viewMode.mode];
+    button.title = (viewMode.mode === "vibe" ? "Vibe mode: the chat, your work, the preview, publishing." : "Pro mode: everything.") + " Change it here.";
+    button.setAttribute("aria-label", viewMode.mode === "vibe" ? "Vibe mode; change it" : "Pro mode; change it");
+    if (modeHides("terminal") && chat.view === "terminal") setCodeView("chat");
+    renderSide();
+    sideShown();
+  }
+  // shownViews are a panel's views that show now: not hidden by the mode,
+  // nor by being the owners' only.
+  function shownViews(which) {
+    return [].filter.call($(paneIds[which].panel).querySelectorAll(".side-tabs button[data-side]"), function (button) {
+      return !modeHides(button.dataset.side) && getComputedStyle(button).display !== "none";
+    }).map(function (button) { return button.dataset.side; });
+  }
+  function setMode(mode) {
+    viewMode.mode = mode;
+    keepMode();
+    applyMode();
+    drawModeMenu();
+  }
+  function drawModeMenu() {
+    var menu = $("mode-menu");
+    menu.textContent = "";
+    menu.appendChild(el("div", { class: "theme-head", text: "How much shows" }));
+    [["vibe", "Vibe", "The chat, your work, the preview, publishing"], ["pro", "Pro", "Everything: files, source control, logs, checks…"]].forEach(function (m) {
+      var on = viewMode.mode === m[0];
+      var icon = el("span", { class: "mode-icon", "aria-hidden": "true" });
+      icon.innerHTML = MODE_ICONS[m[0]];
+      menu.appendChild(el("button", { type: "button", role: "menuitemradio", "aria-checked": on ? "true" : "false", class: "theme-item mode-item", "data-mode": m[0],
+        onclick: function () { setMode(m[0]); closeModeMenu(); } }, [
+        icon,
+        el("span", { class: "mode-words" }, [el("span", { class: "theme-name", text: m[1] }), el("span", { class: "muted mode-about", text: m[2] })]),
+        el("span", { class: "theme-check", text: on ? "✓" : "" }),
+      ]));
+    });
+    menu.appendChild(el("div", { class: "space-sep" }));
+    menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item", id: "mode-customize", text: "Customize Vibe mode…",
+      onclick: function () { closeModeMenu(); openModeDialog(); } }));
+  }
+  function closeModeMenu() {
+    $("mode-menu").hidden = true;
+    $("mode-btn").setAttribute("aria-expanded", "false");
+  }
+  $("mode-btn").addEventListener("click", function (event) {
+    event.stopPropagation();
+    var menu = $("mode-menu");
+    if (!menu.hidden) { closeModeMenu(); return; }
+    drawModeMenu();
+    menu.hidden = false;
+    $("mode-btn").setAttribute("aria-expanded", "true");
+    var first = menu.querySelector('[aria-checked="true"]');
+    if (first) first.focus();
+  });
+  $("mode-menu").addEventListener("click", function (event) { event.stopPropagation(); });
+  $("mode-menu").addEventListener("keydown", function (event) {
+    var items = [].slice.call($("mode-menu").querySelectorAll(".theme-item"));
+    var at = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      items[(at + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    } else if (event.key === "Escape") { closeModeMenu(); $("mode-btn").focus(); }
+  });
+  document.addEventListener("click", closeModeMenu);
+  // Customize Vibe mode: a box each part, ticked when Vibe mode shows it;
+  // a change shows at once, in Vibe mode.
+  function openModeDialog() {
+    var box = $("mode-groups");
+    box.textContent = "";
+    MODE_PARTS.forEach(function (part) {
+      var list = el("div", { class: "mode-group-items" });
+      part.items.forEach(function (item) {
+        var input = el("input", { type: "checkbox", value: item[0] });
+        input.checked = viewMode.hides.indexOf(item[0]) < 0;
+        input.addEventListener("change", function () {
+          viewMode.hides = viewMode.hides.filter(function (key) { return key !== item[0]; });
+          if (!input.checked) viewMode.hides.push(item[0]);
+          viewMode.mode = "vibe";
+          keepMode();
+          applyMode();
+        });
+        list.appendChild(el("label", { class: "check" }, [input, document.createTextNode(" " + item[1])]));
+      });
+      box.appendChild(el("fieldset", { class: "mode-group" }, [el("legend", { text: part.group }), list]));
+    });
+    box.appendChild(el("p", { class: "muted small", text: "Chat is always there." }));
+    if (!$("mode-dialog").open) $("mode-dialog").showModal();
+  }
+  $("mode-done").addEventListener("click", function () { $("mode-dialog").close(); });
+  $("mode-reset").addEventListener("click", function () {
+    viewMode.hides = VIBE_HIDES.slice();
+    viewMode.mode = "vibe";
+    keepMode();
+    applyMode();
+    openModeDialog();
+  });
   var paneViews = {
     left: ["tasks", "spaces", "files", "search", "checks", "decisions", "security"],
     right: ["rewind", "git", "logs", "preview", "release", "data", "system"],
@@ -3065,6 +3191,10 @@
     ["left", "right"].forEach(function (which) {
       var pane = panes[which], ids = paneIds[which], panel = $(ids.panel);
       var beside = which === "left" || sideBeside();
+      // The mode's: off a view it hides, to the first it shows; none, no panel.
+      var views = shownViews(which);
+      if (views.length && views.indexOf(pane.view) < 0) pane.view = views[0];
+      beside = beside && views.length > 0;
       panel.hidden = !pane.open || !beside;
       panel.style.setProperty("--side-width", pane.width + "px");
       $(ids.toggle).setAttribute("aria-pressed", String(pane.open));
@@ -3105,6 +3235,7 @@
   // setSide opens a view in its panel, or with view null, shows or hides
   // the panel which. On a narrow screen, opening one hides the other.
   function setSide(view, open, which) {
+    if (peek && view && view !== peek && paneOf(view) === paneOf(peek)) { peek = ""; applyMode(); }
     which = view ? paneOf(view) : which || "right";
     var pane = panes[which];
     var was = paneShown(which) ? pane.view : "";
@@ -3119,6 +3250,7 @@
   // revealSide opens a view from anywhere on the page: the chat, a link,
   // the other panel.
   function revealSide(view) {
+    if (view !== peek && viewMode.mode === "vibe" && viewMode.hides.indexOf(view) >= 0) { peek = view; applyMode(); }
     if (paneOf(view) === "right" && !sideBeside()) setCodeView("chat");
     setSide(view, true);
   }
@@ -5015,11 +5147,12 @@
   });
 
   booted = true;
+  applyMode(); // Vibe mode or Pro mode, as this browser keeps it
   sideShown();
   ["left", "right"].forEach(function (which) { if (paneShown(which)) freshView(panes[which].view); });
   if (startView === "file") setCodeView("file");
   refresh().then(function () {
-    if ($("locked").hidden && !vibe()) connect();
+    if ($("locked").hidden) connect();
   });
   refreshTickets(false);
   // Behind another window too, every half minute, for Needs you's

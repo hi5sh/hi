@@ -8,9 +8,9 @@ import (
 	"testing"
 )
 
-// Owners and Pro Devs get the dev box over SSH for their own editor: the
+// Owners and developers get the dev box over SSH for their own editor: the
 // peer's NetBird name once NetBird gave it, the account, and the host
-// key's fingerprint. A Vibe Dev gets none of it.
+// key's fingerprint.
 func TestTeamDevEditorSSH(t *testing.T) {
 	b, _ := appTestDevPage(t)
 	view := b.devPageView(appPersonKey{User: "U07OWNER1", Name: "Olga"}, appLevelOwner)
@@ -27,9 +27,6 @@ func TestTeamDevEditorSSH(t *testing.T) {
 		if view.SSH == nil || view.SSH.Host != "payments.corp.example" || view.SSH.HostKey != "SHA256:3gYn+FempvTwaBLROqwPHcpG3cXYFuDkme2fAbTTrU4" {
 			t.Fatalf("%s: %+v", level, view.SSH)
 		}
-	}
-	if view := b.devPageView(appPersonKey{User: "U07VIBE01", Name: "Vi"}, appLevelVibe); view.SSH != nil {
-		t.Fatalf("a Vibe Dev: %+v", view.SSH)
 	}
 	if got := appSSHFingerprint("not a key"); got != "" {
 		t.Fatal(got)
