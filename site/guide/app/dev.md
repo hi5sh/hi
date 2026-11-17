@@ -342,6 +342,10 @@ for; Checks and Logs have a dot.
   it finishes the workspace too (worktree, workspace, branch); when the
   workspace still has work dev hasn't got, that stays there, and only
   the task closes. A closed task's ⋯ has **Reopen**.
+- **The page's words** (since v2.6.191): it says **Preview** for Stage
+  (the button **Preview** is Try on Stage) and **Publish** for Release
+  (**Publish v15**, **Published versions**). The commands keep theirs:
+  `hi dev preview`, `hi dev release`.
 - **Workspaces:** the pieces of work in the dev box, each with what dev
   has of it, **Open**, **Editor ↗** ([your own editor](#your-own-editor)),
   **Try on Stage**, **Ship to Dev**, and **Done ✓**

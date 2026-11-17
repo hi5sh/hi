@@ -912,8 +912,8 @@
     var nodes = [link(what, s.preview_url)];
     if (s.preview_branch || s.preview_old) {
       nodes.push(el("div", { class: "muted small", text: s.preview_branch ? "a branch being tried, not dev" : "dev as it was, before what was shipped since" }));
-      nodes.push(el("button", { class: "small show-dev", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
-        toast("Putting dev on Stage…", true);
+      nodes.push(el("button", { class: "small show-dev", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on the preview again; nothing in dev changes", onclick: function () {
+        toast("Putting dev on the preview…", true);
         act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
       } }));
     }
@@ -927,13 +927,13 @@
       facts.appendChild(el("dt", { text: name }));
       facts.appendChild(el("dd", {}, [typeof value === "string" ? document.createTextNode(value) : value]));
     }
-    fact("Production", s.production ? link("v" + s.production, s.production_url) : document.createTextNode("nothing released yet"));
+    fact("Production", s.production ? link("v" + s.production, s.production_url) : document.createTextNode("nothing published yet"));
     var dev = el("div", {}, [document.createTextNode((s.dev || "").replace(/^dev, /, ""))]);
     if (s.changes && s.changes.length) {
       dev.appendChild(el("ul", {}, s.changes.map(function (change) { return el("li", { text: change }); })));
     }
     fact("Dev", dev);
-    fact("Stage", previewWhat(s));
+    fact("Preview", previewWhat(s));
     fact("Backups", s.snapshot || "none yet");
     fact("Incidents", document.createTextNode(state.incidents && state.incidents.length ? state.incidents.length + " open, below" : "none open"));
     if (s.jobs && s.jobs.length) fact("Jobs", el("ul", {}, s.jobs.map(function (job) { return el("li", { text: job }); })));
@@ -941,7 +941,7 @@
     // Production and Stage, in the bar's globe menu.
     var links = $("links");
     links.textContent = "";
-    [["Production", s.production_url], ["Stage", s.preview_url]].forEach(function (pair) {
+    [["Production", s.production_url], ["Preview", s.preview_url]].forEach(function (pair) {
       if (!pair[1]) return;
       var a = el("a", { href: pair[1], target: "_blank", rel: "noopener", role: "menuitem", class: "theme-item" });
       a.appendChild(el("span", { class: "theme-name", text: pair[0] }));
@@ -999,15 +999,15 @@
   // Try on Stage and Ship to Dev: what hi dev preview and hi dev ship do
   // in the box, for a workspace's branch, by a click.
   function tryButton(space) {
-    return el("button", { text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
-      toast("Putting " + space.branch + " on Stage…", true);
+    return el("button", { text: "Preview", busy: "try:" + space.id, title: "Show this branch on the preview, alone, to try it; dev doesn't change, and Show dev puts it back", onclick: function () {
+      toast("Putting " + space.branch + " on the preview…", true);
       act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
     } });
   }
   function shipButton(space) {
     return el("button", { class: "primary", text: "Ship to Dev", busy: "ship:" + space.id, title: "Merge its commits into dev, as hi dev ship does", onclick: function () {
-      ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on Stage; production moves when someone releases it." +
-        (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the release notes:", "the last commit's title").then(function (title) {
+      ask("Ship " + space.branch + " into dev? Its " + (space.ahead === 1 ? "commit merges" : space.ahead + " commits merge") + " into dev, and dev goes on the preview; production moves when someone publishes it." +
+        (space.dirty ? " Its changes not committed stay in the worktree." : "") + " A title for the change, for the notes when it's published:", "the last commit's title").then(function (title) {
         if (title === null) return;
         toast("Shipping " + space.branch + " into dev…", true);
         act("", "ship", { workspace: space.id, title: title }, function (r) { return r.text; }, "ship:" + space.id);
@@ -1040,8 +1040,8 @@
         incident.detail ? el("details", {}, [el("summary", { class: "small", text: "What hi recorded" }), el("pre", { text: incident.detail })]) : null,
       ]);
       incidents.appendChild(el("li", { class: "ticket" }, [el("span", { class: "dot blocked" }), what, el("div", { class: "actions owners-only" }, [
-        el("button", { text: preview ? "Restart Stage" : "Restart production", busy: "incident:" + incident.id, onclick: function () {
-          act("Give " + (preview ? "Stage" : "production") + "'s app a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.", "incident:" + incident.id);
+        el("button", { text: preview ? "Restart the preview" : "Restart production", busy: "incident:" + incident.id, onclick: function () {
+          act("Give " + (preview ? "the preview" : "production") + "'s app a new box?", "incident", { id: incident.id, action: "restart", preview: preview }, "Restarted.", "incident:" + incident.id);
         } }),
         el("button", { text: "Close", busy: "incident:" + incident.id, onclick: function () {
           ask("Close " + incident.id + "? What resolved it?", "what resolved it").then(function (because) {
@@ -1055,7 +1055,7 @@
     // Releases, each one production can go back to.
     var releases = $("releases");
     releases.textContent = "";
-    if (!state.releases || !state.releases.length) releases.appendChild(el("li", { class: "muted", text: "Nothing released yet." }));
+    if (!state.releases || !state.releases.length) releases.appendChild(el("li", { class: "muted", text: "Nothing published yet." }));
     (state.releases || []).forEach(function (release) {
       var actions = [];
       if (release.version === production) {
@@ -1084,7 +1084,7 @@
     // choice.
     var addresses = $("addresses");
     addresses.textContent = "";
-    var names = { production: "Production", preview: "Stage", dev: "This page" };
+    var names = { production: "Production", preview: "Preview", dev: "This page" };
     var s = state.status || {};
     var changes = state.changes || [];
     function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
@@ -1092,26 +1092,26 @@
       var head = el("div", { class: "where-head" }, [el("strong", { text: names[a.address] }), document.createTextNode(" · "), link(a.internal.replace(/^http:\/\//, "").replace(/\/$/, ""), a.internal)]);
       var lines = [head];
       if (a.address === "production") {
-        lines.push(el("div", { class: "where-what" }, [el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing released yet" }), document.createTextNode(s.production ? " what everyone uses" : "")]));
+        lines.push(el("div", { class: "where-what" }, [el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " what everyone uses" : "")]));
         if (changes.length) {
           lines.push(el("div", { class: "where-what" }, [
             el("span", {}, [el("span", { class: "arrow", text: "↑ " }), document.createTextNode("dev has " + plural(changes.length, "change", "changes") + " waiting: " + changes.map(function (c) { return c.title; }).slice(0, 3).join("; ") + (changes.length > 3 ? "; …" : ""))]),
           ]));
         } else if (s.production) {
-          lines.push(el("div", { class: "muted small", text: "Dev is the same: nothing to release." }));
+          lines.push(el("div", { class: "muted small", text: "Dev is the same: nothing to publish." }));
         }
         // An app that starts from code it already had has no tasks of its
         // own yet, and dev is still its first release.
         if (releasing) {
           lines.push(el("div", { class: "where-what" }, [
-            el("button", { class: "primary small busy", disabled: "", text: "Releasing v" + releasing + "…" }),
+            el("button", { class: "primary small busy", disabled: "", text: "Publishing v" + releasing + "…" }),
             el("span", { class: "muted small", text: "A snapshot of production first, then v" + releasing + " in a new box: a minute or two." }),
           ]));
         } else if (changes.length || !s.production) {
-          var release = [el("button", { class: "primary small", text: "Release v" + ((s.production || 0) + 1), title: "Dev goes to production, with a snapshot first. Your click is the yes, logged with your name.", onclick: openRelease })];
+          var release = [el("button", { class: "primary small", text: "Publish v" + ((s.production || 0) + 1), title: "Dev goes to production, with a snapshot first. Your click is the yes, logged with your name.", onclick: openRelease })];
           if (changes.length && s.production) {
             release.push(el("button", { class: "link danger small owners-only", text: "Set dev back to production", busy: "dev-reset", onclick: function () {
-              act("Set dev's code back to what production runs? What dev has on top of it stays in its history, and Stage shows production's code.", "dev/reset", {}, "Dev is the same as production now.", "dev-reset");
+              act("Set dev's code back to what production runs? What dev has on top of it stays in its history, and the preview shows production's code.", "dev/reset", {}, "Dev is the same as production now.", "dev-reset");
             } }));
           }
           lines.push(el("div", { class: "where-what" }, release));
@@ -1128,8 +1128,8 @@
           showing.push(el("span", { class: "tag", text: "nothing" }));
         }
         if (s.preview_branch || s.preview_old) {
-          showing.push(el("button", { class: "small", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on Stage again; nothing in dev changes", onclick: function () {
-            toast("Putting dev on Stage…", true);
+          showing.push(el("button", { class: "small", text: "Show dev", busy: "preview-dev", title: "Put dev as it is on the preview again; nothing in dev changes", onclick: function () {
+            toast("Putting dev on the preview…", true);
             act("", "preview-dev", {}, function (r) { return r.text; }, "preview-dev");
           } }));
         }
@@ -1142,9 +1142,9 @@
             if (space.ahead) left.push(plural(space.ahead, "commit", "commits") + " not in dev");
             if (space.dirty) left.push("changes not committed");
             var on = space.branch === s.preview_branch;
-            var end = on ? el("span", { class: "on-preview", text: "← on Stage now" })
-              : space.ahead > 0 ? el("button", { class: "small", text: "Try on Stage", busy: "try:" + space.id, title: "Show this branch on Stage, alone; dev doesn't change", onclick: function () {
-                  toast("Putting " + space.branch + " on Stage…", true);
+            var end = on ? el("span", { class: "on-preview", text: "← on the preview now" })
+              : space.ahead > 0 ? el("button", { class: "small", text: "Preview", busy: "try:" + space.id, title: "Show this branch on the preview, alone; dev doesn't change", onclick: function () {
+                  toast("Putting " + space.branch + " on the preview…", true);
                   act("", "ship", { workspace: space.id, preview: true }, function (r) { return r.text; }, "try:" + space.id);
                 } })
               : el("span", { class: "muted small", text: "commit it to try it" });
@@ -1174,13 +1174,13 @@
             act("Make " + names[a.address].toLowerCase() + " internal only? Its public address ends: people reach it on the app's NetBird network, at " + a.internal, "public", { address: a.address, on: false }, names[a.address] + " is internal only.", "public:" + a.address);
           } })
         : el("button", { class: "small danger owners-only", text: "Make public", busy: "public:" + a.address, onclick: function () {
-            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and releases the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
+            act("Make " + names[a.address].toLowerCase() + " public too? It gets an address on the internet through NetBird, which anyone with its link can open" + (a.address === "dev" ? ", and this page builds and publishes the app." : "."), "public", { address: a.address, on: true }, names[a.address] + " is public too.", "public:" + a.address);
           } });
       addresses.appendChild(el("li", { class: "where-row " + a.address }, [el("div", { class: "what" }, lines), el("div", { class: "actions" }, [button])]));
     });
 
     $("data-copy").disabled = !production || !state.preview_data;
-    $("data-copy").title = !production ? "Nothing is released yet" : (!state.preview_data ? "Stage has no data" : "");
+    $("data-copy").title = !production ? "Nothing is published yet" : (!state.preview_data ? "The preview has no data" : "");
     $("helper-preview").checked = !!(state.helper || {}).preview;
     $("helper-production").checked = !!(state.helper || {}).production;
 
@@ -1366,21 +1366,21 @@
     });
   }
   $("data-fork").addEventListener("click", function () {
-    dataAct("Give Stage a fresh copy of production's data? What Stage wrote itself is kept once, apart; production pauses for a moment, and Stage restarts on the copy.", "data/copy", { to: "preview" }, "Stage has a fresh copy of production's data.");
+    dataAct("Give the preview a fresh copy of production's data? What the preview wrote itself is kept once, apart; production pauses for a moment, and the preview restarts on the copy.", "data/copy", { to: "preview" }, "The preview has a fresh copy of production's data.");
   });
   $("data-copy").addEventListener("click", function () {
-    dataAct("Replace production's data with a copy of Stage's? hi snapshots production's data first, and production restarts on the copy.", "data/copy", {}, "Production has Stage's data now.");
+    dataAct("Replace production's data with a copy of the preview's? hi snapshots production's data first, and production restarts on the copy.", "data/copy", {}, "Production has Stage's data now.");
   });
   $("data-snapshot").addEventListener("click", function () {
     dataAct("", "data/snapshot", {}, "The snapshot is taken.");
   });
   $("data-empty").addEventListener("change", function (event) {
-    dataAct("", "data/preview", { empty: event.target.checked }, event.target.checked ? "Stage starts empty at every release." : "Stage starts on a copy of production's data at every release.");
+    dataAct("", "data/preview", { empty: event.target.checked }, event.target.checked ? "The preview starts empty at each publish." : "The preview starts on a copy of production's data at each publish.");
   });
   ["preview", "production"].forEach(function (slot) {
     $("helper-" + slot).addEventListener("change", function (event) {
       var on = event.target.checked;
-      act("", "helper", { slot: slot, on: on }, "The helper is " + (on ? "on" : "off") + (slot === "preview" ? " on Stage." : " in production."));
+      act("", "helper", { slot: slot, on: on }, "The helper is " + (on ? "on" : "off") + (slot === "preview" ? " on the preview." : " in production."));
     });
   });
   $("rule-form").addEventListener("submit", function (event) {
@@ -1406,7 +1406,7 @@
         el("div", { class: "what" }, [el("code", { text: name }), el("span", { class: "muted small", text: label.slice(name.length) })]),
         el("div", { class: "actions owners-only" }, [el("button", {
           text: "Remove", onclick: function () {
-            act("Remove " + name + " from Stage, production, and the dev box?", "settings", { key: name, unset: true }, name + " is removed.");
+            act("Remove " + name + " from the preview, production, and the dev box?", "settings", { key: name, unset: true }, name + " is removed.");
           },
         })]),
       ]));
@@ -1487,10 +1487,10 @@
   var people = null;
   function setLevel(person, level, row) {
     var question = "";
-    var data = $("people-warn").hidden ? "" : " Stage runs on a copy of production's data, which they can read through Stage.";
+    var data = $("people-warn").hidden ? "" : " The preview runs on a copy of production's data, which they can read through the preview.";
     var words = { owner: "an owner", developer: "a Pro Dev", vibe: "a Vibe Dev", contributor: "a contributor" };
-    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, and SSH, and release, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
-    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal or SSH; the agents still run commands in the dev box for them. They release too." + data;
+    if (level === "developer") question = "Make " + person.name + " a Pro Dev? They work in the dev box as you do, with Chat, terminal, and SSH, and publish, except rollbacks, production's data and settings, keys, sites, addresses, and who is who." + data;
+    else if (level === "vibe") question = "Make " + person.name + " a Vibe Dev? They work with the agents in Chat, without the terminal or SSH; the agents still run commands in the dev box for them. They publish too." + data;
     else if (level === "none") question = "Take away " + person.name + "'s level? They can't report, the lead won't take their requests, and their links end.";
     else if (person.level === "developer" || person.level === "vibe") question = "Make " + person.name + " " + words[level] + "? Their dev page link" + (person.level === "developer" ? " and SSH key end, and an open terminal closes." : " ends.");
     (question ? ask(question + " The channel hears it.") : Promise.resolve("")).then(function (answer) {
@@ -1533,7 +1533,7 @@
 
   function openRelease() {
     var next = ((state.status || {}).production || 0) + 1;
-    $("release-title").textContent = "Release v" + next;
+    $("release-title").textContent = "Publish v" + next;
     $("release-notes").value = (state.changes || []).map(function (task) { return "- " + task.title; }).join("\n");
     $("release-error").textContent = "";
     $("release-go").disabled = false;
@@ -1551,7 +1551,7 @@
     releasing = ((state.status || {}).production || 0) + 1;
     $("release-dialog").close();
     $("release-error").textContent = "";
-    toast("Releasing v" + releasing + ": a snapshot of production first, then the new box…", true);
+    toast("Publishing v" + releasing + ": a snapshot of production first, then the new box…", true);
     if (state.status) renderOwnerActions();
     api("POST", "release", { notes: $("release-notes").value, preview_data: $("release-data").checked }).then(function (result) {
       releasing = 0;
@@ -1596,7 +1596,7 @@
       renderWorkspaces();
       if (viewShown("tasks")) renderSideTasks(); // its workspace's task, now that it's known
       openLinkedTask();
-      badge("release-count", (data.changes || []).length, " changes to release");
+      badge("release-count", (data.changes || []).length, " changes to publish");
     }).catch(function () {});
   }
   // A link to a task's work, #task-12, as the lead posts when it starts
@@ -4036,7 +4036,7 @@
       return (l.at ? new Date(l.at).toISOString().slice(11, 19) + " " : "") + plainLog(l.text);
     }).join("\n");
     if (!text.trim()) { toast("Nothing to send yet."); return; }
-    var whose = logs.slot === "production" ? "production" : "Stage";
+    var whose = logs.slot === "production" ? "production" : "Preview";
     toChat("From " + (logs.label || whose) + ", " + (logs.source === "output" ? "what it printed" : "the requests it served") + ":\n\n```\n" + text.replace(/\s+$/, "") + "\n```\n\n");
   });
   renderLogTools();
@@ -4048,7 +4048,7 @@
   function previewSlots() {
     var s = (state && state.status) || {};
     var slots = [];
-    if (s.preview_url) slots.push({ id: "preview", url: s.preview_url, label: "Stage: " + (s.preview_branch || (s.preview || "").replace(/^dev, /, "dev: ")) });
+    if (s.preview_url) slots.push({ id: "preview", url: s.preview_url, label: "Preview: " + (s.preview_branch || (s.preview || "").replace(/^dev, /, "dev: ")) });
     if (s.production_url) slots.push({ id: "production", url: s.production_url, label: "Production" + (s.production ? " v" + s.production : "") });
     return slots;
   }
@@ -4068,7 +4068,7 @@
     $("preview-open").hidden = !slot;
     frame.hidden = !slot;
     if (!slot) {
-      $("preview-note").textContent = "Nothing to show yet: release, or Try on Stage a workspace's branch.";
+      $("preview-note").textContent = "Nothing to show yet: publish, or Preview a workspace's branch.";
       return;
     }
     $("preview-open").href = slot.url;

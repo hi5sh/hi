@@ -36,7 +36,7 @@
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
       <span id="chat-status" class="muted small chat-status"></span>
-      <div id="links-wrap" class="theme-wrap" hidden><button id="links-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="links-menu" title="Open production or Stage" aria-label="Open production or Stage"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></button><div id="links-menu" class="theme-menu links-menu" role="menu" hidden><div class="theme-head">Open</div><div id="links"></div></div></div>
+      <div id="links-wrap" class="theme-wrap" hidden><button id="links-btn" type="button" class="icon" aria-haspopup="menu" aria-expanded="false" aria-controls="links-menu" title="Open production or the preview" aria-label="Open production or the preview"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></button><div id="links-menu" class="theme-menu links-menu" role="menu" hidden><div class="theme-head">Open</div><div id="links"></div></div></div>
       <div id="presence" class="presence" role="status" aria-label="Who's on this page" hidden></div>
       <div class="theme-wrap"><button id="theme-btn" type="button" class="icon" title="Theme" aria-label="Theme"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></button></div>
       <div class="inbox-wrap">
@@ -47,7 +47,7 @@
           <ul id="inbox-list" class="inbox-list"></ul>
         </div>
       </div>
-      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Rewind, source control, logs, preview, release, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
+      <button id="side-toggle" class="icon side-toggle" aria-pressed="true" title="Rewind, source control, logs, preview, publish, data, and system" aria-label="The right panel"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg></button>
     </div>
     <div class="code-body">
         <aside id="left-side" class="side side-left" aria-label="The left panel" hidden>
@@ -158,15 +158,15 @@
               <div class="system-col">
                 <section id="people-box" class="owners-only">
                   <h2>People</h2>
-                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and release as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and release. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
+                  <p class="muted small">Who may do what. Nobody has a level for being in the app's channel: an owner gives it. <strong>Pro Devs</strong> build and publish as owners do, with Chat, terminal, and SSH, but don't roll back, and don't change production's data or settings, the app's keys, the sites the dev box reaches, the addresses, or who is who. <strong>Vibe Devs</strong> build with the agents in Chat only, and publish. <strong>Contributors</strong> report bugs as tasks, to the lead in Slack or from the app's helper with their own link. Anyone else can use the app and ask the lead questions.</p>
                   <input id="people-search" type="search" placeholder="Find someone…" aria-label="Find someone" autocomplete="off">
                   <div class="people-wrap">
                     <table id="people-table" class="people-table">
                       <thead><tr>
                         <th scope="col">Person</th>
                         <th scope="col" title="An admin of the machine changes owners: hi app owners">Owner</th>
-                        <th scope="col" title="Chat, terminal, and SSH in the dev box; releases">Pro Dev</th>
-                        <th scope="col" title="The agents' Chat in the dev box, no terminal or SSH; releases">Vibe Dev</th>
+                        <th scope="col" title="Chat, terminal, and SSH in the dev box; publishes">Pro Dev</th>
+                        <th scope="col" title="The agents' Chat in the dev box, no terminal or SSH; publishes">Vibe Dev</th>
                         <th scope="col" title="Reports bugs as tasks">Contributor</th>
                         <th scope="col" title="Uses the app, asks the lead questions">None</th>
                       </tr></thead>
@@ -174,7 +174,7 @@
                     </table>
                   </div>
                   <p class="muted small">Owners are set by an admin of the machine (<code>hi app owners</code>).<span id="admin-owners" hidden> <a target="_blank" rel="noopener noreferrer">You're one: change them on the admin page ↗</a></span> The channel hears every change made here.</p>
-                  <p id="people-warn" class="small warn" hidden>Stage runs on a copy of production's data, so a developer can read it through Stage, with their own work on it. To keep that data from developers, start Stage empty (in Data).</p>
+                  <p id="people-warn" class="small warn" hidden>The preview runs on a copy of production's data, so a developer can read it through the preview, with their own work on it. To keep that data from developers, start the preview empty (in Data).</p>
                 </section>
                 <section id="sshkey-box" class="pro-only">
                   <h2>Your SSH key</h2>
@@ -204,8 +204,8 @@
                   </select>
                   <label class="setting-file muted small">or a file, such as a certificate with its key: <input id="setting-file" type="file"></label>
                   <select id="setting-slot">
-                    <option value="">Stage and production</option>
-                    <option value="preview">Stage only</option>
+                    <option value="">The preview and production</option>
+                    <option value="preview">The preview only</option>
                     <option value="production">production only</option>
                     <option value="dev">the dev box only, from its next restart</option>
                   </select>
@@ -325,10 +325,10 @@
           <nav class="side-tabs" role="tablist" aria-label="Views">
             <button data-side="rewind" role="tab" aria-selected="true" title="Rewind: back to before a message, the code and the chat" aria-label="Rewind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg></button>
             <button data-side="git" role="tab" aria-selected="false" title="Source control: what changed, to look at, commit, and ship" aria-label="Source control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><span id="git-count" class="side-badge" hidden></span></button>
-            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and Stage print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
-            <button data-side="preview" role="tab" aria-selected="false" title="Preview: Stage or production, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-            <button data-side="release" role="tab" aria-selected="false" title="Release: where things run, and releasing to production" aria-label="Release"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="release-count" class="side-badge" hidden></span></button>
-            <button data-side="data" class="owners-only" role="tab" aria-selected="false" title="Data: production's and Stage's, and the snapshots" aria-label="Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+            <button data-side="logs" role="tab" aria-selected="false" title="Logs: what production and the preview print, and the requests they serve" aria-label="Logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"/><path d="M4 10h16"/><path d="M4 15h10"/><path d="M4 20h7"/></svg><span id="logs-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="preview" role="tab" aria-selected="false" title="Preview: the app as the preview or production shows it, here beside the work" aria-label="Preview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button data-side="release" role="tab" aria-selected="false" title="Publish: where things run, and publishing to production" aria-label="Publish"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><span id="release-count" class="side-badge" hidden></span></button>
+            <button data-side="data" class="owners-only" role="tab" aria-selected="false" title="Data: production's and the preview's, and the snapshots" aria-label="Data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
             <button data-side="system" role="tab" aria-selected="false" title="System: what runs where, incidents, the helper, and the jobs' rules" aria-label="System"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/><path d="m7 11 2-2 2 3 2-4 2 3h2"/></svg></button>
             <span class="grow"></span>
             <button id="side-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
@@ -362,7 +362,7 @@
           </section>
           <section id="side-logs" class="side-view logs-view" role="tabpanel" aria-label="Logs" hidden>
             <div class="logs-tools">
-              <select id="logs-slot" aria-label="Whose logs"><option value="production">Production</option><option value="preview">Stage</option></select>
+              <select id="logs-slot" aria-label="Whose logs"><option value="production">Production</option><option value="preview">Preview</option></select>
               <div id="logs-source" class="chips small-chips" role="group" aria-label="Which log">
                 <button data-source="output" aria-pressed="true" title="What the app prints">Output</button>
                 <button data-source="requests" aria-pressed="false" title="The requests its address served">Requests</button>
@@ -390,7 +390,7 @@
             <p id="rewind-empty" class="muted small" hidden></p>
             <ol id="rewind-points" class="rewind-points"></ol>
           </section>
-          <section id="side-release" class="side-view page-view" role="tabpanel" aria-label="Release" hidden>
+          <section id="side-release" class="side-view page-view" role="tabpanel" aria-label="Publish" hidden>
             <div class="release-wrap">
               <section class="where-card">
                 <h2>Where things run</h2>
@@ -398,8 +398,8 @@
                 <ul id="addresses" class="where"></ul>
               </section>
               <section class="releases-card">
-                <h2>Releases</h2>
-                <p class="developers-only muted small">Ship your work into dev, then release it to production. The owners roll it back.</p>
+                <h2>Published versions</h2>
+                <p class="developers-only muted small">Ship your work into dev, then publish it to production. The owners roll it back.</p>
                 <ul id="releases" class="list"></ul>
               </section>
             </div>
@@ -408,25 +408,25 @@
             <div class="system-box">
               <div class="system-col">
                 <h2>Production's data</h2>
-                <p class="muted small">What everyone's use of the app has written. Copying Stage's here replaces it, with a snapshot of production's first.</p>
+                <p class="muted small">What everyone's use of the app has written. Copying the preview's here replaces it, with a snapshot of production's first.</p>
                 <dl id="data-production" class="facts"></dl>
                 <div class="data-actions">
                   <button id="data-snapshot">Take a snapshot now</button>
-                  <button id="data-copy">Copy Stage's data to production</button>
+                  <button id="data-copy">Copy the preview's data to production</button>
                 </div>
                 <h2>Snapshots</h2>
-                <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every release, and before data is copied to production.</p>
+                <p class="muted small">The app as it was: production's data, the code, the lead's memory, and the app's record. Daily, before every publish, and before data is copied to production.</p>
                 <ul id="data-snapshots" class="list"><li class="muted small">Loading…</li></ul>
                 <p class="muted small">To put the app back as it was in one, an admin runs <code id="data-restore">hi app restore</code> on the machine; hi takes a snapshot of how it is first.<span id="admin-restore" hidden> <a target="_blank" rel="noopener noreferrer">You're an admin: the admin page ↗</a></span></p>
               </div>
               <div class="system-col">
-                <h2>Stage's data</h2>
-                <p class="muted small">Stage works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old.</p>
+                <h2>The preview's data</h2>
+                <p class="muted small">The preview works on a copy of production's, so trying something changes nothing people use. It gets a fresh copy when new work goes on it, if its copy is over an hour old.</p>
                 <dl id="data-preview" class="facts"></dl>
                 <div class="data-actions">
-                  <button id="data-fork">Copy production's data to Stage</button>
+                  <button id="data-fork">Copy production's data to the preview</button>
                 </div>
-                <label class="check"><input type="checkbox" id="data-empty"> Start Stage empty at every release, for an app whose people's data Stage shouldn't show</label>
+                <label class="check"><input type="checkbox" id="data-empty"> Start the preview empty at each publish, for an app whose people's data the preview shouldn't show</label>
               </div>
             </div>
           </section>
@@ -443,7 +443,7 @@
               <div class="system-col">
                 <h2>The helper</h2>
                 <p class="muted small">Help and feedback on the app's pages. Feedback reaches the channel for people to handle; someone signed in with their link reports a bug, which hi files as a task.</p>
-                <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On Stage</label>
+                <label class="check"><input type="checkbox" id="helper-preview" class="owners-control"> On the preview</label>
                 <label class="check"><input type="checkbox" id="helper-production" class="owners-control"> In production</label>
                 <h2>Rules for the app's jobs</h2>
                 <p class="muted small">Decisions the lead follows when a job fails, in the people's words.</p>
@@ -463,14 +463,14 @@
 </main>
 <dialog id="release-dialog">
   <form method="dialog" id="release-form">
-    <h2 id="release-title">Release</h2>
-    <p class="muted">What changes for the people, in their words. hi posts it in the app's channel with the release.</p>
+    <h2 id="release-title">Publish</h2>
+    <p class="muted">What changes for the people, in their words. hi posts it in the app's channel when it's published.</p>
     <textarea id="release-notes" rows="8" required></textarea>
-    <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of Stage's data</label>
+    <label class="check" id="release-data-box" hidden><input type="checkbox" id="release-data"> Start production with a copy of the preview's data</label>
     <p id="release-error" class="error"></p>
     <div class="buttons">
       <button value="cancel" formnovalidate>Cancel</button>
-      <button id="release-go" value="go" class="primary">Release</button>
+      <button id="release-go" value="go" class="primary">Publish</button>
     </div>
   </form>
 </dialog>

@@ -1638,7 +1638,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 		}
 		// Production's data is the owners': a developer releases the code.
 		if request.PreviewData && level != appLevelOwner {
-			failure(w, http.StatusForbidden, errors.New("only the app's owners start production with Stage's data; release without it, or ask an owner to release"))
+			failure(w, http.StatusForbidden, errors.New("only the app's owners start production with the preview's data; publish without it, or ask an owner to publish"))
 			return
 		}
 		// The builder's click is the yes, logged with their name.

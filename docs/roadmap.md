@@ -2867,6 +2867,14 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.191 — The dev page says Preview and Publish
+
+- [x] On the dev page, Stage is the preview and Release is Publish: a
+  workspace's Try on Stage is Preview; Release v15 is Publish v15, and
+  Releases is Published versions. Ship to Dev stays. A try of the words
+  for the Vibe Devs; the commands, the admin page, and the guide's
+  other pages keep Stage and Release for now.
+
 ### v2.6.190 — No "Trust this folder?" on an agent's first start
 
 - [x] hi trusts a new worktree for the agent before it starts or

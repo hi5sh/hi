@@ -407,7 +407,7 @@ func appDevLogs(team, slot, source, after string) (appDevLogView, error) {
 	view := appDevLogView{Slot: slot, Source: source}
 	state, ok := loadTeamSlot(team, slot)
 	if !ok {
-		view.Note = map[string]string{appSlotProduction: "Nothing is released yet.", appSlotPreview: "Stage shows nothing yet."}[slot]
+		view.Note = map[string]string{appSlotProduction: "Nothing is released yet.", appSlotPreview: "The preview shows nothing yet."}[slot]
 		return view, nil
 	}
 	view.Label, view.Container = state.Label, state.Container
