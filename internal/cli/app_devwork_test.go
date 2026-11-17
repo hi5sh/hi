@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -336,5 +337,116 @@ func TestTeamTicketFiles(t *testing.T) {
 	}
 	if _, err := appTicketDo("payments", appTicketRequest{Action: "files", Number: 9}); err == nil {
 		t.Fatal("files for a task without any")
+	}
+}
+
+// Two pieces of work that change the same lines: the second's conflict
+// names its files; taking the first out for it is one step, undone when
+// the second still doesn't go in; and work taken out goes back in.
+func TestTeamDevTakeOut(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	appTestRunnable(b)
+	show := func(file string) string { data, _ := appGitShow(b.repo, "main", file); return data }
+	appTestDevBranch(t, "font-fun", "src/styles.css", ".countdown { font-family: 'Press Start 2P' }\n", "A fun font")
+	appTestDevBranch(t, "font-bold", "src/styles.css", ".countdown { font-family: 'Archivo Black' }\n", "A bold font")
+	fun, err := b.shipDevBranch(appDevShipRequest{Branch: "font-fun"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.shipDevBranch(appDevShipRequest{Branch: "font-bold"})
+	var conflict appDevConflictError
+	if !errors.As(err, &conflict) || strings.Join(conflict.Files, ",") != "src/styles.css" || !strings.Contains(err.Error(), "git rebase origin/main") {
+		t.Fatal(err)
+	}
+	if files := appDevChangeFiles(b.repo, fun.Task); strings.Join(files, ",") != "src/styles.css" {
+		t.Fatal(files)
+	}
+	// Only the change dev has last.
+	if _, err := b.shipDevBranch(appDevShipRequest{Branch: "font-bold", TakeOut: "t-99"}); err == nil || !strings.Contains(err.Error(), "changed since") {
+		t.Fatal(err)
+	}
+	bold, err := b.shipDevBranch(appDevShipRequest{Branch: "font-bold", TakeOut: fun.Task.ID, By: "Iman"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(show("src/styles.css"), "Archivo Black") {
+		t.Fatal("not in dev:", show("src/styles.css"))
+	}
+	changes := appDevChanges(b.repo, loadTeamTasks("payments"))
+	if len(changes) != 1 || changes[0].ID != bold.Task.ID {
+		t.Fatalf("%+v", changes)
+	}
+	if appDevTakenOut(loadTeamTasks("payments"), "font-fun") == nil || appDevTakenOut(loadTeamTasks("payments"), "font-bold") != nil {
+		t.Fatal("which is out")
+	}
+	if versions, _ := loadTeamVersions("payments"); len(versions.History) == 0 || !strings.Contains(versions.History[len(versions.History)-1].What, "took "+fun.Task.ID+" out") {
+		t.Fatalf("%+v", versions.History)
+	}
+
+	// All or nothing: taking the notes out doesn't make this one go in, so
+	// the notes stay.
+	appTestDevBranch(t, "notes", "NOTES.md", "v1\n", "Notes")
+	notes, err := b.shipDevBranch(appDevShipRequest{Branch: "notes"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := boxGit(b.repo, "rev-parse", "HEAD")
+	appTestDevBranch(t, "both", "src/styles.css", ".countdown { font-family: serif }\n", "Serif")
+	_, err = b.shipDevBranch(appDevShipRequest{Branch: "both", TakeOut: notes.Task.ID})
+	if !errors.As(err, &conflict) {
+		t.Fatal(err)
+	}
+	if boxGit(b.repo, "rev-parse", "HEAD") != head || boxGit(b.repo, "status", "--porcelain") != "" || show("NOTES.md") != "v1\n" {
+		t.Fatal("dev isn't as it was")
+	}
+	if changes := appDevChanges(b.repo, loadTeamTasks("payments")); len(changes) != 2 {
+		t.Fatalf("%+v", changes)
+	}
+
+	// Work taken out goes back in: its change again, as a commit.
+	appTestDevBranch(t, "readme", "README.md", "hi\n", "A readme")
+	if _, err := b.shipDevBranch(appDevShipRequest{Branch: "readme", TakeOut: notes.Task.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if show("NOTES.md") != "" {
+		t.Fatal("the notes are still in dev")
+	}
+	again, err := b.shipDevBranch(appDevShipRequest{Branch: "notes"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if show("NOTES.md") != "v1\n" || again.Task.Status != "merged" || appDevTakenOut(loadTeamTasks("payments"), "notes") != nil {
+		t.Fatalf("not back: %q %+v", show("NOTES.md"), again.Task)
+	}
+	if _, err := b.shipDevBranch(appDevShipRequest{Branch: "notes"}); err == nil || !strings.Contains(err.Error(), "already") {
+		t.Fatal("added twice:", err)
+	}
+}
+
+// Stuck on the dev page: Ask a Pro Dev posts in the app's channel, to its
+// Pro Devs, else its owners, with what went wrong.
+func TestAppDevHelp(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	handler := b.devPageHandler()
+	ask := map[string]any{"workspace": "w2", "what": "Adding “A bold font” to the preview conflicts with “A fun font”", "error": "font-bold conflicts with dev in src/styles.css"}
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/help", ask); code != http.StatusConflict || !strings.Contains(body, "isn't connected") {
+		t.Fatal("without Slack:", code, body)
+	}
+	channel := &fakeTeamChannel{}
+	b.channel = channel
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/help", ask); code != 200 {
+		t.Fatal(code, body)
+	}
+	posted := channel.calls[len(channel.calls)-1]
+	if !strings.HasPrefix(posted, "post C07PAYMENTS :sos: <@U07OWNER1>, Olga needs a hand on the dev page: Adding “A bold font”") || !strings.Contains(posted, "(branch `1-chart`)") || !strings.Contains(posted, "\n> font-bold conflicts with dev in src/styles.css") {
+		t.Fatal(posted)
+	}
+	config, _ := loadTeam("payments")
+	config.Developers = []string{"U07PRODEV1"}
+	saveTeam(config)
+	appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/help", ask)
+	if posted := channel.calls[len(channel.calls)-1]; !strings.Contains(posted, ":sos: <@U07PRODEV1>, Olga") {
+		t.Fatal("not to the Pro Devs:", posted)
 	}
 }

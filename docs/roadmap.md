@@ -2867,6 +2867,23 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.193 — When two changes clash on the preview
+
+- [x] Add to Preview's conflict is a dialog that stays: it names the
+  change on the preview with the same lines and the files, and offers
+  **Ask the agent to combine them** (a prompt to the work's agent, then
+  its chat), **Take out "…" and add this one instead** (when the last
+  change is the one in the way), **Ask a Pro Dev in Slack**, or Cancel;
+  the details are folded under them, for a Pro Dev.
+- [x] Taking the last change out and adding this one is one step on the
+  machine: a revert of it, then the merge, and dev back as it was when
+  the merge doesn't go either.
+- [x] A change taken out (that way, or by Clear the preview) says "Taken
+  out of the preview" in its workspace, with Add to Preview, which puts
+  it back as a commit of its own; Publish doesn't close it.
+- [x] Ask a Pro Dev posts in the app's channel to its Pro Devs, else its
+  owners, with what went wrong and the branch (api/help).
+
 ### v2.6.192 — From your work to production: Add to Preview, then Publish
 
 - [x] A piece of work goes to the Preview (the next version, dev) with
@@ -2882,7 +2899,7 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
   and production. Addresses and Make public are below, the owners'.
 - [x] Publish offers to close the work it took out (tasks and
   workspaces), checked by default; work an agent is still on stays.
-- [ ] Taking one change back out of the preview (a revert of its merge).
+- [x] Taking one change back out of the preview: the last one, when another needs its lines (v2.6.193).
 
 ### v2.6.191 — The dev page says Preview and Publish
 

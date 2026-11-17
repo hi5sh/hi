@@ -552,6 +552,20 @@
     <button type="button" id="decision-save" class="primary" hidden>Save</button>
   </div>
 </dialog>
+<dialog id="stuck-dialog" class="wide stuck-dialog" aria-labelledby="stuck-title">
+  <h2 id="stuck-title">It can't go on the preview yet</h2>
+  <p id="stuck-what"></p>
+  <div id="stuck-options" class="stuck-options">
+    <button type="button" id="stuck-agent" class="stuck-option"><strong id="stuck-agent-title">Ask the agent to combine them</strong><span id="stuck-agent-text" class="muted small"></span></button>
+    <button type="button" id="stuck-replace" class="stuck-option"><strong id="stuck-replace-title">Take out the last change and add this one instead</strong><span id="stuck-replace-text" class="muted small"></span></button>
+    <button type="button" id="stuck-help" class="stuck-option"><strong>Ask a Pro Dev in Slack</strong><span class="muted small">hi posts this in the app's channel, with the details below, for the Pro Devs.</span></button>
+  </div>
+  <p id="stuck-said" class="small" role="status"></p>
+  <details class="stuck-details"><summary class="small muted">Details, for a Pro Dev</summary><pre id="stuck-error"></pre></details>
+  <div class="buttons">
+    <button type="button" id="stuck-cancel">Cancel</button>
+  </div>
+</dialog>
 <dialog id="editor-dialog" class="wide">
   <h2>Open in your own editor</h2>
   <p id="editor-where" class="muted small"></p>

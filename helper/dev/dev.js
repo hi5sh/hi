@@ -54,7 +54,11 @@
     }).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (data) {
         if (response.status === 401) lock(data.error || "This page is for the app's owners.");
-        if (!response.ok) throw new Error(data.error || response.statusText);
+        if (!response.ok) {
+          var error = new Error(data.error || response.statusText);
+          error.data = data; // the rest of the answer, as a conflict's files
+          throw error;
+        }
         return data;
       });
     });
@@ -536,7 +540,7 @@
       if (stage.add) actions.push(addButton(space));
       if (stage.done) actions.push(finishButton(space, false));
       var more = [];
-      if (stage.add) more.push({ text: "Preview only this change", pro: true, title: "Show only this change on the preview, without the rest of the next version; nothing is added", run: function () { previewOnly(space); } });
+      if (stage.add && space.ahead > 0) more.push({ text: "Preview only this change", pro: true, title: "Show only this change on the preview, without the rest of the next version; nothing is added", run: function () { previewOnly(space); } });
       if (space.path && space.checked && !stage.done) more.push({ text: "Discard…", danger: true, run: function () { finishButton(space, true).click(); } });
       if (more.length) actions.push(moreMenu(more));
       actions.push(editorSplit(space));
@@ -986,6 +990,10 @@
   function workStage(space) {
     if (!space.path || !space.checked) return { text: "" };
     var unsaved = space.dirty ? "Unsaved changes: ask the agent to commit them" : "";
+    if (space.out && !space.ahead) {
+      // Taken out of the preview: its workspace keeps it, to add again.
+      return { text: "Taken out of the preview" + (unsaved ? ". " + unsaved : ""), tone: "warn", add: true };
+    }
     if (space.ahead > 0) {
       var text = space.branch && space.branch === (state.status || {}).preview_branch ? "On the preview alone, not added yet" : "Not on the preview yet";
       return { text: text + (unsaved ? ". " + unsaved : ""), tone: "warn", add: true };
@@ -998,11 +1006,108 @@
   // goes on the preview; its task's title is the change's.
   function addButton(space) {
     return el("button", { class: "primary", text: "Add to Preview", busy: "ship:" + space.id, title: "Add it to the next version, on the preview, with what's there; Publish puts that in production", onclick: function () {
-      var name = workName(space);
-      toast("Adding " + name + " to the preview…", true);
-      act("", "ship", { workspace: space.id, title: ticketOf(space) ? name : "" }, function (r) { return r.text; }, "ship:" + space.id);
+      addToPreview(space, "");
     } });
   }
+  // addToPreview adds a piece of work to the preview; takeOut, the change
+  // there last, taken out for it in the same step. What goes wrong opens
+  // a dialog that stays, with what can be done about it.
+  function addToPreview(space, takeOut) {
+    var name = workName(space);
+    toast((takeOut ? "Swapping in " : "Adding ") + name + (takeOut ? " on the preview…" : " to the preview…"), true);
+    var body = { workspace: space.id, title: ticketOf(space) ? name : "" };
+    if (takeOut) body.take_out = takeOut;
+    return working("ship:" + space.id, api("POST", "ship", body)).then(function (r) {
+      $("stuck-dialog").close();
+      toast(r.text);
+      refresh();
+      refreshTickets(false);
+    }).catch(function (error) {
+      $("toast").hidden = true;
+      stuck(space, error.message, error.data || {});
+      refresh();
+    });
+  }
+
+  // ---- Stuck: what went wrong adding a piece of work to the preview, in
+  // a dialog that stays until you choose: the agent combines the changes,
+  // the change there last makes way for it, a Pro Dev is asked in Slack,
+  // or Cancel.
+  var stuckNow = null;
+  function stuck(space, message, data) {
+    stuckNow = { space: space, message: message, data: data };
+    var name = "“" + workName(space) + "”";
+    var conflict = data.conflict;
+    var withTitles = (data.with || []).map(function (c) { return "“" + c.title + "”"; });
+    $("stuck-title").textContent = name + " can't go on the preview yet";
+    var what = conflict
+      ? "It changes the same lines as " + (withTitles.length ? withTitles.join(" and ") + ", which " + (withTitles.length === 1 ? "is" : "are") + " on the preview already" : "what's on the preview already") + ", in " + conflict.files.join(", ") + "."
+      : message;
+    $("stuck-what").textContent = what;
+    stuckNow.what = "Adding " + name + " to the preview: " + what;
+    $("stuck-error").textContent = message;
+    $("stuck-said").textContent = "";
+    $("stuck-said").className = "small";
+    var agent = conflict && space.agent ? agentName(space.agent) : "";
+    $("stuck-agent").hidden = !agent;
+    $("stuck-agent-title").textContent = "Ask " + agent + " to combine them";
+    $("stuck-agent-text").textContent = agent + " brings in what's on the preview, makes both changes work together (asking you when they can't), and adds it again.";
+    var last = conflict && data.last;
+    $("stuck-replace").hidden = !last;
+    if (last) {
+      $("stuck-replace-title").textContent = "Take out “" + last.title + "” and add this one instead";
+      $("stuck-replace-text").textContent = "“" + last.title + "” leaves the preview; its workspace keeps it, to add again later.";
+    }
+    document.querySelectorAll("#stuck-options button").forEach(function (button) { button.disabled = false; });
+    if (!$("stuck-dialog").open) $("stuck-dialog").showModal();
+    var first = [].filter.call(document.querySelectorAll("#stuck-options button"), function (button) { return !button.hidden; })[0];
+    if (first) first.focus();
+  }
+  function stuckSay(text, bad) {
+    $("stuck-said").textContent = text;
+    $("stuck-said").className = "small" + (bad ? " error" : "");
+  }
+  function stuckBusy(on) {
+    document.querySelectorAll("#stuck-options button").forEach(function (button) { button.disabled = on; });
+  }
+  $("stuck-cancel").addEventListener("click", function () { $("stuck-dialog").close(); });
+  $("stuck-agent").addEventListener("click", function () {
+    var now = stuckNow, conflict = now.data.conflict;
+    var withTitles = (now.data.with || []).map(function (c) { return "“" + c.title + "”"; });
+    var text = "Adding this work to the preview failed: it conflicts with what's on the preview (dev) in " + conflict.files.join(", ") +
+      (withTitles.length ? ", where " + withTitles.join(" and ") + " changed the same lines" : "") +
+      ". Bring dev in (git fetch origin && git rebase origin/" + (conflict.dev || "main") + "), resolve the conflicts so both changes work together, and run the checks. If they can't both be kept, ask me which to keep. Then add it to the preview with hi dev ship, and tell me what you did.";
+    stuckBusy(true);
+    stuckSay("Asking " + agentName(now.space.agent) + "…");
+    api("POST", "chat/send", { workspace: now.space.id, text: text }).then(function () {
+      $("stuck-dialog").close();
+      if (chat.view !== "chat") setCodeView("chat");
+      if (chat.space !== now.space.id) chooseChatSpace(now.space.id);
+      toast("Asked " + agentName(now.space.agent) + " to combine them: it says here when it's done.");
+      setTimeout(pollChat, 800);
+    }).catch(function (error) {
+      stuckBusy(false);
+      stuckSay(error.message, true);
+    });
+  });
+  $("stuck-replace").addEventListener("click", function () {
+    var now = stuckNow;
+    stuckBusy(true);
+    stuckSay("Taking out “" + now.data.last.title + "” and adding this one…");
+    addToPreview(now.space, now.data.last.id);
+  });
+  $("stuck-help").addEventListener("click", function () {
+    var now = stuckNow;
+    stuckBusy(true);
+    stuckSay("Asking in the app's channel…");
+    api("POST", "help", { workspace: now.space.id, what: now.what, error: now.message }).then(function () {
+      $("stuck-dialog").close();
+      toast("Asked the app's Pro Devs in its channel, with the details.");
+    }).catch(function (error) {
+      stuckBusy(false);
+      stuckSay(error.message, true);
+    });
+  });
   // Preview only this change: the branch alone on the preview, for a look
   // without the rest; Show the next version puts that back.
   function previewOnly(space) {
@@ -1017,7 +1122,7 @@
       title: discard ? "Remove it, without adding what isn't on the preview" : "Remove its worktree, workspace, and branch, and close its task",
       onclick: function () {
         var left = [];
-        if (space.ahead > 0) left.push("what isn't on the preview");
+        if (space.ahead > 0 || space.out) left.push("what isn't on the preview");
         if (space.dirty) left.push("its unsaved changes");
         var question = discard
           ? "Discard " + workName(space) + "? " + (left.length ? left.join(" and ") + " will be lost, and " : "") + "its worktree, workspace, agent, and branch go."
@@ -1079,6 +1184,7 @@
         var stage = workStage(space);
         return el("li", {}, [
           el("span", { class: "flow-name" }, [el("span", { text: workName(space) }), ticketOf(space) ? el("span", { class: "muted", text: " #" + ticketOf(space) }) : null,
+            space.out && !space.ahead ? el("span", { class: "small muted flow-sub", text: "Taken out of the preview" }) : null,
             space.dirty ? el("span", { class: "small warn flow-sub", text: "Unsaved changes: ask the agent to commit them" }) : null]),
           stage.add ? addButton(space) : null,
         ]);
@@ -1587,7 +1693,7 @@
   }
   function publishedWork() {
     return workSpaces().filter(function (space) {
-      return space.path && space.checked && !space.ahead && !space.dirty && space.status !== "working" && space.status !== "blocked";
+      return space.path && space.checked && !space.ahead && !space.out && !space.dirty && space.status !== "working" && space.status !== "blocked";
     });
   }
   // After a publish: Done for each piece of work it took, one after another.

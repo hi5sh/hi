@@ -396,6 +396,9 @@ type appDevSpace struct {
 	Ahead   int    `json:"ahead,omitempty"`
 	Dirty   bool   `json:"dirty,omitempty"`
 	Checked bool   `json:"checked,omitempty"` // Ahead and Dirty are known
+	// Out says its change was in dev and was taken out since: Add to
+	// Preview puts it back.
+	Out bool `json:"out,omitempty"`
 }
 
 // appDevBoxExec runs a command in the dev box; tests replace it.
@@ -562,6 +565,12 @@ done`
 			if spaces[i].Path == fields[0] {
 				spaces[i].Ahead, spaces[i].Dirty, spaces[i].Checked = ahead, fields[2] != "0", true
 			}
+		}
+	}
+	tasks := loadTeamTasks(team)
+	for i := range spaces {
+		if spaces[i].Checked && spaces[i].Ahead == 0 && spaces[i].Branch != "" {
+			spaces[i].Out = appDevTakenOut(tasks, spaces[i].Branch) != nil
 		}
 	}
 }
@@ -1050,7 +1059,7 @@ func init() {
 	for _, route := range []string{
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
-		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/finish", "POST api/preview-dev", "POST api/release",
+		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/help", "POST api/finish", "POST api/preview-dev", "POST api/release",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
 		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs",
@@ -1528,13 +1537,17 @@ func (b *appBroker) devPageHandler() http.Handler {
 	// Ship and Preview, beside a piece of work: what hi dev ship and hi dev
 	// preview do in the box, by an owner's click.
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/ship", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := builder(w, r); !ok {
+		person, ok := builder(w, r)
+		if !ok {
 			return
 		}
 		var request struct {
 			Workspace string `json:"workspace"`
 			Title     string `json:"title,omitempty"`
 			Preview   bool   `json:"preview,omitempty"` // only the preview
+			// TakeOut is the change dev had last, taken out for this one, in
+			// one step: undone if this one doesn't go in either.
+			TakeOut string `json:"take_out,omitempty"`
 		}
 		if !decode(w, r, &request) {
 			return
@@ -1544,7 +1557,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 			failure(w, http.StatusBadRequest, err)
 			return
 		}
-		if space.Ahead == 0 {
+		if space.Ahead == 0 && (request.Preview || appDevTakenOut(loadTeamTasks(b.team), space.Branch) == nil) {
 			why := "it has no commits that dev hasn't"
 			if space.Dirty {
 				why += "; its changes aren't committed yet: commit them in the terminal, or ask its agent to"
@@ -1565,14 +1578,41 @@ func (b *appBroker) devPageHandler() http.Handler {
 			reply(w, http.StatusOK, map[string]string{"text": fmt.Sprintf("%s is on the preview: %s%s", space.Branch, state.URL, left)})
 			return
 		}
-		result, err := b.shipDevBranch(appDevShipRequest{Branch: space.Branch, Title: request.Title})
+		result, err := b.shipDevBranch(appDevShipRequest{Branch: space.Branch, Title: request.Title, TakeOut: request.TakeOut, By: person.Name})
+		var conflict appDevConflictError
+		if errors.As(err, &conflict) {
+			// The page asks what to do: which changes on the preview touch
+			// the same files, and the last one, which can be taken out.
+			answer := map[string]any{"error": err.Error(), "conflict": map[string]any{"files": conflict.Files, "dev": conflict.Dev}}
+			changes := appDevChanges(b.repo, loadTeamTasks(b.team))
+			var with []map[string]string
+			for i, change := range changes {
+				touches := false
+				for _, file := range appDevChangeFiles(b.repo, change) {
+					touches = touches || slices.Contains(conflict.Files, file)
+				}
+				if touches {
+					with = append(with, map[string]string{"id": change.ID, "title": change.Title})
+					if i == len(changes)-1 {
+						answer["last"] = map[string]string{"id": change.ID, "title": change.Title}
+					}
+				}
+			}
+			answer["with"] = with
+			reply(w, http.StatusConflict, answer)
+			return
+		}
 		if err != nil {
 			failure(w, http.StatusBadGateway, err)
 			return
 		}
-		text := fmt.Sprintf("%s is in dev as %s: %s.", space.Branch, result.Task.ID, result.Task.Title)
+		// In the page's words: the preview is the next version, dev.
+		text := fmt.Sprintf("“%s” is in the next version (%s).", result.Task.Title, result.Task.ID)
 		if result.Preview.URL != "" {
-			text += " Dev is on the preview."
+			text = fmt.Sprintf("“%s” is on the preview, in the next version (%s).", result.Task.Title, result.Task.ID)
+		}
+		if request.TakeOut != "" {
+			text += " The change before it is out of the preview; its workspace keeps it, to add again."
 		}
 		for _, line := range []string{result.Warning, result.Task.Error} {
 			if line != "" {
@@ -1580,6 +1620,51 @@ func (b *appBroker) devPageHandler() http.Handler {
 			}
 		}
 		reply(w, http.StatusOK, map[string]string{"text": text + left})
+	})
+	// Help: someone stuck on the dev page asks the app's Pro Devs (else its
+	// owners) in the app's channel, with what went wrong.
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/help", func(w http.ResponseWriter, r *http.Request) {
+		person, ok := builder(w, r)
+		if !ok {
+			return
+		}
+		var request struct {
+			Workspace string `json:"workspace"`
+			What      string `json:"what"`  // what they tried, in the page's words
+			Error     string `json:"error"` // what hi said
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		config, err := loadTeam(b.team)
+		if err != nil {
+			failure(w, http.StatusInternalServerError, err)
+			return
+		}
+		if b.channel == nil || config.Channel == "" {
+			failure(w, http.StatusConflict, errors.New("hi isn't connected to the app's channel in Slack: ask a Pro Dev another way, with the details below"))
+			return
+		}
+		who := config.Developers
+		if len(who) == 0 {
+			who = config.Owners
+		}
+		text := fmt.Sprintf(":sos: %s, %s needs a hand on the dev page: %s", appPeople(who), person.Name, appClipStart(strings.TrimSpace(request.What), 300))
+		if spaces, err := appDevSpaces(b.team); err == nil {
+			for _, space := range spaces {
+				if space.ID == request.Workspace && space.Branch != "" {
+					text += fmt.Sprintf(" (branch `%s`)", space.Branch)
+				}
+			}
+		}
+		if detail := appClipStart(strings.TrimSpace(request.Error), 1500); detail != "" {
+			text += "\n> " + strings.ReplaceAll(detail, "\n", "\n> ")
+		}
+		if _, err := b.channel.post(config.Channel, text); err != nil {
+			failure(w, http.StatusBadGateway, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{})
 	})
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/finish", func(w http.ResponseWriter, r *http.Request) {
 		person, ok := builder(w, r)

@@ -87,6 +87,54 @@ type appDevShipRequest struct {
 	Branch string `json:"branch"`
 	Title  string `json:"title,omitempty"`
 	Dev    bool   `json:"dev,omitempty"` // hi dev preview --dev: dev itself, not a branch
+	// TakeOut is the change dev had last, taken out for this one in the
+	// same step: the dev page's, after a conflict, never the box's.
+	TakeOut string `json:"-"`
+	By      string `json:"-"` // who, for the record
+}
+
+// appDevConflictError is a branch that conflicts with dev: the files.
+type appDevConflictError struct {
+	Branch string
+	Files  []string
+	Dev    string // dev's branch
+}
+
+func (e appDevConflictError) Error() string {
+	return fmt.Sprintf("%s conflicts with dev in %s; in the box: git fetch origin && git rebase origin/%s, then ship again",
+		e.Branch, strings.Join(e.Files, ", "), e.Dev)
+}
+
+// appDevTakenOut is the change a branch had in dev, when it was taken out
+// since (Take out, or dev set back to production): its commits are in
+// dev's history, so a merge would add nothing, and shipping it again puts
+// the change back.
+func appDevTakenOut(tasks []appTask, branch string) *appTask {
+	ref := appDevBranchRef(branch)
+	var last *appTask
+	for i := range tasks {
+		if tasks[i].Kind == "task" && tasks[i].Branch == ref {
+			last = &tasks[i]
+		}
+	}
+	if last != nil && last.Status == "discarded" && last.Merged != "" {
+		return last
+	}
+	return nil
+}
+
+// appGitParent1 adds -m 1 for a merge commit, which revert and
+// cherry-pick need to know which side was dev.
+func appGitParent1(repo, commit string, args []string) []string {
+	if len(strings.Fields(boxGit(repo, "rev-list", "--parents", "-n", "1", commit))) > 2 {
+		args = append(args, "-m", "1")
+	}
+	return append(args, commit)
+}
+
+// appDevChangeFiles are the files a change in dev changed.
+func appDevChangeFiles(repo string, task appTask) []string {
+	return strings.Fields(boxGit(repo, "diff", "--name-only", task.Merged+"^1", task.Merged))
 }
 
 // appDevShipResult is the work shipped, and dev on the preview after.
@@ -122,8 +170,11 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 	if err != nil {
 		return appTask{}, err
 	}
+	var again *appTask
 	if appIsAncestor(b.repo, head, config.Branch) {
-		return appTask{}, fmt.Errorf("dev has everything on %s already", request.Branch)
+		if again = appDevTakenOut(loadTeamTasks(b.team), request.Branch); again == nil {
+			return appTask{}, fmt.Errorf("dev has everything on %s already", request.Branch)
+		}
 	}
 	base := boxGit(b.repo, "merge-base", config.Branch, head)
 	title := strings.TrimSpace(request.Title)
@@ -149,15 +200,57 @@ func (b *appBroker) mergeDevBranch(request appDevShipRequest, head string) (appT
 	if err := b.onTeamBranch(config); err != nil {
 		return appTask{}, err
 	}
-	message := fmt.Sprintf("%s\n\nBuilt in the dev box, on its branch %s.", title, request.Branch)
-	if out, err := appGit(b.repo, "merge", "--no-ff", "-m", message, "refs/heads/"+appDevBranchRef(request.Branch)); err != nil {
-		conflicted := boxGit(b.repo, "diff", "--name-only", "--diff-filter=U")
+	before := boxGit(b.repo, "rev-parse", "HEAD")
+	// undo puts dev back as it was before this step, a take-out with it.
+	undo := func() {
 		appGit(b.repo, "merge", "--abort")
+		appGit(b.repo, "cherry-pick", "--abort")
+		appGit(b.repo, "revert", "--abort")
+		appGit(b.repo, "reset", "-q", "--hard", before)
+	}
+	var takenOut *appTask
+	if request.TakeOut != "" {
+		changes := appDevChanges(b.repo, loadTeamTasks(b.team))
+		if len(changes) == 0 || changes[len(changes)-1].ID != request.TakeOut {
+			return appTask{}, errors.New("what's on the preview changed since: look at it again")
+		}
+		last := changes[len(changes)-1]
+		if out, err := appGit(b.repo, appGitParent1(b.repo, last.Merged, []string{"revert", "--no-commit"})...); err != nil {
+			undo()
+			return appTask{}, fmt.Errorf("%q can't be taken out on its own: what was added after it changed the same lines (%s)", last.Title, qFirstLine(out, err.Error()))
+		}
+		if out, err := appGit(b.repo, "commit", "-q", "--allow-empty", "-m", fmt.Sprintf("Take %q out of dev\n\nFor %s, which changes the same lines.", last.Title, request.Branch)); err != nil {
+			undo()
+			return appTask{}, fmt.Errorf("git commit: %s", qFirstLine(out, err.Error()))
+		}
+		takenOut = &last
+	}
+	message := fmt.Sprintf("%s\n\nBuilt in the dev box, on its branch %s.", title, request.Branch)
+	var out string
+	if again != nil {
+		// Taken out before: its change again, as a commit of its own.
+		message = fmt.Sprintf("%s\n\nBuilt in the dev box, on its branch %s; added again after it was taken out.", title, request.Branch)
+		if out, err = appGit(b.repo, appGitParent1(b.repo, again.Merged, []string{"cherry-pick", "--no-commit"})...); err == nil {
+			out, err = appGit(b.repo, "commit", "-q", "-m", message)
+		}
+	} else {
+		out, err = appGit(b.repo, "merge", "--no-ff", "-m", message, "refs/heads/"+appDevBranchRef(request.Branch))
+	}
+	if err != nil {
+		conflicted := boxGit(b.repo, "diff", "--name-only", "--diff-filter=U")
+		undo()
 		if conflicted == "" {
 			return appTask{}, fmt.Errorf("%s doesn't merge into dev: %s", request.Branch, qFirstLine(out, err.Error()))
 		}
-		return appTask{}, fmt.Errorf("%s conflicts with dev in %s; in the box: git fetch origin && git rebase origin/%s, then ship again",
-			request.Branch, strings.Join(strings.Fields(conflicted), ", "), config.Branch)
+		return appTask{}, appDevConflictError{Branch: request.Branch, Files: strings.Fields(conflicted), Dev: config.Branch}
+	}
+	if takenOut != nil {
+		takenOut.Status = "discarded"
+		saveTeamTask(b.team, *takenOut)
+		if versions, err := loadTeamVersions(b.team); err == nil {
+			versions.History = append(versions.History, appVersionEvent{What: fmt.Sprintf("took %s out of dev, for %s", takenOut.ID, request.Branch), Approval: &appApproval{Name: firstNonEmpty(request.By, "the dev page")}, At: time.Now().UTC()})
+			saveTeamVersions(b.team, versions)
+		}
 	}
 	tasks := loadTeamTasks(b.team)
 	n := 1
