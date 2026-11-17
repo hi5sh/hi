@@ -2867,10 +2867,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
-### v2.6.201 — Ghostty by default
+### v2.6.201 — Ghostty by default; the merge's chat
 
 - [x] The dev pages and the admin page are Ghostty's colours by default,
   Auto's dark too; a theme picked in a browser stays picked.
+- [x] Merge N changes into preview opens the chat of the agent combining
+  a clash, to watch it work (the first, when there are more).
 
 ### v2.6.200 — Merge doesn't stop at a clash
 

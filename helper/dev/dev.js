@@ -1276,6 +1276,10 @@
     }, Promise.resolve(true)).then(function (all) {
       if (!all) return;
       if (!combining.length) { toast("All " + added + " changes are on the preview, in the next version."); return; }
+      // The chat of the agent combining, to watch it work.
+      if (chat.view !== "chat") setCodeView("chat");
+      if (chat.space !== combining[0].id) chooseChatSpace(combining[0].id);
+      setTimeout(pollChat, 800);
       toast((added ? added + (added === 1 ? " change is" : " changes are") + " on the preview. " : "") +
         combining.map(function (space) { return agentName(space.agent) + " is combining “" + workName(space) + "”"; }).join("; ") +
         " with what's there, and adds it when it's done.");
