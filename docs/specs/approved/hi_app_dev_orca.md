@@ -276,11 +276,14 @@ Built in v2.6.176:
 - The page names the agent whose session it is ("Codex isn't running in
   this workspace", "Message Codex…"). The model and effort are picked
   for Claude Code only; Rewind is Claude Code's.
-- **Sessions**, beside **+ New**: the workspace's sessions, both
-  agents', newest first (up to 30), each with its first message (or
-  Claude Code's own title), its agent, when, and **Resume**: `claude
-  --resume <id>` or `codex resume <id>` in the workspace's terminal,
-  once no agent runs there.
+- **The workspace menu** (v2.6.187; Sessions until then): the top
+  bar's one selector. Each workspace, and under it its sessions, every
+  agent's, newest first (up to 30, three shown until Show all), each
+  with its first message (or Claude Code's own title), its agent, and
+  when; the one its running agent has is marked and opens the chat.
+  Another resumes: `claude --resume <id>`, `codex resume <id>`, or
+  `agy --conversation <id>` in the workspace's terminal, after Ctrl+C
+  stops the agent there (the page asks first). + New ends the menu.
 - The sessions' files are read in the box's home without following a
   link out of it.
 

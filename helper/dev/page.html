@@ -28,9 +28,10 @@
         <button data-view="terminal" aria-pressed="false" class="pro-only">Terminal</button>
         <button data-view="file" aria-pressed="false" id="files-chip" class="files-chip" title="The files you opened, each a tab in the editor" hidden>Files<span id="files-count" class="count"></span></button>
       </div>
-      <select id="chat-space" aria-label="Which workspace's session"></select>
-      <button id="chat-new" class="small" title="Start something new, without a task">+ New</button>
-      <button id="chat-sessions" class="small" title="This workspace's sessions, Claude's and Codex's, to resume one">Sessions</button>
+      <div id="space-wrap" class="space-wrap">
+        <button id="space-btn" type="button" class="space-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="space-menu" title="The workspaces and their sessions, and + New"><span id="space-label" class="space-label">Start something new</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+        <div id="space-menu" class="theme-menu space-menu" role="menu" aria-label="Workspaces and sessions" hidden></div>
+      </div>
       <span id="editor-bar" class="editor-split pro-only" hidden></span>
       <span id="chat-title" class="chat-title"></span>
       <span class="grow"></span>
@@ -544,14 +545,6 @@
     <button type="button" id="decision-close">Close</button>
     <button type="button" id="decision-edit" class="primary">Edit</button>
     <button type="button" id="decision-save" class="primary" hidden>Save</button>
-  </div>
-</dialog>
-<dialog id="sessions-dialog" class="wide">
-  <h2>This workspace's sessions</h2>
-  <p id="sessions-note" class="small warn"></p>
-  <ul id="sessions-list" class="sessions-list"></ul>
-  <div class="buttons">
-    <button type="button" id="sessions-close">Close</button>
   </div>
 </dialog>
 <dialog id="editor-dialog" class="wide">

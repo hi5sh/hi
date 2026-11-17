@@ -1720,7 +1720,6 @@
     $("chat").hidden = view !== "chat";
     document.querySelector(".term-panel").hidden = view !== "terminal";
     $("editor").hidden = view !== "file";
-    $("chat-space").hidden = view !== "chat";
     showChatStart();
     $("chat-title").hidden = view !== "chat";
     $("chat-status").hidden = view !== "chat";
@@ -1746,17 +1745,8 @@
       chooseChatSpace(first ? first.id : "", true);
     }
     showChatStart();
-    var select = $("chat-space");
-    var options = spaces.map(function (space) { return space.id + "|" + space.label + "|" + (space.agent || ""); }).join(",");
-    if (select.dataset.options === options) { select.value = chat.space; return; }
-    select.dataset.options = options;
-    select.textContent = "";
-    spaces.forEach(function (space) {
-      select.appendChild(el("option", { value: space.id, text: space.label + (space.agent ? " · " + space.agent : "") }));
-    });
-    select.value = chat.space;
+    if (!$("space-menu").hidden) drawSpaceMenu();
   }
-  $("chat-space").addEventListener("change", function () { chooseChatSpace(this.value); });
   function chooseChatSpace(id, quiet) {
     if (id === chat.space && quiet) return;
     if (!quiet) chat.composing = false; // a workspace chosen leaves Start something new
@@ -1765,7 +1755,6 @@
     chat.sitesSig = null;
     $("chat-status").textContent = "";
     try { localStorage.setItem("hi-dev-chat-space", id); } catch (e) { /* private window */ }
-    $("chat-space").value = id;
     chat.session = "";
     chat.offset = 0;
     chat.turns = "";
@@ -1791,17 +1780,17 @@
     $("chat-start").hidden = !starting;
     document.querySelector(".chat-main").hidden = starting;
     document.querySelector(".chat-bottom").hidden = starting;
-    $("chat-new").hidden = starting || chat.view !== "chat";
-    $("chat-space").hidden = chat.view !== "chat" || !workSpaces().length;
+    $("space-wrap").hidden = chat.view !== "chat";
+    spaceLabel();
     $("adhoc-cancel").hidden = !chat.space;
     if (starting) $("chat-title").textContent = "";
     renderSide();
   }
-  $("chat-new").addEventListener("click", function () {
+  function startNew() {
     chat.composing = true;
     showChatStart();
     $("adhoc-text").focus();
-  });
+  }
   $("adhoc-cancel").addEventListener("click", function () {
     chat.composing = false;
     showChatStart();
@@ -2463,45 +2452,119 @@
   // Resume (app_devcodex.go).
   function resumeCommand(agent) { return { codex: "codex resume", agy: "agy --conversation" }[agent] || "claude --resume"; }
   function agentName(agent) { return { claude: "Claude", codex: "Codex", agy: "Antigravity" }[agent] || agent || "The agent"; }
-  function resumeSession(agent, id) {
+  // resumeSession carries a session on in its workspace; running, the
+  // agent there now, which stops first (after a yes).
+  function resumeSession(agent, id, space, running) {
+    space = space || chat.space;
     var command = resumeCommand(agent);
-    ask("Resume this session? hi types " + command + " in the workspace's terminal, so " + agentName(agent) + " carries on where it stopped.").then(function (answer) {
+    var question = running
+      ? "Stop " + agentName(running) + " in this workspace and resume this session? hi presses Ctrl+C in its terminal, then types " + command + ", so " + agentName(agent) + " carries on where it stopped."
+      : "Resume this session? hi types " + command + " in the workspace's terminal, so " + agentName(agent) + " carries on where it stopped.";
+    ask(question).then(function (answer) {
       if (answer === null) return;
-      api("POST", "chat/resume", { workspace: chat.space, session: id, agent: agent }).then(function () {
-        if ($("sessions-dialog").open) $("sessions-dialog").close();
-        toast(agentName(agent) + " is starting in the workspace…");
+      if (space !== chat.space) chooseChatSpace(space);
+      toast(running ? "Stopping " + agentName(running) + "…" : agentName(agent) + " is starting in the workspace…");
+      api("POST", "chat/resume", { workspace: space, session: id, agent: agent, stop: !!running }).then(function () {
+        if (running) toast(agentName(agent) + " is starting in the workspace…");
         setTimeout(pollChat, 1500);
       }).catch(function (error) { toast(error.message); });
     });
   }
-  $("chat-sessions").addEventListener("click", function () {
-    if (!chat.space) return;
-    var list = $("sessions-list");
-    list.textContent = "";
-    list.appendChild(el("li", { class: "muted small", text: "Loading…" }));
-    if (!$("sessions-dialog").open) $("sessions-dialog").showModal();
-    var asked = chat.space;
-    api("GET", "chat/sessions?workspace=" + encodeURIComponent(asked)).then(function (data) {
-      if (asked !== chat.space) return;
-      list.textContent = "";
-      var running = chat.agent && chat.agent.running;
-      $("sessions-note").textContent = running ? agentName(chat.agent.agent) + " is running here: stop it (/exit, or Ctrl+C in the terminal) to resume another session." : "";
-      if (!data.sessions.length) list.appendChild(el("li", { class: "muted small", text: "No sessions in this workspace yet." }));
-      data.sessions.forEach(function (session) {
-        var current = session.id === chat.id;
-        list.appendChild(el("li", { class: current ? "current" : "" }, [
-          el("div", { class: "session-what" }, [
-            el("strong", { text: session.title || "(no message yet)" }),
-            el("span", { class: "muted small", text: agentName(session.agent) + " · " + ago(session.at) + (current ? " · in the chat now" : "") }),
-          ]),
-          el("button", { type: "button", class: "small", text: "Resume", disabled: running ? "" : null,
-            title: running ? "Stop the running agent first" : "Run " + resumeCommand(session.agent) + " in the workspace",
-            onclick: function () { resumeSession(session.agent, session.id); } }),
+  // ---- The bar's one selector: each workspace, its sessions under it,
+  // newest first, and + New. A workspace opens its chat; a session not
+  // its agent's now resumes there, stopping that agent first (after a
+  // yes); the agent's own opens the chat.
+  var spaceSessions = {}; // a workspace's id: its sessions, as last fetched
+  var spaceAll = {};      // a workspace's id: true when Show all was pressed
+  var SPACE_SHOWN = 3;
+  function spaceLabel() {
+    var space = workSpaces().filter(function (s) { return s.id === chat.space; })[0];
+    var text = chat.composing || !space ? "Start something new" : space.label + (space.agent ? " · " + space.agent : "");
+    $("space-label").textContent = text;
+    $("space-btn").title = text + ": the workspaces and their sessions, and + New";
+  }
+  function closeSpaceMenu() {
+    $("space-menu").hidden = true;
+    $("space-btn").setAttribute("aria-expanded", "false");
+  }
+  function drawSpaceMenu() {
+    var menu = $("space-menu");
+    var focused = document.activeElement && menu.contains(document.activeElement) ? document.activeElement.dataset.key : "";
+    menu.textContent = "";
+    var spaces = workSpaces();
+    if (spaces.length) menu.appendChild(el("div", { class: "theme-head", text: "Workspaces" }));
+    spaces.forEach(function (space) {
+      var current = space.id === chat.space && !chat.composing;
+      var dot = el("span", { class: "dot " + (space.agent ? space.status || "unknown" : "none") });
+      menu.appendChild(el("button", { type: "button", role: "menuitemradio", "aria-checked": current ? "true" : "false", class: "theme-item space-item", "data-key": "w:" + space.id,
+        title: space.path || space.label, onclick: function () { closeSpaceMenu(); chooseChatSpace(space.id); } }, [
+        dot,
+        el("span", { class: "theme-name space-name", text: space.label }),
+        el("span", { class: "space-agent muted", text: space.agent ? agentName(space.agent) : "" }),
+        el("span", { class: "theme-check", text: current ? "✓" : "" }),
+      ]));
+      var sessions = spaceSessions[space.id];
+      if (!sessions) { menu.appendChild(el("div", { class: "space-session muted small space-loading", text: "Loading its sessions…" })); return; }
+      var shown = spaceAll[space.id] ? sessions : sessions.slice(0, SPACE_SHOWN);
+      // The agent's own session is listed even when it's older.
+      var live = sessions.filter(function (s) { return s.live; })[0];
+      if (live && shown.indexOf(live) < 0) shown = [live].concat(shown.slice(0, SPACE_SHOWN - 1));
+      shown.forEach(function (session) {
+        var mine = session.live || (current && session.id === chat.id);
+        var running = space.agent && !mine ? space.agent : "";
+        menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session" + (mine ? " live" : ""), "data-key": "s:" + space.id + ":" + session.id,
+          title: mine ? "In the chat" : "Resume it here" + (running ? ", stopping " + agentName(running) + " first" : ""),
+          onclick: function () {
+            closeSpaceMenu();
+            if (mine) chooseChatSpace(space.id);
+            else resumeSession(session.agent, session.id, space.id, running);
+          } }, [
+          el("span", { class: "space-session-title", text: session.title || "(no message yet)" }),
+          el("span", { class: "muted space-session-when", text: (mine ? "running now · " : "") + agentName(session.agent) + " · " + ago(session.at) }),
         ]));
       });
-    }).catch(function (error) { list.textContent = ""; list.appendChild(el("li", { class: "error small", text: error.message })); });
+      if (sessions.length > shown.length) {
+        menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session space-more", "data-key": "m:" + space.id,
+          text: "Show all " + sessions.length, onclick: function () { spaceAll[space.id] = true; drawSpaceMenu(); } }));
+      }
+    });
+    menu.appendChild(el("div", { class: "space-sep" }));
+    menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-new", id: "chat-new", "data-key": "new",
+      title: "Start something new, without a task", onclick: function () { closeSpaceMenu(); startNew(); } }, [
+      el("span", { class: "space-plus", text: "+" }), el("span", { class: "theme-name", text: "New" }),
+    ]));
+    if (focused) { var again = menu.querySelector('[data-key="' + focused + '"]'); if (again) again.focus(); }
+  }
+  function fetchSpaceSessions() {
+    workSpaces().forEach(function (space) {
+      api("GET", "chat/sessions?workspace=" + encodeURIComponent(space.id)).then(function (data) {
+        spaceSessions[space.id] = data.sessions || [];
+      }).catch(function () { spaceSessions[space.id] = []; }).then(function () {
+        if (!$("space-menu").hidden) drawSpaceMenu();
+      });
+    });
+  }
+  $("space-btn").addEventListener("click", function (event) {
+    event.stopPropagation();
+    var menu = $("space-menu");
+    if (!menu.hidden) { closeSpaceMenu(); return; }
+    drawSpaceMenu();
+    menu.hidden = false;
+    $("space-btn").setAttribute("aria-expanded", "true");
+    var first = menu.querySelector('[aria-checked="true"]') || menu.querySelector(".theme-item");
+    if (first) first.focus();
+    fetchSpaceSessions();
   });
-  $("sessions-close").addEventListener("click", function () { $("sessions-dialog").close(); });
+  $("space-menu").addEventListener("click", function (event) { event.stopPropagation(); });
+  $("space-menu").addEventListener("keydown", function (event) {
+    var items = [].slice.call($("space-menu").querySelectorAll(".theme-item"));
+    var at = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (items.length) items[(at + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    } else if (event.key === "Escape") { closeSpaceMenu(); $("space-btn").focus(); }
+  });
+  document.addEventListener("click", closeSpaceMenu);
   var startView = chat.view;
   setCodeView(startView === "file" ? "chat" : startView);
 

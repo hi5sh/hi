@@ -186,6 +186,7 @@ type appDevSession struct {
 	Session string    `json:"session"` // its file, in the box
 	At      time.Time `json:"at"`      // its last change
 	Title   string    `json:"title,omitempty"`
+	Live    bool      `json:"live,omitempty"` // the one its running agent has
 }
 
 // appDevSessionsMax is how many of a workspace's sessions the page lists.

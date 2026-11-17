@@ -2867,6 +2867,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.187 — One menu for the workspaces and their sessions
+
+- [x] The top bar's workspace drop-down, Sessions, and + New are one
+  menu: each workspace with its status and agent, its sessions under
+  it, newest first, then + New. A workspace, or the session running in
+  it, opens its chat; another session resumes there.
+- [x] Resuming where an agent runs asks, then stops it (Ctrl+C) before
+  the resume, instead of saying to stop it in the terminal first.
+- [x] Open, or a workspace picked, after + New leaves Start something
+  new for its chat (it stayed when the workspace was the chat's own).
+
 ### v2.6.186 — The top bar stays one row on an iPad
 
 - [x] Production and Stage are a globe menu in the top bar, each with

@@ -61,6 +61,10 @@ func TestAppDevCodexChat(t *testing.T) {
 			return `{"result":{"panes":[{"pane_id":"w2:p1","agent":"codex","agent_status":"idle","cwd":"` + cwd + `"}]}}`, nil
 		case "herdr pane read":
 			return "> ", nil
+		case "herdr pane send-keys":
+			if command[len(command)-1] == "ctrl+c" {
+				running = ""
+			}
 		}
 		return previous(team, command...)
 	}
@@ -100,7 +104,7 @@ func TestAppDevCodexChat(t *testing.T) {
 	if code != 200 || json.Unmarshal([]byte(body), &list) != nil || len(list.Sessions) != 2 {
 		t.Fatal(code, body)
 	}
-	if s := list.Sessions[0]; s.Agent != "codex" || s.ID != codexID || s.Title != "Make the chart green when it's up" {
+	if s := list.Sessions[0]; s.Agent != "codex" || s.ID != codexID || s.Title != "Make the chart green when it's up" || !s.Live || list.Sessions[1].Live {
 		t.Fatalf("%+v", s)
 	}
 	if s := list.Sessions[1]; s.Agent != "claude" || s.ID != "0b6f7f4e-1c2d-4e5f-8a9b-0c1d2e3f4a5b" || s.Title != "Fix the chart's axis" {
@@ -110,6 +114,13 @@ func TestAppDevCodexChat(t *testing.T) {
 	// Resume: not over a running agent; Codex's with codex resume.
 	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/resume", map[string]any{"workspace": "w2", "session": codexID, "agent": "codex"}); code == 200 || !strings.Contains(body, "running") {
 		t.Fatal(code, body)
+	}
+	// With stop, from the page's session menu: Ctrl+C ends it first.
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/resume", map[string]any{"workspace": "w2", "session": codexID, "agent": "codex", "stop": true}); code != 200 {
+		t.Fatal(code, body)
+	}
+	if all := strings.Join(*ran, "\n"); !strings.Contains(all, "herdr pane send-keys w2:p1 ctrl+c") {
+		t.Fatal(all)
 	}
 	running = ""
 	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/resume", map[string]any{"workspace": "w2", "session": codexID, "agent": "codex"}); code != 200 {

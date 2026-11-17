@@ -372,12 +372,16 @@ for; Checks and Logs have a dot.
 - **Antigravity:** with the app's own Google sign-in for agy
   ([keys](keys.md)), Start and **+ New** offer it beside Claude Code and
   Codex. Chat shows its session and its questions as Claude Code's, and
-  Sessions has its conversations, with Resume.
-- **Codex in Chat, and Sessions:** Chat shows Codex's session as it
-  shows Claude Code's. **Sessions**, beside **+ New**, lists the
-  workspace's sessions, both agents', newest first, with **Resume**,
-  which runs `claude --resume` or `codex resume` in its terminal once no
-  agent runs there.
+  the workspace menu has its conversations, to resume.
+- **Codex in Chat:** Chat shows Codex's session as it shows Claude
+  Code's.
+- **The workspace menu** (the top bar's one drop-down): each workspace,
+  with its status dot and its agent, and under it its sessions, every
+  agent's, newest first (three, then **Show all**), then **+ New**. A
+  workspace opens its chat; the session its agent runs now ("running
+  now") does too. Any other session resumes there, `claude --resume`,
+  `codex resume`, or `agy --conversation` in its terminal; when an agent
+  runs there, hi asks first, then stops it with Ctrl+C.
 - **Notes on a diff** (Source control): the **+** beside a line of a
   file's diff adds a note on it, for the agent; **Send to the agent**
   puts all of them in the chat's box as one message, each with its file

@@ -1022,12 +1022,30 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 		if sessions == nil {
 			sessions = []appDevSession{}
 		}
+		// The running agent's own, which the page opens rather than resumes.
+		if agent, live, err := devChatAgent(b.team, workspace); err == nil && agent.Running && live != "" {
+			for i := range sessions {
+				if sessions[i].Session == live || strings.Contains(path.Base(live), sessions[i].ID) {
+					sessions[i].Live = true
+					break
+				}
+			}
+		}
 		reply(w, http.StatusOK, map[string]any{"sessions": sessions})
 	})
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/resume", func(w http.ResponseWriter, r *http.Request) {
 		act(w, r, func(agent appDevChatAgent, _ string, body map[string]any) error {
 			id, _ := body["session"].(string)
 			who, _ := body["agent"].(string)
+			if stop, _ := body["stop"].(bool); stop && agent.Running && regexp.MustCompile(`^[0-9a-f-]{36}$`).MatchString(id) {
+				// Picked from the page's session menu: the running agent ends
+				// first, as Ctrl+C in the terminal ends it.
+				stopped, err := appDevStopAgent(b.team, body["workspace"].(string), agent)
+				if err != nil {
+					return err
+				}
+				agent = stopped
+			}
 			switch {
 			case agent.Running:
 				return errors.New("an agent is running in this workspace already: stop it first, with /exit or Ctrl+C in the terminal")
@@ -1049,4 +1067,36 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 			return appDevHerdrDo(b.team, "pane", "run", agent.Pane, "claude --resume "+id)
 		})
 	})
+}
+
+// appDevStopAgentWait is how long appDevStopAgent gives the agent to end.
+var appDevStopAgentWait = 10 * time.Second
+
+// appDevStopAgent ends a workspace's agent as Ctrl+C in its terminal
+// does: the first stops what it's doing, the next two end it (Claude
+// Code and Codex ask for a second). It answers the workspace's agent
+// once none runs there, its shell's pane free for a resume.
+func appDevStopAgent(team, workspace string, agent appDevChatAgent) (appDevChatAgent, error) {
+	deadline := time.Now().Add(appDevStopAgentWait)
+	for try := 0; ; try++ {
+		if try%4 == 0 {
+			for range 3 {
+				if err := appDevHerdrDo(team, "pane", "send-keys", agent.Pane, "ctrl+c"); err != nil {
+					return agent, err
+				}
+				time.Sleep(150 * time.Millisecond)
+			}
+		}
+		now, _, err := devChatAgent(team, workspace)
+		if err != nil {
+			return agent, err
+		}
+		if !now.Running {
+			return now, nil
+		}
+		if time.Now().After(deadline) {
+			return now, errors.New("the agent didn't stop: end it with /exit in the terminal, then resume")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
