@@ -1759,6 +1759,7 @@
   $("chat-space").addEventListener("change", function () { chooseChatSpace(this.value); });
   function chooseChatSpace(id, quiet) {
     if (id === chat.space && quiet) return;
+    if (!quiet) chat.composing = false; // a workspace chosen leaves Start something new
     chat.space = id;
     if (state) renderEditorBar();
     chat.sitesSig = null;
