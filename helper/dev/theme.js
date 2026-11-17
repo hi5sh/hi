@@ -1,5 +1,5 @@
 // The page's theme: Paseo's themes (getpaseo/paseo, Apache-2.0), its
-// Claude one by default, kept in this browser. Loaded in the head, before the page draws,
+// Ghostty one by default, kept in this browser. Loaded in the head, before the page draws,
 // so a theme other than the default never flashes in; dev.css has the
 // colours, by the <html>'s data-theme. The admin page and the dev page
 // share it: the bar's button (#theme-btn) opens the list, and their
@@ -38,11 +38,11 @@
   function chosen() {
     var id = "";
     try { id = localStorage.getItem(KEY) || ""; } catch (e) { /* a private window */ }
-    return THEMES.some(function (t) { return t.id === id; }) ? id : "claude";
+    return THEMES.some(function (t) { return t.id === id; }) ? id : "ghostty";
   }
-  // The theme drawn: Auto is Light or Claude, as the computer is.
+  // The theme drawn: Auto is Light or Ghostty, as the computer is.
   function shown(id) {
-    if (id === "auto") return system && system.matches ? "light" : "claude";
+    if (id === "auto") return system && system.matches ? "light" : "ghostty";
     return id;
   }
   function apply() {
@@ -72,7 +72,7 @@
     onChange: function (fn) { listeners.push(fn); },
     // xterm's theme, in the page's colours.
     terminal: function () {
-      var bg = css("--surface0") || "#1f1f1e";
+      var bg = css("--surface0") || "#282c34";
       var fg = css("--fg") || "#fafafa";
       var light = isLight();
       var theme = { background: bg, foreground: light ? fg : css("--text") || fg, cursor: fg, cursorAccent: bg,

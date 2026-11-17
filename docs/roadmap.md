@@ -2867,6 +2867,11 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.201 — Ghostty by default
+
+- [x] The dev pages and the admin page are Ghostty's colours by default,
+  Auto's dark too; a theme picked in a browser stays picked.
+
 ### v2.6.200 — Merge doesn't stop at a clash
 
 - [x] Merge N changes into preview takes the merge as wanted: a change

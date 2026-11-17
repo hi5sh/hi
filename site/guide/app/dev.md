@@ -374,9 +374,9 @@ for; Checks and Logs have a dot.
   workspace and in Needs you.
 - **Production and Stage** (the globe in the top bar): opens either in
   a new tab, with its address under its name.
-- **Theme** (the half-filled circle in the top bar): Claude, the
-  default, or Paseo, Zinc, Midnight, Ghostty, Pure black, Light, or Auto,
-  which follows the computer's light or dark. This browser keeps it, for
+- **Theme** (the half-filled circle in the top bar): Ghostty, the
+  default, or Claude, Paseo, Zinc, Midnight, Pure black, Light, or Auto,
+  which follows the computer's light or dark (Light, or Ghostty). This browser keeps it, for
   the dev pages and the admin page alike.
 - **Antigravity:** with the app's own Google sign-in for agy
   ([keys](keys.md)), Start and **+ New** offer it beside Claude Code and

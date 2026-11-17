@@ -1135,8 +1135,8 @@ func appDevPageManifest(team string) []byte {
 		"start_url":        "./",
 		"scope":            "./",
 		"display":          "standalone",
-		"background_color": "#1f1f1e",
-		"theme_color":      "#1f1f1e",
+		"background_color": "#282c34",
+		"theme_color":      "#282c34",
 		"icons": []map[string]string{
 			icon("icon-192.png", "192x192", "any"), icon("icon-512.png", "512x512", "any"),
 			icon("icon-maskable-512.png", "512x512", "maskable"),
