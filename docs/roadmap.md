@@ -2867,6 +2867,17 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.195 — A question's previews in the chat
+
+- [x] Claude Code's AskUserQuestion shows in the chat as Claude wrote
+  it, from its transcript while it waits: the question unwrapped, each
+  option's whole label and description, and its preview, monospace in a
+  box, each hex colour in its colour. The screen still says which tab
+  and option it's on, and an answer is checked against it. The preview
+  box beside the options was read as their descriptions.
+- [x] Without the transcript's question (another tab, other options),
+  the screen's options leave the box drawn beside them out.
+
 ### v2.6.194 — Add again, and no tabs from work that's gone
 
 - [x] A change taken out of the preview has a plain **Add again**, not

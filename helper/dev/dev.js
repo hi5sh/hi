@@ -2535,6 +2535,23 @@
   $("chat-form").addEventListener("submit", function (event) { event.preventDefault(); chatSend(); });
   // A question in the terminal, as a card at the end of the chat: tap an
   // option, or say it in your own words, and hi presses the keys.
+  // askPreview is an option's preview as Claude Code draws it beside the
+  // options: monospace, in a box; a colour's hex code with its swatch.
+  function askPreview(text) {
+    var box = el("span", { class: "ask-preview" });
+    text.split(/(#[0-9a-fA-F]{6}\b)/).forEach(function (part) {
+      if (/^#[0-9a-fA-F]{6}$/.test(part)) {
+        // In its colour, its text black or white to read on it: no wider,
+        // so the columns stay as written.
+        var n = parseInt(part.slice(1), 16), light = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) > 150;
+        var swatch = el("span", { class: "ask-swatch", text: part });
+        swatch.style.background = part;
+        swatch.style.color = light ? "#000" : "#fff";
+        box.appendChild(swatch);
+      } else if (part) box.appendChild(document.createTextNode(part));
+    });
+    return box;
+  }
   function chatAsk(ask, screen, agentName) {
     var box = $("chat-ask");
     var sig = ask ? JSON.stringify(ask) : "";
@@ -2558,7 +2575,9 @@
     var who = el("div", { class: "ask-who" }, [el("span", { text: (agentName === "codex" ? "Codex" : "Claude") + " is asking" + (ask.progress ? " · " + ask.progress : "") })]);
     (ask.tabs || []).forEach(function (tab) { who.appendChild(el("span", { class: "ask-tab" + (tab.done ? " done" : "") + (tab.current ? " current" : ""), "aria-current": tab.current ? "step" : "false", text: (tab.done ? "✓ " : "") + tab.label })); });
     card.appendChild(who);
-    (ask.text || []).forEach(function (text, i) {
+    // The question as the agent wrote it, when its transcript has it; else
+    // as the screen shows it.
+    (ask.question ? [ask.question] : ask.text || []).forEach(function (text, i) {
       card.appendChild(el("p", { class: i === 0 ? "ask-q" : "ask-more" + (/^\$ /.test(text) ? " code" : ""), text: text }));
     });
     var options = el("div", { class: "ask-options" });
@@ -2566,7 +2585,11 @@
       var key = option.box ? (option.checked ? "✓" : "") : (option.key || "→");
       var button = el("button", { type: "button", class: "ask-option", "aria-pressed": option.checked ? "true" : "false" }, [
         el("span", { class: "ask-key", text: key }),
-        el("span", {}, [el("span", { class: "ask-label", text: option.label }), option.detail ? el("span", { class: "ask-detail", text: option.detail }) : null]),
+        el("span", { class: "ask-body" }, [
+          el("span", { class: "ask-label", text: option.title || option.label }),
+          (option.title ? option.about : option.detail) ? el("span", { class: "ask-detail", text: option.title ? option.about : option.detail }) : null,
+          option.preview ? askPreview(option.preview) : null,
+        ]),
       ]);
       options.appendChild(button);
       if (!option.typed) { button.addEventListener("click", function () { answer(index); }); return; }

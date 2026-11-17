@@ -1133,3 +1133,8 @@ a.button.primary:hover { background: var(--button-hover); }
 .stuck-details { margin: 4px 0 12px; }
 .stuck-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; margin: 6px 0 0; padding: 8px 10px; background: var(--widget); border-radius: var(--r-sm); }
 #stuck-said:empty { display: none; }
+/* An option's preview, as Claude Code draws it beside the options:
+   monospace, its own lines, scrolled sideways when wide. */
+.ask-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.ask-preview { display: block; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--input-line); border-radius: var(--r-sm); background: var(--term); color: var(--text); font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px; line-height: 1.5; white-space: pre; overflow-x: auto; max-width: 100%; text-align: left; font-weight: 400; }
+.ask-swatch { border-radius: 2px; box-shadow: 0 0 0 1px rgba(var(--ink), .18); }

@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -17,6 +20,10 @@ import (
 
 // appDevAsk is the question on the screen.
 type appDevAsk struct {
+	// Question is its words as the agent wrote them, from its transcript,
+	// unwrapped: for the page to show; Text, from the screen, is what an
+	// answer is checked against.
+	Question string            `json:"question,omitempty"`
 	Tabs     []appDevAskTab    `json:"tabs,omitempty"`     // Claude Code's questions, a tab each, and Submit
 	Progress string            `json:"progress,omitempty"` // Codex's "Question 1/2 (2 unanswered)"
 	Text     []string          `json:"text"`               // what it says, a paragraph each
@@ -38,6 +45,139 @@ type appDevAskOption struct {
 	Box     bool   `json:"box,omitempty"`    // a check box, ticked or not
 	Checked bool   `json:"checked,omitempty"`
 	Typed   bool   `json:"typed,omitempty"` // an answer in the person's own words
+	// From the transcript, for the page to show: the label unwrapped, its
+	// description, and its preview (Claude Code's box beside the options,
+	// monospace). Label, from the screen, is what an answer is checked
+	// against.
+	Title   string `json:"title,omitempty"`
+	About   string `json:"about,omitempty"`
+	Preview string `json:"preview,omitempty"`
+}
+
+// appDevAskBox is a line of a box drawn beside the options, as Claude
+// Code draws an option's preview: not a part of any option.
+var appDevAskBox = regexp.MustCompile(`^\s*[│┌└├╭╰|]`)
+
+// appDevAskQuestion is one of AskUserQuestion's questions, as the agent
+// wrote it in its transcript.
+type appDevAskQuestion struct {
+	Question string `json:"question"`
+	Header   string `json:"header"`
+	Multi    bool   `json:"multiSelect"`
+	Options  []struct {
+		Label       string `json:"label"`
+		Description string `json:"description"`
+		Preview     string `json:"preview"`
+	} `json:"options"`
+}
+
+// appDevAskPending is Claude Code's AskUserQuestion still waiting for an
+// answer, from the end of its transcript: the tool's call without its
+// result.
+func appDevAskPending(home, host string) []appDevAskQuestion {
+	file, err := boxedOpenFile(home, host)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil
+	}
+	const tail = 2 << 20
+	at := max(0, info.Size()-tail)
+	data := make([]byte, info.Size()-at)
+	if _, err := file.ReadAt(data, at); err != nil && !errors.Is(err, io.EOF) {
+		return nil
+	}
+	lines := bytes.Split(data, []byte("\n"))
+	answered := map[string]bool{}
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := lines[i]
+		if !bytes.Contains(line, []byte("tool_")) {
+			continue
+		}
+		var entry struct {
+			Message struct {
+				Content []struct {
+					Type      string          `json:"type"`
+					Name      string          `json:"name"`
+					ID        string          `json:"id"`
+					ToolUseID string          `json:"tool_use_id"`
+					Input     json.RawMessage `json:"input"`
+				} `json:"content"`
+			} `json:"message"`
+		}
+		if json.Unmarshal(line, &entry) != nil {
+			continue
+		}
+		for _, part := range entry.Message.Content {
+			switch {
+			case part.Type == "tool_result":
+				answered[part.ToolUseID] = true
+			case part.Type == "tool_use" && part.Name == "AskUserQuestion":
+				if answered[part.ID] {
+					return nil
+				}
+				var input struct {
+					Questions []appDevAskQuestion `json:"questions"`
+				}
+				if json.Unmarshal(part.Input, &input) != nil {
+					return nil
+				}
+				return input.Questions
+			}
+		}
+	}
+	return nil
+}
+
+// appDevAskWords is text with its spaces and line breaks as one space, to
+// compare the screen's wrapped lines with what was written.
+func appDevAskWords(text string) string {
+	return strings.Join(strings.Fields(strings.ReplaceAll(text, "│", " ")), " ")
+}
+
+// appDevAskWithQuestions adds the transcript's words and previews to the
+// question on the screen, when it's the same question: its tab's header,
+// or its words, and each option's label as the screen starts it.
+func appDevAskWithQuestions(ask *appDevAsk, questions []appDevAskQuestion) {
+	if ask == nil || len(questions) == 0 {
+		return
+	}
+	var question *appDevAskQuestion
+	screen := appDevAskWords(strings.Join(ask.Text, " "))
+	for i := range questions {
+		q := &questions[i]
+		for _, tab := range ask.Tabs {
+			if tab.Current && strings.TrimSpace(tab.Label) == strings.TrimSpace(q.Header) {
+				question = q
+			}
+		}
+		if question == nil && screen != "" && appDevAskWords(q.Question) == screen {
+			question = q
+		}
+	}
+	if question == nil {
+		return
+	}
+	for i, option := range ask.Options {
+		if i >= len(question.Options) {
+			break
+		}
+		label := strings.TrimSuffix(appDevAskWords(option.Label), "…")
+		if label == "" || !strings.HasPrefix(appDevAskWords(question.Options[i].Label), label) {
+			return // not the options the transcript has: the screen's, as they are
+		}
+	}
+	ask.Question = question.Question
+	for i := range ask.Options {
+		if i < len(question.Options) {
+			ask.Options[i].Title = question.Options[i].Label
+			ask.Options[i].About = question.Options[i].Description
+			ask.Options[i].Preview = strings.TrimRight(question.Options[i].Preview, "\n ")
+		}
+	}
 }
 
 var (
@@ -209,6 +349,12 @@ func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption 
 	var options []appDevAskOption
 	labelColumn, numberColumn := 0, 0
 	for _, line := range lines {
+		// A preview's box beside the options isn't theirs: each line up to it.
+		if at := strings.IndexAny(line, "│┌└├╭╰"); at >= 0 {
+			if line = strings.TrimRight(line[:at], " "); strings.TrimSpace(line) == "" {
+				continue
+			}
+		}
 		if strings.TrimSpace(line) == "" || appDevAskRule.MatchString(line) {
 			continue
 		}
@@ -234,6 +380,9 @@ func appDevAskNumberedOptions(lines []string, ask *appDevAsk) []appDevAskOption 
 			continue
 		}
 		indent := utf8.RuneCountInString(line) - utf8.RuneCountInString(strings.TrimLeft(line, " "))
+		if appDevAskBox.MatchString(line) || strings.HasPrefix(strings.TrimSpace(line), "Notes:") {
+			continue // a preview's box beside the options, and its notes' line
+		}
 		switch {
 		case len(options) > 0 && indent >= labelColumn:
 			last := &options[len(options)-1]

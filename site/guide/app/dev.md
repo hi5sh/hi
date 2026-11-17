@@ -432,7 +432,11 @@ for; Checks and Logs have a dot.
   something in the terminal (a permission, a choice, a few questions in
   a row), the chat shows it as a card at the end of the conversation:
   tap an option, tick boxes, or open **Type something** and answer in
-  your own words, and hi presses the keys for you. It works for Codex's
+  your own words, and hi presses the keys for you. Claude Code's
+  questions show as Claude wrote them, from its transcript: each
+  option's whole label, its description, and its preview (the box
+  Claude Code draws beside the options), in monospace, each colour's
+  hex code in its colour. It works for Codex's
   approvals and questions too, and **The terminal** under the card has
   the screen and its keys for anything else. A workspace whose agent stopped
   shows its last session, with **Resume this session**. The right

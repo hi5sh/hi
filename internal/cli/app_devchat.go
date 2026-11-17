@@ -565,6 +565,12 @@ func (b *appBroker) devChat(workspace, known, turns string, offset int64) (appDe
 	if agent := view.Agent; agent.Running && (agent.Status == "blocked" || agent.Status == "working" || agent.Agent == "claude") {
 		if text, ansi, err := devChatScreen(b.team, agent.Pane); err == nil {
 			ask := appDevReadAsk(text, ansi)
+			if ask != nil && view.SessionAgent == "claude" && view.Session != "" {
+				// The question's own words and previews, from the transcript.
+				if host, ok := appDevHostPath(b.team, view.Session); ok {
+					appDevAskWithQuestions(ask, appDevAskPending(appDevHome(b.team), host))
+				}
+			}
 			if agent.Status != "blocked" && appDevAskTabbed(ask) {
 				view.Agent.Status = "blocked"
 			}
