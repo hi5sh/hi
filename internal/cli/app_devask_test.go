@@ -283,3 +283,42 @@ func TestTeamDevReadAskTab(t *testing.T) {
 		t.Fatalf("%+v", ask.Tabs)
 	}
 }
+
+// agy asks while herdr says it's idle: an answer still goes in, with the
+// arrows and Enter.
+func TestTeamDevChatAnswerAgy(t *testing.T) {
+	b, ran := appTestDevPage(t)
+	handler := b.devPageHandler()
+	screen := strings.Join([]string{
+		"Question 1/3: What style should the music be?",
+		"",
+		"> 1. Synthesized via Web Audio API, an upbeat loop with no external",
+		"audio files",
+		"  2. A metronome beat",
+		"  3. Write-in...",
+		"",
+		"  ↑/↓ Navigate · → Next · enter Select · esc Skip",
+	}, "\n")
+	previous := appDevBoxExec
+	appDevBoxExec = func(team string, command ...string) (string, error) {
+		switch strings.Join(command[:min(3, len(command))], " ") {
+		case "herdr pane list":
+			return `{"result":{"panes":[{"pane_id":"w2:p1","agent":"agy","agent_status":"idle","cwd":"/box/home/.herdr/worktrees/repo/1-chart"}]}}`, nil
+		case "herdr pane read":
+			return screen, nil
+		}
+		return previous(team, command...)
+	}
+	t.Cleanup(func() { appDevBoxExec = previous })
+	ask := appDevParseAsk(screen)
+	*ran = nil
+	code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/answer", map[string]any{"workspace": "w2", "text": ask.Text, "option": 1, "label": ask.Options[1].Label})
+	if code != 200 || !strings.Contains(strings.Join(*ran, "\n"), "herdr agent send-keys w2:p1 down enter") {
+		t.Fatal(code, body, *ran)
+	}
+	// Its prompt, no question: nothing to answer.
+	screen = "> \n"
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/answer", map[string]any{"workspace": "w2", "text": ask.Text, "option": 1, "label": ask.Options[1].Label}); code == 200 {
+		t.Fatal("answered nothing:", body)
+	}
+}

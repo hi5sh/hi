@@ -487,7 +487,9 @@ var appDevAskPause = 400 * time.Millisecond
 // answerDevAsk answers the question on an agent's screen with an option,
 // when it's still the one the page shows.
 func (b *appBroker) answerDevAsk(agent appDevChatAgent, text []string, index int, label, typed string) error {
-	if !agent.Running || agent.Status != "blocked" && agent.Agent != "claude" {
+	// herdr says agy is idle while it asks (its transcript says it asks):
+	// its screen is read as Claude Code's is.
+	if !agent.Running || agent.Status != "blocked" && agent.Agent != "claude" && agent.Agent != "agy" {
 		return errors.New("the agent isn't asking anything now")
 	}
 	screen, _, err := devChatScreen(b.team, agent.Pane)
@@ -495,7 +497,7 @@ func (b *appBroker) answerDevAsk(agent appDevChatAgent, text []string, index int
 		return err
 	}
 	ask := appDevParseAsk(screen)
-	if agent.Status != "blocked" && !appDevAskTabbed(ask) {
+	if agent.Status != "blocked" && !appDevAskTabbed(ask) && (agent.Agent != "agy" || ask == nil) {
 		return errors.New("the agent isn't asking anything now")
 	}
 	if ask == nil || strings.Join(ask.Text, "\n") != strings.Join(text, "\n") || index < 0 || index >= len(ask.Options) || ask.Options[index].Label != label {

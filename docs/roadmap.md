@@ -2867,6 +2867,12 @@ Spec: [hi_app_sso.md](specs/approved/hi_app_sso.md).
 - [x] Tests never touch the machine's home: one wrote over the real agy
   sign-in there.
 
+### v2.6.198 — Answering agy's questions
+
+- [x] An option tapped in agy's question goes in: herdr says agy is idle
+  while it asks, and the answer was refused ("the agent isn't asking
+  anything now") though the chat showed the question.
+
 ### v2.6.197 — + New in the accent, agy's options all there
 
 - [x] + New atop Workspaces is a button in the accent, as Add to Preview
