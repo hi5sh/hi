@@ -6764,3 +6764,11 @@ preview and production listen, so the spec needs a network answer too.
 
 - [x] The chat box sits 10px from the sides and the bottom, or the home
   bar's room on an iPad or phone if that's more.
+
+### v2.6.205 — Two panels
+
+- [x] **Panels**, beside Vibe and Pro: three panels (the left panel, the
+  chat, the right panel), or two (the chat on the left, one panel on the
+  right with every view, the left panel's first), kept in the browser.
+- [x] The Publish panel's line runs through its dots.
+- [x] The Vibe and Pro button keeps its star in either mode.

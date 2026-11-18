@@ -1168,6 +1168,7 @@ a.button.primary:hover { background: var(--button-hover); }
 .flow .flow-merge svg { width: 14px; height: 14px; }
 /* The mode's menu and Customize Vibe mode. */
 .theme-menu.mode-menu { width: 300px; }
+body.layout-two #chat-side .side-tabs { flex-wrap: wrap; }
 .mode-item { align-items: flex-start; }
 .mode-icon { flex: none; display: inline-flex; margin-top: 2px; color: var(--accent); }
 .mode-words { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }

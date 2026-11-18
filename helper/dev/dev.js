@@ -1959,6 +1959,7 @@
     event.stopPropagation();
     var menu = $("mode-menu");
     if (!menu.hidden) { closeModeMenu(); return; }
+    closeLayoutMenu();
     drawModeMenu();
     menu.hidden = false;
     $("mode-btn").setAttribute("aria-expanded", "true");
@@ -2016,6 +2017,95 @@
     right: { panel: "chat-side", toggle: "side-toggle", close: "side-close", resize: "side-resize", width: 340 },
   };
   function paneOf(view) { return paneViews.left.indexOf(view) >= 0 ? "left" : "right"; }
+  // ---- The layout, each person's own, in this browser (hi 2.6.205):
+  // three columns (the left panel, the chat, the right panel), or two (the
+  // chat, and one panel on the right with every view, the left's first).
+  var LEFT_VIEWS = paneViews.left.slice(), RIGHT_VIEWS = paneViews.right.slice();
+  var layout = "three";
+  try { if (localStorage.getItem("hi-dev-layout") === "two") layout = "two"; } catch (e) { /* private window */ }
+  // placeLayout moves the left panel's icons and views into the right
+  // panel, or back.
+  function placeLayout() {
+    var two = layout === "two";
+    var leftSide = $("left-side"), rightSide = $("chat-side");
+    var leftTabs = leftSide.querySelector(".side-tabs"), rightTabs = rightSide.querySelector(".side-tabs");
+    var leftEnd = leftTabs.querySelector(".grow"), rightFirst = rightTabs.querySelector('button[data-side="' + RIGHT_VIEWS[0] + '"]');
+    LEFT_VIEWS.forEach(function (view) {
+      var tab = document.querySelector('.side-tabs button[data-side="' + view + '"]');
+      (two ? rightTabs : leftTabs).insertBefore(tab, two ? rightFirst : leftEnd);
+      (two ? rightSide : leftSide).appendChild($("side-" + view));
+    });
+    paneViews.left = two ? [] : LEFT_VIEWS.slice();
+    paneViews.right = two ? LEFT_VIEWS.concat(RIGHT_VIEWS) : RIGHT_VIEWS.slice();
+    document.body.classList.toggle("layout-two", two);
+    $("side-toggle").title = two ? "The panel: tasks, workspaces, rewind, preview, publish, and the rest" : "Rewind, source control, logs, preview, publish, data, and system";
+  }
+  placeLayout();
+  // setLayout switches it; the open view stays open, in its new panel.
+  function setLayout(next) {
+    if (next === layout) return;
+    if (next === "two") {
+      if (panes.left.open && !panes.right.open) panes.right.view = panes.left.view;
+      panes.right.open = panes.left.open || panes.right.open;
+      panes.right.width = Math.max(panes.right.width, panes.left.width);
+    } else if (LEFT_VIEWS.indexOf(panes.right.view) >= 0) {
+      panes.left.view = panes.right.view;
+      panes.left.open = true;
+      panes.right.view = RIGHT_VIEWS[0];
+    }
+    layout = next;
+    try { localStorage.setItem("hi-dev-layout", layout); } catch (e) { /* private window: this page only */ }
+    placeLayout();
+    keepSide();
+    renderSide();
+    sideShown();
+  }
+  var LAYOUT_ICONS = {
+    three: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8.5 4v16"/><path d="M15.5 4v16"/></svg>',
+    two: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14 4v16"/></svg>',
+  };
+  $("layout-btn").innerHTML = LAYOUT_ICONS.three;
+  function drawLayoutMenu() {
+    var menu = $("layout-menu");
+    menu.textContent = "";
+    menu.appendChild(el("div", { class: "theme-head", text: "Panels" }));
+    [["three", "Three panels", "Tasks and workspaces on the left, the chat, the rest on the right"], ["two", "Two panels", "The chat on the left, one panel with every view on the right"]].forEach(function (l) {
+      var on = layout === l[0];
+      var icon = el("span", { class: "mode-icon", "aria-hidden": "true" });
+      icon.innerHTML = LAYOUT_ICONS[l[0]];
+      menu.appendChild(el("button", { type: "button", role: "menuitemradio", "aria-checked": on ? "true" : "false", class: "theme-item mode-item", "data-layout": l[0],
+        onclick: function () { setLayout(l[0]); closeLayoutMenu(); } }, [
+        icon,
+        el("span", { class: "mode-words" }, [el("span", { class: "theme-name", text: l[1] }), el("span", { class: "muted mode-about", text: l[2] })]),
+        el("span", { class: "theme-check", text: on ? "✓" : "" }),
+      ]));
+    });
+  }
+  function closeLayoutMenu() {
+    $("layout-menu").hidden = true;
+    $("layout-btn").setAttribute("aria-expanded", "false");
+  }
+  $("layout-btn").addEventListener("click", function (event) {
+    event.stopPropagation();
+    var menu = $("layout-menu");
+    if (!menu.hidden) { closeLayoutMenu(); return; }
+    closeModeMenu();
+    drawLayoutMenu();
+    menu.hidden = false;
+    $("layout-btn").setAttribute("aria-expanded", "true");
+    var first = menu.querySelector('[aria-checked="true"]');
+    if (first) first.focus();
+  });
+  $("layout-menu").addEventListener("click", function (event) { event.stopPropagation(); });
+  $("layout-menu").addEventListener("keydown", function (event) {
+    var items = [].slice.call($("layout-menu").querySelectorAll(".theme-item"));
+    var at = items.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      items[(at + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
+    } else if (event.key === "Escape") { closeLayoutMenu(); $("layout-btn").focus(); }
+  });
+  document.addEventListener("click", closeLayoutMenu);
   try {
     var keptPanes = JSON.parse(localStorage.getItem("hi-dev-panes") || "null");
     if (keptPanes && keptPanes.v === 1) {
@@ -3190,7 +3280,7 @@
   function renderSide() {
     ["left", "right"].forEach(function (which) {
       var pane = panes[which], ids = paneIds[which], panel = $(ids.panel);
-      var beside = which === "left" || sideBeside();
+      var beside = which === "left" || layout === "two" || sideBeside();
       // The mode's: off a view it hides, to the first it shows; none, no panel.
       var views = shownViews(which);
       if (views.length && views.indexOf(pane.view) < 0) pane.view = views[0];
@@ -3251,7 +3341,7 @@
   // the other panel.
   function revealSide(view) {
     if (view !== peek && viewMode.mode === "vibe" && viewMode.hides.indexOf(view) >= 0) { peek = view; applyMode(); }
-    if (paneOf(view) === "right" && !sideBeside()) setCodeView("chat");
+    if (paneOf(view) === "right" && layout !== "two" && !sideBeside()) setCodeView("chat");
     setSide(view, true);
   }
   document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
