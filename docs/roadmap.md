@@ -6779,3 +6779,16 @@ preview and production listen, so the spec needs a network answer too.
   and **Panel left, chat right**, the one panel with every view.
 - [x] The task view's ← is a grey button, the size of Done beside it.
 - [x] The Publish panel's dots are centred on its line.
+
+### v2.6.207 — Docs and help as hi is
+
+- [x] The guide, the feature pages, README, llms.txt, and the skills
+  match the code: the dev page's Publish and Preview, the admin page's
+  Vault, Spend, People, and Other machines, keys in the vault, and the
+  commands, flags, variables, and files the reference lacked.
+- [x] A guide page for the machine's people and signing in by email.
+- [x] The help texts list what the commands take: `hi app budget`,
+  `--purge`, managed and shared keys, `restore --from`,
+  `hi server openrouter`, `hi server vault move`, and more.
+- [x] The `web` template's check passes again: the audit ignores
+  picomatch's advisory, which no version fixes yet.
