@@ -6754,3 +6754,8 @@ a way into the VPN or past sign-in, and then a box escape. To pick up
 again before hi runs teams for people outside the VPN. Also unsolved:
 separate accounts still share the host's loopback, where each team's
 preview and production listen, so the spec needs a network answer too.
+
+### v2.6.203 — The chat box's margin
+
+- [x] The space below the chat box is the same as at its sides, 16px,
+  or the home bar's room on an iPad or phone if that's more.
