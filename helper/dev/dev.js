@@ -2020,7 +2020,7 @@
   // ---- The layout, each person's own, in this browser (hi 2.6.205):
   // three columns (the left panel, the chat, the right panel), or two:
   // the chat and one panel with every view, the panel on the right
-  // ("two") or on the left ("two-left", hi 2.6.207).
+  // ("two") or on the left ("two-left", hi 2.6.206).
   var LEFT_VIEWS = paneViews.left.slice(), RIGHT_VIEWS = paneViews.right.slice();
   var LAYOUTS = ["three", "two", "two-left"];
   var layout = "three";
