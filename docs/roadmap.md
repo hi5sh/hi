@@ -6807,3 +6807,11 @@ preview and production listen, so the spec needs a network answer too.
   **Publish vN** when it's all on the preview; nothing when there's
   nothing new.
 - [x] It opens on the preview; after a publish it shows production.
+
+### v2.6.210 — A sent message stays sent
+
+- [x] A message sent from the chat is no longer kept as a draft: before,
+  emptying the box didn't clear what the browser kept, and the message
+  came back, pictures too, the next time the page opened.
+- [x] Each workspace keeps its own draft, so a message written for one
+  piece of work never shows in another's chat.

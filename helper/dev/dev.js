@@ -2235,7 +2235,10 @@
   function chooseChatSpace(id, quiet) {
     if (id === chat.space && quiet) return;
     if (!quiet) chat.composing = false; // a workspace chosen leaves Start something new
+    var changedSpace = id !== chat.space;
+    if (changedSpace) flushDraft();
     chat.space = id;
+    if (changedSpace) loadDraft(id);
     if (state) renderEditorBar();
     chat.sitesSig = null;
     $("chat-status").textContent = "";
@@ -2790,7 +2793,8 @@
   var chatFiles = attacher($("chat-files"), $("chat-input"), $("chat-attached"), true, function () { saveDraft(); chatReady(); });
   // The message being written, its files and pastes too, is kept in this
   // browser (IndexedDB, which holds files) until it's sent, so a reload or
-  // a restart of the browser doesn't lose it.
+  // a restart of the browser doesn't lose it. One a workspace: a draft
+  // stays with the work it was written for, and a sent one is gone.
   var drafts = null;
   function draftStore(mode) {
     if (!drafts) drafts = new Promise(function (resolve, reject) {
@@ -2802,43 +2806,72 @@
     });
     return drafts.then(function (db) { return db.transaction("drafts", mode).objectStore("drafts"); });
   }
+  function draftKey(space) { return "chat:" + space; }
+  function writeDraft(space) {
+    if (!chatFiles || !space) return;
+    var draft = chatFiles.snapshot();
+    draft.text = $("chat-input").value;
+    var empty = !draft.text.trim() && !draft.files.length && !draft.pastes.length;
+    draftStore("readwrite").then(function (store) {
+      if (empty) store.delete(draftKey(space));
+      else store.put(draft, draftKey(space));
+    }).catch(function () { /* a private window: no draft */ });
+  }
   function saveDraft() {
     if (!chatFiles) return; // not made yet
     clearTimeout(chat.draftTimer);
-    chat.draftTimer = setTimeout(function () {
-      var draft = chatFiles.snapshot();
-      draft.text = $("chat-input").value;
-      var empty = !draft.text.trim() && !draft.files.length && !draft.pastes.length;
-      draftStore("readwrite").then(function (store) {
-        if (empty) store.delete("chat");
-        else store.put(draft, "chat");
-      }).catch(function () { /* a private window: no draft */ });
-    }, 300);
+    var space = chat.space;
+    chat.draftSpace = space;
+    chat.draftTimer = setTimeout(function () { chat.draftTimer = 0; writeDraft(space); }, 300);
   }
-  draftStore("readonly").then(function (store) {
-    var got = store.get("chat");
-    got.onsuccess = function () {
-      var draft = got.result;
-      if (!draft || $("chat-input").value) return;
-      $("chat-input").value = draft.text || "";
-      chatReady();
-      chatFiles.restore(draft);
-      sizeChatInput();
-    };
-  }).catch(function () { /* a private window: no draft */ });
+  // A draft not written yet is written for its own workspace, before the
+  // box shows another's.
+  function flushDraft() {
+    if (!chat.draftTimer) return;
+    clearTimeout(chat.draftTimer);
+    chat.draftTimer = 0;
+    writeDraft(chat.draftSpace);
+  }
+  // loadDraft empties the box and puts the workspace's draft in it.
+  function loadDraft(space) {
+    $("chat-input").value = "";
+    if (chatFiles) chatFiles.clear();
+    sizeChatInput();
+    chatReady();
+    if (!space) return;
+    draftStore("readonly").then(function (store) {
+      var got = store.get(draftKey(space));
+      got.onsuccess = function () {
+        var draft = got.result;
+        if (!draft || chat.space !== space || $("chat-input").value) return;
+        $("chat-input").value = draft.text || "";
+        chatFiles.restore(draft);
+        sizeChatInput();
+        chatReady();
+      };
+    }).catch(function () { /* a private window: no draft */ });
+  }
+  // Before drafts were a workspace's: one for the page, which a sent
+  // message never cleared. It goes.
+  draftStore("readwrite").then(function (store) { store.delete("chat"); }).catch(function () { /* a private window */ });
+  // The workspace the page opens on, from the last visit: its draft.
+  if (chat.space) loadDraft(chat.space);
   function chatSend() {
-    var input = $("chat-input");
+    var input = $("chat-input"), space = chat.space;
     var shown = input.value.trim();
     var text = chatFiles.expand(input.value).trim();
     if ((!text && !chatFiles.count()) || $("chat-send").disabled) return;
     $("chat-send").disabled = true;
     chatFiles.read().then(function (files) {
-      return api("POST", "chat/send", { workspace: chat.space, text: text, files: files });
+      return api("POST", "chat/send", { workspace: space, text: text, files: files });
     }).then(function () {
       input.value = "";
       chatFiles.clear();
       sizeChatInput();
       chatReady();
+      clearTimeout(chat.draftTimer);
+      chat.draftTimer = 0;
+      writeDraft(space); // empty now: the draft goes
       var node = el("div", { class: "msg-user pending", text: shown || "Attached files" });
       chat.pending.push({ node: node, since: Date.now() });
       chatPending(chat.agent || {});
