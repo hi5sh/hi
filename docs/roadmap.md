@@ -6846,3 +6846,8 @@ preview and production listen, so the spec needs a network answer too.
 - [x] At full screen the preview covers the page's bar and the panel's
   icons too, and keeps only its own row: the drop-down, the button
   beside it, **↻**, **↗**, and **✕**, which puts it back in its panel.
+
+### v2.6.215 — The panels' shadow beside the chat
+
+- [x] Beside the chat on a wide screen, both panels cast the shadow they
+  have when they lie over it on a narrow one.

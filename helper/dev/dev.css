@@ -382,6 +382,9 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .side { flex: 0 1 auto; width: var(--side-width, 340px); min-width: 240px; max-width: 75%; container-type: inline-size; position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden; background: var(--bg); border-left: 1px solid var(--line); }
 /* The left panel is Paseo's sidebar: a step darker, its line on the right. */
 .side-left { background: var(--panel); border-left: 0; border-right: 1px solid var(--line); }
+/* Beside the chat too, each panel casts the shadow it has over it on a narrow screen. */
+.side { z-index: 2; box-shadow: -8px 0 24px var(--shadow); }
+.side-left { box-shadow: 8px 0 24px var(--shadow); }
 .side[hidden] { display: none; }
 /* Full width: the right panel over the chat and the left panel. */
 .side-right.full { position: fixed; inset: 0; width: auto; max-width: none; z-index: 50; border-left: 0; }
