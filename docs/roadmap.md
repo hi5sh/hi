@@ -6799,3 +6799,11 @@ preview and production listen, so the spec needs a network answer too.
   chat's is, with the agent to pick (Claude Code, Codex, Antigravity) in
   place of the model, and the round send button; Enter sends.
 - [x] Sent, the chat it starts takes its place, the box where it was.
+
+### v2.6.209 — Merge and Publish beside the preview
+
+- [x] The Preview view has one button beside its drop-down, on the same
+  row: **Merge N changes into preview** while work waits, then
+  **Publish vN** when it's all on the preview; nothing when there's
+  nothing new.
+- [x] It opens on the preview; after a publish it shows production.

@@ -1202,7 +1202,8 @@
     }
 
     // 1. Work not on the preview yet.
-    var work = workSpaces().filter(function (space) { return workStage(space).add || (space.path && space.checked && space.dirty); });
+    var work = waitingWork();
+    renderPreviewAct();
     if (work.length) {
       // Merge changes into preview: each waiting one in turn, as Add to
       // Preview does, stopping at one that clashes (its dialog says why).
@@ -1257,6 +1258,34 @@
     step("flow-production", "Production", s.production_url || addr.production, [el("div", { class: "flow-what" }, [
       el("span", { class: "tag live", text: s.production ? "v" + s.production : "nothing published yet" }), document.createTextNode(s.production ? " what everyone uses" : ""),
     ])]);
+  }
+  function waitingWork() {
+    return workSpaces().filter(function (space) { return workStage(space).add || (space.path && space.checked && space.dirty); });
+  }
+  // The Preview view's one button, beside what it shows: Merge into
+  // preview while work waits, then Publish the next version, which shows
+  // production once it's out; nothing when there's nothing new.
+  function renderPreviewAct() {
+    var box = $("preview-act");
+    if (!state) return;
+    var s = state.status || {}, changes = state.changes || [];
+    var mergeable = waitingWork().filter(function (space) { return space.ahead > 0; });
+    var next = (s.production || 0) + 1;
+    var kind = releasing ? "publishing" : mergeable.length ? "merge" : changes.length || (!s.production && s.preview) ? "publish" : "";
+    var sig = kind + "|" + mergeable.map(function (space) { return space.id; }).join(",") + "|" + next + "|" + releasing;
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    box.textContent = "";
+    if (kind === "merge") {
+      box.appendChild(el("button", { class: "primary small flow-merge", busy: "merge-all", title: "Add " + (mergeable.length === 1 ? "it" : "each of them, one after another,") + " to the preview, then show the preview", onclick: function () {
+        showPreviewSlot("preview");
+        mergeAll(mergeable);
+      } }, [mergeIcon(), el("span", { text: "Merge " + mergeable.length + (mergeable.length === 1 ? " change" : " changes") + " into preview" })]));
+    } else if (kind === "publish") {
+      box.appendChild(el("button", { class: "primary small", text: "Publish v" + next, title: "The next version goes to production, with a snapshot first; then this shows production. Your click is the yes, logged with your name.", onclick: openRelease }));
+    } else if (kind === "publishing") {
+      box.appendChild(el("button", { class: "primary small busy", disabled: "", text: "Publishing v" + releasing + "…" }));
+    }
   }
   // mergeAll adds the pieces of work to the preview one after another.
   // A clash doesn't stop it: the work's agent is asked to combine them,
@@ -1779,9 +1808,11 @@
     $("release-error").textContent = "";
     toast("Publishing v" + releasing + ": a snapshot of production first, then the new box…", true);
     if (state.status) renderOwnerActions();
+    renderPreviewAct();
     var clean = !$("release-clean-box").hidden && $("release-clean").checked ? publishedWork() : [];
     api("POST", "release", { notes: $("release-notes").value, preview_data: $("release-data").checked }).then(function (result) {
       releasing = 0;
+      showPreviewSlot("production");
       toast("Production runs v" + result.release.version + " now." + (result.warning ? " " + result.warning : "") + (clean.length ? " Closing " + clean.length + (clean.length === 1 ? " finished piece of work…" : " finished pieces of work…") : ""));
       if (clean.length) cleanUp(clean); else refresh();
     }).catch(function (error) {
@@ -1789,6 +1820,7 @@
       releasing = 0;
       $("toast").hidden = true;
       if (state.status) renderOwnerActions();
+      renderPreviewAct();
       $("release-error").textContent = error.message;
       $("release-go").disabled = false;
       $("release-dialog").showModal();
@@ -4559,9 +4591,14 @@
   renderLogTools();
 
   // ---- Preview: Stage or production, in the panel, on its own address.
-  var preview = { slot: "", url: "", label: "" };
-  try { preview.slot = localStorage.getItem("hi-dev-preview") || ""; } catch (e) { /* private window */ }
+  // The preview first, each time the page opens; production after a
+  // publish, to see what went out.
+  var preview = { slot: "preview", url: "", label: "" };
   function previewShown() { return viewShown("preview"); }
+  function showPreviewSlot(id) {
+    preview.slot = id;
+    if (previewShown()) loadPreview(true);
+  }
   function previewSlots() {
     var s = (state && state.status) || {};
     var slots = [];
@@ -4580,6 +4617,7 @@
     }
     select.value = preview.slot;
     select.hidden = !slots.length;
+    renderPreviewAct();
     var slot = slots.filter(function (o) { return o.id === preview.slot; })[0];
     var frame = $("preview-frame");
     $("preview-open").hidden = !slot;
@@ -4599,7 +4637,6 @@
   }
   $("preview-slot").addEventListener("change", function () {
     preview.slot = $("preview-slot").value;
-    try { localStorage.setItem("hi-dev-preview", preview.slot); } catch (e) { /* private window */ }
     loadPreview(true);
   });
   $("preview-reload").addEventListener("click", function () { loadPreview(true); });

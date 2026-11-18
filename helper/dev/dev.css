@@ -971,6 +971,15 @@ dialog .buttons { display: flex; justify-content: flex-end; gap: 8px; }
 /* Logs and Preview: a bar, then the lines, or the page. */
 .logs-tools { flex: none; display: flex; align-items: center; gap: 4px; padding: 5px 6px 3px 8px; }
 .logs-tools select { max-width: 60%; min-width: 0; }
+/* The Preview view's Merge or Publish, on the same row as what it shows.
+   In a narrow panel the button's words give way, never the drop-down. */
+#preview-slot { flex: 0 1 auto; min-width: 120px; }
+.preview-act { flex: 0 1 auto; display: inline-flex; min-width: 0; }
+.preview-act:empty { display: none; }
+.preview-act button { height: 30px; max-width: 100%; margin: 0 0 0 4px; padding: 0 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview-act .flow-merge { margin-top: 0; gap: 6px; }
+.preview-act .flow-merge span { overflow: hidden; text-overflow: ellipsis; }
+.preview-act .flow-merge svg { flex: none; width: 14px; height: 14px; }
 .small-chips button { padding: 2px 8px; font-size: 12px; }
 #logs-errors[aria-pressed="true"] { background: var(--selected); color: var(--bad); }
 .logs-note { margin: 0; padding: 2px 12px 4px; }

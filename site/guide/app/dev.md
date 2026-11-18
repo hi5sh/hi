@@ -544,7 +544,10 @@ dot.
     panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
     makes the panel wider. It loads again when something new goes on
     Stage. An app that doesn't let other pages show it stays blank
-    here; **↗** still opens it.
+    here; **↗** still opens it. It opens on Stage. Beside the drop-down,
+    one button takes the work along: **Merge N changes into preview**
+    while work waits, then **Publish vN** once it's all on Stage, which
+    shows production when the new version is out.
 - **Add to Preview**, beside a piece of work not on the preview yet,
   adds it to the next version (dev, `hi dev ship` in the box), with its
   task's title for the version's notes, and puts the next version on the
