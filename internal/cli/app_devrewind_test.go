@@ -155,6 +155,9 @@ type appTestClaudeRewind struct {
 	chosen   int // in items, len(items) for (current)
 	escs     int
 	restored string
+	// noCode is a newer Claude Code with no code to restore: its titles
+	// say the conversation alone, and it offers only that.
+	noCode bool
 }
 
 func (c *appTestClaudeRewind) key(key string) {
@@ -179,8 +182,13 @@ func (c *appTestClaudeRewind) key(key string) {
 		c.chosen++
 	case key == "enter" && c.state == "list" && c.chosen < len(c.items):
 		c.state = "confirm"
-	case c.state == "confirm" && key >= "1" && key <= "3":
+	case c.state == "confirm" && c.noCode && key == "4":
+		c.state = "prompt" // Never mind
+	case c.state == "confirm" && key >= "1" && key <= "3" && (!c.noCode || key == "1"):
 		c.restored = map[string]string{"1": "both", "2": "conversation", "3": "code"}[key]
+		if c.noCode {
+			c.restored = "conversation"
+		}
 		c.state = "prompt"
 		if c.restored != "code" {
 			c.typed = c.items[c.chosen]
@@ -191,7 +199,11 @@ func (c *appTestClaudeRewind) key(key string) {
 func (c *appTestClaudeRewind) screen() string {
 	switch c.state {
 	case "list":
-		lines := []string{"   Rewind", "   " + appDevRewindTitle + "…"}
+		title := "Restore the code and/or conversation to the point before…"
+		if c.noCode {
+			title = "Restore the conversation to the point before…"
+		}
+		lines := []string{"   Rewind", "   " + title}
 		for i, item := range append(append([]string(nil), c.items...), "(current)") {
 			mark := "     "
 			if i == c.chosen {
@@ -201,6 +213,10 @@ func (c *appTestClaudeRewind) screen() string {
 		}
 		return strings.Join(lines, "\n")
 	case "confirm":
+		if c.noCode {
+			return "   Rewind\n   Restore the conversation to the point before you sent this message:\n   │ " + c.items[c.chosen] +
+				"\n   ❯ 1. Restore conversation\n     2. Summarize from here\n     3. Summarize up to here\n     4. Never mind\n   The code has not changed (nothing will be restored)"
+		}
 		return "   Rewind\n   " + appDevRewindConfirm + " to the point before you sent this message:\n   │ " + c.items[c.chosen] +
 			"\n   ❯ 1. Restore code and conversation\n     2. Restore conversation\n     3. Restore code\n     4. Summarize from here\n   ↓ 5. Summarize up to here"
 	}
@@ -274,6 +290,16 @@ func TestTeamDevChatRewind(t *testing.T) {
 	clear(appDevRewindIndexes.byPath) // the cut forgotten, as with a restart
 	appDevRewindIndexes.Unlock()
 	if code, body := rewind("p4", "both"); code == 200 || !strings.Contains(body, "didn't show that message") || claude.restored != "" || claude.state != "prompt" {
+		t.Fatalf("%d %s %+v", code, body, claude)
+	}
+
+	// No code to restore: Claude Code offers the conversation alone, which
+	// is what code and chat comes to; the code alone, nothing.
+	claude.items, claude.noCode = []string{"Make a", "Say ok"}, true
+	if code, body := rewind("p4", "code"); code == 200 || !strings.Contains(body, "as it was before that message already") || claude.restored != "" || claude.state != "prompt" {
+		t.Fatalf("%d %s %+v", code, body, claude)
+	}
+	if code, body := rewind("p4", "both"); code != 200 || !strings.Contains(body, `"text":"Say ok"`) || claude.restored != "conversation" || claude.state != "prompt" {
 		t.Fatalf("%d %s %+v", code, body, claude)
 	}
 	if code, _ := rewind("p4", "everything"); code == 200 {

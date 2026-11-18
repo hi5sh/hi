@@ -6815,3 +6815,13 @@ preview and production listen, so the spec needs a network answer too.
   came back, pictures too, the next time the page opened.
 - [x] Each workspace keeps its own draft, so a message written for one
   piece of work never shows in another's chat.
+
+### v2.6.211 — Rewind where the code didn't change
+
+- [x] **Code and chat** rewinds to a message the code hasn't changed
+  since: Claude Code then offers the conversation alone, and hi chose
+  nothing and said it couldn't. It takes the conversation, which is all
+  there is to restore.
+- [x] **Code only** there says the code is as it was already.
+- [x] hi reads newer Claude Code's rewind screens, whose titles say "the
+  conversation" alone when there's no code to restore.

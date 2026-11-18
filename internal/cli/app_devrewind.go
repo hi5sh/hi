@@ -454,9 +454,31 @@ var appDevRewindModes = map[string]string{
 }
 
 const (
-	appDevRewindTitle   = "Restore the code and/or conversation to the point before"
+	// appDevRewindTitle ends the list's title: "Restore the code and/or
+	// conversation to the point before…", or, where Claude Code has no
+	// code to restore, "Restore the conversation to the point before…".
+	appDevRewindTitle   = "to the point before"
 	appDevRewindConfirm = "Confirm you want to restore"
+	appDevRewindSent    = "before you sent this message"
 )
+
+// appDevRewindList says the screen is Claude Code's rewind list. Its
+// confirmation says "to the point before you sent this message:", after
+// "Confirm you want to restore" or, in newer versions, "Restore the …".
+func appDevRewindList(text string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Restore the ") && strings.Contains(line, appDevRewindTitle) && !strings.Contains(line, appDevRewindSent) {
+			return true
+		}
+	}
+	return false
+}
+
+// appDevRewindConfirming says the screen asks what to restore.
+func appDevRewindConfirming(text string) bool {
+	return strings.Contains(text, appDevRewindConfirm) || strings.Contains(text, appDevRewindSent)
+}
 
 var appDevRewindOption = regexp.MustCompile(`^\s*(?:❯\s*)?(?:[↑↓]\s*)?(\d)\.\s+(.+?)\s*$`)
 
@@ -532,10 +554,9 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 		}
 		return text, false
 	}
-	has := func(s string) func(string) bool { return func(text string) bool { return strings.Contains(text, s) } }
 	backOut := func(why string) (string, error) {
 		keys("esc")
-		if text, _ := screen(func(string) bool { return true }); strings.Contains(text, appDevRewindTitle) || strings.Contains(text, appDevRewindConfirm) {
+		if text, _ := screen(func(string) bool { return true }); appDevRewindList(text) || appDevRewindConfirming(text) {
 			keys("esc")
 		}
 		return "", errors.New(why + " Nothing was rewound; /rewind in the terminal does it by hand.")
@@ -546,9 +567,9 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 	if err := keys("esc", "esc"); err != nil {
 		return "", err
 	}
-	if _, open := screen(has(appDevRewindTitle)); !open {
+	if _, open := screen(appDevRewindList); !open {
 		keys("esc", "esc")
-		if _, open := screen(has(appDevRewindTitle)); !open {
+		if _, open := screen(appDevRewindList); !open {
 			return backOut("Claude Code didn't open its rewind list.")
 		}
 	}
@@ -565,15 +586,24 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 	if err := keys("enter"); err != nil {
 		return backOut("hi couldn't choose the message.")
 	}
-	text, confirm := screen(has(appDevRewindConfirm))
+	text, confirm := screen(appDevRewindConfirming)
 	if !confirm {
 		return backOut("Claude Code didn't ask to confirm.")
 	}
-	option := ""
+	options := map[string]string{}
 	for _, line := range strings.Split(text, "\n") {
-		if m := appDevRewindOption.FindStringSubmatch(line); m != nil && m[2] == label {
-			option = m[1]
+		if m := appDevRewindOption.FindStringSubmatch(line); m != nil {
+			options[m[2]] = m[1]
 		}
+	}
+	option := options[label]
+	if option == "" && mode == "both" {
+		// No code changed since: Claude Code offers the conversation alone.
+		option = options[appDevRewindModes["conversation"]]
+	}
+	if option == "" && mode == "code" && options[appDevRewindModes["conversation"]] != "" {
+		backOut("")
+		return "", errors.New("The code is as it was before that message already; nothing was rewound.")
 	}
 	if option == "" {
 		return backOut("Claude Code can't " + strings.ToLower(label[:1]) + label[1:] + " to there.")
@@ -581,7 +611,7 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 	if err := keys(option); err != nil {
 		return backOut("hi couldn't choose " + label + ".")
 	}
-	if _, done := screen(func(text string) bool { return !strings.Contains(text, appDevRewindConfirm) }); !done {
+	if _, done := screen(func(text string) bool { return !appDevRewindConfirming(text) }); !done {
 		return backOut("Claude Code didn't finish the rewind.")
 	}
 	if mode == "code" {
@@ -598,7 +628,7 @@ func (b *appBroker) devChatRewind(workspace, uuid, mode string) (string, error) 
 		index.mu.Unlock()
 	}
 	keys("esc", "esc")
-	if text, _ := screen(func(string) bool { return true }); strings.Contains(text, appDevRewindTitle) {
+	if text, _ := screen(func(string) bool { return true }); appDevRewindList(text) {
 		keys("esc") // the prompt was empty after all: that opened the list
 	}
 	return target.Text, nil
@@ -618,7 +648,7 @@ func appDevRewindChosen(screen string) string {
 	lines := strings.Split(screen, "\n")
 	start := -1
 	for i, line := range lines {
-		if strings.Contains(line, appDevRewindTitle) {
+		if appDevRewindList(line) {
 			start = i
 		}
 	}
