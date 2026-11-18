@@ -6757,5 +6757,5 @@ preview and production listen, so the spec needs a network answer too.
 
 ### v2.6.203 — The chat box's margin
 
-- [x] The space below the chat box is the same as at its sides, 16px,
+- [x] The space below the chat box is the same as at its sides, 10px,
   or the home bar's room on an iPad or phone if that's more.
