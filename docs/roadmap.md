@@ -6840,3 +6840,9 @@ preview and production listen, so the spec needs a network answer too.
 - [x] **⤢** beside the preview, and beside a diff, gives the right panel
   the page's whole width, over the chat and the left panel, under the
   bar; **⤡** or Esc puts it back. Before, it only made the panel wider.
+
+### v2.6.214 — The preview's full screen is the whole screen
+
+- [x] At full screen the preview covers the page's bar and the panel's
+  icons too, and keeps only its own row: the drop-down, the button
+  beside it, **↻**, **↗**, and **✕**, which puts it back in its panel.

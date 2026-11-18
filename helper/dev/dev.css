@@ -384,8 +384,8 @@ button.done { padding: 4px 10px; white-space: nowrap; }
 .side-left { background: var(--panel); border-left: 0; border-right: 1px solid var(--line); }
 .side[hidden] { display: none; }
 /* Full width: the right panel over the chat and the left panel. */
-.side-right.full { position: absolute; inset: 0; width: auto; max-width: none; z-index: 20; border-left: 0; }
-.side-right.full .side-resize { display: none; }
+.side-right.full { position: fixed; inset: 0; width: auto; max-width: none; z-index: 50; border-left: 0; }
+.side-right.full .side-resize, .side-right.full .side-tabs { display: none; }
 .side-resize { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 4; }
 .side-left .side-resize { left: auto; right: 0; }
 .side-resize:hover, .side-resize.dragging { background: var(--focus); }

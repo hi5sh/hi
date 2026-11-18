@@ -3349,9 +3349,9 @@
     if (files.open[path] && !files.lists[path]) listOf(path).then(renderTree).catch(function (error) { toast(error.message); delete files.open[path]; renderTree(); });
   }
 
-  // widenSide gives a preview or a diff the page's whole width, over the
-  // chat and the left panel, below the bar; again, or Esc, puts it back
-  // in its panel.
+  // widenSide gives a preview or a diff the whole page, over the bar, the
+  // panel's icons, the chat and the left panel; its ✕, or Esc, puts it
+  // back in its panel.
   function widenSide() { fullSide(!$("chat-side").classList.contains("full")); }
   function fullSide(on) {
     $("chat-side").classList.toggle("full", on);
@@ -3359,8 +3359,8 @@
   }
   function fullButton(button) {
     var on = $("chat-side").classList.contains("full");
-    button.textContent = on ? "⤡" : "⤢";
-    button.title = on ? "Back to the panel" : "Full width";
+    button.textContent = on ? "✕" : "⤢";
+    button.title = on ? "Back to the panel" : "Full screen";
     button.setAttribute("aria-label", button.title);
     button.setAttribute("aria-pressed", String(on));
     return button;
