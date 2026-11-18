@@ -145,7 +145,7 @@ usage:
   hi agent wait <name> [--json]     wait for a run and print its report
   hi agent best-of <n> "<task>"     the same task in n boxes at once, checked and ranked
                                     (hi agent best-of help)
-  hi agent review [<folder>]        agents review a whole repository and a second agent checks
+  hi agent review [<folder>|<url>]  agents review a whole repository and a second agent checks
                                     each finding; recommendations, never changes (hi agent review help)
   hi agent brainstorm "<question>"  several agents each give an idea, and one compiles them into a
                                     proposal (hi agent brainstorm help)

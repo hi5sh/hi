@@ -690,6 +690,7 @@ usage:
   hi app rm [<name>]               stop it and remove it from this machine: its service, boxes,
                                    and folder; without a name, pick it from a list
       [--keep-folder]              keep the folder; hi app up <folder> brings the app back
+      [--purge]                    delete its snapshots and its settings in the vault too
       [--yes]                      don't ask first
   hi app rename <name> <new>       give the app another name, after its Slack app's: its bot,
                                    its /hi-<name> command, its service; memory and snapshots stay
@@ -708,8 +709,10 @@ usage:
       [finish <branch> [--discard]]  once it's shipped: its worktree, workspace, branch, and task
       [allow [<site> [--why <what for>] | --remove <site>]]  the sites the dev box reaches, as
                                    owners allow them on the dev page; a database's name too
+      [view [production on|off]]   whether the dev box sees production's logs, jobs, and tools
+      [sites check [off|rules|watch]]  hi's own check of the sites the dev box asks for
   hi app owners <name>             the app's owners, who build in the dev box, and their SSH keys
-      [add|remove <member ID> | key <member ID> <public key>|--remove]
+      [add|remove <member ID>|<email> | key <member ID>|<email> <public key>|--remove]
   hi app access <name>             who reaches what: owners, developers (who build and
                                    publish), and contributors (who report bugs); nobody else
       [<member ID> developer|contributor|none]  an owner's change, also on the dev page: a
@@ -719,10 +722,14 @@ usage:
   hi app task <name>               the app's tasks: GitHub Issues (gh) or GitLab issues (glab),
                                    where its repository is, or hi's own
       [list [--closed] | show <n> | add <title> [<body|->] | comment <n> <text|-> | close <n> [<comment>]]
+      [edit <n> [--title <title>] <body|-> | files <n>]  --attach <file> on add and comment
   hi app channel <name> [--since 2h]  what was said in the channel (the last day by default)
   hi app key <name> openrouter     give the app an OpenRouter key of its own (asked, never an
                                    argument); --unset goes back to this machine's. No box holds it:
                                    the app reaches models at $OPENROUTER_BASE_URL through hi
+      [--managed | --rotate]       a key hi makes at OpenRouter with the machine's management key
+                                   (hi server openrouter); --rotate makes a new one
+      [--from shared/<name>]       a shared key from the vault (hi server vault shared)
   hi app key <name> slack          the Slack app's tokens again, when Slack gave new ones (asked
                                    for and checked; Enter keeps one); a running app restarts
   hi app ops <name> [<channel ID>|off]  a second channel for incidents, warnings, security, keys,
@@ -760,14 +767,22 @@ usage:
                                    keeps its own
       [--dev]                      the dev box's own, such as a test database's certificate; it
                                    gets no others, from its next start (hi app dev <name> restart)
+      [KEY --from shared/<name>]   a shared key from the vault as that setting
+      [--from <prefix>/<path>]     every name at a connected team store's path (hi server vault
+                                   connect); --skip NAME leaves one out, --unset-from <path> drops
+                                   it, and KEY=VALUE --override sets a name the path gives
   hi app env <name> --on-change files|restart|SIGHUP|SIGUSR1|SIGUSR2
                                    what a change does besides rewriting the files within a minute:
                                    nothing (files, the default), new boxes, or that signal
   hi app limit <name>              what Stage's model calls may cost a day, and spent today
-      [stage <usd> | stage off]      set it ($5 a day unless set); production has no limit from hi
+      [stage <usd> | stage off]    set it ($5 a day unless set); production has no limit from hi
   hi app limit <name> memory       the boxes' memory: the dev box 16g, Stage's and production's 4g
       [dev|app <size>|default]     the app's own, such as dev 24g; running boxes get it at once
-    hi app bom <name> [v<n>|stage]    production's bill of materials (CycloneDX), or a release's
+  hi app budget <name>             what the app's model calls cost through hi this month, by who
+                                   and by model
+      [--month YYYY-MM]            another month
+      [--monthly <usd>|off] [--daily <usd>|off]  its budget: at it, hi stops the calls that cost money
+  hi app bom <name> [v<n>|stage]   production's bill of materials (CycloneDX), or a release's
   hi app advisories <name>         known advisories for what production runs, from the app's hi
                                    server, which matches them every night
   hi app advisory <name> ignore <id> --because "<why>" [--package <p>]
@@ -779,6 +794,9 @@ usage:
   hi app restore <name> <snapshot>  put the app back as it was: a snapshot's ID, latest, v3 (the
                                    one taken before v3 went out), or a day (2026-10-12)
       [--code]                     put the code (repo/) back too
+      [--from s3:https://<host>/<bucket> [--region <region>] [--folder <folder>]]
+                                   after losing the machine: bring the app back here from its
+                                   offsite copy
       [--yes]                      don't ask first
   hi app rollback <name> v2        put production back on v2, with its data as v2 left it; what was
                                    entered since is kept in a snapshot, and going forward the same
@@ -806,6 +824,9 @@ usage:
   hi app addresses <name>          what its addresses on NetBird are named: this machine's domain
       [domain|netbird|<host>]      on https (hi net domain), the NetBird name, or a host name IT
                                    keeps in its DNS; asked in hi app new
+      [names <production's name> | names production=<name> stage=<name> dev=<name>] [--https]
+                                   a name for each address, which IT keeps; --https when their
+                                   proxy ends TLS in front
   hi app domain [<domain>|off]     a domain verified in NetBird for the apps on this machine
   hi app domain <name> on|off      the app at <name>.<domain>, its preview at
                                    <name>-preview.<domain>; off by default

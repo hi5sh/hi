@@ -498,13 +498,14 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
   hi dev allow [<site>]             what the owners allowed, asks waiting, and refusals; or one site
   hi dev task list [--closed]       the app's tasks (GitHub, GitLab, or hi's own)
   hi dev task show <n>
-  hi dev task add <title> [<body|->]
-  hi dev task comment <n> <text|->
+  hi dev task add <title> [<body|->] [--attach <file>]...
+  hi dev task comment <n> <text|-> [--attach <file>]...
+  hi dev task files <n>             the files attached to a task
   hi dev task edit <n> [--title <title>] <body|->   the task's whole new text
   hi dev task close <n> [<comment>]
   hi dev review [--with claude|codex] [--base <ref>] [<notes|->]
                                     a second opinion on the branch's commits from the other agent
-  hi dev deep-review --budget <usd> [--area a,b] [--since v2] [--context <file|->]
+  hi dev deep-review --budget <usd> [--area a,b] [--since v2] [--version v3] [--context <file|->]
                                     a multi-agent review of the whole project (up to $50); the
                                     report goes to ~/hi/reviews/<id>/; list, show <id>, stop <id>
   hi dev brainstorm [--agents a,b] [--web] <question file|->

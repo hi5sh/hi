@@ -32,10 +32,16 @@ const vaultUsage = `usage:
                                          Destroy one version's value (it leaked); its entry stays
   hi server vault shared [set|give|rm]   Keys several apps use, such as one OpenRouter key
   hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt|approle]
+      [--role <name>] [--auth-mount <path>] [--secret-id-ttl 30d]
                                          Read a team's OpenBao or Vault: apps take paths there (hi app env --from)
   hi server vault disconnect <prefix>    Stop reading it; refused while an app takes from it
   hi server vault login [<prefix>] [--new-key]
-                                         Whether hi logs in, and what to hand the store's owners`
+                                         Whether hi logs in, and what to hand the store's owners
+  hi server vault move vault://<mount> --address https://… [--login jwt|approle]
+      [--role <name>] [--auth-mount <path>] [--namespace <ns>] [--ca <file>]
+                                         Keep hi's own paths in a team's store instead; the vault's
+                                         copy stands in while it's away
+  hi server vault move --forget [--yes]  Forget the vault's copy of hi's moved paths`
 
 func vaultCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 	if len(args) == 0 {

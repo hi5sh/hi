@@ -212,8 +212,8 @@ func printNetUsage(w io.Writer) {
   hi net status
   hi net down
   hi net reconnect
-  hi net expose <port> [--max 1h] [--public | --pin P | --groups G] [--detach]
-  hi net expose ls | stop <name>
+  hi net expose <port> [--max 1h] [--link | --password T | --pin P | --groups G | --public] [--detach]
+  hi net expose ls | stop <name> | stop --all        (hi net expose help)
   hi net domain [<domain> --dns <provider> | --unset]   https for the apps' addresses`)
 }
 

@@ -110,7 +110,7 @@ On the server box:
                                        The name the IT team keeps for the admin page; admin.<domain> by default
   hi server mail [set ... | test <address> | off]
                                        How the machine sends email: sign-in links and invitations
-  hi server vault [init|unlock|recovery|ls|history|rollback|forget]
+  hi server vault [init|unlock|lock|recovery|ls|history|rollback|forget|shared|connect|move]
                                        The vault every secret hi keeps is in, encrypted on disk
   hi server sites [allow <site> [--why W] | remove <site> | org on|off]
                                        What every app's dev box reaches beyond its own list
@@ -127,13 +127,17 @@ On the server box:
   hi server stop <name> | --user U | --all
                                        Stop instances
   hi server audit [--since 7d]         Requests, approvals, starts, and stops
-  hi server slack setup                Connect a Slack app (see: hi server slack manifest)
+  hi server slack setup                Connect a Slack app
+  hi server slack manifest             Print the Slack app's manifest, to create it from
   hi server approvers add <Slack ID> --name <user>
                                        Let someone approve and stop from Slack
   hi server approvers remove <Slack ID> | list
   hi server policy show|edit|example|check
                                        Groups: limits, auto-approve, budgets
   hi server spend [--since 30d]        Spend per user and group, compute and models
+  hi server openrouter [--management-key | --forget]
+                                       The OpenRouter management key, with which hi makes each app a
+                                       key of its own; without an option, the keys hi made
   hi server ai [set|off|remove]        Pass hi q's model requests to OpenRouter with your team's key,
                                        and to models served on the team's machines (hi serve --org)
   hi server ai remove local/<name>     Stop passing requests to a model served on a team's machine
@@ -145,7 +149,9 @@ On the server box:
   hi server data add <hf-org>... [--token-file F]
                                        Serve a Hugging Face organization's datasets, models, and buckets
   hi server data list|test|remove      Show, check, or stop serving organizations
-  hi server expose [stop]              The public URL cloud runs reach hi data through, if any
+  hi server expose [stop | revoke <run>]
+                                       The public URL cloud runs reach hi data through, if any;
+                                       revoke ends one run's token now
 
 Commands on the server box talk to the running server through its admin
 socket. Decisions are recorded under your login name; change it with --as.

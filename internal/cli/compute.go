@@ -305,7 +305,7 @@ func printComputeUsage(w io.Writer) {
 Usage:
   hi compute                          Guided menu (in a terminal)
   hi compute providers                Show configured providers
-  hi compute hardware [--on P]        List hardware and prices
+  hi compute hardware [--on P]        List hardware and prices; --community: RunPod Community Cloud
   hi compute up [options]             Start an instance
   hi compute ls                       List instances
   hi compute status <name>            Show one instance
@@ -321,15 +321,17 @@ Usage:
   hi compute run [options] <image> -- <command...>
                                       Run to completion, streaming logs
   hi compute wait <name>...           Wait for detached runs to finish
-  hi compute billing [ACCOUNT]        Show or choose who pays (Hugging Face)
-  hi compute requests [<id> [--wait]] Your requests to the server (when connected)
+  hi compute billing [ACCOUNT]        Show or choose who pays (Hugging Face); --clear: automatic again
+  hi compute requests [<id> [--wait [--timeout 10m]]] [--json]
+                                      Your requests to the server (when connected)
   hi compute extend <name> <duration> Ask the server for more time
   hi compute live                     Live view of your managed machines and budget
 
 Options for up and run:
   --on <provider>    colab, hf, runpod, or shadeform (default: inferred from --gpu, or
                      $HI_COMPUTE_PROVIDER, or the only signed-in provider)
-  --gpu <hardware>   Hardware name from hi compute hardware (default: CPU)
+  --gpu <hardware>   Hardware name from hi compute hardware (default: CPU; on Shadeform,
+                     the cheapest free GPU)
   --name <name>      Instance name (default: generated)
   --max <duration>   Stop after this long, e.g. 30m or 4h
   --high-mem         Request a high-RAM machine (Colab)
@@ -341,11 +343,11 @@ Options for up and run:
                      the machine's shells get HF_ENDPOINT and HF_TOKEN to read
                      ORG/NAME through the server until --max
   --detach           run: return after starting (Hugging Face)
-  --image <image>    Container image (Hugging Face, RunPod)
+  --image <image>    up: container image (Hugging Face, RunPod); run takes it as its argument
   --namespace <ns>   Account to bill this once (Hugging Face; see billing)
   --yes              Skip the cost confirmation
   --dry-run          Show what would happen without starting anything
-  --reason <text>    Why you need it; approvers see it (managed providers)
+  --reason <text>    up, serve: why you need it; approvers see it (managed providers)
   --no-wait          up: return while approval is pending, exit status 3
 
 Connected to a hi server (hi server join), the providers it manages go through

@@ -346,13 +346,14 @@ validation (with --score and --edit): keep a gain only if it holds on data agent
   --folds <n>            walk the validation window forward through n folds, so it
                          doesn't wear out; each fold starts from a new baseline
   --fold "<command>"     moves to the next fold: hi runs it on this machine in a worktree
-                         of the gains' tip, with HI_FOLD (the fold's number), HI_PROJECT,
-                         and HI_VALIDATE_DATA set, and commits what it changed
+                         of the gains' tip, with HI_FOLD (the fold's number), HI_FOLDS,
+                         HI_BEST_OF_RUN, HI_PROJECT, and HI_VALIDATE_DATA set, and commits
+                         what it changed
   --fold-every <k>       move on after k rounds (default: when --patience runs out)
   hi agent best-of watch <run>      follow a run; q leaves the view, the run goes on
   hi agent best-of stop <run> [--now]
                                     stop after this round; --now stops the boxes too
-  hi agent best-of resume <run> [--rounds n] [--for d] [--budget $] [--then cmd]
+  hi agent best-of resume <run> [--rounds n] [--for d] [--budget $] [--patience n] [--then cmd]
                                     go on from the best so far
 
 Each box works on its own branch, best-of/<run>/<i>, from your last commit.
