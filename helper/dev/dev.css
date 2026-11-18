@@ -704,7 +704,7 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .flow-card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 20px 14px; }
 .flow { display: flex; flex-direction: column; }
 .flow-step { position: relative; padding: 10px 0 12px 22px; display: flex; flex-direction: column; gap: 6px; }
-.flow-step::before { content: ""; position: absolute; z-index: 1; left: 0; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--raised); border: 2px solid var(--dim); }
+.flow-step::before { content: ""; box-sizing: border-box; position: absolute; z-index: 1; left: 0; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: var(--raised); border: 2px solid var(--dim); }
 .flow-step::after { content: ""; position: absolute; left: 5px; top: 20px; bottom: -20px; width: 2px; background: var(--dim); opacity: .6; }
 .flow-step:last-child::after { content: none; }
 .flow-step.flow-work::before { border-color: var(--dot-warn); }
