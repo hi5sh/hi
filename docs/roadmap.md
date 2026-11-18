@@ -6834,3 +6834,9 @@ preview and production listen, so the spec needs a network answer too.
   email has in its workspace. It needs no email set up on the machine.
 - [x] The answer is the same whether or not the email may sign in or has
   Slack, as for an email; only someone who may gets a DM.
+
+### v2.6.213 — The preview at full width
+
+- [x] **⤢** beside the preview, and beside a diff, gives the right panel
+  the page's whole width, over the chat and the left panel, under the
+  bar; **⤡** or Esc puts it back. Before, it only made the panel wider.

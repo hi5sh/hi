@@ -3349,14 +3349,25 @@
     if (files.open[path] && !files.lists[path]) listOf(path).then(renderTree).catch(function (error) { toast(error.message); delete files.open[path]; renderTree(); });
   }
 
-  // widenSide gives a preview or a diff room: half the chat's width, at least.
-  function widenSide() {
-    var room = Math.round(document.querySelector(".code-body").clientWidth * 0.55);
-    if (panes.right.width >= room) return;
-    panes.right.width = room;
-    keepSide();
-    renderSide();
+  // widenSide gives a preview or a diff the page's whole width, over the
+  // chat and the left panel, below the bar; again, or Esc, puts it back
+  // in its panel.
+  function widenSide() { fullSide(!$("chat-side").classList.contains("full")); }
+  function fullSide(on) {
+    $("chat-side").classList.toggle("full", on);
+    document.querySelectorAll(".side-full-btn").forEach(fullButton);
   }
+  function fullButton(button) {
+    var on = $("chat-side").classList.contains("full");
+    button.textContent = on ? "⤡" : "⤢";
+    button.title = on ? "Back to the panel" : "Full width";
+    button.setAttribute("aria-label", button.title);
+    button.setAttribute("aria-pressed", String(on));
+    return button;
+  }
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && $("chat-side").classList.contains("full") && !document.querySelector("dialog[open]")) fullSide(false);
+  });
   // ---- the panels, each its views by the icons along its top
   function keepSide() {
     try {
@@ -3390,6 +3401,9 @@
       });
       paneViews[which].forEach(function (view) { $("side-" + view).hidden = pane.view !== view; });
     });
+    // Full width is the preview's and the diff's: closed, or another view, and it's a panel again.
+    var right = $("chat-side");
+    if (right.classList.contains("full") && (right.hidden || (panes.right.view !== "preview" && panes.right.view !== "git"))) fullSide(false);
   }
   // sideShown brings the open views up to date, when they're on the screen.
   // Not before the page has started: their views' code comes later.
@@ -3695,7 +3709,7 @@
       el("span", { class: "grow" }),
     ].concat(acts, [
       file.status !== "D" ? el("button", { class: "side-icon", text: "↗", title: "Open the file, to edit it", "aria-label": "Open the file", onclick: function () { openPath(file.path); } }) : null,
-      el("button", { class: "side-icon", text: "⤢", title: "Wider", "aria-label": "Wider", onclick: widenSide }),
+      fullButton(el("button", { class: "side-icon side-full-btn", text: "⤢", onclick: widenSide })),
     ]));
     var body = el("pre", { class: "diff" }, again && box.querySelector(".diff") ? [].slice.call(box.querySelector(".diff").childNodes) : [el("div", { class: "meta", text: "Loading the diff…" })]);
     box.textContent = "";

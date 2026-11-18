@@ -542,8 +542,8 @@ dot.
     one of them is an error; opening Logs clears it.
   - **Preview** is Stage or production, on its own address, in the
     panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
-    makes the panel wider. It loads again when something new goes on
-    Stage. An app that doesn't let other pages show it stays blank
+    gives it the page's whole width, and **⤡** or Esc puts it back. It
+    loads again when something new goes on Stage. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it. It opens on Stage. Beside the drop-down,
     one button takes the work along: **Merge N changes into preview**
     while work waits, then **Publish vN** once it's all on Stage, which
