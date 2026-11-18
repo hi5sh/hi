@@ -1912,7 +1912,7 @@
       part.items.forEach(function (item) { document.body.classList.toggle("mode-hide-" + item[0], modeHides(item[0])); });
     });
     var button = $("mode-btn");
-    button.innerHTML = MODE_ICONS[viewMode.mode];
+    button.innerHTML = MODE_ICONS.vibe;
     button.title = (viewMode.mode === "vibe" ? "Vibe mode: the chat, your work, the preview, publishing." : "Pro mode: everything.") + " Change it here.";
     button.setAttribute("aria-label", viewMode.mode === "vibe" ? "Vibe mode; change it" : "Pro mode; change it");
     if (modeHides("terminal") && chat.view === "terminal") setCodeView("chat");
