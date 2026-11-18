@@ -840,6 +840,7 @@ button.danger { color: var(--bad); }
 .email-signin[hidden] { display: none; }
 .email-row { display: flex; gap: 6px; }
 .email-row input { flex: 1; min-width: 0; }
+.email-alt { justify-content: flex-end; align-items: center; gap: 8px; }
 #email-said { margin-top: 10px; text-align: left; font-size: 13px; min-height: 1em; }
 /* A toast: in the middle of the screen, over the work, clicks passing
    through it to what's under it. */

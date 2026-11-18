@@ -87,9 +87,15 @@ page.
    the tab that asked, when you read the email on a phone. Five wrong
    codes end the request.
 
+On the dev page and in the helper, **Send it to my Slack** sends the
+same link and code in a DM from the app's Slack app instead, to the
+Slack account that email has in the app's workspace. It works without
+email set up on the machine; someone with no Slack account there gets
+nothing.
+
 The first time someone signs in by email, the app's ops channel hears
 it, with the address and the level, so an email typed wrong is noticed.
-hi sends at most three emails in 15 minutes to one address.
+hi sends at most three links in 15 minutes to one address.
 
 ## How the machine sends email
 

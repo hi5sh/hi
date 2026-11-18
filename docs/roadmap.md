@@ -6825,3 +6825,12 @@ preview and production listen, so the spec needs a network answer too.
 - [x] **Code only** there says the code is as it was already.
 - [x] hi reads newer Claude Code's rewind screens, whose titles say "the
   conversation" alone when there's no code to restore.
+
+### v2.6.212 — A sign-in link to your Slack
+
+- [x] Beside **Email me a link**, the dev page's sign-in has **Send it
+  to my Slack**, and the helper's **Or send it to my Slack**: the same
+  link and code, in a DM from the app's Slack app to the account that
+  email has in its workspace. It needs no email set up on the machine.
+- [x] The answer is the same whether or not the email may sign in or has
+  Slack, as for an email; only someone who may gets a DM.

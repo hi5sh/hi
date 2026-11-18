@@ -53,6 +53,7 @@ type mailSignin struct {
 	Name    string    `json:"name,omitempty"`
 	Tries   int       `json:"tries,omitempty"`
 	Invite  bool      `json:"invite,omitempty"`
+	Slack   bool      `json:"slack,omitempty"` // sent in a Slack DM
 	Made    time.Time `json:"made"`
 	Ends    time.Time `json:"ends"`
 }
@@ -250,7 +251,10 @@ type mailSigninFlow struct {
 	who func(email string) (who, name string)
 	// done signs them in, and says where the browser goes next.
 	done func(w http.ResponseWriter, r *http.Request, entry mailSignin) (string, error)
-	log  func(format string, args ...any)
+	// slack DMs a Slack account a sign-in's text; nil where the page has
+	// no Slack app to send it.
+	slack func(user, text string) error
+	log   func(format string, args ...any)
 }
 
 // mailFrom is where a request came from, as the relay or the page's own
@@ -274,12 +278,15 @@ func mailReply(w http.ResponseWriter, status int, value any) {
 	json.NewEncoder(w).Encode(value)
 }
 
-// start is POST {email}: the same answer whether or not the email may
-// sign in here, and the email goes out after it, so neither the answer
-// nor its time says who may.
+// start is POST {email, via}: the same answer whether or not the email
+// may sign in here, and the link goes out after it, so neither the answer
+// nor its time says who may. via "slack" sends it in a DM from the app's
+// Slack app, to the person's account in its workspace, instead of an
+// email; the DM is to them alone, as /hi-<app> dev's link is.
 func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Email string `json:"email"`
+		Via   string `json:"via"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&request); err != nil {
 		mailReply(w, http.StatusBadRequest, map[string]string{"error": "give your email address"})
@@ -290,44 +297,71 @@ func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 		mailReply(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if _, ok := loadMailSettings(); !ok {
-		mailReply(w, http.StatusServiceUnavailable, map[string]string{"error": "This machine doesn't send email yet, so sign in with the link Slack sends, or ask an admin of the machine to set up email on the admin page (Keys)."})
+	bySlack := request.Via == "slack"
+	switch {
+	case request.Via != "" && request.Via != "email" && !bySlack:
+		mailReply(w, http.StatusBadRequest, map[string]string{"error": "a link goes by email or slack"})
 		return
+	case bySlack && f.slack == nil:
+		mailReply(w, http.StatusServiceUnavailable, map[string]string{"error": "This page isn't connected to Slack, so it can't send you a link there; sign in with your email."})
+		return
+	case !bySlack:
+		if _, ok := loadMailSettings(); !ok {
+			mailReply(w, http.StatusServiceUnavailable, map[string]string{"error": "This machine doesn't send email yet, so have the link sent to your Slack, or ask an admin of the machine to set up email on the admin page (Keys)."})
+			return
+		}
 	}
 	if !f.store.allow(email, mailFrom(r)) {
-		mailReply(w, http.StatusTooManyRequests, map[string]string{"error": "That's a lot of emails asked for; wait a few minutes, and look for the ones already sent."})
+		mailReply(w, http.StatusTooManyRequests, map[string]string{"error": "That's a lot of links asked for; wait a few minutes, and look for the ones already sent."})
 		return
 	}
 	requestID := mailRandom()
 	what := f.what()
+	how := "an email sign-in"
+	if bySlack {
+		how = "a Slack sign-in"
+	}
 	go func() {
 		who, name := f.who(email)
 		if who == "" {
-			f.log("an email sign-in to %s for someone who may not: nothing sent", what)
+			f.log("%s to %s for someone who may not: nothing sent", how, what)
 			return
 		}
-		token, code, err := f.store.add(mailSignin{Email: email, Who: who, Name: name}, requestID, mailSigninLasts)
+		if bySlack && !slackIDPattern.MatchString(who) {
+			f.log("%s to %s for %s, who has no Slack account in the app's workspace: nothing sent", how, what, email)
+			return
+		}
+		token, code, err := f.store.add(mailSignin{Email: email, Who: who, Name: name, Slack: bySlack}, requestID, mailSigninLasts)
 		if err != nil {
-			f.log("an email sign-in: %v", err)
+			f.log("%s: %v", how, err)
 			return
 		}
 		link := f.link(token)
 		if link == "" {
-			f.log("an email sign-in to %s: the address has no link to send", what)
+			f.log("%s to %s: the address has no link to send", how, what)
 			return
 		}
-		err = sendMail(mailMessage{To: email, Subject: "Sign in to " + what,
-			Text: fmt.Sprintf("Someone, hopefully you, asked to sign in to %s as %s.\n\nSign in:\n%s\n\nOr type this code on the page that asked: %s\n\n"+
-				"The link and the code work once, for %d minutes. If it wasn't you, ignore this email: nobody gets in without it.\n\nhi on %s\n",
-				what, email, link, code, int(mailSigninLasts.Minutes()), adminMachineName())})
+		if bySlack {
+			err = f.slack(who, fmt.Sprintf("Someone, hopefully you, asked to sign in to %s as %s.\n\n<%s|Sign in>, or type this code on the page that asked: *%s*\n\n"+
+				"The link and the code work once, for %d minutes. If it wasn't you, ignore this: nobody gets in without it.",
+				appSlackEscape(what), appSlackEscape(email), link, code, int(mailSigninLasts.Minutes())))
+		} else {
+			err = sendMail(mailMessage{To: email, Subject: "Sign in to " + what,
+				Text: fmt.Sprintf("Someone, hopefully you, asked to sign in to %s as %s.\n\nSign in:\n%s\n\nOr type this code on the page that asked: %s\n\n"+
+					"The link and the code work once, for %d minutes. If it wasn't you, ignore this email: nobody gets in without it.\n\nhi on %s\n",
+					what, email, link, code, int(mailSigninLasts.Minutes()), adminMachineName())})
+		}
 		if err != nil {
-			f.log("an email sign-in to %s: %v", what, err)
+			f.log("%s to %s: %v", how, what, err)
 			return
 		}
-		f.log("an email sign-in to %s: sent to %s", what, email)
+		f.log("%s to %s: sent to %s", how, what, email)
 	}()
-	mailReply(w, http.StatusOK, map[string]string{"request": requestID,
-		"text": fmt.Sprintf("If %s may sign in here, a link and a code are on their way to it. They work for %d minutes.", email, int(mailSigninLasts.Minutes()))})
+	text := fmt.Sprintf("If %s may sign in here, a link and a code are on their way to it. They work for %d minutes.", email, int(mailSigninLasts.Minutes()))
+	if bySlack {
+		text = fmt.Sprintf("If %s may sign in here, a link and a code are on their way to its Slack account, in a DM from the app. They work for %d minutes.", email, int(mailSigninLasts.Minutes()))
+	}
+	mailReply(w, http.StatusOK, map[string]string{"request": requestID, "text": text})
 }
 
 // code is POST {request, code}: the code typed in the tab that asked.
@@ -454,6 +488,18 @@ func (b *appBroker) mailLog(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "hi: "+format+"\n", args...)
 }
 
+// mailSlack sends a sign-in in a DM from the app's Slack app; nil
+// without one.
+func (b *appBroker) mailSlack() func(user, text string) error {
+	if b.channel == nil {
+		return nil
+	}
+	return func(user, text string) error {
+		_, _, err := b.channel.dm(user, text)
+		return err
+	}
+}
+
 // devMailFlow is the dev page's sign-in by email, for owners and
 // developers.
 func (b *appBroker) devMailFlow() mailSigninFlow {
@@ -490,7 +536,8 @@ func (b *appBroker) devMailFlow() mailSigninFlow {
 			page, _ := loadTeamDevPage(b.team)
 			return firstNonEmpty(appAddressLink(page.URL, appDevPagePrefix, url.Values{netExposeUserParam: {key.Key}}), appDevPagePrefix+"?"+netExposeUserParam+"="+key.Key), nil
 		},
-		log: b.mailLog,
+		slack: b.mailSlack(),
+		log:   b.mailLog,
 	}
 }
 
@@ -528,7 +575,8 @@ func (b *appBroker) slotMailFlow(slot string) mailSigninFlow {
 			}
 			return firstNonEmpty(appAddressLink(slotURL(), "/", url.Values{netExposeUserParam: {key.Key}}), "/?"+netExposeUserParam+"="+key.Key), nil
 		},
-		log: b.mailLog,
+		slack: b.mailSlack(),
+		log:   b.mailLog,
 	}
 }
 
@@ -571,8 +619,12 @@ func (b *appBroker) mailSignedIn(config appConfig, entry mailSignin, where strin
 		m.People[i].SignedIn = now
 		return nil
 	})
-	b.mailLog("%s signed in by email to the %s", entry.Email, where)
-	if first && b.channel != nil {
+	how := "by email"
+	if entry.Slack {
+		how = "with a link hi sent their Slack"
+	}
+	b.mailLog("%s signed in %s to the %s", entry.Email, how, where)
+	if first && b.channel != nil && !entry.Slack {
 		b.channel.post(config.opsChannel(), fmt.Sprintf(":email: %s signed in by email for the first time (%s), to the %s, as %s. If that isn't them, take their level away.",
 			appSlackEscape(firstNonEmpty(entry.Name, entry.Email)), appSlackEscape(entry.Email), where, appLevelWords(appLevel(config, entry.Who))))
 	}

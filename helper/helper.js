@@ -843,8 +843,8 @@ textarea:focus { border-color: var(--accent); }
       field.inputMode = "numeric";
       field.autocomplete = "one-time-code";
       field.maxLength = 7;
-      field.placeholder = "The six digits in the email";
-      field.setAttribute("aria-label", "The code from the email");
+      field.placeholder = state.email.via === "slack" ? "The six digits in the Slack DM" : "The six digits in the email";
+      field.setAttribute("aria-label", state.email.via === "slack" ? "The code from the Slack DM" : "The code from the email");
       go.textContent = "Sign in";
     }
     if (state.email.step === "code") field.value = state.email.code || "";
@@ -855,6 +855,13 @@ textarea:focus { border-color: var(--accent); }
     field.addEventListener("blur", () => { state.email.focused = false; });
     if (state.email.focused) setTimeout(() => field.focus({ preventScroll: true }), 0);
     form.append(field, go);
+    let slack = null, bySlack = false;
+    if (state.email.step === "address") {
+      slack = document.createElement("button");
+      slack.type = "button";
+      slack.className = "link-button";
+      slack.textContent = "Or send it to my Slack";
+    }
     const said = document.createElement("p");
     said.className = "email-said";
     said.setAttribute("aria-live", "polite");
@@ -862,15 +869,18 @@ textarea:focus { border-color: var(--accent); }
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const value = field.value.trim();
+      const via = bySlack ? "slack" : "email";
+      bySlack = false;
       go.disabled = true;
+      if (slack) slack.disabled = true;
       try {
         if (state.email.step === "address") {
           if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) throw new Error("Give your email address.");
-          const answer = await (await call("email", { method: "POST", body: { email: value } })).json();
-          state.email = { step: "code", address: value, request: answer.request, said: answer.text };
+          const answer = await (await call("email", { method: "POST", body: { email: value, via } })).json();
+          state.email = { step: "code", address: value, request: answer.request, said: answer.text, via };
         } else {
           const code = value.replace(/\s/g, "");
-          if (!/^[0-9]{6}$/.test(code)) throw new Error("The code is the six digits in the email.");
+          if (!/^[0-9]{6}$/.test(code)) throw new Error("The code is the six digits in the " + (state.email.via === "slack" ? "Slack DM." : "email."));
           const answer = await (await call("email/code", { method: "POST", body: { request: state.email.request, code } })).json();
           location.href = answer.go;
           return;
@@ -881,7 +891,12 @@ textarea:focus { border-color: var(--accent); }
       render();
       body.querySelector(".email-signin input")?.focus();
     });
-    box.append(form, said);
+    box.append(form);
+    if (slack) {
+      slack.addEventListener("click", () => { bySlack = true; form.requestSubmit(); });
+      box.append(slack);
+    }
+    box.append(said);
     body.appendChild(box);
   }
 

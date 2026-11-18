@@ -399,6 +399,84 @@ func TestDevPageSigninByEmail(t *testing.T) {
 	}
 }
 
+// The dev page sends its sign-in to a Slack account instead, in a DM:
+// to whoever the email is in the app's workspace, and nobody else.
+func TestDevPageSigninBySlack(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	appTestNoSlackLookups(t)
+	t.Setenv("HI_ADMIN_DIR", filepath.Join(t.TempDir(), "admin"))
+	fake := &fakeTeamChannel{}
+	b.channel = fake
+	config, _ := loadTeam("payments")
+	config.Developers = append(config.Developers, "dana@corp.example")
+	saveTeam(config)
+	changeMachinePeople(func(m *machinePeople) error {
+		m.link("olga@corp.example", "U07OWNER1", "Olga", "a test")
+		return nil
+	})
+	state := appDevPageState{URL: "https://payments-dev.corp.example/?hi_key=addresskey", Expires: time.Now().Add(time.Hour)}
+	data, _ := json.Marshal(state)
+	os.MkdirAll(filepath.Dir(appDevPageStatePath("payments")), 0o700)
+	os.WriteFile(appDevPageStatePath("payments"), data, 0o600)
+	handler := b.devPageHandler()
+	dms := func() []string {
+		fake.mu.Lock()
+		defer fake.mu.Unlock()
+		var list []string
+		for _, call := range fake.calls {
+			if strings.HasPrefix(call, "dm ") {
+				list = append(list, call)
+			}
+		}
+		return list
+	}
+
+	// No email is set up on the machine, and it needn't be.
+	status, answer := appTestDevPageCall(t, handler, "", "POST", "api/email", map[string]string{"email": "olga@corp.example", "via": "slack"})
+	var said map[string]string
+	json.Unmarshal([]byte(answer), &said)
+	if status != http.StatusOK || said["request"] == "" || !strings.Contains(said["text"], "Slack") {
+		t.Fatal(status, answer)
+	}
+	var sent []string
+	for try := 0; try < 100 && len(sent) == 0; try++ {
+		time.Sleep(10 * time.Millisecond)
+		sent = dms()
+	}
+	if len(sent) != 1 || !strings.HasPrefix(sent[0], "dm U07OWNER1 ") || !strings.Contains(sent[0], "https://payments-dev.corp.example/__hi/dev/email?") {
+		t.Fatal(sent)
+	}
+	code := regexp.MustCompile(`page that asked: \*(\d{6})\*`).FindStringSubmatch(sent[0])
+	if code == nil {
+		t.Fatal(sent[0])
+	}
+	status, body := appTestDevPageCall(t, handler, "", "POST", "api/email/code", map[string]string{"request": said["request"], "code": code[1]})
+	if status != http.StatusOK || !strings.Contains(body, netExposeUserParam+"=") {
+		t.Fatal(status, body)
+	}
+
+	// Someone without Slack, someone who may not, and a way that isn't
+	// one: no DM, and the first two answers are the same as anyone's.
+	for _, email := range []string{"dana@corp.example", "nobody@corp.example"} {
+		if status, answer := appTestDevPageCall(t, handler, "", "POST", "api/email", map[string]string{"email": email, "via": "slack"}); status != http.StatusOK || !strings.Contains(answer, "Slack") {
+			t.Fatal(email, status, answer)
+		}
+	}
+	if status, _ := appTestDevPageCall(t, handler, "", "POST", "api/email", map[string]string{"email": "olga@corp.example", "via": "fax"}); status != http.StatusBadRequest {
+		t.Fatal("a way that isn't one:", status)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if len(dms()) != 1 {
+		t.Fatal(dms())
+	}
+
+	// Without Slack, it says so.
+	b.channel = nil
+	if status, answer := appTestDevPageCall(t, b.devPageHandler(), "", "POST", "api/email", map[string]string{"email": "olga@corp.example", "via": "slack"}); status != http.StatusServiceUnavailable {
+		t.Fatal(status, answer)
+	}
+}
+
 // The helper on production signs anyone with a level in.
 func TestHelperSigninByEmail(t *testing.T) {
 	b, _ := appTestDevPage(t)

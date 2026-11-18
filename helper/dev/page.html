@@ -623,10 +623,11 @@
     <p id="locked-why"></p>
     <form id="email-form" class="email-signin" autocomplete="on" novalidate>
       <label for="email-address" class="muted">Or sign in with your email</label>
-      <div class="email-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email" aria-label="Your email"><button type="submit" class="primary">Email me a link</button></div>
+      <div class="email-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email" aria-label="Your email"><button type="submit" class="primary" value="email">Email me a link</button></div>
+      <div class="email-row email-alt"><span class="muted small">or</span><button type="submit" value="slack">Send it to my Slack</button></div>
     </form>
     <form id="code-form" class="email-signin" autocomplete="off" novalidate hidden>
-      <label for="email-code" class="muted">The six digits in the email</label>
+      <label for="email-code" class="muted" id="email-code-label">The six digits in the email</label>
       <div class="email-row"><input id="email-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code" aria-label="The code from the email"><button type="submit" class="primary">Sign in</button></div>
     </form>
     <p id="email-said" class="muted small" aria-live="polite"></p>

@@ -71,7 +71,9 @@ the dev page. See
   in the DM.
 - When the machine sends email (`hi server mail`), the Feedback tab's
   **Sign in with your email** does the same without Slack: hi emails a
-  link and a six-digit code, each good once, for 15 minutes.
+  link and a six-digit code, each good once, for 15 minutes. **Or send
+  it to my Slack** sends them in a DM instead, with no email set up and
+  no command to type.
 - Each app's command is its own: Slack gives a command that two Slack apps in
   a workspace share to the one installed last.
 - The Slack app needs the `/hi-<app>` command and the `commands` and
