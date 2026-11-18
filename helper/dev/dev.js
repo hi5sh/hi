@@ -1807,9 +1807,12 @@
       if (developer() && panes.right.view === "data") setSide("release", null);
       renderSSHKey();
       // agy, when the app has its sign-in (app_devagy.go).
-      document.querySelectorAll(".agy-only").forEach(function (label) {
-        label.hidden = !data.agy;
-        if (!data.agy && label.querySelector("input").checked) document.querySelector('input[name="' + label.querySelector("input").name + '"][value="claude"]').checked = true;
+      document.querySelectorAll(".agy-only").forEach(function (item) {
+        item.hidden = !data.agy;
+        item.disabled = !data.agy;
+        var input = item.querySelector("input");
+        if (!data.agy && input && input.checked) document.querySelector('input[name="' + input.name + '"][value="claude"]').checked = true;
+        if (!data.agy && item.selected) item.parentNode.value = "claude";
       });
       document.title = "Dev · " + data.team;
       $("team").textContent = data.team;
@@ -2229,7 +2232,7 @@
     var starting = chat.composing || (!!state && !chat.space); // not before the workspaces are known
     $("chat-start").hidden = !starting;
     document.querySelector(".chat-main").hidden = starting;
-    document.querySelector(".chat-bottom").hidden = starting;
+    document.querySelector(".chat-col > .chat-bottom").hidden = starting;
     $("space-wrap").hidden = chat.view !== "chat";
     spaceLabel();
     $("adhoc-cancel").hidden = !chat.space;
@@ -2256,8 +2259,9 @@
   // Backspace, or Delete takes out, with previews along the bottom. Its
   // value has each pill as [image: image-1.png], the name the task's file
   // gets, so whoever reads it (an agent too) knows which is meant. Used
-  // by Start something new, New task, and a task's notes.
-  function pictureBox(edit, shown, picker) {
+  // by Start something new, New task, and a task's notes. With send,
+  // Enter sends and Shift+Enter is a new line, as in the chat's box.
+  function pictureBox(edit, shown, picker, send) {
     var files = {}, n = 0;
     function pills() { return [].slice.call(edit.querySelectorAll(".pic-pill")); }
     function value(node) {
@@ -2339,12 +2343,13 @@
     });
     // Enter is a new line; Ctrl+Enter sends.
     edit.addEventListener("keydown", function (event) {
-      if (event.key !== "Enter") return;
+      if (event.key !== "Enter" || event.isComposing) return;
       event.preventDefault();
-      if (event.ctrlKey || event.metaKey) {
+      if (send && !event.shiftKey && !narrow) send();
+      else if (event.ctrlKey || event.metaKey) {
         var form = edit.closest("form");
         if (form) form.requestSubmit();
-        else edit.closest(".start-card").querySelector(".primary").click();
+        else if (send) send();
       }
       else document.execCommand("insertLineBreak");
     });
@@ -2386,16 +2391,26 @@
       },
     };
   }
-  // The start card's box.
-  var adhoc = pictureBox($("adhoc-text"), $("adhoc-pictures"));
+  // Start something new: the chat's own box, where the chat's is, with
+  // the agent to pick in place of the model. Sent, the chat it starts
+  // takes its place, so the box stays where it was.
+  var adhoc = pictureBox($("adhoc-text"), $("adhoc-pictures"), $("adhoc-files"), adhocStart);
+  function adhocReady() {
+    $("adhoc-go").classList.toggle("ready", !!adhoc.value());
+    $("adhoc-form").querySelector(".spark").classList.toggle("other", $("adhoc-agent").value !== "claude");
+  }
+  $("adhoc-text").addEventListener("input", adhocReady);
+  $("adhoc-agent").addEventListener("change", function () { adhocReady(); $("adhoc-text").focus(); });
   // Not a form: Safari on an iPad puts its AutoFill bar (passwords,
   // cards, addresses) over the keyboard for a box in a form with inputs.
-  $("adhoc-go").addEventListener("click", function () {
-    var agent = (document.querySelector("input[name=adhoc-agent]:checked") || {}).value || "claude";
+  $("adhoc-go").addEventListener("click", adhocStart);
+  function adhocStart() {
+    if ($("adhoc-go").disabled) return;
+    var agent = $("adhoc-agent").value || "claude";
     var text = adhoc.value();
     if (!text) { $("adhoc-error").textContent = "Say what to do."; $("adhoc-text").focus(); return; }
     $("adhoc-go").disabled = true;
-    $("adhoc-go").textContent = "Creating the worktree…";
+    $("adhoc-status").textContent = "Creating the worktree…";
     $("adhoc-error").textContent = "";
     adhoc.read().then(function (files) {
       return api("POST", "start-new", { text: text, agent: agent, files: files });
@@ -2406,14 +2421,16 @@
       refreshTickets(true);
       return refresh().then(function () {
         if (answer.workspace) chooseChatSpace(answer.workspace);
+        if (!narrow) $("chat-input").focus();
       });
     }).catch(function (error) {
       $("adhoc-error").textContent = error.message;
     }).then(function () {
       $("adhoc-go").disabled = false;
-      $("adhoc-go").textContent = "Start →";
+      $("adhoc-status").textContent = "";
+      adhocReady();
     });
-  });
+  }
   function clearChat() {
     chatActivity(null);
     chatAsk(null);

@@ -478,9 +478,11 @@ dot.
   no checkpoints of the code, so it has no timeline. The workspaces
   listed are pieces of work: a task's, or one with an agent at work
   (herdr's home and the project's own clone stay in the terminal). With
-  none, or with **+ New**, the chat has **Start something new**: say
-  what to do, pasting pictures in as you go (each an **Image #1** pill
-  that ✕, Backspace, or Delete takes out), and hi files it in Tasks,
+  none, or with **+ New**, the chat has **Start something new**: the
+  chat's own message box, where the chat's is, with the agent to pick
+  (Claude Code, Codex, or Antigravity) in place of the model. Say what to
+  do, pasting or attaching pictures as you go (each an **Image #1** pill
+  that ✕, Backspace, or Delete takes out), and send (Enter): hi files it in Tasks,
   pictures and all, gives it the task's branch and worktree from dev,
   and starts the agent on it, its chat open (Start on a task opens its
   chat too). It ships, and is done, like any task. The chat is the

@@ -225,24 +225,28 @@
     <div id="chat" class="chat" hidden>
       <div class="chat-col">
       <div id="chat-start" class="chat-start" hidden>
-        <div id="adhoc-form" class="start-card">
-          <h2>Start something new</h2>
+        <div class="chat-start-room"><h2>Start something new</h2><p class="muted small">Say what to do, pick who does it, and send: hi files it as a task, gives it a branch, and opens its chat here.</p></div>
+        <div class="chat-bottom">
+        <div id="adhoc-form" class="composer start-composer">
           <div class="pic-box">
-            <div id="adhoc-text" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste pictures too."></div>
+            <div id="adhoc-text" class="pic-edit" contenteditable="true" autocomplete="off" role="textbox" aria-multiline="true" aria-label="What to do" data-placeholder="Make the price chart green when it's up… Paste or drop pictures and files"></div>
             <div id="adhoc-pictures" class="pic-previews" hidden></div>
           </div>
           <p id="adhoc-error" class="error"></p>
-          <div class="start-foot">
-            <div class="agents-inline" role="radiogroup" aria-label="Agent">
-              <label><input type="radio" name="adhoc-agent" value="claude" checked> Claude Code</label>
-              <label><input type="radio" name="adhoc-agent" value="codex"> Codex</label>
-              <label class="agy-only" hidden><input type="radio" name="adhoc-agent" value="agy"> Antigravity</label>
-            </div>
-            <div class="buttons">
-              <button type="button" id="adhoc-cancel">Cancel</button>
-              <button type="button" id="adhoc-go" class="primary">Start →</button>
-            </div>
+          <div class="composer-bar">
+            <label class="composer-icon" title="Attach pictures or files (or paste or drop them)" aria-label="Attach"><input type="file" id="adhoc-files" multiple hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10.2 17.7a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/></svg></label>
+            <label class="composer-pick"><svg class="spark" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg><select id="adhoc-agent" aria-label="The agent" title="Who does it: the model vendor's coding agent">
+              <option value="claude" selected>Claude Code</option>
+              <option value="codex">Codex</option>
+              <option value="agy" class="agy-only" hidden>Antigravity</option>
+            </select></label>
+            <span id="adhoc-status" class="composer-who" aria-live="polite"></span>
+            <span class="composer-end">
+              <button type="button" id="adhoc-cancel" class="composer-round" title="Cancel: back to the chat" aria-label="Cancel"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+              <button type="button" id="adhoc-go" class="composer-round composer-send" title="Start (Enter)" aria-label="Start"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+            </span>
           </div>
+        </div>
         </div>
       </div>
       <div class="chat-main">
