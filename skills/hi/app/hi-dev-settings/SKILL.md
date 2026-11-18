@@ -29,7 +29,9 @@ test database's address and certificate, say. They are in your
 environment already; `env` shows their names. When the work needs one it
 lacks, tell the user which, and that an owner sets it for the dev box.
 
-- The next preview has a change: run `hi dev preview` again to use it now.
+- Within a minute of a change the preview has it as a file,
+  `/run/hi/settings/<NAME>`; its environment has it from its next start:
+  run `hi dev preview` again for that now.
 - No value is ever shown, here or anywhere: don't ask for one back.
 - Production's settings are an admin's, on the machine
   (`hi app env <app> KEY=VALUE`, or `--file KEY=<path>` for a file). When production needs a new key, tell

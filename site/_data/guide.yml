@@ -19,6 +19,8 @@
       url: /guide/app/adopt/
     - title: The admin page
       url: /guide/app/admin/
+    - title: People and signing in by email
+      url: /guide/app/people/
     - title: How the app works
       url: /guide/app/how-it-works/
     - title: Build in the dev box

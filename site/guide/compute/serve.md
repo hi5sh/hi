@@ -165,6 +165,7 @@ the whole.
 ```sh
 hi serve stop qwen3-8-flash-next     # stops it and keeps it; it doesn't start at boot
 hi serve start qwen3-8-flash-next    # back on the same port, after the memory check
+hi serve start qwen3-8-flash-next --max 4h   # the same, with a time limit; stop clears the old one
 hi serve rm qwen3-8-flash-next       # stops it and forgets it; the model stays
 hi serve models                      # models downloaded here, and what uses them
 hi serve models rm unsloth/Qwen3.8-Flash-Next-GGUF

@@ -118,8 +118,8 @@ one on the way to the server, and allows Hugging Face's download hosts.
 ## On a rented GPU
 
 `hi compute run --data` downloads your team's data into `data/<name>` on
-the instance before the script starts, through signed links that need no
-token. Add a folder or pattern after the name to fetch only part of it:
+the instance before the script starts. Add a folder or pattern after the
+name to fetch only part of it:
 
 ```sh
 hi compute run --gpu a10g-small --data acme/bars-1d train.py
@@ -127,9 +127,10 @@ hi compute run --gpu a10g-small --data 'acme/fdb/runs/2026-09/*' train.py
 ```
 
 On Hugging Face Jobs, the server opens a narrow public address with
-NetBird for the run, so the script can also call `load_dataset` for the
-repositories you named. If the server can't open one, hi says so and uses
-signed links. See [Run a script](/guide/compute/run/#your-teams-data).
+NetBird for the run and gives the job a token that reads only the
+repositories you named, so the script can also call `load_dataset` for
+them. On Colab, or if the server can't open one (hi says so), hi sends
+signed links that need no token. See [Run a script](/guide/compute/run/#your-teams-data).
 
 ## On a machine you SSH into
 

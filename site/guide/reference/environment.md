@@ -24,13 +24,19 @@ description: The environment variables hi reads and the files it writes.
 | `OPENROUTER_API_KEY`    | `hi q`: OpenRouter                                                |
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL` | `hi q`: the Anthropic API, or another endpoint for it        |
 | `SHELL`, `HISTFILE`     | `hi q`: the shell that runs commands, and its history file        |
+| `ZDOTDIR`               | `hi q --setup`: where zsh's `.zshrc` is, if not your home folder  |
 | `HI_Q_STATE`, `HI_Q_SHELL`, `HI_Q_PID` | Set by the shell integration; `hi q` trusts the state file only inside `~/.local/state/hi/q/` |
 | `TMUX`, `TMUX_PANE`     | `hi q`: inside tmux, the pane's last 100 lines are context        |
 | `VISUAL`, `EDITOR`      | `hi q`: the editor behind `e`                                     |
 | `HI_TEMPLATES_DIR`      | `hi init`: a folder of extra template layers, for template authors |
 | `HI_BUNDLES_DIR`        | `hi agent --bundle`: a folder of extra bundles                    |
+| `HI_AGENT`              | `hi compute`: the name of the coding agent running hi, which approvers see; Claude Code is recognised without it |
+| `CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `HERMES_HOME` | `hi agent`: where Claude Code, Codex, and Hermes keep their sign-in and settings; default `~/.claude`, `~/.codex`, `~/.hermes` |
 | `HI_ORG_DIR`            | Where `hi server` keeps its state; `HI_SERVER_DIR` is read too    |
 | `HI_APPS_DIR`          | Where `hi app` keeps apps; default `~/.local/share/hi/apps`      |
+| `HI_ADMIN_DIR`          | Where the admin page keeps its files; default `~/.local/share/hi/admin` |
+| `HI_VAULT_DIR`, `HI_VAULT_KEY_DIR` | Where the vault and its key file are; default `~/.local/state/hi/vault` and `~/.config/hi/vault-key` |
+| `BAO_ADDR`, `VAULT_ADDR` | `hi server vault connect` and `move`: the store's address, without `--address` |
 | `HI_APP_SLACK_BOT_TOKEN`, `HI_APP_SLACK_APP_TOKEN`, `HI_APP_OPENROUTER_API_KEY` | `hi app new --from`: the app's Slack tokens and OpenRouter key, so the file holds no secrets |
 | `HI_APP_CLAUDE_TOKEN`, `HI_APP_CHATGPT_AUTH` | `hi app new --from`: a member's Claude token, and a ChatGPT `auth.json` for members on ChatGPT |
 | `HI_APP_S3_ACCESS_KEY_ID`, `HI_APP_S3_SECRET_ACCESS_KEY` | `hi app backups --offsite`: the bucket's keys, instead of asking |
@@ -38,6 +44,7 @@ description: The environment variables hi reads and the files it writes.
 | `DO_NOT_TRACK`, `DISABLE_TELEMETRY` | `hi skill`: no searches or audits from skills.sh |
 | `HI_INSTALL_DIR`        | Installer: where to put `hi`                                      |
 | `HI_VERSION`            | Installer: which release to install                               |
+| `HI_PROFILE`            | Installer: the file that gets the `PATH` line; default `~/.profile` |
 | `XDG_CONFIG_HOME`       | Base of `hi`'s config folder; default `~/.config`                 |
 | `XDG_STATE_HOME`        | Base of `hi`'s state folder; default `~/.local/state`             |
 | `XDG_DATA_HOME`         | Base of `hi`'s data folder (apps, bundles, the machine's domain); default `~/.local/share` |
@@ -66,6 +73,9 @@ description: The environment variables hi reads and the files it writes.
 | `~/.local/state/hi/box/domains.json`        | Projects' extra domains you allowed or refused          |
 | `~/.config/hi/box-claude-token`             | The token from `hi agent token claude` (mode 0600); only the box proxy reads it |
 | `~/.config/hi/gemini-api-key`               | The key from `hi agent token gemini` (mode 0600); it never enters a box |
+| `~/.config/hi/heartbeat.json`               | This machine's heartbeat from `hi heartbeat`: the URL, the interval, and the last one (mode 0600) |
+| `~/.local/share/hi/models/`                 | Models `hi serve` downloaded; `hi serve models` lists them |
+| `~/.local/state/hi/reviews/<id>/`, `~/.local/state/hi/brainstorms/<id>/` | Reports from `hi agent review` and `hi agent brainstorm` |
 | `~/.config/hi/serve/<name>/`                | A local server's keys, from `hi serve llm --share` or `--org`; `hi serve key` shows the shared one |
 | `~/.local/state/hi/q/last.json`             | The last conversation, for `hi q -c`; mode 0600       |
 | `~/.local/state/hi/q/shell-<pid>`           | With shell integration: that shell's last 30 commands and exit status, and commands handed between it and `hi q`; removed after the shell exits |

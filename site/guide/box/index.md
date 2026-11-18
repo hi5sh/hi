@@ -68,6 +68,9 @@ hi box allow myproject-1                     # what was refused
 hi box allow myproject-1 files.example.com   # allow it; no restart needed
 ```
 
+`dev` also allows what development downloads on the way: Ubuntu's and
+Debian's packages, uv, Playwright's browsers, the npm CDNs, and skills.sh.
+
 Name lookups inside the box fail, so tools that ignore the proxy can't get
 out. The allowlist checks host names, so it stops accidents and casual
 leaks, not determined code: it can still send the project to a host it is
@@ -75,7 +78,8 @@ allowed to reach.
 
 ## devcontainer.json
 
-If the project has `.devcontainer/devcontainer.json`, `hi box` uses its
+If the project has `.devcontainer/devcontainer.json`, or `.devcontainer.json`
+at its root, `hi box` uses its
 `image` or `build.dockerfile` (with `build.context` and `build.args`),
 `containerEnv`, and `postCreateCommand`. It
 ignores the fields that would run on your machine or widen the box, such as
@@ -93,7 +97,9 @@ Settings for hi go under `customizations.hi`:
 ```
 
 The repository writes `domains`, so `hi box` asks once before allowing them,
-and again when the list changes.
+and again when the list changes. It asks the same way before it gives the
+box `"network": "open"` or `"data": true` from the file; `--network open`
+and `--data` on the command line are your own word, and are not asked about.
 
 A Dockerfile image is built once, and again when the Dockerfile, its
 `build.args`, or a file it copies in (`COPY uv.lock …`) changes. So an image

@@ -69,6 +69,9 @@ the dev page. See
   only `/__hi/` gets. It works for 14 days; the command again gives a new
   link and ends the old one. When an address changes, hi updates the link
   in the DM.
+- When the machine sends email (`hi server mail`), the Feedback tab's
+  **Sign in with your email** does the same without Slack: hi emails a
+  link and a six-digit code, each good once, for 15 minutes.
 - Each app's command is its own: Slack gives a command that two Slack apps in
   a workspace share to the one installed last.
 - The Slack app needs the `/hi-<app>` command and the `commands` and

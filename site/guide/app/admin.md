@@ -20,8 +20,8 @@ whether the page runs, its address, and its admins.
 
 ## What it has
 
-The dev page's design: the same dark colours and bar, with a panel on
-each side of the middle. Each panel can be dragged wider, hidden, and
+The dev page's design: the same look and bar, with a theme picked from
+the bar, and a panel on each side of the middle. Each panel can be dragged wider, hidden, and
 remembered. On a phone they lie over the middle, one at a time.
 
 **Who's here:** the bar's right end has a pill for each admin on the
@@ -49,10 +49,13 @@ its connection is cut (within about 45 seconds).
   for, how long it has run, its CPU and its memory against its limit,
   its image, and production's and Stage's version and command.
   **Terminal** beside a box opens a shell in it. **Restart** (or **Start**),
-  **Stop**, **Rebuild**, **Snapshot now**, **Freeze…**, **Pause…**, and
-  **Tell the lead**. Each runs the command it stands for: `hi app up`,
-  `hi app down`, `hi app rebuild`, `hi app snapshot`, `hi app freeze`,
-  `hi app pause`, `hi app say`.
+  **Stop**, **Rebuild**, **Snapshot now**, **Freeze…**, **Pause…**,
+  **Move…**, and **Tell the lead**. Each runs the command it stands for:
+  `hi app up`, `hi app down`, `hi app rebuild`, `hi app snapshot`,
+  `hi app freeze`, `hi app pause`, `hi app move`, `hi app say`.
+  **Move…** picks another machine, shows what it has and lacks for the
+  app, and moves it as a job; the app then stays on Home as moved, with
+  where it went.
 - **Open ▾:** production, Stage, and the app's **dev page**, opened as
   you are in the app: an owner or developer with a link of their own. An
   admin with no level there gets **Make me an owner** instead, which is
@@ -60,7 +63,9 @@ its connection is cut (within about 45 seconds).
   gets round the dev page's own access.
 - **Machine** (left): hi's version and **Update**, with a dot on the
   icon when a new hi is out; the admin page's address and what to ask
-  your IT team for; its admins.
+  your IT team for; what the apps need on the machine, with **Install**;
+  **Other machines**: the machines this one moves apps to, this
+  machine's key, and the machines it takes apps from; its admins.
 - **Activity** (left): what admins did here, with who and when, and on
   the server's machine the server's audit.
 
@@ -68,7 +73,7 @@ The left panel is the same on every machine: Home, People, Keys,
 Network, Machine, Activity. The right panel is about what's open: an
 app's Jobs, Logs, Incidents, and Advisories with an app; the server's
 Requests, Running, Spend, Logs, and Incidents with the server; on Home,
-every app's.
+every app's, or the server's on a machine with no apps.
 
 - **Jobs** (right): the open app's long actions, running and done, with
   their output; on Home, every job, the machine's too, such as an update.
@@ -86,8 +91,8 @@ admin page."
 
 ## New apps
 
-**+ New app** (on Home, or **+** in Apps) makes one without a terminal:
-hi app new's ten steps as pages, with **Back** and **Next**. Each answer
+**+ New app** (on Home, in the middle and on the left) makes one without
+a terminal: hi app new's ten steps as pages, with **Back** and **Next**. Each answer
 is checked by the machine as it's given, the same checks as the
 terminal's, and kept, so a reload or a closed laptop loses nothing: the
 new apps under way are listed to carry on with, or discard.
@@ -114,7 +119,9 @@ missing. The machine's view has the same list.
    sign-in of the app's own shows its code and link on the page, and the
    page sees when it's done; a Claude token is pasted, or the machine's
    sign-in used. Each role's fallback on OpenRouter is checked.
-7. **Models:** the app's own OpenRouter key, or the machine's.
+7. **Models:** the app's own OpenRouter key, the machine's, a shared key
+   from the vault, or, when the machine has an OpenRouter management
+   key, a key hi makes for the app at OpenRouter.
 8. **Code:** a new web app, an empty repository, a template, or someone's
    project to adopt (GitHub, a URL, or a folder here), with **Look at it**
    first: what GitHub says of it, or what the folder holds. Kept on
@@ -145,7 +152,8 @@ only whether one is set, and whose.
 
 - **People:** the owners, developers, and contributors, each one's
   level as a list to change, and their SSH keys for the dev box; **Add**
-  someone by their Slack member ID. `hi app owners`, `hi app access`.
+  someone by their email, or their Slack member ID. `hi app owners`,
+  `hi app access`.
 - **Agents:** each role's model, who pays for it, its fallback on
   OpenRouter, and its effort (the app restarts); the app's own OpenRouter
   key or the machine's; its ChatGPT sign-in (the code to type shows in
@@ -159,7 +167,9 @@ only whether one is set, and whose.
   `manifest`, `rename`.
 - **Settings:** the settings the app's boxes get, by name only, to add,
   give a new value, or remove, for Stage and production, production's
-  own, Stage's own, or the dev box's; the helper on Stage and production;
+  own, Stage's own, or the dev box's, and **+ From a shared key** for
+  one that takes a [shared key](/guide/reference/vault/#shared-keys)
+  given to the app; the helper on Stage and production;
   the watcher's automatic freeze; the heartbeat; GitHub or GitLab, and an
   adopted project's upstream; and **Remove…**. `hi app env`, `helper`,
   `watch`, `heartbeat`, `github`, `gitlab`, `upstream`, `rm`.
@@ -180,6 +190,10 @@ only whether one is set, and whose.
   copy to production each need the app's name typed, and say what they do
   first. `hi app snapshots`, `restore`, `rollback`, `data`, `backups`,
   `jobs`, `bom`.
+- **Spend:** what the app's model calls cost through hi, this month or
+  another, by day, by who, and by model, and the calls a Claude or
+  ChatGPT plan paid, in tokens; its monthly and daily budget, with
+  **Set the budget**. `hi app budget`.
 - **Terminal:** a shell in one of the app's boxes that run (the lead's,
   production's, Stage's, the dev box, the memory's), as the box's own
   user, for the machine's owner only. Each one is said in Activity and
@@ -197,14 +211,25 @@ every policy and record the admin page and the apps need, as text to
 send. On the right, **Advisories** has the open app's, or every app's,
 worst first: exploited, then to act on, then for the weekly report,
 then ignored; **Ignore…** asks why, and the app's people see it.
+**Check now** matches production's packages against the advisories now,
+not at the day's check.
 
-On the left, **People** has everyone with a level in any app, a column
-per app: change a level where it stands, or give someone the same level
-in several apps at once, each the app's own change, said in its channel.
-The server's users are the server's (its **Users**), not here. **Keys** has
-the machine's keys and sign-ins (Hermes' OpenRouter key, Claude Code's,
-and Codex's), and which apps use their own; the server's are in its
-**Keys**.
+On the left, **People** has everyone with a level in any app, one row a
+person, by email, as a list or a grid with a column per app. A person
+opens in the middle: their level in each app, each change the app's own
+and said in its channel; their Slack accounts; their SSH key, for every
+dev box where they build; **Email a sign-in link**; and **Remove from
+everything…**, with their email typed. **+ Add** adds someone by email,
+with a level in each app, and the organisation's email domains are set
+below the list. The same as `hi people` (see
+[People and signing in by email](/guide/app/people/)). The server's users are the
+server's (its **Users**), not here. **Keys** has whether the server's
+vault is open, the machine's keys and sign-ins (Hermes' OpenRouter key,
+Claude Code's, and Codex's), the OpenRouter management key (**Set**, so
+hi makes each app a key of its own; `hi server openrouter`), which apps use their own, and
+**Email**: the SMTP account the machine sends sign-in links and
+invitations through, with **Send a test** (`hi server mail`); the
+server's are in its **Keys**.
 
 On an app's dev page, the notes that send people to an admin of the
 machine (owners, the app's keys, restoring a snapshot) link to the admin
@@ -224,14 +249,19 @@ server and no apps.
   today's spend and the month's against its budgets, and its open
   incidents. It opens the server, as an app's card opens the app.
 - **The server opened** has its sections on the bar, as an app's:
-  - **Overview:** the same numbers, the server, and **Restart**.
+  - **Overview:** the same numbers, the server, and **Restart**, and
+    what each app's models cost this month.
+  - **Vault:** [the server's vault](/guide/reference/vault/#on-the-admin-page):
+    open or locked, the ways it opens, each secret's versions, shared
+    keys, and team stores.
   - **Users:** the server's users, by their hi user name, their groups and
     devices; **Add**, and **Remove** with their name typed.
   - **Admins:** the owner, and **Hand it on…** for the owner; the admins,
     whom the owner adds and removes. Each approves, in Slack and here.
-  - **Policy:** each group's limits, hardware, approvals without a
-    person, and budgets, as a form, checked by the server before it's
-    saved, or **As text**.
+  - **Budgets and approval:** the policy: each group's limits, hardware,
+    approvals without a person, and budgets, with this month's spend,
+    as a form, checked by the server before it's saved (**Check and
+    save**), or **As text**.
   - **Keys:** the provider keys (RunPod, Shadeform) and the server's
     OpenRouter key for `hi q`, each checked before it's kept, and shown
     only as set or not.
@@ -241,6 +271,8 @@ server and no apps.
   compute waiting for an approval, each with **Approve** (and the group,
   for someone new) and **Deny…** with a reason. It is the same as `hi server
   approve`, under the admin's own name, and nobody approves their own.
+  **Approve, and the like by itself…** also widens the group's
+  auto-approval, so the like of the request starts without a person.
 - **Running** (right): everything running, for every user, with its cost
   so far, when it stops, and **Stop**; and **Stop all** of someone's,
   with their name typed.
@@ -290,10 +322,14 @@ whoever opens it can do what you can on the machine.
   is shown once to copy, or sent by Slack DM. On the machine: `hi server
   admins add <Slack member ID> --name <user>`.
 - **A link that ended:** the sign-in page has one button, **Send me a
-  new link**. It goes by Slack DM, from the bot of an app on the
-  machine, to the admin who last signed in on that browser, or to the
-  machine's owner on a browser the page doesn't know. Without Slack, an
+  new link**. It goes by Slack DM, from the server's Slack app or the
+  bot of an app on the machine, to the admin who last signed in on that
+  browser, or to the machine's owner on a browser the page doesn't know. Without Slack, an
   admin makes one on the machine: `hi server link <name>`.
+- **By email:** when the machine sends email (Keys, **Email**), the
+  sign-in page takes your address, **Email me a link**: an admin whose
+  email the machine knows gets a link, and six digits to type on the
+  page.
 - **Your Slack member ID** also tells each app who you are, so Open ▾
   opens its dev page as you. Add yours in Machine if you didn't give it
   at the start (in Slack: your profile, ⋮, **Copy member ID**).
@@ -378,4 +414,4 @@ commands went, and runs nothing.
 
 Later: a central server that runs the admin page for the machines that
 join it as machines, and their apps; hi5.sh as a service, with an admin
-page for each customer's apps; help on the page; sign-in by email.
+page for each customer's apps; help on the page.

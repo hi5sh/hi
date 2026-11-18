@@ -51,8 +51,8 @@ that runs hi can do.
 
 ## The NetBird policies to ask for
 
-The admin page's **Machine** section lists these with your names filled
-in, ready to hand to your IT team:
+The admin page's **Network**, on the left, lists these under **What to
+ask your IT team**, with your names filled in, ready to copy and send:
 
 - **The server:** from the server's people to the machine, TCP 7373.
 - **The admin page:** from the admins' group to its peer (or the machine),

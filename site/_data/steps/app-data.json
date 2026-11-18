@@ -38,8 +38,8 @@
     },
     {
       "title": "The first release",
-      "command": "Release on the dev page, with “Start production with a copy of Stage's data” ticked",
-      "text": "A release moves the code, never the data. When Stage gathered what production needs, an owner can take its data along at the first release, once: the box under Release. Without it, production starts empty and Stage keeps what it has.",
+      "command": "Publish on the dev page, with “Start production with a copy of the preview's data” ticked",
+      "text": "A release moves the code, never the data. When Stage gathered what production needs, an owner can take its data along at the first release, once: the box in Publish's dialog. Without it, production starts empty and Stage keeps what it has.",
       "left": {
         "name": "production",
         "folders": [
@@ -136,7 +136,7 @@
     },
     {
       "title": "Every release: a new fork",
-      "command": "Release on the dev page",
+      "command": "Publish on the dev page",
       "text": "At every release hi forks production's data for Stage. Files written once are linked into `run/preview-base/`, in seconds and with no disk. The database, and whatever production wrote in the last ten minutes, is copied whole into `run/preview-data/`. Production pauses for those few seconds, as for a snapshot.",
       "left": {
         "name": "production",
@@ -258,7 +258,7 @@
     },
     {
       "title": "The next release",
-      "command": "Release on the dev page",
+      "command": "Publish on the dev page",
       "text": "Each release gives Stage a new fork of production's data as it is now. What Stage wrote itself is kept once, in `run/preview-data-before/`, and the new fork starts without it. `hi app data fork` does the same between releases.",
       "left": {
         "name": "production",

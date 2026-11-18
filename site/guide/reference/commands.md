@@ -17,6 +17,7 @@ description: Every hi command and option in one place.
 | `hi shell-init bash|zsh`        | Shell integration for `hi q`                           |
 | `hi agent …`                     | Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box; see below |
 | `hi app …`                       | An app in a Slack channel, built by its owners in a dev box; see below |
+| `hi dev …`                       | In an app's dev box: how it works with the rest of the app; see `hi app` below |
 | `hi box …`                       | Run a shell or a command in a rootless box; see below  |
 | `hi bundle …`                    | Bundles of skills for `hi agent --bundle`; see below   |
 | `hi skill …`                     | Find, install, and update agent skills; see below      |
@@ -25,7 +26,7 @@ description: Every hi command and option in one place.
 | `hi verify strix`                | Check a Strix Halo workstation                         |
 | `hi net`                         | Enroll in NetBird; `status`, `down`, `reconnect`       |
 | `hi net expose <port>`           | A local service on a temporary public address; see below |
-| `hi net domain [<domain> --dns <provider> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
+| `hi net domain [<domain> --dns <provider> [--zone <zone>] \| --email <address> \| --unset]` | https for the apps' addresses, under a domain of yours; see [The addresses on https](/guide/app/dev/#the-addresses-on-https) |
 | `hi people …`                    | Everyone on this machine, by email: their level in each app, their SSH key; see below |
 | `hi adduser <name>`              | Create a user with GPU access                          |
 | `hi update [--check] [--version <tag>] [--restart|--no-restart]` | Update `hi`; offer to restart `hi server` and app services still on the old version |
@@ -96,16 +97,16 @@ See [Serve a model](/guide/compute/serve/).
 | `hi serve llm`                    | The llm recipes                                                                        |
 | `hi serve ls [--json]`            | What you serve, here and rented: where, its API, its state, and until when             |
 | `hi serve status <name>`          | Its address, state, memory, and image                                                  |
-| `hi serve logs <name> [--follow]` | The server's setup and logs                                                            |
+| `hi serve logs <name> [--follow] [-n <lines>]` | The server's setup and logs                                                            |
 | `hi serve stop <name>`            | Rented: stop it and its machine. Local: stop it, and keep it to start again            |
 | `hi serve start <name> [--max <duration>]` | Start a stopped local server again, on the same port, after the memory check  |
 | `hi serve rm <name>`              | Stop a local server and forget it; its model stays                                     |
 | `hi serve key <name> [--new]`     | A shared local server's key, to hand to a teammate; `--new` replaces it                |
 | `hi serve detect [--backend B]`   | What this machine can serve on: GPU, driver, devices, Podman, lingering, memory, disk  |
-| `hi serve recipes [llm]`          | The recipes, where each runs, and whether it fits here                                 |
-| `hi serve pull llm <recipe>`      | Download a model and its image now, and serve nothing                                  |
+| `hi serve recipes [llm] [--backend B]` | The recipes, where each runs, and whether it fits here                                 |
+| `hi serve pull llm <recipe> [--quant Q] [--backend B] [--yes]` | Download a model and its image now, and serve nothing                                  |
 | `hi serve models [--json]`        | Models downloaded here, their size, and what uses them                                 |
-| `hi serve models rm <owner/repo>` | Delete a downloaded model that nothing serves                                          |
+| `hi serve models rm <owner/repo> [--yes]` | Delete a downloaded model that nothing serves                                          |
 
 ## hi server
 
@@ -115,7 +116,6 @@ See [Managed compute for your team](/guide/compute/managed/).
 |-------------------------------------------------------------------|----------------------------------------------------------------------------------------|
 | `hi server join <server> [--user <name>] [--no-wait]`                | Enroll this device and wait for approval                                               |
 | `hi server join <server> --agent <name> --owner <user>`              | Enroll an agent that runs on its own                                                   |
-| `hi server status`                                                   | Server, user, group, and managed providers                                             |
 | `hi server key`                                                      | This device's public key, for an admin to pre-approve                                  |
 | `hi server slack link <code>`                                        | Link your Slack account, with the code from `/hi link`                                 |
 | `hi server leave`                                                    | Forget the server and delete the device key                                            |
@@ -132,9 +132,9 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server audit [--since <d>]`                                      | The audit log                                                                          |
 | `hi server slack setup`, `slack manifest`                            | Connect a Slack app; print its manifest                                                |
 | `hi server approvers add <id> --name <user>`                         | Let a Slack member approve and stop; `remove`, `list`                                  |
-| `hi server owner [<Slack ID> --email <addr>]`                        | The server's owner, who owns the machine and its apps too (the one who opens a terminal in an app's boxes); or hand it on |
-| `hi server admins [add <Slack ID> --name <user> \| remove <user>]`   | The server's admins: they approve, and run the machine's apps on the admin page |
-| `hi server status`                                                   | The server this device uses; on the server's machine, also the admin page's address, whether it answers, and its admins |
+| `hi server owner [<Slack ID> --email <addr> [--name <user>]]`        | The server's owner, who owns the machine and its apps too (the one who opens a terminal in an app's boxes); or hand it on |
+| `hi server admins [add <Slack ID> --name <user> [--email <addr>] \| remove <user>]` | The server's admins: they approve, and run the machine's apps on the admin page |
+| `hi server status`                                                   | The server this device uses, its user, group, and managed providers; on the server's machine, also the admin page's address, whether it answers, and its admins |
 | `hi server link [<admin>]`                                           | A new sign-in link to the admin page, for 14 days; the old one ends |
 | `hi server address [<host> [--https] \| default]`                    | The name the IT team keeps for the admin page; `admin.<domain>` by default |
 | `hi server mail …`                                                   | How the machine sends email: sign-in links and invitations; see below |
@@ -151,6 +151,10 @@ See [Managed compute for your team](/guide/compute/managed/).
 | `hi server data list|test|remove [<hf-org>]`                         | Show, check, or stop serving organizations                                             |
 | `hi server expose [stop]`                                            | The public address cloud runs reach `hi data` through, and the runs using it; close it |
 | `hi server expose revoke <run>`                                      | End one cloud run's token now                                                          |
+
+Commands on the server's machine take `--dir <dir>` for the state directory
+(default: `$HI_ORG_DIR` or `~/.local/state/hi/org`). Decisions are recorded
+under your login name; `--as <name>` changes it.
 
 ## hi data
 
@@ -332,10 +336,13 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app adopt <name> <source> [--ref <branch\|tag\|commit>] [--github <owner/name>] [--shallow\|--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same setup for a project someone else wrote (`github.com/owner/name`, `owner/name`, or a URL), fetched without running anything from it: the app keeps its own copy, with the project as `upstream` that never takes a push, and an owner's agent surveys it in the dev box; see [Start from someone else's project](/guide/app/adopt/) |
 | `hi app adopt <name> <folder> [--github <owner/name>] [--full] [--dir <folder>] [--from <file.json>] [--yes]` | The same for a folder on this machine, copied without its history: what git would commit, leaving `.git`, files that look like secrets, and links outside it behind; the folder doesn't change, and there's no upstream |
 | `hi app up [<name>]`                     | Start or restart it as a systemd user service, also at boot; without a name, pick it from a list |
+| `hi app up <folder>`                     | The same for an app whose folder moved or was copied here |
 | `hi app down <name>`                     | Stop it; its folder stays |
+| `hi app move <name> <machine> [--check] [--now] [--dir <folder>] [--yes]` | Move it to another machine with hi: a stop of about a minute, the same addresses, its snapshots with it; `--check` only says what the machine has and lacks for it; `--now` doesn't wait for running tasks; `--dir` is its folder there (the same path by default) |
+| `hi app machines [add <machine> <key> \| rm <machine>]` | This machine's key for moving apps, and the machines it takes them from; take apps from a machine (its key runs only hi's receiving end), or no longer |
 | `hi app rebuild <name>`                  | Build hi's base image again with Ubuntu's current packages; every app on the machine moves to it within a few minutes (dev boxes at their next restart); what fixes the image's advisories |
 | `hi app rename <name> <new> [--yes]`     | Another name, after its Slack app's: its bot, `/hi-<name>` command, and service; memory and snapshots stay |
-| `hi app rm [<name>] [--keep-folder] [--purge]` | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder. Its settings stay in the server's vault, and its snapshots stay; `--purge` deletes them too |
+| `hi app rm [<name>] [--keep-folder] [--purge] [--yes]` | Stop it and remove it from this machine: its service, its boxes, and its folder; `--keep-folder` keeps the folder. Its settings stay in the server's vault, and its snapshots stay; `--purge` deletes them too; `--yes` doesn't ask first |
 | `hi app ls`                              | Apps on this machine |
 | `hi app status <name>`                   | Up or down, its members, production's version and what dev has on top of it, backups, and the helper |
 | `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
@@ -345,10 +352,11 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app key <name> openrouter --from shared/<name>` | The app's agents use a shared key as their OpenRouter key, by reference, in place of its own: a new value reaches them within a minute. It must be shared to the app first |
 | `hi app signin <name> chatgpt [--machine]` | Sign the app in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the app's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
 | `hi app signin <name> claude [--machine]` | The app's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the app's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
+| `hi app signin <name> agy --file <token> \| --machine \| --unset` | Antigravity (agy) in the dev box, as the app's own Google account: its `~/.gemini/antigravity-cli/antigravity-oauth-token`. The box holds it, so anyone with SSH into the box can copy it; `--machine` uses this machine's agy sign-in, `--unset` none |
 | `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |
 | `hi app key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running app restarts with them; the lead's box gets placeholders, and the app's proxy puts the tokens on its calls to Slack |
 | `hi app env <name> [KEY=VALUE | KEY | --file KEY=<path> | --unset KEY]...` | The settings the app's boxes get, as files in memory at `/run/hi/settings` and as environment variables from the box's start: list their names, add or change them (`KEY` alone asks for the value), give a file such as a certificate (read-only in the boxes at `$KEY`), or remove one; `--production` for a key only production gets (one that sends, posts, orders, or pays per call), `--stage` for a value of Stage's own, such as a test key, and `--dev` for the dev box's own, which gets no others |
-| `hi app env <name> [--production\|--preview\|--dev] --from <prefix>/<path>[?version=<n>] [--skip NAME]...` | Take a connected team store's path: each of its names is a setting, read every minute; `--skip` leaves a name out, `?version=` pins one; refused when it gives a name the app has from elsewhere. `--unset-from <path>` drops it; `KEY=VALUE --override` sets a name a path gives, for that slot |
+| `hi app env <name> [--production\|--stage\|--dev] --from <prefix>/<path>[?version=<n>] [--skip NAME]...` | Take a connected team store's path: each of its names is a setting, read every minute; `--skip` leaves a name out, `?version=` pins one; refused when it gives a name the app has from elsewhere. `--unset-from <path>` drops it; `KEY=VALUE --override` sets a name a path gives, for that slot |
 | `hi app env <name> KEY --from shared/<name>` | Give the app a shared key as `KEY`, by reference: the app keeps "from shared/openrouter", never the value, and gets each new value within a minute. An admin gives the key to the app first (`hi server vault shared give`); `--unset KEY` drops it |
 | `hi app env <name> --on-change files\|restart\|SIGHUP\|SIGUSR1\|SIGUSR2` | What a change of the app's settings does besides rewriting its boxes' settings files within a minute: nothing (`files`, the default), new boxes on the same links (`restart`), or that signal to the app |
 | `hi app addresses <name> [domain\|netbird\|<host>]` | What the app's addresses are named: the machine's domain on https, the NetBird name, or one name the IT team keeps, with ports |
@@ -370,7 +378,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app restore <name> [<snapshot>] --from s3:https://<host>/<bucket>[/<path>] [--region <region>] [--folder <folder>]` | After losing the machine: bring the app back on this one from its offsite copy, with the bucket's keys and the old machine's recovery key, which open the snapshot key hi keeps sealed beside the copy. Its snapshots come into a repository here, the latest (or the one named) into a new folder; its settings and tokens are set again |
 | `hi app jobs <name> [--stage] [--json]` | The app's long work in production (or Stage): each job's state, how far it is, how many a day, where it is, and its last error; see [When something goes wrong](/guide/app/incidents/) |
 | `hi app incidents <name> [<id>] [--rules] [--json]` | The open incidents, then the last month's; one incident's timeline of what hi saw, what the lead did and why, and what the people decided; `--rules`, the people's decisions about the app's jobs |
-| `"$HI" app job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
+| `"$HI" app job <job> [--running\|--blocked\|--failed\|--finished] [--done <n>] [--total <n>] [--unit <word>] [--item <id>] [--error <text>] [--note <text>] [--stall-after <duration>]` | In the app's box: report a job's progress in `$HI_JOBS_DIR`, for hi to watch |
 | `hi app dev <name> [start <task> [--agent claude\|codex]\|finish <branch> [--discard]\|restart\|netbird [<key file>]\|new-host-key]` | The app's dev box, where its owners build with agents over SSH or from the dev page: whether it runs, its NetBird name, and how to get in; `start` gives a task its branch, worktree, and herdr workspace; `finish` ends a shipped one |
 | `hi app heartbeat <name> [<url> [--every 1m] \| off \| test]` | The app's heartbeat: a GET to a service such as healthchecks.io at the interval (30s to 1h) while the app runs, so the service alerts when it stops. Without arguments, where it goes and the last one |
 | `hi heartbeat [<url> [--every 5m] \| off \| test]` | This machine's heartbeat, from a systemd user timer (1m to 1h), for a machine that runs apps or a server |
@@ -385,14 +393,16 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app access <name>` | Who reaches what: owners, developers, and contributors; anyone else has no level |
 | `hi app access <name> <member ID>\|<email> developer\|contributor\|none` | An owner's change, also on the dev page's People table: a developer builds with Chat, terminal, and SSH, and publishes (`pro` and `vibe` say developer too); a contributor reports bugs as tasks; none takes the level away |
 | `hi app access <name> key <member ID>\|<email> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
-| `hi app task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]]` | The app's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
+| `hi app task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]\|files <n>]` | The app's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
 | `hi dev preview\|ship\|status\|say\|task\|allow` | In an app's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/app/dev/) |
 | `hi dev review\|deep-review\|brainstorm` | In an app's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
 | `hi dev data\|settings\|incidents` | In an app's dev box: the app's data and a new fork for the preview, the settings' names and the preview's own values, what hi recorded about incidents |
+| `hi dev note "<a line>" \| --clear` | In an app's dev box: where this workspace's work stands, on the dev page and in Needs you, until the next |
+| `hi dev logs\|jobs\|tools\|mcp` | In an app's dev box: the app's own output (`logs [stage\|production] [--lines N] [--since 30m] [--grep text]`, production by default, its settings masked), its jobs and workers, its MCP tools (`tools stage\|production [<tool> [<json>\|-]]`; on production, those that only read), and the same as an MCP server over stdio (`mcp stage\|production`) |
 | `hi dev agy "<task>" [--file <path>]…` | In an app's dev box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/`; ask the user first; `show [<id>]` |
 | `hi dev upstream\|propose` | In an app's dev box, for an adopted project: where dev stands against the original and its refs into the box's clone; offer shipped work back as a draft pull request; see [Start from someone else's project](/guide/app/adopt/) |
 | `hi app say <name> <text\|-> [--wait]` | Tell the lead something from this machine: hi posts it in the channel and the lead answers in its thread (`--wait` prints the answer); a change it asks for, the lead files as a task |
-| `hi app data <name> [fork \| copy stage production [--yes] \| stage empty]` | The app's data folders, production's and Stage's fork of it; a new fork now; production from Stage, snapshotted first; or a Stage that starts empty at every release |
+| `hi app data <name> [fork \| copy stage production [--yes] \| stage empty \| stage fork]` | The app's data folders, production's and Stage's fork of it; a new fork now; production from Stage, snapshotted first; or a Stage that starts empty at every release (`stage fork` undoes it) |
 | `hi app limit <name> [stage <usd> \| stage off]` | What Stage's model calls may cost a day ($5 unless set), and spent today |
 | `hi app limit <name> memory [dev\|app <size>\|default]` | The boxes' memory: the dev box 16g and Stage's and production's boxes 4g, unless the app has its own; running boxes get a new limit at once, without a restart |
 | `hi app rollback <name> v3 [--code-only] [--yes]` | Put production back on v3 with its data as v3 left it (or `--code-only`); what was entered since is kept in a snapshot. Owners do the same with Roll back on the dev page |
@@ -499,6 +509,10 @@ hi net status | down | reconnect
 | ↳ `--sso <file>`                                    | With `--link` and `--domain`, people may also sign in with the OIDC provider and rules in the file (`hi app sso` writes it) |
 | ↳ `--vpn`                                           | No public address: only devices on the NetBird network, at `http://<name>:<port>` |
 | ↳ `--name <prefix>`, `--host <addr>`                | The start of the address; where the service listens  |
+| ↳ `--follow <file>`                                 | Relay to the port written in this file, read again when it changes |
+| ↳ `--route <prefix>=unix:<socket>`, `--route-always …` | Serve paths under `/prefix/` from a socket instead; `--route-always` whatever `--inject-if` says |
+| ↳ `--inject <url>`, `--inject-if <file>`            | Add a `<script src>` to each page the browser loads; inject and route only while the file exists |
+| ↳ `--key <key>`                                     | With `--link`, this key instead of a new one, so links already given out keep working |
 | ↳ `--detach`, `--json`                              | Run in the background; print JSON                    |
 | `hi net expose ls [--json]`                         | What this machine is exposing                        |
 | `hi net expose stop <name> | --all`                | Stop it now; `--all` stops every exposure of this user, an app's Stage and dev page too |
@@ -512,7 +526,7 @@ See [hi_people.md](https://github.com/hi5sh/hi/blob/main/docs/specs/approved/hi_
 | Command | What it does |
 |---|---|
 | `hi people` | Everyone, with their email, Slack accounts, SSH key, last sign-in by email, and level in each app |
-| `hi people add <email> [--name <name>] [--slack <member ID>] [--outside] [--app <app>=owner\|pro\|vibe\|contributor ...] [--invite]` | Add someone, with or without Slack; `--app` gives them a level (as their Slack account where the app's workspace has one); `--invite` emails them a sign-in link to each app |
+| `hi people add <email> [--name <name>] [--slack <member ID>] [--outside] [--app <app>=owner\|developer\|contributor ...] [--invite]` | Add someone, with or without Slack; `--app` gives them a level (as their Slack account where the app's workspace has one); `--invite` emails them a sign-in link to each app |
 | `hi people rm <email>` | Remove them from everything: every app's level, their SSH keys, their sign-ins, and the list |
 | `hi people key <email> <public key>\|--remove` | Their SSH key, put into the dev box of every app where they're an owner or a developer |
 | `hi people link <email> <member ID>` | Their Slack account, where Slack has another email for them |
@@ -550,11 +564,11 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
 | `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
 | `hi server openrouter [--management-key \| --forget]` | The OpenRouter management key in the vault (asked without echo), with which hi makes each app a key of its own; without an option, the keys hi made and what OpenRouter counts on each |
-| `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--namespace <ns>] [--ca <file>]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
+| `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--role <name>] [--auth-mount <path>] [--namespace <ns>] [--ca <file>] [--secret-id-ttl 30d]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
 | `hi server vault disconnect <prefix>` | Stop reading it, and forget the login; refused while an app takes from it |
 | `hi server vault login [<prefix>] [--new-key]` | Whether hi logs in to each team store, and what to hand its owners; `--new-key` makes a new key pair, the old one working until they swap it |
-| `hi server vault move vault://<mount> --address https://… [--login jwt\|approle]` | Keep hi's own paths in a team's store instead: copied, read back, and switched; the vault's copy stands in while it's away |
-| `hi server vault move --forget` | Forget the vault's copy of hi's moved paths |
+| `hi server vault move vault://<mount> --address https://… [--login jwt\|approle] [--role <name>] [--auth-mount <path>] [--namespace <ns>] [--ca <file>]` | Keep hi's own paths in a team's store instead: copied, read back, and switched; the vault's copy stands in while it's away |
+| `hi server vault move --forget [--yes]` | Forget the vault's copy of hi's moved paths |
 
 ## hi server sites
 

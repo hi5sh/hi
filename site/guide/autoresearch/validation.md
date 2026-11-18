@@ -119,7 +119,8 @@ score has run, and the box's proxy reaches the agent's model. So:
    It runs the project's box image on that folder with **no network**, **no
    proxy**, **no `.git`**, nothing from the agent's box, the data read-only
    at `/box/data`, and the folder at `/box/project`. The command runs under
-   a time limit of twice the baseline validation's time plus a minute. The
+   a time limit of twice the baseline validation's time plus a minute, and
+   at least two minutes. The
    container and its folder are removed when it exits.
 4. **The gate.** The round's winner is chosen on the score alone, as
    without `--validate`. It is kept only if its score beats the best by
@@ -154,7 +155,7 @@ attempt's number. Without the GPU the containers run at once; with
 | `.git` | none |
 | Environment | `HI_VALIDATE=1`, `HI_BOX` (so a `Makefile` picks the image's tools), `HOME=/box/home`, and the project's `containerEnv` |
 | Image | the one the run's boxes use (`.devcontainer/`, `--image`, or hi's) |
-| Time limit | twice the baseline validation's time plus a minute |
+| Time limit | twice the baseline validation's time plus a minute, and at least two minutes |
 
 The image must hold everything the command needs, since there is no
 network: the templates' images have their dependencies in `/opt/venv`. A
@@ -230,11 +231,12 @@ hi agent best-of 3 --rounds 60 --score "make score" --lower --edit train.py \
 When a fold ends, hi:
 
 1. runs `--fold` in a temporary worktree of the gains' tip, with `HI_FOLD`
-   (the new fold's number), `HI_FOLDS`, `HI_PROJECT` (your checkout), and
-   `HI_VALIDATE_DATA` (the validation folder) set. The command moves the
+   (the new fold's number), `HI_FOLDS`, `HI_BEST_OF_RUN`, `HI_PROJECT` (your
+   checkout), and `HI_VALIDATE_DATA` (the validation folder) set. The command moves the
    window: the old validation block joins the data in the project, and the
    next block becomes the validation folder. It must not change the
-   `--edit` files; if it does, the run stops.
+   `--edit` files; if it does, the run stops. It may run for an hour at
+   most.
 2. commits what it changed to the gains' branch, with the message
    `best-of <run> fold <n>` and nothing else;
 3. scores the tip in a box and validates it, as the fold's new baseline.

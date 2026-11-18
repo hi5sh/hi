@@ -14,6 +14,7 @@ shows what the tool is and how it works, and links to the guide for the rest.
 | `assets/demos/<name>.js` | The demo's scenes, played by `assets/story.js`. |
 | `_layouts/feature.html` | The page around them: header, hero, demo, footer. |
 | `assets/feature.css` | How a feature page looks, in the homepage's colours. |
+| `_data/features.yml` | The page's line in the site menu (`_includes/site-menu.html`); `internal/cli/feature_pages_test.go` checks every feature page is there. |
 
 ## The sections, easy to deep
 

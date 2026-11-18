@@ -13,6 +13,7 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/apps`.
 | `lead/` | The lead's Hermes home: `SOUL.md`, its memory, its sessions; `SOUL.before-2.4.md` in an older app whose SOUL.md hi replaced |
 | `repo/` | The project's git repository, which dev and production are branches of; `repo/docs/specs/` holds the specs, one file per feature |
 | `dev/` | The dev box: its home (the agents' conversations, herdr's sessions, the worktrees), its clone of the project, the owners' SSH keys, and its NetBird identity |
+| `versions.json` | The releases: each version's number, notes, and who released it |
 | `tasks/` | A record of each piece of work shipped into dev, which the versions and release notes read; older apps' tasks too |
 | `tickets/` | The app's tasks, when its repository is on neither GitHub nor GitLab |
 | `reviews/`, `brainstorms/` | Deep reviews and brainstorms, with their reports |
@@ -20,11 +21,30 @@ finds it by name from anywhere, through a link in `~/.local/share/hi/apps`.
 | `channel/` | The channel's log, a file per day, and the files people shared |
 | `memory/` | The lead's long-term memory: Hindsight's database |
 | `app/` | Production's data: what the app keeps in `$HI_DATA_DIR` |
+| `run/` | What hi keeps while the app runs: sockets, its own state, the network log, and Stage's data. No snapshot holds it |
 
 The containers are rebuilt from the folder on every start, so a copy of the
 folder is a copy of the app. To move it, stop the app, move the folder,
 and start it by its new folder: `hi app up ~/projects/app-payments`. The
-same works for a folder copied from another machine. `secrets.json` is
+same works for a folder copied from another machine.
+
+`hi app move` takes a running app to another machine with hi:
+
+```sh
+hi app machines                          # this machine's key for moving apps
+hi app machines add <machine> <key>      # on the other machine: take apps from this one
+hi app move payments <machine> --check   # what the other machine has and lacks for it
+hi app move payments <machine>           # asks first
+```
+
+hi copies the folder while the app runs, takes a snapshot, stops the app
+for about a minute, copies the last changes, and starts it there, at the
+same addresses, with its snapshots and its settings. It waits for running
+tasks unless you add `--now`. The folder here stays as it was at the
+move, with a note of where the app went; delete it when you no longer
+want it.
+
+`secrets.json` is
 listed in the folder's `.gitignore`, in case the folder sits inside a
 repository. `lead/SOUL.md`
 is the lead's identity: edit it to change how the lead works, then
@@ -101,7 +121,7 @@ two ways:
   aside in a snapshot, and rolling forward the same way puts it back.
 
 An owner rolls back on the [dev page](/guide/app/dev/#the-dev-page):
-under Releases, **Roll back to v3** for the code alone, or **…and its
+under Published versions, **Roll back to v3** for the code alone, or **…and its
 data** for both. The click is the yes, logged with their name. The lead
 can't roll back; it asks the owners when it thinks a release should be
 undone. On the machine, an admin runs it directly:
@@ -133,6 +153,10 @@ the snapshots' key, so keep a copy of it somewhere other than this machine:
 ```sh
 hi app backups payments --show-key
 ```
+
+After losing the machine, `hi app restore payments --from s3:https://…`
+brings the app back on another one from the bucket alone (see
+[After losing the machine](/guide/reference/vault/#after-losing-the-machine)).
 
 ## The app's data
 

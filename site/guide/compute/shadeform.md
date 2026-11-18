@@ -79,7 +79,7 @@ Shadeform.
 
 ## Through a server
 
-An [server](/guide/compute/managed/) can hold one Shadeform key for your
+A [server](/guide/compute/managed/) can hold one Shadeform key for your
 team:
 
 ```sh

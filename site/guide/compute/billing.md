@@ -120,6 +120,7 @@ quantbert  user  no
 acme    org   yes      team  <- hi bills this
 
 Chosen by: automatic: your own account if it can pay, else your only organization that can
+Change with `hi compute billing ACCOUNT`; `--clear` makes it automatic again.
 ```
 
 Choose one explicitly, or go back to automatic:

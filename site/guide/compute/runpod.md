@@ -28,7 +28,7 @@ RunPod's catalog.
 hi login runpod
 ```
 
-Paste the key when asked; nothing is shown as you type. `hi` checks the key
+Paste the key when asked; it shows as `*` as you type. `hi` checks the key
 with RunPod, then saves it in `~/.runpod/config.toml`, readable only by you.
 That is where RunPod's own `runpodctl` keeps it too, so both tools share one
 key and you do not need runpodctl installed.

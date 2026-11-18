@@ -260,7 +260,7 @@ for Enter.
 
 Words are always the question: `hi q status of the log file` asks the
 model, and so does `hi q setup a python venv`. hi's own options start with
-`--` and go before the question, such as `hi q --status` or
+a dash and go before the question, such as `hi q --status`, `hi q -c`, or
 `hi q --print …`. To ask something that starts with a dash, put `--` first:
 `hi q -- --strip-components in tar?`
 

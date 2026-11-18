@@ -28,7 +28,7 @@
         {
           "title": "~/.local/state/hi/org",
           "role": "what it holds",
-          "does": "Provider keys, Hugging Face tokens, the model key, template tokens, devices, groups, and the audit log.",
+          "does": "Devices, groups, and the audit log; the provider keys, Hugging Face tokens, model key, and template tokens are in its vault, encrypted on disk.",
           "chip": "owner only",
           "tone": "red"
         }

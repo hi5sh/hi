@@ -113,7 +113,8 @@ Run `hi compute` with no arguments in a terminal for a guided menu:
 - Esc goes back a step; Ctrl+C leaves the menu.
 
 Every action prints the command it runs, so you learn the flags as you go.
-When the input is not a terminal, the menu falls back to numbered questions.
+When the output is not a terminal, the menu falls back to numbered questions;
+when the input is not one, `hi compute` prints its usage instead.
 
 ## Commands at a glance
 

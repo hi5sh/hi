@@ -52,11 +52,13 @@ hi agent brainstorm ls                # every brainstorm, its state and cost
 
 Without `--agents`, it's Codex, Claude Code, and Gemini, leaving out any
 that aren't set up on the machine. Gemini is Hermes with Google's model,
-through OpenRouter (`hi install hermes`). Name others, or a model:
+through OpenRouter (`hi install hermes`). Name others (`claude`, `codex`,
+`gemini`, `hermes`, `agy`; eight at most), or a model:
 
 ```sh
 hi agent brainstorm --agents claude,claude:sonnet,gemini:google/gemini-3.8-flash "..."
 hi agent brainstorm --no-proposal "..."   # just the ideas; you write the proposal
+hi agent brainstorm --question question.md   # a long question from a file; - reads stdin
 ```
 
 ## What the agents can see

@@ -47,7 +47,8 @@ work, such as a [`hi agent`](/guide/agent/) task.
    `moved` (hi corrects the line numbers), or `missing`.
 4. **A second opinion.** Each finding goes to an agent that didn't raise
    it, which reads the code and says `confirmed`, `uncertain`, `rejected`,
-   or `duplicate`, with its reason. A finding whose quote hi couldn't find
+   or `duplicate`, with its reason. With only one agent ready, that agent
+   checks them in a fresh session. A finding whose quote hi couldn't find
    is never confirmed.
 5. **The report.** `report.md` and `report.json` in
    `~/.local/state/hi/reviews/<id>/`, readable only by you.
@@ -101,7 +102,8 @@ it: no hooks or templates from your machine, no credential helpers, no
 LFS filters, submodules listed but not fetched, and only network
 transports, so a submodule can't point at a folder on your machine. A
 private GitHub repository comes through your `gh` sign-in (`gh auth
-login`); an address with a token in it is refused. The clone goes when
+login`), and a private GitLab project through this machine's `glab`
+sign-in; an address with a token in it is refused. The clone goes when
 you `rm` the review.
 
 ## What changed since a release

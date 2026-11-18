@@ -43,7 +43,8 @@ hi dev agy show a-3             # one run: what it made and its summary
 
 - Say exactly what you want: how many, the sizes and formats, the style,
   the names of the files. It can't see the project; give it what it needs
-  with `--file` (up to 20 files, from your home or the clone).
+  with `--file` (up to 20 files, 200 MB together, from your home or the
+  clone).
 - It waits for the run: a minute or two for pictures or a search, often
   5 to 10 minutes for music, video, or deep research. Tell the user how
   long before you start, and run a long one in the background (Bash's

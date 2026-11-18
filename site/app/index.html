@@ -6,7 +6,7 @@ tool: hi app
 demo: app
 guide: /guide/app/
 headline: Your business's software factory.
-lede: "Colleagues say what they need in Slack; the lead, an AI, files it as a task. Developers build it with Claude Code and Codex from your template, in the app's dev box, and production changes only when one of them clicks Release. When the app becomes critical, IT takes it over as it is."
+lede: "Colleagues say what they need in Slack; the lead, an AI, files it as a task. Developers build it with Claude Code and Codex from your template, in the app's dev box, and production changes only when one of them clicks Publish. When the app becomes critical, IT takes it over as it is."
 description: hi app is hi5's software factory for businesses. One app is one internal tool for the people in one Slack channel, started from your developers' template. Its developers build it with coding agents in a dev box they reach over SSH or in a browser; a Hermes lead helps the people, files their ideas and bug reports as tasks, and watches the app.
 demo_caption: The Slack scene is an example. The terminal scenes keep hi app's own output; the app, its people, and its work are made up.
 fallback: |
@@ -79,7 +79,7 @@ Can they show in red?</div>
     <div class="prose">
       <p><strong>Ideas become tasks.</strong> The lead helps people use the app and turns what the app's contributors, developers, and owners ask for, in the channel, a DM, or a bug report from the app's helper, into tasks in GitHub, GitLab, or hi's own: it looks at the code and the docs first, talks it through, and files it once they agree. It answers how far something is from the tasks and the versions.</p>
       <p><strong>Owners build in the dev box.</strong> Start on a task gives it a branch, a worktree, and an agent. herdr keeps a workspace and an agent per piece of work, there whether you attach from a terminal over NetBird or from the dev page in a browser, where the agent's session is a chat, with its questions as cards to tap, and the terminal a click away. Agents ask for a second opinion from each other with <code>hi dev review</code>, put a branch on Stage with production's data, and ship it into dev.</p>
-      <p><strong>Dev and production.</strong> People try dev on Stage, a link that opens on their phones. Production moves only when an owner or a developer clicks Release on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and an owner can roll each one back.</p>
+      <p><strong>Dev and production.</strong> People try dev on Stage, a link that opens on their phones. Production moves only when an owner or a developer clicks Publish on the dev page, as numbered releases, v1, v2, and so on, each with a snapshot first, and an owner can roll each one back.</p>
       <p><strong>Handing it over.</strong> An app that becomes critical changes hands, not code. An admin of the machine makes IT's people its owners, and the people who built it stay on as developers or step back. The project is an ordinary git repository from your template, with its history, its specs in <code>docs/specs/</code>, and its tasks in GitHub, GitLab, or hi's own; the whole app is one folder that moves to another machine.</p>
     </div>
   </section>
@@ -130,7 +130,7 @@ Can they show in red?</div>
       <summary>Under the hood: the app's folder</summary>
       <div class="prose">
         <p>Everything an app knows and has made is in one folder, <code>app-&lt;name&gt;</code>. The containers are rebuilt from it on every start, so a copy of the folder is a copy of the app: stop it, move the folder, and <code>hi app up ~/app-onboarding</code>.</p>
-        <p><code>app.json</code> holds the purpose, channel, owners, and members; <code>secrets.json</code> the Slack tokens, readable only by you. <code>lead/</code> is the lead's Hermes home, with <code>SOUL.md</code>, its identity: edit it to change how the lead works. <code>repo/</code> is the project's git repository, with its specs in <code>docs/specs/</code>, and <code>dev/</code> the dev box's home and clone.</p>
+        <p><code>app.json</code> holds the purpose, channel, owners, and members; the Slack tokens, keys, and settings are in the server's vault, encrypted. <code>lead/</code> is the lead's Hermes home, with <code>SOUL.md</code>, its identity: edit it to change how the lead works. <code>repo/</code> is the project's git repository, with its specs in <code>docs/specs/</code>, and <code>dev/</code> the dev box's home and clone.</p>
         <p><code>tasks/</code> has a record of each piece of work shipped into dev, <code>tickets/</code> hi's own tasks, <code>incidents/</code> what went wrong and what the lead did, <code>channel/</code> the channel's log and the files people shared, <code>memory/</code> the lead's long-term memory, and <code>app/</code> production's data.</p>
         <p><code>hi app up</code> installs a systemd user service, <code>hi-app-&lt;name&gt;</code>, which restarts the app if it stops.</p>
       </div>

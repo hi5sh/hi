@@ -17,7 +17,7 @@ It prints:
   what built it.
 - **Preview:** what is on it (dev, or a branch of the box) and its address.
 - **Backups:** the last snapshot and its offsite copy.
-- **Incidents:** what hi opened when a job, the app, or a task failed.
+- **Incidents:** the open ones, such as a job or the app that failed.
 - **Jobs:** the app's long work, as the app reports it.
 
 Use it before shipping (is dev what you think it is?), after shipping (is

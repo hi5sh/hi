@@ -38,7 +38,7 @@ what each thing is and where to look, and leave the detail to the code and
   agents, and no logins, so `hi agent` and Codex or Claude Code don't run
   there: for an agent's model, call it through OpenRouter (an `openai/`
   model for Codex's).
-- The helper, the chat with the app's team in the corner of every page: hi adds
+- The helper, help and feedback in the corner of every page: hi adds
   it, and `/__hi/` belongs to hi, as does `/docs/`.
 
 ## Docs

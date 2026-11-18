@@ -66,7 +66,9 @@ things, one at a time:
    hard it thinks (its effort); Enter keeps what's offered. The members decide the app's sign-ins (see
    [Change a member](#change-a-member)).
 7. **Models.** An OpenRouter key of the app's own, so its use is billed
-   and limited apart; Enter uses this machine's, from Hermes. No box ever
+   and limited apart; Enter uses this machine's, from Hermes. When the
+   server has an OpenRouter management key, hi offers to make the app a
+   key at OpenRouter instead, and Enter takes that. No box ever
    holds it (see [Keys and settings](/guide/app/keys/)).
 8. **Code.** Enter starts a new web app to build on: a
    welcome page on Bun that points people at Feedback, with a
@@ -135,8 +137,10 @@ lead shows it's working with a reaction on the message. For Slack's
 "thinking…" line under the reply box too, turn Agent experience on in the
 app's settings and add the `assistant:write` scope. Without a terminal, give the answers in
 a file and the tokens in
-`HI_APP_SLACK_BOT_TOKEN` and `HI_APP_SLACK_APP_TOKEN` (and the app's
-OpenRouter key, if it has one, in `HI_APP_OPENROUTER_API_KEY`):
+`HI_APP_SLACK_BOT_TOKEN` and `HI_APP_SLACK_APP_TOKEN` (and, if the app
+has its own, its OpenRouter key in `HI_APP_OPENROUTER_API_KEY`, its
+Claude token in `HI_APP_CLAUDE_TOKEN`, and the path of its ChatGPT
+`auth.json` in `HI_APP_CHATGPT_AUTH`):
 
 ```sh
 hi app new payments --from payments.json
@@ -177,8 +181,9 @@ a domain of yours; the lead posts the new links, and the links' keys stay.
 `hi app rm` asks first, then removes everything hi made for the app: the
 service, its name in `~/.local/share/hi/apps`, the lead's box, the dev
 box, the app's boxes, and the folder. With `--keep-folder` the folder stays, and `hi app up <folder>`
-brings the app back. Deleting just the folder leaves the service and the
-name behind. The Slack app and channel, and a GitHub repository, are yours
+brings the app back. Its snapshots, and its settings in the server's
+vault, stay; `--purge` deletes them too (an offsite copy stays). Deleting
+just the folder leaves the service and the name behind. The Slack app and channel, and a GitHub repository, are yours
 to remove in Slack and GitHub.
 
 `hi app rename` follows a new name for the Slack app: the bot's handle,

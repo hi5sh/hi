@@ -81,6 +81,7 @@ Removing Strix Halo support keeps you in the `render` and `video` groups.
 | Terminal tools     | `terminal` | tmux, btop, timg                                          |
 | uv                 | `uv`       | uv                                                        |
 | GitHub CLI         | `gh`       | `gh`                                                      |
+| GitLab CLI         | `glab`     | `glab`, for apps whose project is on GitLab               |
 | Node.js            | `node`     | Node.js, npm                                              |
 | Bun                | `bun`      | `bun` and `bunx`, the latest release, checked against its sums |
 | Docker             | `docker`   | Docker Engine, Buildx, Docker Compose                     |

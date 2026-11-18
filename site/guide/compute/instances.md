@@ -15,13 +15,17 @@ hi compute up --gpu T4 --name box --max 2h
 
 | Option             | Meaning                                                       |
 |--------------------|---------------------------------------------------------------|
-| `--gpu <hardware>` | Hardware from `hi compute hardware`; default is the cheapest CPU |
+| `--on <provider>`  | `colab`, `hf`, `runpod`, or `shadeform`; see [Which provider is used](/guide/compute/#which-provider-is-used) |
+| `--gpu <hardware>` | Hardware from `hi compute hardware`; default is the cheapest CPU, or on Shadeform, which has no CPU machines, the cheapest free GPU |
 | `--name <name>`    | Name to use in later commands; generated if omitted           |
 | `--max <duration>` | Stop after this long: hours (`2`, `1.5`), `30m`, `2d`, or `none`; default `4h`, at most `24h` on Colab |
 | `--image <image>`  | Container image (Hugging Face, RunPod); on Hugging Face the default is `python:3.12` on CPU and `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel` on GPU |
 | `--high-mem`       | High-RAM machine for `cpu`, `T4`, or `A100` (Colab Pro)        |
 | `--namespace <ns>` | Bill this Hugging Face account                                |
 | `--data <org>/<name>` | Your team's data on the machine through the server (RunPod, Shadeform); see [On a machine you SSH into](/guide/data/#on-a-machine-you-ssh-into) |
+| `--yes`            | Skip the cost confirmation                                    |
+| `--dry-run`        | Show the command or request without starting anything         |
+| `--reason <text>`, `--no-wait` | For a provider a [server manages](/guide/compute/managed/): why you need it, and return while approval is pending |
 
 ## Open a shell
 

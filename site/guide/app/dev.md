@@ -85,13 +85,14 @@ pick files, and each is a pill where it went, **Image #1**, with a
 preview along the box's bottom; ✕, Backspace, or Delete takes it out.
 The task's text says `[image: image-1.png]` there, the name it has in
 the task's files. A note on a task takes pictures the same way.
-The task says which owner filed it. A task's title opens it: its
+The task says which owner filed it. A task's title opens it in the
+panel, and **View in full** in its ⋯ opens all of it: its
 whole text with its links, its files (pictures shown, the rest to open or
-download), its comments, and a note to add, with files of its own. The
+download), its comments, and a note to add, with files of its own. There, the
 task's ⋯ and each comment's copy it, quote it in a note, or edit it,
 as on GitHub; a comment's also deletes it, with the files it attached,
-and a file's ✕ removes it. An owner's delete can't be undone,
-and is logged with their name.
+and a file's ✕ removes it. A delete can't be undone,
+and is logged with the name of whoever made it.
 
 On the machine, `hi app task <app> ...` does the same.
 
@@ -139,7 +140,7 @@ hi dev incidents                    # what failed, and what hi recorded
 ### What Stage and production are doing
 
 The box reaches neither app's sign-in, and production moves only on
-Release, but its agents can see what's running, read-only, through the
+Publish, but its agents can see what's running, read-only, through the
 app's service:
 
 ```bash
@@ -298,7 +299,10 @@ site for what the work needs, and say no to one nobody can explain.
 a private link to the app's **dev page**, in a DM; their links from
 `/hi-<app>` have it too. They work for 14 days, and asking again ends the
 old ones. A developer's page has no Data view and none of the owners'
-buttons ([below](#owners-developers-and-contributors)).
+buttons ([below](#owners-developers-and-contributors)). When the machine
+sends email (`hi server mail`), a page whose link has ended also takes
+their email: hi sends a link and a six-digit code, each good once, for
+15 minutes.
 
 The page installs as an app of its own, named for the app, with hi5's
 icon: in Chrome or Edge, **Install** in the address bar or the menu (on
@@ -315,14 +319,15 @@ of it, as an editor's side bars, their views by the icons along their
 tops. The left has what goes into the app: **Tasks**,
 **Workspaces**, **Files**, **Search**, **Checks**, **Decisions**, and
 **Security**. The right has what comes out of it: **Rewind**, **Source
-control**, **Logs**, **Preview**, **Release**, **Data**, and
+control**, **Logs**, **Preview**, **Publish**, **Data**, and
 **System**. Each panel's inner edge drags it wider (a double click puts
 it back), its ✕ hides it, and the buttons at either end of the bar
 show and hide them; the page remembers each one's view, width, and
 whether it's shown. On a narrow screen they lie over the work, one at a
 time. An icon has a number for what's waiting: the open tasks, the
-workspaces, the changes to release, and the sites the dev box asked
-for; Checks and Logs have a dot.
+workspaces, the files changed (Source control), the changes to
+publish, and the sites the dev box asked for; Checks and Logs have a
+dot.
 
 - **Tasks:** the app's tasks: it opens on the task the chat's
   workspace was started for (its text, pictures, and comments, a note
@@ -335,7 +340,7 @@ for; Checks and Logs have a dot.
   last) and gives the task its branch (its number and a few words of its
   title), a worktree, and a herdr workspace, with the agent told to read
   it, and a note on the task saying who started it. Each workspace in
-  **Code** says who started it too. `hi app dev <app> start <task>
+  **Workspaces** says who started it too. `hi app dev <app> start <task>
   --agent claude` does the same on the machine. A task that has a workspace has **Open** instead;
   **+** files one.
   **Done ✓** closes a task once it's done: when its work is all in dev,
@@ -372,8 +377,11 @@ for; Checks and Logs have a dot.
   An agent also says where its work stands in a line of its own
   ("tests pass; waiting for the API key", `hi dev note`), on its
   workspace and in Needs you.
-- **Production and Stage** (the globe in the top bar): opens either in
+- **Production and Preview** (the globe in the top bar): opens either in
   a new tab, with its address under its name.
+- **Who's here** (the pills in the top bar): one for each owner and
+  developer on the page now, as on the [admin
+  page](/guide/app/admin/).
 - **Vibe mode and Pro mode** (the sparkle in the top bar, beside the
   theme): how much of the page shows, each person's own choice, kept in
   their browser. Everyone starts in **Vibe**: Tasks and Workspaces on
@@ -560,8 +568,8 @@ for; Checks and Logs have a dot.
     channel, to its other developers (its owners, when it has none), with the
     details and the branch.
   - **Cancel.** Under them, **Details, for whoever helps** has what git
-    said. Other errors adding work open the same dialog, with Ask a Pro
-    Dev.
+    said. Other errors adding work open the same dialog, with **Ask
+    for help in Slack** and **Cancel**.
 
   ```
   Add to Preview             it joins the next version; the preview shows that
@@ -589,8 +597,8 @@ for; Checks and Logs have a dot.
     default; work an agent is still on, or with more to add, stays.
     Owners and developers publish; at the first, only an owner may
     **Start production with a copy of the preview's data**. **Clear
-    the preview (back to v15)** drops what was added since (see [Dev and
-    production](/guide/app/releases/)).
+    the preview (back to v15)**, an owner's, drops what was added since
+    (see [Dev and production](/guide/app/releases/)).
   - **Published versions**, each with **Roll back**, of the code, or the
     code and its data.
   - **Addresses** (owners): each address's internal link and whether
@@ -600,20 +608,20 @@ for; Checks and Logs have a dot.
 - **Data:** production's data and Stage's side by side: how much
   each holds, when it was last written, and what Stage's is a copy
   of. Then what you can do with them:
-  - **Copy production's data to Stage**, a fresh copy now; what
+  - **Copy production's data to the preview**, a fresh copy now; what
     Stage wrote itself is kept once, apart.
-  - **Copy Stage's data to production**, with a snapshot of
+  - **Copy the preview's data to production**, with a snapshot of
     production's first.
   - **Take a snapshot now**, and the newest snapshots. Putting the app
     back as it was in one is an admin's, on the machine:
     `hi app restore <app> <snapshot>`.
-  - **Start Stage empty at every release**, for an app whose
+  - **Start the preview empty at each publish**, for an app whose
     people's data Stage shouldn't show.
 - **System:** what production runs, what dev has, Stage, backups,
   incidents, and jobs, and what an owner decides:
   - **Incidents**, each open one with **Restart** and **Close** (see
     [When something goes wrong](/guide/app/incidents/)).
-  - **The helper**, **On Stage** and **In production**.
+  - **The helper**, **On the preview** and **In production**.
   - **Rules for the app's jobs**, added and removed.
 
   Each click is the yes, logged with your name.
@@ -883,7 +891,7 @@ ssh then warns once that it changed.
 | `hi dev brainstorm <question file\|->` | In the box: several agents' ideas (also `list`, `show`, `stop`) |
 | `hi dev agy "<task>" [--file <path>]...` | In the box: Google's Antigravity makes images, media, or research on the machine, into `~/hi/agy/<id>/` (also `show`) |
 | `hi dev data [fork]` | In the box: the app's data; a new fork for Stage |
-| `hi dev settings [KEY=VALUE\|--unset KEY]` | In the box: the settings' names; Stage's own values |
+| `hi dev settings [KEY=VALUE\|KEY\|--unset KEY]` | In the box: the settings' names; Stage's own values (`KEY` alone takes the value from stdin) |
 | `hi dev incidents [<id>]` | In the box: incidents and what hi recorded |
 | `hi dev logs [stage\|production] [--lines N] [--since 30m] [--grep text]` | In the box: the app's own output, production by default, its settings' values masked |
 | `hi dev jobs [stage\|production]` | In the box: the app's jobs and workers |

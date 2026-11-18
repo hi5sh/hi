@@ -34,7 +34,7 @@ The owners pick tasks up in the app's [dev box](/guide/app/dev/), with
 Claude Code or Codex. Their agent builds the change on a branch of its
 own, puts it on Stage with `hi dev preview`, and takes it into dev
 with `hi dev ship`. Production moves only when an owner or a
-developer clicks **Release** on the dev page.
+developer clicks **Publish** on the dev page.
 
 When someone asks how far something is, the lead answers from the
 tasks and the versions (`hi app versions` in its box): filed, started,

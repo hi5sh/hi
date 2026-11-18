@@ -57,6 +57,7 @@ hi server openrouter --management-key      # asked without echo; made at openrou
 hi app key payments openrouter --managed   # a key of its own, made by hi
 hi app key payments openrouter --rotate    # a new one; the old one is deleted
 hi server openrouter                       # the keys hi made, and what OpenRouter counts on each
+hi server openrouter --forget              # forget the management key; the keys hi made stay
 ```
 
 The management key can't make model calls, so no box ever needs it. A

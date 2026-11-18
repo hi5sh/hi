@@ -41,6 +41,7 @@ fix, or touches sign-in, payments, or people's data.
 hi dev deep-review --budget 20                 # the whole project, as dev has it
 hi dev deep-review --budget 20 --area security,correctness
 hi dev deep-review --budget 20 --since v3      # what changed since a release
+hi dev deep-review --budget 20 --version v3    # the project as v3 was released, not dev
 echo "Only the three owners use it; it holds bank details." | hi dev deep-review --budget 20 --context -
 hi dev deep-review list
 hi dev deep-review show r-4                    # how far it is

@@ -34,7 +34,7 @@ for music, video, or deep research, which it runs in the background so
 you can talk to it meanwhile. What it made lands in the box's `~/hi/agy/<id>/`, with Antigravity's
 summary. The agent looks at it, puts what you keep into the project, and
 commits it with the work. Files it's given with `--file` come from the
-box's home or the clone, up to 20.
+box's home or the clone, up to 20, and 200 MB together.
 
 ## In the channel
 
@@ -45,8 +45,8 @@ The lead can do it for the people in a thread, once they say yes:
 > **Anna:** yes please
 
 The thread's files go with the run, so "what does this PDF say about
-notice periods?" works on the PDF someone shared. hi posts what it made in
-the thread and wakes the lead there to say what it is. Only someone with a
+notice periods?" works on the PDF someone shared. hi posts what it made
+(up to 10 files) in the thread and wakes the lead there to say what it is. Only someone with a
 level in the team (a contributor, a developer, or an owner) can have it
 run. Everything it made is also in the app's folder, under `agy/<id>/`.
 

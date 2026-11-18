@@ -271,7 +271,7 @@ func appSigninAgy(config appConfig, args []string, stdout io.Writer) error {
 	if sign == nil {
 		fmt.Fprintf(stdout, "App %s has no agy sign-in now: its dev box loses agy and Google's agy sites at the app's next start.\n", config.Name)
 	} else {
-		fmt.Fprintf(stdout, "App %s's dev box runs agy as %s from the app's next start (hi app restart %s, or hi update --restart); its agents start it with agy.\n", config.Name, firstNonEmpty(sign.Email, "that account"), config.Name)
+		fmt.Fprintf(stdout, "App %s's dev box runs agy as %s from the app's next start (hi app up %s, or hi update --restart); its agents start it with agy.\n", config.Name, firstNonEmpty(sign.Email, "that account"), config.Name)
 	}
 	return nil
 }

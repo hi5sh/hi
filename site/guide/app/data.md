@@ -80,15 +80,17 @@ hi app env payments --stage MAIL_URL              # Stage's own value, such as a
 hi app limit payments stage 10                    # what Stage's model calls may cost a day
 ```
 
-- **A new fork** comes at every release, and whenever someone asks. A
-  plain deploy to Stage keeps the fork it has, so what people entered while
-  trying a version stays until the next release. Stage's box stops
+- **A new fork** comes at every release, whenever someone asks, and
+  when `hi dev preview` puts new work on Stage while its fork is over an
+  hour old. Any other deploy to Stage keeps the fork it has, so what
+  people entered while trying a version stays. Stage's box stops
   for a few seconds at each deploy, since two boxes mustn't write to one
   overlay.
 - **A copy to production** is an owner's click in the dev page's Data
-  tab, **Copy Stage's data to production**, or an admin's
+  tab, **Copy the preview's data to production** (the page calls Stage
+  the preview), or an admin's
   `hi app data copy` on the machine. The same tab has **Copy
-  production's data to Stage**, a fresh fork now, and **Take a
+  production's data to the preview**, a fresh fork now, and **Take a
   snapshot now**. hi snapshots production's data first, and it is posted
   in the channel. It is for a Stage that gathered data before
   production existed: release first, then copy.

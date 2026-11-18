@@ -253,10 +253,12 @@ starts the server as a user service, `hi-server.service`, and the [admin
 page](/guide/app/admin/) beside it, `hi-admin.service`, where the owner and
 the admins run the server and the machine's apps; it prints your link.
 `--local` puts the page on 127.0.0.1 only, `--netbird <setup key file>` on
-a NetBird peer of its own. It keeps its state, audit log, and provider keys in
-`~/.local/state/hi/org`, readable only by the account it runs as. Change
-that with `--dir` or `HI_ORG_DIR`; with `--dir` it prints the service
-instead of starting it. (Every port and policy: [Networking](/guide/reference/network/).) On a machine that doesn't keep the account's
+a NetBird peer of its own. It keeps its state and audit log in
+`~/.local/state/hi/org`, readable only by the account it runs as, and its
+provider keys and tokens in [the vault](/guide/reference/vault/),
+encrypted on disk. Change the folder with `--dir` or `HI_ORG_DIR`; with
+`--dir` it prints the service instead of starting it, and its keys stay
+in that folder's `keys.json`. (Every port and policy: [Networking](/guide/reference/network/).) On a machine that doesn't keep the account's
 services running without a login, it says the one command to change that
 (`sudo loginctl enable-linger <user>`).
 
@@ -404,7 +406,7 @@ an outbound connection, so the server needs no public address.
    approves.
 
 5. Restart the server: `systemctl --user restart hi-server`, or **Restart** on
-   the admin page (the server's card).
+   the admin page (the server's Overview).
 
 An app made before hi 2.6.57 is called *hi compute*. It works as it is; to
 rename it, change its name and the bot's display name under **App Home** at
@@ -449,6 +451,10 @@ hi server policy edit                         # opens $EDITOR, checks, saves
 hi server policy show
 hi server policy check                        # checks policy.json without changing it
 ```
+
+On the [admin page](/guide/app/admin/), the server's **Budgets and
+approval** is the same policy as a form, with each group's spend this
+month.
 
 | Setting                     | Meaning                                                   |
 |-----------------------------|-----------------------------------------------------------|
@@ -544,7 +550,8 @@ hi server templates remove private
 - Use a fine-grained GitHub token limited to that one repository with
   read access to contents: on GitHub, Settings → Developer settings →
   Personal access tokens → Fine-grained tokens, with the organization as
-  resource owner. It stays in the server's `keys.json`. An `ssh://` or
+  resource owner. It stays on the server, in its
+  [vault](/guide/reference/vault/). An `ssh://` or
   `git@` URL uses the server account's SSH key instead, such as a deploy key,
   where the organization allows them.
 - When the token expires, fetching fails and the channel gets an alert, but
@@ -576,7 +583,7 @@ hi server data test|remove <hf-org>
 ```
 
 - Use a fine-grained, read-only token limited to the organizations. It
-  stays in `keys.json`; the proxy passes on only reads, but a read-only
+  stays on the server, in its vault; the proxy passes on only reads, but a read-only
   token is safer if the box is ever compromised. The sign-in that
   `hf auth login` saves works too, but it can do everything the account
   can, so hi warns about it as it does about a write token. `list` and

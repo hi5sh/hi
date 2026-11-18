@@ -54,6 +54,7 @@ hi data            Download your team's Hugging Face datasets, models, and bucke
 hi agent [task]    Hand a task to Claude Code, Codex, Hermes, or Antigravity in a box and get its report (hi agent help)
 hi agent brainstorm <question>  Several agents give ideas alone; one compiles them into a proposal
 hi agent best-of <n> <task>  The same task in n boxes, checked and ranked; --score runs rounds that keep only gains
+hi agent review [folder]  Agents review a whole repository and a second agent checks each finding; recommendations, never changes
 hi box shell       Run a shell or a command in a rootless box (hi box help)
 hi server          The hi server your machines and people join: approvals and spend, shared keys, templates and data (hi server help)
 hi app new <name>  Set up an app in a Slack channel, with a lead and a dev box; hi app up starts it (hi app help)
@@ -61,6 +62,7 @@ hi app dev <name>  The app's dev box, where its owners build with agents over SS
 hi app owners <name>  The app's owners and their SSH keys
 hi app key <name> openrouter  The app's own OpenRouter key; hi app env <name> KEY=VALUE gives it settings
 hi app snapshots <name>  The app's daily and pre-release snapshots; hi app restore <name> <snapshot> puts it back
+hi people          Everyone on this machine, by email, with their level in each app (hi people help)
 hi bundle ls       Bundles of skills and tools for hi agent --bundle
 hi q [request]     Ask an AI model for a shell command, or chat with it (hi q --setup first)
 hi skills          Find, install, and update agent skills from skills.sh; hi skill add hi teaches agents hi
@@ -457,8 +459,11 @@ under the name in brackets for `hi install <tool>` and `hi uninstall <tool>`:
 - [Node.js](https://nodejs.org) and npm [`node`]
 - [Bun](https://bun.com), in `~/.local/bin` [`bun`]
 - [GitHub CLI](https://cli.github.com) [`gh`]
+- [GitLab CLI](https://gitlab.com/gitlab-org/cli) [`glab`], for apps whose project is on GitLab
 - [Docker Engine](https://docs.docker.com/engine/) and Docker Compose [`docker`]
 - [Podman](https://podman.io), rootless, with `crun` [`podman`]
+- Start at boot [`linger`]: your services, hi's apps among them, run after
+  you log out and start at boot (`loginctl enable-linger`)
 - [restic](https://restic.net), for `hi app`'s snapshots [`restic`]
 - [NetBird](https://netbird.io) [`netbird`]
 - [btop](https://github.com/aristocratos/btop),
@@ -492,7 +497,7 @@ The repository:
 | Folder | What it holds |
 |---|---|
 | `cmd/hi/` | The `hi` command; it only calls `internal/cli`. |
-| `internal/cli/` | hi itself, one Go package, a file or a few per command (`box*.go`, `team_*.go`, ...). |
+| `internal/cli/` | hi itself, one Go package, a file or a few per command (`box*.go`, `app_*.go`, ...). |
 | `embed.go` | The files the binary carries, embedded from the folders below. |
 | `templates/`, `skills/`, `bundles/`, `recipes/` | Project templates, the hi skill, skill bundles, and `hi serve`'s recipes. |
 | `helper/` | The app pages' scripts and styles, and the lead's Hermes plugin. |

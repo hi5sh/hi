@@ -1,6 +1,6 @@
 ---
 name: hi
-description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through your hi server (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and apps in Slack (hi app, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for local model serving or cloud infrastructure management.
+description: Use the hi CLI to run work on rented remote machines (Google Colab, Hugging Face Jobs, RunPod, Shadeform): run a script or container on a GPU, start an SSH-able GPU box, forward ports, serve a GGUF model with an OpenAI-compatible API, check what is running, and stop it. Also covers your team's private Hugging Face datasets, models, and buckets through your hi server (hi data, and --data on runs and boxes), sharing a local service on a temporary public address (hi net expose), handing a task to another coding agent (hi agent), new projects from templates (hi init), workstation setup (hi install, hi verify strix), NetBird (hi net), and apps in Slack (hi app, hi dev). Use when the user wants to train, evaluate, or test on a GPU they do not have locally, try or serve an LLM remotely, see or stop remote compute, get your team's data or models, show a local web app or receive a webhook, get a second opinion from another agent, or set up a hi5 machine. Not for cloud infrastructure management.
 ---
 
 # hi
@@ -69,8 +69,8 @@ and `stop`, but not `run`. Shadeform rents virtual machines from many clouds:
 `h100` is the cheapest free H100 on any of them, `h100@lambdalabs` pins a
 cloud, and like RunPod it supports `up`, `ssh`, `tunnel`, and `stop` but not
 `run`. Its machines boot in 3-8 minutes.
-When both providers are signed in, the hardware name picks the provider;
-otherwise pass `--on colab`, `--on hf`, or `--on runpod`.
+When several providers are signed in, the hardware name picks the provider;
+otherwise pass `--on colab`, `--on hf`, `--on runpod`, or `--on shadeform`.
 
 `hi compute billing` shows which Hugging Face account pays (the user's own if
 it can pay, otherwise their only organization that can) and the Colab
@@ -464,7 +464,7 @@ it only when the user asks, and say what it changes first.
 Inside an app's dev box, use `hi dev` instead (`hi dev help`), and the
 box's own `hi-dev-*` skills: `hi dev preview`, `hi dev ship`, `hi dev
 task`, and `hi dev allow <site> --why "<what for>"` for a site the proxy
-refuses. Production moves only when an owner or a developer clicks Release on
+refuses. Production moves only when an owner or a developer clicks Publish on
 the dev page; tell them that, rather than looking for another way.
 
 ## Workstation and network

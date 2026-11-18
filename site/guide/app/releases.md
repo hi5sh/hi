@@ -19,9 +19,10 @@ the work is built, Stage, and production, each with its own data. See
 
 ## Release
 
-In the dev page's Release view, **Release v4** shows in Production's row
-when dev has work production hasn't. It opens the release notes, drafted from dev's changes; edit them
-in the people's words and click Release. hi takes a snapshot, moves
+In the dev page's Publish panel, **Publish v4** shows under the Preview
+when dev has work production hasn't (the page calls Stage the Preview,
+and a release publishing). It opens the release notes, drafted from dev's changes; edit them
+in the people's words and click Publish. hi takes a snapshot, moves
 production, gives Stage a new fork of production's data, and posts
 one line in the channel, with the notes, who released it, and the work it
 brings in its thread:
@@ -32,12 +33,12 @@ Owners and developers release (Publish, on the dev page). The click is their yes
 as "Anna on the dev page" in the versions and the announcement. Work
 shipped into dev doesn't reach the channel; their agent says what it wants
 to with `hi dev say`. At the first release, only an owner can tick
-**Start production with a copy of Stage's data**; a developer's first
+**Start production with a copy of the preview's data**; a developer's first
 release starts it empty. Going back is the owners'.
 
 ## Going back
 
-The dev page lists the releases. Each one production can go back to has
+The dev page lists the releases, under Published versions. Each one production can go back to has
 **Roll back to v3**, which puts back v3's code and keeps production's data
 as it is, and, when hi kept production's data as v3 left it, **…and its
 data**, which puts that back too. hi snapshots production first, and the
@@ -45,7 +46,7 @@ channel gets "PROD back on v3". See [Rollback](/guide/app/folder/#rollback)
 for which to choose.
 
 When the owners want everything in dev since the last release gone,
-**Set dev back to production**, beside Release, sets dev's code back to what production
+**Clear the preview (back to v3)**, beside Publish, sets dev's code back to what production
 runs. What dev had stays in the project's history, and Stage shows
 production's code.
 

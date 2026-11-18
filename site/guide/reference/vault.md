@@ -179,8 +179,10 @@ key. One key then serves every app that uses it, and one change reaches
 them all; OpenRouter counts their spend together. A new value
 reaches every app that uses it within a minute, as any change does.
 Taken back (`give … --take`), the app's boxes no longer get it. It can't
-be removed while an app uses it. The admin page's Keys lists each one,
-the apps given it, and the apps that use it. `hi app move` takes the
+be removed while an app uses it. The admin page's Vault tab lists each
+one under **Shared keys**, with the apps it's shared to and the apps that
+use it, and **New Share**, **Shared to**, **Change value**, and
+**Remove**; the left panel's Keys says which key each app uses. `hi app move` takes the
 shared keys an app uses along: a machine that doesn't have one gets it,
 given to that app alone.
 

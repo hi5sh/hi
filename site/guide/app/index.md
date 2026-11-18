@@ -31,18 +31,19 @@ own data, all on the app's one machine:
 |---|---|---|
 | **The lead** | Hermes, in the channel | Its memory, in `lead/` and `memory/` |
 | **The dev box** | Where the owners build, with the project, Claude Code, Codex, and herdr, over SSH or from the dev page | Its home, in `dev/` |
-| **Stage** | The `dev` branch, or a branch put up with `hi dev preview`, on Stage's link | A fork of production's data, renewed at each release |
+| **Stage** | Dev, or a branch put up with `hi dev preview`, on Stage's link | A fork of production's data, renewed at each release |
 | **Production** | The last release, on the app's link | `app/`, which only production writes |
 
-- **Dev** is also the name of a branch: `hi dev ship` takes work from
-  the dev box into the `dev` branch, and Stage runs it. Production is the
-  `production` branch, and it moves only at a Release.
+- **Dev** is also a branch, the project's main one (`main` in a new
+  app): `hi dev ship` takes work from the dev box into it, and Stage
+  runs it. Production is the `production` branch, and it moves only at
+  a release.
 - **The dev box can't touch production.** Its connection to the app's
   service has no command to release, roll back, restore, or change
   production's settings, and Stage never writes production's data.
 - **They share the machine and the app's folder.** A snapshot takes them
   all together, and when the machine is down, so is each box. To move
-  the app, the whole folder moves.
+  the app, the whole folder moves (`hi app move`).
 - **A release starts a new production box** beside the old one, on the
   same data, and moves the link to it once it answers. See
   [Dev and production](/guide/app/releases/).
@@ -57,7 +58,9 @@ app sets its own.
 {% include diagram.html name="app" %}
 
 The lead's box and the dev box are the boundary: they hold no keys or
-sign-ins (hi's proxy adds the model keys on the way out), and the lead
+sign-ins (hi's proxy adds the model keys on the way out; the one
+exception is an [Antigravity](/guide/app/agy/) sign-in, which the dev
+box holds when the app has one), and the lead
 sees only the app's folder, with the project read-only. The dev box's
 agents work without asking before commands, but its connection to the
 app's service can't release, roll back, restore, or change production's

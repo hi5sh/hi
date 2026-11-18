@@ -135,8 +135,8 @@ Every minute hi reads production's jobs, and Stage's. It opens an
 - production's app stopped on its own (hi starts it again, and says how it
   ended and its last lines);
 - production's app hasn't answered for five minutes. hi asks `/` on its
-  box's port every minute, and any answer counts, a `503` while it starts
-  too. An app whose box runs but doesn't answer is often blocked by its own
+  box's port every minute, and any answer counts but a server error (a
+  `500` or a `503`). An app whose box runs but doesn't answer is often blocked by its own
   work, such as a job on the thread that serves requests, so hi leaves the
   box be and says which jobs it was running. The incident closes when the
   app answers again;
@@ -196,7 +196,7 @@ meanwhile.
 ## On the dev page
 
 Each open incident is on the owners' [dev page](/guide/app/dev/#the-dev-page),
-with **Restart production** (or **Restart Stage**, for Stage's), which
+with **Restart production** (or **Restart the preview**, for Stage's), which
 gives that app a new box, and **Close**, with why. Both are logged in the incident with the
 owner's name, as the lead's steps are.
 

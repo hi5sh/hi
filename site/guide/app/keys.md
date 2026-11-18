@@ -20,6 +20,11 @@ hi app key payments openrouter            # asked for; it shows as *
 hi app key payments openrouter --unset    # this machine's key again
 ```
 
+Instead of a key you paste, the app can use a key hi makes for it at
+OpenRouter (`--managed`, see [spend](/guide/app/spend/)), or a
+[shared key](/guide/reference/vault/#shared-keys) from the vault
+(`--from shared/<name>`).
+
 **The lead on a ChatGPT plan.** The lead can run on a ChatGPT plan the
 company already pays for, instead of OpenRouter by the token. `hi app new`
 asks who pays for it; for an app that exists:
@@ -97,7 +102,7 @@ never someone's personal one:
    ```sh
    hi app signin payments agy --file antigravity-oauth-token
    rm antigravity-oauth-token
-   hi app restart payments    # or the next hi update --restart
+   hi app up payments         # restarts it; or the next hi update --restart
    ```
 
 From then on the dev box has `agy`, the box reaches Google's agy sites,
@@ -119,7 +124,8 @@ channel or the bot's DM, without the machine:
   `claude setup-token`. The token never goes through Slack.
 
 Only owners may: a sign-in decides whose subscription pays. On the
-machine, `hi app signin payments chatgpt|claude` does the same.
+machine, `hi app signin payments chatgpt|claude` does the same, and so
+does [the admin page](/guide/app/admin/) for the machine's admins.
 
 **How hard the lead thinks.** The lead thinks at medium effort unless
 app.json says otherwise; hi passes it to Hermes (`reasoning_effort`),
@@ -232,8 +238,8 @@ new values; herdr's agents have them from the dev box's next start.
 
 Owners set them on the [dev page](/guide/app/dev/#the-dev-page) too,
 under Security, **The app's settings**: a name, a value that is never shown again (or a file), and where it
-goes: **Stage and production**, **Stage only**, **production only**,
-or **the dev box only**. In the dev box,
+goes: **The preview and production**, **The preview only** (Stage),
+**production only**, or **the dev box only**. In the dev box,
 `hi dev settings KEY=VALUE` sets only Stage's own value.
 
 The lead itself never joins your NetBird network: the machine runs the

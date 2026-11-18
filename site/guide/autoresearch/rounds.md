@@ -7,7 +7,7 @@ With `--score`, best-of runs rounds, in the style of Karpathy's
 [autoresearch](https://github.com/karpathy/autoresearch). Each round starts
 n boxes from the best result so far. hi scores every box itself, and commits
 the round's best only if it beats the best so far. The next round starts
-from there.
+from there. With `--score`, n can be 1: one box a round.
 
 ```sh
 hi agent best-of 4 --rounds 100 --gpu --edit train.py \
@@ -40,8 +40,8 @@ each box after the agent ends and takes **the last number it prints**.
   crash: it can't be kept. A round is `kept`, `discarded` (its best didn't
   beat the best so far), `rejected` (its best beat the score but lost on
   validation, with [`--validate`](/guide/autoresearch/validation/)),
-  `unchanged` (no box changed anything), or `crash` (no box had a usable
-  result).
+  `unchanged` (no box changed anything), `crash` (no box had a usable
+  result), or `stopped` (ended by `stop --now`).
 - `--check "<command>"` still works as a gate: a box that fails it isn't
   scored. With `--score` there is no check unless you give one.
 - The score runs under a time limit of twice the baseline's time plus a
@@ -89,7 +89,8 @@ round's boxes and scratch branches are removed when the round ends.
 Each round's task is yours plus what hi adds: the round, the score command
 and its direction, the best score so far, the check, the files they may
 change, and a table of every earlier attempt with its score, result, and
-one-line idea. Agents build on what worked and skip what didn't.
+one-line idea. Agents build on what worked and skip what didn't. A table
+longer than 60 rows keeps the baseline and the latest 59.
 
 ```text
 Earlier attempts, oldest first:
@@ -148,9 +149,9 @@ hi agent best-of show b-7 --json   # everything, for scripts and agents
 ```
 
 Leaving the view never stops the run; in the view, `s` stops it after the
-current round. On `resume`, `--rounds`, `--budget`, and `--for` count from
-where the run is. After a reboot, `resume` picks up a round whose boxes
-still exist.
+current round. On `resume`, `--rounds`, `--budget`, `--for`, and
+`--patience` count from where the run is, and `--then` replaces the run's
+command. After a reboot, `resume` picks up a round whose boxes still exist.
 
 ## One GPU, one score at a time
 
