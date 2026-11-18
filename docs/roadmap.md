@@ -6772,3 +6772,10 @@ preview and production listen, so the spec needs a network answer too.
   right with every view, the left panel's first), kept in the browser.
 - [x] The Publish panel's line runs through its dots.
 - [x] The Vibe and Pro button keeps its star in either mode.
+
+### v2.6.206 — Two panels, either way
+
+- [x] Panels has two kinds of two panels: **Chat left, panel right**,
+  and **Panel left, chat right**, the one panel with every view.
+- [x] The task view's ← is a grey button, the size of Done beside it.
+- [x] The Publish panel's dots are centred on its line.

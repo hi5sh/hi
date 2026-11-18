@@ -385,9 +385,10 @@ for; Checks and Logs have a dot.
   opens Security) shows it, until another is picked. It's a view, not a
   right: every developer has the terminal and SSH.
 - **Panels** (the columns icon, before the sparkle): **Three panels**,
-  the left panel, the chat, and the right panel; or **Two panels**, the
-  chat on the left and one panel on the right with every view, the left
-  panel's first. Each person's own, kept in their browser.
+  the left panel, the chat, and the right panel; or two panels, one
+  with every view, the left panel's first: **Chat left, panel right**,
+  or **Panel left, chat right**. Each person's own, kept in their
+  browser.
 - **Theme** (the half-filled circle in the top bar): Ghostty, the
   default, or Claude, Paseo, Zinc, Midnight, Pure black, Light, or Auto,
   which follows the computer's light or dark (Light, or Ghostty). This browser keeps it, for
