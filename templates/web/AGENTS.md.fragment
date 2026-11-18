@@ -8,6 +8,7 @@
   package is in `trustedDependencies` or on Bun's own vetted list; add a
   package there only when it can't work without its script. `make check`
   fails on a high or critical advisory (`bun audit`); `bun audit fix`
-  updates to a safe version.
+  updates to a safe version. An advisory with no fixed version yet is named
+  in the Makefile's `--ignore`, with why; take it out once a fix is out.
 - Code lives in `src/`, with tests next to the code as `*.test.tsx`.
 - Keep quant and data logic in a Python service, not in the browser.
