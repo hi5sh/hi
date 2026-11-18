@@ -6792,3 +6792,10 @@ preview and production listen, so the spec needs a network answer too.
   `hi server openrouter`, `hi server vault move`, and more.
 - [x] The `web` template's check passes again: the audit ignores
   picomatch's advisory, which no version fixes yet.
+
+### v2.6.208 — Start something new in the chat's box
+
+- [x] **Start something new** is the chat's own message box, where the
+  chat's is, with the agent to pick (Claude Code, Codex, Antigravity) in
+  place of the model, and the round send button; Enter sends.
+- [x] Sent, the chat it starts takes its place, the box where it was.
