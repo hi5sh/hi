@@ -93,6 +93,11 @@ Slack account that email has in the app's workspace. It works without
 email set up on the machine; someone with no Slack account there gets
 nothing.
 
+Both find you by your email, so the app's Slack app needs
+`users:read.email` for people the machine doesn't know by email yet.
+Without it, every answer on the page says so, and points at
+`/hi-<app> dev` in the channel for a link instead.
+
 The first time someone signs in by email, the app's ops channel hears
 it, with the address and the level, so an email typed wrong is noticed.
 hi sends at most three links in 15 minutes to one address.

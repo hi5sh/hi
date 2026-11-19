@@ -470,6 +470,34 @@ func TestDevPageSigninBySlack(t *testing.T) {
 		t.Fatal(dms())
 	}
 
+	// When the Slack app can't look people up by email, every answer says
+	// so, whoever is asked for, and points at the channel's command.
+	adminScopesCache.Lock()
+	adminScopesCache.missing["payments"], adminScopesCache.at["payments"] = []string{"users:read.email"}, time.Now()
+	adminScopesCache.Unlock()
+	t.Cleanup(func() {
+		adminScopesCache.Lock()
+		delete(adminScopesCache.missing, "payments")
+		delete(adminScopesCache.at, "payments")
+		adminScopesCache.Unlock()
+	})
+	var answers []string
+	for _, email := range []string{"olga@corp.example", "nobody@corp.example"} {
+		status, answer := appTestDevPageCall(t, handler, "", "POST", "api/email", map[string]string{"email": email, "via": "slack"})
+		var said map[string]string
+		json.Unmarshal([]byte(answer), &said)
+		if status != http.StatusOK || !strings.Contains(said["text"], "users:read.email") || !strings.Contains(said["text"], appSlashCommand("payments")+" dev in") {
+			t.Fatal(email, status, answer)
+		}
+		answers = append(answers, strings.ReplaceAll(said["text"], email, ""))
+	}
+	if answers[0] != answers[1] {
+		t.Fatal(answers)
+	}
+	for try := 0; try < 100 && len(dms()) < 2; try++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+
 	// Without Slack, it says so.
 	b.channel = nil
 	if status, answer := appTestDevPageCall(t, b.devPageHandler(), "", "POST", "api/email", map[string]string{"email": "olga@corp.example", "via": "slack"}); status != http.StatusServiceUnavailable {

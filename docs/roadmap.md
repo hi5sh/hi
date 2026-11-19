@@ -6890,3 +6890,15 @@ preview and production listen, so the spec needs a network answer too.
   NetBird peers, and names an IT team points at them), whose relays run
   in the app's service and kept their own list of hi's routes: v2.6.217
   had it only on addresses made public.
+
+### v2.6.219 — The sign-in page covers the panels, and says why no link came
+
+- [x] An ended link's sign-in page covers the whole dev page again. Since
+  v2.6.215 the side panels sat above it, so the page's bar seemed to
+  vanish a moment after loading, and the panels stayed on top of the
+  sign-in.
+- [x] Signing in by email or Slack says when the app's Slack app lacks
+  `users:read.email`: then only people the machine knows by email can,
+  and the page sent the rest nothing while it said a link was on its
+  way. Every answer says it, whatever the email, and points at
+  `/hi-<app> dev` in the channel; the log says why nothing was sent.

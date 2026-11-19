@@ -837,7 +837,7 @@ button.danger { color: var(--bad); }
   background: color-mix(in srgb, var(--bg) 88%, transparent); color: var(--text); gap: 12px; text-align: center; padding: 16px;
 }
 .locked {
-  position: fixed; inset: 0; background: var(--shell);
+  position: fixed; inset: 0; z-index: 90; background: var(--shell);
   display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; font-size: 16px;
 }
 .locked[hidden] { display: none; }

@@ -254,6 +254,10 @@ type mailSigninFlow struct {
 	// slack DMs a Slack account a sign-in's text; nil where the page has
 	// no Slack app to send it.
 	slack func(user, text string) error
+	// limit says, in every answer whatever the email, what keeps some
+	// people from signing in here; "" when nothing does. It says nothing
+	// of the email asked for.
+	limit func() string
 	log   func(format string, args ...any)
 }
 
@@ -324,7 +328,11 @@ func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		who, name := f.who(email)
 		if who == "" {
-			f.log("%s to %s for someone who may not: nothing sent", how, what)
+			why := ""
+			if f.limit != nil && f.limit() != "" {
+				why = " (or whom the machine doesn't know by email: the Slack app lacks users:read.email)"
+			}
+			f.log("%s to %s for someone who may not%s: nothing sent", how, what, why)
 			return
 		}
 		if bySlack && !slackIDPattern.MatchString(who) {
@@ -360,6 +368,11 @@ func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 	text := fmt.Sprintf("If %s may sign in here, a link and a code are on their way to it. They work for %d minutes.", email, int(mailSigninLasts.Minutes()))
 	if bySlack {
 		text = fmt.Sprintf("If %s may sign in here, a link and a code are on their way to its Slack account, in a DM from the app. They work for %d minutes.", email, int(mailSigninLasts.Minutes()))
+	}
+	if f.limit != nil {
+		if limit := f.limit(); limit != "" {
+			text += " " + limit
+		}
 	}
 	mailReply(w, http.StatusOK, map[string]string{"request": requestID, "text": text})
 }
@@ -491,13 +504,29 @@ func (b *appBroker) mailLog(format string, args ...any) {
 // mailSlack sends a sign-in in a DM from the app's Slack app; nil
 // without one.
 func (b *appBroker) mailSlack() func(user, text string) error {
-	if b.channel == nil {
+	channel := b.channel
+	if channel == nil {
 		return nil
 	}
 	return func(user, text string) error {
-		_, _, err := b.channel.dm(user, text)
+		_, _, err := channel.dm(user, text)
 		return err
 	}
+}
+
+// mailLimit is what an app's sign-in by email says when its Slack app
+// can't find people by their email: only those the machine knows by it
+// can sign in, until an owner adds the scope.
+func (b *appBroker) mailLimit(command string) func() string {
+	return func() string { return b.mailLimitText(command) }
+}
+
+func (b *appBroker) mailLimitText(command string) string {
+	config, err := loadTeam(b.team)
+	if err != nil || !adminLacksEmailScope(config) {
+		return ""
+	}
+	return fmt.Sprintf("Nothing came? This app's Slack app can't look people up by their email yet, so it only knows some people's. Type %s in the app's Slack channel for a link instead, and ask an owner to give the Slack app users:read.email.", command)
 }
 
 // devMailFlow is the dev page's sign-in by email, for owners and
@@ -537,6 +566,7 @@ func (b *appBroker) devMailFlow() mailSigninFlow {
 			return firstNonEmpty(appAddressLink(page.URL, appDevPagePrefix, url.Values{netExposeUserParam: {key.Key}}), appDevPagePrefix+"?"+netExposeUserParam+"="+key.Key), nil
 		},
 		slack: b.mailSlack(),
+		limit: b.mailLimit(appSlashCommand(b.team) + " dev"),
 		log:   b.mailLog,
 	}
 }
@@ -576,6 +606,7 @@ func (b *appBroker) slotMailFlow(slot string) mailSigninFlow {
 			return firstNonEmpty(appAddressLink(slotURL(), "/", url.Values{netExposeUserParam: {key.Key}}), "/?"+netExposeUserParam+"="+key.Key), nil
 		},
 		slack: b.mailSlack(),
+		limit: b.mailLimit(appSlashCommand(b.team)),
 		log:   b.mailLog,
 	}
 }
