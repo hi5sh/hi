@@ -6851,3 +6851,20 @@ preview and production listen, so the spec needs a network answer too.
 
 - [x] Beside the chat on a wide screen, both panels cast the shadow they
   have when they lie over it on a narrow one.
+
+### v2.6.216 — The agents know the web around the app
+
+- [x] `hi dev web`, in the dev box: where the people see the agent (the
+  dev page, its Chat, and its Preview), the app's addresses and how
+  they're reached, what each name points at and answers the machine
+  (an IT team's proxy, a sign-in, what it says about frames), and what
+  the dev page's Preview last couldn't show. The box can't open the
+  addresses itself, so an agent asked about "the view window" didn't
+  know what was meant.
+- [x] The `hi-dev-web` skill, and a line in the box's instructions: the
+  dev page's panels, the addresses, hi's relay and what may be in front
+  of it, and why a page won't show in the Preview.
+- [x] When an address sends the Preview's frame on to another name (a
+  sign-in in front of the app, most often), the dev page says where it
+  went and what to do, and tells `hi dev web`; a page opened before
+  the address changed says to reload.

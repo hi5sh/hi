@@ -38,6 +38,7 @@ The agents know it from their skills (below), so you can just ask them to
 hi dev preview              # the current branch on Stage, with production's data
 hi dev ship -m "Show the last day on the chart"   # into dev, and dev on Stage
 hi dev status               # what production runs, what dev has, Stage, backups, incidents
+hi dev web                  # the dev page, the addresses, and what is in front of them
 hi dev say "The chart has the last day now; try it on Stage"   # in the app's channel
 hi dev task list          # the app's tasks
 ```
@@ -169,7 +170,7 @@ admin's, on the machine.
 
 The box's agents get skills made for hi's apps, kept current by each new
 hi: `hi-dev-ship` (Stage and ship), `hi-dev-tasks`, `hi-dev-say`,
-`hi-dev-status`, `hi-dev-review`, `hi-dev-brainstorm`, `hi-dev-data`,
+`hi-dev-status`, `hi-dev-web` (the dev page, the addresses, and what is in front of them), `hi-dev-review`, `hi-dev-brainstorm`, `hi-dev-data`,
 `hi-dev-settings`, `hi-dev-incidents`, `hi-dev-agents` (the app's MCP
 server, for agents), `hi-dev-agy` (Antigravity), and herdr's own. For a project the
 app [adopted](/guide/app/adopt/), `hi-dev-survey` makes it run and maps
@@ -544,7 +545,11 @@ dot.
     panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
     gives it the whole screen, over the page's bar and the panel's
     icons, and **✕** or Esc puts it back. It loads again when something
-    new goes on Stage. An app that doesn't let other pages show it stays blank
+    new goes on Stage. When the address sends it on to another name,
+    such as a sign-in your IT team's proxy puts in front of the app, the
+    page can't show that inside itself and says where it went: open it
+    with **↗**, sign in, then **↻**. The agents see it too, with
+    `hi dev web`. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it. It opens on Stage. Beside the drop-down,
     one button takes the work along: **Merge N changes into preview**
     while work waits, then **Publish vN** once it's all on Stage, which
@@ -888,6 +893,7 @@ ssh then warns once that it changed.
 | `hi dev preview [<branch>\|--dev]` | In the box: a branch on Stage; `--dev` puts dev back on it |
 | `hi dev ship [<branch>] [-m <title>]` | In the box: a branch into dev |
 | `hi dev status` | In the box: what runs where |
+| `hi dev web` | In the box: where the people see the agent (the dev page and its Preview), the addresses, what each name points at and answers the machine, and what the Preview couldn't show |
 | `hi dev say [--thread <ts>] <text\|->` | In the box: a message in the app's channel |
 | `hi dev note "<a line>"` \| `--clear` | In the box: the agent's line on where its workspace's work stands, on the dev page and in Needs you, until the next |
 | `hi dev allow <site> --why <what for> [--wait]` | In the box: ask the owners for a site the proxy refused; alone, what's allowed and refused |

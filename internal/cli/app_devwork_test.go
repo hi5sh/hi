@@ -259,7 +259,7 @@ func TestTeamDevKit(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(home, ".claude", "skills", "hi-dev-tickets")); err == nil || fileExists(filepath.Join(home, ".agents", "skills", "hi-dev-tickets")) {
 		t.Fatal("the old tickets skill is still there")
 	}
-	for _, name := range []string{"hi-dev-ship", "hi-dev-tasks", "hi-dev-say", "hi-dev-status", "hi-dev-review", "hi-dev-brainstorm", "hi-dev-data", "hi-dev-settings", "hi-dev-incidents", "hi-dev-survey", "hi-dev-upstream", "hi-dev-agents"} {
+	for _, name := range []string{"hi-dev-ship", "hi-dev-tasks", "hi-dev-say", "hi-dev-status", "hi-dev-review", "hi-dev-brainstorm", "hi-dev-data", "hi-dev-settings", "hi-dev-incidents", "hi-dev-survey", "hi-dev-upstream", "hi-dev-agents", "hi-dev-web"} {
 		data, err := os.ReadFile(filepath.Join(home, ".claude", "skills", name, "SKILL.md"))
 		if err != nil || !strings.Contains(string(data), "name: "+name) {
 			t.Fatal(name, err)

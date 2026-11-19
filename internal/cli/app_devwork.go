@@ -387,6 +387,12 @@ func (b *appBroker) devHandler() http.Handler {
 		status, err := b.devStatus()
 		reply(w, status, err)
 	})
+	mux.HandleFunc("GET /web", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+		view, err := b.devWeb(ctx)
+		reply(w, view, err)
+	})
 	mux.HandleFunc("POST /preview", func(w http.ResponseWriter, r *http.Request) {
 		var request appDevShipRequest
 		if err := decode(r, &request); err != nil {
@@ -484,6 +490,8 @@ const appDevUsage = `hi dev is how the dev box works with the rest of the app. I
 
   hi dev status                     production's and dev's versions, what dev has, the preview,
                                     backups, open incidents, the app's jobs
+  hi dev web                        where the people see you and the app: the dev page, the
+                                    addresses, what is in front of them, what the Preview couldn't show
   hi dev preview [<branch>]         put the branch (the current one by default) on the app's preview,
                                     with a fresh copy of production's data when it is new work there
   hi dev preview --dev              dev on the preview again, after a branch was tried there
@@ -577,6 +585,13 @@ func appDevClient(args []string, stdin io.Reader, stdout io.Writer) error {
 			return err
 		}
 		printTeamDevStatus(status, stdout)
+		return nil
+	case "web":
+		var view appDevWebView
+		if err := call("GET", "/web", nil, &view); err != nil {
+			return err
+		}
+		printTeamDevWeb(view, time.Now(), stdout)
 		return nil
 	case "preview":
 		if len(rest) > 1 {

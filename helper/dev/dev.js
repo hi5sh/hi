@@ -4643,7 +4643,7 @@
   // ---- Preview: Stage or production, in the panel, on its own address.
   // The preview first, each time the page opens; production after a
   // publish, to see what went out.
-  var preview = { slot: "preview", url: "", label: "" };
+  var preview = { slot: "preview", url: "", label: "", blocked: "", stale: false };
   function previewShown() { return viewShown("preview"); }
   function showPreviewSlot(id) {
     preview.slot = id;
@@ -4677,14 +4677,39 @@
       return;
     }
     $("preview-open").href = slot.url;
-    $("preview-note").textContent = "";
     // A new release, or another branch on Stage, loads again.
     if (again || preview.url !== slot.url || preview.label !== slot.label) {
       preview.url = slot.url;
       preview.label = slot.label;
+      preview.blocked = "";
+      preview.stale = false;
       frame.src = slot.url;
     }
+    $("preview-note").textContent = preview.stale ? staleWords : preview.blocked ? blockedWords(slot.url, preview.blocked) : "";
   }
+  // The frame sent on to an origin the page doesn't frame: the address's
+  // own sign-in, most likely (an IT team's proxy in front of hi). The page
+  // says so, and hi dev web tells the agent.
+  var staleWords = "This address is newer than the dev page you have open: reload the page to show it here.";
+  function hostOf(url) { try { return new URL(url).host; } catch (e) { return url; } }
+  function blockedWords(from, to) {
+    return hostOf(from) + " sent the frame on to " + hostOf(to) + ", which the dev page doesn't show inside itself: most likely a sign-in in front of the app. Open it with ↗ and sign in there, then ↻ here. If it still doesn't show, that sign-in keeps the app out of frames, and ↗ is the way to see it.";
+  }
+  document.addEventListener("securitypolicyviolation", function (event) {
+    if (!/^(frame-src|child-src)/.test(event.violatedDirective) || !preview.url || !event.blockedURI) return;
+    var to;
+    try { to = new URL(event.blockedURI).origin; } catch (e) { return; }
+    if (to === "null" || preview.blocked === to) return;
+    if (to === new URL(preview.url).origin) {
+      // The page came before the address: what it may frame is from then.
+      preview.stale = true;
+      $("preview-note").textContent = staleWords;
+      return;
+    }
+    preview.blocked = to;
+    $("preview-note").textContent = blockedWords(preview.url, to);
+    api("POST", "preview/blocked", { slot: preview.slot, to: to }).catch(function () {});
+  });
   $("preview-slot").addEventListener("change", function () {
     preview.slot = $("preview-slot").value;
     loadPreview(true);

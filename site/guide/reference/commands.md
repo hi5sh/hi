@@ -395,6 +395,7 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app access <name> key <member ID>\|<email> <public key>\|--remove` | A developer's or owner's SSH key for the dev box |
 | `hi app task <name> [list [--closed]\|show <n>\|add <title> [<body\|->]\|comment <n> <text\|->\|edit <n> [--title <t>] <body\|->\|close <n> [<comment>]\|files <n>]` | The app's tasks: GitHub Issues (`gh`), GitLab issues (`glab`), where its repository is, or hi's own; `--attach <file>` with `add` or `comment` |
 | `hi dev preview\|ship\|status\|say\|task\|allow` | In an app's dev box: put a branch on the preview, ship it into dev, see what runs where, post in the channel, the tasks, and ask the owners for a site the proxy refused; see [Build in the dev box](/guide/app/dev/) |
+| `hi dev web` | In an app's dev box: the dev page the people see the agent on, the app's addresses, what is in front of each, as the machine sees it, and what the dev page's Preview couldn't show |
 | `hi dev review\|deep-review\|brainstorm` | In an app's dev box: a second opinion from the other agent, a multi-agent review of the project, or several agents' ideas |
 | `hi dev data\|settings\|incidents` | In an app's dev box: the app's data and a new fork for the preview, the settings' names and the preview's own values, what hi recorded about incidents |
 | `hi dev note "<a line>" \| --clear` | In an app's dev box: where this workspace's work stands, on the dev page and in Needs you, until the next |

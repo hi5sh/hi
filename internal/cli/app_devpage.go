@@ -1522,6 +1522,25 @@ func (b *appBroker) devPageHandler() http.Handler {
 		}
 		reply(w, http.StatusOK, map[string]string{"text": "Dev is on the preview again: " + firstNonEmpty(state.URL, "(no address yet)")})
 	})
+	// The Preview's frame was sent on to an origin the page doesn't frame
+	// (a sign-in in front of the app, most likely): kept for hi dev web.
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/preview/blocked", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		var request struct {
+			Slot string `json:"slot"`
+			To   string `json:"to"`
+		}
+		if !decode(w, r, &request) {
+			return
+		}
+		if err := b.devFrameBlocked(request.Slot, request.To); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{})
+	})
 	// Ship and Preview, beside a piece of work: what hi dev ship and hi dev
 	// preview do in the box, by an owner's click.
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/ship", func(w http.ResponseWriter, r *http.Request) {
