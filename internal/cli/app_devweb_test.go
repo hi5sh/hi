@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,6 +128,45 @@ func TestTeamDevWebTold(t *testing.T) {
 	}
 	data, err := appDevSkills.ReadFile("skills/hi/app/hi-dev-web/SKILL.md")
 	if err != nil || !strings.Contains(string(data), "name: hi-dev-web") || !strings.Contains(string(data), "hi dev web") {
+		t.Fatal(err)
+	}
+}
+
+// /__hi/return/ on the app's addresses sends the browser back after a
+// sign-in in front of them: only to the app's own addresses, always on,
+// the helper or not.
+func TestTeamReturnToPage(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	write := func(slot, address string) {
+		data, _ := json.Marshal(appPreview{URL: address})
+		os.MkdirAll(filepath.Dir(appSlotPath("payments", slot)), 0o700)
+		os.WriteFile(appSlotPath("payments", slot), data, 0o600)
+	}
+	write(appSlotProduction, "https://payments.corp.example/")
+	write(appSlotPreview, "https://stage.payments.corp.example/")
+	data, _ := json.Marshal(appDevPageState{URL: "https://dev.payments.corp.example/?hi_key=addresskey", Expires: time.Now().Add(time.Hour)})
+	os.MkdirAll(filepath.Dir(appDevPageStatePath("payments")), 0o700)
+	os.WriteFile(appDevPageStatePath("payments"), data, 0o600)
+	handler := b.webHandler(appSlotProduction)
+	visit := func(to string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest("GET", appReturnPrefix+"?to="+url.QueryEscape(to), nil))
+		return recorder
+	}
+	for _, to := range []string{"https://dev.payments.corp.example/__hi/dev/", "https://stage.payments.corp.example/__hi/return/?to=https%3A%2F%2Fdev.payments.corp.example%2F__hi%2Fdev%2F"} {
+		if got := visit(to); got.Code != http.StatusSeeOther || got.Header().Get("Location") != to {
+			t.Fatal(to, got.Code, got.Header())
+		}
+	}
+	for _, to := range []string{"https://evil.example/", "https://dev.payments.corp.example.evil.example/", "javascript:alert(1)", "//evil.example/", "https://user@dev.payments.corp.example/", ""} {
+		if got := visit(to); got.Code != http.StatusBadRequest {
+			t.Fatal(to, got.Code, got.Header())
+		}
+	}
+	if args := strings.Join(appExposeHelperArgs("payments", appSlotProduction), " "); !strings.Contains(args, "--route-always "+appReturnPrefix+"=unix:") {
+		t.Fatal(args)
+	}
+	if _, _, err := parseNetExpose(append([]string{"8080", "--link"}, appExposeHelperArgs("payments", appSlotProduction)...)); err != nil {
 		t.Fatal(err)
 	}
 }

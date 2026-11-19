@@ -130,6 +130,7 @@ func appExposeHelperArgs(team, slot string) []string {
 		"--route-always", appDocsPrefix + "=unix:" + appWebSocket(team, slot),
 		"--route-always", appLLMsPath + "=unix:" + appWebSocket(team, slot),
 		"--route-always", appLLMsFullPath + "=unix:" + appWebSocket(team, slot),
+		"--route-always", appReturnPrefix + "=unix:" + appWebSocket(team, slot),
 		"--inject", appHelperPrefix + "helper.js",
 		"--inject-if", appHelperFile(team, slot),
 		"--sso", appSSOFile(team)}
@@ -484,6 +485,8 @@ func (b *appBroker) webHandler(slot string) http.Handler {
 	mux.HandleFunc("POST "+appHelperPrefix+"signin/{id}", b.claudeSigninPage)
 	// Signing in by email, for the people with a level (hi_people.md).
 	mailRoutes(mux, appHelperPrefix, b.slotMailFlow(slot))
+	// Back to the dev page, after a sign-in in front of the address.
+	mux.HandleFunc("GET "+appReturnPrefix, b.returnToPage)
 	mux.HandleFunc("GET "+appHelperPrefix+"helper.js", func(w http.ResponseWriter, r *http.Request) {
 		etag := `"` + appHelperVersion() + `"`
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")

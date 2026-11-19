@@ -259,9 +259,10 @@ func printTeamDevWeb(view appDevWebView, now time.Time, w io.Writer) {
 	}
 	if block := view.Blocked; block != nil {
 		fmt.Fprintf(w, "It last couldn't show %s's address, %s: %s sent the frame on to %s,\n", block.Slot, appDevAgo(now, block.At), block.From, block.To)
-		fmt.Fprintln(w, "which it doesn't frame. That is most likely a sign-in in front of the app: in a tab")
-		fmt.Fprintln(w, "of its own (↗), the person signs in, and the frame then shows the app, unless that")
-		fmt.Fprintln(w, "sign-in keeps it out of frames.")
+		fmt.Fprintln(w, "which it doesn't frame. That is most likely a sign-in in front of the app. The")
+		fmt.Fprintln(w, "Preview offers Sign in and come back: the whole tab goes through the app's addresses,")
+		fmt.Fprintln(w, "signs in there, and comes back, and the frame shows the app after. If it still")
+		fmt.Fprintln(w, "doesn't, the browser keeps the sign-in from the frame; ↗ opens it in a tab.")
 	}
 	fmt.Fprintln(w, "\nThe box itself can't open these addresses: run the app with its make run, and ask the")
 	fmt.Fprintln(w, "people what their browser shows. The hi-dev-web skill says more.")

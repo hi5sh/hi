@@ -72,11 +72,15 @@ A page shows in the Preview only if both sides allow it:
 
 What to do:
 
-- **A sign-in in front** (most often): the person opens the address in
-  a tab of its own (↗), signs in, and reloads the Preview (↻). If it
-  still won't show, the sign-in keeps its pages out of frames; ↗ is the
-  way to see it, or their IT team changes the proxy. Say so; don't change
-  the app for it.
+- **A sign-in in front** (most often): the Preview then offers **Sign in
+  and come back**. The whole tab goes through the app's addresses (hi's
+  `/__hi/return/` on each), the proxy signs it in there and keeps its
+  session in a cookie of the address's own, and the tab comes back to
+  the dev page, whose frame then has the cookie. Point the person at the
+  button. If the Preview says the frame is still sent on after that, the
+  browser keeps the sign-in from the frame (the dev page and the address
+  on two different sites, or a browser setting): ↗ is the way to see it,
+  or their IT team changes the proxy. Don't change the app for it.
 - **The app refuses frames**: allow only the dev page, with
   `Content-Security-Policy: frame-ancestors 'self' <the dev page's
   origin>`, and only if the owners want the Preview to show it. Never

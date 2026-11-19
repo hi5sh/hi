@@ -547,9 +547,11 @@ dot.
     icons, and **✕** or Esc puts it back. It loads again when something
     new goes on Stage. When the address sends it on to another name,
     such as a sign-in your IT team's proxy puts in front of the app, the
-    page can't show that inside itself and says where it went: open it
-    with **↗**, sign in, then **↻**. The agents see it too, with
-    `hi dev web`. An app that doesn't let other pages show it stays blank
+    page can't show that inside itself, says where it went, and offers
+    **Sign in and come back**: the tab goes through the app's addresses,
+    signs in there, and comes back, and the Preview shows the app from
+    then on, for as long as that sign-in lasts. The agents see it too,
+    with `hi dev web`. An app that doesn't let other pages show it stays blank
     here; **↗** still opens it. It opens on Stage. Beside the drop-down,
     one button takes the work along: **Merge N changes into preview**
     while work waits, then **Publish vN** once it's all on Stage, which

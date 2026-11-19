@@ -4673,7 +4673,7 @@
     $("preview-open").hidden = !slot;
     frame.hidden = !slot;
     if (!slot) {
-      $("preview-note").textContent = "Nothing to show yet: publish, or Preview a workspace's branch.";
+      showPreviewNote("none", "Nothing to show yet: publish, or Preview a workspace's branch.");
       return;
     }
     $("preview-open").href = slot.url;
@@ -4685,15 +4685,57 @@
       preview.stale = false;
       frame.src = slot.url;
     }
-    $("preview-note").textContent = preview.stale ? staleWords : preview.blocked ? blockedWords(slot.url, preview.blocked) : "";
+    if (preview.stale) showPreviewNote("stale", staleWords);
+    else if (preview.blocked) showBlocked(slot.url, preview.blocked);
+    else showPreviewNote("", "");
   }
   // The frame sent on to an origin the page doesn't frame: the address's
-  // own sign-in, most likely (an IT team's proxy in front of hi). The page
-  // says so, and hi dev web tells the agent.
+  // own sign-in, most likely (an IT team's proxy in front of hi, such as
+  // NetBird's), which keeps its session in a cookie of the address's own.
+  // A frame can't sign in there, but the whole tab can: Sign in and come
+  // back takes it through the app's addresses (/__hi/return/ on each), and
+  // the frame has the cookie after. hi dev web tells the agent.
   var staleWords = "This address is newer than the dev page you have open: reload the page to show it here.";
+  var returnKey = "hi-dev-preview-return";
   function hostOf(url) { try { return new URL(url).host; } catch (e) { return url; } }
-  function blockedWords(from, to) {
-    return hostOf(from) + " sent the frame on to " + hostOf(to) + ", which the dev page doesn't show inside itself: most likely a sign-in in front of the app. Open it with ↗ and sign in there, then ↻ here. If it still doesn't show, that sign-in keeps the app out of frames, and ↗ is the way to see it.";
+  // showPreviewNote draws the note when it changes, so a button in it
+  // outlasts the page's refresh each second.
+  function showPreviewNote(key, text, button) {
+    var note = $("preview-note");
+    if (note.dataset.key === key) return;
+    note.dataset.key = key;
+    note.textContent = text;
+    if (button) { note.appendChild(document.createTextNode(" ")); note.appendChild(button); }
+  }
+  function showBlocked(from, to) {
+    var back = 0;
+    try { back = Number(sessionStorage.getItem(returnKey)) || 0; } catch (e) { /* private window */ }
+    if (Date.now() - back < 3 * 60 * 1000) {
+      // Back from signing in, and still sent on: the browser doesn't give
+      // the frame the sign-in's cookie (the page and the address on two
+      // sites, or a browser setting), or the sign-in didn't take.
+      showPreviewNote("still " + from + to, hostOf(from) + " still sent the frame on to " + hostOf(to) + " after signing in at the top: this browser doesn't give the frame the sign-in. ↗ opens it in a tab of its own.");
+      return;
+    }
+    var button = el("button", { type: "button", class: "small primary", text: "Sign in and come back", onclick: signInAtTop });
+    showPreviewNote("blocked " + from + to, hostOf(from) + " sent the frame on to " + hostOf(to) + ": a sign-in in front of the app, which can't happen inside the dev page. Sign in and come back takes this tab there and back here, and the Preview shows it after.", button);
+  }
+  // signInAtTop goes through each of the app's addresses at the top of the
+  // tab, then back to this page.
+  function signInAtTop() {
+    var to = location.href.split("#")[0], seen = {};
+    previewSlots().forEach(function (slot) {
+      var address;
+      try { address = new URL(slot.url); } catch (e) { return; }
+      if (seen[address.origin]) return;
+      seen[address.origin] = true;
+      address.pathname = "/__hi/return/";
+      address.hash = "";
+      address.searchParams.set("to", to);
+      to = address.toString();
+    });
+    try { sessionStorage.setItem(returnKey, String(Date.now())); } catch (e) { /* private window */ }
+    location.assign(to);
   }
   document.addEventListener("securitypolicyviolation", function (event) {
     if (!/^(frame-src|child-src)/.test(event.violatedDirective) || !preview.url || !event.blockedURI) return;
@@ -4703,11 +4745,11 @@
     if (to === new URL(preview.url).origin) {
       // The page came before the address: what it may frame is from then.
       preview.stale = true;
-      $("preview-note").textContent = staleWords;
+      showPreviewNote("stale", staleWords);
       return;
     }
     preview.blocked = to;
-    $("preview-note").textContent = blockedWords(preview.url, to);
+    showBlocked(preview.url, to);
     api("POST", "preview/blocked", { slot: preview.slot, to: to }).catch(function () {});
   });
   $("preview-slot").addEventListener("change", function () {

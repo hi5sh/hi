@@ -6868,3 +6868,18 @@ preview and production listen, so the spec needs a network answer too.
   sign-in in front of the app, most often), the dev page says where it
   went and what to do, and tells `hi dev web`; a page opened before
   the address changed says to reload.
+
+### v2.6.217 — The Preview behind an IT team's sign-in
+
+- [x] An IT team's proxy in front of the app's names (NetBird's reverse
+  proxy, say) signs people in by sending the browser to its sign-in on
+  another site, which the Preview's frame can't follow, and keeps the
+  session in a cookie of each name's own. When the frame is sent there,
+  the Preview offers **Sign in and come back**: the tab goes through the
+  app's addresses at the top, where the proxy signs it in, and comes
+  back; the frame has the cookie after.
+- [x] `/__hi/return/` on the app's addresses sends the browser back,
+  only to the app's own addresses, with the helper on or off. Each
+  address gets a new relay once, for the route.
+- [x] Still sent on after signing in, the Preview says the browser keeps
+  the sign-in from the frame, and ↗ opens it.
