@@ -169,4 +169,13 @@ func TestTeamReturnToPage(t *testing.T) {
 	if _, _, err := parseNetExpose(append([]string{"8080", "--link"}, appExposeHelperArgs("payments", appSlotProduction)...)); err != nil {
 		t.Fatal(err)
 	}
+	// The internal relays keep their own list: the route is there too, on
+	// with the helper off, and goes to the slot's socket.
+	for _, slot := range []string{appSlotProduction, appSlotPreview} {
+		helper := appInternalHelper("payments", slot)
+		helper.InjectIf = filepath.Join(t.TempDir(), "off")
+		if helper.route(appReturnPrefix, helper.on()) == nil {
+			t.Fatal(slot, "no return route with the helper off")
+		}
+	}
 }

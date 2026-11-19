@@ -6883,3 +6883,10 @@ preview and production listen, so the spec needs a network answer too.
   address gets a new relay once, for the route.
 - [x] Still sent on after signing in, the Preview says the browser keeps
   the sign-in from the frame, and ↗ opens it.
+
+### v2.6.218 — Sign in and come back on internal addresses
+
+- [x] `/__hi/return/` on the internal addresses too (the app's own
+  NetBird peers, and names an IT team points at them), whose relays run
+  in the app's service and kept their own list of hi's routes: v2.6.217
+  had it only on addresses made public.

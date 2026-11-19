@@ -249,6 +249,7 @@ func appInternalHelper(team, address string) *netExposeHelper {
 			{Prefix: appDocsPrefix, Socket: appWebSocket(team, address), Always: true},
 			{Prefix: appLLMsPath, Socket: appWebSocket(team, address), Always: true},
 			{Prefix: appLLMsFullPath, Socket: appWebSocket(team, address), Always: true},
+			{Prefix: appReturnPrefix, Socket: appWebSocket(team, address), Always: true},
 		},
 		Inject: appHelperPrefix + "helper.js", InjectIf: appHelperFile(team, address), Plain: true,
 	}
