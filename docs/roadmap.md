@@ -6902,3 +6902,19 @@ preview and production listen, so the spec needs a network answer too.
   and the page sent the rest nothing while it said a link was on its
   way. Every answer says it, whatever the email, and points at
   `/hi-<app> dev` in the channel; the log says why nothing was sent.
+
+### v2.6.220 — The server's Slack app, set up from the admin page
+
+- [x] The server's Slack page sets its Slack app up, as the New app's
+  Slack step does for an app: **Create the Slack app** opens Slack with
+  the server's manifest filled in, the app and bot tokens, **Check the
+  tokens** reads the workspace and the channels the app is in, and the
+  approvals channel is picked from them. **Connect** checks both tokens
+  and posts in the channel, as `hi server slack setup` does, keeps them,
+  and connects at once; the owner and admins approve. Only the server's
+  owner sets it up.
+- [x] Set up, **Change its tokens or channel…** keeps the tokens left
+  empty, and restarts the server (a user service) to take new ones; a
+  system service says the line to restart it.
+- [x] `hi server slack setup` checks the app-level token too: Slack
+  refusing it was found only when the server connected.

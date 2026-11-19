@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -971,35 +973,73 @@ func orgSlackCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) e
 	if config.Channel, err = readSetting("Channel ID of the private approvals channel (C…)", false, stdin, stdout); err != nil {
 		return err
 	}
-	switch {
-	case !strings.HasPrefix(config.AppToken, "xapp-"):
-		return errors.New("the app-level token starts with xapp-; create one under Basic Information with connections:write")
-	case !strings.HasPrefix(config.BotToken, "xoxb-"):
-		return errors.New("the bot token starts with xoxb-; find it under OAuth & Permissions")
-	case !strings.HasPrefix(config.Channel, "C") && !strings.HasPrefix(config.Channel, "G"):
-		return errors.New("use the channel's ID, such as C0123456789, not its name; it is at the bottom of the channel's details")
-	}
-	client := slack.New(config.BotToken)
-	auth, err := client.AuthTest()
+	team, user, err := slackSetupCheck(config)
 	if err != nil {
-		return fmt.Errorf("Slack rejected the bot token: %w", err)
-	}
-	if _, _, err := client.PostMessage(config.Channel, slack.MsgOptionText(
-		"hi compute is connected. Requests to use GPUs will appear here for approval.", false)); err != nil {
-		if strings.Contains(err.Error(), "not_in_channel") || strings.Contains(err.Error(), "channel_not_found") {
-			return fmt.Errorf("the app can't post in %s; invite it with `/invite @%s` in the channel", config.Channel, auth.User)
-		}
-		return fmt.Errorf("post to the channel: %w", err)
+		return err
 	}
 	if err := saveSlackConfig(dir, config); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "Slack is set up for workspace %s as @%s, posting in %s.\n", auth.Team, auth.User, config.Channel)
+	fmt.Fprintf(stdout, "Slack is set up for workspace %s as @%s, posting in %s.\n", team, user, config.Channel)
 	if len(config.Approvers) == 0 {
 		fmt.Fprintln(stdout, "Add approvers: hi server approvers add <Slack member ID> --name <hi user name>")
 	}
 	fmt.Fprintf(stdout, "Restart the server to connect: %s\n", orgRestartLine())
 	return nil
+}
+
+// slackTokensProblem says what's wrong with the tokens' shapes, or "".
+// An empty one isn't checked: the page keeps the one there is.
+func slackTokensProblem(appToken, botToken string) string {
+	switch {
+	case appToken != "" && !strings.HasPrefix(appToken, "xapp-"):
+		return "the app-level token starts with xapp-; create one under Basic Information with connections:write"
+	case botToken != "" && !strings.HasPrefix(botToken, "xoxb-"):
+		return "the bot token starts with xoxb-; find it under OAuth & Permissions"
+	}
+	return ""
+}
+
+// slackSetupCheck says whether Slack takes the server's tokens and its
+// channel: it posts there to say so. It answers the bot's workspace and
+// its name. Tests replace it.
+var slackSetupCheck = func(config slackConfig) (team, user string, err error) {
+	if problem := slackTokensProblem(config.AppToken, config.BotToken); problem != "" {
+		return "", "", errors.New(problem)
+	}
+	if !strings.HasPrefix(config.Channel, "C") && !strings.HasPrefix(config.Channel, "G") {
+		return "", "", errors.New("use the channel's ID, such as C0123456789, not its name; it is at the bottom of the channel's details")
+	}
+	client := slack.New(config.BotToken)
+	auth, err := client.AuthTest()
+	if err != nil {
+		return "", "", fmt.Errorf("Slack rejected the bot token: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	if _, _, err := slack.New(config.BotToken, slack.OptionAppLevelToken(config.AppToken)).StartSocketModeContext(ctx); err != nil {
+		return "", "", fmt.Errorf("Slack rejected the app-level token (it needs connections:write): %w", err)
+	}
+	if _, _, err := client.PostMessage(config.Channel, slack.MsgOptionText(
+		"hi server is connected. Requests to use GPUs, warnings, and reports will appear here.", false)); err != nil {
+		if strings.Contains(err.Error(), "not_in_channel") || strings.Contains(err.Error(), "channel_not_found") {
+			return "", "", fmt.Errorf("the app can't post in %s; invite it with `/invite @%s` in the channel", config.Channel, auth.User)
+		}
+		return "", "", fmt.Errorf("post to the channel: %w", err)
+	}
+	return auth.Team, auth.User, nil
+}
+
+// slackManifestURL opens Slack's new-app dialog with the manifest filled
+// in. Slack's dialog turns a link's newlines into spaces and keeps the
+// indent, so the link carries the manifest compact.
+func slackManifestURL(manifest string) string {
+	compact := manifest
+	var buffer bytes.Buffer
+	if json.Compact(&buffer, []byte(manifest)) == nil {
+		compact = buffer.String()
+	}
+	return "https://api.slack.com/apps?new_app=1&manifest_json=" + url.QueryEscape(compact)
 }
 
 // readSetting reads one value: hidden in a terminal, or a line from stdin.
@@ -1110,6 +1150,122 @@ func orgApproversCommand(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "%s can no longer approve or stop from Slack.\n", positional[1])
 	}
 	return nil
+}
+
+// slackSetupInput is the admin page's Slack setup: empty tokens keep the
+// ones there are.
+type slackSetupInput struct {
+	As       string `json:"as"`
+	AppToken string `json:"app_token"`
+	BotToken string `json:"bot_token"`
+	Channel  string `json:"channel"`
+}
+
+// slackSetupHandler sets Slack up from the admin page, as hi server slack
+// setup does on the machine: check reads the workspace and the channels
+// the app is in; the setup itself posts in the channel, keeps the tokens,
+// and connects at once when Slack wasn't running yet.
+func (s *orgServer) slackSetupHandler(mux *http.ServeMux) {
+	merge := func(input slackSetupInput) (slackConfig, error) {
+		config := slackConfig{Approvers: map[string]string{}}
+		existing, err := loadSlackConfig(s.dir)
+		if err != nil {
+			return config, err
+		}
+		if existing != nil {
+			config = *existing
+		}
+		if problem := slackTokensProblem(input.AppToken, input.BotToken); problem != "" {
+			return config, errors.New(problem)
+		}
+		if input.AppToken != "" {
+			config.AppToken = input.AppToken
+		}
+		if input.BotToken != "" {
+			config.BotToken = input.BotToken
+		}
+		if input.Channel != "" {
+			config.Channel = input.Channel
+		}
+		switch {
+		case config.AppToken == "":
+			return config, errors.New("paste the app-level token (xapp-…)")
+		case config.BotToken == "":
+			return config, errors.New("paste the bot token (xoxb-…)")
+		}
+		return config, nil
+	}
+	mux.HandleFunc("POST /admin/slack/check", func(w http.ResponseWriter, r *http.Request) {
+		var input slackSetupInput
+		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
+		config, err := merge(input)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		team, user, err := slackWhoAmI(config.BotToken)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, "Slack rejected the bot token: "+err.Error())
+			return
+		}
+		channels, err := adminSlackChannels(config.BotToken)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, "read the channels the app is in: "+err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"team": team, "user": user, "channels": channels, "channel": config.Channel})
+	})
+	mux.HandleFunc("POST /admin/slack", func(w http.ResponseWriter, r *http.Request) {
+		var input slackSetupInput
+		json.NewDecoder(io.LimitReader(r.Body, serverMaxBody)).Decode(&input)
+		s.slackSetup.Lock()
+		defer s.slackSetup.Unlock()
+		config, err := merge(input)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if config.Channel == "" {
+			writeAPIError(w, http.StatusBadRequest, "choose the channel approvals go to")
+			return
+		}
+		// The org's owner and admins approve.
+		for _, person := range loadOrgPeople(s.dir).all() {
+			config.Approvers[person.Slack] = person.Name
+		}
+		team, user, err := slackSetupCheck(config)
+		if err != nil {
+			writeAPIError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if err := saveSlackConfig(s.dir, config); err != nil {
+			writeAPIError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		s.audit(input.As, "set up Slack", config.Channel, team)
+		text := "Slack is set up in " + team + " as @" + user + ", posting in the channel."
+		restart := false
+		if s.slack == nil && s.runCtx != nil {
+			if err := s.startSlack(s.runCtx); err != nil {
+				fmt.Fprintf(s.log, "slack: %v\n", err)
+				restart = true
+			}
+		} else {
+			// The bridge that runs has the old tokens: a restart takes the new.
+			restart = true
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"text": text, "restart": restart})
+	})
+}
+
+// slackWhoAmI is the bot token's workspace and the bot's name. Tests
+// replace it.
+var slackWhoAmI = func(botToken string) (team, user string, err error) {
+	auth, err := slack.New(botToken).AuthTest()
+	if err != nil {
+		return "", "", err
+	}
+	return auth.Team, auth.User, nil
 }
 
 // approversHandler lets the admin CLI change approvers while the server runs.

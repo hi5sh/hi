@@ -1831,13 +1831,74 @@ function orgModels(s) {
   return [el("p", { class: "purpose" }, "Models served on the team's machines, which hi q passes the server's requests to."), served];
 }
 
+// The server's Slack app, set up here as hi server slack setup does on the
+// machine. What's typed lives in slackSetup, so the page drawing again
+// every few seconds keeps it.
+let slackSetup = null;
+
 function orgSlack(s) {
   const slack = el("div", { class: "machine-block" });
-  if (s.slack.set) slack.append(el("p", { class: "small" }, "Approvals go to the channel ", el("code", {}, s.slack.channel || "?"), ", and to each approver's Home tab."));
-  else slack.append(el("p", { class: "warn small" }, "Not set up, so approvals are only here and on the machine. On the machine: ", el("code", {}, "hi server slack setup"), " (its app: ", el("code", {}, "hi server slack manifest"), ")."));
+  const owns = orgCanChange() && !!state.me.owner;
+  const sl = s.slack || {};
+  if (sl.set) slack.append(el("p", { class: "small" }, "Approvals go to the channel ", el("code", {}, sl.channel || "?"), ", and to each approver's Home tab."),
+    owns && !slackSetup ? el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { slackSetup = {}; renderOrgSection(); } }, "Change its tokens or channel…")) : null);
+  else slack.append(el("p", { class: "warn small" }, "Not set up, so approvals are only here and on the machine." + (owns ? " Set it up below." : " The server's owner sets it up here, or on the machine: "), owns ? null : el("code", {}, "hi server slack setup")));
   const approvers = Object.entries(s.approvers || {}).sort((a, b) => a[1].localeCompare(b[1]));
   if (approvers.length) slack.append(el("p", { class: "muted small" }, "Approvers: " + approvers.map(([id, name]) => name).join(", ") + ". The owner and the admins approve; someone who only approves: ", el("code", {}, "hi server approvers add"), "."));
-  return [el("p", { class: "purpose" }, "The server's Slack app: where approvals, warnings, and reports go."), slack];
+  const parts = [el("p", { class: "purpose" }, "The server's Slack app: where approvals, warnings, and reports go."), slack];
+  if (owns && (!sl.set || slackSetup)) parts.push(slackSetupForm(sl));
+  return parts;
+}
+
+function slackSetupForm(sl) {
+  const st = slackSetup || (slackSetup = {});
+  const box = el("div", { class: "new-step" });
+  const bound = (attrs, key) => { const i = input(attrs); i.value = st[key] || ""; i.addEventListener("input", () => { st[key] = i.value; }); return i; };
+  const app = bound({ type: "password", placeholder: sl.has_app ? "Kept; paste again to change it" : "xapp-…" }, "app");
+  const bot = bound({ type: "password", placeholder: sl.set ? "Kept; paste again to change it" : "xoxb-…" }, "bot");
+  const error = el("p", { class: "error" }, st.error || "");
+  const tokens = () => ({ app_token: (st.app || "").trim(), bot_token: (st.bot || "").trim() });
+  const check = el("button", { type: "button", class: (st.channels ? "" : "primary"), onclick: async () => {
+    check.disabled = true; error.textContent = "";
+    try {
+      const a = (await api("/api/org", Object.assign({ what: "slack", action: "check" }, tokens()))).answer || {};
+      Object.assign(st, { team: a.team, user: a.user, channels: a.channels || [], channel: st.channel || a.channel || "", error: "" });
+    } catch (e) { if (!(e instanceof SignIn)) st.error = e.message; }
+    renderOrgSection();
+  } }, st.channels ? "Read the channels again" : "Check the tokens");
+  box.append(el("h2", {}, sl.set ? "Change the Slack app" : "Set up the Slack app"),
+    el("p", {}, "The server has a Slack app of its own, made from a manifest hi writes for it. Approvals, warnings, and reports go to one private channel, and approvers act from there."),
+    el("ol", { class: "how" },
+      el("li", {}, el("a", { class: "button-like rainbow", href: sl.manifest_url, target: "_blank", rel: "noopener noreferrer" }, "Create the Slack app ↗"), " opens Slack with the manifest filled in. Pick the workspace, then ", el("strong", {}, "Create"), "."),
+      el("li", {}, "The app token is on the page Slack opens, under ", el("strong", {}, "Basic Information → App-Level Tokens"), ": generate one with the connections:write scope (xapp-…)."),
+      el("li", {}, "Then ", el("strong", {}, "Install to Workspace"), ", and allow it. The bot token is under ", el("strong", {}, "OAuth & Permissions"), " (xoxb-…)."),
+      el("li", {}, "Make a private channel for approvals, and invite the app to it: in the channel, ", el("code", {}, "/invite @" + (st.user || "hi server")), ". Then check the tokens, and pick the channel.")),
+    el("details", { class: "small" }, el("summary", { class: "muted" }, "The manifest, to paste by hand (api.slack.com/apps → Create New App → From a manifest → JSON)"),
+      el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: () => copyText(sl.manifest) }, "Copy the manifest")),
+      el("pre", { class: "job-output manifest" }, sl.manifest || "")),
+    field("App token", app), field("Bot token", bot), el("div", { class: "data-actions" }, check));
+  if (st.channels) {
+    const pick = el("select", { "aria-label": "The approvals channel" }, el("option", { value: "" }, "Choose a channel"),
+      ...st.channels.map((ch) => el("option", { value: ch.id, selected: ch.id === st.channel }, (ch.private ? "🔒 " : "#") + ch.name)));
+    if (st.channel && !st.channels.some((ch) => ch.id === st.channel)) pick.append(el("option", { value: st.channel, selected: true }, st.channel));
+    pick.addEventListener("change", () => { st.channel = pick.value; });
+    const connect = el("button", { type: "button", class: "primary", onclick: async () => {
+      if (!st.channel) { error.textContent = "Choose the channel approvals go to."; return; }
+      connect.disabled = true; error.textContent = "";
+      try {
+        const a = (await api("/api/org", Object.assign({ what: "slack", action: "set", channel: st.channel }, tokens()))).answer || {};
+        slackSetup = null;
+        toast(a.text || "Slack is set up.");
+        await Promise.all([refreshState(), refreshOrg(), refreshOrgSettings()]);
+      } catch (e) { if (!(e instanceof SignIn)) { st.error = e.message; error.textContent = e.message; } connect.disabled = false; }
+    } }, "Connect");
+    box.append(el("p", { class: "muted small" }, "Both work, in the workspace " + (st.team || "?") + " as @" + (st.user || "?") + ". " +
+      (st.channels.length ? st.channels.length + " channels the app is in." : "The app is in no channel yet: invite it, then read the channels again.")),
+      field("The approvals channel", pick, "Connect posts there to say so, and the server sends its approvals there from then on."),
+      el("div", { class: "data-actions" }, connect, sl.set ? el("button", { type: "button", onclick: () => { slackSetup = null; renderOrgSection(); } }, "Cancel") : null));
+  }
+  box.append(error);
+  return box;
 }
 
 function orgWalls(s) {

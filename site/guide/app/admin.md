@@ -265,8 +265,16 @@ server and no apps.
   - **Keys:** the provider keys (RunPod, Shadeform) and the server's
     OpenRouter key for `hi q`, each checked before it's kept, and shown
     only as set or not.
+  - **Slack:** the server's Slack app, where approvals, warnings, and
+    reports go. Its owner sets it up here, as `hi server slack setup`
+    does on the machine: **Create the Slack app** opens Slack with the
+    manifest filled in; the app and bot tokens; **Check the tokens**
+    reads the channels the app is in; pick the approvals channel, and
+    **Connect** posts there to say so. Set up, **Change its tokens or
+    channel…** does it again, keeping the tokens left empty, and
+    restarts the server to take them.
   - **Templates**, **Data** (Hugging Face), **Models** (served on the
-    team's machines), **Slack**, and **Wall screens**.
+    team's machines), and **Wall screens**.
 - **Requests** (right, with the server open): devices that want to join and
   compute waiting for an approval, each with **Approve** (and the group,
   for someone new) and **Deny…** with a reason. It is the same as `hi server

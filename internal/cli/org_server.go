@@ -190,6 +190,10 @@ type orgServer struct {
 	fallback priceBound
 	// slack is the Slack bridge, or nil when Slack isn't set up.
 	slack *slackBridge
+	// runCtx is serve's: a Slack set up from the page runs under it.
+	runCtx context.Context
+	// slackSetup serializes setting Slack up from the page.
+	slackSetup sync.Mutex
 	// vault is the vault's hold this server answers with; nil is the
 	// machine's (vaultServing).
 	vault *vaultHold
@@ -1784,6 +1788,7 @@ func (s *orgServer) adminHandler() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"removed": name})
 	})
 	s.approversHandler(mux)
+	s.slackSetupHandler(mux)
 	s.peopleAdminRoutes(mux)
 	s.policyAdminRoutes(mux)
 	s.aiAdminRoutes(mux)
@@ -1883,6 +1888,7 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 		return err
 	}
 	client := &http.Server{Handler: s.clientHandler(), ReadHeaderTimeout: 10 * time.Second}
+	s.runCtx = ctx
 	admin := &http.Server{Handler: s.adminHandler(), ReadHeaderTimeout: 10 * time.Second}
 	go client.Serve(clientListener)
 	go admin.Serve(adminListener)

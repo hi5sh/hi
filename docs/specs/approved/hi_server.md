@@ -480,6 +480,10 @@ sudo systemctl enable --now hi-server
 `hi server slack setup` prints a ready-made Slack app manifest with Socket
 Mode, the `/hi` command, App Home, and the smallest set of scopes enabled, so
 the admin pastes it into Slack instead of configuring the app by hand.
+The admin page's **Slack** section does the same for the server's owner
+(since v2.6.220): the manifest as a link that opens Slack with it filled
+in, the two tokens, and the approvals channel picked from those the app
+is in.
 
 ### 2. User enrolls a device
 

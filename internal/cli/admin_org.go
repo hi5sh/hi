@@ -175,6 +175,11 @@ type adminProvider struct {
 type adminOrgSlack struct {
 	Set     bool   `json:"set"`
 	Channel string `json:"channel,omitempty"`
+	HasApp  bool   `json:"has_app,omitempty"`
+	// Manifest is the server's Slack app; ManifestURL opens Slack's
+	// new-app dialog with it filled in.
+	Manifest    string `json:"manifest"`
+	ManifestURL string `json:"manifest_url"`
 }
 
 func adminOrgSettingsOf() (adminOrgSettings, error) {
@@ -185,8 +190,9 @@ func adminOrgSettingsOf() (adminOrgSettings, error) {
 		json.Unmarshal(data, &config)
 		settings.Listen = config.Listen
 	}
+	settings.Slack = adminOrgSlack{Manifest: slackManifest, ManifestURL: slackManifestURL(slackManifest)}
 	if config, err := loadSlackConfig(dir); err == nil && config != nil {
-		settings.Slack = adminOrgSlack{Set: config.BotToken != "", Channel: config.Channel}
+		settings.Slack.Set, settings.Slack.Channel, settings.Slack.HasApp = config.BotToken != "", config.Channel, config.AppToken != ""
 	}
 	var set []string
 	if err := adminOrgCall(http.MethodGet, "/admin/providers", nil, &set); err != nil {
@@ -231,6 +237,10 @@ type adminOrgChange struct {
 	Text   string   `json:"text"` // the policy
 	Slack  string   `json:"slack"`
 	Email  string   `json:"email"`
+	// The server's Slack app, for what "slack": written, never read back.
+	AppToken string `json:"app_token"`
+	BotToken string `json:"bot_token"`
+	Channel  string `json:"channel"`
 }
 
 func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
@@ -373,6 +383,34 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 			return nil, errors.New("only the server's owner hands it on")
 		}
 		return call(http.MethodPost, "/admin/people", orgPeopleInput{As: as, Action: "owner", Slack: change.Slack, Email: change.Email, Name: change.Name})
+	case "slack":
+		if !admin.Owner {
+			return nil, errors.New("the server's owner sets up its Slack app")
+		}
+		input := slackSetupInput{As: as, AppToken: strings.TrimSpace(change.AppToken), BotToken: strings.TrimSpace(change.BotToken), Channel: strings.TrimSpace(change.Channel)}
+		switch change.Action {
+		case "check":
+			return call(http.MethodPost, "/admin/slack/check", input)
+		case "set":
+			var answer struct {
+				Text    string `json:"text"`
+				Restart bool   `json:"restart"`
+			}
+			if err := adminOrgCall(http.MethodPost, "/admin/slack", input, &answer); err != nil {
+				return nil, err
+			}
+			adminRecord(admin.Name, "", "set up the server's Slack app")
+			if !answer.Restart {
+				return map[string]string{"text": answer.Text}, nil
+			}
+			if adminOrgService() != "user" {
+				return map[string]string{"text": answer.Text + " The server takes it when it restarts: " + orgRestartLine() + "."}, nil
+			}
+			if out, err := appSystemctl("restart", orgUserUnitNow()); err != nil {
+				return map[string]string{"text": answer.Text + " Restarting the server failed (" + qFirstLine(out, err.Error()) + "): " + orgRestartLine() + "."}, nil
+			}
+			return map[string]string{"text": answer.Text + " The server restarted to take it."}, nil
+		}
 	case "restart":
 		if adminOrgService() != "user" {
 			return nil, fmt.Errorf("the server is a system service here, so restarting it needs sudo: %s. hi update on the machine makes it a user service, once", orgRestartLine())
