@@ -483,7 +483,10 @@ the admin pastes it into Slack instead of configuring the app by hand.
 The admin page's **Slack** section does the same for the server's owner
 (since v2.6.220): the manifest as a link that opens Slack with it filled
 in, the two tokens, and the approvals channel picked from those the app
-is in.
+is in. Its scopes are an app's without the message-reading ones
+(`chat:write`, `commands`, `users:read`, `users:read.email`, `im:write`,
+`channels:read`, `groups:read`; since v2.6.221); a token without some is
+told which, and the channel's ID does until the app can list them.
 
 ### 2. User enrolls a device
 

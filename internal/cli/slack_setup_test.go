@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,6 +25,9 @@ func TestServerSlackSetupFromThePage(t *testing.T) {
 	adminSlackChannels = func(bot string) ([]adminSlackChannel, error) {
 		return []adminSlackChannel{{ID: "C1", Name: "approvals", Private: true}}, nil
 	}
+	savedSlack := appSlack
+	appSlack = fakeTeamSlack{}
+	t.Cleanup(func() { appSlack = savedSlack })
 	handler := ts.server.adminHandler()
 	post := func(path string, body slackSetupInput) (int, map[string]any) {
 		data, _ := json.Marshal(body)
@@ -42,6 +46,27 @@ func TestServerSlackSetupFromThePage(t *testing.T) {
 	code, answer := post("/admin/slack/check", slackSetupInput{AppToken: "xapp-1", BotToken: "xoxb-1"})
 	if code != http.StatusOK || answer["team"] != "Demo" || len(answer["channels"].([]any)) != 1 {
 		t.Fatalf("check: %d %v", code, answer)
+	}
+	// An app from the old manifest can't list its channels: the check says
+	// so, and still answers who the app is.
+	adminSlackChannels = func(bot string) ([]adminSlackChannel, error) { return nil, errors.New("missing_scope") }
+	appSlack = fakeTeamSlack{fewScopes: true}
+	code, answer = post("/admin/slack/check", slackSetupInput{AppToken: "xapp-1", BotToken: "xoxb-1"})
+	if code != http.StatusOK || answer["user"] != "hi-server" || answer["channels"] != nil ||
+		!strings.Contains(answer["channels_problem"].(string), "lacks commands, users:read, users:read.email, im:write, channels:read, groups:read") ||
+		!strings.Contains(answer["channels_problem"].(string), "channel's ID") {
+		t.Fatalf("check without the scopes: %d %v", code, answer)
+	}
+	// The manifest asks for what the server checks the token for.
+	var manifest struct {
+		OAuth struct {
+			Scopes struct {
+				Bot []string `json:"bot"`
+			} `json:"scopes"`
+		} `json:"oauth_config"`
+	}
+	if err := json.Unmarshal([]byte(slackManifest), &manifest); err != nil || strings.Join(manifest.OAuth.Scopes.Bot, " ") != strings.Join(slackServerScopes, " ") {
+		t.Fatalf("the manifest's scopes: %v %v", manifest.OAuth.Scopes.Bot, err)
 	}
 	if code, _ := post("/admin/slack", slackSetupInput{As: "olga", AppToken: "xapp-1", BotToken: "xoxb-1"}); code != http.StatusBadRequest {
 		t.Fatalf("no channel: %d", code)

@@ -910,7 +910,11 @@ var appSlackScopes = []string{
 // appMissingScopes are the scopes the team's app needs that the bot token
 // lacks: an app made from another manifest, or one not reinstalled after
 // its scopes changed. None when Slack can't be asked.
-func appMissingScopes(botToken string) []string {
+func appMissingScopes(botToken string) []string { return slackMissingScopes(botToken, appSlackScopes) }
+
+// slackMissingScopes are those of want the bot token lacks; none when
+// Slack can't be asked.
+func slackMissingScopes(botToken string, want []string) []string {
 	granted, err := appSlack.scopes(botToken)
 	if err != nil {
 		return nil
@@ -920,7 +924,7 @@ func appMissingScopes(botToken string) []string {
 		has[strings.TrimSpace(scope)] = true
 	}
 	var missing []string
-	for _, scope := range appSlackScopes {
+	for _, scope := range want {
 		if !has[scope] {
 			missing = append(missing, scope)
 		}

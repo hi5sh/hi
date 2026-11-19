@@ -1858,14 +1858,14 @@ function slackSetupForm(sl) {
   const bot = bound({ type: "password", placeholder: sl.set ? "Kept; paste again to change it" : "xoxb-…" }, "bot");
   const error = el("p", { class: "error" }, st.error || "");
   const tokens = () => ({ app_token: (st.app || "").trim(), bot_token: (st.bot || "").trim() });
-  const check = el("button", { type: "button", class: (st.channels ? "" : "primary"), onclick: async () => {
+  const check = el("button", { type: "button", class: (st.checked ? "" : "primary"), onclick: async () => {
     check.disabled = true; error.textContent = "";
     try {
       const a = (await api("/api/org", Object.assign({ what: "slack", action: "check" }, tokens()))).answer || {};
-      Object.assign(st, { team: a.team, user: a.user, channels: a.channels || [], channel: st.channel || a.channel || "", error: "" });
+      Object.assign(st, { checked: true, team: a.team, user: a.user, channels: a.channels || null, problem: a.channels_problem || "", channel: st.channel || a.channel || "", error: "" });
     } catch (e) { if (!(e instanceof SignIn)) st.error = e.message; }
     renderOrgSection();
-  } }, st.channels ? "Read the channels again" : "Check the tokens");
+  } }, st.checked ? (st.channels ? "Read the channels again" : "Check again") : "Check the tokens");
   box.append(el("h2", {}, sl.set ? "Change the Slack app" : "Set up the Slack app"),
     el("p", {}, "The server has a Slack app of its own, made from a manifest hi writes for it. Approvals, warnings, and reports go to one private channel, and approvers act from there."),
     el("ol", { class: "how" },
@@ -1877,13 +1877,21 @@ function slackSetupForm(sl) {
       el("div", { class: "data-actions" }, el("button", { type: "button", class: "small", onclick: () => copyText(sl.manifest) }, "Copy the manifest")),
       el("pre", { class: "job-output manifest" }, sl.manifest || "")),
     field("App token", app), field("Bot token", bot), el("div", { class: "data-actions" }, check));
-  if (st.channels) {
-    const pick = el("select", { "aria-label": "The approvals channel" }, el("option", { value: "" }, "Choose a channel"),
-      ...st.channels.map((ch) => el("option", { value: ch.id, selected: ch.id === st.channel }, (ch.private ? "🔒 " : "#") + ch.name)));
-    if (st.channel && !st.channels.some((ch) => ch.id === st.channel)) pick.append(el("option", { value: st.channel, selected: true }, st.channel));
-    pick.addEventListener("change", () => { st.channel = pick.value; });
+  if (st.checked) {
+    // Without channels:read and groups:read the app can't list them: its ID, then.
+    let pick;
+    if (st.channels) {
+      pick = el("select", { "aria-label": "The approvals channel" }, el("option", { value: "" }, "Choose a channel"),
+        ...st.channels.map((ch) => el("option", { value: ch.id, selected: ch.id === st.channel }, (ch.private ? "🔒 " : "#") + ch.name)));
+      if (st.channel && !st.channels.some((ch) => ch.id === st.channel)) pick.append(el("option", { value: st.channel, selected: true }, st.channel));
+      pick.addEventListener("change", () => { st.channel = pick.value; });
+    } else {
+      pick = input({ placeholder: "C0123456789", "aria-label": "The approvals channel's ID", maxlength: "20" });
+      pick.value = st.channel || "";
+      pick.addEventListener("input", () => { st.channel = pick.value.trim(); });
+    }
     const connect = el("button", { type: "button", class: "primary", onclick: async () => {
-      if (!st.channel) { error.textContent = "Choose the channel approvals go to."; return; }
+      if (!st.channel) { error.textContent = st.channels ? "Choose the channel approvals go to." : "Give the channel's ID, such as C0123456789."; return; }
       connect.disabled = true; error.textContent = "";
       try {
         const a = (await api("/api/org", Object.assign({ what: "slack", action: "set", channel: st.channel }, tokens()))).answer || {};
@@ -1893,8 +1901,9 @@ function slackSetupForm(sl) {
       } catch (e) { if (!(e instanceof SignIn)) { st.error = e.message; error.textContent = e.message; } connect.disabled = false; }
     } }, "Connect");
     box.append(el("p", { class: "muted small" }, "Both work, in the workspace " + (st.team || "?") + " as @" + (st.user || "?") + ". " +
-      (st.channels.length ? st.channels.length + " channels the app is in." : "The app is in no channel yet: invite it, then read the channels again.")),
-      field("The approvals channel", pick, "Connect posts there to say so, and the server sends its approvals there from then on."),
+      (!st.channels ? "" : st.channels.length ? st.channels.length + " channels the app is in." : "The app is in no channel yet: invite it, then read the channels again.")),
+      st.problem ? el("p", { class: "warn small" }, st.problem) : null,
+      field(st.channels ? "The approvals channel" : "The approvals channel's ID", pick, (st.channels ? "" : "At the bottom of the channel's details in Slack. ") + "Connect posts there to say so, and the server sends its approvals there from then on."),
       el("div", { class: "data-actions" }, connect, sl.set ? el("button", { type: "button", onclick: () => { slackSetup = null; renderOrgSection(); } }, "Cancel") : null));
   }
   box.append(error);

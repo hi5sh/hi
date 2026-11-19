@@ -36,9 +36,16 @@ const slackManifest = `{
       { "command": "/hi", "description": "GPU compute and apps: status, stop, spend, budgets, apps", "usage_hint": "status | stop <name|@user|all> | spend | users | audit | budget <group> <usd> | link <user> | apps | app <action> <app>", "should_escape": false }
     ]
   },
-  "oauth_config": { "scopes": { "bot": ["chat:write", "commands", "users:read", "im:write"] } },
+  "oauth_config": { "scopes": { "bot": ["chat:write", "commands", "users:read", "users:read.email", "im:write", "channels:read", "groups:read"] } },
   "settings": { "event_subscriptions": { "bot_events": ["app_home_opened"] }, "interactivity": { "is_enabled": true }, "socket_mode_enabled": true, "org_deploy_enabled": false, "token_rotation_enabled": false }
 }`
+
+// slackServerScopes are the server's Slack app's, as its manifest asks
+// for them: an app's, without what only its lead needs to hold a
+// conversation (reading the channels' and DMs' messages, files,
+// reactions). The server posts, sends DMs, takes /hi and its buttons, and
+// lists the channels it's in and the workspace's people.
+var slackServerScopes = []string{"chat:write", "commands", "users:read", "users:read.email", "im:write", "channels:read", "groups:read"}
 
 // slackReplace replaces a private message a button was clicked in; tests
 // replace it.
@@ -1208,12 +1215,27 @@ func (s *orgServer) slackSetupHandler(mux *http.ServeMux) {
 			writeAPIError(w, http.StatusBadRequest, "Slack rejected the bot token: "+err.Error())
 			return
 		}
-		channels, err := adminSlackChannels(config.BotToken)
-		if err != nil {
-			writeAPIError(w, http.StatusBadRequest, "read the channels the app is in: "+err.Error())
-			return
+		// A Slack app made from an older manifest lacks scopes: the page
+		// says which, and takes the channel's ID when it can't list them.
+		answer := map[string]any{"team": team, "user": user, "channel": config.Channel}
+		var problems []string
+		if missing := slackMissingScopes(config.BotToken, slackServerScopes); len(missing) > 0 {
+			answer["missing_scopes"] = missing
+			problems = append(problems, "The Slack app lacks "+strings.Join(missing, ", ")+
+				": in Slack's app settings (api.slack.com/apps → the app), add them under OAuth & Permissions → Bot Token Scopes, then Reinstall to Workspace, and check again.")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"team": team, "user": user, "channels": channels, "channel": config.Channel})
+		if channels, err := adminSlackChannels(config.BotToken); err != nil {
+			if !strings.Contains(err.Error(), "missing_scope") {
+				problems = append(problems, "Slack didn't list the channels the app is in ("+err.Error()+").")
+			}
+			problems = append(problems, "Until it can, give the channel's ID.")
+		} else {
+			answer["channels"] = channels
+		}
+		if len(problems) > 0 {
+			answer["channels_problem"] = strings.Join(problems, " ")
+		}
+		writeJSON(w, http.StatusOK, answer)
 	})
 	mux.HandleFunc("POST /admin/slack", func(w http.ResponseWriter, r *http.Request) {
 		var input slackSetupInput

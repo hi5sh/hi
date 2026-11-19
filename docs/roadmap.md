@@ -6918,3 +6918,15 @@ preview and production listen, so the spec needs a network answer too.
   system service says the line to restart it.
 - [x] `hi server slack setup` checks the app-level token too: Slack
   refusing it was found only when the server connected.
+
+### v2.6.221 — The server's Slack app asks for the scopes it reads with
+
+- [x] The server's manifest asks for `channels:read` and `groups:read`,
+  to list the channels the app is in, and `users:read.email`, as an
+  app's does: v2.6.220's **Check the tokens** failed with
+  `missing_scope` on an app made from the old manifest. Not an app's
+  message-reading scopes (history, files, reactions): only an app's lead
+  holds conversations.
+- [x] **Check the tokens** names the scopes the token lacks, and how to
+  add them (OAuth & Permissions, then reinstall); until the app can list
+  its channels, the page takes the approvals channel's ID.
