@@ -65,7 +65,7 @@ its connection is cut (within about 45 seconds).
   icon when a new hi is out; the admin page's address and what to ask
   your IT team for; what the apps need on the machine, with **Install**;
   **Other machines**: the machines this one moves apps to, this
-  machine's key, and the machines it takes apps from; its admins.
+  machine's key, and the machines it takes apps from.
 - **Activity** (left): what admins did here, with who and when, and on
   the server's machine the server's audit.
 
@@ -221,7 +221,10 @@ and said in its channel; their Slack accounts; their SSH key, for every
 dev box where they build; **Email a sign-in link**; and **Remove from
 everything…**, with their email typed. **+ Add** adds someone by email,
 with a level in each app, and the organisation's email domains are set
-below the list. The same as `hi people` (see
+below the list. **Server** in the dropdown (above the apps) has the
+server's owner and admins instead, with **New link**, **By Slack**, and
+for the owner **+** and **Remove** (`hi server admins`); on a machine
+without a server it says **Admins**, the machine's own. The same as `hi people` (see
 [People and signing in by email](/guide/app/people/)). The server's users are the
 server's (its **Users**), not here. **Keys** has whether the server's
 vault is open, the machine's keys and sign-ins (Hermes' OpenRouter key,
@@ -340,7 +343,7 @@ whoever opens it can do what you can on the machine.
   the same whether or not the email is an admin's. Without either, an
   admin makes one on the machine: `hi server link <name>`.
 - **Your Slack member ID** also tells each app who you are, so Open ▾
-  opens its dev page as you. Add yours in Machine if you didn't give it
+  opens its dev page as you. Add yours in People, **Server**, if you didn't give it
   at the start (in Slack: your profile, ⋮, **Copy member ID**).
 
 ## Reaching it

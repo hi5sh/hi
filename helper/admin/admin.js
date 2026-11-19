@@ -879,6 +879,13 @@ function renderMachine(force) {
   $("netbird-form").hidden = !state.needs_key;
   $("machine-user").textContent = state.user;
 
+  renderAdmins();
+}
+
+// The admins: the server's owner and admins, or the machine's own, in
+// People under Server (or Admins on a machine without a server).
+function renderAdmins() {
+  if (!state) return;
   const list = $("admins-list");
   list.replaceChildren();
   // One list, the server's, on a machine that runs only the server; the
@@ -891,15 +898,19 @@ function renderMachine(force) {
   $("admin-add-slack").placeholder = orgAdmins ? "Their Slack member ID" : "Their Slack member ID (optional)";
   $("admin-add-name").placeholder = orgAdmins ? "Their hi user name, such as olga" : "Their name";
   $("admins-note").hidden = !orgAdmins && !state.org_apart;
-  $("admins-note").textContent = orgAdmins ? "They are the server's owner and admins: each approves too, in Slack and here." + (state.me.owner ? "" : " The owner adds and removes them.")
+  $("admins-note").textContent = orgAdmins ? "Each approves too, in Slack and here." + (state.me.owner ? "" : " The owner adds and removes them.")
     : state.org_apart ? "The machine's admins: they run it and its apps. The server's owner and admins run the server, in the server's Admins; making someone an admin here doesn't make them an approver." : "";
-  for (const admin of state.admins.filter((a) => !state.org_apart || a.machine)) {
+  $("admins-title").textContent = orgAdmins ? "The server's owner and admins" : "The machine's admins";
+  const query = $("people-search").value.trim().toLowerCase();
+  const admins = state.admins.filter((a) => (!state.org_apart || a.machine) && (!query || [a.name, a.email, a.slack].join(" ").toLowerCase().includes(query)));
+  if (!admins.length) list.append(el("li", { class: "empty" }, "No one matches."));
+  for (const admin of admins) {
     const me = admin.name === state.me.name;
     const acts = el("span", { class: "actions" });
     acts.append(el("button", { onclick: () => newLink(admin, false), title: "A new link, shown to copy; their old one ends" }, "New link"));
     if (admin.slack) acts.append(el("button", { onclick: () => newLink(admin, true), title: "A new link in their Slack DMs; their old one ends" }, "By Slack"));
     if (!me && canChange && (!admin.owner || state.org_apart)) acts.append(el("button", { class: "danger", onclick: () => removeAdmin(admin) }, "Remove"));
-    const what = el("span", { class: "what" }, el("strong", {}, admin.name), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · the server's owner") : state.org_apart && admin.org ? el("span", { class: "muted" }, " · an admin of the server too") : null,
+    const what = el("span", { class: "what" }, adminPersonName(admin), me ? el("span", { class: "muted" }, " (you)") : null, admin.owner ? el("span", { class: "muted" }, " · the server's owner") : state.org_apart && admin.org ? el("span", { class: "muted" }, " · an admin of the server too") : null,
       el("span", { class: "muted small block" }, (admin.slack ? "Slack " + admin.slack : "no Slack member ID") + (admin.email ? " · " + admin.email : "")));
     const li = el("li", {}, what, acts);
     list.append(li);
@@ -3272,18 +3283,30 @@ function personSummary(person) {
   if (apps.length > 2) return Object.entries(counts).map(([level, n]) => levelWords[level] + " in " + n).join(" · ");
   return apps.map((app) => app + ": " + levelWords[person.levels[app]]).join(" · ");
 }
+// The People dropdown's choice for the server's owner and admins.
+const peopleServer = ":server";
+function adminPersonName(admin) {
+  const person = peopleApps && admin.email && peopleApps.people.find((x) => x.email && x.email.toLowerCase() === admin.email.toLowerCase());
+  if (!person) return el("strong", {}, admin.name);
+  return el("button", { class: "link-button", title: "Their apps, Slack and sign-ins", onclick: () => openPerson(person.key) }, el("strong", {}, admin.name));
+}
 function peopleAppsBlock() {
   const p = peopleApps;
   const box = el("div", { class: "pad" });
   if (!p) return box;
   const tools = el("div", { class: "people-tools" });
-  const filter = el("select", { "aria-label": "Which app" }, el("option", { value: "" }, "Every app"), ...p.apps.map((app) => el("option", { value: app, selected: app === peopleFilter }, app)));
+  const server = state && (state.admins || []).length ? el("option", { value: peopleServer, selected: peopleFilter === peopleServer }, state.org && !state.org.no_owner ? "Server" : "Admins") : null;
+  if (!server && peopleFilter === peopleServer) peopleFilter = "";
+  const filter = el("select", { "aria-label": "Whose people" }, el("option", { value: "" }, "Every app"), server, ...p.apps.map((app) => el("option", { value: app, selected: app === peopleFilter }, app)));
   filter.addEventListener("change", () => { peopleFilter = filter.value; renderPeople(); });
   const toggle = el("div", { class: "chips", role: "group", "aria-label": "How to show them" },
     el("button", { "aria-pressed": String(!peopleGrid), onclick: () => { peopleGrid = false; renderPeople(); } }, "List"),
     el("button", { "aria-pressed": String(peopleGrid), onclick: () => { peopleGrid = true; renderPeople(); } }, "Grid"));
-  tools.append(filter, el("span", { class: "grow" }), toggle);
+  const onServer = peopleFilter === peopleServer;
+  $("people-admins").hidden = !onServer;
+  tools.append(filter, el("span", { class: "grow" }), ...(onServer ? [] : [toggle]));
   box.append(tools);
+  if (onServer) { renderAdmins(); return box; }
   if (!p.mail) box.append(el("p", { class: "note muted small" }, "The machine sends no email, so people sign in with Slack links only. ", el("button", { class: "link-button", "data-nav": "", onclick: () => showView("keys") }, "Set up email"), "."));
   if ((p.no_email || []).length) box.append(el("p", { class: "note muted small" }, "The Slack apps of " + p.no_email.join(", ") + " lack users:read.email, so hi can't find their people's email: someone there may show twice, and signs in by email only once you give their address. Add the scope, then Reinstall to Workspace."));
   const query = $("people-search").value.trim().toLowerCase();

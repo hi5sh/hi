@@ -79,7 +79,7 @@
             <button data-side="people" role="tab" aria-selected="false" title="People: everyone with a level in the apps" aria-label="People"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14a6 6 0 0 1 3.5 6"/></svg></button>
             <button data-side="keys" role="tab" aria-selected="false" title="Keys: the machine's keys and sign-ins, and which apps have their own" aria-label="Keys"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3"/><path d="M16 7l3 3"/><path d="M14 9l2 2"/></svg></button>
             <button data-side="network" role="tab" aria-selected="false" title="Network: the apps' domain, sign-in providers, each app's peer, and what to ask your IT team" aria-label="Network"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg></button>
-            <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and its admins" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
+            <button data-side="machine" role="tab" aria-selected="false" title="Machine: hi's version and Update, the admin page's address, and other machines" aria-label="Machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span id="machine-badge" class="side-badge dot" hidden></span></button>
             <button data-side="activity" role="tab" aria-selected="false" title="Activity: what admins did here, and hi's own, newest first" aria-label="Activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></button>
             <span class="grow"></span>
             <button id="left-close" class="side-icon" title="Hide the panel" aria-label="Hide the panel">✕</button>
@@ -97,6 +97,18 @@
               <button id="people-add" class="small" title="Add someone: by email, with Slack or without">+ Add</button>
             </div>
             <div id="people-apps"></div>
+            <div id="people-admins" class="pad" hidden>
+              <h2 class="with-action"><span id="admins-title">Admins</span> <span class="grow"></span><button id="admin-add-open" class="side-icon" title="Add an admin" aria-label="Add an admin">+</button></h2>
+              <form id="admin-add" class="machine-block stack" autocomplete="off" hidden>
+                <input id="admin-add-name" required maxlength="60" placeholder="Their name" aria-label="Their name">
+                <input id="admin-add-slack" maxlength="20" placeholder="Their Slack member ID (optional)" aria-label="Their Slack member ID">
+                <input id="admin-add-email" type="email" maxlength="200" placeholder="Their email (optional)" aria-label="Their email" hidden>
+                <label class="check"><input id="admin-add-send" type="checkbox"> Send their link by Slack DM, not shown here</label>
+                <div class="buttons"><button type="button" id="admin-add-cancel">Cancel</button><button class="primary" type="submit">Add</button></div>
+              </form>
+              <p id="admins-note" class="muted small" hidden></p>
+              <ul id="admins-list" class="list admins-list"></ul>
+            </div>
           </section>
           <section id="side-keys" class="side-view page-view" role="tabpanel" aria-label="Keys" hidden>
             <div id="keys-view"></div>
@@ -118,16 +130,6 @@
             </form>
             <h2 class="with-action">Other machines <span class="grow"></span></h2>
             <div id="machines-view" class="machine-block"></div>
-            <h2 class="with-action">Admins <span class="grow"></span><button id="admin-add-open" class="side-icon" title="Add an admin" aria-label="Add an admin">+</button></h2>
-            <form id="admin-add" class="machine-block stack" autocomplete="off" hidden>
-              <input id="admin-add-name" required maxlength="60" placeholder="Their name" aria-label="Their name">
-              <input id="admin-add-slack" maxlength="20" placeholder="Their Slack member ID (optional)" aria-label="Their Slack member ID">
-              <input id="admin-add-email" type="email" maxlength="200" placeholder="Their email (optional)" aria-label="Their email" hidden>
-              <label class="check"><input id="admin-add-send" type="checkbox"> Send their link by Slack DM, not shown here</label>
-              <div class="buttons"><button type="button" id="admin-add-cancel">Cancel</button><button class="primary" type="submit">Add</button></div>
-            </form>
-            <p id="admins-note" class="muted small" hidden></p>
-            <ul id="admins-list" class="list admins-list"></ul>
             <p class="muted small">An admin can do on this page what anyone logged in to the machine as <span id="machine-user"></span> can, except what needs <code>sudo</code>.</p>
             <div class="machine-block"><button id="signout" class="small">Sign out here</button></div>
           </section>

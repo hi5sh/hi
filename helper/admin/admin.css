@@ -138,6 +138,8 @@ button.link-button:hover { text-decoration: underline; background: none; }
 .stack { display: flex; flex-direction: column; gap: 6px; }
 .stack .buttons { display: flex; justify-content: flex-end; gap: 6px; }
 .admins-list li { flex-wrap: wrap; }
+.admins-list li .what { flex: 1 1 100%; }
+.admins-list li .actions { justify-content: flex-start; margin-top: 6px; }
 .admins-list li.plain { display: block; border-bottom: 0; }
 .slack-form label { font-size: 12px; color: var(--muted); }
 .copyable { user-select: all; }

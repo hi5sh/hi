@@ -6964,6 +6964,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.225 — The server's owner and admins in People
+
+- [x] People's dropdown has **Server** above the apps: the server's owner
+  and admins, with **New link**, **By Slack**, and for the owner **+**
+  and **Remove**; a name with a person on the machine opens them. On a
+  machine without a server it says **Admins**, the machine's own. The
+  Machine tab no longer lists them.
+
 ### v2.6.224 — The admin page signs in as an app's dev page does
 
 - [x] The sign-in page takes your email, and sends a link and six digits

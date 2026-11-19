@@ -462,7 +462,7 @@ func (s *adminServer) routes() http.Handler {
 			return
 		}
 		if admin.Slack == "" {
-			failure(w, http.StatusBadRequest, errors.New("the admin page has no Slack member ID of yours, so the app couldn't tell it's you; add yours in Machine, then try again"))
+			failure(w, http.StatusBadRequest, errors.New("the admin page has no Slack member ID of yours, so the app couldn't tell it's you; add yours in People, Server, then try again"))
 			return
 		}
 		job, err := s.startJob(adminJob{Title: "Make " + admin.Name + " an owner of " + request.App, App: request.App, By: admin.Name, Main: true,
@@ -560,7 +560,7 @@ func (s *adminServer) routes() http.Handler {
 		}
 		adminRecord(admin.Name, "", "gave the admin page's NetBird peer its setup key")
 		s.wakeReach()
-		reply(w, http.StatusOK, map[string]string{"text": "The peer " + adminPeerHostname() + " joins NetBird in a minute. The page then moves to " + adminPeerHostname() + ": open it from your link again, or make a new one in Machine."})
+		reply(w, http.StatusOK, map[string]string{"text": "The peer " + adminPeerHostname() + " joins NetBird in a minute. The page then moves to " + adminPeerHostname() + ": open it from your link again, or make a new one in People, Server."})
 	}))
 	mux.HandleFunc("GET /api/jobs", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
 		reply(w, http.StatusOK, adminJobs())
@@ -1124,7 +1124,7 @@ func adminOpenDevPage(app string, admin adminPerson) (map[string]any, error) {
 		return nil, fmt.Errorf("no app %q on this machine", app)
 	}
 	if admin.Slack == "" {
-		return map[string]any{"builds": false, "why": "The admin page has no Slack member ID of yours, so it can't tell who you are in " + app + ". Add yours in Machine."}, nil
+		return map[string]any{"builds": false, "why": "The admin page has no Slack member ID of yours, so it can't tell who you are in " + app + ". Add yours in People, Server."}, nil
 	}
 	if !appBuilds(config, admin.Slack) {
 		return map[string]any{"builds": false, "level": appLevel(config, admin.Slack),
