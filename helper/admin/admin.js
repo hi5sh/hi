@@ -4015,7 +4015,13 @@ async function vaultShowRecovery() {
     el("h2", {}, "Your recovery key"),
     el("p", { class: "small" }, "Write it down, or keep it in a password manager, away from this machine. It opens every secret here, and is shown only now. Never send it by Slack or mail."),
     grid,
-    el("div", { class: "buttons" }, el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I've saved it")));
+    el("div", { class: "buttons" },
+      el("button", { title: "The 24 words, with a space between, for a password manager", onclick: async (event) => {
+        const button = event.currentTarget;
+        button.textContent = (await copyText(answer.words.join(" "))) ? "Copied" : "Not copied: write them down";
+        setTimeout(() => { button.textContent = "Copy"; }, 2000);
+      } }, "Copy"),
+      el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I've saved it")));
   document.body.append(dialog);
   dialog.showModal();
   await new Promise((resolve) => dialog.addEventListener("close", resolve, { once: true }));
@@ -4147,7 +4153,7 @@ function sectionNetwork(s) {
 // the open dialog when there is one (a modal dialog makes the rest inert).
 async function copyText(text) {
   if (navigator.clipboard && window.isSecureContext) {
-    try { await navigator.clipboard.writeText(text); toast("Copied."); return; } catch (e) { /* the old way */ }
+    try { await navigator.clipboard.writeText(text); toast("Copied."); return true; } catch (e) { /* the old way */ }
   }
   const box = el("textarea", { readonly: "", "aria-hidden": "true", style: "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0" });
   box.value = text;
@@ -4157,6 +4163,7 @@ async function copyText(text) {
   try { copied = document.execCommand("copy"); } catch (e) { /* not copied */ }
   box.remove();
   if (copied) toast("Copied."); else toast("Select it and copy it.", true);
+  return copied;
 }
 
 function sectionData(s) {

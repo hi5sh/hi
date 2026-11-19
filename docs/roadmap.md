@@ -6964,6 +6964,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.226 — Copy for the vault's recovery key
+
+- [x] The recovery key's dialog has **Copy**: its 24 words with a space
+  between, as `hi server vault open` takes them, for a password manager.
+  It says so when the browser wouldn't copy.
+
 ### v2.6.225 — The server's owner and admins in People
 
 - [x] People's dropdown has **Server** above the apps: the server's owner
