@@ -261,7 +261,7 @@ func adminKeepPeer(hi string) error {
 
 // adminPeerStatus is what the peer's NetBird says of itself.
 func adminPeerStatus(engine boxEngine) (fqdn string, ip netip.Addr, err error) {
-	out, err := engine.output("exec", adminPeerContainer, "netbird", "status", "--json")
+	out, err := engine.quietExec(adminPeerContainer, "netbird", "status", "--json")
 	if err != nil {
 		return "", ip, err
 	}

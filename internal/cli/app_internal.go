@@ -186,7 +186,7 @@ func appPeerHostname(team string) string {
 func appRefreshPeerName(engine boxEngine, team string, wait time.Duration) {
 	deadline := time.Now().Add(wait)
 	for {
-		out, err := engine.output("exec", appDevNetContainer(team), "netbird", "status", "--json")
+		out, err := engine.quietExec(appDevNetContainer(team), "netbird", "status", "--json")
 		var status struct {
 			FQDN string `json:"fqdn"`
 		}

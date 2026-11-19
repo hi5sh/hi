@@ -116,6 +116,16 @@ func (e boxEngine) exists(kind, name string) bool {
 
 // state is a container's state, such as running or exited, or "" when it
 // doesn't exist.
+// quietExec runs a command in a container without a podman event in the
+// journal: hi asks its peers how they are every half minute, and each ask
+// was a few lines in its service's log.
+func (e boxEngine) quietExec(args ...string) (string, error) {
+	if e.name == "podman" {
+		return e.output(append([]string{"--events-backend", "none", "exec"}, args...)...)
+	}
+	return e.output(append([]string{"exec"}, args...)...)
+}
+
 func (e boxEngine) state(name string) string {
 	out, err := e.output("container", "inspect", "--format", "{{.State.Status}}", name)
 	if err != nil {

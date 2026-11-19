@@ -901,7 +901,7 @@ func appDevStatus(config appConfig, stdout io.Writer) error {
 	switch {
 	case engine.state(appDevNetContainer(name)) == "running":
 		address := ""
-		if out, err := engine.output("exec", appDevNetContainer(name), "netbird", "status"); err == nil {
+		if out, err := engine.quietExec(appDevNetContainer(name), "netbird", "status"); err == nil {
 			for _, line := range strings.Split(out, "\n") {
 				if value, ok := strings.CutPrefix(strings.TrimSpace(line), "FQDN:"); ok {
 					address = strings.TrimSpace(value)

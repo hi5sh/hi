@@ -66,7 +66,7 @@ var (
 		if err != nil {
 			return serverPeerStatus{}, err
 		}
-		out, err := engine.output("exec", serverPeerContainer(id), "netbird", "status", "--json")
+		out, err := engine.quietExec(serverPeerContainer(id), "netbird", "status", "--json")
 		if err != nil {
 			return serverPeerStatus{}, err
 		}

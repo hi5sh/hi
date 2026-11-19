@@ -86,7 +86,7 @@ var appPeerIP = func(team string) (netip.Addr, error) {
 	if err != nil {
 		return netip.Addr{}, err
 	}
-	out, err := engine.output("exec", appDevNetContainer(team), "netbird", "status", "--json")
+	out, err := engine.quietExec(appDevNetContainer(team), "netbird", "status", "--json")
 	if err != nil {
 		return netip.Addr{}, err
 	}
