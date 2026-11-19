@@ -1,16 +1,17 @@
 # `hi server net`: the server on a NetBird peer of its own
 
-Status: Draft (2026-11-19), for review.
+Status: Approved (2026-11-19). Built in v2.6.222, releases 1 to 3 at
+once (see [As built](#as-built-v26222)).
 
-Dependencies: [hi_server.md](../approved/hi_server.md) (the client API on
+Dependencies: [hi_server.md](hi_server.md) (the client API on
 port 7373, device keys, signed calls, the server key),
-[hi_server_expose.md](../approved/hi_server_expose.md) (the instance
-listener and `netbird expose`), [hi_server_ai.md](../approved/hi_server_ai.md)
-(models served on the team's machines), [hi_server_vault.md](../approved/hi_server_vault.md)
-(team stores), [hi_server_apps.md](../approved/hi_server_apps.md) (a machine
-reaches its server, never the other way round), [hi_app_internal.md](../approved/hi_app_internal.md)
-and [hi_admin.md](../approved/hi_admin.md) (the peers apps and the admin
-page already have), and [hi_net.md](../approved/hi_net.md) (the machine's
+[hi_server_expose.md](hi_server_expose.md) (the instance
+listener and `netbird expose`), [hi_server_ai.md](hi_server_ai.md)
+(models served on the team's machines), [hi_server_vault.md](hi_server_vault.md)
+(team stores), [hi_server_apps.md](hi_server_apps.md) (a machine
+reaches its server, never the other way round), [hi_app_internal.md](hi_app_internal.md)
+and [hi_admin.md](hi_admin.md) (the peers apps and the admin
+page already have), and [hi_net.md](hi_net.md) (the machine's
 own enrollment).
 
 ## Goal
@@ -340,3 +341,66 @@ On a test machine, with NetBird 0.82:
   through the app's broker on the machine, which uses `client.sock` like
   the rest of the machine's hi. Release 1 checks this, and lists anything
   in a box that calls the server's address.
+
+## As built (v2.6.222)
+
+All three releases, with these differences from the draft:
+
+- **The machine's own hi reaches the server at `127.0.0.1:7373`**, not
+  `client.sock`. hi hands the server's address to other programs (hi
+  data's `HF_ENDPOINT`, the AI endpoint `hi q` writes into agents'
+  settings), which can't open a socket. A loopback listener is no wider
+  than NetBird: every call is still signed with an approved device key.
+  `local_listen` in `config.json` moves it, or `"off"`. `hi server net
+  join` points the machine's `org.json` there when it was joined at the
+  machine's NetBird address, and `app_move` tells the same server by its
+  key, since its own machine reaches it at another address.
+- **A socket per peer**, `client-<id>.sock`, so the server knows the
+  address a call came in at: an old peer's, or the machine's from before,
+  get the notice; the current peer and `127.0.0.1` don't. Peers are
+  `hi-server-peer-<id>`, in `net/peer-<id>/`, with `peer` and `old_peer`
+  in `config.json`; hi changes only those keys there, and keeps what an
+  admin wrote.
+- **`hi server init`** gives the server a peer when it has a setup key
+  (`--setup-key-file`, `HI_NETBIRD_SETUP_KEY`, or asked at a terminal
+  where Podman and NetBird are), with `--management-url` and
+  `--peer-name`; Enter, or no terminal, listens on the machine's NetBird
+  address as before. Run again, it keeps the peer. So open question 3 is
+  answered: a machine without Podman keeps the machine's address.
+- **The notice and the proof.** Answers at an old address carry
+  `Hi-Server-Moved` and `Hi-Server-Moved-Signature` (the server key over
+  `hi-server-moved\n<url>`). A device checks it with the key it pinned,
+  then calls the new address with a random `Hi-Server-Challenge`, which
+  must come back signed (`Hi-Server-Proof`). A device that can't reach the
+  new address yet says so once, with the policy to ask for. `hi server
+  join <new address>` takes the same proof, and keeps the device's user.
+- **The old peer** goes as drafted (a quiet day after the move, 14 days,
+  or `forget-old`); a restart counts as a call, so it waits a day after
+  one. Open question 4 stays as drafted.
+- **Not built:** the admin page's own peer moving with the server
+  (`--page`): the page keeps its own reach (`hi server init --netbird`).
+  Template sources and team stores reached with `git` on a NetBird
+  address (open question 1) still go through the machine's network.
+- **The peer's name** is `<machine>-server`; `--name` (or `--peer-name`
+  at init) gives another (open question 2).
+
+Findings, on NetBird 0.82 with the admin page's peer:
+
+1. **SOCKS5:** userspace mode runs it on `127.0.0.1:1080` by default; the
+   peer sets `NB_SOCKS5_LISTENER_PORT=1080` anyway. Traffic through it
+   shows in the peer's own WireGuard counters for the target, and a
+   direct call from the container doesn't: it goes out through the
+   peer's network. With `--disable-dns` it doesn't resolve NetBird names,
+   so hi resolves them from the peers `netbird status --json` lists.
+2. **`podman exec` doesn't pass a signal on**: SIGINT ends the client and
+   leaves the process in the container running. hi stops `netbird
+   expose` in the peer with `pkill -INT` there. Whether `netbird expose`
+   works from a userspace peer is checked on the first real server
+   (below).
+3. **Two peers on one machine** in one network reach each other directly
+   (the admin page's peer and the machine: P2P, host candidates).
+
+Checked end to end on a test machine: not yet. The first server with a
+peer checks a device joining through it, `hi q` reaching a served model
+through it, a cloud run through `netbird expose` in it, and a move.
+

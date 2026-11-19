@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -164,7 +165,9 @@ type adminOrgSettings struct {
 	Slack     adminOrgSlack     `json:"slack"`
 	Walls     []adminWallView   `json:"walls"`
 	Listen    string            `json:"listen"`
-	Problems  []string          `json:"problems,omitempty"`
+	// Net is the server's NetBird peer and its addresses (org_peer.go).
+	Net      json.RawMessage `json:"net"`
+	Problems []string        `json:"problems,omitempty"`
 }
 
 type adminProvider struct {
@@ -205,7 +208,7 @@ func adminOrgSettingsOf() (adminOrgSettings, error) {
 		path string
 		into *json.RawMessage
 	}{{"/admin/users", &settings.Users}, {"/admin/ai", &settings.AI}, {"/admin/templates", &settings.Templates},
-		{"/admin/data", &settings.Data}, {"/admin/policy", &settings.Policy}} {
+		{"/admin/data", &settings.Data}, {"/admin/policy", &settings.Policy}, {"/admin/net", &settings.Net}} {
 		if err := adminOrgCall(http.MethodGet, read.path, nil, read.into); err != nil {
 			settings.Problems = append(settings.Problems, err.Error())
 			*read.into = json.RawMessage("null")
@@ -411,6 +414,36 @@ func adminOrgDo(admin adminPerson, change adminOrgChange) (any, error) {
 			}
 			return map[string]string{"text": answer.Text + " The server restarted to take it."}, nil
 		}
+	case "net":
+		// The server's NetBird peer (org_peer.go): its owner gives it one,
+		// or moves it to another network; the machine stays where it is.
+		if !admin.Owner {
+			return nil, errors.New("the server's owner moves it to another network")
+		}
+		dir := adminOrgDir()
+		switch change.Action {
+		case "join":
+			key := []byte(strings.TrimSpace(change.Key))
+			defer clear(key)
+			status, err := serverNetJoin(dir, serverNetJoinOptions{Key: key, ManagementURL: change.URL, Name: change.Name}, as, io.Discard)
+			if err != nil {
+				return nil, err
+			}
+			adminRecord(admin.Name, "", "put the server on NetBird as "+serverJoinAddress(status))
+			return map[string]string{"text": "The server is on NetBird as " + serverJoinAddress(status) + ". Devices join with hi server join " + serverJoinAddress(status) + "; those that call its old address are told, and follow."}, nil
+		case "forget-old":
+			_, gone, err := serverForgetOld(dir)
+			if err != nil {
+				return nil, err
+			}
+			if len(gone) == 0 {
+				return map[string]string{"text": "The server has no old address."}, nil
+			}
+			serverAuditOffline(dir, as, "stopped answering at its old addresses", strings.Join(gone, ", "), "")
+			serverReloadNet(dir, as)
+			adminRecord(admin.Name, "", "stopped the server answering at "+strings.Join(gone, " and "))
+			return map[string]string{"text": "The server no longer answers at " + strings.Join(gone, " or ") + "."}, nil
+		}
 	case "restart":
 		if adminOrgService() != "user" {
 			return nil, fmt.Errorf("the server is a system service here, so restarting it needs sudo: %s. hi update on the machine makes it a user service, once", orgRestartLine())
@@ -454,6 +487,10 @@ func adminOrgIncidents(now time.Time) []adminIncident {
 	}
 	// What the audit said of each, newest last.
 	said := map[string]auditEntry{}
+	// The server's NetBird peer off its network (org_peer.go): open from
+	// when it went off until it's back.
+	var peerOff []auditEntry
+	peerOpen := map[string]int{}
 	if file, err := os.Open(filepath.Join(dir, "audit.jsonl")); err == nil {
 		scanner := bufio.NewScanner(file)
 		scanner.Buffer(make([]byte, 64<<10), 1<<20)
@@ -465,10 +502,27 @@ func adminOrgIncidents(now time.Time) []adminIncident {
 					said[entry.Subject] = entry
 				case "cleaned up":
 					said["cleaned up "+entry.Subject] = entry
+				case "peer off its network":
+					peerOpen[entry.Subject] = len(peerOff)
+					peerOff = append(peerOff, entry)
+				case "peer back on its network":
+					if i, ok := peerOpen[entry.Subject]; ok {
+						peerOff[i].Subject += "\x00" + entry.Time.Format(time.RFC3339)
+						delete(peerOpen, entry.Subject)
+					}
 				}
 			}
 		}
 		file.Close()
+	}
+	for _, entry := range peerOff {
+		name, back, closed := strings.Cut(entry.Subject, "\x00")
+		incident := adminIncident{App: ":org", ID: "peer/" + name + "/" + entry.Time.Format("20060102T150405"), Status: "open", Opened: entry.Time,
+			Title: "The server's NetBird peer " + name + " is off its network", Where: entry.Detail + " · hi server net on the server's machine says more"}
+		if closed {
+			incident.Status, incident.Title, incident.Last = "closed", "The server's NetBird peer "+name+" was off its network", "back on it "+back
+		}
+		list = append(list, incident)
 	}
 	for key, since := range state.Unleased {
 		seen[key] = true

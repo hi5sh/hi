@@ -9,7 +9,7 @@ app's offsite copy), [hi_app_snapshots.md](../approved/hi_app_snapshots.md)
 (restic, the timer, retention, offsite, which this follows),
 [hi_server_apps.md](../approved/hi_server_apps.md) (machines and apps
 reach their server), and a draft it sits beside:
-[hi_server_peer.md](hi_server_peer.md) (the server's NetBird peer, whose
+[hi_server_peer.md](../approved/hi_server_peer.md) (the server's NetBird peer, whose
 identity a snapshot then holds).
 
 ## Goal
@@ -46,7 +46,7 @@ The server's folder and the vault, as one restic snapshot:
 | Policy, settings, the AI's settings | `org/policy.json`, `config.json`, `ai.json` | How the server decides |
 | The audit, and the AI's usage | `org/audit.jsonl`, `ai_usage.jsonl` | What happened, and spend |
 | The vault | `vault/keys.json`, `vault/paths/`, `vault/shared.json` | Every secret: provider keys, Slack, apps' settings, snapshot keys |
-| The server's NetBird peer, with [hi_server_peer.md](hi_server_peer.md) | `org/net/peer` | The same name and address on a new machine |
+| The server's NetBird peer, with [hi_server_peer.md](../approved/hi_server_peer.md) | `org/net/peer` | The same name and address on a new machine |
 
 Not in a snapshot:
 
@@ -187,7 +187,7 @@ hi server restore --from s3:https://s3.example.com/hi-backups/server
      Without the server's own peer, the address is this machine's: each
      device runs `hi server join <new address>`, and since its key is
      known and approved, it's back at once, with its user and group. With
-     [hi_server_peer.md](hi_server_peer.md), the peer's identity comes
+     [hi_server_peer.md](../approved/hi_server_peer.md), the peer's identity comes
      back with the snapshot, at the same name and address, and devices
      don't notice;
    - **apps** on lost machines: `hi app restore <app> --from <their
@@ -315,6 +315,6 @@ that is gone.
 - Moving a running server to another machine on purpose (`hi server move`):
   a restore from a fresh snapshot does it, with the old server stopped
   first. A command for it can follow once this and
-  [hi_server_peer.md](hi_server_peer.md) are built.
+  [hi_server_peer.md](../approved/hi_server_peer.md) are built.
 - A team store (OpenBao, Vault) the vault is connected to: the team backs
   that up itself.

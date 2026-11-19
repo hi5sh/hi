@@ -374,7 +374,13 @@ var exposeNameLine = regexp.MustCompile(`Name:\s*(\S+)`)
 // startNetbirdExpose runs `netbird expose` and returns once it prints the
 // URL. The process keeps the service until it is stopped.
 func startNetbirdExpose(args []string, timeout time.Duration) (cmd *exec.Cmd, url, name string, err error) {
-	cmd = exec.Command(exposeCommand, args...)
+	return startNetbirdExposeWith(exposeCommand, args, timeout)
+}
+
+// startNetbirdExposeWith runs netbird expose through command: NetBird's
+// CLI, or podman exec in a peer's container.
+func startNetbirdExposeWith(command string, args []string, timeout time.Duration) (cmd *exec.Cmd, url, name string, err error) {
+	cmd = exec.Command(command, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, "", "", err

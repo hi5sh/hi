@@ -12,7 +12,7 @@ container's.
 ## The picture
 
 ```text
- devices (hi server join) ───TCP 7373────▶ hi server (hi-server.service)
+ devices (hi server join) ───TCP 7373────▶ the server's peer ws1-server ──▶ hi server (hi-server.service)
                                                 ▲
                                                 │ the page calls the server for you
  admins, in a browser ────TCP 1984 / 443──▶ admin page (hi-admin.service)
@@ -33,8 +33,8 @@ On ws1, a machine with apps in the NetBird network `corp.example`.
 
 | Port | What listens | Where | Who connects | How they sign in |
 |------|--------------|-------|--------------|------------------|
-| **7373** | hi server, `hi-server.service` | the machine's NetBird address | devices that joined it, and `hi` on the machine | the device's key |
-| **7374** | the server's data proxy for cloud jobs | the machine's NetBird address, published with `netbird expose` while a run needs it | rented machines in `hi compute run --data` and `up --data` | a run token, for that run's data |
+| **7373** | hi server, `hi-server.service` | its own peer `ws1-server` ([`hi server net join`](/guide/compute/managed/#a-netbird-peer-of-its-own)), else the machine's NetBird address; `127.0.0.1` too | devices that joined it; `hi` on the machine, at `127.0.0.1` | the device's key |
+| **7374** | the server's data proxy for cloud jobs | its peer, or the machine's NetBird address, published with `netbird expose` while a run needs it | rented machines in `hi compute run --data` and `up --data` | a run token, for that run's data |
 | **1984** | admin page, `hi-admin.service` | its own peer `ws1-admin` (with podman), else the machine's NetBird address; always `127.0.0.1` too | the server's owner and admins | a link, then a browser cookie |
 | **80** | admin page | its peer, for a name your IT team points at it (`hi server address`) | admins | as on 1984 |
 | **443** | admin page over https | its peer, as `admin.<domain>`, with [`hi net domain`](/guide/workstation/netbird/) | admins | as on 1984 |
@@ -54,7 +54,10 @@ that runs hi can do.
 The admin page's **Network**, on the left, lists these under **What to
 ask your IT team**, with your names filled in, ready to copy and send:
 
-- **The server:** from the server's people to the machine, TCP 7373.
+- **The server:** from the server's people to its peer `ws1-server` (or
+  the machine, without one), TCP 7373; and from the peer to the machines
+  with models served for the server (`hi serve llm --org`), on their
+  ports.
 - **The admin page:** from the admins' group to its peer (or the machine),
   TCP 1984, and 443 with a domain.
 - **Each app**, its peer in the group `hi-<app>`:
@@ -86,6 +89,7 @@ These are only on a box's own network or a socket, never on NetBird:
 | 8642 | Hermes' API in the lead's box, reached through a socket |
 | 8081 | a served model's front: the listener that checks keys |
 | 2222 | a dev box's sshd, behind its peer's 22 |
+| 1080 | NetBird's SOCKS5 proxy in the server's peer: the server's way into its network, through a socket |
 
 ## See also
 

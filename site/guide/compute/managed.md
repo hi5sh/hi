@@ -248,7 +248,9 @@ hi server provider add runpod     # asks for the key without echoing it
 hi server provider add shadeform  # the same for Shadeform, if you use it
 ```
 
-`hi server init` listens on this machine's NetBird address, port 7373, and
+`hi server init` asks, at a terminal, for a setup key for the server's
+own NetBird peer (`--setup-key-file` gives one in a file; below), and
+without one listens on this machine's NetBird address, port 7373. It
 starts the server as a user service, `hi-server.service`, and the [admin
 page](/guide/app/admin/) beside it, `hi-admin.service`, where the owner and
 the admins run the server and the machine's apps; it prints your link.
@@ -300,8 +302,45 @@ machine and the admin page say so, with the command, `hi server owner <Slack
 member ID> --email <address>`. Until then, `hi server init` there asks for
 them.
 
-It listens only on its NetBird address. Clients sign every request, so a
-forged, altered, or replayed request is refused, even from inside the VPN.
+It listens only on NetBird, and on `127.0.0.1` for `hi` on its own
+machine. Clients sign every request, so a forged, altered, or replayed
+request is refused, even from inside the VPN.
+
+### A NetBird peer of its own
+
+A server on the machine's NetBird address moves when the machine does,
+and shares its access policies. With a peer of its own, a small rootless
+container named `<machine>-server`, it moves to another NetBird network
+on its own, and the machine stays where it is:
+
+```sh
+hi server net                          # the peer: its name, address, network, old addresses
+hi server net join                     # asks for a setup key from the network's dashboard
+hi server net join --setup-key-file key.txt --management-url https://netbird.example.com
+hi server net forget-old               # stop answering at the old addresses now
+```
+
+The server keeps running on the machine, with its vault and state; the
+peer passes NetBird's connections on to it, and is its way into its
+network: models served on the team's machines, and a team store on a
+NetBird address, are reached through it. `--management-url` is for a
+network on a management server of its own; without it, NetBird's.
+
+`join` on a server with a peer moves it: a new peer joins the other
+network, and the old one answers beside it. Every answer there tells the
+device the new address, signed with the server's key; a device that
+reaches the new address checks the key and uses it from then on. The old
+peer goes once no device has called it for a day, after 14 days at the
+latest, or at `forget-old`. A device that missed the move joins again at
+the new address, as the same device: `hi server join <new address>`.
+A server from before keeps answering at the machine's address beside its
+peer, and tells devices there too, until `forget-old`.
+
+`hi` on the server's own machine reaches it at `127.0.0.1:7373`,
+whatever network the peer is on. The admin page's **Overview** shows the
+peer, its old addresses and the devices still calling there, and lets
+the owner move it. The peer needs Podman and NetBird on the machine
+(`hi install podman netbird`).
 
 ### Update the server
 

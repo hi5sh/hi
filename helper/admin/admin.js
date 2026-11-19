@@ -1634,6 +1634,7 @@ function orgOverview(s) {
   if (o.no_owner) parts.push(el("p", { class: "warn" }, "No owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
   if (o.up) parts.push(el("div", { class: "card-box org-card" }, orgStats(o)));
   parts.push(heading("The server"), orgServerBlock(s));
+  if (s && s.net) parts.push(heading("Network"), orgNetBlock(s.net));
   const apps = (state.apps || []).filter((a) => !a.error);
   if (apps.length) {
     const t = el("table", { class: "people-matrix spend-table" });
@@ -1650,12 +1651,56 @@ function orgOverview(s) {
   return parts;
 }
 
+// The server's NetBird peer (hi_server_peer.md): where devices reach it,
+// its old addresses during a move, and, for its owner, moving it to
+// another network. The machine stays where it is.
+function orgNetBlock(n) {
+  const owns = orgCanChange() && !!(state.me && state.me.owner);
+  const block = el("div", { class: "machine-block" });
+  const p = n.peer;
+  const move = inlineForm([
+    { name: "key", type: "password", placeholder: "A setup key from the network's dashboard (Setup Keys)", required: true },
+    { name: "url", placeholder: "Its management server, when it isn't NetBird's own, such as https://netbird.example.com" },
+    { name: "name", placeholder: "The peer's name (optional; " + ((p && p.name) || "<machine>-server") + " by default)", max: "63", pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?" },
+  ], async (v) => {
+    toast("Joining the network: up to a minute and a half…", true);
+    const answer = await orgDo({ what: "net", action: "join", key: v.key, url: v.url, name: v.name }, "");
+    if (answer === null) return false;
+    if (answer.text) toast(answer.text, true);
+  }, p ? "Move it" : "Join");
+  if (!p) {
+    block.append(el("p", { class: "small" }, n.listen ? "The server listens on this machine's NetBird address, " : "The server has no NetBird address yet", n.listen ? el("code", {}, n.listen) : null,
+      n.listen ? ", so it moves when the machine does." : "."),
+      el("p", { class: "muted small" }, "A NetBird peer of its own lets it move to another network without the machine, and have its own access policies."));
+    if (owns) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Give it a peer of its own…")), move);
+    return block;
+  }
+  block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (p.connected ? "idle" : "bad"), "aria-hidden": "true" }),
+    "On NetBird as ", el("code", {}, p.fqdn || p.name), p.address ? " (" + p.address + ")" : "", ", at " + (p.network || "NetBird") + "."));
+  if (!p.connected) block.append(el("p", { class: "warn small" }, "Not on its network" + (p.problem ? ": " + p.problem : "") + ". Devices reach the server there again once it's back."));
+  const old = [];
+  if (n.old) old.push(el("p", { class: "small" }, "It still answers as ", el("code", {}, n.old.fqdn || n.old.name), ", its peer from before the move, until devices have followed (by " + new Date(n.old.until).toLocaleDateString() + " at the latest)."));
+  if (n.listen) old.push(el("p", { class: "small" }, "It still answers at ", el("code", {}, n.listen), ", this machine's NetBird address from before its peer."));
+  if (old.length) {
+    block.append(...old);
+    const recent = (n.old_devices || []).filter((d) => Date.now() - new Date(d.last).getTime() < 24 * 3600 * 1000);
+    block.append(el("p", { class: "muted small" }, recent.length ? "Called there in the last day: " + recent.map((d) => d.user + " on " + d.hostname).join(", ") + ". Devices that call there are told the new address, and follow." : "No device called there in the last day."));
+    if (owns) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => {
+      if (await ask({ title: "Stop answering at the old addresses?", text: recent.length ? "Devices that haven't followed yet join again at the new address, as the same devices: hi server join " + n.join + "." : "Every device has followed, or none called there for a day.", ok: "Stop" })) { const answer = await orgDo({ what: "net", action: "forget-old" }, ""); if (answer && answer.text) toast(answer.text); }
+    } }, "Forget the old address")));
+  }
+  block.append(el("p", { class: "muted small" }, "Ask your IT team for NetBird policies that let devices reach ", el("code", {}, n.join || p.name), " on TCP 7373, and the peer reach the team's machines on the ports their models are served on."));
+  if (owns && !n.old) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Move to another network…")), move);
+  return block;
+}
+
 function orgServerBlock(s) {
   const o = state.org;
   const block = el("div", { class: "machine-block" });
   block.append(el("p", { class: "incident-head" }, el("span", { class: "dot " + (o.up ? "idle" : "bad"), "aria-hidden": "true" }), o.up ? "The server runs." : "The server doesn't answer."));
   if (o.error) block.append(el("p", { class: "error small" }, o.error));
-  if (s && s.listen) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi server join " + s.listen)));
+  const join = (s && s.net && s.net.join) || (s && s.listen);
+  if (join) block.append(el("p", { class: "muted small" }, "Devices join with ", el("code", {}, "hi server join " + join)));
   const actions = el("div", { class: "data-actions" });
   if (o.service === "user") {
     block.append(el("p", { class: "muted small" }, "A user service, hi-server.service, beside this page."));

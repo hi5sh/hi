@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -38,12 +40,19 @@ var exposeURLLine = regexp.MustCompile(`URL:\s*(https?://\S+)`)
 
 // serverExposure is the running `netbird expose`, if any.
 type serverExposure struct {
-	mu      sync.Mutex
-	listen  string // the instance listener's address; "" when off
-	cmd     *exec.Cmd
-	done    chan struct{} // closed once cmd has exited and it's audited
-	url     string
-	started time.Time
+	mu     sync.Mutex
+	listen string // the instance listener's address; "" when off
+	// peer is the server's NetBird peer's container, which runs netbird
+	// expose when the server has one; "" runs it on the machine.
+	peer string
+	stop func() // ends the running netbird expose
+	// instance serves the instance listener, at serving.
+	instance *http.Server
+	serving  string
+	cmd      *exec.Cmd
+	done     chan struct{} // closed once cmd has exited and it's audited
+	url      string
+	started  time.Time
 	// until is when the last run token issued expires; lastUse is the
 	// last call through the listener.
 	until   time.Time
@@ -95,16 +104,31 @@ func (s *orgServer) ensureExposure(name string) (string, error) {
 	if e.cmd != nil && e.url != "" {
 		return e.url, nil
 	}
-	_, port, err := net.SplitHostPort(e.listen)
-	if err != nil {
-		return "", err
+	port := fmt.Sprint(exposeDefaultPort)
+	if e.peer == "" {
+		var err error
+		if _, port, err = net.SplitHostPort(e.listen); err != nil {
+			return "", err
+		}
 	}
-	cmd, url, _, err := startNetbirdExpose([]string{"expose", port, "--with-name-prefix", "hi-" + name}, exposeStartTimeout)
+	args := []string{"expose", port, "--with-name-prefix", "hi-" + name}
+	var cmd *exec.Cmd
+	var url string
+	var err error
+	if e.peer != "" {
+		cmd, url, err = startPeerExpose(e.peer, args)
+	} else {
+		cmd, url, _, err = startNetbirdExpose(args, exposeStartTimeout)
+	}
 	if err != nil {
 		e.problem = err.Error()
 		return "", err
 	}
+	peer := e.peer
 	stopCmd := func() {
+		if peer != "" {
+			stopPeerExpose(peer)
+		}
 		cmd.Process.Signal(os.Interrupt)
 		cmd.Wait()
 	}
@@ -126,6 +150,12 @@ func (s *orgServer) ensureExposure(name string) (string, error) {
 	}
 	done := make(chan struct{})
 	e.cmd, e.done, e.url, e.started, e.problem = cmd, done, url, time.Now(), ""
+	e.stop = func() {
+		if peer != "" {
+			stopPeerExpose(peer)
+		}
+		cmd.Process.Signal(os.Interrupt)
+	}
 	go func() {
 		defer close(done)
 		cmd.Wait()
@@ -140,6 +170,79 @@ func (s *orgServer) ensureExposure(name string) (string, error) {
 	return url, nil
 }
 
+// openInstance serves the instance listener where the exposure says:
+// the NetBird address's port 7374, or the socket the server's peer passes
+// its port 7374 to. It moves when the server gets a peer.
+func (s *orgServer) openInstance() {
+	e := &s.exposure
+	e.mu.Lock()
+	address, serving, previous := e.listen, e.serving, e.instance
+	e.mu.Unlock()
+	if address == serving {
+		return
+	}
+	if previous != nil {
+		previous.Close()
+	}
+	e.mu.Lock()
+	e.instance, e.serving = nil, ""
+	e.mu.Unlock()
+	if address == "" {
+		return
+	}
+	network, at := "tcp", address
+	if path, ok := strings.CutPrefix(address, "unix:"); ok {
+		network, at = "unix", path
+		os.MkdirAll(filepath.Dir(path), 0o700)
+		os.Remove(path)
+	}
+	listener, err := net.Listen(network, at)
+	if err != nil {
+		fmt.Fprintf(s.log, "hi server: no instance listener on %s, so cloud runs use signed links: %v\n", address, err)
+		e.mu.Lock()
+		e.listen = ""
+		e.mu.Unlock()
+		return
+	}
+	instance := &http.Server{Handler: s.instanceHandler(), ReadHeaderTimeout: 10 * time.Second}
+	e.mu.Lock()
+	e.instance, e.serving = instance, address
+	e.mu.Unlock()
+	go instance.Serve(listener)
+}
+
+func (s *orgServer) closeInstance(ctx context.Context) {
+	s.exposure.mu.Lock()
+	instance := s.exposure.instance
+	s.exposure.instance, s.exposure.serving = nil, ""
+	s.exposure.mu.Unlock()
+	if instance != nil {
+		instance.Shutdown(ctx)
+	}
+}
+
+// startPeerExpose runs netbird expose in the server's NetBird peer, so
+// the exposure is the peer's, on its network and account.
+func startPeerExpose(container string, args []string) (*exec.Cmd, string, error) {
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return nil, "", err
+	}
+	cmd, url, _, err := startNetbirdExposeWith(engine.bin, append([]string{"exec", container, "netbird"}, args...), exposeStartTimeout)
+	if err != nil {
+		stopPeerExpose(container)
+	}
+	return cmd, url, err
+}
+
+// stopPeerExpose ends netbird expose in the peer: a signal to podman exec
+// ends only podman exec, and leaves what it ran running.
+func stopPeerExpose(container string) {
+	if engine, _, err := detectBoxEngine(); err == nil {
+		engine.output("exec", container, "pkill", "-INT", "-f", "^netbird expose")
+	}
+}
+
 // reapExposure stops the exposure once no run token is valid and nothing
 // has called for a while.
 func (s *orgServer) reapExposure() {
@@ -150,19 +253,19 @@ func (s *orgServer) reapExposure() {
 	if e.cmd == nil || time.Now().Before(e.until) || time.Since(e.lastUse) < exposeIdleAfter {
 		return
 	}
-	e.cmd.Process.Signal(os.Interrupt)
+	e.stop()
 }
 
 // stopExposure stops `netbird expose` and waits until it has exited.
 func (s *orgServer) stopExposure() {
 	e := &s.exposure
 	e.mu.Lock()
-	cmd, done := e.cmd, e.done
+	cmd, done, stop := e.cmd, e.done, e.stop
 	e.mu.Unlock()
 	if cmd == nil {
 		return
 	}
-	cmd.Process.Signal(os.Interrupt)
+	stop()
 	select {
 	case <-done:
 	case <-time.After(10 * time.Second):

@@ -192,6 +192,10 @@ type orgServer struct {
 	slack *slackBridge
 	// runCtx is serve's: a Slack set up from the page runs under it.
 	runCtx context.Context
+	// net is the server's NetBird peers and addresses (org_peer.go), and
+	// clients the client API they all serve.
+	net     serverNet
+	clients http.Handler
 	// slackSetup serializes setting Slack up from the page.
 	slackSetup sync.Mutex
 	// vault is the vault's hold this server answers with; nil is the
@@ -241,6 +245,15 @@ type serverConfig struct {
 	// machines (org_expose.go): the client address's host on port 7374
 	// by default, or "off".
 	ExposeListen string `json:"expose_listen,omitempty"`
+	// Peer is the server's NetBird peer of its own (org_peer.go); OldPeer
+	// the one from before a move, answering beside it until devices have
+	// followed. With a peer, Listen is the machine's NetBird address from
+	// before it, or "".
+	Peer    *serverPeerConfig `json:"peer,omitempty"`
+	OldPeer *serverPeerConfig `json:"old_peer,omitempty"`
+	// LocalListen is where the machine's own hi reaches the server:
+	// 127.0.0.1:7373 by default, or "off".
+	LocalListen string `json:"local_listen,omitempty"`
 }
 
 // priceBound is how much a replacement for sold-out hardware may cost.
@@ -635,6 +648,7 @@ func (s *orgServer) deviceLimited(limit int64, next deviceHandler) http.HandlerF
 		}
 		copy := *device
 		s.mu.Unlock()
+		s.net.noteDevice(serverVia(r.Context()), &copy)
 		next(w, r, copy, body)
 	}
 }
@@ -1789,6 +1803,7 @@ func (s *orgServer) adminHandler() http.Handler {
 	})
 	s.approversHandler(mux)
 	s.slackSetupHandler(mux)
+	s.netRoutes(mux)
 	s.peopleAdminRoutes(mux)
 	s.policyAdminRoutes(mux)
 	s.aiAdminRoutes(mux)
@@ -1871,38 +1886,54 @@ func validServerName(name string) bool {
 
 // serve listens for clients and admins until the context ends.
 func (s *orgServer) serve(ctx context.Context, listen string) error {
-	clientListener, err := net.Listen("tcp", listen)
-	if err != nil {
-		return fmt.Errorf("listen on %s: %w", listen, err)
+	s.clients = s.clientHandler()
+	var addresses []string
+	// The machine's NetBird address: the server's own before it had a
+	// peer, and since then its old one, until hi server net forget-old.
+	if listen != "" {
+		listener, err := net.Listen("tcp", listen)
+		if err != nil {
+			if peer, _ := s.net.current(); peer == nil {
+				return fmt.Errorf("listen on %s: %w", listen, err)
+			}
+			fmt.Fprintf(s.log, "hi server: not on its old address %s: %v\n", listen, err)
+		} else {
+			s.openClient("listen", listener, s.clients)
+			addresses = append(addresses, listen)
+		}
+	}
+	// The machine's own hi and apps, whatever network the peer is on.
+	if local := s.net.local; local != "" {
+		if listener, err := net.Listen("tcp", local); err != nil {
+			fmt.Fprintf(s.log, "hi server: not on %s for this machine's hi: %v\n", local, err)
+		} else {
+			s.openClient("local", listener, s.clients)
+			addresses = append(addresses, local)
+		}
+	}
+	s.listenPeers(s.clients)
+	if peer, _ := s.net.current(); peer != nil {
+		addresses = append(addresses, "its NetBird peer "+peer.Name)
 	}
 	socket := filepath.Join(s.dir, "admin.sock")
 	os.Remove(socket)
 	adminListener, err := net.Listen("unix", socket)
 	if err != nil {
-		clientListener.Close()
+		s.shutdownClients(context.Background())
 		return fmt.Errorf("open the admin socket: %w", err)
 	}
 	if err := os.Chmod(socket, 0o600); err != nil {
-		clientListener.Close()
+		s.shutdownClients(context.Background())
 		adminListener.Close()
 		return err
 	}
-	client := &http.Server{Handler: s.clientHandler(), ReadHeaderTimeout: 10 * time.Second}
 	s.runCtx = ctx
 	admin := &http.Server{Handler: s.adminHandler(), ReadHeaderTimeout: 10 * time.Second}
-	go client.Serve(clientListener)
 	go admin.Serve(adminListener)
-	var instance *http.Server
-	if address := s.exposure.listen; address != "" {
-		if listener, err := net.Listen("tcp", address); err != nil {
-			fmt.Fprintf(s.log, "hi server: no instance listener on %s, so cloud runs use signed links: %v\n", address, err)
-			s.exposure.mu.Lock()
-			s.exposure.listen = ""
-			s.exposure.mu.Unlock()
-		} else {
-			instance = &http.Server{Handler: s.instanceHandler(), ReadHeaderTimeout: 10 * time.Second}
-			go instance.Serve(listener)
-		}
+	s.openInstance()
+	listen = strings.Join(addresses, ", ")
+	if listen == "" {
+		listen = "its admin socket only"
 	}
 	fmt.Fprintf(s.log, "hi server %s listening on %s\n", version, listen)
 	if err := s.startSlack(ctx); err != nil {
@@ -1935,24 +1966,24 @@ func (s *orgServer) serve(ctx context.Context, listen string) error {
 	defer shared.Stop()
 	var polling sync.Mutex
 	s.reconcile()
+	s.keepNet()
 	s.syncTemplatesInBackground()
 	for {
 		select {
 		case <-ctx.Done():
 			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			client.Shutdown(shutdown)
+			s.shutdownClients(shutdown)
 			admin.Shutdown(shutdown)
 			s.stopExposure()
-			if instance != nil {
-				instance.Shutdown(shutdown)
-			}
+			s.closeInstance(shutdown)
 			os.Remove(socket)
 			return nil
 		case <-ticker.C:
 			s.reconcile()
 			s.reapExposure()
 			s.remindRecovery()
+			s.keepNet()
 		case <-templates.C:
 			s.syncTemplatesInBackground()
 		case <-shared.C:
@@ -2043,6 +2074,8 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		return exitCode(orgDataCommand(rest, stdin, stdout, stderr), stderr)
 	case "expose":
 		return exitCode(orgExposeCommand(rest, stdout, stderr), stderr)
+	case "net":
+		return exitCode(orgNetCommand(rest, stdin, stdout, stderr), stderr)
 	case "watch":
 		fmt.Fprintln(stderr, "hi: hi server watch is gone: apps watch themselves on their own machine (hi app watch), and this machine's heartbeat is hi heartbeat <url>.")
 		return 1
@@ -2072,6 +2105,9 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	noStart := flags.Bool("no-start", false, "don't install and start the server's user service")
 	pageLocal := flags.Bool("local", false, "the admin page on this machine only, 127.0.0.1:1984")
 	pageNetbird := flags.String("netbird", "", "the admin page's own NetBird peer: its setup key, in a file")
+	peerKeyFile := flags.String("setup-key-file", "", "the server's own NetBird peer: its setup key, in a file")
+	peerManagement := flags.String("management-url", "", "the peer's network's management server, when it isn't NetBird's own")
+	peerName := flags.String("peer-name", "", "the peer's name on the network (default <machine>-server)")
 	if _, err := flags.parse(args); err != nil {
 		return err
 	}
@@ -2079,25 +2115,57 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	if err != nil {
 		return err
 	}
-	if *listen == "" {
+	// The server's NetBird peer of its own (org_peer.go), with a setup
+	// key; or the machine's NetBird address, as before it had one.
+	previous, previousErr := loadServerConfig(dir)
+	hasPeer := previousErr == nil && previous.Peer != nil
+	var peerKey []byte
+	if !hasPeer && *listen == "" {
+		if peerKey, err = orgInitPeerKey(*peerKeyFile, stdin, stdout); err != nil {
+			return err
+		}
+		defer clear(peerKey)
+	}
+	switch {
+	case peerKey != nil:
+		if _, err := serverPeerEngine(); err != nil {
+			return err
+		}
+	case hasPeer && *listen == "":
+		*listen = previous.Listen
+	case *listen == "":
 		address, err := netbirdAddress()
 		if err != nil {
-			return err
+			return fmt.Errorf("%v; or give the server a NetBird peer of its own: hi server init --setup-key-file <file>", err)
 		}
 		*listen = net.JoinHostPort(address, strconv.Itoa(serverDefaultPort))
 	}
-	if _, _, err := net.SplitHostPort(*listen); err != nil {
-		return usageError{fmt.Sprintf("--listen %q is not host:port", *listen)}
+	if *listen != "" {
+		if _, _, err := net.SplitHostPort(*listen); err != nil {
+			return usageError{fmt.Sprintf("--listen %q is not host:port", *listen)}
+		}
 	}
 	// A machine joined to another org stays there until it leaves: its
 	// apps would ask that one for compute while the page showed this one.
-	// An org in a folder of its own (--dir) isn't the machine's.
-	ownURL, _ := normalizeServerURL(*listen)
+	// An org in a folder of its own (--dir) isn't the machine's. The
+	// machine's own hi reaches a server with a peer on 127.0.0.1.
+	ownURL := "http://" + serverLocalListen
+	if peerKey == nil && !hasPeer {
+		ownURL, _ = normalizeServerURL(*listen)
+	}
+	ownURLs := map[string]bool{ownURL: true, "http://" + serverLocalListen: true}
+	for _, address := range []string{*listen, previous.Listen} {
+		if address != "" {
+			if url, err := normalizeServerURL(address); err == nil {
+				ownURLs[url] = true
+			}
+		}
+	}
 	var apps []string
 	if *dirFlag == "" {
 		if existing, err := loadServerConnection(); err != nil {
 			return err
-		} else if existing != nil && existing.URL != ownURL {
+		} else if existing != nil && !ownURLs[existing.URL] {
 			return fmt.Errorf("this machine is joined through the server at %s, and its apps get their compute there; to run a server of its own, leave that one first: hi server leave", existing.URL)
 		}
 		apps = orgMachineApps()
@@ -2123,9 +2191,16 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-	data, _ := json.MarshalIndent(serverConfig{Listen: *listen}, "", "  ")
-	if err := os.WriteFile(filepath.Join(dir, "config.json"), append(data, '\n'), 0o600); err != nil {
-		return err
+	if previousErr == nil {
+		// Run again: the address changes, and what an admin set stays.
+		if _, err := updateServerConfig(dir, func(c *serverConfig) error { c.Listen = *listen; return nil }); err != nil {
+			return err
+		}
+	} else {
+		data, _ := json.MarshalIndent(serverConfig{Listen: *listen}, "", "  ")
+		if err := os.WriteFile(filepath.Join(dir, "config.json"), append(data, '\n'), 0o600); err != nil {
+			return err
+		}
 	}
 	_, err = os.Stat(filepath.Join(dir, "state.json"))
 	fresh := errors.Is(err, os.ErrNotExist)
@@ -2155,7 +2230,20 @@ func orgInitCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) er
 		executable = resolved
 	}
 	fmt.Fprintf(stdout, "The server's state is in %s, readable only by you.\n", dir)
-	fmt.Fprintf(stdout, "Devices join with: hi server join %s\n\n", *listen)
+	joinWith := *listen
+	if peerKey != nil {
+		status, err := serverNetJoin(dir, serverNetJoinOptions{Key: peerKey, ManagementURL: *peerManagement, Name: *peerName}, currentUserName(), stdout)
+		if err != nil {
+			return fmt.Errorf("the server's NetBird peer: %w; hi server net join tries again", err)
+		}
+		joinWith = serverJoinAddress(status)
+		fmt.Fprintf(stdout, "The server is on NetBird as %s, a peer of its own: it moves to another network without the machine (hi server net join).\n", joinWith)
+	} else if hasPeer {
+		if view, err := serverNetViewOf(dir); err == nil && view.Join != "" {
+			joinWith = view.Join
+		}
+	}
+	fmt.Fprintf(stdout, "Devices join with: hi server join %s\n\n", joinWith)
 	started := false
 	switch system := systemOrgUnit(); {
 	case system != "":
@@ -2334,7 +2422,17 @@ func orgRunCommand(args []string, stdout, stderr io.Writer) error {
 	if len(server.providers) == 0 {
 		fmt.Fprintln(stderr, "hi: warning: no provider keys yet; add one with `hi server provider add runpod` or `shadeform`")
 	}
+	server.net.load(dir, config)
 	server.exposure.listen = exposeListenAddress(config)
+	if config.Peer != nil && config.ExposeListen != "off" {
+		// Cloud runs reach the server through its peer, on its network.
+		server.exposure.peer, server.exposure.listen = serverPeerContainer(config.Peer.ID), "unix:"+serverInstanceSocket(dir)
+	}
+	// The server's way out: through its peer to what's on the peer's
+	// network (served models, team stores), direct to everything else.
+	if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport.DialContext = server.net.dialContext
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	return server.serve(ctx, config.Listen)

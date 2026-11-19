@@ -306,14 +306,17 @@ func appMachinesRemove(machine string) (bool, error) {
 
 // appMoveNeeds is what the sending machine says the app needs here.
 type appMoveNeeds struct {
-	App           string `json:"app"`
-	Folder        string `json:"folder"`
-	Size          int64  `json:"size"`
-	Version       string `json:"version"`
-	MachineKey    bool   `json:"machine_key,omitempty"`    // the lead uses the machine's OpenRouter key
-	Domain        string `json:"domain,omitempty"`         // its https names are on this domain
-	GitHub        bool   `json:"github,omitempty"`         // the broker pushes with gh
-	Org           string `json:"org,omitempty"`            // the org server it reports to
+	App        string `json:"app"`
+	Folder     string `json:"folder"`
+	Size       int64  `json:"size"`
+	Version    string `json:"version"`
+	MachineKey bool   `json:"machine_key,omitempty"` // the lead uses the machine's OpenRouter key
+	Domain     string `json:"domain,omitempty"`      // its https names are on this domain
+	GitHub     bool   `json:"github,omitempty"`      // the broker pushes with gh
+	Org        string `json:"org,omitempty"`         // the org server it reports to
+	// OrgKey is that server's key: the same server is at 127.0.0.1 on its
+	// own machine, and at its NetBird name on the others.
+	OrgKey        string `json:"org_key,omitempty"`
 	ClaudeMachine bool   `json:"claude_machine,omitempty"` // a member uses the machine's Claude Code sign-in
 	CodexMachine  bool   `json:"codex_machine,omitempty"`  // a member uses the machine's Codex sign-in
 }
@@ -486,11 +489,11 @@ func appReceiveCheck(needs appMoveNeeds) appMoveReport {
 			problem("the app pushes to GitHub, and gh isn't signed in on %s (%s): gh auth login there", here, qFirstLine(string(out), err.Error()))
 		}
 	}
-	org := ""
+	org, orgKey := "", ""
 	if connection, err := loadServerConnection(); err == nil && connection != nil {
-		org = connection.URL
+		org, orgKey = connection.URL, connection.ServerKey
 	}
-	if needs.Org != org {
+	if needs.Org != org && (orgKey == "" || needs.OrgKey != orgKey) {
 		switch {
 		case org == "":
 			warn("%s isn't joined to a server, so the app's heartbeats to %s stop there", here, needs.Org)
@@ -915,7 +918,7 @@ func appMoveNeedsOf(name, folder string) appMoveNeeds {
 		needs.Domain = appSlotDomainSetting(name)
 	}
 	if connection, err := loadServerConnection(); err == nil && connection != nil {
-		needs.Org = connection.URL
+		needs.Org, needs.OrgKey = connection.URL, connection.ServerKey
 	}
 	for role, member := range config.Members {
 		if role == "lead" {

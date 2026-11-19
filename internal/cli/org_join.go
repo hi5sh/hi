@@ -129,19 +129,24 @@ func normalizeServerURL(address string) (string, error) {
 	return address, nil
 }
 
-// serverClient signs every request with the device key.
+// serverClient signs every request with the device key, and follows the
+// server when it moves to another address (org_peer.go).
 type serverClient struct {
-	url  string
-	key  ed25519.PrivateKey
-	http *http.Client
+	url    string
+	key    ed25519.PrivateKey
+	http   *http.Client
+	watch  *serverMoveWatch
+	warned bool
 }
 
 func newServerClient(url string, key ed25519.PrivateKey) *serverClient {
-	return &serverClient{url: url, key: key, http: &http.Client{Timeout: 30 * time.Second}}
+	watch := &serverMoveWatch{base: http.DefaultTransport}
+	return &serverClient{url: url, key: key, watch: watch, http: &http.Client{Timeout: 30 * time.Second, Transport: watch}}
 }
 
 func (c *serverClient) call(method, path string, body, result any) error {
 	err := doJSON(c.http, method, c.url+path, body, result, c.key)
+	c.followMove()
 	var reply *serverReplyError
 	if err != nil && !errors.As(err, &reply) {
 		return fmt.Errorf("can't reach the server at %s: %w", c.url, err)
@@ -199,8 +204,6 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	existing, err := loadServerConnection()
 	if err != nil {
 		return err
-	} else if existing != nil && existing.URL != url {
-		return fmt.Errorf("this device is connected to %s; run `hi server leave` first", existing.URL)
 	}
 	serverKey := ""
 	if existing != nil {
@@ -209,6 +212,18 @@ func connectCommand(args []string, stdout, stderr io.Writer) error {
 	key, err := loadDeviceKey(true)
 	if err != nil {
 		return err
+	}
+	if existing != nil && existing.URL != url {
+		// The same server at another address, as after it moved to
+		// another NetBird network: it proves the key this device has.
+		pinned, pinErr := existing.serverPublicKey()
+		if pinErr != nil || serverProves(url, key, pinned) != nil {
+			return fmt.Errorf("this device is connected to %s; run `hi server leave` first", existing.URL)
+		}
+		fmt.Fprintf(stdout, "%s is the server this device joined at %s; it uses the new address from now on.\n", url, existing.URL)
+		if existing.User != "" && *user == strings.ToLower(currentUserName()) && *agent == "" {
+			*user = existing.User
+		}
 	}
 	hostname, _ := os.Hostname()
 	client := newServerClient(url, key)

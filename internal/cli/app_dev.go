@@ -698,14 +698,22 @@ func stopTeamDev(engine boxEngine, team string) {
 	teardownBox(engine, boxMeta{Name: appDevBox(team)})
 }
 
-// runBoxForward is `hi box __forward <listen> <target>`: TCP from one
-// address to another, for the dev box's NetBird peer.
+// runBoxForward is `hi box __forward <listen> <target>`: from one
+// address to another, for the NetBird peers' containers. Either is
+// host:port or unix:<path>.
 func runBoxForward(args []string, stderr io.Writer) int {
 	if len(args) != 2 {
 		fmt.Fprintln(stderr, "usage: hi box __forward <listen address> <target address>")
 		return 2
 	}
-	listener, err := net.Listen("tcp", args[0])
+	network, address := "tcp", args[0]
+	if path, ok := strings.CutPrefix(address, "unix:"); ok {
+		// A socket a container makes again each start: the last one's
+		// file stays behind it.
+		network, address = "unix", path
+		os.Remove(path)
+	}
+	listener, err := net.Listen(network, address)
 	if err != nil {
 		fmt.Fprintf(stderr, "hi: %v\n", err)
 		return 1

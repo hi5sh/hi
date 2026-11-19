@@ -98,8 +98,9 @@ On any device:
   hi server leave                      Forget the server and delete this device's key
 
 On the server box:
-  hi server init --owner <Slack ID> --email <address> [--listen ADDR] [--local | --netbird F]
-                                       Create the server and its owner here, and start it and the admin page
+  hi server init --owner <Slack ID> --email <address> [--setup-key-file F [--management-url URL]] [--listen ADDR] [--local | --netbird F]
+                                       Create the server and its owner here, and start it and the admin page;
+                                       with a setup key, on a NetBird peer of its own
   hi server run                        Serve clients (hi-server.service runs it)
   hi server owner [<Slack ID> --email <address>]
                                        The server's owner, who owns the machine and its apps too; or hand it on
@@ -149,6 +150,10 @@ On the server box:
   hi server data add <hf-org>... [--token-file F]
                                        Serve a Hugging Face organization's datasets, models, and buckets
   hi server data list|test|remove      Show, check, or stop serving organizations
+  hi server net                        The server's NetBird peer: its name, address, network, and old addresses
+  hi server net join [--setup-key-file F] [--management-url URL] [--name N]
+                                       A NetBird peer of its own, or move it to another network; the machine stays
+  hi server net forget-old             Stop answering at the old addresses now, once devices have followed
   hi server expose [stop | revoke <run>]
                                        The public URL cloud runs reach hi data through, if any;
                                        revoke ends one run's token now

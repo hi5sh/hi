@@ -6930,3 +6930,27 @@ preview and production listen, so the spec needs a network answer too.
 - [x] **Check the tokens** names the scopes the token lacks, and how to
   add them (OAuth & Permissions, then reinstall); until the app can list
   its channels, the page takes the approvals channel's ID.
+
+### v2.6.222 — The server on a NetBird peer of its own
+
+Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
+
+- [x] `hi server net join` gives the server a NetBird peer of its own, a
+  rootless container named `<machine>-server`, with a setup key and,
+  for a network of its own, `--management-url`. The server keeps running
+  on the machine; the peer passes ports 7373 and 7374 to its sockets, and
+  is its way into its network (served models, team stores) through
+  NetBird's SOCKS5 proxy. `hi server init` asks for the key at a
+  terminal. `hi server net` says where it is.
+- [x] Moving to another network: `join` on a server with a peer. The old
+  peer answers beside the new one, and tells each device the new address,
+  signed with the server key; devices check it, and follow. It goes after
+  a quiet day, 14 days, or `hi server net forget-old`. A server from
+  before does the same from the machine's address. `hi server join <new
+  address>` takes the same server back, as the same device.
+- [x] `hi` on the server's machine reaches it at `127.0.0.1:7373`,
+  whatever network the peer is on.
+- [x] The admin page's Overview has a **Network** card: the peer, its old
+  addresses and the devices still there, **Move to another network…** and
+  **Forget the old address** for the owner. Off its network for two
+  minutes, the peer is an incident, and the ops channel hears.
