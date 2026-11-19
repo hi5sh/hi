@@ -254,6 +254,9 @@ type mailSigninFlow struct {
 	// slack DMs a Slack account a sign-in's text; nil where the page has
 	// no Slack app to send it.
 	slack func(user, text string) error
+	// slackTo is the Slack account a sign-in's DM goes to, for someone who
+	// signs in as who; nil where who is a Slack member ID already.
+	slackTo func(email, who string) string
 	// limit says, in every answer whatever the email, what keeps some
 	// people from signing in here; "" when nothing does. It says nothing
 	// of the email asked for.
@@ -335,7 +338,11 @@ func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 			f.log("%s to %s for someone who may not%s: nothing sent", how, what, why)
 			return
 		}
-		if bySlack && !slackIDPattern.MatchString(who) {
+		to := who
+		if bySlack && f.slackTo != nil {
+			to = f.slackTo(email, who)
+		}
+		if bySlack && !slackIDPattern.MatchString(to) {
 			f.log("%s to %s for %s, who has no Slack account in the app's workspace: nothing sent", how, what, email)
 			return
 		}
@@ -350,7 +357,7 @@ func (f mailSigninFlow) start(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if bySlack {
-			err = f.slack(who, fmt.Sprintf("Someone, hopefully you, asked to sign in to %s as %s.\n\n<%s|Sign in>, or type this code on the page that asked: *%s*\n\n"+
+			err = f.slack(to, fmt.Sprintf("Someone, hopefully you, asked to sign in to %s as %s.\n\n<%s|Sign in>, or type this code on the page that asked: *%s*\n\n"+
 				"The link and the code work once, for %d minutes. If it wasn't you, ignore this: nobody gets in without it.",
 				appSlackEscape(what), appSlackEscape(email), link, code, int(mailSigninLasts.Minutes())))
 		} else {
@@ -816,6 +823,57 @@ func (s *adminServer) mailFlow() mailSigninFlow {
 			})
 			return "/", nil
 		},
-		log: s.logf,
+		slack:   adminSlackSender(),
+		slackTo: adminSlackOf,
+		log:     s.logf,
 	}
+}
+
+// adminSlackTokens are the bot tokens the admin page can DM with: the
+// server's Slack app first, then each app's. Tests replace it.
+var adminSlackTokens = func() []string {
+	var tokens []string
+	seen := map[string]bool{}
+	if dir := adminOrgDir(); dir != "" {
+		if config, err := loadSlackConfig(dir); err == nil && config != nil && config.BotToken != "" {
+			tokens, seen[config.BotToken] = append(tokens, config.BotToken), true
+		}
+	}
+	entries, _ := os.ReadDir(appsDir())
+	for _, entry := range entries {
+		if !appNamePattern.MatchString(entry.Name()) {
+			continue
+		}
+		if secrets, err := loadTeamSecrets(entry.Name()); err == nil && secrets.SlackBotToken != "" && !seen[secrets.SlackBotToken] {
+			tokens, seen[secrets.SlackBotToken] = append(tokens, secrets.SlackBotToken), true
+		}
+	}
+	return tokens
+}
+
+// adminSlackSender sends the admin page's sign-ins by Slack DM, or is nil
+// on a machine with no Slack app to send them with.
+func adminSlackSender() func(user, text string) error {
+	if len(adminSlackTokens()) == 0 {
+		return nil
+	}
+	return adminSendDM
+}
+
+// adminSlackOf is the Slack account a sign-in goes to: the one with this
+// email in a workspace the page can DM in, as the dev page finds people.
+// An admin's Slack member ID, kept from when they were added, is for when
+// no workspace knows the email: it may be another workspace's.
+var adminSlackOf = func(email, who string) string {
+	for _, token := range adminSlackTokens() {
+		if id, _ := appSlackUserByEmail(token, email); id != "" {
+			return id
+		}
+	}
+	if config, ok := loadAdminConfig(); ok {
+		if admin, ok := config.admin(who); ok {
+			return admin.Slack
+		}
+	}
+	return ""
 }

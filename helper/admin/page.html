@@ -17,16 +17,13 @@
     <div class="signin-card">
       <h1 class="signin-title">Admin page</h1>
       <p id="signin-ended" class="warn" hidden>That link has ended, or isn't one of this page's.</p>
-      <form id="newlink-form" class="signin-form" autocomplete="off">
-        <button class="primary" type="submit">Send me a new link</button>
-        <p id="newlink-said" class="muted small">It comes by Slack DM.</p>
-      </form>
       <form id="email-form" class="signin-form email-signin" autocomplete="on" novalidate>
-        <label for="email-address" class="muted small">Or sign in with your email</label>
-        <div class="signin-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email"><button type="submit">Email me a link</button></div>
+        <label for="email-address" class="muted small">Sign in with your email</label>
+        <div class="signin-row"><input id="email-address" type="email" placeholder="you@corp.example" autocomplete="email" aria-label="Your email"><button type="submit" class="primary" value="email">Email me a link</button></div>
+        <div class="signin-row email-alt"><span class="muted small">or</span><button type="submit" value="slack">Send it to my Slack</button></div>
       </form>
       <form id="code-form" class="signin-form email-signin" autocomplete="off" novalidate hidden>
-        <label for="email-code" class="muted small">The six digits in the email</label>
+        <label for="email-code" class="muted small" id="email-code-label">The six digits in the email</label>
         <div class="signin-row"><input id="email-code" inputmode="numeric" maxlength="7" autocomplete="one-time-code"><button type="submit" class="primary">Sign in</button></div>
       </form>
       <p id="email-said" class="muted small" aria-live="polite"></p>

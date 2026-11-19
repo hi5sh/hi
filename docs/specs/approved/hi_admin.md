@@ -215,13 +215,15 @@ page's own Network view.
   member ID, and not for an admin who runs the org when the owner
   doesn't (v2.6.105). Two admins with one name, one the machine's and
   one the org's, are told apart as `Anna` and `Anna (org)`.
-- **A link that ended:** the sign-in page is one button, **Send me a
-  new link**, nothing to type. It goes to the admin the browser last
-  signed in as (a cookie that holds their name, no key), else to the
-  machine's owner. The admin page DMs it through the
-  bot of any app in their Slack workspace, or the org server's Slack
-  app, as links are sent now. So the command line is needed only for an
-  admin who has no Slack.
+- **A link that ended:** the sign-in page takes the admin's email, as an
+  app's dev page does (since v2.6.224): **Send it to my Slack** DMs a
+  link and a code to the account with that email in the server's Slack
+  workspace or an app's, found as the dev page finds people, and the
+  admin's kept member ID only when no workspace knows the email; **Email
+  me a link** emails them. Until v2.6.224 it was one button, **Send me a
+  new link**, to the admin the browser last signed in as or the
+  machine's owner, by the member ID kept for them: another workspace's
+  ID never arrived, and the page said it had.
 - **The org's admins:** on the org server's machine, the admin page's
   admins are the org's owner and admins, one list. Approving on the page
   is under the admin's own name, as in Slack.

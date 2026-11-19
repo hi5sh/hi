@@ -255,36 +255,33 @@ function showSignin() {
 // Signing in by email (hi_people.md): an admin whose email the machine
 // knows gets a link and a code.
 let emailRequest = "";
+let emailVia = "email";
 $("email-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const address = $("email-address").value.trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(address)) { $("email-said").textContent = "Give your email address."; $("email-address").focus(); return; }
+  const via = event.submitter && event.submitter.value === "slack" ? "slack" : "email";
+  const buttons = $("email-form").querySelectorAll("button");
+  buttons.forEach((b) => { b.disabled = true; });
   try {
-    const answer = await api("/api/email", { email: address });
+    const answer = await api("/api/email", { email: address, via });
     emailRequest = answer.request;
+    emailVia = via;
+    $("email-code-label").textContent = via === "slack" ? "The six digits in the Slack DM" : "The six digits in the email";
     $("email-said").textContent = answer.text;
     $("code-form").hidden = false;
     $("email-code").focus();
   } catch (e) { $("email-said").textContent = e.message; }
+  buttons.forEach((b) => { b.disabled = false; });
 });
 $("code-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const code = $("email-code").value.replace(/\s/g, "");
-  if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the email."; $("email-code").focus(); return; }
+  if (!/^[0-9]{6}$/.test(code)) { $("email-said").textContent = "The code is the six digits in the " + (emailVia === "slack" ? "Slack DM." : "email."); $("email-code").focus(); return; }
   try {
     await api("/api/email/code", { request: emailRequest, code });
     location.href = "/";
   } catch (e) { $("email-said").textContent = e.message; }
-});
-
-$("newlink-form").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    const answer = await api("/api/new-link", {});
-    $("newlink-said").textContent = answer.text;
-  } catch (e) {
-    $("newlink-said").textContent = e.message;
-  }
 });
 
 $("signout").addEventListener("click", async () => {

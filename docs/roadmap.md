@@ -6963,3 +6963,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.224 — The admin page signs in as an app's dev page does
+
+- [x] The sign-in page takes your email, and sends a link and six digits
+  by Slack DM (**Send it to my Slack**) or by email: the Slack account
+  is the one with that email in the server's Slack workspace or an
+  app's, found as the dev page finds people. **Send me a new link**,
+  which DMed the member ID kept for the admin and said it had sent when
+  another workspace couldn't find it, is gone.

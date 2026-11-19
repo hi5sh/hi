@@ -329,15 +329,16 @@ whoever opens it can do what you can on the machine.
 - **More admins:** in the server's Admins, the owner adds one. Their link
   is shown once to copy, or sent by Slack DM. On the machine: `hi server
   admins add <Slack member ID> --name <user>`.
-- **A link that ended:** the sign-in page has one button, **Send me a
-  new link**. It goes by Slack DM, from the server's Slack app or the
-  bot of an app on the machine, to the admin who last signed in on that
-  browser, or to the machine's owner on a browser the page doesn't know. Without Slack, an
+- **Signing in again** (a link that ended, or a new address of the
+  page): the sign-in page takes your email, as an app's dev page does,
+  and sends a link and six digits to type on the page, which work once
+  for 15 minutes. **Send it to my Slack** sends them by DM from the
+  server's Slack app or an app's bot, to the account with your email in
+  that workspace (its Slack app needs `users:read.email`; without it, to
+  the member ID you were added with). **Email me a link** sends them by
+  email, when the machine sends email (Keys, **Email**). The page says
+  the same whether or not the email is an admin's. Without either, an
   admin makes one on the machine: `hi server link <name>`.
-- **By email:** when the machine sends email (Keys, **Email**), the
-  sign-in page takes your address, **Email me a link**: an admin whose
-  email the machine knows gets a link, and six digits to type on the
-  page.
 - **Your Slack member ID** also tells each app who you are, so Open ▾
   opens its dev page as you. Add yours in Machine if you didn't give it
   at the start (in Slack: your profile, ⋮, **Copy member ID**).

@@ -602,6 +602,68 @@ func TestAdminSigninByEmail(t *testing.T) {
 	}
 }
 
+// The admin page signs an admin in by Slack as the dev page does: the DM
+// goes to the account the workspace has for the email, not the member ID
+// kept for them, which may be another workspace's.
+func TestAdminSigninBySlack(t *testing.T) {
+	setupTeamTest(t)
+	t.Setenv("HI_ADMIN_DIR", filepath.Join(t.TempDir(), "admin"))
+	if err := saveAdminConfig(adminConfig{Reach: adminReachLocal, Admins: []adminPerson{{Name: "Ola", Slack: "U07ELSEWHERE", Email: "ola@corp.example", Added: time.Now()}}}); err != nil {
+		t.Fatal(err)
+	}
+	changeMachinePeople(func(m *machinePeople) error { m.link("ola@corp.example", "U07ELSEWHERE", "Ola", "test"); return nil })
+	tokens, lookup, dm := adminSlackTokens, appSlackUserByEmail, adminDM
+	t.Cleanup(func() { adminSlackTokens, appSlackUserByEmail, adminDM = tokens, lookup, dm })
+	adminSlackTokens = func() []string { return []string{"xoxb-server"} }
+	appSlackUserByEmail = func(token, email string) (string, string) {
+		if token == "xoxb-server" && email == "ola@corp.example" {
+			return "U0HERE", "Ola"
+		}
+		return "", ""
+	}
+	sent := make(chan string, 4)
+	adminDM = func(token, user, text string) error { sent <- token + " " + user + " " + text; return nil }
+	s := &adminServer{log: &strings.Builder{}, asked: map[string]time.Time{}}
+	handler := s.routes()
+	post := func(path, body string) (int, map[string]string) {
+		request := httptest.NewRequest("POST", path, strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Origin", "http://127.0.0.1:1984")
+		request.Host = "127.0.0.1:1984"
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, request)
+		var answer map[string]string
+		json.Unmarshal(recorder.Body.Bytes(), &answer)
+		return recorder.Code, answer
+	}
+	if code, answer := post("/api/email", `{"email":"eve@corp.example","via":"slack"}`); code != http.StatusOK || !strings.Contains(answer["text"], "Slack account") {
+		t.Fatalf("someone else: %d %v", code, answer)
+	}
+	code, answer := post("/api/email", `{"email":"ola@corp.example","via":"slack"}`)
+	if code != http.StatusOK {
+		t.Fatalf("%d %v", code, answer)
+	}
+	var dm1 string
+	select {
+	case dm1 = <-sent:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("no DM; the page said: %s", s.log)
+	}
+	if !strings.HasPrefix(dm1, "xoxb-server U0HERE ") || !strings.Contains(dm1, "http://127.0.0.1:1984/email?t=") {
+		t.Fatalf("the DM: %s", dm1)
+	}
+	if len(sent) != 0 {
+		t.Fatalf("a DM for someone who isn't an admin: %s", <-sent)
+	}
+	digits := appTestCodePattern.FindStringSubmatch(dm1)
+	if digits == nil {
+		digits = regexp.MustCompile(`\*([0-9]{6})\*`).FindStringSubmatch(dm1)
+	}
+	if code, answer := post("/api/email/code", `{"request":"`+answer["request"]+`","code":"`+digits[1]+`"}`); code != http.StatusOK {
+		t.Fatalf("the code: %d %v", code, answer)
+	}
+}
+
 // smtpSend speaks SMTP: here to a relay with no TLS on this machine.
 func TestSMTPSend(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

@@ -333,35 +333,16 @@ var adminDM = func(token, user, text string) error {
 // adminSendDM sends an admin a DM through the bot of any app on the
 // machine that is in their workspace: the first that can.
 func adminSendDM(user, text string) error {
-	entries, _ := os.ReadDir(appsDir())
-	tried := false
-	var last error
-	seen := map[string]bool{}
-	// The org server's Slack app first, on its machine.
-	if dir := adminOrgDir(); dir != "" {
-		if config, err := loadSlackConfig(dir); err == nil && config != nil && config.BotToken != "" {
-			seen[config.BotToken], tried = true, true
-			if last = adminDM(config.BotToken, user, text); last == nil {
-				return nil
-			}
-		}
+	// The org server's Slack app first, on its machine, then each app's.
+	tokens := adminSlackTokens()
+	if len(tokens) == 0 {
+		return errors.New("no app on this machine, nor the server, has a Slack bot to send it with")
 	}
-	for _, entry := range entries {
-		if !appNamePattern.MatchString(entry.Name()) {
-			continue
-		}
-		secrets, err := loadTeamSecrets(entry.Name())
-		if err != nil || secrets.SlackBotToken == "" || seen[secrets.SlackBotToken] {
-			continue
-		}
-		seen[secrets.SlackBotToken] = true
-		tried = true
-		if last = adminDM(secrets.SlackBotToken, user, text); last == nil {
+	var last error
+	for _, token := range tokens {
+		if last = adminDM(token, user, text); last == nil {
 			return nil
 		}
-	}
-	if !tried {
-		return errors.New("no app on this machine, nor the server, has a Slack bot to send it with")
 	}
 	return fmt.Errorf("no app's Slack bot could send it: %w", last)
 }
