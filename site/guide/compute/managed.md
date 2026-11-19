@@ -336,6 +336,12 @@ the new address, as the same device: `hi server join <new address>`.
 A server from before keeps answering at the machine's address beside its
 peer, and tells devices there too, until `forget-old`.
 
+**The admin page rides along.** When the page has no NetBird peer of its
+own, the server's peer carries it too, at `http://<machine>-server.<network>:1984/`:
+one name and one peer for both, moving together. Ask for two policies on
+it: devices on TCP 7373, the admins on TCP 1984. A page that has a peer of
+its own keeps it.
+
 `hi` on the server's own machine reaches it at `127.0.0.1:7373`,
 whatever network the peer is on. The admin page's **Overview** shows the
 peer, its old addresses and the devices still calling there, and lets

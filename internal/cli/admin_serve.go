@@ -974,7 +974,7 @@ func (s *adminServer) state(admin adminPerson) adminStateView {
 		Org: adminOrgSummaryOf(), Usage: s.usage(), OrgApart: config.apart(), Moved: appsMovedAway(), MoveName: appMoveThisMachine(), Vault: adminVaultBriefOf()}
 	if config.Reach == adminReachPeer {
 		view.Peer, view.Joined = adminPeerHostname(), adminPeerJoined()
-		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath())
+		view.NeedsKey = !view.Joined && !fileExists(adminSetupKeyPath()) && adminServerPeer(config) == ""
 	}
 	if config.Reach != adminReachLocal {
 		view.Policy = fmt.Sprintf("A NetBird policy from the admins' group to %s, TCP %d", adminPolicyTarget(config), adminPort)

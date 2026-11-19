@@ -1689,7 +1689,8 @@ function orgNetBlock(n) {
       if (await ask({ title: "Stop answering at the old addresses?", text: recent.length ? "Devices that haven't followed yet join again at the new address, as the same devices: hi server join " + n.join + "." : "Every device has followed, or none called there for a day.", ok: "Stop" })) { const answer = await orgDo({ what: "net", action: "forget-old" }, ""); if (answer && answer.text) toast(answer.text); }
     } }, "Forget the old address")));
   }
-  block.append(el("p", { class: "muted small" }, "Ask your IT team for NetBird policies that let devices reach ", el("code", {}, n.join || p.name), " on TCP 7373, and the peer reach the team's machines on the ports their models are served on."));
+  if (n.page) block.append(el("p", { class: "small" }, "The admin page is there too: ", el("code", {}, "http://" + (n.join || p.name) + ":1984/"), "."));
+  block.append(el("p", { class: "muted small" }, "Ask your IT team for NetBird policies that let devices reach ", el("code", {}, n.join || p.name), " on TCP 7373", n.page ? ", the admins on TCP 1984," : "", " and the peer reach the team's machines on the ports their models are served on."));
   if (owns && !n.old) block.append(el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => { move.hidden = !move.hidden; } }, "Move to another network…")), move);
   return block;
 }

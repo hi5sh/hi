@@ -102,6 +102,26 @@ func adminOnMachineAddress(config adminConfig) bool {
 	return config.Reach == adminReachNetBird || config.Reach == adminReachPeer && !adminPeerJoined()
 }
 
+// adminServerPeer is the name of the machine's server's NetBird peer
+// when it carries the page: the page has no peer of its own (hi_server_peer.md).
+func adminServerPeer(config adminConfig) string {
+	if config.Reach == adminReachLocal || adminPeerJoined() {
+		return ""
+	}
+	dir := adminOrgDir()
+	if dir == "" {
+		return ""
+	}
+	if server, err := loadServerConfig(dir); err != nil || server.Peer == nil {
+		return ""
+	}
+	var name serverPeerName
+	if data, err := os.ReadFile(serverPeerNamePath(dir)); err == nil && json.Unmarshal(data, &name) == nil {
+		return firstNonEmpty(name.FQDN, name.Address)
+	}
+	return ""
+}
+
 // adminHTTPSDomain is the domain the page is on over https, once its
 // record and the certificate are there.
 func adminHTTPSDomain() string {
@@ -129,6 +149,8 @@ func adminURL(config adminConfig) string {
 		return "https://admin." + adminHTTPSDomain() + "/"
 	case config.Reach == adminReachPeer && adminPeerJoined():
 		return fmt.Sprintf("http://%s:%d/", adminPeerName(), adminPort)
+	case adminServerPeer(config) != "":
+		return fmt.Sprintf("http://%s:%d/", adminServerPeer(config), adminPort)
 	case adminOnMachineAddress(config):
 		if name := adminMachineNetBirdName(); name != "" {
 			return fmt.Sprintf("http://%s:%d/", name, adminPort)
@@ -140,6 +162,9 @@ func adminURL(config adminConfig) string {
 // adminPolicyTarget is what NetBird's policy, or the IT team's record,
 // points at: the peer, or the machine.
 func adminPolicyTarget(config adminConfig) string {
+	if peer := adminServerPeer(config); peer != "" {
+		return "the server's peer " + peer
+	}
 	if config.Reach == adminReachPeer {
 		return "the peer " + adminPeerHostname()
 	}
@@ -151,6 +176,11 @@ func adminReachLine(config adminConfig) string {
 	switch config.Reach {
 	case adminReachLocal:
 		return fmt.Sprintf("On this machine only. From your computer: ssh -L %d:127.0.0.1:%d %s, then open http://127.0.0.1:%d/.", adminPort, adminPort, adminMachineName(), adminPort)
+	}
+	if peer := adminServerPeer(config); peer != "" {
+		return "On the server's NetBird peer, " + peer + ", beside the server, for whoever NetBird lets reach it on TCP 1984; on this machine's NetBird address too, and at http://127.0.0.1:1984/."
+	}
+	switch config.Reach {
 	case adminReachNetBird:
 		return "On this machine's NetBird address, for whoever NetBird lets reach it, and on this machine at http://127.0.0.1:1984/."
 	}

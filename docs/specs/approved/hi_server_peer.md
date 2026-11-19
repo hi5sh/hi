@@ -377,8 +377,14 @@ All three releases, with these differences from the draft:
 - **The old peer** goes as drafted (a quiet day after the move, 14 days,
   or `forget-old`); a restart counts as a call, so it waits a day after
   one. Open question 4 stays as drafted.
-- **Not built:** the admin page's own peer moving with the server
-  (`--page`): the page keeps its own reach (`hi server init --netbird`).
+- **The admin page rides on the server's peer** (since v2.6.223) when it
+  has no peer of its own: the server's peer passes ports 1984 and 80 to
+  the page's `http.sock`, so the page is at `<machine>-server:1984`, with
+  the server, and moves with it. No `--page`: a page with a peer of its
+  own keeps it, and the server's peer then carries only the server. The
+  server writes its peer's name to `net/peer.json`, which the page's links
+  and policy lines read. The page stays on the machine's NetBird address
+  too, as before.
   Template sources and team stores reached with `git` on a NetBird
   address (open question 1) still go through the machine's network.
 - **The peer's name** is `<machine>-server`; `--name` (or `--peer-name`

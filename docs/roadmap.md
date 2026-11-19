@@ -6954,3 +6954,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   addresses and the devices still there, **Move to another network…** and
   **Forget the old address** for the owner. Off its network for two
   minutes, the peer is an incident, and the ops channel hears.
+
+### v2.6.223 — The admin page on the server's peer
+
+- [x] When the admin page has no NetBird peer of its own, the server's
+  peer carries it too, on ports 1984 and 80: one name and one peer for
+  the server and its page, moving together. Its links, `hi server net`,
+  and the Network card say so, with the admins' policy on TCP 1984.
+- [x] The peers' status checks every half minute leave no podman
+  `exec_died` event in the services' logs.

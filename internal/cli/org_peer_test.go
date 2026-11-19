@@ -129,7 +129,7 @@ func useFakePeerStatus(t *testing.T, dir string, status func(id string) (string,
 
 func TestServerPeerScript(t *testing.T) {
 	peer := serverPeerConfig{ID: "ab12cd", Name: "ws1-server"}
-	first := serverPeerScript(peer, false)
+	first := serverPeerScript(peer, false, false)
 	for _, want := range []string{
 		"hi box __forward 127.0.0.1:7373 unix:/hi-server/client-ab12cd.sock",
 		"hi box __forward 127.0.0.1:7374 unix:/hi-server/instance.sock",
@@ -143,12 +143,19 @@ func TestServerPeerScript(t *testing.T) {
 	if strings.Contains(first, "--management-url") {
 		t.Fatal("a management URL nobody gave")
 	}
-	joined := serverPeerScript(peer, true)
+	joined := serverPeerScript(peer, true, false)
 	if strings.Contains(joined, "--setup-key-file") || appPeerStamp(joined) == appPeerStamp(first) {
 		t.Fatalf("after joining, the key stays:\n%s", joined)
 	}
+	if strings.Contains(first, "/hi-admin/") {
+		t.Fatal("the page's ports on a peer that doesn't carry it")
+	}
+	page := serverPeerScript(peer, true, true)
+	if !strings.Contains(page, "hi box __forward 127.0.0.1:1984 unix:/hi-admin/http.sock") || !strings.Contains(page, "hi box __forward 127.0.0.1:80 unix:/hi-admin/http.sock") {
+		t.Fatalf("the page isn't on the server's peer:\n%s", page)
+	}
 	peer.ManagementURL = "https://netbird.example.net"
-	if !strings.Contains(serverPeerScript(peer, true), "--management-url https://netbird.example.net") {
+	if !strings.Contains(serverPeerScript(peer, true, false), "--management-url https://netbird.example.net") {
 		t.Fatal("no management URL")
 	}
 	for _, bad := range []string{"https://x.example.net; rm -rf /", "ftp://x", "https://x.example.net/$(id)", "netbird.example.net"} {
@@ -763,5 +770,52 @@ func TestServerNetSaysWhereTheServerIs(t *testing.T) {
 	}
 	if code, _, stderr := runHi("server", "net", "join", "--dir", ts.dir); code == 0 || !strings.Contains(stderr, "setup key") {
 		t.Fatalf("join without a key or a terminal: %d %s", code, stderr)
+	}
+}
+
+// The server's peer carries the admin page when the page has no peer of
+// its own: its container has the page's sockets, and the page's links
+// name the server's peer.
+func TestServerPeerCarriesTheAdminPage(t *testing.T) {
+	ts := newTestServer(t)
+	engine := useFakePeerEngine(t)
+	writeServerConfig(t, ts.dir, map[string]any{"listen": "100.64.0.9:7373"})
+	useFakePeerStatus(t, ts.dir, func(string) (string, error) { return testPeerStatus, nil })
+	t.Setenv("HI_ADMIN_DIR", filepath.Join(t.TempDir(), "admin"))
+	os.MkdirAll(adminSocketDir(), 0o700)
+	previous, savedDir := serverPeerCarriesPage, adminOrgDir
+	serverPeerCarriesPage = func(string) bool { return !adminPeerJoined() }
+	adminOrgDir = func() string { return ts.dir }
+	t.Cleanup(func() { serverPeerCarriesPage, adminOrgDir = previous, savedDir })
+	config := adminConfig{Reach: adminReachPeer}
+	if strings.Contains(adminURL(config), "ws1-server") {
+		t.Fatal("the page names the server's peer before there is one")
+	}
+	if _, err := serverNetJoin(ts.dir, serverNetJoinOptions{Key: []byte("KEY")}, "olga", io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	creates := engine.called("create")
+	if !strings.Contains(creates[len(creates)-1], adminSocketDir()+":/hi-admin") {
+		t.Fatalf("no page sockets in the peer:\n%s", creates[len(creates)-1])
+	}
+	if got := adminURL(config); got != "http://ws1-server.example.net:1984/" {
+		t.Fatalf("the page's links: %s", got)
+	}
+	if !strings.Contains(adminPolicyTarget(config), "the server's peer ws1-server.example.net") || !strings.Contains(adminReachLine(config), "the server's NetBird peer") {
+		t.Fatalf("policy %q, line %q", adminPolicyTarget(config), adminReachLine(config))
+	}
+	loaded, _ := loadServerConfig(ts.dir)
+	ts.server.net.load(ts.dir, loaded)
+	if !ts.server.netView().Page {
+		t.Fatal("the view doesn't say the page is there")
+	}
+	// A page with a peer of its own keeps it, and its own links.
+	os.MkdirAll(adminPeerDir(), 0o700)
+	writeTestFile(t, filepath.Join(adminPeerDir(), "default.json"), "{}", 0o600)
+	if strings.Contains(adminURL(config), "ws1-server") || adminServerPeer(config) != "" {
+		t.Fatalf("a page with its own peer: %s", adminURL(config))
+	}
+	if adminServerPeer(adminConfig{Reach: adminReachLocal}) != "" {
+		t.Fatal("a page on this machine only")
 	}
 }

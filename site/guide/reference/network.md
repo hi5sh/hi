@@ -35,8 +35,8 @@ On ws1, a machine with apps in the NetBird network `corp.example`.
 |------|--------------|-------|--------------|------------------|
 | **7373** | hi server, `hi-server.service` | its own peer `ws1-server` ([`hi server net join`](/guide/compute/managed/#a-netbird-peer-of-its-own)), else the machine's NetBird address; `127.0.0.1` too | devices that joined it; `hi` on the machine, at `127.0.0.1` | the device's key |
 | **7374** | the server's data proxy for cloud jobs | its peer, or the machine's NetBird address, published with `netbird expose` while a run needs it | rented machines in `hi compute run --data` and `up --data` | a run token, for that run's data |
-| **1984** | admin page, `hi-admin.service` | its own peer `ws1-admin` (with podman), else the machine's NetBird address; always `127.0.0.1` too | the server's owner and admins | a link, then a browser cookie |
-| **80** | admin page | its peer, for a name your IT team points at it (`hi server address`) | admins | as on 1984 |
+| **1984** | admin page, `hi-admin.service` | its own peer `ws1-admin` when it has one; else the server's peer `ws1-server`, beside the server, and the machine's NetBird address; always `127.0.0.1` too | the server's owner and admins | a link, then a browser cookie |
+| **80** | admin page | its peer, or the server's, for a name your IT team points at it (`hi server address`) | admins | as on 1984 |
 | **443** | admin page over https | its peer, as `admin.<domain>`, with [`hi net domain`](/guide/workstation/netbird/) | admins | as on 1984 |
 | **80** | an app's production | the app's peer `hi-<app>` | the app's people | the app's own |
 | **8080** | an app's Stage (its preview) | the app's peer | the app's people | the app's own |
@@ -58,8 +58,9 @@ ask your IT team**, with your names filled in, ready to copy and send:
   the machine, without one), TCP 7373; and from the peer to the machines
   with models served for the server (`hi serve llm --org`), on their
   ports.
-- **The admin page:** from the admins' group to its peer (or the machine),
-  TCP 1984, and 443 with a domain.
+- **The admin page:** from the admins' group to its peer, or the server's
+  peer when the page has none of its own (or the machine), TCP 1984, and
+  443 with a domain.
 - **Each app**, its peer in the group `hi-<app>`:
   - from the app's people's group, TCP 80 and 8080;
   - from its owners' group, TCP 8888 and 22.

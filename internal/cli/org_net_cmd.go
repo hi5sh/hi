@@ -67,7 +67,12 @@ func orgNetCommand(args []string, stdin io.Reader, stdout, stderr io.Writer) err
 		case config.Listen != "":
 			fmt.Fprintf(stdout, "It answers at %s too, this machine's NetBird address, and tells each device that calls there the new address; devices that reach it follow. hi server net forget-old stops that once they have.\n", config.Listen)
 		}
-		fmt.Fprintf(stdout, "Ask your IT team for a NetBird policy that lets devices reach %s on TCP %d.\n", serverJoinAddress(status), serverDefaultPort)
+		if serverPeerCarriesPage(dir) {
+			fmt.Fprintf(stdout, "The admin page is there too, for its admins: http://%s:%d/\n", serverJoinAddress(status), adminPort)
+			fmt.Fprintf(stdout, "Ask your IT team for NetBird policies that let devices reach %s on TCP %d, and the admins on TCP %d.\n", serverJoinAddress(status), serverDefaultPort, adminPort)
+		} else {
+			fmt.Fprintf(stdout, "Ask your IT team for a NetBird policy that lets devices reach %s on TCP %d.\n", serverJoinAddress(status), serverDefaultPort)
+		}
 		if !fileExists(filepath.Join(dir, "admin.sock")) {
 			fmt.Fprintf(stdout, "The server isn't running; it answers there once it starts: %s\n", orgRestartLine())
 		}
@@ -121,6 +126,7 @@ func serverNetViewOf(dir string) (serverNetView, error) {
 		if view.Join == "" {
 			view.Join = config.Peer.Name
 		}
+		view.Page = serverPeerCarriesPage(dir)
 	} else {
 		view.Join = config.Listen
 	}
@@ -166,6 +172,9 @@ func printServerNet(view serverNetView, stdout io.Writer) {
 	fmt.Fprintf(stdout, "The server's NetBird peer: %s%s, %s, at %s.\n", firstNonEmpty(p.FQDN, p.Name), address, state, p.Network)
 	if view.Join != "" {
 		fmt.Fprintf(stdout, "Devices join with: hi server join %s\n", view.Join)
+		if view.Page {
+			fmt.Fprintf(stdout, "The admin page is there too: http://%s:%d/\n", view.Join, adminPort)
+		}
 	}
 	if o := view.Old; o != nil {
 		fmt.Fprintf(stdout, "It still answers as %s, its peer from before the move, until devices have followed (by %s at the latest); hi server net forget-old ends that now.\n",

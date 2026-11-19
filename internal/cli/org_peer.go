@@ -205,7 +205,7 @@ func updateServerConfig(dir string, change func(*serverConfig) error) (serverCon
 // and 7374 to the server's sockets and a socket to NetBird's SOCKS5 proxy,
 // and NetBird's userspace stack, which hands what reaches the peer to the
 // container's loopback. Its output stays in the container.
-func serverPeerScript(peer serverPeerConfig, joined bool) string {
+func serverPeerScript(peer serverPeerConfig, joined, page bool) string {
 	up := "netbird up --hostname " + peer.Name + " --disable-dns"
 	if peer.ManagementURL != "" {
 		up += " --management-url " + peer.ManagementURL
@@ -216,6 +216,10 @@ func serverPeerScript(peer serverPeerConfig, joined bool) string {
 	forwards := fmt.Sprintf("hi box __forward 127.0.0.1:%d unix:/hi-server/client-%s.sock & ", serverDefaultPort, peer.ID) +
 		fmt.Sprintf("hi box __forward 127.0.0.1:%d unix:/hi-server/instance.sock & ", exposeDefaultPort) +
 		fmt.Sprintf("hi box __forward unix:/hi-server/out-%s.sock 127.0.0.1:%d & ", peer.ID, serverPeerSOCKSPort)
+	if page {
+		// The admin page, at the server's name: one peer for both.
+		forwards += fmt.Sprintf("hi box __forward 127.0.0.1:%d unix:/hi-admin/http.sock & hi box __forward 127.0.0.1:80 unix:/hi-admin/http.sock & ", adminPort)
+	}
 	return "exec >>/tmp/peer.log 2>&1; " + forwards + "netbird service run --log-file /tmp/netbird.log & nb=$!; sleep 3; " + up + "; wait $nb"
 }
 
@@ -230,6 +234,13 @@ func serverPeerEngine() (boxEngine, error) {
 		return engine, errors.New("the server's NetBird peer runs NetBird, which isn't installed here: hi install netbird")
 	}
 	return engine, nil
+}
+
+// serverPeerCarriesPage says the server's peer carries the admin page
+// too: the machine's server, and a page with no NetBird peer of its own.
+// Tests replace it.
+var serverPeerCarriesPage = func(dir string) bool {
+	return dir == orgDefaultDirectory() && !adminPeerJoined() && fileExists(adminSocketDir())
 }
 
 // serverKeepPeer has a peer running as its script says now: made the
@@ -252,7 +263,8 @@ func serverKeepPeer(dir string, peer serverPeerConfig, progress io.Writer) error
 		return err
 	}
 	name := serverPeerContainer(peer.ID)
-	script := serverPeerScript(peer, joined)
+	page := serverPeerCarriesPage(dir)
+	script := serverPeerScript(peer, joined, page)
 	if engine.state(name) == "running" && appContainerLabel(engine, name, "hi.peer") == appPeerStamp(script) {
 		return nil
 	}
@@ -273,6 +285,9 @@ func serverKeepPeer(dir string, peer serverPeerConfig, progress io.Writer) error
 		"-e", fmt.Sprintf("NB_SOCKS5_LISTENER_PORT=%d", serverPeerSOCKSPort),
 		"-v", serverPeerIdentity(dir, peer.ID) + ":/var/lib/netbird", "-v", netbird + ":/usr/local/bin/netbird:ro", "-v", hi + ":/usr/local/bin/hi:ro",
 		"-v", serverSockDir(dir) + ":/hi-server"}
+	if page {
+		args = append(args, "-v", adminSocketDir()+":/hi-admin")
+	}
 	if !joined {
 		args = append(args, "-v", serverPeerKeyPath(dir, peer.ID)+":/run/netbird-key:ro")
 	}
@@ -392,6 +407,23 @@ func serverWaitPeer(id string, timeout time.Duration) (serverPeerStatus, error) 
 	}
 }
 
+// serverPeerNamePath is the current peer's name and address, for the
+// admin page, whose links name the peer when it carries the page.
+func serverPeerNamePath(dir string) string { return filepath.Join(serverNetDir(dir), "peer.json") }
+
+type serverPeerName struct {
+	FQDN    string `json:"fqdn"`
+	Address string `json:"address"`
+}
+
+func serverWritePeerName(dir string, status serverPeerStatus) {
+	want, _ := json.Marshal(serverPeerName{FQDN: status.FQDN, Address: status.Address})
+	if current, err := os.ReadFile(serverPeerNamePath(dir)); err == nil && bytes.Equal(bytes.TrimSpace(current), want) {
+		return
+	}
+	writeFileAtomic(serverPeerNamePath(dir), append(want, '\n'), 0o600)
+}
+
 // serverJoinAddress is what devices join with: the peer's name.
 func serverJoinAddress(status serverPeerStatus) string {
 	if status.FQDN != "" {
@@ -480,6 +512,7 @@ func serverNetJoin(dir string, options serverNetJoinOptions, as string, progress
 	}
 	now := time.Now().UTC()
 	moving := config.Peer != nil
+	serverWritePeerName(dir, status)
 	config, err = updateServerConfig(dir, func(c *serverConfig) error {
 		peer.Since = now
 		if c.Peer != nil {
@@ -886,6 +919,9 @@ func (s *orgServer) keepNet() {
 		}
 		status, err := serverPeerStatusOf(peer.ID)
 		now := time.Now()
+		if err == nil {
+			serverWritePeerName(dir, status)
+		}
 		n.mu.Lock()
 		n.problem = problem
 		if err == nil {
@@ -972,6 +1008,8 @@ type serverNetView struct {
 	Join       string            `json:"join,omitempty"`   // what devices join with
 	Local      string            `json:"local,omitempty"`
 	OldDevices []serverOldDevice `json:"old_devices,omitempty"`
+	// Page says the peer carries the admin page too, on port 1984.
+	Page bool `json:"page,omitempty"`
 }
 
 type serverPeerView struct {
@@ -1022,6 +1060,7 @@ func (s *orgServer) netView() serverNetView {
 	}
 	if peer != nil {
 		view.Join = serverJoinAddress(status)
+		view.Page = serverPeerCarriesPage(s.dir)
 	} else if view.Listen != "" {
 		view.Join = view.Listen
 	}
