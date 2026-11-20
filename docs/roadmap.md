@@ -4319,7 +4319,7 @@ Spec: [hi_admin.md](specs/approved/hi_admin.md), release 3.
   channel and the owners are picked from Slack; a ChatGPT sign-in of the
   app's own shows its code on the page; a Claude token is pasted, or the
   machine's sign-in used; each role's fallback is checked.
-- [x] Adopting from the Code step or the start page, with **Look at it**
+- [x] Adopting from the Code step (the start page's field went in v2.6.229), with **Look at it**
   first; From a file, answers as `--from` takes them.
 - [x] Create runs `hi app new --from` and `hi app up` as one job, with
   the tokens in a file only the job reads once; the app opens when it's
@@ -6963,6 +6963,13 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.229 — The project to adopt is asked once, at the Code step
+
+- [x] The admin page's **New app** start page no longer asks for a
+  project to adopt: the Code step asks, with **Look at it**, as `hi app
+  new` does. Looking at it there drafts the app's purpose from the
+  project's GitHub description when the purpose is still empty.
 
 ### v2.6.228 — Shared keys in the setup wizard, for Claude too; no OpenRouter management key
 

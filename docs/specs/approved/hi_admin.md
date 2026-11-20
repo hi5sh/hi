@@ -635,7 +635,7 @@ hi admin address [<host> [--https] | default]
    command now); the draft goes when it went well, and stays to fix and
    try again when it didn't. `--from` gained `full`, the whole history of
    a project over 1 GB, which the terminal asks about. Adopting is the
-   Code step's, or the start page's project field; **Look at it** asks
+   Code step's (since v2.6.229, not the start page's too); **Look at it** asks
    GitHub (description, size, licence, whether this machine can push
    there) or counts the folder, and the full look runs in the job. Bring
    one back lists app folders beside the apps' folders that aren't apps
