@@ -91,12 +91,15 @@ func writeTeamKeys(name string, secrets appSecrets) error {
 	// The team's Claude token, which members' proxies read before this
 	// machine's sign-in (app_subscriptions.go).
 	claude := filepath.Join(dir, appClaudeKeyFile)
-	if secrets.ClaudeToken == "" {
+	token, _, _ := appOwnClaude(config, secrets)
+	if token == "" {
 		if err := os.Remove(claude); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-	} else if err := writeFileAtomic(claude, []byte(secrets.ClaudeToken+"\n"), 0o600); err != nil {
-		return err
+	} else if old, err := os.ReadFile(claude); err != nil || string(old) != token+"\n" {
+		if err := writeFileAtomic(claude, []byte(token+"\n"), 0o600); err != nil {
+			return err
+		}
 	}
 	file := filepath.Join(dir, "openrouter.env")
 	if own == "" {
@@ -117,24 +120,35 @@ func writeTeamKeys(name string, secrets appSecrets) error {
 // app, else its own; "" is this machine's. from names the shared key;
 // problem says why a reference gives nothing.
 func appOwnOpenRouter(config appConfig, secrets appSecrets) (key, from, problem string) {
-	if config.OpenRouterFrom == "" {
-		return secrets.OpenRouterAPIKey, "", ""
+	return appOwnOrShared(config, config.OpenRouterFrom, secrets.OpenRouterAPIKey)
+}
+
+// appOwnClaude is the Claude token the app's Claude members use instead
+// of this machine's sign-in, as appOwnOpenRouter is the OpenRouter key.
+func appOwnClaude(config appConfig, secrets appSecrets) (token, from, problem string) {
+	return appOwnOrShared(config, config.ClaudeFrom, secrets.ClaudeToken)
+}
+
+// appOwnOrShared is the value of the shared key from names, while it's
+// given to the app, else the app's own.
+func appOwnOrShared(config appConfig, from, own string) (value, _, problem string) {
+	if from == "" {
+		return own, "", ""
 	}
-	from = config.OpenRouterFrom
 	name, ok := appSharedName(from)
 	if !ok {
-		return secrets.OpenRouterAPIKey, from, from + " isn't a shared key"
+		return own, from, from + " isn't a shared key"
 	}
 	if grant := loadVaultShared()[name]; grant == nil || !slices.Contains(grant.Apps, config.Name) {
-		return secrets.OpenRouterAPIKey, from, from + " isn't shared to the app"
+		return own, from, from + " isn't shared to the app"
 	}
 	store, err := openVault()
 	if err != nil {
-		return secrets.OpenRouterAPIKey, from, err.Error()
+		return own, from, err.Error()
 	}
 	data, _, found, err := store.get(vaultSharedPath(name))
 	if err != nil || !found || data.Values["value"] == "" {
-		return secrets.OpenRouterAPIKey, from, from + " has no value"
+		return own, from, from + " has no value"
 	}
 	return data.Values["value"], from, ""
 }
@@ -513,12 +527,12 @@ func appRelay(conn net.Conn, socket string) {
 
 // appKey is hi app key <name> openrouter [--unset], or slack.
 func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app key <name> openrouter [--unset | --from shared/<name> | --managed | --rotate]\n       hi app key <name> slack"}
+	usage := usageError{"usage: hi app key <name> openrouter [--unset | --from shared/<name>]\n       hi app key <name> slack"}
 	if len(args) == 2 && args[1] == "slack" {
 		return appKeySlack(args[0], stdin, stdout)
 	}
 	var words []string
-	unset, fromServer, managed, rotate := false, false, false, false
+	unset, fromServer := false, false
 	from := ""
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -527,10 +541,6 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 			unset = true
 		case arg == "--from-server":
 			fromServer = true
-		case arg == "--managed":
-			managed = true
-		case arg == "--rotate":
-			rotate = true
 		case arg == "--from" && i+1 < len(args):
 			i++
 			from = args[i]
@@ -559,14 +569,8 @@ func appKey(args []string, stdin io.Reader, stdout io.Writer) error {
 	if from != "" {
 		return appKeyOpenRouterFrom(config, secrets, from, stdout)
 	}
-	if managed || rotate {
-		return appKeyOpenRouterManaged(config, rotate, stdout)
-	}
-	if config.OpenRouterFrom != "" || config.OpenRouterManaged != "" {
-		if said := appManagedKeyState(config, "delete"); said != "" {
-			fmt.Fprintln(stdout, strings.ToUpper(said[:1])+said[1:]+".")
-		}
-		config.OpenRouterFrom, config.OpenRouterManaged = "", ""
+	if config.OpenRouterFrom != "" {
+		config.OpenRouterFrom = ""
 		if err := saveTeam(config); err != nil {
 			return err
 		}
@@ -1163,12 +1167,6 @@ func appKeyOpenRouterFrom(config appConfig, secrets appSecrets, from string, std
 		return fmt.Errorf("shared/%s isn't shared to app %s; an admin shares it: hi server vault shared give %s %s", name, config.Name, name, config.Name)
 	}
 	config.OpenRouterFrom = "shared/" + name
-	if config.OpenRouterManaged != "" {
-		if said := appManagedKeyState(config, "delete"); said != "" {
-			fmt.Fprintln(stdout, strings.ToUpper(said[:1])+said[1:]+".")
-		}
-		config.OpenRouterManaged = ""
-	}
 	key, _, problem := appOwnOpenRouter(config, appSecrets{})
 	if problem != "" {
 		return errors.New(problem)

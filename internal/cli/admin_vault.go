@@ -548,8 +548,6 @@ func adminVaultPathHow(path string) string {
 		return "Keys (left panel), Email"
 	case path == vaultConnPath:
 		return "Team stores, below"
-	case path == openRouterManagementPath:
-		return "Keys (left panel), OpenRouter management key"
 	}
 	return "the command that set it"
 }

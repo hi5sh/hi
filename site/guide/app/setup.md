@@ -67,8 +67,7 @@ things, one at a time:
    [Change a member](#change-a-member)).
 7. **Models.** An OpenRouter key of the app's own, so its use is billed
    and limited apart; Enter uses this machine's, from Hermes. When the
-   server has an OpenRouter management key, hi offers to make the app a
-   key at OpenRouter instead, and Enter takes that. No box ever
+   server's vault has shared keys, a shared key's name uses it. No box ever
    holds it (see [Keys and settings](/guide/app/keys/)).
 8. **Code.** Enter starts a new web app to build on: a
    welcome page on Bun that points people at Feedback, with a

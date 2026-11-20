@@ -83,9 +83,11 @@ func appSharedUsers() map[string][]string {
 			continue
 		}
 		seen := map[string]bool{}
-		if name, ok := appSharedName(config.OpenRouterFrom); ok {
-			seen[name] = true
-			users[name] = append(users[name], app)
+		for _, from := range []string{config.OpenRouterFrom, config.ClaudeFrom} {
+			if name, ok := appSharedName(from); ok && !seen[name] {
+				seen[name] = true
+				users[name] = append(users[name], app)
+			}
 		}
 		for _, refs := range config.EnvFrom {
 			for _, source := range refs {
@@ -460,7 +462,7 @@ func vaultExportShared(name string) (func(), error) {
 	path := appSharedExportFile(name)
 	done := func() { os.Remove(path) }
 	config, err := loadTeam(name)
-	if err != nil || (len(config.EnvFrom) == 0 && config.OpenRouterFrom == "") || !vaultExists() {
+	if err != nil || (len(config.EnvFrom) == 0 && config.OpenRouterFrom == "" && config.ClaudeFrom == "") || !vaultExists() {
 		return done, nil
 	}
 	store, err := openVault()
@@ -468,9 +470,11 @@ func vaultExportShared(name string) (func(), error) {
 		return done, err
 	}
 	values := map[string]string{}
-	if shared, ok := appSharedName(config.OpenRouterFrom); ok {
-		if data, _, found, err := store.get(vaultSharedPath(shared)); err == nil && found {
-			values[shared] = data.Values["value"]
+	for _, from := range []string{config.OpenRouterFrom, config.ClaudeFrom} {
+		if shared, ok := appSharedName(from); ok {
+			if data, _, found, err := store.get(vaultSharedPath(shared)); err == nil && found {
+				values[shared] = data.Values["value"]
+			}
 		}
 	}
 	for _, refs := range config.EnvFrom {
@@ -584,6 +588,22 @@ func appCheckSharedOpenRouter(name string) error {
 	}
 	if err := appCheckOpenRouterKey(data.Values["value"]); err != nil {
 		return fmt.Errorf("shared/%s as an OpenRouter key: %w", name, err)
+	}
+	return nil
+}
+
+// appCheckSharedClaude checks a shared key looks like a Claude token.
+func appCheckSharedClaude(name string) error {
+	store, err := openVault()
+	if err != nil {
+		return err
+	}
+	data, _, found, err := store.get(vaultSharedPath(name))
+	if err != nil || !found || data.Values["value"] == "" {
+		return fmt.Errorf("shared/%s has no value", name)
+	}
+	if err := appCheckClaudeToken(data.Values["value"]); err != nil {
+		return fmt.Errorf("shared/%s as a Claude token: %w", name, err)
 	}
 	return nil
 }

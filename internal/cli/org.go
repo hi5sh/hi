@@ -136,9 +136,6 @@ On the server box:
   hi server policy show|edit|example|check
                                        Groups: limits, auto-approve, budgets
   hi server spend [--since 30d]        Spend per user and group, compute and models
-  hi server openrouter [--management-key | --forget]
-                                       The OpenRouter management key, with which hi makes each app a
-                                       key of its own; without an option, the keys hi made
   hi server ai [set|off|remove]        Pass hi q's model requests to OpenRouter with your team's key,
                                        and to models served on the team's machines (hi serve --org)
   hi server ai remove local/<name>     Stop passing requests to a model served on a team's machine

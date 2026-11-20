@@ -164,8 +164,6 @@ type adminDraftView struct {
 	Look          *adminAdoptLook   `json:"look,omitempty"`
 	Machine       adminNewMachine   `json:"machine"`
 	Errors        map[string]string `json:"errors,omitempty"`
-	// OpenRouterManaged says the app gets a key hi makes at OpenRouter.
-	OpenRouterManaged bool `json:"openrouter_managed,omitempty"`
 }
 
 // adminDraftCode is the Code step's answer.
@@ -189,7 +187,6 @@ type adminNewMachine struct {
 	CodexKey   bool               `json:"codex_key"`  // Codex is on an API key
 	Heartbeat  bool               `json:"heartbeat"`  // the machine has a heartbeat
 	Shared     []string           `json:"shared"`     // the server's shared keys, by name
-	Managed    bool               `json:"managed"`    // an OpenRouter management key: hi makes keys
 	Domain     string             `json:"domain,omitempty"`
 	Efforts    []string           `json:"efforts"`
 	Templates  []adminNewTemplate `json:"templates"`
@@ -219,7 +216,6 @@ func adminNewMachineOf(name string) adminNewMachine {
 	}
 	_, machine.Heartbeat = loadMachineHeartbeat()
 	machine.Shared = appSharedKeyNames()
-	machine.Managed = openRouterManagementKey() != ""
 	if machine.Shared == nil {
 		machine.Shared = []string{}
 	}
@@ -243,7 +239,7 @@ func adminDraftViewOf(draft adminDraft) adminDraftView {
 	view := adminDraftView{Name: draft.Name, Folder: draft.Folder, By: draft.By, Started: draft.Started, Updated: draft.Updated,
 		Done: draft.Done, Config: config, Handle: appBotHandle(config), Slash: appSlashCommand(draft.Name),
 		Workspace: draft.Workspace, HasBot: draft.BotToken != "", HasApp: draft.AppToken != "",
-		HasOwnKey: draft.OpenRouterKey != "", OwnKey: draft.OwnKey, HasClaude: draft.ClaudeToken != "", OpenRouterManaged: draft.Answers.OpenRouter == "managed",
+		HasOwnKey: draft.OpenRouterKey != "", OwnKey: draft.OwnKey, HasClaude: draft.ClaudeToken != "",
 		ChatGPTSignIn: draft.ChatGPTSignIn, ChatGPTModels: draft.ChatGPTModels, ChatGPTError: draft.ChatGPTError,
 		HasNetBird: draft.Answers.NetBirdKey != "", Heartbeat: draft.Answers.HeartbeatURL, MachineBeat: draft.Answers.MachineHeartbeatURL,
 		Job: draft.Job, Look: draft.Look, Machine: adminNewMachineOf(draft.Name)}
@@ -456,11 +452,11 @@ type adminStepInput struct {
 	ChatGPTSignIn string               `json:"chatgpt_signin"`
 	ClaudeToken   string               `json:"claude_token"`
 	ClaudeMachine bool                 `json:"claude_machine"`
+	ClaudeFrom    string               `json:"claude_from"`
 
-	OwnKey            bool   `json:"own_key"`
-	OpenRouterKey     string `json:"openrouter_key"`
-	OpenRouterFrom    string `json:"openrouter_from"`
-	OpenRouterManaged bool   `json:"openrouter_managed"`
+	OwnKey         bool   `json:"own_key"`
+	OpenRouterKey  string `json:"openrouter_key"`
+	OpenRouterFrom string `json:"openrouter_from"`
 
 	Code adminDraftCode `json:"code"`
 
@@ -540,14 +536,7 @@ func adminSaveStep(input adminStepInput) (adminDraft, error) {
 			return adminSaveMembers(draft, input)
 		case "models":
 			draft.OwnKey = input.OwnKey
-			answers.OpenRouterFrom, answers.OpenRouter = "", ""
-			if input.OpenRouterManaged && !input.OwnKey {
-				if openRouterManagementKey() == "" {
-					return errors.New("this machine has no OpenRouter management key")
-				}
-				answers.OpenRouter, draft.OpenRouterKey = "managed", ""
-				break
-			}
+			answers.OpenRouterFrom = ""
 			if from := strings.TrimSpace(input.OpenRouterFrom); from != "" && !input.OwnKey {
 				shared, ok := appSharedName(from)
 				if !ok || !slices.Contains(appSharedKeyNames(), shared) {
@@ -728,15 +717,25 @@ func adminSaveMembers(draft *adminDraft, input adminStepInput) error {
 			members[role] = member
 		}
 	}
-	// Claude: the app's own token, or this machine's sign-in.
+	// Claude: the app's own token, a shared one, or this machine's sign-in.
 	usesClaude := false
 	for _, member := range members {
 		if member.Agent == "claude" {
 			usesClaude = true
 		}
 	}
+	config.ClaudeFrom = ""
 	if usesClaude {
-		if token := strings.TrimSpace(input.ClaudeToken); token != "" {
+		if from := strings.TrimSpace(input.ClaudeFrom); from != "" {
+			shared, ok := appSharedName(from)
+			if !ok || !slices.Contains(appSharedKeyNames(), shared) {
+				return fmt.Errorf("the server has no shared key %q", from)
+			}
+			if err := appCheckSharedClaude(shared); err != nil {
+				return err
+			}
+			config.ClaudeFrom, draft.ClaudeToken = "shared/"+shared, ""
+		} else if token := strings.TrimSpace(input.ClaudeToken); token != "" {
 			if err := appCheckClaudeToken(token); err != nil {
 				return err
 			}

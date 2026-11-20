@@ -20,10 +20,17 @@ hi app key payments openrouter            # asked for; it shows as *
 hi app key payments openrouter --unset    # this machine's key again
 ```
 
-Instead of a key you paste, the app can use a key hi makes for it at
-OpenRouter (`--managed`, see [spend](/guide/app/spend/)), or a
+Instead of a key you paste, the app can use a
 [shared key](/guide/reference/vault/#shared-keys) from the vault
-(`--from shared/<name>`).
+(`--from shared/<name>`): one key several apps use, changed in one place.
+Its Claude members can too, for their token:
+
+```sh
+hi app signin payments claude --from shared/claude
+```
+
+The setup wizard and the app's **Agents** on the admin page offer the
+server's shared keys for both, and make a new one in place.
 
 **The lead on a ChatGPT plan.** The lead can run on a ChatGPT plan the
 company already pays for, instead of OpenRouter by the token. `hi app new`

@@ -348,10 +348,10 @@ See [Apps](/guide/app/): [set up an app](/guide/app/setup/) and [how the app wor
 | `hi app logs <name> [-f]`                | The lead's log; `-f` follows it |
 | `hi app channel <name> [--since 2h]`     | What was said in the app's channel, threads and shared files included |
 | `hi app key <name> openrouter [--unset]` | Give the app an OpenRouter key of its own (asked for, never an argument), or go back to this machine's; no box holds it |
-| `hi app key <name> openrouter --managed` | A key of the app's own that hi makes at OpenRouter with the machine's management key, its monthly budget as the key's limit; `--rotate` makes a new one and deletes the old |
 | `hi app key <name> openrouter --from shared/<name>` | The app's agents use a shared key as their OpenRouter key, by reference, in place of its own: a new value reaches them within a minute. It must be shared to the app first |
 | `hi app signin <name> chatgpt [--machine]` | Sign the app in to ChatGPT, for its roles on a ChatGPT plan: a code to type on any device; only the app's service refreshes it, and no box holds it. `--machine` uses this machine's sign-in (Codex's) |
 | `hi app signin <name> claude [--machine]` | The app's own Claude token, from `claude setup-token` (asked for): Claude Code in the dev box, and the app's Claude members, use it before this machine's sign-in, and fall back to OpenRouter when Claude refuses |
+| `hi app signin <name> claude --from shared/<name>` | The app's Claude members use a shared key from the vault as their token, by reference: a new value there reaches them within a minute |
 | `hi app signin <name> agy --file <token> \| --machine \| --unset` | Antigravity (agy) in the dev box, as the app's own Google account: its `~/.gemini/antigravity-cli/antigravity-oauth-token`. The box holds it, so anyone with SSH into the box can copy it; `--machine` uses this machine's agy sign-in, `--unset` none |
 | `hi app member <name> <role> [--provider openrouter\|chatgpt] [--model M] [--fallback M] [--effort L]` | A member's provider, models, and effort (low, medium, high, xhigh, max; medium unless set); on ChatGPT the fallback, the same model on OpenRouter unless given, takes over when the plan refuses; a running app restarts |
 | `hi app key <name> slack` | The Slack app's bot and app tokens again, after Slack gave new ones: asked for and checked, Enter keeps one; a running app restarts with them; the lead's box gets placeholders, and the app's proxy puts the tokens on its calls to Slack |
@@ -564,7 +564,6 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault shared set <name>` | A key several apps use, such as one OpenRouter key, asked without echo; a new value reaches every app that uses it within a minute |
 | `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
 | `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
-| `hi server openrouter [--management-key \| --forget]` | The OpenRouter management key in the vault (asked without echo), with which hi makes each app a key of its own; without an option, the keys hi made and what OpenRouter counts on each |
 | `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--role <name>] [--auth-mount <path>] [--namespace <ns>] [--ca <file>] [--secret-id-ttl 30d]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
 | `hi server vault disconnect <prefix>` | Stop reading it, and forget the login; refused while an app takes from it |
 | `hi server vault login [<prefix>] [--new-key]` | Whether hi logs in to each team store, and what to hand its owners; `--new-key` makes a new key pair, the old one working until they swap it |

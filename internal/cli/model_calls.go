@@ -725,13 +725,6 @@ func appBudgetCommand(args []string, stdout io.Writer) error {
 				fmt.Fprintln(stdout, state.Message)
 			}
 		}
-		if counts := appManagedKeyCounts(config); counts != nil {
-			line := fmt.Sprintf("OpenRouter counts %s this month on the key hi made for it", formatDollars(counts.UsageMonthly))
-			if counts.Limit != nil {
-				line += fmt.Sprintf(", of its %s limit", formatDollars(*counts.Limit))
-			}
-			fmt.Fprintln(stdout, line+".")
-		}
 	}
 	table := func(title string, rows []modelSpendRow, dollars bool) {
 		if len(rows) == 0 {

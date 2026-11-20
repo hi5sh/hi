@@ -44,29 +44,6 @@ when a new month (or day), or a raised budget, lets calls through. The
 machine's admins set it in the app's **Spend** on the admin page, too.
 The preview's own daily limit (`hi app limit`) stays as it is.
 
-## A key of its own for each app, made by hi
-
-With an OpenRouter management key in the server's vault, hi makes each
-app a key of its own at OpenRouter, with the app's monthly budget as the
-key's limit there: OpenRouter then stops the app at its budget even if
-something went around hi, counts each app apart, and a leaked key is one
-app's.
-
-```sh
-hi server openrouter --management-key      # asked without echo; made at openrouter.ai/settings/management-keys
-hi app key payments openrouter --managed   # a key of its own, made by hi
-hi app key payments openrouter --rotate    # a new one; the old one is deleted
-hi server openrouter                       # the keys hi made, and what OpenRouter counts on each
-hi server openrouter --forget              # forget the management key; the keys hi made stay
-```
-
-The management key can't make model calls, so no box ever needs it. A
-new budget changes the key's limit; `hi app rm` disables the key, `hi app
-up` with the kept folder enables it, and `hi app rm --purge` deletes it.
-New apps get one by default, in the wizard and the admin page's New app
-(`"openrouter": "managed"` in an answers file). The admin page's Keys
-(left panel) sets the management key too.
-
 ## A shared key spending outside hi
 
 A shared key the apps use as their OpenRouter key is for them alone.

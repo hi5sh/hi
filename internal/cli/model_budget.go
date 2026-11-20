@@ -248,11 +248,6 @@ func appSetBudget(team string, monthly, daily *float64, who string) (string, err
 		return "", err
 	}
 	adminRecord(who, team, "set the model budget to "+appBudgetWords(budget))
-	if config.OpenRouterManaged != "" {
-		if err := appManagedKeyLimit(config); err != nil {
-			return "", fmt.Errorf("the budget is set, but OpenRouter's limit on the app's key isn't: %w", err)
-		}
-	}
 	return fmt.Sprintf("App %s's model budget: %s. hi stops its calls that cost money at it; its ops channel hears at 80%% and 100%%.", team, appBudgetWords(budget)), nil
 }
 

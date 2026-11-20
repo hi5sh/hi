@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -801,6 +802,8 @@ func appFallbackMessage(config appConfig, secrets appSecrets, role string, refus
 		text += " It tries Claude again every 15 minutes, and goes back when the plan's limit resets."
 	case refusal.reason == "limit":
 		text += " It goes back to ChatGPT when the plan's limit resets."
+	case refusal.provider == "claude" && config.ClaudeFrom != "":
+		text += fmt.Sprintf(" It uses %s: an admin gives that shared key a new value on the admin page's Vault tab.", config.ClaudeFrom)
 	case refusal.provider == "claude" && secrets.ClaudeToken != "":
 		text += fmt.Sprintf(" An owner gives it a new token with `%s signin claude`.", appSlashCommand(config.Name))
 	case refusal.provider == "claude":
@@ -906,7 +909,46 @@ func appMemberSignedIn(team, kind string) bool {
 		return false
 	}
 	secrets, err := loadTeamSecrets(name)
-	return err == nil && (kind == "claude" && secrets.ClaudeToken != "" || kind == "codex" && secrets.ChatGPT != nil)
+	if err != nil {
+		return false
+	}
+	if kind == "claude" {
+		config, _ := loadTeam(name)
+		token, _, _ := appOwnClaude(config, secrets)
+		return token != ""
+	}
+	return kind == "codex" && secrets.ChatGPT != nil
+}
+
+// appSigninClaudeFrom points the app's Claude members at a shared key as
+// their token, and drops the app's own: one token to change for every
+// app that uses it.
+func appSigninClaudeFrom(config appConfig, from string, stdout io.Writer) error {
+	name, ok := appSharedName(from)
+	if !ok {
+		return fmt.Errorf("--from takes a shared key, shared/<name>; %q isn't one", from)
+	}
+	if grant := loadVaultShared()[name]; grant == nil {
+		return fmt.Errorf("the server has no shared key %s (hi server vault shared)", name)
+	} else if !slices.Contains(grant.Apps, config.Name) {
+		return fmt.Errorf("shared/%s isn't shared to app %s; an admin shares it: hi server vault shared give %s %s", name, config.Name, name, config.Name)
+	}
+	if err := appCheckSharedClaude(name); err != nil {
+		return err
+	}
+	config.ClaudeFrom = "shared/" + name
+	if err := saveTeam(config); err != nil {
+		return err
+	}
+	if err := updateTeamSecrets(config.Name, func(secrets *appSecrets) error {
+		secrets.ClaudeToken, secrets.ClaudeSignedIn = "", time.Time{}
+		return writeTeamKeys(config.Name, *secrets)
+	}); err != nil {
+		return err
+	}
+	vaultAudit(vaultActor(), "vault.shared-use", vaultSharedPath(name), config.Name+"'s Claude token")
+	fmt.Fprintf(stdout, "App %s's Claude members use shared/%s now. A new value there reaches them within a minute.\n", config.Name, name)
+	return nil
 }
 
 // appCheckClaudeToken checks a token looks like one from claude
@@ -969,7 +1011,7 @@ func versionNewer(a, b string) bool {
 
 // appSignin is hi app signin <name> chatgpt|claude [--machine].
 func appSignin(args []string, stdin io.Reader, stdout io.Writer) error {
-	usage := usageError{"usage: hi app signin <name> chatgpt|claude [--machine]\n       hi app signin <name> agy --file <antigravity-oauth-token> | --machine | --unset"}
+	usage := usageError{"usage: hi app signin <name> chatgpt|claude [--machine]\n       hi app signin <name> claude --from shared/<name>\n       hi app signin <name> agy --file <antigravity-oauth-token> | --machine | --unset"}
 	if len(args) >= 2 && args[1] == "agy" {
 		config, err := loadTeam(args[0])
 		if err != nil {
@@ -977,22 +1019,31 @@ func appSignin(args []string, stdin io.Reader, stdout io.Writer) error {
 		}
 		return appSigninAgy(config, args[2:], stdout)
 	}
-	machine := false
+	machine, from := false, ""
 	var words []string
-	for _, arg := range args {
-		if arg == "--machine" {
+	for i := 0; i < len(args); i++ {
+		switch arg := args[i]; {
+		case arg == "--machine":
 			machine = true
-		} else {
+		case arg == "--from" && i+1 < len(args):
+			i++
+			from = args[i]
+		case strings.HasPrefix(arg, "--from="):
+			from = strings.TrimPrefix(arg, "--from=")
+		default:
 			words = append(words, arg)
 		}
 	}
-	if len(words) != 2 || words[1] != appProviderChatGPT && words[1] != "claude" {
+	if len(words) != 2 || words[1] != appProviderChatGPT && words[1] != "claude" || from != "" && (machine || words[1] != "claude") {
 		return usage
 	}
 	name := words[0]
 	config, err := loadTeam(name)
 	if err != nil {
 		return err
+	}
+	if from != "" {
+		return appSigninClaudeFrom(config, from, stdout)
 	}
 	if words[1] == "claude" {
 		return appSigninClaude(config, machine, stdin, stdout)
@@ -1047,6 +1098,12 @@ func appSigninClaude(config appConfig, machine bool, stdin io.Reader, stdout io.
 		fmt.Fprintln(stdout, "Run claude setup-token in another terminal, signed in to the Claude account that pays, and paste the token it prints. It lasts a year; no box holds it.")
 		var err error
 		if token, err = appAskUntil(stdin, stdout, "Claude token", true, appCheckClaudeToken); err != nil {
+			return err
+		}
+	}
+	if config.ClaudeFrom != "" {
+		config.ClaudeFrom = ""
+		if err := saveTeam(config); err != nil {
 			return err
 		}
 	}

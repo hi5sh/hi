@@ -176,6 +176,7 @@ button.org-stat.warn strong { color: var(--warn); }
 .meters.policy-spend { padding-top: 4px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 .field { display: flex; flex-direction: column; gap: 3px; }
 .field.wide { grid-column: 1 / -1; }
+.field[hidden], .data-actions[hidden], .card-box input[hidden] { display: none; }
 .policy-text { width: 100%; font: 12px/1.45 var(--mono); }
 #ask-typed { width: 100%; margin-top: 6px; }
 

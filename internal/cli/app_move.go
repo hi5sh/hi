@@ -926,7 +926,7 @@ func appMoveNeedsOf(name, folder string) appMoveNeeds {
 		}
 		switch member.Agent {
 		case "claude":
-			needs.ClaudeMachine = needs.ClaudeMachine || secrets.ClaudeToken == ""
+			needs.ClaudeMachine = needs.ClaudeMachine || secrets.ClaudeToken == "" && config.ClaudeFrom == ""
 		case "codex":
 			needs.CodexMachine = true
 		}

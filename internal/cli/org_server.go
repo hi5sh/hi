@@ -2061,8 +2061,6 @@ func runOrgServer(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		return exitCode(orgPolicyCommand(rest, stdin, stdout, stderr), stderr)
 	case "spend":
 		return exitCode(orgSpendCommand(rest, stdout, stderr), stderr)
-	case "openrouter":
-		return exitCode(openRouterCommand(rest, stdin, stdout), stderr)
 	case "ai":
 		return exitCode(orgAICommand(rest, stdin, stdout, stderr), stderr)
 	case "live", "viewer", "wall":

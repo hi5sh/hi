@@ -31,21 +31,26 @@ type adminAppSettings struct {
 	People  []adminAppPerson     `json:"people"`
 	Members []adminMemberSetting `json:"members"`
 
-	OwnOpenRouter     bool    `json:"own_openrouter"`
-	MachineOpenRouter bool    `json:"machine_openrouter"`
-	UsesChatGPT       bool    `json:"uses_chatgpt"`
-	ChatGPT           string  `json:"chatgpt,omitempty"` // the app's own sign-in: its plan
-	ChatGPTFailed     string  `json:"chatgpt_failed,omitempty"`
-	MachineChatGPT    bool    `json:"machine_chatgpt"`
-	UsesClaude        bool    `json:"uses_claude"`
-	OwnClaude         bool    `json:"own_claude"`
-	MachineClaude     bool    `json:"machine_claude"`
-	StageLimit        float64 `json:"stage_limit"` // dollars a day; 0 without one
-	StageSpent        float64 `json:"stage_spent"`
-	StageCalls        int     `json:"stage_calls"`
-	MemoryDev         string  `json:"memory_dev"`
-	MemoryApp         string  `json:"memory_app"`
-	MemoryOwn         bool    `json:"memory_own"`
+	OwnOpenRouter  bool   `json:"own_openrouter"`
+	OpenRouterFrom string `json:"openrouter_from,omitempty"`
+	ClaudeFrom     string `json:"claude_from,omitempty"`
+	// ServerShared are all the server's shared keys: picking one for the
+	// app's OpenRouter key or Claude token shares it to the app.
+	ServerShared      []string `json:"server_shared"`
+	MachineOpenRouter bool     `json:"machine_openrouter"`
+	UsesChatGPT       bool     `json:"uses_chatgpt"`
+	ChatGPT           string   `json:"chatgpt,omitempty"` // the app's own sign-in: its plan
+	ChatGPTFailed     string   `json:"chatgpt_failed,omitempty"`
+	MachineChatGPT    bool     `json:"machine_chatgpt"`
+	UsesClaude        bool     `json:"uses_claude"`
+	OwnClaude         bool     `json:"own_claude"`
+	MachineClaude     bool     `json:"machine_claude"`
+	StageLimit        float64  `json:"stage_limit"` // dollars a day; 0 without one
+	StageSpent        float64  `json:"stage_spent"`
+	StageCalls        int      `json:"stage_calls"`
+	MemoryDev         string   `json:"memory_dev"`
+	MemoryApp         string   `json:"memory_app"`
+	MemoryOwn         bool     `json:"memory_own"`
 
 	Channel    string `json:"channel"`
 	OpsChannel string `json:"ops_channel,omitempty"`
@@ -190,7 +195,12 @@ func (s *adminServer) appSettings(name string) (adminAppSettings, error) {
 		}
 	}
 	view.UsesChatGPT = appUsesChatGPT(config)
-	view.OwnOpenRouter = secrets.OpenRouterAPIKey != "" || config.OpenRouterFrom != ""
+	view.OwnOpenRouter = secrets.OpenRouterAPIKey != ""
+	view.OpenRouterFrom, view.ClaudeFrom = config.OpenRouterFrom, config.ClaudeFrom
+	view.ServerShared = appSharedKeyNames()
+	if view.ServerShared == nil {
+		view.ServerShared = []string{}
+	}
 	if key, err := readDotEnvValue(hermesEnvPath(), "OPENROUTER_API_KEY"); err == nil && key != "" {
 		view.MachineOpenRouter = true
 	}
@@ -322,6 +332,27 @@ func (s *adminServer) adminSetLevel(admin adminPerson, app, person, level string
 }
 
 // adminLevelWords is a level as Slack hears it.
+// adminShareForUse shares a shared key to the app an admin picks it for,
+// when it isn't yet.
+func adminShareForUse(admin adminPerson, app, from string) error {
+	name, ok := appSharedName(from)
+	if !ok {
+		return fmt.Errorf("%q isn't a shared key, shared/<name>", from)
+	}
+	grant := loadVaultShared()[name]
+	if grant == nil {
+		return fmt.Errorf("the server has no shared key %s", name)
+	}
+	if slices.Contains(grant.Apps, app) {
+		return nil
+	}
+	if _, err := vaultSharedGive(name, []string{app}, false, admin.orgName()); err != nil {
+		return err
+	}
+	adminRecord(admin.Name, app, "shared the shared key "+name+" to the app")
+	return nil
+}
+
 var adminLevelWords = map[string]string{"owner": "an owner", "pro": "a developer", "contributor": "a contributor"}
 
 // adminChangeSetting makes one change to an app's settings: the command,
@@ -390,7 +421,13 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 		said = "changed the " + change.Role + "'s agent settings (" + strings.Join(args[4:], " ") + ")"
 	case "openrouter":
 		args = []string{"app", "key", app, "openrouter"}
-		if change.Remove {
+		if from := strings.TrimSpace(change.From); from != "" {
+			if err := adminShareForUse(admin, app, from); err != nil {
+				return nil, err
+			}
+			args = append(args, "--from", from)
+			said = "put the app's OpenRouter key on " + from
+		} else if change.Remove {
 			args = append(args, "--unset")
 			said = "put the app back on this machine's OpenRouter key"
 		} else {
@@ -402,7 +439,13 @@ func (s *adminServer) adminChangeSetting(admin adminPerson, change adminSettingC
 		}
 	case "claude":
 		args = []string{"app", "signin", app, "claude"}
-		if change.Machine {
+		if from := strings.TrimSpace(change.From); from != "" {
+			if err := adminShareForUse(admin, app, from); err != nil {
+				return nil, err
+			}
+			args = append(args, "--from", from)
+			said = "put the app's Claude members on " + from
+		} else if change.Machine {
 			args = append(args, "--machine")
 			said = "put the app's Claude members on this machine's sign-in"
 		} else {
@@ -579,9 +622,6 @@ type adminMachineKeys struct {
 	ChatGPT    bool                `json:"chatgpt"`
 	CodexKey   bool                `json:"codex_key"`
 	Apps       []adminAppKeysInUse `json:"apps"`
-	// Management says the vault has an OpenRouter management key, which
-	// makes the apps keys of their own (model_keys.go).
-	Management bool `json:"management"`
 }
 
 type adminAppKeysInUse struct {
@@ -603,12 +643,13 @@ func adminMachineKeysOf() adminMachineKeys {
 		use := adminAppKeysInUse{App: app, OpenRouter: map[bool]string{true: "own", false: "machine"}[secrets.OpenRouterAPIKey != ""]}
 		if config, err := loadTeam(app); err == nil && config.OpenRouterFrom != "" {
 			use.OpenRouter = config.OpenRouterFrom
-		} else if err == nil && config.OpenRouterManaged != "" {
-			use.OpenRouter = "managed"
 		}
 		for _, member := range config.Members {
 			if member.Agent == "claude" {
 				use.Claude = map[bool]string{true: "own", false: "machine"}[secrets.ClaudeToken != ""]
+				if config.ClaudeFrom != "" {
+					use.Claude = config.ClaudeFrom
+				}
 			}
 		}
 		if appUsesChatGPT(config) {
@@ -695,43 +736,6 @@ func (s *adminServer) settingsRoutes(mux *http.ServeMux, reply func(http.Respons
 		reply(w, http.StatusOK, map[string]any{"done": done, "failed": failed})
 	}))
 	mux.HandleFunc("GET /api/keys", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
-		keys := adminMachineKeysOf()
-		keys.Management = openRouterManagementKey() != ""
-		reply(w, http.StatusOK, keys)
-	}))
-	mux.HandleFunc("POST /api/openrouter-management", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {
-		var request struct {
-			Key    string `json:"key"`
-			Forget bool   `json:"forget"`
-		}
-		if !decode(w, r, &request) {
-			return
-		}
-		if !admin.Machine {
-			reply(w, http.StatusForbidden, map[string]string{"error": "the machine's admins set its OpenRouter management key"})
-			return
-		}
-		store, err := openVault()
-		if err != nil {
-			reply(w, http.StatusConflict, map[string]string{"error": err.Error()})
-			return
-		}
-		if request.Forget {
-			if _, err := store.purge(openRouterManagementPath); err != nil {
-				reply(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-				return
-			}
-			vaultAudit(admin.orgName(), "vault.openrouter-management", openRouterManagementPath, "forgotten")
-			adminRecord(admin.Name, "", "forgot the OpenRouter management key")
-			reply(w, http.StatusOK, map[string]string{"text": "The management key is forgotten; the keys hi made stay, as the apps' own. Delete it at OpenRouter too."})
-			return
-		}
-		said, err := openRouterSetManagement(store, request.Key, admin.orgName())
-		if err != nil {
-			reply(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-			return
-		}
-		adminRecord(admin.Name, "", "set the OpenRouter management key")
-		reply(w, http.StatusOK, map[string]string{"text": said})
+		reply(w, http.StatusOK, adminMachineKeysOf())
 	}))
 }

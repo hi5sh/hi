@@ -1001,7 +1001,12 @@ func appDevKeys(team string) []appDevKeyStatus {
 		return no
 	}
 	claude := "This machine's sign-in"
-	if secrets.ClaudeToken != "" {
+	if config, _ := loadTeam(team); config.ClaudeFrom != "" {
+		claude = "From " + config.ClaudeFrom
+		if _, _, problem := appOwnClaude(config, secrets); problem != "" {
+			claude += ", which gives nothing: " + problem
+		}
+	} else if secrets.ClaudeToken != "" {
 		claude = "The app's own token"
 		if !secrets.ClaudeSignedIn.IsZero() {
 			claude += ", since " + secrets.ClaudeSignedIn.Format("Jan 2, 2006")

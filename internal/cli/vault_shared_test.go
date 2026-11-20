@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -247,5 +248,136 @@ func TestAppNewWithSharedOpenRouter(t *testing.T) {
 	// The page's wizard offers it.
 	if m := adminNewMachineOf("orders"); strings.Join(m.Shared, ",") != "openrouter" {
 		t.Fatal(m.Shared)
+	}
+}
+
+// An app's Claude members use a shared key as their token, by
+// reference: it must look like a Claude token; the app's own goes; the
+// proxies' file gets the shared value and each new one; and a token of
+// its own again ends the reference.
+func TestAppClaudeFromShared(t *testing.T) {
+	setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	b := newTeamTestBroker(t)
+	saveTeamSecrets("payments", appSecrets{SlackBotToken: "xoxb-1", ClaudeToken: "sk-ant-own"})
+	vaultSharedSet("claude", "sk-ant-oat-shared-1", "ana")
+	vaultSharedSet("openrouter", "sk-or-shared", "ana")
+	var out bytes.Buffer
+	if err := appSignin([]string{"payments", "claude", "--from", "shared/claude"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "isn't shared to app payments") {
+		t.Fatal(err)
+	}
+	vaultSharedGive("claude", []string{"payments"}, false, "ana")
+	vaultSharedGive("openrouter", []string{"payments"}, false, "ana")
+	if err := appSignin([]string{"payments", "claude", "--from", "shared/openrouter"}, strings.NewReader(""), &out); err == nil || !strings.Contains(err.Error(), "as a Claude token") {
+		t.Fatal(err)
+	}
+	if err := appSignin([]string{"payments", "claude", "--from", "shared/claude"}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err)
+	}
+	config, _ := loadTeam("payments")
+	secrets, _ := loadTeamSecrets("payments")
+	if config.ClaudeFrom != "shared/claude" || secrets.ClaudeToken != "" {
+		t.Fatal(config.ClaudeFrom, secrets.ClaudeToken)
+	}
+	file := filepath.Join(appKeysDir("payments"), appClaudeKeyFile)
+	if data, _ := os.ReadFile(file); string(data) != "sk-ant-oat-shared-1\n" {
+		t.Fatal(string(data))
+	}
+	if !appMemberSignedIn("payments:coder", "claude") {
+		t.Fatal("a member on a shared token isn't signed in")
+	}
+	if users := appSharedUsers()["claude"]; strings.Join(users, ",") != "payments" {
+		t.Fatal(users)
+	}
+	vaultSharedSet("claude", "sk-ant-oat-shared-2", "ana")
+	b.syncSettings(io.Discard)
+	if data, _ := os.ReadFile(file); string(data) != "sk-ant-oat-shared-2\n" {
+		t.Fatal(string(data))
+	}
+	if _, err := vaultSharedRemove("claude", "ana"); err == nil {
+		t.Fatal("removed a token an app's members use")
+	}
+	// A token of its own again ends the reference.
+	if err := appSignin([]string{"payments", "claude"}, strings.NewReader("sk-ant-oat-own-2\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	if config, _ := loadTeam("payments"); config.ClaudeFrom != "" {
+		t.Fatal(config.ClaudeFrom)
+	}
+	if data, _ := os.ReadFile(file); string(data) != "sk-ant-oat-own-2\n" {
+		t.Fatal(string(data))
+	}
+	if audit := vaultAuditText(t); strings.Contains(audit, "sk-ant") {
+		t.Fatal("a token in the audit log")
+	}
+}
+
+// A new app made with a shared Claude token gets it shared.
+func TestAppNewWithSharedClaude(t *testing.T) {
+	dir := setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	t.Setenv("HI_APP_SLACK_BOT_TOKEN", "xoxb-bot")
+	t.Setenv("HI_APP_SLACK_APP_TOKEN", "xapp-app")
+	t.Setenv("HI_APP_OPENROUTER_API_KEY", "sk-or-own")
+	vaultSharedSet("claude", "sk-ant-oat-shared", "ana")
+	file := filepath.Join(dir, "answers.json")
+	writeSkillTestFile(t, file, `{"purpose": "x", "channel": "C07PAYMENTS", "owners": ["U07OWNER1"], "empty": true, "claude_from": "shared/claude"}`, 0o600)
+	var out bytes.Buffer
+	if err := appNew([]string{"payments", "--from", file}, strings.NewReader(""), &out); err != nil {
+		t.Fatal(err, out.String())
+	}
+	if config, _ := loadTeam("payments"); config.ClaudeFrom != "shared/claude" {
+		t.Fatal(config.ClaudeFrom)
+	}
+	if grant := loadVaultShared()["claude"]; grant == nil || strings.Join(grant.Apps, ",") != "payments" {
+		t.Fatal(grant)
+	}
+	if data, _ := os.ReadFile(filepath.Join(appKeysDir("payments"), appClaudeKeyFile)); string(data) != "sk-ant-oat-shared\n" {
+		t.Fatal(string(data))
+	}
+}
+
+// The page's wizard takes shared keys for the Claude token and the
+// OpenRouter key, checks each is the kind it's for, and the new app's
+// answers name them.
+func TestAdminNewWithSharedKeys(t *testing.T) {
+	a, olga := newAppTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	vaultSharedSet("claude", "sk-ant-oat-shared", "ana")
+	vaultSharedSet("openrouter", "sk-or-shared", "ana")
+	var view adminDraftView
+	if code := a.post(t, olga, "/api/new", map[string]any{"action": "start", "name": "orders"}, &view); code != http.StatusOK {
+		t.Fatal(code)
+	}
+	step := func(answers map[string]any) string {
+		t.Helper()
+		answers["action"], answers["name"] = "step", "orders"
+		var out map[string]any
+		if code := a.post(t, olga, "/api/new", answers, &out); code != http.StatusOK {
+			return out["error"].(string)
+		}
+		return ""
+	}
+	members := map[string]any{"lead": map[string]any{"agent": "hermes", "model": "openai/gpt-6.1-sol"}, "coder": map[string]any{"agent": "claude", "model": "claude-opus-5-5"}}
+	if err := step(map[string]any{"step": "members", "members": members, "claude_from": "shared/openrouter"}); !strings.Contains(err, "as a Claude token") {
+		t.Fatal(err)
+	}
+	if err := step(map[string]any{"step": "members", "members": members, "claude_from": "shared/claude"}); err != "" {
+		t.Fatal(err)
+	}
+	if err := step(map[string]any{"step": "models", "openrouter_from": "shared/openrouter"}); err != "" {
+		t.Fatal(err)
+	}
+	if code := a.get(t, olga, "/api/new/draft?name=orders", &view); code != http.StatusOK {
+		t.Fatal(code)
+	}
+	if view.Config.ClaudeFrom != "shared/claude" || view.Config.OpenRouterFrom != "shared/openrouter" || view.HasClaude {
+		t.Fatalf("%+v", view.Config)
+	}
+	if strings.Join(view.Machine.Shared, ",") != "claude,openrouter" {
+		t.Fatal(view.Machine.Shared)
 	}
 }

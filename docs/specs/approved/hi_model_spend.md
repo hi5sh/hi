@@ -1,6 +1,8 @@
 # What each app spends on models: per call, per app, with budgets and keys of its own
 
-Status: Approved (2026-11-15); releases 1 to 3 built in v2.6.163. The owner chose, after the shared
+Status: Approved (2026-11-15); releases 1 to 3 built in v2.6.163. Release 3,
+keys hi makes with an OpenRouter management key, was removed in v2.6.228:
+nobody used it; apps share one key through the vault's shared keys instead. The owner chose, after the shared
 OpenRouter key (`hi app key <app> openrouter --from shared/<name>`, in
 [hi_server_vault.md](hi_server_vault.md)) put several apps on one key:
 hi counts what each app spends through its own proxies, whatever key

@@ -2510,20 +2510,19 @@ function renderDraft() {
       collect = renderMembers(body, d);
       break;
     case "models": {
-      const shared = m.shared || [];
-      let way = d.own_key ? "own" : d.openrouter_managed ? "managed" : c.openrouter_from ? "shared" : m.managed && !d.done.models ? "managed" : shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
-      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…", disabled: way !== "own" });
-      const pick = el("select", { id: "s-orshared", "aria-label": "The shared key", disabled: way !== "shared" }, ...shared.map((n) => el("option", { value: n, selected: c.openrouter_from === "shared/" + n }, "shared/" + n)));
-      const choices = [];
-      if (m.managed) choices.push(["managed", "A key of its own that hi makes at OpenRouter, with its budget as the limit there"]);
-      choices.push(["machine", "This machine's key, Hermes'", !m.openrouter]);
-      if (shared.length) choices.push(["shared", "A shared key from the vault: one key several apps use, changed in one place"]);
-      choices.push(["own", "A key of the app's own (openrouter.ai/settings/keys)"]);
+      m.shared = m.shared || [];
+      let way = d.own_key ? "own" : c.openrouter_from ? "shared" : m.shared.length && !m.openrouter ? "shared" : m.openrouter ? "machine" : "own";
+      const key = input({ id: "s-orkey", type: "password", placeholder: d.has_own_key ? "Kept; paste again to change it" : "sk-or-…" });
+      const pick = sharedKeyPicker(m.shared, c.openrouter_from, "An OpenRouter key, sk-or-…, from openrouter.ai/settings/keys.");
+      const ways = { shared: el("div", { class: "field" }, el("span", { class: "muted small" }, "The shared key"), pick.box), own: field("The app's OpenRouter key", key) };
+      const show = () => { for (const [k, f] of Object.entries(ways)) f.hidden = k !== way; };
       body.append(el("p", {}, "The lead, and the app itself, use models through OpenRouter" + (Object.values(c.members).some((x) => x.provider === "chatgpt" || x.agent === "codex") ? ", and the roles on ChatGPT fall back on it" : "") + ". The app's own key bills and limits its use apart; a shared key or this machine's counts it together with the other apps on it. No box ever holds it."),
-        radios("s-or", choices, way, (v) => { way = v; key.disabled = way !== "own"; pick.disabled = way !== "shared"; if (way === "own") key.focus(); }));
-      if (shared.length) body.append(field("The shared key", pick));
-      body.append(field("The app's OpenRouter key", key));
-      collect = () => ({ own_key: way === "own", openrouter_key: key.value.trim(), openrouter_from: way === "shared" && pick.value ? "shared/" + pick.value : "", openrouter_managed: way === "managed" });
+        radios("s-or", [["machine", "This machine's key, Hermes'" + (m.openrouter ? "" : ": none here"), !m.openrouter],
+          ["shared", "A shared key from the vault: one key several apps use, changed in one place"],
+          ["own", "A key of the app's own (openrouter.ai/settings/keys)"]], way, (v) => { way = v; show(); if (way === "own") key.focus(); }),
+        ways.shared, ways.own);
+      show();
+      collect = () => ({ own_key: way === "own", openrouter_key: way === "own" ? key.value.trim() : "", openrouter_from: way === "shared" ? pick.value() : "" });
       break;
     }
     case "code":
@@ -2604,8 +2603,10 @@ function renderMembers(body, d) {
   const signin = el("div", { class: "card-box pad stack" });
   const claude = el("div", { class: "card-box pad stack" });
   let chatgptChoice = d.chatgpt_signin || (m.chatgpt ? "machine" : "app");
-  let claudeMachine = !d.has_claude && m.claude;
+  m.shared = m.shared || [];
+  let claudeWay = c.claude_from ? "shared" : d.has_claude || !m.claude ? "own" : "machine";
   const claudeToken = input({ type: "password", placeholder: d.has_claude ? "Kept; paste again to change it" : "sk-ant-oat…, from claude setup-token" });
+  const claudePick = sharedKeyPicker(m.shared, c.claude_from, "A Claude token, sk-ant-oat…, from claude setup-token signed in to the account that pays.");
   const needs = () => {
     let chatgpt = false, cl = false;
     for (const role of roles) {
@@ -2630,10 +2631,11 @@ function renderMembers(body, d) {
         try { draft = await api("/api/new", { action: "chatgpt", name: d.name }); renderDraft(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
       } }, d.chatgpt ? "Sign in again" : d.chatgpt_code ? "A new code" : "Sign in"));
     }
-    claude.replaceChildren(el("strong", {}, "Claude"), el("p", { class: "muted small" }, "A token of the app's own, from claude setup-token signed in to the account that pays (it lasts a year), or this machine's sign-in."),
-      radios("s-claude", [["machine", "This machine's sign-in" + (m.claude ? "" : ": none here"), !m.claude], ["own", "The app's own token"]], claudeMachine ? "machine" : "own", (v) => { claudeMachine = v === "machine"; claudeToken.disabled = claudeMachine; if (!claudeMachine) claudeToken.focus(); }),
-      claudeToken);
-    claudeToken.disabled = claudeMachine;
+    const showClaude = () => { claudeToken.hidden = claudeWay !== "own"; claudePick.box.hidden = claudeWay !== "shared"; };
+    claude.replaceChildren(el("strong", {}, "Claude"), el("p", { class: "muted small" }, "This machine's sign-in; a shared key from the vault, one token several apps use; or a token of the app's own. A token comes from claude setup-token, signed in to the account that pays, and lasts a year."),
+      radios("s-claude", [["machine", "This machine's sign-in" + (m.claude ? "" : ": none here"), !m.claude], ["shared", "A shared key from the vault"], ["own", "The app's own token"]], claudeWay, (v) => { claudeWay = v; showClaude(); if (v === "own") claudeToken.focus(); }),
+      claudePick.box, claudeToken);
+    showClaude();
   };
   for (const role of roles) {
     const member = c.members[role];
@@ -2669,7 +2671,7 @@ function renderMembers(body, d) {
       const r = rows[role];
       members[role] = { agent: r.agent.value, model: r.model.value.trim(), provider: r.agent.value === "hermes" ? r.provider.value : "", effort: r.effort.value, fallback: r.fallback.value.trim() };
     }
-    return { members, chatgpt_signin: chatgptChoice, claude_token: claudeMachine ? "" : claudeToken.value.trim(), claude_machine: claudeMachine };
+    return { members, chatgpt_signin: chatgptChoice, claude_token: claudeWay === "own" ? claudeToken.value.trim() : "", claude_machine: claudeWay === "machine", claude_from: claudeWay === "shared" ? claudePick.value() : "" };
   };
 }
 
@@ -2814,7 +2816,7 @@ function renderReview(body, d) {
     const x = c.members[role];
     fact(role, x.agent + (x.model ? " · " + x.model : "") + (x.provider === "chatgpt" ? " · on ChatGPT" : "") + (x.effort ? " · " + x.effort : "") + (x.fallback ? " · falls back to " + x.fallback : ""));
   }
-  fact("OpenRouter", d.own_key ? "the app's own key" : d.openrouter_managed ? "a key of its own, made by hi at OpenRouter" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
+  fact("OpenRouter", d.own_key ? "the app's own key" : c.openrouter_from ? c.openrouter_from + ", shared from the vault" : "this machine's key");
   fact("Code", d.code.kind === "adopt" ? "adopts " + d.code.source + (d.code.push ? ", and pushes there" : "") : d.code.kind === "template" ? "the template " + d.code.template : d.code.kind === "empty" ? "an empty repository" : "a new web app");
   if (d.code.github) fact("GitHub", d.code.github);
   if (d.code.gitlab) fact("GitLab", d.code.gitlab);
@@ -2963,8 +2965,6 @@ function sectionSpend(s) {
   pick.addEventListener("change", () => { spendMonth = pick.value; refreshSettings(); });
   parts.push(el("div", { class: "data-actions spend-head" }, el("strong", { class: "spend-total" }, dollars(sp.usd)), el("span", { class: "muted small" }, sp.calls + (sp.calls === 1 ? " call" : " calls")), el("span", { class: "grow" }), pick));
   parts.push(spendBudget(s));
-  if (s.openrouter) parts.push(el("p", { class: "muted small" }, "OpenRouter counts " + dollars(s.openrouter.usage_monthly) + " this month on the key hi made for it" +
-    (s.openrouter.limit != null ? ", of its " + dollars(s.openrouter.limit) + " limit there" : "") + (s.openrouter.disabled ? ", which is disabled" : "") + "."));
   if (!sp.calls) {
     parts.push(el("p", { class: "muted small" }, "No model calls through hi this month yet. An agent's calls count from its box's next start on this hi."));
     return parts;
@@ -3144,10 +3144,13 @@ function sectionAgents(s) {
       } }, "Save"))));
   }
   // Keys and sign-ins.
-  const or = el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "OpenRouter: "), s.own_openrouter ? "the app's own key" : "this machine's key" + (s.machine_openrouter ? "" : ", which it hasn't got")));
+  const or = el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "OpenRouter: "), s.openrouter_from ? s.openrouter_from + ", a shared key from the vault" : s.own_openrouter ? "the app's own key" : "this machine's key" + (s.machine_openrouter ? "" : ", which it hasn't got")));
+  const orShared = useSharedRow(s, s.openrouter_from, "An OpenRouter key, sk-or-…, from openrouter.ai/settings/keys.", (from) => change("openrouter", { from }, "The app's OpenRouter key is " + from + "."));
   or.append(el("div", { class: "data-actions" },
     el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own OpenRouter key", text: "Its use is billed and limited apart. It's checked, kept on the machine, and never shown again.", ok: "Check and keep", field: "sk-or-…" }); if (answer) change("openrouter", { key: answer.field }, "The app has its own OpenRouter key."); } }, s.own_openrouter ? "Replace the key" : "Give it its own key"),
-    s.own_openrouter ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use this machine's OpenRouter key?", text: "The app's own key is forgotten.", ok: "Use the machine's" })) change("openrouter", { remove: true }); } }, "Use this machine's") : null));
+    orShared.button,
+    s.own_openrouter || s.openrouter_from ? el("button", { class: "small", onclick: async () => { if (await ask({ title: "Use this machine's OpenRouter key?", text: s.openrouter_from ? "The app stops using " + s.openrouter_from + "." : "The app's own key is forgotten.", ok: "Use the machine's" })) change("openrouter", { remove: true }); } }, "Use this machine's") : null),
+    orShared.row);
   const models = el("input", { type: "checkbox" });
   models.checked = s.models;
   models.addEventListener("change", () => change("models", { on: models.checked }));
@@ -3160,9 +3163,12 @@ function sectionAgents(s) {
         s.chatgpt ? el("button", { class: "small", onclick: () => change("chatgpt", { machine: true }) }, "Use this machine's") : "")));
   }
   if (s.uses_claude) {
-    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.own_claude ? "the app's own token" : "this machine's sign-in" + (s.machine_claude ? "" : ", which isn't there")),
+    const clShared = useSharedRow(s, s.claude_from, "A Claude token, sk-ant-oat…, from claude setup-token signed in to the account that pays.", (from) => change("claude", { from }, "The app's Claude members use " + from + "."));
+    parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.claude_from ? s.claude_from + ", a shared key from the vault" : s.own_claude ? "the app's own token" : "this machine's sign-in" + (s.machine_claude ? "" : ", which isn't there")),
       el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own Claude token", text: "From claude setup-token, signed in to the account that pays; it lasts a year. Kept on the machine, never shown again.", ok: "Keep it", field: "sk-ant-oat…" }); if (answer) change("claude", { key: answer.field }, "The app has its own Claude token."); } }, s.own_claude ? "Replace the token" : "Give it its own token"),
-        s.own_claude ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use this machine's") : "")));
+        clShared.button,
+        s.own_claude || s.claude_from ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use this machine's") : ""),
+      clShared.row));
   }
   // Stage's limit, and the boxes' memory.
   const usd = el("input", { value: s.stage_limit > 0 ? String(s.stage_limit) : "", placeholder: "off", "aria-label": "Dollars a day", class: "small-input" });
@@ -3908,16 +3914,65 @@ function vaultGiveApps(s, apps) {
   dialog.showModal();
 }
 
+// sharedKeyPicker picks one of the server's shared keys for an app's
+// OpenRouter key or Claude token, or makes a new one in place: names is
+// the list it shows, and a new key joins it. what says what the key is
+// for, as the new key's dialog asks for it.
+function sharedKeyPicker(names, current, what, onchange) {
+  const pick = el("select", { "aria-label": "The shared key" });
+  const none = el("span", { class: "muted small" }, "None in the vault yet.");
+  const draw = (chosen) => {
+    pick.replaceChildren(...names.map((n) => el("option", { value: n, selected: "shared/" + n === chosen || n === chosen }, "shared/" + n)));
+    pick.hidden = !names.length;
+    none.hidden = names.length > 0;
+  };
+  pick.addEventListener("change", () => onchange && onchange());
+  const make = el("button", { type: "button", class: "small", onclick: async () => {
+    const values = await vaultForm({ title: "New shared key", ok: "Save",
+      text: "Kept in the server's vault. " + what + " Any app it's picked for may use it; a new value later reaches them all within a minute.",
+      fields: [{ label: "Its name, such as " + (what.includes("Claude") ? "claude" : "openrouter") }, { label: "Its value", type: "password" }],
+      live: sharedNameCheck });
+    if (!values) return;
+    const name = values[0].trim();
+    try {
+      await api("/api/vault", { action: "shared-set", name, secret: values[1] });
+    } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); return; }
+    if (!names.includes(name)) { names.push(name); names.sort(); }
+    draw(name);
+    onchange && onchange();
+  } }, "New shared key");
+  draw(current);
+  const box = el("div", { class: "data-actions" }, pick, none, make);
+  return { box, value: () => (names.length && pick.value ? "shared/" + pick.value : ""), set disabled(off) { pick.disabled = off; make.disabled = off; } };
+}
+
+// useSharedRow is an app setting's "Use a shared key" button, and the
+// row it opens: a shared key to pick or make, and Use it.
+function useSharedRow(s, current, what, use) {
+  const pick = sharedKeyPicker(s.server_shared || (s.server_shared = []), current, what);
+  const row = el("div", { class: "data-actions" }, pick.box, el("button", { class: "small primary", onclick: () => {
+    const from = pick.value();
+    if (!from) { toast("Make a shared key first.", true); return; }
+    use(from);
+  } }, "Use it"));
+  row.hidden = true;
+  const button = el("button", { class: "small", onclick: () => { row.hidden = !row.hidden; } }, current ? "Another shared key" : "Use a shared key");
+  return { button, row };
+}
+
+// sharedNameCheck judges a new shared key's name and value as typed.
+function sharedNameCheck(v) {
+  const badName = v[0].trim() !== "" && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim());
+  return { ok: /^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim()) && v[1] !== "", bad: badName ? [0] : [],
+    hint: badName ? "A name of lowercase letters, digits, and dashes." : "" };
+}
+
 async function vaultSetShared(name) {
   const fields = name ? [] : [{ label: "Its name, such as openrouter" }];
   fields.push({ label: "Its value", type: "password" });
   const values = await vaultForm({ title: name ? "A new value for shared/" + name : "New Share", ok: "Save", fields,
     text: name ? "Every app that uses it gets the new value within a minute." : "Then give it to the apps that may use it.",
-    live: (v) => {
-      const badName = !name && v[0].trim() !== "" && !/^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim());
-      return { ok: (name || /^[a-z][a-z0-9-]{0,39}$/.test(v[0].trim())) && v[v.length - 1] !== "", bad: badName ? [0] : [],
-        hint: badName ? "A name of lowercase letters, digits, and dashes." : "" };
-    } });
+    live: name ? (v) => ({ ok: v[0] !== "", bad: [], hint: "" }) : sharedNameCheck });
   if (!values) return;
   vaultDo({ action: "shared-set", name: name || values[0].trim(), secret: values[values.length - 1] });
 }
@@ -4034,27 +4089,6 @@ async function vaultShowRecovery() {
   vaultDo({ action: "recovery-saved", words: values.map((w) => w.trim()) });
 }
 
-// managementLine is the OpenRouter management key: set or not, and Set or
-// Forget for the machine's admins.
-function managementLine(k) {
-  const words = el("span", {}, el("strong", {}, "OpenRouter management key"), ": " + (k.management ? "set, so hi makes each app a key of its own" : "not set"), " ");
-  const row = el("p", { class: "small key-status" }, el("span", { class: "dot " + (k.management ? "idle" : ""), "aria-hidden": "true" }), words);
-  if (!(state && state.me && state.me.machine)) return row;
-  words.append(el("button", { class: "link-button", onclick: async () => {
-    if (k.management) {
-      if (!(await ask({ title: "Forget the management key?", text: "The keys hi made stay, as the apps' own; hi makes no new ones. Delete it at OpenRouter too.", ok: "Forget it" }))) return;
-      try { toast((await api("/api/openrouter-management", { forget: true })).text, true); refreshMachineKeys(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
-      return;
-    }
-    const values = await vaultForm({ title: "OpenRouter management key", ok: "Save", fields: [{ label: "The management key", type: "password" }],
-      text: "Made at openrouter.ai/settings/management-keys, read and write. It can't make model calls; with it hi makes each app a key of its own, with the app's budget as its limit. It's kept in the vault.",
-      live: (v) => ({ ok: v[0].trim().length > 10, bad: [], hint: "" }) });
-    if (!values) return;
-    try { toast((await api("/api/openrouter-management", { key: values[0].trim() })).text, true); refreshMachineKeys(); } catch (e) { if (!(e instanceof SignIn)) toast(e.message, true); }
-  } }, k.management ? "Forget" : "Set"));
-  return row;
-}
-
 async function refreshMachineKeys() {
   try { machineKeys = await api("/api/keys"); } catch (e) { return; }
   if (viewShown("keys")) renderKeys();
@@ -4068,15 +4102,14 @@ function machineKeysBlock() {
   box.append(el("h2", {}, "This machine's"), el("div", { class: "machine-block" },
     line("OpenRouter, Hermes'", k.openrouter, "hermes setup, on the machine"),
     line("Claude Code's sign-in", k.claude, "claude, then /login, on the machine"),
-    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine"),
-    managementLine(k)),
+    line("Codex's ChatGPT sign-in", k.chatgpt, k.codex_key ? "Codex is on an API key" : "codex login, on the machine")),
     el("p", { class: "muted small" }, "Apps without their own use these. An app's own are in its Agents section."));
   if (k.apps.length) {
     const table = el("table", { class: "people-matrix" });
     table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT")));
     for (const a of k.apps) {
       table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
-        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || v === "managed" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "managed" ? "its own, hi made" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
+        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
     }
     box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
   }

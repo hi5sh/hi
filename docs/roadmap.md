@@ -3139,7 +3139,7 @@ Spec: [hi_model_spend.md](specs/approved/hi_model_spend.md).
 - [x] Release 2, budgets: monthly and daily per app, every proxy refusing
   paid calls at 100%, notices at 80% and 100%.
 - [x] Release 3, keys hi makes: an OpenRouter management key in the vault,
-  a key per app with its budget as the limit, disabled, deleted, rotated.
+  a key per app with its budget as the limit, disabled, deleted, rotated. Removed in v2.6.228.
 
 ### v2.6.162 — An app's OpenRouter key from a shared key
 
@@ -6963,6 +6963,21 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.228 — Shared keys in the setup wizard, for Claude too; no OpenRouter management key
+
+- [x] The setup wizard's **Models** always offers a shared key from the
+  vault for the app's OpenRouter key, with **New shared key** to make one
+  in place; before, the choice was hidden until the vault had one.
+- [x] An app's Claude members can use a shared key as their token, by
+  reference (`hi app signin <app> claude --from shared/<name>`): in the
+  wizard's **Members**, and the app's **Keys and sign-ins**, which offer
+  a shared key for OpenRouter too and share it to the app. A new value
+  reaches the app within a minute; a move takes it along.
+- [x] The OpenRouter management key, and the keys hi made with it, are
+  gone: `hi server openrouter`, `hi app key … --managed | --rotate`, the
+  Keys panel's line, and the wizard's choice. A key hi made stays the
+  app's own key.
 
 ### v2.6.227 — The recovery key copies with its numbers
 

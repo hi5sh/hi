@@ -117,11 +117,12 @@ missing. The machine's view has the same list.
 5. **People:** the owners, picked by name from the workspace's people.
 6. **Members:** each role's agent, model, who pays, and effort. A ChatGPT
    sign-in of the app's own shows its code and link on the page, and the
-   page sees when it's done; a Claude token is pasted, or the machine's
-   sign-in used. Each role's fallback on OpenRouter is checked.
-7. **Models:** the app's own OpenRouter key, the machine's, a shared key
-   from the vault, or, when the machine has an OpenRouter management
-   key, a key hi makes for the app at OpenRouter.
+   page sees when it's done; a Claude token is pasted, picked from the
+   vault's shared keys, or the machine's sign-in used. Each role's
+   fallback on OpenRouter is checked.
+7. **Models:** the app's own OpenRouter key, the machine's, or a shared
+   key from the vault. **New shared key**, beside a shared key's list,
+   makes one in place.
 8. **Code:** a new web app, an empty repository, a template, or someone's
    project to adopt (GitHub, a URL, or a folder here), with **Look at it**
    first: what GitHub says of it, or what the folder holds. Kept on
@@ -228,8 +229,7 @@ without a server it says **Admins**, the machine's own. The same as `hi people` 
 [People and signing in by email](/guide/app/people/)). The server's users are the
 server's (its **Users**), not here. **Keys** has whether the server's
 vault is open, the machine's keys and sign-ins (Hermes' OpenRouter key,
-Claude Code's, and Codex's), the OpenRouter management key (**Set**, so
-hi makes each app a key of its own; `hi server openrouter`), which apps use their own, and
+Claude Code's, and Codex's), which apps use their own or a shared one, and
 **Email**: the SMTP account the machine sends sign-in links and
 invitations through, with **Send a test** (`hi server mail`); the
 server's are in its **Keys**.

@@ -613,9 +613,6 @@ func (s *adminServer) routes() http.Handler {
 		spend := appModelSpend(name, month)
 		config, _ := loadTeam(name)
 		answer := map[string]any{"name": name, "spend": spend, "budget": appBudgetStateOf(config, time.Now()), "may_change": admin.Machine}
-		if counts := appManagedKeyCounts(config); counts != nil && month == time.Now().UTC().Format("2006-01") {
-			answer["openrouter"] = counts
-		}
 		reply(w, http.StatusOK, answer)
 	}))
 	mux.HandleFunc("POST /api/app/spend", signedIn(func(w http.ResponseWriter, r *http.Request, admin adminPerson) {

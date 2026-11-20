@@ -351,11 +351,12 @@ func (b *appBroker) syncSettings(stderr io.Writer) {
 		return
 	}
 	kind, signal, _ := appOnSettingsChange(config.OnSettingsChange)
-	// A shared OpenRouter key's new value reaches the proxy as settings do.
-	if config.OpenRouterFrom != "" {
+	// A shared OpenRouter key's or Claude token's new value reaches the
+	// proxy as settings do.
+	if config.OpenRouterFrom != "" || config.ClaudeFrom != "" {
 		if secrets, err := loadTeamSecrets(b.team); err == nil {
 			if err := writeTeamKeys(b.team, secrets); err != nil {
-				fmt.Fprintf(stderr, "hi: the app's OpenRouter key: %v\n", err)
+				fmt.Fprintf(stderr, "hi: the app's keys: %v\n", err)
 			}
 		}
 	}
