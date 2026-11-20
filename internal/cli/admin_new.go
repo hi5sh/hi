@@ -292,7 +292,7 @@ func adminNewFolder(name string) string {
 
 // adminStartDraft starts a new app's draft: its name and folder, and
 // answers someone wrote before (From a file), without their secrets.
-func adminStartDraft(name, folder, by string, from json.RawMessage, adopt string) (adminDraft, error) {
+func adminStartDraft(name, folder, by string, from json.RawMessage) (adminDraft, error) {
 	name = strings.TrimSpace(name)
 	if !appNamePattern.MatchString(name) {
 		return adminDraft{}, fmt.Errorf("an app's name starts with a letter and has lowercase letters, digits, and dashes, up to 20: %q", name)
@@ -342,13 +342,6 @@ func adminStartDraft(name, folder, by string, from json.RawMessage, adopt string
 		draft.Answers.Members = defaultTeamMembers()
 	}
 	draft.Answers.Name = name
-	if adopt = strings.TrimSpace(adopt); adopt != "" {
-		draft.Answers.Adopt, draft.Answers.Clone = adopt, ""
-		draft.Look = adminLookAt(adopt)
-		if draft.Answers.Purpose == "" && draft.Look.Description != "" {
-			draft.Answers.Purpose = draft.Look.Description
-		}
-	}
 	return draft, saveAdminDraft(draft)
 }
 
@@ -1195,7 +1188,6 @@ func (s *adminServer) newRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 			Action string          `json:"action"` // start, step, chatgpt, look, create, or discard
 			Name   string          `json:"name"`
 			Folder string          `json:"folder"`
-			Adopt  string          `json:"adopt"`
 			From   json.RawMessage `json:"from"`
 			Source string          `json:"source"`
 		}
@@ -1216,7 +1208,7 @@ func (s *adminServer) newRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 			if err = adminNeedsMissingError(adminNeedsViewOf(adminNeedsBase())); err != nil {
 				break
 			}
-			draft, err = adminStartDraft(request.Name, request.Folder, admin.Name, request.From, request.Adopt)
+			draft, err = adminStartDraft(request.Name, request.Folder, admin.Name, request.From)
 			if err == nil {
 				adminRecord(admin.Name, request.Name, "started a new app")
 			}
@@ -1231,6 +1223,11 @@ func (s *adminServer) newRoutes(mux *http.ServeMux, reply func(http.ResponseWrit
 		case "look":
 			draft, err = adminChangeDraft(request.Name, func(draft *adminDraft) error {
 				draft.Look = adminLookAt(strings.TrimSpace(request.Source))
+				// What GitHub says the project is, as the purpose when none
+				// was given: the project is asked for after the purpose.
+				if draft.Answers.Purpose == "" && draft.Look.Description != "" {
+					draft.Answers.Purpose = draft.Look.Description
+				}
 				return nil
 			})
 		case "create":

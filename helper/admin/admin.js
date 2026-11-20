@@ -2283,14 +2283,12 @@ function renderNewHome() {
   parts.push(el("p", { class: "purpose" }, "An app for the people in one Slack channel, with its lead, its members, and its project. Ten steps, as hi app new asks them; what's done is kept, so you can stop and carry on."));
   const name = el("input", { id: "new-name", required: true, maxlength: "20", pattern: "[a-z][a-z0-9-]*", placeholder: "Its name, such as payments", "aria-label": "The app's name", autocomplete: "off" });
   const folder = el("input", { id: "new-folder", maxlength: "300", placeholder: (newHome.folder || "~") + "/app-<name>", "aria-label": "Its folder", autocomplete: "off" });
-  const adopt = el("input", { id: "new-adopt", maxlength: "300", placeholder: "github.com/owner/name, a URL, or a folder here (optional)", "aria-label": "A project to adopt", autocomplete: "off" });
   const file = el("input", { id: "new-file", type: "file", accept: ".json,application/json", "aria-label": "Answers from a file" });
   const error = el("p", { class: "error small" });
   name.addEventListener("input", () => { folder.placeholder = (newHome.folder || "~") + "/app-" + (name.value.trim() || "<name>"); });
   const form = el("form", { class: "new-start stack", autocomplete: "off" },
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Its name: lowercase letters, digits, and dashes. Its folder and its Slack command are named after it."), name),
     el("label", { class: "field" }, el("span", { class: "muted small" }, "Its folder, where its project, tasks, and memory live"), folder),
-    el("label", { class: "field" }, el("span", { class: "muted small" }, "Start from someone's project, to adopt it: the app keeps its own copy and never pushes to theirs"), adopt),
     el("label", { class: "field" }, el("span", { class: "muted small" }, "From a file: answers someone wrote before, as hi app new --from takes them (no secrets in it)"), file),
     error,
     el("div", { class: "data-actions" }, el("button", { class: "primary", type: "submit", id: "new-start", disabled: true }, "Start")));
@@ -2302,7 +2300,7 @@ function renderNewHome() {
       try { from = JSON.parse(await file.files[0].text()); } catch (e) { error.textContent = "That file isn't JSON: " + e.message; return; }
     }
     try {
-      draft = await api("/api/new", { action: "start", name: name.value.trim(), folder: folder.value.trim(), adopt: adopt.value.trim(), from });
+      draft = await api("/api/new", { action: "start", name: name.value.trim(), folder: folder.value.trim(), from });
       setMiddle(":new/" + draft.name);
       newStep = 0;
       renderDraft();
