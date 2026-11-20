@@ -4016,9 +4016,9 @@ async function vaultShowRecovery() {
     el("p", { class: "small" }, "Write it down, or keep it in a password manager, away from this machine. It opens every secret here, and is shown only now. Never send it by Slack or mail."),
     grid,
     el("div", { class: "buttons" },
-      el("button", { title: "The 24 words, with a space between, for a password manager", onclick: async (event) => {
+      el("button", { title: "The 24 words on one line, each with its number, for a password manager", onclick: async (event) => {
         const button = event.currentTarget;
-        button.textContent = (await copyText(answer.words.join(" "))) ? "Copied" : "Not copied: write them down";
+        button.textContent = (await copyText(answer.words.map((w, i) => (i + 1) + ". " + w).join(" "))) ? "Copied" : "Not copied: write them down";
         setTimeout(() => { button.textContent = "Copy"; }, 2000);
       } }, "Copy"),
       el("button", { class: "primary", onclick: () => dialog.close("saved") }, "I've saved it")));

@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -333,10 +334,26 @@ func vaultRecoveryEncode(entropy []byte) string {
 	return strings.Join(words, " ")
 }
 
+// vaultRecoveryNumber is a word's position as the admin page copies it:
+// "1." before "crater", or "1.crater" when the space went.
+var vaultRecoveryNumber = regexp.MustCompile(`^[0-9]{1,2}[.):]?`)
+
+// vaultRecoveryFields are the words of a recovery key as typed or
+// pasted, lower case, without the positions the page copies them with.
+func vaultRecoveryFields(text string) []string {
+	var words []string
+	for _, field := range strings.Fields(strings.ToLower(text)) {
+		if word := vaultRecoveryNumber.ReplaceAllString(field, ""); word != "" {
+			words = append(words, word)
+		}
+	}
+	return words
+}
+
 // vaultRecoveryDecode reads the words back to their 256 bits; a word not
 // in the list, or one wrong word, is refused.
 func vaultRecoveryDecode(text string) ([]byte, error) {
-	words := strings.Fields(strings.ToLower(text))
+	words := vaultRecoveryFields(text)
 	if len(words) != vaultRecoveryWords {
 		return nil, fmt.Errorf("the recovery key is %d words; that was %d", vaultRecoveryWords, len(words))
 	}
@@ -496,7 +513,7 @@ func vaultUnwrap(keys vaultKeys, secret string) (key []byte, kind string, err er
 			return nil, vaultSlotRecovery, errors.New("that isn't this vault's recovery key")
 		}
 		return key, vaultSlotRecovery, nil
-	} else if len(strings.Fields(secret)) == vaultRecoveryWords {
+	} else if len(vaultRecoveryFields(secret)) == vaultRecoveryWords {
 		return nil, vaultSlotRecovery, err
 	}
 	slot, ok := keys.slot(vaultSlotPassphrase)

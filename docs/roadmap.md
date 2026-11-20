@@ -6964,6 +6964,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.227 — The recovery key copies with its numbers
+
+- [x] **Copy** gives `1. crater 2. express …`, one line, so each word
+  keeps its place for the two words asked back; the vault takes the key
+  with or without the numbers, on one line or several.
+
 ### v2.6.226 — Copy for the vault's recovery key
 
 - [x] The recovery key's dialog has **Copy**: its 24 words with a space

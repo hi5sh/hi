@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -536,5 +537,30 @@ func TestVaultKeepsFilesForAnOlderHi(t *testing.T) {
 	}
 	if secrets, _ := loadTeamSecrets("payments"); secrets.Env["WEATHER_API_KEY"] != "w-3" {
 		t.Fatal(secrets.Env)
+	}
+}
+
+// The admin page copies the recovery key numbered, on one line, so its
+// words keep their places; pasted back, the numbers don't count.
+func TestRecoveryKeyCopiedNumbered(t *testing.T) {
+	entropy := make([]byte, 32)
+	for i := range entropy {
+		entropy[i] = byte(i*13 + 5)
+	}
+	words := strings.Fields(vaultRecoveryEncode(entropy))
+	var numbered, glued, lines []string
+	for i, word := range words {
+		numbered = append(numbered, fmt.Sprintf("%d. %s", i+1, word))
+		glued = append(glued, fmt.Sprintf("%d.%s", i+1, strings.ToUpper(word)))
+		lines = append(lines, fmt.Sprintf("%d) %s", i+1, word))
+	}
+	for _, text := range []string{strings.Join(numbered, " "), strings.Join(glued, " "), strings.Join(lines, "\n")} {
+		back, err := vaultRecoveryDecode(text)
+		if err != nil || !bytes.Equal(back, entropy) {
+			t.Fatalf("%q: %v", text[:30], err)
+		}
+		if len(vaultRecoveryFields(text)) != vaultRecoveryWords {
+			t.Fatalf("%q isn't taken for the recovery key", text[:30])
+		}
 	}
 }
