@@ -178,6 +178,22 @@ func (a adminTest) post(t *testing.T, cookie *http.Cookie, path string, body any
 	return response.StatusCode
 }
 
+// The admin page's Geist comes before anyone signs in: the sign-in card is in it.
+func TestAdminServesGeist(t *testing.T) {
+	a := setupAdminTest(t)
+	for _, name := range []string{"geist.woff2", "geist-mono.woff2"} {
+		response, err := http.Get(a.server.URL + "/" + name + "?v=1.9.2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(response.Body)
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "font/woff2" || !strings.HasPrefix(string(body), "wOF2") {
+			t.Fatalf("%s: %s", name, response.Status)
+		}
+	}
+}
+
 func TestAdminSignInWithALink(t *testing.T) {
 	a := setupAdminTest(t)
 	// Without a sign-in, the API asks for one; the page itself loads.

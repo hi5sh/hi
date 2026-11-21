@@ -51,7 +51,7 @@ The panel is titled "Help", with two tabs: **Ask** and **Feedback**.
 ### Feedback
 
 - The Feedback tab has select mode with the
-  pictures of what was pointed at, files (paste, drop, the paperclip), and
+  pictures of what was pointed at, files (paste, drop, the `+`), and
   a name, which it asks for before sending (the box flashes), marked as
   not checked. It also has a box, ticked by
   default, for "a picture of what I see": the visible page, drawn with

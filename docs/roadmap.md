@@ -6073,8 +6073,10 @@ Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
   code, links, weights, and sign-in card as the dev page's.
 - [ ] Release 2: the admin page's middle in cards, its left list as
   Orca's sidebar, and how long the agent worked in the chat's fold.
-- [ ] Release 3: the helper and the docs page on the same tokens
-  (question 2).
+- [x] Release 1's questions (v2.6.231): Geist served with the pages and
+  the helper; the helper on apps in Orca's look; Orca's terminal in
+  Ghostty's colours; the theme stays Orca.
+- [ ] Release 3: the docs page on the same tokens and Geist.
 - [ ] Release 4: demos of the admin page and the dev page on the site,
   drawn from their own stylesheets.
 
@@ -6982,6 +6984,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.231 — Geist, the helper in Orca's look, and Orca's terminal
+
+- [x] The admin page, the dev page, and the helper on apps draw in Geist
+  and Geist Mono (Orca's typeface, OFL, `third_party/geist`), served with
+  them and kept a year by version; terminals keep the computer's
+  monospace.
+- [x] The helper on an app's pages has Orca's look: a near-black panel,
+  your message a bubble and the answer plain words, a turning ring while
+  it answers, the message box a card with Send round and near-white, `+`
+  to attach on Feedback, a dark round button.
+- [x] In the Orca theme the terminal is Ghostty's, as Orca has it:
+  `#282c34`, white words, Ghostty's palette.
 
 ### v2.6.230 — Orca's look on both pages, by default
 

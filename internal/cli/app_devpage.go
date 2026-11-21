@@ -53,6 +53,17 @@ var appDevPageScript = hi.AppDevPageScript
 
 var appDevPageStyle = hi.AppDevPageStyle
 
+// appAssetCache is how long a browser keeps one of the pages' files: a
+// font for a year, as dev.css and the helper ask for it by its version
+// (geist.woff2?v=1.9.2), so a new one is a new address; the rest it
+// checks again each time, as they change with hi.
+func appAssetCache(kind string) string {
+	if strings.HasPrefix(kind, "font/") {
+		return "public, max-age=31536000, immutable"
+	}
+	return "no-cache"
+}
+
 var appXtermScript = hi.AppXtermScript
 
 var appXtermStyle = hi.AppXtermStyle
@@ -1149,7 +1160,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 		assets["GET "+appDevPagePrefix+path] = true
 		mux.HandleFunc("GET "+appDevPagePrefix+path, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", kind)
-			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", appAssetCache(kind))
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			if path == "" {
 				w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' wss: ws:; img-src 'self' data: blob:; "+b.devPageFrames()+"; frame-ancestors 'none'")
@@ -1167,6 +1178,8 @@ func (b *appBroker) devPageHandler() http.Handler {
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
 	asset("addon-fit.js", "text/javascript; charset=utf-8", appXtermFit)
 	asset("xterm-addons.js", "text/javascript; charset=utf-8", appXtermAddons)
+	asset("geist.woff2", "font/woff2", hi.AppFontSans)
+	asset("geist-mono.woff2", "font/woff2", hi.AppFontMono)
 	for _, icon := range []string{"icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png"} {
 		data, _ := hi.AppIcons.ReadFile("helper/icons/" + icon)
 		asset(icon, "image/png", data)

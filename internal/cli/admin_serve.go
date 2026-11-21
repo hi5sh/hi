@@ -280,7 +280,7 @@ func (s *adminServer) routes() http.Handler {
 	asset := func(path, kind string, data []byte) {
 		mux.HandleFunc("GET /"+path, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", kind)
-			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", appAssetCache(kind))
 			w.Write(data)
 		})
 	}
@@ -292,6 +292,8 @@ func (s *adminServer) routes() http.Handler {
 	asset("xterm.js", "text/javascript; charset=utf-8", appXtermScript)
 	asset("xterm.css", "text/css; charset=utf-8", appXtermStyle)
 	asset("addon-fit.js", "text/javascript; charset=utf-8", appXtermFit)
+	asset("geist.woff2", "font/woff2", hi.AppFontSans)
+	asset("geist-mono.woff2", "font/woff2", hi.AppFontMono)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, http.StatusOK, map[string]string{"version": version})
 	})

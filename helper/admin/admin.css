@@ -324,7 +324,7 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 .vault-banner { margin: 0 8px 8px; padding: 8px 14px; border: 1px solid var(--line); border-left: 2px solid var(--dot-warn); border-radius: var(--r-md); background: var(--raised); font-size: 13px; }
 .vault-banner.vault-locked { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--bg)); }
 .vault-banner button { margin-left: 8px; }
-.recovery-words { columns: 3; font-family: ui-monospace, monospace; font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
+.recovery-words { columns: 3; font-family: var(--mono); font-size: 15px; padding-left: 2.2em; margin: 12px 0; }
 .recovery-words li { padding: 2px 0; }
 .recovery-dialog { max-width: 560px; }
 .vault-dialog { width: min(640px, 92vw); }

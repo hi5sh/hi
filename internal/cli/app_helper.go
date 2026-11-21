@@ -498,6 +498,15 @@ func (b *appBroker) webHandler(slot string) http.Handler {
 		}
 		w.Write(appHelperScript)
 	})
+	// Geist, the helper's typeface, as the admin and dev pages have it.
+	for name, data := range map[string][]byte{"geist.woff2": hi.AppFontSans, "geist-mono.woff2": hi.AppFontMono} {
+		mux.HandleFunc("GET "+appHelperPrefix+name, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "font/woff2")
+			w.Header().Set("Cache-Control", appAssetCache("font/woff2"))
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Write(data)
+		})
+	}
 	mux.HandleFunc("GET "+appHelperPrefix+"snap.js", func(w http.ResponseWriter, r *http.Request) {
 		// modern-screenshot, for the pictures of what the person points at:
 		// the helper loads it the first time it needs it.

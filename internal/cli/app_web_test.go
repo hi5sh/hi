@@ -72,6 +72,25 @@ func TestTeamLeadAPIPictures(t *testing.T) {
 	}
 }
 
+// The helper's Geist, from the app's own /__hi/, as the dev page has it.
+func TestTeamHelperServesGeist(t *testing.T) {
+	setupTeamTest(t)
+	b := newTeamTestBroker(t)
+	server := webTestServer(t, b.appBroker, appSlotPreview, "U07CLEO01", "Cleo")
+	defer server.Close()
+	for _, name := range []string{"geist.woff2", "geist-mono.woff2"} {
+		response, err := http.Get(server.URL + "/__hi/" + name + "?v=1.9.2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(response.Body)
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "font/woff2" || !strings.HasPrefix(string(body), "wOF2") {
+			t.Fatalf("%s: %s %v", name, response.Status, response.Header)
+		}
+	}
+}
+
 func TestTeamHelperServesSnap(t *testing.T) {
 	setupTeamTest(t)
 	b := newTeamTestBroker(t)

@@ -11,12 +11,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	hi "github.com/hi5sh/hi"
 )
 
 const (
@@ -956,6 +959,29 @@ func TestTeamDevPageData(t *testing.T) {
 	appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/data/preview", map[string]bool{"empty": false})
 	if config, _ := loadTeam("payments"); config.PreviewData != "" {
 		t.Fatal("the preview still starts empty")
+	}
+}
+
+// Geist, the pages' typeface, comes beside dev.css without a sign-in (the
+// sign-in page draws in it too), kept for a year by the version dev.css and
+// the helper ask for it by, the same in both.
+func TestDevPageServesGeist(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	handler := b.devPageHandler()
+	for _, name := range []string{"geist.woff2", "geist-mono.woff2"} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest("GET", appDevPagePrefix+name+"?v=1.9.2", nil))
+		if recorder.Code != http.StatusOK || !strings.HasPrefix(recorder.Body.String(), "wOF2") ||
+			recorder.Header().Get("Content-Type") != "font/woff2" || !strings.Contains(recorder.Header().Get("Cache-Control"), "immutable") {
+			t.Fatalf("%s: %d %v", name, recorder.Code, recorder.Header())
+		}
+	}
+	css := regexp.MustCompile(`geist(-mono)?\.woff2\?v=[0-9.]+`).FindAllString(string(hi.AppDevPageStyle), -1)
+	if strings.Join(css, " ") != "geist.woff2?v=1.9.2 geist-mono.woff2?v=1.9.2" {
+		t.Fatalf("dev.css asks for %v", css)
+	}
+	if !strings.Contains(string(hi.AppHelperSource), `"?v=1.9.2) format('woff2')"`) {
+		t.Fatal("the helper asks for another version of Geist than dev.css")
 	}
 }
 

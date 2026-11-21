@@ -520,4 +520,5 @@ and `site/llms.txt` points coding agents to the skill.
 ## License
 
 hi is open source under the [Apache License 2.0](LICENSE). The code in
-`third_party/` keeps its own MIT licenses, in each folder.
+`third_party/` keeps its own licenses, in each folder: MIT, and the SIL Open
+Font License for the Geist fonts.

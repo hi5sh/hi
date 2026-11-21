@@ -59,6 +59,16 @@ var AppPresenceScript []byte
 //go:embed helper/dev/theme.js
 var AppThemeScript []byte
 
+// AppFontSans and AppFontMono are Geist's variable fonts (third_party/geist,
+// OFL): the typeface of the admin page, the dev page, and the helper,
+// served beside dev.css and under the helper's /__hi/.
+//
+//go:embed third_party/geist/Geist-Variable.woff2
+var AppFontSans []byte
+
+//go:embed third_party/geist/GeistMono-Variable.woff2
+var AppFontMono []byte
+
 // AppIcons are hi5's icons, for a page people install as an app.
 //
 //go:embed helper/icons/*.png

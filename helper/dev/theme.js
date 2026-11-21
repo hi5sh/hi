@@ -33,6 +33,15 @@
     brightBlack: "#52525b", brightRed: "#ef4444", brightGreen: "#22c55e", brightYellow: "#d97706", brightBlue: "#3b82f6",
     brightMagenta: "#a855f7", brightCyan: "#06b6d4", brightWhite: "#3f3f46",
   };
+  // Orca's terminal: Ghostty's own colours (its default palette, on its
+  // #282c34 with white words), in Orca's otherwise neutral page. Bright
+  // black is lighter than Ghostty's #666666, as agents print their quieter
+  // lines in it.
+  var GHOSTTY_ANSI = {
+    black: "#1d1f21", red: "#cc6666", green: "#b5bd68", yellow: "#f0c674", blue: "#81a2be", magenta: "#b294bb", cyan: "#8abeb7", white: "#c5c8c6",
+    brightBlack: "#7f848e", brightRed: "#d54e53", brightGreen: "#b9ca4a", brightYellow: "#e7c547", brightBlue: "#7aa6da",
+    brightMagenta: "#c397d8", brightCyan: "#70c0b1", brightWhite: "#eaeaea",
+  };
   var listeners = [];
   var system = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
 
@@ -71,10 +80,15 @@
     current: chosen,
     set: set,
     onChange: function (fn) { listeners.push(fn); },
-    // xterm's theme, in the page's colours.
+    // xterm's theme, in the page's colours: Orca's is Ghostty's.
     terminal: function () {
-      var bg = css("--surface0") || "#151515";
+      var bg = css("--term") || css("--surface0") || "#282c34";
       var fg = css("--fg") || "#fafafa";
+      if (shown(chosen()) === "orca") {
+        var ghostty = { background: bg, foreground: "#ffffff", cursor: "#ffffff", cursorAccent: bg, selectionBackground: "rgba(255, 255, 255, 0.2)" };
+        for (var name in GHOSTTY_ANSI) ghostty[name] = GHOSTTY_ANSI[name];
+        return ghostty;
+      }
       var light = isLight();
       var theme = { background: bg, foreground: light ? fg : css("--text") || fg, cursor: fg, cursorAccent: bg,
         selectionBackground: light ? "rgba(0, 0, 0, 0.15)" : "rgba(255, 255, 255, 0.2)", black: light ? fg : css("--sidebar") || "#1a1918" };

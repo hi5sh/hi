@@ -10,8 +10,11 @@
    made from them. The left panel is a step darker than the work, panes
    are flush with one line between them, buttons are pills, labels quiet
    sentence case, and the accent is for the one action that matters. */
+/* Geist, Orca's typeface, served beside this file by version (third_party/geist, OFL). */
+@font-face { font-family: "Geist"; src: url("geist.woff2?v=1.9.2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("geist-mono.woff2?v=1.9.2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 :root {
-  /* Claude, the default: a theme sets these. */
+  /* Claude: a theme sets these. */
   --surface0: #1f1f1e;   /* the work: chat, terminal, editor, the right panel, the bar */
   --surface1: #262523;   /* the message box, cards on the work */
   --surface2: #2f2d2b;   /* menus, popovers, toasts */
@@ -74,13 +77,14 @@
   --r-xl: 14px;          /* dialogs, the message box, your messages */
   --r-button: 8px;       /* buttons: rectangles with rounded corners */
   --pill: 999px;         /* badges, tags, who's here */
-  --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif;
-  --mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
+  --sans: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "DejaVu Sans Mono", monospace;
   accent-color: var(--button);
 }
 /* Orca: the work #151515, the left panel lighter, lines and fills as
    white at a few percent so they show on either; the button near-white,
-   links sky; working yellow, waiting orange, done green. */
+   links sky; working yellow, waiting orange, done green; the terminal
+   Ghostty's own, as Orca keeps it. */
 :root[data-theme="orca"] {
   --surface0: #151515; --surface1: #1e1e1e; --surface2: #232323; --surface3: #353535; --sidebar: #2a2a2a;
   --fg: #f0f0f0; --fg-muted: #acacac; --fg-dim: #7c7c7c;
@@ -92,6 +96,7 @@
   --text: #dadada; --bubble: #252525;
   --raised: rgba(255, 255, 255, .04); --input: rgba(255, 255, 255, .04);
   --button-hover: #f5f5f5; --focus: rgba(255, 255, 255, .35); --scroll: rgba(255, 255, 255, .1);
+  --term: #282c34;
 }
 /* Zinc: neutral gray, no tint; its accent near-white, so dark words on it. */
 :root[data-theme="zinc"] {
@@ -1169,7 +1174,7 @@ a.button.primary:hover { background: var(--button-hover); }
 
 /* Notes on a diff's lines, for the agent (release 5 of hi_app_dev_orca.md). */
 .diff div.line { position: relative; padding-left: 26px; }
-.diff .note-add { position: absolute; left: 3px; top: 1px; width: 18px; height: 16px; padding: 0; border: 0; border-radius: var(--r-sm); background: var(--button); color: var(--on-accent); font: 600 12px/16px system-ui, sans-serif; opacity: 0; cursor: pointer; }
+.diff .note-add { position: absolute; left: 3px; top: 1px; width: 18px; height: 16px; padding: 0; border: 0; border-radius: var(--r-sm); background: var(--button); color: var(--on-accent); font: 600 12px/16px var(--sans); opacity: 0; cursor: pointer; }
 .diff div.line:hover .note-add, .diff .note-add:focus-visible { opacity: 1; }
 .diff div.line.noted { box-shadow: inset 2px 0 0 var(--dot-warn); }
 .diff div.diff-note { white-space: normal; min-width: 0; margin: 2px 12px 6px 26px; padding: 8px 10px; background: var(--widget); border: 1px solid var(--input-line); border-left: 2px solid var(--dot-warn); border-radius: var(--r-md); font: 13px/1.45 var(--sans); position: sticky; left: 0; max-width: 520px; }

@@ -2,8 +2,9 @@
 
 Status: Approved (2026-11-21): release 1, Orca's look on the admin page
 and the dev page alike (its colours by default, its chat box, its other
-elements); built in v2.6.230. Each later release waits for its questions
-below.
+elements), built in v2.6.230; its questions answered the same day (Geist
+served with the pages, the helper the same look, Orca's terminal, the
+theme named Orca), built in v2.6.231; release 2 next.
 
 Dependencies: [hi_admin.md](hi_admin.md) (the admin page),
 [hi_app_dev.md](hi_app_dev.md) (the dev page),
@@ -97,7 +98,7 @@ before release 1:
 14. **The wall screen** loaded no theme, so it was Claude's colours.
     Release 1: the default.
 15. **Type** is the computer's own, so the pages differ from a Mac to a
-    Linux desktop, and none is Orca's. Question 1.
+    Linux desktop, and none is Orca's. v2.6.231: Geist (question 1).
 16. **The admin page's middle**: an app's Overview is labels and loose
     rows (Addresses, Actions, The app, Boxes), where the dev page puts
     the same kind of thing in cards (Release's where, flow, and
@@ -110,9 +111,9 @@ before release 1:
     both. Release 2.
 19. **The helper** on the app's own pages (`helper/helper.js`) and the
     app's docs page (`helper/docs/docs.css`) have colours of their own.
-    Release 3, question 2.
+    v2.6.231: the helper (question 2); the docs page, release 3.
 20. **The terminal** takes the work's colour; Orca keeps Ghostty's in
-    its neutral app. Question 3.
+    its neutral app. v2.6.231: Ghostty's, as Orca (question 3).
 
 ## Release 1: Orca's look (v2.6.230)
 
@@ -140,6 +141,28 @@ before release 1:
   that are buttons, the sign-in card (now on the dev page too),
   weights, meters, and warnings, as above.
 
+## Release 1's questions, answered (v2.6.231)
+
+- **Geist** (question 1): Vercel's Geist and Geist Mono, variable, some
+  70 KB each (`third_party/geist`, OFL), served beside `dev.css` on the
+  admin page and the dev page and under the helper's `/__hi/`, asked for
+  by version (`geist.woff2?v=1.9.2`) and kept a year. The terminals keep
+  the computer's monospace, as Orca's do, so xterm's grid never waits for
+  a font.
+- **The helper** (question 2): Orca's look, whatever the app's or the
+  computer's colours, as the pages' default: the panel near-black; your
+  message a bubble and the answer plain words; a turning ring while it
+  answers; the box a card with the point-at button, `+` to attach on the
+  Feedback tab, and Send round and near-white; the round button dark with
+  an orange dot for news; the app's outlines blue. Geist comes through
+  the FontFace API, by names of hi's own (`hi-geist`), so an app's
+  Content-Security-Policy that refuses a `<style>` still lets it in, and
+  the app's own styles never pick it up.
+- **The terminal** (question 3): Orca's theme draws the terminal as Orca
+  does, in Ghostty's colours: `#282c34`, white words, Ghostty's palette,
+  bright black lifted for agents' quieter lines.
+- **The name** (question 4): Orca.
+
 ## Release 2: the admin page's middle as the dev page's
 
 - An app's Overview in cards: where it is (its addresses and dev page),
@@ -151,10 +174,10 @@ before release 1:
   time to its answer's: "Worked for 2m 14s · Read a file, Edited 2
   files".
 
-## Release 3: the helper and the docs page
+## Release 3: the docs page
 
-The helper's panel and the docs page on the same tokens, so the app's
-own pages look like hi's. Waits for question 2.
+The app's docs page (`helper/docs`) on the same tokens and Geist, so the
+app's own pages look like hi's, as the helper does since v2.6.231.
 
 ## Release 4: demos (later)
 
@@ -194,16 +217,13 @@ app; then a developer's day on the dev page):
   sign-ins.
 - A step whose tool hi doesn't know gets the plain dot icon.
 - Less motion: no turning ring or running light, the ring whole.
+- Geist on all three: the admin page's, the dev page's, and the helper's
+  `/__hi/` serve both fonts without a sign-in, as `font/woff2`, and
+  `dev.css` and the helper ask for the same version.
+- The helper in Chromium on an app whose policy is `default-src 'self';
+  style-src 'self'`: Geist loads, Enter and Send both ask, and
+  happy-dom's tests pass on the bytes hi serves.
 
 ## Questions
 
-1. **Type.** Serve a typeface with the pages (Inter or Geist, both OFL,
-   some 70–100 KB as woff2, from the page's own address under its
-   Content-Security-Policy), so every computer draws Orca's letters; or
-   keep each computer's own (a Mac's is close already)?
-2. **The helper.** Should the panel on the app's own pages take the
-   same look? It sits over the app's own colours.
-3. **The terminal.** The work's colour, as now, so the terminal is one
-   with the page; or Ghostty's `#282c34`, as Orca's app does?
-4. **The theme's name.** "Orca", as the picker names Paseo's and
-   Ghostty's after where they come from; or a name of hi5's own?
+All four answered (2026-11-21), above under release 1's questions.
