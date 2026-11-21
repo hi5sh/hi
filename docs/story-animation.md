@@ -38,8 +38,8 @@ A scene looks like this:
 - Every timed item has `at`, its time from the scene's start.
 - `caption` is the line at the foot of the picture. `title` is the scene's
   name under the picture and on its dot.
-- `screen` picks the renderer in `story.js`: `terminal`, `channel`, or
-  `page`. A new
+- `screen` picks the renderer in `story.js`: `terminal`, `channel`,
+  `page`, or `title`. A new
   kind of screen is a new function in `screens` in `story.js`, with its items
   marked by `timed()`.
 - A terminal scene sets `window` (the title bar), `prompt`, and `lines`: a
@@ -72,6 +72,12 @@ A scene looks like this:
   `app.js`'s `setup` and `build` are the examples: the admin page's New app
   and an app's Overview, and the dev page's chat. With "reduce motion" on, a
   page scene shows its end, its typing done and no pointer.
+
+- A title scene is words alone over a picture: `kicker`, `tagline`, and
+  `lede`, fading up in turn over `image`; it fades out, not sideways, into
+  the next scene. hi5.sh opens with one: `assets/home-story.js` puts the
+  tagline before hi app's scenes (`assets/demos/app.js`, loaded before it)
+  at a wider size, as the page's first screen.
 
 Keep a demo true to what hi does: a feature that isn't built doesn't go in it.
 

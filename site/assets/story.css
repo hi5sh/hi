@@ -21,6 +21,20 @@
   font: 600 12.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent);
 }
 
+/* A title: the words alone, over a picture, darkened toward the edges so
+   they read; it fades out, not sideways. */
+.sc-title { display: grid; place-items: center; padding: 28px; text-align: center;
+  background: radial-gradient(ellipse 70% 75% at 50% 50%, rgba(10, 12, 17, .55), rgba(10, 12, 17, .92) 100%),
+    var(--title-image, none) center 30% / cover no-repeat, var(--bg); }
+.sc-title.enter, .sc-title.leave { transform: none; }
+.sc-title.leave { transition-duration: .8s; }
+.sc-title-in { max-width: 640px; }
+.sc-kicker { margin: 0; font: 600 13px var(--mono); letter-spacing: .14em; color: var(--muted); }
+.sc-tagline { margin: 12px 0 16px; font: 700 66px/1.02 var(--sans); letter-spacing: -0.04em; color: var(--text); text-shadow: 0 2px 24px rgba(10, 12, 17, .9); text-wrap: balance; }
+.sc-lede { margin: 0 auto; max-width: 520px; font-size: 19px; line-height: 1.5; color: var(--text); text-shadow: 0 1px 12px rgba(10, 12, 17, .9); }
+.st-narrow .sc-tagline { font-size: 52px; }
+.st-narrow .sc-lede { font-size: 18px; }
+
 /* Windows */
 .w { position: absolute; left: 18px; right: 18px; top: 18px; bottom: 56px; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--bg-card); overflow: hidden; box-shadow: 0 20px 50px -24px rgba(0, 0, 0, .8); }
 .w-bar { flex: none; display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-bottom: 1px solid var(--line); font: 600 12px var(--mono); color: var(--muted); }

@@ -116,6 +116,18 @@ html, body { height: 100%; margin: 0; overflow: hidden; }
       node.ready = new Promise(resolve => frame.addEventListener("load", () => resolve(frame.contentDocument), { once: true }));
       return node;
     },
+    // title: words on their own, over a picture, such as the site's tagline
+    // before its demo: a kicker, the tagline, and a lede, each fading up in
+    // turn; the scene fades out, not sideways, into the next.
+    title(sc) {
+      const node = el("div", { class: "sc sc-title" },
+        el("div", { class: "sc-title-in" },
+          sc.kicker ? timed(el("p", { class: "sc-kicker", text: sc.kicker }), { at: 0 }) : null,
+          timed(el("p", { class: "sc-tagline", text: sc.tagline }), { at: 300 }),
+          sc.lede ? timed(el("p", { class: "sc-lede", text: sc.lede }), { at: 900 }) : null));
+      if (sc.image) node.style.setProperty("--title-image", `url("${sc.image}")`);
+      return node;
+    },
     channel(sc) {
       const groups = { people: "people", owners: "owner", lead: "lead · AI" };
       const strip = el("div", { class: "members" }, ...Object.entries(groups)

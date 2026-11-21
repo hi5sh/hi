@@ -51,12 +51,17 @@
   code { font-family: var(--mono); }
   h1, h2, h3 { text-wrap: balance; }
 
-  /* Header */
+  /* Header: the logo, the latest release in the middle, the links. */
   header.top { position: relative; z-index: 10; }
-  nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 22px; }
+  /* Three columns: the pill in the middle one, centred while the sides fit,
+     and pushed aside by them, never over them, when they don't. */
+  nav { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding-block: 22px; }
+  nav .hm-group { justify-self: start; }
+  nav .pill { grid-column: 2; white-space: nowrap; }
+  nav .menu-toggle, nav > ul { grid-column: 3; justify-self: end; }
   .logo { font: 700 21px var(--mono); text-decoration: none; letter-spacing: -0.02em; color: var(--text); text-shadow: 0 1px 12px rgba(10, 12, 17, 0.6); }
   .logo b { color: var(--bg); text-shadow: 0 0 10px rgba(255, 255, 255, 0.35); }
-  nav ul { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; font-size: 15px; }
+  nav ul { display: flex; gap: 20px; list-style: none; margin: 0; padding: 0; font-size: 15px; white-space: nowrap; }
   nav ul a { color: var(--text); text-decoration: none; text-shadow: 0 1px 10px rgba(10, 12, 17, 0.7); text-underline-offset: 4px; }
   nav ul a:hover { text-decoration: underline; }
   .menu-toggle { display: none; width: 42px; height: 42px; padding: 12px 10px; border-radius: 10px; cursor: pointer; flex-direction: column; justify-content: space-between; background: rgba(10, 12, 17, 0.55); border: 1px solid var(--line-strong); -webkit-tap-highlight-color: transparent; }
@@ -65,13 +70,16 @@
   .menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
   .menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
 
-  /* Hero */
-  .banner { position: absolute; inset: 0 0 auto 0; height: 640px; z-index: -1; pointer-events: none;
-    background: linear-gradient(180deg, rgba(10,12,17,.15) 0%, rgba(10,12,17,.08) 22%, rgba(10,12,17,.4) 52%, rgba(10,12,17,.9) 80%, var(--bg) 100%),
-      radial-gradient(ellipse 75% 90% at 50% 30%, transparent 55%, rgba(10,12,17,.75) 100%),
-      url("assets/hi5-banner.jpg") center 28% / cover no-repeat; }
-  .hero { padding-block: 270px 24px; text-align: center; }
+  /* Hero: the demo first (assets/story.js, assets/home-story.js), whose
+     first scene is the tagline over the banner; the tagline's words in the
+     page too, for readers and search, shown only without JavaScript. */
+  .hero { padding-block: 4px 24px; text-align: center; }
+  .home-story { max-width: 940px; margin: 0 auto; text-align: left; }
+  .home-story .st-box { box-shadow: 0 40px 100px -40px rgba(0, 0, 0, .9), 0 0 90px -30px rgba(124, 131, 255, .16); }
+  .js .hero-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  html:not(.js) .home-story { display: none; }
   .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: 999px; font: 500 13px var(--mono); background: rgba(10,12,17,.62); text-decoration: none; }
+  .pill:hover { border-color: var(--accent); }
   .pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
   .kicker { margin: 24px 0 0; font: 600 14px var(--mono); letter-spacing: .14em; color: var(--muted); }
   .kicker .h { color: var(--warm); } .kicker .a { color: var(--mint); }
@@ -194,10 +202,11 @@
     .menu-toggle { display: flex; }
     nav ul { display: none; position: absolute; top: 74px; right: max(16px, env(safe-area-inset-right, 0px)); min-width: 210px; flex-direction: column; gap: 2px; padding: 8px; background: rgba(16,19,26,.97); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 24px 60px -20px rgba(0,0,0,.85); }
     nav ul.open { display: flex; }
+    nav > ul { grid-column: auto; } /* placed by the nav, not in its third column, as a dropdown */
     nav ul a { display: block; padding: 11px 14px; border-radius: 9px; font-size: 16px; text-shadow: none; }
     nav ul a:hover { background: var(--accent-soft); text-decoration: none; }
-    .hero { padding-top: 180px; }
-    .banner { height: 420px; background-image: linear-gradient(180deg, rgba(10,12,17,.15) 0%, rgba(10,12,17,.08) 25%, rgba(10,12,17,.45) 55%, rgba(10,12,17,.9) 80%, var(--bg) 100%), url("assets/hi5-banner-1000.jpg"); background-size: auto, cover; background-position: center, 45% 30%; }
+    nav .pill { padding: 5px 11px; font-size: 12px; gap: 7px; }
+    nav .pill .rel { display: none; }
     .term-body { font-size: 13.5px; padding: 4px 16px; }
     .cmdline { flex-wrap: wrap; } .cmdline code { flex-basis: calc(100% - 30px); }
     .hero-install { flex-wrap: nowrap; font-size: 12.5px; gap: 8px; padding-left: 12px; } .hero-install code { flex-basis: auto; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
@@ -215,27 +224,24 @@
   body.present header.top, body.present footer { display: none; }
   body.present main > .slide { display: none; }
   body.present main > .slide.on { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding-block: 48px; }
-  body.present .banner { display: none; }
-  body.present.on-hero .banner { display: block; position: fixed; height: 100vh; }
-  body.present .hero.on { padding-block: 0 72px; justify-content: flex-end; align-items: center; }
-  body.present h1 em { background: none; color: var(--text); }
-  body.present .hero-text { background: rgba(10,12,17,.5); border: 1px solid var(--line-strong); border-radius: 18px; padding: 22px clamp(18px, 4vw, 36px) 26px; margin-top: 14px; max-width: 920px; }
-  body.present .hero-text .kicker { margin-top: 0; }
-  body.present .hero-text h1 { margin-top: 10px; }
-  body.present .hero .lede { color: var(--text); text-shadow: 0 1px 3px rgba(10,12,17,.9), 0 2px 18px rgba(10,12,17,.9); }
+  body.present .hero.on { padding-block: 24px; }
+  body.present .hero.on .home-story { width: min(100%, 1100px, calc((100vh - 140px) * 760 / 520)); max-width: none; }
+  body.present .hero.on .ctas, body.present .hero.on .hero-install { display: none; }
   body.present .deck-bar { display: flex; position: fixed; right: 18px; bottom: 14px; z-index: 20; align-items: center; gap: 4px; font: 12px var(--mono); color: var(--dim); }
   .deck-bar button { padding: 4px 8px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
   .deck-bar button:hover { color: var(--text); background: rgba(255,255,255,.06); }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
 </style>
 <link rel="stylesheet" href="assets/site-menu.css">
+<link rel="stylesheet" href="assets/story.css">
+<script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
 
-<div class="banner" role="img" aria-label="A robot arm and a human arm clasping hands"></div>
 <header class="top wrap">
   <nav aria-label="Site">
     <div class="hm-group"><a class="logo" href="#top"><b>hi</b>5.sh</a>{% include site-menu.html %}</div>
+    <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest</span><span class="rel" id="ver-rel"> release</span></a>
     <button class="menu-toggle" type="button" id="menu-toggle" aria-controls="site-menu" aria-expanded="false" aria-label="Open the menu"><span></span><span></span><span></span></button>
     <ul id="site-menu">
       <li><a href="#lifecycle">How it works</a></li>
@@ -249,7 +255,7 @@
 
 <main id="top">
   <div class="wrap hero slide">
-    <a class="pill" href="https://github.com/hi5sh/hi/releases/latest"><i></i><span id="ver">latest release</span></a>
+    <div class="home-story" data-story></div>
     <div class="hero-text">
     <p class="kicker white">THE AGENT-ASSISTED SOFTWARE&nbsp;FACTORY</p>
     <h1>Think it. Ship it.</h1>
@@ -484,7 +490,7 @@
   });
   fetch("https://api.github.com/repos/hi5sh/hi/releases/latest")
     .then(r => r.ok ? r.json() : null)
-    .then(r => { if (r && r.tag_name) document.getElementById("ver").textContent = r.tag_name + " released"; })
+    .then(r => { if (r && r.tag_name) { document.getElementById("ver").textContent = r.tag_name; document.getElementById("ver-rel").textContent = " released"; } })
     .catch(() => {});
   // Presentation mode: see the styles. #present in the address opens it, so a
   // reload keeps the slide.
@@ -551,5 +557,8 @@
     fromHash();
   })();
 </script>
+<script src="assets/demos/app.js" defer></script>
+<script src="assets/home-story.js" defer></script>
+<script src="assets/story.js" defer></script>
 </body>
 </html>
