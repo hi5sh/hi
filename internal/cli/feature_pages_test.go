@@ -151,3 +151,43 @@ func TestFeaturePagesInTheSiteMenu(t *testing.T) {
 		}
 	}
 }
+
+// A page scene draws the admin page and the dev page with their own
+// stylesheets and Geist, which the site's build copies to assets/pages/
+// (story.js): the build copies each file, by the name dev.css asks for the
+// fonts by, and a page scene's selectors and classes are the pages' own.
+func TestFeatureDemoPagesFromTheirStylesheets(t *testing.T) {
+	root := filepath.Join("..", "..")
+	read := func(name string) string {
+		data, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	workflow, story, devCSS := read(".github/workflows/pages.yml"), read("site/assets/story.js"), read("helper/dev/dev.css")
+	for _, copy := range []string{
+		"cp helper/dev/dev.css helper/admin/admin.css site/assets/pages/",
+		"cp third_party/geist/Geist-Variable.woff2 site/assets/pages/geist.woff2",
+		"cp third_party/geist/GeistMono-Variable.woff2 site/assets/pages/geist-mono.woff2",
+		`- "helper/dev/dev.css"`, `- "helper/admin/admin.css"`,
+	} {
+		if !strings.Contains(workflow, copy) {
+			t.Errorf("the site's build doesn't %s", copy)
+		}
+	}
+	for _, font := range []string{`url("geist.woff2?`, `url("geist-mono.woff2?`} {
+		if !strings.Contains(devCSS, font) {
+			t.Errorf("dev.css doesn't ask for %s", font)
+		}
+	}
+	if !strings.Contains(story, `PAGES + 'dev.css`) || !strings.Contains(story, `PAGES + 'admin.css`) {
+		t.Error("story.js doesn't draw the pages with their own stylesheets")
+	}
+	demo := read("site/assets/demos/app.js")
+	for _, class := range []string{"code-bar", "admin-cards", "admin-card", "chat-entries", "msg-user", "composer-bar", "composer-send", "fold tools", "chat-activity"} {
+		if !strings.Contains(devCSS+read("helper/admin/admin.css"), "."+strings.Fields(class)[len(strings.Fields(class))-1]) || !strings.Contains(demo, class) {
+			t.Errorf("app.js's page scenes and the pages' stylesheets don't share %s", class)
+		}
+	}
+}

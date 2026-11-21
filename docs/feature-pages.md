@@ -75,6 +75,11 @@ what they print, and say so under the demo (`demo_caption`).
 uses a subcommand and flags the tool's usage lists; a new feature page goes
 in its `featurePageUsage` with its tool's usage function.
 
+A demo can show the admin page or the dev page too, drawn by their own
+stylesheets: a `page` scene (`docs/story-animation.md`). `app.js` opens
+with the admin page setting an app up and has the dev page's chat after the
+Slack scene. Its words are the pages' own; its app and people are made up.
+
 ## Seeing it
 
 Build the site and look at it in Chromium, at 1440 and 390 wide, as

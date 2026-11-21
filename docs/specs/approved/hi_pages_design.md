@@ -4,7 +4,8 @@ Status: Approved (2026-11-21): release 1, Orca's look on the admin page
 and the dev page alike (its colours by default, its chat box, its other
 elements), built in v2.6.230; its questions answered the same day (Geist
 served with the pages, the helper the same look, Orca's terminal, the
-theme named Orca), built in v2.6.231; release 2, built in v2.6.232.
+theme named Orca), built in v2.6.231; release 2, built in v2.6.232;
+releases 3 and 4, built in v2.6.233 and on the site.
 
 Dependencies: [hi_admin.md](hi_admin.md) (the admin page),
 [hi_app_dev.md](hi_app_dev.md) (the dev page),
@@ -180,15 +181,19 @@ before release 1:
   step, from the transcript's times: "Worked for 2m 14s · Read a file,
   Edited 2 files". A transcript without times says what they did alone.
 
-## Release 3: the docs page
+## Release 3: the docs page (v2.6.233)
 
 The app's docs page (`helper/docs`) on the same tokens and Geist, so the
-app's own pages look like hi's, as the helper does since v2.6.231.
+app's own pages look like hi's, as the helper does since v2.6.231: Orca's
+near-black, light where the computer asks for light (the docs are read at
+length); the User docs and Tech docs switch with the near-white action;
+the menu's open page outlined; sentence-case labels in place of tracked
+capitals; Geist from the app's own `/__hi/`, as the helper has it. The
+charts and the structure diagrams take the new tokens as they were.
 
-## Release 4: demos (later)
+## Release 4: demos (on the site)
 
-How Orca's demos are made, for hi's own later (an admin setting up an
-app; then a developer's day on the dev page):
+How Orca's demos are made, and hi's from them:
 
 - Each is a stage of the app's real markup, at its real size, scaled
   into a card, playing a timeline: a pointer that moves and clicks (a
@@ -203,6 +208,19 @@ app; then a developer's day on the dev page):
   dev page from their own `dev.css` and `admin.css`, so what the site
   shows is what the pages are. Release 1's shared tokens are what make
   that possible.
+- Built: the scene player's `page` screen (story-animation.md) draws a
+  scene's markup in a frame of its own with the pages' own stylesheets,
+  which the site's build copies from `helper/` with Geist, so the site's
+  styles and the pages' never meet and a demo can't drift from the pages.
+  The timeline is Orca's: items shown and hidden on time, words typed, a
+  pointer that finds its target by selector at either size and clicks
+  with the ring; at the narrow size the pages lay themselves out as on a
+  phone. hi5.sh/app/ opens with an admin setting an app up on the admin
+  page (the Purpose step typed, the review, Create, the app's Overview
+  coming up) and has, after the Slack scene, an owner asking Claude Code
+  in the dev page's chat (the message typed and sent, the steps counted
+  under the fold with the ring and the running light, the answer, the
+  fold opened).
 
 ## Not taken
 
@@ -223,6 +241,14 @@ app; then a developer's day on the dev page):
   sign-ins.
 - A step whose tool hi doesn't know gets the plain dot icon.
 - Less motion: no turning ring or running light, the ring whole.
+- The docs page in Chromium, dark and light, at 1280 and 390 wide, from
+  the app's service on a test app with user and tech docs and a chart:
+  Geist loads from `/__hi/`.
+- The demos: hi5.sh/app/ built with Jekyll 3.10 (the pages' files copied
+  in as the build does), at 1440 and 390 wide, each page scene at several
+  times, and with less motion (each shows its end). A Go test checks the
+  build copies the stylesheets and fonts story.js and dev.css ask for,
+  and that the scenes' classes are the pages' own.
 - Geist on all three: the admin page's, the dev page's, and the helper's
   `/__hi/` serve both fonts without a sign-in, as `font/woff2`, and
   `dev.css` and the helper ask for the same version.

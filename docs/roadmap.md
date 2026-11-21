@@ -6078,9 +6078,9 @@ Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
 - [x] Release 1's questions (v2.6.231): Geist served with the pages and
   the helper; the helper on apps in Orca's look; Orca's terminal in
   Ghostty's colours; the theme stays Orca.
-- [ ] Release 3: the docs page on the same tokens and Geist.
-- [ ] Release 4: demos of the admin page and the dev page on the site,
-  drawn from their own stylesheets.
+- [x] Release 3 (v2.6.233): the docs page on the same tokens and Geist.
+- [x] Release 4 (the site): demos of the admin page and the dev page on
+  hi5.sh/app/, drawn by their own stylesheets.
 
 ### Next — the dev page takes from Orca
 
@@ -6986,6 +6986,15 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.233 — The app's docs in Orca's look; the pages in the site's demos
+
+- [x] The app's docs page has Orca's look and Geist, as the helper does:
+  near-black, light where the computer asks for light. Spec:
+  [hi_pages_design.md](specs/approved/hi_pages_design.md), release 3.
+- [x] hi5.sh/app/'s demo shows the admin page setting an app up and the
+  dev page's chat, drawn by the pages' own stylesheets (the scene player's
+  `page` screen, release 4); the site's build copies them from `helper/`.
 
 ### v2.6.232 — The admin page's Overviews in cards; how long the steps took
 

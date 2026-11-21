@@ -6,3 +6,5 @@ templates/*/dist/
 /cli
 .tmp/*
 /hi
+# The demos' copies of the pages' stylesheets and fonts, made by the site's build.
+/site/assets/pages/

@@ -12,6 +12,9 @@
   const size = (STORY.narrow && innerWidth < 600 ? STORY.narrow : STORY.size) || {};
   const W = size.w || 480, H = size.h || 560;
   const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  // The admin page's and the dev page's own stylesheets and Geist, copied
+  // beside this file by the site's build (.github/workflows/pages.yml).
+  const PAGES = new URL("pages/", document.currentScript.src).href;
 
   // ---- small DOM helpers ----------------------------------------------------
   const el = (tag, attrs, ...kids) => {
@@ -47,6 +50,29 @@
   };
   const caption = text => text ? el("div", { class: "sc-cap", text }) : null;
 
+  // A page scene's document: the scene's markup in the admin page's or the
+  // dev page's own stylesheets, Orca's theme, and the few rules that play it
+  // (an item hidden until it's due, and after its until; text typed; the
+  // pointer and its click).
+  const PLAY_CSS = `
+html, body { height: 100%; margin: 0; overflow: hidden; }
+[data-at]:not(.on), [data-until].off, .pt { display: none !important; }
+[data-at].on:not(.pt) { animation: play-in .35s ease both; }
+.still.on { animation: none !important; }
+@keyframes play-in { from { opacity: 0; transform: translateY(6px); } }
+.typing::after { content: ""; display: inline-block; width: 1.5px; height: 1.1em; margin-left: 1px; vertical-align: -.18em; background: currentColor; animation: play-caret 1s steps(1) infinite; }
+@keyframes play-caret { 50% { opacity: 0; } }
+.play-pointer { position: fixed; z-index: 99; left: -40px; top: -40px; width: 22px; height: 22px; pointer-events: none;
+  transition: left .6s cubic-bezier(.4, 0, .2, 1), top .6s cubic-bezier(.4, 0, .2, 1); filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+.play-ring { position: fixed; z-index: 98; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; pointer-events: none;
+  border: 2px solid rgba(255,255,255,.85); animation: play-ring .46s ease-out forwards; }
+@keyframes play-ring { from { transform: scale(.4); opacity: .9; } to { transform: scale(1.25); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { [data-at].on:not(.pt) { animation: none; } .play-pointer { display: none; } }`;
+  const POINTER = '<svg class="play-pointer" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 8-6.2 1.6L10 19z" fill="#fff" stroke="#151515" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+  const pageDoc = sc => '<!doctype html><html lang="en" data-theme="orca"><head><meta charset="utf-8">' +
+    '<link rel="stylesheet" href="' + PAGES + 'dev.css">' + (sc.page === "admin" ? '<link rel="stylesheet" href="' + PAGES + 'admin.css">' : "") +
+    "<style>" + PLAY_CSS + "</style></head><body>" + sc.html + POINTER + "</body></html>";
+
   // ---- the screens ------------------------------------------------------------
   const screens = {
     terminal(sc) {
@@ -67,6 +93,28 @@
       return el("div", { class: "sc" },
         win(sc.window ?? sc.title, "w-term", el("div", { class: "w-term-body scroll" }, ...lines)),
         caption(sc.caption));
+    },
+    // page: the admin page or the dev page, drawn by their own stylesheets
+    // in a frame of their own, at the scene's width (narrow: under 600px) and
+    // scaled into the window. Its items are in sc.html, timed as a
+    // terminal's lines are: data-at, and data-until to leave; data-type to
+    // be typed over data-dur; and the pointer's moves, <i class="pt"
+    // data-at data-to="selector" data-click>.
+    page(sc) {
+      const width = (size === STORY.narrow && sc.narrowWidth) || sc.width || 1000;
+      const frame = el("iframe", { class: "w-page-frame", title: sc.title, tabindex: "-1", style: `width: ${width}px` });
+      frame.setAttribute("inert", "");
+      frame.srcdoc = pageDoc(sc);
+      const body = el("div", { class: "w-page-body" }, frame);
+      const node = el("div", { class: "sc" }, win(sc.window ?? sc.title, "w-page", body), caption(sc.caption));
+      // Once it's on the stage: scaled to the window, and its document once loaded.
+      node.fit = () => {
+        const scale = body.offsetWidth / width;
+        frame.style.transform = `scale(${scale})`;
+        frame.style.height = body.offsetHeight / scale + "px";
+      };
+      node.ready = new Promise(resolve => frame.addEventListener("load", () => resolve(frame.contentDocument), { once: true }));
+      return node;
     },
     channel(sc) {
       const groups = { people: "people", owners: "owner", lead: "lead · AI" };
@@ -119,6 +167,7 @@
     fit() {
       const w = this.box.clientWidth || W;
       this.stage.style.transform = `scale(${w / W})`;
+      if (this.current && this.current.fit) this.current.fit();
     }
     pace() { return (STORY.pace && STORY.pace.short) || 1; }
     dur(s) { return s.short * this.pace(); }
@@ -136,25 +185,66 @@
       void next.offsetWidth; // let the enter state paint before it animates away
       next.classList.remove("enter");
       this.current = next; this.i = i; this.t = t;
-      this.items = [...next.querySelectorAll("[data-at]")]
-        .map(n => ({ node: n, at: this.itemTime(n) }))
-        .sort((a, b) => a.at - b.at);
+      this.items = this.timedIn(next);
       if (this.static) for (const it of this.items) this.reveal(it);
       else this.advance();
+      // A page scene's items are in its frame, there once it has loaded.
+      if (next.fit) next.fit();
+      if (next.ready) next.ready.then(doc => {
+        if (this.current !== next || !doc) return;
+        this.items = this.items.concat(this.timedIn(doc)).sort((a, b) => a.at - b.at);
+        if (this.static) { for (const it of this.items) { this.reveal(it); if (it.until != null) it.node.classList.add("off"); } }
+        else this.advance();
+      });
       this.cap.replaceChildren(el("b", { text: s.title }), `scene ${i + 1} of ${this.scenes.length}`);
       [...this.dots.children].forEach((d, j) => d.setAttribute("aria-current", j === i ? "true" : "false"));
       if (byUser && !this.static && !this.playing && !this.userPaused) this.play();
+    }
+    // timedIn is what's timed in a scene or a page scene's document.
+    timedIn(root) {
+      return [...root.querySelectorAll("[data-at], [data-until]")].map(n => ({
+        node: n, at: n.dataset.at == null ? 0 : this.itemTime(n),
+        until: n.dataset.until == null ? null : Math.round(+n.dataset.until * this.pace()),
+        type: n.dataset.type, dur: Math.round(+(n.dataset.dur || 1200) * this.pace()),
+      })).sort((a, b) => a.at - b.at);
     }
     reveal(it) {
       if (it.done) return;
       it.done = true;
       const n = it.node;
       n.classList.add("on");
+      if (it.type != null) { n.textContent = this.static ? it.type : ""; if (!this.static) n.classList.add("typing"); }
+      if (n.classList.contains("pt")) { this.point(n); return; }
       const scroller = n.closest(".scroll");
       if (scroller) scroller.scrollTop = scroller.scrollHeight;
     }
+    // point moves a page scene's pointer to what the move names, and clicks.
+    point(move) {
+      const doc = move.ownerDocument;
+      const pointer = doc.querySelector(".play-pointer"), target = move.dataset.to && doc.querySelector(move.dataset.to);
+      if (!pointer || !target || this.static) return;
+      const r = target.getBoundingClientRect();
+      const x = r.left + Math.min(r.width / 2, 40), y = r.top + r.height / 2;
+      pointer.style.left = x + "px"; pointer.style.top = y + "px";
+      if (move.dataset.click == null) return;
+      setTimeout(() => {
+        const ring = doc.createElement("span");
+        ring.className = "play-ring";
+        ring.style.left = x + "px"; ring.style.top = y + "px";
+        doc.body.append(ring);
+        setTimeout(() => ring.remove(), 600);
+      }, 620);
+    }
     advance() {
-      for (const it of this.items) if (it.at <= this.t) this.reveal(it);
+      for (const it of this.items) {
+        if (it.at <= this.t) this.reveal(it);
+        if (it.until != null && it.until <= this.t) it.node.classList.add("off");
+        if (it.type != null && it.done && !it.typed) {
+          const n = Math.min(it.type.length, Math.floor(it.type.length * (this.t - it.at) / it.dur));
+          it.node.textContent = it.type.slice(0, n);
+          if (n >= it.type.length) { it.typed = true; it.node.classList.remove("typing"); }
+        }
+      }
     }
     frame(ts) {
       this.raf = requestAnimationFrame(t2 => this.frame(t2));

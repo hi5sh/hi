@@ -38,7 +38,8 @@ A scene looks like this:
 - Every timed item has `at`, its time from the scene's start.
 - `caption` is the line at the foot of the picture. `title` is the scene's
   name under the picture and on its dot.
-- `screen` picks the renderer in `story.js`: `terminal` or `channel`. A new
+- `screen` picks the renderer in `story.js`: `terminal`, `channel`, or
+  `page`. A new
   kind of screen is a new function in `screens` in `story.js`, with its items
   marked by `timed()`.
 - A terminal scene sets `window` (the title bar), `prompt`, and `lines`: a
@@ -48,6 +49,29 @@ A scene looks like this:
   someone in `people` at the top of the file: initials, name, role, and a
   colour; add a person there to use them. `STORY.channel` is the channel's
   name.
+
+- A page scene draws the admin page (`page: "admin"`) or the dev page
+  (`page: "dev"`) with their own stylesheets, in Orca's theme, in a frame of
+  its own so they don't touch the site's: `html` is the page's markup, the
+  classes its `page.html` and scripts use, drawn at `width` pixels
+  (`narrowWidth` for the narrow size) and scaled into the window. The site's
+  build copies `helper/dev/dev.css`, `helper/admin/admin.css`, and Geist to
+  `assets/pages/` (`.github/workflows/pages.yml`; to see it locally, copy
+  them into the built site the same way), so a demo always shows the pages
+  as they are. In `html`:
+  - `data-at` shows an element when it's due, `data-until` hides it again:
+    a button that turns into another, a line that changes, a page step
+    after step. `class="still"` swaps one in without its fade.
+  - `data-type="words"` types them into the element (a `textarea`, too) over
+    `data-dur` milliseconds.
+  - `<i class="pt" data-at data-to="selector" data-click>` moves the pointer
+    to the element the selector finds, and clicks it with Orca's ring. The
+    pointer finds it at both sizes, as the page lays itself out.
+  - A `.scroll` element follows the newest item, as a chat's log does.
+
+  `app.js`'s `setup` and `build` are the examples: the admin page's New app
+  and an app's Overview, and the dev page's chat. With "reduce motion" on, a
+  page scene shows its end, its typing done and no pointer.
 
 Keep a demo true to what hi does: a feature that isn't built doesn't go in it.
 

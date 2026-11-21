@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "helper/dev/dev.css"
+      - "helper/admin/admin.css"
+      - "third_party/geist/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -24,6 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/configure-pages@v5
+      # The demos draw the admin page and the dev page with their own
+      # stylesheets and Geist (site/assets/story.js), so the site always
+      # shows them as they are: copied in here, not kept in site/.
+      - name: The pages' stylesheets and fonts, for the demos
+        run: |
+          mkdir -p site/assets/pages
+          cp helper/dev/dev.css helper/admin/admin.css site/assets/pages/
+          cp third_party/geist/Geist-Variable.woff2 site/assets/pages/geist.woff2
+          cp third_party/geist/GeistMono-Variable.woff2 site/assets/pages/geist-mono.woff2
       - uses: actions/jekyll-build-pages@v1
         with:
           source: ./site
