@@ -1,5 +1,5 @@
-// The page's theme: Paseo's themes (getpaseo/paseo, Apache-2.0), its
-// Ghostty one by default, kept in this browser. Loaded in the head, before the page draws,
+// The page's theme: Orca's colours (stablyai/orca, MIT) by default, or
+// one of Paseo's themes (getpaseo/paseo, Apache-2.0), kept in this browser. Loaded in the head, before the page draws,
 // so a theme other than the default never flashes in; dev.css has the
 // colours, by the <html>'s data-theme. The admin page and the dev page
 // share it: the bar's button (#theme-btn) opens the list, and their
@@ -10,6 +10,7 @@
   // Each theme's name, its swatch (Paseo's), and whether it's light.
   var THEMES = [
     { id: "auto", name: "Auto", swatch: "", hint: "Light or dark, as the computer is" },
+    { id: "orca", name: "Orca", swatch: "#2a2a2a" },
     { id: "claude", name: "Claude", swatch: "#d97757" },
     { id: "paseo", name: "Paseo", swatch: "#2d8b62" },
     { id: "zinc", name: "Zinc", swatch: "#808080" },
@@ -38,11 +39,11 @@
   function chosen() {
     var id = "";
     try { id = localStorage.getItem(KEY) || ""; } catch (e) { /* a private window */ }
-    return THEMES.some(function (t) { return t.id === id; }) ? id : "ghostty";
+    return THEMES.some(function (t) { return t.id === id; }) ? id : "orca";
   }
-  // The theme drawn: Auto is Light or Ghostty, as the computer is.
+  // The theme drawn: Auto is Light or Orca, as the computer is.
   function shown(id) {
-    if (id === "auto") return system && system.matches ? "light" : "ghostty";
+    if (id === "auto") return system && system.matches ? "light" : "orca";
     return id;
   }
   function apply() {
@@ -72,7 +73,7 @@
     onChange: function (fn) { listeners.push(fn); },
     // xterm's theme, in the page's colours.
     terminal: function () {
-      var bg = css("--surface0") || "#282c34";
+      var bg = css("--surface0") || "#151515";
       var fg = css("--fg") || "#fafafa";
       var light = isLight();
       var theme = { background: bg, foreground: light ? fg : css("--text") || fg, cursor: fg, cursorAccent: bg,

@@ -398,10 +398,10 @@ dot.
   with every view, the left panel's first: **Chat left, panel right**,
   or **Panel left, chat right**. Each person's own, kept in their
   browser.
-- **Theme** (the half-filled circle in the top bar): Ghostty, the
-  default, or Claude, Paseo, Zinc, Midnight, Pure black, Light, or Auto,
-  which follows the computer's light or dark (Light, or Ghostty). This browser keeps it, for
-  the dev pages and the admin page alike.
+- **Theme** (the half-filled circle in the top bar): Orca, the
+  default, or Claude, Paseo, Zinc, Midnight, Ghostty, Pure black, Light,
+  or Auto, which follows the computer's light or dark (Light, or Orca).
+  This browser keeps it, for the dev pages and the admin page alike.
 - **Antigravity:** with the app's own Google sign-in for agy
   ([keys](keys.md)), Start and **+ New** offer it beside Claude Code and
   Codex. Chat shows its session and its questions as Claude Code's, and

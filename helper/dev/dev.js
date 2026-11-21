@@ -2486,6 +2486,37 @@
     WebSearch: ["Searched the web", "Searched the web %d times"], Task: ["Ran an agent", "Ran %d agents"], Agent: ["Ran an agent", "Ran %d agents"],
     TodoWrite: ["Updated the to-do list", "Updated the to-do list %d times"], AskUserQuestion: ["Asked you a question", "Asked you %d questions"],
   };
+  // A step's icon, by what kind of thing its tool does.
+  var toolKinds = {
+    Read: "read", Edit: "edit", MultiEdit: "edit", Write: "edit", NotebookEdit: "edit", Bash: "run",
+    Grep: "find", Glob: "find", WebSearch: "find", WebFetch: "web", Task: "agent", Agent: "agent",
+    TodoWrite: "todo", AskUserQuestion: "ask",
+  };
+  var toolPaths = {
+    read: "M3.5 1.5h6l3 3v10h-9z M9.5 1.5v3h3 M5.5 8.5h5 M5.5 11h5",
+    edit: "M10.5 2.5l3 3-8 8H2.5v-3z M9 4l3 3",
+    run: "M1.5 2.5h13v11h-13z M4 6l2.5 2L4 10 M8 10.5h4",
+    find: "M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z M10.3 10.3l3.7 3.7",
+    web: "M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z M1.5 8h13 M8 1.5c2 2 2 11 0 13 M8 1.5c-2 2-2 11 0 13",
+    agent: "M8 1.5v13 M1.5 8h13 M3.4 3.4l9.2 9.2 M12.6 3.4l-9.2 9.2",
+    todo: "M6 4h8 M6 8h8 M6 12h8 M2 4h1.5 M2 8h1.5 M2 12h1.5",
+    ask: "M2 2.5h12v8.5H8l-3 3v-3H2z",
+    other: "M8 5.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z",
+  };
+  function toolIcon(name) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    var shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    shape.setAttribute("d", toolPaths[toolKinds[name] || "other"]);
+    shape.setAttribute("fill", "none");
+    shape.setAttribute("stroke", "currentColor");
+    shape.setAttribute("stroke-width", "1.3");
+    shape.setAttribute("stroke-linecap", "round");
+    shape.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(shape);
+    return el("span", { class: "tool-icon" }, [svg]);
+  }
   function groupSummary(counts) {
     return Object.keys(counts).map(function (name) {
       var verb = verbs[name] || ["Used " + name, "Used " + name + " %d times"];
@@ -2514,7 +2545,7 @@
       chat.group.summary.textContent = groupSummary(chat.group.counts);
       var result = el("pre", { class: "result", hidden: "" });
       var item = el("details", { class: "fold tool" }, [
-        el("summary", {}, [el("span", { class: "tool-name", text: entry.name }), el("span", { class: "tool-what", text: entry.summary || "" })]),
+        el("summary", {}, [toolIcon(entry.name), el("span", { class: "tool-name", text: entry.name }), el("span", { class: "tool-what", text: entry.summary || "" })]),
         entry.detail ? el("pre", { text: entry.detail }) : null,
         result,
       ]);
@@ -2625,22 +2656,17 @@
       return false;
     });
   }
-  // chatActivity is the conversation's last line while Claude works, as in
-  // its terminal: "✻ Crafting… (7s · ↓ 556 tokens)", from the terminal when
-  // hi could read it, else how long since your message.
-  var spinner = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
+  // chatActivity is the conversation's last line while Claude works: what
+  // its terminal says ("Crafting… (7s · ↓ 556 tokens)") when hi could read
+  // it, else how long since your message, after a turning ring (dev.css).
   function chatActivity(text) {
     var line = $("chat-activity");
     if (text === null) {
       if (line) line.remove();
-      clearInterval(chat.spin);
-      chat.spin = 0;
       return;
     }
     if (!line) {
-      line = el("div", { id: "chat-activity", class: "chat-activity", role: "status" }, [el("span", { class: "spin", "aria-hidden": "true", text: "✻" }), el("span", { class: "act-text" })]);
-      var frame = 0;
-      chat.spin = setInterval(function () { line.firstChild.textContent = spinner[frame++ % spinner.length]; }, 120);
+      line = el("div", { id: "chat-activity", class: "chat-activity", role: "status" }, [el("span", { class: "spin", "aria-hidden": "true" }), el("span", { class: "act-text" })]);
     }
     $("chat-entries").appendChild(line); // always the last line
     chat.activity = text;

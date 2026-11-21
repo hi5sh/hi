@@ -6059,6 +6059,25 @@ development loop is frozen and goes in release 4.
 
 ## Planned
 
+### Next — the pages' design, from Orca
+
+Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
+
+- [x] Release 1 (on main, not yet tagged): Orca's look on the admin page
+  and the dev page alike. Orca's colours by default (Auto's dark too; a
+  picked theme stays picked); the chat's steps as rows of an icon, a
+  verb, and what they touched, under a line that folds them; a turning
+  ring and a running light while the agent works; the message box's `+`,
+  with the model and effort beside Send; working dots that turn, chosen
+  rows outlined, quiet meters, tinted warnings; the admin page's cards,
+  code, links, weights, and sign-in card as the dev page's.
+- [ ] Release 2: the admin page's middle in cards, its left list as
+  Orca's sidebar, and how long the agent worked in the chat's fold.
+- [ ] Release 3: the helper and the docs page on the same tokens
+  (question 2).
+- [ ] Release 4: demos of the admin page and the dev page on the site,
+  drawn from their own stylesheets.
+
 ### Next — the dev page takes from Orca
 
 Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
