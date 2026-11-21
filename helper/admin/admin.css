@@ -64,6 +64,19 @@ button.app-card:hover { background: none; }
 .card-box .card-links { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 14px 10px; font-size: 12px; }
 .card-box .app-card p { margin: 0; }
 
+/* An app's Overview and the server's: cards, as the dev page's Release
+   view has them, two side by side where there's room. */
+.admin-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 12px; margin-top: 16px; }
+.admin-card { min-width: 0; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 2px 16px 14px; }
+.admin-card.wide { grid-column: 1 / -1; }
+.admin-card > h2 { margin: 12px 0 8px; }
+.admin-card > .list > li:last-child { border-bottom: 0; padding-bottom: 2px; }
+.admin-card > .data-actions { margin: 4px 0 8px; }
+.admin-card > .danger-row { margin-top: 0; }
+.admin-card > .note { margin-top: 0; }
+.admin-card .say-form { margin-bottom: 0; }
+.admin-card .boxes-table tr:last-child td { border-bottom: 0; }
+.admin-card .lines { margin-top: 10px; }
 /* An app's Overview. */
 .where-list li { align-items: center; }
 .where-list .what .muted { overflow-wrap: anywhere; }
@@ -110,6 +123,14 @@ a.button-like { font-size: 12.5px; padding: 3px 10px; white-space: nowrap; }
 .clamp2, .clamp3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
 .clamp2 { -webkit-line-clamp: 2; line-clamp: 2; }
 .clamp3 { -webkit-line-clamp: 3; line-clamp: 3; }
+/* The left list's rows as Orca's sidebar: the name, its state quiet at
+   the row's end, what the app is for under them. */
+.app-list li { align-items: flex-start; }
+.app-list li > .dot { margin-top: 6px; }
+.app-list .stask-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 8px; row-gap: 1px; }
+.app-list .stask-num { justify-self: end; }
+.app-list .stask-sub { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+.app-list li > .count, .app-list li > .menu-box { align-self: center; }
 /* The open one: the dev page's chosen row, Orca's outline round it. */
 .app-list li.current, .stask-list li.current { background: var(--selected); box-shadow: inset 0 0 0 1px var(--line-strong); }
 .app-list .count { flex: none; background: var(--bad); }

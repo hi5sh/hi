@@ -6071,8 +6071,10 @@ Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
   with the model and effort beside Send; working dots that turn, chosen
   rows outlined, quiet meters, tinted warnings; the admin page's cards,
   code, links, weights, and sign-in card as the dev page's.
-- [ ] Release 2: the admin page's middle in cards, its left list as
-  Orca's sidebar, and how long the agent worked in the chat's fold.
+- [x] Release 2 (on main, not yet tagged): the admin page's Overview and
+  the server's in cards, its left list as Orca's sidebar (the state at
+  the row's end, what the app is for under it), and "Worked for 2m 14s"
+  in the chat's fold.
 - [x] Release 1's questions (v2.6.231): Geist served with the pages and
   the helper; the helper on apps in Orca's look; Orca's terminal in
   Ghostty's colours; the theme stays Orca.

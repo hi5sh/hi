@@ -39,11 +39,12 @@ its connection is cut (within about 45 seconds).
   open incidents, its addresses, and what it uses: its share of the CPU
   and the memory of its lead and its boxes together, and its folder on
   disk (measured every ten minutes). The page measures while it's open.
-- **Home** (left): the server and the apps;
-  the apps that are down or frozen, and the server's requests waiting,
-  counted on the icon. Pick one to open it in the middle.
-- **An app's Overview:** its state, addresses, members, owners, latest
-  releases, snapshots, and heartbeat, and its **Boxes**: each container
+- **Home** (left): the server and the apps, each with its state and what
+  it's for; the apps that are down or frozen, and the server's requests
+  waiting, counted on the icon. Pick one to open it in the middle.
+- **An app's Overview**, in cards: **Where it is** (its addresses and dev
+  page), **What to do**, **What it is** (its members, owners, snapshots,
+  and heartbeat), its latest **Releases**, and its **Boxes**: each container
   it has on the machine (the lead, production, Stage, the dev box, the
   memory, the proxies, the NetBird peer), running or not, with what it's
   for, how long it has run, its CPU and its memory against its limit,

@@ -2476,6 +2476,7 @@
     if (state) { chat.sitesSig = null; chatSites(); }
     chat.tools = {};
     chat.group = null;
+    chat.lastAt = 0;
     chat.pending = [];
     $("chat-title").textContent = "";
   }
@@ -2523,11 +2524,28 @@
       return counts[name] === 1 ? verb[0] : verb[1].replace("%d", counts[name]);
     }).join(", ");
   }
+  // How long a stretch of work took, as Orca's fold says it: "14s",
+  // "2m 14s", "1h 3m".
+  function workedFor(ms) {
+    var s = Math.round(ms / 1000);
+    if (s < 60) return s + "s";
+    if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60) + "s";
+    return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+  }
+  // A group of steps' line: how long they took, from what came before them
+  // to their last step, then what they did.
+  function groupLine(group) {
+    var took = group.start && group.end > group.start ? group.end - group.start : 0;
+    group.summary.textContent = (took >= 1000 ? "Worked for " + workedFor(took) + " · " : "") + groupSummary(group.counts);
+  }
   function chatEntry(entry) {
     var box = $("chat-entries");
     if (entry.t === "title") { $("chat-title").textContent = entry.text; return; }
+    var at = entry.at ? Date.parse(entry.at) : 0;
     if (entry.t === "result") {
       var tool = chat.tools[entry.id];
+      if (at && chat.group && tool && chat.group.body.contains(tool.box)) { chat.group.end = Math.max(chat.group.end, at); groupLine(chat.group); }
+      if (at) chat.lastAt = at;
       if (!tool) return;
       tool.result.textContent = entry.text || "(nothing)";
       tool.result.hidden = false;
@@ -2538,11 +2556,13 @@
       if (!chat.group) {
         var summary = el("summary");
         var body = el("div", { class: "fold-body" });
-        chat.group = { counts: {}, summary: summary, body: body };
+        var start = chat.lastAt || chat.turn || 0;
+        chat.group = { counts: {}, summary: summary, body: body, start: start, end: start };
         box.appendChild(el("details", { class: "fold tools" }, [summary, body]));
       }
       chat.group.counts[entry.name] = (chat.group.counts[entry.name] || 0) + 1;
-      chat.group.summary.textContent = groupSummary(chat.group.counts);
+      if (at) { chat.group.end = Math.max(chat.group.end, at); chat.lastAt = at; }
+      groupLine(chat.group);
       var result = el("pre", { class: "result", hidden: "" });
       var item = el("details", { class: "fold tool" }, [
         el("summary", {}, [toolIcon(entry.name), el("span", { class: "tool-name", text: entry.name }), el("span", { class: "tool-what", text: entry.summary || "" })]),
@@ -2554,6 +2574,7 @@
       return;
     }
     chat.group = null;
+    if (at) chat.lastAt = at;
     if (entry.t === "user") {
       if (entry.at) chat.turn = Date.parse(entry.at);
       var sent = chat.pending.shift();

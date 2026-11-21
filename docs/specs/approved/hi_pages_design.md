@@ -4,7 +4,7 @@ Status: Approved (2026-11-21): release 1, Orca's look on the admin page
 and the dev page alike (its colours by default, its chat box, its other
 elements), built in v2.6.230; its questions answered the same day (Geist
 served with the pages, the helper the same look, Orca's terminal, the
-theme named Orca), built in v2.6.231; release 2 next.
+theme named Orca), built in v2.6.231; release 2 built on main.
 
 Dependencies: [hi_admin.md](hi_admin.md) (the admin page),
 [hi_app_dev.md](hi_app_dev.md) (the dev page),
@@ -163,16 +163,22 @@ before release 1:
   bright black lifted for agents' quieter lines.
 - **The name** (question 4): Orca.
 
-## Release 2: the admin page's middle as the dev page's
+## Release 2: the admin page's middle as the dev page's (built)
 
-- An app's Overview in cards: where it is (its addresses and dev page),
-  what to do (its actions), what it is (its lead, members, channel,
-  owners), and its boxes; the server's Overview the same.
-- The left list's rows as Orca's sidebar: the name on its line, the
-  state quiet at the row's end, the open one outlined.
-- The chat's fold says how long the agent worked, from your message's
-  time to its answer's: "Worked for 2m 14s · Read a file, Edited 2
-  files".
+- An app's Overview in cards (admin.css's `.admin-cards`): **Where it
+  is** (its addresses and dev page, with the not-reachable callout) and
+  **What to do** (its actions, Rename and Remove, Tell the lead) side by
+  side where there's room; **What it is** (its lead, members, channel,
+  owners, snapshots, heartbeat), **Boxes**, and **Releases** the full
+  width; one column on a phone. The server's Overview the same: **The
+  server**, **Network**, **Model spend**.
+- The left list's rows as Orca's sidebar: the name, its state quiet at
+  the row's end, what the app is for on a second line; the open one
+  outlined, with Open ▾.
+- The chat's fold says how long the steps under it took, from what came
+  before them (your message, or the agent's last words) to their last
+  step, from the transcript's times: "Worked for 2m 14s · Read a file,
+  Edited 2 files". A transcript without times says what they did alone.
 
 ## Release 3: the docs page
 

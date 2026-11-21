@@ -342,7 +342,8 @@ function renderApps() {
   for (const app of apps) {
     const row = el("button", { class: "stask-row", onclick: () => openView(app.name), title: app.purpose || app.name },
       el("span", { class: "stask-title" }, app.name),
-      el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state));
+      el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state),
+      app.purpose ? el("span", { class: "stask-sub" }, app.purpose) : null);
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
     const unseen = unseenIncidents(app.name, app.incidents_opened);
     if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
@@ -554,6 +555,11 @@ function renderOverview() {
   parts.push(el("p", { class: "small" }, el("span", { class: "muted" }, "Models this month: "), dollars(d.month_usd), d.budget_monthly ? " of " + dollars(d.budget_monthly) : "", " ",
     el("button", { class: "link-button", "data-nav": "", onclick: () => showSection("spend") }, "Spend")));
 
+  // The rest in cards, as the dev page's Release view has them: where it
+  // is and what to do side by side, then what it is, its boxes, and its
+  // releases (dev.css's raised cards, admin.css's .admin-cards).
+  const cards = el("div", { class: "admin-cards" });
+
   // Where it is.
   // Every address goes through the app's NetBird peer: until it joins,
   // they're names nobody reaches, so they don't open.
@@ -564,12 +570,8 @@ function renderOverview() {
   }
   where.append(el("li", {}, el("span", { class: "what" }, el("strong", {}, "Dev page"), " ", el("span", { class: "muted small" }, d.dev_waits ? "once its dev box is on NetBird" : d.dev_page || "while the app runs")),
     d.joined ? el("button", { class: "small", onclick: () => openDevPage(d.name) }, "Open ↗") : ""));
-  parts.push(el("h2", {}, "Addresses"));
-  if (!d.joined) {
-    parts.push(el("p", { class: "note warn" }, "Not reachable yet: " + d.name + " hasn't joined NetBird, which its addresses go through. Give it a setup key in ",
-      el("button", { class: "link-button", onclick: () => showSection("network") }, "Network"), "."));
-  }
-  parts.push(where);
+  cards.append(card("Where it is", !d.joined ? el("p", { class: "note warn" }, "Not reachable yet: " + d.name + " hasn't joined NetBird, which its addresses go through. Give it a setup key in ",
+    el("button", { class: "link-button", onclick: () => showSection("network") }, "Network"), ".") : null, where));
 
   // What it can do.
   const actions = el("div", { class: "data-actions" });
@@ -582,8 +584,7 @@ function renderOverview() {
   if (stopped && stopped.paused) actions.append(button("Unpause", "unpause", { class: "primary" }));
   else if (up && !(stopped && stopped.frozen)) actions.append(button("Pause…", "pause"));
   actions.append(el("button", { onclick: () => moveApp(d.name) }, "Move…"));
-  parts.push(el("h2", {}, "Actions"), actions);
-  parts.push(el("div", { class: "data-actions danger-row" }, el("button", { onclick: () => renameApp(d.name) }, "Rename…"), el("button", { class: "danger", onclick: () => removeApp(d.name) }, "Remove…")));
+  const rarer = el("div", { class: "data-actions danger-row" }, el("button", { onclick: () => renameApp(d.name) }, "Rename…"), el("button", { class: "danger", onclick: () => removeApp(d.name) }, "Remove…"));
 
   // Tell the lead.
   const say = el("form", { class: "say-form", autocomplete: "off" },
@@ -595,7 +596,7 @@ function renderOverview() {
     if (!text) return;
     if (await act("say", { text })) $("say-text").value = "";
   });
-  if (up) parts.push(say);
+  cards.append(card("What to do", actions, rarer, up ? say : null));
 
   // Who works on it.
   const facts = el("dl", { class: "facts" });
@@ -606,10 +607,9 @@ function renderOverview() {
   fact("You", d.level === "none" ? "no level in this app" : d.level);
   fact("Dev", d.dev);
   facts.append(el("dt", {}, "Uses"), el("dd", { id: "overview-usage" }, usageLine(d.name) || "…"));
-  parts.push(el("h2", {}, "The app"), facts);
   const lines = [d.snapshot, d.heartbeat].filter(Boolean);
-  if (lines.length) parts.push(el("div", { class: "muted small lines" }, lines.map((line) => el("p", {}, line))));
-  parts.push(...boxesPart(d));
+  cards.append(wide(card("What it is", facts, lines.length ? el("div", { class: "muted small lines" }, lines.map((line) => el("p", {}, line))) : null)));
+  cards.append(wide(el("section", { class: "admin-card" }, ...boxesPart(d))));
 
   if (d.releases.length) {
     const releases = el("ul", { class: "list" });
@@ -617,14 +617,25 @@ function renderOverview() {
       releases.append(el("li", {}, el("span", { class: "what clamp3", title: release.notes || "" }, el("strong", {}, "v" + release.version), " ", release.notes || ""),
         el("span", { class: "muted small" }, ago(release.released))));
     }
-    parts.push(el("h2", {}, "Releases"), releases);
+    cards.append(wide(card("Releases", releases)));
   }
+  parts.push(cards);
   box.replaceChildren(...parts);
   if (typing && $("say-text")) {
     $("say-text").value = typing.text;
     if (typing.focus) $("say-text").focus();
   }
   renderOpenMenu();
+}
+
+// card is one of an Overview's cards: its title, then what it holds; wide
+// ones take the row.
+function card(title, ...children) {
+  return el("section", { class: "admin-card" }, el("h2", {}, title), ...children);
+}
+function wide(node) {
+  node.classList.add("wide");
+  return node;
 }
 
 // An app's boxes: each container it has on the machine, running or not,
@@ -1641,8 +1652,11 @@ function orgOverview(s) {
   const parts = [];
   if (o.no_owner) parts.push(el("p", { class: "warn" }, "No owner yet. On the machine: ", el("code", {}, "hi server owner <Slack member ID> --email <address>")));
   if (o.up) parts.push(el("div", { class: "card-box org-card" }, orgStats(o)));
-  parts.push(heading("The server"), orgServerBlock(s));
-  if (s && s.net) parts.push(heading("Network"), orgNetBlock(s.net));
+  // In cards, as an app's Overview.
+  const cards = el("div", { class: "admin-cards" });
+  parts.push(cards);
+  cards.append(card("The server", orgServerBlock(s)));
+  if (s && s.net) cards.append(card("Network", orgNetBlock(s.net)));
   const apps = (state.apps || []).filter((a) => !a.error);
   if (apps.length) {
     const t = el("table", { class: "people-matrix spend-table" });
@@ -1653,7 +1667,7 @@ function orgOverview(s) {
       t.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.name); showSection("spend"); } }, a.name)), el("td", {}, dollars(a.month_usd))));
     }
     t.append(el("tr", {}, el("th", { scope: "row" }, "All"), el("td", {}, el("strong", {}, dollars(total)))));
-    parts.push(heading("Model spend"), el("div", { class: "matrix-scroll" }, t));
+    cards.append(wide(card("Model spend", el("div", { class: "matrix-scroll" }, t))));
   }
   if (state.org_apart) parts.push(el("p", { class: "muted small" }, "This machine runs apps too. Its admins run the apps; the server's owner and admins (Admins) run the server."));
   return parts;
