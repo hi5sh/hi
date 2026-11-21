@@ -6063,7 +6063,7 @@ development loop is frozen and goes in release 4.
 
 Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
 
-- [x] Release 1 (on main, not yet tagged): Orca's look on the admin page
+- [x] Release 1 (v2.6.230): Orca's look on the admin page
   and the dev page alike. Orca's colours by default (Auto's dark too; a
   picked theme stays picked); the chat's steps as rows of an icon, a
   verb, and what they touched, under a line that folds them; a turning
@@ -6982,6 +6982,22 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.230 — Orca's look on both pages, by default
+
+- [x] The admin page and the dev page open in Orca's colours (measured
+  from orca.dev's app): the work near-black, a lighter left panel, white
+  for the one action, colour only for state. Auto's dark is Orca's; a
+  theme someone picked stays picked. Spec:
+  [hi_pages_design.md](specs/approved/hi_pages_design.md), release 1.
+- [x] The chat: each group of steps under one fold with a hairline, each
+  step its icon, its verb, and what it touched in monospace; a turning
+  ring and a running light while the agent works. The message box: `+`
+  to attach, the model and effort beside Stop and Send.
+- [x] On both pages: working dots turn, chosen rows are outlined, cards
+  lift, meters stay gray until they matter, warnings are a tinted
+  callout; the admin page's cards, code, links, and weights are the dev
+  page's, and both sign-ins are the same card.
 
 ### v2.6.229 — The project to adopt is asked once, at the Code step
 

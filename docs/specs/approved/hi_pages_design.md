@@ -2,8 +2,8 @@
 
 Status: Approved (2026-11-21): release 1, Orca's look on the admin page
 and the dev page alike (its colours by default, its chat box, its other
-elements); built on main, not yet released. Each later release waits for
-its questions below.
+elements); built in v2.6.230. Each later release waits for its questions
+below.
 
 Dependencies: [hi_admin.md](hi_admin.md) (the admin page),
 [hi_app_dev.md](hi_app_dev.md) (the dev page),
@@ -114,7 +114,7 @@ before release 1:
 20. **The terminal** takes the work's colour; Orca keeps Ghostty's in
     its neutral app. Question 3.
 
-## Release 1: Orca's look (built 2026-11-21)
+## Release 1: Orca's look (v2.6.230)
 
 - **Orca's colours, by default** (`dev.css`, `theme.js`): a theme of
   its own, first in the picker after Auto, and Auto's dark. Its lines,
