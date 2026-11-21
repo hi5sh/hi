@@ -6071,7 +6071,7 @@ Spec: [hi_pages_design.md](specs/approved/hi_pages_design.md).
   with the model and effort beside Send; working dots that turn, chosen
   rows outlined, quiet meters, tinted warnings; the admin page's cards,
   code, links, weights, and sign-in card as the dev page's.
-- [x] Release 2 (on main, not yet tagged): the admin page's Overview and
+- [x] Release 2 (v2.6.232): the admin page's Overview and
   the server's in cards, its left list as Orca's sidebar (the state at
   the row's end, what the app is for under it), and "Worked for 2m 14s"
   in the chat's fold.
@@ -6986,6 +6986,17 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.232 — The admin page's Overviews in cards; how long the steps took
+
+- [x] An app's Overview and the server's are cards, as the dev page's
+  Release view: where it is and what to do side by side, then what it
+  is, its boxes, and its releases; one column on a phone. Spec:
+  [hi_pages_design.md](specs/approved/hi_pages_design.md), release 2.
+- [x] The admin page's list of apps reads as Orca's sidebar: each app's
+  state at the row's end, what it's for under its name.
+- [x] The chat's fold over the agent's steps says how long they took:
+  "Worked for 2m 14s · Read a file, Edited 2 files".
 
 ### v2.6.231 — Geist, the helper in Orca's look, and Orca's terminal
 

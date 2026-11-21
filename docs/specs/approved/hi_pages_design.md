@@ -4,7 +4,7 @@ Status: Approved (2026-11-21): release 1, Orca's look on the admin page
 and the dev page alike (its colours by default, its chat box, its other
 elements), built in v2.6.230; its questions answered the same day (Geist
 served with the pages, the helper the same look, Orca's terminal, the
-theme named Orca), built in v2.6.231; release 2 built on main.
+theme named Orca), built in v2.6.231; release 2, built in v2.6.232.
 
 Dependencies: [hi_admin.md](hi_admin.md) (the admin page),
 [hi_app_dev.md](hi_app_dev.md) (the dev page),
@@ -163,7 +163,7 @@ before release 1:
   bright black lifted for agents' quieter lines.
 - **The name** (question 4): Orca.
 
-## Release 2: the admin page's middle as the dev page's (built)
+## Release 2: the admin page's middle as the dev page's (v2.6.232)
 
 - An app's Overview in cards (admin.css's `.admin-cards`): **Where it
   is** (its addresses and dev page, with the not-reachable callout) and
