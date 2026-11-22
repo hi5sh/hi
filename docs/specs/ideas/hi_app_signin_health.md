@@ -52,6 +52,13 @@ Found on the way:
   `User-Agent`, and for a request naming the project from
   `loadCodeAssist`; agy's own `User-Agent` and an empty body work.
 - The usage answers carry the account's email; hi never posts it.
+- agy's quota summary lists only the group of other makers' models
+  agy offers ("Claude and GPT models": weekly and 5-hour buckets); the
+  Gemini models aren't in it, so their limits show only when agy refuses
+  a call (its logs). `loadCodeAssist` names the plan (`paidTier`, such as
+  `g1-pro-tier` for Google AI Pro) beside the free tier. Checked on a
+  second machine with agy 1.5.14 and a fresh machine sign-in: `agy
+  models` in 1.1 s, then the summary.
 
 ## The health record
 
