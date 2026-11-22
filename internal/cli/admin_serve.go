@@ -144,6 +144,8 @@ func adminServe(stderr io.Writer) error {
 	}
 	go s.keepReach(ctx)
 	go s.latestVersion()
+	// The apps' sign-ins, told in the server's channel (admin_signin_health.go).
+	go s.keepSigninNews(ctx)
 	config, _ := loadAdminConfig()
 	s.logf("the admin page runs hi %s, at %s", version, adminURL(config))
 	<-ctx.Done()
@@ -865,6 +867,10 @@ type adminAppView struct {
 	// BudgetMonthly its monthly budget, if it has one.
 	MonthUSD      float64 `json:"month_usd"`
 	BudgetMonthly float64 `json:"budget_monthly,omitempty"`
+	// Signins are its agents' subscriptions, and SigninWorst the worst
+	// state of one that doesn't work as it should (admin_signin_health.go).
+	Signins     []adminSignin `json:"signins"`
+	SigninWorst string        `json:"signin_worst,omitempty"`
 }
 
 type adminAddress struct {
@@ -888,7 +894,7 @@ func adminAppState(name string) string {
 }
 
 func adminAppOf(name string) adminAppView {
-	view := adminAppView{Name: name, Addresses: []adminAddress{}}
+	view := adminAppView{Name: name, Addresses: []adminAddress{}, Signins: []adminSignin{}}
 	config, err := loadTeam(name)
 	if err != nil {
 		view.State, view.Error = "broken", err.Error()
@@ -914,6 +920,8 @@ func adminAppOf(name string) adminAppView {
 		}
 	}
 	view.MonthUSD = appMonthUSD(name)
+	view.Signins = adminSigninsOf(name)
+	view.SigninWorst = adminSigninWorst(view.Signins)
 	if config.ModelBudget != nil {
 		view.BudgetMonthly = config.ModelBudget.Monthly
 	}

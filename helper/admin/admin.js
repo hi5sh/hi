@@ -301,6 +301,36 @@ function stateClass(s) {
 }
 function stateDot(s) { return el("span", { class: "dot " + stateClass(s), "aria-hidden": "true" }); }
 
+// An app's sign-ins (Claude, ChatGPT, agy): whether each works, as its
+// service last checked (admin_signin_health.go).
+const signinWords = { ok: "works", low: "nearly used up", limited: "limit reached", "signed-out": "signed out", expiring: "about to end", unknown: "not checked yet" };
+function signinClass(s) {
+  if (s === "ok") return "idle";
+  if (s === "low" || s === "expiring") return "blocked";
+  if (s === "limited" || s === "signed-out") return "bad";
+  return "";
+}
+function signinSource(source) {
+  if (source === "own") return "its own";
+  if (source === "machine") return "the machine's";
+  return source || "";
+}
+function signinWhen(t) {
+  if (!t) return "";
+  const d = new Date(t);
+  return d.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+// signinLine is one sign-in in words: what it is, how it is, and why.
+function signinLine(g) {
+  const bits = [signinWords[g.state] || g.state];
+  if (g.state !== "signed-out" && g.weekly_left !== undefined && g.weekly_left !== null) bits.push(g.weekly_left + "% of the weekly limit left");
+  if (g.resets && (g.state === "limited" || g.state === "low")) bits.push((g.state === "limited" ? "until " : "resets ") + signinWhen(g.resets));
+  return bits.join(", ");
+}
+function signinTitle(app) {
+  return (app.signins || []).filter((g) => g.state !== "ok" && g.state !== "unknown").map((g) => g.label + ": " + (g.why || signinWords[g.state])).join(" · ");
+}
+
 // movedOpen says the open app moved to another machine: it has no
 // sections, menu, or logs here.
 function movedOpen() {
@@ -345,6 +375,9 @@ function renderApps() {
       el("span", { class: "stask-num" }, app.state === "up" ? (app.production ? "v" + app.production : "") : stateWords[app.state] || app.state),
       app.purpose ? el("span", { class: "stask-sub" }, app.purpose) : null);
     const li = el("li", { class: app.name === openApp ? "current" : "" }, stateDot(app.state), row);
+    if (app.signin_worst) {
+      li.append(el("span", { class: "count signin-mark " + signinClass(app.signin_worst), title: "Sign-ins: " + signinTitle(app) }, "!"));
+    }
     const unseen = unseenIncidents(app.name, app.incidents_opened);
     if (unseen) li.append(el("span", { class: "count", "data-app": app.name, title: unseen + " open incident" + (unseen === 1 ? "" : "s") + " not seen in Incidents yet" }, unseen));
     if (app.name === openApp) li.dataset.app = app.name;
@@ -597,6 +630,7 @@ function renderOverview() {
     if (await act("say", { text })) $("say-text").value = "";
   });
   cards.append(card("What to do", actions, rarer, up ? say : null));
+  if ((d.signins || []).length) cards.append(signinsCard(d));
 
   // Who works on it.
   const facts = el("dl", { class: "facts" });
@@ -626,6 +660,23 @@ function renderOverview() {
     if (typing.focus) $("say-text").focus();
   }
   renderOpenMenu();
+}
+
+// signinsCard is the Overview's Sign-ins: each subscription the app's
+// agents run on, whether it works, and what to do when it doesn't.
+function signinsCard(d) {
+  const list = el("ul", { class: "list signin-list" });
+  for (const g of d.signins) {
+    const about = [signinSource(g.source) + (g.source && g.source.startsWith("shared/") ? "" : " sign-in"), g.plan].filter(Boolean).join(", ");
+    const item = el("li", {}, el("span", { class: "what" },
+      el("span", { class: "dot " + signinClass(g.state), "aria-hidden": "true" }), " ", el("strong", {}, g.label), " ",
+      el("span", { class: "muted small" }, about),
+      el("div", { class: "small" + (g.state === "signed-out" || g.state === "limited" ? " error" : g.state === "low" || g.state === "expiring" ? " warn" : "") }, signinLine(g) + (g.why && (g.state === "signed-out" || g.state === "expiring") ? ": " + g.why : "")),
+      g.fix ? el("div", { class: "muted small" }, g.fix) : null),
+      el("span", { class: "muted small", title: g.seen ? new Date(g.seen).toLocaleString() : "" }, g.seen ? "seen " + ago(g.seen) : ""));
+    list.append(item);
+  }
+  return card("Sign-ins", el("p", { class: "muted small" }, "The subscriptions its agents run on. The server's channel hears when one stops working, or has less than 10% of its weekly limit left."), list);
 }
 
 // card is one of an Overview's cards: its title, then what it holds; wide
@@ -3130,6 +3181,15 @@ function sectionPeople(s) {
     list, el("h2", {}, "Add someone"), add, el("p", { class: "muted small" }, "By email, with Slack or without: someone in the app's Slack workspace is added as their Slack account there. Their SSH key, sign-ins, and other apps: People, on the left.")];
 }
 
+// signinNote is how the open app's sign-in of a kind is, for Agents.
+function signinNote(kind) {
+  const app = state && state.apps.find((a) => a.name === openApp);
+  const g = app && (app.signins || []).find((x) => x.kind === kind);
+  if (!g || g.state === "unknown") return "";
+  return el("p", { class: "small key-status" }, el("span", { class: "dot " + signinClass(g.state), "aria-hidden": "true" }),
+    el("span", {}, signinLine(g) + (g.why && (g.state === "signed-out" || g.state === "expiring") ? ": " + g.why : "") + (g.seen ? " (seen " + ago(g.seen) + ")" : "")));
+}
+
 function sectionAgents(s) {
   const parts = [el("p", { class: "purpose" }, "Each role's model, who pays for it, and how hard it thinks; the app restarts when one changes. The same as hi app member.")];
   for (const m of s.members) {
@@ -3170,13 +3230,14 @@ function sectionAgents(s) {
   parts.push(el("h2", {}, "Keys and sign-ins"), or);
   if (s.uses_chatgpt) {
     parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "ChatGPT: "), s.chatgpt ? "the app's own sign-in, " + s.chatgpt : "this machine's sign-in, Codex's" + (s.machine_chatgpt ? "" : ", which isn't signed in")),
-      s.chatgpt_failed ? el("p", { class: "error small" }, "It stopped working: " + s.chatgpt_failed + ". Sign in again.") : "",
+      s.chatgpt_failed ? el("p", { class: "error small" }, "It stopped working: " + s.chatgpt_failed + ". Sign in again.") : signinNote("chatgpt"),
       el("div", { class: "data-actions" }, el("button", { class: "small", onclick: () => change("chatgpt", {}, "Signing in: the code to type is in Jobs") }, s.chatgpt ? "Sign in again" : "Sign the app in"),
         s.chatgpt ? el("button", { class: "small", onclick: () => change("chatgpt", { machine: true }) }, "Use this machine's") : "")));
   }
   if (s.uses_claude) {
     const clShared = useSharedRow(s, s.claude_from, "A Claude token, sk-ant-oat…, from claude setup-token signed in to the account that pays.", (from) => change("claude", { from }, "The app's Claude members use " + from + "."));
     parts.push(el("div", { class: "machine-block" }, el("p", {}, el("strong", {}, "Claude: "), s.claude_from ? s.claude_from + ", a shared key from the vault" : s.own_claude ? "the app's own token" : "this machine's sign-in" + (s.machine_claude ? "" : ", which isn't there")),
+      signinNote("claude"),
       el("div", { class: "data-actions" }, el("button", { class: "small", onclick: async () => { const answer = await ask({ title: "The app's own Claude token", text: "From claude setup-token, signed in to the account that pays; it lasts a year. Kept on the machine, never shown again.", ok: "Keep it", field: "sk-ant-oat…" }); if (answer) change("claude", { key: answer.field }, "The app has its own Claude token."); } }, s.own_claude ? "Replace the token" : "Give it its own token"),
         clShared.button,
         s.own_claude || s.claude_from ? el("button", { class: "small", onclick: () => change("claude", { machine: true }) }, "Use this machine's") : ""),
@@ -4118,10 +4179,17 @@ function machineKeysBlock() {
     el("p", { class: "muted small" }, "Apps without their own use these. An app's own are in its Agents section."));
   if (k.apps.length) {
     const table = el("table", { class: "people-matrix" });
-    table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT")));
+    table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "OpenRouter"), el("th", {}, "Claude"), el("th", {}, "ChatGPT"), el("th", {}, "agy")));
     for (const a of k.apps) {
+      const states = a.states || {};
+      const cell = (v, kind) => {
+        const words = v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—";
+        const st = kind && v ? states[kind] : "";
+        return el("td", { class: (v === "own" || String(v).startsWith("shared/") ? "" : "muted") + " nowrap", title: st ? signinWords[st] || st : "" },
+          st ? el("span", { class: "dot " + signinClass(st), "aria-hidden": "true" }) : "", st ? " " : "", words);
+      };
       table.append(el("tr", {}, el("th", { scope: "row" }, el("button", { class: "link-button", onclick: async () => { await openView(a.app); showSection("agents"); } }, a.app)),
-        ...[a.openrouter, a.claude, a.chatgpt].map((v) => el("td", { class: v === "own" || String(v).startsWith("shared/") ? "" : "muted" }, v === "own" ? "its own" : v === "machine" ? "the machine's" : String(v).startsWith("shared/") ? v : "—"))));
+        cell(a.openrouter, ""), cell(a.claude, "claude"), cell(a.chatgpt, "chatgpt"), cell(a.agy, "agy")));
     }
     box.append(el("h2", {}, "The apps'"), el("div", { class: "matrix-scroll" }, table));
   }

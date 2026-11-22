@@ -6989,6 +6989,27 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.236 — Sign-in health: the server's channel and the admin page
+
+Spec: [hi_app_signin_health.md](specs/approved/hi_app_signin_health.md).
+
+- [x] Each app's service keeps a record of each subscription its agents
+  run on, Claude's, ChatGPT's, and agy's: whether it works, its plan, and
+  how much of its weekly limit is left. From the proxies (the plan's
+  usage on every answer, refusals; the dev box's now too) and from checks
+  that spend nothing: Claude's `count_tokens` (or the machine's sign-in's
+  usage), ChatGPT's `wham/usage`, and `agy models` in the dev box with
+  Google's quota summary.
+- [x] The admin page shows them: **!** on the app's row, a **Sign-ins**
+  card on its Overview, a line under Claude and ChatGPT in Agents, and agy
+  and a dot per sign-in in Keys.
+- [x] The hi server's Slack channel hears when a sign-in stops working,
+  reaches its limit, has under 10% of its weekly limit left, or is about
+  to end: once per sign-in, naming the apps that share it, and "works
+  again" after it stopped.
+- [x] A running dev box's proxy gets the new hi after an update, once no
+  agent in the box is at work.
+
 ### v2.6.235 — ⌖ on a page the browser kept
 
 - [x] ⌖ answered on production but not on the preview when the browser

@@ -43,7 +43,7 @@ its connection is cut (within about 45 seconds).
   it's for; the apps that are down or frozen, and the server's requests
   waiting, counted on the icon. Pick one to open it in the middle.
 - **An app's Overview**, in cards: **Where it is** (its addresses and dev
-  page), **What to do**, **What it is** (its members, owners, snapshots,
+  page), **What to do**, **Sign-ins**, **What it is** (its members, owners, snapshots,
   and heartbeat), its latest **Releases**, and its **Boxes**: each container
   it has on the machine (the lead, production, Stage, the dev box, the
   memory, the proxies, the NetBird peer), running or not, with what it's
@@ -57,6 +57,16 @@ its connection is cut (within about 45 seconds).
   **Move…** picks another machine, shows what it has and lacks for the
   app, and moves it as a job; the app then stays on Home as moved, with
   where it went.
+- **Sign-ins:** the subscriptions the app's agents run on, Claude's,
+  ChatGPT's, and agy's: whose (its own, a shared key, or the machine's),
+  the plan, whether it works, how much of its weekly limit is left and
+  when it resets, and who signs it in again when it stopped. The app's
+  service checks each without spending it, hourly (ChatGPT's every 15
+  minutes), and learns the rest from the agents' own calls. An app whose
+  sign-in stopped, reached its limit, or has under 10% of its weekly
+  limit left gets **!** on Home: red when it stopped, amber when low. The
+  server's Slack channel hears it too, once per sign-in, naming the apps
+  that share it, and again when one that stopped works again.
 - **Open ▾:** production, Stage, and the app's **dev page**, opened as
   you are in the app: an owner or developer with a link of their own. An
   admin with no level there gets **Make me an owner** instead, which is
@@ -230,7 +240,8 @@ without a server it says **Admins**, the machine's own. The same as `hi people` 
 [People and signing in by email](/guide/app/people/)). The server's users are the
 server's (its **Users**), not here. **Keys** has whether the server's
 vault is open, the machine's keys and sign-ins (Hermes' OpenRouter key,
-Claude Code's, and Codex's), which apps use their own or a shared one, and
+Claude Code's, and Codex's), which apps use their own or a shared one
+(agy too), with a dot for whether each works, and
 **Email**: the SMTP account the machine sends sign-in links and
 invitations through, with **Send a test** (`hi server mail`); the
 server's are in its **Keys**.

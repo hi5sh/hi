@@ -388,3 +388,11 @@ body.no-machine-changes :is(#home-new, #apps-new) { pointer-events: none; opacit
 #side-apps .logs-tools { padding-bottom: 6px; }
 #org-sections, #sections { flex-wrap: wrap; row-gap: 4px; min-width: 0; }
 #org-sections button, #sections button { white-space: nowrap; }
+
+/* An app's sign-ins: a mark in the list when one doesn't work as it
+   should (admin_signin_health.go), red when it stopped, amber when low. */
+.app-list .count.signin-mark { font-weight: 700; }
+.app-list .count.signin-mark.blocked { background: var(--dot-warn); color: #1a1a1a; }
+.signin-list .dot { display: inline-block; margin-top: 0; vertical-align: middle; }
+.signin-list .warn { color: var(--warn); }
+.people-matrix td .dot { display: inline-block; margin-top: 0; vertical-align: middle; }

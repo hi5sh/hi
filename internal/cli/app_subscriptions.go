@@ -671,6 +671,7 @@ func (b *appBroker) keepSubscriptions(done <-chan struct{}, stderr io.Writer) {
 				lastPrepare = time.Now()
 			}
 			b.tellSubscriptions(config, time.Now())
+			b.keepSigninHealth(time.Now(), stderr)
 		}
 		select {
 		case <-done:

@@ -1,6 +1,6 @@
 # Sign-in health: when an app's subscription stops working
 
-Status: Draft (2026-11-22).
+Status: Approved (2026-11-22). Built in v2.6.236 (see [As built](#as-built-v26236)).
 
 Dependencies: [hi_app_subscriptions.md](../approved/hi_app_subscriptions.md)
 (the sign-ins, the proxy's refusals and fallback, "told once"),
@@ -157,6 +157,8 @@ the figure moves. The app's own ops channel keeps its messages as now.
 2. The server's channel.
 3. agy: the hourly check in the dev box and its quota.
 
+All three were built together, in v2.6.236.
+
 ## Open questions
 
 - Members' and the lead's boxes run the same CLIs through proxies, so
@@ -165,3 +167,45 @@ the figure moves. The app's own ops channel keeps its messages as now.
 - The quota summary and `wham/usage` are the CLIs' own endpoints, not
   documented APIs; hi should treat an unexpected answer as `unknown`, not
   as broken.
+
+## As built (v2.6.236)
+
+All three releases at once, as above, except:
+
+- **Which proxies note the usage.** Every proxy that falls back to
+  OpenRouter, the members' and the dev box's, writes a `usage` line to the
+  app's events file when the plan's figures change, or every 30 minutes:
+  `usage <role> <claude|chatgpt> status=allowed|rejected weekly=0.0234
+  weekly_reset=<unix> reset=<unix>`. The lead's proxy doesn't; the
+  ChatGPT check covers the lead.
+- **The dev box's proxy gets a new hi.** A running dev box keeps its proxy
+  across updates, with the hi it started with. The app's service restarts
+  that proxy once when the machine's hi is newer, and only while no agent
+  in the box is at work, since a restart cuts the calls it is making.
+- **Claude's check.** A setup token (the app's own, a shared key, or `hi
+  agent token claude`) is checked with `count_tokens`; the machine's own
+  Claude Code sign-in reads `api/oauth/usage`, the weekly figure with it.
+  A setup token's weekly figure comes only from the agents' calls, so an
+  idle app shows the last one seen, with when.
+- **Expiry.** An app's own token 365 days after `ClaudeSignedIn`, `hi
+  agent token claude`'s from its file's time, the machine's sign-in from
+  `refreshTokenExpiresAt`. A shared key has no date of its own to go by.
+- **Checks' timing.** Claude and agy hourly, ChatGPT every 15 minutes;
+  every 10 minutes while signed out, after an error, or while the dev box
+  (for agy) isn't running. A check that errs leaves what was known.
+- **A sign-in that changes** (a new token, another account) starts a new
+  record. When the app's secrets can't be read (a sealed vault), the
+  records stay as they were.
+- **The channel.** Posted by the admin page's process (`hi server
+  __page`) through the server's Slack app, each minute, from the records
+  of its machine's apps. What it said is kept per credential in the admin
+  page's folder (`signin-told.json`). A limit is said once per limit (by
+  when it lifts) and its lifting says nothing; "works again" follows only
+  "stopped working". Each message names the machine.
+- **The admin page.** A **!** on the app's row on Home (red stopped or at
+  its limit, amber low or expiring) with the sign-ins on hover; a
+  **Sign-ins** card on the Overview; how each works under Claude and
+  ChatGPT in the app's Agents; and in Keys an agy column and a dot by each
+  app's sign-in.
+- The app's own ops channel keeps its "told once" messages, as the open
+  question suggested.

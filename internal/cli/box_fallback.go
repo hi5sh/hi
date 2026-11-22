@@ -49,6 +49,90 @@ type boxFallback struct {
 	mu    sync.Mutex
 	until time.Time
 	now   func() time.Time // tests set it
+	// usage is the last usage line written, and when: a new one only when
+	// it changes, or after boxUsageEvery (hi_app_signin_health.md).
+	usage   string
+	usageAt time.Time
+}
+
+// boxUsageEvery is how often the proxy writes the plan's usage again when
+// it hasn't changed, so the app's service knows it's current.
+const boxUsageEvery = 30 * time.Minute
+
+// boxPlanUsage reads what a subscription's answer says of its plan's
+// limits: Claude's anthropic-ratelimit-unified-* headers, ChatGPT's
+// x-codex-primary-* and -secondary-*. status is allowed or rejected,
+// weekly the share of the weekly limit used (-1 when unsaid), and reset
+// when a rejected limit lifts. ok is false when it says nothing.
+func boxPlanUsage(kind string, header http.Header) (status string, weekly float64, weeklyReset, reset int64, ok bool) {
+	weekly = -1
+	number := func(name string) (float64, bool) {
+		value, err := strconv.ParseFloat(strings.TrimSpace(header.Get(name)), 64)
+		return value, err == nil
+	}
+	if kind == appProviderChatGPT {
+		for _, window := range []string{"primary", "secondary"} {
+			used, okUsed := number("x-codex-" + window + "-used-percent")
+			minutes, okMinutes := number("x-codex-" + window + "-window-minutes")
+			if !okUsed {
+				continue
+			}
+			ok = true
+			at, _ := number("x-codex-" + window + "-reset-at")
+			if used >= 100 {
+				status, reset = "rejected", max(reset, int64(at))
+			}
+			// The weekly window: a week, or more.
+			if okMinutes && minutes >= 6*24*60 {
+				weekly, weeklyReset = used/100, int64(at)
+			}
+		}
+		if ok && status == "" {
+			status = "allowed"
+		}
+		return status, weekly, weeklyReset, reset, ok
+	}
+	status = strings.ToLower(strings.TrimSpace(header.Get("anthropic-ratelimit-unified-status")))
+	if used, okUsed := number("anthropic-ratelimit-unified-7d-utilization"); okUsed {
+		weekly = used
+		at, _ := number("anthropic-ratelimit-unified-7d-reset")
+		weeklyReset = int64(at)
+	}
+	if status == "" && weekly < 0 {
+		return "", -1, 0, 0, false
+	}
+	if status != "rejected" {
+		status = "allowed" // allowed_warning too
+	} else if at, okAt := number("anthropic-ratelimit-unified-reset"); okAt {
+		reset = int64(at)
+	}
+	return status, weekly, weeklyReset, reset, true
+}
+
+// observe writes the plan's usage from a subscription's answer to the
+// team's events file: "<time> usage <role> <kind> status=… weekly=…
+// weekly_reset=… reset=…", when it changed or boxUsageEvery passed.
+func (f *boxFallback) observe(header http.Header) {
+	status, weekly, weeklyReset, reset, ok := boxPlanUsage(firstNonEmpty(f.kind, "claude"), header)
+	if !ok || f.events == "" {
+		return
+	}
+	shown := "-"
+	if weekly >= 0 {
+		shown = strconv.FormatFloat(weekly, 'f', 4, 64)
+	}
+	line := fmt.Sprintf("status=%s weekly=%s weekly_reset=%d reset=%d", status, shown, weeklyReset, reset)
+	// Changed means another percent used, or another state.
+	same := fmt.Sprintf("%s %.0f %d %d", status, weekly*100, weeklyReset, reset)
+	f.mu.Lock()
+	now := f.clock()
+	if same == f.usage && now.Sub(f.usageAt) < boxUsageEvery {
+		f.mu.Unlock()
+		return
+	}
+	f.usage, f.usageAt = same, now
+	f.mu.Unlock()
+	f.event("usage", firstNonEmpty(f.role, "member"), firstNonEmpty(f.kind, "claude"), line)
 }
 
 func (f *boxFallback) clock() time.Time {
@@ -225,6 +309,7 @@ func newBoxFailover(primary http.Handler, fallback *boxFallback) http.Handler {
 		r.ContentLength = int64(len(body))
 		held := &boxHeldResponse{w: w, header: http.Header{}}
 		primary.ServeHTTP(held, r)
+		fallback.observe(held.header)
 		if !held.hold {
 			return
 		}

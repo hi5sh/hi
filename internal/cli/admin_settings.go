@@ -629,6 +629,9 @@ type adminAppKeysInUse struct {
 	OpenRouter string `json:"openrouter"` // own or machine
 	Claude     string `json:"claude,omitempty"`
 	ChatGPT    string `json:"chatgpt,omitempty"`
+	Agy        string `json:"agy,omitempty"` // own or machine
+	// States are how its sign-ins are, by kind (admin_signin_health.go).
+	States map[string]string `json:"states,omitempty"`
 }
 
 func adminMachineKeysOf() adminMachineKeys {
@@ -654,6 +657,23 @@ func adminMachineKeysOf() adminMachineKeys {
 		}
 		if appUsesChatGPT(config) {
 			use.ChatGPT = map[bool]string{true: "own", false: "machine"}[secrets.ChatGPT != nil]
+		}
+		if secrets.Agy != nil {
+			use.Agy = map[bool]string{true: "machine", false: "own"}[secrets.Agy.Machine]
+		}
+		for _, signin := range adminSigninsOf(app) {
+			if use.States == nil {
+				use.States = map[string]string{}
+			}
+			use.States[signin.Kind] = signin.State
+			// The dev box runs Claude Code, and Codex, on the app's sign-ins
+			// whatever its members are.
+			if signin.Kind == "claude" && use.Claude == "" {
+				use.Claude = signin.Source
+			}
+			if signin.Kind == appProviderChatGPT && use.ChatGPT == "" {
+				use.ChatGPT = signin.Source
+			}
 		}
 		keys.Apps = append(keys.Apps, use)
 	}
