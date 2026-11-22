@@ -182,6 +182,13 @@ All three releases at once, as above, except:
   across updates, with the hi it started with. The app's service restarts
   that proxy once when the machine's hi is newer, and only while no agent
   in the box is at work, since a restart cuts the calls it is making.
+  v2.6.237: the restart runs in a systemd scope of its own
+  (`appOutsideService`), as hi's other containers' starts do. Run from
+  the service, podman left the proxy's monitor (conmon) in the service's
+  cgroup: four of nine restarts in v2.6.236 failed and left the proxy
+  stopped, and those that worked would have stopped with the service's
+  next restart. Since then the service also starts a stopped proxy again,
+  each minute, while its dev box runs.
 - **Claude's check.** A setup token (the app's own, a shared key, or `hi
   agent token claude`) is checked with `count_tokens`; the machine's own
   Claude Code sign-in reads `api/oauth/usage`, the weekly figure with it.

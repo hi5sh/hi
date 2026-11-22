@@ -6989,6 +6989,16 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.237 — The dev box's proxy restarted outside the app's service
+
+- [x] v2.6.236's restart of a dev box's proxy, for the new hi, ran podman
+  from the app's service, which kept the proxy's monitor in the service's
+  cgroup: on 4 of 9 dev boxes it failed and left the proxy stopped (and
+  the box offline) until it was started by hand, and the rest would have
+  stopped with the service's next restart. The restart now runs in a
+  systemd scope of its own, as the app's other containers' starts do,
+  and the service starts a stopped proxy again while its dev box runs.
+
 ### v2.6.236 — Sign-in health: the server's channel and the admin page
 
 Spec: [hi_app_signin_health.md](specs/approved/hi_app_signin_health.md).

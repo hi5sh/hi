@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -771,13 +772,42 @@ func updateAppSigninHealth(name string, now time.Time, stderr io.Writer) {
 // appDevProxyFresh are the apps whose dev box's proxy runs this hi.
 var appDevProxyFresh sync.Map
 
-// refreshDevProxy restarts the dev box's proxy when it runs an older hi
-// than the machine's, so what a new hi's proxy notes (the plans' usage)
-// reaches a dev box that keeps running across updates. Only while no agent
-// in the box is at work: a restart cuts the calls it is making.
+// appDevProxyDo runs podman (or docker) on the dev box's proxy outside the
+// app's service (appOutsideService): a container the service starts has
+// its monitor in the service's cgroup otherwise, and goes when the service
+// does. Tests replace it.
+var appDevProxyDo = func(engine boxEngine, args ...string) (string, error) {
+	name, args := appOutsideService(engine.bin, args)
+	out, err := exec.Command(name, args...).CombinedOutput()
+	return string(out), err
+}
+
+// refreshDevProxy keeps the dev box's proxy up, and gives it a new hi.
+// While the box runs, a proxy that stopped (a restart that failed, or one
+// whose monitor went with an older service) is started again. A proxy that
+// runs an older hi than the machine's is restarted, so what a new hi's
+// proxy notes (the plans' usage) reaches a dev box that keeps running
+// across updates; only while no agent in the box is at work, since a
+// restart cuts the calls it is making.
 func (b *appBroker) refreshDevProxy(now time.Time, stderr io.Writer) {
-	// Once its proxy runs this hi, or the box isn't up (it starts with this
-	// hi), there's nothing to do until the service runs another.
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return
+	}
+	proxy := "hi-box-" + appDevBox(b.team) + "-proxy"
+	state := engine.state(proxy)
+	if state != "running" {
+		if state == "exited" && engine.state(appDevContainer(b.team)) == "running" {
+			if out, err := appDevProxyDo(engine, "start", proxy); err != nil {
+				fmt.Fprintf(stderr, "hi: starting app %s's dev box proxy again: %s\n", b.team, qFirstLine(strings.TrimSpace(out), err.Error()))
+			} else {
+				fmt.Fprintf(stderr, "hi: app %s's dev box proxy had stopped; it runs again\n", b.team)
+			}
+		}
+		return
+	}
+	// Once its proxy runs this hi, there's no new hi to give it until the
+	// service runs another.
 	if _, done := appDevProxyFresh.Load(b.team); done {
 		return
 	}
@@ -790,15 +820,6 @@ func (b *appBroker) refreshDevProxy(now time.Time, stderr io.Writer) {
 	}
 	info, err := os.Stat(executable)
 	if err != nil {
-		return
-	}
-	engine, _, err := detectBoxEngine()
-	if err != nil {
-		return
-	}
-	proxy := "hi-box-" + appDevBox(b.team) + "-proxy"
-	if engine.state(proxy) != "running" {
-		appDevProxyFresh.Store(b.team, true)
 		return
 	}
 	out, err := engine.output("container", "inspect", "--format", "{{.State.StartedAt}}", proxy)
@@ -825,8 +846,13 @@ func (b *appBroker) refreshDevProxy(now time.Time, stderr io.Writer) {
 			return
 		}
 	}
-	if out, err := engine.output("restart", proxy); err != nil {
-		fmt.Fprintf(stderr, "hi: giving app %s's dev box proxy the new hi: %s\n", b.team, qFirstLine(out, err.Error()))
+	if out, err := appDevProxyDo(engine, "restart", proxy); err != nil || engine.state(proxy) != "running" {
+		// Not up after all: up again now, with whichever hi; the next
+		// minute tries the new one again.
+		if engine.state(proxy) != "running" {
+			appDevProxyDo(engine, "start", proxy)
+		}
+		fmt.Fprintf(stderr, "hi: giving app %s's dev box proxy the new hi: %s\n", b.team, qFirstLine(strings.TrimSpace(out), fmt.Sprint(err)))
 		return
 	}
 	appDevProxyFresh.Store(b.team, true)
