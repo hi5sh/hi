@@ -250,6 +250,10 @@ func appInternalHelper(team, address string) *netExposeHelper {
 			{Prefix: appLLMsPath, Socket: appWebSocket(team, address), Always: true},
 			{Prefix: appLLMsFullPath, Socket: appWebSocket(team, address), Always: true},
 			{Prefix: appReturnPrefix, Socket: appWebSocket(team, address), Always: true},
+			// The script and its pictures for a page in the dev page's
+			// Preview, the helper on or not.
+			{Prefix: appHelperPrefix + "helper.js", Socket: appWebSocket(team, address), Always: true},
+			{Prefix: appHelperPrefix + "snap.js", Socket: appWebSocket(team, address), Always: true},
 		},
 		Inject: appHelperPrefix + "helper.js", InjectIf: appHelperFile(team, address), Plain: true,
 	}

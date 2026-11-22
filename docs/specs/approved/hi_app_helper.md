@@ -293,6 +293,60 @@ What a reference holds, gathered in the page when it is frozen:
   or just a component name, when one is there, and nothing when none is.
   It's a hint, never required.
 
+## In the dev page's Preview
+
+Added in v2.6.234. The dev page's Preview shows the preview (or
+production) in a frame, and its bar has ⌖ beside ↻: point at parts of
+the page there, as select mode does, and each goes into the chat's message
+as a pill, where the cursor is. The agent gets the words with the pills
+in them and, under them, what each part is and where its code likely is.
+
+- **The script in the frame.** A browser says a page loads in a frame
+  (`Sec-Fetch-Dest: iframe`, on HTTPS). The relay puts the helper's
+  script in such a page whenever the script's own path is served
+  regardless of the helper (`--route-always /__hi/helper.js` and
+  `/__hi/snap.js`, which hi app's relays have), the helper on or off. The
+  tag says `data-hi-frame`, and there the script only answers the
+  Preview: no button, and nothing asked of the app's service (with the
+  helper off, the rest of `/__hi/` is the app's). Top-level pages are as
+  before. On a plain-HTTP address the browser doesn't say it's a frame:
+  the helper is there only while it's on, as on any page, with its
+  button, and the Preview can point through it.
+- **Only the dev page.** hi serves the script with the dev page's origins
+  in it (`DEV_PAGES`: its address now, its internal name, its HTTPS
+  name). The page in the frame answers messages from its parent only when
+  they come from one of them, and posts what is picked to that origin
+  alone, so another site framing the app can't read what someone points
+  at.
+- **The messages.** The dev page says `hello` when the frame loads;
+  the page answers `ready` (and says `ready` itself as it starts). `pick`
+  `{on}` starts and stops select mode; `picked` `{id, ref, url, title}`
+  is a reference as select mode makes it, and `picture` `{id, image}`
+  follows once it is drawn. `peek` `{selector}` outlines a part again.
+  Select mode stops the mousedown, so a click in the frame leaves the
+  keyboard on the dev page: Esc, Enter, and Alt+↑/↓ there go on to the
+  frame (`key`). Alt+S starts and stops pointing from either.
+- **Pills.** A pill is words in the box, `[@1 button#pay "Pay now"]`,
+  drawn as a pill by a layer behind the box laid out as its words are.
+  Backspace or Delete takes a pill whole (Undo brings it back); hovering
+  one outlines its part in the Preview and says what it is. Pills are kept
+  with the workspace's draft. As many as ten in one message.
+- **Where its code is.** On each pick the dev page asks
+  `POST api/pick/locate` `{workspace, clues}`: hi runs `git grep` in the
+  workspace for what the part has that its code likely has too (its id,
+  test ids, words, labels, `name`, a link's path, and the classes its
+  selector chose) and ranks the files by which clues each has, an id or
+  test id most, a class least; tests, stories, stylesheets, and docs
+  count half. The best five, each with its best line.
+- **What the agent gets.** The message as written, then "What I pointed
+  at, with ⌖ in the dev page's Preview", and for each pill: the page's
+  path and title and what the Preview showed (`Preview: dev: v24 + 1
+  change`), where on the page (its path, heading, label, region), its
+  selector, the source when the framework says, the files `git grep`
+  found, its text, its HTML (600 characters), its size, and its picture,
+  attached as `pointed-<n>-<id>.png`. In the chat, your message shows the
+  pills, and that part folded under it.
+
 ## Picking a library, or not
 
 The picker is a few hundred lines on top of `elementFromPoint`, an overlay,
@@ -349,7 +403,7 @@ and Hermes' Slack adapter drops messages from bots, its own included
   box mounts it:
 
 ```text
-GET  /__hi/helper.js                      the script
+GET  /__hi/helper.js                      the script (whatever the helper is: the Preview's)
 GET  /__hi/api/status                     team, lead's name, slot, version, people
 GET  /__hi/api/conversation?person=…      this person's open conversation on this address
 POST /__hi/api/conversation/new           end it; the next message starts a new one
@@ -357,7 +411,7 @@ POST /__hi/api/messages                   {conversation, person, name, text, pag
                                           → server-sent events: message, delta…, done or error
 GET  /__hi/api/events?conversation=…&after=n   the chat's messages after n, then each new one
 GET  /__hi/api/files/<chat>/<name>        a file of a message
-GET  /__hi/snap.js                        modern-screenshot, for pictures in select mode
+GET  /__hi/snap.js                        modern-screenshot, for pictures in select mode (also whatever the helper is)
 ```
 
   The relay strips the app's cookies from these requests. The lead's

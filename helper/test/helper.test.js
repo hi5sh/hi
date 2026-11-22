@@ -13,7 +13,7 @@ const script = process.env.HI_HELPER_SCRIPT
   : (() => {
       const finder = readFileSync(join(import.meta.dir, "../../third_party/finder/finder.js"), "utf8").replace(/^export /gm, "");
       const helper = readFileSync(join(import.meta.dir, "../helper.js"), "utf8");
-      return `(() => {\n"use strict";\n${finder}\n${helper}\n})();\n`;
+      return `(() => {\n"use strict";\nconst DEV_PAGES = [];\n${finder}\n${helper}\n})();\n`;
     })();
 
 // sse is a stream of server-sent events, as the service answers a
@@ -313,6 +313,58 @@ test("points at part of the page without the app seeing the click", async () => 
   expect(ask.body.refs).toHaveLength(1);
   expect(ask.body.refs[0]).toMatchObject({ selector: "#pay", tag: "button", text: "Pay", landmarks: { heading: "Orders" } });
   expect(ask.body.refs[0].path).toEqual(["main"]);
+});
+
+test("in the dev page's Preview, points at parts for the dev page alone, and asks the app nothing", async () => {
+  const devPage = "http://dev.example";
+  const framed = script.replace("const DEV_PAGES = [];", `const DEV_PAGES = ["${devPage}"];`);
+  requests = [];
+  appClicks = 0;
+  document.body.innerHTML = '<main><h1>Orders</h1><button id="pay">Pay</button></main>';
+  document.getElementById("pay").addEventListener("click", () => appClicks++);
+  spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+    requests.push(String(url));
+    return json({ error: "not found" }, 404);
+  });
+  const told = [];
+  const parent = { postMessage: (message, origin) => told.push({ message, origin }) };
+  // The relay's tag in a page loading in a frame.
+  const tag = document.createElement("script");
+  tag.setAttribute("data-hi-frame", "");
+  const own = Object.getOwnPropertyDescriptor(window, "parent");
+  Object.defineProperty(window, "parent", { value: parent, configurable: true });
+  Object.defineProperty(document, "currentScript", { get: () => tag, configurable: true });
+  const from = (origin, data) => dispatchEvent(new MessageEvent("message", { data, origin, source: parent }));
+  try {
+    (0, eval)(framed);
+    // It says it's there, to the dev page's origin only.
+    expect(told).toEqual([{ message: { hi: "ready", url: location.href, title: document.title }, origin: devPage }]);
+    // Another page framing the app can't make it point.
+    from("http://elsewhere.example", { hi: "pick", on: true });
+    expect(document.querySelector("hi-helper")).toBeNull();
+    from(devPage, { hi: "pick", on: true });
+    expect(document.querySelector("hi-helper")).not.toBeNull();
+    expect($(".fab").style.display).toBe("none");
+    const pay = document.getElementById("pay");
+    pay.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    expect(appClicks).toBe(0);
+    const picked = told.find((item) => item.message.hi === "picked");
+    expect(picked.origin).toBe(devPage);
+    expect(picked.message.ref).toMatchObject({ selector: "#pay", tag: "button", text: "Pay", landmarks: { heading: "Orders" } });
+    expect(picked.message.url).toBe(location.href);
+    // A click without Shift ends it, and the dev page hears.
+    expect(told.some((item) => item.message.hi === "pick" && item.message.on === false)).toBe(true);
+    pay.click();
+    expect(appClicks).toBe(1);
+    // The service isn't asked: with the helper off, /__hi/api/ is the app's.
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(requests.filter((url) => url.includes("/__hi/api/"))).toEqual([]);
+  } finally {
+    if (own) Object.defineProperty(window, "parent", own);
+    else delete window.parent;
+    delete document.currentScript;
+    expect(window.parent).toBe(window);
+  }
 });
 
 test("Escape leaves select mode", async () => {

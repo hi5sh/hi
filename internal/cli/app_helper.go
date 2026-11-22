@@ -42,11 +42,41 @@ var appSnapVersion = fmt.Sprintf("%x", sha256.Sum256(appSnapSource))[:16]
 // appHelperScript is what the browser loads: finder, the selector
 // generator select mode uses, and the helper, in one closure, so the page
 // gets one file and no globals.
-var appHelperScript = func() []byte {
+var appHelperScript = appHelperScriptFor(nil)
+
+// appHelperScriptFor is the script with the dev page's origins in it
+// (DEV_PAGES): in the dev page's Preview, the page answers only them.
+func appHelperScriptFor(devPages []string) []byte {
 	finder := regexp.MustCompile(`(?m)^export `).ReplaceAll(appFinderSource, nil)
-	script := "(() => {\n\"use strict\";\n" + string(finder) + "\n" + string(appHelperSource) + "\n})();\n"
+	if devPages == nil {
+		devPages = []string{}
+	}
+	origins, _ := json.Marshal(devPages)
+	script := "(() => {\n\"use strict\";\nconst DEV_PAGES = " + string(origins) + ";\n" + string(finder) + "\n" + string(appHelperSource) + "\n})();\n"
 	return []byte(script)
-}()
+}
+
+// appDevPageOrigins are the origins the team's dev page is at: its
+// address now, public or internal, and its internal name.
+func appDevPageOrigins(team string) []string {
+	seen := map[string]bool{}
+	var origins []string
+	add := func(raw string) {
+		if origin := appOrigin(raw); origin != "" && !seen[origin] {
+			seen[origin] = true
+			origins = append(origins, origin)
+		}
+	}
+	if page, ok := loadTeamDevPage(team); ok {
+		add(page.URL)
+	}
+	add(appInternalURL(team, appAddressDev))
+	if host := appHTTPSHost(team, appAddressDev); host != "" {
+		add("https://" + host + "/")
+	}
+	sort.Strings(origins)
+	return origins
+}
 
 const (
 	appHelperPrefix = "/__hi/"
@@ -62,12 +92,6 @@ const (
 	// look at the project or start a task first.
 	appLeadTimeout = 20 * time.Minute
 )
-
-// appHelperVersion is the script's ETag: browsers check it on each page
-// load, so a new hi's helper reaches pages at once, without new links.
-func appHelperVersion() string {
-	return fmt.Sprintf("%x", sha256.Sum256(appHelperScript))[:12]
-}
 
 // appHelperOn says whether a slot's address has the helper: on unless
 // team.json turns it off.
@@ -131,6 +155,10 @@ func appExposeHelperArgs(team, slot string) []string {
 		"--route-always", appLLMsPath + "=unix:" + appWebSocket(team, slot),
 		"--route-always", appLLMsFullPath + "=unix:" + appWebSocket(team, slot),
 		"--route-always", appReturnPrefix + "=unix:" + appWebSocket(team, slot),
+		// The script and its pictures for a page in the dev page's Preview,
+		// the helper on or not (net_expose_inject.go's framed).
+		"--route-always", appHelperPrefix + "helper.js=unix:" + appWebSocket(team, slot),
+		"--route-always", appHelperPrefix + "snap.js=unix:" + appWebSocket(team, slot),
 		"--inject", appHelperPrefix + "helper.js",
 		"--inject-if", appHelperFile(team, slot),
 		"--sso", appSSOFile(team)}
@@ -488,7 +516,10 @@ func (b *appBroker) webHandler(slot string) http.Handler {
 	// Back to the dev page, after a sign-in in front of the address.
 	mux.HandleFunc("GET "+appReturnPrefix, b.returnToPage)
 	mux.HandleFunc("GET "+appHelperPrefix+"helper.js", func(w http.ResponseWriter, r *http.Request) {
-		etag := `"` + appHelperVersion() + `"`
+		// Its ETag is its hash: browsers check it on each page load, so a
+		// new hi's helper reaches pages at once, without new links.
+		script := appHelperScriptFor(appDevPageOrigins(b.team))
+		etag := `"` + fmt.Sprintf("%x", sha256.Sum256(script))[:12] + `"`
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("ETag", etag)
@@ -496,7 +527,7 @@ func (b *appBroker) webHandler(slot string) http.Handler {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Write(appHelperScript)
+		w.Write(script)
 	})
 	// Geist, the helper's typeface, as the admin and dev pages have it.
 	for name, data := range map[string][]byte{"geist.woff2": hi.AppFontSans, "geist-mono.woff2": hi.AppFontMono} {

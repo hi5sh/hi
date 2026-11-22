@@ -542,7 +542,8 @@ dot.
     Behind another view, new lines pulse a dot on its icon, red when
     one of them is an error; opening Logs clears it.
   - **Preview** is Stage or production, on its own address, in the
-    panel: **↻** loads it again, **↗** opens it in a new tab, **⤢**
+    panel: **⌖** points at a part of the page for the chat, **↻** loads
+    it again, **↗** opens it in a new tab, **⤢**
     gives it the whole screen, over the page's bar and the panel's
     icons, and **✕** or Esc puts it back. It loads again when something
     new goes on Stage. When the address sends it on to another name,
@@ -556,6 +557,15 @@ dot.
     one button takes the work along: **Merge N changes into preview**
     while work waits, then **Publish vN** once it's all on Stage, which
     shows production when the new version is out.
+  - **⌖** (or Alt+S): hover the page to outline a part, click it, and it
+    goes into the chat's message as a pill where your cursor is,
+    `[@1 button "Pay now"]`; Shift-click takes more, Alt+↑ the part
+    around it, Esc stops. Write around the pills ("make [@1 …] green")
+    and send: the agent gets, for each, the page, where on it, its
+    selector and HTML, its picture, and the files in the workspace it's
+    likely written in. Backspace takes a pill whole; hovering one
+    outlines its part again. On a plain-HTTP address it needs the helper
+    on for that address.
 - **Add to Preview**, beside a piece of work not on the preview yet,
   adds it to the next version (dev, `hi dev ship` in the box), with its
   task's title for the version's notes, and puts the next version on the

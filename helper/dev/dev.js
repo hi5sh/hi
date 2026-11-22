@@ -2579,7 +2579,7 @@
       if (entry.at) chat.turn = Date.parse(entry.at);
       var sent = chat.pending.shift();
       if (sent) sent.node.remove();
-      box.appendChild(el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [linked(entry.text)]));
+      box.appendChild(el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [userText(entry.text)]));
     } else if (entry.t === "text") {
       box.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
     } else if (entry.t === "thinking") {
@@ -2840,6 +2840,278 @@
       chat.timer = setTimeout(pollChat, 1500);
     });
   }
+  // ---- Pointing at the preview's parts: ⌖ in the Preview's bar. The page
+  // in the frame (the helper's script, which hi's relay puts in a page in a
+  // frame) outlines what's under the pointer, and a click puts a pill in
+  // the chat's box where the cursor is: [@1 button "Pay"]. Sent, each
+  // pill's part is described under the message, for the agent: the page,
+  // where on it, its selector and HTML, the source when the framework says,
+  // the files git grep finds it in, and its picture (hi_app_helper.md, "In
+  // the dev page's Preview").
+  var picks = { on: false, ready: false, origin: "", refs: [], hover: null };
+  var pickPattern = /\[@(\d+) [^\]\n]*\]/g;
+  function frameWindow() { return $("preview-frame").contentWindow; }
+  function originOf(url) { try { return new URL(url, location.href).origin; } catch (e) { return ""; } }
+  function tellFrame(message) {
+    var origin = picks.origin || originOf(preview.url);
+    if (!origin || origin === "null" || !frameWindow()) return;
+    try { frameWindow().postMessage(message, origin); } catch (e) { /* gone */ }
+  }
+  function renderPickButton() {
+    var button = $("preview-pick");
+    button.setAttribute("aria-pressed", picks.on ? "true" : "false");
+    button.classList.toggle("waiting", !picks.ready);
+  }
+  window.addEventListener("message", function (event) {
+    var data = event.data;
+    if (!data || typeof data.hi !== "string" || event.source !== frameWindow()) return;
+    // Only the app's own addresses: the frame can be sent on elsewhere.
+    var ours = previewSlots().some(function (slot) { return originOf(slot.url) === event.origin; });
+    if (!ours) return;
+    picks.origin = event.origin;
+    if (data.hi === "ready") {
+      picks.ready = true;
+      // A page the frame went on to while pointing goes on pointing.
+      if (picks.on) tellFrame({ hi: "pick", on: true });
+    } else if (data.hi === "pick") {
+      picks.on = !!data.on;
+      if (!picks.on && chat.view === "chat" && !narrow) $("chat-input").focus();
+    } else if (data.hi === "picked" && data.ref && typeof data.ref.selector === "string") {
+      addPick(data);
+    } else if (data.hi === "picture" && typeof data.image === "string" && /^data:image\/(png|jpeg);base64,/.test(data.image)) {
+      for (var i = picks.refs.length - 1; i >= 0; i--) {
+        if (picks.refs[i].frameId === data.id && !picks.refs[i].image) { picks.refs[i].image = data.image; saveDraft(); break; }
+      }
+    }
+    renderPickButton();
+  });
+  $("preview-frame").addEventListener("load", function () { tellFrame({ hi: "hello" }); });
+  $("preview-pick").addEventListener("click", function () {
+    if (!picks.ready) {
+      toast("The page in the Preview doesn't answer yet: it may still be loading, or be a sign-in in front of the app." +
+        (location.protocol === "http:" ? " On a plain-HTTP address the page answers only while the helper is on in the preview (Settings)." : "") + " ↻ loads it again.");
+      return;
+    }
+    picks.on = !picks.on;
+    tellFrame({ hi: "pick", on: picks.on });
+    renderPickButton();
+  });
+  // While pointing, the keyboard stays here (the page in the frame stops
+  // the mousedown that would move it): Esc, Enter, and Alt+↑/↓ go on to it.
+  // Alt+S starts and stops pointing, as it does in the page.
+  document.addEventListener("keydown", function (event) {
+    if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === "KeyS" && previewShown() && picks.ready) {
+      event.preventDefault();
+      $("preview-pick").click();
+      return;
+    }
+    if (!picks.on) return;
+    var key = event.key;
+    if (key === "Escape" || (event.altKey && (key === "ArrowUp" || key === "ArrowDown")) || (key === "Enter" && document.activeElement !== $("chat-input"))) {
+      event.preventDefault();
+      event.stopPropagation();
+      tellFrame({ hi: "key", key: key, altKey: event.altKey, shiftKey: event.shiftKey });
+    }
+  }, true);
+  // pickStop ends pointing when the Preview shows another page.
+  function pickStop() {
+    if (picks.on) tellFrame({ hi: "pick", on: false });
+    picks.on = false;
+    picks.ready = false;
+    picks.origin = "";
+    renderPickButton();
+  }
+  renderPickButton();
+
+  // pickName is a part's name in its pill: its tag, its id, its words.
+  function pickName(ref) {
+    var a = ref.attributes || {};
+    var name = ref.tag + (a.id && /^[A-Za-z][\w-]{0,30}$/.test(a.id) ? "#" + a.id : "");
+    var words = String(ref.text || a["aria-label"] || a.placeholder || a.alt || a.title || "").replace(/[\[\]"\n]/g, " ").replace(/\s+/g, " ").trim();
+    if (words) name += ' "' + (words.length > 24 ? words.slice(0, 23).trim() + "…" : words) + '"';
+    return name;
+  }
+  function pickToken(item) { return "[@" + item.n + " " + item.name + "]"; }
+  // usedPicks are the parts whose pills are in the text, in its order.
+  function usedPicks(text) {
+    var used = [];
+    String(text).replace(pickPattern, function (token, n) {
+      var item = picks.refs.filter(function (r) { return String(r.n) === n && pickToken(r) === token; })[0];
+      if (item && used.indexOf(item) < 0) used.push(item);
+      return token;
+    });
+    return used;
+  }
+  // pickClues are what the part's code likely has too, for hi to look for.
+  function pickClues(ref) {
+    var a = ref.attributes || {}, clues = [];
+    function add(kind, text) { if (text) clues.push({ kind: kind, text: String(text) }); }
+    add("id", a.id);
+    ["data-testid", "data-test-id", "data-test", "data-cy", "data-qa"].forEach(function (key) { add("testid", a[key]); });
+    ["aria-label", "placeholder", "title", "alt"].forEach(function (key) { add("label", a[key]); });
+    add("name", a.name);
+    if (a.href && a.href.charAt(0) === "/" && a.href.length > 1) add("href", a.href.split(/[?#]/)[0]);
+    var text = String(ref.text || "").trim();
+    if (text) add("text", text.length <= 60 ? text : text.split(" ").slice(0, 5).join(" "));
+    // Only the classes the selector chose: they name the part, not its look.
+    var named = (ref.selector || "") + " " + (ref.path || []).join(" ");
+    String(a.class || "").split(/\s+/).forEach(function (name) { if (name.length >= 4 && named.indexOf("." + name) >= 0) add("class", name); });
+    return clues;
+  }
+  function addPick(data) {
+    if (!chat.space) { toast("Open a workspace's chat first: what you point at goes in its message."); return; }
+    var input = $("chat-input");
+    if (usedPicks(input.value).length >= 10) { toast("Ten parts at most in one message."); return; }
+    var n = picks.refs.reduce(function (most, r) { return Math.max(most, r.n); }, 0) + 1;
+    var slot = previewSlots().filter(function (o) { return o.id === preview.slot; })[0];
+    var item = { n: n, name: pickName(data.ref), ref: data.ref, url: String(data.url || ""), title: String(data.title || ""),
+      shown: slot ? slot.label : "", frameId: data.id, image: "", where: null, space: chat.space };
+    picks.refs.push(item);
+    // Where the cursor is, a space on each side.
+    var at = input.selectionStart, end = input.selectionEnd;
+    if (document.activeElement !== input && !input.value.slice(at).trim()) at = end = input.value.length;
+    var before = input.value.slice(0, at), after = input.value.slice(end);
+    var put = (before && !/\s$/.test(before) ? " " : "") + pickToken(item) + (after && /^\s/.test(after) ? "" : " ");
+    input.value = before + put + after;
+    input.selectionStart = input.selectionEnd = before.length + put.length;
+    input.dispatchEvent(new Event("input"));
+    if (chat.view !== "chat") toast("In the chat's message: " + pickToken(item));
+    api("POST", "pick/locate", { workspace: item.space, clues: pickClues(item.ref) }).then(function (result) {
+      item.where = result.hits || [];
+      saveDraft();
+    }).catch(function () { item.where = []; });
+  }
+
+  // The pills: the box's words again, in a layer behind it, each pill's
+  // words marked. A pill goes whole with Backspace or Delete.
+  function renderMarks() {
+    var input = $("chat-input"), box = $("chat-marks"), value = input.value;
+    box.textContent = "";
+    var used = usedPicks(value);
+    if (!used.length) return;
+    var last = 0;
+    value.replace(pickPattern, function (token, n, at) {
+      if (!used.some(function (item) { return pickToken(item) === token; })) return token;
+      box.appendChild(document.createTextNode(value.slice(last, at)));
+      box.appendChild(el("mark", { "data-n": n, class: picks.hover && String(picks.hover.n) === n ? "hover" : null, text: token }));
+      last = at + token.length;
+      return token;
+    });
+    box.appendChild(document.createTextNode(value.slice(last) + "\n"));
+    box.style.paddingRight = 4 + input.offsetWidth - input.clientWidth + "px";
+    box.scrollTop = input.scrollTop;
+  }
+  $("chat-input").addEventListener("scroll", function () { $("chat-marks").scrollTop = $("chat-input").scrollTop; });
+  $("chat-input").addEventListener("keydown", function (event) {
+    if ((event.key !== "Backspace" && event.key !== "Delete") || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+    var input = event.target, at = input.selectionStart;
+    if (at !== input.selectionEnd) return;
+    var hit = null;
+    input.value.replace(pickPattern, function (token, n, start) {
+      var end = start + token.length;
+      if (event.key === "Backspace" ? at > start && at <= end : at >= start && at < end) hit = [start, end];
+      return token;
+    });
+    if (!hit) return;
+    event.preventDefault();
+    input.setSelectionRange(hit[0], hit[1]);
+    // As a delete of the browser's own, so Undo brings it back.
+    if (!document.execCommand || !document.execCommand("delete")) {
+      input.value = input.value.slice(0, hit[0]) + input.value.slice(hit[1]);
+      input.selectionStart = input.selectionEnd = hit[0];
+      input.dispatchEvent(new Event("input"));
+    }
+  });
+  // Hovering a pill outlines its part in the Preview, and says what it is.
+  function pickUnder(event) {
+    var found = null;
+    [].forEach.call($("chat-marks").querySelectorAll("mark"), function (mark) {
+      [].forEach.call(mark.getClientRects(), function (rect) {
+        if (event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) found = mark;
+      });
+    });
+    return found ? picks.refs.filter(function (r) { return String(r.n) === found.dataset.n; })[0] || null : null;
+  }
+  function pickHover(item) {
+    if (item === picks.hover) return;
+    picks.hover = item;
+    [].forEach.call($("chat-marks").querySelectorAll("mark"), function (mark) { mark.classList.toggle("hover", !!item && mark.dataset.n === String(item.n)); });
+    $("chat-input").title = item ? pickSummary(item) : "";
+    tellFrame({ hi: "peek", selector: item ? item.ref.selector : null });
+  }
+  $("chat-input").addEventListener("mousemove", function (event) { pickHover(pickUnder(event)); });
+  $("chat-input").addEventListener("mouseleave", function () { pickHover(null); });
+  function pickPage(item) {
+    try {
+      var url = new URL(item.url);
+      ["hi_user", "key", "token"].forEach(function (name) { url.searchParams.delete(name); });
+      return url.pathname + url.search;
+    } catch (e) { return ""; }
+  }
+  function pickSummary(item) {
+    var where = (item.where || []).slice(0, 2).map(function (hit) { return hit.path + ":" + hit.line; });
+    return [item.name, pickPage(item) && "on " + pickPage(item), item.ref.selector, where.length ? "likely in " + where.join(", ") : ""].filter(Boolean).join("\n");
+  }
+  // pickNotes describe the parts under the message, for the agent; their
+  // pictures go with it as files, named here.
+  var pickHeading = "What I pointed at, with ⌖ in the dev page's Preview";
+  function pickNotes(used) {
+    var lines = ["", "", pickHeading + " (the [@n …] above):"];
+    used.forEach(function (item) {
+      var ref = item.ref, box = ref.box || {}, landmarks = ref.landmarks || {};
+      lines.push("", pickToken(item));
+      var page = pickPage(item);
+      if (page) lines.push("- page: " + page + (item.title ? ' ("' + item.title + '")' : "") + (item.shown ? ", on " + item.shown : ""));
+      var around = (ref.path || []).join(" › ");
+      var under = [landmarks.heading && 'under the heading "' + landmarks.heading + '"', landmarks.label && 'labelled "' + landmarks.label + '"', landmarks.section && 'in "' + landmarks.section + '"'].filter(Boolean).join(", ");
+      if (around || under) lines.push("- on the page: " + [around, under].filter(Boolean).join("; "));
+      lines.push("- selector: `" + ref.selector + "`");
+      if (ref.source && ref.source.file) lines.push("- made in: " + ref.source.file + (ref.source.line ? ":" + ref.source.line : "") + (ref.source.component ? " (" + ref.source.component + ")" : "") + ", as the app's framework says");
+      else if (ref.source && ref.source.component) lines.push("- component: " + ref.source.component);
+      if (item.where && item.where.length) {
+        lines.push("- likely in this workspace (git grep for its " + "words, id, and labels): " + item.where.map(function (hit) {
+          return hit.path + ":" + hit.line + (hit.clues && hit.clues.length ? " (" + hit.clues.join(", ") + ")" : "");
+        }).join(", "));
+      }
+      if (ref.text) lines.push('- text: "' + ref.text + '"');
+      if (ref.html) lines.push("- html: `" + String(ref.html).replace(/\s+/g, " ").slice(0, 600) + (ref.html.length > 600 ? " …" : "") + "`");
+      if (box.width) lines.push("- size: " + box.width + "×" + box.height + " at " + box.x + "," + box.y + (box.viewport ? " in a " + box.viewport.join("×") + " window" : ""));
+      if (item.image) lines.push("- picture: " + item.file);
+    });
+    return lines.join("\n");
+  }
+  // pickPictures name each part's picture and read it as a file to send.
+  function pickPictures(used) {
+    return used.filter(function (item) { return item.image; }).map(function (item) {
+      var jpeg = /^data:image\/jpeg/.test(item.image);
+      item.file = "pointed-" + item.n + "-" + Math.random().toString(16).slice(2, 8) + (jpeg ? ".jpg" : ".png");
+      return { name: item.file, data: item.image.split(",")[1] || "" };
+    });
+  }
+  // userText draws a message of yours: its pills as pills, and the notes
+  // about them folded under it.
+  function userText(text) {
+    text = String(text || "");
+    var at = text.indexOf("\n\n" + pickHeading);
+    if (at < 0 && !pickPattern.test(text)) return linked(text);
+    pickPattern.lastIndex = 0;
+    var box = el("div", { class: "msg-user-text" });
+    var said = at >= 0 ? text.slice(0, at) : text, notes = at >= 0 ? text.slice(at + 2) : "";
+    var last = 0;
+    said.replace(pickPattern, function (token, n, start) {
+      if (start > last) box.appendChild(linked(said.slice(last, start)));
+      box.appendChild(el("span", { class: "pick-pill", text: token }));
+      last = start + token.length;
+      return token;
+    });
+    if (last < said.length) box.appendChild(linked(said.slice(last)));
+    [].forEach.call(box.querySelectorAll(".text"), function (part) { part.style.display = "inline"; });
+    if (notes) {
+      var count = (notes.match(/\n\[@\d+ /g) || []).length;
+      box.appendChild(el("details", { class: "pick-notes" }, [el("summary", { text: "What it says about the " + (count === 1 ? "part" : count + " parts") + " you pointed at" }), el("pre", { text: notes })]));
+    }
+    return box;
+  }
   var chatFiles = attacher($("chat-files"), $("chat-input"), $("chat-attached"), true, function () { saveDraft(); chatReady(); });
   // The message being written, its files and pastes too, is kept in this
   // browser (IndexedDB, which holds files) until it's sent, so a reload or
@@ -2861,6 +3133,7 @@
     if (!chatFiles || !space) return;
     var draft = chatFiles.snapshot();
     draft.text = $("chat-input").value;
+    draft.picks = usedPicks(draft.text);
     var empty = !draft.text.trim() && !draft.files.length && !draft.pastes.length;
     draftStore("readwrite").then(function (store) {
       if (empty) store.delete(draftKey(space));
@@ -2885,6 +3158,7 @@
   // loadDraft empties the box and puts the workspace's draft in it.
   function loadDraft(space) {
     $("chat-input").value = "";
+    picks.refs = [];
     if (chatFiles) chatFiles.clear();
     sizeChatInput();
     chatReady();
@@ -2895,6 +3169,7 @@
         var draft = got.result;
         if (!draft || chat.space !== space || $("chat-input").value) return;
         $("chat-input").value = draft.text || "";
+        picks.refs = draft.picks || [];
         chatFiles.restore(draft);
         sizeChatInput();
         chatReady();
@@ -2912,17 +3187,22 @@
     var text = chatFiles.expand(input.value).trim();
     if ((!text && !chatFiles.count()) || $("chat-send").disabled) return;
     $("chat-send").disabled = true;
+    // The parts pointed at in the Preview: described under the message,
+    // their pictures with it.
+    var used = usedPicks(input.value), pictures = pickPictures(used);
+    if (used.length) text += pickNotes(used);
     chatFiles.read().then(function (files) {
-      return api("POST", "chat/send", { workspace: space, text: text, files: files });
+      return api("POST", "chat/send", { workspace: space, text: text, files: files.concat(pictures) });
     }).then(function () {
       input.value = "";
+      picks.refs = [];
       chatFiles.clear();
       sizeChatInput();
       chatReady();
       clearTimeout(chat.draftTimer);
       chat.draftTimer = 0;
       writeDraft(space); // empty now: the draft goes
-      var node = el("div", { class: "msg-user pending", text: shown || "Attached files" });
+      var node = el("div", { class: "msg-user pending" }, [shown ? userText(shown) : document.createTextNode("Attached files")]);
       chat.pending.push({ node: node, since: Date.now() });
       chatPending(chat.agent || {});
       $("chat-entries").insertBefore(node, $("chat-activity"));
@@ -2945,6 +3225,7 @@
     var input = $("chat-input");
     input.style.height = "auto";
     input.style.height = Math.min(240, input.scrollHeight) + "px";
+    renderMarks();
   }
   $("chat-input").addEventListener("input", sizeChatInput);
   // Send lights up once there's something to send.
@@ -4730,6 +5011,7 @@
       preview.label = slot.label;
       preview.blocked = "";
       preview.stale = false;
+      pickStop();
       frame.src = slot.url;
     }
     if (preview.stale) showPreviewNote("stale", staleWords);

@@ -58,6 +58,7 @@
   --input-line: var(--border-input);
   --accent: var(--brand-text);
   --focus: color-mix(in srgb, var(--brand-text) 55%, transparent);
+  --pick: #3b82f6; /* the outline of what is pointed at, as the helper draws it */
   --button: var(--brand);
   --button-hover: color-mix(in srgb, var(--brand) 88%, rgb(var(--ink)));
   --secondary: rgba(var(--ink), .09); /* a quiet fill, on any surface */
@@ -579,6 +580,22 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .composer textarea { width: 100%; resize: none; min-height: 46px; max-height: 240px; padding: 2px 4px 6px 0; border: 0; border-radius: 0; background: transparent; color: var(--bright); font-size: 15px; line-height: 1.5; outline: none; box-shadow: none; }
 .composer textarea:focus { outline: none; box-shadow: none; border: 0; }
 .composer textarea::placeholder { color: var(--dim); }
+/* The parts pointed at in the Preview, [@1 button "Pay"], are pills in the
+   message: drawn in a layer behind the box, laid out as its words are. */
+.chat-input-wrap { position: relative; display: flex; }
+.chat-input-wrap textarea { position: relative; z-index: 1; }
+.chat-marks { position: absolute; inset: 0; padding: 2px 4px 6px 0; overflow: hidden; pointer-events: none; color: transparent;
+  font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; }
+.chat-marks mark, .msg-user .pick-pill { color: transparent; background: color-mix(in srgb, var(--pick) 22%, transparent); border-radius: 6px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pick) 45%, transparent); }
+.chat-marks mark.hover { background: color-mix(in srgb, var(--pick) 38%, transparent); }
+.msg-user .pick-pill { color: inherit; padding: 0 3px; cursor: default; }
+.msg-user .pick-notes { margin-top: 8px; white-space: normal; }
+.msg-user .pick-notes summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.msg-user .pick-notes pre { margin: 6px 0 0; white-space: pre-wrap; font-size: 12px; color: var(--muted); }
+.preview-pick { --pick-on: color-mix(in srgb, var(--pick) 30%, transparent); }
+.preview-pick[aria-pressed="true"] { background: var(--pick-on); color: var(--bright); }
+.preview-pick.waiting { opacity: .5; }
 .composer textarea:disabled { background: transparent; }
 .composer-bar { display: flex; align-items: center; gap: 2px; min-height: 34px; margin-left: -6px; }
 .composer-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--r-button); color: var(--muted); cursor: pointer; }

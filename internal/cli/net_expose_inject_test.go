@@ -309,3 +309,56 @@ func TestParseNetExposeHelperFlags(t *testing.T) {
 		}
 	}
 }
+
+// TestNetExposeInjectsFrames: a script served whatever --inject-if says
+// (hi app's, for the dev page's Preview) goes into pages in frames too,
+// the helper on or off, marked as in a frame; top-level pages get it only
+// while on.
+func TestNetExposeInjectsFrames(t *testing.T) {
+	page := `<html><head><title>Orders</title></head><body>x</body></html>`
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		io.WriteString(w, page)
+	}))
+	t.Cleanup(app.Close)
+	socket := filepath.Join(shortTempDir(t), "web.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	helperServer := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "helper "+r.URL.Path) })}
+	go helperServer.Serve(listener)
+	t.Cleanup(func() { helperServer.Close() })
+	on := filepath.Join(t.TempDir(), "preview.helper")
+	writeTestFile(t, on, "", 0o600)
+	helper := newNetExposeHelper(netExposeOptions{Inject: "/__hi/helper.js", InjectIf: on, Routes: []netExposeRoute{
+		{Prefix: "/__hi/", Socket: socket},
+		{Prefix: "/__hi/helper.js", Socket: socket, Always: true},
+	}}, nil)
+	relay := httptest.NewServer(newNetExposeRelayTo(func() string { return app.URL }, "", time.Time{}, io.Discard, helper, nil))
+	t.Cleanup(relay.Close)
+	tag := func(attrs string) string {
+		return strings.Replace(page, "<head>", `<head><script src="/__hi/helper.js" defer`+attrs+`></script>`, 1)
+	}
+	if _, body := fetchPage(t, relay.URL+"/orders", "iframe"); body != tag(" data-hi-frame") {
+		t.Fatalf("a frame, the helper on:\n%s", body)
+	}
+	os.Remove(on)
+	if _, body := fetchPage(t, relay.URL+"/orders", "iframe"); body != tag(" data-hi-frame") {
+		t.Fatalf("a frame, the helper off:\n%s", body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/orders", "document"); body != page {
+		t.Fatalf("a page, the helper off:\n%s", body)
+	}
+	// The script itself is served; the rest of /__hi/ is the app's.
+	if _, body := fetchPage(t, relay.URL+"/__hi/helper.js", ""); body != "helper /__hi/helper.js" {
+		t.Fatalf("the script, the helper off: %s", body)
+	}
+	if _, body := fetchPage(t, relay.URL+"/__hi/api/status", ""); body != page {
+		t.Fatalf("the helper's API, off: %s", body)
+	}
+	// A script whose route goes off with the helper stays out of frames.
+	if (&netExposeHelper{Inject: "/x.js", Routes: []netExposeRoute{{Prefix: "/__hi/", Socket: socket}}}).framed() {
+		t.Fatal("framed without an always route")
+	}
+}

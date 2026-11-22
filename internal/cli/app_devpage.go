@@ -1073,7 +1073,7 @@ func init() {
 		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/help", "POST api/finish", "POST api/preview-dev", "POST api/release",
 		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
-		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "GET api/checks", "POST api/checks", "GET api/logs",
+		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "POST api/pick/locate", "GET api/checks", "POST api/checks", "GET api/logs",
 		"POST api/sshkey", "GET api/decisions", "POST api/decision", "GET api/presence",
 	} {
 		method, path, _ := strings.Cut(route, " ")
@@ -1213,6 +1213,7 @@ func (b *appBroker) devPageHandler() http.Handler {
 	b.devFileRoutes(mux, builder, reply, failure)
 	b.devGitRoutes(mux, builder, reply, failure)
 	b.devToolRoutes(mux, builder, reply, failure)
+	b.devPickRoutes(mux, builder, reply, failure)
 	b.devChatRoutes(mux, builder, reply, failure)
 	b.devDecisionRoutes(mux, builder, reply, failure, decode)
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/site", func(w http.ResponseWriter, r *http.Request) {

@@ -545,13 +545,16 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 			r = netExposeNoWait(r)
 		}
 		var handler http.Handler
-		inject := false
+		inject, framed := false, false
 		if helper != nil {
 			on := helper.on()
 			if route := helper.route(r.URL.Path, on); route != nil {
 				handler = route
-			} else if on && helper.Inject != "" && netExposePageLoad(r) {
-				inject = true
+			} else if helper.Inject != "" && (on && netExposePageLoad(r) || netExposeFrameLoad(r) && helper.framed()) {
+				// A page in a frame gets the script whenever its route is
+				// always served, the helper on or not: the dev page's
+				// Preview points at its parts through it (hi_app_helper.md).
+				inject, framed = true, netExposeFrameLoad(r)
 				helper.prepare(r)
 			}
 		}
@@ -571,7 +574,7 @@ func newNetExposeRelayTo(target func() string, key string, expires time.Time, lo
 		if handler == nil {
 			handler = proxy
 			if inject {
-				proxy.ModifyResponse = helper.modify
+				proxy.ModifyResponse = func(response *http.Response) error { return helper.modify(response, framed) }
 			}
 		}
 		handler.ServeHTTP(recorder, r)

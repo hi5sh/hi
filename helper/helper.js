@@ -11,6 +11,13 @@
   "use strict";
   if (window.__hiHelper || !document.body) return;
   window.__hiHelper = true;
+  // In a frame the page may be in the dev page's Preview. When the relay
+  // knows it's a frame (data-hi-frame, on HTTPS, where the browser says
+  // so) the page only answers the Preview, which points at its parts: no
+  // button, and nothing asked of the app's service, which may be off.
+  const tag = document.currentScript;
+  const framed = window.parent !== window;
+  const helperOff = framed && !!tag && tag.hasAttribute("data-hi-frame");
 
   const API = "/__hi/api/";
   const store = {
@@ -279,7 +286,7 @@ textarea::placeholder { color: var(--dim); }
   // by names of hi's own so the app's styles never pick it up; the
   // browser loads it the first time the panel draws words in it. Without
   // FontFace, or where the app's policy refuses it, the computer's own.
-  try {
+  if (!helperOff) try {
     for (const [family, file] of [["hi-geist", "geist.woff2"], ["hi-geist-mono", "geist-mono.woff2"]]) {
       document.fonts.add(new FontFace(family, "url(/__hi/" + file + "?v=1.9.2) format('woff2')", { weight: "100 900" }));
     }
@@ -1298,7 +1305,7 @@ textarea::placeholder { color: var(--dim); }
     }
     banner.classList.toggle("outlined", !!(select.on && select.hover));
     // The elements already chosen stay outlined, numbered, while choosing.
-    const shown = select.on ? state.refs : [];
+    const shown = select.on ? (bridge.on ? bridge.refs : state.refs) : [];
     while (frozenBoxes.children.length < shown.length) frozenBoxes.insertAdjacentHTML("beforeend", '<div class="box frozen"><span class="n"></span></div>');
     Array.from(frozenBoxes.children).forEach((box, i) => {
       const el = i < shown.length && findRef(shown[i]);
@@ -1411,9 +1418,18 @@ textarea::placeholder { color: var(--dim); }
     for (const type of blocked) removeEventListener(type, onBlock, true);
     removeEventListener("keydown", onKey, true);
     draw();
+    if (bridge.on) {
+      bridge.on = false;
+      tell({ hi: "pick", on: false });
+    }
   }
 
   function take(el, more) {
+    if (bridge.on) {
+      pickFor(el);
+      if (!more) stopSelect();
+      return;
+    }
     if (state.refs.some((item) => item.el === el)) {
       if (!more) stopSelect();
       return;
@@ -1441,11 +1457,87 @@ textarea::placeholder { color: var(--dim); }
   // open or not: people click on the page before they think of it.
   addEventListener("keydown", (event) => {
     if (!event.altKey || event.ctrlKey || event.metaKey || event.code !== "KeyS" || !host.isConnected) return;
+    if (helperOff && !bridge.origin) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     if (select.on) stopSelect();
+    else if (helperOff) startBridge(true);
     else startSelect();
   }, true);
+
+  // ---------------------------------------------------------------------
+  // the dev page's Preview: a page in its frame points at its parts for the
+  // dev page's chat (hi_app_helper.md, "In the dev page's Preview"). Only
+  // the app's dev page (DEV_PAGES, which hi puts in the script) may ask,
+  // and what is picked goes to it alone.
+
+  const devPages = typeof DEV_PAGES !== "undefined" ? DEV_PAGES : [];
+  const bridge = { origin: "", on: false, refs: [], n: 0 };
+
+  function tell(message) {
+    if (bridge.origin) window.parent.postMessage(message, bridge.origin);
+  }
+
+  // mount puts the outline layer on the page; the button only once the
+  // helper is on and the app's service answers.
+  function mount() {
+    if (host.isConnected) return;
+    if (!state.status) fab.style.display = "none";
+    document.body.appendChild(host);
+  }
+
+  function startBridge(fromHere) {
+    mount();
+    bridge.on = true;
+    bridge.refs = [];
+    startSelect();
+    // Esc, or a click without Shift, ends it here; the dev page's button
+    // follows.
+    if (fromHere) tell({ hi: "pick", on: true });
+  }
+
+  // pickFor sends the dev page an element: what it is at once, its
+  // picture when it's drawn.
+  function pickFor(el) {
+    if (bridge.refs.some((item) => item.el === el)) return;
+    const item = { ref: describe(el), el };
+    const id = ++bridge.n;
+    bridge.refs.push(item);
+    tell({ hi: "picked", id, ref: item.ref, url: location.href, title: document.title });
+    capture(el).then((image) => { if (image) tell({ hi: "picture", id, image }); }).catch(() => { /* the words still say which */ });
+  }
+
+  if (framed) {
+    addEventListener("message", (event) => {
+      const data = event.data;
+      if (event.source !== window.parent || !devPages.includes(event.origin) || !data || typeof data.hi !== "string") return;
+      bridge.origin = event.origin;
+      if (data.hi === "hello") tell({ hi: "ready", url: location.href, title: document.title });
+      else if (data.hi === "pick" && data.on && !select.on) startBridge(false);
+      else if (data.hi === "pick" && !data.on) stopSelect();
+      else if (data.hi === "key" && select.on && ["Escape", "Enter", "ArrowUp", "ArrowDown"].includes(data.key)) {
+        // A click here doesn't take the keyboard from the dev page (select
+        // mode stops the mousedown), so it sends the keys on.
+        onKey({ key: data.key, altKey: !!data.altKey, shiftKey: !!data.shiftKey, preventDefault() {}, stopImmediatePropagation() {}, composedPath: () => [] });
+      }
+      else if (data.hi === "peek") {
+        // The dev page's chat points at a part again: outline it here.
+        let el = null;
+        try {
+          if (typeof data.selector === "string" && !data.selector.includes(">>>")) el = document.querySelector(data.selector);
+        } catch { /* a selector this page can't read */ }
+        if (el) mount();
+        peek = el;
+        if (el && data.scroll) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        keepDrawing();
+      }
+    });
+    // Here: to each of the dev page's origins; the browser gives it only to
+    // the one the frame is in.
+    for (const origin of devPages) {
+      try { window.parent.postMessage({ hi: "ready", url: location.href, title: document.title }, origin); } catch { /* not a URL */ }
+    }
+  }
 
   // A picture of each element pointed at goes with it, drawn by
   // modern-screenshot (third_party), which loads the first time.
@@ -1628,11 +1720,13 @@ textarea::placeholder { color: var(--dim); }
   }
 
   (async () => {
+    if (helperOff) return; // only the dev page's Preview's
     try {
       await refreshStatus();
     } catch {
       return; // the helper is off or the app is down: no button at all
     }
+    fab.style.display = "";
     document.body.appendChild(host);
     placeButton();
     // Open again after a reload, without taking the page's focus.

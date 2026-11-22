@@ -219,6 +219,23 @@ func netExposePageLoad(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Accept"), "text/html")
 }
 
+// netExposeFrameLoad says whether a request is a page loading in an
+// iframe. Browsers say so only to HTTPS addresses (Sec-Fetch-Dest).
+func netExposeFrameLoad(r *http.Request) bool {
+	return r.Method == http.MethodGet && r.Header.Get("Sec-Fetch-Dest") == "iframe"
+}
+
+// framed says whether the script goes into pages in frames too: when its
+// own path is served whatever --inject-if says (--route-always), which is
+// how hi app's relays mark a script that knows to stay quiet there.
+func (h *netExposeHelper) framed() bool {
+	if h == nil || h.Inject == "" {
+		return false
+	}
+	script, _, _ := strings.Cut(h.Inject, "?")
+	return h.route(script, false) != nil
+}
+
 // prepare readies a page load for the script: the service answers it
 // uncompressed, so the relay can find where the script goes. ("identity"
 // rather than no header, which Go's transport would fill with gzip.)
@@ -227,8 +244,10 @@ func (h *netExposeHelper) prepare(r *http.Request) {
 }
 
 // modify adds the script to a page: right after <head>, else before
-// <body>, else after <html> or the doctype.
-func (h *netExposeHelper) modify(response *http.Response) error {
+// <body>, else after <html> or the doctype. In a page in a frame the tag
+// says so, data-hi-frame: there the script only answers the dev page's
+// Preview, with no button, the helper on or off.
+func (h *netExposeHelper) modify(response *http.Response, framed bool) error {
 	if response.StatusCode != http.StatusOK || !strings.HasPrefix(strings.ToLower(response.Header.Get("Content-Type")), "text/html") {
 		return nil
 	}
@@ -242,6 +261,9 @@ func (h *netExposeHelper) modify(response *http.Response) error {
 		response.Header.Set("Content-Security-Policy", changed)
 	}
 	tag := `<script src="` + htmlAttribute(h.Inject) + `" defer`
+	if framed {
+		tag += ` data-hi-frame`
+	}
 	if nonce != "" {
 		tag += ` nonce="` + htmlAttribute(nonce) + `"`
 	}

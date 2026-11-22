@@ -6104,6 +6104,8 @@ Spec: [hi_app_dev_orca.md](specs/approved/hi_app_dev_orca.md).
 - [x] Release 5 (v2.6.173): notes on a diff's lines, sent to the agent.
 - [x] Release 6 (v2.6.176): Codex's sessions in Chat; every session, with Resume.
 - [x] Release 7 (v2.6.173): `hi dev note`, the agent's line on its workspace.
+- [x] v2.6.234: ⌖ in the Preview points at the page's parts for the chat,
+  as pills in the message ([hi_app_helper.md](specs/approved/hi_app_helper.md#in-the-dev-pages-preview)).
 
 ### Next — `hi server` again, a server for every app, one admin page
 
@@ -6986,6 +6988,21 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
   and the Network card say so, with the admins' policy on TCP 1984.
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
+
+### v2.6.234 — Point at the Preview's parts from the chat
+
+- [x] The dev page's Preview has **⌖** beside ↻ (and Alt+S): hovering
+  the page outlines a part, a click puts it in the chat's message as a
+  pill where the cursor is, `[@1 button#pay "Pay now"]`, Shift-click for
+  more. Sent, the agent gets for each its page, place, selector, HTML,
+  picture, the source when the framework says, and the workspace's files
+  `git grep` finds it in, best first (`api/pick/locate`). Pills go whole
+  with Backspace, are kept with the draft, and outline their part again
+  when hovered. Spec: [hi_app_helper.md](specs/approved/hi_app_helper.md#in-the-dev-pages-preview).
+- [x] The relay puts the helper's script in pages loading in a frame
+  whenever the script is served regardless of the helper, the helper on
+  or off; there it shows no button and asks the app nothing. hi serves it
+  with the dev page's origins, the only page it answers.
 
 ### v2.6.233 — The app's docs in Orca's look; the pages in the site's demos
 
