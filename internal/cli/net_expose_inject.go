@@ -238,9 +238,14 @@ func (h *netExposeHelper) framed() bool {
 
 // prepare readies a page load for the script: the service answers it
 // uncompressed, so the relay can find where the script goes. ("identity"
-// rather than no header, which Go's transport would fill with gzip.)
+// rather than no header, which Go's transport would fill with gzip.) And
+// whole: a browser's copy may be from before the script went in (a page
+// in a frame got none before v2.6.234), and a 304 would keep it.
 func (h *netExposeHelper) prepare(r *http.Request) {
 	r.Header.Set("Accept-Encoding", "identity")
+	for _, name := range []string{"If-None-Match", "If-Modified-Since", "If-Range", "If-Match", "If-Unmodified-Since"} {
+		r.Header.Del(name)
+	}
 }
 
 // modify adds the script to a page: right after <head>, else before
@@ -276,9 +281,11 @@ func (h *netExposeHelper) modify(response *http.Response, framed bool) error {
 	}}
 	response.ContentLength = -1
 	response.Header.Del("Content-Length")
-	if etag := response.Header.Get("ETag"); etag != "" && !strings.HasPrefix(etag, "W/") {
-		response.Header.Del("ETag")
-	}
+	// The page isn't the service's any more: its validators would let the
+	// browser keep a copy with the script, or without it, when the helper
+	// changes and the service's page doesn't.
+	response.Header.Del("ETag")
+	response.Header.Del("Last-Modified")
 	return nil
 }
 

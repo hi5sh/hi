@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.235 — ⌖ on a page the browser kept
+
+- [x] ⌖ answered on production but not on the preview when the browser
+  had kept the preview's page from before v2.6.234: the browser asked if
+  it changed, the app said no (304), and the copy without the script
+  stayed. A page the relay adds the script to is now always asked for
+  whole, and goes without the app's ETag and Last-Modified.
+
 ### v2.6.234 — Point at the Preview's parts from the chat
 
 - [x] The dev page's Preview has **⌖** beside ↻ (and Alt+S): hovering

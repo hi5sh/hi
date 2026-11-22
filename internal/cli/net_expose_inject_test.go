@@ -362,3 +362,31 @@ func TestNetExposeInjectsFrames(t *testing.T) {
 		t.Fatal("framed without an always route")
 	}
 }
+
+// TestNetExposeInjectAnswersWhole: a browser's copy from before the script
+// went in is never kept by a 304; the page goes whole, with the script,
+// and without the service's validators.
+func TestNetExposeInjectAnswersWhole(t *testing.T) {
+	page := `<html><head><title>Orders</title></head><body>x</body></html>`
+	relay, _ := relayWithHelper(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("Last-Modified", "Sun, 22 Nov 2026 07:00:00 GMT")
+		if r.Header.Get("If-None-Match") == `"v1"` || r.Header.Get("If-Modified-Since") != "" {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		io.WriteString(w, page)
+	}))
+	response, body := fetchPage(t, relay.URL+"/orders", "document", "If-None-Match", `"v1"`, "If-Modified-Since", "Sun, 22 Nov 2026 07:00:00 GMT")
+	if response.StatusCode != http.StatusOK || body != strings.Replace(page, "<head>", "<head>"+testHelperTag, 1) {
+		t.Fatalf("%d %s", response.StatusCode, body)
+	}
+	if response.Header.Get("ETag") != "" || response.Header.Get("Last-Modified") != "" {
+		t.Fatalf("validators kept: %v", response.Header)
+	}
+	// What isn't a page load keeps the service's 304.
+	if response, _ := fetchPage(t, relay.URL+"/orders", "empty", "If-None-Match", `"v1"`); response.StatusCode != http.StatusNotModified {
+		t.Fatalf("a fetch: %d", response.StatusCode)
+	}
+}
