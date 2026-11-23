@@ -381,3 +381,41 @@ func TestAdminNewWithSharedKeys(t *testing.T) {
 		t.Fatal(view.Machine.Shared)
 	}
 }
+
+// An app moving here that uses a shared key this machine has of its own:
+// the move's check stops with the command that gives it, which takes an
+// app that isn't here yet with --coming; given, the check passes.
+func TestVaultSharedGiveComing(t *testing.T) {
+	setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	vaultSharedTestApp(t, "payments")
+	var out bytes.Buffer
+	if err := vaultSharedCommand([]string{"set", "openrouter"}, strings.NewReader("sk-or-here\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	vaultSharedGive("openrouter", []string{"payments"}, false, "ana")
+	needs := appMoveNeeds{App: "orders", Folder: filepath.Join(t.TempDir(), "app-orders"), Version: version, Shared: []string{"openrouter"}}
+	report := appReceiveCheck(needs)
+	if len(report.Problems) != 1 || !strings.Contains(report.Problems[0], "hi server vault shared give openrouter orders --coming") {
+		t.Fatalf("%q", report.Problems)
+	}
+	if err := vaultSharedCommand([]string{"give", "openrouter", "orders"}, nil, &out); err == nil || !strings.Contains(err.Error(), "--coming") {
+		t.Fatal("given to an app that isn't here:", err)
+	}
+	if err := vaultSharedCommand([]string{"give", "openrouter", "orders", "--coming"}, nil, &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, problem := range appReceiveCheck(needs).Problems {
+		if strings.Contains(problem, "shared/") {
+			t.Fatal(problem)
+		}
+	}
+	// What the sending machine says the app uses.
+	config := testTeamConfig()
+	config.OpenRouterFrom, config.ClaudeFrom = "shared/openrouter", "shared/claude"
+	config.EnvFrom = map[string]map[string]string{"": {"MARKET_API_KEY": "shared/market", "OTHER": "shared/openrouter"}}
+	if got := strings.Join(appSharedNamesOf(config), " "); got != "openrouter claude market" {
+		t.Fatal(got)
+	}
+}

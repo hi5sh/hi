@@ -185,8 +185,9 @@ func appEnvFromUnset(config *appConfig, slot, key string) bool {
 const vaultSharedUsage = `usage:
   hi server vault shared                       Each shared key, the apps given it, and the apps that use it
   hi server vault shared set <name>            Set its value, asked without echo
-  hi server vault shared give <name> <app>... [--take]
-                                               Let these apps use it, or take it back
+  hi server vault shared give <name> <app>... [--take] [--coming]
+                                               Let these apps use it, or take it back; --coming
+                                               for an app about to move here (hi app move)
   hi server vault shared rm <name>             Remove it; refused while an app uses it`
 
 func vaultSharedCommand(args []string, stdin io.Reader, stdout io.Writer) error {
@@ -212,11 +213,15 @@ func vaultSharedCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		fmt.Fprintln(stdout, said)
 		return nil
 	case "give":
-		take := false
+		take, coming := false, false
 		var rest []string
 		for _, arg := range args[1:] {
-			if arg == "--take" {
+			switch arg {
+			case "--take":
 				take = true
+				continue
+			case "--coming":
+				coming = true
 				continue
 			}
 			rest = append(rest, arg)
@@ -224,7 +229,7 @@ func vaultSharedCommand(args []string, stdin io.Reader, stdout io.Writer) error 
 		if len(rest) < 2 {
 			return usageError{vaultSharedUsage}
 		}
-		said, err := vaultSharedGive(rest[0], rest[1:], take, vaultActor())
+		said, err := vaultSharedGrantApps(rest[0], rest[1:], take, coming, vaultActor())
 		if err != nil {
 			return err
 		}
@@ -344,6 +349,14 @@ func vaultSharedSet(name, value, who string) (string, error) {
 }
 
 func vaultSharedGive(name string, apps []string, take bool, who string) (string, error) {
+	return vaultSharedGrantApps(name, apps, take, false, who)
+}
+
+// vaultSharedGrantApps is vaultSharedGive, which with coming also gives a
+// key to an app that isn't on this machine yet: one about to move here,
+// whose move would otherwise find the key not given (hi app move). An
+// app being received is one too.
+func vaultSharedGrantApps(name string, apps []string, take, coming bool, who string) (string, error) {
 	if !vaultSharedPattern.MatchString(name) {
 		return "", fmt.Errorf("%q isn't a shared key's name", name)
 	}
@@ -351,8 +364,8 @@ func vaultSharedGive(name string, apps []string, take bool, who string) (string,
 		if !appNamePattern.MatchString(app) {
 			return "", fmt.Errorf("%q isn't an app's name", app)
 		}
-		if _, err := loadTeam(app); err != nil && !take {
-			return "", fmt.Errorf("no app %s on this machine", app)
+		if _, err := loadTeam(app); err != nil && !take && !coming && !fileExists(appMoveIncoming(app)) {
+			return "", fmt.Errorf("no app %s on this machine (for one about to move here: --coming)", app)
 		}
 	}
 	err := updateVaultShared(func(grants map[string]*vaultSharedGrant) error {
@@ -491,6 +504,24 @@ func vaultExportShared(name string) (func(), error) {
 	}
 	data, _ := json.Marshal(values)
 	return done, writeFileAtomic(path, data, 0o600)
+}
+
+// appSharedNamesOf are the shared keys an app uses, by name, each once.
+func appSharedNamesOf(config appConfig) []string {
+	var names []string
+	add := func(from string) {
+		if shared, ok := appSharedName(from); ok && !slices.Contains(names, shared) {
+			names = append(names, shared)
+		}
+	}
+	add(config.OpenRouterFrom)
+	add(config.ClaudeFrom)
+	for _, refs := range sortedKeys(config.EnvFrom) {
+		for _, source := range config.EnvFrom[refs] {
+			add(source)
+		}
+	}
+	return names
 }
 
 // vaultImportShared takes a moved app's shared keys: one this machine

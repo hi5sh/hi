@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -319,6 +320,10 @@ type appMoveNeeds struct {
 	OrgKey        string `json:"org_key,omitempty"`
 	ClaudeMachine bool   `json:"claude_machine,omitempty"` // a member uses the machine's Claude Code sign-in
 	CodexMachine  bool   `json:"codex_machine,omitempty"`  // a member uses the machine's Codex sign-in
+	// Shared are the vault's shared keys the app uses, by name: one the
+	// other machine has of its own is the app's only once its admins give
+	// it.
+	Shared []string `json:"shared,omitempty"`
 }
 
 // appMoveReport is the receiving machine's answer to a check: what stops
@@ -501,6 +506,15 @@ func appReceiveCheck(needs appMoveNeeds) appMoveReport {
 			warn("%s is joined to a server (%s), and the app will report to it", here, org)
 		default:
 			warn("%s is joined to another server (%s): the app reports there, not to %s", here, org, needs.Org)
+		}
+	}
+	if len(needs.Shared) > 0 && vaultExists() {
+		grants := loadVaultShared()
+		for _, shared := range needs.Shared {
+			if grant := grants[shared]; grant != nil && !slices.Contains(grant.Apps, needs.App) {
+				problem("app %s uses shared/%s, and %s has a shared/%s of its own, which it hasn't given the app: an admin here gives it, hi server vault shared give %s %s --coming (or removes this machine's, and the app's is copied in)",
+					needs.App, shared, here, shared, shared, needs.App)
+			}
 		}
 	}
 	home, _ := os.UserHomeDir()
@@ -927,6 +941,7 @@ func appMoveNeedsOf(name, folder string) appMoveNeeds {
 	if connection, err := loadServerConnection(); err == nil && connection != nil {
 		needs.Org, needs.OrgKey = connection.URL, connection.ServerKey
 	}
+	needs.Shared = appSharedNamesOf(config)
 	for role, member := range config.Members {
 		if role == "lead" {
 			continue

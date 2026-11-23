@@ -562,7 +562,7 @@ Every secret hi keeps on the machine, encrypted on disk ([The server's vault](/g
 | `hi server vault forget <path> --version <n>` | Destroy one version's value, such as one that leaked; its entry stays |
 | `hi server vault shared` | Each shared key, the apps given it, and the apps that use it |
 | `hi server vault shared set <name>` | A key several apps use, such as one OpenRouter key, asked without echo; a new value reaches every app that uses it within a minute |
-| `hi server vault shared give <name> <app>... [--take]` | Let these apps use it, or take it back |
+| `hi server vault shared give <name> <app>... [--take] [--coming]` | Let these apps use it, or take it back; `--coming` for an app about to move here with `hi app move` |
 | `hi server vault shared rm <name>` | Remove it; refused while an app uses it |
 | `hi server vault connect <prefix>/ vault://<mount>[/<path>] --address https://… [--login jwt\|approle] [--role <name>] [--auth-mount <path>] [--namespace <ns>] [--ca <file>] [--secret-id-ttl 30d]` | Read a team's OpenBao or Vault there, read only; prints what its owners run once |
 | `hi server vault disconnect <prefix>` | Stop reading it, and forget the login; refused while an app takes from it |

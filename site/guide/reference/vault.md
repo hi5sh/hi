@@ -184,7 +184,10 @@ one under **Shared keys**, with the apps it's shared to and the apps that
 use it, and **New Share**, **Shared to**, **Change value**, and
 **Remove**; the left panel's Keys says which key each app uses. `hi app move` takes the
 shared keys an app uses along: a machine that doesn't have one gets it,
-given to that app alone.
+given to that app alone. A machine with a shared key of the same name
+keeps its own, and its admins decide: the move's check stops until one
+gives it to the app on its way, `hi server vault shared give openrouter
+payments --coming`, which uses that machine's value from then on.
 
 ## A team's OpenBao or Vault
 

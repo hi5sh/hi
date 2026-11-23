@@ -6989,6 +6989,16 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.239 — A move to a machine with a shared key of its own
+
+- [x] `hi app move` of an app on a vault shared key (`shared/openrouter`)
+  to a machine with a shared key of the same name failed at the start
+  there ("the app has no OpenRouter key"): that machine keeps its own,
+  given to its admins' choice of apps, and couldn't give it to an app not
+  there yet. The move's check now stops on it with the command, and
+  `hi server vault shared give <name> <app> --coming` gives it to an app
+  about to move in (or one being received).
+
 ### v2.6.238 — A move past Stage's data overlay; 443 in an app's ask on a domain
 
 - [x] `hi app move` stopped on an app whose Stage runs on a fork of
