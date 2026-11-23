@@ -6989,6 +6989,20 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.238 — A move past Stage's data overlay; 443 in an app's ask on a domain
+
+- [x] `hi app move` stopped on an app whose Stage runs on a fork of
+  production's data: the overlay's work folder holds a folder only the
+  box's root may open, and rsync couldn't read it. The move sends that
+  folder empty, as the kernel wants it.
+- [x] The admin page's **What to ask your IT team** asks for TCP 443 in
+  both of an app's policies when its addresses are on the machine's
+  domain, names the server's own peer when it has one, and asks for the
+  group of the app's owners and developers.
+- [x] The guide's Networking page is in three parts: the server and the
+  admin page, each app (its ports by how its addresses are named), and
+  your own machine.
+
 ### v2.6.237 — The dev box's proxy restarted outside the app's service
 
 - [x] v2.6.236's restart of a dev box's proxy, for the new hi, ran podman

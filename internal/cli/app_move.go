@@ -853,14 +853,21 @@ func (t appMoveTarget) output(stdin io.Reader, words ...string) (string, error) 
 
 var appMoveNoAccess = errors.New("the machine doesn't take apps from this one yet")
 
-// appMoveRsync copies from to there, exactly (--delete), leaving out what
-// only means something on this machine while it runs.
+// appMoveExcludes are what a move leaves out of the folder: what only
+// means something on this machine while it runs. Stage's data overlay's
+// work folder is the kernel's scratch, which the overlay's mount fills
+// with a folder only the box's root may open: the folder goes, empty.
+var appMoveExcludes = []string{"--exclude=*.sock", "--exclude=postmaster.pid", "--exclude=/" + appReceivingFile, "--exclude=/" + appMovedFile,
+	"--exclude=/run/preview-work/**"}
+
+// appMoveRsync copies from to there, exactly (--delete), leaving out
+// appMoveExcludes.
 var appMoveRsync = func(t appMoveTarget, from, to string, stdout io.Writer) error {
 	ssh := "ssh " + strings.Join(t.sshOptions(), " ")
 	// Owners and groups aren't kept: an account that isn't root can't set
 	// them, and the boxes run as that account on both machines.
-	args := []string{"-aH", "--no-owner", "--no-group", "--delete", "--exclude=*.sock", "--exclude=postmaster.pid", "--exclude=/" + appReceivingFile, "--exclude=/" + appMovedFile,
-		"-e", ssh, strings.TrimSuffix(from, "/") + "/", t.dest + ":" + strings.TrimSuffix(to, "/") + "/"}
+	args := append([]string{"-aH", "--no-owner", "--no-group", "--delete"}, appMoveExcludes...)
+	args = append(args, "-e", ssh, strings.TrimSuffix(from, "/")+"/", t.dest+":"+strings.TrimSuffix(to, "/")+"/")
 	var errOut strings.Builder
 	command := exec.Command("rsync", args...)
 	command.Stdout, command.Stderr = io.Discard, &errOut

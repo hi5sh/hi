@@ -144,7 +144,7 @@ func setupMoveTest(t *testing.T) (*moveTestMachines, string) {
 		return err
 	}
 	appMoveRsync = func(target appMoveTarget, from, to string, stdout io.Writer) error {
-		out, err := exec.Command("rsync", "-aH", "--delete", "--exclude=*.sock", "--exclude=/"+appReceivingFile, "--exclude=/"+appMovedFile, from+"/", to+"/").CombinedOutput()
+		out, err := exec.Command("rsync", append(append([]string{"-aH", "--delete"}, appMoveExcludes...), from+"/", to+"/")...).CombinedOutput()
 		if err != nil {
 			t.Fatalf("rsync: %s", out)
 		}
@@ -320,5 +320,34 @@ rsync error: some files/attrs were not transferred (see previous errors) (code 2
 	}
 	if got := appRsyncErrors("", errors.New("exit status 12")); got != "exit status 12" {
 		t.Fatal(got)
+	}
+}
+
+// TestAppMoveLeavesOverlayWorkOut: Stage's data overlay's work folder holds
+// a folder only the box's root may open; the move sends the folder empty,
+// as the kernel wants it, and doesn't fail on what's in it.
+func TestAppMoveLeavesOverlayWorkOut(t *testing.T) {
+	if _, err := exec.LookPath("rsync"); err != nil {
+		t.Skip("no rsync")
+	}
+	from, to := t.TempDir(), t.TempDir()
+	work := filepath.Join(from, "run", "preview-work", "work")
+	if err := os.MkdirAll(work, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(from, "run", "preview-work", "scratch"), []byte("x"), 0o600)
+	os.WriteFile(filepath.Join(from, "run", "keep.json"), []byte("{}"), 0o600)
+	os.Chmod(work, 0)
+	t.Cleanup(func() { os.Chmod(work, 0o700) })
+	out, err := exec.Command("rsync", append(append([]string{"-aH", "--delete"}, appMoveExcludes...), from+"/", to+"/")...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	entries, err := os.ReadDir(filepath.Join(to, "run", "preview-work"))
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("the work folder: %v %v", entries, err)
+	}
+	if !fileExists(filepath.Join(to, "run", "keep.json")) {
+		t.Fatal("the rest didn't go")
 	}
 }
