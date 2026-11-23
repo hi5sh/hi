@@ -6989,7 +6989,7 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
-### Next — Sign-ins and incidents after a move
+### v2.6.240 — Sign-ins and incidents after a move
 
 - [x] An incident about the machine's kernel named the machine an app
   moved from: the watcher's state moves with the folder, and it kept the
