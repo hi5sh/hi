@@ -6989,6 +6989,11 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.241 — Side panels without shadows
+
+- [x] The dev page's left and right panels cast no drop shadow, beside
+  the chat or over it on a narrow screen: the panel's line is its edge.
+
 ### v2.6.240 — Sign-ins and incidents after a move
 
 - [x] An incident about the machine's kernel named the machine an app
