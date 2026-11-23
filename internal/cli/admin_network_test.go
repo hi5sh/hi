@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Network and Data run their hi app commands; restore, rollback, and a
@@ -109,5 +110,29 @@ func TestAdminOverviewSaysWhenTheAppIsntOnNetBird(t *testing.T) {
 	writeSkillTestFile(t, filepath.Join(appDevDir("payments"), "netbird", "default.json"), "{}", 0o600)
 	if !adminAppOf("payments").Joined {
 		t.Fatal("not joined with a peer")
+	}
+}
+
+// TestAdminITAskDomain: with the machine's domain, an app's addresses are
+// on https by name, so both policies take 443 too, and the dev page's
+// sign-in is its gate there; developers reach the dev page and SSH too.
+func TestAdminITAskDomain(t *testing.T) {
+	setupAdminTest(t)
+	config := testTeamConfig()
+	ask := adminITAsk(config)
+	if strings.Contains(ask, "443") || !strings.Contains(ask, "group of its owners and developers to hi-payments, TCP 8888 and 22 (") {
+		t.Fatal(ask)
+	}
+	saveHiDomain(hiDomain{Domain: "dev.example.com", Zone: "example.com", Provider: "test", Set: time.Now()})
+	ask = adminITAsk(config)
+	for _, want := range []string{"TCP 80 and 8080, and 443 (production and Stage)", "TCP 8888 and 22, and 443 (the dev page", "dev page's own sign-in", "payments.dev.example.com"} {
+		if !strings.Contains(ask, want) {
+			t.Fatalf("no %q in\n%s", want, ask)
+		}
+	}
+	// An app with names of its own isn't on the domain's names.
+	config.Addresses, config.Names = appAddressesNames, &appNames{Production: "pay.example.com", Preview: "stage.pay.example.com", Dev: "dev.pay.example.com"}
+	if ask := adminITAsk(config); strings.Contains(ask, "443") {
+		t.Fatal(ask)
 	}
 }

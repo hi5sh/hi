@@ -751,7 +751,8 @@ before, run `hi app dev <app> netbird`. In NetBird's dashboard:
    auto-group such as `hi-orbit`.
 2. **Access Control:** a policy from the people's group to that group,
    TCP ports 80 and 8080 (and 443 once the addresses are on https,
-   below), and one from the owners' group, TCP 8888, 443 and 22.
+   below), and one from the group of its owners and developers, TCP
+   8888 and 22 (and 443 on https).
 
 hi uses the key once. After that the peer stays the same, with the same
 name and address, also when it is replaced; hi doesn't keep the key, and

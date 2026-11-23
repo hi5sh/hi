@@ -129,17 +129,26 @@ func adminITAsk(config appConfig) string {
 	peer := appPeerHostname(name)
 	var b strings.Builder
 	fmt.Fprintf(&b, "App %s (its NetBird peer %s, in the group hi-%s):\n", name, peer, name)
-	fmt.Fprintf(&b, "  - A NetBird policy from the app's people's group to hi-%s, TCP 80 and 8080 (production and Stage).\n", name)
-	fmt.Fprintf(&b, "  - One from its owners' group to hi-%s, TCP 8888 and 22 (the dev page, and SSH to the dev box).\n", name)
+	// With the machine's domain the addresses are on https, each by its
+	// name on 443, besides their NetBird name's ports (hi_app_internal.md).
+	domain, onDomain := loadHiDomain()
+	onDomain = onDomain && config.Addresses == ""
+	also := ""
+	if onDomain {
+		also = ", and 443"
+	}
+	fmt.Fprintf(&b, "  - A NetBird policy from the app's people's group to hi-%s, TCP 80 and 8080%s (production and Stage).\n", name, also)
+	fmt.Fprintf(&b, "  - One from the group of its owners and developers to hi-%s, TCP 8888 and 22%s (the dev page, and SSH to the dev box).\n", name, also)
+	if onDomain {
+		b.WriteString("    On 443 the three names share a port, so there the dev page's own sign-in is what keeps others off it.\n")
+	}
 	switch {
 	case config.Addresses == appAddressesNames && config.Names != nil:
 		b.WriteString("  - " + strings.ReplaceAll(strings.TrimSpace(appNamesAsk(name, *config.Names)), "\n", "\n    ") + "\n")
 	case config.Addresses != "" && config.Addresses != appAddressesNetBird:
 		fmt.Fprintf(&b, "  - An A record from %s to the app's NetBird address (hi app dev %s shows it once it joined).\n", config.Addresses, name)
-	case config.Addresses == "":
-		if domain, ok := loadHiDomain(); ok {
-			fmt.Fprintf(&b, "  - Nothing in DNS: its names are under this machine's domain, %s, which hi keeps.\n", domain.addressName(name, appSlotProduction))
-		}
+	case onDomain:
+		fmt.Fprintf(&b, "  - Nothing in DNS: its names are under this machine's domain, %s, which hi keeps.\n", domain.addressName(name, appSlotProduction))
 	}
 	if !appPeerJoined(name) {
 		fmt.Fprintf(&b, "  - It hasn't joined NetBird yet: a setup key for it (Add Peer → Server, one-off, with the auto-group hi-%s), given in its Network section.\n", name)
@@ -233,7 +242,7 @@ func (s *adminServer) machineNetwork(admin adminPerson) adminMachineNetwork {
 				view.Expose = url
 			}
 		}
-		fmt.Fprintf(&ask, "\nThe server: a NetBird policy from the server's people to this machine, TCP %d (devices join, ask, and approve there).\n", serverDefaultPort)
+		fmt.Fprintf(&ask, "\nThe server: a NetBird policy from the server's people to %s, TCP %d (devices join, ask, and approve there).\n", adminServerTarget(dir), serverDefaultPort)
 	}
 	view.Ask = ask.String()
 	return view

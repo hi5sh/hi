@@ -122,6 +122,20 @@ func adminServerPeer(config adminConfig) string {
 	return ""
 }
 
+// adminServerTarget is where the server's people reach it, for its
+// NetBird policy: its own peer when it has one (hi server net join), else
+// this machine.
+func adminServerTarget(dir string) string {
+	if server, err := loadServerConfig(dir); err == nil && server.Peer != nil {
+		var name serverPeerName
+		if data, err := os.ReadFile(serverPeerNamePath(dir)); err == nil && json.Unmarshal(data, &name) == nil && firstNonEmpty(name.FQDN, name.Address) != "" {
+			return "its peer " + firstNonEmpty(name.FQDN, name.Address)
+		}
+		return "its peer " + server.Peer.Name
+	}
+	return "this machine, " + firstNonEmpty(adminMachineNetBirdName(), adminMachineName())
+}
+
 // adminHTTPSDomain is the domain the page is on over https, once its
 // record and the certificate are there.
 func adminHTTPSDomain() string {
