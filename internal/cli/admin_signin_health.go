@@ -103,6 +103,9 @@ type adminSigninTold struct {
 	State string    `json:"state"`
 	Mark  string    `json:"mark,omitempty"` // which limit, week, or expiry
 	At    time.Time `json:"at"`
+	// Apps are the apps on it then: when it stopped and they move to
+	// another sign-in, they are told of as working again.
+	Apps []string `json:"apps,omitempty"`
 }
 
 func adminSigninToldPath() string { return filepath.Join(adminDir(), "signin-told.json") }
@@ -141,6 +144,7 @@ func (s *adminServer) tellSignins(now time.Time) {
 		return
 	}
 	groups := map[string]*adminSigninGroup{}
+	current := map[string]*appSigninHealth{} // each app's sign-in of each kind, by app|kind
 	for _, app := range adminAppNames() {
 		state, ok := loadAppSigninHealth(app)
 		if !ok {
@@ -151,6 +155,7 @@ func (s *adminServer) tellSignins(now time.Time) {
 				continue
 			}
 			h.settle(now)
+			current[app+"|"+kind] = h
 			id := kind + "|" + h.Key
 			group := groups[id]
 			if group == nil {
@@ -197,14 +202,47 @@ func (s *adminServer) tellSignins(now time.Time) {
 			s.logf("telling the server's channel of %s: %v", strings.Join(group.apps, ", "), err)
 			continue
 		}
-		told[id], changed = adminSigninTold{State: h.State, Mark: mark, At: now.UTC()}, true
+		told[id], changed = adminSigninTold{State: h.State, Mark: mark, At: now.UTC(), Apps: group.apps}, true
 	}
-	// A credential no app uses any more is forgotten.
-	for id := range told {
-		if groups[id] == nil {
-			delete(told, id)
-			changed = true
+	// A credential no app uses any more is forgotten. One that was said to
+	// have stopped, whose apps work on another now, is said to work again,
+	// with what they use.
+	for _, id := range sortedKeys(told) {
+		if groups[id] != nil {
+			continue
 		}
+		before := told[id]
+		if before.State == signinSignedOut && len(before.Apps) > 0 {
+			kind, _, _ := strings.Cut(id, "|")
+			var uses []string
+			waiting := false
+			for _, app := range before.Apps {
+				h := current[app+"|"+kind]
+				switch {
+				case h == nil:
+					// Gone from the machine, or no longer using one.
+				case h.State == signinUnknown:
+					waiting = true
+				case h.State == signinSignedOut || h.State == signinLimited:
+					uses = nil
+					waiting = true
+				default:
+					uses = append(uses, app+" uses "+signinSourceWords(h.Source))
+				}
+			}
+			if waiting {
+				continue // said when it's known
+			}
+			if len(uses) > 0 {
+				text := fmt.Sprintf(":white_check_mark: *%s works again* on %s: %s.", signinLabels[kind], adminMachineName(), strings.Join(uses, "; "))
+				if err := adminPost(slackConfig.BotToken, slackConfig.Channel, text); err != nil {
+					s.logf("telling the server's channel of %s: %v", strings.Join(before.Apps, ", "), err)
+					continue
+				}
+			}
+		}
+		delete(told, id)
+		changed = true
 	}
 	if changed {
 		data, _ := json.MarshalIndent(told, "", "  ")
@@ -212,6 +250,17 @@ func (s *adminServer) tellSignins(now time.Time) {
 			writeFileAtomic(adminSigninToldPath(), append(data, '\n'), 0o600)
 		}
 	}
+}
+
+// signinSourceWords says whose sign-in it is.
+func signinSourceWords(source string) string {
+	switch {
+	case source == "own":
+		return "its own sign-in"
+	case source == "machine":
+		return "the machine's sign-in"
+	}
+	return source
 }
 
 // adminSigninMark tells one limit, week, or expiry from the next, so each

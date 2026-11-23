@@ -419,3 +419,30 @@ func TestVaultSharedGiveComing(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// An app on the machine's Claude sign-in, moving to a machine with none
+// it can use: the check warns, with the shared key there when it has one.
+func TestAppMoveWarnsOfNoClaudeThere(t *testing.T) {
+	setupTeamTest(t)
+	vaultTest(t)
+	initVault(vaultSlotFile)
+	saved := appMoveClaudeHere
+	t.Cleanup(func() { appMoveClaudeHere = saved })
+	needs := appMoveNeeds{App: "orders", Folder: filepath.Join(t.TempDir(), "app-orders"), Version: version, ClaudeMachine: true}
+	appMoveClaudeHere = func() error { return nil }
+	for _, warning := range appReceiveCheck(needs).Warnings {
+		if strings.Contains(warning, "Claude") {
+			t.Fatal("signed in, and warned:", warning)
+		}
+	}
+	appMoveClaudeHere = func() error { return io.EOF }
+	var out bytes.Buffer
+	vaultSharedCommand([]string{"set", "claude"}, strings.NewReader("sk-ant-oat01-x\n"), &out)
+	found := false
+	for _, warning := range appReceiveCheck(needs).Warnings {
+		found = found || strings.Contains(warning, "hi server vault shared give claude orders and hi app signin orders claude --from shared/claude")
+	}
+	if !found {
+		t.Fatal(appReceiveCheck(needs).Warnings)
+	}
+}

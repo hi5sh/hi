@@ -378,6 +378,29 @@ func TestTellSignins(t *testing.T) {
 	if len(*a.posts) != 4 {
 		t.Fatalf("%q", *a.posts)
 	}
+	// Stopped on the machine's sign-in, then on another (an app moved
+	// here, then given a shared key): it works again, on what it uses now.
+	machine := appSigninHealth{Source: "machine", Key: "claude:machine", SignedOut: "no Claude sign-in in the credentials file"}
+	write("billing", machine)
+	a.s.tellSignins(now.Add(2 * time.Hour))
+	if len(*a.posts) != 5 || !strings.Contains((*a.posts)[4], "*Claude stopped working* for billing (the machine's sign-in)") {
+		t.Fatalf("%q", *a.posts)
+	}
+	unknown := shared
+	unknown.Checked = time.Time{}
+	h := unknown
+	h.Kind = "claude"
+	saveAppSigninHealth("billing", appSigninHealthState{Signins: map[string]*appSigninHealth{"claude": &h}})
+	a.s.tellSignins(now.Add(2*time.Hour + time.Minute))
+	if len(*a.posts) != 5 {
+		t.Fatalf("said before the new one was known: %q", *a.posts)
+	}
+	write("billing", shared)
+	a.s.tellSignins(now.Add(2*time.Hour + 2*time.Minute))
+	a.s.tellSignins(now.Add(2*time.Hour + 3*time.Minute))
+	if len(*a.posts) != 6 || !strings.Contains((*a.posts)[5], ":white_check_mark: *Claude works again* on ") || !strings.Contains((*a.posts)[5], "billing uses shared/claude-max") {
+		t.Fatalf("%q", *a.posts)
+	}
 }
 
 func TestAdminShowsSignins(t *testing.T) {

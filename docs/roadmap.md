@@ -6989,6 +6989,18 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### Next — Sign-ins after a move
+
+- [x] The server's channel says a Claude, ChatGPT, or agy sign-in works
+  again also when its apps moved to another one (a moved app given a
+  shared key), once the new one is known to work, and what they use now.
+  It said "stopped working" and nothing after.
+- [x] `hi app move`'s check warns when the app is on the machine's Claude
+  sign-in and the other machine has none its proxies can use, with the
+  shared key there to give it; it took `~/.claude.json`, which Claude
+  Code writes signed out too, for a sign-in, and looked only at Claude
+  members, not the dev box, which every app has.
+
 ### v2.6.239 — A move to a machine with a shared key of its own
 
 - [x] `hi app move` of an app on a vault shared key (`shared/openrouter`)

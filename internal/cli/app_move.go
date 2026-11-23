@@ -433,6 +433,22 @@ func appReceive(from string, words []string, stdin io.Reader, stdout, stderr io.
 	return fmt.Errorf("hi app __receive doesn't do %q", command)
 }
 
+// appMoveClaudeHere says whether this machine has a Claude sign-in its
+// proxies can use, as they read it: a token from hi agent token claude, or
+// Claude Code's own sign-in. Tests replace it.
+var appMoveClaudeHere = func() error {
+	path, err := boxClaudeSecret()
+	if err != nil {
+		return err
+	}
+	// A sign-in whose access token ran out is still one: Claude Code
+	// refreshes it.
+	if token, err := readBoxClaudeToken(path); token == "" {
+		return err
+	}
+	return nil
+}
+
 // appReceiveCheck is what this machine has and lacks for an app.
 func appReceiveCheck(needs appMoveNeeds) appMoveReport {
 	here := appMoveThisMachine()
@@ -518,9 +534,21 @@ func appReceiveCheck(needs appMoveNeeds) appMoveReport {
 		}
 	}
 	home, _ := os.UserHomeDir()
-	if needs.ClaudeMachine && !fileExists(filepath.Join(home, ".claude", ".credentials.json")) && !fileExists(filepath.Join(home, ".claude.json")) {
-		warn("a member uses the machine's Claude Code sign-in, and Claude Code isn't signed in on %s: claude there, then /login", here)
+	if needs.ClaudeMachine && appMoveClaudeHere() != nil {
+		shared := ""
+		for name := range loadVaultShared() {
+			if strings.Contains(name, "claude") {
+				shared = name
+				break
+			}
+		}
+		if shared != "" {
+			warn("app %s uses the machine's Claude sign-in, and %s has none it can use, so its dev box and Claude members stop until it has one: after the move, hi server vault shared give %s %s and hi app signin %s claude --from shared/%s here", needs.App, here, shared, needs.App, needs.App, shared)
+		} else {
+			warn("app %s uses the machine's Claude sign-in, and %s has none it can use, so its dev box and Claude members stop until it has one: claude there, then /login, or hi agent token claude there", needs.App, here)
+		}
 	}
+
 	if needs.CodexMachine && !fileExists(filepath.Join(home, ".codex", "auth.json")) {
 		warn("a member uses the machine's Codex sign-in, and Codex isn't signed in on %s: codex login there", here)
 	}
@@ -942,13 +970,13 @@ func appMoveNeedsOf(name, folder string) appMoveNeeds {
 		needs.Org, needs.OrgKey = connection.URL, connection.ServerKey
 	}
 	needs.Shared = appSharedNamesOf(config)
+	// Every app's dev box runs Claude Code, Claude members or not.
+	needs.ClaudeMachine = secrets.ClaudeToken == "" && config.ClaudeFrom == ""
 	for role, member := range config.Members {
 		if role == "lead" {
 			continue
 		}
 		switch member.Agent {
-		case "claude":
-			needs.ClaudeMachine = needs.ClaudeMachine || secrets.ClaudeToken == "" && config.ClaudeFrom == ""
 		case "codex":
 			needs.CodexMachine = true
 		}
