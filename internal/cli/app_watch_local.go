@@ -92,10 +92,15 @@ func (b *appBroker) localBeat(beat apiHeartbeat, bomPath string, now time.Time) 
 	}
 	w.config.AutoFreeze = config.AutoFreeze
 	team := w.state.Teams[b.team]
+	hostname, _ := os.Hostname()
 	if team == nil {
-		hostname, _ := os.Hostname()
 		team = &watchTeam{Team: b.team, Device: "local", Hostname: hostname, First: now}
 		w.state.Teams[b.team] = team
+	}
+	// The machine it runs on now: the watcher's state moves with the app's
+	// folder (hi app move), and its incidents name the machine to update.
+	if hostname != "" {
+		team.Hostname = hostname
 	}
 	if data, err := os.ReadFile(appWatchWantPath(b.team)); err == nil {
 		var want appWatchWant

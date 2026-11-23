@@ -426,3 +426,25 @@ func TestAdminShowsSignins(t *testing.T) {
 		t.Fatalf("%+v", keys.Apps)
 	}
 }
+
+// TestWatcherTakesTheMachinesName: the watcher's state moves with an app's
+// folder; its incidents name the machine the app runs on now, not the one
+// it came from.
+func TestWatcherTakesTheMachinesName(t *testing.T) {
+	setupTeamTest(t)
+	config := testTeamConfig()
+	writeTeamForAdmin(t, config)
+	w := appLocalWatcher(config.Name)
+	w.mu.Lock()
+	w.state.Teams[config.Name] = &watchTeam{Team: config.Name, Device: "local", Hostname: "the-old-machine", First: time.Now()}
+	w.mu.Unlock()
+	b := &appBroker{team: config.Name}
+	b.localBeat(apiHeartbeat{}, "", time.Now())
+	here, _ := os.Hostname()
+	w.mu.Lock()
+	got := w.state.Teams[config.Name].Hostname
+	w.mu.Unlock()
+	if got != here {
+		t.Fatalf("%q, want %q", got, here)
+	}
+}

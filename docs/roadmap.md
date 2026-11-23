@@ -6989,7 +6989,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
-### Next — Sign-ins after a move
+### Next — Sign-ins and incidents after a move
+
+- [x] An incident about the machine's kernel named the machine an app
+  moved from: the watcher's state moves with the folder, and it kept the
+  machine's name from when it first saw the app. It takes the name of
+  the machine it runs on at every beat.
 
 - [x] The server's channel says a Claude, ChatGPT, or agy sign-in works
   again also when its apps moved to another one (a moved app given a
