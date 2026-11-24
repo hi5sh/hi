@@ -6989,6 +6989,27 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.242 — Earlier sessions, Publish, and messages Claude didn't take
+
+- [x] A task finished and started again gets its branch's folder back,
+  where the agents keep their sessions: its workspace's session menu and
+  chat show only the sessions of its worktree as it is now (and one
+  resumed there), not the earlier work's.
+- [x] The session menu lists a workspace's earlier sessions under
+  "Earlier sessions here", each with when it started and when it was last
+  active, from its own records rather than its file's time.
+- [x] Publish's "Then close …" takes only work that's in the version: a
+  workspace with no commits of its own isn't closed and removed with it.
+  It says "Nothing committed yet", not "Published ✓"; Discard is in its ⋯
+  menu, and Done on its task closes the task and removes the workspace.
+- [x] A dialog of Claude Code's own while herdr says it's idle, such as
+  its offer of auto mode, shows in the chat as a question to answer. A
+  message isn't sent into it, where it was lost: the page says to answer
+  first, and the message stays in the box.
+- [x] A message the agent didn't take stays in the chat, marked, with
+  "Put it back in the box", instead of going after 20 seconds.
+- [x] A new dev box's Terminal opens without herdr's welcome.
+
 ### v2.6.241 — Side panels without shadows
 
 - [x] The dev page's left and right panels cast no drop shadow, beside
