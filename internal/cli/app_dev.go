@@ -601,7 +601,7 @@ func appDevLock(team string) (func(), error) {
 func appDevJoined(team string, wait time.Duration) bool {
 	deadline := time.Now().Add(wait)
 	for {
-		if appPeerJoined(team) {
+		if appPeerOnNetwork(team) {
 			os.Remove(filepath.Join(appDevDir(team), appDevSetupKey))
 			return true
 		}
@@ -614,6 +614,43 @@ func appDevJoined(team string, wait time.Duration) bool {
 
 // appDevJoinPoll is how often hi looks for the peer; tests shorten it.
 var appDevJoinPoll = 2 * time.Second
+
+// appPeerOnNetwork says the team's peer is logged in to its network now,
+// as its NetBird says. Its config file isn't enough: NetBird writes it on
+// its first start, also when the key it had was refused.
+var appPeerOnNetwork = func(team string) bool {
+	engine, _, err := detectBoxEngine()
+	if err != nil {
+		return false
+	}
+	out, err := engine.quietExec(appDevNetContainer(team), "netbird", "status", "--json")
+	var status struct {
+		FQDN       string `json:"fqdn"`
+		Management struct {
+			Connected bool `json:"connected"`
+		} `json:"management"`
+	}
+	return err == nil && json.Unmarshal([]byte(out), &status) == nil && status.Management.Connected && strings.Contains(status.FQDN, ".")
+}
+
+// appPeerRefusal is why NetBird didn't let the team's peer join, from its
+// last error in the peer's log, or "".
+var appPeerRefusal = func(engine boxEngine, team string) string {
+	out, err := engine.quietExec(appDevNetContainer(team), "tail", "-n", "40", "/tmp/peer.log")
+	if err != nil {
+		return ""
+	}
+	reason := ""
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimSpace(line); strings.Contains(strings.ToLower(line), "error") {
+			reason = line
+		}
+	}
+	if len(reason) > 240 {
+		reason = reason[:240] + "…"
+	}
+	return reason
+}
 
 // appDevState is what hi knows of the running dev box, in dev/state.json.
 type appDevState struct {
@@ -836,15 +873,30 @@ func appDevCommand(args []string, stdin io.Reader, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
+		dev := appDevDir(config.Name)
+		peerRuns := engine.state(appDevNetContainer(config.Name)) == "running"
+		if !fileExists(filepath.Join(dev, "netbird-fqdn")) || (peerRuns && !appPeerOnNetwork(config.Name)) {
+			// Not on its network, such as a peer whose first key had
+			// expired: NetBird wrote its config all the same, hi took
+			// that for joined, and dropped every later key unused. It
+			// joins afresh with this one. A joined peer that's only
+			// stopped keeps its identity.
+			os.RemoveAll(filepath.Join(dev, "netbird"))
+			os.Remove(filepath.Join(dev, "netbird-fqdn"))
+		}
 		engine.output("rm", "-f", appDevNetContainer(config.Name))
 		if err := startTeamDev(config, hi, stdout, stdout); err != nil {
 			return err
 		}
 		if appDevJoined(config.Name, time.Minute) {
 			fmt.Fprintf(stdout, "The app is on its NetBird network as %s; hi has removed the setup key it used.\n", appPeerHostname(config.Name))
-		} else {
-			fmt.Fprintf(stdout, "The app is joining its NetBird network as %s; hi app dev %s shows when it has.\n", appPeerHostname(config.Name), config.Name)
+			return nil
 		}
+		if reason := appPeerRefusal(engine, config.Name); reason != "" {
+			os.Remove(filepath.Join(dev, appDevSetupKey))
+			return fmt.Errorf("NetBird didn't let the app's peer join with that setup key: %s\nAsk whoever runs your NetBird for a new one (Add Peer → Server, not ephemeral, not expired), then give it again: hi app dev %s netbird", reason, config.Name)
+		}
+		fmt.Fprintf(stdout, "The app is joining its NetBird network as %s; hi app dev %s shows when it has.\n", appPeerHostname(config.Name), config.Name)
 		return nil
 	case action == "new-host-key" && len(args) == 2:
 		os.Remove(filepath.Join(appDevDir(config.Name), "ssh", "host_ed25519"))

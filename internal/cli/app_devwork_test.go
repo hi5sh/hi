@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -283,15 +284,25 @@ func TestTeamDevJoined(t *testing.T) {
 	previous := appDevJoinPoll
 	appDevJoinPoll = 10 * time.Millisecond
 	t.Cleanup(func() { appDevJoinPoll = previous })
+	var on atomic.Bool
+	previousOn := appPeerOnNetwork
+	appPeerOnNetwork = func(string) bool { return on.Load() }
+	t.Cleanup(func() { appPeerOnNetwork = previousOn })
 	setTeamDevNetBird("payments", "6F1A2B3C-4D5E-6F70-8192-A3B4C5D6E7F8")
 	if appDevJoined("payments", 30*time.Millisecond) {
 		t.Fatal("joined without an identity")
 	}
+	// NetBird's config is there from its first start, also when the key
+	// was refused: the key stays until NetBird says the peer is on.
+	os.MkdirAll(filepath.Join(appDevDir("payments"), "netbird"), 0o700)
+	os.WriteFile(filepath.Join(appDevDir("payments"), "netbird", "default.json"), []byte("{}"), 0o600)
+	if appDevJoined("payments", 30*time.Millisecond) || !fileExists(filepath.Join(appDevDir("payments"), appDevSetupKey)) {
+		t.Fatal("took a config file for joined")
+	}
 	// The key goes once the peer has joined.
 	go func() {
 		time.Sleep(20 * time.Millisecond)
-		os.MkdirAll(filepath.Join(appDevDir("payments"), "netbird"), 0o700)
-		os.WriteFile(filepath.Join(appDevDir("payments"), "netbird", "default.json"), []byte("{}"), 0o600)
+		on.Store(true)
 	}()
 	if !appDevJoined("payments", time.Second) || fileExists(filepath.Join(appDevDir("payments"), appDevSetupKey)) {
 		t.Fatal("the key stayed")
