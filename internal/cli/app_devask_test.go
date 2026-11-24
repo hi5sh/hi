@@ -322,3 +322,69 @@ func TestTeamDevChatAnswerAgy(t *testing.T) {
 		t.Fatal("answered nothing:", body)
 	}
 }
+
+// appTestAskClaudeAutoOffer is Claude Code's offer of auto mode, as it was
+// on a dev box's screen after a turn: herdr and the hooks said idle.
+const appTestAskClaudeAutoOffer = `● Thanks. Three of the four are settled.
+
+  1. a manual test button
+  2. Sonnet 5.5 for the summaries
+
+✻ Worked for 1m 11s · done 6:55 AM
+
+────────────────────────────────────────────────────────────────────
+  Make auto mode your default permission mode?
+
+  Auto mode lets Claude handle permission prompts automatically. Claude
+  checks each tool call for risky actions and blocks the rest.
+
+  ❯ Yes, set auto mode as my default permission mode
+    No, keep bypass permissions
+
+  Not answered yet · ↑/↓ to choose · Esc to cancel`
+
+// One of Claude Code's own dialogs while herdr says idle: the chat asks it,
+// and a message isn't sent into it, where it would be lost.
+func TestTeamDevChatIdleDialog(t *testing.T) {
+	b, ran := appTestDevPage(t)
+	handler := b.devPageHandler()
+	screen := appTestAskClaudeAutoOffer
+	previous := appDevBoxExec
+	appDevBoxExec = func(team string, command ...string) (string, error) {
+		switch strings.Join(command[:min(3, len(command))], " ") {
+		case "herdr pane list":
+			return `{"result":{"panes":[{"pane_id":"w2:p1","agent":"claude","agent_status":"idle","cwd":"/box/home/.herdr/worktrees/repo/1-chart"}]}}`, nil
+		case "herdr pane read":
+			return screen, nil
+		}
+		return previous(team, command...)
+	}
+	t.Cleanup(func() { appDevBoxExec = previous })
+	var view appDevChatView
+	_, body := appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	json.Unmarshal([]byte(body), &view)
+	if view.Agent.Status != "blocked" || view.Ask == nil || len(view.Ask.Options) != 2 || view.Ask.Options[1].Label != "No, keep bypass permissions" ||
+		len(view.Ask.Text) == 0 || view.Ask.Text[0] != "Make auto mode your default permission mode?" {
+		t.Fatalf("%s", body)
+	}
+	*ran = nil
+	code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/send", map[string]any{"workspace": "w2", "text": "Use green"})
+	if code == 200 || !strings.Contains(body, "Claude is asking something first") || strings.Contains(strings.Join(*ran, "\n"), "agent prompt") {
+		t.Fatal(code, body, *ran)
+	}
+	code, body = appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/answer", map[string]any{"workspace": "w2", "text": view.Ask.Text, "option": 1, "label": "No, keep bypass permissions"})
+	if code != 200 || !strings.Contains(strings.Join(*ran, "\n"), "herdr agent send-keys w2:p1 down enter") {
+		t.Fatal(code, body, *ran)
+	}
+	// Answered, at its prompt: not a question, and a message goes in.
+	screen = "● Done.\n\n────────\n❯ \n────────\n  ⏵⏵ bypass permissions on (shift+tab to cycle)"
+	view = appDevChatView{}
+	_, body = appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	json.Unmarshal([]byte(body), &view)
+	if view.Agent.Status != "idle" || view.Ask != nil {
+		t.Fatalf("%s", body)
+	}
+	if code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "POST", "api/chat/send", map[string]any{"workspace": "w2", "text": "Use green"}); code != 200 || !strings.Contains(strings.Join(*ran, "\n"), "herdr agent prompt w2:p1 Use green") {
+		t.Fatal(code, body, *ran)
+	}
+}

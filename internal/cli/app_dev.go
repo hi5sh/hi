@@ -299,6 +299,14 @@ func prepareTeamDevHome(team, proxyIP string, env map[string]string) error {
 	if err := appDevClaudeSettings(home); err != nil {
 		return err
 	}
+	// herdr: no welcome over the Terminal of a new box, which herdr shows
+	// until someone presses continue there. An owner's own config stays.
+	herdrConfig := filepath.Join(home, ".config", "herdr", "config.toml")
+	if _, err := boxedReadFile(home, herdrConfig); errors.Is(err, fs.ErrNotExist) {
+		if err := boxedMkdirAll(home, filepath.Dir(herdrConfig), 0o755); err == nil {
+			boxedWriteFile(home, herdrConfig, []byte("onboarding = false\n"), 0o644)
+		}
+	}
 	// Codex: ChatGPT through the proxy, no approvals, no sandbox of its own.
 	if appCodexViaProxy(team) {
 		codex := "# Written by hi on each start of the dev box.\napproval_policy = \"never\"\nsandbox_mode = \"danger-full-access\"\n" + appDevCodexNotify + codexBoxConfig(proxyIP) + appDevCodexTrustSection("/box/repo")

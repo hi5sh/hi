@@ -410,6 +410,10 @@ type appDevSpace struct {
 	// Out says its change was in dev and was taken out since: Add to
 	// Preview puts it back.
 	Out bool `json:"out,omitempty"`
+	// Shipped says its work is in dev, added and not taken out since: a
+	// worktree with no commits of its own is as level with dev, but it
+	// isn't done, and Publish doesn't clean it up.
+	Shipped bool `json:"shipped,omitempty"`
 }
 
 // appDevBoxExec runs a command in the dev box; tests replace it.
@@ -582,6 +586,7 @@ done`
 	for i := range spaces {
 		if spaces[i].Checked && spaces[i].Ahead == 0 && spaces[i].Branch != "" {
 			spaces[i].Out = appDevTakenOut(tasks, spaces[i].Branch) != nil
+			spaces[i].Shipped = appDevShipped(tasks, spaces[i].Branch)
 		}
 	}
 }

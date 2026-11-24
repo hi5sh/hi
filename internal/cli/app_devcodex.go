@@ -10,11 +10,14 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -184,18 +187,29 @@ type appDevSession struct {
 	Agent   string    `json:"agent"` // claude, codex
 	ID      string    `json:"id"`
 	Session string    `json:"session"` // its file, in the box
-	At      time.Time `json:"at"`      // its last change
+	At      time.Time `json:"at"`      // its file's last change
 	Title   string    `json:"title,omitempty"`
 	Live    bool      `json:"live,omitempty"` // the one its running agent has
+	// When it began, and when something was last said or done in it, from
+	// its own records: its file's time moves with the agent's bookkeeping
+	// too, as Claude Code writes its costs when it exits.
+	Started time.Time `json:"started,omitzero"`
+	Last    time.Time `json:"last,omitzero"`
 }
 
 // appDevSessionsMax is how many of a workspace's sessions the page lists.
 const appDevSessionsMax = 30
 
 // appDevSessions are a folder's sessions, both agents', newest first: the
-// ones people had there, not hi's own runs (a review's, a brainstorm's).
+// ones people had there, not hi's own runs (a review's, a brainstorm's),
+// nor those of earlier work in the same folder.
 func appDevSessions(team, cwd string) []appDevSession {
-	var sessions []appDevSession
+	type found struct {
+		session appDevSession
+		host    string
+		parse   func([]byte) []appDevChatEntry
+	}
+	var all []found
 	if dir, ok := appDevHostPath(team, appDevClaudeDir(cwd)); ok {
 		entries, _ := os.ReadDir(dir)
 		for _, entry := range entries {
@@ -204,29 +218,60 @@ func appDevSessions(team, cwd string) []appDevSession {
 				continue
 			}
 			id := strings.TrimSuffix(entry.Name(), ".jsonl")
-			sessions = append(sessions, appDevSession{Agent: "claude", ID: id, Session: appDevClaudeDir(cwd) + "/" + entry.Name(), At: info.ModTime().UTC(),
-				Title: appDevSessionTitle(team, filepath.Join(dir, entry.Name()), appDevChatEntries)})
+			all = append(all, found{appDevSession{Agent: "claude", ID: id, Session: appDevClaudeDir(cwd) + "/" + entry.Name(), At: info.ModTime().UTC()},
+				filepath.Join(dir, entry.Name()), appDevChatEntries})
 		}
 	}
-	for _, found := range appDevCodexFiles(team) {
-		meta, ok := appDevReadCodexMeta(team, found.host)
+	for _, file := range appDevCodexFiles(team) {
+		meta, ok := appDevReadCodexMeta(team, file.host)
 		if !ok || meta.CWD != cwd || meta.Source == "exec" {
 			continue
 		}
-		sessions = append(sessions, appDevSession{Agent: "codex", ID: firstNonEmpty(meta.ID, appDevCodexID(found.box)), Session: found.box, At: found.at,
-			Title: appDevSessionTitle(team, found.host, appDevCodexEntries)})
+		all = append(all, found{appDevSession{Agent: "codex", ID: firstNonEmpty(meta.ID, appDevCodexID(file.box)), Session: file.box, At: file.at}, file.host, appDevCodexEntries})
 	}
-	for _, found := range appDevAgyFiles(team) {
-		if appDevAgyIn(team, found.host, cwd) {
-			sessions = append(sessions, appDevSession{Agent: "agy", ID: found.id, Session: found.box, At: found.at,
-				Title: appDevSessionTitle(team, found.host, appDevAgyEntries)})
+	for _, file := range appDevAgyFiles(team) {
+		if appDevAgyIn(team, file.host, cwd) {
+			all = append(all, found{appDevSession{Agent: "agy", ID: file.id, Session: file.box, At: file.at}, file.host, appDevAgyEntries})
 		}
 	}
-	sort.Slice(sessions, func(i, j int) bool { return sessions[i].At.After(sessions[j].At) })
-	if len(sessions) > appDevSessionsMax {
-		sessions = sessions[:appDevSessionsMax]
+	born := appDevWorktreeBorn(team, cwd)
+	all = slices.DeleteFunc(all, func(f found) bool { return f.session.At.Before(born) })
+	sort.Slice(all, func(i, j int) bool { return all[i].session.At.After(all[j].session.At) })
+	if len(all) > appDevSessionsMax {
+		all = all[:appDevSessionsMax]
 	}
+	sessions := make([]appDevSession, 0, len(all))
+	for _, f := range all {
+		session := f.session
+		session.Title, session.Started = appDevSessionHead(team, f.host, f.parse)
+		session.Last = appDevSessionLast(team, f.host, f.parse)
+		sessions = append(sessions, session)
+	}
+	latest := func(s appDevSession) time.Time {
+		if s.Last.IsZero() {
+			return s.At
+		}
+		return s.Last
+	}
+	sort.SliceStable(sessions, func(i, j int) bool { return latest(sessions[i]).After(latest(sessions[j])) })
 	return sessions
+}
+
+// appDevWorktreeBorn is when a worktree was made, from its .git file, which
+// git writes once; zero for the project's own clone, whose .git is a
+// folder. A task finished and started again gets the same branch and so
+// the same folder, and the agents keep their sessions by folder: a session
+// last changed before then is the earlier work's, not this workspace's.
+func appDevWorktreeBorn(team, cwd string) time.Time {
+	host, ok := appDevHostPath(team, cwd+"/.git")
+	if !ok {
+		return time.Time{}
+	}
+	info, err := os.Lstat(host)
+	if err != nil || !info.Mode().IsRegular() {
+		return time.Time{}
+	}
+	return info.ModTime()
 }
 
 type appDevCodexFile struct {
@@ -257,23 +302,27 @@ func appDevCodexFiles(team string) []appDevCodexFile {
 	return files
 }
 
-// appDevSessionTitle is a session's first message from the person, in a line.
-func appDevSessionTitle(team, host string, parse func([]byte) []appDevChatEntry) string {
+// appDevSessionHead is a session's title, Claude Code's own or else the
+// person's first message in a line, and when it began, from its start.
+func appDevSessionHead(team, host string, parse func([]byte) []appDevChatEntry) (title string, started time.Time) {
 	f, err := boxedOpenFile(appDevHome(team), host)
 	if err != nil {
-		return ""
+		return "", time.Time{}
 	}
 	defer f.Close()
 	reader := bufio.NewReaderSize(f, 1<<20)
-	title := ""
-	for n := 0; n < 400; n++ {
+	named := false
+	for n := 0; n < 400 && !(named && !started.IsZero()); n++ {
 		line, _, err := appReadBoxLine(reader)
 		if err != nil {
 			break
 		}
 		for _, entry := range parse(line) {
-			if entry.T == "title" {
-				return appDevClip(entry.Text, 100) // Claude Code's own title for it
+			if started.IsZero() && !entry.At.IsZero() {
+				started = entry.At
+			}
+			if entry.T == "title" && !named {
+				title, named = appDevClip(entry.Text, 100), true
 			}
 			if entry.T == "user" && title == "" {
 				first, _, _ := strings.Cut(strings.TrimSpace(entry.Text), "\n")
@@ -281,12 +330,56 @@ func appDevSessionTitle(team, host string, parse func([]byte) []appDevChatEntry)
 			}
 		}
 	}
-	return title
+	return title, started
 }
 
-// appDevLatestCodexSession is the newest of a folder's Codex sessions.
+// appDevSessionTailMax is how much of a session's end hi reads for when
+// something was last said or done in it.
+const appDevSessionTailMax = 256 << 10
+
+// appDevSessionLast is when something was last said or done in a session,
+// from its file's end; zero when its end says no time.
+func appDevSessionLast(team, host string, parse func([]byte) []appDevChatEntry) time.Time {
+	f, err := boxedOpenFile(appDevHome(team), host)
+	if err != nil {
+		return time.Time{}
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+	from := max(0, info.Size()-appDevSessionTailMax)
+	if _, err := f.Seek(from, io.SeekStart); err != nil {
+		return time.Time{}
+	}
+	reader := bufio.NewReaderSize(f, 1<<20)
+	if from > 0 {
+		appReadBoxLine(reader) // the rest of a line the tail starts in
+	}
+	var last time.Time
+	for {
+		line, _, err := appReadBoxLine(reader)
+		if err != nil {
+			break
+		}
+		for _, entry := range parse(bytes.TrimSpace(line)) {
+			if entry.At.After(last) {
+				last = entry.At
+			}
+		}
+	}
+	return last
+}
+
+// appDevLatestCodexSession is the newest of a folder's Codex sessions, of
+// its worktree as it is now (appDevWorktreeBorn).
 func appDevLatestCodexSession(team, cwd string) string {
+	born := appDevWorktreeBorn(team, cwd)
 	for _, found := range appDevCodexFiles(team) {
+		if found.at.Before(born) {
+			break // newest first: the rest are older still
+		}
 		if meta, ok := appDevReadCodexMeta(team, found.host); ok && meta.CWD == cwd && meta.Source != "exec" {
 			return found.box
 		}

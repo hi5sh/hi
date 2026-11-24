@@ -123,6 +123,19 @@ func appDevTakenOut(tasks []appTask, branch string) *appTask {
 	return nil
 }
 
+// appDevShipped says a branch's work is in dev: its last change was
+// merged, and not taken out since.
+func appDevShipped(tasks []appTask, branch string) bool {
+	ref := appDevBranchRef(branch)
+	var last *appTask
+	for i := range tasks {
+		if tasks[i].Kind == "task" && tasks[i].Branch == ref {
+			last = &tasks[i]
+		}
+	}
+	return last != nil && last.Status == "merged"
+}
+
 // appGitParent1 adds -m 1 for a merge commit, which revert and
 // cherry-pick need to know which side was dev.
 func appGitParent1(repo, commit string, args []string) []string {

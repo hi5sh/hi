@@ -500,7 +500,11 @@ func appDevAgyIn(team, host, cwd string) bool {
 
 // appDevLatestAgySession is the newest of a folder's agy conversations.
 func appDevLatestAgySession(team, cwd string) string {
+	born := appDevWorktreeBorn(team, cwd)
 	for _, found := range appDevAgyFiles(team) {
+		if found.at.Before(born) {
+			break // newest first: the rest are older still
+		}
 		if appDevAgyIn(team, found.host, cwd) {
 			return found.box
 		}

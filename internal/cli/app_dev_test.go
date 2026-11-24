@@ -292,6 +292,18 @@ func TestTeamDevHomeKeepsOwnersSettings(t *testing.T) {
 	if data, _ := os.ReadFile(filepath.Join(home, ".gitconfig")); string(data) != "[user]\n\tname = An Owner\n" {
 		t.Fatal(string(data))
 	}
+	// herdr's welcome isn't over the Terminal; an owner's own config stays.
+	herdr := filepath.Join(home, ".config", "herdr", "config.toml")
+	if data, _ := os.ReadFile(herdr); string(data) != "onboarding = false\n" {
+		t.Fatalf("%q", data)
+	}
+	os.WriteFile(herdr, []byte("theme = \"light\"\n"), 0o644)
+	if err := prepareTeamDevHome("payments", "10.234.9.2", appDevEnv("payments", "10.234.9.2")); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(herdr); string(data) != "theme = \"light\"\n" {
+		t.Fatalf("%q", data)
+	}
 }
 
 // Requests to the box's own addresses skip the proxy, including 0.0.0.0,

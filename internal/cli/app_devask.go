@@ -288,6 +288,27 @@ func appDevAskTabbed(ask *appDevAsk) bool {
 	return ask != nil && len(ask.Tabs) > 0
 }
 
+// appDevAskKeysLine is the keys' line under a question or a dialog, as
+// "↑/↓ to choose · Esc to cancel": the agent's own prompt has none.
+var appDevAskKeysLine = regexp.MustCompile(`(?i)\b(esc to (cancel|exit)|enter to (select|confirm)|to (choose|navigate))\b`)
+
+// appDevAskDialog is a question with options and its keys' line under it
+// at the screen's end: one of Claude Code's own dialogs, such as its offer
+// of auto mode, which herdr and the hooks take for idle. It takes what's
+// typed as its own keys, so a message sent then is lost.
+func appDevAskDialog(text string, ask *appDevAsk) bool {
+	if ask == nil || len(ask.Options) < 2 {
+		return false
+	}
+	lines := strings.Split(strings.TrimRight(text, "\n "), "\n")
+	for i := len(lines) - 1; i >= 0 && i >= len(lines)-3; i-- {
+		if appDevAskKeysLine.MatchString(lines[i]) {
+			return true
+		}
+	}
+	return false
+}
+
 // appDevReadAsk is the question on a screen, with the tab it's on from
 // the screen's colors: Claude Code marks it with a background.
 func appDevReadAsk(text, ansi string) *appDevAsk {
@@ -497,7 +518,7 @@ func (b *appBroker) answerDevAsk(agent appDevChatAgent, text []string, index int
 		return err
 	}
 	ask := appDevParseAsk(screen)
-	if agent.Status != "blocked" && !appDevAskTabbed(ask) && (agent.Agent != "agy" || ask == nil) {
+	if agent.Status != "blocked" && !appDevAskTabbed(ask) && !appDevAskDialog(screen, ask) && (agent.Agent != "agy" || ask == nil) {
 		return errors.New("the agent isn't asking anything now")
 	}
 	if ask == nil || strings.Join(ask.Text, "\n") != strings.Join(text, "\n") || index < 0 || index >= len(ask.Options) || ask.Options[index].Label != label {

@@ -258,7 +258,8 @@ func appDevNewer(team, a, b string) string {
 }
 
 // appDevLatestSession is the newest transcript of a working directory,
-// for a workspace whose agent has stopped.
+// for a workspace whose agent has stopped: of its worktree as it is now,
+// not of earlier work in the same folder (appDevWorktreeBorn).
 func appDevLatestSession(team, cwd string) string {
 	dir := appDevClaudeDir(cwd)
 	host, ok := appDevHostPath(team, dir)
@@ -266,13 +267,13 @@ func appDevLatestSession(team, cwd string) string {
 		return ""
 	}
 	entries, _ := os.ReadDir(host)
-	best, newest := "", time.Time{}
+	best, newest := "", appDevWorktreeBorn(team, cwd)
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil || !strings.HasSuffix(entry.Name(), ".jsonl") || !info.Mode().IsRegular() {
 			continue
 		}
-		if info.ModTime().After(newest) {
+		if !info.ModTime().Before(newest) {
 			best, newest = dir+"/"+entry.Name(), info.ModTime()
 		}
 	}
@@ -572,7 +573,7 @@ func (b *appBroker) devChat(workspace, known, turns string, offset int64) (appDe
 					appDevAskWithQuestions(ask, appDevAskPending(appDevHome(b.team), host))
 				}
 			}
-			if agent.Status != "blocked" && appDevAskTabbed(ask) {
+			if agent.Status != "blocked" && (appDevAskTabbed(ask) || appDevAskDialog(text, ask)) {
 				view.Agent.Status = "blocked"
 			}
 			if view.Agent.Status == "blocked" {
@@ -928,6 +929,16 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 				return fmt.Errorf("the message is longer than %s", formatDataSize(appDevChatTextMax))
 			case !agent.Running:
 				return errors.New("no agent is running in this workspace; resume the session, or start one from the task")
+			}
+			// A dialog of the agent's own, which herdr takes for idle, takes
+			// what's typed as its keys: the message would be lost in it.
+			if agent.Status != "blocked" && agent.Status != "working" {
+				if screen, _, err := devChatScreen(b.team, agent.Pane); err == nil {
+					if ask := appDevParseAsk(screen); appDevAskTabbed(ask) || appDevAskDialog(screen, ask) {
+						who := firstNonEmpty(map[string]string{"claude": "Claude", "codex": "Codex", "agy": "agy"}[agent.Agent], "The agent")
+						return fmt.Errorf("%s is asking something first: answer it above, or in Terminal, then send your message again", who)
+					}
+				}
 			}
 			paths, err := appDevSaveChatFiles(b.team, body["workspace"].(string), files)
 			if err != nil {

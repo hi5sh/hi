@@ -462,7 +462,18 @@
   // ---- Done and Reopen: a task closed when it's done, whatever its state
   function taskDone(ticket, space) {
     var name = "#" + ticket.number;
-    if (space && space.path && space.checked && !space.ahead && !space.dirty) {
+    if (space && space.path && space.checked && !space.ahead && !space.dirty && !space.out && !space.shipped) {
+      // Nothing of its own in its workspace: it goes with the task.
+      ask("Close " + name + "? Its workspace has no work in it, so the workspace and its agent go too. A note for the task, if you like:", "why it's done (optional)").then(function (note) {
+        if (note === null) return;
+        working("finish:" + space.id, api("POST", "finish", { workspace: space.id, discard: false })).then(function () {
+          refresh();
+          setTaskState(ticket, true, note);
+        }).catch(function (error) { toast(error.message); });
+      });
+      return;
+    }
+    if (space && space.path && space.checked && space.shipped && !space.ahead && !space.dirty) {
       // Its work is in dev: Finish, which closes the task too.
       ask("Done with " + name + "? Its work is on the preview: its worktree, workspace, agent, and branch go, and the task closes.").then(function (answer) {
         if (answer === null) return;
@@ -506,6 +517,15 @@
       }
     }
     return "";
+  }
+  // clockTime is a time of day, with its day when that isn't today.
+  function clockTime(at) {
+    var date = new Date(at), now = new Date();
+    var time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (date.toDateString() === now.toDateString()) return time;
+    var yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) return "yesterday " + time;
+    return date.toLocaleDateString([], { day: "numeric", month: "short" }) + " " + time;
   }
   // Open or Closed, in the panel's Tasks.
   document.querySelectorAll("#stask-show button").forEach(function (button) {
@@ -1002,6 +1022,9 @@
       return { text: text + (unsaved ? ". " + unsaved : ""), tone: "warn", add: true };
     }
     if (space.dirty) return { text: unsaved, tone: "warn" };
+    // Level with dev, but nothing of its own went in: not done, not
+    // published; Discard is in its ⋯ menu.
+    if (!space.shipped) return { text: "Nothing committed yet", tone: "muted" };
     var published = !(state.changes || []).length && (state.status || {}).production;
     return { text: published ? "Published ✓" : "On the preview ✓", tone: "muted", done: true };
   }
@@ -1783,7 +1806,8 @@
     // Production's data is the owners'.
     $("release-data-box").hidden = developer() || !!((state.status || {}).production) || !state.preview_data;
     // The work all in this version, to clean up after: not the work an
-    // agent is still on, nor what has more to add.
+    // agent is still on, nor what has more to add, nor a workspace whose
+    // work hasn't begun, which has nothing in this version.
     var done = publishedWork();
     $("release-clean-box").hidden = !done.length;
     $("release-clean").checked = true;
@@ -1792,7 +1816,7 @@
   }
   function publishedWork() {
     return workSpaces().filter(function (space) {
-      return space.path && space.checked && !space.ahead && !space.out && !space.dirty && space.status !== "working" && space.status !== "blocked";
+      return space.path && space.checked && space.shipped && !space.ahead && !space.out && !space.dirty && space.status !== "working" && space.status !== "blocked";
     });
   }
   // After a publish: Done for each piece of work it took, one after another.
@@ -2585,6 +2609,9 @@
     } else if (entry.t === "thinking") {
       box.appendChild(el("details", { class: "fold thought" }, [el("summary", { text: "Thought" }), el("div", { class: "fold-body" }, [el("pre", { text: entry.text })])]));
     } else if (entry.t === "note") {
+      // A slash command or a shell line sent from the chat comes back as a
+      // note, not as the person's message.
+      if (chat.pending.length && /^[\/!]/.test(chat.pending[0].text || "")) chat.pending.shift().node.remove();
       box.appendChild(el("div", { class: "chat-note", text: entry.text }));
     }
   }
@@ -2667,15 +2694,33 @@
   // Code holds a message sent while a tool runs until the tool ends, which
   // can be many minutes, so it waits as queued while Claude works; one
   // that hasn't come 20 seconds after Claude stopped working never will.
+  // It stays, marked, with its words to put back: a dialog in the terminal
+  // the chat didn't see may have taken it as keys.
   function chatPending(agent) {
     var working = agent.running && (agent.status === "working" || agent.status === "blocked");
     chat.pending = chat.pending.filter(function (sent) {
       if (working) sent.since = Date.now();
       sent.node.classList.toggle("queued", !!working);
       if (Date.now() - sent.since < 20000) return true;
-      sent.node.remove();
+      notTaken(sent, agent);
       return false;
     });
+  }
+  function notTaken(sent, agent) {
+    var node = sent.node;
+    node.classList.remove("pending", "queued");
+    node.classList.add("lost");
+    var put = el("button", { type: "button", class: "link", text: "Put it back in the box", onclick: function () {
+      var input = $("chat-input");
+      input.value = sent.text + (input.value.trim() ? "\n\n" + input.value : "");
+      input.dispatchEvent(new Event("input")); // its size, Send, and the draft
+      input.focus();
+      node.remove();
+    } });
+    node.appendChild(el("div", { class: "lost-note" }, [
+      document.createTextNode(agentName(agent.agent) + " didn't take this message. Terminal shows what it's on. "),
+      sent.text ? put : null,
+    ]));
   }
   // chatActivity is the conversation's last line while Claude works: what
   // its terminal says ("Crafting… (7s · ↓ 556 tokens)") when hi could read
@@ -3203,7 +3248,7 @@
       chat.draftTimer = 0;
       writeDraft(space); // empty now: the draft goes
       var node = el("div", { class: "msg-user pending" }, [shown ? userText(shown) : document.createTextNode("Attached files")]);
-      chat.pending.push({ node: node, since: Date.now() });
+      chat.pending.push({ node: node, since: Date.now(), text: shown });
       chatPending(chat.agent || {});
       $("chat-entries").insertBefore(node, $("chat-activity"));
       $("chat-log").scrollTop = $("chat-log").scrollHeight;
@@ -3405,12 +3450,18 @@
       if (!earlier.length) return;
       var shown = spaceAll[space.id] ? earlier : earlier.slice(0, SPACE_SHOWN);
       var running = space.agent || "";
+      // Under a label of their own, so a session isn't taken for another
+      // workspace; each by when it began, as two can have one title.
+      menu.appendChild(el("div", { class: "space-earlier muted", text: "Earlier sessions here" }));
       shown.forEach(function (session) {
+        var when = ["Resume", agentName(session.agent)];
+        if (session.started) when.push("started " + clockTime(session.started));
+        when.push((session.last ? "last active " : "") + ago(session.last || session.at));
         menu.appendChild(el("button", { type: "button", role: "menuitem", class: "theme-item space-session", "data-key": "s:" + space.id + ":" + session.id,
           title: "Resume this session here" + (running ? ", stopping " + agentName(running) + " first" : ""),
           onclick: function () { closeSpaceMenu(); resumeSession(session.agent, session.id, space.id, running); } }, [
           el("span", { class: "space-session-title", text: session.title || "(no message yet)" }),
-          el("span", { class: "muted space-session-when", text: "Resume · " + agentName(session.agent) + " · " + ago(session.at) }),
+          el("span", { class: "muted space-session-when", text: when.join(" · ") }),
         ]));
       });
       if (earlier.length > shown.length) {

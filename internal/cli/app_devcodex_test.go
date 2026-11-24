@@ -138,3 +138,104 @@ func TestAppDevCodexChat(t *testing.T) {
 		t.Fatal(code, body)
 	}
 }
+
+// A task finished and started again gets its branch's folder back, and
+// Claude Code keeps sessions by folder: the earlier work's sessions aren't
+// this workspace's, in its list or its chat, until one is resumed here.
+// Each says when it began and when something was last said or done in it,
+// not its file's time, which Claude Code's bookkeeping moves.
+func TestAppDevSessionsOfThisWorktree(t *testing.T) {
+	b, _ := appTestDevPage(t)
+	handler := b.devPageHandler()
+	cwd := "/box/home/.herdr/worktrees/repo/1-chart"
+	previous := appDevBoxExec
+	appDevBoxExec = func(team string, command ...string) (string, error) {
+		if strings.Join(command[:min(3, len(command))], " ") == "herdr pane list" {
+			return `{"result":{"panes":[{"pane_id":"w2:p1","cwd":"` + cwd + `"}]}}`, nil
+		}
+		return previous(team, command...)
+	}
+	t.Cleanup(func() { appDevBoxExec = previous })
+	stamp := func(at time.Time) string { return at.UTC().Format(time.RFC3339Nano) }
+	write := func(id string, lines []string, changed time.Time) string {
+		host, _ := appDevHostPath("payments", appDevClaudeDir(cwd)+"/"+id+".jsonl")
+		os.MkdirAll(filepath.Dir(host), 0o700)
+		os.WriteFile(host, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
+		os.Chtimes(host, changed, changed)
+		return host
+	}
+	born := time.Now().Add(-20 * time.Minute).Truncate(time.Second)
+	gitFile, _ := appDevHostPath("payments", cwd+"/.git")
+	os.MkdirAll(filepath.Dir(gitFile), 0o700)
+	os.WriteFile(gitFile, []byte("gitdir: /box/repo/.git/worktrees/1-chart\n"), 0o600)
+	os.Chtimes(gitFile, born, born)
+	session := func(started, last time.Time) []string {
+		return []string{
+			`{"type":"mode","mode":"normal"}`,
+			`{"type":"user","timestamp":"` + stamp(started) + `","message":{"role":"user","content":"Work on task #1: Competitor news"}}`,
+			`{"type":"ai-title","aiTitle":"Competitor news Slack report"}`,
+			`{"type":"assistant","timestamp":"` + stamp(last) + `","message":{"role":"assistant","content":[{"type":"text","text":"Which bot should it use?"}]}}`,
+			`{"type":"cost-state","totalCostUSD":0.43}`,
+		}
+	}
+	earlier := "873ea1d4-fcb8-4e6e-9903-fa4fce796ee7"
+	earlierHost := write(earlier, session(born.Add(-40*time.Minute), born.Add(-15*time.Minute)), born.Add(-time.Minute))
+	now := "2b25a39c-e6f9-4fc2-994f-00df4597ac3f"
+	nowHost := write(now, session(born.Add(time.Second), born.Add(time.Minute)), time.Now())
+
+	list := func() []appDevSession {
+		t.Helper()
+		code, body := appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/chat/sessions?workspace=w2", nil)
+		var got struct{ Sessions []appDevSession }
+		if code != 200 || json.Unmarshal([]byte(body), &got) != nil {
+			t.Fatal(code, body)
+		}
+		return got.Sessions
+	}
+	got := list()
+	if len(got) != 1 || got[0].ID != now || got[0].Title != "Competitor news Slack report" ||
+		!got[0].Started.Equal(born.Add(time.Second)) || !got[0].Last.Equal(born.Add(time.Minute)) {
+		t.Fatalf("%+v", got)
+	}
+	var view appDevChatView
+	_, body := appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	if json.Unmarshal([]byte(body), &view) != nil || view.ID != now {
+		t.Fatal(body)
+	}
+	// Its own sessions gone, the chat doesn't show the earlier work's.
+	os.Remove(nowHost)
+	view = appDevChatView{}
+	_, body = appTestDevPageCall(t, handler, appTestOwnerKey, "GET", "api/chat?workspace=w2", nil)
+	if json.Unmarshal([]byte(body), &view) != nil || view.Session != "" || view.Note != "No session here yet." {
+		t.Fatal(body)
+	}
+	// Resumed here, the earlier session is this workspace's too; newest
+	// first by what was last said, not by the files' times.
+	write(now, session(born.Add(time.Second), born.Add(time.Minute)), born.Add(2*time.Minute))
+	os.Chtimes(earlierHost, time.Now(), time.Now())
+	if got := list(); len(got) != 2 || got[0].ID != now || got[1].ID != earlier || !got[1].Last.Equal(born.Add(-15*time.Minute)) {
+		t.Fatalf("%+v", got)
+	}
+	// The project's own clone has a .git folder: all of its sessions.
+	if !appDevWorktreeBorn("payments", "/box/repo").IsZero() {
+		t.Fatal("the clone has a time it was made")
+	}
+}
+
+// Work is shipped while its last change is in dev; a branch with none, or
+// one taken out since, isn't.
+func TestAppDevShipped(t *testing.T) {
+	ref := appDevBranchRef("1-chart")
+	tasks := []appTask{{Kind: "task", Branch: appDevBranchRef("2-other"), Status: "merged"}}
+	if appDevShipped(tasks, "1-chart") {
+		t.Fatal("no change of its own")
+	}
+	tasks = append(tasks, appTask{Kind: "task", Branch: ref, Status: "merged", Merged: "abc"})
+	if !appDevShipped(tasks, "1-chart") {
+		t.Fatal("merged")
+	}
+	tasks = append(tasks, appTask{Kind: "task", Branch: ref, Status: "discarded", Merged: "abc"})
+	if appDevShipped(tasks, "1-chart") {
+		t.Fatal("taken out since")
+	}
+}
