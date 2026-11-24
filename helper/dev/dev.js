@@ -5091,10 +5091,10 @@
     var back = 0;
     try { back = Number(sessionStorage.getItem(returnKey)) || 0; } catch (e) { /* private window */ }
     if (Date.now() - back < 3 * 60 * 1000) {
-      // Back from signing in, and still sent on: the browser doesn't give
-      // the frame the sign-in's cookie (the page and the address on two
-      // sites, or a browser setting), or the sign-in didn't take.
-      showPreviewNote("still " + from + to, hostOf(from) + " still sent the frame on to " + hostOf(to) + " after signing in at the top: this browser doesn't give the frame the sign-in. ↗ opens it in a tab of its own.");
+      // Back from signing in, and still sent on: the sign-in didn't take
+      // (not finished, or the account isn't let in there), or the browser
+      // doesn't give the frame the sign-in's cookie (a browser setting).
+      showPreviewNote("still " + from + to, hostOf(from) + " still sent the frame on to " + hostOf(to) + " after signing in at the top. ↗ opens it in a tab of its own: sign in there, then ↻ here. If it signs you in there but not here, this browser keeps the sign-in from the frame.");
       return;
     }
     var button = el("button", { type: "button", class: "small primary", text: "Sign in and come back", onclick: signInAtTop });
@@ -5109,9 +5109,11 @@
       try { address = new URL(slot.url); } catch (e) { return; }
       if (seen[address.origin]) return;
       seen[address.origin] = true;
-      address.pathname = "/__hi/return/";
+      // The next address rides in the path: NetBird's sign-in sends the
+      // browser back to the path it came for, without the query.
+      address.pathname = "/__hi/return/" + btoa(to).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") + "/";
+      address.search = "";
       address.hash = "";
-      address.searchParams.set("to", to);
       to = address.toString();
     });
     try { sessionStorage.setItem(returnKey, String(Date.now())); } catch (e) { /* private window */ }

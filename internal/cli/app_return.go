@@ -12,8 +12,10 @@ package cli
 // helper or not.
 
 import (
+	"encoding/base64"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // appReturnPrefix is the path on the app's addresses that sends the
@@ -49,11 +51,23 @@ func appOwnAddress(team, raw string) bool {
 	return false
 }
 
-// returnToPage is GET /__hi/return/?to=<one of the app's addresses>.
+// returnToPage is GET /__hi/return/<the address, base64url>/, or
+// /__hi/return/?to=<the address> from dev pages before v2.6.244. The
+// address is one of the app's own. It rides in the path because NetBird's
+// reverse proxy, after its sign-in, sends the browser back to the path it
+// came for without the query.
 func (b *appBroker) returnToPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	to := r.URL.Query().Get("to")
+	if encoded := strings.Trim(strings.TrimPrefix(r.URL.Path, appReturnPrefix), "/"); encoded != "" {
+		decoded, err := base64.RawURLEncoding.DecodeString(strings.TrimRight(encoded, "="))
+		if err != nil {
+			http.Error(w, "That isn't one of this app's addresses.", http.StatusBadRequest)
+			return
+		}
+		to = string(decoded)
+	}
 	if !appOwnAddress(b.team, to) {
 		http.Error(w, "That isn't one of this app's addresses.", http.StatusBadRequest)
 		return

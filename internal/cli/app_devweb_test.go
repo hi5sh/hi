@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -153,15 +154,36 @@ func TestTeamReturnToPage(t *testing.T) {
 		handler.ServeHTTP(recorder, httptest.NewRequest("GET", appReturnPrefix+"?to="+url.QueryEscape(to), nil))
 		return recorder
 	}
-	for _, to := range []string{"https://dev.payments.corp.example/__hi/dev/", "https://stage.payments.corp.example/__hi/return/?to=https%3A%2F%2Fdev.payments.corp.example%2F__hi%2Fdev%2F"} {
-		if got := visit(to); got.Code != http.StatusSeeOther || got.Header().Get("Location") != to {
-			t.Fatal(to, got.Code, got.Header())
+	// The address in the path: NetBird's sign-in sends the browser back
+	// to the path without the query.
+	inPath := func(to string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest("GET", appReturnPrefix+base64.RawURLEncoding.EncodeToString([]byte(to))+"/", nil))
+		return recorder
+	}
+	for _, to := range []string{"https://dev.payments.corp.example/__hi/dev/", "https://stage.payments.corp.example/__hi/return/?to=https%3A%2F%2Fdev.payments.corp.example%2F__hi%2Fdev%2F",
+		"https://stage.payments.corp.example/__hi/return/" + base64.RawURLEncoding.EncodeToString([]byte("https://dev.payments.corp.example/__hi/dev/")) + "/"} {
+		for _, got := range []*httptest.ResponseRecorder{visit(to), inPath(to)} {
+			if got.Code != http.StatusSeeOther || got.Header().Get("Location") != to {
+				t.Fatal(to, got.Code, got.Header())
+			}
 		}
 	}
 	for _, to := range []string{"https://evil.example/", "https://dev.payments.corp.example.evil.example/", "javascript:alert(1)", "//evil.example/", "https://user@dev.payments.corp.example/", ""} {
-		if got := visit(to); got.Code != http.StatusBadRequest {
-			t.Fatal(to, got.Code, got.Header())
+		got := []*httptest.ResponseRecorder{visit(to)}
+		if to != "" {
+			got = append(got, inPath(to))
 		}
+		for _, got := range got {
+			if got.Code != http.StatusBadRequest {
+				t.Fatal(to, got.Code, got.Header())
+			}
+		}
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest("GET", appReturnPrefix+"not*base64/", nil))
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatal(recorder.Code)
 	}
 	if args := strings.Join(appExposeHelperArgs("payments", appSlotProduction), " "); !strings.Contains(args, "--route-always "+appReturnPrefix+"=unix:") {
 		t.Fatal(args)
