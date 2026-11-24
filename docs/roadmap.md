@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.243 — A new NetBird setup key is used
+
+- [x] A dev box peer whose first setup key NetBird refused (expired, or
+  used up) joins with the next key given, from `hi app dev <app> netbird`
+  or the admin page. NetBird writes its config on its first start, also
+  when the key is refused; hi took that for joined, ran the peer without
+  the new key (NetBird then asked for an SSO login in a browser), and
+  deleted the key unused.
+- [x] A key goes only once NetBird says the peer is on its network; a
+  joined peer that's only stopped keeps its identity.
+- [x] When NetBird refuses the key, the command and the admin page say
+  NetBird's reason and to ask for a new key, instead of "joining".
+
 ### v2.6.242 — Earlier sessions, Publish, and messages Claude didn't take
 
 - [x] A task finished and started again gets its branch's folder back,
