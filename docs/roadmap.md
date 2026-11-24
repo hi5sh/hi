@@ -6989,6 +6989,19 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.244 — Sign in and come back through NetBird's sign-in
+
+- [x] **Sign in and come back** on the dev page's Preview puts the next
+  address in `/__hi/return/`'s path, not its query: NetBird's reverse
+  proxy, after its sign-in, sends the browser back to the path without
+  the query, so the tab stopped at "That isn't one of this app's
+  addresses." on the first address that asked for a sign-in, and the
+  frame there never got it. `/__hi/return/?to=` still works for dev
+  pages already open.
+- [x] When the frame is still sent on after signing in, the Preview no
+  longer blames the browser alone: ↗ to sign in in a tab of its own,
+  then ↻.
+
 ### v2.6.243 — A new NetBird setup key is used
 
 - [x] A dev box peer whose first setup key NetBird refused (expired, or
