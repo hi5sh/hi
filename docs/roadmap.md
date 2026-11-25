@@ -6989,6 +6989,12 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.254 — Copy in the chat
+
+- [x] Each reply in Chat has Copy under it, as your messages do, and each
+  code block has Copy in its corner (in tasks and decisions too). They
+  show when the pointer is on them; always on a touch screen.
+
 ### v2.6.253 — Rewind is in the chat
 
 - [x] Rewind moves from the right panel into Chat, as in Orca: under each
