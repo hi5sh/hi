@@ -41,6 +41,10 @@ type appDevChatEntry struct {
 	Error   bool      `json:"error,omitempty"`   // a result that failed
 	At      time.Time `json:"at,omitzero"`
 	UUID    string    `json:"uuid,omitempty"` // a message's, which the rewind timeline names
+	// Images are the pictures the entry names, as paths in the dev box: a
+	// file a tool read or wrote, or one a message names. The page shows
+	// them, as in Orca (api/chat/image).
+	Images []string `json:"images,omitempty"`
 }
 
 // appDevChatAgent is the agent in a workspace, as herdr sees it.
@@ -437,7 +441,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 	case "attachment":
 		if a := record.Attachment; a.Type == "queued_command" && (a.Mode == "" || a.Mode == "prompt") {
 			if kind, said := appDevChatText(a.Prompt); kind != "" && said != "" {
-				return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID}}
+				return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD)}}
 			}
 		}
 		return nil
@@ -464,9 +468,9 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 			if kind == "" || said == "" {
 				return nil
 			}
-			return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID}}
+			return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD)}}
 		}
-		return []appDevChatEntry{{T: "text", Text: text, At: at}}
+		return []appDevChatEntry{{T: "text", Text: text, At: at, Images: appDevImages(text, record.CWD)}}
 	}
 	var blocks []map[string]any
 	if json.Unmarshal(message.Content, &blocks) != nil {
@@ -479,7 +483,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 		switch {
 		case kind == "text" && record.Type == "assistant":
 			if s, _ := block["text"].(string); strings.TrimSpace(s) != "" {
-				entries = append(entries, appDevChatEntry{T: "text", Text: s, At: at})
+				entries = append(entries, appDevChatEntry{T: "text", Text: s, At: at, Images: appDevImages(s, record.CWD)})
 			}
 		case kind == "text":
 			if s, _ := block["text"].(string); !record.IsMeta {
@@ -499,8 +503,12 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 			if command, ok := input["command"].(string); ok && name == "Bash" {
 				detail = []byte(command)
 			}
+			var images []string
+			if file, _ := input["file_path"].(string); name == "Read" || name == "Write" {
+				images = appDevImages(file, record.CWD)
+			}
 			entries = append(entries, appDevChatEntry{T: "tool", ID: id, Name: name, Summary: appDevToolSummary(name, input, record.CWD),
-				Detail: appDevClip(string(detail), appDevChatInputMax), At: at})
+				Detail: appDevClip(string(detail), appDevChatInputMax), At: at, Images: images})
 		case kind == "tool_result":
 			id, _ := block["tool_use_id"].(string)
 			failed, _ := block["is_error"].(bool)
@@ -509,10 +517,49 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 	}
 	if len(said) > 0 {
 		if kind, text := appDevChatText(strings.Join(said, "\n")); kind != "" && text != "" {
-			entries = append([]appDevChatEntry{{T: kind, Text: text, At: at, UUID: record.UUID}}, entries...)
+			entries = append([]appDevChatEntry{{T: kind, Text: text, At: at, UUID: record.UUID, Images: appDevImages(text, record.CWD)}}, entries...)
 		}
 	}
 	return entries
+}
+
+// appDevImagePattern finds a picture's path in a message: absolute, from
+// the home (~/), or relative to the session's folder; not a URL's.
+var appDevImagePattern = regexp.MustCompile("(?i)(?:^|[\\s(\\[<\"'`])((?:~/|\\.{1,2}/|/)?[\\w.@+-]+(?:/[\\w.@+-]+)*\\.(?:png|jpe?g|gif|webp))\\b")
+
+// appDevImageKinds are the pictures the page shows.
+var appDevImageKinds = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true}
+
+// appDevImageMax is the most pictures one entry shows.
+const appDevImageMax = 6
+
+// appDevImages are the pictures a text names, as paths in the dev box:
+// only those in its home or clone, which the page can show.
+func appDevImages(text, cwd string) []string {
+	var images []string
+	seen := map[string]bool{}
+	for _, match := range appDevImagePattern.FindAllStringSubmatch(text, -1) {
+		p := match[1]
+		switch {
+		case strings.HasPrefix(p, "~/"):
+			p = path.Join("/box/home", p[2:])
+		case !strings.HasPrefix(p, "/"):
+			if cwd == "" {
+				continue
+			}
+			p = path.Join(cwd, p)
+		}
+		p = path.Clean(p)
+		if _, ok := appDevHostPath("", p); !ok || seen[p] {
+			continue
+		}
+		seen[p] = true
+		images = append(images, p)
+		if len(images) == appDevImageMax {
+			break
+		}
+	}
+	return images
 }
 
 // readDevChat reads a transcript's entries from offset to its last whole
@@ -930,6 +977,30 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 			}
 			return appDevChatPrompt(b.team, agent, text)
 		})
+	})
+	// A picture an entry names (appDevImages), from the dev box's home or
+	// clone: a picture only, never another file.
+	mux.HandleFunc("GET "+appDevPagePrefix+"api/chat/image", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		p := path.Clean(r.URL.Query().Get("path"))
+		if !appDevImageKinds[strings.ToLower(path.Ext(p))] || !strings.HasPrefix(p, "/") {
+			failure(w, http.StatusBadRequest, fmt.Errorf("%q isn't a picture in the dev box", p))
+			return
+		}
+		base, host, ok := appDevBoxBase(b.team, p)
+		if !ok {
+			failure(w, http.StatusNotFound, fmt.Errorf("%s isn't in the dev box's home or clone", p))
+			return
+		}
+		root, rel, err := boxedOpen(base, host)
+		if err != nil {
+			failure(w, http.StatusNotFound, err)
+			return
+		}
+		defer root.Close()
+		serveDevFile(w, r, root, filepath.ToSlash(rel), false)
 	})
 	// A message for when the agent's turn ends: into the queue.
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/queue", func(w http.ResponseWriter, r *http.Request) {

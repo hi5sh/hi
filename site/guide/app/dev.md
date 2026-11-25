@@ -467,6 +467,10 @@ dot.
   panel is beside the chat, the terminal, and the open files. Beside
   the terminal it follows the workspace you open in
   Workspaces ([below](#beside-the-chat)).
+  **Pictures** the session names show as thumbnails, as in Orca: a
+  picture the agent read or wrote (a screenshot it took), or one a
+  message names (`shots/after.png`), from the dev box's home or clone. A
+  click shows it whole.
   **Queued**: a message you send while the agent works waits in a box
   above the chat's box. hi sends the next one when the agent's turn
   ends, also with the page closed. **Steer** sends one now: the agent

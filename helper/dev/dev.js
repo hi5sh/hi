@@ -2594,7 +2594,7 @@
         var summary = el("summary");
         var body = el("div", { class: "fold-body" });
         var start = chat.lastAt || chat.turn || 0;
-        chat.group = { counts: {}, summary: summary, body: body, start: start, end: start };
+        chat.group = { counts: {}, summary: summary, body: body, start: start, end: start, images: null };
         box.appendChild(el("details", { class: "fold tools" }, [summary, body]));
       }
       chat.group.counts[entry.name] = (chat.group.counts[entry.name] || 0) + 1;
@@ -2608,6 +2608,10 @@
       ]);
       chat.tools[entry.id] = { box: item, result: result };
       chat.group.body.appendChild(item);
+      if ((entry.images || []).length) {
+        if (!chat.group.images) { chat.group.images = imageStrip([]); box.appendChild(chat.group.images); }
+        addImages(chat.group.images, entry.images);
+      }
       return;
     }
     chat.group = null;
@@ -2766,9 +2770,39 @@
   function replyTurn(entry) {
     return el("div", { class: "msg-turn reply" }, [
       el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]),
+      (entry.images || []).length ? imageStrip(entry.images) : null,
       el("div", { class: "msg-meta" }, [copyButton(entry.text || "", "Copy the reply")]),
     ]);
   }
+  // ---- Pictures the session names: a file a tool read or wrote, or one a
+  // message names (app_devchat.go, appDevImages), as thumbnails, as in
+  // Orca. A click shows it whole. One that isn't there goes quietly.
+  function imageURL(path) { return "api/chat/image?path=" + encodeURIComponent(path); }
+  function imageStrip(paths) {
+    var strip = el("div", { class: "chat-images" });
+    addImages(strip, paths);
+    return strip;
+  }
+  function addImages(strip, paths) {
+    paths.forEach(function (path) {
+      if (strip.querySelector('[data-path="' + CSS.escape(path) + '"]')) return;
+      var name = path.split("/").pop();
+      var img = el("img", { src: imageURL(path), alt: name, loading: "lazy" });
+      var thumb = el("button", { type: "button", class: "chat-image", "data-path": path, title: path, "aria-label": "Show " + name, onclick: function () { showImage(path); } }, [img]);
+      img.addEventListener("error", function () { thumb.remove(); if (!strip.childNodes.length) strip.hidden = true; });
+      strip.appendChild(thumb);
+    });
+  }
+  function showImage(path) {
+    var dialog = $("image-dialog");
+    $("image-full").src = imageURL(path);
+    $("image-full").alt = path.split("/").pop();
+    $("image-path").textContent = path;
+    $("image-open").href = imageURL(path);
+    dialog.showModal();
+  }
+  $("image-close").addEventListener("click", function () { $("image-dialog").close(); });
+  $("image-dialog").addEventListener("click", function (event) { if (event.target === $("image-dialog")) $("image-dialog").close(); });
   // A code block, with Copy in its corner.
   function codeBlock(text) {
     var copy = copyButton(text, "Copy the code");
@@ -2784,6 +2818,7 @@
     var time = at && !isNaN(at) ? el("time", { class: "msg-time", datetime: entry.at, title: at.toLocaleString(), text: at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null;
     var turn = el("div", { class: "msg-turn" }, [
       el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [userText(entry.text)]),
+      (entry.images || []).length ? imageStrip(entry.images) : null,
       el("div", { class: "msg-meta" }, [copy, time, back]),
     ]);
     markRewind(turn);

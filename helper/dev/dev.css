@@ -523,6 +523,17 @@ dialog .pic-edit { max-height: 40vh; padding: 6px 8px; }
 .code-wrap .code-copy { position: absolute; top: 6px; right: 6px; opacity: 0; background: var(--raised); transition: opacity .12s; }
 .code-wrap:hover .code-copy, .code-copy:focus-visible { opacity: 1; }
 @media (hover: none) { .code-wrap .code-copy { opacity: 1; } }
+/* Pictures the session names (dev.js, imageStrip): thumbnails, as in Orca. */
+.chat-images { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-turn:not(.reply) .chat-images { justify-content: flex-end; }
+.chat-image { width: 180px; height: 128px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); overflow: hidden; cursor: zoom-in; }
+.chat-image:hover, .chat-image:focus-visible { border-color: var(--line-strong); }
+.chat-image img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+.image-dialog { width: min(1200px, calc(100% - 32px)); padding: 12px; }
+.image-dialog img { display: block; max-width: 100%; max-height: calc(100vh - 140px); margin: 0 auto; border-radius: var(--r-sm); }
+.image-bar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.image-bar code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.image-bar .grow { flex: 1; }
 .msg-time { padding: 0 6px; font-variant-numeric: tabular-nums; }
 .rewind-quote { margin: 0 0 8px; padding: 8px 12px; border-left: 3px solid var(--line-strong); background: var(--widget); border-radius: var(--r-sm); color: var(--bright); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; font-size: 13px; }
 .stuck-option:disabled { opacity: .5; cursor: not-allowed; }
