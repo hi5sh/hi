@@ -1270,7 +1270,7 @@ func installTeamDevKit(config appConfig, home string) error {
 		}
 	}
 	block := fmt.Sprintf(appDevInstructions, config.Name, config.Branch)
-	block = strings.Replace(block, appDevBlockEnd, "\n## The project's docs\n\n"+appMapRule+"\n\n"+appDrawRule+"\n\n## The app's long work\n\n"+appJobsRule+"\n"+appDevBlockEnd, 1)
+	block = strings.Replace(block, appDevBlockEnd, "\n## The project's docs\n\n"+appMapRule+"\n\n"+appDrawRule+"\n\n## The app's long work\n\n"+appJobsRule+"\n\n## Messages from the app\n\n"+appSayRule+"\n"+appDevBlockEnd, 1)
 	if adopted := config.Adopted; adopted != nil && adopted.Local {
 		block = strings.Replace(block, appDevBlockEnd, fmt.Sprintf("- **Adopted:** this project is a copy of %s, a folder on the app's machine, without its history; it has no upstream. When docs/map.md is missing, offer a survey first (the hi-dev-survey skill).\n", adopted.From)+appDevBlockEnd, 1)
 	} else if adopted != nil {

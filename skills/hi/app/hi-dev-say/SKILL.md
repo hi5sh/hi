@@ -19,3 +19,20 @@ app's bot, so people know it came from the dev box.
   changed for them, and what to try. No branch names or stack traces
   unless they asked.
 - Links from `hi dev preview` and `hi dev status` are the ones to share.
+
+## When the app itself sends to Slack
+
+This skill is for you, posting from the dev box. When the app's code
+must send something itself, such as a scheduled report or a DM to
+someone in the app, don't give the app a Slack token. It POSTs JSON to
+`$HI_SAY_URL`, and hi sends it from the app's bot:
+
+```bash
+curl -s -X POST "$HI_SAY_URL" -H 'Content-Type: application/json' \
+  -d '{"text": "*Morning report*\n…", "to": "U0123ABCD"}'
+```
+
+`to` is `"channel"` (the default) or a Slack member ID of someone in the
+channel or with a level in the app. Production sends. The preview only
+answers `{"sent": false, "note": …}` with what it would have sent.
+Without `$HI_SAY_URL` (the dev box, tests), log the message instead.

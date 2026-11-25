@@ -230,6 +230,10 @@ type appBroker struct {
 	webListeners map[string]map[chan appWebMessage]bool
 	// sayMu guards run/say.json, the messages from hi app say.
 	sayMu sync.Mutex
+	// appSayMu guards appSaySent, each slot's messages to Slack in the
+	// last hour (app_appsay.go).
+	appSayMu   sync.Mutex
+	appSaySent map[string][]time.Time
 	// jobsMu guards run/jobs.json, and incidentMu the incidents
 	// (app_jobs.go, app_incidents.go). started is when this broker
 	// started: a box that stopped before it isn't an incident. slotLogs and

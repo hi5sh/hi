@@ -68,7 +68,7 @@ func appSlotFilesDir(team, slot string) string {
 
 // appBoxEnvReserved are the variables hi sets in an app's box itself.
 var appBoxEnvReserved = map[string]bool{"HOME": true, "PORT": true, "HOST": true, "PATH": true,
-	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "HI_WORKERS_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true,
+	"HI_PUBLIC_URL_FILE": true, "HI_DATA_DIR": true, "HI_SLOT": true, "HI_WORKERS_FILE": true, "OPENROUTER_BASE_URL": true, "OPENROUTER_API_KEY": true, "HI_SAY_URL": true,
 	appSettingsDirEnv: true, appSettingsFileEnv: true}
 
 // appModelsDir holds the broker's models socket; app boxes mount it.
@@ -275,6 +275,8 @@ func appBoxOwnEnv(name, slot string, port int) map[string]string {
 	// (app_workers.go).
 	env["HI_WORKERS_FILE"] = appBoxWorkersFile
 	env["HI"] = appBoxRelay
+	// The app's messages to Slack, sent by hi (app_appsay.go).
+	env["HI_SAY_URL"] = appAppSayURL
 	env["OPENROUTER_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/api/v1", appBoxModelsPort)
 	env["OPENROUTER_API_KEY"] = boxClaudePlacehold
 	return env
@@ -362,7 +364,12 @@ func (b *appBroker) serveModels(ctx context.Context) error {
 			return err
 		}
 		os.Chmod(socket, 0o600)
-		server := &http.Server{Handler: newTeamModelsProxy(b.team, appOpenRouterUpstream, slot)}
+		// The app's messages to Slack come on the same socket
+		// (app_appsay.go).
+		mux := http.NewServeMux()
+		mux.Handle(appAppSayPath, b.appSayHandler(slot))
+		mux.Handle("/", newTeamModelsProxy(b.team, appOpenRouterUpstream, slot))
+		server := &http.Server{Handler: mux}
 		go func() {
 			<-ctx.Done()
 			server.Close()
