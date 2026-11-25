@@ -1096,7 +1096,7 @@ func init() {
 		"GET api/state", "GET api/tickets", "GET api/ticket", "GET api/ticket/file",
 		"POST api/ticket", "POST api/ticket/delete", "POST api/ticket/edit", "POST api/ticket/note", "POST api/ticket/state",
 		"POST api/start", "POST api/start-new", "POST api/focus", "POST api/ship", "POST api/help", "POST api/finish", "POST api/preview-dev", "POST api/release",
-		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "GET api/chat/image", "POST api/chat/queue", "POST api/chat/queue/steer", "POST api/chat/queue/remove", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
+		"GET api/term", "POST api/term/files", "GET api/chat", "POST api/chat/send", "POST api/chat/fork", "GET api/chat/image", "POST api/chat/queue", "POST api/chat/queue/steer", "POST api/chat/queue/remove", "POST api/chat/keys", "POST api/chat/answer", "POST api/chat/resume", "GET api/chat/points", "POST api/chat/rewind", "POST api/chat/model",
 		"GET api/files/roots", "GET api/files/list", "GET api/files/raw", "GET api/files/stat", "POST api/files/upload", "POST api/files/save",
 		"GET api/git", "GET api/git/diff", "POST api/git", "GET api/search", "POST api/pick/locate", "GET api/checks", "POST api/checks", "GET api/logs",
 		"POST api/sshkey", "GET api/decisions", "POST api/decision", "GET api/presence",

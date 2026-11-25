@@ -470,7 +470,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 			}
 			return []appDevChatEntry{{T: kind, Text: said, At: at, UUID: record.UUID, Images: appDevImages(said, record.CWD)}}
 		}
-		return []appDevChatEntry{{T: "text", Text: text, At: at, Images: appDevImages(text, record.CWD)}}
+		return []appDevChatEntry{{T: "text", Text: text, At: at, UUID: record.UUID, Images: appDevImages(text, record.CWD)}}
 	}
 	var blocks []map[string]any
 	if json.Unmarshal(message.Content, &blocks) != nil {
@@ -483,7 +483,7 @@ func appDevChatEntries(line []byte) []appDevChatEntry {
 		switch {
 		case kind == "text" && record.Type == "assistant":
 			if s, _ := block["text"].(string); strings.TrimSpace(s) != "" {
-				entries = append(entries, appDevChatEntry{T: "text", Text: s, At: at, Images: appDevImages(s, record.CWD)})
+				entries = append(entries, appDevChatEntry{T: "text", Text: s, At: at, UUID: record.UUID, Images: appDevImages(s, record.CWD)})
 			}
 		case kind == "text":
 			if s, _ := block["text"].(string); !record.IsMeta {
@@ -1001,6 +1001,30 @@ func (b *appBroker) devChatRoutes(mux *http.ServeMux, builder func(http.Response
 		}
 		defer root.Close()
 		serveDevFile(w, r, root, filepath.ToSlash(rel), false)
+	})
+	// Fork: a new chat from one of the agent's responses (app_devfork.go).
+	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/fork", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := builder(w, r); !ok {
+			return
+		}
+		var body struct {
+			Workspace string `json:"workspace"`
+			UUID      string `json:"uuid"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4<<10)).Decode(&body); err != nil {
+			failure(w, http.StatusBadRequest, err)
+			return
+		}
+		if !workspaceOK.MatchString(body.Workspace) || body.UUID == "" {
+			failure(w, http.StatusBadRequest, errors.New("name the workspace and the response to fork from"))
+			return
+		}
+		id, err := b.devChatFork(body.Workspace, body.UUID)
+		if err != nil {
+			failure(w, http.StatusConflict, err)
+			return
+		}
+		reply(w, http.StatusOK, map[string]string{"session": id})
 	})
 	// A message for when the agent's turn ends: into the queue.
 	mux.HandleFunc("POST "+appDevPagePrefix+"api/chat/queue", func(w http.ResponseWriter, r *http.Request) {

@@ -2767,12 +2767,75 @@
     return button;
   }
   // The agent's reply, with Copy under it, as under your messages.
+  // Its row: Copy, Fork (a new chat from here, Claude Code's only), ↑ to
+  // the start of the response, and the time, as in Orca.
+  var ICON_FORK = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="5" r="2.2"/><circle cx="18" cy="5" r="2.2"/><circle cx="12" cy="19" r="2.2"/><path d="M6 7.2v1.3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7.2"/><path d="M12 11.5v5.3"/></svg>';
+  var ICON_UP = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
+  function iconButton(icon, title, label, onclick) {
+    var button = el("button", { type: "button", class: "msg-act", title: title, "aria-label": label, onclick: onclick });
+    button.innerHTML = icon;
+    return button;
+  }
+  function msgTime(at) {
+    var when = at ? new Date(at) : null;
+    return when && !isNaN(when) ? el("time", { class: "msg-time", datetime: at, title: when.toLocaleString(), text: when.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null;
+  }
   function replyTurn(entry) {
-    return el("div", { class: "msg-turn reply" }, [
-      el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]),
-      (entry.images || []).length ? imageStrip(entry.images) : null,
-      el("div", { class: "msg-meta" }, [copyButton(entry.text || "", "Copy the reply")]),
-    ]);
+    var turn = el("div", { class: "msg-turn reply" });
+    turn.replyText = entry.text || "";
+    var fork = entry.uuid && chat.sessionAgent !== "codex" && chat.sessionAgent !== "agy"
+      ? iconButton(ICON_FORK, "Fork from this response. The new chat includes this whole response, up to the end of its turn.", "Fork from this response", function () { forkFrom(entry); })
+      : null;
+    var up = iconButton(ICON_UP, "Go to the start of this response", "Go to the start of this response", function () { responseStart(turn); });
+    turn.appendChild(el("div", { class: "msg-text" }, [renderMarkdown(entry.text, "")]));
+    if ((entry.images || []).length) turn.appendChild(imageStrip(entry.images));
+    var copy = iconButton(ICON_COPY, "Copy", "Copy the response", function () { copyText(responseText(turn)); });
+    turn.appendChild(el("div", { class: "msg-meta" }, [copy, fork, up, msgTime(entry.at)]));
+    return turn;
+  }
+  // A response is the replies between two of your messages; its row is
+  // under its last reply only, as in Orca (markResponses).
+  function responseText(turn) {
+    var texts = [];
+    for (var node = turn; node && !(node.classList.contains("msg-turn") && !node.classList.contains("reply")); node = node.previousElementSibling) {
+      if (node.replyText) texts.unshift(node.replyText);
+    }
+    return texts.join("\n\n");
+  }
+  function markResponses() {
+    var last = null;
+    [].forEach.call($("chat-entries").children, function (node) {
+      if (!node.classList.contains("msg-turn")) return;
+      if (node.classList.contains("reply")) {
+        if (last) last.classList.remove("end");
+        node.classList.add("end");
+        last = node;
+      } else last = null;
+    });
+  }
+  // responseStart scrolls to where the response began: after the message
+  // that asked for it.
+  function responseStart(turn) {
+    var node = turn;
+    while (node.previousElementSibling && !(node.previousElementSibling.classList.contains("msg-turn") && !node.previousElementSibling.classList.contains("reply"))) node = node.previousElementSibling;
+    node.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  // forkFrom starts a new chat from a response (app_devfork.go): the
+  // conversation up to the end of its turn, in a new Claude Code session
+  // in this workspace. The chat before stays, in the session menu.
+  function forkFrom(entry) {
+    ask("Fork from this response? hi starts a new chat. It has the conversation up to the end of this response's turn. The agent stops the current chat first. You can open the current chat again from the session menu at the top.").then(function (answer) {
+      if (answer === null) return;
+      toast("Forking…", true);
+      api("POST", "chat/fork", { workspace: chat.space, uuid: entry.uuid }).then(function () {
+        toast("Forked. The new chat goes on from that response.");
+        chat.offset = 0;
+        chat.session = "";
+        chat.turns = "";
+        pollChat();
+        loadPoints();
+      }).catch(function (error) { toast(error.message); });
+    });
   }
   // ---- Pictures the session names: a file a tool read or wrote, or one a
   // message names (app_devchat.go, appDevImages), as thumbnails, as in
@@ -2814,8 +2877,7 @@
     var back = el("button", { type: "button", class: "msg-act msg-rewind", title: "Rewind to here", "aria-label": "Rewind to before this message", hidden: "",
       onclick: function () { openRewind(entry.uuid); } });
     back.innerHTML = ICON_REWIND;
-    var at = entry.at ? new Date(entry.at) : null;
-    var time = at && !isNaN(at) ? el("time", { class: "msg-time", datetime: entry.at, title: at.toLocaleString(), text: at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : null;
+    var time = msgTime(entry.at);
     var turn = el("div", { class: "msg-turn" }, [
       el("div", { class: "msg-user", "data-uuid": entry.uuid || "" }, [userText(entry.text)]),
       (entry.images || []).length ? imageStrip(entry.images) : null,
@@ -2941,9 +3003,11 @@
         if (view.hidden) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.hidden + " earlier steps do not show here. The terminal has the full session." }));
       }
       chat.session = view.session || "";
+      chat.sessionAgent = view.session_agent || "claude";
       chat.offset = view.offset || 0;
       chat.turns = view.turns || "";
       (view.entries || []).forEach(chatEntry);
+      if ((view.entries || []).length) markResponses();
       if (!view.session && !$("chat-entries").childNodes.length) $("chat-entries").appendChild(el("div", { class: "chat-note", text: view.note || "No session in this workspace yet. Start one from a task or in the terminal." }));
       chatState(view);
       renderQueue(view.queue || []);
@@ -3312,7 +3376,7 @@
     var box = $("chat-queue"), list = $("chat-queue-list");
     box.hidden = !queue.length;
     var send = $("chat-send"), queues = chatQueues();
-    send.title = queues ? "Queue it (Enter). hi sends it when the agent's turn ends." : "Send (Enter)";
+    send.title = queues ? "Queue it (Enter). hi sends it when the agent's turn ends. Ctrl+Enter steers: it goes now." : "Send (Enter)";
     send.setAttribute("aria-label", queues ? "Queue" : "Send");
     $("chat-queue-count").textContent = queue.length > 1 ? String(queue.length) : "";
     $("chat-queue-head").setAttribute("aria-expanded", String(chat.queueOpen));
@@ -3353,7 +3417,7 @@
     var agent = chat.agent || {};
     return !!agent.running && (agent.status === "working" || agent.status === "blocked" || chat.queue.length > 0);
   }
-  function chatSend() {
+  function chatSend(steer) {
     var input = $("chat-input"), space = chat.space;
     var shown = input.value.trim();
     var text = chatFiles.expand(input.value).trim();
@@ -3363,7 +3427,7 @@
     // their pictures with it.
     var used = usedPicks(input.value), pictures = pickPictures(used);
     if (used.length) text += pickNotes(used);
-    var queued = chatQueues();
+    var queued = !steer && chatQueues();
     chatFiles.read().then(function (files) {
       return api("POST", queued ? "chat/queue" : "chat/send", { workspace: space, text: text, shown: shown || "Attached files", files: files.concat(pictures) });
     }).then(function () {
@@ -3422,6 +3486,8 @@
   $("chat-input").addEventListener("input", saveDraft);
   $("chat-input").addEventListener("keydown", function (event) {
     // Enter sends and Shift+Enter is a new line; on a touch keyboard, Enter is a new line.
+    // Ctrl+Enter (⌘Enter) steers: now, into the turn that runs, not queued.
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.isComposing) { event.preventDefault(); chatSend(true); return; }
     if (event.key === "Enter" && !event.shiftKey && !event.isComposing && !narrow) { event.preventDefault(); chatSend(); }
   });
   $("chat-form").addEventListener("submit", function (event) { event.preventDefault(); chatSend(); });

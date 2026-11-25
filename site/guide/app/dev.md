@@ -467,6 +467,12 @@ dot.
   panel is beside the chat, the terminal, and the open files. Beside
   the terminal it follows the workspace you open in
   Workspaces ([below](#beside-the-chat)).
+  Under each response of the agent: **Copy** (the whole response),
+  **Fork**, ↑ to the start of the response, and the time. **Fork**
+  starts a new chat from that response: hi copies the conversation up
+  to the end of its turn into a new Claude Code session and resumes it
+  in the workspace. The chat before stays in the session menu.
+  **Ctrl+Enter** (⌘Enter) steers: the message goes now, not in the queue.
   **Pictures** the session names show as thumbnails, as in Orca: a
   picture the agent read or wrote (a screenshot it took), or one a
   message names (`shots/after.png`), from the dev box's home or clone. A
