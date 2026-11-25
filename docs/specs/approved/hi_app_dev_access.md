@@ -70,14 +70,14 @@ makes someone a developer.
 | Data: folders, snapshots, copies | | ✓ |
 | System: open incidents and jobs | ✓ | ✓ |
 | Act on incidents; the helper; job rules | | ✓ |
-| Security: the app's settings by name; the sites the box reaches | ✓ | ✓ |
+| Keys: your SSH key, the app's settings by name, the sites the box reaches | ✓ | ✓ |
 | Set a setting; keys and sign-ins; allow a site | | ✓ |
 | Addresses: public or internal | | ✓ |
-| People: who is a developer | | ✓ |
+| Users: who is a developer | | ✓ |
 
 ### Who is one
 
-- **Owners decide**, on the dev page's **People** table, or on the
+- **Owners decide**, on the dev page's **Users** table, or on the
   machine with `hi team access <team> <@user> developer|contributor|none`.
   Developers and contributors are Slack members, by member ID, in
   `team.json`:

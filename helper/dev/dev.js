@@ -664,7 +664,7 @@
     renderInboxNotify();
   }
   // inboxSite is a site asked for, answered from the bell; the rest of it
-  // opens the work's chat, or Security for work without a workspace.
+  // opens the work's chat, or Keys, Sites, for work without a workspace.
   function inboxSite(item) {
     var ask = item.site, space = item.space;
     return el("li", { class: "inbox-site" }, [
@@ -683,7 +683,7 @@
   function openSiteFromInbox(ask, space) {
     if (space) return openFromInbox(space);
     closeInbox();
-    revealSide("security");
+    revealKeys("sites");
   }
   // notifyInbox tells of what's new since the last look, through the
   // browser, unless you're on that workspace's chat already.
@@ -847,7 +847,7 @@
       ready.appendChild(el("p", { class: "small warn", text: blocked }));
       if (ssh.host && !state.ssh_key) ready.appendChild(el("button", { type: "button", class: "small", text: "Add my key", onclick: function () {
         $("editor-dialog").close();
-        revealSide("security");
+        revealKeys("ssh");
         $("sshkey").focus();
       } }));
     }
@@ -869,7 +869,7 @@
     generic.textContent = "";
     generic.appendChild(editorSteps("", editorSSHRows(path)));
     $("editor-host").textContent = host;
-    $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Security, Your SSH key (the .pub file, such as ~/.ssh/id_ed25519.pub).";
+    $("editor-key").textContent = state.ssh_key ? "Your SSH key is in the dev box: " + state.ssh_key + "." : "Your SSH key: paste your public key in Keys, SSH key (the .pub file, such as ~/.ssh/id_ed25519.pub).";
     $("editor-config").textContent = editorConfig();
     $("editor-config-copy").disabled = !ssh.host;
     var hostkey = $("editor-hostkey");
@@ -1465,7 +1465,7 @@
   }
 
   // The dev box's reach: an agent's ask for a site, as a card in the chat
-  // of the work that asked; in Security, what the owners allowed and what
+  // of the work that asked; in Keys, Sites, what the owners allowed and what
   // the box was refused lately.
   function siteAct(host, allow) {
     act("", "site", { host: host, allow: allow }, allow ? "The dev box reaches " + host + " now." : "Said no to " + host + ".");
@@ -1473,6 +1473,7 @@
   function renderSites() {
     var access = state.access || {};
     badge("security-count", (access.asks || []).length, (access.asks || []).length === 1 ? " site asked for" : " sites asked for");
+    badge("sites-count", (access.asks || []).length, (access.asks || []).length === 1 ? " site asked for" : " sites asked for");
     chatSites();
     renderKeys();
     var list = $("sites");
@@ -1544,9 +1545,9 @@
         el("button", { type: "button", class: "primary", text: "Allow", onclick: function () { decide(true); } }),
         el("button", { type: "button", text: "Say no", onclick: function () { decide(false); } }),
         el("span", { class: "grow" }),
-        el("span", { class: "muted small", text: "The site and its subdomains, from now on; Security lists them." }),
+        el("span", { class: "muted small", text: "The site and its subdomains, from now on; Keys, Sites, lists them." }),
       ]));
-      card.appendChild(el("p", { class: "developers-only muted small", text: "An owner allows sites for the dev box; they see this ask in Security, and the channel hears of it." }));
+      card.appendChild(el("p", { class: "developers-only muted small", text: "An owner allows sites for the dev box; they see this ask in Keys, Sites, and the channel hears of it." }));
       box.appendChild(card);
     });
     if (fresh) $("chat-log").scrollTop = $("chat-log").scrollHeight;
@@ -1873,6 +1874,8 @@
       document.body.classList.toggle("developer", developer());
       document.querySelectorAll(".owners-control").forEach(function (control) { control.disabled = developer(); });
       if (developer() && panes.right.view === "data") setSide("release", null);
+      if (developer() && panes[paneOf("people")].view === "people") setSide("security", null);
+      showKeys(keysPart);
       renderSSHKey();
       // agy, when the app has its sign-in (app_devagy.go).
       document.querySelectorAll(".agy-only").forEach(function (item) {
@@ -1901,7 +1904,7 @@
     if (location.hash === "#sites") {
       // The channel's link to an agent's ask for a site.
       history.replaceState(null, "", location.pathname + location.search);
-      revealSide("security");
+      revealKeys("sites");
       return;
     }
     var work = /^#work-(.+)$/.exec(location.hash);
@@ -1953,11 +1956,11 @@
   // the work, the preview, and publishing; what more, they choose
   // (Customize Vibe mode). Pro shows everything.
   var MODE_PARTS = [
-    { group: "Left panel", items: [["tasks", "Tasks"], ["spaces", "Workspaces"], ["files", "Files"], ["search", "Search"], ["checks", "Checks"], ["decisions", "Decisions"], ["security", "Security"]] },
+    { group: "Left panel", items: [["tasks", "Tasks"], ["spaces", "Workspaces"], ["files", "Files"], ["search", "Search"], ["checks", "Checks"], ["decisions", "Decisions"], ["people", "Users (owners)"], ["security", "Keys"]] },
     { group: "The middle", items: [["terminal", "Terminal"], ["editor", "Editor ↗"]] },
     { group: "Right panel", items: [["rewind", "Rewind"], ["git", "Source control"], ["logs", "Logs"], ["preview", "Preview"], ["release", "Publish"], ["data", "Data (owners)"], ["system", "System"]] },
   ];
-  var VIBE_HIDES = ["files", "search", "checks", "decisions", "security", "editor", "git", "logs", "data", "system"];
+  var VIBE_HIDES = ["files", "search", "checks", "decisions", "people", "security", "editor", "git", "logs", "data", "system"];
   var viewMode = { mode: "vibe", hides: VIBE_HIDES.slice() };
   try {
     var keptMode = JSON.parse(localStorage.getItem("hi-dev-mode") || "null");
@@ -1969,7 +1972,7 @@
   }
   // modeHides says Vibe mode hides a part now. peek is a view it hides
   // that something on the page opened on purpose (a site's ask opens
-  // Security): it shows until another view is picked in its panel.
+  // Keys): it shows until another view is picked in its panel.
   var peek = "";
   function modeHides(key) { return viewMode.mode === "vibe" && viewMode.hides.indexOf(key) >= 0 && key !== peek; }
   var MODE_ICONS = {
@@ -2080,7 +2083,7 @@
     openModeDialog();
   });
   var paneViews = {
-    left: ["tasks", "spaces", "files", "search", "checks", "decisions", "security"],
+    left: ["tasks", "spaces", "files", "search", "checks", "decisions", "people", "security"],
     right: ["rewind", "git", "logs", "preview", "release", "data", "system"],
   };
   var paneIds = {
@@ -2114,7 +2117,7 @@
     document.body.classList.toggle("layout-one", !!one);
     var everything = "The panel: tasks, workspaces, rewind, preview, publish, and the rest";
     $("side-toggle").title = one === "right" ? everything : "Rewind, source control, logs, preview, publish, data, and system";
-    $("left-toggle").title = one === "left" ? everything : "Tasks, workspaces, files, search, checks, decisions, and security";
+    $("left-toggle").title = one === "left" ? everything : "Tasks, workspaces, files, search, checks, decisions, users, and keys";
   }
   placeLayout();
   // setLayout switches it; the views open stay open, in their new panels.
@@ -3814,11 +3817,11 @@
     if (view === "rewind") { if (chat.view === "terminal") loadPoints(); else renderPoints(); }
   }
   // freshView fetches what a view shows only when it comes up: Decisions,
-  // Data, and the people in Security.
+  // Data, and Users.
   function freshView(view) {
     if (view === "decisions") refreshDecisions();
     if (view === "data") refreshData();
-    if (view === "security" && !developer()) refreshPeople();
+    if (view === "people" && !developer()) refreshPeople();
   }
   // setSide opens a view in its panel, or with view null, shows or hides
   // the panel which. On a narrow screen, opening one hides the other.
@@ -3842,6 +3845,26 @@
     if (paneOf(view) === "right" && !onePane() && !sideBeside()) setCodeView("chat");
     setSide(view, true);
   }
+  // Keys has its parts one at a time, picked with the chips above them:
+  // your SSH key, the app's settings, its keys and sign-ins (owners), and
+  // the sites the dev box reaches.
+  var keysPart = "ssh";
+  try { keysPart = localStorage.getItem("hi-dev-keys") || keysPart; } catch (e) { /* private window */ }
+  function showKeys(part) {
+    var chip = document.querySelector('#keys-show [data-keys="' + part + '"]');
+    if (!chip || getComputedStyle(chip).display === "none") part = "ssh";
+    keysPart = part;
+    try { localStorage.setItem("hi-dev-keys", part); } catch (e) { /* private window */ }
+    document.querySelectorAll("#keys-show [data-keys]").forEach(function (button) { button.setAttribute("aria-pressed", String(button.dataset.keys === part)); });
+    document.querySelectorAll("#side-security [data-keys-pane]").forEach(function (pane) { pane.hidden = pane.dataset.keysPane !== part; });
+  }
+  function revealKeys(part) {
+    showKeys(part);
+    revealSide("security");
+  }
+  document.querySelectorAll("#keys-show [data-keys]").forEach(function (button) {
+    button.addEventListener("click", function () { showKeys(button.dataset.keys); });
+  });
   document.querySelectorAll(".side-tabs button[data-side]").forEach(function (button) {
     button.addEventListener("click", function () { setSide(button.dataset.side, true); });
   });

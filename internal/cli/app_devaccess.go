@@ -655,7 +655,7 @@ func (b *appBroker) webSite(user, value string, allow bool) (string, error) {
 		}
 	}
 	if len(hosts) == 0 || len(fields)%2 != 0 {
-		return "", fmt.Errorf("the ask for %s was answered already, or isn't this one; the dev page's Security says where it stands", firstNonEmpty(first, value))
+		return "", fmt.Errorf("the ask for %s was answered already, or isn't this one; the dev page's Keys, Sites, says where it stands", firstNonEmpty(first, value))
 	}
 	config, err := loadTeam(b.team)
 	if err != nil {
@@ -980,7 +980,7 @@ func appDevParen(text string) string {
 }
 
 // appDevKeyStatus is one of the team's keys or sign-ins, for the dev
-// page's Security view: whose it is, and the command that changes it.
+// page's Keys view: whose it is, and the command that changes it.
 type appDevKeyStatus struct {
 	Name    string `json:"name"`
 	State   string `json:"state"`

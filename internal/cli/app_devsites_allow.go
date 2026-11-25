@@ -319,7 +319,7 @@ func (b *appBroker) webSiteCheck(user, value string, keep bool) (string, error) 
 	if key == "" || !slices.ContainsFunc(loadTeamDevAccess(b.team).Allowed, func(site appDevSite) bool {
 		return site.Host == host && site.Check != nil && site.Check.Key == key
 	}) {
-		return "", fmt.Errorf("%s was kept or undone already, or isn't this one; the dev page's Security says where it stands", host)
+		return "", fmt.Errorf("%s was kept or undone already, or isn't this one; the dev page's Keys, Sites, says where it stands", host)
 	}
 	config, err := loadTeam(b.team)
 	if err != nil {

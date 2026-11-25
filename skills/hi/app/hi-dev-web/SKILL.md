@@ -26,7 +26,7 @@ browser (an address of its own, `/__hi/dev/`):
 - **Chat** is this session, as a conversation; **Terminal** is the same
   session as a terminal. What they type there reaches you as typed.
 - A panel on each side. The left: **Tasks**, **Workspaces**, **Files**,
-  **Search**, **Checks**, **Decisions**, **Security**. The right:
+  **Search**, **Checks**, **Decisions**, **Users**, **Keys**. The right:
   **Rewind**, **Source control**, **Logs**, **Preview**, **Publish**,
   **Data**, **System**.
 - **Preview** shows the preview (Stage) or production *inside the page*,
