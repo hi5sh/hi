@@ -6989,6 +6989,14 @@ Approved spec: [hi_server_peer.md](specs/approved/hi_server_peer.md).
 - [x] The peers' status checks every half minute leave no podman
   `exec_died` event in the services' logs.
 
+### v2.6.259 — Changed files at the end of a response
+
+- [x] A response that changed files ends with a card, as in Orca: "N
+  changed files +A −R", and each file Added (a new file) or Edited, with
+  its folder and its lines. A click on one opens its changes (a line
+  diff of what the agent's Edit, Write, and MultiEdit calls took out and
+  put in); Copy copies them. A call that failed doesn't count.
+
 ### v2.6.258 — An eye on key fields
 
 - [x] Every field that hides what's typed, on the dev page and the admin
